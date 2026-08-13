@@ -1,0 +1,21 @@
+{
+  "name": "lifeweb",
+  "private": true,
+  "workspaces": [
+    "bot",
+    "web",
+    "db"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=web",
+    "dev:bot": "npm run dev --workspace=bot",
+    "db:generate": "npm run generate --workspace=db",
+    "db:migrate": "npm run migrate --workspace=db"
+  },
+  "allowScripts": {
+    "@prisma/client@6.19.3": true,
+    "@prisma/engines@6.19.3": true,
+    "prisma@6.19.3": true,
+    "unrs-resolver@1.12.2": true
+  }
+}
