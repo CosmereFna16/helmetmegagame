@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CharacterIcon, PlayersIcon, TurnsIcon, AuditIcon, FactionIcon, SignOutIcon } from "./icons";
+import { CharacterIcon, PlayersIcon, TurnsIcon, AuditIcon, FactionIcon, DevIcon, SignOutIcon } from "./icons";
 import { signOutOfDiscord } from "../actions";
 
 const ICONS = {
@@ -11,6 +11,7 @@ const ICONS = {
   turns: TurnsIcon,
   audit: AuditIcon,
   faction: FactionIcon,
+  dev: DevIcon,
 };
 
 export default function NavRail({ items }) {
