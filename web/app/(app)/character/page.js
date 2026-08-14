@@ -20,12 +20,15 @@ export default async function CharacterPage() {
 
   if (!character) redirect("/character/new");
 
-  const openTurn = await getOpenTurn();
-  const currentAction = openTurn
-    ? await prisma.action.findFirst({
-        where: { characterId: character.id, turnId: openTurn.id },
-      })
-    : null;
+  const [openTurn, otherCharacters, factions] = await Promise.all([
+    getOpenTurn(),
+    prisma.character.findMany({
+      where: { status: "ALIVE", id: { not: character.id } },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.faction.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+  ]);
 
   const avatarSrc = character.avatarMimeType
     ? `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`
@@ -35,9 +38,9 @@ export default async function CharacterPage() {
     <CharacterSheet
       character={character}
       mode="self"
-      currentAction={currentAction}
       openTurn={openTurn}
       avatarSrc={avatarSrc}
+      transferTargets={{ characters: otherCharacters, factions }}
     />
   );
 }

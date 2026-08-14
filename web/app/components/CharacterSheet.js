@@ -1,4 +1,4 @@
-import { updateCharacterProfile, submitAction, setMood, transferResources } from "../(app)/character/actions";
+import { updateCharacterProfile, setMood, transferResources } from "../(app)/character/actions";
 import AppearanceField from "./AppearanceField";
 
 function groupTagsByCategory(characterTags) {
@@ -36,9 +36,26 @@ function ActionStatus({ currentAction, openTurn }) {
   );
 }
 
-export default function CharacterSheet({ character, mode, currentAction, openTurn, avatarSrc }) {
+function moodColor(moodState) {
+  if (moodState === "HAPPY") return "var(--mood-happy)";
+  if (moodState === "UNHAPPY") return "var(--accent)";
+  return "var(--text)";
+}
+
+export default function CharacterSheet({
+  character,
+  mode,
+  currentAction,
+  openTurn,
+  avatarSrc,
+  transferTargets,
+}) {
   const isSelf = mode === "self";
   const tagGroups = groupTagsByCategory(character.tags);
+  const turnsLeft =
+    character.moodState !== "NEUTRAL" && openTurn && character.moodExpiresTurn != null
+      ? character.moodExpiresTurn - openTurn.number
+      : null;
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6 sm:p-8">
@@ -51,7 +68,13 @@ export default function CharacterSheet({ character, mode, currentAction, openTur
             className="h-16 w-16 object-cover"
             style={{ borderRadius: "var(--radius)", border: "1px solid var(--border)" }}
           />
-        ) : null}
+        ) : (
+          <div
+            aria-hidden="true"
+            className="h-16 w-16"
+            style={{ background: "#9a9a9a", borderRadius: "var(--radius)", border: "1px solid var(--border)" }}
+          />
+        )}
         <div>
           <h1 className="text-2xl font-bold">{character.name}</h1>
           <p className="text-sm" style={{ color: "var(--muted)" }}>
@@ -91,19 +114,30 @@ export default function CharacterSheet({ character, mode, currentAction, openTur
         <h2 className="mb-3 font-bold">Status</h2>
         <ul className="flex flex-col gap-1 text-sm">
           <li>Zone: {character.zone?.name ?? "Unassigned"}</li>
-          <li>Resources: {character.resources}</li>
-          <li>
+          <li>Resources ⬢: {character.resources}</li>
+          <li style={{ color: moodColor(character.moodState) }}>
             Mood: {character.moodState}
             {character.moodNote ? ` — "${character.moodNote}"` : ""}
+            {turnsLeft != null ? ` (${turnsLeft} turn${turnsLeft === 1 ? "" : "s"} left)` : ""}
           </li>
-          <li>Hungry: {character.isHungry ? "Yes" : "No"}</li>
+          <li style={{ color: character.isHungry ? "var(--accent)" : "var(--text)" }}>
+            Hungry: {character.isHungry ? "Yes" : "No"}
+          </li>
           <li>Tag Points: {character.tagPoints}</li>
         </ul>
 
         {isSelf && (
           <form action={setMood} className="mt-4 flex flex-wrap items-end gap-3">
             <label className="field">
-              <span className="field-label">Set mood</span>
+              <span className="field-label">
+                Set mood
+                {turnsLeft != null ? (
+                  <span style={{ color: moodColor(character.moodState) }}>
+                    {" "}
+                    ({turnsLeft} turn{turnsLeft === 1 ? "" : "s"} left)
+                  </span>
+                ) : null}
+              </span>
               <select name="moodState" defaultValue={character.moodState}>
                 <option value="NEUTRAL">Neutral</option>
                 <option value="HAPPY">Happy</option>
@@ -123,8 +157,30 @@ export default function CharacterSheet({ character, mode, currentAction, openTur
         {isSelf && (
           <form action={transferResources} className="mt-4 flex flex-wrap items-end gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
             <label className="field">
-              <span className="field-label">Send resources to</span>
-              <input name="targetName" placeholder="Character name" required />
+              <span className="field-label">Send resources ⬢ to</span>
+              <select name="target" required defaultValue="">
+                <option value="" disabled>
+                  Choose a recipient...
+                </option>
+                {transferTargets?.characters?.length ? (
+                  <optgroup label="Players">
+                    {transferTargets.characters.map((c) => (
+                      <option key={c.id} value={`character:${c.id}`}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
+                {transferTargets?.factions?.length ? (
+                  <optgroup label="Factions (adds to Silo)">
+                    {transferTargets.factions.map((f) => (
+                      <option key={f.id} value={`faction:${f.id}`}>
+                        {f.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
+              </select>
             </label>
             <label className="field" style={{ width: "6rem" }}>
               <span className="field-label">Amount</span>
@@ -136,39 +192,6 @@ export default function CharacterSheet({ character, mode, currentAction, openTur
           </form>
         )}
       </section>
-
-      {isSelf && (
-        <section className="panel p-4">
-          <h2 className="mb-3 font-bold">Act</h2>
-          {!openTurn ? (
-            <p className="text-sm" style={{ color: "var(--muted)" }}>No turn is currently open.</p>
-          ) : currentAction ? (
-            <ActionStatus currentAction={currentAction} openTurn={openTurn} />
-          ) : (
-            <form action={submitAction} className="flex flex-col gap-3">
-              <label className="flex items-center gap-4 text-sm">
-                <span className="flex items-center gap-1">
-                  <input type="radio" name="type" value="EFFORT" defaultChecked /> Effort
-                </span>
-                <span className="flex items-center gap-1">
-                  <input type="radio" name="type" value="MOVE" /> Move
-                </span>
-              </label>
-              <textarea
-                name="description"
-                placeholder="Describe your intent this turn..."
-                required
-                rows={3}
-                className="field"
-                style={{ background: "var(--field-bg)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 10px", color: "var(--text)", fontFamily: "inherit" }}
-              />
-              <button type="submit" className="btn self-start">
-                Submit
-              </button>
-            </form>
-          )}
-        </section>
-      )}
 
       {!isSelf && currentAction && (
         <section className="panel p-4">

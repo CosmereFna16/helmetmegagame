@@ -16,7 +16,10 @@ export async function createCharacter(formData) {
   });
   if (existing) redirect("/character");
 
-  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+  const [config, unaffiliated] = await Promise.all([
+    prisma.gameConfig.findUnique({ where: { id: 1 } }),
+    prisma.faction.findFirst({ where: { name: "Unaffiliated" } }),
+  ]);
 
   await prisma.character.create({
     data: {
@@ -24,6 +27,7 @@ export async function createCharacter(formData) {
       name,
       roleTitle: formData.get("roleTitle")?.toString().trim() || null,
       tagPoints: config?.startingTagPoints ?? 0,
+      factionId: unaffiliated?.id ?? null,
     },
   });
 

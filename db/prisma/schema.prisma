@@ -69,6 +69,7 @@ model Faction {
   id            String  @id @default(cuid())
   name          String
   discordRoleId String  @unique
+  silo          Int     @default(0)
 
   characters Character[]
 

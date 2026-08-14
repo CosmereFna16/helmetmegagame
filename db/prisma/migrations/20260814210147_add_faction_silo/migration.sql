@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Faction" ADD COLUMN     "silo" INTEGER NOT NULL DEFAULT 0;

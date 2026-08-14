@@ -5,7 +5,6 @@ import sharp from "sharp";
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
-import { sendDm } from "@/lib/discordGuild";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
@@ -41,64 +40,6 @@ export async function updateCharacterProfile(formData) {
   }
 
   await prisma.character.update({ where: { id: character.id }, data });
-  revalidatePath("/character");
-}
-
-export async function submitAction(formData) {
-  const session = await auth();
-  if (!session?.discordUserId) redirect("/");
-
-  const character = await prisma.character.findFirst({
-    where: { discordUserId: session.discordUserId, status: "ALIVE" },
-  });
-  if (!character) redirect("/character/new");
-
-  const type = formData.get("type")?.toString();
-  const description = formData.get("description")?.toString().trim();
-  if (type !== "EFFORT" && type !== "MOVE") return;
-  if (!description) return;
-
-  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
-  if (!openTurn) return;
-
-  const existing = await prisma.action.findFirst({
-    where: { characterId: character.id, turnId: openTurn.id },
-  });
-  if (existing) return;
-
-  const action = await prisma.action.create({
-    data: {
-      characterId: character.id,
-      turnId: openTurn.id,
-      type,
-      description,
-      zoneId: character.zoneId,
-      status: "PENDING",
-    },
-  });
-
-  const kind = type === "MOVE" ? "Move" : "Effort";
-  const dm = await sendDm(
-    character.discordUserId,
-    `**${kind} submitted:** ${description}\n\nReact with ✅ on this message to confirm and lock it in.`,
-  ).catch(() => null);
-
-  if (dm) {
-    await prisma.action.update({
-      where: { id: action.id },
-      data: { confirmDmMessageId: dm.id },
-    });
-  }
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "action_submitted",
-      targetCharacterId: character.id,
-      details: { actionId: action.id, type, dmSent: !!dm },
-    },
-  });
-
   revalidatePath("/character");
 }
 
@@ -150,35 +91,64 @@ export async function transferResources(formData) {
   });
   if (!character) redirect("/character/new");
 
-  const targetName = formData.get("targetName")?.toString().trim();
+  const target = formData.get("target")?.toString() ?? "";
+  const [targetType, targetId] = target.split(":");
   const amount = Number.parseInt(formData.get("amount")?.toString() ?? "", 10);
-  if (!targetName || !Number.isFinite(amount) || amount <= 0) return;
+  if (!targetType || !targetId || !Number.isFinite(amount) || amount <= 0) return;
   if (amount > character.resources) return;
 
-  const target = await prisma.character.findFirst({
-    where: { name: targetName, status: "ALIVE" },
-  });
-  if (!target || target.id === character.id) return;
+  if (targetType === "character") {
+    if (targetId === character.id) return;
+    const targetCharacter = await prisma.character.findFirst({
+      where: { id: targetId, status: "ALIVE" },
+    });
+    if (!targetCharacter) return;
 
-  await prisma.$transaction([
-    prisma.character.update({
-      where: { id: character.id },
-      data: { resources: { decrement: amount } },
-    }),
-    prisma.character.update({
-      where: { id: target.id },
-      data: { resources: { increment: amount } },
-    }),
-  ]);
+    await prisma.$transaction([
+      prisma.character.update({
+        where: { id: character.id },
+        data: { resources: { decrement: amount } },
+      }),
+      prisma.character.update({
+        where: { id: targetCharacter.id },
+        data: { resources: { increment: amount } },
+      }),
+    ]);
 
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "resource_transfer",
-      targetCharacterId: target.id,
-      details: { fromCharacterId: character.id, toCharacterId: target.id, amount },
-    },
-  });
+    await prisma.auditLog.create({
+      data: {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "resource_transfer",
+        targetCharacterId: targetCharacter.id,
+        details: { fromCharacterId: character.id, toCharacterId: targetCharacter.id, amount },
+      },
+    });
+  } else if (targetType === "faction") {
+    const faction = await prisma.faction.findUnique({ where: { id: targetId } });
+    if (!faction) return;
+
+    await prisma.$transaction([
+      prisma.character.update({
+        where: { id: character.id },
+        data: { resources: { decrement: amount } },
+      }),
+      prisma.faction.update({
+        where: { id: faction.id },
+        data: { silo: { increment: amount } },
+      }),
+    ]);
+
+    await prisma.auditLog.create({
+      data: {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "resource_transfer_to_faction_silo",
+        details: { fromCharacterId: character.id, factionId: faction.id, amount },
+      },
+    });
+  } else {
+    return;
+  }
 
   revalidatePath("/character");
+  revalidatePath("/faction");
 }

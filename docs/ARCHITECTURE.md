@@ -83,6 +83,11 @@ Already exists (`web/app/character/page.js`), needs restyling and two additions:
 - Sortable/filterable table over `AuditLog` — filter by `actionType`, actor, target character, date range.
 - Current implementation is a hardcoded `take: 50` with no filters or pagination — needs both once this becomes its own view.
 
+### Faction (`/faction`, new — both players and GMs)
+
+- Players: fixed to their own character's faction — member list with name + fate (`Character.status`), the leader's name, the faction's Silo, and their own Resources.
+- GMs: no `factionId` in the URL shows an all-factions overview (member count, leader, Silo, link into each) plus a create-faction form; picking one adds management controls to the same detail view players see — a faction switcher, set-leader per member, add an existing character, remove a member (moves them to Unaffiliated, which never has a leader by design).
+
 ## 5. Turn & Action Lifecycle (built, confirmed working)
 
 This is already implemented end-to-end — restyling and the new GM views sit on top of it, nothing here needs re-architecting:
@@ -117,7 +122,11 @@ Schema already carries the fields (`Character.resources`, `isHungry`, `moodState
 3. Decrement `moodExpiresTurn` tracking; when it lapses, reset `moodState` to `NEUTRAL`.
 4. Hunger and mood penalties/bonuses apply as modifiers wherever dice are rolled (currently `rollDie()` in `messageReactionAdd.js` — that function doesn't take modifiers today; it will need to read the character's `isHungry`/`moodState` and adjust, or report the roll and modifier separately for the GM to combine).
 
-Happy/Unhappy is explicitly player-judgment per the brief ("it's up to you to determine whether your character is happy... don't abuse it") — not automatic. **Decision: self-report, with a GM override as the anti-abuse valve.** Character view gets a small mood selector (Neutral/Happy/Unhappy) the player sets themselves, plus an optional short note for GM visibility; the Players view (§4) gives GMs a way to force-reset a character's mood if it's being gamed. `moodExpiresTurn` gets (re)set whenever the mood changes, per `GameConfig.moodDurationTurns`.
+Happy/Unhappy is explicitly player-judgment per the brief ("it's up to you to determine whether your character is happy... don't abuse it") — not automatic. **Decision: self-report, with a GM override as the anti-abuse valve.** Character view gets a small mood selector (Neutral/Happy/Unhappy) the player sets themselves, plus an optional short note for GM visibility; the Players view (§4) gives GMs a way to force-reset a character's mood if it's being gamed. `moodExpiresTurn` gets (re)set whenever the mood changes, per `GameConfig.moodDurationTurns` (currently 2 turns).
+
+**Convention: `⬢` is the canonical Resources glyph.** It's placed right after the word "Resources" (or "Silo", see below) wherever a count is shown in the dashboard — status lists, table headers, transfer forms. Keep using it on any new Resources/Silo display rather than introducing a different icon.
+
+**Factions have their own resource pool, the Silo**, separate from a character's personal `resources`. Sending resources to a Faction (via the transfer dropdown on the Character view, which lists both players and factions as recipients) adds the full amount to `Faction.silo` rather than splitting it among members. The Faction view (`/faction`) shows a player their own faction's Silo total alongside their personal Resources.
 
 ## 7. Visual Design System
 

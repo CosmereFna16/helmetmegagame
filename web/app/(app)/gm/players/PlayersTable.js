@@ -101,7 +101,7 @@ export default function PlayersTable({ characters }) {
               <th>Faction</th>
               <th>Zone</th>
               <th>Status</th>
-              <th>Resources</th>
+              <th>Resources ⬢</th>
             </tr>
           </thead>
           <tbody>
