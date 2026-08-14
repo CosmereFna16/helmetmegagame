@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "generate": "prisma generate",
-    "migrate": "prisma migrate dev"
+    "migrate": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0"

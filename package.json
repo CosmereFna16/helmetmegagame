@@ -10,7 +10,8 @@
     "dev:web": "npm run dev --workspace=web",
     "dev:bot": "npm run dev --workspace=bot",
     "db:generate": "npm run generate --workspace=db",
-    "db:migrate": "npm run migrate --workspace=db"
+    "db:migrate": "npm run migrate --workspace=db",
+    "db:migrate:deploy": "npm run migrate:deploy --workspace=db"
   },
   "allowScripts": {
     "@prisma/client@6.19.3": true,
