@@ -14,13 +14,19 @@ It's half-strategy, half-roleplay, meant to run smoothly at large scale (100+ pl
 
 Above all else, the priority is **functionality, usability, cleanliness, responsiveness, and browser performance**. The explicit reference point to avoid is the typical slow, laggy Discord bot dashboard — this needs to feel fast and scroll smoothly.
 
+## Web Design
+Inspired by Caves of Qud: CRT Terminal vibe. Some sort of Monospace font. Slight warp to the whole screen, barely noticeable. Barely visible, very translucent CRT bars. Underlined options when you select them. The color should match the time:
+- at Dawn it goes from orange to light yellow to orange; the foreground is dark brass, also on a time based gradient; with terracotta accents / borders. Cream colored text
+- At Dusk it goes from a Caves of Qud green to a dark grey green. The foreground is a darker, almost black, moss. Terracotta accents  / borders. Cream colored text.
+
+
 ## Repository layout
 
 This is an npm-workspaces monorepo with three packages:
 
 - `bot/` — the Discord bot (discord.js v14). Entry point `bot/src/index.js`.
 - `web/` — the web app (Next.js 16, App Router, JavaScript, Tailwind v4). Standard Next.js structure rooted at `web/app`.
-- `db/` — shared data layer (`@lifeweb/db`). Prisma schema at `db/prisma/schema.prisma`, targeting PostgreSQL. Exports a singleton `PrismaClient` from `db/index.js` (`const { prisma } = require("@lifeweb/db")`) so the bot and web app read/write the same game state without duplicating connection logic. The schema currently has no models yet — add them here as game mechanics (players, factions, tags, resources, etc.) are designed.
+- `db/` — shared data layer (`@lifeweb/db`). Prisma schema at `db/prisma/schema.prisma`, targeting PostgreSQL. Exports a singleton `PrismaClient` from `db/index.js` (`const { prisma } = require("@lifeweb/db")`) so the bot and web app read/write the same game state without duplicating connection logic. Models: `GameConfig`, `Faction`, `Zone`, `Character`, `Tag`/`CharacterTag`, `Desire`, `Turn`, `Action` (unifies Effort/Move), `DefaultEffort`, `AuditLog`.
 
 Both `bot` and `web` are meant to depend on `@lifeweb/db` via the workspace once they need database access — add it with `npm install @lifeweb/db --workspace=<bot|web>` rather than duplicating a Prisma client per package.
 
@@ -43,10 +49,26 @@ npm run build --workspace=web        # production build of the web app
 npm run lint --workspace=web         # eslint over the web app
 ```
 
-Environment variables (see `.env.example`): `DATABASE_URL` (Postgres connection string) and `DISCORD_TOKEN` (bot token). Neither package has test infrastructure set up yet.
+Environment variables (see `.env.example`): `DATABASE_URL`, `DISCORD_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_GM_ROLE_ID`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `AUTH_SECRET`. Neither package has test infrastructure set up yet.
+
+## How the bot populates the database
+
+On `ready` and on `guildCreate` (bot invited to a new server), the bot upserts a `GameConfig` singleton row and syncs every non-managed Discord role in the guild into a `Faction` row (`bot/src/lib/factionSync.js`), keeping it live via `guildRoleCreate`/`guildRoleUpdate`/`guildRoleDelete`. This means plugging the bot into a server immediately populates Factions with no manual setup. `guildMemberAdd` writes a `member_joined` `AuditLog` entry. The `GuildMembers` intent is privileged — it must be enabled for the bot application in the Discord Developer Portal (Bot -> Privileged Gateway Intents -> Server Members Intent) or the bot will fail to log in.
+
+## Web app auth
+
+The web app uses Auth.js (`next-auth@5`, `web/lib/auth.js`) with the Discord provider for login — `session.discordUserId` is the Discord user ID, attached via the `jwt`/`session` callbacks. `Character` rows are looked up by `discordUserId`, not by a separate user table. GM-only pages (`web/app/gm`) check the signed-in user's guild roles via `web/lib/discordGuild.js`, which calls the Discord REST API with the bot token (`DISCORD_TOKEN`) against `DISCORD_GUILD_ID`/`DISCORD_GM_ROLE_ID`, rather than trusting anything from the OAuth profile itself.
+
+## Character proxying ("tupper" messages)
+
+Players edit their character's name, profile picture, and appearance/bio on `/character`. Profile pictures are stored as bytes on `Character.avatarData`/`avatarMimeType` (resized/compressed with `sharp` on upload) rather than in a third-party bucket, and served back out by the web app itself at `/api/avatar/<characterId>` — the bot builds this into a full URL via `WEB_BASE_URL` when it needs an `avatarURL` for a webhook.
+
+GMs manage which channel/forum IDs are "tupper channels" from the `/gm` dashboard (`GameConfig.tupperChannelIds`, `web/app/gm/actions.js`). Inside those channels, `bot/src/events/messageCreate.js` auto-proxies every message from a user with an `ALIVE` character: it reposts the message via a per-channel webhook (`bot/src/lib/proxy.js`) using the character's name/avatar, then deletes the original — no bracket/trigger syntax needed, since each player only has one living character at a time. `bot/src/events/messageReactionAdd.js` handles ❌ (delete), ✏️ (DM-based edit), and ❓ (DMs the character's bio) on proxied messages, tracked in an in-memory map (fine at this scale — single bot process, no sharding).
+
+This requires the `MESSAGE_CONTENT` privileged intent enabled for the bot application (Discord Developer Portal -> Bot -> Privileged Gateway Intents), in addition to the `GuildMembers` intent already noted above.
 
 ## Notes for future work
 
 - `web/CLAUDE.md` / `web/AGENTS.md` are generated and maintained by the Next.js tooling itself (regenerated by `next dev`) — they carry version-specific Next.js guidance and are separate from this file.
 - The bot has no ESLint config yet; the web app's linting is scoped to `web/` only.
-- No models exist in the Prisma schema yet and no command/interaction structure exists in the bot yet — both are intentionally blank until game mechanics (factions, roles, Tags, the Leader/follow system, etc.) are settled.
+- No slash commands exist in the bot yet (`/effort`, `/move`, `/resource`, `/zone`, `/tag`, etc.) — only the passive guild/role sync, audit logging, and character-proxying described above. The web app has a character-creation/bio form and read-only character/GM views; there's no point-buy flow, turn resolution, or zone-channel-visibility logic yet.
