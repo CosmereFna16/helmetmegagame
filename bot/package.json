@@ -8,6 +8,7 @@
     "dev": "node --watch src/index.js"
   },
   "dependencies": {
+    "@lifeweb/db": "^0.0.0",
     "discord.js": "^14.16.0",
     "dotenv": "^16.4.5"
   }

@@ -6,3 +6,211 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum CharacterStatus {
+  ALIVE
+  DEAD
+  CURSED
+}
+
+enum MoodState {
+  NEUTRAL
+  HAPPY
+  UNHAPPY
+}
+
+enum ActionType {
+  EFFORT
+  MOVE
+}
+
+enum ActionStatus {
+  PENDING
+  CONFIRMED
+  ADJUDICATED
+}
+
+enum DesireStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
+enum TurnPhase {
+  DAWN
+  DUSK
+}
+
+enum TurnStatus {
+  OPEN
+  RESOLVED
+}
+
+enum TagSource {
+  POINT_BUY
+  DESIRE_REWARD
+  GM_GRANT
+  EVENT
+}
+
+model GameConfig {
+  id                        Int @id @default(1)
+  startingTagPoints         Int @default(0)
+  resourceConsumptionPerTurn Int @default(1)
+  moodDurationTurns         Int @default(2)
+  hungerMovePenalty         Int @default(-1)
+  moodMovePenalty           Int @default(-1)
+  moodMoveBonus             Int @default(1)
+  tupperChannelIds          String[] @default([])
+  summaryChannelId          String?
+}
+
+model Faction {
+  id            String  @id @default(cuid())
+  name          String
+  discordRoleId String  @unique
+
+  characters Character[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Zone {
+  id                String   @id @default(cuid())
+  name              String
+  discordChannelIds String[]
+
+  characters     Character[]
+  actions        Action[]
+  defaultEfforts DefaultEffort[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Character {
+  id             String          @id @default(cuid())
+  discordUserId  String
+  name           String
+  roleTitle      String?
+  factionId      String?
+  faction        Faction?        @relation(fields: [factionId], references: [id])
+  zoneId         String?
+  zone           Zone?           @relation(fields: [zoneId], references: [id])
+  isLeader       Boolean         @default(false)
+  status         CharacterStatus @default(ALIVE)
+  resources      Int             @default(0)
+  tagPoints      Int             @default(0)
+  moodState      MoodState       @default(NEUTRAL)
+  moodExpiresTurn Int?
+  isHungry       Boolean         @default(false)
+  avatarData     Bytes?
+  avatarMimeType String?
+  appearance     String?
+
+  tags           CharacterTag[]
+  desires        Desire[]
+  actions        Action[]
+  defaultEffort  DefaultEffort?
+  setDefaultsFor DefaultEffort[] @relation("DefaultEffortSetBy")
+  auditLogTargets AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([discordUserId])
+}
+
+model Tag {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  pointCost   Int      @default(0)
+
+  characters CharacterTag[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CharacterTag {
+  id          String    @id @default(cuid())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id])
+  tagId       String
+  tag         Tag       @relation(fields: [tagId], references: [id])
+  source      TagSource
+  acquiredAt  DateTime  @default(now())
+
+  @@unique([characterId, tagId])
+}
+
+model Desire {
+  id          String       @id @default(cuid())
+  characterId String
+  character   Character    @relation(fields: [characterId], references: [id])
+  description String
+  status      DesireStatus @default(ACTIVE)
+  createdAt   DateTime     @default(now())
+  completedAt DateTime?
+}
+
+model Turn {
+  id          String     @id @default(cuid())
+  number      Int        @unique
+  phase       TurnPhase
+  gameDate    DateTime
+  status      TurnStatus @default(OPEN)
+  startedAt   DateTime   @default(now())
+  resolvedAt  DateTime?
+
+  actions Action[]
+}
+
+model Action {
+  id             String       @id @default(cuid())
+  characterId    String
+  character      Character    @relation(fields: [characterId], references: [id])
+  turnId         String
+  turn           Turn         @relation(fields: [turnId], references: [id])
+  type           ActionType
+  description    String
+  zoneId         String?
+  zone           Zone?        @relation(fields: [zoneId], references: [id])
+  resourceDelta  Int?
+  diceRoll       Int?
+  isPublic       Boolean      @default(true)
+  status         ActionStatus @default(PENDING)
+  gmNotes        String?
+  forumThreadId  String?
+  confirmDmMessageId String? @unique
+  confirmedAt    DateTime?
+  createdAt      DateTime     @default(now())
+}
+
+model DefaultEffort {
+  id               String    @id @default(cuid())
+  characterId      String    @unique
+  character        Character @relation(fields: [characterId], references: [id])
+  description      String
+  zoneId           String
+  zone             Zone      @relation(fields: [zoneId], references: [id])
+  resourceDelta    Int?
+  setByCharacterId String?
+  setByCharacter   Character? @relation("DefaultEffortSetBy", fields: [setByCharacterId], references: [id])
+  updatedAt        DateTime  @updatedAt
+}
+
+model AuditLog {
+  id                 String    @id @default(cuid())
+  actorDiscordUserId String
+  actionType         String
+  targetCharacterId  String?
+  targetCharacter    Character? @relation(fields: [targetCharacterId], references: [id])
+  details            Json?
+  createdAt          DateTime  @default(now())
+
+  @@index([actionType])
+  @@index([actorDiscordUserId])
+}
