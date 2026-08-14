@@ -1,4 +1,5 @@
 import { updateCharacterProfile, submitAction, setMood, transferResources } from "../(app)/character/actions";
+import AppearanceField from "./AppearanceField";
 
 function groupTagsByCategory(characterTags) {
   const groups = new Map();
@@ -71,15 +72,7 @@ export default function CharacterSheet({ character, mode, currentAction, openTur
               <span className="field-label">Profile picture</span>
               <input type="file" name="avatar" accept="image/*" />
             </label>
-            <label className="field">
-              <span className="field-label">Appearance / description</span>
-              <textarea
-                name="appearance"
-                defaultValue={character.appearance ?? ""}
-                placeholder="What does your character look like?"
-                rows={4}
-              />
-            </label>
+            <AppearanceField defaultValue={character.appearance ?? ""} />
             <button type="submit" className="btn self-start">
               Save
             </button>

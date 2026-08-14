@@ -20,6 +20,25 @@ export async function getGuildMember(discordUserId) {
   }
 }
 
+export async function listGuildMembers() {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  const token = process.env.DISCORD_TOKEN;
+  if (!guildId || !token) return [];
+
+  try {
+    const res = await fetch(
+      `${DISCORD_API}/guilds/${guildId}/members?limit=1000`,
+      { headers: { Authorization: `Bot ${token}` }, cache: "no-store" },
+    );
+
+    if (!res.ok) return [];
+    const members = await res.json();
+    return members.map((m) => ({ id: m.user.id, username: m.user.username }));
+  } catch {
+    return [];
+  }
+}
+
 export function isGm(member) {
   const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
   if (!member || !gmRoleId) return false;

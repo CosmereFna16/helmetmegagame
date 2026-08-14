@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CharacterIcon, PlayersIcon, TurnsIcon, AuditIcon } from "./icons";
+import { CharacterIcon, PlayersIcon, TurnsIcon, AuditIcon, SignOutIcon } from "./icons";
+import { signOutOfDiscord } from "../actions";
 
 const ICONS = {
   character: CharacterIcon,
@@ -31,6 +32,12 @@ export default function NavRail({ items }) {
           </Link>
         );
       })}
+      <form action={signOutOfDiscord} className="rail-signout">
+        <button type="submit" className="rail-item" style={{ width: "100%" }}>
+          <SignOutIcon aria-hidden="true" />
+          <span>Sign out</span>
+        </button>
+      </form>
     </nav>
   );
 }

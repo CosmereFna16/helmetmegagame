@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { sendDm } from "@/lib/discordGuild";
+import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const AVATAR_SIZE = 256;
@@ -20,7 +21,8 @@ export async function updateCharacterProfile(formData) {
   if (!character) redirect("/character/new");
 
   const name = formData.get("name")?.toString().trim();
-  const appearance = formData.get("appearance")?.toString().trim() || null;
+  const appearance =
+    formData.get("appearance")?.toString().trim().slice(0, APPEARANCE_MAX_LENGTH) || null;
   const avatar = formData.get("avatar");
 
   const data = { appearance };

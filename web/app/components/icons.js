@@ -35,3 +35,12 @@ export function AuditIcon(props) {
     </svg>
   );
 }
+
+export function SignOutIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M15 4h2.5A1.5 1.5 0 0 1 19 5.5v13a1.5 1.5 0 0 1-1.5 1.5H15" strokeLinecap="round" />
+      <path d="M11 8l-4 4 4 4M4.5 12H15" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}

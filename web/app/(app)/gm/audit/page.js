@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
-import { getGuildMember, isGm } from "@/lib/discordGuild";
+import { getGuildMember, isGm, listGuildMembers } from "@/lib/discordGuild";
 
 const PAGE_SIZE = 50;
 
@@ -33,7 +33,7 @@ export default async function AuditLogPage({ searchParams }) {
       : {}),
   };
 
-  const [entries, total] = await Promise.all([
+  const [entries, total, guildMembers] = await Promise.all([
     prisma.auditLog.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -42,8 +42,21 @@ export default async function AuditLogPage({ searchParams }) {
       include: { targetCharacter: { select: { name: true } } },
     }),
     prisma.auditLog.count({ where }),
+    listGuildMembers(),
   ]);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const usernameById = new Map(guildMembers.map((m) => [m.id, m.username]));
+  const actorIds = [...new Set(entries.map((e) => e.actorDiscordUserId))];
+  const actorCharacters = await prisma.character.findMany({
+    where: { discordUserId: { in: actorIds } },
+    select: { discordUserId: true, name: true, status: true },
+  });
+  const characterNameById = new Map();
+  for (const c of actorCharacters) {
+    const existing = characterNameById.get(c.discordUserId);
+    if (!existing || c.status === "ALIVE") characterNameById.set(c.discordUserId, c.name);
+  }
 
   function pageHref(newPage) {
     const next = new URLSearchParams({ actionType, actor, target, from, to, page: String(newPage) });
@@ -89,7 +102,7 @@ export default async function AuditLogPage({ searchParams }) {
             <tr>
               <th>Time</th>
               <th>Action</th>
-              <th>Actor</th>
+              <th>Player</th>
               <th>Target</th>
               <th>Details</th>
             </tr>
@@ -99,7 +112,14 @@ export default async function AuditLogPage({ searchParams }) {
               <tr key={entry.id}>
                 <td className="whitespace-nowrap">{entry.createdAt.toISOString()}</td>
                 <td>{entry.actionType}</td>
-                <td className="whitespace-nowrap">{entry.actorDiscordUserId}</td>
+                <td className="whitespace-nowrap">
+                  {usernameById.get(entry.actorDiscordUserId) ?? entry.actorDiscordUserId}
+                  {characterNameById.has(entry.actorDiscordUserId) ? (
+                    <div className="text-xs" style={{ color: "var(--muted)" }}>
+                      {characterNameById.get(entry.actorDiscordUserId)}
+                    </div>
+                  ) : null}
+                </td>
                 <td>{entry.targetCharacter?.name ?? "-"}</td>
                 <td className="max-w-xs truncate">{entry.details ? JSON.stringify(entry.details) : ""}</td>
               </tr>

@@ -15,9 +15,14 @@ It's half-strategy, half-roleplay, meant to run smoothly at large scale (100+ pl
 Above all else, the priority is **functionality, usability, cleanliness, responsiveness, and browser performance**. The explicit reference point to avoid is the typical slow, laggy Discord bot dashboard — this needs to feel fast and scroll smoothly.
 
 ## Web Design
-Inspired by Caves of Qud: CRT Terminal vibe. Some sort of Monospace font. Slight warp to the whole screen, barely noticeable. Barely visible, very translucent CRT bars. Underlined options when you select them. The color should match the time:
-- at Dawn it goes from orange to light yellow to orange; the foreground is dark brass, also on a time based gradient; with terracotta accents / borders. Cream colored text
-- At Dusk it goes from a Caves of Qud green to a dark grey green. The foreground is a darker, almost black, moss. Terracotta accents  / borders. Cream colored text.
+Inspired by Caves of Qud, revised 2026-08-14 after the original bright-gradient direction didn't land in practice. Monospace font (IBM Plex Mono). Flat, near-solid grounds — no animated gradients, no CRT warp/flicker, just a faint static scanline texture. Underlined options when you select them (`.menu-item`). The wordmark is solid text (`--text`) with a short terracotta rule beneath it, not a gradient-clip.
+
+Palette is driven by the currently open `Turn.phase` (see `web/lib/turn.js`), not the wall clock, and both themes share the same structural logic: cool blue-grey for borders/chrome, warm beige/cream for text, terracotta held back for accents only (buttons, active nav state, small highlights) rather than spread across borders.
+
+- **Dusk** — near-black teal ground (`#0b1614`), warm beige text (`#f0e9d8`), cool blue-grey borders, terracotta accent `#c9552b`.
+- **Dawn** — bright warm parchment ground (`#ede4cc`), dark teal-charcoal ink text (`#2c332f`), same blue-grey borders, terracotta accent `#b8481f`. Not a bright orange sky — the same fire, lit at a different hour.
+
+Exact tokens live in `web/app/globals.css` under `[data-theme="dusk"]` / `[data-theme="dawn"]`.
 
 
 ## Repository layout

@@ -1,35 +1,33 @@
 @import "tailwindcss";
 
 :root {
-  --accent: #b5651d; /* terracotta — constant across both themes */
-  --text: #fdf6e3; /* cream — constant across both themes */
   --radius: 4px;
 }
 
-[data-theme="dawn"] {
-  --bg-1: #d9822b;
-  --bg-2: #f6e3a1;
-  --bg-3: #d9822b;
-  --heading-1: #4a3524; /* dark brass */
-  --heading-2: #8a6a3e;
-  --border: rgba(74, 53, 36, 0.35);
-  --panel-bg: rgba(74, 53, 36, 0.1);
-  --muted: rgba(74, 53, 36, 0.65);
-  --field-bg: rgba(74, 53, 36, 0.08);
-  --row-hover: rgba(74, 53, 36, 0.06);
+/* Dusk: cooling embers — near-black teal ground, cool blue-grey structure,
+   warm beige text, terracotta held back for accents only. */
+[data-theme="dusk"] {
+  --bg: #0b1614;
+  --panel-bg: #131f1c;
+  --field-bg: rgba(139, 168, 172, 0.07);
+  --border: rgba(139, 168, 172, 0.28);
+  --muted: #a89a7c;
+  --text: #f0e9d8;
+  --accent: #c9552b;
+  --row-hover: rgba(255, 255, 255, 0.04);
 }
 
-[data-theme="dusk"] {
-  --bg-1: #3d6b45; /* Caves of Qud green */
-  --bg-2: #2a2e28; /* dark grey-green */
-  --bg-3: #3d6b45;
-  --heading-1: #0c0f0c; /* near-black moss */
-  --heading-2: #202a20;
-  --border: rgba(213, 195, 160, 0.25);
-  --panel-bg: rgba(0, 0, 0, 0.28);
-  --muted: rgba(253, 246, 227, 0.6);
-  --field-bg: rgba(0, 0, 0, 0.22);
-  --row-hover: rgba(255, 255, 255, 0.04);
+/* Dawn: the same fire at first light — bright warm parchment ground, same
+   cool blue-grey structure and terracotta accent, inverted for contrast. */
+[data-theme="dawn"] {
+  --bg: #ede4cc;
+  --panel-bg: #e6dcc0;
+  --field-bg: rgba(90, 120, 122, 0.07);
+  --border: rgba(90, 120, 122, 0.32);
+  --muted: #7d7259;
+  --text: #2c332f;
+  --accent: #b8481f;
+  --row-hover: rgba(0, 0, 0, 0.03);
 }
 
 html,
@@ -41,15 +39,18 @@ body {
   margin: 0;
   color: var(--text);
   font-family: var(--font-mono), ui-monospace, "SFMono-Regular", monospace;
-  background: linear-gradient(150deg, var(--bg-1), var(--bg-2) 55%, var(--bg-3));
-  background-attachment: fixed;
+  background: var(--bg);
 }
 
-.heading-gradient {
-  background-image: linear-gradient(120deg, var(--heading-1), var(--heading-2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+.wordmark {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.wordmark-rule {
+  width: 46px;
+  height: 3px;
+  background: var(--accent);
 }
 
 /* A faint, static scanline texture — no flicker/animation. */
@@ -158,6 +159,16 @@ body {
   resize: vertical;
 }
 
+.char-counter {
+  align-self: flex-end;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.char-counter[data-at-limit="true"] {
+  color: var(--accent);
+}
+
 .text-input {
   background: var(--field-bg);
   border: 1px solid var(--border);
@@ -248,6 +259,10 @@ body {
   font-size: 0.6rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  border: none;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 .rail-item svg {
@@ -261,6 +276,10 @@ body {
 
 .rail-item[data-active="true"] {
   color: var(--accent);
+}
+
+.rail-signout {
+  margin-top: auto;
 }
 
 .turn-chip {
@@ -293,6 +312,12 @@ body {
 
   .app-main {
     padding-bottom: 72px;
+  }
+
+  .rail-signout {
+    margin-top: 0;
+    margin-left: auto;
+    width: auto;
   }
 
   .turn-chip {
