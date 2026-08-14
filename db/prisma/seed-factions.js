@@ -7,8 +7,10 @@ const FACTIONS = [
   "Sanctuary",
   "Order of the Silver Cross",
   "Ravenheart Village",
-  "Warcamp",
   "Brigands",
+  "Windrider Clan",
+  "Six-Spoke Wheel Clan",
+  "Broken Spears Clan",
   "Unaffiliated",
 ];
 

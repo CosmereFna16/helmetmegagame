@@ -21,41 +21,57 @@ async function loadFaction(factionId) {
   });
 }
 
+function FactionTable({ factions, showSilo }) {
+  return (
+    <div className="panel overflow-x-auto">
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Members</th>
+            <th>Leader</th>
+            {showSilo && <th>Silo ⬢</th>}
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {factions.map((f) => {
+            const leader = f.characters.find((c) => c.isLeader);
+            return (
+              <tr key={f.id}>
+                <td>{f.name}</td>
+                <td>{f.characters.length}</td>
+                <td>{leader?.name ?? "-"}</td>
+                {showSilo && <td>{f.silo}</td>}
+                <td>
+                  <a href={`/faction?factionId=${f.id}`} className="menu-item">
+                    View
+                  </a>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function FactionOverview({ factions }) {
+  const unaffiliated = factions.filter((f) => f.name === "Unaffiliated");
+  const rest = factions.filter((f) => f.name !== "Unaffiliated");
+
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6 sm:p-8">
       <h1 className="text-2xl font-bold">Factions</h1>
-      <div className="panel overflow-x-auto">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Members</th>
-              <th>Leader</th>
-              <th>Silo ⬢</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {factions.map((f) => {
-              const leader = f.characters.find((c) => c.isLeader);
-              return (
-                <tr key={f.id}>
-                  <td>{f.name}</td>
-                  <td>{f.characters.length}</td>
-                  <td>{leader?.name ?? "-"}</td>
-                  <td>{f.name === "Unaffiliated" ? "-" : f.silo}</td>
-                  <td>
-                    <a href={`/faction?factionId=${f.id}`} className="menu-item">
-                      View
-                    </a>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <FactionTable factions={rest} showSilo />
+
+      {unaffiliated.length > 0 && (
+        <div>
+          <h2 className="mb-2 font-bold">Unaffiliated</h2>
+          <FactionTable factions={unaffiliated} showSilo={false} />
+        </div>
+      )}
 
       <section className="panel p-4">
         <h2 className="mb-2 font-bold">Create Faction</h2>

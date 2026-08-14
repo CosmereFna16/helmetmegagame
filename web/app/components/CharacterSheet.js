@@ -1,5 +1,6 @@
 import { updateCharacterProfile, setMood, transferResources } from "../(app)/character/actions";
 import AppearanceField from "./AppearanceField";
+import AvatarField from "./AvatarField";
 
 function groupTagsByCategory(characterTags) {
   const groups = new Map();
@@ -40,6 +41,10 @@ function moodColor(moodState) {
   if (moodState === "HAPPY") return "var(--mood-happy)";
   if (moodState === "UNHAPPY") return "var(--accent)";
   return "var(--text)";
+}
+
+function capitalize(s) {
+  return s.charAt(0) + s.slice(1).toLowerCase();
 }
 
 export default function CharacterSheet({
@@ -91,10 +96,7 @@ export default function CharacterSheet({
               <span className="field-label">Name</span>
               <input name="name" defaultValue={character.name} required />
             </label>
-            <label className="field">
-              <span className="field-label">Profile picture</span>
-              <input type="file" name="avatar" accept="image/*" />
-            </label>
+            <AvatarField />
             <AppearanceField defaultValue={character.appearance ?? ""} />
             <button type="submit" className="btn self-start">
               Save
@@ -115,15 +117,26 @@ export default function CharacterSheet({
         <ul className="flex flex-col gap-1 text-sm">
           <li>Zone: {character.zone?.name ?? "Unassigned"}</li>
           <li>Resources ⬢: {character.resources}</li>
-          <li style={{ color: moodColor(character.moodState) }}>
-            Mood: {character.moodState}
+          <li>
+            Mood: <span style={{ color: moodColor(character.moodState) }}>{capitalize(character.moodState)}</span>
             {character.moodNote ? ` — "${character.moodNote}"` : ""}
             {turnsLeft != null ? ` (${turnsLeft} turn${turnsLeft === 1 ? "" : "s"} left)` : ""}
           </li>
-          <li style={{ color: character.isHungry ? "var(--accent)" : "var(--text)" }}>
-            Hungry: {character.isHungry ? "Yes" : "No"}
+          <li>
+            {character.isHungry ? (
+              <span style={{ color: "var(--accent)" }}>Hungry</span>
+            ) : (
+              <span style={{ color: "var(--muted)" }}>Sated</span>
+            )}
           </li>
-          <li>Tag Points: {character.tagPoints}</li>
+          <li>
+            Tag Points:{" "}
+            {character.tagPoints > 0 ? (
+              <span style={{ color: "var(--mood-happy)" }}>+{character.tagPoints}</span>
+            ) : (
+              character.tagPoints
+            )}
+          </li>
         </ul>
 
         {isSelf && (
