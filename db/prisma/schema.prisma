@@ -61,8 +61,7 @@ model GameConfig {
   hungerMovePenalty         Int @default(-1)
   moodMovePenalty           Int @default(-1)
   moodMoveBonus             Int @default(1)
-  tupperChannelIds          String[] @default([])
-  summaryChannelId          String?
+  movesChannelId            String?
 }
 
 model Faction {
@@ -185,6 +184,7 @@ model Action {
   diceRoll       Int?
   isPublic       Boolean      @default(true)
   status         ActionStatus @default(PENDING)
+  resultMessage  String?
   gmNotes        String?
   forumThreadId  String?
   confirmDmMessageId String? @unique
@@ -203,6 +203,22 @@ model DefaultEffort {
   setByCharacterId String?
   setByCharacter   Character? @relation("DefaultEffortSetBy", fields: [setByCharacterId], references: [id])
   updatedAt        DateTime  @updatedAt
+}
+
+enum DmDirection {
+  INBOUND
+  OUTBOUND
+}
+
+model DirectMessage {
+  id            String      @id @default(cuid())
+  discordUserId String
+  direction     DmDirection
+  content       String
+  createdAt     DateTime    @default(now())
+
+  @@index([discordUserId])
+  @@index([createdAt])
 }
 
 model AuditLog {

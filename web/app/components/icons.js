@@ -45,6 +45,24 @@ export function FactionIcon(props) {
   );
 }
 
+export function ScaleIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M12 3v18M8 21h8" strokeLinecap="round" />
+      <path d="M4 7h6M14 7h6" strokeLinecap="round" />
+      <path d="M4 7l-2.5 5A2.5 2.5 0 0 0 4 15a2.5 2.5 0 0 0 2.5-3L4 7zM20 7l-2.5 5a2.5 2.5 0 0 0 2.5 3 2.5 2.5 0 0 0 2.5-3L20 7z" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function MessageIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M4 5.5h16v10H9l-4 3.5v-3.5H4v-10z" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function DevIcon(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>

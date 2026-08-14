@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma, resolveNeeds } from "@lifeweb/db";
-import { getGmSession, postMessage, sendDm } from "@/lib/discordGuild";
+import { getGmSession, postMessage, sendDm, listGuildChannels, isSummaryChannel } from "@/lib/discordGuild";
 
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
@@ -19,40 +19,12 @@ async function getConfig() {
   });
 }
 
-export async function addTupperChannel(formData) {
-  await requireGm();
-  const channelId = formData.get("channelId")?.toString().trim();
-  if (!channelId) return;
-
-  const config = await getConfig();
-  if (!config.tupperChannelIds.includes(channelId)) {
-    await prisma.gameConfig.update({
-      where: { id: 1 },
-      data: { tupperChannelIds: { push: channelId } },
-    });
-  }
-  revalidatePath("/gm/turns");
-}
-
-export async function removeTupperChannel(formData) {
-  await requireGm();
-  const channelId = formData.get("channelId")?.toString().trim();
-  if (!channelId) return;
-
-  const config = await getConfig();
-  await prisma.gameConfig.update({
-    where: { id: 1 },
-    data: { tupperChannelIds: config.tupperChannelIds.filter((id) => id !== channelId) },
-  });
-  revalidatePath("/gm/turns");
-}
-
-export async function setSummaryChannel(formData) {
+export async function setMovesChannel(formData) {
   await requireGm();
   const channelId = formData.get("channelId")?.toString().trim() || null;
 
   await getConfig();
-  await prisma.gameConfig.update({ where: { id: 1 }, data: { summaryChannelId: channelId } });
+  await prisma.gameConfig.update({ where: { id: 1 }, data: { movesChannelId: channelId } });
   revalidatePath("/gm/turns");
 }
 
@@ -115,6 +87,7 @@ export async function adjudicateAction(formData) {
 
   const actionId = formData.get("actionId")?.toString();
   if (!actionId) return;
+  const resultMessage = formData.get("resultMessage")?.toString().trim() || null;
   const gmNotes = formData.get("gmNotes")?.toString().trim() || null;
   const isPublic = formData.get("isPublic") === "on";
 
@@ -126,16 +99,19 @@ export async function adjudicateAction(formData) {
 
   await prisma.action.update({
     where: { id: actionId },
-    data: { status: "ADJUDICATED", gmNotes, isPublic },
+    data: { status: "ADJUDICATED", resultMessage, gmNotes, isPublic },
   });
 
-  if (isPublic) {
-    const config = await getConfig();
-    if (config.summaryChannelId) {
-      const lines = [`**${action.character.name}** — ${action.description}`];
-      if (gmNotes) lines.push(gmNotes);
-      await postMessage(config.summaryChannelId, lines.join("\n")).catch(() => {});
-    }
+  if (resultMessage) {
+    await sendDm(action.character.discordUserId, resultMessage).catch(() => {});
+  }
+
+  if (isPublic && resultMessage) {
+    const channels = await listGuildChannels();
+    const text = `**${action.character.name}** — ${action.description}\n${resultMessage}`;
+    await Promise.all(
+      channels.filter(isSummaryChannel).map((channel) => postMessage(channel.id, text).catch(() => {})),
+    );
   }
 
   await prisma.auditLog.create({
@@ -173,6 +149,27 @@ export async function sendGmMessage(formData) {
 
   revalidatePath("/gm/players");
   revalidatePath("/gm/turns");
+}
+
+export async function sendDmReply(formData) {
+  const session = await requireGm();
+
+  const discordUserId = formData.get("discordUserId")?.toString().trim();
+  const message = formData.get("message")?.toString().trim();
+  if (!discordUserId || !message) return;
+
+  await sendDm(discordUserId, message);
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "gm_dm_reply",
+      details: { discordUserId, message },
+    },
+  });
+
+  revalidatePath("/gm/messages");
+  revalidatePath(`/gm/messages/${discordUserId}`);
 }
 
 export async function resetCharacterMood(formData) {

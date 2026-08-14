@@ -1,6 +1,7 @@
 const { WebhookClient, EmbedBuilder } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const { recentProxies } = require("../lib/proxy");
+const { sendDm } = require("../lib/dm");
 
 const DELETE_EMOJI = "❌"; // ❌
 const EDIT_EMOJI = "✏️"; // ✏️
@@ -41,15 +42,12 @@ async function handleActionConfirm(reaction, user) {
     },
   });
 
-  const dm = await user.createDM().catch(() => null);
-  if (!dm) return;
-  await dm
-    .send(
-      diceRoll != null
-        ? `Locked in. You rolled a **${diceRoll}**. The GM will adjudicate soon.`
-        : "Locked in. The GM will adjudicate soon.",
-    )
-    .catch(() => {});
+  await sendDm(
+    user,
+    diceRoll != null
+      ? `🎲 Locked in. You rolled a **${diceRoll}**. The GM will adjudicate soon.`
+      : "Locked in. The GM will adjudicate soon.",
+  ).catch(() => {});
 }
 
 async function isGm(reaction, userId) {
@@ -91,8 +89,7 @@ module.exports = {
       if (!isOwner) return;
       let dm;
       try {
-        dm = await user.createDM();
-        await dm.send("Reply here with the new text for that message (60 seconds).");
+        ({ dm } = await sendDm(user, "Reply here with the new text for that message (60 seconds)."));
       } catch {
         return;
       }
@@ -111,8 +108,8 @@ module.exports = {
       const webhookClient = new WebhookClient({ id: proxy.webhookId, token: proxy.webhookToken });
       await webhookClient
         .editMessage(reaction.message.id, { content: reply.content, threadId: proxy.threadId })
-        .then(() => dm.send("Updated!"))
-        .catch(() => dm.send("Couldn't update that message — it may be too old."));
+        .then(() => sendDm(user, "Updated!"))
+        .catch(() => sendDm(user, "Couldn't update that message — it may be too old."));
       return;
     }
 
@@ -130,8 +127,7 @@ module.exports = {
       }
 
       try {
-        const dm = await user.createDM();
-        await dm.send({ embeds: [embed] });
+        await sendDm(user, { embeds: [embed] });
       } catch {
         await reaction.message.channel.send({ embeds: [embed] }).catch(() => {});
       }

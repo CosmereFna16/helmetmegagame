@@ -14,7 +14,10 @@ export default async function ArbitrationPage({ params }) {
 
   const action = await prisma.action.findUnique({
     where: { id: actionId },
-    include: { character: { include: { faction: true, zone: true } }, turn: true },
+    include: {
+      character: { include: { faction: true, zone: true, tags: { include: { tag: true } } } },
+      turn: true,
+    },
   });
   if (!action) notFound();
 
@@ -34,11 +37,20 @@ export default async function ArbitrationPage({ params }) {
         <h1 className="mb-2 text-xl font-bold">
           {action.character.name} — {action.type === "MOVE" ? "Move" : "Effort"}
         </h1>
-        <p className="mb-3 text-sm" style={{ color: "var(--muted)" }}>
-          {describeTurn(action.turn).label} — {action.character.faction?.name ?? "No faction"} —{" "}
-          {action.character.zone?.name ?? "No zone"}
+        <p className="mb-1 text-sm" style={{ color: "var(--muted)" }}>
+          {describeTurn(action.turn).label} — {action.character.roleTitle ?? "No role"} —{" "}
+          {action.character.faction?.name ?? "No faction"} — {action.character.zone?.name ?? "No zone"}
           {action.diceRoll != null ? ` — rolled ${action.diceRoll}` : ""}
         </p>
+        {action.character.tags.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {action.character.tags.map((ct) => (
+              <span key={ct.id} className="chip">
+                {ct.tag.name}
+              </span>
+            ))}
+          </div>
+        )}
         <p className="text-sm">{action.description}</p>
       </section>
 
@@ -53,12 +65,16 @@ export default async function ArbitrationPage({ params }) {
           <form action={adjudicateAction} className="flex flex-col gap-3">
             <input type="hidden" name="actionId" value={action.id} />
             <label className="field">
-              <span className="field-label">Resolution / summary text</span>
-              <textarea name="gmNotes" rows={4} />
+              <span className="field-label">Adjudication message (sent to the player)</span>
+              <textarea name="resultMessage" rows={3} />
+            </label>
+            <label className="field">
+              <span className="field-label">GM notes (private — never shown to the player)</span>
+              <textarea name="gmNotes" rows={3} />
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" name="isPublic" defaultChecked />
-              Post to summary channel
+              Also post the adjudication message to summary channels
             </label>
             <button type="submit" className="btn self-start">
               Adjudicate
@@ -68,7 +84,12 @@ export default async function ArbitrationPage({ params }) {
         {action.status === "ADJUDICATED" && (
           <div className="text-sm">
             <p style={{ color: "var(--muted)" }}>Adjudicated{action.isPublic ? " (public)" : " (private)"}.</p>
-            <p className="mt-2">{action.gmNotes || "(no notes)"}</p>
+            <p className="mt-2">{action.resultMessage || "(no message sent)"}</p>
+            {action.gmNotes && (
+              <p className="mt-2" style={{ color: "var(--muted)" }}>
+                GM notes: {action.gmNotes}
+              </p>
+            )}
           </div>
         )}
       </section>

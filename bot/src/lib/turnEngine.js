@@ -1,4 +1,5 @@
 const { prisma, resolveNeeds } = require("@lifeweb/db");
+const { getSummaryChannels } = require("./channels");
 
 async function getConfig() {
   return prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
@@ -39,14 +40,14 @@ async function advanceTurn(client) {
     },
   });
 
-  if (config.summaryChannelId && client) {
-    const channel = await client.channels.fetch(config.summaryChannelId).catch(() => null);
-    if (channel?.isTextBased()) {
-      const day = Math.ceil(newTurn.number / 2);
-      const label = newTurn.phase === "DAWN" ? "Dawn breaks" : "Dusk falls";
-      await channel
-        .send(`${label} over Evergreen — Day ${day}, Turn ${newTurn.number} (${newTurn.phase}).`)
-        .catch(() => {});
+  if (client) {
+    const day = Math.ceil(newTurn.number / 2);
+    const label = newTurn.phase === "DAWN" ? "Dawn breaks" : "Dusk falls";
+    const text = `${label} over Evergreen — Day ${day}, Turn ${newTurn.number} (${newTurn.phase}).`;
+    for (const guild of client.guilds.cache.values()) {
+      for (const channel of getSummaryChannels(guild)) {
+        await channel.send(text).catch(() => {});
+      }
     }
   }
 

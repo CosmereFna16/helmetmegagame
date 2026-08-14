@@ -67,8 +67,8 @@ export default async function DevPanelPage() {
           </div>
         </form>
         <p className="mt-3 text-xs" style={{ color: "var(--muted)" }}>
-          Tupper channels and the summary channel are still managed from{" "}
-          <Link href="/gm/turns" className="menu-item">Turns</Link>.
+          Tupper/summary channels are detected by name (any channel with &quot;»&quot;). The moves channel is
+          still set from <Link href="/gm/turns" className="menu-item">Turns</Link>.
         </p>
       </section>
 

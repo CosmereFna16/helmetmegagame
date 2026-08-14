@@ -15,6 +15,7 @@ const GM_NAV = [
   { href: "/faction", label: "Faction", icon: "faction" },
   { href: "/gm/players", label: "Players", icon: "players" },
   { href: "/gm/turns", label: "Turns", icon: "turns" },
+  { href: "/gm/messages", label: "Messages", icon: "messages" },
   { href: "/gm/audit", label: "Audit", icon: "audit" },
 ];
 

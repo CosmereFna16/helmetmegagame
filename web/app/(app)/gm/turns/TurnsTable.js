@@ -1,13 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
+import { ScaleIcon, MessageIcon } from "../../../components/icons";
+import { sendGmMessage } from "../actions";
 
 export default function TurnsTable({ actions }) {
   const [zoneFilter, setZoneFilter] = useState("");
   const [factionFilter, setFactionFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [messageRowId, setMessageRowId] = useState(null);
 
   const zones = useMemo(() => [...new Set(actions.map((a) => a.zoneName).filter(Boolean))].sort(), [actions]);
   const factions = useMemo(
@@ -62,15 +65,16 @@ export default function TurnsTable({ actions }) {
             <option value="">All</option>
             <option value="PENDING">Pending</option>
             <option value="CONFIRMED">Confirmed</option>
-            <option value="ADJUDICATED">Adjudicated</option>
           </select>
         </label>
       </div>
 
       <div className="panel overflow-x-auto">
-        <table className="data-table">
+        <table className="data-table" style={{ minWidth: "1100px" }}>
           <thead>
             <tr>
+              <th></th>
+              <th></th>
               <th>Turn</th>
               <th>Character</th>
               <th>Faction</th>
@@ -83,24 +87,57 @@ export default function TurnsTable({ actions }) {
           </thead>
           <tbody>
             {filtered.map((a) => (
-              <tr key={a.id}>
-                <td>{a.turnNumber}</td>
-                <td>
-                  <Link href={`/gm/turns/${a.id}`} className="menu-item">
-                    {a.characterName}
-                  </Link>
-                </td>
-                <td>{a.factionName || "-"}</td>
-                <td>{a.zoneName || "-"}</td>
-                <td>{a.type === "MOVE" ? "Move" : "Effort"}</td>
-                <td>{a.diceRoll ?? "-"}</td>
-                <td>{a.status}</td>
-                <td className="max-w-xs truncate">{a.description}</td>
-              </tr>
+              <Fragment key={a.id}>
+                <tr>
+                  <td>
+                    <button
+                      type="button"
+                      className="btn-quiet"
+                      aria-label={`Message ${a.characterName}`}
+                      onClick={() => setMessageRowId((cur) => (cur === a.id ? null : a.id))}
+                    >
+                      <MessageIcon width={16} height={16} />
+                    </button>
+                  </td>
+                  <td>
+                    <Link href={`/gm/turns/${a.id}`} className="btn-quiet" aria-label={`Adjudicate ${a.characterName}`}>
+                      <ScaleIcon width={16} height={16} />
+                    </Link>
+                  </td>
+                  <td>{a.turnNumber}</td>
+                  <td>{a.characterName}</td>
+                  <td>{a.factionName || "-"}</td>
+                  <td>{a.zoneName || "-"}</td>
+                  <td>{a.type === "MOVE" ? "Move" : "Effort"}</td>
+                  <td>{a.diceRoll ?? "-"}</td>
+                  <td>{a.status}</td>
+                  <td className="max-w-xs truncate">{a.description}</td>
+                </tr>
+                {messageRowId === a.id && (
+                  <tr key={`${a.id}-message`}>
+                    <td colSpan={10}>
+                      <form
+                        action={sendGmMessage}
+                        className="flex items-end gap-2 py-2"
+                        onSubmit={() => setMessageRowId(null)}
+                      >
+                        <input type="hidden" name="characterId" value={a.characterId} />
+                        <label className="field" style={{ flex: 1 }}>
+                          <span className="field-label">Message {a.characterName} (from Lifeweb)</span>
+                          <textarea name="message" rows={2} required />
+                        </label>
+                        <button type="submit" className="btn">
+                          Send
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="text-center" style={{ color: "var(--muted)" }}>
+                <td colSpan={10} className="text-center" style={{ color: "var(--muted)" }}>
                   No actions match these filters.
                 </td>
               </tr>

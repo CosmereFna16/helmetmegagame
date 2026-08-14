@@ -1,7 +1,27 @@
 import { cache } from "react";
 import { auth } from "@/lib/auth";
+import { prisma } from "@lifeweb/db";
 
 const DISCORD_API = "https://discord.com/api/v10";
+
+// Channels opt into summary/tupper behavior by name instead of a manually
+// curated ID list — see bot/src/lib/channels.js for the bot-side twin of
+// this logic (kept separate since the bot uses its gateway cache instead
+// of a REST call).
+const CHANNEL_MARKER = "»";
+const CHANNEL_TYPE_TEXT = 0;
+const CHANNEL_TYPE_FORUM = 15;
+
+export function isSummaryChannel(channel) {
+  return channel.type === CHANNEL_TYPE_TEXT && channel.name?.includes(CHANNEL_MARKER);
+}
+
+export function isTupperChannel(channel) {
+  return (
+    (channel.type === CHANNEL_TYPE_TEXT || channel.type === CHANNEL_TYPE_FORUM) &&
+    channel.name?.includes(CHANNEL_MARKER)
+  );
+}
 
 // A tiny in-memory TTL cache so repeated Discord lookups across navigations
 // (not just within one request) don't each cost a network round trip. Fine
@@ -81,6 +101,34 @@ export const listGuildMembers = cache(async () => {
   return value;
 });
 
+const channelListCache = ttlCache(30_000);
+
+async function fetchGuildChannels() {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  const token = process.env.DISCORD_TOKEN;
+  if (!guildId || !token) return [];
+
+  try {
+    const res = await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, {
+      headers: { Authorization: `Bot ${token}` },
+      cache: "no-store",
+    });
+
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}
+
+export const listGuildChannels = cache(async () => {
+  const cached = channelListCache.get("all");
+  if (cached !== undefined) return cached;
+  const value = await fetchGuildChannels();
+  channelListCache.set("all", value);
+  return value;
+});
+
 export function isGm(member) {
   const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
   if (!member || !gmRoleId) return false;
@@ -136,5 +184,9 @@ export async function postMessage(channelId, content) {
 
 export async function sendDm(discordUserId, content) {
   const channel = await createDmChannel(discordUserId);
-  return postMessage(channel.id, content);
+  const message = await postMessage(channel.id, content);
+  await prisma.directMessage
+    .create({ data: { discordUserId, direction: "OUTBOUND", content } })
+    .catch(() => {});
+  return message;
 }
