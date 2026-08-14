@@ -1,1 +1,1 @@
-export const APPEARANCE_MAX_LENGTH = 500;
+export const APPEARANCE_MAX_LENGTH = 100;

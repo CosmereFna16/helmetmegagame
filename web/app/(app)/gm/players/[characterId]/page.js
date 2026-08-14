@@ -1,18 +1,16 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@lifeweb/db";
-import { auth } from "@/lib/auth";
-import { getGuildMember, isGm } from "@/lib/discordGuild";
+import { getGmSession } from "@/lib/discordGuild";
 import { getOpenTurn } from "@/lib/turn";
 import CharacterSheet from "../../../../components/CharacterSheet";
 import { sendGmMessage, resetCharacterMood } from "../../actions";
 
 export default async function PlayerDetailPage({ params }) {
   const { characterId } = await params;
-  const session = await auth();
+  const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
-  const member = await getGuildMember(session.discordUserId);
-  if (!isGm(member)) redirect("/character");
+  if (!gm) redirect("/character");
 
   const character = await prisma.character.findUnique({
     where: { id: characterId },

@@ -1,15 +1,13 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
-import { auth } from "@/lib/auth";
-import { getGuildMember, isGm, listGuildMembers } from "@/lib/discordGuild";
+import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 
 const PAGE_SIZE = 50;
 
 export default async function AuditLogPage({ searchParams }) {
-  const session = await auth();
+  const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
-  const member = await getGuildMember(session.discordUserId);
-  if (!isGm(member)) redirect("/character");
+  if (!gm) redirect("/character");
 
   const params = await searchParams;
   const actionType = params?.actionType?.toString().trim() || "";

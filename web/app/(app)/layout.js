@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import { getGuildMember, isGm } from "@/lib/discordGuild";
+import { getGmSession } from "@/lib/discordGuild";
 import { getOpenTurn } from "@/lib/turn";
 import NavRail from "../components/NavRail";
 import TurnChip from "../components/TurnChip";
@@ -15,14 +14,8 @@ const GM_NAV = [
 ];
 
 export default async function AppLayout({ children }) {
-  const session = await auth();
+  const [{ session, isGm: gm }, turn] = await Promise.all([getGmSession(), getOpenTurn()]);
   if (!session?.discordUserId) redirect("/");
-
-  const [member, turn] = await Promise.all([
-    getGuildMember(session.discordUserId),
-    getOpenTurn(),
-  ]);
-  const gm = isGm(member);
 
   return (
     <div className="app-shell">

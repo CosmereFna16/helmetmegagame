@@ -1,23 +1,21 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
-import { auth } from "@/lib/auth";
-import { getGuildMember, isGm } from "@/lib/discordGuild";
-import { describeTurn } from "@/lib/turn";
+import { getGmSession } from "@/lib/discordGuild";
+import { describeTurn, getOpenTurn } from "@/lib/turn";
 import TurnsTable from "./TurnsTable";
 import { openTurn, closeTurn, addTupperChannel, removeTupperChannel, setSummaryChannel } from "../actions";
 
 export default async function TurnsPage() {
-  const session = await auth();
+  const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
-  const member = await getGuildMember(session.discordUserId);
-  if (!isGm(member)) redirect("/character");
+  if (!gm) redirect("/character");
 
   const [actions, openTurnRecord, config] = await Promise.all([
     prisma.action.findMany({
       orderBy: { createdAt: "desc" },
       include: { character: { include: { faction: true, zone: true } }, turn: true },
     }),
-    prisma.turn.findFirst({ where: { status: "OPEN" } }),
+    getOpenTurn(),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
   ]);
   const tupperChannelIds = config?.tupperChannelIds ?? [];

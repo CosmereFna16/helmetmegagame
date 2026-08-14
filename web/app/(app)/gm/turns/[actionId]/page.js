@@ -1,18 +1,16 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@lifeweb/db";
-import { auth } from "@/lib/auth";
-import { getGuildMember, isGm } from "@/lib/discordGuild";
+import { getGmSession } from "@/lib/discordGuild";
 import { describeTurn } from "@/lib/turn";
 import { adjudicateAction } from "../../actions";
 import AffectedPartiesForm from "./AffectedPartiesForm";
 
 export default async function ArbitrationPage({ params }) {
   const { actionId } = await params;
-  const session = await auth();
+  const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
-  const member = await getGuildMember(session.discordUserId);
-  if (!isGm(member)) redirect("/character");
+  if (!gm) redirect("/character");
 
   const action = await prisma.action.findUnique({
     where: { id: actionId },

@@ -2,14 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@lifeweb/db";
-import { auth } from "@/lib/auth";
-import { getGuildMember, isGm, postMessage, sendDm } from "@/lib/discordGuild";
+import { getGmSession, postMessage, sendDm } from "@/lib/discordGuild";
 
 async function requireGm() {
-  const session = await auth();
+  const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId) throw new Error("Not authenticated.");
-  const member = await getGuildMember(session.discordUserId);
-  if (!isGm(member)) throw new Error("Not authorized.");
+  if (!gm) throw new Error("Not authorized.");
   return session;
 }
 

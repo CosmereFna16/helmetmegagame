@@ -1,6 +1,29 @@
+import { cache } from "react";
+import { auth } from "@/lib/auth";
+
 const DISCORD_API = "https://discord.com/api/v10";
 
-export async function getGuildMember(discordUserId) {
+// A tiny in-memory TTL cache so repeated Discord lookups across navigations
+// (not just within one request) don't each cost a network round trip. Fine
+// at this project's scale — one Railway instance, no multi-process fan-out.
+function ttlCache(ttlMs) {
+  const store = new Map();
+  return {
+    get(key) {
+      const entry = store.get(key);
+      if (!entry || entry.expiresAt <= Date.now()) return undefined;
+      return entry.value;
+    },
+    set(key, value) {
+      store.set(key, { value, expiresAt: Date.now() + ttlMs });
+    },
+  };
+}
+
+const memberCache = ttlCache(30_000);
+const memberListCache = ttlCache(60_000);
+
+async function fetchGuildMember(discordUserId) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const token = process.env.DISCORD_TOKEN;
   if (!guildId || !token) return null;
@@ -20,7 +43,18 @@ export async function getGuildMember(discordUserId) {
   }
 }
 
-export async function listGuildMembers() {
+// cache() dedupes calls within one request (the app shell and a page both
+// asking for the same user in the same render); the TTL layer underneath
+// also reuses the result across separate navigations for a short window.
+export const getGuildMember = cache(async (discordUserId) => {
+  const cached = memberCache.get(discordUserId);
+  if (cached !== undefined) return cached;
+  const value = await fetchGuildMember(discordUserId);
+  memberCache.set(discordUserId, value);
+  return value;
+});
+
+async function fetchGuildMembers() {
   const guildId = process.env.DISCORD_GUILD_ID;
   const token = process.env.DISCORD_TOKEN;
   if (!guildId || !token) return [];
@@ -39,11 +73,28 @@ export async function listGuildMembers() {
   }
 }
 
+export const listGuildMembers = cache(async () => {
+  const cached = memberListCache.get("all");
+  if (cached !== undefined) return cached;
+  const value = await fetchGuildMembers();
+  memberListCache.set("all", value);
+  return value;
+});
+
 export function isGm(member) {
   const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
   if (!member || !gmRoleId) return false;
   return member.roles?.includes(gmRoleId) ?? false;
 }
+
+// Shared auth+role lookup for both pages (which redirect on failure) and
+// server actions (which throw) — callers decide what "not allowed" means.
+export const getGmSession = cache(async () => {
+  const session = await auth();
+  if (!session?.discordUserId) return { session: null, isGm: false };
+  const member = await getGuildMember(session.discordUserId);
+  return { session, isGm: isGm(member) };
+});
 
 export async function createDmChannel(discordUserId) {
   const token = process.env.DISCORD_TOKEN;
