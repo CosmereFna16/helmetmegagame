@@ -5,6 +5,52 @@ const { recentProxies } = require("../lib/proxy");
 const DELETE_EMOJI = "❌"; // ❌
 const EDIT_EMOJI = "✏️"; // ✏️
 const INFO_EMOJI = "❓"; // ❓
+const CONFIRM_EMOJI = "✅"; // ✅
+
+function rollDie(sides = 20) {
+  return 1 + Math.floor(Math.random() * sides);
+}
+
+async function handleActionConfirm(reaction, user) {
+  if (reaction.emoji.name !== CONFIRM_EMOJI) return;
+
+  const action = await prisma.action.findUnique({
+    where: { confirmDmMessageId: reaction.message.id },
+    include: { character: true },
+  });
+  if (!action || action.status !== "PENDING") return;
+  if (action.character.discordUserId !== user.id) return;
+
+  const diceRoll = action.type === "MOVE" ? rollDie() : null;
+
+  await prisma.action.update({
+    where: { id: action.id },
+    data: {
+      status: "CONFIRMED",
+      confirmedAt: new Date(),
+      ...(diceRoll != null ? { diceRoll } : {}),
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: user.id,
+      actionType: "action_confirmed",
+      targetCharacterId: action.characterId,
+      details: { actionId: action.id, diceRoll },
+    },
+  });
+
+  const dm = await user.createDM().catch(() => null);
+  if (!dm) return;
+  await dm
+    .send(
+      diceRoll != null
+        ? `Locked in. You rolled a **${diceRoll}**. The GM will adjudicate soon.`
+        : "Locked in. The GM will adjudicate soon.",
+    )
+    .catch(() => {});
+}
 
 async function isGm(reaction, userId) {
   const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
@@ -19,6 +65,11 @@ module.exports = {
     if (user.bot) return;
     if (reaction.partial) await reaction.fetch().catch(() => null);
     if (reaction.message.partial) await reaction.message.fetch().catch(() => null);
+
+    if (!reaction.message.guild) {
+      await handleActionConfirm(reaction, user);
+      return;
+    }
 
     const proxy = recentProxies.get(reaction.message.id);
     if (!proxy) return;

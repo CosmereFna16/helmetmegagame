@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
-import { updateCharacterProfile } from "./actions";
+import { updateCharacterProfile, submitAction } from "./actions";
 
 export default async function CharacterPage() {
   const session = await auth();
@@ -18,6 +18,13 @@ export default async function CharacterPage() {
   });
 
   if (!character) redirect("/character/new");
+
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
+  const currentAction = openTurn
+    ? await prisma.action.findFirst({
+        where: { characterId: character.id, turnId: openTurn.id },
+      })
+    : null;
 
   const avatarSrc = character.avatarMimeType
     ? `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`
@@ -92,6 +99,56 @@ export default async function CharacterPage() {
           <li>Hungry: {character.isHungry ? "Yes" : "No"}</li>
           <li>Tag Points: {character.tagPoints}</li>
         </ul>
+      </section>
+
+      <section className="crt-panel p-4">
+        <h2 className="mb-2 font-bold">Act</h2>
+        {!openTurn ? (
+          <p className="text-sm opacity-60">No turn is currently open.</p>
+        ) : currentAction ? (
+          <div className="text-sm">
+            <p className="mb-1">
+              {currentAction.type === "MOVE" ? "Move" : "Effort"}: {currentAction.description}
+            </p>
+            {currentAction.status === "PENDING" && (
+              <p className="opacity-70">
+                Pending confirmation — check your Discord DMs and react ✅ to lock it in.
+              </p>
+            )}
+            {currentAction.status === "CONFIRMED" && (
+              <p className="opacity-70">
+                Confirmed{currentAction.diceRoll != null ? ` — rolled ${currentAction.diceRoll}` : ""}{" "}
+                — awaiting GM adjudication.
+              </p>
+            )}
+            {currentAction.status === "ADJUDICATED" && (
+              <p className="opacity-70">
+                Adjudicated: {currentAction.gmNotes || "(no notes)"}
+              </p>
+            )}
+          </div>
+        ) : (
+          <form action={submitAction} className="flex flex-col gap-3">
+            <label className="flex items-center gap-4 text-sm">
+              <span className="flex items-center gap-1">
+                <input type="radio" name="type" value="EFFORT" defaultChecked /> Effort
+              </span>
+              <span className="flex items-center gap-1">
+                <input type="radio" name="type" value="MOVE" /> Move
+              </span>
+            </label>
+            <textarea
+              name="description"
+              placeholder="Describe your intent this turn..."
+              required
+              rows={3}
+              className="rounded border border-white/30 bg-transparent px-3 py-2"
+            />
+            <button type="submit" className="menu-item self-start">
+              &gt; Submit
+            </button>
+          </form>
+        )}
       </section>
 
       <section className="crt-panel p-4">
