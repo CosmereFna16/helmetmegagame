@@ -5,13 +5,19 @@ export async function getGuildMember(discordUserId) {
   const token = process.env.DISCORD_TOKEN;
   if (!guildId || !token) return null;
 
-  const res = await fetch(
-    `${DISCORD_API}/guilds/${guildId}/members/${discordUserId}`,
-    { headers: { Authorization: `Bot ${token}` }, cache: "no-store" },
-  );
+  try {
+    const res = await fetch(
+      `${DISCORD_API}/guilds/${guildId}/members/${discordUserId}`,
+      { headers: { Authorization: `Bot ${token}` }, cache: "no-store" },
+    );
 
-  if (!res.ok) return null;
-  return res.json();
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    // A misconfigured/invalid DISCORD_TOKEN, or Discord being unreachable,
+    // should degrade to "not a GM" rather than take down the whole app shell.
+    return null;
+  }
 }
 
 export function isGm(member) {

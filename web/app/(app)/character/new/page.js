@@ -15,25 +15,17 @@ export default async function NewCharacterPage() {
   return (
     <main className="mx-auto flex max-w-md flex-col gap-6 p-8">
       <h1 className="text-2xl font-bold">Create Your Character</h1>
-      <form action={createCharacter} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1">
-          <span>Name</span>
-          <input
-            name="name"
-            required
-            className="rounded border border-white/30 bg-transparent px-3 py-2"
-          />
+      <form action={createCharacter} className="panel flex flex-col gap-4 p-4">
+        <label className="field">
+          <span className="field-label">Name</span>
+          <input name="name" required />
         </label>
-        <label className="flex flex-col gap-1">
-          <span>Role</span>
-          <input
-            name="roleTitle"
-            placeholder="Farmer, Soldier, Pusher..."
-            className="rounded border border-white/30 bg-transparent px-3 py-2"
-          />
+        <label className="field">
+          <span className="field-label">Role</span>
+          <input name="roleTitle" placeholder="Farmer, Soldier, Pusher..." />
         </label>
-        <button type="submit" className="menu-item self-start">
-          &gt; Create
+        <button type="submit" className="btn self-start">
+          Create
         </button>
       </form>
     </main>

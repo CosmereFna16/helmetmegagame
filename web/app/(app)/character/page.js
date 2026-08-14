@@ -1,0 +1,43 @@
+import { redirect } from "next/navigation";
+import { prisma } from "@lifeweb/db";
+import { auth } from "@/lib/auth";
+import { getOpenTurn } from "@/lib/turn";
+import CharacterSheet from "../../components/CharacterSheet";
+
+export default async function CharacterPage() {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+
+  const character = await prisma.character.findFirst({
+    where: { discordUserId: session.discordUserId, status: "ALIVE" },
+    include: {
+      faction: true,
+      zone: true,
+      tags: { include: { tag: true } },
+      desires: { where: { status: "ACTIVE" } },
+    },
+  });
+
+  if (!character) redirect("/character/new");
+
+  const openTurn = await getOpenTurn();
+  const currentAction = openTurn
+    ? await prisma.action.findFirst({
+        where: { characterId: character.id, turnId: openTurn.id },
+      })
+    : null;
+
+  const avatarSrc = character.avatarMimeType
+    ? `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`
+    : null;
+
+  return (
+    <CharacterSheet
+      character={character}
+      mode="self"
+      currentAction={currentAction}
+      openTurn={openTurn}
+      avatarSrc={avatarSrc}
+    />
+  );
+}

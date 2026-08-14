@@ -99,3 +99,84 @@ export async function submitAction(formData) {
 
   revalidatePath("/character");
 }
+
+export async function setMood(formData) {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+
+  const character = await prisma.character.findFirst({
+    where: { discordUserId: session.discordUserId, status: "ALIVE" },
+  });
+  if (!character) redirect("/character/new");
+
+  const moodState = formData.get("moodState")?.toString();
+  if (!["NEUTRAL", "HAPPY", "UNHAPPY"].includes(moodState)) return;
+  const moodNote = formData.get("moodNote")?.toString().trim() || null;
+
+  let moodExpiresTurn = null;
+  if (moodState !== "NEUTRAL") {
+    const [config, openTurn] = await Promise.all([
+      prisma.gameConfig.findUnique({ where: { id: 1 } }),
+      prisma.turn.findFirst({ where: { status: "OPEN" } }),
+    ]);
+    if (openTurn) moodExpiresTurn = openTurn.number + (config?.moodDurationTurns ?? 2);
+  }
+
+  await prisma.character.update({
+    where: { id: character.id },
+    data: { moodState, moodNote, moodExpiresTurn },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "mood_self_reported",
+      targetCharacterId: character.id,
+      details: { moodState, moodNote },
+    },
+  });
+
+  revalidatePath("/character");
+}
+
+export async function transferResources(formData) {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+
+  const character = await prisma.character.findFirst({
+    where: { discordUserId: session.discordUserId, status: "ALIVE" },
+  });
+  if (!character) redirect("/character/new");
+
+  const targetName = formData.get("targetName")?.toString().trim();
+  const amount = Number.parseInt(formData.get("amount")?.toString() ?? "", 10);
+  if (!targetName || !Number.isFinite(amount) || amount <= 0) return;
+  if (amount > character.resources) return;
+
+  const target = await prisma.character.findFirst({
+    where: { name: targetName, status: "ALIVE" },
+  });
+  if (!target || target.id === character.id) return;
+
+  await prisma.$transaction([
+    prisma.character.update({
+      where: { id: character.id },
+      data: { resources: { decrement: amount } },
+    }),
+    prisma.character.update({
+      where: { id: target.id },
+      data: { resources: { increment: amount } },
+    }),
+  ]);
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "resource_transfer",
+      targetCharacterId: target.id,
+      details: { fromCharacterId: character.id, toCharacterId: target.id, amount },
+    },
+  });
+
+  revalidatePath("/character");
+}

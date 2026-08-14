@@ -104,6 +104,7 @@ model Character {
   tagPoints      Int             @default(0)
   moodState      MoodState       @default(NEUTRAL)
   moodExpiresTurn Int?
+  moodNote       String?
   isHungry       Boolean         @default(false)
   avatarData     Bytes?
   avatarMimeType String?
@@ -126,6 +127,7 @@ model Tag {
   id          String   @id @default(cuid())
   name        String   @unique
   description String?
+  category    String?
   pointCost   Int      @default(0)
 
   characters CharacterTag[]

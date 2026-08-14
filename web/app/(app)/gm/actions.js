@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
-import { getGuildMember, isGm, postMessage } from "@/lib/discordGuild";
+import { getGuildMember, isGm, postMessage, sendDm } from "@/lib/discordGuild";
 
 async function requireGm() {
   const session = await auth();
@@ -33,7 +33,7 @@ export async function addTupperChannel(formData) {
       data: { tupperChannelIds: { push: channelId } },
     });
   }
-  revalidatePath("/gm");
+  revalidatePath("/gm/turns");
 }
 
 export async function removeTupperChannel(formData) {
@@ -46,7 +46,7 @@ export async function removeTupperChannel(formData) {
     where: { id: 1 },
     data: { tupperChannelIds: config.tupperChannelIds.filter((id) => id !== channelId) },
   });
-  revalidatePath("/gm");
+  revalidatePath("/gm/turns");
 }
 
 export async function setSummaryChannel(formData) {
@@ -55,7 +55,7 @@ export async function setSummaryChannel(formData) {
 
   await getConfig();
   await prisma.gameConfig.update({ where: { id: 1 }, data: { summaryChannelId: channelId } });
-  revalidatePath("/gm");
+  revalidatePath("/gm/turns");
 }
 
 export async function openTurn() {
@@ -84,8 +84,29 @@ export async function openTurn() {
     },
   });
 
-  revalidatePath("/gm");
-  revalidatePath("/character");
+  revalidatePath("/", "layout");
+}
+
+export async function closeTurn() {
+  const session = await requireGm();
+
+  const openTurnRecord = await prisma.turn.findFirst({ where: { status: "OPEN" } });
+  if (!openTurnRecord) return;
+
+  await prisma.turn.update({
+    where: { id: openTurnRecord.id },
+    data: { status: "RESOLVED", resolvedAt: new Date() },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "turn_closed",
+      details: { turnId: openTurnRecord.id, number: openTurnRecord.number },
+    },
+  });
+
+  revalidatePath("/", "layout");
 }
 
 export async function adjudicateAction(formData) {
@@ -125,29 +146,51 @@ export async function adjudicateAction(formData) {
     },
   });
 
-  revalidatePath("/gm");
+  revalidatePath("/gm/turns");
   revalidatePath("/character");
 }
 
-export async function closeTurn() {
+export async function sendGmMessage(formData) {
   const session = await requireGm();
 
-  const openTurnRecord = await prisma.turn.findFirst({ where: { status: "OPEN" } });
-  if (!openTurnRecord) return;
+  const characterIds = formData.getAll("characterId").map(String).filter(Boolean);
+  const message = formData.get("message")?.toString().trim();
+  if (!message || characterIds.length === 0) return;
 
-  await prisma.turn.update({
-    where: { id: openTurnRecord.id },
-    data: { status: "RESOLVED", resolvedAt: new Date() },
+  const characters = await prisma.character.findMany({ where: { id: { in: characterIds } } });
+  await Promise.all(
+    characters.map((character) => sendDm(character.discordUserId, message).catch(() => null)),
+  );
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "gm_message_sent",
+      details: { characterIds, message },
+    },
+  });
+
+  revalidatePath("/gm/players");
+  revalidatePath("/gm/turns");
+}
+
+export async function resetCharacterMood(formData) {
+  const session = await requireGm();
+  const characterId = formData.get("characterId")?.toString();
+  if (!characterId) return;
+
+  await prisma.character.update({
+    where: { id: characterId },
+    data: { moodState: "NEUTRAL", moodNote: null, moodExpiresTurn: null },
   });
 
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: session.discordUserId,
-      actionType: "turn_closed",
-      details: { turnId: openTurnRecord.id, number: openTurnRecord.number },
+      actionType: "mood_gm_reset",
+      targetCharacterId: characterId,
     },
   });
 
-  revalidatePath("/gm");
-  revalidatePath("/character");
+  revalidatePath("/gm/players");
 }

@@ -1,0 +1,87 @@
+import { redirect, notFound } from "next/navigation";
+import Link from "next/link";
+import { prisma } from "@lifeweb/db";
+import { auth } from "@/lib/auth";
+import { getGuildMember, isGm } from "@/lib/discordGuild";
+import { describeTurn } from "@/lib/turn";
+import { adjudicateAction } from "../../actions";
+import AffectedPartiesForm from "./AffectedPartiesForm";
+
+export default async function ArbitrationPage({ params }) {
+  const { actionId } = await params;
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+  const member = await getGuildMember(session.discordUserId);
+  if (!isGm(member)) redirect("/character");
+
+  const action = await prisma.action.findUnique({
+    where: { id: actionId },
+    include: { character: { include: { faction: true, zone: true } }, turn: true },
+  });
+  if (!action) notFound();
+
+  const otherCharacters = await prisma.character.findMany({
+    where: { status: "ALIVE", id: { not: action.characterId } },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+
+  return (
+    <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6 sm:p-8">
+      <Link href="/gm/turns" className="btn-quiet">
+        &larr; Back to Turns
+      </Link>
+
+      <section className="panel p-4">
+        <h1 className="mb-2 text-xl font-bold">
+          {action.character.name} — {action.type === "MOVE" ? "Move" : "Effort"}
+        </h1>
+        <p className="mb-3 text-sm" style={{ color: "var(--muted)" }}>
+          {describeTurn(action.turn).label} — {action.character.faction?.name ?? "No faction"} —{" "}
+          {action.character.zone?.name ?? "No zone"}
+          {action.diceRoll != null ? ` — rolled ${action.diceRoll}` : ""}
+        </p>
+        <p className="text-sm">{action.description}</p>
+      </section>
+
+      <section className="panel p-4">
+        <h2 className="mb-3 font-bold">Adjudication</h2>
+        {action.status === "PENDING" && (
+          <p className="text-sm" style={{ color: "var(--muted)" }}>
+            Waiting on the player to confirm in Discord.
+          </p>
+        )}
+        {action.status === "CONFIRMED" && (
+          <form action={adjudicateAction} className="flex flex-col gap-3">
+            <input type="hidden" name="actionId" value={action.id} />
+            <label className="field">
+              <span className="field-label">Resolution / summary text</span>
+              <textarea name="gmNotes" rows={4} />
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="isPublic" defaultChecked />
+              Post to summary channel
+            </label>
+            <button type="submit" className="btn self-start">
+              Adjudicate
+            </button>
+          </form>
+        )}
+        {action.status === "ADJUDICATED" && (
+          <div className="text-sm">
+            <p style={{ color: "var(--muted)" }}>Adjudicated{action.isPublic ? " (public)" : " (private)"}.</p>
+            <p className="mt-2">{action.gmNotes || "(no notes)"}</p>
+          </div>
+        )}
+      </section>
+
+      <section className="panel p-4">
+        <h2 className="mb-3 font-bold">Message Affected Parties</h2>
+        <p className="mb-3 text-sm" style={{ color: "var(--muted)" }}>
+          Privately contact any other character about this action&apos;s outcome.
+        </p>
+        <AffectedPartiesForm characters={otherCharacters} />
+      </section>
+    </div>
+  );
+}

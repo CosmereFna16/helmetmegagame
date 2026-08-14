@@ -1,5 +1,7 @@
+const cron = require("node-cron");
 const { prisma } = require("@lifeweb/db");
 const { syncFactionsForGuild } = require("../lib/factionSync");
+const { advanceTurn } = require("../lib/turnEngine");
 
 module.exports = {
   name: "ready",
@@ -17,5 +19,13 @@ module.exports = {
       await syncFactionsForGuild(guild);
       console.log(`Synced factions for guild ${guild.name}`);
     }
+
+    const runAdvanceTurn = () => {
+      advanceTurn(client)
+        .then((turn) => console.log(`Turn advanced to #${turn.number} (${turn.phase})`))
+        .catch((err) => console.error("Failed to advance turn:", err));
+    };
+    cron.schedule("0 5 * * *", runAdvanceTurn, { timezone: "America/Chicago" });
+    cron.schedule("0 17 * * *", runAdvanceTurn, { timezone: "America/Chicago" });
   },
 };
