@@ -13,6 +13,11 @@ export const metadata = {
   description: "Lifeweb — a barony amid the wasteland.",
 };
 
+// Theme/turn state is live game state fetched per-request, not something
+// that should be statically prerendered (and prerendering would try to hit
+// the database at build time, when it isn't reachable).
+export const dynamic = "force-dynamic";
+
 export default async function RootLayout({ children }) {
   const turn = await getOpenTurn();
   const theme = themeForPhase(turn?.phase);
