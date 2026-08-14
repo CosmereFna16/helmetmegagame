@@ -44,7 +44,7 @@ function FactionOverview({ factions }) {
                   <td>{f.name}</td>
                   <td>{f.characters.length}</td>
                   <td>{leader?.name ?? "-"}</td>
-                  <td>{f.silo}</td>
+                  <td>{f.name === "Unaffiliated" ? "-" : f.silo}</td>
                   <td>
                     <a href={`/faction?factionId=${f.id}`} className="menu-item">
                       View
@@ -97,6 +97,7 @@ export default async function FactionPage({ searchParams }) {
     const faction = await loadFaction(myCharacter.factionId);
     if (!faction) return null;
     const leader = faction.characters.find((c) => c.isLeader);
+    const playerViewIsUnaffiliated = faction.name === "Unaffiliated";
 
     return (
       <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6 sm:p-8">
@@ -105,7 +106,7 @@ export default async function FactionPage({ searchParams }) {
         <section className="panel p-4">
           <ul className="flex flex-col gap-1 text-sm">
             <li>Leader: {leader?.name ?? "None"}</li>
-            <li>Faction Silo ⬢: {faction.silo}</li>
+            {!playerViewIsUnaffiliated && <li>Faction Silo ⬢: {faction.silo}</li>}
             <li>Your Resources ⬢: {myCharacter.resources}</li>
           </ul>
         </section>
@@ -182,7 +183,7 @@ export default async function FactionPage({ searchParams }) {
       <section className="panel p-4">
         <ul className="flex flex-col gap-1 text-sm">
           <li>Leader: {faction.characters.find((c) => c.isLeader)?.name ?? "None"}</li>
-          <li>Faction Silo ⬢: {faction.silo}</li>
+          {!isUnaffiliated && <li>Faction Silo ⬢: {faction.silo}</li>}
         </ul>
       </section>
 

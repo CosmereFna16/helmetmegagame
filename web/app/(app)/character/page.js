@@ -27,7 +27,11 @@ export default async function CharacterPage() {
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
-    prisma.faction.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.faction.findMany({
+      where: { name: { not: "Unaffiliated" } },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
   ]);
 
   const avatarSrc = character.avatarMimeType

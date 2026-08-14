@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@lifeweb/db";
+import { prisma, resolveNeeds } from "@lifeweb/db";
 import { getGmSession, postMessage, sendDm } from "@/lib/discordGuild";
 
 async function requireGm() {
@@ -90,6 +90,9 @@ export async function closeTurn() {
 
   const openTurnRecord = await prisma.turn.findFirst({ where: { status: "OPEN" } });
   if (!openTurnRecord) return;
+
+  const config = await getConfig();
+  await resolveNeeds(openTurnRecord, config);
 
   await prisma.turn.update({
     where: { id: openTurnRecord.id },

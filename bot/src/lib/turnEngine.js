@@ -1,28 +1,7 @@
-const { prisma } = require("@lifeweb/db");
+const { prisma, resolveNeeds } = require("@lifeweb/db");
 
 async function getConfig() {
   return prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
-}
-
-async function resolveNeeds(turn, config) {
-  const characters = await prisma.character.findMany({ where: { status: "ALIVE" } });
-  const consumption = config.resourceConsumptionPerTurn ?? 1;
-
-  await Promise.all(
-    characters.map((character) => {
-      const hadEnough = character.resources >= consumption;
-      const data = {
-        resources: hadEnough ? character.resources - consumption : character.resources,
-        isHungry: !hadEnough,
-      };
-      if (character.moodExpiresTurn != null && character.moodExpiresTurn <= turn.number) {
-        data.moodState = "NEUTRAL";
-        data.moodNote = null;
-        data.moodExpiresTurn = null;
-      }
-      return prisma.character.update({ where: { id: character.id }, data });
-    }),
-  );
 }
 
 // Resolves the currently OPEN turn (applying Needs decay) and opens the next

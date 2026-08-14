@@ -125,7 +125,7 @@ export async function transferResources(formData) {
     });
   } else if (targetType === "faction") {
     const faction = await prisma.faction.findUnique({ where: { id: targetId } });
-    if (!faction) return;
+    if (!faction || faction.name === "Unaffiliated") return;
 
     await prisma.$transaction([
       prisma.character.update({
