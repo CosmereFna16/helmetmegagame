@@ -227,11 +227,18 @@ export async function updateGuildNickname(discordUserId, nickname) {
   const token = process.env.DISCORD_TOKEN;
   if (!guildId || !token) return;
 
-  await fetch(`${DISCORD_API}/guilds/${guildId}/members/${discordUserId}`, {
-    method: "PATCH",
-    headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ nick: nickname }),
-  }).catch(() => {});
+  try {
+    const res = await fetch(`${DISCORD_API}/guilds/${guildId}/members/${discordUserId}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ nick: nickname }),
+    });
+    if (!res.ok) {
+      console.error(`Failed to set nickname for ${discordUserId}: ${res.status} ${await res.text()}`);
+    }
+  } catch (err) {
+    console.error(`Failed to set nickname for ${discordUserId}:`, err);
+  }
 }
 
 // Called right after a character is created/renamed so the nickname reflects
