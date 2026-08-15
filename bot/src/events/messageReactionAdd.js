@@ -7,6 +7,7 @@ const DELETE_EMOJI = "❌"; // ❌
 const EDIT_EMOJI = "✏️"; // ✏️
 const INFO_EMOJI = "❓"; // ❓
 const CONFIRM_EMOJI = "⚜️"; // ⚜
+const STAR_EMOJI = "⭐"; // ⭐
 
 function rollDie(sides = 20) {
   return 1 + Math.floor(Math.random() * sides);
@@ -51,6 +52,31 @@ async function handleActionConfirm(reaction, user) {
   await sendDm(user, waitingLines.join("\n")).catch(() => {});
 }
 
+// Starring a proxied tupper message archives it (or bumps its star count if
+// already archived). `reaction.count` is already the post-add total, so this
+// stays cheap — no extra Discord fetch needed on the happy path.
+async function handleStarReaction(reaction, proxy) {
+  const character = await prisma.character.findUnique({ where: { id: proxy.characterId } });
+  if (!character) return;
+
+  await prisma.archivedMessage.upsert({
+    where: { discordMessageId: reaction.message.id },
+    create: {
+      discordMessageId: reaction.message.id,
+      discordChannelId: reaction.message.channelId,
+      characterId: character.id,
+      characterName: character.name,
+      zoneId: character.zoneId ?? null,
+      content: reaction.message.content ?? "",
+      starCount: reaction.count ?? 1,
+      sentAt: reaction.message.createdAt,
+    },
+    update: {
+      starCount: reaction.count ?? 1,
+    },
+  });
+}
+
 async function isGm(reaction, userId) {
   const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
   if (!gmRoleId || !reaction.message.guild) return false;
@@ -75,6 +101,11 @@ module.exports = {
 
     const emoji = reaction.emoji.name;
     const isOwner = user.id === proxy.discordUserId;
+
+    if (emoji === STAR_EMOJI) {
+      await handleStarReaction(reaction, proxy).catch(() => {});
+      return;
+    }
 
     if (emoji === DELETE_EMOJI) {
       if (!isOwner && !(await isGm(reaction, user.id))) return;

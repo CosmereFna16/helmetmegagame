@@ -71,6 +71,16 @@ export function DevIcon(props) {
   );
 }
 
+export function ArchiveIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <rect x="4" y="4.5" width="16" height="4" rx="1" />
+      <path d="M5.5 8.5v9.5A1.5 1.5 0 0 0 7 19.5h10a1.5 1.5 0 0 0 1.5-1.5V8.5" strokeLinejoin="round" />
+      <path d="M10 12.5h4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function SignOutIcon(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>

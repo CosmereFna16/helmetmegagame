@@ -182,6 +182,28 @@ export async function postMessage(channelId, content) {
   return res.json();
 }
 
+const STAR_EMOJI = "⭐";
+
+// Recomputes a starred message's true reaction count straight from Discord —
+// used by the archive's manual "Refresh" action so counts stay correct even
+// after stars are removed (something the bot's opportunistic on-add update
+// can't see) or the bot missed an update while offline.
+export async function getMessageStarCount(channelId, messageId) {
+  const token = process.env.DISCORD_TOKEN;
+  if (!token) throw new Error("DISCORD_TOKEN is not set.");
+
+  const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages/${messageId}`, {
+    headers: { Authorization: `Bot ${token}` },
+    cache: "no-store",
+  });
+  if (res.status === 404) return 0;
+  if (!res.ok) throw new Error(`Failed to fetch message: ${res.status} ${await res.text()}`);
+
+  const message = await res.json();
+  const reaction = message.reactions?.find((r) => r.emoji?.name === STAR_EMOJI);
+  return reaction?.count ?? 0;
+}
+
 export async function sendDm(discordUserId, content) {
   const channel = await createDmChannel(discordUserId);
   const formatted = `» ${content}`;

@@ -10,6 +10,7 @@ import {
   FactionIcon,
   DevIcon,
   MessageIcon,
+  ArchiveIcon,
   SignOutIcon,
 } from "./icons";
 import { signOutOfDiscord } from "../actions";
@@ -22,6 +23,7 @@ const ICONS = {
   faction: FactionIcon,
   dev: DevIcon,
   messages: MessageIcon,
+  archive: ArchiveIcon,
 };
 
 export default function NavRail({ items }) {

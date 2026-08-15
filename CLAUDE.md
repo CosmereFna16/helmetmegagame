@@ -80,6 +80,10 @@ Turns advance via `advanceTurn()` in `db/index.js` — shared logic (resolve Nee
 
 GMs adjudicate `CONFIRMED` actions from `/gm/turns/[actionId]` (reached via the balance-scale button on the Turns table). Adjudicating sets two independent fields: `Action.resultMessage` (DMed to the player, and — if "public" is checked — also posted to every summary channel) and `Action.gmNotes` (never sent anywhere; GM-only, visible on the "Past Adjudications" table at the bottom of `/gm/turns`).
 
+## Message archive
+
+Reacting ⭐ to a proxied message in any tupper channel archives it: `bot/src/events/messageReactionAdd.js#handleStarReaction` upserts an `ArchivedMessage` row (keyed on `discordMessageId`) with the character, a zone snapshot, content, and `starCount` taken straight from `reaction.count` — cheap, since that's already on the event, no extra Discord call. This only works for messages still in `recentProxies` (bot's in-memory, last-500, resets on restart — see [[proxy.js]] note above), same constraint as ❌/✏️/❓. Star *removals* aren't tracked live; GMs reconcile that from `/gm/archive` via a "Refresh star counts" button (`refreshArchiveStars` in `web/app/(app)/gm/actions.js`), which re-fetches each currently-listed row's message from the Discord REST API (`getMessageStarCount` in `web/lib/discordGuild.js`) — scoped to the current page/filters to keep one click cheap rather than refreshing the whole archive.
+
 ## Direct message logging
 
 Every DM the bot or web app sends or receives is logged to `DirectMessage` (`discordUserId`, `direction: INBOUND|OUTBOUND`, `content`) so `/gm/messages` can show a full per-player conversation with a reply box. On the bot side, use `bot/src/lib/dm.js`'s `sendDm(user, payload)` wrapper (not raw `user.createDM()`/`dm.send()`) so outbound messages get logged; inbound DMs are logged directly in `messageCreate.js`. On the web side, `web/lib/discordGuild.js`'s `sendDm(discordUserId, content)` does the same.

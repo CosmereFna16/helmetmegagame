@@ -83,6 +83,7 @@ model Zone {
   characters     Character[]
   actions        Action[]
   defaultEfforts DefaultEffort[]
+  archivedMessages ArchivedMessage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -115,6 +116,7 @@ model Character {
   defaultEffort  DefaultEffort?
   setDefaultsFor DefaultEffort[] @relation("DefaultEffortSetBy")
   auditLogTargets AuditLog[]
+  archivedMessages ArchivedMessage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -218,6 +220,24 @@ model DirectMessage {
 
   @@index([discordUserId])
   @@index([createdAt])
+}
+
+model ArchivedMessage {
+  id               String    @id @default(cuid())
+  discordMessageId String    @unique
+  discordChannelId String
+  characterId      String?
+  character        Character? @relation(fields: [characterId], references: [id])
+  characterName    String
+  zoneId           String?
+  zone             Zone?     @relation(fields: [zoneId], references: [id])
+  content          String
+  starCount        Int       @default(1)
+  sentAt           DateTime
+  archivedAt       DateTime  @default(now())
+
+  @@index([zoneId])
+  @@index([starCount])
 }
 
 model AuditLog {

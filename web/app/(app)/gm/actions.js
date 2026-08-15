@@ -2,7 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma, advanceTurn as advanceTurnInDb } from "@lifeweb/db";
-import { getGmSession, postMessage, sendDm, listGuildChannels, isSummaryChannel } from "@/lib/discordGuild";
+import {
+  getGmSession,
+  postMessage,
+  sendDm,
+  listGuildChannels,
+  isSummaryChannel,
+  getMessageStarCount,
+} from "@/lib/discordGuild";
 
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
@@ -192,4 +199,31 @@ export async function resetCharacterMood(formData) {
   });
 
   revalidatePath("/gm/players");
+}
+
+// Re-fetches each listed message straight from Discord to get its true
+// current star count — the bot's on-add update can't see stars being
+// removed, so this is how a GM reconciles that. Scoped to whatever's on the
+// current archive page/filters (passed in as hidden "id" fields) rather than
+// the whole archive, to keep one click cheap.
+export async function refreshArchiveStars(formData) {
+  await requireGm();
+
+  const ids = formData.getAll("id").map(String).filter(Boolean);
+  if (ids.length === 0) return;
+
+  const entries = await prisma.archivedMessage.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, discordChannelId: true, discordMessageId: true },
+  });
+
+  await Promise.all(
+    entries.map(async (entry) => {
+      const count = await getMessageStarCount(entry.discordChannelId, entry.discordMessageId).catch(() => null);
+      if (count == null) return;
+      await prisma.archivedMessage.update({ where: { id: entry.id }, data: { starCount: count } });
+    }),
+  );
+
+  revalidatePath("/gm/archive");
 }
