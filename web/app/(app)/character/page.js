@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
-import { TAG_STORE_CATEGORIES } from "@/lib/tagStore";
+import { TAG_STORE_CATEGORY_NAMES } from "@/lib/tagStore";
 import CharacterSheet from "../../components/CharacterSheet";
 
 export default async function CharacterPage() {
@@ -33,7 +33,7 @@ export default async function CharacterPage() {
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
-    prisma.tag.findMany({ where: { category: { in: TAG_STORE_CATEGORIES } } }),
+    prisma.tag.findMany({ where: { category: { in: TAG_STORE_CATEGORY_NAMES } } }),
   ]);
 
   const avatarSrc = character.avatarMimeType

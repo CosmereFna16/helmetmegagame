@@ -1,5 +1,6 @@
 const { PrismaClient } = require("@prisma/client");
 const { rollWeather, buildTurnAnnouncement } = require("./weather");
+const { HUNGERLESS_SLUG } = require("./lib/constants");
 
 const globalForPrisma = globalThis;
 
@@ -18,12 +19,18 @@ async function resolveNeeds(turn, config) {
   const characters = await prisma.character.findMany({ where: { status: "ALIVE" } });
   const consumption = config?.resourceConsumptionPerTurn ?? 1;
 
+  const hungerlessTags = await prisma.characterTag.findMany({
+    where: { characterId: { in: characters.map((c) => c.id) }, tag: { slug: HUNGERLESS_SLUG } },
+    select: { characterId: true },
+  });
+  const hungerlessIds = new Set(hungerlessTags.map((ct) => ct.characterId));
+
   await Promise.all(
     characters.map((character) => {
       const hadEnough = character.resources >= consumption;
       const data = {
         resources: hadEnough ? character.resources - consumption : character.resources,
-        isHungry: !hadEnough,
+        isHungry: hadEnough ? false : !hungerlessIds.has(character.id),
       };
       if (character.moodExpiresTurn != null && character.moodExpiresTurn <= turn.number) {
         data.moodState = "NEUTRAL";
@@ -74,4 +81,4 @@ async function advanceTurn() {
   return { previousTurn: openTurn, newTurn, note };
 }
 
-module.exports = { prisma, resolveNeeds, advanceTurn, ...require("./weather") };
+module.exports = { prisma, resolveNeeds, advanceTurn, ...require("./weather"), ...require("./lib/constants") };

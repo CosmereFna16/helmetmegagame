@@ -2,10 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { purchaseTags } from "../(app)/character/actions";
-import { TAG_STORE_CATEGORIES } from "@/lib/tagStore";
+import { TAG_STORE_CATEGORIES, unlockedCategoryNames } from "@/lib/tagStore";
 
 function groupByCategory(tags) {
-  const groups = new Map(TAG_STORE_CATEGORIES.map((c) => [c, []]));
+  const groups = new Map(TAG_STORE_CATEGORIES.map((c) => [c.name, []]));
   for (const tag of tags) {
     const category = tag.category;
     if (!groups.has(category)) continue;
@@ -19,7 +19,18 @@ export default function TagStorePanel({ characterId, tagPoints, ownedCharacterTa
   const [open, setOpen] = useState(false);
   const [shaking, setShaking] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [activeCategory, setActiveCategory] = useState(TAG_STORE_CATEGORIES[0]);
+
+  const ownedSlugs = useMemo(
+    () => new Set(ownedCharacterTags.map((ct) => ct.tag?.slug).filter(Boolean)),
+    [ownedCharacterTags]
+  );
+  const unlockedNames = useMemo(() => new Set(unlockedCategoryNames(ownedSlugs)), [ownedSlugs]);
+  const unlockedCategories = useMemo(
+    () => TAG_STORE_CATEGORIES.filter((c) => unlockedNames.has(c.name)),
+    [unlockedNames]
+  );
+
+  const [activeCategory, setActiveCategory] = useState(unlockedCategories[0]?.name ?? TAG_STORE_CATEGORIES[0].name);
 
   const storeTagIds = useMemo(() => new Set(storeTags.map((t) => t.id)), [storeTags]);
   const ownedPointBuyIds = useMemo(
@@ -58,7 +69,7 @@ export default function TagStorePanel({ characterId, tagPoints, ownedCharacterTa
 
   function openStore() {
     setSelectedIds(new Set(ownedPointBuyIds));
-    setActiveCategory(TAG_STORE_CATEGORIES[0]);
+    setActiveCategory(unlockedCategories[0]?.name ?? TAG_STORE_CATEGORIES[0].name);
     setOpen(true);
   }
 
@@ -131,18 +142,24 @@ export default function TagStorePanel({ characterId, tagPoints, ownedCharacterTa
             )}
 
             <div className="tab-bar mt-3">
-              {TAG_STORE_CATEGORIES.map((category) => (
+              {unlockedCategories.map((category) => (
                 <button
-                  key={category}
+                  key={category.name}
                   type="button"
                   className="tab-item"
-                  data-active={activeCategory === category}
-                  onClick={() => setActiveCategory(category)}
+                  data-active={activeCategory === category.name}
+                  onClick={() => setActiveCategory(category.name)}
                 >
-                  {category}
+                  {category.name}
                 </button>
               ))}
             </div>
+
+            {(grouped.get(activeCategory) ?? []).length === 0 && (
+              <p className="mt-3 text-sm" style={{ color: "var(--muted)" }}>
+                No tags here yet.
+              </p>
+            )}
 
             <ul className="store-list mt-3">
               {(grouped.get(activeCategory) ?? []).map((tag) => {

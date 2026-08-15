@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma, advanceTurn as advanceTurnInDb, buildTurnAnnouncement } from "@lifeweb/db";
+import { prisma, advanceTurn as advanceTurnInDb, buildTurnAnnouncement, HUNGERLESS_SLUG } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { postMessage, listGuildChannels, isSummaryChannel } from "@/lib/discordGuild";
@@ -156,6 +156,59 @@ export async function updateCharacterRaw(formData) {
   revalidatePath("/gm/dev/characters");
   revalidatePath(`/gm/dev/characters/${characterId}`);
   revalidatePath("/gm/players");
+  revalidatePath("/character");
+}
+
+export async function grantTag(formData) {
+  const session = await requireSuperadmin();
+
+  const characterId = str(formData, "characterId");
+  const tagId = str(formData, "tagId");
+  if (!characterId || !tagId) return;
+
+  const tag = await prisma.tag.findUnique({ where: { id: tagId } });
+  if (!tag) return;
+
+  await prisma.$transaction([
+    prisma.characterTag.create({ data: { characterId, tagId, source: "GM_GRANT" } }),
+    ...(tag.slug === HUNGERLESS_SLUG
+      ? [prisma.character.update({ where: { id: characterId }, data: { isHungry: false } })]
+      : []),
+  ]);
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "superadmin_tag_grant",
+      targetCharacterId: characterId,
+      details: { tagId, tagName: tag.name },
+    },
+  });
+
+  revalidatePath(`/gm/dev/characters/${characterId}`);
+  revalidatePath("/character");
+}
+
+export async function revokeTag(formData) {
+  const session = await requireSuperadmin();
+
+  const characterTagId = str(formData, "characterTagId");
+  const characterId = str(formData, "characterId");
+  if (!characterTagId) return;
+
+  const ct = await prisma.characterTag.delete({ where: { id: characterTagId } }).catch(() => null);
+  if (!ct) return;
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "superadmin_tag_revoke",
+      targetCharacterId: characterId || ct.characterId,
+      details: { tagId: ct.tagId },
+    },
+  });
+
+  revalidatePath(`/gm/dev/characters/${characterId || ct.characterId}`);
   revalidatePath("/character");
 }
 

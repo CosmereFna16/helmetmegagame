@@ -7,8 +7,8 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
 import { syncCharacterNickname, setTurnPingRole, sendDm } from "@/lib/discordGuild";
-import { TAG_STORE_CATEGORIES } from "@/lib/tagStore";
-import { DESIRE_COOLDOWN_TURNS } from "@/lib/desire";
+import { TAG_STORE_CATEGORY_NAMES, unlockedCategoryNames } from "@/lib/tagStore";
+import { DESIRE_COOLDOWN_TURNS, desireCompletionPoints } from "@/lib/desire";
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const AVATAR_SIZE = 256;
@@ -161,9 +161,11 @@ export async function transferResources(formData) {
 }
 
 // Reconciles the point-buy store's desired tag selection against the character's
-// current POINT_BUY tags. Only tags in TAG_STORE_CATEGORIES are ever touched here —
-// tags granted another way (GM_GRANT, DESIRE_REWARD, EVENT) aren't purchasable or
-// sellable through this action and are left untouched.
+// current POINT_BUY tags. Only tags in unlocked TAG_STORE_CATEGORY_NAMES categories
+// are ever touched here — tags granted another way (GM_GRANT, DESIRE_REWARD, EVENT)
+// aren't purchasable or sellable through this action and are left untouched, and a
+// category gated behind a prerequisite tag (e.g. Bacchus) is re-validated server-side
+// so a locked category can't be bought into even if the client is bypassed.
 export async function purchaseTags(characterId, desiredTagIds) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
@@ -174,7 +176,11 @@ export async function purchaseTags(characterId, desiredTagIds) {
   });
   if (!character) redirect("/character/new");
 
-  const storeTags = await prisma.tag.findMany({ where: { category: { in: TAG_STORE_CATEGORIES } } });
+  const ownedSlugs = new Set(character.tags.map((ct) => ct.tag.slug).filter(Boolean));
+  const unlockedNames = new Set(unlockedCategoryNames(ownedSlugs));
+
+  const allStoreTags = await prisma.tag.findMany({ where: { category: { in: TAG_STORE_CATEGORY_NAMES } } });
+  const storeTags = allStoreTags.filter((t) => unlockedNames.has(t.category));
   const storeTagIds = new Set(storeTags.map((t) => t.id));
   const desiredSet = new Set((desiredTagIds ?? []).filter((id) => storeTagIds.has(id)));
 
@@ -243,6 +249,7 @@ export async function completeDesire(characterId, desireId) {
 
   const character = await prisma.character.findFirst({
     where: { id: characterId, discordUserId: session.discordUserId, status: "ALIVE" },
+    include: { tags: { include: { tag: true } } },
   });
   if (!character) redirect("/character/new");
 
@@ -251,12 +258,17 @@ export async function completeDesire(characterId, desireId) {
   });
   if (!desire) return;
 
-  await prisma.desire.update({
-    where: { id: desire.id },
-    data: { status: "COMPLETED", completedAt: new Date() },
-  });
+  const ownedSlugs = new Set(character.tags.map((ct) => ct.tag.slug).filter(Boolean));
+  const points = desireCompletionPoints(ownedSlugs);
 
-  await sendDm(session.discordUserId, `Desire completed: "${desire.description}"`).catch(() => {});
+  await prisma.$transaction([
+    prisma.desire.update({ where: { id: desire.id }, data: { status: "COMPLETED", completedAt: new Date() } }),
+    prisma.character.update({ where: { id: character.id }, data: { tagPoints: { increment: points } } }),
+  ]);
+
+  await sendDm(session.discordUserId, `Desire completed: "${desire.description}" (+${points} tag points)`).catch(
+    () => {}
+  );
 
   revalidatePath("/character");
 }
