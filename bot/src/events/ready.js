@@ -1,4 +1,5 @@
 const cron = require("node-cron");
+const { ActivityType } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const { syncFactionsForGuild } = require("../lib/factionSync");
 const { syncNicknamesForGuild } = require("../lib/nickname");
@@ -9,6 +10,11 @@ module.exports = {
   once: true,
   async execute(client) {
     console.log(`Logged in as ${client.user.tag}`);
+
+    client.user.setPresence({
+      activities: [{ name: "status", type: ActivityType.Custom, state: "» Message me to contact the GMs." }],
+      status: "online",
+    });
 
     await prisma.gameConfig.upsert({
       where: { id: 1 },
