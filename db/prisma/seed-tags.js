@@ -1,5 +1,5 @@
 const { prisma } = require("../index");
-const { HUNGERLESS_SLUG, FOLLOWER_OF_BACCHUS_SLUG } = require("../lib/constants");
+const { HUNGERLESS_SLUG, FOLLOWER_OF_BACCHUS_SLUG, LEADER_SLUG, TREASURER_SLUG } = require("../lib/constants");
 
 const CATEGORIES = ["Placeholder 1", "Placeholder 2", "Placeholder 3"];
 const COSTS = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
@@ -21,6 +21,27 @@ const META_TAGS = [
   },
 ];
 
+// Not purchasable (no category in web/lib/tagStore.js's TAG_STORE_CATEGORIES)
+// — Leader is granted/revoked automatically alongside Faction.leader status,
+// Treasurer is granted/revoked by a faction's Leader (or a GM) from the
+// faction panel. Both gate Silo-management controls there.
+const FACTION_TAGS = [
+  {
+    name: "Leader",
+    slug: LEADER_SLUG,
+    description: "Marks the character as their faction's leader.",
+    category: "Faction",
+    pointCost: 0,
+  },
+  {
+    name: "Treasurer",
+    slug: TREASURER_SLUG,
+    description: "Grants control over the faction's Silo — view withdrawal history and transfer resources to faction members.",
+    category: "Faction",
+    pointCost: 0,
+  },
+];
+
 function buildTags() {
   const tags = [];
   for (const category of CATEGORIES) {
@@ -38,7 +59,7 @@ function buildTags() {
 }
 
 async function main() {
-  for (const tag of [...buildTags(), ...META_TAGS]) {
+  for (const tag of [...buildTags(), ...META_TAGS, ...FACTION_TAGS]) {
     const existing = await prisma.tag.findFirst({ where: { name: tag.name } });
     if (existing) {
       console.log(`skip (exists): ${tag.name}`);

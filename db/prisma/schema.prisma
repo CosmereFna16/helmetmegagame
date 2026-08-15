@@ -59,6 +59,7 @@ enum TagSource {
   POINT_BUY
   DESIRE_REWARD
   GM_GRANT
+  LEADER_GRANT
   EVENT
 }
 
@@ -274,6 +275,30 @@ model MessageStar {
 
   @@unique([archivedMessageId, discordUserId])
   @@index([discordUserId])
+}
+
+// One row per change to a Faction's Silo — deposits, manual Dev Panel
+// corrections, and Leader/Treasurer transfers to a member — so the faction
+// panel can show a plain-language "who took what, when, how much, to whom"
+// history instead of just the current total. `amount` is signed: positive
+// grows the silo, negative shrinks it. No FK relations (log rows should
+// survive/ignore character or faction deletion) — snapshot names instead,
+// same reasoning as AuditLog.
+model SiloTransaction {
+  id                 String     @id @default(cuid())
+  factionId          String
+  amount             Int
+  actorDiscordUserId String
+  actorCharacterId   String?
+  actorName          String
+  toCharacterId      String?
+  toName             String?
+  turnNumber         Int?
+  turnPhase          TurnPhase?
+  note               String?
+  createdAt          DateTime   @default(now())
+
+  @@index([factionId])
 }
 
 model AuditLog {
