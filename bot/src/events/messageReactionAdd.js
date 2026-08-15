@@ -8,6 +8,7 @@ const EDIT_EMOJI = "✏️"; // ✏️
 const INFO_EMOJI = "❓"; // ❓
 const CONFIRM_EMOJI = "⚜️"; // ⚜
 const STAR_EMOJI = "⭐"; // ⭐
+const FOG_EMOJI = "🌫️"; // :fog:
 
 function rollDie(sides = 6) {
   return 1 + Math.floor(Math.random() * sides);
@@ -92,6 +93,23 @@ async function isGm(reaction, userId) {
   return member?.roles.cache.has(gmRoleId) ?? false;
 }
 
+// GM-only: delete the message and repost it as the bot itself (not the
+// character webhook) with identical content/embeds/attachments. Works on
+// any guild message, proxied or not.
+async function handleFogReaction(reaction, user) {
+  if (!(await isGm(reaction, user.id))) return;
+
+  const message = reaction.message;
+  const payload = {
+    content: message.content,
+    embeds: message.embeds,
+    files: [...message.attachments.values()].map((a) => a.url),
+  };
+
+  await message.delete().catch(() => {});
+  await message.channel.send(payload).catch(() => {});
+}
+
 module.exports = {
   name: "messageReactionAdd",
   async execute(reaction, user) {
@@ -101,6 +119,12 @@ module.exports = {
 
     if (!reaction.message.guild) {
       await handleActionConfirm(reaction, user);
+      return;
+    }
+
+    if (reaction.emoji.name === FOG_EMOJI) {
+      await handleFogReaction(reaction, user).catch(() => {});
+      recentProxies.delete(reaction.message.id);
       return;
     }
 
