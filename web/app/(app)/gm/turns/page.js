@@ -9,13 +9,20 @@ export default async function TurnsPage() {
   if (!session?.discordUserId) redirect("/");
   if (!gm) redirect("/character");
 
-  const [allActions, openTurnRecord] = await Promise.all([
+  const [allActions, allDesires, allTurns, openTurnRecord] = await Promise.all([
     prisma.action.findMany({
       orderBy: { createdAt: "desc" },
       include: { character: { include: { faction: true, zone: true } }, turn: true },
     }),
+    prisma.desire.findMany({
+      orderBy: { createdAt: "desc" },
+      include: { character: { include: { faction: true } } },
+    }),
+    prisma.turn.findMany({ select: { number: true, phase: true } }),
     getOpenTurn(),
   ]);
+
+  const phaseByTurnNumber = new Map(allTurns.map((t) => [t.number, t.phase]));
 
   const actions = allActions.map((a) => ({
     id: a.id,
@@ -36,12 +43,29 @@ export default async function TurnsPage() {
     .map((a) => ({
       id: a.id,
       characterName: a.character.name,
+      factionName: a.character.faction?.name ?? "",
+      zoneName: a.character.zone?.name ?? "",
+      type: a.type,
       diceRoll: a.diceRoll,
       resultMessage: a.resultMessage,
       gmNotes: a.gmNotes,
       turnNumber: a.turn.number,
       turnPhase: a.turn.phase,
     }));
+
+  const desires = allDesires.map((d) => ({
+    id: d.id,
+    characterId: d.characterId,
+    characterName: d.character.name,
+    factionName: d.character.faction?.name ?? "",
+    description: d.description,
+    status: d.status,
+    pointsAwarded: d.pointsAwarded,
+    resultMessage: d.resultMessage,
+    gmNotes: d.gmNotes,
+    turnNumber: d.turnNumber,
+    turnPhase: d.turnNumber != null ? phaseByTurnNumber.get(d.turnNumber) : null,
+  }));
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6 sm:p-8">
@@ -55,7 +79,7 @@ export default async function TurnsPage() {
         </p>
       </section>
 
-      <AdjudicatePanel actions={actions} adjudications={adjudications} />
+      <AdjudicatePanel actions={actions} adjudications={adjudications} desires={desires} />
     </div>
   );
 }

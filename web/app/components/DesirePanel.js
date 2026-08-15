@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { setDesire, completeDesire } from "../(app)/character/actions";
+import { setDesire, submitDesireForReview, cancelDesire } from "../(app)/character/actions";
 import { DESIRE_COOLDOWN_TURNS } from "@/lib/desire";
 
 export default function DesirePanel({ characterId, desire, openTurnNumber, isSelf }) {
@@ -10,10 +10,12 @@ export default function DesirePanel({ characterId, desire, openTurnNumber, isSel
   const [text, setText] = useState("");
 
   const isActive = desire?.status === "ACTIVE";
+  const isPending = desire?.status === "PENDING";
   const turnsSince =
     desire?.turnNumber != null && openTurnNumber != null ? openTurnNumber - desire.turnNumber : null;
-  const turnsUntilEligible = !isActive && turnsSince != null ? Math.max(0, DESIRE_COOLDOWN_TURNS - turnsSince) : 0;
-  const canSetNew = !isActive && turnsUntilEligible === 0;
+  const turnsUntilEligible =
+    !isActive && !isPending && turnsSince != null ? Math.max(0, DESIRE_COOLDOWN_TURNS - turnsSince) : 0;
+  const canSetNew = !isActive && !isPending && turnsUntilEligible === 0;
 
   async function handleSet(e) {
     e.preventDefault();
@@ -36,8 +38,18 @@ export default function DesirePanel({ characterId, desire, openTurnNumber, isSel
     }
     setPending(true);
     try {
-      await completeDesire(characterId, desire.id);
+      await submitDesireForReview(characterId, desire.id);
       setConfirming(false);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function handleGiveUp() {
+    if (pending) return;
+    setPending(true);
+    try {
+      await cancelDesire(characterId, desire.id);
     } finally {
       setPending(false);
     }
@@ -46,13 +58,18 @@ export default function DesirePanel({ characterId, desire, openTurnNumber, isSel
   return (
     <section className="panel p-4">
       <h2 className="mb-2 font-bold">Desire</h2>
-      {isActive ? (
+      {isActive || isPending ? (
         <>
           <p className="text-sm">{desire.description}</p>
           <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
             {turnsSince != null ? `Set ${turnsSince} turn${turnsSince === 1 ? "" : "s"} ago` : "Just set"}
           </p>
-          {isSelf && (
+          {isPending && (
+            <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+              Awaiting GM review.
+            </p>
+          )}
+          {isSelf && isActive && (
             <div className="mt-3 flex items-center gap-3">
               <button
                 type="button"
@@ -63,9 +80,13 @@ export default function DesirePanel({ characterId, desire, openTurnNumber, isSel
               >
                 {confirming ? "Confirm" : "Complete Desire"}
               </button>
-              {confirming && (
+              {confirming ? (
                 <button type="button" className="btn-quiet" disabled={pending} onClick={() => setConfirming(false)}>
                   Cancel
+                </button>
+              ) : (
+                <button type="button" className="btn-quiet" disabled={pending} onClick={handleGiveUp}>
+                  Give Up
                 </button>
               )}
             </div>

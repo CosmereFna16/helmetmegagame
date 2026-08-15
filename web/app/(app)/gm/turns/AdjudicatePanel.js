@@ -3,14 +3,15 @@
 import { useState } from "react";
 import TurnsTable from "./TurnsTable";
 import AdjudicationsTable from "./AdjudicationsTable";
+import DesiresTable from "./DesiresTable";
 
-export default function AdjudicatePanel({ actions, adjudications }) {
+export default function AdjudicatePanel({ actions, adjudications, desires }) {
   const [tab, setTab] = useState("actions");
   const [highlightId, setHighlightId] = useState(null);
 
   function showAdjudication(actionId) {
     setHighlightId(actionId);
-    setTab("adjudications");
+    setTab("completed");
   }
 
   return (
@@ -22,18 +23,19 @@ export default function AdjudicatePanel({ actions, adjudications }) {
         <button
           type="button"
           className="tab-item"
-          data-active={tab === "adjudications"}
-          onClick={() => setTab("adjudications")}
+          data-active={tab === "completed"}
+          onClick={() => setTab("completed")}
         >
-          Adjudications
+          Completed
+        </button>
+        <button type="button" className="tab-item" data-active={tab === "desires"} onClick={() => setTab("desires")}>
+          Desires
         </button>
       </div>
 
-      {tab === "actions" ? (
-        <TurnsTable actions={actions} onShowAdjudication={showAdjudication} />
-      ) : (
-        <AdjudicationsTable entries={adjudications} highlightId={highlightId} />
-      )}
+      {tab === "actions" && <TurnsTable actions={actions} onShowAdjudication={showAdjudication} />}
+      {tab === "completed" && <AdjudicationsTable entries={adjudications} highlightId={highlightId} />}
+      {tab === "desires" && <DesiresTable desires={desires} />}
     </div>
   );
 }

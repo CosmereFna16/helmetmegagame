@@ -10,6 +10,7 @@ import {
   isSummaryChannel,
   getMessageStarCount,
 } from "@/lib/discordGuild";
+import { finalDesirePoints, DESIRE_MIN_POINTS } from "@/lib/desire";
 
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
@@ -94,6 +95,64 @@ export async function adjudicateAction(formData) {
   });
 
   await sendPartyMessages(formData, session);
+
+  revalidatePath("/gm/turns");
+  revalidatePath("/character");
+  revalidatePath("/gm/players");
+}
+
+export async function adjudicateDesire(formData) {
+  const session = await requireGm();
+
+  const desireId = formData.get("desireId")?.toString();
+  if (!desireId) return;
+  const approved = formData.get("decision") === "approve";
+  const basePoints = Number.parseInt(formData.get("points")?.toString() ?? "", 10);
+  const message = formData.get("message")?.toString().trim() || null;
+  const gmNotes = formData.get("gmNotes")?.toString().trim() || null;
+
+  const desire = await prisma.desire.findUnique({
+    where: { id: desireId },
+    include: { character: { include: { tags: { include: { tag: true } } } } },
+  });
+  if (!desire || desire.status !== "PENDING") return;
+
+  if (approved) {
+    const ownedSlugs = new Set(desire.character.tags.map((ct) => ct.tag.slug).filter(Boolean));
+    const points = finalDesirePoints(Number.isFinite(basePoints) ? basePoints : DESIRE_MIN_POINTS, ownedSlugs);
+
+    await prisma.$transaction([
+      prisma.desire.update({
+        where: { id: desire.id },
+        data: { status: "COMPLETED", completedAt: new Date(), pointsAwarded: points, resultMessage: message, gmNotes },
+      }),
+      prisma.character.update({ where: { id: desire.characterId }, data: { tagPoints: { increment: points } } }),
+    ]);
+
+    await sendDm(
+      desire.character.discordUserId,
+      `Desire approved: "${desire.description}" (+${points} tag points)${message ? ` — ${message}` : ""}`,
+    ).catch(() => {});
+  } else {
+    await prisma.desire.update({
+      where: { id: desire.id },
+      data: { status: "ACTIVE", resultMessage: message, gmNotes },
+    });
+
+    await sendDm(
+      desire.character.discordUserId,
+      `Desire not approved: "${desire.description}"${message ? ` — ${message}` : ""}`,
+    ).catch(() => {});
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "desire_adjudicated",
+      targetCharacterId: desire.characterId,
+      details: { desireId, approved },
+    },
+  });
 
   revalidatePath("/gm/turns");
   revalidatePath("/character");

@@ -32,6 +32,7 @@ enum ActionStatus {
 
 enum DesireStatus {
   ACTIVE
+  PENDING
   COMPLETED
   ABANDONED
 }
@@ -163,14 +164,17 @@ model CharacterTag {
 }
 
 model Desire {
-  id          String       @id @default(cuid())
-  characterId String
-  character   Character    @relation(fields: [characterId], references: [id])
-  description String
-  status      DesireStatus @default(ACTIVE)
-  turnNumber  Int?
-  createdAt   DateTime     @default(now())
-  completedAt DateTime?
+  id            String       @id @default(cuid())
+  characterId   String
+  character     Character    @relation(fields: [characterId], references: [id])
+  description   String
+  status        DesireStatus @default(ACTIVE)
+  turnNumber    Int?
+  pointsAwarded Int?
+  resultMessage String?
+  gmNotes       String?
+  createdAt     DateTime     @default(now())
+  completedAt   DateTime?
 }
 
 model Turn {

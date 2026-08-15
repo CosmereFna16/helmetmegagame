@@ -8,7 +8,7 @@ import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
 import { syncCharacterNickname, setTurnPingRole, sendDm } from "@/lib/discordGuild";
 import { TAG_STORE_CATEGORY_NAMES, unlockedCategoryNames } from "@/lib/tagStore";
-import { DESIRE_COOLDOWN_TURNS, desireCompletionPoints } from "@/lib/desire";
+import { DESIRE_COOLDOWN_TURNS } from "@/lib/desire";
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const AVATAR_SIZE = 256;
@@ -230,7 +230,7 @@ export async function setDesire(characterId, description) {
     prisma.desire.findFirst({ where: { characterId: character.id }, orderBy: { createdAt: "desc" } }),
   ]);
 
-  if (lastDesire?.status === "ACTIVE") return;
+  if (lastDesire?.status === "ACTIVE" || lastDesire?.status === "PENDING") return;
   if (lastDesire?.turnNumber != null && openTurn) {
     const turnsSince = openTurn.number - lastDesire.turnNumber;
     if (turnsSince < DESIRE_COOLDOWN_TURNS) return;
@@ -243,13 +243,15 @@ export async function setDesire(characterId, description) {
   revalidatePath("/character");
 }
 
-export async function completeDesire(characterId, desireId) {
+// Marks a desire as ready for GM review — no points are granted here.
+// The GM decides whether to approve it and how many points it's worth
+// via adjudicateDesire() in gm/actions.js.
+export async function submitDesireForReview(characterId, desireId) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
 
   const character = await prisma.character.findFirst({
     where: { id: characterId, discordUserId: session.discordUserId, status: "ALIVE" },
-    include: { tags: { include: { tag: true } } },
   });
   if (!character) redirect("/character/new");
 
@@ -258,17 +260,34 @@ export async function completeDesire(characterId, desireId) {
   });
   if (!desire) return;
 
-  const ownedSlugs = new Set(character.tags.map((ct) => ct.tag.slug).filter(Boolean));
-  const points = desireCompletionPoints(ownedSlugs);
+  await prisma.desire.update({ where: { id: desire.id }, data: { status: "PENDING" } });
 
-  await prisma.$transaction([
-    prisma.desire.update({ where: { id: desire.id }, data: { status: "COMPLETED", completedAt: new Date() } }),
-    prisma.character.update({ where: { id: character.id }, data: { tagPoints: { increment: points } } }),
-  ]);
+  await sendDm(session.discordUserId, `Desire submitted for review: "${desire.description}"`).catch(() => {});
 
-  await sendDm(session.discordUserId, `Desire completed: "${desire.description}" (+${points} tag points)`).catch(
-    () => {}
-  );
+  revalidatePath("/character");
+  revalidatePath("/gm/turns");
+}
+
+// Gives up on the current active desire without submitting it for review.
+// Reverts to ACTIVE-free (ABANDONED), still subject to the normal cooldown
+// since that's gated on the last desire's turnNumber regardless of status.
+export async function cancelDesire(characterId, desireId) {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+
+  const character = await prisma.character.findFirst({
+    where: { id: characterId, discordUserId: session.discordUserId, status: "ALIVE" },
+  });
+  if (!character) redirect("/character/new");
+
+  const desire = await prisma.desire.findFirst({
+    where: { id: desireId, characterId: character.id, status: "ACTIVE" },
+  });
+  if (!desire) return;
+
+  await prisma.desire.update({ where: { id: desire.id }, data: { status: "ABANDONED" } });
+
+  await sendDm(session.discordUserId, `Desire cancelled: "${desire.description}"`).catch(() => {});
 
   revalidatePath("/character");
 }
