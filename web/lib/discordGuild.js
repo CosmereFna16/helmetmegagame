@@ -184,9 +184,10 @@ export async function postMessage(channelId, content) {
 
 export async function sendDm(discordUserId, content) {
   const channel = await createDmChannel(discordUserId);
-  const message = await postMessage(channel.id, content);
+  const formatted = `» ${content}`;
+  const message = await postMessage(channel.id, formatted);
   await prisma.directMessage
-    .create({ data: { discordUserId, direction: "OUTBOUND", content } })
+    .create({ data: { discordUserId, direction: "OUTBOUND", content: formatted } })
     .catch(() => {});
   return message;
 }

@@ -74,7 +74,7 @@ This requires the `MESSAGE_CONTENT` privileged intent enabled for the bot applic
 
 ## Moves, Efforts, and adjudication
 
-Moves and Efforts also come from channel *names*, not IDs: a message posted in a channel named exactly `moves` or `effort` becomes a `PENDING` `Action` (type `MOVE`/`EFFORT`) via `bot/src/lib/actionSubmission.js#handleActionSubmission` — it deletes the original message, records the character's current zone, and DMs the player a confirm prompt with a ✅ reaction already applied. Reacting ✅ is handled by the existing `handleActionConfirm` in `bot/src/events/messageReactionAdd.js` (matched via `Action.confirmDmMessageId`), which rolls a d20 for Moves only, DMs the result (🎲 prefix), and flips the action to `CONFIRMED`.
+Moves and Efforts also come from channel *names*, not IDs: a message posted in a channel named exactly `moves` or `effort` becomes a `PENDING` `Action` (type `MOVE`/`EFFORT`) via `bot/src/lib/actionSubmission.js#handleActionSubmission` — it deletes the original message, records the character's current zone, and DMs the player a confirm prompt with a ⚜ reaction already applied. Reacting ⚜ is handled by the existing `handleActionConfirm` in `bot/src/events/messageReactionAdd.js` (matched via `Action.confirmDmMessageId`), which rolls a d20 for Moves only, strips the confirm reaction, edits the DM in place to `» *Waiting on adjudication...*` (with the roll above it for Moves), and flips the action to `CONFIRMED`. Requires the `DirectMessageReactions` gateway intent (`bot/src/index.js`) — without it, reactions on DMs never reach the bot at all.
 
 Turns advance via `advanceTurn()` in `db/index.js` — shared logic (resolve Needs on the open turn, close it, open the next with alternated phase) called from three places that each layer on their own Discord-specific announcement: the bot's twice-daily cron (`bot/src/lib/turnEngine.js`), the GM's "End Turn" button on `/gm/turns` (`endTurn` in `web/app/(app)/gm/actions.js`), and the superadmin's "Force next turn" on `/gm/dev` (`forceAdvanceTurn`). There's no separate open/close-turn UI anymore — one button does both. The Dev Panel's Current Turn widget can also directly overwrite the open turn's day/phase without resolving Needs, for raw correction.
 
@@ -83,6 +83,10 @@ GMs adjudicate `CONFIRMED` actions from `/gm/turns/[actionId]` (reached via the 
 ## Direct message logging
 
 Every DM the bot or web app sends or receives is logged to `DirectMessage` (`discordUserId`, `direction: INBOUND|OUTBOUND`, `content`) so `/gm/messages` can show a full per-player conversation with a reply box. On the bot side, use `bot/src/lib/dm.js`'s `sendDm(user, payload)` wrapper (not raw `user.createDM()`/`dm.send()`) so outbound messages get logged; inbound DMs are logged directly in `messageCreate.js`. On the web side, `web/lib/discordGuild.js`'s `sendDm(discordUserId, content)` does the same.
+
+## Bot message style ("aura")
+
+Bot-authored Discord text should feel understated, not like a typical bot dashboard: no big colorful emoji, small unicode marks only. Lines that quote or restate player/character content are prefixed with `»` (the same mark that opts a channel into tupper/summary behavior, see above) — e.g. `» {move description}`. `web/lib/discordGuild.js#sendDm` applies this `»` prefix automatically to every DM a GM sends a player (adjudication results, broadcasts, inbox replies), so callers pass the raw message text. Bot-side DMs that the bot itself composes (move/effort confirmations, edit prompts) are written with the `»` prefix inline at the call site instead, since they're paired with other formatting (zone, dice roll) that doesn't come through `sendDm`.
 
 ## Deploy workflow
 

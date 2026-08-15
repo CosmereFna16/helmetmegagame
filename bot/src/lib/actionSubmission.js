@@ -1,7 +1,7 @@
 const { prisma } = require("@lifeweb/db");
 const { sendDm } = require("./dm");
 
-const CONFIRM_EMOJI = "✅";
+const CONFIRM_EMOJI = "⚜️";
 
 // A message posted in the #moves or #effort channel becomes a PENDING
 // action: the original message is deleted (the action itself only exists as
@@ -20,7 +20,7 @@ async function handleActionSubmission(message, type) {
   if (!openTurn) {
     await message.delete().catch(() => {});
     const label = type === "MOVE" ? "move" : "effort";
-    await sendDm(message.author, `No turn is currently open — your ${label} wasn't recorded.`).catch(() => {});
+    await sendDm(message.author, `» *No turn is currently open — your ${label} wasn't recorded.*`).catch(() => {});
     return;
   }
 
@@ -46,8 +46,8 @@ async function handleActionSubmission(message, type) {
 
   const lines =
     type === "MOVE"
-      ? [`**Move submitted:** ${description}`, `Zone: ${zone?.name ?? "(none)"}`, "React with ✅ to confirm."]
-      : [`**Effort submitted:** ${description}`, "React with ✅ to confirm."];
+      ? [`» ${description}`, `**Zone:** ${zone?.name ?? "(none)"}`, "", "React with ⚜ to confirm."]
+      : [`» ${description}`, "", "React with ⚜ to confirm."];
 
   let sent;
   try {
