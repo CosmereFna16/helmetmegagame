@@ -109,6 +109,7 @@ model Character {
   avatarData     Bytes?
   avatarMimeType String?
   appearance     String?
+  preferredNickname String?
 
   tags           CharacterTag[]
   desires        Desire[]

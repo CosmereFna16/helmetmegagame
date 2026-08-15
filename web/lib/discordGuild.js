@@ -204,6 +204,46 @@ export async function getMessageStarCount(channelId, messageId) {
   return reaction?.count ?? 0;
 }
 
+const NICK_MAX = 32;
+const NICK_SEP = " | ";
+
+// Kept in sync by hand with the identical function in bot/src/lib/nickname.js
+// (same convention already used for isTupperChannel/isSummaryChannel, which
+// exist independently in both processes).
+export function buildNickname(base, characterName) {
+  const budget = NICK_MAX - NICK_SEP.length;
+  const a = (base || "").trim();
+  const b = (characterName || "").trim();
+  if (a.length + b.length <= budget) return `${a}${NICK_SEP}${b}`;
+
+  const aMax = Math.ceil(budget / 2);
+  const truncA = a.slice(0, Math.min(a.length, aMax));
+  const truncB = b.slice(0, budget - truncA.length);
+  return `${truncA}${NICK_SEP}${truncB}`;
+}
+
+export async function updateGuildNickname(discordUserId, nickname) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  const token = process.env.DISCORD_TOKEN;
+  if (!guildId || !token) return;
+
+  await fetch(`${DISCORD_API}/guilds/${guildId}/members/${discordUserId}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ nick: nickname }),
+  }).catch(() => {});
+}
+
+// Called right after a character is created/renamed so the nickname reflects
+// it immediately instead of waiting for the bot's next connect-time resync.
+export async function syncCharacterNickname(discordUserId, characterName, preferredNickname) {
+  const member = await getGuildMember(discordUserId);
+  if (!member) return;
+
+  const base = preferredNickname?.trim() || member.user.global_name || member.user.username;
+  await updateGuildNickname(discordUserId, buildNickname(base, characterName));
+}
+
 export async function sendDm(discordUserId, content) {
   const channel = await createDmChannel(discordUserId);
   const formatted = `» ${content}`;

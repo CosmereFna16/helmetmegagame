@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
+import { syncCharacterNickname } from "@/lib/discordGuild";
 
 export async function createCharacter(formData) {
   const session = await auth();
@@ -30,6 +31,8 @@ export async function createCharacter(formData) {
       factionId: unaffiliated?.id ?? null,
     },
   });
+
+  await syncCharacterNickname(session.discordUserId, name, null).catch(() => {});
 
   redirect("/character");
 }

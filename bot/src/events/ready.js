@@ -1,6 +1,7 @@
 const cron = require("node-cron");
 const { prisma } = require("@lifeweb/db");
 const { syncFactionsForGuild } = require("../lib/factionSync");
+const { syncNicknamesForGuild } = require("../lib/nickname");
 const { advanceTurn } = require("../lib/turnEngine");
 
 module.exports = {
@@ -18,6 +19,7 @@ module.exports = {
     for (const guild of client.guilds.cache.values()) {
       await syncFactionsForGuild(guild);
       console.log(`Synced factions for guild ${guild.name}`);
+      await syncNicknamesForGuild(guild).catch((err) => console.error("Failed to sync nicknames:", err));
     }
 
     const runAdvanceTurn = () => {

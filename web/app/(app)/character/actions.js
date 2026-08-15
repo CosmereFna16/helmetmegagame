@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
+import { syncCharacterNickname } from "@/lib/discordGuild";
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const AVATAR_SIZE = 256;
@@ -22,9 +23,10 @@ export async function updateCharacterProfile(formData) {
   const name = formData.get("name")?.toString().trim();
   const appearance =
     formData.get("appearance")?.toString().trim().slice(0, APPEARANCE_MAX_LENGTH) || null;
+  const preferredNickname = formData.get("preferredNickname")?.toString().trim() || null;
   const avatar = formData.get("avatar");
 
-  const data = { appearance };
+  const data = { appearance, preferredNickname };
   if (name) data.name = name;
 
   if (avatar && avatar.size > 0) {
@@ -39,7 +41,8 @@ export async function updateCharacterProfile(formData) {
     data.avatarMimeType = "image/webp";
   }
 
-  await prisma.character.update({ where: { id: character.id }, data });
+  const updated = await prisma.character.update({ where: { id: character.id }, data });
+  await syncCharacterNickname(session.discordUserId, updated.name, updated.preferredNickname).catch(() => {});
   revalidatePath("/character");
 }
 

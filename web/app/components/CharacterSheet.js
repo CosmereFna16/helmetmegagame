@@ -98,6 +98,15 @@ export default function CharacterSheet({
             </label>
             <AvatarField />
             <AppearanceField defaultValue={character.appearance ?? ""} />
+            <label className="field">
+              <span className="field-label">Discord nickname (optional)</span>
+              <input
+                name="preferredNickname"
+                defaultValue={character.preferredNickname ?? ""}
+                placeholder="Defaults to your Discord display name"
+                maxLength={24}
+              />
+            </label>
             <button type="submit" className="btn self-start">
               Save
             </button>

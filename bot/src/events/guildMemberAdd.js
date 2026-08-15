@@ -1,4 +1,5 @@
 const { prisma } = require("@lifeweb/db");
+const { syncMemberNickname } = require("../lib/nickname");
 
 module.exports = {
   name: "guildMemberAdd",
@@ -10,5 +11,8 @@ module.exports = {
         details: { username: member.user.tag },
       },
     });
+
+    // Covers rejoins where a character already exists from before they left.
+    await syncMemberNickname(member).catch(() => {});
   },
 };
