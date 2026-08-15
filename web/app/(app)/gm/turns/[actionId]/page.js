@@ -3,8 +3,8 @@ import Link from "next/link";
 import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { describeTurn } from "@/lib/turn";
-import { adjudicateAction } from "../../actions";
-import AffectedPartiesForm from "./AffectedPartiesForm";
+import { adjudicateAction, sendAffectedParties } from "../../actions";
+import PartyRows from "./PartyRows";
 
 export default async function ArbitrationPage({ params }) {
   const { actionId } = await params;
@@ -62,7 +62,7 @@ export default async function ArbitrationPage({ params }) {
           </p>
         )}
         {action.status === "CONFIRMED" && (
-          <form action={adjudicateAction} className="flex flex-col gap-3">
+          <form action={adjudicateAction} className="flex flex-col gap-4">
             <input type="hidden" name="actionId" value={action.id} />
             <label className="field">
               <span className="field-label">Adjudication message (sent to the player)</span>
@@ -76,6 +76,15 @@ export default async function ArbitrationPage({ params }) {
               <input type="checkbox" name="isPublic" defaultChecked />
               Also post the adjudication message to summary channels
             </label>
+
+            <div className="border-t pt-4" style={{ borderColor: "var(--border)" }}>
+              <h3 className="mb-1 font-bold">Message affected parties</h3>
+              <p className="mb-3 text-sm" style={{ color: "var(--muted)" }}>
+                Privately contact any other character about this action&apos;s outcome.
+              </p>
+              <PartyRows characters={otherCharacters} />
+            </div>
+
             <button type="submit" className="btn self-start">
               Adjudicate
             </button>
@@ -94,13 +103,20 @@ export default async function ArbitrationPage({ params }) {
         )}
       </section>
 
-      <section className="panel p-4">
-        <h2 className="mb-3 font-bold">Message Affected Parties</h2>
-        <p className="mb-3 text-sm" style={{ color: "var(--muted)" }}>
-          Privately contact any other character about this action&apos;s outcome.
-        </p>
-        <AffectedPartiesForm characters={otherCharacters} />
-      </section>
+      {action.status === "ADJUDICATED" && (
+        <section className="panel p-4">
+          <h2 className="mb-1 font-bold">Message affected parties</h2>
+          <p className="mb-3 text-sm" style={{ color: "var(--muted)" }}>
+            Privately contact any other character about this action&apos;s outcome.
+          </p>
+          <form action={sendAffectedParties} className="flex flex-col gap-3">
+            <PartyRows characters={otherCharacters} />
+            <button type="submit" className="btn self-start">
+              Send
+            </button>
+          </form>
+        </section>
+      )}
     </div>
   );
 }

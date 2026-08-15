@@ -39,6 +39,40 @@ export async function endTurn() {
   revalidatePath("/", "layout");
 }
 
+// Shared by adjudicateAction (bundled with the adjudication submit) and
+// sendAffectedParties (standalone, once an action is already adjudicated) —
+// both collect the same parallel partyCharacterId[]/partyMessage[] fields
+// from PartyRows and fire one DM per filled-in row.
+async function sendPartyMessages(formData, session) {
+  const characterIds = formData.getAll("partyCharacterId").map(String);
+  const messages = formData.getAll("partyMessage").map(String);
+  const pairs = characterIds
+    .map((id, i) => ({ characterId: id, message: messages[i]?.trim() }))
+    .filter((p) => p.characterId && p.message);
+  if (pairs.length === 0) return;
+
+  const characters = await prisma.character.findMany({
+    where: { id: { in: pairs.map((p) => p.characterId) } },
+  });
+  const byId = new Map(characters.map((c) => [c.id, c]));
+
+  await Promise.all(
+    pairs.map((p) => {
+      const character = byId.get(p.characterId);
+      if (!character) return null;
+      return sendDm(character.discordUserId, p.message).catch(() => null);
+    }),
+  );
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "gm_message_sent",
+      details: { pairs },
+    },
+  });
+}
+
 export async function adjudicateAction(formData) {
   const session = await requireGm();
 
@@ -80,8 +114,18 @@ export async function adjudicateAction(formData) {
     },
   });
 
+  await sendPartyMessages(formData, session);
+
   revalidatePath("/gm/turns");
   revalidatePath("/character");
+  revalidatePath("/gm/players");
+}
+
+export async function sendAffectedParties(formData) {
+  const session = await requireGm();
+  await sendPartyMessages(formData, session);
+  revalidatePath("/gm/turns");
+  revalidatePath("/gm/players");
 }
 
 export async function sendGmMessage(formData) {

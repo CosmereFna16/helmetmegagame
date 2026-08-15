@@ -42,10 +42,13 @@ async function handleActionConfirm(reaction, user) {
     },
   });
 
-  await reaction.message.reactions.removeAll().catch(() => {});
+  // Discord won't let a bot remove another user's reaction in a DM channel
+  // (no MANAGE_MESSAGES concept there), so deleting the message and sending
+  // a fresh one is the only reliable way to clear the confirm reaction.
+  await reaction.message.delete().catch(() => {});
 
   const waitingLines = diceRoll != null ? [`🎲 **${diceRoll}**`, "» *Waiting on adjudication...*"] : ["» *Waiting on adjudication...*"];
-  await reaction.message.edit(waitingLines.join("\n")).catch(() => {});
+  await sendDm(user, waitingLines.join("\n")).catch(() => {});
 }
 
 async function isGm(reaction, userId) {
