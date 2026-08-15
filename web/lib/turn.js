@@ -28,3 +28,12 @@ export function describeTurn(turn) {
 export function themeForPhase(phase) {
   return phase === "DUSK" ? "dusk" : "dawn";
 }
+
+// "Turn 1, Dusk" — the raw sequential turn number (not the day/2 grouping
+// describeTurn() computes), used in tables that list individual actions.
+export function formatTurnLabel(turnNumber, phase) {
+  if (turnNumber == null) return "-";
+  if (!phase) return `Turn ${turnNumber}`;
+  const phaseLabel = phase.charAt(0) + phase.slice(1).toLowerCase();
+  return `Turn ${turnNumber}, ${phaseLabel}`;
+}

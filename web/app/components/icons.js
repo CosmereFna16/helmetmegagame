@@ -18,15 +18,6 @@ export function PlayersIcon(props) {
   );
 }
 
-export function TurnsIcon(props) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
-      <path d="M6 4h12M6 20h12" strokeLinecap="round" />
-      <path d="M7 4c0 4 4 5 5 8-1 3-5 4-5 8M17 4c0 4-4 5-5 8 1 3 5 4 5 8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 export function AuditIcon(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   CharacterIcon,
   PlayersIcon,
-  TurnsIcon,
+  ScaleIcon,
   AuditIcon,
   FactionIcon,
   DevIcon,
@@ -18,7 +18,7 @@ import { signOutOfDiscord } from "../actions";
 const ICONS = {
   character: CharacterIcon,
   players: PlayersIcon,
-  turns: TurnsIcon,
+  turns: ScaleIcon,
   audit: AuditIcon,
   faction: FactionIcon,
   dev: DevIcon,

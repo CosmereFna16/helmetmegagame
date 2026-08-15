@@ -31,7 +31,7 @@ export default async function ArbitrationPage({ params }) {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6 sm:p-8">
       <Link href="/gm/turns" className="btn-quiet">
-        &larr; Back to Turns
+        &larr; Back to Adjudicate
       </Link>
 
       <section className="panel p-4">

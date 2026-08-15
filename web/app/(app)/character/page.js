@@ -15,7 +15,7 @@ export default async function CharacterPage() {
       faction: true,
       zone: true,
       tags: { include: { tag: true } },
-      desires: { where: { status: "ACTIVE" } },
+      desires: { orderBy: { createdAt: "desc" }, take: 1 },
     },
   });
 

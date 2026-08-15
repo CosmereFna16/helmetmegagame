@@ -3,9 +3,10 @@
 import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { ScaleIcon, MessageIcon } from "../../../components/icons";
+import { formatTurnLabel } from "@/lib/turn";
 import { sendGmMessage } from "../actions";
 
-export default function TurnsTable({ actions }) {
+export default function TurnsTable({ actions, onShowAdjudication }) {
   const [zoneFilter, setZoneFilter] = useState("");
   const [factionFilter, setFactionFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -65,6 +66,7 @@ export default function TurnsTable({ actions }) {
             <option value="">All</option>
             <option value="PENDING">Pending</option>
             <option value="CONFIRMED">Confirmed</option>
+            <option value="ADJUDICATED">Complete</option>
           </select>
         </label>
       </div>
@@ -104,13 +106,23 @@ export default function TurnsTable({ actions }) {
                       <ScaleIcon width={16} height={16} />
                     </Link>
                   </td>
-                  <td>{a.turnNumber}</td>
+                  <td>{formatTurnLabel(a.turnNumber, a.turnPhase)}</td>
                   <td>{a.characterName}</td>
                   <td>{a.factionName || "-"}</td>
                   <td>{a.zoneName || "-"}</td>
                   <td>{a.type === "MOVE" ? "Move" : "Effort"}</td>
                   <td>{a.diceRoll ?? "-"}</td>
-                  <td>{a.status}</td>
+                  <td>
+                    {a.status === "ADJUDICATED" ? (
+                      <button type="button" className="status-link" onClick={() => onShowAdjudication(a.id)}>
+                        Complete
+                      </button>
+                    ) : a.status === "PENDING" ? (
+                      "Pending"
+                    ) : (
+                      "Confirmed"
+                    )}
+                  </td>
                   <td className="max-w-xs truncate">{a.description}</td>
                 </tr>
                 {messageRowId === a.id && (

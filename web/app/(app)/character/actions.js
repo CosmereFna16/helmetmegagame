@@ -6,8 +6,9 @@ import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
-import { syncCharacterNickname, setTurnPingRole } from "@/lib/discordGuild";
+import { syncCharacterNickname, setTurnPingRole, sendDm } from "@/lib/discordGuild";
 import { TAG_STORE_CATEGORIES } from "@/lib/tagStore";
+import { DESIRE_COOLDOWN_TURNS } from "@/lib/desire";
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const AVATAR_SIZE = 256;
@@ -202,6 +203,60 @@ export async function purchaseTags(characterId, desiredTagIds) {
     ),
     prisma.character.update({ where: { id: character.id }, data: { tagPoints: newTagPoints } }),
   ]);
+
+  revalidatePath("/character");
+}
+
+export async function setDesire(characterId, description) {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+
+  const character = await prisma.character.findFirst({
+    where: { id: characterId, discordUserId: session.discordUserId, status: "ALIVE" },
+  });
+  if (!character) redirect("/character/new");
+
+  const trimmed = description?.toString().trim();
+  if (!trimmed) return;
+
+  const [openTurn, lastDesire] = await Promise.all([
+    prisma.turn.findFirst({ where: { status: "OPEN" } }),
+    prisma.desire.findFirst({ where: { characterId: character.id }, orderBy: { createdAt: "desc" } }),
+  ]);
+
+  if (lastDesire?.status === "ACTIVE") return;
+  if (lastDesire?.turnNumber != null && openTurn) {
+    const turnsSince = openTurn.number - lastDesire.turnNumber;
+    if (turnsSince < DESIRE_COOLDOWN_TURNS) return;
+  }
+
+  await prisma.desire.create({
+    data: { characterId: character.id, description: trimmed, turnNumber: openTurn?.number ?? null },
+  });
+
+  revalidatePath("/character");
+}
+
+export async function completeDesire(characterId, desireId) {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+
+  const character = await prisma.character.findFirst({
+    where: { id: characterId, discordUserId: session.discordUserId, status: "ALIVE" },
+  });
+  if (!character) redirect("/character/new");
+
+  const desire = await prisma.desire.findFirst({
+    where: { id: desireId, characterId: character.id, status: "ACTIVE" },
+  });
+  if (!desire) return;
+
+  await prisma.desire.update({
+    where: { id: desire.id },
+    data: { status: "COMPLETED", completedAt: new Date() },
+  });
+
+  await sendDm(session.discordUserId, `Desire completed: "${desire.description}"`).catch(() => {});
 
   revalidatePath("/character");
 }

@@ -3,6 +3,7 @@ import AppearanceField from "./AppearanceField";
 import AvatarField from "./AvatarField";
 import TagChip from "./TagChip";
 import TagStorePanel from "./TagStorePanel";
+import DesirePanel from "./DesirePanel";
 
 function groupTagsByCategory(characterTags) {
   const groups = new Map();
@@ -266,14 +267,12 @@ export default function CharacterSheet({
         )}
       </section>
 
-      <section className="panel p-4">
-        <h2 className="mb-2 font-bold">Desire</h2>
-        {character.desires[0] ? (
-          <p className="text-sm">{character.desires[0].description}</p>
-        ) : (
-          <p className="text-sm" style={{ color: "var(--muted)" }}>No active desire set.</p>
-        )}
-      </section>
+      <DesirePanel
+        characterId={character.id}
+        desire={character.desires[0] ?? null}
+        openTurnNumber={openTurn?.number ?? null}
+        isSelf={isSelf}
+      />
     </div>
   );
 }

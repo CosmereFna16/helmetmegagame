@@ -167,6 +167,7 @@ model Desire {
   character   Character    @relation(fields: [characterId], references: [id])
   description String
   status      DesireStatus @default(ACTIVE)
+  turnNumber  Int?
   createdAt   DateTime     @default(now())
   completedAt DateTime?
 }
