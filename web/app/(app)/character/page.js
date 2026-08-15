@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
+import { TAG_STORE_CATEGORIES } from "@/lib/tagStore";
 import CharacterSheet from "../../components/CharacterSheet";
 
 export default async function CharacterPage() {
@@ -20,7 +21,7 @@ export default async function CharacterPage() {
 
   if (!character) redirect("/character/new");
 
-  const [openTurn, otherCharacters, factions] = await Promise.all([
+  const [openTurn, otherCharacters, factions, storeTags] = await Promise.all([
     getOpenTurn(),
     prisma.character.findMany({
       where: { status: "ALIVE", id: { not: character.id } },
@@ -32,6 +33,7 @@ export default async function CharacterPage() {
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
+    prisma.tag.findMany({ where: { category: { in: TAG_STORE_CATEGORIES } } }),
   ]);
 
   const avatarSrc = character.avatarMimeType
@@ -45,6 +47,7 @@ export default async function CharacterPage() {
       openTurn={openTurn}
       avatarSrc={avatarSrc}
       transferTargets={{ characters: otherCharacters, factions }}
+      storeTags={storeTags}
     />
   );
 }

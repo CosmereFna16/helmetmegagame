@@ -193,6 +193,136 @@ body {
   letter-spacing: 0.03em;
 }
 
+/* Universal tag hover tooltip — wraps a .chip, shows name/description/value. */
+.tag-hover {
+  position: relative;
+  display: inline-flex;
+  outline: none;
+}
+
+.tag-tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  width: max-content;
+  max-width: 240px;
+  border: 1px solid var(--border);
+  background: var(--panel-bg);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.tag-tooltip strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.tag-tooltip p {
+  color: var(--muted);
+  margin: 0 0 4px;
+}
+
+.tag-hover:hover .tag-tooltip,
+.tag-hover:focus-visible .tag-tooltip {
+  display: block;
+}
+
+/* Tag store modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-panel {
+  width: 100%;
+  max-width: 32rem;
+  max-height: 85vh;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  background: var(--panel-bg);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+@keyframes shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+}
+
+.modal-panel.shake {
+  animation: shake 0.4s;
+}
+
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab-item {
+  all: unset;
+  cursor: pointer;
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+}
+
+.tab-item:hover {
+  color: var(--text);
+}
+
+.tab-item[data-active="true"] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.store-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.store-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+}
+
+.store-row-info {
+  min-width: 0;
+}
+
+.store-row-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;

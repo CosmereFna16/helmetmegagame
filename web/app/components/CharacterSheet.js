@@ -1,6 +1,8 @@
 import { updateCharacterProfile, setMood, transferResources } from "../(app)/character/actions";
 import AppearanceField from "./AppearanceField";
 import AvatarField from "./AvatarField";
+import TagChip from "./TagChip";
+import TagStorePanel from "./TagStorePanel";
 
 function groupTagsByCategory(characterTags) {
   const groups = new Map();
@@ -54,6 +56,7 @@ export default function CharacterSheet({
   openTurn,
   avatarSrc,
   transferTargets,
+  storeTags,
 }) {
   const isSelf = mode === "self";
   const tagGroups = groupTagsByCategory(character.tags);
@@ -144,11 +147,18 @@ export default function CharacterSheet({
           </li>
           <li>
             Tag Points:{" "}
-            {character.tagPoints > 0 ? (
-              <span style={{ color: "var(--mood-happy)" }}>+{character.tagPoints}</span>
-            ) : (
-              character.tagPoints
-            )}
+            <span
+              style={{
+                color:
+                  character.tagPoints > 0
+                    ? "var(--mood-happy)"
+                    : character.tagPoints < 0
+                    ? "var(--accent)"
+                    : "var(--text)",
+              }}
+            >
+              {character.tagPoints > 0 ? `+${character.tagPoints}` : character.tagPoints}
+            </span>
           </li>
         </ul>
 
@@ -237,8 +247,8 @@ export default function CharacterSheet({
                 <p className="field-label mb-1">{category}</p>
                 <ul className="flex flex-wrap gap-2">
                   {tags.map((tag) => (
-                    <li key={tag.id} className="chip">
-                      {tag.name}
+                    <li key={tag.id}>
+                      <TagChip tag={tag} />
                     </li>
                   ))}
                 </ul>
@@ -247,9 +257,12 @@ export default function CharacterSheet({
           </div>
         )}
         {isSelf && (
-          <button type="button" disabled={character.tagPoints <= 0} className="btn-quiet mt-3">
-            Point Buy
-          </button>
+          <TagStorePanel
+            characterId={character.id}
+            tagPoints={character.tagPoints}
+            ownedCharacterTags={character.tags}
+            storeTags={storeTags}
+          />
         )}
       </section>
 

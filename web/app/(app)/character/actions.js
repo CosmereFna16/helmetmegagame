@@ -7,6 +7,7 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
 import { syncCharacterNickname, setTurnPingRole } from "@/lib/discordGuild";
+import { TAG_STORE_CATEGORIES } from "@/lib/tagStore";
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const AVATAR_SIZE = 256;
@@ -156,4 +157,51 @@ export async function transferResources(formData) {
 
   revalidatePath("/character");
   revalidatePath("/faction");
+}
+
+// Reconciles the point-buy store's desired tag selection against the character's
+// current POINT_BUY tags. Only tags in TAG_STORE_CATEGORIES are ever touched here —
+// tags granted another way (GM_GRANT, DESIRE_REWARD, EVENT) aren't purchasable or
+// sellable through this action and are left untouched.
+export async function purchaseTags(characterId, desiredTagIds) {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+
+  const character = await prisma.character.findFirst({
+    where: { id: characterId, discordUserId: session.discordUserId, status: "ALIVE" },
+    include: { tags: { include: { tag: true } } },
+  });
+  if (!character) redirect("/character/new");
+
+  const storeTags = await prisma.tag.findMany({ where: { category: { in: TAG_STORE_CATEGORIES } } });
+  const storeTagIds = new Set(storeTags.map((t) => t.id));
+  const desiredSet = new Set((desiredTagIds ?? []).filter((id) => storeTagIds.has(id)));
+
+  const currentPointBuy = character.tags.filter(
+    (ct) => ct.source === "POINT_BUY" && storeTagIds.has(ct.tagId)
+  );
+  const currentIds = new Set(currentPointBuy.map((ct) => ct.tagId));
+
+  const toAdd = [...desiredSet].filter((id) => !currentIds.has(id));
+  const toRemove = currentPointBuy.filter((ct) => !desiredSet.has(ct.tagId));
+
+  const costById = new Map(storeTags.map((t) => [t.id, t.pointCost]));
+  const costDelta =
+    toAdd.reduce((sum, id) => sum + (costById.get(id) ?? 0), 0) -
+    toRemove.reduce((sum, ct) => sum + (costById.get(ct.tagId) ?? 0), 0);
+  const newTagPoints = character.tagPoints - costDelta;
+
+  if (newTagPoints < 0) {
+    throw new Error("Not enough tag points to leave the store with this selection.");
+  }
+
+  await prisma.$transaction([
+    ...toRemove.map((ct) => prisma.characterTag.delete({ where: { id: ct.id } })),
+    ...toAdd.map((tagId) =>
+      prisma.characterTag.create({ data: { characterId: character.id, tagId, source: "POINT_BUY" } })
+    ),
+    prisma.character.update({ where: { id: character.id }, data: { tagPoints: newTagPoints } }),
+  ]);
+
+  revalidatePath("/character");
 }

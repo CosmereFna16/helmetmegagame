@@ -5,6 +5,7 @@ import { getGmSession } from "@/lib/discordGuild";
 import { describeTurn } from "@/lib/turn";
 import { adjudicateAction, sendAffectedParties } from "../../actions";
 import PartyRows from "./PartyRows";
+import TagChip from "../../../../components/TagChip";
 
 export default async function ArbitrationPage({ params }) {
   const { actionId } = await params;
@@ -45,9 +46,7 @@ export default async function ArbitrationPage({ params }) {
         {action.character.tags.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-2">
             {action.character.tags.map((ct) => (
-              <span key={ct.id} className="chip">
-                {ct.tag.name}
-              </span>
+              <TagChip key={ct.id} tag={ct.tag} />
             ))}
           </div>
         )}
