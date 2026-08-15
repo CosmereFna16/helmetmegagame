@@ -28,7 +28,7 @@ The single source of truth for "what turn is it" is the `Turn` row with `status 
 - On fire, run `advanceTurn()` (new: `bot/src/lib/turnEngine.js`, callable from both the cron job and — later — a GM "force advance" button):
   1. If a `Turn` is `OPEN`: apply end-of-turn Needs resolution (§6), then set `status = RESOLVED`.
   2. Open the next `Turn`: `number = last + 1`, `phase` flips, `gameDate` advances once every two turns (Dusk → next Dawn).
-  3. Post a short line to the summary channel: `Turn 7 — Dusk falls over Evergreen.`
+  3. Post a short line to the summary channel: `Turn 7 — Dusk falls over Earth.`
 - `node-cron`'s internal mechanism is a lightweight once-a-minute check against the cron expression — cheap, and the right level of abstraction here (nobody should hand-roll a `setInterval` comparing hours).
 - **Known limitation**: if the bot process restarts right at a boundary, `node-cron` does not "catch up" a missed fire. At this scale (one guild, GM actively watching) that's an acceptable risk, not a reason to build a persistence-backed job queue. The GM dashboard's manual open/close stays as the safety net.
 - The GM's existing manual `openTurn()`/`closeTurn()` actions (`web/app/gm/actions.js`) remain for testing and emergency override; production play runs on the cron.
