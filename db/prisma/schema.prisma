@@ -236,8 +236,25 @@ model ArchivedMessage {
   sentAt           DateTime
   archivedAt       DateTime  @default(now())
 
+  stars MessageStar[]
+
   @@index([zoneId])
   @@index([starCount])
+}
+
+// One row per (message, starrer) — lets a player's archive view show only
+// messages *they* starred, since matching a player's actual Discord read
+// access (zones, private threads for secret conversations, etc.) isn't
+// something the archive tracks.
+model MessageStar {
+  id                String          @id @default(cuid())
+  archivedMessageId String
+  archivedMessage   ArchivedMessage @relation(fields: [archivedMessageId], references: [id])
+  discordUserId     String
+  createdAt         DateTime        @default(now())
+
+  @@unique([archivedMessageId, discordUserId])
+  @@index([discordUserId])
 }
 
 model AuditLog {

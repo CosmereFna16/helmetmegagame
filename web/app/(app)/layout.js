@@ -8,6 +8,7 @@ import TurnChip from "../components/TurnChip";
 const PLAYER_NAV = [
   { href: "/character", label: "Character", icon: "character" },
   { href: "/faction", label: "Faction", icon: "faction" },
+  { href: "/archive", label: "Archive", icon: "archive" },
 ];
 
 const GM_NAV = [
@@ -16,7 +17,7 @@ const GM_NAV = [
   { href: "/gm/players", label: "Players", icon: "players" },
   { href: "/gm/turns", label: "Turns", icon: "turns" },
   { href: "/gm/messages", label: "Messages", icon: "messages" },
-  { href: "/gm/archive", label: "Archive", icon: "archive" },
+  { href: "/archive", label: "Archive", icon: "archive" },
   { href: "/gm/audit", label: "Audit", icon: "audit" },
 ];
 

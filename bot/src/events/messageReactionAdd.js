@@ -54,12 +54,14 @@ async function handleActionConfirm(reaction, user) {
 
 // Starring a proxied tupper message archives it (or bumps its star count if
 // already archived). `reaction.count` is already the post-add total, so this
-// stays cheap — no extra Discord fetch needed on the happy path.
-async function handleStarReaction(reaction, proxy) {
+// stays cheap — no extra Discord fetch needed on the happy path. Also records
+// *who* starred it (MessageStar) so a player's own archive view can be
+// scoped to only what they starred, rather than everything on the map.
+async function handleStarReaction(reaction, proxy, user) {
   const character = await prisma.character.findUnique({ where: { id: proxy.characterId } });
   if (!character) return;
 
-  await prisma.archivedMessage.upsert({
+  const archived = await prisma.archivedMessage.upsert({
     where: { discordMessageId: reaction.message.id },
     create: {
       discordMessageId: reaction.message.id,
@@ -74,6 +76,12 @@ async function handleStarReaction(reaction, proxy) {
     update: {
       starCount: reaction.count ?? 1,
     },
+  });
+
+  await prisma.messageStar.upsert({
+    where: { archivedMessageId_discordUserId: { archivedMessageId: archived.id, discordUserId: user.id } },
+    create: { archivedMessageId: archived.id, discordUserId: user.id },
+    update: {},
   });
 }
 
@@ -103,7 +111,7 @@ module.exports = {
     const isOwner = user.id === proxy.discordUserId;
 
     if (emoji === STAR_EMOJI) {
-      await handleStarReaction(reaction, proxy).catch(() => {});
+      await handleStarReaction(reaction, proxy, user).catch(() => {});
       return;
     }
 
