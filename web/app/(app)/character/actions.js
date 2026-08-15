@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
-import { syncCharacterNickname } from "@/lib/discordGuild";
+import { syncCharacterNickname, setTurnPingRole } from "@/lib/discordGuild";
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const AVATAR_SIZE = 256;
@@ -24,9 +24,10 @@ export async function updateCharacterProfile(formData) {
   const appearance =
     formData.get("appearance")?.toString().trim().slice(0, APPEARANCE_MAX_LENGTH) || null;
   const preferredNickname = formData.get("preferredNickname")?.toString().trim() || null;
+  const turnPingOptIn = formData.get("turnPingOptIn") === "on";
   const avatar = formData.get("avatar");
 
-  const data = { appearance, preferredNickname };
+  const data = { appearance, preferredNickname, turnPingOptIn };
   if (name) data.name = name;
 
   if (avatar && avatar.size > 0) {
@@ -43,6 +44,7 @@ export async function updateCharacterProfile(formData) {
 
   const updated = await prisma.character.update({ where: { id: character.id }, data });
   await syncCharacterNickname(session.discordUserId, updated.name, updated.preferredNickname).catch(() => {});
+  await setTurnPingRole(session.discordUserId, updated.turnPingOptIn).catch(() => {});
   revalidatePath("/character");
 }
 

@@ -251,6 +251,30 @@ export async function syncCharacterNickname(discordUserId, characterName, prefer
   await updateGuildNickname(discordUserId, buildNickname(base, characterName));
 }
 
+// Called right after a player toggles "Turn Ping?" on their character sheet
+// so the turn-ping role's membership reflects it immediately (unlike
+// nicknames, there's no bot-side connect-time resync for this — it only
+// ever changes via an explicit player toggle, which already fires this).
+export async function setTurnPingRole(discordUserId, optIn) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  const token = process.env.DISCORD_TOKEN;
+  const roleId = process.env.DISCORD_TURN_PING_ROLE_ID;
+  if (!guildId || !token || !roleId) return;
+
+  const method = optIn ? "PUT" : "DELETE";
+  try {
+    const res = await fetch(
+      `${DISCORD_API}/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`,
+      { method, headers: { Authorization: `Bot ${token}` } },
+    );
+    if (!res.ok && res.status !== 204) {
+      console.error(`Failed to ${optIn ? "add" : "remove"} turn-ping role for ${discordUserId}: ${res.status} ${await res.text()}`);
+    }
+  } catch (err) {
+    console.error(`Failed to ${optIn ? "add" : "remove"} turn-ping role for ${discordUserId}:`, err);
+  }
+}
+
 export async function sendDm(discordUserId, content) {
   const channel = await createDmChannel(discordUserId);
   const formatted = `» ${content}`;

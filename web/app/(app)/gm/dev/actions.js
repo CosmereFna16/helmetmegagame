@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma, advanceTurn as advanceTurnInDb } from "@lifeweb/db";
+import { prisma, advanceTurn as advanceTurnInDb, buildTurnAnnouncement } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { postMessage, listGuildChannels, isSummaryChannel } from "@/lib/discordGuild";
@@ -57,37 +57,54 @@ export async function updateCurrentTurn(formData) {
 
   const day = intOrNull(formData, "day");
   const phase = str(formData, "phase") || "DAWN";
+  const weather = str(formData, "weather") || "CLEAR";
   if (day == null || day < 1) return;
 
   const number = (day - 1) * 2 + (phase === "DAWN" ? 1 : 2);
 
   const openTurnRecord = await prisma.turn.findFirst({ where: { status: "OPEN" } });
   if (openTurnRecord) {
-    await prisma.turn.update({ where: { id: openTurnRecord.id }, data: { number, phase } });
+    await prisma.turn.update({ where: { id: openTurnRecord.id }, data: { number, phase, weather } });
   } else {
-    await prisma.turn.create({ data: { number, phase, status: "OPEN", gameDate: new Date() } });
+    await prisma.turn.create({ data: { number, phase, weather, status: "OPEN", gameDate: new Date() } });
   }
 
   revalidatePath("/gm/dev");
   revalidatePath("/", "layout");
 }
 
+// Sets the pending weather/note for the *next* turn, consumed by
+// advanceTurn() in @lifeweb/db when the turn actually advances. Leaving
+// weather unset (empty string -> null) means "roll randomly" there.
+export async function updateNextTurn(formData) {
+  await requireSuperadmin();
+
+  const weather = str(formData, "weather").trim() || null;
+  const note = str(formData, "note").trim() || null;
+
+  await prisma.gameConfig.upsert({
+    where: { id: 1 },
+    create: { id: 1, nextWeather: weather, nextTurnNote: note },
+    update: { nextWeather: weather, nextTurnNote: note },
+  });
+
+  revalidatePath("/gm/dev");
+}
+
 export async function forceAdvanceTurn() {
   const session = await requireSuperadmin();
 
-  const { previousTurn, newTurn } = await advanceTurnInDb();
+  const { previousTurn, newTurn, note } = await advanceTurnInDb();
 
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: session.discordUserId,
       actionType: "superadmin_turn_forced",
-      details: { previousTurnId: previousTurn?.id ?? null, newTurnId: newTurn.id, number: newTurn.number, phase: newTurn.phase },
+      details: { previousTurnId: previousTurn?.id ?? null, newTurnId: newTurn.id, number: newTurn.number, phase: newTurn.phase, weather: newTurn.weather },
     },
   });
 
-  const day = Math.ceil(newTurn.number / 2);
-  const label = newTurn.phase === "DAWN" ? "Dawn breaks" : "Dusk falls";
-  const text = `${label} over Evergreen — Day ${day}, Turn ${newTurn.number} (${newTurn.phase}).`;
+  const text = buildTurnAnnouncement(newTurn, note);
   const channels = await listGuildChannels();
   await Promise.all(
     channels.filter(isSummaryChannel).map((channel) => postMessage(channel.id, text).catch(() => {})),

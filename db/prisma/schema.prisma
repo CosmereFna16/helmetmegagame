@@ -46,6 +46,14 @@ enum TurnStatus {
   RESOLVED
 }
 
+enum Weather {
+  CLEAR
+  FOG
+  RAIN
+  STORM
+  MIGRATION
+}
+
 enum TagSource {
   POINT_BUY
   DESIRE_REWARD
@@ -61,6 +69,8 @@ model GameConfig {
   hungerMovePenalty         Int @default(-1)
   moodMovePenalty           Int @default(-1)
   moodMoveBonus             Int @default(1)
+  nextWeather               Weather?
+  nextTurnNote              String?
 }
 
 model Faction {
@@ -110,6 +120,7 @@ model Character {
   avatarMimeType String?
   appearance     String?
   preferredNickname String?
+  turnPingOptIn  Boolean         @default(true)
 
   tags           CharacterTag[]
   desires        Desire[]
@@ -164,6 +175,7 @@ model Turn {
   id          String     @id @default(cuid())
   number      Int        @unique
   phase       TurnPhase
+  weather     Weather    @default(CLEAR)
   gameDate    DateTime
   status      TurnStatus @default(OPEN)
   startedAt   DateTime   @default(now())

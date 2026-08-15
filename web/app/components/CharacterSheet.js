@@ -107,6 +107,10 @@ export default function CharacterSheet({
                 maxLength={24}
               />
             </label>
+            <label className="field flex-row items-center gap-2">
+              <input type="checkbox" name="turnPingOptIn" defaultChecked={character.turnPingOptIn} />
+              <span className="field-label">Turn Ping?</span>
+            </label>
             <button type="submit" className="btn self-start">
               Save
             </button>

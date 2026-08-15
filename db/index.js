@@ -1,4 +1,5 @@
 const { PrismaClient } = require("@prisma/client");
+const { rollWeather, buildTurnAnnouncement } = require("./weather");
 
 const globalForPrisma = globalThis;
 
@@ -58,12 +59,19 @@ async function advanceTurn() {
 
   const lastTurn = openTurn ?? (await prisma.turn.findFirst({ orderBy: { number: "desc" } }));
   const phase = !lastTurn || lastTurn.phase === "DUSK" ? "DAWN" : "DUSK";
+  const weather = config.nextWeather ?? rollWeather();
+  const note = config.nextTurnNote;
 
   const newTurn = await prisma.turn.create({
-    data: { number: (lastTurn?.number ?? 0) + 1, phase, gameDate: new Date(), status: "OPEN" },
+    data: { number: (lastTurn?.number ?? 0) + 1, phase, weather, gameDate: new Date(), status: "OPEN" },
   });
 
-  return { previousTurn: openTurn, newTurn };
+  await prisma.gameConfig.update({
+    where: { id: 1 },
+    data: { nextWeather: null, nextTurnNote: null },
+  });
+
+  return { previousTurn: openTurn, newTurn, note };
 }
 
-module.exports = { prisma, resolveNeeds, advanceTurn };
+module.exports = { prisma, resolveNeeds, advanceTurn, ...require("./weather") };

@@ -4,7 +4,15 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { describeTurn, getOpenTurn } from "@/lib/turn";
-import { updateGameConfig, updateCurrentTurn, forceAdvanceTurn } from "./actions";
+import { updateGameConfig, updateCurrentTurn, updateNextTurn, forceAdvanceTurn } from "./actions";
+
+const WEATHER_OPTIONS = [
+  { value: "CLEAR", label: "Clear" },
+  { value: "FOG", label: "Fog" },
+  { value: "RAIN", label: "Rain" },
+  { value: "STORM", label: "Storm" },
+  { value: "MIGRATION", label: "Migration" },
+];
 
 export default async function DevPanelPage() {
   const session = await auth();
@@ -19,6 +27,7 @@ export default async function DevPanelPage() {
 
   const currentDay = openTurnRecord ? Math.ceil(openTurnRecord.number / 2) : Math.ceil(((lastTurn?.number ?? 0) + 1) / 2);
   const currentPhase = openTurnRecord?.phase ?? (lastTurn?.phase === "DAWN" ? "DUSK" : "DAWN");
+  const currentWeather = openTurnRecord?.weather ?? "CLEAR";
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6 sm:p-8">
@@ -52,6 +61,14 @@ export default async function DevPanelPage() {
               <option value="DUSK">DUSK</option>
             </select>
           </label>
+          <label className="field">
+            <span className="field-label">Weather</span>
+            <select name="weather" defaultValue={currentWeather}>
+              {WEATHER_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </label>
           <button type="submit" className="btn">Save</button>
         </form>
 
@@ -60,9 +77,37 @@ export default async function DevPanelPage() {
         </form>
 
         <p className="mt-3 text-xs" style={{ color: "var(--muted)" }}>
-          Save overrides the current turn&apos;s day/phase directly, without resolving Needs. End turn
-          resolves Needs on the current turn (resource decay, hunger, mood expiry) and opens the next one —
-          same as the automatic dawn/dusk advance.
+          Save overrides the current turn&apos;s day/phase/weather directly, without resolving Needs. End
+          turn resolves Needs on the current turn (resource decay, hunger, mood expiry) and opens the next
+          one — same as the automatic dawn/dusk advance.
+        </p>
+      </section>
+
+      <section className="panel p-4">
+        <h2 className="mb-3 font-bold">Next Turn</h2>
+        <p className="mb-3 text-sm" style={{ color: "var(--muted)" }}>
+          {config.nextWeather ? `Weather set to ${config.nextWeather}` : "Weather will be rolled automatically."}
+          {config.nextTurnNote ? ` — note: "${config.nextTurnNote}"` : ""}
+        </p>
+        <form action={updateNextTurn} className="flex flex-col gap-3">
+          <label className="field">
+            <span className="field-label">Weather</span>
+            <select name="weather" defaultValue={config.nextWeather ?? ""} style={{ maxWidth: "12rem" }}>
+              <option value="">Random</option>
+              {WEATHER_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span className="field-label">Note (optional)</span>
+            <textarea name="note" defaultValue={config.nextTurnNote ?? ""} rows={2} />
+          </label>
+          <button type="submit" className="btn self-start">Save</button>
+        </form>
+        <p className="mt-3 text-xs" style={{ color: "var(--muted)" }}>
+          Applies the next time the turn advances (via End turn above or the bot&apos;s automatic
+          dawn/dusk cron), then clears itself.
         </p>
       </section>
 

@@ -10,10 +10,19 @@ export const getOpenTurn = cache(async () => {
   return prisma.turn.findFirst({ where: { status: "OPEN" } });
 });
 
+const WEATHER_LABELS = {
+  CLEAR: "Clear",
+  FOG: "Fog",
+  RAIN: "Rain",
+  STORM: "Storm",
+  MIGRATION: "Migration",
+};
+
 export function describeTurn(turn) {
-  if (!turn) return { day: null, phase: null, label: "NO TURN OPEN" };
+  if (!turn) return { day: null, phase: null, weather: null, label: "NO TURN OPEN" };
   const day = Math.ceil(turn.number / 2);
-  return { day, phase: turn.phase, label: `DAY ${day} · ${turn.phase}` };
+  const weatherLabel = WEATHER_LABELS[turn.weather] ?? turn.weather;
+  return { day, phase: turn.phase, weather: turn.weather, label: `DAY ${day} · ${turn.phase} · ${weatherLabel}` };
 }
 
 export function themeForPhase(phase) {
