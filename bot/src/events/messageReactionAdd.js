@@ -9,7 +9,7 @@ const INFO_EMOJI = "❓"; // ❓
 const CONFIRM_EMOJI = "⚜️"; // ⚜
 const STAR_EMOJI = "⭐"; // ⭐
 
-function rollDie(sides = 20) {
+function rollDie(sides = 6) {
   return 1 + Math.floor(Math.random() * sides);
 }
 

@@ -11,14 +11,14 @@ export default async function DevPanelPage() {
   if (!session?.discordUserId) redirect("/");
   if (!isSuperadmin(session.discordUserId)) redirect("/character");
 
-  const [config, openTurnRecord, recentTurns] = await Promise.all([
+  const [config, openTurnRecord, lastTurn] = await Promise.all([
     prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
     getOpenTurn(),
-    prisma.turn.findMany({ orderBy: { number: "desc" }, take: 8 }),
+    prisma.turn.findFirst({ orderBy: { number: "desc" } }),
   ]);
 
-  const currentDay = openTurnRecord ? Math.ceil(openTurnRecord.number / 2) : Math.ceil(((recentTurns[0]?.number ?? 0) + 1) / 2);
-  const currentPhase = openTurnRecord?.phase ?? (recentTurns[0]?.phase === "DAWN" ? "DUSK" : "DAWN");
+  const currentDay = openTurnRecord ? Math.ceil(openTurnRecord.number / 2) : Math.ceil(((lastTurn?.number ?? 0) + 1) / 2);
+  const currentPhase = openTurnRecord?.phase ?? (lastTurn?.phase === "DAWN" ? "DUSK" : "DAWN");
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6 sm:p-8">
@@ -56,13 +56,13 @@ export default async function DevPanelPage() {
         </form>
 
         <form action={forceAdvanceTurn} className="mt-3">
-          <button type="submit" className="btn-quiet">Force next turn</button>
+          <button type="submit" className="btn">End turn</button>
         </form>
 
         <p className="mt-3 text-xs" style={{ color: "var(--muted)" }}>
-          Save overrides the current turn&apos;s day/phase directly, without resolving Needs. Force next turn
-          resolves Needs on the current turn and opens the next one — the same thing End Turn does on the
-          Turns page.
+          Save overrides the current turn&apos;s day/phase directly, without resolving Needs. End turn
+          resolves Needs on the current turn (resource decay, hunger, mood expiry) and opens the next one —
+          same as the automatic dawn/dusk advance.
         </p>
       </section>
 
@@ -101,39 +101,6 @@ export default async function DevPanelPage() {
           Tupper/summary channels are detected by name (any channel with &quot;»&quot;). Moves and Efforts
           come from channels named exactly &quot;moves&quot; and &quot;effort&quot;.
         </p>
-      </section>
-
-      <section className="panel p-4">
-        <h2 className="mb-3 font-bold">Recent Turns</h2>
-        <div className="overflow-x-auto">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Phase</th>
-                <th>Status</th>
-                <th>Game date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentTurns.map((turn) => (
-                <tr key={turn.id}>
-                  <td>{turn.number}</td>
-                  <td>{turn.phase}</td>
-                  <td>{turn.status}</td>
-                  <td>{turn.gameDate.toLocaleString()}</td>
-                </tr>
-              ))}
-              {recentTurns.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="text-center" style={{ color: "var(--muted)" }}>
-                    No turns yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
       </section>
     </div>
   );

@@ -1,14 +1,14 @@
 export default function AdjudicationsTable({ entries }) {
   return (
     <div className="panel overflow-x-auto">
-      <table className="data-table" style={{ minWidth: "700px" }}>
+      <table className="data-table" style={{ minWidth: "1100px" }}>
         <thead>
           <tr>
             <th>Turn</th>
             <th>Player</th>
             <th>Dice</th>
-            <th>Adjudication message</th>
-            <th>GM notes (private)</th>
+            <th style={{ minWidth: "320px" }}>Adjudication message</th>
+            <th style={{ minWidth: "320px" }}>GM notes (private)</th>
           </tr>
         </thead>
         <tbody>
@@ -17,8 +17,8 @@ export default function AdjudicationsTable({ entries }) {
               <td>{e.turnNumber}</td>
               <td>{e.characterName}</td>
               <td>{e.diceRoll ?? "-"}</td>
-              <td className="max-w-xs">{e.resultMessage || "-"}</td>
-              <td className="max-w-xs" style={{ color: "var(--muted)" }}>{e.gmNotes || "-"}</td>
+              <td>{e.resultMessage || "-"}</td>
+              <td style={{ color: "var(--muted)" }}>{e.gmNotes || "-"}</td>
             </tr>
           ))}
           {entries.length === 0 && (

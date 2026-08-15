@@ -4,7 +4,6 @@ import { getGmSession } from "@/lib/discordGuild";
 import { describeTurn, getOpenTurn } from "@/lib/turn";
 import TurnsTable from "./TurnsTable";
 import AdjudicationsTable from "./AdjudicationsTable";
-import { endTurn } from "../actions";
 
 export default async function TurnsPage() {
   const { session, isGm: gm } = await getGmSession();
@@ -31,18 +30,9 @@ export default async function TurnsPage() {
 
       <section className="panel p-4">
         <h2 className="mb-2 font-bold">Current Turn</h2>
-        <div className="flex items-center gap-3 text-sm">
-          <span>{openTurnRecord ? `${describeTurn(openTurnRecord).label} — OPEN` : "No turn open"}</span>
-          <form action={endTurn}>
-            <button type="submit" className="btn">
-              End turn
-            </button>
-          </form>
-        </div>
+        <p className="text-sm">{openTurnRecord ? `${describeTurn(openTurnRecord).label} — OPEN` : "No turn open"}</p>
         <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>
-          Turns advance automatically at dawn and dusk. Ending a turn manually resolves Needs (resource
-          decay, hunger, mood expiry) for the current turn and immediately opens the next one — same as the
-          automatic advance.
+          Turns advance automatically at dawn and dusk. Ending a turn manually is done from the Dev Panel.
         </p>
       </section>
 

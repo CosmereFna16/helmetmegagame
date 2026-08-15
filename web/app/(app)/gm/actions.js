@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma, advanceTurn as advanceTurnInDb } from "@lifeweb/db";
+import { prisma } from "@lifeweb/db";
 import {
   getGmSession,
   postMessage,
@@ -16,34 +16,6 @@ async function requireGm() {
   if (!session?.discordUserId) throw new Error("Not authenticated.");
   if (!gm) throw new Error("Not authorized.");
   return session;
-}
-
-// Resolves Needs on the current turn (if any) and opens the next one —
-// the same one-button "End Turn" the automated dawn/dusk cron uses, so a
-// manual override behaves identically instead of splitting into a separate
-// close-then-open flow a GM has to understand.
-export async function endTurn() {
-  const session = await requireGm();
-
-  const { previousTurn, newTurn } = await advanceTurnInDb();
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "turn_advanced",
-      details: { previousTurnId: previousTurn?.id ?? null, newTurnId: newTurn.id, number: newTurn.number, phase: newTurn.phase },
-    },
-  });
-
-  const day = Math.ceil(newTurn.number / 2);
-  const label = newTurn.phase === "DAWN" ? "Dawn breaks" : "Dusk falls";
-  const text = `${label} over Evergreen — Day ${day}, Turn ${newTurn.number} (${newTurn.phase}).`;
-  const channels = await listGuildChannels();
-  await Promise.all(
-    channels.filter(isSummaryChannel).map((channel) => postMessage(channel.id, text).catch(() => {})),
-  );
-
-  revalidatePath("/", "layout");
 }
 
 // Shared by adjudicateAction (bundled with the adjudication submit) and
