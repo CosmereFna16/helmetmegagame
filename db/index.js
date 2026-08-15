@@ -34,4 +34,36 @@ async function resolveNeeds(turn, config) {
   );
 }
 
-module.exports = { prisma, resolveNeeds };
+async function getConfig() {
+  return prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
+}
+
+// Resolves the currently OPEN turn (applying Needs decay) and opens the next
+// one, alternating DAWN/DUSK. Shared by the bot's cron-triggered advance and
+// any GM-triggered "End Turn" action so both apply identical turn logic —
+// callers are responsible for anything Discord-specific (announcements),
+// since the transport for that differs between the bot's gateway client and
+// the web app's REST calls.
+async function advanceTurn() {
+  const config = await getConfig();
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
+
+  if (openTurn) {
+    await resolveNeeds(openTurn, config);
+    await prisma.turn.update({
+      where: { id: openTurn.id },
+      data: { status: "RESOLVED", resolvedAt: new Date() },
+    });
+  }
+
+  const lastTurn = openTurn ?? (await prisma.turn.findFirst({ orderBy: { number: "desc" } }));
+  const phase = !lastTurn || lastTurn.phase === "DUSK" ? "DAWN" : "DUSK";
+
+  const newTurn = await prisma.turn.create({
+    data: { number: (lastTurn?.number ?? 0) + 1, phase, gameDate: new Date(), status: "OPEN" },
+  });
+
+  return { previousTurn: openTurn, newTurn };
+}
+
+module.exports = { prisma, resolveNeeds, advanceTurn };

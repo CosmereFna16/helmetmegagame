@@ -3,11 +3,11 @@ const { sendDm } = require("./dm");
 
 const CONFIRM_EMOJI = "✅";
 
-// A message posted in the designated moves channel becomes a PENDING Move
-// action: the original message is deleted (the channel is meant to stay
-// clean — the move itself only exists as a DM + the web dashboard) and the
-// player confirms via reaction, same as the existing action-confirm flow.
-async function handleMoveSubmission(message) {
+// A message posted in the #moves or #effort channel becomes a PENDING
+// action: the original message is deleted (the action itself only exists as
+// a DM + the web dashboard) and the player confirms via reaction, same as
+// the existing action-confirm flow.
+async function handleActionSubmission(message, type) {
   const character = await prisma.character.findFirst({
     where: { discordUserId: message.author.id, status: "ALIVE" },
   });
@@ -19,7 +19,8 @@ async function handleMoveSubmission(message) {
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
   if (!openTurn) {
     await message.delete().catch(() => {});
-    await sendDm(message.author, "No turn is currently open — your move wasn't recorded.").catch(() => {});
+    const label = type === "MOVE" ? "move" : "effort";
+    await sendDm(message.author, `No turn is currently open — your ${label} wasn't recorded.`).catch(() => {});
     return;
   }
 
@@ -35,7 +36,7 @@ async function handleMoveSubmission(message) {
     data: {
       characterId: character.id,
       turnId: openTurn.id,
-      type: "MOVE",
+      type,
       description,
       zoneId: character.zoneId ?? null,
     },
@@ -43,11 +44,10 @@ async function handleMoveSubmission(message) {
 
   await message.delete().catch(() => {});
 
-  const lines = [
-    `**Move submitted:** ${description}`,
-    `Zone: ${zone?.name ?? "(none)"}`,
-    "React with ✅ to confirm.",
-  ];
+  const lines =
+    type === "MOVE"
+      ? [`**Move submitted:** ${description}`, `Zone: ${zone?.name ?? "(none)"}`, "React with ✅ to confirm."]
+      : [`**Effort submitted:** ${description}`, "React with ✅ to confirm."];
 
   let sent;
   try {
@@ -63,11 +63,11 @@ async function handleMoveSubmission(message) {
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: message.author.id,
-      actionType: "move_submitted",
+      actionType: type === "MOVE" ? "move_submitted" : "effort_submitted",
       targetCharacterId: character.id,
       details: { actionId: action.id },
     },
   });
 }
 
-module.exports = { handleMoveSubmission };
+module.exports = { handleActionSubmission };

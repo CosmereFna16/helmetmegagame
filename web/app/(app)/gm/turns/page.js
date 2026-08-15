@@ -4,14 +4,14 @@ import { getGmSession } from "@/lib/discordGuild";
 import { describeTurn, getOpenTurn } from "@/lib/turn";
 import TurnsTable from "./TurnsTable";
 import AdjudicationsTable from "./AdjudicationsTable";
-import { openTurn, closeTurn, setMovesChannel } from "../actions";
+import { endTurn } from "../actions";
 
 export default async function TurnsPage() {
   const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   if (!gm) redirect("/character");
 
-  const [actions, adjudicated, openTurnRecord, config] = await Promise.all([
+  const [actions, adjudicated, openTurnRecord] = await Promise.all([
     prisma.action.findMany({
       where: { status: { not: "ADJUDICATED" } },
       orderBy: { createdAt: "desc" },
@@ -23,7 +23,6 @@ export default async function TurnsPage() {
       include: { character: true, turn: true },
     }),
     getOpenTurn(),
-    prisma.gameConfig.findUnique({ where: { id: 1 } }),
   ]);
 
   return (
@@ -32,24 +31,18 @@ export default async function TurnsPage() {
 
       <section className="panel p-4">
         <h2 className="mb-2 font-bold">Current Turn</h2>
-        {openTurnRecord ? (
-          <div className="flex items-center gap-3 text-sm">
-            <span>{describeTurn(openTurnRecord).label} — OPEN</span>
-            <form action={closeTurn}>
-              <button type="submit" className="btn-quiet">
-                Close turn
-              </button>
-            </form>
-          </div>
-        ) : (
-          <form action={openTurn}>
+        <div className="flex items-center gap-3 text-sm">
+          <span>{openTurnRecord ? `${describeTurn(openTurnRecord).label} — OPEN` : "No turn open"}</span>
+          <form action={endTurn}>
             <button type="submit" className="btn">
-              Open new turn
+              End turn
             </button>
           </form>
-        )}
+        </div>
         <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>
-          Turns advance automatically at dawn and dusk. Use these controls only for testing or emergency override.
+          Turns advance automatically at dawn and dusk. Ending a turn manually resolves Needs (resource
+          decay, hunger, mood expiry) for the current turn and immediately opens the next one — same as the
+          automatic advance.
         </p>
       </section>
 
@@ -67,30 +60,6 @@ export default async function TurnsPage() {
           turnNumber: a.turn.number,
         }))}
       />
-
-      <section className="panel p-4">
-        <h2 className="mb-2 font-bold">Moves Channel</h2>
-        <p className="mb-2 text-sm" style={{ color: "var(--muted)" }}>
-          Messages posted here become Move actions: the message is deleted, and the player is DMed to confirm.
-          Current: {config?.movesChannelId ?? "(none set)"}
-        </p>
-        <form action={setMovesChannel} className="flex gap-2">
-          <input
-            name="channelId"
-            placeholder="Channel ID"
-            defaultValue={config?.movesChannelId ?? ""}
-            className="text-input"
-          />
-          <button type="submit" className="btn">
-            Save
-          </button>
-        </form>
-        <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>
-          Tupper and summary channels are no longer configured here — any standard text channel named with a
-          &quot;»&quot; is a summary channel, and any text or forum channel named with a &quot;»&quot; is a
-          tupper channel.
-        </p>
-      </section>
 
       <section className="flex flex-col gap-2">
         <h2 className="text-xl font-bold">Past Adjudications</h2>

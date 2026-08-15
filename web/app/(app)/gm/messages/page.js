@@ -2,15 +2,21 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
+import MessagesToolbar from "./MessagesToolbar";
 
 export default async function MessagesPage() {
   const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   if (!gm) redirect("/character");
 
-  const [messages, guildMembers] = await Promise.all([
+  const [messages, guildMembers, aliveCharacters] = await Promise.all([
     prisma.directMessage.findMany({ orderBy: { createdAt: "desc" }, take: 1000 }),
     listGuildMembers(),
+    prisma.character.findMany({
+      where: { status: "ALIVE" },
+      orderBy: { name: "asc" },
+      select: { id: true, discordUserId: true, name: true },
+    }),
   ]);
 
   const conversations = new Map();
@@ -44,6 +50,8 @@ export default async function MessagesPage() {
         Every direct message the bot has sent or received, grouped by player.
       </p>
 
+      <MessagesToolbar characters={aliveCharacters} />
+
       <div className="panel overflow-x-auto">
         <table className="data-table">
           <thead>
@@ -57,9 +65,11 @@ export default async function MessagesPage() {
             {rows.map((row) => (
               <tr key={row.discordUserId}>
                 <td className="whitespace-nowrap">
-                  {characterNameById.get(row.discordUserId) ??
-                    usernameById.get(row.discordUserId) ??
-                    row.discordUserId}
+                  <Link href={`/gm/messages/${row.discordUserId}`} className="menu-item">
+                    {characterNameById.get(row.discordUserId) ??
+                      usernameById.get(row.discordUserId) ??
+                      row.discordUserId}
+                  </Link>
                 </td>
                 <td className="max-w-md truncate">
                   {row.lastMessage.direction === "OUTBOUND" ? "You: " : ""}

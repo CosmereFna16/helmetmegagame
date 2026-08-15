@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@lifeweb/db";
+import { prisma, advanceTurn as advanceTurnInDb } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
+import { postMessage, listGuildChannels, isSummaryChannel } from "@/lib/discordGuild";
 
 async function requireSuperadmin() {
   const session = await auth();
@@ -48,50 +49,49 @@ export async function updateGameConfig(formData) {
   revalidatePath("/gm/dev");
 }
 
-export async function createTurn(formData) {
+// Directly overrides the current turn's day/phase (creating one if none is
+// open) rather than routing through Needs resolution — a raw superadmin
+// correction, not a normal turn advance.
+export async function updateCurrentTurn(formData) {
   await requireSuperadmin();
 
-  const number = intOrNull(formData, "number");
+  const day = intOrNull(formData, "day");
   const phase = str(formData, "phase") || "DAWN";
-  const status = str(formData, "status") || "OPEN";
-  const gameDateRaw = str(formData, "gameDate");
-  if (number == null) return;
+  if (day == null || day < 1) return;
 
-  await prisma.turn.create({
-    data: {
-      number,
-      phase,
-      status,
-      gameDate: gameDateRaw ? new Date(gameDateRaw) : new Date(),
-    },
-  });
+  const number = (day - 1) * 2 + (phase === "DAWN" ? 1 : 2);
+
+  const openTurnRecord = await prisma.turn.findFirst({ where: { status: "OPEN" } });
+  if (openTurnRecord) {
+    await prisma.turn.update({ where: { id: openTurnRecord.id }, data: { number, phase } });
+  } else {
+    await prisma.turn.create({ data: { number, phase, status: "OPEN", gameDate: new Date() } });
+  }
 
   revalidatePath("/gm/dev");
   revalidatePath("/", "layout");
 }
 
-export async function updateTurn(formData) {
-  await requireSuperadmin();
+export async function forceAdvanceTurn() {
+  const session = await requireSuperadmin();
 
-  const turnId = str(formData, "turnId");
-  if (!turnId) return;
+  const { previousTurn, newTurn } = await advanceTurnInDb();
 
-  const number = intOrNull(formData, "number");
-  const phase = str(formData, "phase");
-  const status = str(formData, "status");
-  const gameDateRaw = str(formData, "gameDate");
-
-  await prisma.turn.update({
-    where: { id: turnId },
+  await prisma.auditLog.create({
     data: {
-      ...(number != null ? { number } : {}),
-      ...(phase ? { phase } : {}),
-      ...(status ? { status } : {}),
-      ...(gameDateRaw ? { gameDate: new Date(gameDateRaw) } : {}),
-      ...(status === "RESOLVED" ? { resolvedAt: new Date() } : {}),
-      ...(status === "OPEN" ? { resolvedAt: null } : {}),
+      actorDiscordUserId: session.discordUserId,
+      actionType: "superadmin_turn_forced",
+      details: { previousTurnId: previousTurn?.id ?? null, newTurnId: newTurn.id, number: newTurn.number, phase: newTurn.phase },
     },
   });
+
+  const day = Math.ceil(newTurn.number / 2);
+  const label = newTurn.phase === "DAWN" ? "Dawn breaks" : "Dusk falls";
+  const text = `${label} over Evergreen — Day ${day}, Turn ${newTurn.number} (${newTurn.phase}).`;
+  const channels = await listGuildChannels();
+  await Promise.all(
+    channels.filter(isSummaryChannel).map((channel) => postMessage(channel.id, text).catch(() => {})),
+  );
 
   revalidatePath("/gm/dev");
   revalidatePath("/", "layout");

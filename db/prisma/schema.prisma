@@ -61,7 +61,6 @@ model GameConfig {
   hungerMovePenalty         Int @default(-1)
   moodMovePenalty           Int @default(-1)
   moodMoveBonus             Int @default(1)
-  movesChannelId            String?
 }
 
 model Faction {

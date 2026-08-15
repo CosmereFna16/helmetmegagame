@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma, resolveNeeds } from "@lifeweb/db";
+import { prisma, advanceTurn as advanceTurnInDb } from "@lifeweb/db";
 import { getGmSession, postMessage, sendDm, listGuildChannels, isSummaryChannel } from "@/lib/discordGuild";
 
 async function requireGm() {
@@ -11,73 +11,30 @@ async function requireGm() {
   return session;
 }
 
-async function getConfig() {
-  return prisma.gameConfig.upsert({
-    where: { id: 1 },
-    update: {},
-    create: { id: 1 },
-  });
-}
-
-export async function setMovesChannel(formData) {
-  await requireGm();
-  const channelId = formData.get("channelId")?.toString().trim() || null;
-
-  await getConfig();
-  await prisma.gameConfig.update({ where: { id: 1 }, data: { movesChannelId: channelId } });
-  revalidatePath("/gm/turns");
-}
-
-export async function openTurn() {
+// Resolves Needs on the current turn (if any) and opens the next one —
+// the same one-button "End Turn" the automated dawn/dusk cron uses, so a
+// manual override behaves identically instead of splitting into a separate
+// close-then-open flow a GM has to understand.
+export async function endTurn() {
   const session = await requireGm();
 
-  const existingOpen = await prisma.turn.findFirst({ where: { status: "OPEN" } });
-  if (existingOpen) return;
-
-  const lastTurn = await prisma.turn.findFirst({ orderBy: { number: "desc" } });
-  const phase = !lastTurn || lastTurn.phase === "DUSK" ? "DAWN" : "DUSK";
-
-  const turn = await prisma.turn.create({
-    data: {
-      number: (lastTurn?.number ?? 0) + 1,
-      phase,
-      gameDate: new Date(),
-      status: "OPEN",
-    },
-  });
+  const { previousTurn, newTurn } = await advanceTurnInDb();
 
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: session.discordUserId,
-      actionType: "turn_opened",
-      details: { turnId: turn.id, number: turn.number, phase: turn.phase },
+      actionType: "turn_advanced",
+      details: { previousTurnId: previousTurn?.id ?? null, newTurnId: newTurn.id, number: newTurn.number, phase: newTurn.phase },
     },
   });
 
-  revalidatePath("/", "layout");
-}
-
-export async function closeTurn() {
-  const session = await requireGm();
-
-  const openTurnRecord = await prisma.turn.findFirst({ where: { status: "OPEN" } });
-  if (!openTurnRecord) return;
-
-  const config = await getConfig();
-  await resolveNeeds(openTurnRecord, config);
-
-  await prisma.turn.update({
-    where: { id: openTurnRecord.id },
-    data: { status: "RESOLVED", resolvedAt: new Date() },
-  });
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "turn_closed",
-      details: { turnId: openTurnRecord.id, number: openTurnRecord.number },
-    },
-  });
+  const day = Math.ceil(newTurn.number / 2);
+  const label = newTurn.phase === "DAWN" ? "Dawn breaks" : "Dusk falls";
+  const text = `${label} over Evergreen — Day ${day}, Turn ${newTurn.number} (${newTurn.phase}).`;
+  const channels = await listGuildChannels();
+  await Promise.all(
+    channels.filter(isSummaryChannel).map((channel) => postMessage(channel.id, text).catch(() => {})),
+  );
 
   revalidatePath("/", "layout");
 }

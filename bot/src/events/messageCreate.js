@@ -1,7 +1,7 @@
 const { prisma } = require("@lifeweb/db");
 const { sendAsCharacter } = require("../lib/proxy");
 const { isDesignatedTupperChannel } = require("../lib/channels");
-const { handleMoveSubmission } = require("../lib/moves");
+const { handleActionSubmission } = require("../lib/actionSubmission");
 
 module.exports = {
   name: "messageCreate",
@@ -15,10 +15,12 @@ module.exports = {
       return;
     }
 
-    const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
-
-    if (config?.movesChannelId && message.channel.id === config.movesChannelId) {
-      await handleMoveSubmission(message).catch((err) => console.error("Failed to submit move:", err));
+    const channelName = message.channel.name?.toLowerCase();
+    if (channelName === "moves" || channelName === "effort") {
+      const type = channelName === "moves" ? "MOVE" : "EFFORT";
+      await handleActionSubmission(message, type).catch((err) =>
+        console.error(`Failed to submit ${type.toLowerCase()}:`, err),
+      );
       return;
     }
 
