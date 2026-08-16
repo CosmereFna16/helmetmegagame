@@ -473,23 +473,14 @@ Mortus
 intro: Bring spirits to peace and feed the Lifeweb.
 
 - You have two jobs, both of them sacred: 1. feed the Lifeweb and 2. bury people, bringing their souls to peace.
-- The Mortii take a vow, dedicating themselves to powering the Lifeweb. They are often exiles, outcasts, or infirms. Why did you take the vow?
-- The Lifeweb maintains Ravenheart's environment. Without it, it'll fade into the wastelands. However, it is powered by human blood. People can either voluntarily donate their blood to feed it for a short time—or you can kidnap people and feed them manually
+- The Mortii take a lifelong vow dedicating themselves to powering the Lifeweb. They are often exiles, outcasts, or infirms. Why did you take the vow?
+- The Lifeweb maintains Ravenheart's environment. Without it, it'll fade into the wastelands. However, it is powered by human blood. People can either voluntarily donate their blood to feed it for a short time—or you can kidnap people and feed them manually.
 - Any crimes you commit in service of your vow are not crimes.
 - You are allowed to loot whatever corpses you find. That's how the Mortus traditionally sustain themselves, but if dead people are scarce, you can ask the Headman for some food.
 - difficulty: easy
 - multiple: true
 - starting tag: Mortus
 - doc elements: townstarting, lifeweb, respawning
-
-Pusher
-intro: Sell drugs.
-
-- Sell drugs.
-- difficulty: normal
-- multiple: true
-- starting tag: Discreet
-- doc elements: townstarting, alcoholdrugs, independent
 
 Bum
 intro: You live in a shell and sleep with the dogs, but you understand life (or think you do).
@@ -547,6 +538,16 @@ intro: Serve drinks and keep the room talking.
 
 ## Threats
 
+Pusher
+intro: Sell drugs.
+
+- Sell drugs.
+- You start with an assortment of drugs, and can make more.
+- difficulty: normal
+- multiple: false
+- starting tag: Brewing (Skilled)
+- doc elements: townstarting, alcoholdrugs, independent
+
 Cult of Bacchus (Leader)
 intro: Bacchus has willed you to take Ravenheart for them.
 
@@ -584,7 +585,8 @@ intro: "Whatever in creation exists without my knowledge exists without my conse
 - Your ultimate goal is to become infamous—not because you care what other people think, but because it sends a message. The more people know, fear, or respect your name, the better.
 - Immortal or delusional, you treat life like a game. You glory in war and despise weakness. You fear nothing, although people that are genuinely good through and through make you uncomfortable. Fortunately, there are very few of those left.
 - You can work alone, but you are a natural leader. Take over the Brigands, start an adventurer troop, or rise the ranks of the Bastard's entourage.
-- Do not hide your nature or commit murders in the dark. People can't help but love you.
+- Do not hide your nature or commit murders in the dark. You're not a serial killer.
+- People can't help but love you.
 - Your Desires must relate to violence, glory, control, or competition.
 - starting tag: Infamous
 - doc elements: townstarting
