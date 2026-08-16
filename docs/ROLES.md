@@ -151,7 +151,7 @@ Incarn
 - difficulty: normal
 - multiple: false
 - starting tag: Fighter (Skilled), Treasurer
-- doc elements: courtstructure, fortressstarting, guard, treasurer
+- doc elements: courtstructure, fortressstarting, guard, treasurer, postchristianity
 
 Guard
 - Serve the Baron, salute your Captain, and hold back the tide of darkness.
@@ -197,107 +197,168 @@ Succubus (Fortress)
 
 ### Faction: The Church
 Bishop
-- Encourage people to lead pious lives under God. Speak the healing word or side with the Inquisition.
+- It is not the first time dark days have come to Ravenheart, but they are difficult times still. You hope the people will survive—God will ensure it. During this difficult transition, ensure you serve as a shining example of goodness.
+- At some point, you will have to decide between peacefulness or the Order of the Silver Cross. 
 - Along with the Priest, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts). 
 - difficulty: normal
 - multiple: false
 - starting tag: Priest, Leader
-- doc elements: townstarting, church
+- doc elements: townstarting, postchristianity
 
 Priest 
+- It is not the first time dark days have come to Ravenheart. The people will survive—God will ensure it. During this difficult transition, ensure you serve as a shining example of goodness. Evil can only be held back with Truth—do not stoop to violence or zealotry.
 - Care for the needy, lend an ear, and kindle goodness in others. Pay visits to the Fortress. Practice pacifism or support the Inquisition.
-- Along with the Bishop, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts) 
+- Along with the Bishop, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts).
 - difficulty: easy
 - multiple: true
 - starting tag: Priest
-- doc elements: townstarting, church
+- doc elements: townstarting, postchristianity
 
 Priest (Nun)
+- It is not the first time dark days have come to Ravenheart. The people will survive—God will ensure it. During this difficult transition, ensure you serve as a shining example of goodness. Evil can only be held back with Truth—do not stoop to violence or zealotry.
 - Care for the needy, lend an ear, and kindle goodness in others. Pay visits to the Fortress. Practice pacifism or support the Inquisition.
-- Along with the Bishop, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts) 
+- Along with the Bishop, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts). 
 - difficulty: easy
 - multiple: true
 - parent role: Priest
 - starting tag: Priest
-- doc elements: townstarting, church
+- doc elements: townstarting, postchristianity
 
 Scholastic
-- Try to understand the cosmos. Collect enough occult information to write your magnum opus. Be a hermit or preach on the streets. Burn at the stake.
+- Earth is a speck in the infinite firmament. You have always been humbled—or perhaps energized—by the Truth. Try to understand it. Search for knowledge—occult or otherwise—and write your magnum opus. Be a hermit or preach on the streets. Whether you wake others up or not, ensure you yourself *never* fall asleep.
 - difficulty: normal
 - multiple: false
-- starting tag: Intelligent
-- doc elements: townstarting, church
+- starting tag: 
+- doc elements: townstarting, postchristianity
 
 ### Faction: The Sanctuary
 Esculap
-- Keep your Serpents in check.
+- Above all, keep your Serpents in check. Otherwise, further science and treat the wounded.
+- With science, the sky’s the limit. You can brew medicines and potions, install implants and body-modifications, and even experiment for the good of science.
+- If there’s no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners.
+- You can perform medicine, removing negative medical tags according to their skill, Resource, and action cost. 
 - difficulty: normal
 - multiple: false
-- starting tag: Steady Hands, Leader
-- doc elements: townstarting
+- starting tag: Medicine (Excellent)
+- doc elements: townstarting, medicine
 
 Serpent
-- Perform surgeries, brew medicines, prescribe drugs, install implants and body-modifications, and experiment for the good of science. The more you can learn and experiment, the better at medicine you'll be.
+- With science, the sky’s the limit. You can brew medicines and potions, install implants and body-modifications, and even experiment for the good of science.
+- If there’s no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners.
+- You can perform medicine, removing negative medical tags according to their skill, Resource, and action cost. 
 - difficulty: normal
 - multiple: true
-- starting tag: Steady Hands
-- doc elements: townstarting
+- starting tag: Medicine (Skilled)
+- doc elements: townstarting, medicine
 
 ### Faction: Order of the Silver Cross (parent:The Church)
 Inquisitor
-- Radicalize the Village and the Church, convince the Incarn to hand over the Silver Cross, and obtain ultimate purity. Ask the Scholastic what he's writing.
+- Do you know what it means to love God?
+- Dark days, exactly as preached in the scriptures, are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter! You have seen—*seen*—the blood, the horror. There are things that lurk in the shadows that no man could comprehend. But you have also seen the goodness of God.
+- You are not thirsty for power. You are just sane. It is your everlasting duty to protect your people by expunging the barony’s corruption. To this end, organize your followers and, above all, work to radicalize the Town, the Church, and possibly even the Court.
+- If you can get the Bishop on your side, it will be a great boon. He is weak! Force him to bend the knee.
+- The time for silence has passed. There is no time to waste! Scream, from the top of your lungs, what is coming! Wake them!
+- One other thing: the Incarn holds the Silver Cross, an artifact blessed to defeat evil. Secure it from him.
 - difficulty: hard
 - multiple: false
-- starting tag: Zealous, Leader
-- doc elements: townstarting
+- starting tag: Leader
+- doc elements: townstarting, postchristianity
 
 Practicus
-- Serve the Inquisitor. Preach on the street and rile the people up.
-- difficulty: normal
-- multiple: true
-- starting tag: Zealous
-- doc elements: townstarting
-
-Zealot
-- Preach.
+- Do you know what it means to love God?
+- Dark days, exactly as preached in the scriptures, are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter! You have seen—*seen*—the blood, the horror. There are things that lurk in the shadows that no man could comprehend. But you have also seen the goodness of God.
+- You are not thirsty for power. You are just sane. It is your everlasting duty to protect your people by expunging the barony’s corruption. Work to radicalize the Town, the Church, and possibly even the Court.
+- If you can get the Bishop on your side, it will be a great boon. He is weak! Force him to bend the knee.
+- The time for silence has passed. There is no time to waste! Scream, from the top of your lungs, what is coming! Wake them!
+- One other thing: the Incarn holds the Silver Cross, an artifact blessed to defeat evil. Secure it from him.
 - difficulty: easy
 - multiple: true
-- starting tag: Zealous
-- doc elements: townstarting
+- starting tag: 
+- doc elements: townstarting, postchristianity
+
+Preacher
+- You are the Order’s face. Speak in the Town Square for all to hear.
+- Do you know what it means to love God?
+- Dark days, exactly as preached in the scriptures, are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter! You have seen—*seen*—the blood, the horror. There are things that lurk in the shadows that no man could comprehend. But you have also seen the goodness of God.
+- You are not thirsty for power. You are just sane. It is your everlasting duty to protect your people by expunging the barony’s corruption. To this end, organize your followers and, above all, work to radicalize the Town, the Church, and possibly even the Court.
+- If you can get the Bishop on your side, it will be a great boon.
+- The time for silence has passed. There is no time to waste! Scream, from the top of your lungs, what is coming! Wake them!
+- One other thing: the Incarn holds the Silver Cross, an artifact blessed to defeat evil. Secure it from him.
+- difficulty: easy
+- multiple: true
+- starting tag: 
+- doc elements: townstarting, postchristianity
 
 ### Faction: The Town
 Headman
-- Mayor-ish. Can use a Move to learn up to 2 of a Village character's Tags. Pay the people on your payroll (Sheriff, etc.).
+- On certain days, you hike up the mountain and behold the Town. Those are the people that are beholden to you. You cannot afford to let them down, Headman!
+- Your main job is to ensure people are working. You are beholden to the Meister, the Baron’s taxman, and things have gotten nasty in the past when the tithe didn’t meet his expectations.
+- You informally lead the Town—everyone knows you and you know everyone. You can use a Move to decipher up to 3 random tags of anyone in the Town faction.
+- You are beholden to the Meister, the Baron’s tax-man. 
 - difficulty: normal
 - multiple: false
-- starting tag: Respected, Leader
-- doc elements: townstarting
+- starting tag: Respected, Leader, Old, Farmer
+- doc elements: townstarting, treasurer, farming
 
 Sheriff
-- Out of these five people, you know one of them is involved with something.
+- On certain days, you hike up the mountain and behold the Town. Those are the people that are beholden to you. You cannot afford to let them down, Sheriff!
+- You have a trusty .45 six-shooter, a reject from the Fortress’s armory.
 - difficulty: normal
 - multiple: false
-- starting tag: Watchful
+- starting tag: Fighter (Trained), Old .45 Revolver
 - doc elements: townstarting
 
 Adventurer
 - Sell your services. Delve into the Caves.
 - difficulty: normal
 - multiple: true
-- starting tag: Reckless
+- starting tag: 
 - doc elements: townstarting
 
 Merchant
-- Sells Tags, gives loans.
+- Ravenheart is a great source of business and not much else. You wouldn’t dare put your heart here—the place is doomed. 
+- Your goal is to make as many Resources as you can by buying and selling Tags. You have a Supply Depot in the caves: go there to request Tags by shuttle (it’ll cost you), and then sell them. To sell Tags, simply message a GM explaining who’d like the tag and how much you’re selling it for.
+- If things ever get too dour, simply hop on your sponsor’s shuttle… if you can pay for it. Trip’s 30 Resources flat, pal.
+- difficulty: hard
+- multiple: false
+- starting tag: 
+- doc elements: townstarting, merchantlist
+
+Docker
+- Serve the Merchant and get drunk during the night. Maybe he’ll let you get a ride on his spaceship if things ever get bad around here.
 - difficulty: easy
 - multiple: true
-- starting tag: Shrewd
+- starting tag: 
+- doc elements: townstarting, merchantlist
+
+Peasant
+- Do your job during the day, live a free life at night.
+- difficulty: easy
+- multiple: true
+- starting tag: Hardy
 - doc elements: townstarting
 
-Peasant (Farmer, Fisher, Builder)
+Peasant (Farmer)
 - Grow food during the day, live a free life at night.
 - difficulty: easy
 - multiple: true
+- parent role: Peasant
+- starting tag: Hardy
+- doc elements: townstarting
+
+Peasant (Fisher)
+- Fish during the day, live a free life at night.
+- difficulty: easy
+- multiple: true
+- parent role: Peasant
+- starting tag: Hardy
+- doc elements: townstarting
+
+Peasant (Builder)
+- Build and maintain during the day, live a free life at night.
+- difficulty: easy
+- multiple: true
+- parent role: Peasant
 - starting tag: Hardy
 - doc elements: townstarting
 
@@ -347,17 +408,17 @@ Bum
 
 Cult of Bacchus (Leader)
 - Bacchus is the Lustful God, Creator of Illusions, the Eternal One. Bacchus is honest. Bacchus is life. Bacchus is pleasure. Bacchus is a zealot of hedonism. They rejoice over the fulfillment of desires and the euphoric suicide of their followers.
-- You either love Bacchus and believe in their message, or love-hate them. Either way, you are certain you'll never leave.
+- Bacchus has willed you to take Ravenheart for them. 
 - Bacchus is often depicted as an apple, a deer, or, in some circles, as a gigantic dead sea creature. Bacchus's gender is irrelevant. The specifics of doctrine are for you to figure out if you want.
 - The stuck-ups in Ravenheart would kill you if they knew. Be careful.
 - Followers of Bacchus gain +5 Tag Points per Desire instead of +3, but their Desires cannot be heroic or mild. They must, at least, be very indulgent. You also gain access to powerful Bacchus tags.
 - Your goal is to spread the influence of Bacchus and throw parties. All cult members gain free Tags if you manage to host a party with 5, 10, or 15 people. People do not have to be part of the Cult to count towards the party number. Anyone with Royal Blood (Baron, Heir, Successor, Baroness, Bastard) counts as 3 people.
 - There is a Succubus on the loose. She is an amazing asset, but she finds your ways too controlling. If you manage to bring her to the fold, she'll count as 3 people towards each party.
 - Something very special happens if you host a party of 20 people. This is your ultimate goal. If the Succubus is present during the party, the surprise will be even better!
-- You can either initiate people willingly or forcibly. Either way, you must perform a ritual that involves (1) either alcohol, music, lavish food, or drugs, and (2) secret chants in an ancient tongue.
+- You can either initiate people willingly or forcibly. Either way, you must perform a ritual that involves (1) either alcohol, music, lavish food, or drugs, and (2) secret chants in an ancient tongue. To initiate people against their will, lash them down and chant the rites—if they resist, it will be a Move.
 - You can leave the Cult at any point, but you must confess everything you've ever done to a preacher, lose -10 Tag Points (yes, you can go into negative), and suffer through life-changing, excruciating withdrawal.
 - starting tag: Follower of Bacchus, Leader
-- doc elements: townstarting
+- doc elements: townstarting, cult
 
 Cult of Bacchus (Cultist)
 - Bacchus is the Lustful God, Creator of Illusions, the Eternal One. Bacchus is honest. Bacchus is life. Bacchus is pleasure. Bacchus is a zealot of hedonism. They rejoice over the fulfillment of desires and the euphoric suicide of their followers.
@@ -513,6 +574,8 @@ Brigand (Caves)
 
 # Documents
 
+Basic
+The golden rule: 
 
 Courtier
 ### As a member of the Baron’s retinue, you may take food from the faction Silo whenever you please—within reason (Treasurer roles can see their Silo’s transaction history, so don’t steal. If you’d like to steal, arrange it with a GM)
@@ -528,3 +591,8 @@ The Watch is commanded by the Captain.
 
 Treasurer 
 - tag: treasurer, Leader
+
+
+Medical:
+
+- synced list of medical tags, hover

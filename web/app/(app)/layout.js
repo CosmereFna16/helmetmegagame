@@ -31,15 +31,32 @@ export default async function AppLayout({ children }) {
   const baseNav = gm ? GM_NAV : PLAYER_NAV;
   const items = isSuperadmin(session.discordUserId) ? [...baseNav, DEV_NAV_ITEM] : baseNav;
 
-  const [confirmedActionCount, pendingDesireCount, pendingTagRequestCount] = gm
+  const [confirmedActionCount, pendingDesireCount, pendingTagRequestCount, unrepliedConversations] = gm
     ? await Promise.all([
         prisma.action.count({ where: { status: "CONFIRMED" } }),
         prisma.desire.count({ where: { status: "PENDING" } }),
         prisma.tagChangeRequest.count({ where: { status: "PENDING" } }),
+        // A conversation needs a reply when its most recent message is INBOUND
+        // (from the player) — an OUTBOUND message, bot-sent or GM-sent, counts
+        // as answered.
+        prisma.$queryRaw`
+          SELECT COUNT(*)::int AS count FROM (
+            SELECT DISTINCT ON ("discordUserId") direction
+            FROM "DirectMessage"
+            ORDER BY "discordUserId", "createdAt" DESC
+          ) latest
+          WHERE direction = 'INBOUND'
+        `,
       ])
-    : [0, 0, 0];
+    : [0, 0, 0, [{ count: 0 }]];
   const pendingAdjudicationCount = confirmedActionCount + pendingDesireCount + pendingTagRequestCount;
-  const badges = gm && pendingAdjudicationCount > 0 ? { "/gm/turns": pendingAdjudicationCount } : {};
+  const pendingMessageCount = unrepliedConversations[0]?.count ?? 0;
+  const badges = gm
+    ? {
+        ...(pendingAdjudicationCount > 0 ? { "/gm/turns": pendingAdjudicationCount } : {}),
+        ...(pendingMessageCount > 0 ? { "/gm/messages": pendingMessageCount } : {}),
+      }
+    : {};
 
   return (
     <div className="app-shell">
