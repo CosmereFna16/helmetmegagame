@@ -7,7 +7,7 @@ const { rollResourceDice, formatResourceLines } = require("../lib/resourceDelta"
 
 const DELETE_EMOJI = "❌"; // ❌
 const EDIT_EMOJI = "✏️"; // ✏️
-const INFO_EMOJI = "❓"; // ❓
+const INSPECT_EMOJI = "🔍"; // 🔍
 const CONFIRM_EMOJI = "⚜️"; // ⚜
 const STAR_EMOJI = "⭐"; // ⭐
 const FOG_EMOJI = "🌫️"; // :fog:
@@ -236,13 +236,21 @@ module.exports = {
       return;
     }
 
-    if (emoji === INFO_EMOJI) {
-      const character = await prisma.character.findUnique({ where: { id: proxy.characterId } });
+    if (emoji === INSPECT_EMOJI) {
+      const character = await prisma.character.findUnique({
+        where: { id: proxy.characterId },
+        include: { tags: { include: { tag: true } } },
+      });
       if (!character) return;
+
+      const visibleTags = character.tags.filter((ct) => ct.tag.visibleOnInspect).map((ct) => ct.tag.name);
 
       const embed = new EmbedBuilder()
         .setTitle(character.name)
-        .setDescription(character.appearance || "No bio set.");
+        .setDescription(character.appearance || "No visible appearance.");
+      if (visibleTags.length > 0) {
+        embed.addFields({ name: "Tags", value: visibleTags.join(", ") });
+      }
       if (character.avatarMimeType && process.env.WEB_BASE_URL) {
         embed.setThumbnail(
           `${process.env.WEB_BASE_URL}/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`,

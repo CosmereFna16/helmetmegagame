@@ -169,6 +169,12 @@ model Tag {
   category    String?
   pointCost   Int      @default(0)
 
+  // Shown to other players who 🔍-react to this character's proxied
+  // messages (see bot/src/events/messageReactionAdd.js), alongside
+  // Character.appearance. Defaults closed so identity/status tags (Mortus,
+  // Leader, Drained, ...) stay hidden unless explicitly opened up.
+  visibleOnInspect Boolean @default(false)
+
   // For sequential/tiered skill tags (Cooking (Basic) -> Cooking (Skilled)):
   // the tier this one upgrades from. Buying/granting a tag with a parent
   // replaces the parent on the character rather than stacking with it.

@@ -165,12 +165,15 @@ async function seedSkillTags() {
       const name = `${family} (${tier})`;
       const existing = await prisma.tag.findFirst({ where: { name } });
       if (existing) {
-        // Description text is safe to keep in sync even for a tag that
-        // already exists — unlike pointCost/parentTagId, it can't disrupt
-        // anything a character already bought or was granted.
-        if (existing.description !== description) {
-          await prisma.tag.update({ where: { id: existing.id }, data: { description } });
-          console.log(`updated description: ${name}`);
+        // Description/visibility are safe to keep in sync even for a tag
+        // that already exists — unlike pointCost/parentTagId, they can't
+        // disrupt anything a character already bought or was granted.
+        const changes = {};
+        if (existing.description !== description) changes.description = description;
+        if (!existing.visibleOnInspect) changes.visibleOnInspect = true;
+        if (Object.keys(changes).length > 0) {
+          await prisma.tag.update({ where: { id: existing.id }, data: changes });
+          console.log(`updated: ${name}`);
         } else {
           console.log(`skip (exists): ${name}`);
         }
@@ -178,7 +181,15 @@ async function seedSkillTags() {
         continue;
       }
       const created = await prisma.tag.create({
-        data: { name, slug, description, category: SKILL_CATEGORY, pointCost, parentTagId: parentId },
+        data: {
+          name,
+          slug,
+          description,
+          category: SKILL_CATEGORY,
+          pointCost,
+          parentTagId: parentId,
+          visibleOnInspect: true,
+        },
       });
       console.log(`created: ${name} (${pointCost})${parentId ? ` <- upgrades from parent` : ""}`);
       parentId = created.id;
