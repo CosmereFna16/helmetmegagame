@@ -243,6 +243,46 @@ export async function setDesire(characterId, description) {
   revalidatePath("/character");
 }
 
+export async function setDefaultEffort(characterId, formData) {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+
+  const character = await prisma.character.findFirst({
+    where: { id: characterId, discordUserId: session.discordUserId, status: "ALIVE" },
+  });
+  if (!character) redirect("/character/new");
+
+  const description = formData.get("description")?.toString().trim();
+  if (!description) return;
+
+  const shareInSummary = formData.get("shareInSummary") === "on";
+  const summaryChannelId = formData.get("summaryChannelId")?.toString().trim() || null;
+  const summaryMessage = formData.get("summaryMessage")?.toString().trim() || null;
+
+  await prisma.defaultEffort.upsert({
+    where: { characterId: character.id },
+    create: {
+      characterId: character.id,
+      description,
+      zoneId: character.zoneId,
+      shareInSummary: shareInSummary && !!summaryChannelId,
+      summaryChannelId: shareInSummary ? summaryChannelId : null,
+      summaryMessage,
+      setByCharacterId: character.id,
+    },
+    update: {
+      description,
+      zoneId: character.zoneId,
+      shareInSummary: shareInSummary && !!summaryChannelId,
+      summaryChannelId: shareInSummary ? summaryChannelId : null,
+      summaryMessage,
+      setByCharacterId: character.id,
+    },
+  });
+
+  revalidatePath("/character");
+}
+
 // Marks a desire as ready for GM review — no points are granted here.
 // The GM decides whether to approve it and how many points it's worth
 // via adjudicateDesire() in gm/actions.js.

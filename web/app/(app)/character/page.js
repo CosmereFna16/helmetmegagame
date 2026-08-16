@@ -3,6 +3,7 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { TAG_STORE_CATEGORY_NAMES } from "@/lib/tagStore";
+import { listGuildChannels, isSummaryChannel } from "@/lib/discordGuild";
 import CharacterSheet from "../../components/CharacterSheet";
 
 export default async function CharacterPage() {
@@ -16,12 +17,13 @@ export default async function CharacterPage() {
       zone: true,
       tags: { include: { tag: true } },
       desires: { orderBy: { createdAt: "desc" }, take: 1 },
+      defaultEffort: true,
     },
   });
 
   if (!character) redirect("/character/new");
 
-  const [openTurn, otherCharacters, factions, storeTags] = await Promise.all([
+  const [openTurn, otherCharacters, factions, storeTags, guildChannels] = await Promise.all([
     getOpenTurn(),
     prisma.character.findMany({
       where: { status: "ALIVE", id: { not: character.id } },
@@ -34,7 +36,13 @@ export default async function CharacterPage() {
       select: { id: true, name: true },
     }),
     prisma.tag.findMany({ where: { category: { in: TAG_STORE_CATEGORY_NAMES } } }),
+    listGuildChannels(),
   ]);
+
+  const summaryChannels = guildChannels
+    .filter(isSummaryChannel)
+    .map((c) => ({ id: c.id, name: c.name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const avatarSrc = character.avatarMimeType
     ? `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`
@@ -48,6 +56,7 @@ export default async function CharacterPage() {
       avatarSrc={avatarSrc}
       transferTargets={{ characters: otherCharacters, factions }}
       storeTags={storeTags}
+      summaryChannels={summaryChannels}
     />
   );
 }

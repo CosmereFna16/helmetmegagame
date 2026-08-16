@@ -252,9 +252,12 @@ model DefaultEffort {
   characterId      String    @unique
   character        Character @relation(fields: [characterId], references: [id])
   description      String
-  zoneId           String
-  zone             Zone      @relation(fields: [zoneId], references: [id])
+  zoneId           String?
+  zone             Zone?     @relation(fields: [zoneId], references: [id])
   resourceDelta    Int?
+  shareInSummary   Boolean   @default(false)
+  summaryChannelId String?
+  summaryMessage   String?
   setByCharacterId String?
   setByCharacter   Character? @relation("DefaultEffortSetBy", fields: [setByCharacterId], references: [id])
   updatedAt        DateTime  @updatedAt

@@ -5,6 +5,7 @@ import TagChip from "./TagChip";
 import TagStorePanel from "./TagStorePanel";
 import TagRequestPanel from "./TagRequestPanel";
 import DesirePanel from "./DesirePanel";
+import DefaultEffortPanel from "./DefaultEffortPanel";
 
 function groupTagsByCategory(characterTags) {
   const groups = new Map();
@@ -63,6 +64,7 @@ export default function CharacterSheet({
   avatarSrc,
   transferTargets,
   storeTags,
+  summaryChannels,
 }) {
   const isSelf = mode === "self";
   const tagGroups = groupTagsByCategory(character.tags);
@@ -72,7 +74,7 @@ export default function CharacterSheet({
       : null;
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6 sm:p-8">
+    <div className="mx-auto flex max-w-6xl flex-col gap-6 p-6 sm:p-8">
       <div className="flex items-center gap-4">
         {avatarSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -97,42 +99,39 @@ export default function CharacterSheet({
         </div>
       </div>
 
-      {isSelf && (
-        <section className="panel p-4">
-          <h2 className="mb-3 font-bold">Bio</h2>
-          <form action={updateCharacterProfile} encType="multipart/form-data" className="flex flex-col gap-3">
-            <label className="field">
-              <span className="field-label">Name</span>
-              <input name="name" defaultValue={character.name} required />
-            </label>
-            <AvatarField />
-            <AppearanceField defaultValue={character.appearance ?? ""} />
-            <label className="field">
-              <span className="field-label">Discord nickname (optional)</span>
-              <input
-                name="preferredNickname"
-                defaultValue={character.preferredNickname ?? ""}
-                placeholder="Defaults to your Discord display name"
-                maxLength={24}
-              />
-            </label>
-            <label className="field flex-row items-center gap-2">
-              <input type="checkbox" name="turnPingOptIn" defaultChecked={character.turnPingOptIn} />
-              <span className="field-label">Turn Ping?</span>
-            </label>
-            <button type="submit" className="btn self-start">
-              Save
-            </button>
-          </form>
-        </section>
-      )}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {isSelf && (
+          <section className="panel p-4">
+            <h2 className="mb-3 font-bold">Bio</h2>
+            <form action={updateCharacterProfile} encType="multipart/form-data" className="flex flex-col gap-3">
+              <label className="field">
+                <span className="field-label">Name</span>
+                <input name="name" defaultValue={character.name} required />
+              </label>
+              <AvatarField defaultTurnPingOptIn={character.turnPingOptIn} />
+              <AppearanceField defaultValue={character.appearance ?? ""} />
+              <label className="field">
+                <span className="field-label">Discord nickname (optional)</span>
+                <input
+                  name="preferredNickname"
+                  defaultValue={character.preferredNickname ?? ""}
+                  placeholder="Defaults to your Discord display name"
+                  maxLength={24}
+                />
+              </label>
+              <button type="submit" className="btn self-start">
+                Save
+              </button>
+            </form>
+          </section>
+        )}
 
-      {!isSelf && character.appearance && (
-        <section className="panel p-4">
-          <h2 className="mb-2 font-bold">Appearance</h2>
-          <p className="text-sm">{character.appearance}</p>
-        </section>
-      )}
+        {!isSelf && character.appearance && (
+          <section className="panel p-4">
+            <h2 className="mb-2 font-bold">Appearance</h2>
+            <p className="text-sm">{character.appearance}</p>
+          </section>
+        )}
 
       <section className="panel p-4">
         <h2 className="mb-3 font-bold">Status</h2>
@@ -241,6 +240,7 @@ export default function CharacterSheet({
           <ActionStatus currentAction={currentAction} openTurn={openTurn} />
         </section>
       )}
+      </div>
 
       <section className="panel p-4">
         <h2 className="mb-3 font-bold">Tags</h2>
@@ -273,12 +273,22 @@ export default function CharacterSheet({
         <TagRequestPanel characterId={character.id} />
       </section>
 
-      <DesirePanel
-        characterId={character.id}
-        desire={character.desires[0] ?? null}
-        openTurnNumber={openTurn?.number ?? null}
-        isSelf={isSelf}
-      />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <DesirePanel
+          characterId={character.id}
+          desire={character.desires[0] ?? null}
+          openTurnNumber={openTurn?.number ?? null}
+          isSelf={isSelf}
+        />
+
+        {isSelf && (
+          <DefaultEffortPanel
+            characterId={character.id}
+            defaultEffort={character.defaultEffort ?? null}
+            summaryChannels={summaryChannels ?? []}
+          />
+        )}
+      </div>
     </div>
   );
 }

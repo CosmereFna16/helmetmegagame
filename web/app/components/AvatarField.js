@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 
-export default function AvatarField() {
+export default function AvatarField({ defaultTurnPingOptIn }) {
   const [fileName, setFileName] = useState("");
 
   return (
     <div className="field">
       <span className="field-label">Profile picture</span>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <label className="btn" style={{ cursor: "pointer" }}>
           Browse
           <input
@@ -18,6 +18,12 @@ export default function AvatarField() {
             style={{ display: "none" }}
             onChange={(e) => setFileName(e.target.files?.[0]?.name ?? "")}
           />
+        </label>
+        <label className="flex items-center gap-2 text-sm" style={{ cursor: "pointer" }}>
+          <input type="checkbox" name="turnPingOptIn" defaultChecked={defaultTurnPingOptIn} />
+          <span className="field-label" style={{ marginBottom: 0 }}>
+            Turn Ping?
+          </span>
         </label>
         {fileName ? (
           <span className="text-sm" style={{ color: "var(--muted)" }}>
