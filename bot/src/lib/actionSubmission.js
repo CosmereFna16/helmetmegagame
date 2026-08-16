@@ -1,13 +1,16 @@
 const { prisma } = require("@lifeweb/db");
 const { sendDm } = require("./dm");
+const { parseResourceDelta } = require("./resourceDelta");
 
-const CONFIRM_EMOJI = "⚜️";
+const EFFORT_EMOJI = "1️⃣";
+const MOVE_EMOJI = "2️⃣";
 
-// A message posted in the #moves or #effort channel becomes a PENDING
-// action: the original message is deleted (the action itself only exists as
-// a DM + the web dashboard) and the player confirms via reaction, same as
-// the existing action-confirm flow.
-async function handleActionSubmission(message, type) {
+// A message posted in the #turns channel becomes a PENDING_TYPE action: the
+// original message is deleted (the action itself only exists as a DM + the
+// web dashboard) and the player picks Effort or Move via a reaction menu
+// before the usual confirm flow (see handleTypeSelection in
+// messageReactionAdd.js) kicks in.
+async function handleActionSubmission(message) {
   const character = await prisma.character.findFirst({
     where: { discordUserId: message.author.id, status: "ALIVE" },
   });
@@ -19,35 +22,45 @@ async function handleActionSubmission(message, type) {
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
   if (!openTurn) {
     await message.delete().catch(() => {});
-    const label = type === "MOVE" ? "move" : "effort";
-    await sendDm(message.author, `» *No turn is currently open — your ${label} wasn't recorded.*`).catch(() => {});
+    await sendDm(message.author, "» *No turn is currently open — your submission wasn't recorded.*").catch(
+      () => {},
+    );
     return;
   }
 
-  const description = message.content.trim();
-  if (!description) {
+  const raw = message.content.trim();
+  if (!raw) {
     await message.delete().catch(() => {});
     return;
   }
 
-  const zone = character.zoneId ? await prisma.zone.findUnique({ where: { id: character.zoneId } }) : null;
+  const { description, resourceDelta } = parseResourceDelta(raw);
 
   const action = await prisma.action.create({
     data: {
       characterId: character.id,
       turnId: openTurn.id,
-      type,
+      type: null,
+      status: "PENDING_TYPE",
       description,
+      resourceDelta,
       zoneId: character.zoneId ?? null,
     },
   });
 
   await message.delete().catch(() => {});
 
-  const lines =
-    type === "MOVE"
-      ? [`» ${description}`, `**Zone:** ${zone?.name ?? "(none)"}`, "", "React with ⚜ to confirm."]
-      : [`» ${description}`, "", "React with ⚜ to confirm."];
+  const resourceLine = resourceDelta != null ? [`**Resource change:** ${resourceDelta > 0 ? "+" : ""}${resourceDelta}`] : [];
+  const lines = [
+    `» ${description}`,
+    ...resourceLine,
+    "",
+    "```",
+    `${EFFORT_EMOJI}  Effort`,
+    `${MOVE_EMOJI}  Move`,
+    "```",
+    `React with ${EFFORT_EMOJI} or ${MOVE_EMOJI} to choose.`,
+  ];
 
   let sent;
   try {
@@ -58,16 +71,17 @@ async function handleActionSubmission(message, type) {
   }
 
   await prisma.action.update({ where: { id: action.id }, data: { confirmDmMessageId: sent.id } });
-  await sent.react(CONFIRM_EMOJI).catch(() => {});
+  await sent.react(EFFORT_EMOJI).catch(() => {});
+  await sent.react(MOVE_EMOJI).catch(() => {});
 
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: message.author.id,
-      actionType: type === "MOVE" ? "move_submitted" : "effort_submitted",
+      actionType: "action_submitted",
       targetCharacterId: character.id,
       details: { actionId: action.id },
     },
   });
 }
 
-module.exports = { handleActionSubmission };
+module.exports = { handleActionSubmission, EFFORT_EMOJI, MOVE_EMOJI };

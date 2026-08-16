@@ -30,4 +30,23 @@ function getSummaryChannels(guild) {
   return [...guild.channels.cache.values()].filter(isSummaryChannel);
 }
 
-module.exports = { MARKER, isSummaryChannel, isTupperChannel, isDesignatedTupperChannel, getSummaryChannels };
+// The single channel gameplay actually happens in — exact name match, not
+// marker-based like isSummaryChannel/isTupperChannel, since there's only
+// ever meant to be one.
+function isTurnsChannel(channel) {
+  return channel.type === ChannelType.GuildText && channel.name?.toLowerCase() === "turns";
+}
+
+function getTurnsChannel(guild) {
+  return [...guild.channels.cache.values()].find(isTurnsChannel) ?? null;
+}
+
+module.exports = {
+  MARKER,
+  isSummaryChannel,
+  isTupperChannel,
+  isDesignatedTupperChannel,
+  getSummaryChannels,
+  isTurnsChannel,
+  getTurnsChannel,
+};

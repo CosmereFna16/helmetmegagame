@@ -61,6 +61,7 @@ export async function adjudicateAction(formData) {
   const resultMessage = formData.get("resultMessage")?.toString().trim() || null;
   const gmNotes = formData.get("gmNotes")?.toString().trim() || null;
   const isPublic = formData.get("isPublic") === "on";
+  const resourceDelta = Number.parseInt(formData.get("resourceDelta")?.toString().trim() ?? "0", 10) || 0;
 
   const action = await prisma.action.findUnique({
     where: { id: actionId },
@@ -68,10 +69,15 @@ export async function adjudicateAction(formData) {
   });
   if (!action || action.status !== "CONFIRMED") return;
 
-  await prisma.action.update({
-    where: { id: actionId },
-    data: { status: "ADJUDICATED", resultMessage, gmNotes, isPublic },
-  });
+  await prisma.$transaction([
+    prisma.action.update({
+      where: { id: actionId },
+      data: { status: "ADJUDICATED", resultMessage, gmNotes, isPublic, resourceDelta },
+    }),
+    ...(resourceDelta !== 0
+      ? [prisma.character.update({ where: { id: action.characterId }, data: { resources: { increment: resourceDelta } } })]
+      : []),
+  ]);
 
   if (resultMessage) {
     await sendDm(action.character.discordUserId, resultMessage).catch(() => {});

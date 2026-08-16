@@ -25,6 +25,7 @@ enum ActionType {
 }
 
 enum ActionStatus {
+  PENDING_TYPE
   PENDING
   CONFIRMED
   ADJUDICATED
@@ -78,6 +79,8 @@ model GameConfig {
   moodMoveBonus             Int @default(1)
   nextWeather               Weather?
   nextTurnNote              String?
+  turnsAnnouncementChannelId String?
+  turnsAnnouncementMessageId String?
 }
 
 model Faction {
@@ -226,7 +229,7 @@ model Action {
   character      Character    @relation(fields: [characterId], references: [id])
   turnId         String
   turn           Turn         @relation(fields: [turnId], references: [id])
-  type           ActionType
+  type           ActionType?
   description    String
   zoneId         String?
   zone           Zone?        @relation(fields: [zoneId], references: [id])

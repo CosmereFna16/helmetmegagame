@@ -2,6 +2,7 @@ const { WebhookClient, EmbedBuilder } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const { recentProxies } = require("../lib/proxy");
 const { sendDm } = require("../lib/dm");
+const { EFFORT_EMOJI, MOVE_EMOJI } = require("../lib/actionSubmission");
 
 const DELETE_EMOJI = "❌"; // ❌
 const EDIT_EMOJI = "✏️"; // ✏️
@@ -15,8 +16,6 @@ function rollDie(sides = 6) {
 }
 
 async function handleActionConfirm(reaction, user) {
-  if (reaction.emoji.name !== CONFIRM_EMOJI) return;
-
   const action = await prisma.action.findUnique({
     where: { confirmDmMessageId: reaction.message.id },
     include: { character: true },
@@ -51,6 +50,55 @@ async function handleActionConfirm(reaction, user) {
 
   const waitingLines = diceRoll != null ? [`🎲 **${diceRoll}**`, "» *Waiting on adjudication...*"] : ["» *Waiting on adjudication...*"];
   await sendDm(user, waitingLines.join("\n")).catch(() => {});
+}
+
+// Player picked Effort or Move from the type-picker DM sent by
+// handleActionSubmission. Finalizes the Action's type, then — same reasoning
+// as handleActionConfirm below — deletes the picker DM and sends a fresh
+// confirm DM (bots can't strip their own reactions off another user's DM to
+// relabel it), pointing confirmDmMessageId at the new message.
+async function handleTypeSelection(reaction, user) {
+  const action = await prisma.action.findUnique({
+    where: { confirmDmMessageId: reaction.message.id },
+    include: { character: true },
+  });
+  if (!action || action.status !== "PENDING_TYPE") return;
+  if (action.character.discordUserId !== user.id) return;
+
+  const type = reaction.emoji.name === MOVE_EMOJI ? "MOVE" : "EFFORT";
+
+  await prisma.action.update({ where: { id: action.id }, data: { type, status: "PENDING" } });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: user.id,
+      actionType: type === "MOVE" ? "move_submitted" : "effort_submitted",
+      targetCharacterId: action.characterId,
+      details: { actionId: action.id },
+    },
+  });
+
+  await reaction.message.delete().catch(() => {});
+
+  const zone = action.zoneId ? await prisma.zone.findUnique({ where: { id: action.zoneId } }) : null;
+  const resourceLine =
+    action.resourceDelta != null
+      ? [`**Resource change:** ${action.resourceDelta > 0 ? "+" : ""}${action.resourceDelta}`]
+      : [];
+  const lines =
+    type === "MOVE"
+      ? [`» ${action.description}`, `**Zone:** ${zone?.name ?? "(none)"}`, ...resourceLine, "", "React with ⚜ to confirm."]
+      : [`» ${action.description}`, ...resourceLine, "", "React with ⚜ to confirm."];
+
+  let sent;
+  try {
+    ({ sent } = await sendDm(user, lines.join("\n")));
+  } catch {
+    return;
+  }
+
+  await prisma.action.update({ where: { id: action.id }, data: { confirmDmMessageId: sent.id } });
+  await sent.react(CONFIRM_EMOJI).catch(() => {});
 }
 
 // Starring a proxied tupper message archives it (or bumps its star count if
@@ -118,7 +166,9 @@ module.exports = {
     if (reaction.message.partial) await reaction.message.fetch().catch(() => null);
 
     if (!reaction.message.guild) {
-      await handleActionConfirm(reaction, user);
+      const emoji = reaction.emoji.name;
+      if (emoji === CONFIRM_EMOJI) await handleActionConfirm(reaction, user);
+      else if (emoji === EFFORT_EMOJI || emoji === MOVE_EMOJI) await handleTypeSelection(reaction, user);
       return;
     }
 

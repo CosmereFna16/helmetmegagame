@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma, advanceTurn as advanceTurnInDb, buildTurnAnnouncement, HUNGERLESS_SLUG } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
-import { postMessage, listGuildChannels, isSummaryChannel } from "@/lib/discordGuild";
+import { postMessage, deleteMessage, listGuildChannels, isTurnsChannel } from "@/lib/discordGuild";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 
 async function requireSuperadmin() {
@@ -107,9 +107,21 @@ export async function forceAdvanceTurn() {
 
   const text = buildTurnAnnouncement(newTurn, note);
   const channels = await listGuildChannels();
-  await Promise.all(
-    channels.filter(isSummaryChannel).map((channel) => postMessage(channel.id, text).catch(() => {})),
-  );
+  const turnsChannel = channels.find(isTurnsChannel);
+
+  if (turnsChannel) {
+    const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+    if (config?.turnsAnnouncementChannelId === turnsChannel.id && config.turnsAnnouncementMessageId) {
+      await deleteMessage(turnsChannel.id, config.turnsAnnouncementMessageId).catch(() => {});
+    }
+    const sent = await postMessage(turnsChannel.id, text).catch(() => null);
+    if (sent) {
+      await prisma.gameConfig.update({
+        where: { id: 1 },
+        data: { turnsAnnouncementChannelId: turnsChannel.id, turnsAnnouncementMessageId: sent.id },
+      });
+    }
+  }
 
   revalidatePath("/gm/dev");
   revalidatePath("/", "layout");

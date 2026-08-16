@@ -16,11 +16,8 @@ module.exports = {
     }
 
     const channelName = message.channel.name?.toLowerCase();
-    if (channelName === "moves" || channelName === "effort") {
-      const type = channelName === "moves" ? "MOVE" : "EFFORT";
-      await handleActionSubmission(message, type).catch((err) =>
-        console.error(`Failed to submit ${type.toLowerCase()}:`, err),
-      );
+    if (channelName === "turns") {
+      await handleActionSubmission(message).catch((err) => console.error("Failed to submit action:", err));
       return;
     }
 

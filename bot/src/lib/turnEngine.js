@@ -1,5 +1,31 @@
 const { prisma, advanceTurn: advanceTurnInDb, buildTurnAnnouncement } = require("@lifeweb/db");
-const { getSummaryChannels } = require("./channels");
+const { getTurnsChannel } = require("./channels");
+
+// Turn announcements are a single rolling message in #turns: delete the
+// previous one (if the stored id still points at this channel) before
+// posting the new one, rather than broadcasting a fresh message every time.
+async function postTurnsAnnouncement(client, newTurn, note) {
+  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+  const text = buildTurnAnnouncement(newTurn, note);
+
+  for (const guild of client.guilds.cache.values()) {
+    const channel = getTurnsChannel(guild);
+    if (!channel) continue;
+
+    if (config?.turnsAnnouncementChannelId === channel.id && config.turnsAnnouncementMessageId) {
+      const prev = await channel.messages.fetch(config.turnsAnnouncementMessageId).catch(() => null);
+      if (prev) await prev.delete().catch(() => {});
+    }
+
+    const sent = await channel.send(text).catch(() => null);
+    if (sent) {
+      await prisma.gameConfig.update({
+        where: { id: 1 },
+        data: { turnsAnnouncementChannelId: channel.id, turnsAnnouncementMessageId: sent.id },
+      });
+    }
+  }
+}
 
 // Thin wrapper around the shared db.advanceTurn(): adds the audit log entry
 // and the Discord announcement, both of which need this process's gateway
@@ -23,14 +49,7 @@ async function advanceTurn(client) {
     },
   });
 
-  if (client) {
-    const text = buildTurnAnnouncement(newTurn, note);
-    for (const guild of client.guilds.cache.values()) {
-      for (const channel of getSummaryChannels(guild)) {
-        await channel.send(text).catch(() => {});
-      }
-    }
-  }
+  if (client) await postTurnsAnnouncement(client, newTurn, note);
 
   return newTurn;
 }

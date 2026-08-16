@@ -24,8 +24,12 @@ function ActionStatus({ currentAction, openTurn }) {
   return (
     <div className="text-sm">
       <p className="mb-1">
-        {currentAction.type === "MOVE" ? "Move" : "Effort"}: {currentAction.description}
+        {currentAction.type === "MOVE" ? "Move" : currentAction.type === "EFFORT" ? "Effort" : "Action"}:{" "}
+        {currentAction.description}
       </p>
+      {currentAction.status === "PENDING_TYPE" && (
+        <p style={{ color: "var(--muted)" }}>Waiting on you to choose Effort or Move — check Discord DMs.</p>
+      )}
       {currentAction.status === "PENDING" && (
         <p style={{ color: "var(--muted)" }}>Pending confirmation — check Discord DMs and react ✅ to lock it in.</p>
       )}

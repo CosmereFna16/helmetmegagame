@@ -64,6 +64,7 @@ export default function TurnsTable({ actions }) {
           <span className="field-label">Status</span>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="">All</option>
+            <option value="PENDING_TYPE">Picking type</option>
             <option value="PENDING">Pending</option>
             <option value="CONFIRMED">Confirmed</option>
             <option value="ADJUDICATED">Complete</option>
@@ -110,9 +111,17 @@ export default function TurnsTable({ actions }) {
                   <td>{a.characterName}</td>
                   <td>{a.factionName || "-"}</td>
                   <td>{a.zoneName || "-"}</td>
-                  <td>{a.type === "MOVE" ? "Move" : "Effort"}</td>
+                  <td>{a.type === "MOVE" ? "Move" : a.type === "EFFORT" ? "Effort" : "-"}</td>
                   <td>{a.diceRoll ?? "-"}</td>
-                  <td>{a.status === "ADJUDICATED" ? "Complete" : a.status === "PENDING" ? "Pending" : "Confirmed"}</td>
+                  <td>
+                    {a.status === "ADJUDICATED"
+                      ? "Complete"
+                      : a.status === "CONFIRMED"
+                        ? "Confirmed"
+                        : a.status === "PENDING"
+                          ? "Pending"
+                          : "Picking type"}
+                  </td>
                   <td className="max-w-xs truncate">{a.description}</td>
                 </tr>
                 {messageRowId === a.id && (

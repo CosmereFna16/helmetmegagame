@@ -160,6 +160,7 @@ body {
 }
 
 .field input[type="text"],
+.field input[type="number"],
 .field input[type="file"],
 .field input:not([type]),
 .field textarea,

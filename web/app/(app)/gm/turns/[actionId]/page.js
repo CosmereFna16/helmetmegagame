@@ -36,12 +36,13 @@ export default async function ArbitrationPage({ params }) {
 
       <section className="panel p-4">
         <h1 className="mb-2 text-xl font-bold">
-          {action.character.name} — {action.type === "MOVE" ? "Move" : "Effort"}
+          {action.character.name} — {action.type === "MOVE" ? "Move" : action.type === "EFFORT" ? "Effort" : "Action"}
         </h1>
         <p className="mb-1 text-sm" style={{ color: "var(--muted)" }}>
           {describeTurn(action.turn).label} — {action.character.roleTitle ?? "No role"} —{" "}
           {action.character.faction?.name ?? "No faction"} — {action.character.zone?.name ?? "No zone"}
           {action.diceRoll != null ? ` — rolled ${action.diceRoll}` : ""}
+          {action.resourceDelta ? ` — requested ${action.resourceDelta > 0 ? "+" : ""}${action.resourceDelta}` : ""}
         </p>
         {action.character.tags.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-2">
@@ -55,6 +56,11 @@ export default async function ArbitrationPage({ params }) {
 
       <section className="panel p-4">
         <h2 className="mb-3 font-bold">Adjudication</h2>
+        {action.status === "PENDING_TYPE" && (
+          <p className="text-sm" style={{ color: "var(--muted)" }}>
+            Waiting on the player to choose Effort or Move in Discord.
+          </p>
+        )}
         {action.status === "PENDING" && (
           <p className="text-sm" style={{ color: "var(--muted)" }}>
             Waiting on the player to confirm in Discord.
@@ -63,6 +69,10 @@ export default async function ArbitrationPage({ params }) {
         {action.status === "CONFIRMED" && (
           <form action={adjudicateAction} className="flex flex-col gap-4">
             <input type="hidden" name="actionId" value={action.id} />
+            <label className="field">
+              <span className="field-label">Resource change (applied to the player&apos;s resources)</span>
+              <input type="number" name="resourceDelta" defaultValue={action.resourceDelta ?? 0} />
+            </label>
             <label className="field">
               <span className="field-label">Adjudication message (sent to the player)</span>
               <textarea name="resultMessage" rows={3} />

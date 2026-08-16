@@ -23,6 +23,12 @@ export function isTupperChannel(channel) {
   );
 }
 
+// The single channel gameplay actually happens in — exact name match, not
+// marker-based, matching the bot-side twin in bot/src/lib/channels.js.
+export function isTurnsChannel(channel) {
+  return channel.type === CHANNEL_TYPE_TEXT && channel.name?.toLowerCase() === "turns";
+}
+
 // A tiny in-memory TTL cache so repeated Discord lookups across navigations
 // (not just within one request) don't each cost a network round trip. Fine
 // at this project's scale — one Railway instance, no multi-process fan-out.
@@ -180,6 +186,20 @@ export async function postMessage(channelId, content) {
     throw new Error(`Failed to post message: ${res.status} ${await res.text()}`);
   }
   return res.json();
+}
+
+export async function deleteMessage(channelId, messageId) {
+  const token = process.env.DISCORD_TOKEN;
+  if (!token) throw new Error("DISCORD_TOKEN is not set.");
+
+  const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages/${messageId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bot ${token}` },
+  });
+
+  if (!res.ok && res.status !== 404) {
+    throw new Error(`Failed to delete message: ${res.status} ${await res.text()}`);
+  }
 }
 
 const STAR_EMOJI = "⭐";
