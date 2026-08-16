@@ -8,7 +8,7 @@ Situation rundown
 ### Faction: {Faction}
 - Summary point 1...
 - Summary point 2...
-- difficulty: {difficult, medium, easy}
+- difficulty: {difficult, moderate, easy}
 - leader: true/false
 - starting tag: tag, tag
 - doc elements: {element (ex:courtstructure)}, {element}, {element}
@@ -64,7 +64,7 @@ Hand
 - You’re the Baron’s best friend and perhaps the only man he can truly trust. You are completely loyal to him.
 - The Baron works best when he’s informed and has a court that’s loyal and organized. You are his spymaster, his executor, his voice. Without you, Ravenheart collapses.
 - Above all, be proactive. Ravenheart is a dangerous place. If you prepare well, the Baron may keep the throne. If you don’t, it won’t be long until someone kills him or makes a fool out of him.
-- difficulty: high
+- difficulty: moderate
 - leader: false
 - multiple: false
 - starting tag: Treasurer
@@ -74,7 +74,7 @@ Meister
 - You are the Keep’s brains, but more importantly, its circulatory system. Ensure the Town sends its taxes—your main contact there is the Headman—and oversee that no one is taking undue amounts of Resources from the Silo.
 - Consider keeping records of what happens every day. They may be useful later.
 - You have minor medical training and you know how to use the Keep’s messenger ravens. 
-- difficulty: medium
+- difficulty: moderate
 - leader: false
 - multiple: false
 - starting tag: Intelligent, Frail, Treasurer, Medical (1), Ravenkeeper
@@ -130,7 +130,7 @@ Courtier (Diplomat)
 - leader: false
 - multiple: true
 - parent role: Courtier
-- starting tag: Worldly
+- starting tag: 
 - doc elements: courtier, diplomat
 
 Servant
@@ -138,7 +138,7 @@ Servant
 - difficulty: easy
 - leader: false
 - multiple: true
-- starting tag: Dutiful
+- starting tag: 
 - doc elements: courtier
 
 Servant (Maid)
@@ -147,7 +147,7 @@ Servant (Maid)
 - leader: false
 - multiple: true
 - parent role: Servant
-- starting tag: Tidy
+- starting tag: 
 - doc elements: courtier
 
 Servant (Chef)
@@ -156,23 +156,23 @@ Servant (Chef)
 - leader: false
 - multiple: true
 - parent role: Servant
-- starting tag: Cook
+- starting tag: 
 - doc elements: courtier
 
 
 ### Faction: Fortress Guard
 Captain
 - Bravely lead the Guard. Battle your alcoholism.
-- difficulty: medium
+- difficulty: moderate
 - leader: true
 - tag: leader
 - multiple: false
-- starting tag: Battle-Hardened
+- starting tag: Alcoholic
 - doc elements:
 
 Incarn
 - Be a warrior monk. Protect the dungeon, process migrants, and guard the Silver Cross, Ravenheart's only relic.
-- difficulty: medium
+- difficulty: moderate
 - leader: false
 - multiple: true
 - starting tag: Devout
@@ -237,7 +237,7 @@ Succubus (Fortress)
 Bishop
 - Encourage people to lead pious lives! Speak the true word of God or side with the Inquisition.
 - Along with the Priest, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts) and resolve to do better.
-- difficulty: medium
+- difficulty: moderate
 - leader: true
 - tag: leader
 - multiple: false
@@ -254,7 +254,7 @@ Priest / Nun
 
 Scholastic
 - Try to understand the cosmos. Collect enough occult information to write your magnum opus. Be a hermit or preach on the streets. Burn at the stake.
-- difficulty: medium
+- difficulty: moderate
 - leader: false
 - multiple: true
 - starting tag: Inquisitive
@@ -263,7 +263,7 @@ Scholastic
 ### Faction: The Sanctuary
 Esculap
 - Keep your Serpents in check.
-- difficulty: medium
+- difficulty: moderate
 - leader: true
 - tag: leader
 - multiple: false
@@ -272,7 +272,7 @@ Esculap
 
 Serpent
 - Perform surgeries, brew medicines, prescribe drugs, install implants and body-modifications, and experiment for the good of science. The more you can learn and experiment, the better at medicine you'll be.
-- difficulty: medium
+- difficulty: moderate
 - leader: false
 - multiple: true
 - starting tag: Steady Hands
@@ -290,7 +290,7 @@ Inquisitor
 
 Practicus
 - Serve the Inquisitor. Preach on the street and rile the people up.
-- difficulty: medium
+- difficulty: moderate
 - leader: false
 - multiple: true
 - starting tag: Zealous
@@ -307,7 +307,7 @@ Zealot
 ### Faction: The People (Village)
 Headman
 - Mayor-ish. Can use a Move to learn up to 2 of a Village character's Tags. Pay the people on your payroll (Sheriff, etc.).
-- difficulty: medium
+- difficulty: moderate
 - leader: true
 - tag: leader
 - multiple: false
@@ -316,7 +316,7 @@ Headman
 
 Sheriff
 - Out of these five people, you know one of them is involved with something.
-- difficulty: medium
+- difficulty: moderate
 - leader: false
 - multiple: false
 - starting tag: Watchful
@@ -324,7 +324,7 @@ Sheriff
 
 Adventurer
 - Sell your services. Delve into the Caves.
-- difficulty: medium
+- difficulty: moderate
 - leader: false
 - multiple: true
 - starting tag: Reckless
@@ -380,7 +380,7 @@ Mortus
 
 Pusher
 - Sell drugs.
-- difficulty: medium
+- difficulty: moderate
 - leader: false
 - multiple: true
 - starting tag: Discreet
@@ -471,7 +471,7 @@ Camp Followers
 
 Mother
 - Counsel and support your son, spy on the Lieutenants and ensure their loyalty. You would die for him.
-- difficulty: medium
+- difficulty: moderate
 - leader: false
 - multiple: false
 - starting tag: Watchful
@@ -479,7 +479,7 @@ Mother
 
 Champion
 - You taught the Bastard how to fight, how to sing, how to survive. You will follow him to death.
-- difficulty: medium
+- difficulty: moderate
 - leader: false
 - multiple: false
 - starting tag: Battle-Hardened
@@ -487,7 +487,7 @@ Champion
 
 Mentat
 - The Bastard's right-hand man, in charge of ensuring—across clan lines—that there's enough Food and it's being equally split. He is the spymaster, the genius, the engineer, the calculator.
-- difficulty: medium
+- difficulty: moderate
 - leader: false
 - multiple: false
 - starting tag: Sharp Mind
@@ -497,7 +497,7 @@ Lieutenant (Broken Spears Clan)
 - Your men are hungry. What is all this kingmaking business? Just attack the fortress, raid the village! You trust the Bastard, but he doesn't act fast enough. Stimulant users.
 - You are feuding with the Wheelers.
 - Members: Fighter, Fighter (Builder), Fighter (Standard Bearer), Fighter (Etc.), Camp Follower.
-- difficulty: medium
+- difficulty: moderate
 - leader: true
 - tag: leader
 - multiple: false
@@ -508,7 +508,7 @@ Lieutenant (Six-Spoke Wheel Clan)
 - Famed for their mastery over the revolver. The Six-Spoke Wheel Clan are ancient herders and lawkeepers—the old guard. Defend your honor. You trust the Bastard, but he doesn't respect the old ways enough.
 - You are feuding with the Broken Spears.
 - Members: Fighter, Fighter (Tinker), Fighter (Standard Bearer), etc., Camp Follower.
-- difficulty: medium
+- difficulty: moderate
 - leader: true
 - tag: leader
 - multiple: false
@@ -517,7 +517,7 @@ Lieutenant (Six-Spoke Wheel Clan)
 
 Lieutenant (Windrider Clan)
 - All you want is a home for your people, and the Bastard can provide you that. You're fully loyal to him.
-- difficulty: medium
+- difficulty: moderate
 - leader: true
 - tag: leader
 - multiple: false
@@ -528,7 +528,7 @@ Lieutenant (Windrider Clan)
 
 Brigand Leader
 - You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
-- difficulty: medium
+- difficulty: moderate
 - leader: true
 - tag: leader
 - multiple: false
@@ -537,7 +537,7 @@ Brigand Leader
 
 Brigand
 - You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
-- difficulty: medium
+- difficulty: moderate
 - leader: false
 - multiple: true
 - starting tag: Opportunist
@@ -561,7 +561,7 @@ Migrant
 
 Mercenary
 - Delve into the Caves for pay.
-- difficulty: medium
+- difficulty: moderate
 - leader: false
 - multiple: true
 - starting tag: Battle-Hardened
@@ -587,7 +587,7 @@ Monsters (NPC)
 
 Brigand Leader (Caves)
 - Loot the caves (dangerous) as a way to fund the Camp's war effort.
-- difficulty: medium
+- difficulty: moderate
 - leader: true
 - tag: leader
 - multiple: false
@@ -596,7 +596,7 @@ Brigand Leader (Caves)
 
 Brigand (Caves)
 - Loot the caves (dangerous) as a way to fund the Camp's war effort.
-- difficulty: medium
+- difficulty: moderate
 - leader: false
 - multiple: true
 - starting tag: Opportunist
