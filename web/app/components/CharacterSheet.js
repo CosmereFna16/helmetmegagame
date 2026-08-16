@@ -1,4 +1,4 @@
-import { NOBILITY_SLUG } from "@lifeweb/db";
+import { NOBILITY_SLUG, TIPSY_SLUG } from "@lifeweb/db";
 import { updateCharacterProfile, setMood, transferResources } from "../(app)/character/actions";
 import AppearanceField from "./AppearanceField";
 import AvatarField from "./AvatarField";
@@ -68,10 +68,12 @@ export default function CharacterSheet({
   transferTargets,
   storeTags,
   summaryChannels,
+  alcoholCost,
 }) {
   const isSelf = mode === "self";
   const tagGroups = groupTagsByCategory(character.tags);
   const hasNobility = character.tags.some((ct) => ct.tag.slug === NOBILITY_SLUG);
+  const tipsyTag = character.tags.find((ct) => ct.tag.slug === TIPSY_SLUG);
   const turnsLeft =
     character.moodState !== "NEUTRAL" && openTurn && character.moodExpiresTurn != null
       ? character.moodExpiresTurn - openTurn.number
@@ -155,6 +157,14 @@ export default function CharacterSheet({
             ) : (
               <span style={{ color: "var(--muted)" }}>Sated</span>
             )}
+            {character.skipNextMealConsumption && (
+              <span className="tag-hover" tabIndex={0} style={{ marginLeft: "0.4rem" }}>
+                <span aria-hidden="true">🍴</span>
+                <span className="tag-tooltip" role="tooltip">
+                  Ate meal — won&rsquo;t go hungry next turn
+                </span>
+              </span>
+            )}
           </li>
           <li>
             Tag Points:{" "}
@@ -204,10 +214,13 @@ export default function CharacterSheet({
         {isSelf && (
           <MealPanel
             characterId={character.id}
+            resources={character.resources}
             hasNobility={hasNobility}
             lastFineMealTurn={character.lastFineMealTurn}
             openTurnNumber={openTurn?.number ?? null}
             skipNextMealConsumption={character.skipNextMealConsumption}
+            tipsyExpiresTurn={tipsyTag?.expiresTurn ?? null}
+            alcoholCost={alcoholCost}
           />
         )}
 

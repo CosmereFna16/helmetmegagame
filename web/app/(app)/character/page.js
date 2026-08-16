@@ -23,7 +23,7 @@ export default async function CharacterPage() {
 
   if (!character) redirect("/character/new");
 
-  const [openTurn, otherCharacters, factions, storeTags, guildChannels] = await Promise.all([
+  const [openTurn, otherCharacters, factions, storeTags, guildChannels, config] = await Promise.all([
     getOpenTurn(),
     prisma.character.findMany({
       where: { status: "ALIVE", id: { not: character.id } },
@@ -37,6 +37,7 @@ export default async function CharacterPage() {
     }),
     prisma.tag.findMany({ where: { category: { in: TAG_STORE_CATEGORY_NAMES } } }),
     listGuildChannels(),
+    prisma.gameConfig.findUnique({ where: { id: 1 } }),
   ]);
 
   const summaryChannels = guildChannels
@@ -57,6 +58,7 @@ export default async function CharacterPage() {
       transferTargets={{ characters: otherCharacters, factions }}
       storeTags={storeTags}
       summaryChannels={summaryChannels}
+      alcoholCost={config?.alcoholCost ?? 3}
     />
   );
 }

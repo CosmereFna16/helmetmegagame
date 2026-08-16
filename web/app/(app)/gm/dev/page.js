@@ -138,6 +138,14 @@ export default async function DevPanelPage() {
             <span className="field-label">Mood move bonus</span>
             <input type="number" name="moodMoveBonus" defaultValue={config.moodMoveBonus} />
           </label>
+          <label className="field">
+            <span className="field-label">Alcohol cost (resources)</span>
+            <input type="number" name="alcoholCost" defaultValue={config.alcoholCost} />
+          </label>
+          <label className="field">
+            <span className="field-label">Alcohol shield duration (turns)</span>
+            <input type="number" name="alcoholShieldDurationTurns" defaultValue={config.alcoholShieldDurationTurns} />
+          </label>
           <div className="col-span-full">
             <button type="submit" className="btn">Save config</button>
           </div>

@@ -1,6 +1,6 @@
 const { PrismaClient } = require("@prisma/client");
 const { rollWeather, buildTurnAnnouncement } = require("./weather");
-const { HUNGERLESS_SLUG, NOBILITY_SLUG } = require("./lib/constants");
+const { HUNGERLESS_SLUG, NOBILITY_SLUG, TIPSY_SLUG } = require("./lib/constants");
 
 const globalForPrisma = globalThis;
 
@@ -24,7 +24,7 @@ async function resolveNeeds(turn, config) {
   const characters = await prisma.character.findMany({ where: { status: "ALIVE" } });
   const consumption = config?.resourceConsumptionPerTurn ?? 1;
 
-  const [hungerlessTags, nobilityTags] = await Promise.all([
+  const [hungerlessTags, nobilityTags, tipsyTags] = await Promise.all([
     prisma.characterTag.findMany({
       where: { characterId: { in: characters.map((c) => c.id) }, tag: { slug: HUNGERLESS_SLUG } },
       select: { characterId: true },
@@ -33,9 +33,14 @@ async function resolveNeeds(turn, config) {
       where: { characterId: { in: characters.map((c) => c.id) }, tag: { slug: NOBILITY_SLUG } },
       select: { characterId: true },
     }),
+    prisma.characterTag.findMany({
+      where: { characterId: { in: characters.map((c) => c.id) }, tag: { slug: TIPSY_SLUG } },
+      select: { characterId: true, expiresTurn: true },
+    }),
   ]);
   const hungerlessIds = new Set(hungerlessTags.map((ct) => ct.characterId));
   const nobilityIds = new Set(nobilityTags.map((ct) => ct.characterId));
+  const tipsyExpiryByCharacterId = new Map(tipsyTags.map((ct) => [ct.characterId, ct.expiresTurn]));
 
   await Promise.all(
     characters.map((character) => {
@@ -52,15 +57,23 @@ async function resolveNeeds(turn, config) {
         data.isHungry = hadEnough ? false : !hungerlessIds.has(character.id);
       }
 
+      // Alcohol's Tipsy tag shields against Unhappy for its whole duration
+      // (see drinkAlcohol() in web/app/(app)/character/actions.js) — still
+      // "active" for this tick as long as it hasn't reached its expiry turn.
+      const tipsyExpiresTurn = tipsyExpiryByCharacterId.get(character.id);
+      const hasActiveTipsyShield = tipsyExpiresTurn != null && tipsyExpiresTurn > turn.number;
+
       // Nobility characters have a mood "baseline" driven by how long it's
       // been since their last Fine/Lavish meal: Unhappy once that gap hits
-      // the threshold, Neutral otherwise. A temporary Happy (from a meal or
-      // a manual mood set) overlays this baseline and, once its duration
-      // expires below, reveals whatever the baseline has become by then.
+      // the threshold, Neutral otherwise (shielded to Neutral regardless
+      // while a Tipsy tag is active). A temporary Happy (from a meal, a
+      // drink, or a manual mood set) overlays this baseline and, once its
+      // duration expires below, reveals whatever the baseline has become.
       let baseline = null;
       if (nobilityIds.has(character.id) && character.lastFineMealTurn != null) {
         const turnsSince = turn.number - character.lastFineMealTurn;
-        baseline = turnsSince >= NOBILITY_UNHAPPY_THRESHOLD_TURNS ? "UNHAPPY" : "NEUTRAL";
+        const wouldBeUnhappy = turnsSince >= NOBILITY_UNHAPPY_THRESHOLD_TURNS;
+        baseline = wouldBeUnhappy && !hasActiveTipsyShield ? "UNHAPPY" : "NEUTRAL";
       }
 
       if (character.moodExpiresTurn != null && character.moodExpiresTurn <= turn.number) {
@@ -75,6 +88,11 @@ async function resolveNeeds(turn, config) {
       return prisma.character.update({ where: { id: character.id }, data });
     }),
   );
+
+  // Sweep any turn-scoped tags (Ate Meal, Tipsy, ...) whose expiresTurn has
+  // been reached — a single bulk delete rather than a per-character check,
+  // since it's independent of everything computed above.
+  await prisma.characterTag.deleteMany({ where: { expiresTurn: { lte: turn.number } } });
 }
 
 async function getConfig() {

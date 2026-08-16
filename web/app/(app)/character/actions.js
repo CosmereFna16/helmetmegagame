@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import sharp from "sharp";
 import { redirect } from "next/navigation";
-import { prisma, NOBILITY_SLUG } from "@lifeweb/db";
+import { prisma, NOBILITY_SLUG, ATE_MEAL_SLUG, TIPSY_SLUG } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
 import { syncCharacterNickname, setTurnPingRole, sendDm } from "@/lib/discordGuild";
@@ -129,12 +129,77 @@ export async function ateMeal(characterId, choice) {
 
   await prisma.character.update({ where: { id: character.id }, data });
 
+  if (openTurn) {
+    const ateMealTag = await prisma.tag.findUnique({ where: { slug: ATE_MEAL_SLUG } });
+    if (ateMealTag) {
+      await prisma.characterTag.upsert({
+        where: { characterId_tagId: { characterId: character.id, tagId: ateMealTag.id } },
+        create: { characterId: character.id, tagId: ateMealTag.id, source: "EVENT", expiresTurn: openTurn.number },
+        update: { expiresTurn: openTurn.number },
+      });
+    }
+  }
+
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: session.discordUserId,
       actionType: "ate_meal",
       targetCharacterId: character.id,
       details: { choice },
+    },
+  });
+
+  revalidatePath("/character");
+}
+
+// Alcohol is a stronger, pricier alternative to a meal: it doesn't touch
+// hunger at all, but its Tipsy tag shields against Unhappy for its entire
+// duration (see resolveNeeds() in db/index.js), not just the Happy portion —
+// 2 turns actually Happy, then 2 more just immune to Unhappy on top of that.
+export async function drinkAlcohol(characterId) {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+
+  const character = await prisma.character.findFirst({
+    where: { id: characterId, discordUserId: session.discordUserId, status: "ALIVE" },
+  });
+  if (!character) redirect("/character/new");
+
+  const [config, openTurn] = await Promise.all([
+    prisma.gameConfig.findUnique({ where: { id: 1 } }),
+    prisma.turn.findFirst({ where: { status: "OPEN" } }),
+  ]);
+
+  const cost = config?.alcoholCost ?? 3;
+  if (character.resources < cost) return;
+
+  const data = {
+    resources: character.resources - cost,
+    moodState: "HAPPY",
+    moodNote: "Alcohol",
+    moodExpiresTurn: openTurn ? openTurn.number + (config?.moodDurationTurns ?? 2) : null,
+  };
+
+  await prisma.character.update({ where: { id: character.id }, data });
+
+  if (openTurn) {
+    const tipsyTag = await prisma.tag.findUnique({ where: { slug: TIPSY_SLUG } });
+    if (tipsyTag) {
+      const expiresTurn = openTurn.number + (config?.alcoholShieldDurationTurns ?? 4);
+      await prisma.characterTag.upsert({
+        where: { characterId_tagId: { characterId: character.id, tagId: tipsyTag.id } },
+        create: { characterId: character.id, tagId: tipsyTag.id, source: "EVENT", expiresTurn },
+        update: { expiresTurn },
+      });
+    }
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "drank_alcohol",
+      targetCharacterId: character.id,
+      details: { cost },
     },
   });
 

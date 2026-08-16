@@ -44,6 +44,8 @@ export async function updateGameConfig(formData) {
       hungerMovePenalty: intOrZero(formData, "hungerMovePenalty"),
       moodMovePenalty: intOrZero(formData, "moodMovePenalty"),
       moodMoveBonus: intOrZero(formData, "moodMoveBonus"),
+      alcoholCost: intOrZero(formData, "alcoholCost"),
+      alcoholShieldDurationTurns: intOrZero(formData, "alcoholShieldDurationTurns"),
     },
   });
 

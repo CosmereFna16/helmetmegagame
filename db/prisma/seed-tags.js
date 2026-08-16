@@ -5,6 +5,9 @@ const {
   LEADER_SLUG,
   TREASURER_SLUG,
   NOBILITY_SLUG,
+  ATE_MEAL_SLUG,
+  TIPSY_SLUG,
+  ALCOHOLIC_SLUG,
 } = require("../lib/constants");
 
 const CATEGORIES = ["Placeholder 1", "Placeholder 2", "Placeholder 3"];
@@ -31,6 +34,34 @@ const META_TAGS = [
     description:
       "Expects a fine meal at least every 3 turns — go without and it sours into Unhappy until you eat again.",
     category: "Meta",
+    pointCost: 0,
+  },
+  {
+    name: "Alcoholic",
+    slug: ALCOHOLIC_SLUG,
+    description: "Built up a tolerance — immune to Tipsy's combat penalty.",
+    category: "Meta",
+    pointCost: 0,
+  },
+];
+
+// System-granted, auto-expiring status markers (see CharacterTag.expiresTurn
+// and the tag sweep in resolveNeeds(), db/index.js) — never purchasable or
+// GM-granted by hand, just a visible record of a temporary effect already
+// tracked elsewhere on the character (skipNextMealConsumption, moodState).
+const STATUS_TAGS = [
+  {
+    name: "Ate Meal",
+    slug: ATE_MEAL_SLUG,
+    description: "Won't go hungry next turn — ate a proper meal this turn.",
+    category: "Status",
+    pointCost: 0,
+  },
+  {
+    name: "Tipsy",
+    slug: TIPSY_SLUG,
+    description: "Immune to Unhappy for 4 turns. Slightly worse at combat.",
+    category: "Status",
     pointCost: 0,
   },
 ];
@@ -80,8 +111,19 @@ const SKILL_FAMILIES = [
   {
     family: "Brewing",
     tiers: [
-      { tier: "Basic", slug: "brewing-basic", pointCost: 2, description: "Can brew simple potions and drinks." },
-      { tier: "Skilled", slug: "brewing-skilled", pointCost: 2, description: "Skilled brewing — reliable potions and drinks worth paying for." },
+      {
+        tier: "Basic",
+        slug: "brewing-basic",
+        pointCost: 2,
+        description: "Can brew basic alcohol (beer, ale, mead) and basic tonics.",
+      },
+      {
+        tier: "Skilled",
+        slug: "brewing-skilled",
+        pointCost: 2,
+        description:
+          "Can brew advanced alcohol (wine and other refined drinks) and advanced tonics, which call for hard-to-find ingredients.",
+      },
     ],
   },
   {
@@ -102,7 +144,15 @@ async function seedSkillTags() {
       const name = `${family} (${tier})`;
       const existing = await prisma.tag.findFirst({ where: { name } });
       if (existing) {
-        console.log(`skip (exists): ${name}`);
+        // Description text is safe to keep in sync even for a tag that
+        // already exists — unlike pointCost/parentTagId, it can't disrupt
+        // anything a character already bought or was granted.
+        if (existing.description !== description) {
+          await prisma.tag.update({ where: { id: existing.id }, data: { description } });
+          console.log(`updated description: ${name}`);
+        } else {
+          console.log(`skip (exists): ${name}`);
+        }
         parentId = existing.id;
         continue;
       }
@@ -132,7 +182,7 @@ function buildTags() {
 }
 
 async function main() {
-  for (const tag of [...buildTags(), ...META_TAGS, ...FACTION_TAGS]) {
+  for (const tag of [...buildTags(), ...META_TAGS, ...FACTION_TAGS, ...STATUS_TAGS]) {
     const existing = await prisma.tag.findFirst({ where: { name: tag.name } });
     if (existing) {
       console.log(`skip (exists): ${tag.name}`);
