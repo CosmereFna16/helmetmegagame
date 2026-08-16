@@ -361,24 +361,6 @@ intro: Sell your services. Delve into the Caves.
 - starting tag: 
 - doc elements: townstarting
 
-Merchant
-intro: Make your fortune buying and selling Tags.
-- Ravenheart is a great source of business and not much else. You wouldn’t dare put your heart here—the place is doomed. 
-- Your goal is to make as many Resources as you can by buying and selling Tags. You have a Supply Depot in the caves: go there to request Tags by shuttle (it’ll cost you), and then sell them. To sell Tags, simply message a GM explaining who’d like the tag and how much you’re selling it for.
-- If things ever get too dour, simply hop on your sponsor’s shuttle… if you can pay for it. Trip’s 30 Resources flat, pal.
-- difficulty: hard
-- multiple: false
-- starting tag: 
-- doc elements: townstarting, merchantlist
-
-Docker
-intro: Serve the Merchant and get drunk during the night.
-- Serve the Merchant and get drunk during the night. Maybe he’ll let you get a ride on his spaceship if things ever get bad around here.
-- difficulty: easy
-- multiple: true
-- starting tag: 
-- doc elements: townstarting, merchantlist
-
 Peasant
 intro: You’re a peasant without a job, but luck is on your side (+4 starting Tag Points).
 - Find a job, pay your taxes, and feed yourself. Live a free life at night.
@@ -442,11 +424,47 @@ intro: Track game through the wilds and bring back meat for the Town.
 - starting tag: Wild-Tuned
 - doc elements: townstarting, production
 
-Innkeeper (Innkeep, Cook, Brewer, Barmaid)
+Innkeeper
 intro: Run the inn.
 - Run the inn.
 - difficulty: easy
 - multiple: true
+- starting tag: Hospitable
+- doc elements: townstarting
+
+Innkeeper (Innkeep)
+intro: Manage the inn's day-to-day and keep its guests happy.
+- Manage the inn's day-to-day and keep its guests happy.
+- difficulty: easy
+- multiple: true
+- parent role: Innkeeper
+- starting tag: Hospitable
+- doc elements: townstarting
+
+Innkeeper (Cook)
+intro: Cook for the inn.
+- Cook for the inn.
+- difficulty: easy
+- multiple: true
+- parent role: Innkeeper
+- starting tag: Hospitable
+- doc elements: townstarting
+
+Innkeeper (Brewer)
+intro: Brew for the inn.
+- Brew for the inn.
+- difficulty: easy
+- multiple: true
+- parent role: Innkeeper
+- starting tag: Hospitable
+- doc elements: townstarting
+
+Innkeeper (Barmaid)
+intro: Serve drinks and keep the room talking.
+- Serve drinks and keep the room talking.
+- difficulty: easy
+- multiple: true
+- parent role: Innkeeper
 - starting tag: Hospitable
 - doc elements: townstarting
 
@@ -473,6 +491,25 @@ intro: You live in a shell and sleep with the dogs, but you understand life (or 
 - multiple: true
 - starting tag: Streetwise
 - doc elements: townstarting
+
+### Faction: Unaffiliated
+Merchant
+intro: Make your fortune buying and selling Tags.
+- Ravenheart is a great source of business and not much else. You wouldn’t dare put your heart here—the place is doomed. 
+- Your goal is to make as many Resources as you can by buying and selling Tags. You have a Supply Depot in the caves: go there to request Tags by shuttle (it’ll cost you), and then sell them. To sell Tags, simply message a GM explaining who’d like the tag and how much you’re selling it for.
+- If things ever get too dour, simply hop on your sponsor’s shuttle… if you can pay for it. Trip’s 30 Resources flat, pal.
+- difficulty: hard
+- multiple: false
+- starting tag: 
+- doc elements: townstarting, merchantlist
+
+Docker
+intro: Serve the Merchant and get drunk during the night.
+- Serve the Merchant and get drunk during the night. Maybe he’ll let you get a ride on his spaceship if things ever get bad around here.
+- difficulty: easy
+- multiple: true
+- starting tag: 
+- doc elements: townstarting, merchantlist
 
 ## Threats
 
@@ -614,7 +651,7 @@ intro: You raided a shipment on the way to the Fortress—well done!
 
 ## Roles
 
-### Faction: Caves
+### Faction: Unaffiliated
 Migrant
 intro: Make it to the fortress.
 - Make it to the fortress.
