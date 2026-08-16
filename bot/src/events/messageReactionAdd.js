@@ -3,6 +3,7 @@ const { prisma } = require("@lifeweb/db");
 const { recentProxies } = require("../lib/proxy");
 const { sendDm } = require("../lib/dm");
 const { EFFORT_EMOJI, MOVE_EMOJI } = require("../lib/actionSubmission");
+const { rollResourceDice, formatResourceLines } = require("../lib/resourceDelta");
 
 const DELETE_EMOJI = "❌"; // ❌
 const EDIT_EMOJI = "✏️"; // ✏️
@@ -24,6 +25,7 @@ async function handleActionConfirm(reaction, user) {
   if (action.character.discordUserId !== user.id) return;
 
   const diceRoll = action.type === "MOVE" ? rollDie() : null;
+  const diceResult = action.resourceDiceExpression ? rollResourceDice(action.resourceDiceExpression) : null;
 
   await prisma.action.update({
     where: { id: action.id },
@@ -31,6 +33,9 @@ async function handleActionConfirm(reaction, user) {
       status: "CONFIRMED",
       confirmedAt: new Date(),
       ...(diceRoll != null ? { diceRoll } : {}),
+      ...(diceResult
+        ? { resourceDiceRoll: diceResult.value, resourceDelta: (action.resourceDelta ?? 0) + diceResult.value }
+        : {}),
     },
   });
 
@@ -39,7 +44,7 @@ async function handleActionConfirm(reaction, user) {
       actorDiscordUserId: user.id,
       actionType: "action_confirmed",
       targetCharacterId: action.characterId,
-      details: { actionId: action.id, diceRoll },
+      details: { actionId: action.id, diceRoll, resourceDiceRoll: diceResult?.value ?? null },
     },
   });
 
@@ -48,7 +53,14 @@ async function handleActionConfirm(reaction, user) {
   // a fresh one is the only reliable way to clear the confirm reaction.
   await reaction.message.delete().catch(() => {});
 
-  const waitingLines = diceRoll != null ? [`🎲 **${diceRoll}**`, "» *Waiting on adjudication...*"] : ["» *Waiting on adjudication...*"];
+  const waitingLines = [];
+  if (diceRoll != null) waitingLines.push(`🎲 **${diceRoll}**`);
+  if (diceResult) {
+    waitingLines.push(
+      `**Resource roll (${action.resourceDiceExpression}):** rolled ${diceResult.sum} → ${diceResult.value > 0 ? "+" : ""}${diceResult.value}`,
+    );
+  }
+  waitingLines.push("» *Waiting on adjudication...*");
   await sendDm(user, waitingLines.join("\n")).catch(() => {});
 }
 
@@ -81,14 +93,11 @@ async function handleTypeSelection(reaction, user) {
   await reaction.message.delete().catch(() => {});
 
   const zone = action.zoneId ? await prisma.zone.findUnique({ where: { id: action.zoneId } }) : null;
-  const resourceLine =
-    action.resourceDelta != null
-      ? [`**Resource change:** ${action.resourceDelta > 0 ? "+" : ""}${action.resourceDelta}`]
-      : [];
+  const resourceLines = formatResourceLines(action.resourceDelta, action.resourceDiceExpression);
   const lines =
     type === "MOVE"
-      ? [`» ${action.description}`, `**Zone:** ${zone?.name ?? "(none)"}`, ...resourceLine, "", "React with ⚜ to confirm."]
-      : [`» ${action.description}`, ...resourceLine, "", "React with ⚜ to confirm."];
+      ? [`» ${action.description}`, `**Zone:** ${zone?.name ?? "(none)"}`, ...resourceLines, "", "React with ⚜ to confirm."]
+      : [`» ${action.description}`, ...resourceLines, "", "React with ⚜ to confirm."];
 
   let sent;
   try {

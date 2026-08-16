@@ -234,6 +234,8 @@ model Action {
   zoneId         String?
   zone           Zone?        @relation(fields: [zoneId], references: [id])
   resourceDelta  Int?
+  resourceDiceExpression String?
+  resourceDiceRoll Int?
   diceRoll       Int?
   isPublic       Boolean      @default(true)
   status         ActionStatus @default(PENDING)

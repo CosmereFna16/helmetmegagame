@@ -1,6 +1,6 @@
 const { prisma } = require("@lifeweb/db");
 const { sendDm } = require("./dm");
-const { parseResourceDelta } = require("./resourceDelta");
+const { parseResourceDelta, parseResourceDice, formatResourceLines } = require("./resourceDelta");
 
 const EFFORT_EMOJI = "1️⃣";
 const MOVE_EMOJI = "2️⃣";
@@ -34,7 +34,8 @@ async function handleActionSubmission(message) {
     return;
   }
 
-  const { description, resourceDelta } = parseResourceDelta(raw);
+  const { description: afterDice, resourceDiceExpression } = parseResourceDice(raw);
+  const { description, resourceDelta } = parseResourceDelta(afterDice);
 
   const action = await prisma.action.create({
     data: {
@@ -44,16 +45,16 @@ async function handleActionSubmission(message) {
       status: "PENDING_TYPE",
       description,
       resourceDelta,
+      resourceDiceExpression,
       zoneId: character.zoneId ?? null,
     },
   });
 
   await message.delete().catch(() => {});
 
-  const resourceLine = resourceDelta != null ? [`**Resource change:** ${resourceDelta > 0 ? "+" : ""}${resourceDelta}`] : [];
   const lines = [
     `» ${description}`,
-    ...resourceLine,
+    ...formatResourceLines(resourceDelta, resourceDiceExpression),
     "",
     "```",
     `${EFFORT_EMOJI}  Effort`,

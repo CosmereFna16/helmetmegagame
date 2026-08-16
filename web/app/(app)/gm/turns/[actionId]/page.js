@@ -43,6 +43,11 @@ export default async function ArbitrationPage({ params }) {
           {action.character.faction?.name ?? "No faction"} — {action.character.zone?.name ?? "No zone"}
           {action.diceRoll != null ? ` — rolled ${action.diceRoll}` : ""}
           {action.resourceDelta ? ` — requested ${action.resourceDelta > 0 ? "+" : ""}${action.resourceDelta}` : ""}
+          {action.resourceDiceExpression
+            ? action.resourceDiceRoll != null
+              ? ` (incl. ${action.resourceDiceExpression} roll: ${action.resourceDiceRoll > 0 ? "+" : ""}${action.resourceDiceRoll})`
+              : ` — resource roll pending (${action.resourceDiceExpression}, rolled once the player confirms)`
+            : ""}
         </p>
         {action.character.tags.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-2">

@@ -322,9 +322,9 @@ intro: You are the Order’s face. Speak in the Town Square for all to hear.
 
 ### Faction: The Town
 Headman
-intro: Ensure the Town works—and pays its taxes.
+intro: Lead the Town. Ensure it works and pays its taxes.
 - On certain days, you hike up the mountain and behold the Town. Those are the people that are beholden to you. You cannot afford to let them down, Headman!
-- Your main job is to ensure people are working and tax them. You are beholden to the Meister, the Baron’s taxman, and things have gotten nasty in the past when the tithe didn’t meet his expectations. He’ll take from the Silo; make sure it’s stocked.
+- Your main job is to tax people. You are beholden to the Meister, the Baron’s taxman, and things have gotten nasty in the past when the tithe didn’t meet his expectations. If the Silo’s not full next time he comes, it won’t be a pretty day.
 - You informally lead the Town—everyone knows you and you know everyone. You can use a Move to decipher up to 3 random tags of anyone in the Town faction.
 - On day one, figure out who should be on the Silo payroll—like the Sheriff—and who is capable of sustaining themselves.
 - difficulty: normal
@@ -342,15 +342,16 @@ intro: Keep the peace in the Town, six-shooter at your hip.
 - doc elements: townstarting
 
 Metalsmith
-intro: No one else can do it, Metalsmith.
-- No one else can do it, Metalsmith. 
+intro: Forge anything from basic tools to siege implements and legendary weapons.
 - With smithing, you are only limited by your Resources and your creativity. You can make weapons, but you can also make armor, tools, siege equipment, sculptures...
-- Your intention is important. Swords might be useful in hand-to-hand combat,
-- Simple things, like shortswords or basic tools, cost 1 Effort and 2 Resources. Moderately difficult things, like swords or breastplates, cost 1 Effort and 4 Resources. High quality things cost 2 Effort 
+- You’re not on the Headman’s payroll, so it’s important you find clients so that you can feed yourself.
+- The theory is important. Axes are good at breaking shields; blunt weapons harm people even in full armor; swords excel in one-to-one combat.
+- Simple things, like shortswords or basic tools, cost 1 Effort and 2 Resources. Moderately difficult things, like swords or breastplates, cost 1 Effort and 4 Resources. High quality objects cost 2 Efforts and 6 Resources.
+- You can also make Unique Tags—name and describe them—for 2 Efforts, 1 Move, and 12 Resources. You’ll have to roll to see what the quality ends up being.
 - difficulty: normal
 - multiple: false
 - starting tag: Hardy, Smithing
-- doc elements: townstarting, smithing
+- doc elements: townstarting, smithinglist, combat
 
 Adventurer
 intro: Sell your services. Delve into the Caves.
@@ -379,50 +380,32 @@ intro: Serve the Merchant and get drunk during the night.
 - doc elements: townstarting, merchantlist
 
 Peasant
-intro: You are a jobless peasant/
-- You are a jobless peasant
-- Do your job during the day, live a free life at night.
+intro: You’re a peasant without a job, but luck is on your side (+4 starting Tag Points).
+- Find a job, pay your taxes, and feed yourself. Live a free life at night.
 - difficulty: easy
 - multiple: true
-- starting tag: Hardy, +3 
-- doc elements: townstarting
-
-Peasant (Miller)
-intro: Man the mill, turning Resources into more Resources.
-- You are a jobless peasant
-- Do your job during the day, live a free life at night.
-- difficulty: easy
-- multiple: false
-- starting tag: Hardy, +3 
-- doc elements: townstarting
+- starting tag: Hardy, +4
+- doc elements: townstarting, production
 
 Peasant (Farmer)
 intro: Grow food during the day, live a free life at night.
 - Grow food during the day, live a free life at night.
+- You pay taxes. Spend your Resources lightly!
 - difficulty: easy
 - multiple: true
 - parent role: Peasant
 - starting tag: Hardy, Farmer
-- doc elements: townstarting
+- doc elements: townstarting, production
 
 Peasant (Fisher)
 intro: Fish during the day, live a free life at night.
 - Fish during the day, live a free life at night.
-- Fishing is an Effort. It produces 
+- You pay taxes. Spend your Resources lightly!
 - difficulty: easy
 - multiple: true
 - parent role: Peasant
-- starting tag: Hardy, Fisherman
-- doc elements: townstarting
-
-Peasant (Builder)
-intro: Build and maintain during the day, live a free life at night.
-- Build and maintain during the day, live a free life at night.
-- difficulty: easy
-- multiple: true
-- parent role: Peasant
-- starting tag: Hardy, Builder
-- doc elements: townstarting
+- starting tag: Hardy, Fisherman, Boat
+- doc elements: townstarting, production
 
 Herald
 intro: Tell news, and take messages between the Village and the Fortress.
@@ -432,13 +415,32 @@ intro: Tell news, and take messages between the Village and the Fortress.
 - starting tag: Well-Connected
 - doc elements: townstarting
 
-Outsider (Healer, Hunter)
-intro: Live on the outskirts, forage herbs, and worship Sylva, god of Nature.
-- Live on the outskirts, forage herbs, and worship Sylva, god of Nature.
+Outsider
+intro: Live on the outskirts and worship Sylva, god of Nature.
+- Live on the outskirts and worship Sylva, god of Nature.
 - difficulty: easy
 - multiple: true
+- starting tag: 
+- doc elements: townstarting, production
+
+Outsider (Healer)
+intro: Forage herbs on the outskirts and tend to the sick and wounded.
+- Forage herbs on the outskirts and tend to the sick and wounded.
+- difficulty: easy
+- multiple: true
+- parent role: Outsider
 - starting tag: Wild-Tuned
-- doc elements: townstarting
+- doc elements: townstarting, production, medical
+
+Outsider (Hunter)
+intro: Track game through the wilds and bring back meat for the Town.
+- Track game through the wilds and bring back meat for the Town.
+- In #turns, you can roll for a hunt instead of stating a flat Resource amount — add something like +1d6*2 to your message and it'll be rolled once you confirm.
+- difficulty: easy
+- multiple: true
+- parent role: Outsider
+- starting tag: Wild-Tuned
+- doc elements: townstarting, production
 
 Innkeeper (Innkeep, Cook, Brewer, Barmaid)
 intro: Run the inn.
@@ -664,39 +666,41 @@ Explanation:
 - tag: Anyone with this tag gets this Document.
 - public: If assigned, this will appear in a player’s document folder. However, using the search function, anyone can browse and find this document.
 
-Courtier
+### Courtier (courtier)
 As a member of the Baron’s retinue, you may take food from the faction Silo whenever you please—within reason (Treasurer roles can see their Silo’s transaction history, so don’t steal. If you’d like to steal, arrange it with a GM)
 
-Diplomat
+### Diplomat (diplomat)
 You are from the Culture, a post-scarcity interstellar empire ruled by benevolent robots. You want the best for the people of Ravenheart—and that would mean convincing the Baron to join the Culture—but Contact (the Culture's diplomatic wing) operates in the scale of centuries, not human generations. They don't think it's the right time. Therefore, do the best you can to quietly help people and further the Culture's mission: install an open-minded ruler, ensure the Order of the Iron Cross doesn't grow out of control, and above all, do not blow your cover. You have limited gadgets—including an autonomous, sentient drone disguised as a raven. If anything goes wrong, the "Helpless Is The Face Of Your Beauty" will teleport you on board. It'll take your message three minutes to reach them.
 
-Guard
-
-The Watch is Ravenheart’s primary fighting force, tasked with defending the Fortress but occasionally—if the Baron wills it—venturing forth to protect the Town.
-
-The Watch is commanded by the Captain.
-
-Treasurer 
+### Treasurer (treasurer)
 - public: yes
 - tag: treasurer, Leader
 
 
-Medical:
-
+### Medical (medical)
+- public: yes
+- tag: any of the medical tags
 - synced list of medical tags, hover
 
-Combat
-Where to Aim
-- Hard to hit, but rewarding: Head, Eyes, Neck.
-- Trickier: Hands, Feet, Groin, Face.
-- Easy, but least effective: Body.
+### Producing Resources (production)
+- public: yes
 
-Aim for what's unprotected—armor has gaps and joints, and a shorter weapon finds them more easily than a long one. Any wound saps the target's coordination for a few seconds, so it's often worth softening someone up before going for a finishing blow. A downed opponent is far easier to finish off than one still on their feet.
+Producing Resources 
+
+Herding: 5 Resources (10 with Herder tag)
+Farming: 8 Resources (16 with Farmer tag), must be in Town or Fortress (the only arable land).
+Fishing: 5 Resources (+2 with Fisherman tag), must be in Town or Fortress (near the river)
+Hunting: 1d6 * 2 Resources (*3 with Hunter tag), must be in Town, Fortress, or Caves
+
+To automatically add Resources on an Effort, type +(resources) anywhere in your message. For example, write “I hunt. +1d6*2” or “I farm. +16”. 
+
+### Combat (combat)
+- public: yes
+Different equipment excels in different situations.
 
 Weapons
 - Blunt (clubs, staves, fists) — the most versatile option, but rarely puts someone down for good on its own.
-- Stabbing (spears, rapiers, daggers) — precise, and effective against unarmored targets.
-- Penetrating (picks) — brutal, but prone to getting stuck in whatever it hits.
+- Stabbing (spears, rapiers, daggers) — precise and effective against unarmored targets.
 - Cutting (swords, knives) — even light armor blunts a cutting weapon's edge.
 - Slashing (axes) — good at cutting through shields.
 
@@ -705,10 +709,10 @@ Armor
 - Chainmail and other soft armor stops a blade, but a blunt weapon can still bruise or break bone underneath.
 - Quilted armor (gambesons and the like) softens blunt impacts further, and layers well under other armor—chainmail can even go under formal court dress.
 - Almost nothing stops a bullet.
-- Wear a helmet. A solid hit to the head changes everything.
+- Always wear a helmet. 
 
 Shields
-- A shield is a serious advantage in melee—something to hide behind, and something to hit with.
+- A shield is a serious advantage in melee.
 - Fighters standing shield-to-shield are safer together than apart.
 
 Energy Shields
@@ -718,6 +722,4 @@ Rare and expensive personal-scale energy shields exist in the wasteland around R
 - Do nothing against needles or syringes.
 - Worn on the belt or the wrist.
 - Short out on contact with liquid.
-- Two shields, held close together, can be turned into a weapon of their own.
 
-- public: yes
