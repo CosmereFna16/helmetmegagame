@@ -77,7 +77,7 @@ intro: You are the Keep’s brains, but more importantly, its circulatory system
 - You have minor medical training and you know how to use the Keep’s messenger ravens. 
 - difficulty: normal
 - multiple: false
-- starting tag: Intelligent, Frail, Treasurer, Medical (1), Ravenkeeper
+- starting tag: Intelligent, Frail, Treasurer, Medical (Skilled), Ravenkeeper
 - doc elements: courtstructure, lifewebbasic, fortressstarting, courtier, ravens, medical
 
 Courtier
@@ -121,7 +121,7 @@ intro: Reminisce about your valiant service against the Cult of Kosm in 1025.
 - difficulty: easy
 - multiple: true
 - parent role: Courtier
-- starting tag: Fighter (Skilled), Arthritis, Old, Armor
+- starting tag: Fighting (Skilled), Arthritis, Old, Armor
 - doc elements: courtier, courtstructure, fortressstarting
 
 Courtier (Diplomat)
@@ -147,7 +147,7 @@ intro: Prepare meals for the household and keep the kitchens running.
 - difficulty: easy
 - multiple: true
 - parent role: Servant
-- starting tag: Cook (1), Cook (2)
+- starting tag: Cooking (Skilled)
 - doc elements: courtier, cooking, fortressstarting, courtstructure
 
 
@@ -159,7 +159,7 @@ intro: Bravely lead the Watch and hold back the darkness, you goddamn hero.
 - Bravely lead the watch and hold back the darkness, you goddamn hero.
 - difficulty: hard
 - multiple: false
-- starting tag: Fighter (Trained), Treasurer, Leader
+- starting tag: Fighting (Trained), Treasurer, Leader
 - doc elements: courtstructure, fortressstarting, guard
 
 Incarn
@@ -168,7 +168,7 @@ intro: You are a warrior monk who serves Ravenheart.
 - Your job is to guard the dungeon, process migrants, and protect the Silver Cross, Ravenheart's only relic. The Silver Cross is an ancient artifact, rumored to ward away evil.
 - difficulty: normal
 - multiple: false
-- starting tag: Fighter (Skilled), Treasurer
+- starting tag: Fighting (Skilled), Treasurer
 - doc elements: courtstructure, fortressstarting, guard, postchristianity
 
 Guard
@@ -176,7 +176,7 @@ intro: Serve the Baron, salute your Captain, and hold back the tide of darkness.
 - Serve the Baron, salute your Captain, and hold back the tide of darkness.
 - difficulty: easy
 - multiple: true
-- starting tag: Fighter (Trained)
+- starting tag: Fighting (Trained)
 - doc elements: courtstructure, fortressstarting, guard
 
 Squire
@@ -184,7 +184,7 @@ intro: Train. One day, you might become a knight.
 - Train. One day, you might become a knight.
 - difficulty: easy
 - multiple: true
-- starting tag: Fighter (Basic)
+- starting tag: Fighting (Basic)
 - doc elements: courtstructure, fortressstarting, guard
 
 ## Threats
@@ -266,7 +266,7 @@ intro: Above all, keep your Serpents in check.
 - You can perform medicine, removing negative medical tags according to their skill, Resource, and action cost. 
 - difficulty: normal
 - multiple: false
-- starting tag: Medicine (Excellent)
+- starting tag: Medical (Excellent), Brewing (Skilled)
 - doc elements: townstarting, medical
 
 Serpent
@@ -276,7 +276,7 @@ intro: With science, the sky’s the limit.
 - You can perform medicine, removing negative medical tags according to their skill, Resource, and action cost. 
 - difficulty: normal
 - multiple: true
-- starting tag: Medicine (Skilled)
+- starting tag: Medical (Skilled), Brewing (Skilled)
 - doc elements: townstarting, medical
 
 ### Faction: Order of the Silver Cross (parent:The Church)
@@ -338,7 +338,7 @@ intro: Keep the peace in the Town, six-shooter at your hip.
 - You have a trusty .45 six-shooter, a reject from the Fortress’s armory.
 - difficulty: normal
 - multiple: false
-- starting tag: Fighter (Trained), Old .45 Revolver
+- starting tag: Fighting (Trained), Old .45 Revolver
 - doc elements: townstarting
 
 Metalsmith
@@ -349,24 +349,17 @@ intro: Forge anything from basic tools to siege implements and legendary weapons
 - Simple things, like shortswords or basic tools, cost 1 Effort and 2 Resources. Moderately difficult things, like swords or breastplates, cost 1 Effort and 4 Resources. High quality objects cost 2 Efforts and 6 Resources.
 - You can also make Unique Tags—name and describe them—for 2 Efforts, 1 Move, and 12 Resources. You’ll have to roll to see what the quality ends up being.
 - difficulty: normal
-- multiple: false
-- starting tag: Hardy, Smithing
-- doc elements: townstarting, smithinglist, combat
-
-Adventurer
-intro: Sell your services. Delve into the Caves.
-- Sell your services. Delve into the Caves.
-- difficulty: normal
 - multiple: true
-- starting tag: 
-- doc elements: townstarting
+- starting tag: Smithing
+- doc elements: townstarting, smithinglist, combat
 
 Peasant
 intro: You’re a peasant without a job, but luck is on your side (+4 starting Tag Points).
 - Find a job, pay your taxes, and feed yourself. Live a free life at night.
 - difficulty: easy
 - multiple: true
-- starting tag: Hardy, +4
+- starting tag:
+- starting points: +4
 - doc elements: townstarting, production
 
 Peasant (Farmer)
@@ -376,25 +369,28 @@ intro: Grow food during the day, live a free life at night.
 - difficulty: easy
 - multiple: true
 - parent role: Peasant
-- starting tag: Hardy, Farmer
+- starting tag: Farmer
 - doc elements: townstarting, production
 
 Peasant (Fisher)
 intro: Fish during the day, live a free life at night.
 - Fish during the day, live a free life at night.
+- You have a boat.
 - You pay taxes. Spend your Resources lightly!
 - difficulty: easy
 - multiple: true
 - parent role: Peasant
-- starting tag: Hardy, Fisherman, Boat
+- starting tag: Fisherman, Boat
 - doc elements: townstarting, production
 
 Herald
-intro: Tell news, and take messages between the Village and the Fortress.
-- Tell news, take messages between the Village and the Fortress, and buy a radio from the Merchant to make your job easier.
+intro: Tell the news, take messages, and hope either the Baron or the Headman will pay you.
+- Done rightly, your job can be quite profitable—particularly if you're willing to spy and play the information game. 
+- Many people are willing to divulge their secrets. Lend an ear, and you'll be surprised at what you pick up.
+- Since it takes 1 Turn to travel between Zones—and most people aren't making the trip back and forth anyways—information's not instant. The Baron, the Headman, or even the Hand might like to know what's happening on the other side of Ravenheart.
 - difficulty: easy
-- multiple: true
-- starting tag: Well-Connected
+- multiple: false
+- starting tag: 
 - doc elements: townstarting
 
 Outsider
@@ -402,7 +398,7 @@ intro: Live on the outskirts and worship Sylva, god of Nature.
 - Live on the outskirts and worship Sylva, god of Nature.
 - difficulty: easy
 - multiple: true
-- starting tag: 
+- starting tag: Forester
 - doc elements: townstarting, production
 
 Outsider (Healer)
@@ -411,7 +407,7 @@ intro: Forage herbs on the outskirts and tend to the sick and wounded.
 - difficulty: easy
 - multiple: true
 - parent role: Outsider
-- starting tag: Wild-Tuned
+- starting tag: Medical (Basic), Brewing (Basic), Forester
 - doc elements: townstarting, production, medical
 
 Outsider (Hunter)
@@ -421,52 +417,8 @@ intro: Track game through the wilds and bring back meat for the Town.
 - difficulty: easy
 - multiple: true
 - parent role: Outsider
-- starting tag: Wild-Tuned
+- starting tag: Hunter, Forester
 - doc elements: townstarting, production
-
-Innkeeper
-intro: Run the inn.
-- Run the inn.
-- difficulty: easy
-- multiple: true
-- starting tag: Hospitable
-- doc elements: townstarting
-
-Innkeeper (Innkeep)
-intro: Manage the inn's day-to-day and keep its guests happy.
-- Manage the inn's day-to-day and keep its guests happy.
-- difficulty: easy
-- multiple: true
-- parent role: Innkeeper
-- starting tag: Hospitable
-- doc elements: townstarting
-
-Innkeeper (Cook)
-intro: Cook for the inn.
-- Cook for the inn.
-- difficulty: easy
-- multiple: true
-- parent role: Innkeeper
-- starting tag: Hospitable
-- doc elements: townstarting
-
-Innkeeper (Brewer)
-intro: Brew for the inn.
-- Brew for the inn.
-- difficulty: easy
-- multiple: true
-- parent role: Innkeeper
-- starting tag: Hospitable
-- doc elements: townstarting
-
-Innkeeper (Barmaid)
-intro: Serve drinks and keep the room talking.
-- Serve drinks and keep the room talking.
-- difficulty: easy
-- multiple: true
-- parent role: Innkeeper
-- starting tag: Hospitable
-- doc elements: townstarting
 
 Mortus
 intro: Bury people and bring them to peace.
@@ -492,24 +444,43 @@ intro: You live in a shell and sleep with the dogs, but you understand life (or 
 - starting tag: Streetwise
 - doc elements: townstarting
 
-### Faction: Unaffiliated
-Merchant
-intro: Make your fortune buying and selling Tags.
-- Ravenheart is a great source of business and not much else. You wouldn’t dare put your heart here—the place is doomed. 
-- Your goal is to make as many Resources as you can by buying and selling Tags. You have a Supply Depot in the caves: go there to request Tags by shuttle (it’ll cost you), and then sell them. To sell Tags, simply message a GM explaining who’d like the tag and how much you’re selling it for.
-- If things ever get too dour, simply hop on your sponsor’s shuttle… if you can pay for it. Trip’s 30 Resources flat, pal.
+### Faction: The Inn
+parent:The Town
+
+Innkeeper
+intro: Name and run the inn: set prices, hire and fire staff, and run an actual, living business.
+- The inn is a game of its own. It's up to you to figure out how to make a living out of it. For one thing, you can consider asking the Merchant for a loan.
 - difficulty: hard
 - multiple: false
-- starting tag: 
-- doc elements: townstarting, merchantlist
+- starting tag: Leader, Cooking (Basic), Brewing (Basic)
+- doc elements: townstarting
 
-Docker
-intro: Serve the Merchant and get drunk during the night.
-- Serve the Merchant and get drunk during the night. Maybe he’ll let you get a ride on his spaceship if things ever get bad around here.
+Cook
+intro: Cook for the inn.
+- Cook for the inn.
 - difficulty: easy
 - multiple: true
-- starting tag: 
-- doc elements: townstarting, merchantlist
+- parent role: Innkeeper
+- starting tag: Hospitable
+- doc elements: townstarting
+
+Brewer
+intro: Brew for the inn.
+- Brew for the inn.
+- difficulty: easy
+- multiple: true
+- parent role: Innkeeper
+- starting tag: Brewing (Skilled)
+- doc elements: townstarting
+
+Innkeeper (Barmaid)
+intro: Serve drinks and keep the room talking.
+- Serve drinks and keep the room talking.
+- difficulty: easy
+- multiple: true
+- parent role: Innkeeper
+- starting tag: Hospitable
+- doc elements: townstarting
 
 ## Threats
 
@@ -652,6 +623,25 @@ intro: You raided a shipment on the way to the Fortress—well done!
 ## Roles
 
 ### Faction: Unaffiliated
+Merchant
+intro: Make your fortune buying and selling Tags.
+- Ravenheart is a great source of business and not much else. You wouldn’t dare put your heart here—the place is doomed. 
+- Your goal is to make as many Resources as you can by buying and selling Tags. You have a Supply Depot in the caves: go there to request Tags by shuttle (it’ll cost you), and then sell them. To sell Tags, simply message a GM explaining who’d like the tag and how much you’re selling it for.
+- Try your hand at usury. Lend loans with interest, and call on your Dockers to enforce them. That's probably the easiest way to make serious bucks.
+- If things ever get too dour, simply hop on your sponsor’s shuttle… if you can pay for it. Trip’s 30 Resources flat, pal.
+- difficulty: hard
+- multiple: false
+- starting tag: 
+- doc elements: townstarting, merchantlist
+
+Docker
+intro: Serve the Merchant and get drunk during the night.
+- Serve the Merchant and get drunk during the night. Maybe he’ll let you get a ride on his spaceship if things ever get bad around here.
+- difficulty: easy
+- multiple: true
+- starting tag: 
+- doc elements: townstarting, merchantlist
+
 Migrant
 intro: Make it to the fortress.
 - Make it to the fortress.
@@ -695,4 +685,3 @@ intro: Loot the caves (dangerous) as a way to fund the Camp's war effort.
 - Loot the caves (dangerous) as a way to fund the Camp's war effort.
 - starting tag: Opportunist
 - doc elements:
-
