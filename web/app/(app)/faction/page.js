@@ -126,7 +126,7 @@ function FactionRows({ factions, childrenMap, depth, showSilo }) {
     const children = childrenMap.get(f.id) ?? [];
     return [
       <tr key={f.id}>
-        <td style={{ paddingLeft: `${depth * 1.25}rem` }}>
+        <td style={{ paddingLeft: `calc(10px + ${depth * 1.25}rem)` }}>
           {depth > 0 ? "↳ " : ""}
           {f.name}
         </td>
