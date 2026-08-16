@@ -34,7 +34,7 @@ intro: You are the ruler. Protect Ravenheart. Find a balance between staying hap
 - difficulty: hard
 - multiple: false
 - starting tag: Royal Blood, Leader, Treasurer, Leader
-- doc elements: courtstructure, lifewebbasic, fortressstarting, treasurer
+- doc elements: courtstructure, lifewebbasic, fortressstarting
 
 Baroness
 intro: Take care of your children. Be the Lioness, or succumb to anxiety.
@@ -78,7 +78,7 @@ intro: You are the Keep’s brains, but more importantly, its circulatory system
 - difficulty: normal
 - multiple: false
 - starting tag: Intelligent, Frail, Treasurer, Medical (1), Ravenkeeper
-- doc elements: courtstructure, lifewebbasic, fortressstarting, fortressstartingtithe, fortressstartingletter, courtier, ravens
+- doc elements: courtstructure, lifewebbasic, fortressstarting, courtier, ravens, medical
 
 Courtier
 intro: Live lavishly and gossip.
@@ -695,68 +695,4 @@ intro: Loot the caves (dangerous) as a way to fund the Camp's war effort.
 - Loot the caves (dangerous) as a way to fund the Camp's war effort.
 - starting tag: Opportunist
 - doc elements:
-
---------
-
-# Documents
-Explanation:
-- tag: Anyone with this tag gets this Document.
-- public: If assigned, this will appear in a player’s document folder. However, using the search function, anyone can browse and find this document.
-
-### Courtier (courtier)
-As a member of the Baron’s retinue, you may take food from the faction Silo whenever you please—within reason (Treasurer roles can see their Silo’s transaction history, so don’t steal. If you’d like to steal, arrange it with a GM)
-
-### Diplomat (diplomat)
-You are from the Culture, a post-scarcity interstellar empire ruled by benevolent robots. You want the best for the people of Ravenheart—and that would mean convincing the Baron to join the Culture—but Contact (the Culture's diplomatic wing) operates in the scale of centuries, not human generations. They don't think it's the right time. Therefore, do the best you can to quietly help people and further the Culture's mission: install an open-minded ruler, ensure the Order of the Iron Cross doesn't grow out of control, and above all, do not blow your cover. You have limited gadgets—including an autonomous, sentient drone disguised as a raven. If anything goes wrong, the "Helpless Is The Face Of Your Beauty" will teleport you on board. It'll take your message three minutes to reach them.
-
-### Treasurer (treasurer)
-- public: yes
-- tag: treasurer, Leader
-
-
-### Medical (medical)
-- public: yes
-- tag: any of the medical tags
-- synced list of medical tags, hover
-
-### Producing Resources (production)
-- public: yes
-
-Producing Resources 
-
-Herding: 5 Resources (10 with Herder tag)
-Farming: 8 Resources (16 with Farmer tag), must be in Town or Fortress (the only arable land).
-Fishing: 5 Resources (+2 with Fisherman tag), must be in Town or Fortress (near the river)
-Hunting: 1d6 * 2 Resources (*3 with Hunter tag), must be in Town, Fortress, or Caves
-
-To automatically add Resources on an Effort, type +(resources) anywhere in your message. For example, write “I hunt. +1d6*2” or “I farm. +16”. 
-
-### Combat (combat)
-- public: yes
-Different equipment excels in different situations.
-
-Weapons
-- Blunt (clubs, staves, fists) — the most versatile option, but rarely puts someone down for good on its own.
-- Stabbing (spears, rapiers, daggers) — precise and effective against unarmored targets.
-- Cutting (swords, knives) — even light armor blunts a cutting weapon's edge.
-- Slashing (axes) — good at cutting through shields.
-
-Armor
-- Plate and other rigid, single-piece armor reliably turns aside blows, but has joints and gaps a determined attacker can exploit.
-- Chainmail and other soft armor stops a blade, but a blunt weapon can still bruise or break bone underneath.
-- Quilted armor (gambesons and the like) softens blunt impacts further, and layers well under other armor—chainmail can even go under formal court dress.
-- Almost nothing stops a bullet.
-- Always wear a helmet. 
-
-Shields
-- A shield is a serious advantage in melee.
-- Fighters standing shield-to-shield are safer together than apart.
-
-Energy Shields
-Rare and expensive personal-scale energy shields exist in the wasteland around Ravenheart, remnants of finer technology than the barony can produce itself.
-- Stop bullets, arrows, and energy blasts outright.
-- Reduce, but don't stop, melee damage.
-- Do nothing against needles or syringes.
-- Worn on the belt or the wrist.
-- Short out on contact with liquid.
 
