@@ -3,7 +3,7 @@ import Link from "next/link";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
-import { updateFaction } from "../actions";
+import { updateFaction, deleteFaction } from "../actions";
 
 export default async function DevFactionsPage() {
   const session = await auth();
@@ -24,6 +24,7 @@ export default async function DevFactionsPage() {
               <th>Name</th>
               <th>Discord role ID</th>
               <th>Silo</th>
+              <th></th>
               <th></th>
             </tr>
           </thead>
@@ -59,11 +60,21 @@ export default async function DevFactionsPage() {
                     Save
                   </button>
                 </td>
+                <td>
+                  {f.name !== "Unaffiliated" && (
+                    <form action={deleteFaction}>
+                      <input type="hidden" name="factionId" value={f.id} />
+                      <button type="submit" className="btn-quiet">
+                        Delete
+                      </button>
+                    </form>
+                  )}
+                </td>
               </tr>
             ))}
             {factions.length === 0 && (
               <tr>
-                <td colSpan={4} className="text-center" style={{ color: "var(--muted)" }}>
+                <td colSpan={5} className="text-center" style={{ color: "var(--muted)" }}>
                   No factions yet.
                 </td>
               </tr>

@@ -213,17 +213,74 @@ export async function revokeTag(formData) {
 }
 
 export async function updateFaction(formData) {
-  await requireSuperadmin();
+  const session = await requireSuperadmin();
 
   const factionId = str(formData, "factionId");
   if (!factionId) return;
+
+  const before = await prisma.faction.findUnique({ where: { id: factionId } });
+  if (!before) return;
+
+  const newSilo = intOrZero(formData, "silo");
+  const siloDelta = newSilo - before.silo;
 
   await prisma.faction.update({
     where: { id: factionId },
     data: {
       name: str(formData, "name").trim(),
       discordRoleId: str(formData, "discordRoleId").trim(),
-      silo: intOrZero(formData, "silo"),
+      silo: newSilo,
+    },
+  });
+
+  if (siloDelta !== 0) {
+    const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
+    await prisma.siloTransaction.create({
+      data: {
+        factionId,
+        amount: siloDelta,
+        actorDiscordUserId: session.discordUserId,
+        actorName: "GM (Dev Panel)",
+        note: "Manual Dev Panel adjustment",
+        turnNumber: openTurn?.number ?? null,
+        turnPhase: openTurn?.phase ?? null,
+      },
+    });
+  }
+
+  revalidatePath("/gm/dev/factions");
+  revalidatePath("/faction");
+}
+
+// Reassigns the faction's members to "Unaffiliated" (same pattern as
+// removeCharacterFromFaction in faction/actions.js) before deleting the row
+// — for stray factions auto-synced from a Discord role that was never meant
+// to be a game faction (e.g. an opt-in notification role), not for factions
+// with real in-game meaning.
+export async function deleteFaction(formData) {
+  const session = await requireSuperadmin();
+
+  const factionId = str(formData, "factionId");
+  if (!factionId) return;
+
+  const faction = await prisma.faction.findUnique({ where: { id: factionId } });
+  if (!faction || faction.name === "Unaffiliated") return;
+
+  const unaffiliated = await prisma.faction.findFirst({ where: { name: "Unaffiliated" } });
+  if (unaffiliated) {
+    await prisma.character.updateMany({
+      where: { factionId },
+      data: { factionId: unaffiliated.id, isLeader: false },
+    });
+  }
+
+  await prisma.faction.delete({ where: { id: factionId } });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "faction_deleted",
+      details: { factionId, name: faction.name },
     },
   });
 

@@ -10,6 +10,7 @@ export async function getMyFactionRole(discordUserId, factionId) {
     where: { discordUserId, status: "ALIVE" },
     select: {
       id: true,
+      name: true,
       factionId: true,
       isLeader: true,
       tags: { select: { tag: { select: { slug: true } } } },
