@@ -7,14 +7,14 @@
     {
       "name": "Courtier",
       "key": "courtier",
-      "public": null,
+      "public": false,
       "tags": [],
       "description": "As a member of the Baron’s retinue, you may take food from the faction Silo whenever you please—within reason (Treasurer roles can see their Silo’s transaction history, so don’t steal. If you’d like to steal, arrange it with a GM)"
     },
     {
       "name": "Diplomat",
       "key": "diplomat",
-      "public": null,
+      "public": false,
       "tags": [],
       "description": "You are from the Culture, a post-scarcity interstellar empire ruled by benevolent robots. You want the best for the people of Ravenheart—and that would mean convincing the Baron to join the Culture—but Contact (the Culture's diplomatic wing) operates in the scale of centuries, not human generations. They don't think it's the right time. Therefore, do the best you can to quietly help people and further the Culture's mission: install an open-minded ruler, ensure the Order of the Iron Cross doesn't grow out of control, and above all, do not blow your cover. You have limited gadgets—including an autonomous, sentient drone disguised as a raven. If anything goes wrong, the \"Helpless Is The Face Of Your Beauty\" will teleport you on board. It'll take your message three minutes to reach them."
     },
@@ -46,6 +46,104 @@
       "public": true,
       "tags": [],
       "description": "Different equipment excels in different situations.\n\nWeapons\n- Blunt (clubs, staves, fists) — the most versatile option, but rarely puts someone down for good on its own.\n- Stabbing (spears, rapiers, daggers) — precise and effective against unarmored targets.\n- Cutting (swords, knives) — even light armor blunts a cutting weapon's edge.\n- Slashing (axes) — good at cutting through shields.\n\nArmor\n- Plate and other rigid, single-piece armor reliably turns aside blows, but has joints and gaps a determined attacker can exploit.\n- Chainmail and other soft armor stops a blade, but a blunt weapon can still bruise or break bone underneath.\n- Quilted armor (gambesons and the like) softens blunt impacts further, and layers well under other armor—chainmail can even go under formal court dress.\n- Almost nothing stops a bullet.\n- Always wear a helmet.\n\nShields\n- A shield is a serious advantage in melee.\n- Fighters standing shield-to-shield are safer together than apart.\n\nEnergy Shields\nRare and expensive personal-scale energy shields exist in the wasteland around Ravenheart, remnants of finer technology than the barony can produce itself.\n- Stop bullets, arrows, and energy blasts outright.\n- Reduce, but don't stop, melee damage.\n- Do nothing against needles or syringes.\n- Worn on the belt or the wrist.\n- Short out on contact with liquid."
+    },
+    {
+      "name": "Town Starting Packet",
+      "key": "townstarting",
+      "public": false,
+      "tags": [],
+      "description": ""
+    },
+    {
+      "name": "Fortress Starting Packet",
+      "key": "fortressstarting",
+      "public": false,
+      "tags": [],
+      "description": ""
+    },
+    {
+      "name": "Camp Starting Packet",
+      "key": "campstarting",
+      "public": false,
+      "tags": [],
+      "description": ""
+    },
+    {
+      "name": "The Lifeweb",
+      "key": "lifewebbasic",
+      "public": false,
+      "tags": [],
+      "description": ""
+    },
+    {
+      "name": "Court Structure",
+      "key": "courtstructure",
+      "public": false,
+      "tags": [],
+      "description": ""
+    },
+    {
+      "name": "Guard Duty",
+      "key": "guard",
+      "public": false,
+      "tags": [],
+      "description": ""
+    },
+    {
+      "name": "Post-Christianity",
+      "key": "postchristianity",
+      "public": false,
+      "tags": [],
+      "description": ""
+    },
+    {
+      "name": "Messenger Ravens",
+      "key": "ravens",
+      "public": false,
+      "tags": [],
+      "description": ""
+    },
+    {
+      "name": "Medicine",
+      "key": "medicine",
+      "public": false,
+      "tags": [],
+      "description": ""
+    },
+    {
+      "name": "Cooking",
+      "key": "cooking",
+      "public": false,
+      "tags": [],
+      "description": ""
+    },
+    {
+      "name": "Farming",
+      "key": "farming",
+      "public": false,
+      "tags": [],
+      "description": ""
+    },
+    {
+      "name": "Smithing Price List",
+      "key": "smithinglist",
+      "public": false,
+      "tags": [],
+      "description": ""
+    },
+    {
+      "name": "Merchant Price List",
+      "key": "merchantlist",
+      "public": false,
+      "tags": [],
+      "description": ""
+    },
+    {
+      "name": "Cult of Bacchus",
+      "key": "cult",
+      "public": false,
+      "tags": [],
+      "description": ""
     }
   ]
 }
