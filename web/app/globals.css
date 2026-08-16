@@ -145,6 +145,15 @@ body {
   color: var(--accent);
 }
 
+.btn-quiet:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btn-quiet:disabled:hover {
+  color: var(--muted);
+}
+
 .field {
   display: flex;
   flex-direction: column;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { setDefaultEffort } from "../(app)/character/actions";
+import { setDefaultEffort, deleteDefaultEffort } from "../(app)/character/actions";
 
 export default function DefaultEffortPanel({ characterId, defaultEffort, summaryChannels }) {
   const [description, setDescription] = useState(defaultEffort?.description ?? "");
@@ -9,7 +9,9 @@ export default function DefaultEffortPanel({ characterId, defaultEffort, summary
   const [summaryChannelId, setSummaryChannelId] = useState(defaultEffort?.summaryChannelId ?? "");
   const [summaryMessage, setSummaryMessage] = useState(defaultEffort?.summaryMessage ?? "");
   const [pending, setPending] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [saved, setSaved] = useState(false);
+  const hasSaved = !!defaultEffort;
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -29,11 +31,29 @@ export default function DefaultEffortPanel({ characterId, defaultEffort, summary
     }
   }
 
+  async function handleDelete() {
+    if (deleting || !hasSaved) return;
+    setDeleting(true);
+    try {
+      await deleteDefaultEffort(characterId);
+      setDescription("");
+      setShareInSummary(false);
+      setSummaryChannelId("");
+      setSummaryMessage("");
+      setSaved(false);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <section className="panel p-4">
       <h2 className="mb-1 font-bold">Default Effort</h2>
-      <p className="mb-3 text-xs" style={{ color: "var(--muted)" }}>
+      <p className="mb-1 text-xs" style={{ color: "var(--muted)" }}>
         If you don&apos;t submit a Move or Effort on a given day, this is assumed instead.
+      </p>
+      <p className="mb-3 text-xs italic" style={{ color: "var(--muted)" }}>
+        Tip: add a Resource amount like +3 or a dice roll like +1d6*3 anywhere in the text and it&apos;ll be applied automatically.
       </p>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <label className="field">
@@ -89,6 +109,14 @@ export default function DefaultEffortPanel({ characterId, defaultEffort, summary
         <div className="flex items-center gap-3">
           <button type="submit" className="btn self-start" disabled={pending || !description.trim()}>
             Save
+          </button>
+          <button
+            type="button"
+            className="btn-quiet"
+            disabled={!hasSaved || deleting || pending}
+            onClick={handleDelete}
+          >
+            Delete
           </button>
           {saved && !pending ? (
             <span className="text-xs" style={{ color: "var(--muted)" }}>

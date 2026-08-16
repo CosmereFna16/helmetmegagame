@@ -283,6 +283,20 @@ export async function setDefaultEffort(characterId, formData) {
   revalidatePath("/character");
 }
 
+export async function deleteDefaultEffort(characterId) {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+
+  const character = await prisma.character.findFirst({
+    where: { id: characterId, discordUserId: session.discordUserId, status: "ALIVE" },
+  });
+  if (!character) redirect("/character/new");
+
+  await prisma.defaultEffort.deleteMany({ where: { characterId: character.id } });
+
+  revalidatePath("/character");
+}
+
 // Marks a desire as ready for GM review — no points are granted here.
 // The GM decides whether to approve it and how many points it's worth
 // via adjudicateDesire() in gm/actions.js.
