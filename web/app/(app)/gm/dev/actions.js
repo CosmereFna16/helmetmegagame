@@ -5,6 +5,7 @@ import { prisma, advanceTurn as advanceTurnInDb, buildTurnAnnouncement, HUNGERLE
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { postMessage, listGuildChannels, isSummaryChannel } from "@/lib/discordGuild";
+import { getFactionAncestorIds } from "@/lib/factionPermissions";
 
 async function requireSuperadmin() {
   const session = await auth();
@@ -224,12 +225,22 @@ export async function updateFaction(formData) {
   const newSilo = intOrZero(formData, "silo");
   const siloDelta = newSilo - before.silo;
 
+  const parentFactionId = str(formData, "parentFactionId").trim() || null;
+  if (parentFactionId) {
+    if (parentFactionId === factionId) return;
+    // Reject a cycle: the faction being edited can't already be an ancestor
+    // of the faction it's about to be parented under.
+    const ancestorIds = await getFactionAncestorIds(parentFactionId);
+    if (ancestorIds.includes(factionId)) return;
+  }
+
   await prisma.faction.update({
     where: { id: factionId },
     data: {
       name: str(formData, "name").trim(),
       discordRoleId: str(formData, "discordRoleId").trim(),
       silo: newSilo,
+      parentFactionId,
     },
   });
 

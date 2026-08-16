@@ -23,6 +23,7 @@ export default async function DevFactionsPage() {
             <tr>
               <th>Name</th>
               <th>Discord role ID</th>
+              <th>Parent</th>
               <th>Silo</th>
               <th></th>
               <th></th>
@@ -44,6 +45,18 @@ export default async function DevFactionsPage() {
                     form={`faction-${f.id}`}
                     className="text-input"
                   />
+                </td>
+                <td>
+                  <select name="parentFactionId" defaultValue={f.parentFactionId ?? ""} form={`faction-${f.id}`}>
+                    <option value="">None</option>
+                    {factions
+                      .filter((other) => other.id !== f.id)
+                      .map((other) => (
+                        <option key={other.id} value={other.id}>
+                          {other.name}
+                        </option>
+                      ))}
+                  </select>
                 </td>
                 <td>
                   <input
@@ -74,7 +87,7 @@ export default async function DevFactionsPage() {
             ))}
             {factions.length === 0 && (
               <tr>
-                <td colSpan={5} className="text-center" style={{ color: "var(--muted)" }}>
+                <td colSpan={6} className="text-center" style={{ color: "var(--muted)" }}>
                   No factions yet.
                 </td>
               </tr>

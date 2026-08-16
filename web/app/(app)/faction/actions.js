@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { prisma, LEADER_SLUG, TREASURER_SLUG } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
-import { getMyFactionRole } from "@/lib/factionPermissions";
+import { getMyFactionRole, getSiloAccess } from "@/lib/factionPermissions";
 
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
@@ -141,11 +141,13 @@ export async function transferFromSilo(formData) {
   if (!factionId || !toCharacterId || !Number.isFinite(amount) || amount <= 0) return;
 
   const { isGm: gm } = await getGmSession();
-  const { character: myCharacter, canManageSilo } = await getMyFactionRole(session.discordUserId, factionId);
+  // Ancestor-aware: also covers a parent faction's Leader/Treasurer acting
+  // on a subject faction's Silo, not just the same-faction case.
+  const { character: myCharacter, canManageSilo } = await getSiloAccess(session.discordUserId, factionId);
   if (!gm && !canManageSilo) throw new Error("Not authorized.");
-  // Only attribute the transaction to the actor's character when it's
-  // actually the one holding Leader/Treasurer here — a GM acting on a
-  // faction that isn't their own character's shouldn't log that unrelated
+  // Only attribute the transaction to the actor's character when they
+  // actually hold real standing here (own faction or an ancestor of it) — a
+  // GM acting on a faction with no such standing shouldn't log an unrelated
   // character's name.
   const actorCharacter = canManageSilo ? myCharacter : null;
 

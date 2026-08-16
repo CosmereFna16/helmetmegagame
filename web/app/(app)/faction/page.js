@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma, TREASURER_SLUG } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
-import { getMyFactionRole } from "@/lib/factionPermissions";
+import { getMyFactionRole, getSiloAccess } from "@/lib/factionPermissions";
 import {
   createFaction,
   setFactionLeader,
@@ -16,6 +16,7 @@ async function loadFaction(factionId) {
   return prisma.faction.findUnique({
     where: { id: factionId },
     include: {
+      parentFaction: { select: { id: true, name: true } },
       characters: {
         orderBy: { name: "asc" },
         select: {
@@ -36,6 +37,31 @@ async function loadSiloHistory(factionId) {
     orderBy: { createdAt: "desc" },
     take: 50,
   });
+}
+
+// Breadth-first over parentFactionId so a Leader's "Subject Factions" table
+// (and the GM overview's indentation) covers the whole subtree, not just
+// direct children — the hierarchy is one level deep today but this holds up
+// if that changes.
+async function getDescendantFactions(rootId) {
+  const result = [];
+  const seen = new Set([rootId]);
+  let frontier = [rootId];
+  while (frontier.length > 0) {
+    const children = await prisma.faction.findMany({
+      where: { parentFactionId: { in: frontier } },
+      orderBy: { name: "asc" },
+      include: { characters: { select: { id: true, isLeader: true } } },
+    });
+    frontier = [];
+    for (const child of children) {
+      if (seen.has(child.id)) continue;
+      seen.add(child.id);
+      result.push(child);
+      frontier.push(child.id);
+    }
+  }
+  return result;
 }
 
 function FactionTable({ factions, showSilo }) {
@@ -68,20 +94,79 @@ function FactionTable({ factions, showSilo }) {
               </tr>
             );
           })}
+          {factions.length === 0 && (
+            <tr>
+              <td colSpan={showSilo ? 5 : 4} className="text-center" style={{ color: "var(--muted)" }}>
+                None.
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
   );
 }
 
+function buildChildrenMap(factions) {
+  const map = new Map();
+  for (const f of factions) {
+    const key = f.parentFactionId ?? null;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(f);
+  }
+  return map;
+}
+
+// Renders a faction row plus its subject factions indented beneath it,
+// recursively — keeps the hierarchy visible in the flat overview table
+// instead of needing a separate page per level.
+function FactionRows({ factions, childrenMap, depth, showSilo }) {
+  return factions.flatMap((f) => {
+    const leader = f.characters.find((c) => c.isLeader);
+    const children = childrenMap.get(f.id) ?? [];
+    return [
+      <tr key={f.id}>
+        <td style={{ paddingLeft: `${depth * 1.25}rem` }}>
+          {depth > 0 ? "↳ " : ""}
+          {f.name}
+        </td>
+        <td>{f.characters.length}</td>
+        <td>{leader?.name ?? "-"}</td>
+        {showSilo && <td>{f.silo}</td>}
+        <td>
+          <a href={`/faction?factionId=${f.id}`} className="menu-item">
+            View
+          </a>
+        </td>
+      </tr>,
+      ...FactionRows({ factions: children, childrenMap, depth: depth + 1, showSilo }),
+    ];
+  });
+}
+
 function FactionOverview({ factions }) {
   const unaffiliated = factions.filter((f) => f.name === "Unaffiliated");
   const rest = factions.filter((f) => f.name !== "Unaffiliated");
+  const childrenMap = buildChildrenMap(rest);
+  const topLevel = rest.filter((f) => !f.parentFactionId);
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6 sm:p-8">
       <h1 className="text-2xl font-bold">Factions</h1>
-      <FactionTable factions={rest} showSilo />
+      <div className="panel overflow-x-auto">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Members</th>
+              <th>Leader</th>
+              <th>Silo ⬢</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>{FactionRows({ factions: topLevel, childrenMap, depth: 0, showSilo: true })}</tbody>
+        </table>
+      </div>
 
       {unaffiliated.length > 0 && (
         <div>
@@ -201,24 +286,61 @@ export default async function FactionPage({ searchParams }) {
         </div>
       );
     }
-    const [faction, { isLeader, isTreasurer, canManageSilo }] = await Promise.all([
-      loadFaction(myCharacter.factionId),
-      getMyFactionRole(session.discordUserId, myCharacter.factionId),
-    ]);
+
+    const ownRole = await getMyFactionRole(session.discordUserId, myCharacter.factionId);
+
+    // A parent faction's Leader/Treasurer can look into a subject faction's
+    // roster and Silo — getSiloAccess walks the ancestor chain, so this only
+    // succeeds when that's actually true. Anything else falls back to their
+    // own faction rather than exposing factions outside their reach.
+    let viewFactionId = myCharacter.factionId;
+    let viewCanManageSilo = ownRole.canManageSilo;
+    let viewingSubject = false;
+    if (requestedFactionId && requestedFactionId !== myCharacter.factionId) {
+      const access = await getSiloAccess(session.discordUserId, requestedFactionId);
+      if (access.canManageSilo) {
+        viewFactionId = requestedFactionId;
+        viewCanManageSilo = true;
+        viewingSubject = true;
+      }
+    }
+
+    const faction = await loadFaction(viewFactionId);
     if (!faction) return null;
+
     const leader = faction.characters.find((c) => c.isLeader);
     const playerViewIsUnaffiliated = faction.name === "Unaffiliated";
-    const siloHistory = canManageSilo && !playerViewIsUnaffiliated ? await loadSiloHistory(faction.id) : [];
+    const siloHistory = viewCanManageSilo && !playerViewIsUnaffiliated ? await loadSiloHistory(faction.id) : [];
+
+    // Membership administration (Assign/Revoke Treasurer) never extends to
+    // subject factions — only Silo access does.
+    const canManageMembers = !viewingSubject && ownRole.isLeader && !playerViewIsUnaffiliated;
+
+    const subjectFactions =
+      !viewingSubject && ownRole.isLeader ? await getDescendantFactions(myCharacter.factionId) : [];
 
     return (
       <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6 sm:p-8">
-        <h1 className="text-2xl font-bold">{faction.name}</h1>
+        {viewingSubject && (
+          <a href="/faction" className="btn-quiet">
+            &larr; Back to your faction
+          </a>
+        )}
+
+        <div>
+          <h1 className="text-2xl font-bold">{faction.name}</h1>
+          {viewingSubject && faction.parentFaction && (
+            <p className="text-sm" style={{ color: "var(--muted)" }}>
+              Subject of {faction.parentFaction.name}
+            </p>
+          )}
+        </div>
 
         <section className="panel p-4">
           <ul className="flex flex-col gap-1 text-sm">
             <li>Leader: {leader?.name ?? "None"}</li>
             {!playerViewIsUnaffiliated && <li>Faction Silo ⬢: {faction.silo}</li>}
-            <li>Your Resources ⬢: {myCharacter.resources}</li>
+            {!viewingSubject && <li>Your Resources ⬢: {myCharacter.resources}</li>}
           </ul>
         </section>
 
@@ -229,7 +351,7 @@ export default async function FactionPage({ searchParams }) {
               <tr>
                 <th>Name</th>
                 <th>Fate</th>
-                {isLeader && !playerViewIsUnaffiliated && <th></th>}
+                {canManageMembers && <th></th>}
               </tr>
             </thead>
             <tbody>
@@ -243,7 +365,7 @@ export default async function FactionPage({ searchParams }) {
                       {treasurer ? " (Treasurer)" : ""}
                     </td>
                     <td>{c.status}</td>
-                    {isLeader && !playerViewIsUnaffiliated && (
+                    {canManageMembers && (
                       <td>
                         <form action={setTreasurer}>
                           <input type="hidden" name="characterId" value={c.id} />
@@ -262,7 +384,7 @@ export default async function FactionPage({ searchParams }) {
           </table>
         </section>
 
-        {canManageSilo && !playerViewIsUnaffiliated && (
+        {viewCanManageSilo && !playerViewIsUnaffiliated && (
           <>
             <TransferFromSiloPanel
               faction={faction}
@@ -270,6 +392,13 @@ export default async function FactionPage({ searchParams }) {
             />
             <SiloHistoryPanel history={siloHistory} />
           </>
+        )}
+
+        {subjectFactions.length > 0 && (
+          <div>
+            <h2 className="mb-2 font-bold">Subject Factions</h2>
+            <FactionTable factions={subjectFactions} showSilo />
+          </div>
         )}
       </div>
     );
@@ -296,6 +425,7 @@ export default async function FactionPage({ searchParams }) {
 
   const isUnaffiliated = faction.name === "Unaffiliated";
   const siloHistory = !isUnaffiliated ? await loadSiloHistory(faction.id) : [];
+  const subjectFactions = await getDescendantFactions(faction.id);
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6 sm:p-8">
@@ -304,7 +434,14 @@ export default async function FactionPage({ searchParams }) {
       </a>
 
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{faction.name}</h1>
+        <div>
+          <h1 className="text-2xl font-bold">{faction.name}</h1>
+          {faction.parentFaction && (
+            <p className="text-sm" style={{ color: "var(--muted)" }}>
+              Subject of {faction.parentFaction.name}
+            </p>
+          )}
+        </div>
         <form method="get" className="flex gap-2">
           <select name="factionId" defaultValue={faction.id}>
             {allFactions.map((f) => (
@@ -404,6 +541,13 @@ export default async function FactionPage({ searchParams }) {
           />
           <SiloHistoryPanel history={siloHistory} />
         </>
+      )}
+
+      {subjectFactions.length > 0 && (
+        <div>
+          <h2 className="mb-2 font-bold">Subject Factions</h2>
+          <FactionTable factions={subjectFactions} showSilo />
+        </div>
       )}
 
       <section className="panel p-4">
