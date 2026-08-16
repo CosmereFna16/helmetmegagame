@@ -17,14 +17,14 @@ documents:
     public: false
     tags: []
     description: As an independent townsman, you aren't on anyone's payroll. The Headman isn't expected to pay you. You should therefore ply a trade so you don't starve to death.
-  - name: ravenherteconomy
+  - name: ravenhearteconomy
     key: Ravenheart's Economy
     public: true
     tags: []
     description: |-
       You are welcome to change things, but this is how things have been done for years:
 
-      The town farms, fishes, and hunts. Most of that is taxed by the Headman, who sends a fraction of his tithe to the Bishop and the bulk to the Baron (through the Meister, his tax-man). What little he has left is paid to those on the town's payroll: the Sheriff and the Mortii.
+      The town farms, fishes, and hunts. Most of that is taxed by the Headman, who sends a fraction of his tithe to the Bishop and the bulk to the Baron (through the Meister, his tax-man). What little he has left is paid to those on the town's payroll, mostly the Sheriff.
 
       So, the Fortress survives off of the town's taxes, and provides protection in turn.
       The Church survives off of of the town's taxes, and provides religious services in turn.
@@ -39,7 +39,10 @@ documents:
     tags:
       - Treasurer
       - Leader
-    description: null
+    description: |-
+      As Treasurer or Leader, you control your faction's Silo—the shared stockpile everyone on your payroll eats from. Let it run dry and your people starve.
+
+      From the Faction page, you can see every deposit and withdrawal, and send Resources straight to a member from the Silo.
   - name: Medical
     key: medical
     public: true
@@ -95,12 +98,18 @@ documents:
     key: townstarting
     public: false
     tags: []
-    description: ""
+    description: |-
+      The Headman received a raven saying he didn't receive the last tax wagon. It was probably ambushed by bandits. The Meister won't be happy about this... prepare to have the Silo drained.
+
+      Last week, Thomas Ciobanu—a respectable tradesman—was found milky-eyed, giggly, with a profoundly satisfied look. He wandered around aimlessly, going hungry—when people tried to help him, he just called them fools. The Esculap's medicine couldn't do anything for him, so the Inquisitor had him hanged. He fought all the way to the gallows, like a rabid dog.
   - name: Fortress Starting Packet
     key: fortressstarting
     public: false
     tags: []
-    description: ""
+    description: |-
+      The last tithe didn't arrive and it shows. Banquets are paused, and the food is being rationed. The Silos will run dry until the next tax wagon arrives. It is up to the Baron's men to resolve this.
+
+      To make things worse, a letter from the Bastard declaring his intents was found on the table. Since the Guards didn't see anyone come in to deliver it, it must've been someone on the inside—someone who favored the Bastard—that brought it in. There must be a traitor.
   - name: Camp Starting Packet
     key: campstarting
     public: false
@@ -141,7 +150,12 @@ documents:
     key: courtstructure
     public: false
     tags: []
-    description: ""
+    description: |-
+      The Baron rules. His Hand is his spymaster and voice—loyal, proactive, and the one who actually keeps the court organized. The Meister is the Keep's circulatory system: he collects the Town's taxes through the Headman and watches the Silo so nobody bleeds it dry.
+
+      The Captain commands the Watch. The Bishop leads the Church and, with the Priests, tends to people's souls. The Esculap runs the Sanctuary and everyone's health. The Inquisitor answers to no one but God, and would very much like the Bishop to remember that.
+
+      Below them all, Courtiers gossip, scheme, and try not to get caught doing either.
   - name: Guard Duty
     key: guard
     public: false
@@ -151,22 +165,17 @@ documents:
     key: postchristianity
     public: false
     tags: []
-    description: ""
+    description: |-
+      Nobody remembers exactly which schism did it, or which century. Only that somewhere between the old world ending and Ravenheart being built on its bones, the Church kept the parts that mattered and let the rest wash away with everything else. What's left is simpler: God is still watching, still kind, and still asks the same three things He always did—feed the hungry, forgive the guilty, and don't let the dark win.
+
+      The scripture reads a little differently now, half-remembered verses stitched next to warnings about the wasteland and the things that live in it, but the shape of the faith hasn't changed. It's not fire and brimstone. It's people who've lost almost everything, believing anyway, and trying to be good to each other because the alternative is so much worse.
   - name: Messenger Ravens
     key: ravens
     public: false
-    tags: []
-    description: ""
-  - name: Cooking
-    key: cooking
-    public: false
-    tags: []
-    description: ""
-  - name: Farming
-    key: farming
-    public: false
-    tags: []
-    description: ""
+    tags:
+      - Ravenkeeper
+    description: |-
+      Anyone with the Ravenkeeper tag can, assuming they're near their rookery, send a message to up to one person a turn. To do so, simply message the GMs asking.
   - name: Smithing Price List
     key: smithinglist
     public: false

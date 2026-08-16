@@ -157,7 +157,7 @@ intro: Keep the fortress running.
 - difficulty: easy
 - multiple: true
 - starting tag:
-- doc elements: courtier, cooking, courtstructure, fortressstarting
+- doc elements: courtier, courtstructure, fortressstarting
 
 Servant (Chef)
 intro: Prepare meals for the household and keep the kitchens running.
@@ -167,7 +167,7 @@ intro: Prepare meals for the household and keep the kitchens running.
 - multiple: true
 - parent role: Servant
 - starting tag: Cooking (Skilled)
-- doc elements: courtier, cooking, fortressstarting, courtstructure
+- doc elements: courtier, fortressstarting, courtstructure
 
 ### Faction: The Watch
 
@@ -238,8 +238,7 @@ intro: You live for the thrill of enslaving souls and causing pain.
 # Town
 
 - The last tithe wagon didn't return from the Fortress—it was probably ambushed by bandits. The Meister won't be happy about this. Prepare to have the Silo drained.
-- The Succubus takes souls while the Cult of Bacchus hosts ribald gatherings. The Church, followers of God, is split as the Order of the Silver Cross grows in power.
-- The Inquisitor has planned an execution with the sheriff's permission. The Cult of Bacchus wants to break him out.
+- Last week, Thomas Ciobanu—a respectable tradesman—was found milky-eyed, giggly, with a profoundly satisfied look. He wandered around aimlessly, going hungry—when people tried to help him, he just called them fools. The Esculap's medicine couldn't do anything for him, so the Inquisitor had him hanged. He fought all the way to the gallows, like a rabid dog.
 
 ## Roles
 
@@ -365,7 +364,8 @@ intro: Lead the Town. Ensure it works and pays its taxes.
 
 - On certain days, you hike up the mountain and behold the Town. Those are the people that are beholden to you. You cannot afford to let them down, Headman!
 - Your main job is to tax people. You are beholden to the Meister, the Baron’s taxman, and things have gotten nasty in the past when the tithe didn’t meet his expectations. If the Silo’s not full next time he comes, it won’t be a pretty day.
-- You also pay the Bishop.
+- You also owe some tax to the Bishop.
+- The Sheriff is on your payroll.
 - You informally lead the Town—everyone knows you and you know everyone. You can use a Move to decipher up to 3 random tags of anyone in the Town faction.
 - difficulty: hard
 - multiple: false
@@ -470,13 +470,17 @@ intro: Track game through the wilds and bring back meat for the Town.
 - doc elements: townstarting, production, independent
 
 Mortus
-intro: Bury people and bring them to peace.
+intro: Bring spirits to peace and feed the Lifeweb.
 
-- You have two jobs, both of them sacred: The Mortii take a vow
+- You have two jobs, both of them sacred: 1. feed the Lifeweb and 2. bury people, bringing their souls to peace.
+- The Mortii take a vow, dedicating themselves to powering the Lifeweb. They are often exiles, outcasts, or infirms. Why did you take the vow?
+- The Lifeweb maintains Ravenheart's environment. Without it, it'll fade into the wastelands. However, it is powered by human blood. People can either voluntarily donate their blood to feed it for a short time—or you can kidnap people and feed them manually
+- Any crimes you commit in service of your vow are not crimes.
+- You are allowed to loot whatever corpses you find. That's how the Mortus traditionally sustain themselves, but if dead people are scarce, you can ask the Headman for some food.
 - difficulty: easy
 - multiple: true
 - starting tag: Mortus
-- doc elements: townstarting, lifeweb
+- doc elements: townstarting, lifeweb, respawning
 
 Pusher
 intro: Sell drugs.
