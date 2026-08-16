@@ -81,7 +81,7 @@ intro: You are the Keep’s brains, but more importantly, its circulatory system
 - doc elements: courtstructure, lifewebbasic, fortressstarting, fortressstartingtithe, fortressstartingletter, courtier, ravens
 
 Courtier
-intro: For whatever reason, the Baron keeps you around in his court.
+intro: Live lavishly and gossip.
 - For whatever reason, the Baron keeps you around in his court. Convince the Captain to launch an expedition into the caves, host marvelous feasts, and duel your fellow courtiers for the Successor’s affection.
 - difficulty: easy
 - multiple: true
@@ -107,8 +107,8 @@ intro: Support your husband and maintain your manor.
 - doc elements: courtier, courtstructure, fortressstarting
 
 Courtier (Minstrel)
-intro: Compose ballads, smuggle drugs from the town, and keep the Baron happy.
-- Compose ballads, smuggle drugs from the town (and peddle them to the courtiers), keep the Baron happy.
+intro: Compose ballads, smuggle drugs from the Town, and keep the Baron happy.
+- Compose ballads, smuggle drugs from the Town (and peddle them to the courtiers), keep the Baron happy.
 - difficulty: easy
 - multiple: true
 - parent role: Courtier
@@ -126,7 +126,7 @@ intro: Reminisce about your valiant service against the Cult of Kosm in 1025.
 
 Courtier (Diplomat)
 intro: Recover ancient artifacts and study Ravenheartian culture.
-- Recover ancient artifacts and study Ravenheartian culture. Meddle. Convince the Baron to join your interstellar federation. Be a scapegoat.
+- Recover ancient artifacts and study Ravenheartian culture. Meddle. Convince the Baron to join your interstellar federation.
 - difficulty: easy
 - multiple: true
 - parent role: Courtier
@@ -345,7 +345,8 @@ Metalsmith
 intro: No one else can do it, Metalsmith.
 - No one else can do it, Metalsmith. 
 - With smithing, you are only limited by your Resources and your creativity. You can make weapons, but you can also make armor, tools, siege equipment, sculptures...
-- Simple things 
+- Your intention is important. Swords might be useful in hand-to-hand combat,
+- Simple things, like shortswords or basic tools, cost 1 Effort and 2 Resources. Moderately difficult things, like swords or breastplates, cost 1 Effort and 4 Resources. High quality things cost 2 Effort 
 - difficulty: normal
 - multiple: false
 - starting tag: Hardy, Smithing
@@ -378,12 +379,21 @@ intro: Serve the Merchant and get drunk during the night.
 - doc elements: townstarting, merchantlist
 
 Peasant
-intro: You are a jobless peasant.
+intro: You are a jobless peasant/
 - You are a jobless peasant
 - Do your job during the day, live a free life at night.
 - difficulty: easy
 - multiple: true
-- starting tag: Hardy
+- starting tag: Hardy, +3 
+- doc elements: townstarting
+
+Peasant (Miller)
+intro: Man the mill, turning Resources into more Resources.
+- You are a jobless peasant
+- Do your job during the day, live a free life at night.
+- difficulty: easy
+- multiple: false
+- starting tag: Hardy, +3 
 - doc elements: townstarting
 
 Peasant (Farmer)
@@ -650,12 +660,12 @@ intro: Loot the caves (dangerous) as a way to fund the Camp's war effort.
 --------
 
 # Documents
-
-Basic
-The golden rule: 
+Explanation:
+- tag: Anyone with this tag gets this Document.
+- public: If assigned, this will appear in a player’s document folder. However, using the search function, anyone can browse and find this document.
 
 Courtier
-### As a member of the Baron’s retinue, you may take food from the faction Silo whenever you please—within reason (Treasurer roles can see their Silo’s transaction history, so don’t steal. If you’d like to steal, arrange it with a GM)
+As a member of the Baron’s retinue, you may take food from the faction Silo whenever you please—within reason (Treasurer roles can see their Silo’s transaction history, so don’t steal. If you’d like to steal, arrange it with a GM)
 
 Diplomat
 You are from the Culture, a post-scarcity interstellar empire ruled by benevolent robots. You want the best for the people of Ravenheart—and that would mean convincing the Baron to join the Culture—but Contact (the Culture's diplomatic wing) operates in the scale of centuries, not human generations. They don't think it's the right time. Therefore, do the best you can to quietly help people and further the Culture's mission: install an open-minded ruler, ensure the Order of the Iron Cross doesn't grow out of control, and above all, do not blow your cover. You have limited gadgets—including an autonomous, sentient drone disguised as a raven. If anything goes wrong, the "Helpless Is The Face Of Your Beauty" will teleport you on board. It'll take your message three minutes to reach them.
@@ -667,9 +677,47 @@ The Watch is Ravenheart’s primary fighting force, tasked with defending the Fo
 The Watch is commanded by the Captain.
 
 Treasurer 
+- public: yes
 - tag: treasurer, Leader
 
 
 Medical:
 
 - synced list of medical tags, hover
+
+Combat
+Where to Aim
+- Hard to hit, but rewarding: Head, Eyes, Neck.
+- Trickier: Hands, Feet, Groin, Face.
+- Easy, but least effective: Body.
+
+Aim for what's unprotected—armor has gaps and joints, and a shorter weapon finds them more easily than a long one. Any wound saps the target's coordination for a few seconds, so it's often worth softening someone up before going for a finishing blow. A downed opponent is far easier to finish off than one still on their feet.
+
+Weapons
+- Blunt (clubs, staves, fists) — the most versatile option, but rarely puts someone down for good on its own.
+- Stabbing (spears, rapiers, daggers) — precise, and effective against unarmored targets.
+- Penetrating (picks) — brutal, but prone to getting stuck in whatever it hits.
+- Cutting (swords, knives) — even light armor blunts a cutting weapon's edge.
+- Slashing (axes) — good at cutting through shields.
+
+Armor
+- Plate and other rigid, single-piece armor reliably turns aside blows, but has joints and gaps a determined attacker can exploit.
+- Chainmail and other soft armor stops a blade, but a blunt weapon can still bruise or break bone underneath.
+- Quilted armor (gambesons and the like) softens blunt impacts further, and layers well under other armor—chainmail can even go under formal court dress.
+- Almost nothing stops a bullet.
+- Wear a helmet. A solid hit to the head changes everything.
+
+Shields
+- A shield is a serious advantage in melee—something to hide behind, and something to hit with.
+- Fighters standing shield-to-shield are safer together than apart.
+
+Energy Shields
+Rare and expensive personal-scale energy shields exist in the wasteland around Ravenheart, remnants of finer technology than the barony can produce itself.
+- Stop bullets, arrows, and energy blasts outright.
+- Reduce, but don't stop, melee damage.
+- Do nothing against needles or syringes.
+- Worn on the belt or the wrist.
+- Short out on contact with liquid.
+- Two shields, held close together, can be turned into a weapon of their own.
+
+- public: yes
