@@ -6,6 +6,8 @@ const NOBILITY_SLUG = "nobility";
 const ATE_MEAL_SLUG = "ate-meal";
 const TIPSY_SLUG = "tipsy";
 const ALCOHOLIC_SLUG = "alcoholic";
+const MORTUS_SLUG = "mortus";
+const DRAINED_SLUG = "drained";
 
 module.exports = {
   HUNGERLESS_SLUG,
@@ -16,4 +18,6 @@ module.exports = {
   ATE_MEAL_SLUG,
   TIPSY_SLUG,
   ALCOHOLIC_SLUG,
+  MORTUS_SLUG,
+  DRAINED_SLUG,
 };

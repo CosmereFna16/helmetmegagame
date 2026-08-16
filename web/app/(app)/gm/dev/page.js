@@ -146,6 +146,18 @@ export default async function DevPanelPage() {
             <span className="field-label">Alcohol shield duration (turns)</span>
             <input type="number" name="alcoholShieldDurationTurns" defaultValue={config.alcoholShieldDurationTurns} />
           </label>
+          <label className="field">
+            <span className="field-label">Lifeweb Blood (0-100, raw override)</span>
+            <input type="number" name="lifewebBlood" min="0" max="100" defaultValue={config.lifewebBlood} />
+          </label>
+          <label className="field">
+            <span className="field-label">Lifeweb decay / turn</span>
+            <input type="number" name="lifewebDecayPerTurn" defaultValue={config.lifewebDecayPerTurn} />
+          </label>
+          <label className="field">
+            <span className="field-label">Drained duration (turns)</span>
+            <input type="number" name="lifewebDrainedDurationTurns" defaultValue={config.lifewebDrainedDurationTurns} />
+          </label>
           <div className="col-span-full">
             <button type="submit" className="btn">Save config</button>
           </div>

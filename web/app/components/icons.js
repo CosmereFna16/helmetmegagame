@@ -72,6 +72,15 @@ export function ArchiveIcon(props) {
   );
 }
 
+export function LifewebIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M12 3.5c3.2 4 5.5 7.3 5.5 10.3a5.5 5.5 0 1 1-11 0c0-3 2.3-6.3 5.5-10.3z" strokeLinejoin="round" />
+      <path d="M9.7 15.5c0 1.4 1 2.3 2.3 2.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function SignOutIcon(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>

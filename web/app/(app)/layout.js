@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { prisma } from "@lifeweb/db";
+import { prisma, MORTUS_SLUG } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { getOpenTurn } from "@/lib/turn";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -23,13 +23,24 @@ const GM_NAV = [
 ];
 
 const DEV_NAV_ITEM = { href: "/gm/dev", label: "Dev", icon: "dev" };
+const LIFEWEB_NAV_ITEM = { href: "/lifeweb", label: "Lifeweb", icon: "lifeweb" };
 
 export default async function AppLayout({ children }) {
   const [{ session, isGm: gm }, turn] = await Promise.all([getGmSession(), getOpenTurn()]);
   if (!session?.discordUserId) redirect("/");
 
+  // The Lifeweb's Blood level is a secret the Mortii keep — everyone else
+  // only gets the vague public omen line in the turn announcement (see
+  // advanceTurn() in db/index.js) once it runs low.
+  const hasMortus = gm
+    ? true
+    : !!(await prisma.characterTag.findFirst({
+        where: { character: { discordUserId: session.discordUserId, status: "ALIVE" }, tag: { slug: MORTUS_SLUG } },
+      }));
+
   const baseNav = gm ? GM_NAV : PLAYER_NAV;
-  const items = isSuperadmin(session.discordUserId) ? [...baseNav, DEV_NAV_ITEM] : baseNav;
+  const withLifeweb = hasMortus ? [...baseNav, LIFEWEB_NAV_ITEM] : baseNav;
+  const items = isSuperadmin(session.discordUserId) ? [...withLifeweb, DEV_NAV_ITEM] : withLifeweb;
 
   const [confirmedActionCount, pendingDesireCount, pendingTagRequestCount, unrepliedConversations] = gm
     ? await Promise.all([

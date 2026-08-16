@@ -15,6 +15,12 @@ if (process.env.NODE_ENV !== "production") {
 // ateMeal() in web/app/(app)/character/actions.js.
 const NOBILITY_UNHAPPY_THRESHOLD_TURNS = 3;
 
+// Below this, the turn announcement gets a vague public omen line (see
+// advanceTurn() below) without ever naming the actual number — the Blood
+// value itself stays visible only to Mortus-tagged characters and GMs
+// (web/app/(app)/lifeweb/page.js).
+const LIFEWEB_SPUTTER_THRESHOLD = 20;
+
 // Applies per-turn Needs decay (resource consumption, hunger, mood expiry)
 // to every ALIVE character for the turn being closed. Shared between the
 // bot's cron-triggered advanceTurn() and the GM dashboard's manual
@@ -89,10 +95,17 @@ async function resolveNeeds(turn, config) {
     }),
   );
 
-  // Sweep any turn-scoped tags (Ate Meal, Tipsy, ...) whose expiresTurn has
-  // been reached — a single bulk delete rather than a per-character check,
-  // since it's independent of everything computed above.
+  // Sweep any turn-scoped tags (Ate Meal, Tipsy, Drained, ...) whose
+  // expiresTurn has been reached — a single bulk delete rather than a
+  // per-character check, since it's independent of everything computed above.
   await prisma.characterTag.deleteMany({ where: { expiresTurn: { lte: turn.number } } });
+
+  // The Lifeweb bleeds out a fixed amount every turn regardless of what fed
+  // it last — see feedLifewebBlood()/feedLifewebCorpse() (web/app/(app)/character/actions.js,
+  // web/app/(app)/lifeweb/actions.js) for the two ways it's topped back up.
+  const newBlood = Math.max(0, (config?.lifewebBlood ?? 100) - (config?.lifewebDecayPerTurn ?? 10));
+  await prisma.gameConfig.update({ where: { id: 1 }, data: { lifewebBlood: newBlood } });
+  return newBlood;
 }
 
 async function getConfig() {
@@ -109,8 +122,9 @@ async function advanceTurn() {
   const config = await getConfig();
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
 
+  let lifewebBlood = config.lifewebBlood;
   if (openTurn) {
-    await resolveNeeds(openTurn, config);
+    lifewebBlood = await resolveNeeds(openTurn, config);
     await prisma.turn.update({
       where: { id: openTurn.id },
       data: { status: "RESOLVED", resolvedAt: new Date() },
@@ -120,7 +134,8 @@ async function advanceTurn() {
   const lastTurn = openTurn ?? (await prisma.turn.findFirst({ orderBy: { number: "desc" } }));
   const phase = !lastTurn || lastTurn.phase === "DUSK" ? "DAWN" : "DUSK";
   const weather = config.nextWeather ?? rollWeather();
-  const note = config.nextTurnNote;
+  const lifewebFlavor = lifewebBlood <= LIFEWEB_SPUTTER_THRESHOLD ? "The Lifeweb sputters, failing." : null;
+  const note = [lifewebFlavor, config.nextTurnNote].filter(Boolean).join("\n\n") || null;
 
   const newTurn = await prisma.turn.create({
     data: { number: (lastTurn?.number ?? 0) + 1, phase, weather, gameDate: new Date(), status: "OPEN" },
@@ -134,4 +149,11 @@ async function advanceTurn() {
   return { previousTurn: openTurn, newTurn, note };
 }
 
-module.exports = { prisma, resolveNeeds, advanceTurn, ...require("./weather"), ...require("./lib/constants") };
+module.exports = {
+  prisma,
+  resolveNeeds,
+  advanceTurn,
+  LIFEWEB_SPUTTER_THRESHOLD,
+  ...require("./weather"),
+  ...require("./lib/constants"),
+};

@@ -79,6 +79,9 @@ model GameConfig {
   moodMoveBonus             Int @default(1)
   alcoholCost               Int @default(3)
   alcoholShieldDurationTurns Int @default(4)
+  lifewebBlood              Int @default(100)
+  lifewebDecayPerTurn       Int @default(10)
+  lifewebDrainedDurationTurns Int @default(4)
   nextWeather               Weather?
   nextTurnNote              String?
   turnsAnnouncementChannelId String?

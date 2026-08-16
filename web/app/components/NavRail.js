@@ -11,6 +11,7 @@ import {
   DevIcon,
   MessageIcon,
   ArchiveIcon,
+  LifewebIcon,
   SignOutIcon,
 } from "./icons";
 import { signOutOfDiscord } from "../actions";
@@ -24,6 +25,7 @@ const ICONS = {
   dev: DevIcon,
   messages: MessageIcon,
   archive: ArchiveIcon,
+  lifeweb: LifewebIcon,
 };
 
 export default function NavRail({ items, badges = {} }) {

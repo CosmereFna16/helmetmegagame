@@ -8,6 +8,8 @@ const {
   ATE_MEAL_SLUG,
   TIPSY_SLUG,
   ALCOHOLIC_SLUG,
+  MORTUS_SLUG,
+  DRAINED_SLUG,
 } = require("../lib/constants");
 
 const CATEGORIES = ["Placeholder 1", "Placeholder 2", "Placeholder 3"];
@@ -62,6 +64,25 @@ const STATUS_TAGS = [
     slug: TIPSY_SLUG,
     description: "Immune to Unhappy for 4 turns. Slightly worse at combat.",
     category: "Status",
+    pointCost: 0,
+  },
+  {
+    name: "Drained",
+    slug: DRAINED_SLUG,
+    description: "You are weak and your vision is blurry.",
+    category: "Health",
+    pointCost: 0,
+  },
+];
+
+// Non-purchasable markers for role identity, granted by hand from a role's
+// "starting tag" (see docs/ROLES.md) rather than through the tag store.
+const ROLE_TAGS = [
+  {
+    name: "Mortus",
+    slug: MORTUS_SLUG,
+    description: "One of the Mortii — tends to the dead and to the Lifeweb beneath Ravenheart.",
+    category: "Role",
     pointCost: 0,
   },
 ];
@@ -182,7 +203,7 @@ function buildTags() {
 }
 
 async function main() {
-  for (const tag of [...buildTags(), ...META_TAGS, ...FACTION_TAGS, ...STATUS_TAGS]) {
+  for (const tag of [...buildTags(), ...META_TAGS, ...FACTION_TAGS, ...STATUS_TAGS, ...ROLE_TAGS]) {
     const existing = await prisma.tag.findFirst({ where: { name: tag.name } });
     if (existing) {
       console.log(`skip (exists): ${tag.name}`);

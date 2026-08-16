@@ -8,6 +8,7 @@ import TagRequestPanel from "./TagRequestPanel";
 import DesirePanel from "./DesirePanel";
 import DefaultEffortPanel from "./DefaultEffortPanel";
 import MealPanel from "./MealPanel";
+import LifewebFeedButton from "./LifewebFeedButton";
 import RichText from "./RichText";
 
 function groupTagsByCategory(characterTags) {
@@ -222,6 +223,12 @@ export default function CharacterSheet({
             tipsyExpiresTurn={tipsyTag?.expiresTurn ?? null}
             alcoholCost={alcoholCost}
           />
+        )}
+
+        {isSelf && (
+          <div className="mt-4 flex flex-wrap items-center gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
+            <LifewebFeedButton characterId={character.id} />
+          </div>
         )}
 
         {isSelf && (

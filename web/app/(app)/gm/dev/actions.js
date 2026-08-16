@@ -46,10 +46,14 @@ export async function updateGameConfig(formData) {
       moodMoveBonus: intOrZero(formData, "moodMoveBonus"),
       alcoholCost: intOrZero(formData, "alcoholCost"),
       alcoholShieldDurationTurns: intOrZero(formData, "alcoholShieldDurationTurns"),
+      lifewebBlood: Math.max(0, Math.min(100, intOrZero(formData, "lifewebBlood"))),
+      lifewebDecayPerTurn: intOrZero(formData, "lifewebDecayPerTurn"),
+      lifewebDrainedDurationTurns: intOrZero(formData, "lifewebDrainedDurationTurns"),
     },
   });
 
   revalidatePath("/gm/dev");
+  revalidatePath("/lifeweb");
 }
 
 // Directly overrides the current turn's day/phase (creating one if none is
