@@ -160,7 +160,7 @@ intro: Bravely lead the Watch and hold back the darkness, you goddamn hero.
 - difficulty: hard
 - multiple: false
 - starting tag: Fighter (Trained), Treasurer, Leader
-- doc elements: courtstructure, fortressstarting, guard, treasurer
+- doc elements: courtstructure, fortressstarting, guard
 
 Incarn
 intro: You are a warrior monk who serves Ravenheart.
@@ -169,7 +169,7 @@ intro: You are a warrior monk who serves Ravenheart.
 - difficulty: normal
 - multiple: false
 - starting tag: Fighter (Skilled), Treasurer
-- doc elements: courtstructure, fortressstarting, guard, treasurer, postchristianity
+- doc elements: courtstructure, fortressstarting, guard, postchristianity
 
 Guard
 intro: Serve the Baron, salute your Captain, and hold back the tide of darkness.
@@ -267,7 +267,7 @@ intro: Above all, keep your Serpents in check.
 - difficulty: normal
 - multiple: false
 - starting tag: Medicine (Excellent)
-- doc elements: townstarting, medicine
+- doc elements: townstarting, medical
 
 Serpent
 intro: With science, the sky’s the limit.
@@ -277,7 +277,7 @@ intro: With science, the sky’s the limit.
 - difficulty: normal
 - multiple: true
 - starting tag: Medicine (Skilled)
-- doc elements: townstarting, medicine
+- doc elements: townstarting, medical
 
 ### Faction: Order of the Silver Cross (parent:The Church)
 Inquisitor
@@ -330,7 +330,7 @@ intro: Lead the Town. Ensure it works and pays its taxes.
 - difficulty: normal
 - multiple: false
 - starting tag: Respected, Leader, Old, Farmer
-- doc elements: townstarting, treasurer, farming
+- doc elements: townstarting, farming
 
 Sheriff
 intro: Keep the peace in the Town, six-shooter at your hip.

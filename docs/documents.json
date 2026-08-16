@@ -104,13 +104,6 @@
       "description": ""
     },
     {
-      "name": "Medicine",
-      "key": "medicine",
-      "public": false,
-      "tags": [],
-      "description": ""
-    },
-    {
       "name": "Cooking",
       "key": "cooking",
       "public": false,
