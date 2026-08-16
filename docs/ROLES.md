@@ -6,6 +6,8 @@ Situation rundown
 ## Roles
 
 ### Faction: {Faction}
+{Role Name}
+intro: {Public-facing one-line description}
 - Summary point 1...
 - Summary point 2...
 - difficulty: {hard, normal, easy}
@@ -25,6 +27,7 @@ Situation rundown
 
 ### Faction: The Court
 Baron
+intro: You are the ruler. Protect Ravenheart. Find a balance between staying happy and alive.
 - You are the ruler. Protect your dynasty, and optionally your people. Find a balance between staying happy and alive.
 - Your offices have a PA system that can be heard in intercoms throughout Ravenheart.
 - Above all, be proactive. Ravenheart is a dangerous place. If you prepare well, you may keep the throne.
@@ -34,6 +37,7 @@ Baron
 - doc elements: courtstructure, lifewebbasic, fortressstarting, treasurer
 
 Baroness
+intro: Take care of your children. Be the Lioness, or succumb to anxiety.
 - Take care of your children. Be the Lioness, or succumb to anxiety.
 - difficulty: easy
 - multiple: false
@@ -41,6 +45,7 @@ Baroness
 - doc elements: courtstructure, lifewebbasic, fortressstarting
 
 Heir
+intro: You are your father’s son. Are you the exact opposite of him, or his closest ally?
 - You are your father’s son. Are you the exact opposite of him, or his closest ally?
 - difficulty: easy
 - multiple: false
@@ -48,6 +53,7 @@ Heir
 - doc elements: courtstructure, lifewebbasic, fortressstarting
 
 Successor
+intro: You are the Baron’s daughter. Bring some light to the darkness.
 - You are the Baron’s daughter. Bring some light to the darkness.
 - difficulty: easy
 - multiple: false
@@ -55,6 +61,7 @@ Successor
 - doc elements: courtstructure, lifewebbasic, fortressstarting
 
 Hand
+intro: You’re the Baron’s best friend and perhaps the only man he can truly trust.
 - You’re the Baron’s best friend and perhaps the only man he can truly trust. You are completely loyal to him.
 - The Baron works best when he’s informed and has a court that’s loyal and organized. You are his spymaster, his executor, his voice. Without you, Ravenheart collapses.
 - Above all, be proactive. Ravenheart is a dangerous place. If you prepare well, the Baron may keep the throne. If you don’t, it won’t be long until someone kills him or makes a fool out of him.
@@ -64,6 +71,7 @@ Hand
 - doc elements: courtstructure, lifewebbasic, fortressstarting, courtier
 
 Meister
+intro: You are the Keep’s brains, but more importantly, its circulatory system.
 - You are the Keep’s brains, but more importantly, its circulatory system. Ensure the Town sends its taxes—your main contact there is the Headman—and oversee that no one is taking undue amounts of Resources from the Silo.
 - Consider keeping records of what happens every day. They may be useful later.
 - You have minor medical training and you know how to use the Keep’s messenger ravens. 
@@ -73,6 +81,7 @@ Meister
 - doc elements: courtstructure, lifewebbasic, fortressstarting, fortressstartingtithe, fortressstartingletter, courtier, ravens
 
 Courtier
+intro: For whatever reason, the Baron keeps you around in his court.
 - For whatever reason, the Baron keeps you around in his court. Convince the Captain to launch an expedition into the caves, host marvelous feasts, and duel your fellow courtiers for the Successor’s affection.
 - difficulty: easy
 - multiple: true
@@ -80,6 +89,7 @@ Courtier
 - doc elements: courtier, courtstructure, fortressstarting
 
 Courtier (Manor Lord)
+intro: Live in your manor, enjoy your wine, and participate in court politics.
 - Live in your manor, enjoy your wine, and participate in court politics.
 - difficulty: easy
 - multiple: true
@@ -88,6 +98,7 @@ Courtier (Manor Lord)
 - doc elements: courtier, courtstructure, fortressstarting
 
 Courtier (Manor Lady)
+intro: Support your husband and maintain your manor.
 - Support your husband and maintain your manor.
 - difficulty: easy
 - multiple: true
@@ -96,6 +107,7 @@ Courtier (Manor Lady)
 - doc elements: courtier, courtstructure, fortressstarting
 
 Courtier (Minstrel)
+intro: Compose ballads, smuggle drugs from the town, and keep the Baron happy.
 - Compose ballads, smuggle drugs from the town (and peddle them to the courtiers), keep the Baron happy.
 - difficulty: easy
 - multiple: true
@@ -104,6 +116,7 @@ Courtier (Minstrel)
 - doc elements: courtier, courtstructure, fortressstarting
 
 Courtier (Old Knight)
+intro: Reminisce about your valiant service against the Cult of Kosm in 1025.
 - Reminisce about your valiant service against the Cult of Kosm in 1025. Polish your zweihander, take potions for your arthritis, and serve the Baron.
 - difficulty: easy
 - multiple: true
@@ -112,6 +125,7 @@ Courtier (Old Knight)
 - doc elements: courtier, courtstructure, fortressstarting
 
 Courtier (Diplomat)
+intro: Recover ancient artifacts and study Ravenheartian culture.
 - Recover ancient artifacts and study Ravenheartian culture. Meddle. Convince the Baron to join your interstellar federation. Be a scapegoat.
 - difficulty: easy
 - multiple: true
@@ -120,6 +134,7 @@ Courtier (Diplomat)
 - doc elements: courtier, diplomat, courtstructure, fortressstarting
 
 Servant
+intro: Keep the fortress running.
 - Keep the fortress running. Clean, cook, maintain, and serve.
 - difficulty: easy
 - multiple: true
@@ -127,6 +142,7 @@ Servant
 - doc elements: courtier, cooking, courtstructure, fortressstarting
 
 Servant (Chef)
+intro: Prepare meals for the household and keep the kitchens running.
 - Prepare meals for the household and keep the kitchens running.
 - difficulty: easy
 - multiple: true
@@ -139,6 +155,7 @@ Servant (Chef)
 parent:The Court
 
 Captain
+intro: Bravely lead the Watch and hold back the darkness, you goddamn hero.
 - Bravely lead the watch and hold back the darkness, you goddamn hero.
 - difficulty: hard
 - multiple: false
@@ -146,6 +163,7 @@ Captain
 - doc elements: courtstructure, fortressstarting, guard, treasurer
 
 Incarn
+intro: You are a warrior monk who serves Ravenheart.
 - You are a warrior monk and you serve Ravenheart. You love goodness and hate evil.
 - Your job is to guard the dungeon, process migrants, and protect the Silver Cross, Ravenheart's only relic. The Silver Cross is an ancient artifact, rumored to ward away evil.
 - difficulty: normal
@@ -154,6 +172,7 @@ Incarn
 - doc elements: courtstructure, fortressstarting, guard, treasurer, postchristianity
 
 Guard
+intro: Serve the Baron, salute your Captain, and hold back the tide of darkness.
 - Serve the Baron, salute your Captain, and hold back the tide of darkness.
 - difficulty: easy
 - multiple: true
@@ -161,6 +180,7 @@ Guard
 - doc elements: courtstructure, fortressstarting, guard
 
 Squire
+intro: Train. One day, you might become a knight.
 - Train. One day, you might become a knight.
 - difficulty: easy
 - multiple: true
@@ -170,6 +190,7 @@ Squire
 ## Threats
 
 Sympathizer (Fortress)
+intro: Install the Bastard on the throne—by any means necessary.
 - Your main goal: install the Bastard on the throne. To that end, turn the court against itself, scheme, and so on.
 - You must also choose a second, self-serving goal. Ideas: kill the Baron in a dramatic way as revenge; kidnap the Heir or Successor (you're obsessed); take the Manor from the Lord and install yourself in it. In other words, figure out why you are personally invested in seeing this through.
 - Be creative. Turn people against each other, convert people, cause incidents that make other people look bad. 
@@ -177,6 +198,7 @@ Sympathizer (Fortress)
 - doc elements:
 
 Succubus (Fortress)
+intro: You live for the thrill of enslaving souls and causing pain.
 - You don't need to eat. Instead, you live for the thrill of enslaving souls and causing pain, and will become depressed if you don't. You gain Tag Points by enslaving souls.
 - When you enslave a soul, that person has to follow your commands. You can only control up to two people at a time.
 - You find normal crosses tacky and boring. Fire scares you somewhat—it definitely hurts. However, the Silver Cross terrifies you and burns you on touch.
@@ -197,6 +219,7 @@ Succubus (Fortress)
 
 ### Faction: The Church
 Bishop
+intro: Lead the Church, and be a shining example of goodness in dark days.
 - It is not the first time dark days have come to Ravenheart, but they are difficult times still. You hope the people will survive—God will ensure it. During this difficult transition, ensure you serve as a shining example of goodness.
 - At some point, you will have to decide between peacefulness or the Order of the Silver Cross. 
 - Along with the Priest, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts). 
@@ -206,6 +229,7 @@ Bishop
 - doc elements: townstarting, postchristianity
 
 Priest 
+intro: Care for the needy, lend an ear, and kindle goodness in others.
 - It is not the first time dark days have come to Ravenheart. The people will survive—God will ensure it. During this difficult transition, ensure you serve as a shining example of goodness. Evil can only be held back with Truth—do not stoop to violence or zealotry.
 - Care for the needy, lend an ear, and kindle goodness in others. Pay visits to the Fortress. Practice pacifism or support the Inquisition.
 - Along with the Bishop, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts).
@@ -215,6 +239,7 @@ Priest
 - doc elements: townstarting, postchristianity
 
 Priest (Nun)
+intro: Care for the needy, lend an ear, and kindle goodness in others.
 - It is not the first time dark days have come to Ravenheart. The people will survive—God will ensure it. During this difficult transition, ensure you serve as a shining example of goodness. Evil can only be held back with Truth—do not stoop to violence or zealotry.
 - Care for the needy, lend an ear, and kindle goodness in others. Pay visits to the Fortress. Practice pacifism or support the Inquisition.
 - Along with the Bishop, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts). 
@@ -225,6 +250,7 @@ Priest (Nun)
 - doc elements: townstarting, postchristianity
 
 Scholastic
+intro: Search for knowledge—occult or otherwise—and write your magnum opus.
 - Earth is a speck in the infinite firmament. You have always been humbled—or perhaps energized—by the Truth. Try to understand it. Search for knowledge—occult or otherwise—and write your magnum opus. Be a hermit or preach on the streets. Whether you wake others up or not, ensure you yourself *never* fall asleep.
 - difficulty: normal
 - multiple: false
@@ -233,6 +259,7 @@ Scholastic
 
 ### Faction: The Sanctuary
 Esculap
+intro: Above all, keep your Serpents in check.
 - Above all, keep your Serpents in check. Otherwise, further science and treat the wounded.
 - With science, the sky’s the limit. You can brew medicines and potions, install implants and body-modifications, and even experiment for the good of science.
 - If there’s no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners.
@@ -243,6 +270,7 @@ Esculap
 - doc elements: townstarting, medicine
 
 Serpent
+intro: With science, the sky’s the limit.
 - With science, the sky’s the limit. You can brew medicines and potions, install implants and body-modifications, and even experiment for the good of science.
 - If there’s no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners.
 - You can perform medicine, removing negative medical tags according to their skill, Resource, and action cost. 
@@ -253,6 +281,7 @@ Serpent
 
 ### Faction: Order of the Silver Cross (parent:The Church)
 Inquisitor
+intro: It is your everlasting duty to protect your people by expunging the barony’s corruption.
 - Do you know what it means to love God?
 - Dark days, exactly as preached in the scriptures, are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter! You have seen—*seen*—the blood, the horror. There are things that lurk in the shadows that no man could comprehend. But you have also seen the goodness of God.
 - You are not thirsty for power. You are just sane. It is your everlasting duty to protect your people by expunging the barony’s corruption. To this end, organize your followers and, above all, work to radicalize the Town, the Church, and possibly even the Court.
@@ -265,6 +294,7 @@ Inquisitor
 - doc elements: townstarting, postchristianity
 
 Practicus
+intro: Serve the Inquisitor, and work to radicalize the Town, the Church, and possibly even the Court.
 - Do you know what it means to love God?
 - Dark days, exactly as preached in the scriptures, are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter! You have seen—*seen*—the blood, the horror. There are things that lurk in the shadows that no man could comprehend. But you have also seen the goodness of God.
 - You are not thirsty for power. You are just sane. It is your everlasting duty to protect your people by expunging the barony’s corruption. Work to radicalize the Town, the Church, and possibly even the Court.
@@ -277,6 +307,7 @@ Practicus
 - doc elements: townstarting, postchristianity
 
 Preacher
+intro: You are the Order’s face. Speak in the Town Square for all to hear.
 - You are the Order’s face. Speak in the Town Square for all to hear.
 - Do you know what it means to love God?
 - Dark days, exactly as preached in the scriptures, are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter! You have seen—*seen*—the blood, the horror. There are things that lurk in the shadows that no man could comprehend. But you have also seen the goodness of God.
@@ -291,16 +322,18 @@ Preacher
 
 ### Faction: The Town
 Headman
+intro: Ensure the Town works—and pays its taxes.
 - On certain days, you hike up the mountain and behold the Town. Those are the people that are beholden to you. You cannot afford to let them down, Headman!
-- Your main job is to ensure people are working. You are beholden to the Meister, the Baron’s taxman, and things have gotten nasty in the past when the tithe didn’t meet his expectations.
+- Your main job is to ensure people are working and tax them. You are beholden to the Meister, the Baron’s taxman, and things have gotten nasty in the past when the tithe didn’t meet his expectations. He’ll take from the Silo; make sure it’s stocked.
 - You informally lead the Town—everyone knows you and you know everyone. You can use a Move to decipher up to 3 random tags of anyone in the Town faction.
-- You are beholden to the Meister, the Baron’s tax-man. 
+- On day one, figure out who should be on the Silo payroll—like the Sheriff—and who is capable of sustaining themselves.
 - difficulty: normal
 - multiple: false
 - starting tag: Respected, Leader, Old, Farmer
 - doc elements: townstarting, treasurer, farming
 
 Sheriff
+intro: Keep the peace in the Town, six-shooter at your hip.
 - On certain days, you hike up the mountain and behold the Town. Those are the people that are beholden to you. You cannot afford to let them down, Sheriff!
 - You have a trusty .45 six-shooter, a reject from the Fortress’s armory.
 - difficulty: normal
@@ -308,7 +341,18 @@ Sheriff
 - starting tag: Fighter (Trained), Old .45 Revolver
 - doc elements: townstarting
 
+Metalsmith
+intro: No one else can do it, Metalsmith.
+- No one else can do it, Metalsmith. 
+- With smithing, you are only limited by your Resources and your creativity. You can make weapons, but you can also make armor, tools, siege equipment, sculptures...
+- Simple things 
+- difficulty: normal
+- multiple: false
+- starting tag: Hardy, Smithing
+- doc elements: townstarting, smithing
+
 Adventurer
+intro: Sell your services. Delve into the Caves.
 - Sell your services. Delve into the Caves.
 - difficulty: normal
 - multiple: true
@@ -316,6 +360,7 @@ Adventurer
 - doc elements: townstarting
 
 Merchant
+intro: Make your fortune buying and selling Tags.
 - Ravenheart is a great source of business and not much else. You wouldn’t dare put your heart here—the place is doomed. 
 - Your goal is to make as many Resources as you can by buying and selling Tags. You have a Supply Depot in the caves: go there to request Tags by shuttle (it’ll cost you), and then sell them. To sell Tags, simply message a GM explaining who’d like the tag and how much you’re selling it for.
 - If things ever get too dour, simply hop on your sponsor’s shuttle… if you can pay for it. Trip’s 30 Resources flat, pal.
@@ -325,6 +370,7 @@ Merchant
 - doc elements: townstarting, merchantlist
 
 Docker
+intro: Serve the Merchant and get drunk during the night.
 - Serve the Merchant and get drunk during the night. Maybe he’ll let you get a ride on his spaceship if things ever get bad around here.
 - difficulty: easy
 - multiple: true
@@ -332,6 +378,8 @@ Docker
 - doc elements: townstarting, merchantlist
 
 Peasant
+intro: You are a jobless peasant.
+- You are a jobless peasant
 - Do your job during the day, live a free life at night.
 - difficulty: easy
 - multiple: true
@@ -339,30 +387,35 @@ Peasant
 - doc elements: townstarting
 
 Peasant (Farmer)
+intro: Grow food during the day, live a free life at night.
 - Grow food during the day, live a free life at night.
 - difficulty: easy
 - multiple: true
 - parent role: Peasant
-- starting tag: Hardy
+- starting tag: Hardy, Farmer
 - doc elements: townstarting
 
 Peasant (Fisher)
+intro: Fish during the day, live a free life at night.
 - Fish during the day, live a free life at night.
+- Fishing is an Effort. It produces 
 - difficulty: easy
 - multiple: true
 - parent role: Peasant
-- starting tag: Hardy
+- starting tag: Hardy, Fisherman
 - doc elements: townstarting
 
 Peasant (Builder)
+intro: Build and maintain during the day, live a free life at night.
 - Build and maintain during the day, live a free life at night.
 - difficulty: easy
 - multiple: true
 - parent role: Peasant
-- starting tag: Hardy
+- starting tag: Hardy, Builder
 - doc elements: townstarting
 
 Herald
+intro: Tell news, and take messages between the Village and the Fortress.
 - Tell news, take messages between the Village and the Fortress, and buy a radio from the Merchant to make your job easier.
 - difficulty: easy
 - multiple: true
@@ -370,6 +423,7 @@ Herald
 - doc elements: townstarting
 
 Outsider (Healer, Hunter)
+intro: Live on the outskirts, forage herbs, and worship Sylva, god of Nature.
 - Live on the outskirts, forage herbs, and worship Sylva, god of Nature.
 - difficulty: easy
 - multiple: true
@@ -377,6 +431,7 @@ Outsider (Healer, Hunter)
 - doc elements: townstarting
 
 Innkeeper (Innkeep, Cook, Brewer, Barmaid)
+intro: Run the inn.
 - Run the inn.
 - difficulty: easy
 - multiple: true
@@ -384,6 +439,7 @@ Innkeeper (Innkeep, Cook, Brewer, Barmaid)
 - doc elements: townstarting
 
 Mortus
+intro: Bury people and bring them to peace.
 - Bury people and bring them to peace. Feed bums to the Lifeweb.
 - difficulty: easy
 - multiple: true
@@ -391,6 +447,7 @@ Mortus
 - doc elements: townstarting
 
 Pusher
+intro: Sell drugs.
 - Sell drugs.
 - difficulty: normal
 - multiple: true
@@ -398,6 +455,7 @@ Pusher
 - doc elements: townstarting
 
 Bum
+intro: You live in a shell and sleep with the dogs, but you understand life (or think you do).
 - You live in a shell and sleep with the dogs, but you understand life (or think you do). Beg for food and coin.
 - difficulty: easy
 - multiple: true
@@ -407,6 +465,7 @@ Bum
 ## Threats
 
 Cult of Bacchus (Leader)
+intro: Bacchus has willed you to take Ravenheart for them.
 - Bacchus is the Lustful God, Creator of Illusions, the Eternal One. Bacchus is honest. Bacchus is life. Bacchus is pleasure. Bacchus is a zealot of hedonism. They rejoice over the fulfillment of desires and the euphoric suicide of their followers.
 - Bacchus has willed you to take Ravenheart for them. 
 - Bacchus is often depicted as an apple, a deer, or, in some circles, as a gigantic dead sea creature. Bacchus's gender is irrelevant. The specifics of doctrine are for you to figure out if you want.
@@ -421,6 +480,7 @@ Cult of Bacchus (Leader)
 - doc elements: townstarting, cult
 
 Cult of Bacchus (Cultist)
+intro: You either love Bacchus and believe in their message, or love-hate them.
 - Bacchus is the Lustful God, Creator of Illusions, the Eternal One. Bacchus is honest. Bacchus is life. Bacchus is pleasure. Bacchus is a zealot of hedonism. They rejoice over the fulfillment of desires and the euphoric suicide of their followers.
 - You either love Bacchus and believe in their message, or love-hate them. Either way, you are certain you'll never leave.
 - Bacchus is often depicted as an apple, a deer, or, in some circles, as a gigantic dead sea creature. Bacchus's gender is irrelevant. The specifics of doctrine are for you to figure out if you want.
@@ -432,6 +492,7 @@ Cult of Bacchus (Cultist)
 - doc elements: townstarting
 
 The Judge (Town, or Cave)
+intro: "Whatever in creation exists without my knowledge exists without my consent."
 - "Whatever in creation exists without my knowledge exists without my consent." You start with +15 Tag Points.
 - True evil doesn't exist, but you come close. Among the lost, weak, and misunderstood, history contains those who inexplicably choose darkness. That is you.
 - Your ultimate goal is to become infamous—not because you care what other people think, but because it sends a message. The more people know, fear, or respect your name, the better.
@@ -452,6 +513,7 @@ The Judge (Town, or Cave)
 
 ### Faction: The Bastard's Camp
 Bastard (Windrider Clan)
+intro: You've finally returned to your ancestral home.
 - You've finally returned to your ancestral home. Unite your Lieutenants, feed your men, and take Ravenheart—it's your people's only hope.
 - The Bastard and his men wear wind goggles and capes and generally aura farm. It's a wasteland out there. Most of your people are herders, healers, and engineers.
 - difficulty: hard
@@ -460,6 +522,7 @@ Bastard (Windrider Clan)
 - doc elements: campstarting
 
 Camp Followers
+intro: Tend wounds, keep the camp, keep the herds.
 - Tend wounds, keep the camp, keep the herds.
 - difficulty: easy
 - multiple: true
@@ -467,6 +530,7 @@ Camp Followers
 - doc elements: campstarting
 
 Mother
+intro: Counsel and support your son.
 - Counsel and support your son, spy on the Lieutenants and ensure their loyalty. You would die for him.
 - difficulty: normal
 - multiple: false
@@ -474,6 +538,7 @@ Mother
 - doc elements: campstarting
 
 Champion
+intro: You taught the Bastard how to fight, how to sing, how to survive.
 - You taught the Bastard how to fight, how to sing, how to survive. You will follow him to death.
 - difficulty: normal
 - multiple: false
@@ -481,6 +546,7 @@ Champion
 - doc elements: campstarting
 
 Mentat
+intro: The Bastard's right-hand man.
 - The Bastard's right-hand man, in charge of ensuring—across clan lines—that there's enough Food and it's being equally split. He is the spymaster, the genius, the engineer, the calculator.
 - difficulty: normal
 - multiple: false
@@ -488,6 +554,7 @@ Mentat
 - doc elements: campstarting
 
 Lieutenant (Broken Spears Clan)
+intro: Your men are hungry. What is all this kingmaking business?
 - Your men are hungry. What is all this kingmaking business? Just attack the fortress, raid the village! You trust the Bastard, but he doesn't act fast enough. Stimulant users.
 - You are feuding with the Wheelers.
 - Members: Fighter, Fighter (Builder), Fighter (Standard Bearer), Fighter (Etc.), Camp Follower.
@@ -497,6 +564,7 @@ Lieutenant (Broken Spears Clan)
 - doc elements: campstarting
 
 Lieutenant (Six-Spoke Wheel Clan)
+intro: Famed for their mastery over the revolver.
 - Famed for their mastery over the revolver. The Six-Spoke Wheel Clan are ancient herders and lawkeepers—the old guard. Defend your honor. You trust the Bastard, but he doesn't respect the old ways enough.
 - You are feuding with the Broken Spears.
 - Members: Fighter, Fighter (Tinker), Fighter (Standard Bearer), etc., Camp Follower.
@@ -506,6 +574,7 @@ Lieutenant (Six-Spoke Wheel Clan)
 - doc elements: campstarting
 
 Lieutenant (Windrider Clan)
+intro: All you want is a home for your people.
 - All you want is a home for your people, and the Bastard can provide you that. You're fully loyal to him.
 - difficulty: normal
 - multiple: false
@@ -515,11 +584,13 @@ Lieutenant (Windrider Clan)
 ## Threats
 
 Brigand Leader
+intro: You raided a shipment on the way to the Fortress—well done!
 - You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
 - starting tag: Opportunist, Leader
 - doc elements: campstarting
 
 Brigand
+intro: You raided a shipment on the way to the Fortress—well done!
 - You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
 - starting tag: Opportunist
 - doc elements: campstarting
@@ -533,6 +604,7 @@ Brigand
 
 ### Faction: Caves
 Migrant
+intro: Make it to the fortress.
 - Make it to the fortress.
 - difficulty: easy
 - multiple: true
@@ -540,6 +612,7 @@ Migrant
 - doc elements:
 
 Mercenary
+intro: Delve into the Caves for pay.
 - Delve into the Caves for pay.
 - difficulty: normal
 - multiple: true
@@ -547,6 +620,7 @@ Mercenary
 - doc elements:
 
 Miner
+intro: Work the Caves.
 - Work the Caves.
 - difficulty: easy
 - multiple: true
@@ -556,16 +630,19 @@ Miner
 ## Threats
 
 Monsters (NPC)
+intro: Monsters in the caves, to be hunted.
 - Monsters in the caves, to be hunted.
 - starting tag:
 - doc elements:
 
 Brigand Leader (Caves)
+intro: Loot the caves (dangerous) as a way to fund the Camp's war effort.
 - Loot the caves (dangerous) as a way to fund the Camp's war effort.
 - starting tag: Opportunist, Leader
 - doc elements:
 
 Brigand (Caves)
+intro: Loot the caves (dangerous) as a way to fund the Camp's war effort.
 - Loot the caves (dangerous) as a way to fund the Camp's war effort.
 - starting tag: Opportunist
 - doc elements:
