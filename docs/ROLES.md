@@ -108,7 +108,7 @@ Courtier (Old Knight)
 - difficulty: easy
 - multiple: true
 - parent role: Courtier
-- starting tag: Fighter (Sword), Arthritis, Armored
+- starting tag: Fighter (Skilled), Arthritis, Old, Armor
 - doc elements: courtier, courtstructure, fortressstarting
 
 Courtier (Diplomat)
@@ -142,7 +142,7 @@ Captain
 - Bravely lead the watch and hold back the darkness, you goddamn hero.
 - difficulty: hard
 - multiple: false
-- starting tag: Fighter (Skilled), Treasurer, Leader
+- starting tag: Fighter (Trained), Treasurer, Leader
 - doc elements: courtstructure, fortressstarting, guard, treasurer
 
 Incarn
@@ -154,7 +154,7 @@ Incarn
 - doc elements: courtstructure, fortressstarting, guard, treasurer
 
 Guard
-- Do what you are told to do.
+- Serve the Baron, salute your Captain, and hold back the tide of darkness.
 - difficulty: easy
 - multiple: true
 - starting tag: Fighter (Trained)
@@ -198,26 +198,35 @@ Succubus (Fortress)
 ### Faction: The Church
 Bishop
 - Encourage people to lead pious lives under God. Speak the healing word or side with the Inquisition.
-- Along with the Priest, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts) 
+- Along with the Priest, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts). 
 - difficulty: normal
 - multiple: false
 - starting tag: Priest, Leader
-- doc elements: townstarting, prayer
+- doc elements: townstarting, church
 
-Priest / Nun
+Priest 
 - Care for the needy, lend an ear, and kindle goodness in others. Pay visits to the Fortress. Practice pacifism or support the Inquisition.
 - Along with the Bishop, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts) 
 - difficulty: easy
 - multiple: true
 - starting tag: Priest
-- doc elements: townstarting, prayer
+- doc elements: townstarting, church
+
+Priest (Nun)
+- Care for the needy, lend an ear, and kindle goodness in others. Pay visits to the Fortress. Practice pacifism or support the Inquisition.
+- Along with the Bishop, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts) 
+- difficulty: easy
+- multiple: true
+- parent role: Priest
+- starting tag: Priest
+- doc elements: townstarting, church
 
 Scholastic
 - Try to understand the cosmos. Collect enough occult information to write your magnum opus. Be a hermit or preach on the streets. Burn at the stake.
 - difficulty: normal
 - multiple: false
 - starting tag: Intelligent
-- doc elements: townstarting
+- doc elements: townstarting, church
 
 ### Faction: The Sanctuary
 Esculap
