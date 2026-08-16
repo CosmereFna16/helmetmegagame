@@ -1,3 +1,4 @@
+import { NOBILITY_SLUG } from "@lifeweb/db";
 import { updateCharacterProfile, setMood, transferResources } from "../(app)/character/actions";
 import AppearanceField from "./AppearanceField";
 import AvatarField from "./AvatarField";
@@ -6,6 +7,7 @@ import TagStorePanel from "./TagStorePanel";
 import TagRequestPanel from "./TagRequestPanel";
 import DesirePanel from "./DesirePanel";
 import DefaultEffortPanel from "./DefaultEffortPanel";
+import MealPanel from "./MealPanel";
 import RichText from "./RichText";
 
 function groupTagsByCategory(characterTags) {
@@ -69,6 +71,7 @@ export default function CharacterSheet({
 }) {
   const isSelf = mode === "self";
   const tagGroups = groupTagsByCategory(character.tags);
+  const hasNobility = character.tags.some((ct) => ct.tag.slug === NOBILITY_SLUG);
   const turnsLeft =
     character.moodState !== "NEUTRAL" && openTurn && character.moodExpiresTurn != null
       ? character.moodExpiresTurn - openTurn.number
@@ -196,6 +199,16 @@ export default function CharacterSheet({
               Update
             </button>
           </form>
+        )}
+
+        {isSelf && (
+          <MealPanel
+            characterId={character.id}
+            hasNobility={hasNobility}
+            lastFineMealTurn={character.lastFineMealTurn}
+            openTurnNumber={openTurn?.number ?? null}
+            skipNextMealConsumption={character.skipNextMealConsumption}
+          />
         )}
 
         {isSelf && (

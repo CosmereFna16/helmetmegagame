@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import sharp from "sharp";
 import { redirect } from "next/navigation";
-import { prisma } from "@lifeweb/db";
+import { prisma, NOBILITY_SLUG } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
 import { syncCharacterNickname, setTurnPingRole, sendDm } from "@/lib/discordGuild";
@@ -83,6 +83,58 @@ export async function setMood(formData) {
       actionType: "mood_self_reported",
       targetCharacterId: character.id,
       details: { moodState, moodNote },
+    },
+  });
+
+  revalidatePath("/character");
+}
+
+// A Fine or Lavish meal exempts the character from next turn's automatic
+// resource consumption (see resolveNeeds() in db/index.js) and resets the
+// Nobility "turns since last fine meal" tracker. Lavish always triggers a
+// temporary Happy; Fine only does for non-Nobility characters — a Nobility
+// character eating Fine just meets their standing expectation, clearing an
+// existing Unhappy baseline immediately if nothing is currently overlaying it.
+export async function ateMeal(characterId, choice) {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+
+  if (!["FINE", "LAVISH"].includes(choice)) return;
+
+  const character = await prisma.character.findFirst({
+    where: { id: characterId, discordUserId: session.discordUserId, status: "ALIVE" },
+    include: { tags: { include: { tag: true } } },
+  });
+  if (!character) redirect("/character/new");
+
+  const hasNobility = character.tags.some((ct) => ct.tag.slug === NOBILITY_SLUG);
+
+  const [config, openTurn] = await Promise.all([
+    prisma.gameConfig.findUnique({ where: { id: 1 } }),
+    prisma.turn.findFirst({ where: { status: "OPEN" } }),
+  ]);
+
+  const data = { skipNextMealConsumption: true };
+  if (openTurn) data.lastFineMealTurn = openTurn.number;
+
+  const triggersHappy = choice === "LAVISH" || (choice === "FINE" && !hasNobility);
+  if (triggersHappy) {
+    data.moodState = "HAPPY";
+    data.moodNote = choice === "LAVISH" ? "A lavish meal" : "A fine meal";
+    data.moodExpiresTurn = openTurn ? openTurn.number + (config?.moodDurationTurns ?? 2) : null;
+  } else if (hasNobility && character.moodExpiresTurn == null && character.moodState !== "NEUTRAL") {
+    data.moodState = "NEUTRAL";
+    data.moodNote = null;
+  }
+
+  await prisma.character.update({ where: { id: character.id }, data });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "ate_meal",
+      targetCharacterId: character.id,
+      details: { choice },
     },
   });
 

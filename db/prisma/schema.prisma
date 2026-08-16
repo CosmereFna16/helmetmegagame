@@ -133,6 +133,8 @@ model Character {
   moodExpiresTurn Int?
   moodNote       String?
   isHungry       Boolean         @default(false)
+  skipNextMealConsumption Boolean @default(false)
+  lastFineMealTurn Int?
   avatarData     Bytes?
   avatarMimeType String?
   appearance     String?

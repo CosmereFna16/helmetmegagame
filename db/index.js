@@ -1,6 +1,6 @@
 const { PrismaClient } = require("@prisma/client");
 const { rollWeather, buildTurnAnnouncement } = require("./weather");
-const { HUNGERLESS_SLUG } = require("./lib/constants");
+const { HUNGERLESS_SLUG, NOBILITY_SLUG } = require("./lib/constants");
 
 const globalForPrisma = globalThis;
 
@@ -9,6 +9,11 @@ const prisma = globalForPrisma.prisma ?? new PrismaClient();
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
+
+// A Nobility character who goes this many turns without a Fine (or Lavish)
+// meal sours to Unhappy until they eat again — see resolveNeeds() below and
+// ateMeal() in web/app/(app)/character/actions.js.
+const NOBILITY_UNHAPPY_THRESHOLD_TURNS = 3;
 
 // Applies per-turn Needs decay (resource consumption, hunger, mood expiry)
 // to every ALIVE character for the turn being closed. Shared between the
@@ -19,24 +24,54 @@ async function resolveNeeds(turn, config) {
   const characters = await prisma.character.findMany({ where: { status: "ALIVE" } });
   const consumption = config?.resourceConsumptionPerTurn ?? 1;
 
-  const hungerlessTags = await prisma.characterTag.findMany({
-    where: { characterId: { in: characters.map((c) => c.id) }, tag: { slug: HUNGERLESS_SLUG } },
-    select: { characterId: true },
-  });
+  const [hungerlessTags, nobilityTags] = await Promise.all([
+    prisma.characterTag.findMany({
+      where: { characterId: { in: characters.map((c) => c.id) }, tag: { slug: HUNGERLESS_SLUG } },
+      select: { characterId: true },
+    }),
+    prisma.characterTag.findMany({
+      where: { characterId: { in: characters.map((c) => c.id) }, tag: { slug: NOBILITY_SLUG } },
+      select: { characterId: true },
+    }),
+  ]);
   const hungerlessIds = new Set(hungerlessTags.map((ct) => ct.characterId));
+  const nobilityIds = new Set(nobilityTags.map((ct) => ct.characterId));
 
   await Promise.all(
     characters.map((character) => {
-      const hadEnough = character.resources >= consumption;
-      const data = {
-        resources: hadEnough ? character.resources - consumption : character.resources,
-        isHungry: hadEnough ? false : !hungerlessIds.has(character.id),
-      };
+      const data = {};
+
+      // A meal eaten this turn (see ateMeal()) exempts this turn's automatic
+      // consumption — one-shot, cleared once spent.
+      if (character.skipNextMealConsumption) {
+        data.isHungry = false;
+        data.skipNextMealConsumption = false;
+      } else {
+        const hadEnough = character.resources >= consumption;
+        data.resources = hadEnough ? character.resources - consumption : character.resources;
+        data.isHungry = hadEnough ? false : !hungerlessIds.has(character.id);
+      }
+
+      // Nobility characters have a mood "baseline" driven by how long it's
+      // been since their last Fine/Lavish meal: Unhappy once that gap hits
+      // the threshold, Neutral otherwise. A temporary Happy (from a meal or
+      // a manual mood set) overlays this baseline and, once its duration
+      // expires below, reveals whatever the baseline has become by then.
+      let baseline = null;
+      if (nobilityIds.has(character.id) && character.lastFineMealTurn != null) {
+        const turnsSince = turn.number - character.lastFineMealTurn;
+        baseline = turnsSince >= NOBILITY_UNHAPPY_THRESHOLD_TURNS ? "UNHAPPY" : "NEUTRAL";
+      }
+
       if (character.moodExpiresTurn != null && character.moodExpiresTurn <= turn.number) {
-        data.moodState = "NEUTRAL";
+        data.moodState = baseline ?? "NEUTRAL";
         data.moodNote = null;
         data.moodExpiresTurn = null;
+      } else if (character.moodExpiresTurn == null && baseline != null && character.moodState !== baseline) {
+        data.moodState = baseline;
+        data.moodNote = null;
       }
+
       return prisma.character.update({ where: { id: character.id }, data });
     }),
   );

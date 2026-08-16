@@ -1,5 +1,11 @@
 const { prisma } = require("../index");
-const { HUNGERLESS_SLUG, FOLLOWER_OF_BACCHUS_SLUG, LEADER_SLUG, TREASURER_SLUG } = require("../lib/constants");
+const {
+  HUNGERLESS_SLUG,
+  FOLLOWER_OF_BACCHUS_SLUG,
+  LEADER_SLUG,
+  TREASURER_SLUG,
+  NOBILITY_SLUG,
+} = require("../lib/constants");
 
 const CATEGORIES = ["Placeholder 1", "Placeholder 2", "Placeholder 3"];
 const COSTS = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
@@ -16,6 +22,14 @@ const META_TAGS = [
     name: "Follower of Bacchus",
     slug: FOLLOWER_OF_BACCHUS_SLUG,
     description: "Unlocks the Bacchus tag category. Desire completions grant +5 tag points instead of +3.",
+    category: "Meta",
+    pointCost: 0,
+  },
+  {
+    name: "Nobility",
+    slug: NOBILITY_SLUG,
+    description:
+      "Expects a fine meal at least every 3 turns — go without and it sours into Unhappy until you eat again.",
     category: "Meta",
     pointCost: 0,
   },
