@@ -34,7 +34,7 @@ Baron
 - tag: leader
 - multiple: false
 - starting tag: Royal Blood, Leader, Treasurer
-- doc elements: courtstructure, lifewebbasic, fortressstartingtithe, fortressstartingletter
+- doc elements: courtstructure, lifewebbasic, fortressstarting
 
 Baroness
 - Take care of your children. Be the Lioness, or succumb to anxiety.
@@ -42,7 +42,7 @@ Baroness
 - leader: false
 - multiple: false
 - starting tag: Royal Blood
-- doc elements: courtstructure, lifewebbasic, fortressstartingtithe, fortressstartingletter
+- doc elements: courtstructure, lifewebbasic, fortressstarting
 
 Heir
 - You are your father’s son. Are you the exact opposite of him, or his closest ally?
@@ -50,7 +50,7 @@ Heir
 - leader: false
 - multiple: false
 - starting tag: Royal Blood
-- doc elements: courtstructure, lifewebbasic, fortressstartingtithe, fortressstartingletter
+- doc elements: courtstructure, lifewebbasic, fortressstarting
 
 Successor
 - You are the Baron’s daughter. Bring some light to the darkness.
@@ -58,7 +58,7 @@ Successor
 - leader: false
 - multiple: false
 - starting tag: Royal Blood
-- doc elements: courtstructure, lifewebbasic, fortressstartingtithe, fortressstartingletter
+- doc elements: courtstructure, lifewebbasic, fortressstarting
 
 Hand
 - You’re the Baron’s best friend and perhaps the only man he can truly trust. You are completely loyal to him.
@@ -68,7 +68,7 @@ Hand
 - leader: false
 - multiple: false
 - starting tag: Treasurer
-- doc elements: courtstructure, lifewebbasic, fortressstartingtithe, fortressstartingletter, courtier
+- doc elements: courtstructure, lifewebbasic, fortressstarting, courtier
 
 Meister
 - You are the Keep’s brains, but more importantly, its circulatory system. Ensure the Town sends its taxes—your main contact there is the Headman—and oversee that no one is taking undue amounts of Resources from the Silo.
@@ -141,22 +141,13 @@ Servant
 - starting tag: 
 - doc elements: courtier
 
-Servant (Maid)
-- Clean the chambers, maintain the household, attend to the courtiers’ needs.
-- difficulty: easy
-- leader: false
-- multiple: true
-- parent role: Servant
-- starting tag: 
-- doc elements: courtier
-
 Servant (Chef)
 - Prepare meals for the household and keep the kitchens running.
 - difficulty: easy
 - leader: false
 - multiple: true
 - parent role: Servant
-- starting tag: 
+- starting tag: Cook (1), Cook (2)
 - doc elements: courtier
 
 
@@ -171,11 +162,11 @@ Captain
 - doc elements:
 
 Incarn
-- Be a warrior monk. Protect the dungeon, process migrants, and guard the Silver Cross, Ravenheart's only relic.
+- You are a warrior monk. Guard the dungeon, process migrants, and guard the Silver Cross, Ravenheart's only relic.
 - difficulty: normal
 - leader: false
 - multiple: true
-- starting tag: Devout
+- starting tag: 
 - doc elements:
 
 Guard
@@ -183,7 +174,7 @@ Guard
 - difficulty: easy
 - leader: false
 - multiple: true
-- starting tag: Dutiful
+- starting tag: 
 - doc elements:
 
 Squire
@@ -191,24 +182,19 @@ Squire
 - difficulty: easy
 - leader: false
 - multiple: true
-- starting tag: Eager
+- starting tag: 
 - doc elements:
-
-## Locations
-- The Court: Throne Room, Meeting Room, The Charon
-- Living Areas: Quarters, Kitchen
-- Garrison: Dungeon, Barracks
 
 ## Threats
 
 Sympathizer (Fortress)
 - Your main goal: install the Bastard on the throne. To that end, turn the court against itself, scheme, and so on.
-- You must also choose a second, self-serving goal. Ideas: kill the Baron in a dramatic way as revenge; kidnap the Heir or Successor (you're obsessed); take the Manor from the Lord and install yourself in it.
-- Your Desires should be focused around topics such as: turning people against each other, converting people, causing incidents that make other people look bad, or causing sabotage.
+- You must also choose a second, self-serving goal. Ideas: kill the Baron in a dramatic way as revenge; kidnap the Heir or Successor (you're obsessed); take the Manor from the Lord and install yourself in it. In other words, figure out why you are personally invested in seeing this through.
+- Be creative. Turn people against each other, convert people, cause incidents that make other people look bad. 
 - difficulty: hard
 - leader: false
 - multiple: true
-- starting tag: Two-Faced
+- starting tag: 
 - doc elements:
 
 Succubus (Fortress)
@@ -221,13 +207,13 @@ Succubus (Fortress)
 - difficulty: hard
 - leader: false
 - multiple: false
-- starting tag: Otherworldly
+- starting tag: 
 - doc elements:
 
 --------
 
 # Town
-- The last tithe wagon didn't return from the Fortress—it was probably ambushed by bandits. The Meister won't be happy about this. Prepare to have the Silo drained—put people to work! Organize a militia to attack the bandits!
+- The last tithe wagon didn't return from the Fortress—it was probably ambushed by bandits. The Meister won't be happy about this. Prepare to have the Silo drained.
 - The Succubus takes souls while the Cult of Bacchus hosts ribald gatherings. The Church, followers of God, is split as the Order of the Silver Cross grows in power.
 - The Inquisitor has planned an execution with the sheriff's permission. The Cult of Bacchus wants to break him out.
 
@@ -235,14 +221,14 @@ Succubus (Fortress)
 
 ### Faction: Church
 Bishop
-- Encourage people to lead pious lives! Speak the true word of God or side with the Inquisition.
+- Encourage people to lead pious lives! Speak the healing word of God, or side with the Inquisition.
 - Along with the Priest, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts) and resolve to do better.
 - difficulty: normal
 - leader: true
 - tag: leader
 - multiple: false
 - starting tag: Pious
-- doc elements:
+- doc elements: townstarting
 
 Priest / Nun
 - Care for the needy, lend an ear, and kindle goodness in others. Pay visits to the Fortress. Practice pacifism or support the Inquisition.
@@ -250,7 +236,7 @@ Priest / Nun
 - leader: false
 - multiple: true
 - starting tag: Compassionate
-- doc elements:
+- doc elements: townstarting
 
 Scholastic
 - Try to understand the cosmos. Collect enough occult information to write your magnum opus. Be a hermit or preach on the streets. Burn at the stake.
@@ -258,7 +244,7 @@ Scholastic
 - leader: false
 - multiple: true
 - starting tag: Inquisitive
-- doc elements:
+- doc elements: townstarting
 
 ### Faction: The Sanctuary
 Esculap
@@ -268,7 +254,7 @@ Esculap
 - tag: leader
 - multiple: false
 - starting tag: Steady Hands
-- doc elements:
+- doc elements: townstarting
 
 Serpent
 - Perform surgeries, brew medicines, prescribe drugs, install implants and body-modifications, and experiment for the good of science. The more you can learn and experiment, the better at medicine you'll be.
@@ -276,7 +262,7 @@ Serpent
 - leader: false
 - multiple: true
 - starting tag: Steady Hands
-- doc elements:
+- doc elements: townstarting
 
 ### Faction: Order of the Silver Cross
 Inquisitor
@@ -286,7 +272,7 @@ Inquisitor
 - tag: leader
 - multiple: false
 - starting tag: Zealous
-- doc elements:
+- doc elements: townstarting
 
 Practicus
 - Serve the Inquisitor. Preach on the street and rile the people up.
@@ -294,7 +280,7 @@ Practicus
 - leader: false
 - multiple: true
 - starting tag: Zealous
-- doc elements:
+- doc elements: townstarting
 
 Zealot
 - Preach.
@@ -302,7 +288,7 @@ Zealot
 - leader: false
 - multiple: true
 - starting tag: Zealous
-- doc elements:
+- doc elements: townstarting
 
 ### Faction: The People (Village)
 Headman
@@ -312,7 +298,7 @@ Headman
 - tag: leader
 - multiple: false
 - starting tag: Respected
-- doc elements:
+- doc elements: townstarting
 
 Sheriff
 - Out of these five people, you know one of them is involved with something.
@@ -320,7 +306,7 @@ Sheriff
 - leader: false
 - multiple: false
 - starting tag: Watchful
-- doc elements:
+- doc elements: townstarting
 
 Adventurer
 - Sell your services. Delve into the Caves.
@@ -328,7 +314,7 @@ Adventurer
 - leader: false
 - multiple: true
 - starting tag: Reckless
-- doc elements:
+- doc elements: townstarting
 
 Merchant
 - Sells Tags, gives loans.
@@ -336,7 +322,7 @@ Merchant
 - leader: false
 - multiple: true
 - starting tag: Shrewd
-- doc elements:
+- doc elements: townstarting
 
 Peasant (Farmer, Fisher, Builder)
 - Grow food during the day, live a free life at night.
@@ -344,7 +330,7 @@ Peasant (Farmer, Fisher, Builder)
 - leader: false
 - multiple: true
 - starting tag: Hardy
-- doc elements:
+- doc elements: townstarting
 
 Herald
 - Tell news, take messages between the Village and the Fortress, and buy a radio from the Merchant to make your job easier.
@@ -352,7 +338,7 @@ Herald
 - leader: false
 - multiple: true
 - starting tag: Well-Connected
-- doc elements:
+- doc elements: townstarting
 
 Outsider (Healer, Hunter)
 - Live on the outskirts, forage herbs, and worship Sylva, god of Nature.
@@ -360,7 +346,7 @@ Outsider (Healer, Hunter)
 - leader: false
 - multiple: true
 - starting tag: Wild-Tuned
-- doc elements:
+- doc elements: townstarting
 
 Innkeeper (Innkeep, Cook, Brewer, Barmaid)
 - Run the inn.
@@ -368,7 +354,7 @@ Innkeeper (Innkeep, Cook, Brewer, Barmaid)
 - leader: false
 - multiple: true
 - starting tag: Hospitable
-- doc elements:
+- doc elements: townstarting
 
 Mortus
 - Bury people and bring them to peace. Feed bums to the Lifeweb.
@@ -376,7 +362,7 @@ Mortus
 - leader: false
 - multiple: true
 - starting tag: Unshaken
-- doc elements:
+- doc elements: townstarting
 
 Pusher
 - Sell drugs.
@@ -384,7 +370,7 @@ Pusher
 - leader: false
 - multiple: true
 - starting tag: Discreet
-- doc elements:
+- doc elements: townstarting
 
 Bum
 - You live in a shell and sleep with the dogs, but you understand life (or think you do). Beg for food and coin.
@@ -392,7 +378,7 @@ Bum
 - leader: false
 - multiple: true
 - starting tag: Streetwise
-- doc elements:
+- doc elements: townstarting
 
 ## Threats
 
@@ -412,7 +398,7 @@ Cult of Bacchus (Leader)
 - tag: leader
 - multiple: false
 - starting tag: Follower of Bacchus
-- doc elements:
+- doc elements: townstarting
 
 Cult of Bacchus (Cultist)
 - Bacchus is the Lustful God, Creator of Illusions, the Eternal One. Bacchus is honest. Bacchus is life. Bacchus is pleasure. Bacchus is a zealot of hedonism. They rejoice over the fulfillment of desires and the euphoric suicide of their followers.
@@ -426,7 +412,7 @@ Cult of Bacchus (Cultist)
 - leader: false
 - multiple: true
 - starting tag: Follower of Bacchus
-- doc elements:
+- doc elements: townstarting
 
 The Judge (Town, or Cave)
 - "Whatever in creation exists without my knowledge exists without my consent." You start with +15 Tag Points.
@@ -440,7 +426,7 @@ The Judge (Town, or Cave)
 - leader: false
 - multiple: false
 - starting tag: Infamous
-- doc elements:
+- doc elements: townstarting
 
 --------
 
@@ -459,7 +445,7 @@ Bastard (Windrider Clan)
 - tag: leader
 - multiple: false
 - starting tag: Royal Blood
-- doc elements:
+- doc elements: campstarting
 
 Camp Followers
 - Tend wounds, keep the camp, keep the herds.
@@ -467,7 +453,7 @@ Camp Followers
 - leader: false
 - multiple: true
 - starting tag: Resilient
-- doc elements:
+- doc elements: campstarting
 
 Mother
 - Counsel and support your son, spy on the Lieutenants and ensure their loyalty. You would die for him.
@@ -475,7 +461,7 @@ Mother
 - leader: false
 - multiple: false
 - starting tag: Watchful
-- doc elements:
+- doc elements: campstarting
 
 Champion
 - You taught the Bastard how to fight, how to sing, how to survive. You will follow him to death.
@@ -483,7 +469,7 @@ Champion
 - leader: false
 - multiple: false
 - starting tag: Battle-Hardened
-- doc elements:
+- doc elements: campstarting
 
 Mentat
 - The Bastard's right-hand man, in charge of ensuring—across clan lines—that there's enough Food and it's being equally split. He is the spymaster, the genius, the engineer, the calculator.
@@ -491,7 +477,7 @@ Mentat
 - leader: false
 - multiple: false
 - starting tag: Sharp Mind
-- doc elements:
+- doc elements: campstarting
 
 Lieutenant (Broken Spears Clan)
 - Your men are hungry. What is all this kingmaking business? Just attack the fortress, raid the village! You trust the Bastard, but he doesn't act fast enough. Stimulant users.
@@ -502,7 +488,7 @@ Lieutenant (Broken Spears Clan)
 - tag: leader
 - multiple: false
 - starting tag: Stimulant User
-- doc elements:
+- doc elements: campstarting
 
 Lieutenant (Six-Spoke Wheel Clan)
 - Famed for their mastery over the revolver. The Six-Spoke Wheel Clan are ancient herders and lawkeepers—the old guard. Defend your honor. You trust the Bastard, but he doesn't respect the old ways enough.
@@ -513,7 +499,7 @@ Lieutenant (Six-Spoke Wheel Clan)
 - tag: leader
 - multiple: false
 - starting tag: Old Guard
-- doc elements:
+- doc elements: campstarting
 
 Lieutenant (Windrider Clan)
 - All you want is a home for your people, and the Bastard can provide you that. You're fully loyal to him.
@@ -522,7 +508,7 @@ Lieutenant (Windrider Clan)
 - tag: leader
 - multiple: false
 - starting tag: Loyal
-- doc elements:
+- doc elements: campstarting
 
 ## Threats
 
@@ -533,7 +519,7 @@ Brigand Leader
 - tag: leader
 - multiple: false
 - starting tag: Opportunist
-- doc elements:
+- doc elements: campstarting
 
 Brigand
 - You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
@@ -541,7 +527,7 @@ Brigand
 - leader: false
 - multiple: true
 - starting tag: Opportunist
-- doc elements:
+- doc elements: campstarting
 
 --------
 
