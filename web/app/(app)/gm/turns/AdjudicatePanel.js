@@ -2,17 +2,11 @@
 
 import { useState } from "react";
 import TurnsTable from "./TurnsTable";
-import AdjudicationsTable from "./AdjudicationsTable";
 import DesiresTable from "./DesiresTable";
+import TagRequestsTable from "./TagRequestsTable";
 
-export default function AdjudicatePanel({ actions, adjudications, desires }) {
+export default function AdjudicatePanel({ actions, desires, tagRequests }) {
   const [tab, setTab] = useState("actions");
-  const [highlightId, setHighlightId] = useState(null);
-
-  function showAdjudication(actionId) {
-    setHighlightId(actionId);
-    setTab("completed");
-  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -20,22 +14,17 @@ export default function AdjudicatePanel({ actions, adjudications, desires }) {
         <button type="button" className="tab-item" data-active={tab === "actions"} onClick={() => setTab("actions")}>
           Actions
         </button>
-        <button
-          type="button"
-          className="tab-item"
-          data-active={tab === "completed"}
-          onClick={() => setTab("completed")}
-        >
-          Completed
-        </button>
         <button type="button" className="tab-item" data-active={tab === "desires"} onClick={() => setTab("desires")}>
           Desires
         </button>
+        <button type="button" className="tab-item" data-active={tab === "tags"} onClick={() => setTab("tags")}>
+          Tags
+        </button>
       </div>
 
-      {tab === "actions" && <TurnsTable actions={actions} onShowAdjudication={showAdjudication} />}
-      {tab === "completed" && <AdjudicationsTable entries={adjudications} highlightId={highlightId} />}
+      {tab === "actions" && <TurnsTable actions={actions} />}
       {tab === "desires" && <DesiresTable desires={desires} />}
+      {tab === "tags" && <TagRequestsTable requests={tagRequests} />}
     </div>
   );
 }

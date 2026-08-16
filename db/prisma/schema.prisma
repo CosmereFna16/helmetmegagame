@@ -63,6 +63,11 @@ enum TagSource {
   EVENT
 }
 
+enum TagChangeRequestStatus {
+  PENDING
+  RESOLVED
+}
+
 model GameConfig {
   id                        Int @id @default(1)
   startingTagPoints         Int @default(0)
@@ -133,6 +138,7 @@ model Character {
 
   tags           CharacterTag[]
   desires        Desire[]
+  tagChangeRequests TagChangeRequest[]
   actions        Action[]
   defaultEffort  DefaultEffort?
   setDefaultsFor DefaultEffort[] @relation("DefaultEffortSetBy")
@@ -183,6 +189,22 @@ model Desire {
   gmNotes       String?
   createdAt     DateTime     @default(now())
   completedAt   DateTime?
+}
+
+// A player-submitted note that their character's tags need GM attention
+// (wrong, missing, outdated) — reviewed from the Tags tab of /gm/turns,
+// same PENDING -> terminal shape as Desire but without a points award.
+model TagChangeRequest {
+  id                       String                  @id @default(cuid())
+  characterId              String
+  character                Character               @relation(fields: [characterId], references: [id])
+  requestedByDiscordUserId String
+  description              String
+  status                   TagChangeRequestStatus  @default(PENDING)
+  resultMessage            String?
+  gmNotes                  String?
+  createdAt                DateTime                @default(now())
+  resolvedAt               DateTime?
 }
 
 model Turn {

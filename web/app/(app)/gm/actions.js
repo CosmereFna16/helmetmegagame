@@ -159,6 +159,43 @@ export async function adjudicateDesire(formData) {
   revalidatePath("/gm/players");
 }
 
+export async function adjudicateTagChangeRequest(formData) {
+  const session = await requireGm();
+
+  const requestId = formData.get("requestId")?.toString();
+  if (!requestId) return;
+  const message = formData.get("message")?.toString().trim() || null;
+  const gmNotes = formData.get("gmNotes")?.toString().trim() || null;
+
+  const request = await prisma.tagChangeRequest.findUnique({
+    where: { id: requestId },
+    include: { character: true },
+  });
+  if (!request || request.status !== "PENDING") return;
+
+  await prisma.tagChangeRequest.update({
+    where: { id: request.id },
+    data: { status: "RESOLVED", resolvedAt: new Date(), resultMessage: message, gmNotes },
+  });
+
+  if (message) {
+    await sendDm(request.character.discordUserId, `Tag change request resolved: "${request.description}" — ${message}`).catch(() => {});
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "tag_change_request_resolved",
+      targetCharacterId: request.characterId,
+      details: { requestId },
+    },
+  });
+
+  revalidatePath("/gm/turns");
+  revalidatePath("/character");
+  revalidatePath("/gm/players");
+}
+
 export async function sendAffectedParties(formData) {
   const session = await requireGm();
   await sendPartyMessages(formData, session);

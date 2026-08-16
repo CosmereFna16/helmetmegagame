@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { getOpenTurn } from "@/lib/turn";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -30,9 +31,19 @@ export default async function AppLayout({ children }) {
   const baseNav = gm ? GM_NAV : PLAYER_NAV;
   const items = isSuperadmin(session.discordUserId) ? [...baseNav, DEV_NAV_ITEM] : baseNav;
 
+  const [confirmedActionCount, pendingDesireCount, pendingTagRequestCount] = gm
+    ? await Promise.all([
+        prisma.action.count({ where: { status: "CONFIRMED" } }),
+        prisma.desire.count({ where: { status: "PENDING" } }),
+        prisma.tagChangeRequest.count({ where: { status: "PENDING" } }),
+      ])
+    : [0, 0, 0];
+  const pendingAdjudicationCount = confirmedActionCount + pendingDesireCount + pendingTagRequestCount;
+  const badges = gm && pendingAdjudicationCount > 0 ? { "/gm/turns": pendingAdjudicationCount } : {};
+
   return (
     <div className="app-shell">
-      <NavRail items={items} />
+      <NavRail items={items} badges={badges} />
       <main className="app-main">{children}</main>
       <TurnChip turn={turn} />
     </div>

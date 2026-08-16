@@ -6,7 +6,7 @@ import { ScaleIcon, MessageIcon } from "../../../components/icons";
 import { formatTurnLabel } from "@/lib/turn";
 import { sendGmMessage } from "../actions";
 
-export default function TurnsTable({ actions, onShowAdjudication }) {
+export default function TurnsTable({ actions }) {
   const [zoneFilter, setZoneFilter] = useState("");
   const [factionFilter, setFactionFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -112,17 +112,7 @@ export default function TurnsTable({ actions, onShowAdjudication }) {
                   <td>{a.zoneName || "-"}</td>
                   <td>{a.type === "MOVE" ? "Move" : "Effort"}</td>
                   <td>{a.diceRoll ?? "-"}</td>
-                  <td>
-                    {a.status === "ADJUDICATED" ? (
-                      <button type="button" className="status-link" onClick={() => onShowAdjudication(a.id)}>
-                        Complete
-                      </button>
-                    ) : a.status === "PENDING" ? (
-                      "Pending"
-                    ) : (
-                      "Confirmed"
-                    )}
-                  </td>
+                  <td>{a.status === "ADJUDICATED" ? "Complete" : a.status === "PENDING" ? "Pending" : "Confirmed"}</td>
                   <td className="max-w-xs truncate">{a.description}</td>
                 </tr>
                 {messageRowId === a.id && (

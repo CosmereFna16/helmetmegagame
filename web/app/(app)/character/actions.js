@@ -291,3 +291,25 @@ export async function cancelDesire(characterId, desireId) {
 
   revalidatePath("/character");
 }
+
+// Anyone signed in — not just the character's own player — can flag that a
+// character's tags need GM attention (wrong, missing, outdated). Reviewed
+// from the Tags tab of /gm/turns via adjudicateTagChangeRequest() in gm/actions.js.
+export async function requestTagChanges(characterId, description) {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+
+  const trimmed = description?.toString().trim();
+  if (!trimmed) return;
+
+  const character = await prisma.character.findFirst({ where: { id: characterId } });
+  if (!character) return;
+
+  await prisma.tagChangeRequest.create({
+    data: { characterId: character.id, requestedByDiscordUserId: session.discordUserId, description: trimmed },
+  });
+
+  revalidatePath("/character");
+  revalidatePath(`/gm/players/${character.id}`);
+  revalidatePath("/gm/turns");
+}

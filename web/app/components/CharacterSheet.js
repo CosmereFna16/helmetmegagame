@@ -3,6 +3,7 @@ import AppearanceField from "./AppearanceField";
 import AvatarField from "./AvatarField";
 import TagChip from "./TagChip";
 import TagStorePanel from "./TagStorePanel";
+import TagRequestPanel from "./TagRequestPanel";
 import DesirePanel from "./DesirePanel";
 
 function groupTagsByCategory(characterTags) {
@@ -265,6 +266,7 @@ export default function CharacterSheet({
             storeTags={storeTags}
           />
         )}
+        <TagRequestPanel characterId={character.id} />
       </section>
 
       <DesirePanel
