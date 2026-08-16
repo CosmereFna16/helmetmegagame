@@ -8,7 +8,7 @@ Situation rundown
 ### Faction: {Faction}
 - Summary point 1...
 - Summary point 2...
-- difficulty: {difficult, moderate, easy}
+- difficulty: {hard, normal, easy}
 - leader: true/false
 - starting tag: tag, tag
 - doc elements: {element (ex:courtstructure)}, {element}, {element}
@@ -29,7 +29,7 @@ Baron
 - You are the ruler. Protect your dynasty, and optionally your people. Find a balance between staying happy and alive.
 - Your offices have a PA system that can be heard in intercoms throughout Ravenheart.
 - Above all, be proactive. Ravenheart is a dangerous place. If you prepare well, you may keep the throne.
-- difficulty: difficult
+- difficulty: hard
 - leader: true
 - tag: leader
 - multiple: false
@@ -64,7 +64,7 @@ Hand
 - You’re the Baron’s best friend and perhaps the only man he can truly trust. You are completely loyal to him.
 - The Baron works best when he’s informed and has a court that’s loyal and organized. You are his spymaster, his executor, his voice. Without you, Ravenheart collapses.
 - Above all, be proactive. Ravenheart is a dangerous place. If you prepare well, the Baron may keep the throne. If you don’t, it won’t be long until someone kills him or makes a fool out of him.
-- difficulty: moderate
+- difficulty: normal
 - leader: false
 - multiple: false
 - starting tag: Treasurer
@@ -74,7 +74,7 @@ Meister
 - You are the Keep’s brains, but more importantly, its circulatory system. Ensure the Town sends its taxes—your main contact there is the Headman—and oversee that no one is taking undue amounts of Resources from the Silo.
 - Consider keeping records of what happens every day. They may be useful later.
 - You have minor medical training and you know how to use the Keep’s messenger ravens. 
-- difficulty: moderate
+- difficulty: normal
 - leader: false
 - multiple: false
 - starting tag: Intelligent, Frail, Treasurer, Medical (1), Ravenkeeper
@@ -163,7 +163,7 @@ Servant (Chef)
 ### Faction: Fortress Guard
 Captain
 - Bravely lead the Guard. Battle your alcoholism.
-- difficulty: moderate
+- difficulty: normal
 - leader: true
 - tag: leader
 - multiple: false
@@ -172,7 +172,7 @@ Captain
 
 Incarn
 - Be a warrior monk. Protect the dungeon, process migrants, and guard the Silver Cross, Ravenheart's only relic.
-- difficulty: moderate
+- difficulty: normal
 - leader: false
 - multiple: true
 - starting tag: Devout
@@ -205,7 +205,7 @@ Sympathizer (Fortress)
 - Your main goal: install the Bastard on the throne. To that end, turn the court against itself, scheme, and so on.
 - You must also choose a second, self-serving goal. Ideas: kill the Baron in a dramatic way as revenge; kidnap the Heir or Successor (you're obsessed); take the Manor from the Lord and install yourself in it.
 - Your Desires should be focused around topics such as: turning people against each other, converting people, causing incidents that make other people look bad, or causing sabotage.
-- difficulty: difficult
+- difficulty: hard
 - leader: false
 - multiple: true
 - starting tag: Two-Faced
@@ -218,7 +218,7 @@ Succubus (Fortress)
 - The Cult of Bacchus is active in the area. They'd love to have you at their parties, and may be tracking you down. Flee! They'll take your treasured independence.
 - Choose your true form from the following: Satyr, Serpent, or Siren.
 - You gain Tag Points by sleeping with people (+7), but you can also entertain yourself by capturing and torturing people (+4). You also gain points by making someone obsessed with you, either through romance, jealousy, or anger (+4).
-- difficulty: difficult
+- difficulty: hard
 - leader: false
 - multiple: false
 - starting tag: Otherworldly
@@ -237,7 +237,7 @@ Succubus (Fortress)
 Bishop
 - Encourage people to lead pious lives! Speak the true word of God or side with the Inquisition.
 - Along with the Priest, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts) and resolve to do better.
-- difficulty: moderate
+- difficulty: normal
 - leader: true
 - tag: leader
 - multiple: false
@@ -254,7 +254,7 @@ Priest / Nun
 
 Scholastic
 - Try to understand the cosmos. Collect enough occult information to write your magnum opus. Be a hermit or preach on the streets. Burn at the stake.
-- difficulty: moderate
+- difficulty: normal
 - leader: false
 - multiple: true
 - starting tag: Inquisitive
@@ -263,7 +263,7 @@ Scholastic
 ### Faction: The Sanctuary
 Esculap
 - Keep your Serpents in check.
-- difficulty: moderate
+- difficulty: normal
 - leader: true
 - tag: leader
 - multiple: false
@@ -272,7 +272,7 @@ Esculap
 
 Serpent
 - Perform surgeries, brew medicines, prescribe drugs, install implants and body-modifications, and experiment for the good of science. The more you can learn and experiment, the better at medicine you'll be.
-- difficulty: moderate
+- difficulty: normal
 - leader: false
 - multiple: true
 - starting tag: Steady Hands
@@ -281,7 +281,7 @@ Serpent
 ### Faction: Order of the Silver Cross
 Inquisitor
 - Radicalize the Village and the Church, convince the Incarn to hand over the Silver Cross, and obtain ultimate purity. Ask the Scholastic what he's writing.
-- difficulty: difficult
+- difficulty: hard
 - leader: true
 - tag: leader
 - multiple: false
@@ -290,7 +290,7 @@ Inquisitor
 
 Practicus
 - Serve the Inquisitor. Preach on the street and rile the people up.
-- difficulty: moderate
+- difficulty: normal
 - leader: false
 - multiple: true
 - starting tag: Zealous
@@ -307,7 +307,7 @@ Zealot
 ### Faction: The People (Village)
 Headman
 - Mayor-ish. Can use a Move to learn up to 2 of a Village character's Tags. Pay the people on your payroll (Sheriff, etc.).
-- difficulty: moderate
+- difficulty: normal
 - leader: true
 - tag: leader
 - multiple: false
@@ -316,7 +316,7 @@ Headman
 
 Sheriff
 - Out of these five people, you know one of them is involved with something.
-- difficulty: moderate
+- difficulty: normal
 - leader: false
 - multiple: false
 - starting tag: Watchful
@@ -324,7 +324,7 @@ Sheriff
 
 Adventurer
 - Sell your services. Delve into the Caves.
-- difficulty: moderate
+- difficulty: normal
 - leader: false
 - multiple: true
 - starting tag: Reckless
@@ -380,7 +380,7 @@ Mortus
 
 Pusher
 - Sell drugs.
-- difficulty: moderate
+- difficulty: normal
 - leader: false
 - multiple: true
 - starting tag: Discreet
@@ -407,7 +407,7 @@ Cult of Bacchus (Leader)
 - Something very special happens if you host a party of 20 people. This is your ultimate goal. If the Succubus is present during the party, the surprise will be even better!
 - You can either initiate people willingly or forcibly. Either way, you must perform a ritual that involves (1) either alcohol, music, lavish food, or drugs, and (2) secret chants in an ancient tongue.
 - You can leave the Cult at any point, but you must confess everything you've ever done to a preacher, lose -10 Tag Points (yes, you can go into negative), and suffer through life-changing, excruciating withdrawal.
-- difficulty: difficult
+- difficulty: hard
 - leader: true
 - tag: leader
 - multiple: false
@@ -422,7 +422,7 @@ Cult of Bacchus (Cultist)
 - Followers of Bacchus gain +5 Tag Points per Desire instead of +3, but their Desires cannot be heroic or mild. They must, at least, be very indulgent. You also gain access to powerful Bacchus tags.
 - You can either initiate people willingly or forcibly. Either way, you must perform a ritual that involves (1) either alcohol, music, lavish food, or drugs, and (2) secret chants in an ancient tongue.
 - You can leave the Cult at any point, but you must confess everything you've ever done to a preacher, lose -10 Tag Points (yes, you can go into negative), and suffer through life-changing, excruciating withdrawal.
-- difficulty: difficult
+- difficulty: hard
 - leader: false
 - multiple: true
 - starting tag: Follower of Bacchus
@@ -436,7 +436,7 @@ The Judge (Town, or Cave)
 - You can work alone, but you are a natural leader. Take over the Brigands, start an adventurer troop, or rise the ranks of the Bastard's entourage.
 - Do not hide your nature or commit murders in the dark. People can't help but love you.
 - Your Desires must relate to violence, glory, control, or competition.
-- difficulty: difficult
+- difficulty: hard
 - leader: false
 - multiple: false
 - starting tag: Infamous
@@ -454,7 +454,7 @@ The Judge (Town, or Cave)
 Bastard (Windrider Clan)
 - You've finally returned to your ancestral home. Unite your Lieutenants, feed your men, and take Ravenheart—it's your people's only hope.
 - The Bastard and his men wear wind goggles and capes and generally aura farm. It's a wasteland out there. Most of your people are herders, healers, and engineers.
-- difficulty: difficult
+- difficulty: hard
 - leader: true
 - tag: leader
 - multiple: false
@@ -471,7 +471,7 @@ Camp Followers
 
 Mother
 - Counsel and support your son, spy on the Lieutenants and ensure their loyalty. You would die for him.
-- difficulty: moderate
+- difficulty: normal
 - leader: false
 - multiple: false
 - starting tag: Watchful
@@ -479,7 +479,7 @@ Mother
 
 Champion
 - You taught the Bastard how to fight, how to sing, how to survive. You will follow him to death.
-- difficulty: moderate
+- difficulty: normal
 - leader: false
 - multiple: false
 - starting tag: Battle-Hardened
@@ -487,7 +487,7 @@ Champion
 
 Mentat
 - The Bastard's right-hand man, in charge of ensuring—across clan lines—that there's enough Food and it's being equally split. He is the spymaster, the genius, the engineer, the calculator.
-- difficulty: moderate
+- difficulty: normal
 - leader: false
 - multiple: false
 - starting tag: Sharp Mind
@@ -497,7 +497,7 @@ Lieutenant (Broken Spears Clan)
 - Your men are hungry. What is all this kingmaking business? Just attack the fortress, raid the village! You trust the Bastard, but he doesn't act fast enough. Stimulant users.
 - You are feuding with the Wheelers.
 - Members: Fighter, Fighter (Builder), Fighter (Standard Bearer), Fighter (Etc.), Camp Follower.
-- difficulty: moderate
+- difficulty: normal
 - leader: true
 - tag: leader
 - multiple: false
@@ -508,7 +508,7 @@ Lieutenant (Six-Spoke Wheel Clan)
 - Famed for their mastery over the revolver. The Six-Spoke Wheel Clan are ancient herders and lawkeepers—the old guard. Defend your honor. You trust the Bastard, but he doesn't respect the old ways enough.
 - You are feuding with the Broken Spears.
 - Members: Fighter, Fighter (Tinker), Fighter (Standard Bearer), etc., Camp Follower.
-- difficulty: moderate
+- difficulty: normal
 - leader: true
 - tag: leader
 - multiple: false
@@ -517,7 +517,7 @@ Lieutenant (Six-Spoke Wheel Clan)
 
 Lieutenant (Windrider Clan)
 - All you want is a home for your people, and the Bastard can provide you that. You're fully loyal to him.
-- difficulty: moderate
+- difficulty: normal
 - leader: true
 - tag: leader
 - multiple: false
@@ -528,7 +528,7 @@ Lieutenant (Windrider Clan)
 
 Brigand Leader
 - You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
-- difficulty: moderate
+- difficulty: normal
 - leader: true
 - tag: leader
 - multiple: false
@@ -537,7 +537,7 @@ Brigand Leader
 
 Brigand
 - You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
-- difficulty: moderate
+- difficulty: normal
 - leader: false
 - multiple: true
 - starting tag: Opportunist
@@ -561,7 +561,7 @@ Migrant
 
 Mercenary
 - Delve into the Caves for pay.
-- difficulty: moderate
+- difficulty: normal
 - leader: false
 - multiple: true
 - starting tag: Battle-Hardened
@@ -579,7 +579,7 @@ Miner
 
 Monsters (NPC)
 - Monsters in the caves, to be hunted.
-- difficulty: difficult
+- difficulty: hard
 - leader: false
 - multiple: true
 - starting tag:
@@ -587,7 +587,7 @@ Monsters (NPC)
 
 Brigand Leader (Caves)
 - Loot the caves (dangerous) as a way to fund the Camp's war effort.
-- difficulty: moderate
+- difficulty: normal
 - leader: true
 - tag: leader
 - multiple: false
@@ -596,7 +596,7 @@ Brigand Leader (Caves)
 
 Brigand (Caves)
 - Loot the caves (dangerous) as a way to fund the Camp's war effort.
-- difficulty: moderate
+- difficulty: normal
 - leader: false
 - multiple: true
 - starting tag: Opportunist
