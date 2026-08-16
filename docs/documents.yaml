@@ -6,12 +6,33 @@ documents:
     key: courtier
     public: false
     tags: []
-    description: As a member of the Baron’s retinue, you may take food from the faction Silo whenever you please—within reason (Treasurer roles can see their Silo’s transaction history, so don’t steal. If you’d like to steal, arrange it with a GM)
+    description: As a member of the Baron’s retinue, you may take food from the faction Silo whenever you please—within reason (Treasurer and Leader roles can see their Silo’s transaction history, so don’t steal. If you’d like to steal, arrange it with a GM).
+  - name: Independent
+    key: independent
+    public: false
+    tags: []
+    description: As a member of the Church, you may take food from the faction Silo whenever you please—within reason (Treasurer and Leader roles can see their Silo’s transaction history, so don’t steal. If you’d like to steal, arrange it with a GM).
+  - name: Independent
+    key: independent
+    public: false
+    tags: []
+    description: As an independent townsman, you aren't on anyone's payroll. The Headman isn't expected to pay you. You should therefore ply a trade so you don't starve to death.
+  - name: ravenherteconomy
+    key: Ravenheart's Economy
+    public: true
+    tags: []
+    description: |-
+      You are welcome to change things, but this is how things have been done for years:
+
+      The town farms, fishes, and hunts. Most of that is taxed by the Headman, who sends a fraction of his tithe to the Bishop and the bulk to the Baron (through the Meister, his tax-man). What little he has left is paid to those on the town's payroll: the Sheriff and the Mortii.
+
+      So, the Fortress survives off of the town's taxes, and provides protection in turn.
+      The Church survives off of of the town's taxes, and provides religious services in turn.
   - name: Diplomat
     key: diplomat
     public: false
     tags: []
-    description: "You are from the Culture, a post-scarcity interstellar empire ruled by benevolent robots. You want the best for the people of Ravenheart—and that would mean convincing the Baron to join the Culture—but Contact (the Culture's diplomatic wing) operates in the scale of centuries, not human generations. They don't think it's the right time. Therefore, do the best you can to quietly help people and further the Culture's mission: install an open-minded ruler, ensure the Order of the Iron Cross doesn't grow out of control, and above all, do not blow your cover. You have limited gadgets—including an autonomous, sentient drone disguised as a raven. If anything goes wrong, the \"Helpless Is The Face Of Your Beauty\" will teleport you on board. It'll take your message three minutes to reach them."
+    description: 'You are from the Culture, a post-scarcity interstellar empire ruled by benevolent robots. You want the best for the people of Ravenheart—and that would mean convincing the Baron to join the Culture—but Contact (the Culture''s diplomatic wing) operates in the scale of centuries, not human generations. They don''t think it''s the right time. Therefore, do the best you can to quietly help people and further the Culture''s mission: install an open-minded ruler, ensure the Order of the Iron Cross doesn''t grow out of control, and above all, do not blow your cover. You have limited gadgets—including an autonomous, sentient drone disguised as a raven. If anything goes wrong, the "Helpless Is The Face Of Your Beauty" will teleport you on board. It''ll take your message three minutes to reach them.'
   - name: Treasurer
     key: treasurer
     public: true
@@ -32,11 +53,11 @@ documents:
     description: |-
       Producing Resources
 
-      Herding (Effort): 4 Resources (8 with Herder tag)
-      Farming (Effort): 8 Resources (16 with Farmer tag), must be in Town or Fortress (the only arable land).
-      Fishing (Effort): 5 Resources (+2 with Fisherman tag), must be in Town or Fortress (near the river)
-      Hunting: 1d6 * 2 Resources (*3 with Hunter tag), must be in Town, Fortress, or Caves
-      Brewing (Effort): 3 Resources, requires Brewing (Basic) or (Skilled) — see the Alcohol & Drugs document
+      Herding (Effort): 3 Resources (10 with Herder tag)
+      Farming (Effort): 5 Resources (16 with Farmer tag), must be in Town or Fortress (the only arable land).
+      Fishing (Effort): 4 Resources (14 with Fisherman tag), must be in Town or Fortress (near the river).
+      Hunting (Effort): 1d6 Resources (*3 with Hunter tag), must be in Town, Fortress, or Caves.
+      Brewing (Effort): 3 Resources, requires Brewing (Basic) or (Skilled) — see the Alcohol & Drugs document.
 
       To automatically add Resources on an Effort, type +(resources) anywhere in your message. For example, write “I hunt. +1d6*2” or “I farm. +16”.
   - name: Combat
@@ -87,9 +108,35 @@ documents:
     description: ""
   - name: The Lifeweb
     key: lifewebbasic
+    public: true
+    tags: []
+    description: |-
+      "The Lifeweb is a profoundly unintelligible piece of machinery within the Fortress's walls—a tower that, at its peak, spews the Life Fire. Although it also produces electricity, it is mainly prized for the Fire, which is said to be what keeps Ravenheart arable, breathable, and livable. One only needs to follow the river a few miles south east before seeing, far in the distance, the wind-scorched lands of the rest of the world, humid, scarred, and inhospitable.
+
+      The tower has a door leading downwards. Presumably, that is where the Mortii feed the Lifeweb.
+
+      The Lifeweb must be fed every 3 days (6 turns) to stay alive. It requires a living person."
+  - name: The Lifeweb
+    key: lifeweb
     public: false
     tags: []
-    description: ""
+    description: |-
+      "The Lifeweb is a profoundly unintelligible piece of machinery within the Fortress's walls—a tower that, at its peak, spews the Life Fire. Although it also produces electricity, it is mainly prized for the Fire, which is said to be what keeps Ravenheart arable, breathable, and livable. One only needs to follow the river a few miles south east before seeing, far in the distance, the wind-scorched lands of the rest of the world, humid, scarred, and inhospitable.
+
+      The tower has a door leading downwards. Inside, levers control what parts of Ravenheart receive power.
+
+      Only the Mortii know how to feed the Lifeweb"
+  - name: Respawning
+    key: respawning
+    public: true
+    tags:
+      - Priest
+      - Mortus
+      - Dead
+    description: |-
+      When you die, you can rejoin at any time—but you'll be Cursed, meaning you can only start as a Bum or Migrant, and you'll suffer a -3 penalty to your starting points.
+
+      To rejoin as any other role, wait until your body is buried or your name is engraved. Either one finds you peace, lifts the Curse, and lets you start fresh.
   - name: Court Structure
     key: courtstructure
     public: false

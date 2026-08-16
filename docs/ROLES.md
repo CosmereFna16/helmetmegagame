@@ -40,7 +40,7 @@ intro: You are the ruler. Protect Ravenheart. Find a balance between staying hap
 - difficulty: hard
 - multiple: false
 - starting tag: Royal Blood, Leader, Treasurer, Leader
-- doc elements: courtstructure, lifewebbasic, fortressstarting
+- doc elements: courtstructure, lifewebbasic, fortressstarting, armory, ravenhearteconomy
 
 Baroness
 intro: Take care of your children. Be the Lioness, or succumb to anxiety.
@@ -78,7 +78,7 @@ intro: You’re the Baron’s best friend and perhaps the only man he can truly 
 - difficulty: normal
 - multiple: false
 - starting tag: Treasurer
-- doc elements: courtstructure, lifewebbasic, fortressstarting, courtier
+- doc elements: courtstructure, lifewebbasic, fortressstarting, courtier, armory, ravenhearteconomy
 
 Meister
 intro: You are the Keep’s brains, but more importantly, its circulatory system.
@@ -89,7 +89,7 @@ intro: You are the Keep’s brains, but more importantly, its circulatory system
 - difficulty: normal
 - multiple: false
 - starting tag: Intelligent, Frail, Treasurer, Medical (Skilled), Ravenkeeper
-- doc elements: courtstructure, lifewebbasic, fortressstarting, courtier, ravens, medical
+- doc elements: courtstructure, lifewebbasic, fortressstarting, courtier, ravens, medical, ravenhearteconomy
 
 Courtier
 intro: Live lavishly and gossip.
@@ -180,17 +180,17 @@ intro: Bravely lead the Watch and hold back the darkness, you goddamn hero.
 - difficulty: hard
 - multiple: false
 - starting tag: Fighting (Trained), Treasurer, Leader
-- doc elements: courtstructure, fortressstarting, guard
+- doc elements: courtstructure, fortressstarting, guard, armory, combat
 
 Incarn
-intro: You are a warrior monk who serves Ravenheart.
+intro: You are a warrior monk, dedicated to serving Ravenheart.
 
 - You are a warrior monk and you serve Ravenheart. You love goodness and hate evil.
-- Your job is to guard the dungeon, process migrants, and protect the Silver Cross, Ravenheart's only relic. The Silver Cross is an ancient artifact, rumored to ward away evil.
+- Your job is to guard the dungeon, process migrants, and protect the Silver Cross, Ravenheart's only relic. The Silver Cross is an ancient artifact. It terrifies and burns demonic creatures.
 - difficulty: normal
 - multiple: false
 - starting tag: Fighting (Skilled), Treasurer
-- doc elements: courtstructure, fortressstarting, guard, postchristianity
+- doc elements: courtstructure, fortressstarting, guard, postchristianity, armory, combat
 
 Guard
 intro: Serve the Baron, salute your Captain, and hold back the tide of darkness.
@@ -199,7 +199,7 @@ intro: Serve the Baron, salute your Captain, and hold back the tide of darkness.
 - difficulty: easy
 - multiple: true
 - starting tag: Fighting (Trained)
-- doc elements: courtstructure, fortressstarting, guard
+- doc elements: courtstructure, fortressstarting, guard, armory, combat
 
 Squire
 intro: Train. One day, you might become a knight.
@@ -208,12 +208,12 @@ intro: Train. One day, you might become a knight.
 - difficulty: easy
 - multiple: true
 - starting tag: Fighting (Basic)
-- doc elements: courtstructure, fortressstarting, guard
+- doc elements: courtstructure, fortressstarting, guard, armory, combat
 
 ## Threats
 
 Sympathizer (Fortress)
-intro: Install the Bastard on the throne—by any means necessary.
+intro: Install the Bastard on the throne, by any means necessary.
 
 - Your main goal: install the Bastard on the throne. To that end, turn the court against itself, scheme, and so on.
 - You must also choose a second, self-serving goal. Ideas: kill the Baron in a dramatic way as revenge; kidnap the Heir or Successor (you're obsessed); take the Manor from the Lord and install yourself in it. In other words, figure out why you are personally invested in seeing this through.
@@ -253,8 +253,8 @@ intro: Lead the Church, and be a shining example of goodness in dark days.
 - Along with the Priest, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts).
 - difficulty: normal
 - multiple: false
-- starting tag: Priest, Leader
-- doc elements: townstarting, postchristianity
+- starting tag: Priest, Leader, Pious
+- doc elements: townstarting, postchristianity, church, ravenhearteconomy
 
 Priest
 intro: Care for the needy, lend an ear, and kindle goodness in others.
@@ -264,8 +264,8 @@ intro: Care for the needy, lend an ear, and kindle goodness in others.
 - Along with the Bishop, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts).
 - difficulty: easy
 - multiple: true
-- starting tag: Priest
-- doc elements: townstarting, postchristianity
+- starting tag: Priest, Pious
+- doc elements: townstarting, postchristianity, church
 
 Priest (Nun)
 intro: Care for the needy, lend an ear, and kindle goodness in others.
@@ -276,8 +276,8 @@ intro: Care for the needy, lend an ear, and kindle goodness in others.
 - difficulty: easy
 - multiple: true
 - parent role: Priest
-- starting tag: Priest
-- doc elements: townstarting, postchristianity
+- starting tag: Priest, Pious
+- doc elements: townstarting, postchristianity, church
 
 Scholastic
 intro: Search for knowledge—occult or otherwise—and write your magnum opus.
@@ -286,7 +286,7 @@ intro: Search for knowledge—occult or otherwise—and write your magnum opus.
 - difficulty: normal
 - multiple: false
 - starting tag:
-- doc elements: townstarting, postchristianity
+- doc elements: townstarting, postchristianity, church
 
 ### Faction: The Sanctuary
 
@@ -326,8 +326,8 @@ intro: It is your everlasting duty to protect your people by expunging the baron
 - One other thing: the Incarn holds the Silver Cross, an artifact blessed to defeat evil. Secure it from him.
 - difficulty: hard
 - multiple: false
-- starting tag: Leader
-- doc elements: townstarting, postchristianity
+- starting tag: Leader, Pious
+- doc elements: townstarting, postchristianity, church
 
 Practicus
 intro: Serve the Inquisitor, and work to radicalize the Town, the Church, and possibly even the Court.
@@ -340,8 +340,8 @@ intro: Serve the Inquisitor, and work to radicalize the Town, the Church, and po
 - One other thing: the Incarn holds the Silver Cross, an artifact blessed to defeat evil. Secure it from him.
 - difficulty: easy
 - multiple: true
-- starting tag:
-- doc elements: townstarting, postchristianity
+- starting tag: Pious
+- doc elements: townstarting, postchristianity, church
 
 Preacher
 intro: You are the Order’s face. Speak in the Town Square for all to hear.
@@ -355,8 +355,8 @@ intro: You are the Order’s face. Speak in the Town Square for all to hear.
 - One other thing: the Incarn holds the Silver Cross, an artifact blessed to defeat evil. Secure it from him.
 - difficulty: easy
 - multiple: true
-- starting tag:
-- doc elements: townstarting, postchristianity
+- starting tag: Pious
+- doc elements: townstarting, postchristianity, church
 
 ### Faction: The Town
 
@@ -365,12 +365,12 @@ intro: Lead the Town. Ensure it works and pays its taxes.
 
 - On certain days, you hike up the mountain and behold the Town. Those are the people that are beholden to you. You cannot afford to let them down, Headman!
 - Your main job is to tax people. You are beholden to the Meister, the Baron’s taxman, and things have gotten nasty in the past when the tithe didn’t meet his expectations. If the Silo’s not full next time he comes, it won’t be a pretty day.
+- You also pay the Bishop.
 - You informally lead the Town—everyone knows you and you know everyone. You can use a Move to decipher up to 3 random tags of anyone in the Town faction.
-- On day one, figure out who should be on the Silo payroll—like the Sheriff—and who is capable of sustaining themselves.
-- difficulty: normal
+- difficulty: hard
 - multiple: false
 - starting tag: Respected, Leader, Old, Farmer
-- doc elements: townstarting, farming
+- doc elements: townstarting, farming, ravenhearteconomy
 
 Sheriff
 intro: Keep the peace in the Town, six-shooter at your hip.
@@ -380,7 +380,7 @@ intro: Keep the peace in the Town, six-shooter at your hip.
 - difficulty: normal
 - multiple: false
 - starting tag: Fighting (Trained), Old .45 Revolver
-- doc elements: townstarting
+- doc elements: townstarting, combat
 
 Metalsmith
 intro: Forge anything from basic tools to siege implements and legendary weapons.
@@ -393,7 +393,7 @@ intro: Forge anything from basic tools to siege implements and legendary weapons
 - difficulty: normal
 - multiple: true
 - starting tag: Smithing
-- doc elements: townstarting, smithinglist, combat
+- doc elements: townstarting, smithinglist, combat, independent
 
 Peasant
 intro: You’re a peasant without a job, but luck is on your side (+4 starting Tag Points).
@@ -403,7 +403,7 @@ intro: You’re a peasant without a job, but luck is on your side (+4 starting T
 - multiple: true
 - starting tag:
 - starting points: +4
-- doc elements: townstarting, production
+- doc elements: townstarting, production, independent
 
 Peasant (Farmer)
 intro: Grow food during the day, live a free life at night.
@@ -414,7 +414,7 @@ intro: Grow food during the day, live a free life at night.
 - multiple: true
 - parent role: Peasant
 - starting tag: Farmer
-- doc elements: townstarting, production
+- doc elements: townstarting, production, independent
 
 Peasant (Fisher)
 intro: Fish during the day, live a free life at night.
@@ -426,7 +426,7 @@ intro: Fish during the day, live a free life at night.
 - multiple: true
 - parent role: Peasant
 - starting tag: Fisherman, Boat
-- doc elements: townstarting, production
+- doc elements: townstarting, production, independent
 
 Herald
 intro: Tell the news, take messages, and hope either the Baron or the Headman will pay you.
@@ -437,7 +437,7 @@ intro: Tell the news, take messages, and hope either the Baron or the Headman wi
 - difficulty: easy
 - multiple: false
 - starting tag:
-- doc elements: townstarting
+- doc elements: townstarting, independent
 
 Outsider
 intro: Live on the outskirts and worship Sylva, god of Nature.
@@ -446,7 +446,7 @@ intro: Live on the outskirts and worship Sylva, god of Nature.
 - difficulty: easy
 - multiple: true
 - starting tag: Forester
-- doc elements: townstarting, production
+- doc elements: townstarting, production, independent
 
 Outsider (Healer)
 intro: Forage herbs on the outskirts and tend to the sick and wounded.
@@ -456,7 +456,7 @@ intro: Forage herbs on the outskirts and tend to the sick and wounded.
 - multiple: true
 - parent role: Outsider
 - starting tag: Medical (Basic), Brewing (Basic), Forester
-- doc elements: townstarting, production, medical
+- doc elements: townstarting, production, medical, independent
 
 Outsider (Hunter)
 intro: Track game through the wilds and bring back meat for the Town.
@@ -467,16 +467,16 @@ intro: Track game through the wilds and bring back meat for the Town.
 - multiple: true
 - parent role: Outsider
 - starting tag: Hunter, Forester
-- doc elements: townstarting, production
+- doc elements: townstarting, production, independent
 
 Mortus
 intro: Bury people and bring them to peace.
 
-- Bury people and bring them to peace. Feed bums to the Lifeweb.
+- You have two jobs, both of them sacred: The Mortii take a vow
 - difficulty: easy
 - multiple: true
-- starting tag: Unshaken
-- doc elements: townstarting
+- starting tag: Mortus
+- doc elements: townstarting, lifeweb
 
 Pusher
 intro: Sell drugs.
@@ -485,7 +485,7 @@ intro: Sell drugs.
 - difficulty: normal
 - multiple: true
 - starting tag: Discreet
-- doc elements: townstarting, alcoholdrugs
+- doc elements: townstarting, alcoholdrugs, independent
 
 Bum
 intro: You live in a shell and sleep with the dogs, but you understand life (or think you do).
@@ -504,32 +504,32 @@ Innkeeper
 intro: Name and run the inn: set prices, hire and fire staff, and run an actual, living business.
 
 - The inn is a game of its own. It's up to you to figure out how to make a living out of it. For one thing, you can consider asking the Merchant for a loan.
-- Cook fine meals, brew alcohol, hire bards and pretty ladies—keep the Customer coming back, yes—but be creative. Running an information network or turning the Inn in a place for people to find jobs are examples of the creative ways you can use you central place in town.
+- Cook fine meals, brew alcohol, hire bards and pretty ladies—keep the Customer coming back, yes—but be creative. Running an information network or turning the Inn into a place for people to find jobs are examples of the creative ways you can take advantage of owning Ravenheart's most popular enterprise.
 - You are responsible for paying your staff. They have to eat.
-- difficulty: hard
+- difficulty: normal
 - multiple: false
 - starting tag: Leader, Cooking (Basic), Brewing (Basic)
-- doc elements: townstarting, alcoholdrugs
+- doc elements: townstarting, alcoholdrugs, meals, inn
 
 Cook
-intro: Cook for the inn.
-— You're a skilled cook and can spend Resources to make refined meals that make people happy.
+intro: Cook lavish meals for inn patrons.
 
+- You're a skilled cook and can spend Resources to make refined meals that make people happy.
 - difficulty: easy
 - multiple: true
 - parent role: Innkeeper
 - starting tag: Cooking (Skilled)
-- doc elements: townstarting
+- doc elements: townstarting, meals, bar, inn
 
 Brewer
-intro: Brew for the inn.
+intro: Brew alcohol and tonics for the inn, or split off and start your own enterprise.
 
 - You're a skilled brewer and can brew refined forms of alcohol to make customers happy.
 - difficulty: easy
-- multiple: true
+- multiple: false
 - parent role: Innkeeper
 - starting tag: Brewing (Skilled)
-- doc elements: townstarting, alcoholdrugs
+- doc elements: townstarting, alcoholdrugs, inn, independent
 
 Innkeeper (Barmaid)
 intro: Serve drinks and keep the room talking.
@@ -538,8 +538,8 @@ intro: Serve drinks and keep the room talking.
 - difficulty: easy
 - multiple: true
 - parent role: Innkeeper
-- starting tag: Hospitable
-- doc elements: townstarting, alcoholdrugs
+- starting tag:
+- doc elements: townstarting, alcoholdrugs, meals, inn, independent
 
 ## Threats
 
