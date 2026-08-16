@@ -30,7 +30,7 @@ Baron
 - Above all, be proactive. Ravenheart is a dangerous place. If you prepare well, you may keep the throne.
 - difficulty: hard
 - multiple: false
-- starting tag: Royal Blood, Leader, Treasurer, leader
+- starting tag: Royal Blood, Leader, Treasurer, Leader
 - doc elements: courtstructure, lifewebbasic, fortressstarting, treasurer
 
 Baroness
@@ -139,15 +139,15 @@ Servant (Chef)
 parent:The Court
 
 Captain
-- Bravely lead the Watch.
+- Bravely lead the watch and hold back the darkness, you goddamn hero.
 - difficulty: hard
 - multiple: false
-- starting tag: Fighter (Skilled), Treasurer, leader
+- starting tag: Fighter (Skilled), Treasurer, Leader
 - doc elements: courtstructure, fortressstarting, guard, treasurer
 
 Incarn
-- You are a warrior monk, and you serve Ravenheart. You are fundamentally good and at least moderately devout to God.
-- Your job is to guard the dungeon, process migrants, and guard the Silver Cross, Ravenheart's only relic.
+- You are a warrior monk and you serve Ravenheart. You love goodness and hate evil.
+- Your job is to guard the dungeon, process migrants, and protect the Silver Cross, Ravenheart's only relic. The Silver Cross is an ancient artifact, rumored to ward away evil.
 - difficulty: normal
 - multiple: false
 - starting tag: Fighter (Skilled), Treasurer
@@ -201,7 +201,7 @@ Bishop
 - Along with the Priest, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts) 
 - difficulty: normal
 - multiple: false
-- starting tag: Priest, leader
+- starting tag: Priest, Leader
 - doc elements: townstarting, prayer
 
 Priest / Nun
@@ -224,7 +224,7 @@ Esculap
 - Keep your Serpents in check.
 - difficulty: normal
 - multiple: false
-- starting tag: Steady Hands, leader
+- starting tag: Steady Hands, Leader
 - doc elements: townstarting
 
 Serpent
@@ -239,7 +239,7 @@ Inquisitor
 - Radicalize the Village and the Church, convince the Incarn to hand over the Silver Cross, and obtain ultimate purity. Ask the Scholastic what he's writing.
 - difficulty: hard
 - multiple: false
-- starting tag: Zealous, leader
+- starting tag: Zealous, Leader
 - doc elements: townstarting
 
 Practicus
@@ -261,7 +261,7 @@ Headman
 - Mayor-ish. Can use a Move to learn up to 2 of a Village character's Tags. Pay the people on your payroll (Sheriff, etc.).
 - difficulty: normal
 - multiple: false
-- starting tag: Respected, leader
+- starting tag: Respected, Leader
 - doc elements: townstarting
 
 Sheriff
@@ -347,7 +347,7 @@ Cult of Bacchus (Leader)
 - Something very special happens if you host a party of 20 people. This is your ultimate goal. If the Succubus is present during the party, the surprise will be even better!
 - You can either initiate people willingly or forcibly. Either way, you must perform a ritual that involves (1) either alcohol, music, lavish food, or drugs, and (2) secret chants in an ancient tongue.
 - You can leave the Cult at any point, but you must confess everything you've ever done to a preacher, lose -10 Tag Points (yes, you can go into negative), and suffer through life-changing, excruciating withdrawal.
-- starting tag: Follower of Bacchus, leader
+- starting tag: Follower of Bacchus, Leader
 - doc elements: townstarting
 
 Cult of Bacchus (Cultist)
@@ -386,7 +386,7 @@ Bastard (Windrider Clan)
 - The Bastard and his men wear wind goggles and capes and generally aura farm. It's a wasteland out there. Most of your people are herders, healers, and engineers.
 - difficulty: hard
 - multiple: false
-- starting tag: Royal Blood, leader
+- starting tag: Royal Blood, Leader
 - doc elements: campstarting
 
 Camp Followers
@@ -423,7 +423,7 @@ Lieutenant (Broken Spears Clan)
 - Members: Fighter, Fighter (Builder), Fighter (Standard Bearer), Fighter (Etc.), Camp Follower.
 - difficulty: normal
 - multiple: false
-- starting tag: Stimulant User, leader
+- starting tag: Stimulant User, Leader
 - doc elements: campstarting
 
 Lieutenant (Six-Spoke Wheel Clan)
@@ -432,21 +432,21 @@ Lieutenant (Six-Spoke Wheel Clan)
 - Members: Fighter, Fighter (Tinker), Fighter (Standard Bearer), etc., Camp Follower.
 - difficulty: normal
 - multiple: false
-- starting tag: Old Guard, leader
+- starting tag: Old Guard, Leader
 - doc elements: campstarting
 
 Lieutenant (Windrider Clan)
 - All you want is a home for your people, and the Bastard can provide you that. You're fully loyal to him.
 - difficulty: normal
 - multiple: false
-- starting tag: Loyal, leader
+- starting tag: Loyal, Leader
 - doc elements: campstarting
 
 ## Threats
 
 Brigand Leader
 - You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
-- starting tag: Opportunist, leader
+- starting tag: Opportunist, Leader
 - doc elements: campstarting
 
 Brigand
@@ -492,7 +492,7 @@ Monsters (NPC)
 
 Brigand Leader (Caves)
 - Loot the caves (dangerous) as a way to fund the Camp's war effort.
-- starting tag: Opportunist, leader
+- starting tag: Opportunist, Leader
 - doc elements:
 
 Brigand (Caves)
@@ -518,4 +518,4 @@ The Watch is Ravenheart’s primary fighting force, tasked with defending the Fo
 The Watch is commanded by the Captain.
 
 Treasurer 
-- tag: treasurer, leader
+- tag: treasurer, Leader
