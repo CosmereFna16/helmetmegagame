@@ -15,6 +15,37 @@ function groupByCategory(tags) {
   return groups;
 }
 
+// Groups sequential skill tags ("Cooking (Basic)", "Cooking (Skilled)", ...)
+// into families ordered root-to-leaf via parentTagId, so the store can show
+// one tier picker per skill instead of a checkbox per tag.
+function familyName(tagName) {
+  return tagName.replace(/\s*\([^)]*\)\s*$/, "").trim();
+}
+
+function buildSkillFamilies(tags) {
+  const byId = new Map(tags.map((t) => [t.id, t]));
+  function depth(tag) {
+    let d = 0;
+    let cur = tag;
+    const seen = new Set();
+    while (cur?.parentTagId && byId.has(cur.parentTagId) && !seen.has(cur.id)) {
+      seen.add(cur.id);
+      cur = byId.get(cur.parentTagId);
+      d += 1;
+    }
+    return d;
+  }
+
+  const families = new Map();
+  for (const tag of tags) {
+    const name = familyName(tag.name);
+    if (!families.has(name)) families.set(name, []);
+    families.get(name).push(tag);
+  }
+  for (const tiers of families.values()) tiers.sort((a, b) => depth(a) - depth(b));
+  return [...families.entries()];
+}
+
 export default function TagStorePanel({ characterId, tagPoints, ownedCharacterTags, storeTags }) {
   const [open, setOpen] = useState(false);
   const [shaking, setShaking] = useState(false);
@@ -79,6 +110,22 @@ export default function TagStorePanel({ characterId, tagPoints, ownedCharacterTa
       const next = new Set(prev);
       if (next.has(tagId)) next.delete(tagId);
       else next.add(tagId);
+      return next;
+    });
+  }
+
+  // tierIndex -1 means "none of this family's tiers". Selecting a tier
+  // replaces whichever tier (if any) was previously selected, since owning
+  // both Cooking (Basic) and Cooking (Skilled) at once doesn't make sense.
+  // A tier already owned via a non-point-buy grant is never added to
+  // selectedIds (there's nothing to "buy") — picking it just clears any
+  // other pending selection in the family, reverting to the granted tier.
+  function selectTier(tiers, tierIndex) {
+    if (saving) return;
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const tier of tiers) next.delete(tier.id);
+      if (tierIndex >= 0 && !lockedIds.has(tiers[tierIndex].id)) next.add(tiers[tierIndex].id);
       return next;
     });
   }
@@ -161,42 +208,107 @@ export default function TagStorePanel({ characterId, tagPoints, ownedCharacterTa
               </p>
             )}
 
-            <ul className="store-list mt-3">
-              {(grouped.get(activeCategory) ?? []).map((tag) => {
-                const owned = selectedIds.has(tag.id);
-                const locked = lockedIds.has(tag.id);
-                return (
-                  <li key={tag.id} className="store-row">
-                    <div className="store-row-info">
-                      <p className="store-row-name">
-                        {tag.name}
-                        <span
-                          style={{
-                            color: tag.pointCost > 0 ? "var(--mood-happy)" : tag.pointCost < 0 ? "var(--accent)" : "var(--muted)",
-                            marginLeft: "8px",
-                          }}
-                        >
-                          {tag.pointCost > 0 ? `+${tag.pointCost}` : tag.pointCost}
-                        </span>
-                      </p>
-                      {tag.description && (
-                        <p className="text-sm" style={{ color: "var(--muted)" }}>
-                          {tag.description}
+            {activeCategory === "Skills" ? (
+              <ul className="store-list mt-3">
+                {buildSkillFamilies(grouped.get(activeCategory) ?? []).map(([family, tiers]) => {
+                  // baseTierIndex is what's actually owned (any source) as of
+                  // opening the store — gating is pinned to it rather than to
+                  // the live selection, so you can't chain Basic -> Skilled
+                  // in one visit (matching the server's same "must already
+                  // own the prior tier" check, which only sees saved state).
+                  let baseTierIndex = -1;
+                  tiers.forEach((t, i) => {
+                    if (ownedPointBuyIds.has(t.id) || lockedIds.has(t.id)) baseTierIndex = i;
+                  });
+                  let selectedTierIndex = -1;
+                  tiers.forEach((t, i) => {
+                    if (selectedIds.has(t.id) || lockedIds.has(t.id)) selectedTierIndex = i;
+                  });
+                  const lockedTierIndex = tiers.findIndex((t) => lockedIds.has(t.id));
+                  const activeTier = selectedTierIndex >= 0 ? tiers[selectedTierIndex] : null;
+                  return (
+                    <li key={family} className="store-row">
+                      <div className="store-row-info">
+                        <p className="store-row-name">{family}</p>
+                        {activeTier?.description && (
+                          <p className="text-sm" style={{ color: "var(--muted)" }}>
+                            {activeTier.description}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {lockedTierIndex < 0 && (
+                          <button
+                            type="button"
+                            className="btn-quiet"
+                            disabled={saving || selectedTierIndex < 0}
+                            onClick={() => selectTier(tiers, -1)}
+                          >
+                            None
+                          </button>
+                        )}
+                        {tiers.map((tier, i) => {
+                          const selected = i === selectedTierIndex;
+                          const locked = lockedIds.has(tier.id);
+                          const disallowed = i > baseTierIndex + 1;
+                          return (
+                            <button
+                              key={tier.id}
+                              type="button"
+                              className="btn"
+                              style={selected ? { background: "var(--accent)", color: "var(--text)" } : undefined}
+                              disabled={saving || disallowed || (locked && selected)}
+                              onClick={() => selectTier(tiers, i)}
+                              title={tier.description}
+                            >
+                              {tier.name.match(/\(([^)]*)\)/)?.[1] ?? tier.name}
+                              {locked && selected ? " (granted)" : selected ? ` +${tier.pointCost}` : ""}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <ul className="store-list mt-3">
+                {(grouped.get(activeCategory) ?? []).map((tag) => {
+                  const owned = selectedIds.has(tag.id);
+                  const locked = lockedIds.has(tag.id);
+                  return (
+                    <li key={tag.id} className="store-row">
+                      <div className="store-row-info">
+                        <p className="store-row-name">
+                          {tag.name}
+                          <span
+                            style={{
+                              color: tag.pointCost > 0 ? "var(--mood-happy)" : tag.pointCost < 0 ? "var(--accent)" : "var(--muted)",
+                              marginLeft: "8px",
+                            }}
+                          >
+                            {tag.pointCost > 0 ? `+${tag.pointCost}` : tag.pointCost}
+                          </span>
                         </p>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      className="btn"
-                      disabled={locked || saving}
-                      onClick={() => toggleTag(tag.id)}
-                    >
-                      {locked ? "Granted" : owned ? "Remove" : "Buy"}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+                        {tag.description && (
+                          <p className="text-sm" style={{ color: "var(--muted)" }}>
+                            {tag.description}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={locked || saving}
+                        onClick={() => toggleTag(tag.id)}
+                      >
+                        {locked ? "Granted" : owned ? "Remove" : "Buy"}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
         </div>
       )}

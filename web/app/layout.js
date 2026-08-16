@@ -1,6 +1,7 @@
 import { IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { getOpenTurn, themeForPhase } from "@/lib/turn";
+import TagsProvider from "./components/TagsProvider";
 
 const mono = IBM_Plex_Mono({
   variable: "--font-mono",
@@ -26,7 +27,7 @@ export default async function RootLayout({ children }) {
     <html lang="en" data-theme={theme} className={`${mono.variable} h-full`}>
       <body className="h-full">
         <div className="scanlines" />
-        {children}
+        <TagsProvider>{children}</TagsProvider>
       </body>
     </html>
   );

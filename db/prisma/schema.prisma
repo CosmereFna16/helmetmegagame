@@ -162,6 +162,13 @@ model Tag {
   category    String?
   pointCost   Int      @default(0)
 
+  // For sequential/tiered skill tags (Cooking (Basic) -> Cooking (Skilled)):
+  // the tier this one upgrades from. Buying/granting a tag with a parent
+  // replaces the parent on the character rather than stacking with it.
+  parentTagId String?
+  parentTag   Tag?     @relation("TagUpgrade", fields: [parentTagId], references: [id])
+  upgrades    Tag[]    @relation("TagUpgrade")
+
   characters CharacterTag[]
 
   createdAt DateTime @default(now())

@@ -192,6 +192,40 @@ export async function purchaseTags(characterId, desiredTagIds) {
   const toAdd = [...desiredSet].filter((id) => !currentIds.has(id));
   const toRemove = currentPointBuy.filter((ct) => !desiredSet.has(ct.tagId));
 
+  // Sequential skill tags (parentTagId chain, e.g. Cooking (Basic) ->
+  // Cooking (Skilled)): buying a tier requires already owning its parent
+  // (any source, checked against state as of before this purchase — the
+  // store UI gates the same way so the two always agree), and supersedes
+  // it — the parent is deleted regardless of how it was granted, since
+  // owning both tiers of a skill at once doesn't make sense.
+  const tagById = new Map([...storeTags, ...character.tags.map((ct) => ct.tag)].map((t) => [t.id, t]));
+  const ownedTagIds = new Set(character.tags.map((ct) => ct.tagId));
+  for (const id of toAdd) {
+    const parentId = tagById.get(id)?.parentTagId;
+    if (parentId && !ownedTagIds.has(parentId)) {
+      throw new Error("You need the prior tier of this skill before upgrading it.");
+    }
+  }
+
+  function familyRootId(tagId) {
+    let cur = tagById.get(tagId);
+    const seen = new Set();
+    while (cur?.parentTagId && tagById.has(cur.parentTagId) && !seen.has(cur.id)) {
+      seen.add(cur.id);
+      cur = tagById.get(cur.parentTagId);
+    }
+    return cur?.id ?? tagId;
+  }
+
+  const desiredFamilyRoots = new Set([...desiredSet].map(familyRootId));
+  const supersededNonPointBuy = character.tags.filter(
+    (ct) =>
+      ct.source !== "POINT_BUY" &&
+      !desiredSet.has(ct.tagId) &&
+      tagById.has(ct.tagId) &&
+      desiredFamilyRoots.has(familyRootId(ct.tagId))
+  );
+
   const costById = new Map(storeTags.map((t) => [t.id, t.pointCost]));
   const costDelta =
     toAdd.reduce((sum, id) => sum + (costById.get(id) ?? 0), 0) -
@@ -204,6 +238,7 @@ export async function purchaseTags(characterId, desiredTagIds) {
 
   await prisma.$transaction([
     ...toRemove.map((ct) => prisma.characterTag.delete({ where: { id: ct.id } })),
+    ...supersededNonPointBuy.map((ct) => prisma.characterTag.delete({ where: { id: ct.id } })),
     ...toAdd.map((tagId) =>
       prisma.characterTag.create({ data: { characterId: character.id, tagId, source: "POINT_BUY" } })
     ),

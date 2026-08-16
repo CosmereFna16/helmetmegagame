@@ -6,6 +6,7 @@ import TagStorePanel from "./TagStorePanel";
 import TagRequestPanel from "./TagRequestPanel";
 import DesirePanel from "./DesirePanel";
 import DefaultEffortPanel from "./DefaultEffortPanel";
+import RichText from "./RichText";
 
 function groupTagsByCategory(characterTags) {
   const groups = new Map();
@@ -129,7 +130,9 @@ export default function CharacterSheet({
         {!isSelf && character.appearance && (
           <section className="panel p-4">
             <h2 className="mb-2 font-bold">Appearance</h2>
-            <p className="text-sm">{character.appearance}</p>
+            <p className="text-sm">
+              <RichText text={character.appearance} />
+            </p>
           </section>
         )}
 

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { setDesire, submitDesireForReview, cancelDesire } from "../(app)/character/actions";
 import { DESIRE_COOLDOWN_TURNS } from "@/lib/desire";
+import RichText from "./RichText";
 
 export default function DesirePanel({ characterId, desire, openTurnNumber, isSelf }) {
   const [confirming, setConfirming] = useState(false);
@@ -60,7 +61,9 @@ export default function DesirePanel({ characterId, desire, openTurnNumber, isSel
       <h2 className="mb-2 font-bold">Desire</h2>
       {isActive || isPending ? (
         <>
-          <p className="text-sm">{desire.description}</p>
+          <p className="text-sm">
+            <RichText text={desire.description} />
+          </p>
           <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
             {turnsSince != null ? `Set ${turnsSince} turn${turnsSince === 1 ? "" : "s"} ago` : "Just set"}
           </p>

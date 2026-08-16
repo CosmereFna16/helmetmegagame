@@ -53,7 +53,7 @@ export default function DefaultEffortPanel({ characterId, defaultEffort, summary
         If you don&apos;t submit a Move or Effort on a given day, this is assumed instead.
       </p>
       <p className="mb-3 text-xs italic" style={{ color: "var(--muted)" }}>
-        Tip: add a Resource amount like +3 or a dice roll like +1d6*3 anywhere in the text and it&apos;ll be applied automatically.
+        Tip: add a Resource amount like +3 or a dice roll like +1d6*3 anywhere in the text and it&apos;ll be applied automatically. It can be negative too — say a Cook spending Resources on ingredients (-3).
       </p>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <label className="field">

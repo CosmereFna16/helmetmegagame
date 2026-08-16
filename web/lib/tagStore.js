@@ -1,6 +1,7 @@
 import { FOLLOWER_OF_BACCHUS_SLUG } from "@lifeweb/db";
 
 export const TAG_STORE_CATEGORIES = [
+  { name: "Skills" },
   { name: "Placeholder 1" },
   { name: "Placeholder 2" },
   { name: "Placeholder 3" },
