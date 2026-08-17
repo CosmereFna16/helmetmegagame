@@ -53,17 +53,6 @@ function getSummaryChannels(guild) {
   return [...guild.channels.cache.values()].filter(isSummaryChannel);
 }
 
-// The single channel gameplay actually happens in — exact name match, not
-// marker-based like isSummaryChannel/isTupperChannel, since there's only
-// ever meant to be one.
-function isTurnsChannel(channel) {
-  return channel.type === ChannelType.GuildText && channel.name?.toLowerCase() === "turns";
-}
-
-function getTurnsChannel(guild) {
-  return [...guild.channels.cache.values()].find(isTurnsChannel) ?? null;
-}
-
 // The single channel the zone/location travel picker lives in (see
 // bot/src/lib/location.js) — same exact-name-match convention as
 // isTurnsChannel, since there's only ever meant to be one.
@@ -76,8 +65,6 @@ module.exports = {
   isTupperChannel,
   isDesignatedTupperChannel,
   getSummaryChannels,
-  isTurnsChannel,
-  getTurnsChannel,
   isLocationPromptChannel,
   refreshLocationChannels,
 };

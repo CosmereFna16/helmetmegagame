@@ -16,6 +16,7 @@
     "db:seed-zones": "node db/prisma/seed-zones.js",
     "db:backfill-roles": "node db/prisma/backfill-roles.js",
     "db:backfill-location-access": "node db/prisma/backfill-location-access.js",
+    "db:backfill-persistent-tag": "node db/prisma/backfill-persistent-tag.js",
     "db:sync-locations": "node db/prisma/sync-locations.js"
   },
   "allowScripts": {

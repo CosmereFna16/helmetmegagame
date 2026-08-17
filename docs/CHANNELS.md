@@ -101,3 +101,67 @@ observe the per-character gating, test from a non-owner account (an alt, or
 a real player) — checking the raw permission overwrites via the REST API
 (as done to diagnose/backfill this) is the reliable way to verify from the
 owner's own account.
+
+## 5. Dawn message wipe + `#archive`
+
+Every time a new `Turn` opens with `phase === "DAWN"` (never Dusk), if
+`GameConfig.messageWipeEnabled` is on (a Dev Panel checkbox, default off),
+`db/lib/dawnWipe.js#runDawnWipe` clears every Location's roleplay content —
+after archiving it first, in order, to a single guild-wide `#archive` text
+channel (exact-name match like `#turns`/`#location` — a GM creates it once,
+no auto-provisioning). This is wired into `db/index.js#advanceTurn()`
+itself (see below), so it fires identically regardless of whether Dawn was
+triggered by the bot's twice-daily cron or a GM's manual "End Turn" button.
+
+**Per channel type:**
+
+| Channel | Wipe behavior |
+|---|---|
+| Plain (summary) | Every message archived, then deleted. |
+| Public (forum) | Every post (thread) is archived. Posts **without** the "Persistent" (⏰) forum tag are then deleted entirely — post gone. Posts **with** it survive; only their messages are cleared. |
+| Private | Has no top-level messages, only threads (anyone can spin one up, not just GMs). Every thread — active or already auto-archived — is archived, then deleted entirely. No Persistent exception here. |
+
+**Archive format**: each line is `` `[Zone / Location]` **AuthorName**: content ``
+— `AuthorName` is `message.author.username`, which for tupper-proxied
+messages is already the character's name (the webhook's `username` is set
+to it, see "Character proxying" in the root `CLAUDE.md`) — no DB join
+needed, and it works uniformly for non-proxied messages (e.g. bot-posted
+adjudication results) too. Lines are batched into as few `#archive`
+messages as possible (≤2000 chars each) rather than one API call per line.
+Order is chronological within each channel/thread; Locations are processed
+in the same `Zone / Location` alphabetical order as `sortLocationCategories`
+(§2), not a strict cross-channel global merge.
+
+Private-channel content **is** archived (not skipped) — the privacy
+tradeoff is handled out-of-band by the GM keeping `#archive` itself hidden
+from players until the game ends, not by the code.
+
+**Persistent tag**: added to every public forum channel's `available_tags`
+at creation time (both `provisionLocationChannels` call sites) and via a
+one-off backfill (`npm run db:backfill-persistent-tag`,
+`db/prisma/backfill-persistent-tag.js`) for ones that predate it. Looked up
+by name at wipe-time (`getForumTagId` in `db/lib/discordRest.js`) rather
+than stored anywhere, so it can't drift if ever recreated.
+
+**Where the code lives**: `db/lib/discordRest.js` (low-level REST helpers —
+paginated message fetch, bulk-delete, thread list/delete, forum tag patch,
+no `prisma` dependency), `db/lib/dawnWipe.js` (`runDawnWipe(prisma)`, the
+per-Location orchestration above), `db/lib/turnAnnouncement.js`
+(`postTurnsAnnouncement`, the `#turns` announcement — also consolidated
+here as part of the same refactor, see below). All entirely sequential (no
+parallel fan-out across locations/channels/threads) to avoid bursting
+Discord's rate-limit buckets, and every channel/thread is archived *before*
+it's touched for deletion, so a mid-run crash leaves content merely
+"not yet wiped," never "wiped without being archived" — an accepted known
+limitation (no checkpoint/resume machinery), same framing as the node-cron
+catch-up gap already documented in `docs/ARCHITECTURE.md`.
+
+**Consolidation**: `db/index.js#advanceTurn()` now owns both the turn
+announcement and the Dawn wipe directly (both REST-only, no gateway
+needed) — previously each was duplicated per caller (a gateway version in
+the bot, a REST version in the web Dev Panel). `bot/src/lib/turnEngine.js`
+and `web/app/(app)/gm/dev/actions.js#forceAdvanceTurn` now just call
+`advanceTurn()` and write their own `AuditLog` entry (the one thing that
+legitimately still differs per caller). Both Discord side effects are
+best-effort — wrapped in `.catch()` — so a Discord-side failure can never
+block or roll back the turn advance itself.

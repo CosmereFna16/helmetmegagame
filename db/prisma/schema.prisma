@@ -87,6 +87,11 @@ model GameConfig {
   turnsAnnouncementChannelId String?
   turnsAnnouncementMessageId String?
 
+  // Gates the whole Dawn message-wipe system (db/lib/dawnWipe.js) — off by
+  // default so nothing gets swept until a GM explicitly opts in from the
+  // Dev Panel.
+  messageWipeEnabled        Boolean @default(false)
+
   // The single, always-present "location" channel used for the zone/location
   // travel picker (see bot/src/lib/location.js) — same tracked-message
   // pattern as turnsAnnouncement* above.
@@ -218,6 +223,7 @@ model Character {
   updatedAt DateTime @updatedAt
 
   @@index([discordUserId])
+  @@index([status])
 }
 
 model Tag {
@@ -277,6 +283,9 @@ model Desire {
   gmNotes       String?
   createdAt     DateTime     @default(now())
   completedAt   DateTime?
+
+  @@index([status, createdAt])
+  @@index([characterId])
 }
 
 // A player-submitted note that their character's tags need GM attention
@@ -293,6 +302,9 @@ model TagChangeRequest {
   gmNotes                  String?
   createdAt                DateTime                @default(now())
   resolvedAt               DateTime?
+
+  @@index([status, createdAt])
+  @@index([characterId])
 }
 
 model Turn {
@@ -330,6 +342,10 @@ model Action {
   confirmDmMessageId String? @unique
   confirmedAt    DateTime?
   createdAt      DateTime     @default(now())
+
+  @@index([status, createdAt])
+  @@index([characterId])
+  @@index([turnId])
 }
 
 model DefaultEffort {
@@ -360,7 +376,7 @@ model DirectMessage {
   content       String
   createdAt     DateTime    @default(now())
 
-  @@index([discordUserId])
+  @@index([discordUserId, createdAt])
   @@index([createdAt])
 }
 

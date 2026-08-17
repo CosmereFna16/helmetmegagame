@@ -53,12 +53,6 @@ export const getLocationChannelIds = cache(async () => {
   return value;
 });
 
-// The single channel gameplay actually happens in — exact name match, not
-// marker-based, matching the bot-side twin in bot/src/lib/channels.js.
-export function isTurnsChannel(channel) {
-  return channel.type === CHANNEL_TYPE_TEXT && channel.name?.toLowerCase() === "turns";
-}
-
 // A tiny in-memory TTL cache so repeated Discord lookups across navigations
 // (not just within one request) don't each cost a network round trip. Fine
 // at this project's scale — one Railway instance, no multi-process fan-out.
@@ -76,8 +70,8 @@ function ttlCache(ttlMs) {
   };
 }
 
-const memberCache = ttlCache(30_000);
-const memberListCache = ttlCache(60_000);
+const memberCache = ttlCache(5 * 60_000);
+const memberListCache = ttlCache(5 * 60_000);
 
 async function fetchGuildMember(discordUserId) {
   const guildId = process.env.DISCORD_GUILD_ID;

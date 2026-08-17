@@ -34,7 +34,7 @@ module.exports = {
     }
 
     const runAdvanceTurn = () => {
-      advanceTurn(client)
+      advanceTurn()
         .then((turn) => console.log(`Turn advanced to #${turn.number} (${turn.phase})`))
         .catch((err) => console.error("Failed to advance turn:", err));
     };

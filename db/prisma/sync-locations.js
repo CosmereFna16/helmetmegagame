@@ -61,6 +61,7 @@ async function provisionLocationChannels(location) {
     type: 15,
     parent_id: category.id,
     default_auto_archive_duration: 1440,
+    available_tags: [{ name: "Persistent", emoji_name: "⏰" }],
   });
   const privateChannel = await createGuildChannel({
     name: `${location.name}-private`,

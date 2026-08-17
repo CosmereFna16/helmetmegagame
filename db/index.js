@@ -1,6 +1,8 @@
 const { PrismaClient } = require("@prisma/client");
 const { rollWeather, buildTurnAnnouncement } = require("./weather");
 const { HUNGERLESS_SLUG, NOBILITY_SLUG, TIPSY_SLUG } = require("./lib/constants");
+const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
+const { runDawnWipe } = require("./lib/dawnWipe");
 
 const globalForPrisma = globalThis;
 
@@ -115,9 +117,12 @@ async function getConfig() {
 // Resolves the currently OPEN turn (applying Needs decay) and opens the next
 // one, alternating DAWN/DUSK. Shared by the bot's cron-triggered advance and
 // any GM-triggered "End Turn" action so both apply identical turn logic —
-// callers are responsible for anything Discord-specific (announcements),
-// since the transport for that differs between the bot's gateway client and
-// the web app's REST calls.
+// this now also owns every Discord side effect (turn announcement, and the
+// Dawn message wipe if enabled), all REST-based (db/lib/turnAnnouncement.js,
+// db/lib/dawnWipe.js), so callers don't need to duplicate any of it
+// regardless of whether they have a gateway client or not. Both are
+// best-effort: a Discord-side failure is logged, never thrown, so it can
+// never block or roll back the turn advance itself.
 async function advanceTurn() {
   const config = await getConfig();
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
@@ -151,6 +156,14 @@ async function advanceTurn() {
     where: { id: 1 },
     data: { nextWeather: null, nextTurnNote: null },
   });
+
+  await postTurnsAnnouncement(prisma, newTurn, note).catch((err) =>
+    console.error("Failed to post turn announcement:", err),
+  );
+
+  if (newTurn.phase === "DAWN" && config.messageWipeEnabled) {
+    await runDawnWipe(prisma).catch((err) => console.error("Dawn message wipe failed:", err));
+  }
 
   return { previousTurn: openTurn, newTurn, note };
 }

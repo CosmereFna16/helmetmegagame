@@ -1,14 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma, advanceTurn as advanceTurnInDb, buildTurnAnnouncement, HUNGERLESS_SLUG } from "@lifeweb/db";
+import { prisma, advanceTurn as advanceTurnInDb, HUNGERLESS_SLUG } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import {
-  postMessage,
-  deleteMessage,
-  listGuildChannels,
-  isTurnsChannel,
   ensureCharacterRole,
   createGuildChannel,
   CHANNEL_TYPE_CATEGORY,
@@ -59,6 +55,7 @@ export async function updateGameConfig(formData) {
       lifewebBlood: Math.max(0, Math.min(100, intOrZero(formData, "lifewebBlood"))),
       lifewebDecayPerTurn: intOrZero(formData, "lifewebDecayPerTurn"),
       lifewebDrainedDurationTurns: intOrZero(formData, "lifewebDrainedDurationTurns"),
+      messageWipeEnabled: formData.get("messageWipeEnabled") === "on",
     },
   });
 
@@ -108,10 +105,16 @@ export async function updateNextTurn(formData) {
   revalidatePath("/gm/dev");
 }
 
+// advanceTurnInDb() now owns every Discord side effect itself (turn
+// announcement, and the Dawn message wipe if GameConfig.messageWipeEnabled
+// is on) — REST-based, so this needs nothing gateway-specific. With the
+// wipe enabled this can take a while to resolve (fetching/archiving/
+// deleting across every Location's channels), so it may take a few minutes
+// on a Dawn turn.
 export async function forceAdvanceTurn() {
   const session = await requireSuperadmin();
 
-  const { previousTurn, newTurn, note } = await advanceTurnInDb();
+  const { previousTurn, newTurn } = await advanceTurnInDb();
 
   await prisma.auditLog.create({
     data: {
@@ -120,24 +123,6 @@ export async function forceAdvanceTurn() {
       details: { previousTurnId: previousTurn?.id ?? null, newTurnId: newTurn.id, number: newTurn.number, phase: newTurn.phase, weather: newTurn.weather },
     },
   });
-
-  const text = buildTurnAnnouncement(newTurn, note);
-  const channels = await listGuildChannels();
-  const turnsChannel = channels.find(isTurnsChannel);
-
-  if (turnsChannel) {
-    const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
-    if (config?.turnsAnnouncementChannelId === turnsChannel.id && config.turnsAnnouncementMessageId) {
-      await deleteMessage(turnsChannel.id, config.turnsAnnouncementMessageId).catch(() => {});
-    }
-    const sent = await postMessage(turnsChannel.id, text).catch(() => null);
-    if (sent) {
-      await prisma.gameConfig.update({
-        where: { id: 1 },
-        data: { turnsAnnouncementChannelId: turnsChannel.id, turnsAnnouncementMessageId: sent.id },
-      });
-    }
-  }
 
   revalidatePath("/gm/dev");
   revalidatePath("/", "layout");
@@ -392,6 +377,10 @@ export async function provisionLocationChannels(locationId) {
     // deleted — after 24h of inactivity. 1440 is minutes; Discord only
     // accepts 60/1440/4320/10080 here.
     default_auto_archive_duration: 1440,
+    // Players tag a post "Persistent" to exempt it from the Dawn message
+    // wipe (db/lib/dawnWipe.js) — the post survives, only its messages get
+    // cleared. Looked up by name at wipe-time, not stored anywhere.
+    available_tags: [{ name: "Persistent", emoji_name: "⏰" }],
   });
 
   const privateChannel = await createGuildChannel({
