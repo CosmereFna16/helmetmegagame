@@ -8,28 +8,24 @@ const DISCORD_API = "https://discord.com/api/v10";
 // curated ID list — see bot/src/lib/channels.js for the bot-side twin of
 // this logic (kept separate since the bot uses its gateway cache instead
 // of a REST call).
-const CHANNEL_MARKER = "»";
 const CHANNEL_TYPE_TEXT = 0;
 const CHANNEL_TYPE_FORUM = 15;
 const PERM_VIEW_CHANNEL = 1024;
 
-// locationChannelIds (see getLocationChannelIds below) is optional so
-// existing callers that don't pass it keep working unchanged — it lets a
-// Location's plain/public channels (web/app/(app)/gm/dev/actions.js
-// #provisionLocationChannels) opt in by Discord channel ID instead of
-// needing "»" in their (auto-generated) names.
+// Tupper/summary status is entirely Location-channel-ID-based (see
+// getLocationChannelIds below) — a channel opts in only by being one of a
+// Location's plain/public/private channels, provisioned via
+// web/app/(app)/gm/dev/actions.js#provisionLocationChannels.
 export function isSummaryChannel(channel, locationChannelIds) {
   if (channel.type !== CHANNEL_TYPE_TEXT) return false;
-  if (locationChannelIds?.tupperSummary?.has(channel.id)) return true;
-  return channel.name?.includes(CHANNEL_MARKER) ?? false;
+  return locationChannelIds?.tupperSummary?.has(channel.id) ?? false;
 }
 
 export function isTupperChannel(channel, locationChannelIds) {
   if (channel.type !== CHANNEL_TYPE_TEXT && channel.type !== CHANNEL_TYPE_FORUM) return false;
-  if (locationChannelIds?.tupperSummary?.has(channel.id) || locationChannelIds?.tupperOnly?.has(channel.id)) {
-    return true;
-  }
-  return channel.name?.includes(CHANNEL_MARKER) ?? false;
+  return (
+    (locationChannelIds?.tupperSummary?.has(channel.id) || locationChannelIds?.tupperOnly?.has(channel.id)) ?? false
+  );
 }
 
 const locationChannelCache = ttlCache(30_000);

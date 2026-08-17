@@ -163,7 +163,7 @@ export default async function DevPanelPage() {
           </div>
         </form>
         <p className="mt-3 text-xs" style={{ color: "var(--muted)" }}>
-          Tupper/summary channels are detected by name (any channel with &quot;»&quot;). Moves and Efforts
+          Tupper/summary channels are the plain/public/private channels of a provisioned Location. Moves and Efforts
           come from channels named exactly &quot;moves&quot; and &quot;effort&quot;.
         </p>
       </section>

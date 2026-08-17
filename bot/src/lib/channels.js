@@ -1,12 +1,10 @@
 const { ChannelType } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 
-// Channels are marked by name instead of a manually-curated ID list — any
-// channel with "»" in its name opts in, so GMs manage this by renaming
-// channels in Discord rather than through a separate config UI. Location
-// channels (see locationChannelIds below) opt in by Discord ID instead,
-// since their names are auto-generated at provisioning time.
-const MARKER = "»";
+// Tupper/summary status is entirely Location-channel-ID-based (see
+// locationChannelIds below) — a channel opts in only by being one of a
+// Location's plain/public/private channels, provisioned via
+// web/app/(app)/gm/dev/actions.js#provisionLocationChannels.
 
 // Refreshed on bot ready and every 5 minutes after — Location rows change
 // rarely (only via GM provisioning), so a periodic in-memory refresh is
@@ -30,29 +28,23 @@ setInterval(() => refreshLocationChannels().catch((err) => console.error("Failed
 
 function isSummaryChannel(channel) {
   if (channel.type !== ChannelType.GuildText) return false;
-  if (locationChannelIds.tupperSummary.has(channel.id)) return true;
-  return channel.name?.includes(MARKER) ?? false;
+  return locationChannelIds.tupperSummary.has(channel.id);
 }
 
 function isTupperChannel(channel) {
   if (channel.type !== ChannelType.GuildText && channel.type !== ChannelType.GuildForum) return false;
-  if (locationChannelIds.tupperSummary.has(channel.id) || locationChannelIds.tupperOnly.has(channel.id)) return true;
-  return channel.name?.includes(MARKER) ?? false;
+  return locationChannelIds.tupperSummary.has(channel.id) || locationChannelIds.tupperOnly.has(channel.id);
 }
 
 // Messages inside a forum thread (or a location's private-thread channel)
 // report the thread as message.channel, so tupper-proxying has to check the
-// parent channel's marker/ID instead.
+// parent channel's ID instead.
 function isDesignatedTupperChannel(channel) {
   if (isTupperChannel(channel)) return true;
   if (channel.isThread() && channel.parent) {
-    if (channel.parent.type === ChannelType.GuildForum && channel.parent.name?.includes(MARKER)) return true;
-    if (
-      locationChannelIds.tupperSummary.has(channel.parent.id) ||
-      locationChannelIds.tupperOnly.has(channel.parent.id)
-    ) {
-      return true;
-    }
+    return (
+      locationChannelIds.tupperSummary.has(channel.parent.id) || locationChannelIds.tupperOnly.has(channel.parent.id)
+    );
   }
   return false;
 }
@@ -80,7 +72,6 @@ function isLocationPromptChannel(channel) {
 }
 
 module.exports = {
-  MARKER,
   isSummaryChannel,
   isTupperChannel,
   isDesignatedTupperChannel,

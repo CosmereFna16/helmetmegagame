@@ -7,15 +7,12 @@ it) — and they're easy to conflate, so this doc keeps them separate.
 
 ## 1. Tupper / summary opt-in
 
-Any Discord channel becomes tupper-and-summary-enabled by one of two routes:
-
-- **The `»` marker in its name.** Standard text channels with `»` anywhere in
-  the name are both tupper (auto-proxying, ❌/✏️/⭐ reactions) and summary
-  (adjudication results get posted there) channels. Forum channels with `»`
-  are tupper-only.
-- **Being a provisioned Location channel** (see §2) — these opt in by
-  Discord channel ID instead, so the auto-generated channel names (`church`,
-  `church-public`, `church-private`) don't need the marker themselves.
+A channel opts into tupper/summary behavior only by being one of a
+provisioned Location's three channels (see §2), matched by Discord channel
+ID — there is no name-based marker, and channel names are otherwise
+meaningless to this system. Of the three: the plain (text) channel is both
+tupper (auto-proxying, ❌/✏️/⭐ reactions) and summary (adjudication results
+post there); the public (forum) and private (text) channels are tupper-only.
 
 Two independent implementations check this: `bot/src/lib/channels.js`
 (gateway cache, for the bot) and `web/lib/discordGuild.js`
@@ -33,9 +30,9 @@ channels" button (`web/app/(app)/gm/dev/actions.js`) or in bulk by
 them in sync if it changes.
 
 **Category name**: `"{Zone} » {Location}"`, e.g. `Town » Church`. Purely
-cosmetic — for grouping in the Discord channel list — and unrelated to the
-`»`-marker opt-in in §1 (categories aren't channels of type text/forum, so
-`isTupperChannel`/`isSummaryChannel` never look at them).
+cosmetic, for grouping in the Discord channel list — categories aren't
+channels of type text/forum, so `isTupperChannel`/`isSummaryChannel` never
+look at them.
 
 **Channels, created in this order** (which is also their display order,
 since Discord assigns position by creation order):
@@ -84,3 +81,18 @@ active-Location primitive:
 If a new call site ever sets `Character.locationId` directly, it needs to
 call one of these two (or a shared equivalent) — a raw Prisma write alone
 leaves the old category overwrite dangling and the new one missing.
+`db/prisma/backfill-location-access.js` (`npm run db:backfill-location-access`)
+is a one-off catch-up for characters whose `locationId` was set before these
+call sites existed (mirrors `backfill-roles.js`'s role-creation catch-up).
+
+## 4. Testing visibility: the guild owner always sees everything
+
+Discord's permission system exempts the **guild owner** from every overwrite
+— denies, category-level or channel-level, never apply to them. If the
+account you're testing with owns the Discord server (true for whoever ran
+the bot setup), every category will look visible to you regardless of what
+overwrites are actually set, even with zero bugs in this system. To actually
+observe the per-character gating, test from a non-owner account (an alt, or
+a real player) — checking the raw permission overwrites via the REST API
+(as done to diagnose/backfill this) is the reliable way to verify from the
+owner's own account.
