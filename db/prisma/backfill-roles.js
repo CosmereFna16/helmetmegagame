@@ -5,6 +5,7 @@
 // web/lib/discordGuild.js#ensureCharacterRole, since that file relies on
 // Next.js's "@/..." path aliases which don't resolve outside the web
 // package.
+require("dotenv").config();
 const { prisma, hashNameToColor } = require("../index");
 
 const DISCORD_API = "https://discord.com/api/v10";

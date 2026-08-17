@@ -1,3 +1,4 @@
+require("dotenv").config();
 const { prisma } = require("../index");
 
 // Locations are created with null discordCategoryId/channel IDs — actual

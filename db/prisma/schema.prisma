@@ -138,11 +138,20 @@ model Zone {
 // discordCategoryId/discordChannelId/discordPublicChannelId/
 // discordPrivateChannelId are null until a GM provisions the channels from
 // /gm/dev/zones (web/app/(app)/gm/dev/actions.js#provisionLocationChannels).
+//
+// slug is the stable human-authored key used by docs/locations.yaml + the
+// db:sync-locations script (db/prisma/sync-locations.js) to match rows
+// across syncs — separate from `id` so the YAML doesn't need to know
+// Prisma's generated cuids. tags are free-text flavor/categorization labels
+// authored in the YAML, unrelated to the player-facing Tag/CharacterTag
+// system.
 model Location {
-  id                      String  @id @default(cuid())
+  id                      String   @id @default(cuid())
+  slug                    String?  @unique
   name                    String
+  tags                    String[] @default([])
   zoneId                  String
-  zone                    Zone    @relation(fields: [zoneId], references: [id])
+  zone                    Zone     @relation(fields: [zoneId], references: [id])
 
   discordCategoryId       String?
   discordChannelId        String?

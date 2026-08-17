@@ -1,3 +1,4 @@
+require("dotenv").config();
 const { prisma } = require("../index");
 const {
   HUNGERLESS_SLUG,
@@ -117,7 +118,7 @@ const SKILL_FAMILIES = [
     family: "Fighting",
     tiers: [
       { tier: "Basic", slug: "fighting-basic", pointCost: 2, description: "Can hold a weapon and defend yourself in a pinch." },
-      { tier: "Trained", slug: "fighting-trained", pointCost: 2, description: "Formally trained combat — a Guard's or Sheriff's baseline." },
+      { tier: "Trained", slug: "fighting-trained", pointCost: 2, description: "Formally trained combat — a Watchman's or Sheriff's baseline." },
       { tier: "Skilled", slug: "fighting-skilled", pointCost: 2, description: "A seasoned fighter, dangerous in a real fight." },
     ],
   },

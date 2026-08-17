@@ -1,0 +1,69 @@
+# Source of truth for the game's Zones/Locations, meant to be hand-edited
+# then pushed with `npm run db:sync-locations` (db/prisma/sync-locations.js).
+#
+# - id: a stable slug, used to match this entry to its DB row across syncs.
+#   Renaming a location later means changing `name` here, NOT `id` — a
+#   changed `id` is treated as a brand-new location instead of a rename.
+# - name: display name. Only used as the Discord channel/category name the
+#   FIRST time a location is provisioned — renaming it here later does not
+#   rename already-provisioned Discord channels (see CLAUDE.md).
+# - zone: the Zone this location belongs to, matched/created by name.
+# - tags: free-text flavor/categorization labels for the location itself —
+#   unrelated to the player-facing Tag system. Empty until you fill them in.
+#
+# Adding a new entry and re-running the sync creates its Zone (if new) and
+# Location row, then provisions its Discord channels. Removing an entry from
+# this file does NOT delete anything in Discord or the DB — sync is
+# create/update only, never destructive.
+
+locations:
+  - id: church
+    name: church
+    zone: Town
+    tags: []
+  - id: sanctuary
+    name: sanctuary
+    zone: Town
+    tags: []
+  - id: inn
+    name: inn
+    zone: Town
+    tags: []
+  - id: town-square
+    name: town square
+    zone: Town
+    tags: []
+  - id: fields
+    name: fields
+    zone: Town
+    tags: []
+
+  - id: keep
+    name: keep
+    zone: Fortress
+    tags: []
+  - id: garrison
+    name: garrison
+    zone: Fortress
+    tags: []
+  - id: lifeweb
+    name: lifeweb
+    zone: Fortress
+    tags: []
+  - id: catacombs
+    name: catacombs
+    zone: Fortress
+    tags: []
+
+  - id: six-spoked-wheel-camp
+    name: Six-Spoked Wheel Camp
+    zone: Windlands
+    tags: []
+  - id: broken-spears-camp
+    name: Broken Spears Camp
+    zone: Windlands
+    tags: []
+  - id: bastards-camp
+    name: Bastard's Camp
+    zone: Windlands
+    tags: []
