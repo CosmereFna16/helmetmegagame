@@ -62,12 +62,10 @@ export function DevIcon(props) {
   );
 }
 
-export function ArchiveIcon(props) {
+export function NotesIcon(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
-      <rect x="4" y="4.5" width="16" height="4" rx="1" />
-      <path d="M5.5 8.5v9.5A1.5 1.5 0 0 0 7 19.5h10a1.5 1.5 0 0 0 1.5-1.5V8.5" strokeLinejoin="round" />
-      <path d="M10 12.5h4" strokeLinecap="round" />
+      <path d="M12 3.5l2.4 5 5.5.8-4 3.9.9 5.5-5-2.6-5 2.6.9-5.5-4-3.9 5.5-.8L12 3.5z" strokeLinejoin="round" />
     </svg>
   );
 }

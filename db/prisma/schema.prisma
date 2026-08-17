@@ -122,7 +122,7 @@ model Zone {
   characters     Character[]
   actions        Action[]
   defaultEfforts DefaultEffort[]
-  archivedMessages ArchivedMessage[]
+  notes          Note[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -174,10 +174,10 @@ model Character {
 
   // zoneId is a denormalized mirror of location.zoneId, kept in sync
   // whenever locationId changes (see bot/src/lib/location.js) so the
-  // existing zone-filter UI (players/turns tables, archive) and the zoneId
-  // stamped onto Action/DefaultEffort/ArchivedMessage keep working
-  // unchanged. locationId is the authoritative "where is this character"
-  // field and the source of their category-level channel access.
+  // existing zone-filter UI (players/turns tables, notes) and the zoneId
+  // stamped onto Action/DefaultEffort/Note keep working unchanged.
+  // locationId is the authoritative "where is this character" field and
+  // the source of their category-level channel access.
   zoneId         String?
   zone           Zone?           @relation(fields: [zoneId], references: [id])
   locationId     String?
@@ -212,7 +212,7 @@ model Character {
   defaultEffort  DefaultEffort?
   setDefaultsFor DefaultEffort[] @relation("DefaultEffortSetBy")
   auditLogTargets AuditLog[]
-  archivedMessages ArchivedMessage[]
+  notes          Note[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -364,39 +364,29 @@ model DirectMessage {
   @@index([createdAt])
 }
 
-model ArchivedMessage {
-  id               String    @id @default(cuid())
-  discordMessageId String    @unique
+// A player's personal note on a message in a Location channel — created by
+// reacting ⭐ to any proxied message (bot/src/events/messageReactionAdd.js);
+// the bot strips the reaction back off immediately, so the note's presence
+// on /notes is the only lasting trace, not the Discord reaction itself. Each
+// (message, starrer) pair gets its own row, since a note is personal to
+// whoever starred it — not a shared/aggregate count.
+model Note {
+  id               String     @id @default(cuid())
+  discordMessageId String
   discordChannelId String
   characterId      String?
   character        Character? @relation(fields: [characterId], references: [id])
   characterName    String
   zoneId           String?
-  zone             Zone?     @relation(fields: [zoneId], references: [id])
+  zone             Zone?      @relation(fields: [zoneId], references: [id])
   content          String
-  starCount        Int       @default(1)
   sentAt           DateTime
-  archivedAt       DateTime  @default(now())
+  discordUserId    String
+  createdAt        DateTime   @default(now())
 
-  stars MessageStar[]
-
-  @@index([zoneId])
-  @@index([starCount])
-}
-
-// One row per (message, starrer) — lets a player's archive view show only
-// messages *they* starred, since matching a player's actual Discord read
-// access (zones, private threads for secret conversations, etc.) isn't
-// something the archive tracks.
-model MessageStar {
-  id                String          @id @default(cuid())
-  archivedMessageId String
-  archivedMessage   ArchivedMessage @relation(fields: [archivedMessageId], references: [id])
-  discordUserId     String
-  createdAt         DateTime        @default(now())
-
-  @@unique([archivedMessageId, discordUserId])
+  @@unique([discordMessageId, discordUserId])
   @@index([discordUserId])
+  @@index([zoneId])
 }
 
 // One row per change to a Faction's Silo — deposits, manual Dev Panel

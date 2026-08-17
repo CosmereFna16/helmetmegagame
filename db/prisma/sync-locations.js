@@ -43,7 +43,7 @@ async function createGuildChannel(payload) {
 
 async function provisionLocationChannels(location) {
   const category = await createGuildChannel({
-    name: `${location.zone.name} » ${location.name}`,
+    name: `${location.zone.name} / ${location.name}`,
     type: 4,
     permission_overwrites: [
       { id: guildId, type: 0, deny: String(PERM_VIEW_CHANNEL) },
@@ -91,7 +91,7 @@ const CHANNEL_TYPE_CATEGORY = 4;
 
 // Standalone twin of web/lib/discordGuild.js#sortLocationCategories — see
 // that copy for the full explanation. Re-sorts every provisioned Location's
-// category alphabetically by "{Zone} » {Location}", leaving every other
+// category alphabetically by "{Zone} / {Location}", leaving every other
 // category's position untouched.
 async function sortLocationCategories() {
   const locations = await prisma.location.findMany({
@@ -113,7 +113,7 @@ async function sortLocationCategories() {
     .sort((a, b) => a - b);
 
   const sorted = [...locations].sort((a, b) =>
-    `${a.zone.name} » ${a.name}`.localeCompare(`${b.zone.name} » ${b.name}`),
+    `${a.zone.name} / ${a.name}`.localeCompare(`${b.zone.name} / ${b.name}`),
   );
   const updates = sorted.map((l, i) => ({ id: l.discordCategoryId, position: currentPositions[i] }));
 

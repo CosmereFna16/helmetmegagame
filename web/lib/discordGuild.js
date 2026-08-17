@@ -232,28 +232,6 @@ export async function deleteMessage(channelId, messageId) {
   }
 }
 
-const STAR_EMOJI = "⭐";
-
-// Recomputes a starred message's true reaction count straight from Discord —
-// used by the archive's manual "Refresh" action so counts stay correct even
-// after stars are removed (something the bot's opportunistic on-add update
-// can't see) or the bot missed an update while offline.
-export async function getMessageStarCount(channelId, messageId) {
-  const token = process.env.DISCORD_TOKEN;
-  if (!token) throw new Error("DISCORD_TOKEN is not set.");
-
-  const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages/${messageId}`, {
-    headers: { Authorization: `Bot ${token}` },
-    cache: "no-store",
-  });
-  if (res.status === 404) return 0;
-  if (!res.ok) throw new Error(`Failed to fetch message: ${res.status} ${await res.text()}`);
-
-  const message = await res.json();
-  const reaction = message.reactions?.find((r) => r.emoji?.name === STAR_EMOJI);
-  return reaction?.count ?? 0;
-}
-
 const NICK_MAX = 32;
 const NICK_SEP = " | ";
 
@@ -432,7 +410,7 @@ export async function createGuildChannel(payload) {
 export { CHANNEL_TYPE_CATEGORY };
 
 // Re-sorts every provisioned Location's category alphabetically by
-// "{Zone} » {Location}" (zone first, then location within it), called after
+// "{Zone} / {Location}" (zone first, then location within it), called after
 // provisionLocationChannels creates a new one so the category list doesn't
 // need manual reordering in Discord. Only reassigns position values among
 // the category IDs that are already Location categories — every other
@@ -462,7 +440,7 @@ export async function sortLocationCategories() {
     .sort((a, b) => a - b);
 
   const sorted = [...locations].sort((a, b) =>
-    `${a.zone.name} » ${a.name}`.localeCompare(`${b.zone.name} » ${b.name}`),
+    `${a.zone.name} / ${a.name}`.localeCompare(`${b.zone.name} / ${b.name}`),
   );
   const updates = sorted.map((l, i) => ({ id: l.discordCategoryId, position: currentPositions[i] }));
 

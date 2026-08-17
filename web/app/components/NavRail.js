@@ -10,7 +10,7 @@ import {
   FactionIcon,
   DevIcon,
   MessageIcon,
-  ArchiveIcon,
+  NotesIcon,
   LifewebIcon,
   SignOutIcon,
 } from "./icons";
@@ -24,7 +24,7 @@ const ICONS = {
   faction: FactionIcon,
   dev: DevIcon,
   messages: MessageIcon,
-  archive: ArchiveIcon,
+  notes: NotesIcon,
   lifeweb: LifewebIcon,
 };
 

@@ -110,17 +110,19 @@ async function handleTypeSelection(reaction, user) {
   await sent.react(CONFIRM_EMOJI).catch(() => {});
 }
 
-// Starring a proxied tupper message archives it (or bumps its star count if
-// already archived). `reaction.count` is already the post-add total, so this
-// stays cheap — no extra Discord fetch needed on the happy path. Also records
-// *who* starred it (MessageStar) so a player's own archive view can be
-// scoped to only what they starred, rather than everything on the map.
+// Starring a proxied tupper message saves it to the reacting user's personal
+// Notes list (web/app/(app)/notes) — a private note, not a shared archive,
+// so it's keyed on (message, starrer). The bot always strips the ⭐ reaction
+// straight back off (see dispatch below) so Discord never shows an
+// accumulating star count; the note living on /notes is the only lasting
+// record, and unstarring happens there (a delete button), not by reacting
+// again.
 async function handleStarReaction(reaction, proxy, user) {
   const character = await prisma.character.findUnique({ where: { id: proxy.characterId } });
   if (!character) return;
 
-  const archived = await prisma.archivedMessage.upsert({
-    where: { discordMessageId: reaction.message.id },
+  await prisma.note.upsert({
+    where: { discordMessageId_discordUserId: { discordMessageId: reaction.message.id, discordUserId: user.id } },
     create: {
       discordMessageId: reaction.message.id,
       discordChannelId: reaction.message.channelId,
@@ -128,17 +130,9 @@ async function handleStarReaction(reaction, proxy, user) {
       characterName: character.name,
       zoneId: character.zoneId ?? null,
       content: reaction.message.content ?? "",
-      starCount: reaction.count ?? 1,
       sentAt: reaction.message.createdAt,
+      discordUserId: user.id,
     },
-    update: {
-      starCount: reaction.count ?? 1,
-    },
-  });
-
-  await prisma.messageStar.upsert({
-    where: { archivedMessageId_discordUserId: { archivedMessageId: archived.id, discordUserId: user.id } },
-    create: { archivedMessageId: archived.id, discordUserId: user.id },
     update: {},
   });
 }
@@ -195,6 +189,10 @@ module.exports = {
 
     if (emoji === STAR_EMOJI) {
       await handleStarReaction(reaction, proxy, user).catch(() => {});
+      // Universal rule: a ⭐ reaction is always stripped back off right after
+      // being processed, for any user, on any message — so the star lives on
+      // the reactor's Notes list, not as a visible, accumulating reaction.
+      await reaction.users.remove(user.id).catch(() => {});
       return;
     }
 

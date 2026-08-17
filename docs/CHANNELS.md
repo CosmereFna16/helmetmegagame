@@ -29,7 +29,7 @@ channels" button (`web/app/(app)/gm/dev/actions.js`) or in bulk by
 `docs/locations.yaml`). Both call sites build the exact same layout; keep
 them in sync if it changes.
 
-**Category name**: `"{Zone} » {Location}"`, e.g. `Town » Church`. Purely
+**Category name**: `"{Zone} / {Location}"`, e.g. `Town / Church`. Purely
 cosmetic, for grouping in the Discord channel list — categories aren't
 channels of type text/forum, so `isTupperChannel`/`isSummaryChannel` never
 look at them. After provisioning, `sortLocationCategories`
