@@ -133,12 +133,13 @@ async function advanceTurn() {
 
   const lastTurn = openTurn ?? (await prisma.turn.findFirst({ orderBy: { number: "desc" } }));
   const phase = !lastTurn || lastTurn.phase === "DUSK" ? "DAWN" : "DUSK";
-  // Weather only turns over on the DAWN turn (a fresh day, one Markov step
-  // off yesterday's weather — see rollWeather() in weather.js); the DUSK
-  // turn later that same day just inherits it unchanged, so a day reads as
-  // one coherent condition instead of flipping mid-day. A GM's manual
+  // Weather rolls every turn, as a Markov step off the previous turn's
+  // weather through the table for the phase being entered (see
+  // rollWeather() in weather.js) — that's what lets a state like STORM
+  // persist for several turns straight regardless of phase, while FOG
+  // specifically favors DAWN turns and burns off by DUSK. A GM's manual
   // override (config.nextWeather, set from the Dev Panel) always wins.
-  const weather = config.nextWeather ?? (phase === "DUSK" ? lastTurn.weather : rollWeather(lastTurn?.weather));
+  const weather = config.nextWeather ?? rollWeather(lastTurn?.weather, phase);
   const lifewebFlavor = lifewebBlood <= LIFEWEB_SPUTTER_THRESHOLD ? "The Lifeweb sputters, failing." : null;
   const note = [lifewebFlavor, config.nextTurnNote].filter(Boolean).join("\n\n") || null;
 

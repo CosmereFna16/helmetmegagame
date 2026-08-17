@@ -1,31 +1,45 @@
-// Base distribution used only when there's no prior day's weather to build
-// on (the very first turn the game ever plays) — every turn after that is
-// driven by WEATHER_TRANSITIONS below, which is what actually produces
-// multi-day streaks (a clear spell, three days of rain running) instead of
-// every day rolling independently of the last. Bias toward CLEAR as the
+// Base distribution used only when there's no previous turn's weather to
+// build on (the very first turn the game ever plays) — every turn after
+// that is driven by WEATHER_TRANSITIONS below. Bias toward CLEAR as the
 // game's baseline condition.
 const WEATHER_WEIGHTS = { CLEAR: 45, FOG: 25, RAIN: 17, STORM: 10, MIGRATION: 3 }; // sums to 100
 
-// Weather changes once per in-game day, on the DAWN turn (see advanceTurn()
-// in db/index.js, which carries that same value forward unchanged to the
-// DUSK turn later that day — a day reads as one coherent condition rather
-// than flipping mid-day). Each row is a Markov transition keyed on
-// *yesterday's* weather, and every row sums to 100.
+// Weather rolls every turn (twice a day — see advanceTurn() in
+// db/index.js), as a Markov transition off the *previous turn's* weather,
+// split into a DAWN table and a DUSK table so the roll also depends on
+// which phase is being entered. Every row in both tables sums to 100.
 //
-// The self-transition (diagonal) weight is what creates a streak: CLEAR and
-// RAIN are the two "spell" states with the highest chance of repeating
-// several days running (a clear spell; three days of rain). STORM is
-// intense but short — it burns down fast toward RAIN or CLEAR rather than
-// stacking storm-on-storm. MIGRATION never repeats two days in a row (a
-// one-day omen, not a weather regime) and is rare to enter from anywhere.
-// Every row is also weighted so CLEAR is the state the weather tends to
-// drift back toward, on top of whatever streak is currently running.
+// The self-transition (diagonal) weight is what creates a streak: CLEAR
+// and RAIN are "spell" states that can run several turns in a row (a clear
+// spell; three turns of rain). STORM's diagonal is deliberately the
+// highest of any state in either table — every *other* state only enters
+// STORM rarely (kept low on purpose, so it stays a dramatic, occasional
+// event rather than the norm), but once one kicks off it can rage for many
+// turns straight, the same in the morning as the evening — so a full
+// multi-day storm is rare but genuinely possible, not diluted away by
+// starting over each turn. MIGRATION never repeats turn-to-turn (a one-off
+// omen, not a weather regime).
+//
+// FOG is the one state that's genuinely phase-dependent, mirroring real
+// mornings-fog-burns-off-by-evening behavior: the DAWN table both enters
+// and holds FOG far more readily (from every other state, and with a much
+// higher self-transition) than the DUSK table, where FOG mostly resolves
+// back to CLEAR instead of persisting.
 const WEATHER_TRANSITIONS = {
-  CLEAR: { CLEAR: 60, FOG: 20, RAIN: 12, STORM: 5, MIGRATION: 3 },
-  FOG: { CLEAR: 40, FOG: 35, RAIN: 18, STORM: 5, MIGRATION: 2 },
-  RAIN: { CLEAR: 25, FOG: 15, RAIN: 45, STORM: 12, MIGRATION: 3 },
-  STORM: { CLEAR: 20, FOG: 10, RAIN: 40, STORM: 25, MIGRATION: 5 },
-  MIGRATION: { CLEAR: 45, FOG: 30, RAIN: 20, STORM: 5, MIGRATION: 0 },
+  DAWN: {
+    CLEAR: { CLEAR: 47, FOG: 35, RAIN: 13, STORM: 2, MIGRATION: 3 },
+    FOG: { CLEAR: 32, FOG: 45, RAIN: 18, STORM: 3, MIGRATION: 2 },
+    RAIN: { CLEAR: 20, FOG: 22, RAIN: 48, STORM: 7, MIGRATION: 3 },
+    STORM: { CLEAR: 10, FOG: 8, RAIN: 12, STORM: 65, MIGRATION: 5 },
+    MIGRATION: { CLEAR: 36, FOG: 40, RAIN: 20, STORM: 4, MIGRATION: 0 },
+  },
+  DUSK: {
+    CLEAR: { CLEAR: 65, FOG: 10, RAIN: 17, STORM: 3, MIGRATION: 5 },
+    FOG: { CLEAR: 58, FOG: 15, RAIN: 22, STORM: 3, MIGRATION: 2 },
+    RAIN: { CLEAR: 25, FOG: 8, RAIN: 55, STORM: 9, MIGRATION: 3 },
+    STORM: { CLEAR: 10, FOG: 4, RAIN: 16, STORM: 65, MIGRATION: 5 },
+    MIGRATION: { CLEAR: 53, FOG: 15, RAIN: 28, STORM: 4, MIGRATION: 0 },
+  },
 };
 
 const WEATHER_MESSAGES = {
@@ -46,12 +60,14 @@ function rollFromWeights(weights) {
   return "CLEAR";
 }
 
-// Rolls the next day's weather. Pass yesterday's weather to walk the
-// WEATHER_TRANSITIONS row for it (the normal case); omit it (or pass an
-// unrecognized value) to fall back to the flat WEATHER_WEIGHTS baseline,
-// which only happens on the very first turn the game ever plays.
-function rollWeather(previousWeather) {
-  const weights = WEATHER_TRANSITIONS[previousWeather] ?? WEATHER_WEIGHTS;
+// Rolls this turn's weather. Pass the previous turn's weather and the
+// phase being entered ("DAWN"/"DUSK") to walk the matching
+// WEATHER_TRANSITIONS row (the normal case); omit previousWeather (or pass
+// an unrecognized value) to fall back to the flat WEATHER_WEIGHTS
+// baseline, which only happens on the very first turn the game ever plays.
+function rollWeather(previousWeather, phase) {
+  const table = WEATHER_TRANSITIONS[phase] ?? WEATHER_TRANSITIONS.DAWN;
+  const weights = table[previousWeather] ?? WEATHER_WEIGHTS;
   return rollFromWeights(weights);
 }
 
