@@ -1,4 +1,4 @@
-import { IBM_Plex_Mono } from "next/font/google";
+import { IBM_Plex_Mono, Source_Serif_4, UnifrakturMaguntia } from "next/font/google";
 import "./globals.css";
 import { getOpenTurn, themeForPhase } from "@/lib/turn";
 import TagsProvider from "./components/TagsProvider";
@@ -7,6 +7,18 @@ const mono = IBM_Plex_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
   weight: ["400", "500", "700"],
+});
+
+const serif = Source_Serif_4({
+  variable: "--font-serif",
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+});
+
+const display = UnifrakturMaguntia({
+  variable: "--font-display",
+  subsets: ["latin"],
+  weight: "400",
 });
 
 export const metadata = {
@@ -24,7 +36,11 @@ export default async function RootLayout({ children }) {
   const theme = themeForPhase(turn?.phase);
 
   return (
-    <html lang="en" data-theme={theme} className={`${mono.variable} h-full`}>
+    <html
+      lang="en"
+      data-theme={theme}
+      className={`${mono.variable} ${serif.variable} ${display.variable} h-full`}
+    >
       <body className="h-full">
         <div className="scanlines" />
         <TagsProvider>{children}</TagsProvider>

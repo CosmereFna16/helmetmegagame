@@ -43,7 +43,7 @@ export default async function LifewebPage() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6 sm:p-8">
       <div>
-        <h1 className="text-2xl font-bold">The Lifeweb</h1>
+        <h1 className="font-display text-3xl">The Lifeweb</h1>
         <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--muted)" }}>
           Ravenheart isn&rsquo;t built on soil. Somewhere under the cellars and the old wells, something
           older than the Barony moves — goo the world before left behind, running the wards and the wells

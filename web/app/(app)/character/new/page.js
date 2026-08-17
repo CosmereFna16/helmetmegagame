@@ -14,7 +14,7 @@ export default async function NewCharacterPage() {
 
   return (
     <main className="mx-auto flex max-w-md flex-col gap-6 p-8">
-      <h1 className="text-2xl font-bold">Create Your Character</h1>
+      <h1 className="font-display text-3xl">Create Your Character</h1>
       <form action={createCharacter} className="panel flex flex-col gap-4 p-4">
         <label className="field">
           <span className="field-label">Name</span>

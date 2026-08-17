@@ -44,9 +44,28 @@ body {
   background: var(--bg);
 }
 
+/* Headings read in the serif; everything else (chrome, tables, forms,
+   buttons) stays in the mono — the two "main" fonts described in the
+   design doc. */
+h1,
+h2 {
+  font-family: var(--font-serif), Georgia, serif;
+  font-optical-sizing: auto;
+}
+
+/* Gothic display face, reserved for a handful of thematic moments (the
+   login wordmark, a couple of flavor-heavy page titles) — not for bulk
+   headings or arbitrary player-authored text, since it's illegible small. */
+.font-display {
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
 .wordmark {
   color: var(--text);
-  font-weight: 700;
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 400;
 }
 
 .wordmark-rule {
