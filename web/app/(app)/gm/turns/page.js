@@ -4,28 +4,70 @@ import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { describeTurn, getOpenTurn } from "@/lib/turn";
 import AdjudicatePanel from "./AdjudicatePanel";
 
+// Terminal-status rows only grow for the rest of the month-long game; the
+// most recent HISTORY_TAKE is enough for history browsing. Non-terminal
+// (still-needs-GM-attention) rows are never capped — they're bounded by
+// outstanding queue size, not by how long the game has been running, and
+// truncating a still-PENDING/CONFIRMED item would silently hide it from GMs.
+const HISTORY_TAKE = 500;
+
 export default async function TurnsPage() {
   const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   if (!gm) redirect("/character");
 
-  const [allActions, allDesires, allTagRequests, allTurns, openTurnRecord, guildMembers] = await Promise.all([
+  const [
+    pendingActions,
+    historyActions,
+    pendingDesires,
+    historyDesires,
+    pendingTagRequests,
+    historyTagRequests,
+    allTurns,
+    openTurnRecord,
+    guildMembers,
+  ] = await Promise.all([
     prisma.action.findMany({
+      where: { status: { in: ["PENDING_TYPE", "PENDING", "CONFIRMED"] } },
       orderBy: { createdAt: "desc" },
       include: { character: { include: { faction: true, zone: true } }, turn: true },
     }),
+    prisma.action.findMany({
+      where: { status: "ADJUDICATED" },
+      orderBy: { createdAt: "desc" },
+      take: HISTORY_TAKE,
+      include: { character: { include: { faction: true, zone: true } }, turn: true },
+    }),
     prisma.desire.findMany({
+      where: { status: { in: ["ACTIVE", "PENDING"] } },
+      orderBy: { createdAt: "desc" },
+      include: { character: { include: { faction: true } } },
+    }),
+    prisma.desire.findMany({
+      where: { status: { in: ["COMPLETED", "ABANDONED"] } },
+      orderBy: { createdAt: "desc" },
+      take: HISTORY_TAKE,
+      include: { character: { include: { faction: true } } },
+    }),
+    prisma.tagChangeRequest.findMany({
+      where: { status: "PENDING" },
       orderBy: { createdAt: "desc" },
       include: { character: { include: { faction: true } } },
     }),
     prisma.tagChangeRequest.findMany({
+      where: { status: "RESOLVED" },
       orderBy: { createdAt: "desc" },
+      take: HISTORY_TAKE,
       include: { character: { include: { faction: true } } },
     }),
     prisma.turn.findMany({ select: { number: true, phase: true } }),
     getOpenTurn(),
     listGuildMembers(),
   ]);
+
+  const allActions = [...pendingActions, ...historyActions].sort((a, b) => b.createdAt - a.createdAt);
+  const allDesires = [...pendingDesires, ...historyDesires].sort((a, b) => b.createdAt - a.createdAt);
+  const allTagRequests = [...pendingTagRequests, ...historyTagRequests].sort((a, b) => b.createdAt - a.createdAt);
 
   const usernameById = new Map(guildMembers.map((m) => [m.id, m.username]));
   const requesterDiscordUserIds = [...new Set(allTagRequests.map((r) => r.requestedByDiscordUserId))];

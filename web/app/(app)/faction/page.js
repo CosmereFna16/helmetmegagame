@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { prisma, TREASURER_SLUG } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
@@ -87,9 +88,9 @@ function FactionTable({ factions, showSilo }) {
                 <td>{leader?.name ?? "-"}</td>
                 {showSilo && <td>{f.silo}</td>}
                 <td>
-                  <a href={`/faction?factionId=${f.id}`} className="menu-item">
+                  <Link href={`/faction?factionId=${f.id}`} className="menu-item">
                     View
-                  </a>
+                  </Link>
                 </td>
               </tr>
             );
@@ -134,9 +135,9 @@ function FactionRows({ factions, childrenMap, depth, showSilo }) {
         <td>{leader?.name ?? "-"}</td>
         {showSilo && <td>{f.silo}</td>}
         <td>
-          <a href={`/faction?factionId=${f.id}`} className="menu-item">
+          <Link href={`/faction?factionId=${f.id}`} className="menu-item">
             View
-          </a>
+          </Link>
         </td>
       </tr>,
       ...FactionRows({ factions: children, childrenMap, depth: depth + 1, showSilo }),
@@ -322,9 +323,9 @@ export default async function FactionPage({ searchParams }) {
     return (
       <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6 sm:p-8">
         {viewingSubject && (
-          <a href="/faction" className="btn-quiet">
+          <Link href="/faction" className="btn-quiet">
             &larr; Back to your faction
-          </a>
+          </Link>
         )}
 
         <div>
@@ -429,9 +430,9 @@ export default async function FactionPage({ searchParams }) {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6 sm:p-8">
-      <a href="/faction" className="btn-quiet">
+      <Link href="/faction" className="btn-quiet">
         &larr; All Factions
-      </a>
+      </Link>
 
       <div className="flex items-center justify-between">
         <div>

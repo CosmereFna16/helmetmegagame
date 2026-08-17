@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { prisma } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 
@@ -139,14 +140,14 @@ export default async function AuditLogPage({ searchParams }) {
         </span>
         <div className="flex gap-3">
           {page > 1 && (
-            <a href={pageHref(page - 1)} className="menu-item">
+            <Link href={pageHref(page - 1)} className="menu-item">
               Previous
-            </a>
+            </Link>
           )}
           {page < totalPages && (
-            <a href={pageHref(page + 1)} className="menu-item">
+            <Link href={pageHref(page + 1)} className="menu-item">
               Next
-            </a>
+            </Link>
           )}
         </div>
       </div>
