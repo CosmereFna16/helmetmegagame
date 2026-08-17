@@ -38,7 +38,7 @@ module.exports = {
         .then((turn) => console.log(`Turn advanced to #${turn.number} (${turn.phase})`))
         .catch((err) => console.error("Failed to advance turn:", err));
     };
-    cron.schedule("0 5 * * *", runAdvanceTurn, { timezone: "America/Chicago" });
-    cron.schedule("0 17 * * *", runAdvanceTurn, { timezone: "America/Chicago" });
+    cron.schedule("0 10 * * *", runAdvanceTurn, { timezone: "America/Chicago" });
+    cron.schedule("0 22 * * *", runAdvanceTurn, { timezone: "America/Chicago" });
   },
 };
