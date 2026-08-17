@@ -43,7 +43,7 @@ async function createGuildChannel(payload) {
 
 async function provisionLocationChannels(location) {
   const category = await createGuildChannel({
-    name: location.name,
+    name: `${location.zone.name} » ${location.name}`,
     type: 4,
     permission_overwrites: [
       { id: guildId, type: 0, deny: String(PERM_VIEW_CHANNEL) },
@@ -138,6 +138,7 @@ async function main() {
         console.log(`unchanged: ${entry.name} (${entry.id})`);
       }
     }
+    location.zone = zone;
     upserted.push(location);
   }
 

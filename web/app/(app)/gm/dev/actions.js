@@ -348,11 +348,13 @@ const PERM_CREATE_PRIVATE_THREADS = 68719476736;
 // (1 category + plain/public/private channels) — see the Location model
 // comment in schema.prisma. Deliberately not auto-synced: re-running this
 // for an already-provisioned Location is a no-op so edits here never risk
-// deleting/recreating live channels or their message history.
+// deleting/recreating live channels or their message history. The category
+// is named "{Zone} » {Location}" (e.g. "Town » Church"); the three channels
+// underneath stay named after the Location alone.
 export async function provisionLocationChannels(locationId) {
   await requireSuperadmin();
 
-  const location = await prisma.location.findUnique({ where: { id: locationId } });
+  const location = await prisma.location.findUnique({ where: { id: locationId }, include: { zone: true } });
   if (!location) throw new Error("Location not found.");
   if (location.discordCategoryId) return;
 
@@ -360,7 +362,7 @@ export async function provisionLocationChannels(locationId) {
   const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
 
   const category = await createGuildChannel({
-    name: location.name,
+    name: `${location.zone.name} » ${location.name}`,
     type: CHANNEL_TYPE_CATEGORY,
     permission_overwrites: [
       { id: everyoneId, type: 0, deny: String(PERM_VIEW_CHANNEL) },
