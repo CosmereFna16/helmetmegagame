@@ -14,7 +14,7 @@ export default async function DevCharacterEditPage({ params }) {
   const [character, factions, zones, ownedTags, allTags] = await Promise.all([
     prisma.character.findUnique({ where: { id: characterId } }),
     prisma.faction.findMany({ orderBy: { name: "asc" } }),
-    prisma.zone.findMany({ orderBy: { name: "asc" } }),
+    prisma.zone.findMany({ orderBy: { name: "asc" }, include: { locations: { orderBy: { name: "asc" } } } }),
     prisma.characterTag.findMany({ where: { characterId }, include: { tag: true } }),
     prisma.tag.findMany({ orderBy: [{ category: "asc" }, { name: "asc" }] }),
   ]);
@@ -52,7 +52,7 @@ export default async function DevCharacterEditPage({ params }) {
             </select>
           </label>
           <label className="field">
-            <span className="field-label">Zone</span>
+            <span className="field-label">Zone (only used when no Location is set)</span>
             <select name="zoneId" defaultValue={character.zoneId ?? ""}>
               <option value="">(none)</option>
               {zones.map((z) => (
@@ -61,6 +61,20 @@ export default async function DevCharacterEditPage({ params }) {
             </select>
           </label>
         </div>
+
+        <label className="field">
+          <span className="field-label">Location</span>
+          <select name="locationId" defaultValue={character.locationId ?? ""}>
+            <option value="">(none — grants no location channel access)</option>
+            {zones.map((z) => (
+              <optgroup key={z.id} label={z.name}>
+                {z.locations.map((loc) => (
+                  <option key={loc.id} value={loc.id}>{loc.name}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </label>
 
         <div className="grid grid-cols-2 gap-3">
           <label className="field">

@@ -3,7 +3,7 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { TAG_STORE_CATEGORY_NAMES } from "@/lib/tagStore";
-import { listGuildChannels, isSummaryChannel } from "@/lib/discordGuild";
+import { listGuildChannels, isSummaryChannel, getLocationChannelIds } from "@/lib/discordGuild";
 import CharacterSheet from "../../components/CharacterSheet";
 
 export default async function CharacterPage() {
@@ -23,7 +23,7 @@ export default async function CharacterPage() {
 
   if (!character) redirect("/character/new");
 
-  const [openTurn, otherCharacters, factions, storeTags, guildChannels, config] = await Promise.all([
+  const [openTurn, otherCharacters, factions, storeTags, guildChannels, config, locationChannelIds] = await Promise.all([
     getOpenTurn(),
     prisma.character.findMany({
       where: { status: "ALIVE", id: { not: character.id } },
@@ -38,10 +38,11 @@ export default async function CharacterPage() {
     prisma.tag.findMany({ where: { category: { in: TAG_STORE_CATEGORY_NAMES } } }),
     listGuildChannels(),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
+    getLocationChannelIds(),
   ]);
 
   const summaryChannels = guildChannels
-    .filter(isSummaryChannel)
+    .filter((c) => isSummaryChannel(c, locationChannelIds))
     .map((c) => ({ id: c.id, name: c.name }))
     .sort((a, b) => a.name.localeCompare(b.name));
 

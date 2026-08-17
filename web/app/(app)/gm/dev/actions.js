@@ -4,7 +4,15 @@ import { revalidatePath } from "next/cache";
 import { prisma, advanceTurn as advanceTurnInDb, buildTurnAnnouncement, HUNGERLESS_SLUG } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
-import { postMessage, deleteMessage, listGuildChannels, isTurnsChannel } from "@/lib/discordGuild";
+import {
+  postMessage,
+  deleteMessage,
+  listGuildChannels,
+  isTurnsChannel,
+  ensureCharacterRole,
+  createGuildChannel,
+  CHANNEL_TYPE_CATEGORY,
+} from "@/lib/discordGuild";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 
 async function requireSuperadmin() {
@@ -140,18 +148,28 @@ export async function updateCharacterRaw(formData) {
   if (!characterId) return;
 
   const factionId = str(formData, "factionId").trim() || null;
-  const zoneId = str(formData, "zoneId").trim() || null;
+  const locationId = str(formData, "locationId").trim() || null;
   const moodNote = str(formData, "moodNote").trim() || null;
   const appearance = str(formData, "appearance").trim() || null;
   const roleTitle = str(formData, "roleTitle").trim() || null;
 
-  await prisma.character.update({
+  // zoneId mirrors location.zoneId whenever a Location is set (see the
+  // Location model comment in schema.prisma) — a raw zoneId field is only
+  // meaningful for a character with no specific Location yet.
+  let zoneId = str(formData, "zoneId").trim() || null;
+  if (locationId) {
+    const location = await prisma.location.findUnique({ where: { id: locationId } });
+    zoneId = location?.zoneId ?? zoneId;
+  }
+
+  const updated = await prisma.character.update({
     where: { id: characterId },
     data: {
       name: str(formData, "name").trim(),
       roleTitle,
       factionId,
       zoneId,
+      locationId,
       isLeader: formData.get("isLeader") === "on",
       status: str(formData, "status"),
       resources: intOrZero(formData, "resources"),
@@ -163,6 +181,7 @@ export async function updateCharacterRaw(formData) {
       appearance,
     },
   });
+  await ensureCharacterRole(updated).catch(() => {});
 
   await prisma.auditLog.create({
     data: {
@@ -315,6 +334,103 @@ export async function deleteFaction(formData) {
 
   revalidatePath("/gm/dev/factions");
   revalidatePath("/faction");
+}
+
+// Discord permission bit flags used below. Combined via addition (not `|`,
+// which truncates to 32 bits in JS) since none of these overlap; sent to the
+// API as decimal strings per Discord's permission-bitfield contract.
+const PERM_VIEW_CHANNEL = 1024;
+const PERM_SEND_MESSAGES = 2048;
+const PERM_CREATE_PUBLIC_THREADS = 34359738368;
+const PERM_CREATE_PRIVATE_THREADS = 68719476736;
+
+// One-time, explicitly GM-triggered creation of a Location's Discord layout
+// (1 category + plain/public/private channels) — see the Location model
+// comment in schema.prisma. Deliberately not auto-synced: re-running this
+// for an already-provisioned Location is a no-op so edits here never risk
+// deleting/recreating live channels or their message history.
+export async function provisionLocationChannels(locationId) {
+  await requireSuperadmin();
+
+  const location = await prisma.location.findUnique({ where: { id: locationId } });
+  if (!location) throw new Error("Location not found.");
+  if (location.discordCategoryId) return;
+
+  const everyoneId = process.env.DISCORD_GUILD_ID;
+  const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
+
+  const category = await createGuildChannel({
+    name: location.name,
+    type: CHANNEL_TYPE_CATEGORY,
+    permission_overwrites: [
+      { id: everyoneId, type: 0, deny: String(PERM_VIEW_CHANNEL) },
+      ...(gmRoleId ? [{ id: gmRoleId, type: 0, allow: String(PERM_VIEW_CHANNEL) }] : []),
+    ],
+  });
+
+  const plainChannel = await createGuildChannel({
+    name: location.name,
+    type: 0,
+    parent_id: category.id,
+    rate_limit_per_user: 60,
+  });
+
+  const publicChannel = await createGuildChannel({
+    name: `${location.name}-public`,
+    type: 15,
+    parent_id: category.id,
+  });
+
+  const privateChannel = await createGuildChannel({
+    name: `${location.name}-private`,
+    type: 0,
+    parent_id: category.id,
+    permission_overwrites: [
+      {
+        id: everyoneId,
+        type: 0,
+        deny: String(PERM_SEND_MESSAGES + PERM_CREATE_PUBLIC_THREADS),
+        allow: String(PERM_CREATE_PRIVATE_THREADS),
+      },
+    ],
+  });
+
+  await prisma.location.update({
+    where: { id: locationId },
+    data: {
+      discordCategoryId: category.id,
+      discordChannelId: plainChannel.id,
+      discordPublicChannelId: publicChannel.id,
+      discordPrivateChannelId: privateChannel.id,
+    },
+  });
+
+  revalidatePath("/gm/dev/zones");
+}
+
+export async function updateLocation(formData) {
+  await requireSuperadmin();
+
+  const locationId = str(formData, "locationId").trim();
+  const name = str(formData, "name").trim();
+  if (!locationId || !name) return;
+
+  // DB-only rename — deliberately does not touch already-provisioned Discord
+  // channel/category names, so editing this after provisioning can't
+  // accidentally disrupt live channels or message history.
+  await prisma.location.update({ where: { id: locationId }, data: { name } });
+  revalidatePath("/gm/dev/zones");
+}
+
+export async function createLocation(formData) {
+  await requireSuperadmin();
+
+  const zoneId = str(formData, "zoneId").trim();
+  const name = str(formData, "name").trim();
+  if (!zoneId || !name) return;
+
+  await prisma.location.create({ data: { zoneId, name } });
+  revalidatePath("/gm/dev/zones");
 }
 
 export async function updateZone(formData) {

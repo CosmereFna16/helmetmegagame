@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { prisma, NOBILITY_SLUG, ATE_MEAL_SLUG, TIPSY_SLUG, DRAINED_SLUG } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
-import { syncCharacterNickname, setTurnPingRole, sendDm } from "@/lib/discordGuild";
+import { syncCharacterNickname, setTurnPingRole, sendDm, ensureCharacterRole } from "@/lib/discordGuild";
 import { TAG_STORE_CATEGORY_NAMES, unlockedCategoryNames } from "@/lib/tagStore";
 import { DESIRE_COOLDOWN_TURNS } from "@/lib/desire";
 
@@ -47,6 +47,7 @@ export async function updateCharacterProfile(formData) {
   const updated = await prisma.character.update({ where: { id: character.id }, data });
   await syncCharacterNickname(session.discordUserId, updated.name, updated.preferredNickname).catch(() => {});
   await setTurnPingRole(session.discordUserId, updated.turnPingOptIn).catch(() => {});
+  await ensureCharacterRole(updated).catch(() => {});
   revalidatePath("/character");
 }
 

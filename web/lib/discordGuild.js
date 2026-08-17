@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { auth } from "@/lib/auth";
-import { prisma } from "@lifeweb/db";
+import { prisma, hashNameToColor } from "@lifeweb/db";
 
 const DISCORD_API = "https://discord.com/api/v10";
 
@@ -12,16 +12,49 @@ const CHANNEL_MARKER = "»";
 const CHANNEL_TYPE_TEXT = 0;
 const CHANNEL_TYPE_FORUM = 15;
 
-export function isSummaryChannel(channel) {
-  return channel.type === CHANNEL_TYPE_TEXT && channel.name?.includes(CHANNEL_MARKER);
+// locationChannelIds (see getLocationChannelIds below) is optional so
+// existing callers that don't pass it keep working unchanged — it lets a
+// Location's plain/public channels (web/app/(app)/gm/dev/actions.js
+// #provisionLocationChannels) opt in by Discord channel ID instead of
+// needing "»" in their (auto-generated) names.
+export function isSummaryChannel(channel, locationChannelIds) {
+  if (channel.type !== CHANNEL_TYPE_TEXT) return false;
+  if (locationChannelIds?.tupperSummary?.has(channel.id)) return true;
+  return channel.name?.includes(CHANNEL_MARKER) ?? false;
 }
 
-export function isTupperChannel(channel) {
-  return (
-    (channel.type === CHANNEL_TYPE_TEXT || channel.type === CHANNEL_TYPE_FORUM) &&
-    channel.name?.includes(CHANNEL_MARKER)
-  );
+export function isTupperChannel(channel, locationChannelIds) {
+  if (channel.type !== CHANNEL_TYPE_TEXT && channel.type !== CHANNEL_TYPE_FORUM) return false;
+  if (locationChannelIds?.tupperSummary?.has(channel.id) || locationChannelIds?.tupperOnly?.has(channel.id)) {
+    return true;
+  }
+  return channel.name?.includes(CHANNEL_MARKER) ?? false;
 }
+
+const locationChannelCache = ttlCache(30_000);
+
+async function fetchLocationChannelIds() {
+  const locations = await prisma.location.findMany({
+    select: { discordChannelId: true, discordPublicChannelId: true, discordPrivateChannelId: true },
+  });
+  const tupperSummary = new Set();
+  const tupperOnly = new Set();
+  for (const loc of locations) {
+    if (loc.discordChannelId) tupperSummary.add(loc.discordChannelId);
+    if (loc.discordPublicChannelId) tupperSummary.add(loc.discordPublicChannelId);
+    if (loc.discordPrivateChannelId) tupperOnly.add(loc.discordPrivateChannelId);
+  }
+  return { tupperSummary, tupperOnly };
+}
+
+// Pass the result to isSummaryChannel/isTupperChannel's second argument.
+export const getLocationChannelIds = cache(async () => {
+  const cached = locationChannelCache.get("all");
+  if (cached !== undefined) return cached;
+  const value = await fetchLocationChannelIds();
+  locationChannelCache.set("all", value);
+  return value;
+});
 
 // The single channel gameplay actually happens in — exact name match, not
 // marker-based, matching the bot-side twin in bot/src/lib/channels.js.
@@ -294,6 +327,83 @@ export async function setTurnPingRole(discordUserId, optIn) {
     console.error(`Failed to ${optIn ? "add" : "remove"} turn-ping role for ${discordUserId}:`, err);
   }
 }
+
+// Personal Discord role titled after this character's name, colored
+// deterministically by db/lib/roleColor.js#hashNameToColor. Creates+assigns
+// the role the first time a character gets a name; every later call
+// (idempotent, safe to call on every profile save) renames/recolors it to
+// match the character's current name. Called as a best-effort side effect
+// from updateCharacterProfile and updateCharacterRaw, same convention as
+// syncCharacterNickname above.
+export async function ensureCharacterRole(character) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  const token = process.env.DISCORD_TOKEN;
+  if (!guildId || !token || !character.name) return character.discordRoleId ?? null;
+
+  const color = hashNameToColor(character.name);
+
+  try {
+    if (!character.discordRoleId) {
+      const res = await fetch(`${DISCORD_API}/guilds/${guildId}/roles`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ name: character.name, color, hoist: false, mentionable: true }),
+      });
+      if (!res.ok) {
+        console.error(`Failed to create role for character ${character.id}: ${res.status} ${await res.text()}`);
+        return null;
+      }
+      const role = await res.json();
+
+      const assignRes = await fetch(
+        `${DISCORD_API}/guilds/${guildId}/members/${character.discordUserId}/roles/${role.id}`,
+        { method: "PUT", headers: { Authorization: `Bot ${token}` } },
+      );
+      if (!assignRes.ok && assignRes.status !== 204) {
+        console.error(`Failed to assign role to ${character.discordUserId}: ${assignRes.status} ${await assignRes.text()}`);
+      }
+
+      await prisma.character.update({ where: { id: character.id }, data: { discordRoleId: role.id } });
+      return role.id;
+    }
+
+    const res = await fetch(`${DISCORD_API}/guilds/${guildId}/roles/${character.discordRoleId}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: character.name, color }),
+    });
+    if (!res.ok) {
+      console.error(`Failed to rename/recolor role ${character.discordRoleId}: ${res.status} ${await res.text()}`);
+    }
+    return character.discordRoleId;
+  } catch (err) {
+    console.error("ensureCharacterRole failed:", err);
+    return character.discordRoleId ?? null;
+  }
+}
+
+const CHANNEL_TYPE_CATEGORY = 4;
+
+// Generic channel/category creation used by provisionLocationChannels
+// (web/app/(app)/gm/dev/actions.js) — a category is just this with type 4
+// and no parent_id.
+export async function createGuildChannel(payload) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  const token = process.env.DISCORD_TOKEN;
+  if (!guildId || !token) throw new Error("Discord guild is not configured.");
+
+  const res = await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, {
+    method: "POST",
+    headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to create channel "${payload.name}": ${res.status} ${await res.text()}`);
+  }
+  return res.json();
+}
+
+export { CHANNEL_TYPE_CATEGORY };
 
 export async function sendDm(discordUserId, content) {
   const channel = await createDmChannel(discordUserId);

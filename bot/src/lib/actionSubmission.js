@@ -28,6 +28,20 @@ async function handleActionSubmission(message) {
     return;
   }
 
+  // Also catches a prior auto-resolved zone-change Effort (see
+  // bot/src/lib/location.js#performMove) — changing zones spends the turn
+  // just like an Effort/Move submission does.
+  const alreadyActed = await prisma.action.findFirst({
+    where: { characterId: character.id, turnId: openTurn.id },
+  });
+  if (alreadyActed) {
+    await message.delete().catch(() => {});
+    await sendDm(message.author, "» *You've already acted this turn — your submission wasn't recorded.*").catch(
+      () => {},
+    );
+    return;
+  }
+
   const raw = message.content.trim();
   if (!raw) {
     await message.delete().catch(() => {});

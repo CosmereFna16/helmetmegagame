@@ -9,6 +9,7 @@ import {
   listGuildChannels,
   isSummaryChannel,
   getMessageStarCount,
+  getLocationChannelIds,
 } from "@/lib/discordGuild";
 import { finalDesirePoints, DESIRE_MIN_POINTS } from "@/lib/desire";
 
@@ -84,10 +85,12 @@ export async function adjudicateAction(formData) {
   }
 
   if (isPublic && resultMessage) {
-    const channels = await listGuildChannels();
+    const [channels, locationChannelIds] = await Promise.all([listGuildChannels(), getLocationChannelIds()]);
     const text = `**${action.character.name}** — ${action.description}\n${resultMessage}`;
     await Promise.all(
-      channels.filter(isSummaryChannel).map((channel) => postMessage(channel.id, text).catch(() => {})),
+      channels
+        .filter((c) => isSummaryChannel(c, locationChannelIds))
+        .map((channel) => postMessage(channel.id, text).catch(() => {})),
     );
   }
 
