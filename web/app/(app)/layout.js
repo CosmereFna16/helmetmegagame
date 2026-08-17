@@ -1,12 +1,14 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { prisma, MORTUS_SLUG } from "@lifeweb/db";
+import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import { getOpenTurn } from "@/lib/turn";
 import { isSuperadmin } from "@/lib/superadmin";
 import NavRail from "../components/NavRail";
 import NavRailWithBadges from "../components/NavRailWithBadges";
 import TurnChip from "../components/TurnChip";
+import TurnChipAsync from "../components/TurnChipAsync";
 
 const PLAYER_NAV = [
   { href: "/character", label: "Character", icon: "character" },
@@ -61,34 +63,46 @@ async function loadGmBadgeCounts() {
   }
 }
 
-export default async function AppLayout({ children }) {
-  const [{ session, isGm: gm }, turn] = await Promise.all([getGmSession(), getOpenTurn()]);
-  if (!session?.discordUserId) redirect("/");
-
-  // The Lifeweb's Blood level is a secret the Mortii keep — everyone else
-  // only gets the vague public omen line in the turn announcement (see
-  // advanceTurn() in db/index.js) once it runs low.
-  const hasMortus = gm
-    ? true
-    : !!(await prisma.characterTag.findFirst({
-        where: { character: { discordUserId: session.discordUserId, status: "ALIVE" }, tag: { slug: MORTUS_SLUG } },
-      }));
+// Streamed the same way as loadGmBadgeCounts below (see the Suspense
+// boundary in AppLayout) — the live Discord role check and the Mortus-tag
+// lookup never block a navigation's paint.
+async function loadNavData(discordUserId) {
+  const [{ isGm: gm }, hasMortusTag] = await Promise.all([
+    getGmSession(),
+    // The Lifeweb's Blood level is a secret the Mortii keep — everyone else
+    // only gets the vague public omen line in the turn announcement (see
+    // advanceTurn() in db/index.js) once it runs low.
+    prisma.characterTag.findFirst({
+      where: { character: { discordUserId, status: "ALIVE" }, tag: { slug: MORTUS_SLUG } },
+    }),
+  ]);
+  const hasMortus = gm || !!hasMortusTag;
 
   const baseNav = gm ? GM_NAV : PLAYER_NAV;
   const withLifeweb = hasMortus ? [...baseNav, LIFEWEB_NAV_ITEM] : baseNav;
-  const items = isSuperadmin(session.discordUserId) ? [...withLifeweb, DEV_NAV_ITEM] : withLifeweb;
+  const items = isSuperadmin(discordUserId) ? [...withLifeweb, DEV_NAV_ITEM] : withLifeweb;
+  const badges = gm ? await loadGmBadgeCounts() : {};
+  return { items, badges };
+}
 
-  // Intentionally not awaited — passed down as a promise so Suspense can
-  // stream it in behind the nav shell instead of blocking every navigation.
-  const badgesPromise = gm ? loadGmBadgeCounts() : Promise.resolve({});
+export default async function AppLayout({ children }) {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+
+  // Neither promise is awaited here — both are passed down so Suspense can
+  // stream them in behind the shell instead of blocking every navigation.
+  const navDataPromise = loadNavData(session.discordUserId);
+  const turnPromise = getOpenTurn();
 
   return (
     <div className="app-shell">
-      <Suspense fallback={<NavRail items={items} badges={{}} />}>
-        <NavRailWithBadges items={items} badgesPromise={badgesPromise} />
+      <Suspense fallback={<NavRail items={PLAYER_NAV} badges={{}} />}>
+        <NavRailWithBadges navDataPromise={navDataPromise} />
       </Suspense>
       <main className="app-main">{children}</main>
-      <TurnChip turn={turn} />
+      <Suspense fallback={<TurnChip turn={null} />}>
+        <TurnChipAsync turnPromise={turnPromise} />
+      </Suspense>
     </div>
   );
 }
