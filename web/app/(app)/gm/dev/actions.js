@@ -12,6 +12,7 @@ import {
   ensureCharacterRole,
   createGuildChannel,
   CHANNEL_TYPE_CATEGORY,
+  syncCharacterLocationAccess,
 } from "@/lib/discordGuild";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 
@@ -147,6 +148,8 @@ export async function updateCharacterRaw(formData) {
   const characterId = str(formData, "characterId");
   if (!characterId) return;
 
+  const existing = await prisma.character.findUnique({ where: { id: characterId } });
+
   const factionId = str(formData, "factionId").trim() || null;
   const locationId = str(formData, "locationId").trim() || null;
   const moodNote = str(formData, "moodNote").trim() || null;
@@ -182,6 +185,9 @@ export async function updateCharacterRaw(formData) {
     },
   });
   await ensureCharacterRole(updated).catch(() => {});
+  if (existing?.locationId !== locationId) {
+    await syncCharacterLocationAccess(updated.discordRoleId, existing?.locationId ?? null, locationId).catch(() => {});
+  }
 
   await prisma.auditLog.create({
     data: {

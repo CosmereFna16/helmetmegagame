@@ -11,6 +11,7 @@ const DISCORD_API = "https://discord.com/api/v10";
 const CHANNEL_MARKER = "»";
 const CHANNEL_TYPE_TEXT = 0;
 const CHANNEL_TYPE_FORUM = 15;
+const PERM_VIEW_CHANNEL = 1024;
 
 // locationChannelIds (see getLocationChannelIds below) is optional so
 // existing callers that don't pass it keep working unchanged — it lets a
@@ -379,6 +380,35 @@ export async function ensureCharacterRole(character) {
   } catch (err) {
     console.error("ensureCharacterRole failed:", err);
     return character.discordRoleId ?? null;
+  }
+}
+
+// REST twin of bot/src/lib/location.js#swapLocationAccess, for GM raw edits
+// (updateCharacterRaw, web/app/(app)/gm/dev/actions.js) which change
+// Character.locationId directly in the DB with no gateway Guild object on
+// hand. Same single-overwrite-per-active-Location primitive: grant ViewChannel
+// on the new category, revoke it on the old one.
+export async function syncCharacterLocationAccess(discordRoleId, oldLocationId, newLocationId) {
+  const token = process.env.DISCORD_TOKEN;
+  if (!token || !discordRoleId || oldLocationId === newLocationId) return;
+
+  const [oldLocation, newLocation] = await Promise.all([
+    oldLocationId ? prisma.location.findUnique({ where: { id: oldLocationId } }) : null,
+    newLocationId ? prisma.location.findUnique({ where: { id: newLocationId } }) : null,
+  ]);
+
+  if (oldLocation?.discordCategoryId) {
+    await fetch(`${DISCORD_API}/channels/${oldLocation.discordCategoryId}/permissions/${discordRoleId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bot ${token}` },
+    }).catch(() => {});
+  }
+  if (newLocation?.discordCategoryId) {
+    await fetch(`${DISCORD_API}/channels/${newLocation.discordCategoryId}/permissions/${discordRoleId}`, {
+      method: "PUT",
+      headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ id: discordRoleId, type: 0, allow: String(PERM_VIEW_CHANNEL) }),
+    }).catch(() => {});
   }
 }
 
