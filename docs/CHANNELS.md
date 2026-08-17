@@ -32,7 +32,12 @@ them in sync if it changes.
 **Category name**: `"{Zone} » {Location}"`, e.g. `Town » Church`. Purely
 cosmetic, for grouping in the Discord channel list — categories aren't
 channels of type text/forum, so `isTupperChannel`/`isSummaryChannel` never
-look at them.
+look at them. After provisioning, `sortLocationCategories`
+(`web/lib/discordGuild.js`, mirrored standalone in `sync-locations.js`) runs
+automatically to re-sort every Location category alphabetically by this
+full name (zone first, then location within it) — it only reassigns
+position values among existing Location category IDs, so any non-Location
+category keeps its position untouched.
 
 **Channels, created in this order** (which is also their display order,
 since Discord assigns position by creation order):
@@ -41,7 +46,7 @@ since Discord assigns position by creation order):
 |---|---|---|---|
 | `church` | text | Summary channel — tupper proxying, turn/adjudication updates post here | 60s |
 | `church-public` | forum | Subrooms — players spin up their own posts ("The Inn's Kitchen!") | — |
-| `church-private` | text | Secret conversations — `@everyone` is denied `SendMessages`/`CreatePublicThreads` but allowed `CreatePrivateThreads`, so it's only ever used to spin up a private thread and ping people into it | — |
+| `church-private` | text | Secret conversations — `@everyone` is denied `ViewChannel`/`SendMessages`/`CreatePublicThreads` but allowed `CreatePrivateThreads`, so it's only ever used to spin up a private thread and ping people into it. The `ViewChannel` deny is already inherited from the category (see §3) — it's set explicitly here too so Discord's own permissions UI shows it as an explicit deny on this channel instead of "inherited/neutral", which reads as unrestricted at a glance |
 
 **Renaming**: editing a `Location.name` in the DB or in `locations.yaml`
 after provisioning does **not** rename the live Discord category/channels —

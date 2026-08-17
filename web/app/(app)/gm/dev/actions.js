@@ -13,6 +13,7 @@ import {
   createGuildChannel,
   CHANNEL_TYPE_CATEGORY,
   syncCharacterLocationAccess,
+  sortLocationCategories,
 } from "@/lib/discordGuild";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 
@@ -397,7 +398,12 @@ export async function provisionLocationChannels(locationId) {
       {
         id: everyoneId,
         type: 0,
-        deny: String(PERM_SEND_MESSAGES + PERM_CREATE_PUBLIC_THREADS),
+        // ViewChannel is already denied by the category overwrite above, so
+        // this bit is redundant in principle — set explicitly anyway so the
+        // Discord permissions UI shows it as an explicit deny on this
+        // channel rather than "inherited/neutral", which reads as
+        // unrestricted at a glance.
+        deny: String(PERM_VIEW_CHANNEL + PERM_SEND_MESSAGES + PERM_CREATE_PUBLIC_THREADS),
         allow: String(PERM_CREATE_PRIVATE_THREADS),
       },
     ],
@@ -412,6 +418,8 @@ export async function provisionLocationChannels(locationId) {
       discordPrivateChannelId: privateChannel.id,
     },
   });
+
+  await sortLocationCategories().catch(() => {});
 
   revalidatePath("/gm/dev/zones");
 }

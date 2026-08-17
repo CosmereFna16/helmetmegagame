@@ -431,6 +431,48 @@ export async function createGuildChannel(payload) {
 
 export { CHANNEL_TYPE_CATEGORY };
 
+// Re-sorts every provisioned Location's category alphabetically by
+// "{Zone} » {Location}" (zone first, then location within it), called after
+// provisionLocationChannels creates a new one so the category list doesn't
+// need manual reordering in Discord. Only reassigns position values among
+// the category IDs that are already Location categories — every other
+// category (admin/GM channels, defaults) keeps whatever position it already
+// has, since Discord's bulk endpoint only touches entries you include.
+export async function sortLocationCategories() {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  const token = process.env.DISCORD_TOKEN;
+  if (!guildId || !token) return;
+
+  const locations = await prisma.location.findMany({
+    where: { discordCategoryId: { not: null } },
+    include: { zone: true },
+  });
+  if (locations.length === 0) return;
+
+  const res = await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, {
+    headers: { Authorization: `Bot ${token}` },
+  });
+  if (!res.ok) return;
+  const channels = await res.json();
+
+  const locationCategoryIds = new Set(locations.map((l) => l.discordCategoryId));
+  const currentPositions = channels
+    .filter((c) => c.type === CHANNEL_TYPE_CATEGORY && locationCategoryIds.has(c.id))
+    .map((c) => c.position)
+    .sort((a, b) => a - b);
+
+  const sorted = [...locations].sort((a, b) =>
+    `${a.zone.name} » ${a.name}`.localeCompare(`${b.zone.name} » ${b.name}`),
+  );
+  const updates = sorted.map((l, i) => ({ id: l.discordCategoryId, position: currentPositions[i] }));
+
+  await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, {
+    method: "PATCH",
+    headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  }).catch(() => {});
+}
+
 export async function sendDm(discordUserId, content) {
   const channel = await createDmChannel(discordUserId);
   const formatted = `» ${content}`;

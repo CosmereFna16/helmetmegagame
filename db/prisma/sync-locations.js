@@ -65,7 +65,7 @@ async function provisionLocationChannels(location) {
       {
         id: guildId,
         type: 0,
-        deny: String(PERM_SEND_MESSAGES + PERM_CREATE_PUBLIC_THREADS),
+        deny: String(PERM_VIEW_CHANNEL + PERM_SEND_MESSAGES + PERM_CREATE_PUBLIC_THREADS),
         allow: String(PERM_CREATE_PRIVATE_THREADS),
       },
     ],
@@ -79,6 +79,43 @@ async function provisionLocationChannels(location) {
       discordPublicChannelId: publicChannel.id,
       discordPrivateChannelId: privateChannel.id,
     },
+  });
+}
+
+const CHANNEL_TYPE_CATEGORY = 4;
+
+// Standalone twin of web/lib/discordGuild.js#sortLocationCategories — see
+// that copy for the full explanation. Re-sorts every provisioned Location's
+// category alphabetically by "{Zone} » {Location}", leaving every other
+// category's position untouched.
+async function sortLocationCategories() {
+  const locations = await prisma.location.findMany({
+    where: { discordCategoryId: { not: null } },
+    include: { zone: true },
+  });
+  if (locations.length === 0) return;
+
+  const res = await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, {
+    headers: { Authorization: `Bot ${token}` },
+  });
+  if (!res.ok) return;
+  const channels = await res.json();
+
+  const locationCategoryIds = new Set(locations.map((l) => l.discordCategoryId));
+  const currentPositions = channels
+    .filter((c) => c.type === CHANNEL_TYPE_CATEGORY && locationCategoryIds.has(c.id))
+    .map((c) => c.position)
+    .sort((a, b) => a - b);
+
+  const sorted = [...locations].sort((a, b) =>
+    `${a.zone.name} » ${a.name}`.localeCompare(`${b.zone.name} » ${b.name}`),
+  );
+  const updates = sorted.map((l, i) => ({ id: l.discordCategoryId, position: currentPositions[i] }));
+
+  await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, {
+    method: "PATCH",
+    headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
   });
 }
 
@@ -147,6 +184,11 @@ async function main() {
   for (const location of unprovisioned) {
     await provisionLocationChannels(location);
     console.log(`provisioned: ${location.name}`);
+  }
+
+  if (unprovisioned.length > 0) {
+    await sortLocationCategories();
+    console.log("sorted location categories alphabetically");
   }
 }
 
