@@ -388,6 +388,10 @@ export async function provisionLocationChannels(locationId) {
     name: `${location.name}-public`,
     type: 15,
     parent_id: category.id,
+    // Posts (threads) auto-archive — hidden from the active list, not
+    // deleted — after 24h of inactivity. 1440 is minutes; Discord only
+    // accepts 60/1440/4320/10080 here.
+    default_auto_archive_duration: 1440,
   });
 
   const privateChannel = await createGuildChannel({

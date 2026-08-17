@@ -56,7 +56,12 @@ async function provisionLocationChannels(location) {
     parent_id: category.id,
     rate_limit_per_user: 60,
   });
-  const publicChannel = await createGuildChannel({ name: `${location.name}-public`, type: 15, parent_id: category.id });
+  const publicChannel = await createGuildChannel({
+    name: `${location.name}-public`,
+    type: 15,
+    parent_id: category.id,
+    default_auto_archive_duration: 1440,
+  });
   const privateChannel = await createGuildChannel({
     name: `${location.name}-private`,
     type: 0,
