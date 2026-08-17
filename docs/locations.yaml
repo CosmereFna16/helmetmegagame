@@ -4,9 +4,15 @@
 # - id: a stable slug, used to match this entry to its DB row across syncs.
 #   Renaming a location later means changing `name` here, NOT `id` — a
 #   changed `id` is treated as a brand-new location instead of a rename.
-# - name: display name. Only used as the Discord channel/category name the
-#   FIRST time a location is provisioned — renaming it here later does not
-#   rename already-provisioned Discord channels (see CLAUDE.md).
+# - name: display name (standardize on Title Case). Only used as the Discord
+#   channel/category name the FIRST time a location is provisioned —
+#   renaming it here later does not rename already-provisioned Discord
+#   channels (see CLAUDE.md). Note: Discord itself force-lowercases regular
+#   text/forum channel names (no spaces/capitals allowed at all), but
+#   preserves whatever case you give a category — so a provisioned
+#   location's category shows "Town Square" while its actual channels show
+#   "town-square"/"town-square-public"/"town-square-private". Not a bug,
+#   just a Discord platform rule.
 # - zone: the Zone this location belongs to, matched/created by name.
 # - tags: free-text flavor/categorization labels for the location itself —
 #   unrelated to the player-facing Tag system. Empty until you fill them in.
@@ -18,40 +24,40 @@
 
 locations:
   - id: church
-    name: church
+    name: Church
     zone: Town
     tags: []
   - id: sanctuary
-    name: sanctuary
+    name: Sanctuary
     zone: Town
     tags: []
   - id: inn
-    name: inn
+    name: Inn
     zone: Town
     tags: []
   - id: town-square
-    name: town square
+    name: Town Square
     zone: Town
     tags: []
   - id: fields
-    name: fields
+    name: Fields
     zone: Town
     tags: []
 
   - id: keep
-    name: keep
+    name: Keep
     zone: Fortress
     tags: []
   - id: garrison
-    name: garrison
+    name: Garrison
     zone: Fortress
     tags: []
   - id: lifeweb
-    name: lifeweb
+    name: Lifeweb
     zone: Fortress
     tags: []
   - id: catacombs
-    name: catacombs
+    name: Catacombs
     zone: Fortress
     tags: []
 
