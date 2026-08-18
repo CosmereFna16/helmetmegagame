@@ -9,6 +9,13 @@ const ALCOHOLIC_SLUG = "alcoholic";
 const MORTUS_SLUG = "mortus";
 const DRAINED_SLUG = "drained";
 const RADIO_SLUG = "radio";
+const COURTIER_SLUG = "courtier";
+const MANOR_SLUG = "manor";
+const ARTHRITIS_SLUG = "arthritis";
+const LABORER_SLUG = "laborer";
+const LABORER_FARMING_SLUG = "laborer-farming";
+const LABORER_FISHING_SLUG = "laborer-fishing";
+const LABORER_HERDING_SLUG = "laborer-herding";
 
 module.exports = {
   HUNGERLESS_SLUG,
@@ -22,4 +29,11 @@ module.exports = {
   MORTUS_SLUG,
   DRAINED_SLUG,
   RADIO_SLUG,
+  COURTIER_SLUG,
+  MANOR_SLUG,
+  ARTHRITIS_SLUG,
+  LABORER_SLUG,
+  LABORER_FARMING_SLUG,
+  LABORER_FISHING_SLUG,
+  LABORER_HERDING_SLUG,
 };

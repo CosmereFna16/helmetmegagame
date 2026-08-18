@@ -110,29 +110,10 @@ intro: Live life indulgently or honorably—there is not much binding you except
 
 - For whatever reason, the Baron keeps you around in his court. Convince the Captain to launch an expedition into the caves, host marvelous feasts, and duel your fellow courtiers for the Successor’s affection. It is your day to make of it what you will.
 - As a Courtier, your gameplay is largely undefined. You are encouraged to set your own goals and desires and work to fulfill them.
+- Buy the Manor tag once you're established if you want a household of your own to run, alongside your wine and your politics.
 - difficulty: easy
 - multiple: true
-- starting tag:
-- doc elements: courtier, courtstructure, fortressstarting
-
-Courtier (Manor Lord)
-intro: Live in your manor, enjoy your wine, and participate in court politics.
-
-- Live in your manor, enjoy your wine, and participate in court politics.
-- difficulty: easy
-- multiple: true
-- parent role: Courtier
-- starting tag: Manor
-- doc elements: courtier, courtstructure, fortressstarting
-
-Courtier (Manor Lady)
-intro: Support your husband and maintain your manor.
-
-- Support your husband and maintain your manor.
-- difficulty: easy
-- multiple: true
-- parent role: Courtier
-- starting tag: Manor
+- starting tag: Courtier
 - doc elements: courtier, courtstructure, fortressstarting
 
 Courtier (Minstrel)
@@ -143,16 +124,6 @@ intro: Compose ballads, smuggle drugs from the Town, and keep the Baron happy.
 - multiple: true
 - parent role: Courtier
 - starting tag: Musician
-- doc elements: courtier, courtstructure, fortressstarting
-
-Courtier (Old Knight)
-intro: Reminisce about your valiant service against the Cult of Kosm in 1025.
-
-- Reminisce about your valiant service against the Cult of Kosm in 1025. Polish your zweihander, take potions for your arthritis, and serve the Baron.
-- difficulty: easy
-- multiple: true
-- parent role: Courtier
-- starting tag: Fighting (Skilled), Arthritis, Old, Armor
 - doc elements: courtier, courtstructure, fortressstarting
 
 Courtier (Diplomat)
@@ -169,20 +140,11 @@ Servant
 intro: Keep the fortress running.
 
 - Keep the fortress running. Clean, cook, maintain, and serve.
+- Take Cooking (Skilled) if you want to run the kitchens properly as the Chef.
 - difficulty: easy
 - multiple: true
-- starting tag:
+- starting tag: Cooking (Basic)
 - doc elements: courtier, courtstructure, fortressstarting
-
-Servant (Chef)
-intro: Prepare meals for the household and keep the kitchens running.
-
-- Prepare meals for the household and keep the kitchens running.
-- difficulty: easy
-- multiple: true
-- parent role: Servant
-- starting tag: Cooking (Skilled)
-- doc elements: courtier, fortressstarting, courtstructure
 
 ### Faction: The Watch
 
@@ -256,8 +218,8 @@ intro: You live for the thrill of enslaving souls and causing pain.
 
 # Town
 
-- The last tithe wagon didn't return from the Fortress—it was probably ambushed by bandits. The Meister won't be happy about this. Prepare to have the Silo drained.
-- Last week, Thomas Ciobanu—a respectable tradesman—was found milky-eyed, giggly, with a profoundly satisfied look. He wandered around aimlessly, going hungry—when people tried to help him, he just called them fools. The Esculap's medicine couldn't do anything for him, so the Inquisitor had him hanged. He fought all the way to the gallows, like a rabid dog.
+- The last tithe wagon didn't return from the Fortress. Brigands, probably. The Meister won't be happy about this; repare to have the Silo drained.
+- Last week, Thomas Ciobanta—a respectable tradesman—went inexplicably stupid. He wandered around aimlessly, half-naked and starving. When people tried to help him, he just called them idiots. The Inquisitor tested Thomas's reaction by showing him a cross: he snarled like a dog, so the Inquisitor had him hanged.
 
 ## Roles
 
@@ -269,13 +231,13 @@ intro: In the animal world, who can choose good but Man? Even if Ravenheart fall
 - I must ask you, Bishop: do you know the Truth? If not, why do you pose as its Servant? These are questions you must ask before you take office.
 - It is not the first time dark days have come to Ravenheart, but they are difficult times still. You hope the people will survive—God will ensure it. During this difficult transition, ensure you serve as a shining example of goodness.
 - At some point, you will have to decide between peacefulness or the Order of the Silver Cross.
-- Along with the Priest, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts).
+- Along with the Chaplain, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts).
 - difficulty: normal
 - multiple: false
-- starting tag: Priest, Leader, Pious
+- starting tag: Chaplain, Leader, Pious
 - doc elements: townstarting, postchristianity, church, ravenhearteconomy
 
-Priest
+Chaplain
 intro: Care for the needy, lend an ear, and kindle goodness in others.
 
 - It is not the first time dark days have come to Ravenheart. The people will survive—God will ensure it. During this difficult transition, ensure you serve as a shining example of goodness. Evil can only be held back with Truth—do not stoop to violence or zealotry.
@@ -283,19 +245,7 @@ intro: Care for the needy, lend an ear, and kindle goodness in others.
 - Along with the Bishop, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts).
 - difficulty: easy
 - multiple: true
-- starting tag: Priest, Pious
-- doc elements: townstarting, postchristianity, church
-
-Priest (Nun)
-intro: Care for the needy, lend an ear, and kindle goodness in others.
-
-- It is not the first time dark days have come to Ravenheart. The people will survive—God will ensure it. During this difficult transition, ensure you serve as a shining example of goodness. Evil can only be held back with Truth—do not stoop to violence or zealotry.
-- Care for the needy, lend an ear, and kindle goodness in others. Pay visits to the Fortress. Practice pacifism or support the Inquisition.
-- Along with the Bishop, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts).
-- difficulty: easy
-- multiple: true
-- parent role: Priest
-- starting tag: Priest, Pious
+- starting tag: Chaplain, Pious
 - doc elements: townstarting, postchristianity, church
 
 Scholastic
@@ -388,10 +338,10 @@ intro: Lead the Town. Ensure it works and pays its taxes.
 - Your main job is to tax people. You are beholden to the Meister, the Baron’s taxman, and things have gotten nasty in the past when the tithe didn’t meet his expectations. If the Silo’s not full next time he comes, it won’t be a pretty day.
 - You also owe some tax to the Bishop.
 - The Sheriff is on your payroll.
-- You informally lead the Town—everyone knows you and you know everyone. You can use a Move to decipher up to 3 random tags of anyone in the Town faction.
+- You informally lead the Town—everyone knows you and you know everyone. You're Insightful: a lifetime of reading people means you can usually tell what makes someone tick.
 - difficulty: hard
 - multiple: false
-- starting tag: Respected, Leader, Old, Farmer
+- starting tag: Insightful, Leader, Old, Laborer (Farming)
 - doc elements: townstarting, farming, ravenhearteconomy
 
 Sheriff
@@ -418,41 +368,15 @@ intro: Forge anything from basic tools to siege implements and legendary weapons
 - doc elements: townstarting, smithinglist, combat, independent
 
 Peasant
-intro: You’re a peasant without a job, but luck is on your side (+4 starting Tag Points).
+intro: You’re a peasant without a job, working the land as best you can.
 
 - Peasantry—the unlimitedness of knowing you are not being watched, because you are one of Many. You are free, in a way. You must feed yourself and pay your taxes, but what else? It is time to choose a path. Fulfill your Desires, become honest and authentic—choose a life, build it, and protect it.
 - Naturally, you must work during the Dawn, but you are encouraged to experiment with what you do at Dusk.
+- You start as a Laborer, working every trade a little harder than most. Specialize further with Laborer (Farming), Laborer (Fishing) (comes with a Boat), or Laborer (Herding) to produce at a dedicated rate in one of them—or find your own trade.
 - difficulty: easy
 - multiple: true
-- starting tag:
-- starting points: +4
-- doc elements: townstarting, production, independent
-
-Peasant (Farmer)
-intro: Grow food during the day, live a free life at night.
-
-- Peasantry—the unlimitedness of knowing you are not being watched, because you are one of Many. You are free, in a way. You must feed yourself and pay your taxes, but what else? It is time to choose a path. Fulfill your Desires, become honest and authentic—choose a life, build it, and protect it.
-- Naturally, you must work during the Dawn, but you are encouraged to experiment with what you do at Dusk.
-- Grow food during the day, live a free life at night.
-- You pay taxes. Spend your Resources lightly!
-- difficulty: easy
-- multiple: true
-- parent role: Peasant
-- starting tag: Farmer
-- doc elements: townstarting, production, independent
-
-Peasant (Fisher)
-intro: Fish during the day, live a free life at night.
-
-- Peasantry—the unlimitedness of knowing you are not being watched, because you are one of Many. You are free, in a way. You must feed yourself and pay your taxes, but what else? It is time to choose a path. Fulfill your Desires, become honest and authentic—choose a life, build it, and protect it.
-- Naturally, you must work during the Dawn, but you are encouraged to experiment with what you do at Dusk.
-- Fish during the day, live a free life at night.
-- You have a boat.
-- You pay taxes. Spend your Resources lightly!
-- difficulty: easy
-- multiple: true
-- parent role: Peasant
-- starting tag: Fisherman, Boat
+- starting tag: Laborer
+- starting points: +2
 - doc elements: townstarting, production, independent
 
 Herald
@@ -471,33 +395,11 @@ intro: Nature garbs you. Live on the outskirts, free and independent.
 
 - Live on the outskirts, free and independent.
 - You are aware of the Goddess of Nature, Sylva. Some still worship her in Ravenheart. It is up to you to follow the Church or stick to the oldways.
+- Forage and heal as a Healer (Medical (Basic), Brewing (Basic)), or track game as a Hunter (Hunter)—both still Forester at heart. In #turns, a Hunter can roll for a hunt instead of stating a flat Resource amount — add something like +1d6\*2 to your message and it'll be rolled once you confirm.
 - difficulty: easy
 - multiple: true
 - starting tag: Forester, +3
-- doc elements: townstarting, production, independent
-
-Outsider (Healer)
-intro: Forage herbs on the outskirts and tend to the sick and wounded.
-
-- Forage herbs on the outskirts and tend to the sick and wounded.
-- You are aware of the Goddess of Nature, Sylva. Some still worship her in Ravenheart. It is up to you to follow the Church or stick to the oldways.
-- difficulty: easy
-- multiple: true
-- parent role: Outsider
-- starting tag: Medical (Basic), Brewing (Basic), Forester
 - doc elements: townstarting, production, medical, independent
-
-Outsider (Hunter)
-intro: Track game through the wilds and bring back meat for the Town.
-
-- Track game through the wilds and bring back meat for the Town.
-- You are aware of the Goddess of Nature, Sylva. Some still worship her in Ravenheart. It is up to you to follow the Church or stick to the oldways.
-- In #turns, you can roll for a hunt instead of stating a flat Resource amount — add something like +1d6\*2 to your message and it'll be rolled once you confirm.
-- difficulty: easy
-- multiple: true
-- parent role: Outsider, +3
-- starting tag: Hunter, Forester
-- doc elements: townstarting, production, independent
 
 Mortus
 intro: Bring spirits to peace and feed the Lifeweb.
@@ -536,34 +438,13 @@ intro: Name and run the inn: set prices, hire and fire staff, and run an actual,
 - starting tag: Leader, Cooking (Basic), Brewing (Basic)
 - doc elements: townstarting, alcoholdrugs, meals, inn
 
-Cook
-intro: Cook lavish meals for inn patrons.
+Inn Staff
+intro: Work the floor, the kitchen, or the cellar—whatever the Inn needs.
 
-- You're a skilled cook and can spend Resources to make refined meals that make people happy.
+- Keep the Inn running under the Innkeeper. Cook (Cooking (Skilled)), brew (Brewing (Skilled)), wait tables, or just keep the room talking—pick your corner, or split off and start your own enterprise if you're a brewer with ambition.
 - difficulty: easy
 - multiple: true
-- parent role: Innkeeper
-- starting tag: Cooking (Skilled)
-- doc elements: townstarting, meals, bar, inn
-
-Brewer
-intro: Brew alcohol and tonics for the inn, or split off and start your own enterprise.
-
-- You're a skilled brewer and can brew refined forms of alcohol to make customers happy.
-- difficulty: easy
-- multiple: false
-- parent role: Innkeeper
-- starting tag: Brewing (Skilled)
-- doc elements: townstarting, alcoholdrugs, inn, independent
-
-Innkeeper (Barmaid)
-intro: Serve drinks and keep the room talking.
-
-- Serve drinks and keep the room talking.
-- difficulty: easy
-- multiple: true
-- parent role: Innkeeper
-- starting tag:
+- starting tag: Cooking (Basic)
 - doc elements: townstarting, alcoholdrugs, meals, inn, independent
 
 ## Threats
@@ -623,91 +504,115 @@ intro: "Whatever in creation exists without my knowledge exists without my conse
 
 ---
 
-# Camp
+# Windlands
 
-- Fed and united, the Bastard's troop is a powerful entourage, capable of taking on Ravenheart. But they suffer from supply problems and inner conflict. To fund the war campaign: raid the village (might make you unpopular), loot the caves (dangerous), establish a small farm, or send people into town to build a reputation.
-- The camp is split. During a feud, a man from the Broken Spears Clan killed a Wheeler. Execute the killer, punish the Lieutenant, or compensate the Wheelers with Food, before it spirals out of your control.
+- The Bastard has united the clans. The Windriders and the Broken Spears are the two that survived the long march to Ravenheart, and you're ready to fight for a home.
+- There was an incident: a man from the Broken Spears killed one of the Windriders during an argument on whether to raid the Town. Food stores are running low, and there's no time to waste on old grudges.
 
 ## Roles
 
 ### Faction: The Bastard's Camp
 
-Bastard (Windrider Clan)
-intro: You've finally returned to your ancestral home.
+Bastard
+intro: You have thirty days to take Ravenheart. Unite your Lieutenants, feed your men, and march—it's your people's only hope.
 
-- You've finally returned to your ancestral home. Unite your Lieutenants, feed your men, and take Ravenheart—it's your people's only hope.
-- The Bastard and his men wear wind goggles and capes and generally aura farm. It's a wasteland out there. Most of your people are herders, healers, and engineers.
+- Your job is very difficult. Your people are naturally inclined to kill each other instead of cooperate, and if you don't act fast enough, you will starve. You must plan, communicate, organize, and lead to be effective. Above all, be proactive.
+- The way in which you take Ravenheart is important. Do you want to be known as a tyrant or as a liberator?
+- You have noble blood. It's possible that you are the bastard of someone in the Baron's lineage, and thus you share blood with him.
+- There are certain people in your entourage that follow you directly, but the bulk of your force is divided into two groups: the Broken Spears Clan and the Windrider Clan. The Broken Spears clan, known to be warlike, have grown increasingly loyal to you after you defeated their Lieutenant in battle and let him live (he may be a better fighter than you; did you cheat or simply win by luck?) However, they are largely antsy, violent, and hard to manage.
+- In contrast, the Windrider Clan, a much older clan, are calculating and patient, but have made their independence abundantly clear. They support your plans to take Ravenheart, but you suspect there are conditions to their support.
+- There is someone sympathetic to your cause within the walls of the Baron's keep.
 - difficulty: hard
 - multiple: false
-- starting tag: Nobility, Leader
-- doc elements: campstarting, charon
+- starting tag: Nobility, Leader, Fighting (Trained), Windlander, Sign Language
+- doc elements: campstarting, charon, brokenspear, windrider
 
-Camp Followers
-intro: Tend wounds, keep the camp, keep the herds.
+Champion
+intro: You taught the Bastard how to fight, how to play the lute, how to survive. You will follow him even into death.
 
-- Tend wounds, keep the camp, keep the herds.
-- difficulty: easy
-- multiple: true
-- starting tag: Resilient
+- You taught the Bastard how to fight, how to play the lute, how to survive. You will follow him even into death.
+- difficulty: normal
+- multiple: false
+- starting tag: Musician, Fighting (Skilled), Windlander, Sign Language
 - doc elements: campstarting
 
 Mother
 intro: Counsel and support your son.
 
-- Counsel and support your son, spy on the Lieutenants and ensure their loyalty. You would die for him.
+- Counsel and support your son.
 - difficulty: normal
 - multiple: false
-- starting tag: Watchful
+- starting tag: Watchful, Windlander, Sign Language
 - doc elements: campstarting
 
-Champion
-intro: You taught the Bastard how to fight, how to sing, how to survive.
+Follower
+intro: Clanless, you follow the Bastard, as a warrior, a healer, a herder, or anything else.
 
-- You taught the Bastard how to fight, how to sing, how to survive. You will follow him to death.
-- difficulty: normal
-- multiple: false
-- starting tag: Battle-Hardened
+- Clanless, you follow the Bastard, as a warrior, a healer, a herder, or anything else.
+- difficulty: easy
+- multiple: true
+- starting tag: Windlander, Sign Language
 - doc elements: campstarting
 
-Mentat
-intro: The Bastard's right-hand man.
-
-- The Bastard's right-hand man, in charge of ensuring—across clan lines—that there's enough Food and it's being equally split. He is the spymaster, the genius, the engineer, the calculator.
-- difficulty: normal
-- multiple: false
-- starting tag: Sharp Mind
-- doc elements: campstarting
+### Faction: Broken Spears Clan
 
 Lieutenant (Broken Spears Clan)
-intro: Your men are hungry. What is all this kingmaking business?
+intro: Glory for the Broken Spears!
 
-- Your men are hungry. What is all this kingmaking business? Just attack the fortress, raid the village! You trust the Bastard, but he doesn't act fast enough. Stimulant users.
-- You are feuding with the Wheelers.
-- Members: Fighter, Fighter (Builder), Fighter (Standard Bearer), Fighter (Etc.), Camp Follower.
+- Glory for the Broken Spears!
 - difficulty: normal
 - multiple: false
-- starting tag: Stimulant User, Leader
-- doc elements: campstarting
+- starting tag: Fighting (Trained), Leader, Windlander, Sign Language
+- doc elements: campstarting, brokenspear
 
-Lieutenant (Six-Spoke Wheel Clan)
-intro: Famed for their mastery over the revolver.
+Master of Parties
+intro: Supply the Clan with tonics, sound the drums, and keep the men fighting!
 
-- Famed for their mastery over the revolver. The Six-Spoke Wheel Clan are ancient herders and lawkeepers—the old guard. Defend your honor. You trust the Bastard, but he doesn't respect the old ways enough.
-- You are feuding with the Broken Spears.
-- Members: Fighter, Fighter (Tinker), Fighter (Standard Bearer), etc., Camp Follower.
+- Supply the Clan with tonics, sound the drums, and keep the men fighting!
+- You are the Lieutenant's right hand man.
 - difficulty: normal
 - multiple: false
-- starting tag: Old Guard, Leader
-- doc elements: campstarting
+- starting tag: Brewing (Skilled), Musician, Fighting (Trained), Windlander, Sign Language
+- doc elements: campstarting, brokenspear
+
+Clansman (Broken Spears Clan)
+intro: A member of the Broken Spears: a warrior, a drug alchemist, a drummer, a healer, a fortune teller, a herder, or simply a camp follower—the spouse or servant of one of the above.
+
+- A member of the Broken Spears: a warrior, a drug alchemist, a drummer, a healer, a fortune teller, a herder, or simply a camp follower—the spouse or servant of one of the above.
+- difficulty: easy
+- multiple: true
+- starting tag: Windlander, Sign Language
+- doc elements: campstarting, brokenspear
+
+### Faction: Windrider Clan
 
 Lieutenant (Windrider Clan)
-intro: All you want is a home for your people.
+intro: Your ultimate task is at hand. Fulfill your destiny.
 
-- All you want is a home for your people, and the Bastard can provide you that. You're fully loyal to him.
+- Your ultimate task is at hand. Fulfill your destiny.
 - difficulty: normal
 - multiple: false
-- starting tag: Loyal, Leader
-- doc elements: campstarting
+- starting tag: Leader, Windlander, Sign Language
+- doc elements: campstarting, windrider
+
+Ranger
+intro: Track the enemy and ensure the plan comes to fruition.
+
+- Track the enemy and ensure the plan comes to fruition.
+- You are the Lieutenant's right hand man.
+- difficulty: normal
+- multiple: false
+- starting tag: Old .45 Revolver, Windlander (Horse), Windlander, Sign Language, Fighting (Trained)
+- doc elements: campstarting, windrider
+
+Clansman (Windrider Clan)
+intro: You are the essence of the Windlands: a warrior, a healer, a mentat, a scribe, an inventor-engineer, a herder, or simply a camp follower—the spouse or servant of one of the above.
+
+- You are the essence of the Windlands: a warrior, a healer, a mentat, a scribe, an inventor-engineer, a herder, or simply a camp follower—the spouse or servant of one of the above.
+- difficulty: easy
+- multiple: true
+- starting tag: Windlander, Sign Language
+- doc elements: campstarting, windrider
 
 ## Threats
 

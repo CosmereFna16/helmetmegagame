@@ -52,17 +52,23 @@ documents:
   - name: Producing Resources
     key: production
     public: true
-    tags: []
+    tags:
+      - Laborer
+      - Laborer (Farming)
+      - Laborer (Fishing)
+      - Laborer (Herding)
     description: |-
       Producing Resources
 
-      Herding (Effort): 3 Resources (10 with Herder tag)
-      Farming (Effort): 5 Resources (16 with Farmer tag), must be in Town or Fortress (the only arable land).
-      Fishing (Effort): 4 Resources (14 with Fisherman tag), must be in Town or Fortress (near the river).
-      Hunting (Effort): 1d6 Resources (*3 with Hunter tag), must be in Town, Fortress, or Caves.
+      Herding (Effort): 3 Resources for anyone; 8 with Laborer; 13 with Laborer (Herding).
+      Farming (Effort): 4 Resources for anyone; 12 with Laborer; 21 with Laborer (Farming). Must be in Town or Fortress (the only arable land).
+      Fishing (Effort): 3 Resources for anyone; 11 with Laborer; 19 with Laborer (Fishing). Must be in Town or Fortress (near the river).
+      Hunting (Effort): 1d4 Resources for anyone (*3 with Hunter tag), must be in Town, Fortress, or Caves.
       Brewing (Effort): 3 Resources, requires Brewing (Basic) or (Skilled) — see the Alcohol & Drugs document.
 
-      To automatically add Resources on an Effort, type +(resources) anywhere in your message. For example, write “I hunt. +1d6*2” or “I farm. +16”.
+      Laborer is a general-purpose 2-point tag that works every trade a little harder than most. Laborer (Farming), Laborer (Fishing), and Laborer (Herding) each cost a further 2 points, require Laborer first, and push that one trade up to a dedicated specialist's rate.
+
+      To automatically add Resources on an Effort, type +(resources) anywhere in your message. For example, write “I hunt. +1d4*3” or “I farm. +21”.
   - name: Combat
     key: combat
     public: true
@@ -114,7 +120,40 @@ documents:
     key: campstarting
     public: false
     tags: []
-    description: ""
+    description: |-
+      The word for wind in the Windlands is the same word as train, because that's how hard it blows.
+
+      While most of humanity today lives underground—or in those rare fertile oases like Ravenheart—your people refused to cower in the darkness like animals. You lived among brambles, lizards, and oxen. To protect yourself, you wore wind goggles, masks, and gloves. Often being unable to hear your comrades, you were taught sign language as a child and learned to recognize people by their gait.
+
+      The air is still here near Ravenheart. This could be a home. What will life be without having to move to find food? What will life be without wind? What will it be like to see your friend's face, and not just their mask?
+
+      The Bastard has united the clans. The Windriders and the Broken Spears are the two that survived the long march to Ravenheart. You are ready to fight. However, there was an incident: a man from the Broken Spears killed one of the Windriders during an argument on whether to raid the town. Additionally, food stores are running low.
+  - name: Broken Spear Clan
+    key: brokenspear
+    public: false
+    tags: []
+    description: |-
+      You are lightning on the plains—a hundred horses galloping! Behold the people of Ravenheart, like sheep ready for the rending. After you take it, Ravenheart will become a place of strength and honor.
+
+      The Bastard showed strength when he defeated your Lieutenant, but not honor: he spared his life, humiliating him even further. You will follow him gladly.
+
+      However, the fire in his eyes has died. The man ponders and calculates like an old toothless woman. Ravenheart knows you are here—every day wasted is a day they grow stronger. The birds watch you as if you were a corpse ready for the picking.
+
+      In the meantime, you have a threat close at hand: the scheming, snakelike Windriders. During an argument about whether or not to raid the village for food, one of your men killed one of theirs. They are not happy. Perhaps they are scared of your strength.
+
+      Celebrations of life are as common as honor killings in the Broken Spears clan. Drug use—or "riding the horse"—is common and approved. Methamphetamine is a favorite. Addiction, however, is weakness; what, did you fall off the horse?
+  - name: Windrider Clan
+    key: windrider
+    public: false
+    tags: []
+    description: |-
+      The Windrider Clan was the last to bend the knee to the Bastard. An impenetrable sense of family, centuries of prestige: Ereglas the Conqueror, Oliver Horserider, The Ranger Chief, all were Windriders.
+
+      Fate has already decided your course. You were forged upon the face of a dead planet. You are the ideal human, intelligent, capable, and unyielding. They cannot stop you.
+
+      The Bastard understands an all-out attack would be suicide. Support of the people, logistics, careful planning; these are what kept the Windriders alive while clans like the Broken Spears formed and disbanded, year by year. So your fealty was lightly given. You trust his plan will net you a home, but you will not accept a king.
+
+      One of the Broken Spears brats murdered one of your men during an argument. These things happen; but such a childish deed cannot go unpunished, can it? Either the Bastard makes amends—prioritization of resources, independence after taking Ravenheart, or some other promise—or the Broken Spears get put down like the brushlizards they are.
   - name: The Lifeweb
     key: lifewebbasic
     public: true
@@ -139,7 +178,7 @@ documents:
     key: respawning
     public: true
     tags:
-      - Priest
+      - Chaplain
       - Mortus
       - Dead
     description: |-
@@ -197,6 +236,13 @@ documents:
     tags: []
     description: |-
       The Charon is a spaceship. It'll take its passengers out into space, where an enormous passenger liner is allegedly waiting for refugees. The Charon's hatch can be accessed through the catacombs.
+  - name: Meals & Kitchens
+    key: meals
+    public: true
+    tags:
+      - Cooking (Basic)
+      - Cooking (Skilled)
+    description: ""
   - name: Alcohol & Drugs
     key: alcoholdrugs
     public: true

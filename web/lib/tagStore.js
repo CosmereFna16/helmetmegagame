@@ -1,4 +1,4 @@
-import { FOLLOWER_OF_BACCHUS_SLUG } from "@lifeweb/db";
+import { FOLLOWER_OF_BACCHUS_SLUG, COURTIER_SLUG, LABORER_SLUG } from "@lifeweb/db";
 
 export const TAG_STORE_CATEGORIES = [
   { name: "Skills" },
@@ -6,6 +6,9 @@ export const TAG_STORE_CATEGORIES = [
   { name: "Placeholder 2" },
   { name: "Placeholder 3" },
   { name: "Bacchus", requiresTagSlug: FOLLOWER_OF_BACCHUS_SLUG },
+  { name: "Courtier", requiresTagSlug: COURTIER_SLUG },
+  { name: "Laborer", requiresTagSlug: LABORER_SLUG },
+  { name: "Companions" },
 ];
 
 export const TAG_STORE_CATEGORY_NAMES = TAG_STORE_CATEGORIES.map((c) => c.name);
