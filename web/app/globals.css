@@ -494,29 +494,6 @@ h2 {
   height: 20px;
 }
 
-.rail-icon {
-  position: relative;
-  display: inline-flex;
-}
-
-.rail-badge {
-  position: absolute;
-  top: -6px;
-  right: -8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 14px;
-  height: 14px;
-  padding: 0 3px;
-  border-radius: 999px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 0.55rem;
-  line-height: 1;
-  font-weight: 700;
-}
-
 .rail-item:hover {
   color: var(--accent);
 }

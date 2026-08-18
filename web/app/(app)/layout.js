@@ -6,7 +6,7 @@ import { getGmSession } from "@/lib/discordGuild";
 import { getOpenTurn } from "@/lib/turn";
 import { isSuperadmin } from "@/lib/superadmin";
 import NavRail from "../components/NavRail";
-import NavRailWithBadges from "../components/NavRailWithBadges";
+import NavRailAsync from "../components/NavRailAsync";
 import TurnChip from "../components/TurnChip";
 import TurnChipAsync from "../components/TurnChipAsync";
 
@@ -30,43 +30,9 @@ const DEV_NAV_ITEM = { href: "/gm/dev", label: "Dev", icon: "dev" };
 const LIFEWEB_NAV_ITEM = { href: "/lifeweb", label: "Lifeweb", icon: "lifeweb" };
 
 // Streamed separately from the nav shell (see the Suspense boundary in
-// AppLayout below) so these always-live DB queries never block paint on a
-// navigation. Caught internally so a transient DB hiccup degrades to "no
-// badges" instead of taking down the whole rail.
-async function loadGmBadgeCounts() {
-  try {
-    const [confirmedActionCount, pendingDesireCount, pendingTagRequestCount, unrepliedConversations] =
-      await Promise.all([
-        prisma.action.count({ where: { status: "CONFIRMED" } }),
-        prisma.desire.count({ where: { status: "PENDING" } }),
-        prisma.tagChangeRequest.count({ where: { status: "PENDING" } }),
-        // A conversation needs a reply when its most recent message is INBOUND
-        // (from the player) — an OUTBOUND message, bot-sent or GM-sent, counts
-        // as answered.
-        prisma.$queryRaw`
-          SELECT COUNT(*)::int AS count FROM (
-            SELECT DISTINCT ON ("discordUserId") direction
-            FROM "DirectMessage"
-            ORDER BY "discordUserId", "createdAt" DESC
-          ) latest
-          WHERE direction = 'INBOUND'
-        `,
-      ]);
-    const pendingAdjudicationCount = confirmedActionCount + pendingDesireCount + pendingTagRequestCount;
-    const pendingMessageCount = unrepliedConversations[0]?.count ?? 0;
-    return {
-      ...(pendingAdjudicationCount > 0 ? { "/gm/turns": pendingAdjudicationCount } : {}),
-      ...(pendingMessageCount > 0 ? { "/gm/messages": pendingMessageCount } : {}),
-    };
-  } catch {
-    return {};
-  }
-}
-
-// Streamed the same way as loadGmBadgeCounts below (see the Suspense
-// boundary in AppLayout) — the live Discord role check and the Mortus-tag
-// lookup never block a navigation's paint.
-async function loadNavData(discordUserId) {
+// AppLayout below) — the live Discord role check and the Mortus-tag lookup
+// never block a navigation's paint.
+async function loadNavItems(discordUserId) {
   const [{ isGm: gm }, hasMortusTag] = await Promise.all([
     getGmSession(),
     // The Lifeweb's Blood level is a secret the Mortii keep — everyone else
@@ -80,24 +46,22 @@ async function loadNavData(discordUserId) {
 
   const baseNav = gm ? GM_NAV : PLAYER_NAV;
   const withLifeweb = hasMortus ? [...baseNav, LIFEWEB_NAV_ITEM] : baseNav;
-  const items = isSuperadmin(discordUserId) ? [...withLifeweb, DEV_NAV_ITEM] : withLifeweb;
-  const badges = gm ? await loadGmBadgeCounts() : {};
-  return { items, badges };
+  return isSuperadmin(discordUserId) ? [...withLifeweb, DEV_NAV_ITEM] : withLifeweb;
 }
 
 export default async function AppLayout({ children }) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
 
-  // Neither promise is awaited here — both are passed down so Suspense can
-  // stream them in behind the shell instead of blocking every navigation.
-  const navDataPromise = loadNavData(session.discordUserId);
+  // Not awaited here — passed down so Suspense can stream it in behind the
+  // shell instead of blocking every navigation.
+  const itemsPromise = loadNavItems(session.discordUserId);
   const turnPromise = getOpenTurn();
 
   return (
     <div className="app-shell">
-      <Suspense fallback={<NavRail items={PLAYER_NAV} badges={{}} />}>
-        <NavRailWithBadges navDataPromise={navDataPromise} />
+      <Suspense fallback={<NavRail items={PLAYER_NAV} />}>
+        <NavRailAsync itemsPromise={itemsPromise} />
       </Suspense>
       <main className="app-main">{children}</main>
       <Suspense fallback={<TurnChip turn={null} />}>

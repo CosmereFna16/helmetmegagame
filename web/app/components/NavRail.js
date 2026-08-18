@@ -28,7 +28,7 @@ const ICONS = {
   lifeweb: LifewebIcon,
 };
 
-export default function NavRail({ items, badges = {} }) {
+export default function NavRail({ items }) {
   const pathname = usePathname();
 
   return (
@@ -36,7 +36,6 @@ export default function NavRail({ items, badges = {} }) {
       {items.map((item) => {
         const Icon = ICONS[item.icon];
         const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-        const badgeCount = badges[item.href];
         return (
           <Link
             key={item.href}
@@ -44,14 +43,7 @@ export default function NavRail({ items, badges = {} }) {
             className="rail-item"
             data-active={active ? "true" : "false"}
           >
-            <span className="rail-icon">
-              <Icon aria-hidden="true" />
-              {badgeCount > 0 && (
-                <span className="rail-badge" aria-label={`${badgeCount} pending`}>
-                  {badgeCount > 9 ? "9+" : badgeCount}
-                </span>
-              )}
-            </span>
+            <Icon aria-hidden="true" />
             <span>{item.label}</span>
           </Link>
         );
