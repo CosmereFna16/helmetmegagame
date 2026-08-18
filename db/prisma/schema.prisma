@@ -121,13 +121,13 @@ model GameConfig {
   locationPromptChannelId String?
   locationPromptMessageId String?
 
-  // The single #radio voice channel, gated by a dedicated "Radio Access"
-  // Discord role rather than each character's personal role — membership in
-  // that role is synced to whoever holds the Radio Tag (see RADIO_SLUG,
-  // web/lib/discordGuild.js#syncRadioAccess) rather than being assigned by
-  // hand. Provisioned once via provisionRadioChannel (web/app/(app)/gm/dev/actions.js).
+  // The single #radio text channel. Gated the same way as Location
+  // categories — each holder of the Radio Tag gets their own personal
+  // Character.discordRoleId granted a permission overwrite directly on this
+  // channel (see web/lib/discordGuild.js#syncCharacterRadioAccess), no
+  // separate shared role. Provisioned once via provisionRadioChannel
+  // (web/app/(app)/gm/dev/actions.js).
   radioChannelId String?
-  radioRoleId    String?
 }
 
 model Faction {

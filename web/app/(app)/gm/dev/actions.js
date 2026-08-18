@@ -11,7 +11,7 @@ import {
   syncCharacterLocationAccess,
   sortLocationCategories,
   provisionRadioChannel,
-  syncRadioAccess,
+  syncCharacterRadioAccess,
 } from "@/lib/discordGuild";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 
@@ -210,7 +210,7 @@ export async function grantTag(formData) {
 
   if (tag.slug === RADIO_SLUG) {
     const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (character) await syncRadioAccess(character.discordUserId, true);
+    if (character?.discordRoleId) await syncCharacterRadioAccess(character.discordRoleId, true);
   }
 
   await prisma.auditLog.create({
@@ -239,7 +239,7 @@ export async function revokeTag(formData) {
   const revokedTag = await prisma.tag.findUnique({ where: { id: ct.tagId } });
   if (revokedTag?.slug === RADIO_SLUG) {
     const character = await prisma.character.findUnique({ where: { id: ct.characterId } });
-    if (character) await syncRadioAccess(character.discordUserId, false);
+    if (character?.discordRoleId) await syncCharacterRadioAccess(character.discordRoleId, false);
   }
 
   await prisma.auditLog.create({
