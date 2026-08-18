@@ -6,6 +6,52 @@ const {
   buildConfirmRow,
   performMove,
 } = require("../lib/location");
+const { sendDm } = require("../lib/dm");
+
+function isGmMember(interaction) {
+  const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
+  if (!gmRoleId) return false;
+  return interaction.member?.roles.cache.has(gmRoleId) ?? false;
+}
+
+// /gm: post to the current channel as the bot itself, not the invoker's
+// character — the slash-command replacement for the old ":gm" message
+// prefix (deleted the invoker's message and reposted it; a slash command
+// has no message of its own to delete, so it just sends directly).
+async function handleGmCommand(interaction) {
+  if (!isGmMember(interaction)) {
+    await interaction.reply({ content: "» *GMs only.*", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  const content = interaction.options.getString("message", true);
+  const attachment = interaction.options.getAttachment("attachment");
+
+  await interaction.channel.send({ content, files: attachment ? [attachment.url] : [] });
+  await interaction.reply({ content: "» *Sent.*", flags: MessageFlags.Ephemeral });
+}
+
+// /message: DM a chosen server member as the bot itself. Reuses
+// bot/src/lib/dm.js#sendDm so it's logged to DirectMessage like every
+// other bot-sent DM, and carries the "»" prefix inline since this is a
+// bot-composed DM (see the "Bot message style" note in CLAUDE.md).
+async function handleMessageCommand(interaction) {
+  if (!isGmMember(interaction)) {
+    await interaction.reply({ content: "» *GMs only.*", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  const recipient = interaction.options.getUser("recipient", true);
+  const content = interaction.options.getString("message", true);
+
+  try {
+    await sendDm(recipient, `» ${content}`);
+    await interaction.reply({ content: `» *Sent to ${recipient}.*`, flags: MessageFlags.Ephemeral });
+  } catch (err) {
+    console.error("Failed to send /message DM:", err);
+    await interaction.reply({ content: "» *Failed to deliver — they may have DMs closed.*", flags: MessageFlags.Ephemeral });
+  }
+}
 
 // The bot's first use of buttons/select-menus/interactionCreate (everything
 // else is reaction+DM driven) — see the "Location picker" section of
@@ -97,7 +143,10 @@ module.exports = {
   name: "interactionCreate",
   async execute(interaction) {
     try {
-      if (interaction.isButton()) {
+      if (interaction.isChatInputCommand()) {
+        if (interaction.commandName === "gm") return void (await handleGmCommand(interaction));
+        if (interaction.commandName === "message") return void (await handleMessageCommand(interaction));
+      } else if (interaction.isButton()) {
         if (interaction.customId === "loc:open") return void (await handleOpen(interaction));
         if (interaction.customId === "loc:cancel") return void (await handleCancel(interaction));
         if (interaction.customId.startsWith("loc:confirm:")) {
