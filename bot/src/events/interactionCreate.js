@@ -6,6 +6,7 @@ const {
   buildConfirmRow,
   performMove,
 } = require("../lib/location");
+const { performLabor } = require("../lib/labor");
 const { sendDm } = require("../lib/dm");
 
 function isGmMember(interaction) {
@@ -51,6 +52,34 @@ async function handleMessageCommand(interaction) {
     console.error("Failed to send /message DM:", err);
     await interaction.reply({ content: "» *Failed to deliver — they may have DMs closed.*", flags: MessageFlags.Ephemeral });
   }
+}
+
+// /labor: any player with a living, un-acted character can use this — no GM
+// gate. See bot/src/lib/labor.js#performLabor for the tag-tier lookup and
+// auto-resolved Action creation.
+async function handleLaborCommand(interaction) {
+  const character = await findAliveCharacter(interaction.user.id);
+  if (!character) {
+    await interaction.reply({ content: "» *You don't have a living character.*", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  const field = interaction.options.getString("field", true);
+  const result = await performLabor(character, field);
+  if (!result.ok) {
+    await interaction.reply({ content: `» *${result.reason}*`, flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  const lines = [`» ${character.name} ${field === "hunt" ? "hunted" : field === "herd" ? "herded" : field === "fish" ? "fished" : "farmed"}.`];
+  if (result.resourceDiceExpression) {
+    lines.push(`**Resource roll (${result.resourceDiceExpression}):** rolled ${result.diceSum} → +${result.resourceDelta}`);
+  } else {
+    lines.push(`**Resource change:** +${result.resourceDelta}`);
+  }
+  lines.push("» *Move confirmed — waiting on GM review.*");
+
+  await interaction.reply({ content: lines.join("\n"), flags: MessageFlags.Ephemeral });
 }
 
 // The bot's first use of buttons/select-menus/interactionCreate (everything
@@ -146,6 +175,7 @@ module.exports = {
       if (interaction.isChatInputCommand()) {
         if (interaction.commandName === "gm") return void (await handleGmCommand(interaction));
         if (interaction.commandName === "message") return void (await handleMessageCommand(interaction));
+        if (interaction.commandName === "labor") return void (await handleLaborCommand(interaction));
       } else if (interaction.isButton()) {
         if (interaction.customId === "loc:open") return void (await handleOpen(interaction));
         if (interaction.customId === "loc:cancel") return void (await handleCancel(interaction));

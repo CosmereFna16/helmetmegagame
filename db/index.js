@@ -176,4 +176,5 @@ module.exports = {
   ...require("./weather"),
   ...require("./lib/constants"),
   ...require("./lib/roleColor"),
+  ...require("./lib/production"),
 };

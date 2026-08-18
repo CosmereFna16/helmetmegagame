@@ -17,6 +17,21 @@ const commandDefinitions = [
     .addUserOption((opt) => opt.setName("recipient").setDescription("Who to message").setRequired(true))
     .addStringOption((opt) => opt.setName("message").setDescription("What to say").setRequired(true))
     .setDMPermission(false),
+  new SlashCommandBuilder()
+    .setName("labor")
+    .setDescription("Auto-generate a Routine Move for Farming/Fishing/Herding/Hunting, based on your tags.")
+    .addStringOption((opt) =>
+      opt
+        .setName("field")
+        .setDescription("What to produce")
+        .setRequired(true)
+        .addChoices(
+          { name: "Hunt", value: "hunt" },
+          { name: "Herd", value: "herd" },
+          { name: "Fish", value: "fish" },
+          { name: "Farm", value: "farm" },
+        ),
+    ),
 ].map((builder) => builder.toJSON());
 
 async function registerCommands(guild) {

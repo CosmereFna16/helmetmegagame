@@ -128,6 +128,14 @@ model GameConfig {
   // separate shared role. Provisioned once via provisionRadioChannel
   // (web/app/(app)/gm/dev/actions.js).
   radioChannelId String?
+
+  // Multiplier applied to every rate in db/lib/production.js's
+  // PRODUCTION_RATES table (Farming/Fishing/Herding, base/Laborer/specialist
+  // tiers) — read live by /labor (bot/src/lib/labor.js). docs/documents.yaml
+  // is NOT regenerated automatically when this changes; re-run
+  // `npm run db:sync-production-doc` (db/prisma/sync-production-doc.js) by
+  // hand afterward so the doc text stays in sync.
+  productionCoefficient Float @default(1)
 }
 
 model Faction {

@@ -158,6 +158,10 @@ export default async function DevPanelPage() {
             <span className="field-label">Drained duration (turns)</span>
             <input type="number" name="lifewebDrainedDurationTurns" defaultValue={config.lifewebDrainedDurationTurns} />
           </label>
+          <label className="field">
+            <span className="field-label">Production coefficient (Farming/Fishing/Herding)</span>
+            <input type="number" step="0.05" name="productionCoefficient" defaultValue={config.productionCoefficient} />
+          </label>
           <label className="flex items-center gap-2 text-sm col-span-full">
             <input type="checkbox" name="messageWipeEnabled" defaultChecked={config.messageWipeEnabled} />
             Wipe messages at Dawn (archives everything to #archive first — see docs/CHANNELS.md)
@@ -169,7 +173,9 @@ export default async function DevPanelPage() {
         <p className="mt-3 text-xs" style={{ color: "var(--muted)" }}>
           Tupper/summary channels are the plain/public/private channels of a provisioned Location. Moves and Efforts
           come from channels named exactly &quot;moves&quot; and &quot;effort&quot;. With Dawn wipe enabled, forcing a
-          turn advance into Dawn may take a few minutes to resolve.
+          turn advance into Dawn may take a few minutes to resolve. Production coefficient scales /labor&apos;s payouts
+          immediately, but docs/documents.yaml&apos;s printed numbers only update after a dev runs
+          <code>npm run db:sync-production-doc</code> by hand.
         </p>
       </section>
     </div>

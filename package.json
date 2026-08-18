@@ -17,7 +17,8 @@
     "db:backfill-roles": "node db/prisma/backfill-roles.js",
     "db:backfill-location-access": "node db/prisma/backfill-location-access.js",
     "db:backfill-persistent-tag": "node db/prisma/backfill-persistent-tag.js",
-    "db:sync-locations": "node db/prisma/sync-locations.js"
+    "db:sync-locations": "node db/prisma/sync-locations.js",
+    "db:sync-production-doc": "node db/prisma/sync-production-doc.js"
   },
   "allowScripts": {
     "@prisma/client@6.19.3": true,

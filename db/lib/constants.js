@@ -16,6 +16,7 @@ const LABORER_SLUG = "laborer";
 const LABORER_FARMING_SLUG = "laborer-farming";
 const LABORER_FISHING_SLUG = "laborer-fishing";
 const LABORER_HERDING_SLUG = "laborer-herding";
+const HUNTER_SLUG = "hunter";
 
 module.exports = {
   HUNGERLESS_SLUG,
@@ -36,4 +37,5 @@ module.exports = {
   LABORER_FARMING_SLUG,
   LABORER_FISHING_SLUG,
   LABORER_HERDING_SLUG,
+  HUNTER_SLUG,
 };

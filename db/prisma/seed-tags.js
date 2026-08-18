@@ -19,6 +19,7 @@ const {
   LABORER_FARMING_SLUG,
   LABORER_FISHING_SLUG,
   LABORER_HERDING_SLUG,
+  HUNTER_SLUG,
 } = require("../lib/constants");
 
 const CATEGORIES = ["Placeholder 1", "Placeholder 2", "Placeholder 3"];
@@ -251,6 +252,13 @@ const ROLE_TAGS = [
     slug: ARTHRITIS_SLUG,
     description: "Stiff, aching joints — a lifetime of wear catching up with you.",
     category: "Health",
+    pointCost: 0,
+  },
+  {
+    name: "Hunter",
+    slug: HUNTER_SLUG,
+    description: "Tracks game through the wilds — triples Hunting production.",
+    category: "Role",
     pointCost: 0,
   },
 ];

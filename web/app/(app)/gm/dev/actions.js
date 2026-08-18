@@ -39,6 +39,13 @@ function intOrZero(formData, key) {
   return intOrNull(formData, key) ?? 0;
 }
 
+function floatOrDefault(formData, key, fallback) {
+  const v = str(formData, key).trim();
+  if (v === "") return fallback;
+  const n = Number.parseFloat(v);
+  return Number.isNaN(n) ? fallback : n;
+}
+
 export async function updateGameConfig(formData) {
   await requireSuperadmin();
 
@@ -58,6 +65,7 @@ export async function updateGameConfig(formData) {
       lifewebDecayPerTurn: intOrZero(formData, "lifewebDecayPerTurn"),
       lifewebDrainedDurationTurns: intOrZero(formData, "lifewebDrainedDurationTurns"),
       messageWipeEnabled: formData.get("messageWipeEnabled") === "on",
+      productionCoefficient: floatOrDefault(formData, "productionCoefficient", 1),
     },
   });
 
