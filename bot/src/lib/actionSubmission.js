@@ -2,14 +2,14 @@ const { prisma } = require("@lifeweb/db");
 const { sendDm } = require("./dm");
 const { parseResourceDelta, parseResourceDice, formatResourceLines } = require("./resourceDelta");
 
-const EFFORT_EMOJI = "1️⃣";
-const MOVE_EMOJI = "2️⃣";
+const ROUTINE_EMOJI = "🔹";
+const GAMBIT_EMOJI = "🎲";
 
-// A message posted in the #turns channel becomes a PENDING_TYPE action: the
-// original message is deleted (the action itself only exists as a DM + the
-// web dashboard) and the player picks Effort or Move via a reaction menu
-// before the usual confirm flow (see handleTypeSelection in
-// messageReactionAdd.js) kicks in.
+// A message posted in the #turns channel becomes a PENDING_TYPE Move: the
+// original message is deleted (the Move itself only exists as a DM + the
+// web dashboard) and the player picks Routine or Gambit via a reaction menu,
+// then Opposed or not (see handleMoveKindSelection/handleOpposedSelection in
+// messageReactionAdd.js), before the usual confirm flow kicks in.
 async function handleActionSubmission(message) {
   const character = await prisma.character.findFirst({
     where: { discordUserId: message.author.id, status: "ALIVE" },
@@ -28,15 +28,15 @@ async function handleActionSubmission(message) {
     return;
   }
 
-  // Also catches a prior auto-resolved zone-change Effort (see
+  // Also catches a prior auto-resolved zone-change Move (see
   // bot/src/lib/location.js#performMove) — changing zones spends the turn
-  // just like an Effort/Move submission does.
+  // just like a Move submission does.
   const alreadyActed = await prisma.action.findFirst({
     where: { characterId: character.id, turnId: openTurn.id },
   });
   if (alreadyActed) {
     await message.delete().catch(() => {});
-    await sendDm(message.author, "» *You've already acted this turn — your submission wasn't recorded.*").catch(
+    await sendDm(message.author, "» *You've already sent a Move this turn — your submission wasn't recorded.*").catch(
       () => {},
     );
     return;
@@ -55,7 +55,7 @@ async function handleActionSubmission(message) {
     data: {
       characterId: character.id,
       turnId: openTurn.id,
-      type: null,
+      type: "MOVE",
       status: "PENDING_TYPE",
       description,
       resourceDelta,
@@ -71,10 +71,10 @@ async function handleActionSubmission(message) {
     ...formatResourceLines(resourceDelta, resourceDiceExpression),
     "",
     "```",
-    `${EFFORT_EMOJI}  Effort`,
-    `${MOVE_EMOJI}  Move`,
+    `${ROUTINE_EMOJI}  Routine`,
+    `${GAMBIT_EMOJI}  Gambit`,
     "```",
-    `React with ${EFFORT_EMOJI} or ${MOVE_EMOJI} to choose.`,
+    `Was that Routine or a Gambit? React with ${ROUTINE_EMOJI} or ${GAMBIT_EMOJI} to choose.`,
   ];
 
   let sent;
@@ -86,17 +86,17 @@ async function handleActionSubmission(message) {
   }
 
   await prisma.action.update({ where: { id: action.id }, data: { confirmDmMessageId: sent.id } });
-  await sent.react(EFFORT_EMOJI).catch(() => {});
-  await sent.react(MOVE_EMOJI).catch(() => {});
+  await sent.react(ROUTINE_EMOJI).catch(() => {});
+  await sent.react(GAMBIT_EMOJI).catch(() => {});
 
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: message.author.id,
-      actionType: "action_submitted",
+      actionType: "move_submitted",
       targetCharacterId: character.id,
       details: { actionId: action.id },
     },
   });
 }
 
-module.exports = { handleActionSubmission, EFFORT_EMOJI, MOVE_EMOJI };
+module.exports = { handleActionSubmission, ROUTINE_EMOJI, GAMBIT_EMOJI };

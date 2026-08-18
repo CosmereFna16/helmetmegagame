@@ -48,9 +48,9 @@ export default function DefaultEffortPanel({ characterId, defaultEffort, summary
 
   return (
     <section className="panel p-4">
-      <h2 className="mb-1 font-bold">Default Effort</h2>
+      <h2 className="mb-1 font-bold">Default Move</h2>
       <p className="mb-1 text-xs" style={{ color: "var(--muted)" }}>
-        If you don&apos;t submit a Move or Effort on a given day, this is assumed instead.
+        If you don&apos;t submit a Move on a given day, this is assumed instead.
       </p>
       <p className="mb-3 text-xs italic" style={{ color: "var(--muted)" }}>
         Tip: add a Resource amount like +3 or a dice roll like +1d6*3 anywhere in the text and it&apos;ll be applied automatically. It can be negative too — say a Cook spending Resources on ingredients (-3).

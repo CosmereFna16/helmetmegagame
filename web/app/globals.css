@@ -96,6 +96,53 @@ h2 {
   border-radius: var(--radius);
 }
 
+.markdown-content p {
+  margin: 0;
+}
+
+.markdown-content p + p {
+  margin-top: 0.5em;
+}
+
+.markdown-content a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.markdown-content code {
+  background: rgba(127, 127, 127, 0.25);
+  border-radius: 3px;
+  padding: 0.05em 0.3em;
+  font-size: 0.9em;
+}
+
+.markdown-content pre {
+  background: rgba(127, 127, 127, 0.25);
+  border-radius: var(--radius);
+  padding: 0.5em 0.7em;
+  overflow-x: auto;
+}
+
+.markdown-content pre code {
+  background: none;
+  padding: 0;
+}
+
+.markdown-content blockquote {
+  border-left: 2px solid currentColor;
+  opacity: 0.85;
+  margin: 0.3em 0;
+  padding-left: 0.6em;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin: 0.3em 0;
+  padding-left: 1.3em;
+}
+
 .menu-item {
   all: unset;
   cursor: pointer;

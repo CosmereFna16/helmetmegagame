@@ -5,14 +5,14 @@ import TurnsTable from "./TurnsTable";
 import DesiresTable from "./DesiresTable";
 import TagRequestsTable from "./TagRequestsTable";
 
-export default function AdjudicatePanel({ actions, desires, tagRequests }) {
+export default function AdjudicatePanel({ actions, desires, tagRequests, allCharacters }) {
   const [tab, setTab] = useState("actions");
 
   return (
     <div className="flex flex-col gap-4">
       <div className="tab-bar">
         <button type="button" className="tab-item" data-active={tab === "actions"} onClick={() => setTab("actions")}>
-          Actions
+          Moves
         </button>
         <button type="button" className="tab-item" data-active={tab === "desires"} onClick={() => setTab("desires")}>
           Desires
@@ -22,7 +22,7 @@ export default function AdjudicatePanel({ actions, desires, tagRequests }) {
         </button>
       </div>
 
-      {tab === "actions" && <TurnsTable actions={actions} />}
+      {tab === "actions" && <TurnsTable actions={actions} allCharacters={allCharacters} />}
       {tab === "desires" && <DesiresTable desires={desires} />}
       {tab === "tags" && <TagRequestsTable requests={tagRequests} />}
     </div>

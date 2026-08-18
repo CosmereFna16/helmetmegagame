@@ -2,13 +2,15 @@ const { WebhookClient, EmbedBuilder } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const { recentProxies } = require("../lib/proxy");
 const { sendDm } = require("../lib/dm");
-const { EFFORT_EMOJI, MOVE_EMOJI } = require("../lib/actionSubmission");
+const { ROUTINE_EMOJI, GAMBIT_EMOJI } = require("../lib/actionSubmission");
 const { rollResourceDice, formatResourceLines } = require("../lib/resourceDelta");
 
 const DELETE_EMOJI = "❌"; // ❌
 const EDIT_EMOJI = "✏️"; // ✏️
 const INSPECT_EMOJI = "🔍"; // 🔍
 const CONFIRM_EMOJI = "⚜️"; // ⚜
+const OPPOSED_EMOJI = "⚔️"; // ⚔
+const NOT_OPPOSED_EMOJI = "🛡️"; // 🛡
 const STAR_EMOJI = "⭐"; // ⭐
 const FOG_EMOJI = "🌫️"; // :fog:
 
@@ -24,7 +26,7 @@ async function handleActionConfirm(reaction, user) {
   if (!action || action.status !== "PENDING") return;
   if (action.character.discordUserId !== user.id) return;
 
-  const diceRoll = action.type === "MOVE" ? rollDie() : null;
+  const diceRoll = action.moveKind === "GAMBIT" ? rollDie() : null;
   const diceResult = action.resourceDiceExpression ? rollResourceDice(action.resourceDiceExpression) : null;
 
   await prisma.action.update({
@@ -42,7 +44,7 @@ async function handleActionConfirm(reaction, user) {
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: user.id,
-      actionType: "action_confirmed",
+      actionType: "move_confirmed",
       targetCharacterId: action.characterId,
       details: { actionId: action.id, diceRoll, resourceDiceRoll: diceResult?.value ?? null },
     },
@@ -64,12 +66,11 @@ async function handleActionConfirm(reaction, user) {
   await sendDm(user, waitingLines.join("\n")).catch(() => {});
 }
 
-// Player picked Effort or Move from the type-picker DM sent by
-// handleActionSubmission. Finalizes the Action's type, then — same reasoning
-// as handleActionConfirm below — deletes the picker DM and sends a fresh
-// confirm DM (bots can't strip their own reactions off another user's DM to
-// relabel it), pointing confirmDmMessageId at the new message.
-async function handleTypeSelection(reaction, user) {
+// Player picked Routine or Gambit from the kind-picker DM sent by
+// handleActionSubmission. Records moveKind, then — same reasoning as
+// handleActionConfirm below — deletes the picker DM and sends the next
+// picker (Opposed?), pointing confirmDmMessageId at the new message.
+async function handleMoveKindSelection(reaction, user) {
   const action = await prisma.action.findUnique({
     where: { confirmDmMessageId: reaction.message.id },
     include: { character: true },
@@ -77,14 +78,51 @@ async function handleTypeSelection(reaction, user) {
   if (!action || action.status !== "PENDING_TYPE") return;
   if (action.character.discordUserId !== user.id) return;
 
-  const type = reaction.emoji.name === MOVE_EMOJI ? "MOVE" : "EFFORT";
+  const moveKind = reaction.emoji.name === GAMBIT_EMOJI ? "GAMBIT" : "ROUTINE";
 
-  await prisma.action.update({ where: { id: action.id }, data: { type, status: "PENDING" } });
+  await prisma.action.update({ where: { id: action.id }, data: { moveKind, status: "PENDING_OPPOSED" } });
+
+  await reaction.message.delete().catch(() => {});
+
+  const lines = [
+    `» ${action.description}`,
+    `**${moveKind === "GAMBIT" ? "Gambit" : "Routine"}**`,
+    "",
+    "Was that opposed?",
+    `React with ${OPPOSED_EMOJI} (opposed) or ${NOT_OPPOSED_EMOJI} (not opposed).`,
+  ];
+
+  let sent;
+  try {
+    ({ sent } = await sendDm(user, lines.join("\n")));
+  } catch {
+    return;
+  }
+
+  await prisma.action.update({ where: { id: action.id }, data: { confirmDmMessageId: sent.id } });
+  await sent.react(OPPOSED_EMOJI).catch(() => {});
+  await sent.react(NOT_OPPOSED_EMOJI).catch(() => {});
+}
+
+// Player picked Opposed or not from the DM sent by handleMoveKindSelection.
+// Records opposed, then sends the final ⚜ confirm DM — same
+// delete-and-resend pattern as the rest of this flow.
+async function handleOpposedSelection(reaction, user) {
+  const action = await prisma.action.findUnique({
+    where: { confirmDmMessageId: reaction.message.id },
+    include: { character: true },
+  });
+  if (!action || action.status !== "PENDING_OPPOSED") return;
+  if (action.character.discordUserId !== user.id) return;
+
+  const opposed = reaction.emoji.name === OPPOSED_EMOJI;
+
+  await prisma.action.update({ where: { id: action.id }, data: { opposed, status: "PENDING" } });
 
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: user.id,
-      actionType: type === "MOVE" ? "move_submitted" : "effort_submitted",
+      actionType: "move_submitted",
       targetCharacterId: action.characterId,
       details: { actionId: action.id },
     },
@@ -94,10 +132,14 @@ async function handleTypeSelection(reaction, user) {
 
   const zone = action.zoneId ? await prisma.zone.findUnique({ where: { id: action.zoneId } }) : null;
   const resourceLines = formatResourceLines(action.resourceDelta, action.resourceDiceExpression);
-  const lines =
-    type === "MOVE"
-      ? [`» ${action.description}`, `**Zone:** ${zone?.name ?? "(none)"}`, ...resourceLines, "", "React with ⚜ to confirm."]
-      : [`» ${action.description}`, ...resourceLines, "", "React with ⚜ to confirm."];
+  const lines = [
+    `» ${action.description}`,
+    `**${action.moveKind === "GAMBIT" ? "Gambit" : "Routine"}**${opposed ? " — Opposed" : ""}`,
+    `**Zone:** ${zone?.name ?? "(none)"}`,
+    ...resourceLines,
+    "",
+    "React with ⚜ to confirm.",
+  ];
 
   let sent;
   try {
@@ -171,7 +213,8 @@ module.exports = {
     if (!reaction.message.guild) {
       const emoji = reaction.emoji.name;
       if (emoji === CONFIRM_EMOJI) await handleActionConfirm(reaction, user);
-      else if (emoji === EFFORT_EMOJI || emoji === MOVE_EMOJI) await handleTypeSelection(reaction, user);
+      else if (emoji === ROUTINE_EMOJI || emoji === GAMBIT_EMOJI) await handleMoveKindSelection(reaction, user);
+      else if (emoji === OPPOSED_EMOJI || emoji === NOT_OPPOSED_EMOJI) await handleOpposedSelection(reaction, user);
       return;
     }
 

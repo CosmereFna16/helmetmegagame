@@ -47,7 +47,7 @@ intro: They will know your glory, O Baron! This land is yours, hope incarnate—
 - difficulty: hard
 - multiple: false
 - starting tag: Nobility, Leader
-- doc elements: courtstructure, lifewebbasic, fortressstarting, armory, ravenhearteconomy
+- doc elements: courtstructure, lifewebbasic, fortressstarting, armory, ravenhearteconomy, charon
 
 Baroness
 intro: Someone must raise and protect the Heir, that invaluable link in the chain of infinity. Be the Lioness—or succumb to anxiety.
@@ -91,7 +91,7 @@ intro: You’re the Baron’s best friend and perhaps the only man he can truly 
 - difficulty: normal
 - multiple: false
 - starting tag: Treasurer
-- doc elements: courtstructure, lifewebbasic, fortressstarting, courtier, armory, ravenhearteconomy
+- doc elements: courtstructure, lifewebbasic, fortressstarting, courtier, armory, ravenhearteconomy, charon
 
 Meister
 intro: You are the Keep’s brains, but more importantly, its circulatory system. Feel the weight of the world, Meister, you Atlas!
@@ -640,7 +640,7 @@ intro: You've finally returned to your ancestral home.
 - difficulty: hard
 - multiple: false
 - starting tag: Nobility, Leader
-- doc elements: campstarting
+- doc elements: campstarting, charon
 
 Camp Followers
 intro: Tend wounds, keep the camp, keep the herds.

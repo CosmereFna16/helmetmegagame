@@ -1,30 +1,66 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
-import Link from "next/link";
 import { ScaleIcon, MessageIcon } from "../../../components/icons";
+import CharacterLink from "../../../components/CharacterLink";
+import FactionLink from "../../../components/FactionLink";
 import { formatTurnLabel } from "@/lib/turn";
 import { sendGmMessage } from "../actions";
+import MoveEditorModal from "./MoveEditorModal";
 
-export default function TurnsTable({ actions }) {
+const PIPELINE_LABELS = {
+  PENDING_TYPE: "Picking Routine/Gambit",
+  PENDING_OPPOSED: "Picking Opposed",
+  PENDING: "Pending confirm",
+};
+
+const REVIEW_LABELS = {
+  OPEN: "Open",
+  WAITING_FOR_OPPONENTS: "Waiting for Opponents",
+  IN_PROGRESS: "In Progress",
+  SOLVED: "Solved",
+};
+
+function isConfirmed(a) {
+  return a.status === "CONFIRMED" || a.status === "ADJUDICATED";
+}
+
+function statusLabel(a) {
+  return isConfirmed(a) ? REVIEW_LABELS[a.moveReviewStatus] ?? "Open" : PIPELINE_LABELS[a.status] ?? a.status;
+}
+
+function kindLabel(a) {
+  if (a.moveKind === "GAMBIT") return "Gambit";
+  if (a.moveKind === "ROUTINE") return "Routine";
+  // Legacy rows submitted before the Routine/Gambit rework.
+  if (a.type === "MOVE") return "Move";
+  if (a.type === "EFFORT") return "Effort";
+  return "-";
+}
+
+export default function TurnsTable({ actions, allCharacters }) {
   const [zoneFilter, setZoneFilter] = useState("");
   const [factionFilter, setFactionFilter] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
+  const [kindFilter, setKindFilter] = useState("");
+  const [opposedFilter, setOpposedFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [messageRowId, setMessageRowId] = useState(null);
+  const [editingMove, setEditingMove] = useState(null);
 
   const zones = useMemo(() => [...new Set(actions.map((a) => a.zoneName).filter(Boolean))].sort(), [actions]);
   const factions = useMemo(
     () => [...new Set(actions.map((a) => a.factionName).filter(Boolean))].sort(),
     [actions],
   );
+  const statuses = useMemo(() => [...new Set(actions.map((a) => statusLabel(a)))].sort(), [actions]);
 
   const filtered = actions.filter(
     (a) =>
       (!zoneFilter || a.zoneName === zoneFilter) &&
       (!factionFilter || a.factionName === factionFilter) &&
-      (!typeFilter || a.type === typeFilter) &&
-      (!statusFilter || a.status === statusFilter),
+      (!kindFilter || kindLabel(a) === kindFilter) &&
+      (!opposedFilter || (opposedFilter === "yes" ? a.opposed : !a.opposed)) &&
+      (!statusFilter || statusLabel(a) === statusFilter),
   );
 
   return (
@@ -53,27 +89,36 @@ export default function TurnsTable({ actions }) {
           </select>
         </label>
         <label className="field">
-          <span className="field-label">Type</span>
-          <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+          <span className="field-label">Kind</span>
+          <select value={kindFilter} onChange={(e) => setKindFilter(e.target.value)}>
             <option value="">All</option>
-            <option value="EFFORT">Effort</option>
-            <option value="MOVE">Move</option>
+            <option value="Routine">Routine</option>
+            <option value="Gambit">Gambit</option>
+          </select>
+        </label>
+        <label className="field">
+          <span className="field-label">Opposed</span>
+          <select value={opposedFilter} onChange={(e) => setOpposedFilter(e.target.value)}>
+            <option value="">All</option>
+            <option value="yes">Opposed</option>
+            <option value="no">Not opposed</option>
           </select>
         </label>
         <label className="field">
           <span className="field-label">Status</span>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="">All</option>
-            <option value="PENDING_TYPE">Picking type</option>
-            <option value="PENDING">Pending</option>
-            <option value="CONFIRMED">Confirmed</option>
-            <option value="ADJUDICATED">Complete</option>
+            {statuses.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
           </select>
         </label>
       </div>
 
       <div className="panel overflow-x-auto">
-        <table className="data-table" style={{ minWidth: "1100px" }}>
+        <table className="data-table" style={{ minWidth: "1200px" }}>
           <thead>
             <tr>
               <th></th>
@@ -82,7 +127,8 @@ export default function TurnsTable({ actions }) {
               <th>Character</th>
               <th>Faction</th>
               <th>Zone</th>
-              <th>Type</th>
+              <th>Kind</th>
+              <th>Opposed</th>
               <th>Dice</th>
               <th>Status</th>
               <th>Description</th>
@@ -103,30 +149,38 @@ export default function TurnsTable({ actions }) {
                     </button>
                   </td>
                   <td>
-                    <Link href={`/gm/turns/${a.id}`} className="btn-quiet" aria-label={`Adjudicate ${a.characterName}`}>
+                    <button
+                      type="button"
+                      className="btn-quiet"
+                      aria-label={`Open ${a.characterName}'s Move`}
+                      onClick={() => setEditingMove(a)}
+                    >
                       <ScaleIcon width={16} height={16} />
-                    </Link>
+                    </button>
                   </td>
                   <td>{formatTurnLabel(a.turnNumber, a.turnPhase)}</td>
-                  <td>{a.characterName}</td>
-                  <td>{a.factionName || "-"}</td>
+                  <td>
+                    <CharacterLink characterId={a.characterId} name={a.characterName} />
+                  </td>
+                  <td>
+                    <FactionLink factionId={a.factionId} name={a.factionName || "-"} />
+                  </td>
                   <td>{a.zoneName || "-"}</td>
-                  <td>{a.type === "MOVE" ? "Move" : a.type === "EFFORT" ? "Effort" : "-"}</td>
+                  <td>{kindLabel(a)}</td>
+                  <td>{a.opposed ? "Yes" : "No"}</td>
                   <td>{a.diceRoll ?? "-"}</td>
                   <td>
-                    {a.status === "ADJUDICATED"
-                      ? "Complete"
-                      : a.status === "CONFIRMED"
-                        ? "Confirmed"
-                        : a.status === "PENDING"
-                          ? "Pending"
-                          : "Picking type"}
+                    {statusLabel(a) === "Solved" ? (
+                      <span style={{ color: "var(--mood-happy)" }}>Solved</span>
+                    ) : (
+                      statusLabel(a)
+                    )}
                   </td>
                   <td className="max-w-xs truncate">{a.description}</td>
                 </tr>
                 {messageRowId === a.id && (
                   <tr key={`${a.id}-message`}>
-                    <td colSpan={10}>
+                    <td colSpan={11}>
                       <form
                         action={sendGmMessage}
                         className="flex items-end gap-2 py-2"
@@ -148,14 +202,22 @@ export default function TurnsTable({ actions }) {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={10} className="text-center" style={{ color: "var(--muted)" }}>
-                  No actions match these filters.
+                <td colSpan={11} className="text-center" style={{ color: "var(--muted)" }}>
+                  No Moves match these filters.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {editingMove && (
+        <MoveEditorModal
+          move={editingMove}
+          otherCharacters={allCharacters.filter((c) => c.id !== editingMove.characterId)}
+          onClose={() => setEditingMove(null)}
+        />
+      )}
     </div>
   );
 }

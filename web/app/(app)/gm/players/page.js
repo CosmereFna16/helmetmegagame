@@ -24,6 +24,7 @@ export default async function PlayersPage() {
           id: c.id,
           name: c.name,
           roleTitle: c.roleTitle,
+          factionId: c.factionId,
           factionName: c.faction?.name ?? "",
           zoneName: c.zone?.name ?? "",
           status: c.status,

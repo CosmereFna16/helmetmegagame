@@ -10,6 +10,7 @@ import DefaultEffortPanel from "./DefaultEffortPanel";
 import MealPanel from "./MealPanel";
 import LifewebFeedButton from "./LifewebFeedButton";
 import RichText from "./RichText";
+import FactionLink from "./FactionLink";
 
 function groupTagsByCategory(characterTags) {
   const groups = new Map();
@@ -26,25 +27,39 @@ function ActionStatus({ currentAction, openTurn }) {
 
   if (!currentAction) return null;
 
+  const kindLabel =
+    currentAction.moveKind === "GAMBIT"
+      ? "Gambit"
+      : currentAction.moveKind === "ROUTINE"
+        ? "Routine"
+        : currentAction.type === "MOVE"
+          ? "Move"
+          : "Move";
+
   return (
     <div className="text-sm">
       <p className="mb-1">
-        {currentAction.type === "MOVE" ? "Move" : currentAction.type === "EFFORT" ? "Effort" : "Action"}:{" "}
-        {currentAction.description}
+        {kindLabel}
+        {currentAction.opposed ? " (Opposed)" : ""}: {currentAction.description}
       </p>
       {currentAction.status === "PENDING_TYPE" && (
-        <p style={{ color: "var(--muted)" }}>Waiting on you to choose Effort or Move — check Discord DMs.</p>
+        <p style={{ color: "var(--muted)" }}>Waiting on you to choose Routine or Gambit — check Discord DMs.</p>
+      )}
+      {currentAction.status === "PENDING_OPPOSED" && (
+        <p style={{ color: "var(--muted)" }}>Waiting on you to say whether it&apos;s Opposed — check Discord DMs.</p>
       )}
       {currentAction.status === "PENDING" && (
-        <p style={{ color: "var(--muted)" }}>Pending confirmation — check Discord DMs and react ✅ to lock it in.</p>
+        <p style={{ color: "var(--muted)" }}>Pending confirmation — check Discord DMs and react ⚜ to lock it in.</p>
       )}
-      {currentAction.status === "CONFIRMED" && (
+      {currentAction.status === "CONFIRMED" && currentAction.moveReviewStatus !== "SOLVED" && (
         <p style={{ color: "var(--muted)" }}>
-          Confirmed{currentAction.diceRoll != null ? ` — rolled ${currentAction.diceRoll}` : ""} — awaiting GM adjudication.
+          Confirmed{currentAction.diceRoll != null ? ` — rolled ${currentAction.diceRoll}` : ""} — awaiting GM review.
         </p>
       )}
-      {currentAction.status === "ADJUDICATED" && (
-        <p style={{ color: "var(--muted)" }}>Adjudicated: {currentAction.gmNotes || "(no notes)"}</p>
+      {(currentAction.status === "ADJUDICATED" || currentAction.moveReviewStatus === "SOLVED") && (
+        <p>
+          <span style={{ color: "var(--mood-happy)" }}>Solved</span>
+        </p>
       )}
     </div>
   );
@@ -101,7 +116,8 @@ export default function CharacterSheet({
         <div>
           <h1 className="text-2xl font-bold">{character.name}</h1>
           <p className="text-sm" style={{ color: "var(--muted)" }}>
-            {character.roleTitle ?? "No role"} — {character.faction?.name ?? "No faction"}
+            {character.roleTitle ?? "No role"} —{" "}
+            <FactionLink factionId={character.factionId} name={character.faction?.name ?? "No faction"} />
           </p>
         </div>
       </div>

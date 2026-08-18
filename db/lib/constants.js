@@ -8,6 +8,7 @@ const TIPSY_SLUG = "tipsy";
 const ALCOHOLIC_SLUG = "alcoholic";
 const MORTUS_SLUG = "mortus";
 const DRAINED_SLUG = "drained";
+const RADIO_SLUG = "radio";
 
 module.exports = {
   HUNGERLESS_SLUG,
@@ -20,4 +21,5 @@ module.exports = {
   ALCOHOLIC_SLUG,
   MORTUS_SLUG,
   DRAINED_SLUG,
+  RADIO_SLUG,
 };

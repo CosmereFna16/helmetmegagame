@@ -26,9 +26,32 @@ enum ActionType {
 
 enum ActionStatus {
   PENDING_TYPE
+  PENDING_OPPOSED
   PENDING
   CONFIRMED
+  // Legacy terminal state from the pre-rework adjudication flow. No longer
+  // written by new code — a CONFIRMED Move's GM-facing progress now lives on
+  // moveReviewStatus instead. Kept in the enum (rather than removed) so old
+  // rows don't need a risky Postgres enum-value migration.
   ADJUDICATED
+}
+
+// Routine/Gambit replaces the old Effort/Move split (ActionType, below) —
+// Gambit is the only kind that rolls a d6. ActionType/Action.type stay in
+// the schema for historical rows but are no longer meaningfully set beyond
+// a constant "MOVE" going forward.
+enum MoveKind {
+  ROUTINE
+  GAMBIT
+}
+
+// GM-facing spreadsheet status, tracked independently of ActionStatus (which
+// only covers the player-side submission pipeline up through CONFIRMED).
+enum MoveReviewStatus {
+  OPEN
+  WAITING_FOR_OPPONENTS
+  IN_PROGRESS
+  SOLVED
 }
 
 enum DesireStatus {
@@ -97,6 +120,14 @@ model GameConfig {
   // pattern as turnsAnnouncement* above.
   locationPromptChannelId String?
   locationPromptMessageId String?
+
+  // The single #radio voice channel, gated by a dedicated "Radio Access"
+  // Discord role rather than each character's personal role — membership in
+  // that role is synced to whoever holds the Radio Tag (see RADIO_SLUG,
+  // web/lib/discordGuild.js#syncRadioAccess) rather than being assigned by
+  // hand. Provisioned once via provisionRadioChannel (web/app/(app)/gm/dev/actions.js).
+  radioChannelId String?
+  radioRoleId    String?
 }
 
 model Faction {
@@ -334,8 +365,21 @@ model Action {
   resourceDiceExpression String?
   resourceDiceRoll Int?
   diceRoll       Int?
-  isPublic       Boolean      @default(true)
   status         ActionStatus @default(PENDING)
+
+  // Routine vs Gambit (see MoveKind above), whether the player and/or GM has
+  // flagged it Opposed, and the GM's spreadsheet-workflow status — all set
+  // during the DM submission flow (moveKind/opposed) and/or later edited by
+  // a GM from the Moves adjudication popup (all three, plus moveReviewStatus
+  // itself).
+  moveKind         MoveKind?
+  opposed          Boolean          @default(false)
+  moveReviewStatus MoveReviewStatus @default(OPEN)
+
+  // GM-facing only, never auto-sent to players — labeled "Outcome" and
+  // "Other Notes" in the GM UI. GMs message players manually (see
+  // sendPartyMessages/sendGmMessage in web/app/(app)/gm/actions.js) once
+  // they've written these up.
   resultMessage  String?
   gmNotes        String?
   forumThreadId  String?

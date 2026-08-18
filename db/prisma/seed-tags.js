@@ -11,6 +11,7 @@ const {
   ALCOHOLIC_SLUG,
   MORTUS_SLUG,
   DRAINED_SLUG,
+  RADIO_SLUG,
 } = require("../lib/constants");
 
 const CATEGORIES = ["Placeholder 1", "Placeholder 2", "Placeholder 3"];
@@ -43,6 +44,13 @@ const META_TAGS = [
     name: "Alcoholic",
     slug: ALCOHOLIC_SLUG,
     description: "Built up a tolerance — immune to Tipsy's combat penalty.",
+    category: "Meta",
+    pointCost: 0,
+  },
+  {
+    name: "Radio",
+    slug: RADIO_SLUG,
+    description: "Grants access to the #radio channel — GM-granted only.",
     category: "Meta",
     pointCost: 0,
   },

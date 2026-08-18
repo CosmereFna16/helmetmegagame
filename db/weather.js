@@ -130,7 +130,7 @@ function buildTurnAnnouncement(turn, note) {
   const pingRoleId = process.env.DISCORD_TURN_PING_ROLE_ID;
   const ping = pingRoleId ? ` <@&${pingRoleId}>` : "";
   const endUnix = Math.floor(nextTurnEndTime().getTime() / 1000);
-  const header = `» Day ${day} | ${phaseLabel}. ${WEATHER_MESSAGES[turn.weather]}${ping}\nThis turn ends <t:${endUnix}:t>, <t:${endUnix}:R>.`;
+  const header = `» Day ${day} | ${phaseLabel}. ${WEATHER_MESSAGES[turn.weather]}${ping}\nThis turn ends at <t:${endUnix}:t>, <t:${endUnix}:R>.`;
   return note ? `${header}\n\n${note}` : header;
 }
 

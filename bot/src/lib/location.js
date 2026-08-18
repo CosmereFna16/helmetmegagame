@@ -69,10 +69,10 @@ async function swapLocationAccess(guild, characterRoleId, oldLocation, newLocati
 
 // Executes a validated zone/location change: free if staying within the
 // same zone (or the character has no zone yet), otherwise a turn-consuming
-// auto-resolved Effort Action — reuses the existing turn-economy (Action
-// rows scoped to the open Turn) rather than a parallel tracker, and the
-// same check blocks a second Effort/Move submission this turn (see
-// actionSubmission.js). Returns { ok: true, free } or { ok: false, reason }.
+// auto-resolved Move — reuses the existing turn-economy (Action rows scoped
+// to the open Turn) rather than a parallel tracker, and the same check
+// blocks a second Move submission this turn (see actionSubmission.js).
+// Returns { ok: true, free } or { ok: false, reason }.
 async function performMove(guild, character, targetLocation) {
   const isFree = !character.zoneId || targetLocation.zoneId === character.zoneId;
 
@@ -103,8 +103,9 @@ async function performMove(guild, character, targetLocation) {
       data: {
         characterId: character.id,
         turnId: openTurn.id,
-        type: "EFFORT",
-        status: "ADJUDICATED",
+        type: "MOVE",
+        status: "CONFIRMED",
+        moveReviewStatus: "SOLVED",
         description: `Traveled to ${targetLocation.name}.`,
         zoneId: targetLocation.zoneId,
         resultMessage: `» Traveled to ${targetLocation.name}.`,

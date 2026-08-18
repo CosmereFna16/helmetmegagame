@@ -28,12 +28,17 @@ export default async function TurnsPage() {
     guildMembers,
   ] = await Promise.all([
     prisma.action.findMany({
-      where: { status: { in: ["PENDING_TYPE", "PENDING", "CONFIRMED"] } },
+      where: {
+        OR: [
+          { status: { in: ["PENDING_TYPE", "PENDING_OPPOSED", "PENDING"] } },
+          { status: "CONFIRMED", moveReviewStatus: { not: "SOLVED" } },
+        ],
+      },
       orderBy: { createdAt: "desc" },
       include: { character: { include: { faction: true, zone: true } }, turn: true },
     }),
     prisma.action.findMany({
-      where: { status: "ADJUDICATED" },
+      where: { OR: [{ status: "ADJUDICATED" }, { status: "CONFIRMED", moveReviewStatus: "SOLVED" }] },
       orderBy: { createdAt: "desc" },
       take: HISTORY_TAKE,
       include: { character: { include: { faction: true, zone: true } }, turn: true },
@@ -65,6 +70,12 @@ export default async function TurnsPage() {
     listGuildMembers(),
   ]);
 
+  const allCharacters = await prisma.character.findMany({
+    where: { status: "ALIVE" },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+
   const allActions = [...pendingActions, ...historyActions].sort((a, b) => b.createdAt - a.createdAt);
   const allDesires = [...pendingDesires, ...historyDesires].sort((a, b) => b.createdAt - a.createdAt);
   const allTagRequests = [...pendingTagRequests, ...historyTagRequests].sort((a, b) => b.createdAt - a.createdAt);
@@ -87,12 +98,19 @@ export default async function TurnsPage() {
     id: a.id,
     characterId: a.characterId,
     characterName: a.character.name,
+    factionId: a.character.factionId,
     factionName: a.character.faction?.name ?? "",
     zoneName: a.character.zone?.name ?? "",
     type: a.type,
     status: a.status,
+    moveKind: a.moveKind,
+    opposed: a.opposed,
+    moveReviewStatus: a.moveReviewStatus,
     description: a.description,
     diceRoll: a.diceRoll,
+    resourceDelta: a.resourceDelta,
+    resultMessage: a.resultMessage,
+    gmNotes: a.gmNotes,
     turnNumber: a.turn.number,
     turnPhase: a.turn.phase,
   }));
@@ -101,6 +119,7 @@ export default async function TurnsPage() {
     id: d.id,
     characterId: d.characterId,
     characterName: d.character.name,
+    factionId: d.character.factionId,
     factionName: d.character.faction?.name ?? "",
     description: d.description,
     status: d.status,
@@ -115,6 +134,7 @@ export default async function TurnsPage() {
     id: r.id,
     characterId: r.characterId,
     characterName: r.character.name,
+    factionId: r.character.factionId,
     factionName: r.character.faction?.name ?? "",
     requestedByName:
       requesterNameById.get(r.requestedByDiscordUserId) ??
@@ -138,7 +158,7 @@ export default async function TurnsPage() {
         </p>
       </section>
 
-      <AdjudicatePanel actions={actions} desires={desires} tagRequests={tagRequests} />
+      <AdjudicatePanel actions={actions} desires={desires} tagRequests={tagRequests} allCharacters={allCharacters} />
     </div>
   );
 }

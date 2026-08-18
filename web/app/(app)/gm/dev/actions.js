@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma, advanceTurn as advanceTurnInDb, HUNGERLESS_SLUG } from "@lifeweb/db";
+import { prisma, advanceTurn as advanceTurnInDb, HUNGERLESS_SLUG, RADIO_SLUG } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import {
@@ -10,6 +10,8 @@ import {
   CHANNEL_TYPE_CATEGORY,
   syncCharacterLocationAccess,
   sortLocationCategories,
+  provisionRadioChannel,
+  syncRadioAccess,
 } from "@/lib/discordGuild";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 
@@ -206,6 +208,11 @@ export async function grantTag(formData) {
       : []),
   ]);
 
+  if (tag.slug === RADIO_SLUG) {
+    const character = await prisma.character.findUnique({ where: { id: characterId } });
+    if (character) await syncRadioAccess(character.discordUserId, true);
+  }
+
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: session.discordUserId,
@@ -228,6 +235,12 @@ export async function revokeTag(formData) {
 
   const ct = await prisma.characterTag.delete({ where: { id: characterTagId } }).catch(() => null);
   if (!ct) return;
+
+  const revokedTag = await prisma.tag.findUnique({ where: { id: ct.tagId } });
+  if (revokedTag?.slug === RADIO_SLUG) {
+    const character = await prisma.character.findUnique({ where: { id: ct.characterId } });
+    if (character) await syncRadioAccess(character.discordUserId, false);
+  }
 
   await prisma.auditLog.create({
     data: {

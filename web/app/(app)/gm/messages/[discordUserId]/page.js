@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { sendDmReply } from "../../actions";
+import MarkdownContent from "../../../../components/MarkdownContent";
 
 export default async function MessageThreadPage({ params }) {
   const { discordUserId } = await params;
@@ -42,7 +43,7 @@ export default async function MessageThreadPage({ params }) {
                 border: m.direction === "OUTBOUND" ? "none" : "1px solid var(--border)",
               }}
             >
-              {m.content}
+              <MarkdownContent content={m.content} />
             </div>
             <span className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
               {m.createdAt.toLocaleString()}

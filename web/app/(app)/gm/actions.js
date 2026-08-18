@@ -2,14 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@lifeweb/db";
-import {
-  getGmSession,
-  postMessage,
-  sendDm,
-  listGuildChannels,
-  isSummaryChannel,
-  getLocationChannelIds,
-} from "@/lib/discordGuild";
+import { getGmSession, sendDm } from "@/lib/discordGuild";
 import { finalDesirePoints, DESIRE_MIN_POINTS } from "@/lib/desire";
 
 async function requireGm() {
@@ -19,10 +12,8 @@ async function requireGm() {
   return session;
 }
 
-// Shared by adjudicateAction (bundled with the adjudication submit) and
-// sendAffectedParties (standalone, once an action is already adjudicated) —
-// both collect the same parallel partyCharacterId[]/partyMessage[] fields
-// from PartyRows and fire one DM per filled-in row.
+// Collects the parallel partyCharacterId[]/partyMessage[] fields PartyRows
+// submits alongside updateMove and fires one DM per filled-in row.
 async function sendPartyMessages(formData, session) {
   const characterIds = formData.getAll("partyCharacterId").map(String);
   const messages = formData.getAll("partyMessage").map(String);
@@ -53,52 +44,58 @@ async function sendPartyMessages(formData, session) {
   });
 }
 
-export async function adjudicateAction(formData) {
+// Replaces the old auto-DM/auto-post adjudicateAction. Every field here is
+// plainly editable from the Moves popup (MoveEditorModal) regardless of the
+// Move's current submission-pipeline status — nothing here messages the
+// player; that's now solely PartyRows/sendPartyMessages/sendGmMessage below,
+// fired manually by the GM once they've written up Outcome/Other Notes.
+export async function updateMove(formData) {
   const session = await requireGm();
 
   const actionId = formData.get("actionId")?.toString();
   if (!actionId) return;
+
+  const moveKind = formData.get("moveKind")?.toString() || null;
+  const opposed = formData.get("opposed") === "on";
+  const moveReviewStatus = formData.get("moveReviewStatus")?.toString() || "OPEN";
   const resultMessage = formData.get("resultMessage")?.toString().trim() || null;
   const gmNotes = formData.get("gmNotes")?.toString().trim() || null;
-  const isPublic = formData.get("isPublic") === "on";
   const resourceDelta = Number.parseInt(formData.get("resourceDelta")?.toString().trim() ?? "0", 10) || 0;
 
-  const action = await prisma.action.findUnique({
-    where: { id: actionId },
-    include: { character: true },
-  });
-  if (!action || action.status !== "CONFIRMED") return;
+  const action = await prisma.action.findUnique({ where: { id: actionId } });
+  if (!action) return;
+
+  // Switching a Move's kind rerolls/nulls the d6 the same way the bot does
+  // at confirm time — GAMBIT always carries a fresh roll, ROUTINE never has
+  // one.
+  let diceRoll = action.diceRoll;
+  if (moveKind === "GAMBIT" && action.moveKind !== "GAMBIT") {
+    diceRoll = 1 + Math.floor(Math.random() * 6);
+  } else if (moveKind !== "GAMBIT" && action.moveKind === "GAMBIT") {
+    diceRoll = null;
+  }
+
+  // The resource delta is only ever applied to the character's balance once
+  // — the moment a Move first transitions into Solved — so re-opening and
+  // re-saving an already-Solved Move doesn't double-apply it.
+  const enteringSolved = moveReviewStatus === "SOLVED" && action.moveReviewStatus !== "SOLVED";
 
   await prisma.$transaction([
     prisma.action.update({
       where: { id: actionId },
-      data: { status: "ADJUDICATED", resultMessage, gmNotes, isPublic, resourceDelta },
+      data: { moveKind, opposed, moveReviewStatus, resultMessage, gmNotes, resourceDelta, diceRoll },
     }),
-    ...(resourceDelta !== 0
+    ...(enteringSolved && resourceDelta !== 0
       ? [prisma.character.update({ where: { id: action.characterId }, data: { resources: { increment: resourceDelta } } })]
       : []),
   ]);
 
-  if (resultMessage) {
-    await sendDm(action.character.discordUserId, resultMessage).catch(() => {});
-  }
-
-  if (isPublic && resultMessage) {
-    const [channels, locationChannelIds] = await Promise.all([listGuildChannels(), getLocationChannelIds()]);
-    const text = `**${action.character.name}** — ${action.description}\n${resultMessage}`;
-    await Promise.all(
-      channels
-        .filter((c) => isSummaryChannel(c, locationChannelIds))
-        .map((channel) => postMessage(channel.id, text).catch(() => {})),
-    );
-  }
-
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: session.discordUserId,
-      actionType: "action_adjudicated",
+      actionType: "move_updated",
       targetCharacterId: action.characterId,
-      details: { actionId, isPublic },
+      details: { actionId, moveKind, opposed, moveReviewStatus },
     },
   });
 
@@ -201,13 +198,6 @@ export async function adjudicateTagChangeRequest(formData) {
 
   revalidatePath("/gm/turns");
   revalidatePath("/character");
-  revalidatePath("/gm/players");
-}
-
-export async function sendAffectedParties(formData) {
-  const session = await requireGm();
-  await sendPartyMessages(formData, session);
-  revalidatePath("/gm/turns");
   revalidatePath("/gm/players");
 }
 

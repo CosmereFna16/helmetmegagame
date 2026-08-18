@@ -380,6 +380,79 @@ export async function syncCharacterLocationAccess(discordRoleId, oldLocationId, 
   }
 }
 
+// Grants/revokes the singleton "Radio Access" role (GameConfig.radioRoleId)
+// that gates the #radio channel — same PUT/DELETE-member-role primitive as
+// setTurnPingRole above, just keyed off the Radio Tag instead of a player
+// toggle. Called from grantTag/revokeTag (web/app/(app)/gm/dev/actions.js)
+// whenever the mutated tag is the Radio Tag.
+export async function syncRadioAccess(discordUserId, hasTag) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  const token = process.env.DISCORD_TOKEN;
+  if (!guildId || !token) return;
+
+  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+  const roleId = config?.radioRoleId;
+  if (!roleId) return;
+
+  const method = hasTag ? "PUT" : "DELETE";
+  try {
+    const res = await fetch(
+      `${DISCORD_API}/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`,
+      { method, headers: { Authorization: `Bot ${token}` } },
+    );
+    if (!res.ok && res.status !== 204) {
+      console.error(`Failed to ${hasTag ? "add" : "remove"} radio role for ${discordUserId}: ${res.status} ${await res.text()}`);
+    }
+  } catch (err) {
+    console.error(`Failed to ${hasTag ? "add" : "remove"} radio role for ${discordUserId}:`, err);
+  }
+}
+
+// One-time provisioning, mirroring provisionLocationChannels (web/app/(app)/gm/dev/actions.js):
+// creates the dedicated "Radio Access" role and the #radio text channel
+// (denying @everyone ViewChannel/SendMessages, allowing them for the new role),
+// and stores both IDs on GameConfig. A no-op if already provisioned.
+export async function provisionRadioChannel() {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  const token = process.env.DISCORD_TOKEN;
+  if (!guildId || !token) throw new Error("Discord guild is not configured.");
+
+  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+  if (config?.radioChannelId && config?.radioRoleId) {
+    return { channelId: config.radioChannelId, roleId: config.radioRoleId };
+  }
+
+  let roleId = config?.radioRoleId;
+  if (!roleId) {
+    const roleRes = await fetch(`${DISCORD_API}/guilds/${guildId}/roles`, {
+      method: "POST",
+      headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Radio Access", hoist: false, mentionable: false }),
+    });
+    if (!roleRes.ok) {
+      throw new Error(`Failed to create Radio Access role: ${roleRes.status} ${await roleRes.text()}`);
+    }
+    roleId = (await roleRes.json()).id;
+  }
+
+  let channelId = config?.radioChannelId;
+  if (!channelId) {
+    const PERM_SEND_MESSAGES = 1 << 11;
+    const channel = await createGuildChannel({
+      name: "radio",
+      type: CHANNEL_TYPE_TEXT,
+      permission_overwrites: [
+        { id: guildId, type: 0, deny: String(PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES) },
+        { id: roleId, type: 0, allow: String(PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES) },
+      ],
+    });
+    channelId = channel.id;
+  }
+
+  await prisma.gameConfig.update({ where: { id: 1 }, data: { radioChannelId: channelId, radioRoleId: roleId } });
+  return { channelId, roleId };
+}
+
 const CHANNEL_TYPE_CATEGORY = 4;
 
 // Generic channel/category creation used by provisionLocationChannels

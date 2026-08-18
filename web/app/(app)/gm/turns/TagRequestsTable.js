@@ -2,6 +2,8 @@
 
 import { Fragment, useMemo, useState } from "react";
 import { adjudicateTagChangeRequest } from "../actions";
+import CharacterLink from "../../../components/CharacterLink";
+import FactionLink from "../../../components/FactionLink";
 
 const STATUS_LABELS = {
   PENDING: "Pending review",
@@ -73,8 +75,12 @@ export default function TagRequestsTable({ requests }) {
                       </button>
                     )}
                   </td>
-                  <td>{r.characterName}</td>
-                  <td>{r.factionName || "-"}</td>
+                  <td>
+                    <CharacterLink characterId={r.characterId} name={r.characterName} />
+                  </td>
+                  <td>
+                    <FactionLink factionId={r.factionId} name={r.factionName || "-"} />
+                  </td>
                   <td>{r.requestedByName}</td>
                   <td className="max-w-xs truncate">{r.description}</td>
                   <td>{STATUS_LABELS[r.status] ?? r.status}</td>

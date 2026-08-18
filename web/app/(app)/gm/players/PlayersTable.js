@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { sendGmMessage } from "../actions";
+import FactionLink from "../../../components/FactionLink";
 
 export default function PlayersTable({ characters }) {
   const [zoneFilter, setZoneFilter] = useState("");
@@ -121,7 +122,9 @@ export default function PlayersTable({ characters }) {
                   </Link>
                 </td>
                 <td>{c.roleTitle ?? "-"}</td>
-                <td>{c.factionName || "-"}</td>
+                <td>
+                  <FactionLink factionId={c.factionId} name={c.factionName || "-"} />
+                </td>
                 <td>{c.zoneName || "-"}</td>
                 <td>{c.status}</td>
                 <td>{c.resources}</td>
