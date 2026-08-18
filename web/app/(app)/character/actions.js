@@ -3,10 +3,16 @@
 import { revalidatePath } from "next/cache";
 import sharp from "sharp";
 import { redirect } from "next/navigation";
-import { prisma, NOBILITY_SLUG, ATE_MEAL_SLUG, TIPSY_SLUG, DRAINED_SLUG } from "@lifeweb/db";
+import { prisma, NOBILITY_SLUG, ATE_MEAL_SLUG, TIPSY_SLUG, DRAINED_SLUG, RADIO_SLUG } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
-import { syncCharacterNickname, setTurnPingRole, sendDm, ensureCharacterRole } from "@/lib/discordGuild";
+import {
+  syncCharacterNickname,
+  setTurnPingRole,
+  sendDm,
+  ensureCharacterRole,
+  syncCharacterRadioAccess,
+} from "@/lib/discordGuild";
 import { TAG_STORE_CATEGORY_NAMES, unlockedCategoryNames } from "@/lib/tagStore";
 import { DESIRE_COOLDOWN_TURNS } from "@/lib/desire";
 
@@ -412,6 +418,15 @@ export async function purchaseTags(characterId, desiredTagIds) {
     ),
     prisma.character.update({ where: { id: character.id }, data: { tagPoints: newTagPoints } }),
   ]);
+
+  if (character.discordRoleId) {
+    const radioAdded = toAdd.some((id) => tagById.get(id)?.slug === RADIO_SLUG);
+    const radioRemoved = [...toRemove, ...supersededNonPointBuy].some(
+      (ct) => tagById.get(ct.tagId)?.slug === RADIO_SLUG
+    );
+    if (radioAdded) await syncCharacterRadioAccess(character.discordRoleId, true);
+    else if (radioRemoved) await syncCharacterRadioAccess(character.discordRoleId, false);
+  }
 
   revalidatePath("/character");
 }

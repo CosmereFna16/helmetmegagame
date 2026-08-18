@@ -47,14 +47,19 @@ const META_TAGS = [
     category: "Meta",
     pointCost: 0,
   },
-  {
-    name: "Radio",
-    slug: RADIO_SLUG,
-    description: "Grants access to the #radio channel — GM-granted only.",
-    category: "Meta",
-    pointCost: 0,
-  },
 ];
+
+// Purchasable like a Skill (see SKILL_CATEGORY below) rather than GM-granted
+// — buying it flips the character's personal Discord role's access to
+// #radio (see RADIO_SLUG, web/lib/discordGuild.js#syncCharacterRadioAccess,
+// called from purchaseTags()/grantTag()/revokeTag()).
+const RADIO_TAG = {
+  name: "Radio",
+  slug: RADIO_SLUG,
+  description: "Grants access to the #radio channel.",
+  category: "Skills",
+  pointCost: 2,
+};
 
 // System-granted, auto-expiring status markers (see CharacterTag.expiresTurn
 // and the tag sweep in resolveNeeds(), db/index.js) — never purchasable or
@@ -223,7 +228,7 @@ function buildTags() {
 }
 
 async function main() {
-  for (const tag of [...buildTags(), ...META_TAGS, ...FACTION_TAGS, ...STATUS_TAGS, ...ROLE_TAGS]) {
+  for (const tag of [...buildTags(), ...META_TAGS, RADIO_TAG, ...FACTION_TAGS, ...STATUS_TAGS, ...ROLE_TAGS]) {
     const existing = await prisma.tag.findFirst({ where: { name: tag.name } });
     if (existing) {
       console.log(`skip (exists): ${tag.name}`);
