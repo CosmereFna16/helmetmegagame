@@ -456,6 +456,7 @@ zones:
             multiple: false
             starting_resources: 2
             starting_tags:
+              - Leader
               - Medical (Excellent)
               - Brewing (Skilled)
             doc_elements:
