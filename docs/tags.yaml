@@ -74,7 +74,7 @@ tags:
   - slug: follower-of-bacchus
     name: Follower of Bacchus
     category: meta
-    description: "Unlocks the Bacchus tag category. Desire completions grant +5 tag points instead of +3."
+    description: "Unlocks the Bacchus tag category."
     pointCost: 0
     purchasable: false
 
