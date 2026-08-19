@@ -1106,7 +1106,7 @@ zones:
     situation:
       - "The Caves: Migrants make it to the Fortress from here."
     factions:
-      - name: Unaffiliated
+      - name: The Company
         starting_resources: 5
         roles:
           - name: Merchant
@@ -1126,7 +1126,8 @@ zones:
             difficulty: hard
             multiple: false
             starting_resources: 50
-            starting_tags: []
+            starting_tags:
+              - Leader
             doc_elements:
               - townstarting
               - merchantlist
@@ -1143,6 +1144,9 @@ zones:
             doc_elements:
               - townstarting
               - merchantlist
+      - name: Unaffiliated
+        starting_resources: 5
+        roles:
           - name: Migrant
             intro: Make it to the fortress.
             description:
