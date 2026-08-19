@@ -32,10 +32,10 @@ const ROLES_YAML_PATH = path.join(__dirname, "..", "..", "docs", "roles.yaml");
 // Generator for infochannel.yaml's `generated: roles-intro` thread: every
 // faction's roles (name + intro text only — no description/tags/difficulty,
 // and zone-level `threats` are skipped entirely), grouped under a bold
-// faction heading, itself grouped under an underlined zone heading, in
-// docs/roles.yaml's zone -> faction -> role order. A role whose
-// `starting_tags` includes "Leader" gets a ★ marker next to its name. Reads
-// roles.yaml fresh every run, so this thread can never drift from it.
+// faction heading, itself grouped under a Discord "# " (native big-text)
+// zone heading, in docs/roles.yaml's zone -> faction -> role order. A role
+// whose `starting_tags` includes "Leader" gets a ★ marker next to its name.
+// Reads roles.yaml fresh every run, so this thread can never drift from it.
 function buildRolesIntroBody() {
   const rolesDoc = yaml.load(fs.readFileSync(ROLES_YAML_PATH, "utf8"));
 
@@ -51,17 +51,23 @@ function buildRolesIntroBody() {
       factionSections.push(`***${faction.name}***\n${roleLines.join("\n")}`);
     }
     if (factionSections.length === 0) continue;
-    zoneSections.push([`__**${zone.name}**__`, ...factionSections].join("\n\n"));
+    zoneSections.push([`# ${zone.name}`, ...factionSections].join("\n\n"));
   }
 
-  return ["**Roles**", ...zoneSections].join("\n\n");
+  return zoneSections.join("\n\n");
 }
 
 const GENERATORS = { "roles-intro": buildRolesIntroBody };
 
+// A thread's body is its hand-authored `body` (if any), followed by its
+// generator's output (if any) — lets a `generated` thread carry a static
+// intro paragraph (e.g. Roles' "choose a role at game start..." blurb)
+// ahead of the auto-built content.
 function resolveThreadBody(thread) {
-  if (thread.generated) return GENERATORS[thread.generated]();
-  return thread.body;
+  const parts = [];
+  if (thread.body) parts.push(thread.body);
+  if (thread.generated) parts.push(GENERATORS[thread.generated]());
+  return parts.join("\n\n");
 }
 
 async function findInfoChannel() {

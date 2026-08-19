@@ -16,17 +16,18 @@
 # - categories: ordered list of { name, threads }. `name` becomes a bold
 #   heading line in the directory message; `threads` under it become
 #   clickable thread-mention links, in the order listed here.
-# - threads: ordered list of { title, body } OR { title, generated }. Each
-#   becomes its own standalone public thread on #info, titled `title`. A
-#   `body` thread posts that text verbatim as the thread's first message
-#   (batched automatically if it exceeds Discord's 2000-char limit). A
-#   `generated` thread has no hand-authored text here at all — the rebuild
-#   script builds its body at run time instead, so the thread can never
-#   drift from its source. The only generator right now is
-#   `generated: roles-intro` (used by Mechanics/Roles below), which reads
-#   docs/roles.yaml and lists every faction's roles by name + intro text
-#   only (no description/tags/threats) — edit roles.yaml, rerun
-#   `npm run db:rebuild-info-channel`, and the thread updates itself.
+# - threads: ordered list of { title, body }, { title, generated }, or
+#   { title, body, generated }. Each becomes its own standalone public
+#   thread on #info, titled `title`. `body` (if present) is posted verbatim
+#   as a static intro. `generated` (if present) is built at run time and
+#   posted after `body` — its content has no hand-authored text here at
+#   all, so it can never drift from its source. Either way the result is
+#   batched automatically if it exceeds Discord's 2000-char limit. The only
+#   generator right now is `generated: roles-intro` (used by
+#   Mechanics/Roles below), which reads docs/roles.yaml and lists every
+#   faction's roles by name + intro text only (no description/tags/threats)
+#   — edit roles.yaml, rerun `npm run db:rebuild-info-channel`, and the
+#   thread updates itself.
 
 main_message: |-
   Lifeweb is a large-scale, rules-light story generator, 70% roleplay and 30% strategy. It’s intended to be serious, grim, heroic, and occasionally funny.
@@ -91,6 +92,8 @@ categories:
           * Players (but especially faction Leaders and Treasurers) are responsible for organizing, taxing, distributing, and trading Resources.
           * Characters automatically consume 1 ⬢ a day. If you have 0 ⬢ at the start of a turn, you’ll go Hungry, netting you -1 to all Rolls until the next time you eat.
       - title: Roles
+        body: |-
+          Choose a role at game start, determining your starting tags, faction, and location. Leader roles (★) are reserved for players who can vouch frequent and long term availability, and some proficiency in roleplay. The <@&1539673757910564864> role can be acquired in <#1539672933268459591>.
         generated: roles-intro
   - name: Discord
     threads:
