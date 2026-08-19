@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@lifeweb/db";
+import { prisma, DRAINED_SLUG } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 
 async function requireGm() {
@@ -11,31 +11,70 @@ async function requireGm() {
   return session;
 }
 
-// Feeding a body to the Lifeweb instead of burying it — the other of the
-// Mortii's two sacred jobs (see docs/ROLES.md). A deliberate GM call rather
-// than something that happens automatically on death.
-export async function feedLifewebCorpse(formData) {
-  const session = await requireGm();
+// Same cost as the player self-serve volunteer flow (feedLifewebBlood in
+// web/app/(app)/character/actions.js) — flat blood amount plus a Drained tag
+// that expires after GameConfig.lifewebDrainedDurationTurns — just GM-triggered
+// on behalf of any living character instead of self.
+const DONATE_BLOOD_AMOUNT = 20;
 
-  const characterId = formData.get("characterId")?.toString();
+export async function donateBlood(characterId) {
+  const session = await requireGm();
   if (!characterId) return;
 
-  const character = await prisma.character.findFirst({ where: { id: characterId, status: "DEAD" } });
+  const character = await prisma.character.findFirst({ where: { id: characterId, status: "ALIVE" } });
   if (!character) return;
 
-  const config = await prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
-  const newBlood = Math.min(100, (config.lifewebBlood ?? 0) + 100);
+  const [config, openTurn] = await Promise.all([
+    prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
+    prisma.turn.findFirst({ where: { status: "OPEN" } }),
+  ]);
+
+  const newBlood = Math.min(100, (config.lifewebBlood ?? 0) + DONATE_BLOOD_AMOUNT);
   await prisma.gameConfig.update({ where: { id: 1 }, data: { lifewebBlood: newBlood } });
+
+  if (openTurn) {
+    const drainedTag = await prisma.tag.findUnique({ where: { slug: DRAINED_SLUG } });
+    if (drainedTag) {
+      const expiresTurn = openTurn.number + (config.lifewebDrainedDurationTurns ?? 4);
+      await prisma.characterTag.upsert({
+        where: { characterId_tagId: { characterId: character.id, tagId: drainedTag.id } },
+        create: { characterId: character.id, tagId: drainedTag.id, source: "EVENT", expiresTurn },
+        update: { expiresTurn },
+      });
+    }
+  }
 
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: session.discordUserId,
-      actionType: "fed_lifeweb_corpse",
+      actionType: "gm_donated_lifeweb_blood",
       targetCharacterId: character.id,
-      details: { amount: 100, characterName: character.name },
+      details: { amount: DONATE_BLOOD_AMOUNT },
     },
   });
 
   revalidatePath("/lifeweb");
   revalidatePath("/gm/players");
+  revalidatePath("/character");
+}
+
+// No character cost, no Drained tag — a flat top-up.
+const FEED_PERSON_AMOUNT = 100;
+
+export async function feedLifewebPerson() {
+  const session = await requireGm();
+
+  const config = await prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
+  const newBlood = Math.min(100, (config.lifewebBlood ?? 0) + FEED_PERSON_AMOUNT);
+  await prisma.gameConfig.update({ where: { id: 1 }, data: { lifewebBlood: newBlood } });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "gm_fed_lifeweb_person",
+      details: { amount: FEED_PERSON_AMOUNT },
+    },
+  });
+
+  revalidatePath("/lifeweb");
 }

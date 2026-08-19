@@ -2,6 +2,7 @@ import { IBM_Plex_Mono, Source_Serif_4, UnifrakturMaguntia } from "next/font/goo
 import "./globals.css";
 import { getOpenTurn, themeForPhase } from "@/lib/turn";
 import TagsProvider from "./components/TagsProvider";
+import ConfirmProvider from "./components/ConfirmProvider";
 
 const mono = IBM_Plex_Mono({
   variable: "--font-mono",
@@ -43,7 +44,9 @@ export default async function RootLayout({ children }) {
     >
       <body className="h-full">
         <div className="scanlines" />
-        <TagsProvider>{children}</TagsProvider>
+        <ConfirmProvider>
+          <TagsProvider>{children}</TagsProvider>
+        </ConfirmProvider>
       </body>
     </html>
   );
