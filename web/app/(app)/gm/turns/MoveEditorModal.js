@@ -81,7 +81,7 @@ export default function MoveEditorModal({ move, otherCharacters, onClose }) {
           </div>
 
           <label className="field">
-            <span className="field-label">Resource change (applied to the player&apos;s resources once marked Solved)</span>
+            <span className="field-label">Resource ⬢ change (applied to the player&apos;s resources once marked Solved)</span>
             <input type="number" name="resourceDelta" defaultValue={move.resourceDelta ?? 0} />
           </label>
 

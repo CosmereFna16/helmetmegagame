@@ -351,6 +351,31 @@ export async function ensureCharacterRole(character) {
   }
 }
 
+// Deletes a character's personal Discord role outright — Discord itself
+// drops any channel permission overwrites tied to the role (Location
+// categories, #radio) the moment the role is deleted, so this alone undoes
+// ensureCharacterRole/syncCharacterLocationAccess/syncCharacterRadioAccess
+// without needing to touch those channels individually. Used by
+// wipeGameData (web/app/(app)/gm/dev/actions.js) when deleting a character
+// outright, not by any per-character edit flow.
+export async function deleteCharacterRole(discordRoleId) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  const token = process.env.DISCORD_TOKEN;
+  if (!guildId || !token || !discordRoleId) return;
+
+  try {
+    const res = await fetch(`${DISCORD_API}/guilds/${guildId}/roles/${discordRoleId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bot ${token}` },
+    });
+    if (!res.ok && res.status !== 404) {
+      console.error(`Failed to delete role ${discordRoleId}: ${res.status} ${await res.text()}`);
+    }
+  } catch (err) {
+    console.error(`Failed to delete role ${discordRoleId}:`, err);
+  }
+}
+
 // REST twin of bot/src/lib/location.js#swapLocationAccess, for GM raw edits
 // (updateCharacterRaw, web/app/(app)/gm/dev/actions.js) which change
 // Character.locationId directly in the DB with no gateway Guild object on

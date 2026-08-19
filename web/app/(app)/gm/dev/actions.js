@@ -12,6 +12,8 @@ import {
   sortLocationCategories,
   provisionRadioChannel,
   syncCharacterRadioAccess,
+  deleteCharacterRole,
+  updateGuildNickname,
 } from "@/lib/discordGuild";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 
@@ -135,6 +137,70 @@ export async function forceAdvanceTurn() {
   });
 
   revalidatePath("/gm/dev");
+  revalidatePath("/", "layout");
+}
+
+// Full game restart for dev/testing: wipes every player- and turn-scoped
+// row (characters, tags-on-characters, desires, tag change requests, Moves,
+// default efforts, notes, DM log, audit log, silo history) and opens a fresh
+// Turn 1/DAWN, but leaves structural/config data untouched — GameConfig's
+// balance knobs, Faction/Zone/Location rows (and their Discord provisioning:
+// channels/categories are never touched, only re-emptied of characters), and
+// the Tag catalog itself. Faction silos reset to 0 and Lifeweb Blood resets
+// to full (100), same "back to day one" treatment as the Turn counter,
+// rather than carrying over stale economy/world-state numbers.
+//
+// Requires typing the literal string "WIPE" in the confirm field — this is
+// the most destructive action in the Dev Panel and has no undo.
+export async function wipeGameData(formData) {
+  const session = await requireSuperadmin();
+
+  if (str(formData, "confirm").trim() !== "WIPE") {
+    throw new Error('Type "WIPE" (all caps) to confirm.');
+  }
+
+  const characters = await prisma.character.findMany({
+    select: { discordUserId: true, discordRoleId: true },
+  });
+
+  // Best-effort Discord cleanup first, while the Character rows (and their
+  // discordRoleId/discordUserId) still exist to look up.
+  await Promise.all(
+    characters.flatMap((c) => [
+      c.discordRoleId ? deleteCharacterRole(c.discordRoleId).catch(() => {}) : null,
+      updateGuildNickname(c.discordUserId, null).catch(() => {}),
+    ]).filter(Boolean),
+  );
+
+  // Deletes ordered so dependents go before the Character/Turn rows they
+  // reference (Prisma doesn't cascade by default here).
+  await prisma.$transaction([
+    prisma.note.deleteMany({}),
+    prisma.tagChangeRequest.deleteMany({}),
+    prisma.desire.deleteMany({}),
+    prisma.defaultEffort.deleteMany({}),
+    prisma.action.deleteMany({}),
+    prisma.characterTag.deleteMany({}),
+    prisma.auditLog.deleteMany({}),
+    prisma.character.deleteMany({}),
+    prisma.turn.deleteMany({}),
+    prisma.siloTransaction.deleteMany({}),
+    prisma.directMessage.deleteMany({}),
+    prisma.faction.updateMany({ data: { silo: 0 } }),
+    prisma.gameConfig.update({
+      where: { id: 1 },
+      data: { nextWeather: null, nextTurnNote: null, lifewebBlood: 100 },
+    }),
+  ]);
+
+  await prisma.turn.create({
+    data: { number: 1, phase: "DAWN", weather: "CLEAR", status: "OPEN", gameDate: new Date() },
+  });
+
+  await prisma.auditLog.create({
+    data: { actorDiscordUserId: session.discordUserId, actionType: "superadmin_game_wipe" },
+  });
+
   revalidatePath("/", "layout");
 }
 

@@ -4,7 +4,7 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { describeTurn, getOpenTurn } from "@/lib/turn";
-import { updateGameConfig, updateCurrentTurn, updateNextTurn, forceAdvanceTurn } from "./actions";
+import { updateGameConfig, updateCurrentTurn, updateNextTurn, forceAdvanceTurn, wipeGameData } from "./actions";
 
 const WEATHER_OPTIONS = [
   { value: "CLEAR", label: "Clear" },
@@ -119,7 +119,7 @@ export default async function DevPanelPage() {
             <input type="number" name="startingTagPoints" defaultValue={config.startingTagPoints} />
           </label>
           <label className="field">
-            <span className="field-label">Resource consumption / turn</span>
+            <span className="field-label">Resource ⬢ consumption / turn</span>
             <input type="number" name="resourceConsumptionPerTurn" defaultValue={config.resourceConsumptionPerTurn} />
           </label>
           <label className="field">
@@ -177,6 +177,26 @@ export default async function DevPanelPage() {
           immediately, but docs/documents.yaml&apos;s printed numbers only update after a dev runs
           <code>npm run db:sync-production-doc</code> by hand.
         </p>
+      </section>
+
+      <section className="panel p-4" style={{ borderColor: "var(--accent)" }}>
+        <h2 className="mb-3 font-bold" style={{ color: "var(--accent)" }}>Restart Game</h2>
+        <p className="mb-3 text-sm" style={{ color: "var(--muted)" }}>
+          Wipes every character, Move, Desire, tag change request, default effort, note, DM log, and
+          audit log entry; resets every Faction&apos;s Silo to 0 and Lifeweb Blood to 100; deletes each
+          character&apos;s personal Discord role and nickname; and opens a fresh Turn 1, Dawn. Factions,
+          Zones, Locations, provisioned Discord channels, the Tag catalog, and Game Config above are left
+          untouched. This cannot be undone.
+        </p>
+        <form action={wipeGameData} className="flex flex-wrap items-end gap-3">
+          <label className="field">
+            <span className="field-label">Type WIPE to confirm</span>
+            <input type="text" name="confirm" autoComplete="off" style={{ width: "10rem" }} />
+          </label>
+          <button type="submit" className="btn" style={{ borderColor: "var(--accent)" }}>
+            Wipe &amp; restart game
+          </button>
+        </form>
       </section>
     </div>
   );

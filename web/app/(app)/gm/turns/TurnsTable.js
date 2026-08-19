@@ -9,7 +9,7 @@ import { sendGmMessage } from "../actions";
 import MoveEditorModal from "./MoveEditorModal";
 
 const PIPELINE_LABELS = {
-  PENDING_TYPE: "Picking Routine/Gambit",
+  PENDING_TYPE: "Setting up Move",
   PENDING_OPPOSED: "Picking Opposed",
   PENDING: "Pending confirm",
 };

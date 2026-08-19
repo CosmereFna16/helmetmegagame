@@ -1,15 +1,14 @@
 const { prisma } = require("@lifeweb/db");
 const { sendDm } = require("./dm");
-const { parseResourceDelta, parseResourceDice, formatResourceLines } = require("./resourceDelta");
-
-const ROUTINE_EMOJI = "🔹";
-const GAMBIT_EMOJI = "🎲";
+const { parseResourceDelta, parseResourceDice } = require("./resourceDelta");
+const { buildMoveComponents, buildMoveContent } = require("./moveComponents");
 
 // A message posted in the #turns channel becomes a PENDING_TYPE Move: the
 // original message is deleted (the Move itself only exists as a DM + the
-// web dashboard) and the player picks Routine or Gambit via a reaction menu,
-// then Opposed or not (see handleMoveKindSelection/handleOpposedSelection in
-// messageReactionAdd.js), before the usual confirm flow kicks in.
+// web dashboard) and the player is DMed one message with Kind/Opposed
+// select menus and a Confirm button (see bot/src/events/interactionCreate.js
+// for the move:kind/move:opposed/move:confirm handlers) — edited in place
+// as they change their picks, no further messages sent until Confirm.
 async function handleActionSubmission(message) {
   const character = await prisma.character.findFirst({
     where: { discordUserId: message.author.id, status: "ALIVE" },
@@ -66,28 +65,18 @@ async function handleActionSubmission(message) {
 
   await message.delete().catch(() => {});
 
-  const lines = [
-    `» ${description}`,
-    ...formatResourceLines(resourceDelta, resourceDiceExpression),
-    "",
-    "```",
-    `${ROUTINE_EMOJI}  Routine`,
-    `${GAMBIT_EMOJI}  Gambit`,
-    "```",
-    `Was that Routine or a Gambit? React with ${ROUTINE_EMOJI} or ${GAMBIT_EMOJI} to choose.`,
-  ];
-
   let sent;
   try {
-    ({ sent } = await sendDm(message.author, lines.join("\n")));
+    ({ sent } = await sendDm(message.author, {
+      content: buildMoveContent(action),
+      components: buildMoveComponents(action),
+    }));
   } catch {
     await prisma.action.delete({ where: { id: action.id } }).catch(() => {});
     return;
   }
 
   await prisma.action.update({ where: { id: action.id }, data: { confirmDmMessageId: sent.id } });
-  await sent.react(ROUTINE_EMOJI).catch(() => {});
-  await sent.react(GAMBIT_EMOJI).catch(() => {});
 
   await prisma.auditLog.create({
     data: {
@@ -99,4 +88,4 @@ async function handleActionSubmission(message) {
   });
 }
 
-module.exports = { handleActionSubmission, ROUTINE_EMOJI, GAMBIT_EMOJI };
+module.exports = { handleActionSubmission };

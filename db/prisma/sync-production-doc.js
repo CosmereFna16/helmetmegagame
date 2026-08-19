@@ -35,27 +35,27 @@ async function main() {
   text = replaceLine(
     text,
     "Herding (Effort):",
-    `Herding (Effort): ${rate("herding", "base")} Resources for anyone; ${rate("herding", "laborer")} with Laborer; ${rate("herding", "specialist")} with Laborer (Herding).`,
+    `Herding (Effort): ${rate("herding", "base")} Resources ⬢ for anyone; ${rate("herding", "laborer")} with Laborer; ${rate("herding", "specialist")} with Laborer (Herding).`,
   );
   text = replaceLine(
     text,
     "Farming (Effort):",
-    `Farming (Effort): ${rate("farming", "base")} Resources for anyone; ${rate("farming", "laborer")} with Laborer; ${rate("farming", "specialist")} with Laborer (Farming). Must be in Town or Fortress (the only arable land).`,
+    `Farming (Effort): ${rate("farming", "base")} Resources ⬢ for anyone; ${rate("farming", "laborer")} with Laborer; ${rate("farming", "specialist")} with Laborer (Farming). Must be in Town or Fortress (the only arable land).`,
   );
   text = replaceLine(
     text,
     "Fishing (Effort):",
-    `Fishing (Effort): ${rate("fishing", "base")} Resources for anyone; ${rate("fishing", "laborer")} with Laborer; ${rate("fishing", "specialist")} with Laborer (Fishing). Must be in Town or Fortress (near the river).`,
+    `Fishing (Effort): ${rate("fishing", "base")} Resources ⬢ for anyone; ${rate("fishing", "laborer")} with Laborer; ${rate("fishing", "specialist")} with Laborer (Fishing). Must be in Town or Fortress (near the river).`,
   );
   text = replaceLine(
     text,
     "Hunting (Effort):",
-    `Hunting (Effort): ${HUNTING_DICE.base} Resources for anyone (*3 with Hunter tag), must be in Town, Fortress, or Caves.`,
+    `Hunting (Effort): ${HUNTING_DICE.base} Resources ⬢ for anyone (*3 with Hunter tag), must be in Town, Fortress, or Caves.`,
   );
   text = replaceLine(
     text,
     "To automatically add Resources",
-    `To automatically add Resources on an Effort, type +(resources) anywhere in your message. For example, write “I hunt. +${HUNTING_DICE.specialist}” or “I farm. +${rate("farming", "specialist")}”.`,
+    `To automatically add Resources ⬢ on an Effort, type +(resources) anywhere in your message. For example, write “I hunt. +${HUNTING_DICE.specialist}” or “I farm. +${rate("farming", "specialist")}”.`,
   );
 
   fs.writeFileSync(DOCS_PATH, text);

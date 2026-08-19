@@ -2,7 +2,8 @@ const { prisma } = require("@lifeweb/db");
 
 function contentOf(payload) {
   if (typeof payload === "string") return payload;
-  return payload?.content ?? payload?.embeds?.length ? "[embed]" : "";
+  if (payload?.content) return payload.content;
+  return payload?.embeds?.length ? "[embed]" : "";
 }
 
 // Every DM the bot sends is logged so the GM message inbox has a full

@@ -62,7 +62,7 @@ flowchart LR
 Already exists (`web/app/character/page.js`), needs restyling and two additions:
 
 - **Tags grouped by category** — the brief asks for this, but `Tag` has no category field yet. **Schema gap**: add `Tag.category String?` (or an enum once real categories are known) before the grouped UI can exist.
-- **Resource transfer** — doesn't exist yet. New server action `transferResources(formData)`: validate the sender has enough, the target character exists and is `ALIVE`, decrement/increment both in a transaction, write an `AuditLog` row (`actionType: "resource_transfer"`).
+- **Resource ⬢ transfer** — doesn't exist yet. New server action `transferResources(formData)`: validate the sender has enough, the target character exists and is `ALIVE`, decrement/increment both in a transaction, write an `AuditLog` row (`actionType: "resource_transfer"`).
 - Role/faction stay read-only, auto-populated from Discord role sync — no manual editing surface, matching "role auto-selected from role."
 
 ### GM → Players (`/gm/players`, new)
@@ -85,7 +85,7 @@ Already exists (`web/app/character/page.js`), needs restyling and two additions:
 
 ### Faction (`/faction`, new — both players and GMs)
 
-- Players: fixed to their own character's faction — member list with name + fate (`Character.status`), the leader's name, the faction's Silo, and their own Resources.
+- Players: fixed to their own character's faction — member list with name + fate (`Character.status`), the leader's name, the faction's Silo, and their own Resources ⬢.
 - GMs: no `factionId` in the URL shows an all-factions overview (member count, leader, Silo, link into each) plus a create-faction form; picking one adds management controls to the same detail view players see — a faction switcher, set-leader per member, add an existing character, remove a member (moves them to Unaffiliated, which never has a leader by design).
 
 ## 5. Turn & Action Lifecycle (built, confirmed working)
@@ -113,7 +113,7 @@ sequenceDiagram
 
 Source: `web/app/character/actions.js` (`submitAction`), `bot/src/events/messageReactionAdd.js` (`handleActionConfirm`), `web/app/gm/actions.js` (`adjudicateAction`).
 
-## 6. Resources & Needs
+## 6. Resources ⬢ & Needs
 
 Schema already carries the fields (`Character.resources`, `isHungry`, `moodState`, `moodExpiresTurn`, `GameConfig.resourceConsumptionPerTurn/hungerMovePenalty/moodMovePenalty/moodMoveBonus/moodDurationTurns`) but **no code applies them yet**. This logic belongs inside `advanceTurn()` (§2), run once per turn close:
 
@@ -126,7 +126,7 @@ Happy/Unhappy is explicitly player-judgment per the brief ("it's up to you to de
 
 **Convention: `⬢` is the canonical Resources glyph.** It's placed right after the word "Resources" (or "Silo", see below) wherever a count is shown in the dashboard — status lists, table headers, transfer forms. Keep using it on any new Resources/Silo display rather than introducing a different icon.
 
-**Factions have their own resource pool, the Silo**, separate from a character's personal `resources`. Sending resources to a Faction (via the transfer dropdown on the Character view, which lists both players and factions as recipients) adds the full amount to `Faction.silo` rather than splitting it among members. The Faction view (`/faction`) shows a player their own faction's Silo total alongside their personal Resources.
+**Factions have their own resource pool, the Silo**, separate from a character's personal `resources`. Sending resources to a Faction (via the transfer dropdown on the Character view, which lists both players and factions as recipients) adds the full amount to `Faction.silo` rather than splitting it among members. The Faction view (`/faction`) shows a player their own faction's Silo total alongside their personal Resources ⬢.
 
 ## 7. Visual Design System
 

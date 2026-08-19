@@ -8,6 +8,12 @@ const {
 } = require("../lib/location");
 const { performLabor } = require("../lib/labor");
 const { sendDm } = require("../lib/dm");
+const { buildMoveComponents, buildMoveContent, moveKindLabel } = require("../lib/moveComponents");
+const { rollResourceDice } = require("../lib/resourceDelta");
+
+function rollDie(sides = 6) {
+  return 1 + Math.floor(Math.random() * sides);
+}
 
 function isGmMember(interaction) {
   const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
@@ -73,20 +79,20 @@ async function handleLaborCommand(interaction) {
 
   const lines = [`» ${character.name} ${field === "hunt" ? "hunted" : field === "herd" ? "herded" : field === "fish" ? "fished" : "farmed"}.`];
   if (result.resourceDiceExpression) {
-    lines.push(`**Resource roll (${result.resourceDiceExpression}):** rolled ${result.diceSum} → +${result.resourceDelta}`);
+    lines.push(`**Resource ⬢ roll (${result.resourceDiceExpression}):** rolled ${result.diceSum} → +${result.resourceDelta}`);
   } else {
-    lines.push(`**Resource change:** +${result.resourceDelta}`);
+    lines.push(`**Resource ⬢ change:** +${result.resourceDelta}`);
   }
   lines.push("» *Move confirmed — waiting on GM review.*");
 
   await interaction.reply({ content: lines.join("\n"), flags: MessageFlags.Ephemeral });
 }
 
-// The bot's first use of buttons/select-menus/interactionCreate (everything
-// else is reaction+DM driven) — see the "Location picker" section of
-// CLAUDE.md. All custom IDs are namespaced "loc:" for the zone/location
-// travel flow triggered from the Move button in the "location" channel
-// (bot/src/lib/location.js#ensureLocationPrompt).
+// All custom IDs below are namespaced "loc:" for the zone/location travel
+// flow triggered from the Move button in the "location" channel (see the
+// "Location picker" section of CLAUDE.md and
+// bot/src/lib/location.js#ensureLocationPrompt) — "move:" IDs further down
+// are the unrelated Move-setup flow (Kind/Opposed/Confirm).
 async function findAliveCharacter(discordUserId) {
   return prisma.character.findFirst({ where: { discordUserId, status: "ALIVE" } });
 }
@@ -168,6 +174,96 @@ async function handleCancel(interaction) {
   await interaction.update({ content: "» *Cancelled.*", components: [] });
 }
 
+// Move setup: one DM (see bot/src/lib/actionSubmission.js) carrying a Kind
+// select, an Opposed select, and a Confirm button, all namespaced "move:" —
+// picks are written straight to the Action row and the message is re-rendered
+// in place via interaction.update() so nothing is ever deleted/resent.
+async function findMoveAction(actionId) {
+  return prisma.action.findUnique({ where: { id: actionId }, include: { character: true } });
+}
+
+function isEditableMove(action, interaction) {
+  return action && action.status === "PENDING_TYPE" && action.character.discordUserId === interaction.user.id;
+}
+
+async function handleMoveKindSelect(interaction, actionId) {
+  const action = await findMoveAction(actionId);
+  if (!isEditableMove(action, interaction)) {
+    await interaction.update({ content: "» *This Move can no longer be edited.*", components: [] });
+    return;
+  }
+
+  const updated = await prisma.action.update({
+    where: { id: action.id },
+    data: { moveKind: interaction.values[0] },
+  });
+  await interaction.update({ content: buildMoveContent(updated), components: buildMoveComponents(updated) });
+}
+
+async function handleMoveOpposedSelect(interaction, actionId) {
+  const action = await findMoveAction(actionId);
+  if (!isEditableMove(action, interaction)) {
+    await interaction.update({ content: "» *This Move can no longer be edited.*", components: [] });
+    return;
+  }
+
+  const updated = await prisma.action.update({
+    where: { id: action.id },
+    data: { opposed: interaction.values[0] === "true" },
+  });
+  await interaction.update({ content: buildMoveContent(updated), components: buildMoveComponents(updated) });
+}
+
+async function handleMoveConfirm(interaction, actionId) {
+  const action = await findMoveAction(actionId);
+  if (!isEditableMove(action, interaction)) {
+    await interaction.update({ content: "» *This Move can no longer be confirmed.*", components: [] });
+    return;
+  }
+  if (!action.moveKind) {
+    await interaction.reply({ content: "» *Choose Routine or Gambit first.*" });
+    return;
+  }
+
+  const diceRoll = action.moveKind === "GAMBIT" ? rollDie() : null;
+  const diceResult = action.resourceDiceExpression ? rollResourceDice(action.resourceDiceExpression) : null;
+
+  await prisma.action.update({
+    where: { id: action.id },
+    data: {
+      status: "CONFIRMED",
+      confirmedAt: new Date(),
+      ...(diceRoll != null ? { diceRoll } : {}),
+      ...(diceResult
+        ? { resourceDiceRoll: diceResult.value, resourceDelta: (action.resourceDelta ?? 0) + diceResult.value }
+        : {}),
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: interaction.user.id,
+      actionType: "move_confirmed",
+      targetCharacterId: action.characterId,
+      details: { actionId: action.id, diceRoll, resourceDiceRoll: diceResult?.value ?? null },
+    },
+  });
+
+  const lines = [
+    `» ${action.description}`,
+    `Kind: **${moveKindLabel(action.moveKind)}**${action.opposed ? " — Opposed" : ""}`,
+  ];
+  if (diceRoll != null) lines.push(`🎲 **${diceRoll}**`);
+  if (diceResult) {
+    lines.push(
+      `**Resource roll (${action.resourceDiceExpression}):** rolled ${diceResult.sum} → ${diceResult.value > 0 ? "+" : ""}${diceResult.value}`,
+    );
+  }
+  lines.push("» *Waiting on adjudication...*");
+
+  await interaction.update({ content: lines.join("\n"), components: [] });
+}
+
 module.exports = {
   name: "interactionCreate",
   async execute(interaction) {
@@ -182,9 +278,18 @@ module.exports = {
         if (interaction.customId.startsWith("loc:confirm:")) {
           return void (await handleConfirm(interaction, interaction.customId.slice("loc:confirm:".length)));
         }
+        if (interaction.customId.startsWith("move:confirm:")) {
+          return void (await handleMoveConfirm(interaction, interaction.customId.slice("move:confirm:".length)));
+        }
       } else if (interaction.isStringSelectMenu()) {
         if (interaction.customId === "loc:zone") return void (await handleZoneSelect(interaction));
         if (interaction.customId.startsWith("loc:place:")) return void (await handlePlaceSelect(interaction));
+        if (interaction.customId.startsWith("move:kind:")) {
+          return void (await handleMoveKindSelect(interaction, interaction.customId.slice("move:kind:".length)));
+        }
+        if (interaction.customId.startsWith("move:opposed:")) {
+          return void (await handleMoveOpposedSelect(interaction, interaction.customId.slice("move:opposed:".length)));
+        }
       }
     } catch (err) {
       console.error("interactionCreate handler failed:", err);

@@ -42,14 +42,14 @@ documents:
     description: |-
       As Treasurer or Leader, you control your faction's Silo—the shared stockpile everyone on your payroll eats from. Let it run dry and your people starve.
 
-      From the Faction page, you can see every deposit and withdrawal, and send Resources straight to a member from the Silo.
+      From the Faction page, you can see every deposit and withdrawal, and send Resources ⬢ straight to a member from the Silo.
   - name: Medical
     key: medical
     public: true
     tags:
       - any of the medical tags
     description: "Add here list of medical tags, hover"
-  - name: Producing Resources
+  - name: Producing Resources ⬢
     key: production
     public: true
     tags:
@@ -58,17 +58,17 @@ documents:
       - Laborer (Fishing)
       - Laborer (Herding)
     description: |-
-      Producing Resources
+      Producing Resources ⬢
 
-      Herding (Effort): 3 Resources for anyone; 8 with Laborer; 13 with Laborer (Herding).
-      Farming (Effort): 4 Resources for anyone; 12 with Laborer; 21 with Laborer (Farming). Must be in Town or Fortress (the only arable land).
-      Fishing (Effort): 3 Resources for anyone; 11 with Laborer; 19 with Laborer (Fishing). Must be in Town or Fortress (near the river).
-      Hunting (Effort): 1d4 Resources for anyone (*3 with Hunter tag), must be in Town, Fortress, or Caves.
-      Brewing (Effort): 3 Resources, requires Brewing (Basic) or (Skilled) — see the Alcohol & Drugs document.
+      Herding (Effort): 3 Resources ⬢ for anyone; 8 with Laborer; 13 with Laborer (Herding).
+      Farming (Effort): 4 Resources ⬢ for anyone; 12 with Laborer; 21 with Laborer (Farming). Must be in Town or Fortress (the only arable land).
+      Fishing (Effort): 3 Resources ⬢ for anyone; 11 with Laborer; 19 with Laborer (Fishing). Must be in Town or Fortress (near the river).
+      Hunting (Effort): 1d4 Resources ⬢ for anyone (*3 with Hunter tag), must be in Town, Fortress, or Caves.
+      Brewing (Effort): 3 Resources ⬢, requires Brewing (Basic) or (Skilled) — see the Alcohol & Drugs document.
 
       Laborer is a general-purpose 2-point tag that works every trade a little harder than most. Laborer (Farming), Laborer (Fishing), and Laborer (Herding) each cost a further 2 points, require Laborer first, and push that one trade up to a dedicated specialist's rate.
 
-      To automatically add Resources on an Effort, type +(resources) anywhere in your message. For example, write “I hunt. +1d4*3” or “I farm. +21”.
+      To automatically add Resources ⬢ on an Effort, type +(resources) anywhere in your message. For example, write “I hunt. +1d4*3” or “I farm. +21”.
   - name: Combat
     key: combat
     public: true
@@ -284,7 +284,7 @@ documents:
 
       DRINKING (mechanics)
       "Take Alcohol" on your character sheet, next to "Ate Meal" — costs 3
-      Resources (a Brewing Effort nets you 3 back, same rate).
+      Resources ⬢ (a Brewing Effort nets you 3 back, same rate).
       - Grants the Tipsy tag for 4 turns: for the first 2 you're actually
         Happy; for the 2 after that you're merely immune to Unhappy — Tipsy
         is still shielding you, just quietly.

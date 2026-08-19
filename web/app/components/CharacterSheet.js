@@ -43,13 +43,13 @@ function ActionStatus({ currentAction, openTurn }) {
         {currentAction.opposed ? " (Opposed)" : ""}: {currentAction.description}
       </p>
       {currentAction.status === "PENDING_TYPE" && (
-        <p style={{ color: "var(--muted)" }}>Waiting on you to choose Routine or Gambit — check Discord DMs.</p>
+        <p style={{ color: "var(--muted)" }}>Waiting on you to set Kind/Opposed and hit Confirm — check Discord DMs.</p>
       )}
       {currentAction.status === "PENDING_OPPOSED" && (
         <p style={{ color: "var(--muted)" }}>Waiting on you to say whether it&apos;s Opposed — check Discord DMs.</p>
       )}
       {currentAction.status === "PENDING" && (
-        <p style={{ color: "var(--muted)" }}>Pending confirmation — check Discord DMs and react ⚜ to lock it in.</p>
+        <p style={{ color: "var(--muted)" }}>Pending confirmation — check Discord DMs and hit Confirm to lock it in.</p>
       )}
       {currentAction.status === "CONFIRMED" && currentAction.moveReviewStatus !== "SOLVED" && (
         <p style={{ color: "var(--muted)" }}>
@@ -133,15 +133,6 @@ export default function CharacterSheet({
               </label>
               <AvatarField defaultTurnPingOptIn={character.turnPingOptIn} />
               <AppearanceField defaultValue={character.appearance ?? ""} />
-              <label className="field">
-                <span className="field-label">Discord nickname (optional)</span>
-                <input
-                  name="preferredNickname"
-                  defaultValue={character.preferredNickname ?? ""}
-                  placeholder="Defaults to your Discord display name"
-                  maxLength={24}
-                />
-              </label>
               <button type="submit" className="btn self-start">
                 Save
               </button>

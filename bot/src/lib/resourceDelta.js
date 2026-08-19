@@ -79,8 +79,8 @@ function rollResourceDice(expression) {
 // hits ⚜, since the dice component isn't rolled until then.
 function formatResourceLines(resourceDelta, resourceDiceExpression) {
   const lines = [];
-  if (resourceDelta) lines.push(`**Resource change:** ${resourceDelta > 0 ? "+" : ""}${resourceDelta}`);
-  if (resourceDiceExpression) lines.push(`**Resource roll:** ${resourceDiceExpression} (rolled once you confirm)`);
+  if (resourceDelta) lines.push(`**Resource ⬢ change:** ${resourceDelta > 0 ? "+" : ""}${resourceDelta}`);
+  if (resourceDiceExpression) lines.push(`**Resource ⬢ roll:** ${resourceDiceExpression} (rolled once you confirm)`);
   return lines;
 }
 

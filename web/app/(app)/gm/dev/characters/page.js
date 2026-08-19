@@ -30,7 +30,7 @@ export default async function DevCharactersPage() {
               <th>Faction</th>
               <th>Zone</th>
               <th>Status</th>
-              <th>Resources</th>
+              <th>Resources ⬢</th>
               <th>Mood</th>
               <th>Hungry</th>
             </tr>

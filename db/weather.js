@@ -71,53 +71,16 @@ function rollWeather(previousWeather, phase) {
   return rollFromWeights(weights);
 }
 
-// Converts a Chicago (America/Chicago) wall-clock time into the UTC Date
-// it actually represents, accounting for CST/CDT — the standard
-// guess-then-correct trick, since Node has no built-in "construct a Date
-// from a wall time in an arbitrary IANA zone" primitive.
-function chicagoWallTimeToUTC(year, month, day, hour) {
-  const guess = new Date(Date.UTC(year, month - 1, day, hour, 0, 0));
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Chicago",
-    hour12: false,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).formatToParts(guess);
-  const map = {};
-  for (const p of parts) map[p.type] = p.value;
-  const asIfChicago = new Date(
-    Date.UTC(Number(map.year), Number(map.month) - 1, Number(map.day), map.hour === "24" ? 0 : Number(map.hour), Number(map.minute), Number(map.second))
-  );
-  return new Date(guess.getTime() + (guess.getTime() - asIfChicago.getTime()));
-}
-
-// Turns advance at 10:00 and 22:00 America/Chicago (bot/src/events/ready.js's
-// cron schedule) — find the next of those two boundaries after `now`, so the
-// turn announcement can tell players when the current turn closes.
-function nextTurnEndTime(now = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Chicago",
-    hour12: false,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-  }).formatToParts(now);
-  const map = {};
-  for (const p of parts) map[p.type] = p.value;
-  const year = Number(map.year);
-  const month = Number(map.month);
-  const day = Number(map.day);
-  const hour = map.hour === "24" ? 0 : Number(map.hour);
-
-  if (hour < 10) return chicagoWallTimeToUTC(year, month, day, 10);
-  if (hour < 22) return chicagoWallTimeToUTC(year, month, day, 22);
-  const tomorrow = new Date(Date.UTC(year, month - 1, day + 1));
-  return chicagoWallTimeToUTC(tomorrow.getUTCFullYear(), tomorrow.getUTCMonth() + 1, tomorrow.getUTCDate(), 10);
+// Turns advance at 4:00 and 16:00 America/Chicago (bot/src/events/ready.js's
+// cron schedule), strictly alternating DAWN/DUSK — a DAWN turn always opens
+// at 4 AM and runs until 4 PM the same day, a DUSK turn always opens at
+// 4 PM and runs until 4 AM the next day. So the label for when the
+// currently-open turn ends is just the other boundary from its own phase;
+// no clock math needed. Plain text rather than a Discord <t:> timestamp
+// tag, since the boundary is a fixed wall-clock time, not something worth
+// rendering as a per-viewer relative countdown.
+function turnEndLabel(phase) {
+  return phase === "DAWN" ? "4 PM" : "4 AM";
 }
 
 // Shared by the bot's cron-triggered turn advance and the GM dashboard's
@@ -129,9 +92,8 @@ function buildTurnAnnouncement(turn, note) {
   const phaseLabel = turn.phase === "DAWN" ? "Dawn" : "Dusk";
   const pingRoleId = process.env.DISCORD_TURN_PING_ROLE_ID;
   const ping = pingRoleId ? ` <@&${pingRoleId}>` : "";
-  const endUnix = Math.floor(nextTurnEndTime().getTime() / 1000);
-  const header = `» Day ${day} | ${phaseLabel}. ${WEATHER_MESSAGES[turn.weather]}${ping}\nThis turn ends at <t:${endUnix}:t>, <t:${endUnix}:R>.`;
+  const header = `» Day ${day} | ${phaseLabel}. ${WEATHER_MESSAGES[turn.weather]}${ping}\nThis turn ends at ${turnEndLabel(turn.phase)} CST.`;
   return note ? `${header}\n\n${note}` : header;
 }
 
-module.exports = { WEATHER_WEIGHTS, WEATHER_TRANSITIONS, WEATHER_MESSAGES, rollWeather, buildTurnAnnouncement, nextTurnEndTime };
+module.exports = { WEATHER_WEIGHTS, WEATHER_TRANSITIONS, WEATHER_MESSAGES, rollWeather, buildTurnAnnouncement, turnEndLabel };

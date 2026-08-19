@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
-import { syncCharacterNickname } from "@/lib/discordGuild";
+import { syncCharacterNickname, ensureCharacterRole } from "@/lib/discordGuild";
 
 export async function createCharacter(formData) {
   const session = await auth();
@@ -22,7 +22,7 @@ export async function createCharacter(formData) {
     prisma.faction.findFirst({ where: { name: "Unaffiliated" } }),
   ]);
 
-  await prisma.character.create({
+  const created = await prisma.character.create({
     data: {
       discordUserId: session.discordUserId,
       name,
@@ -33,6 +33,7 @@ export async function createCharacter(formData) {
   });
 
   await syncCharacterNickname(session.discordUserId, name, null).catch(() => {});
+  await ensureCharacterRole(created).catch(() => {});
 
   redirect("/character");
 }

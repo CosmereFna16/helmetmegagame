@@ -2,155 +2,12 @@ const { WebhookClient, EmbedBuilder } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const { recentProxies } = require("../lib/proxy");
 const { sendDm } = require("../lib/dm");
-const { ROUTINE_EMOJI, GAMBIT_EMOJI } = require("../lib/actionSubmission");
-const { rollResourceDice, formatResourceLines } = require("../lib/resourceDelta");
 
 const DELETE_EMOJI = "❌"; // ❌
 const EDIT_EMOJI = "✏️"; // ✏️
 const INSPECT_EMOJI = "🔍"; // 🔍
-const CONFIRM_EMOJI = "⚜️"; // ⚜
-const OPPOSED_EMOJI = "⚔️"; // ⚔
-const NOT_OPPOSED_EMOJI = "🛡️"; // 🛡
 const STAR_EMOJI = "⭐"; // ⭐
 const FOG_EMOJI = "🌫️"; // :fog:
-
-function rollDie(sides = 6) {
-  return 1 + Math.floor(Math.random() * sides);
-}
-
-async function handleActionConfirm(reaction, user) {
-  const action = await prisma.action.findUnique({
-    where: { confirmDmMessageId: reaction.message.id },
-    include: { character: true },
-  });
-  if (!action || action.status !== "PENDING") return;
-  if (action.character.discordUserId !== user.id) return;
-
-  const diceRoll = action.moveKind === "GAMBIT" ? rollDie() : null;
-  const diceResult = action.resourceDiceExpression ? rollResourceDice(action.resourceDiceExpression) : null;
-
-  await prisma.action.update({
-    where: { id: action.id },
-    data: {
-      status: "CONFIRMED",
-      confirmedAt: new Date(),
-      ...(diceRoll != null ? { diceRoll } : {}),
-      ...(diceResult
-        ? { resourceDiceRoll: diceResult.value, resourceDelta: (action.resourceDelta ?? 0) + diceResult.value }
-        : {}),
-    },
-  });
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: user.id,
-      actionType: "move_confirmed",
-      targetCharacterId: action.characterId,
-      details: { actionId: action.id, diceRoll, resourceDiceRoll: diceResult?.value ?? null },
-    },
-  });
-
-  // Discord won't let a bot remove another user's reaction in a DM channel
-  // (no MANAGE_MESSAGES concept there), so deleting the message and sending
-  // a fresh one is the only reliable way to clear the confirm reaction.
-  await reaction.message.delete().catch(() => {});
-
-  const waitingLines = [];
-  if (diceRoll != null) waitingLines.push(`🎲 **${diceRoll}**`);
-  if (diceResult) {
-    waitingLines.push(
-      `**Resource roll (${action.resourceDiceExpression}):** rolled ${diceResult.sum} → ${diceResult.value > 0 ? "+" : ""}${diceResult.value}`,
-    );
-  }
-  waitingLines.push("» *Waiting on adjudication...*");
-  await sendDm(user, waitingLines.join("\n")).catch(() => {});
-}
-
-// Player picked Routine or Gambit from the kind-picker DM sent by
-// handleActionSubmission. Records moveKind, then — same reasoning as
-// handleActionConfirm below — deletes the picker DM and sends the next
-// picker (Opposed?), pointing confirmDmMessageId at the new message.
-async function handleMoveKindSelection(reaction, user) {
-  const action = await prisma.action.findUnique({
-    where: { confirmDmMessageId: reaction.message.id },
-    include: { character: true },
-  });
-  if (!action || action.status !== "PENDING_TYPE") return;
-  if (action.character.discordUserId !== user.id) return;
-
-  const moveKind = reaction.emoji.name === GAMBIT_EMOJI ? "GAMBIT" : "ROUTINE";
-
-  await prisma.action.update({ where: { id: action.id }, data: { moveKind, status: "PENDING_OPPOSED" } });
-
-  await reaction.message.delete().catch(() => {});
-
-  const lines = [
-    `» ${action.description}`,
-    `**${moveKind === "GAMBIT" ? "Gambit" : "Routine"}**`,
-    "",
-    "Was that opposed?",
-    `React with ${OPPOSED_EMOJI} (opposed) or ${NOT_OPPOSED_EMOJI} (not opposed).`,
-  ];
-
-  let sent;
-  try {
-    ({ sent } = await sendDm(user, lines.join("\n")));
-  } catch {
-    return;
-  }
-
-  await prisma.action.update({ where: { id: action.id }, data: { confirmDmMessageId: sent.id } });
-  await sent.react(OPPOSED_EMOJI).catch(() => {});
-  await sent.react(NOT_OPPOSED_EMOJI).catch(() => {});
-}
-
-// Player picked Opposed or not from the DM sent by handleMoveKindSelection.
-// Records opposed, then sends the final ⚜ confirm DM — same
-// delete-and-resend pattern as the rest of this flow.
-async function handleOpposedSelection(reaction, user) {
-  const action = await prisma.action.findUnique({
-    where: { confirmDmMessageId: reaction.message.id },
-    include: { character: true },
-  });
-  if (!action || action.status !== "PENDING_OPPOSED") return;
-  if (action.character.discordUserId !== user.id) return;
-
-  const opposed = reaction.emoji.name === OPPOSED_EMOJI;
-
-  await prisma.action.update({ where: { id: action.id }, data: { opposed, status: "PENDING" } });
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: user.id,
-      actionType: "move_submitted",
-      targetCharacterId: action.characterId,
-      details: { actionId: action.id },
-    },
-  });
-
-  await reaction.message.delete().catch(() => {});
-
-  const zone = action.zoneId ? await prisma.zone.findUnique({ where: { id: action.zoneId } }) : null;
-  const resourceLines = formatResourceLines(action.resourceDelta, action.resourceDiceExpression);
-  const lines = [
-    `» ${action.description}`,
-    `**${action.moveKind === "GAMBIT" ? "Gambit" : "Routine"}**${opposed ? " — Opposed" : ""}`,
-    `**Zone:** ${zone?.name ?? "(none)"}`,
-    ...resourceLines,
-    "",
-    "React with ⚜ to confirm.",
-  ];
-
-  let sent;
-  try {
-    ({ sent } = await sendDm(user, lines.join("\n")));
-  } catch {
-    return;
-  }
-
-  await prisma.action.update({ where: { id: action.id }, data: { confirmDmMessageId: sent.id } });
-  await sent.react(CONFIRM_EMOJI).catch(() => {});
-}
 
 // Starring a proxied tupper message saves it to the reacting user's personal
 // Notes list (web/app/(app)/notes) — a private note, not a shared archive,
@@ -210,13 +67,10 @@ module.exports = {
     if (reaction.partial) await reaction.fetch().catch(() => null);
     if (reaction.message.partial) await reaction.message.fetch().catch(() => null);
 
-    if (!reaction.message.guild) {
-      const emoji = reaction.emoji.name;
-      if (emoji === CONFIRM_EMOJI) await handleActionConfirm(reaction, user);
-      else if (emoji === ROUTINE_EMOJI || emoji === GAMBIT_EMOJI) await handleMoveKindSelection(reaction, user);
-      else if (emoji === OPPOSED_EMOJI || emoji === NOT_OPPOSED_EMOJI) await handleOpposedSelection(reaction, user);
-      return;
-    }
+    // Move DMs are handled entirely by select menus/buttons now (see
+    // bot/src/events/interactionCreate.js) — DMs no longer carry any
+    // reaction-driven flow, so there's nothing to do for a DM reaction.
+    if (!reaction.message.guild) return;
 
     if (reaction.emoji.name === FOG_EMOJI) {
       await handleFogReaction(reaction, user).catch(() => {});

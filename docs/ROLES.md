@@ -96,7 +96,7 @@ intro: You’re the Baron’s best friend and perhaps the only man he can truly 
 Meister
 intro: You are the Keep’s brains, but more importantly, its circulatory system. Feel the weight of the world, Meister, you Atlas!
 
-- You are the Keep’s brains, but more importantly, its circulatory system. Ensure the Town sends its taxes—your main contact there is the Headman—and oversee that no one is taking undue amounts of Resources from the Silo.
+- You are the Keep’s brains, but more importantly, its circulatory system. Ensure the Town sends its taxes—your main contact there is the Headman—and oversee that no one is taking undue amounts of Resources ⬢ from the Silo.
 - Your part in fate is not well-loved nor well-understood, but it is essential. You may not understand yet, Meister, but there are great things at play.
 - Consider keeping records of what happens every day. They may be useful later.
 - You have minor medical training and you know how to use the Keep’s messenger ravens.
@@ -266,7 +266,7 @@ intro: Lead the Sanctuary, developing medicines and putting bodies back together
 - Above all, keep your Serpents in check. Otherwise, further science and treat the wounded.
 - With science, the sky’s the limit. You can brew medicines and potions, install implants and body-modifications, and even experiment for the good of science.
 - If there’s no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners.
-- You can perform medicine, removing negative medical tags according to their skill, Resource, and action cost.
+- You can perform medicine, removing negative medical tags according to their skill, Resource ⬢, and action cost.
 - difficulty: normal
 - multiple: false
 - starting tag: Medical (Excellent), Brewing (Skilled)
@@ -278,7 +278,7 @@ intro: Cure illnesses, perform surgeries, brew potions, and keep people in this 
 - Sickness and pain leave men terrified and alone. It is a noble task to help another face that pain.
 - With science, the sky’s the limit. You can brew medicines and potions, install implants and body-modifications, and even experiment for the good of science.
 - If there’s no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners.
-- You can perform medicine, removing negative medical tags according to their skill, Resource, and action cost.
+- You can perform medicine, removing negative medical tags according to their skill, Resource ⬢, and action cost.
 - difficulty: normal
 - multiple: true
 - starting tag: Medical (Skilled), Brewing (Skilled)
@@ -357,11 +357,11 @@ intro: Keep the peace in the Town, six-shooter at your hip.
 Metalsmith
 intro: Forge anything from basic tools to siege implements and legendary weapons.
 
-- With smithing, you are only limited by your Resources and your creativity. You can make weapons, but you can also make armor, tools, siege equipment, sculptures...
+- With smithing, you are only limited by your Resources ⬢ and your creativity. You can make weapons, but you can also make armor, tools, siege equipment, sculptures...
 - You’re not on the Headman’s payroll, so it’s important you find clients so that you can feed yourself.
 - The theory is important. Axes are good at breaking shields; blunt weapons harm people even in full armor; swords excel in one-to-one combat.
-- Simple things, like shortswords or basic tools, cost 1 Effort and 2 Resources. Moderately difficult things, like swords or breastplates, cost 1 Effort and 4 Resources. High quality objects cost 2 Efforts and 6 Resources.
-- You can also make Unique Tags—name and describe them—for 2 Efforts, 1 Move, and 12 Resources. You’ll have to roll to see what the quality ends up being.
+- Simple things, like shortswords or basic tools, cost 1 Effort and 2 Resources ⬢. Moderately difficult things, like swords or breastplates, cost 1 Effort and 4 Resources ⬢. High quality objects cost 2 Efforts and 6 Resources ⬢.
+- You can also make Unique Tags—name and describe them—for 2 Efforts, 1 Move, and 12 Resources ⬢. You’ll have to roll to see what the quality ends up being.
 - difficulty: normal
 - multiple: true
 - starting tag: Smithing
@@ -395,7 +395,7 @@ intro: Nature garbs you. Live on the outskirts, free and independent.
 
 - Live on the outskirts, free and independent.
 - You are aware of the Goddess of Nature, Sylva. Some still worship her in Ravenheart. It is up to you to follow the Church or stick to the oldways.
-- Forage and heal as a Healer (Medical (Basic), Brewing (Basic)), or track game as a Hunter (Hunter)—both still Forester at heart. In #turns, a Hunter can roll for a hunt instead of stating a flat Resource amount — add something like +1d6\*2 to your message and it'll be rolled once you confirm.
+- Forage and heal as a Healer (Medical (Basic), Brewing (Basic)), or track game as a Hunter (Hunter)—both still Forester at heart. In #turns, a Hunter can roll for a hunt instead of stating a flat Resource ⬢ amount — add something like +1d6\*2 to your message and it'll be rolled once you confirm.
 - difficulty: easy
 - multiple: true
 - starting tag: Forester, +3
@@ -560,6 +560,9 @@ Lieutenant (Broken Spears Clan)
 intro: Glory for the Broken Spears!
 
 - Glory for the Broken Spears!
+- Sort out your budding feud with the Windriders, muster your men, and attack Ravenheart.
+- Follow the Bastard! He will make a good sovereign, the likes of which the Windlands have never seen.
+- A tip: the best trick you have is the element of surprise, and food's hard to get. Raiding the town or the fortress may be your best chance. If he falters, or doesn't put the Windriders in their place... it may be in your best interest to take matters into your own hands.
 - difficulty: normal
 - multiple: false
 - starting tag: Fighting (Trained), Leader, Windlander, Sign Language
@@ -590,6 +593,8 @@ Lieutenant (Windrider Clan)
 intro: Your ultimate task is at hand. Fulfill your destiny.
 
 - Your ultimate task is at hand. Fulfill your destiny.
+- The Broken Spears clan cannot go unpunished for their slight.
+- Ravenheart will be yours, but not on the Bastard's terms. If you let him gain control over the Windriders, your culture, your leadership, your history will be gone. You, too, will become like farmers—weak, and willing. Still, follow his orders; they're your best chance.
 - difficulty: normal
 - multiple: false
 - starting tag: Leader, Windlander, Sign Language
@@ -644,9 +649,9 @@ Merchant
 intro: Make your fortune buying and selling Tags.
 
 - Ravenheart is a great source of business and not much else. You wouldn’t dare put your heart here—the place is doomed.
-- Your goal is to make as many Resources as you can by buying and selling Tags. You have a Supply Depot in the caves: go there to request Tags by shuttle (it’ll cost you), and then sell them. To sell Tags, simply message a GM explaining who’d like the tag and how much you’re selling it for.
+- Your goal is to make as many Resources ⬢ as you can by buying and selling Tags. You have a Supply Depot in the caves: go there to request Tags by shuttle (it’ll cost you), and then sell them. To sell Tags, simply message a GM explaining who’d like the tag and how much you’re selling it for.
 - Try your hand at usury. Lend loans with interest, and call on your Dockers to enforce them. That's probably the easiest way to make serious bucks.
-- If things ever get too dour, simply hop on your sponsor’s shuttle… if you can pay for it. Trip’s 30 Resources flat, pal.
+- If things ever get too dour, simply hop on your sponsor’s shuttle… if you can pay for it. Trip’s 30 Resources ⬢ flat, pal.
 - difficulty: hard
 - multiple: false
 - starting tag:
