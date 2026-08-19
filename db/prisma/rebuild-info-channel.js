@@ -27,6 +27,34 @@ const {
 } = require("../lib/discordRest");
 
 const YAML_PATH = path.join(__dirname, "..", "..", "docs", "systemdocs", "infochannel.yaml");
+const ROLES_YAML_PATH = path.join(__dirname, "..", "..", "docs", "roles.yaml");
+
+// Generator for infochannel.yaml's `generated: roles-intro` thread: every
+// faction's roles (name + intro text only — no description/tags/difficulty,
+// and zone-level `threats` are skipped entirely), grouped under a bold
+// faction heading, in docs/roles.yaml's zone -> faction -> role order. Reads
+// roles.yaml fresh every run, so this thread can never drift from it.
+function buildRolesIntroBody() {
+  const rolesDoc = yaml.load(fs.readFileSync(ROLES_YAML_PATH, "utf8"));
+
+  const sections = [];
+  for (const zone of rolesDoc.zones ?? []) {
+    for (const faction of zone.factions ?? []) {
+      const roleLines = (faction.roles ?? []).map((role) => `**${role.name}** — ${role.intro}`);
+      if (roleLines.length === 0) continue;
+      sections.push(`***${faction.name}***\n${roleLines.join("\n")}`);
+    }
+  }
+
+  return ["**Roles**", ...sections].join("\n\n");
+}
+
+const GENERATORS = { "roles-intro": buildRolesIntroBody };
+
+function resolveThreadBody(thread) {
+  if (thread.generated) return GENERATORS[thread.generated]();
+  return thread.body;
+}
 
 async function findInfoChannel() {
   const channels = await getGuildChannels();
@@ -58,7 +86,7 @@ async function createThreads(channelId, categories) {
     const links = [];
     for (const thread of category.threads) {
       const created = await startThread(channelId, thread.title);
-      await postMessageBatched(created.id, thread.body);
+      await postMessageBatched(created.id, resolveThreadBody(thread));
       console.log(`  created thread: ${thread.title}`);
       links.push(created.id);
     }

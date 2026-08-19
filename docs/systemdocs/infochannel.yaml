@@ -16,10 +16,17 @@
 # - categories: ordered list of { name, threads }. `name` becomes a bold
 #   heading line in the directory message; `threads` under it become
 #   clickable thread-mention links, in the order listed here.
-# - threads: ordered list of { title, body }. Each becomes its own
-#   standalone public thread on #info, titled `title`, with `body` posted
-#   as the thread's first message (batched automatically if it exceeds
-#   Discord's 2000-char limit).
+# - threads: ordered list of { title, body } OR { title, generated }. Each
+#   becomes its own standalone public thread on #info, titled `title`. A
+#   `body` thread posts that text verbatim as the thread's first message
+#   (batched automatically if it exceeds Discord's 2000-char limit). A
+#   `generated` thread has no hand-authored text here at all — the rebuild
+#   script builds its body at run time instead, so the thread can never
+#   drift from its source. The only generator right now is
+#   `generated: roles-intro` (used by Mechanics/Roles below), which reads
+#   docs/roles.yaml and lists every faction's roles by name + intro text
+#   only (no description/tags/threats) — edit roles.yaml, rerun
+#   `npm run db:rebuild-info-channel`, and the thread updates itself.
 
 main_message: |-
   Lifeweb is a large-scale, rules-light story generator, 70% roleplay and 30% strategy. It’s intended to be serious, grim, heroic, and occasionally funny.
@@ -34,6 +41,19 @@ main_message: |-
   * The game is strategic—you’re encouraged to play to win—but your character should act realistically. Navigating challenges like your character’s fear is part of the strategy.
 
 categories:
+  - name: Lore
+    threads:
+      - title: Premise
+        body: |-
+          **Premise**
+
+          Centuries of oppression, darkness, and humiliation. Humankind, windwhipped on the crags of the wet but barren Earth, were forced into the caves to live there like animals.
+
+          Empires were built below the surface.
+
+          Who brought this upon us? Who destroyed us? Was it ourselves or someone else, something greater?
+
+          Fortunately, we have the Lifeweb now. It was built a long time ago. Now it's the year of our Lord God, 1210. There are other places on this Earth, or perhaps in space, where people live happily. But we only know Ravenheart. Ravenheart is kept alive by the Lifeweb, which in turn is fed by the blood of Ravenheart's people. The Lifeweb protects Ravenheart from the stormy, windy wastelands outside, making it so people can breathe, farm, and build. Ravenheart is hospitable and enviable, but it's a fragile place, a glimmer of order in a sea of inscrutable darkness.
   - name: Mechanics
     threads:
       - title: Moves
@@ -70,6 +90,8 @@ categories:
           * Resources can either be stored in your character or in your faction’s Silo.
           * Players (but especially faction Leaders and Treasurers) are responsible for organizing, taxing, distributing, and trading Resources.
           * Characters automatically consume 1 ⬢ a day. If you have 0 ⬢ at the start of a turn, you’ll go Hungry, netting you -1 to all Rolls until the next time you eat.
+      - title: Roles
+        generated: roles-intro
   - name: Discord
     threads:
       - title: Channels
@@ -97,16 +119,3 @@ categories:
           * ⭐: save the message to your Notes panel on the web interface.
           * ❌: delete your own message.
           * ✏️: edit your own message.
-  - name: Lore
-    threads:
-      - title: Premise
-        body: |-
-          **Premise**
-
-          Centuries of oppression, darkness, and humiliation. Humankind, windwhipped on the crags of the wet but barren Earth, were forced into the caves to live there like animals.
-
-          Empires were built below the surface.
-
-          Who brought this upon us? Who destroyed us? Was it ourselves or someone else, something greater?
-
-          Fortunately, we have the Lifeweb now. It was built a long time ago. Now it's the year of our Lord God, 1210. There are other places on this Earth, or perhaps in space, where people live happily. But we only know Ravenheart. Ravenheart is kept alive by the Lifeweb, which in turn is fed by the blood of Ravenheart's people. The Lifeweb protects Ravenheart from the stormy, windy wastelands outside, making it so people can breathe, farm, and build. Ravenheart is hospitable and enviable, but it's a fragile place, a glimmer of order in a sea of inscrutable darkness.
