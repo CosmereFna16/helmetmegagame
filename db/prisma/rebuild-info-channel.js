@@ -68,6 +68,21 @@ async function createThreads(channelId, categories) {
   return linksByCategory;
 }
 
+// Creating a thread with no starter message (as startThread does) makes
+// Discord auto-post a "X started a thread: Y" system message (type 18,
+// THREAD_CREATED) into the parent channel — one per thread, pure clutter
+// around the directory message. Swept up after everything else is posted
+// so only the real content messages (directory + any batched overflow)
+// remain.
+const THREAD_CREATED_MESSAGE_TYPE = 18;
+
+async function deleteThreadCreatedMessages(channelId) {
+  const messages = await fetchAllMessages(channelId);
+  const systemMessages = messages.filter((m) => m.type === THREAD_CREATED_MESSAGE_TYPE);
+  if (systemMessages.length > 0) await bulkDeleteMessages(channelId, systemMessages.map((m) => m.id));
+  console.log(`  cleaned up ${systemMessages.length} "started a thread" system message(s)`);
+}
+
 function buildDirectoryMessage(mainMessage, linksByCategory) {
   const sections = linksByCategory.map((category) => {
     const lines = category.threadIds.map((id) => `<#${id}>`);
@@ -91,6 +106,9 @@ async function main() {
   console.log("Posting directory message...");
   const directoryMessage = buildDirectoryMessage(doc.main_message, linksByCategory);
   await postMessageBatched(channel.id, directoryMessage);
+
+  console.log("Cleaning up thread-created system messages...");
+  await deleteThreadCreatedMessages(channel.id);
 
   const threadCount = linksByCategory.reduce((sum, c) => sum + c.threadIds.length, 0);
   console.log(`Done: ${linksByCategory.length} categor(y/ies), ${threadCount} thread(s) posted to #info.`);
