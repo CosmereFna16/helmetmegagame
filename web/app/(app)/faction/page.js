@@ -5,7 +5,6 @@ import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import { getMyFactionRole, getSiloAccess } from "@/lib/factionPermissions";
 import {
-  createFaction,
   setFactionLeader,
   setTreasurer,
   transferFromSilo,
@@ -172,19 +171,9 @@ function FactionOverview({ factions }) {
       {unaffiliated.length > 0 && (
         <div>
           <h2 className="mb-2 font-bold">Unaffiliated</h2>
-          <FactionTable factions={unaffiliated} showSilo={false} />
+          <FactionTable factions={unaffiliated} showSilo />
         </div>
       )}
-
-      <section className="panel p-4">
-        <h2 className="mb-2 font-bold">Create Faction</h2>
-        <form action={createFaction} className="flex gap-2">
-          <input name="name" placeholder="Faction name" required className="text-input" />
-          <button type="submit" className="btn">
-            Create
-          </button>
-        </form>
-      </section>
     </div>
   );
 }

@@ -14,26 +14,6 @@ async function requireGm() {
   return session;
 }
 
-export async function createFaction(formData) {
-  const session = await requireGm();
-  const name = formData.get("name")?.toString().trim();
-  if (!name) return;
-
-  const faction = await prisma.faction.create({
-    data: { name },
-  });
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "faction_created",
-      details: { factionId: faction.id, name },
-    },
-  });
-
-  revalidatePath("/faction");
-}
-
 export async function setFactionLeader(formData) {
   const session = await requireGm();
   const characterId = formData.get("characterId")?.toString();
