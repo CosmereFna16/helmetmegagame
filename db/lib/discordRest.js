@@ -44,6 +44,19 @@ async function getGuildChannels() {
   return discordRequest(`/guilds/${guildId}/channels`);
 }
 
+async function createChannel(payload) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  return discordRequest(`/guilds/${guildId}/channels`, { method: "POST", body: payload });
+}
+
+// Bulk channel/category reorder — Discord's PATCH .../channels endpoint takes
+// an array of { id, position } and moves just those, leaving every other
+// channel's position untouched.
+async function patchGuildChannelPositions(updates) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  return discordRequest(`/guilds/${guildId}/channels`, { method: "PATCH", body: updates });
+}
+
 async function getChannel(channelId) {
   return discordRequest(`/channels/${channelId}`);
 }
@@ -204,6 +217,8 @@ async function ensureForumTag(channelId, tagName, emojiName) {
 module.exports = {
   getGuildChannels,
   getChannel,
+  createChannel,
+  patchGuildChannelPositions,
   patchChannel,
   postMessage,
   postMessageBatched,

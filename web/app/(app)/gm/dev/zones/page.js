@@ -3,7 +3,7 @@ import Link from "next/link";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
-import { updateZone, updateLocation, createLocation, provisionLocationChannels } from "../actions";
+import { updateZone, updateLocation, provisionLocationChannels } from "../actions";
 
 export default async function DevZonesPage() {
   const session = await auth();
@@ -74,18 +74,12 @@ export default async function DevZonesPage() {
               )}
             </tbody>
           </table>
-
-          <form action={createLocation} className="flex gap-2">
-            <input type="hidden" name="zoneId" value={z.id} />
-            <input name="name" placeholder="New location name" className="text-input" style={{ flex: 1 }} />
-            <button type="submit" className="btn-quiet">Add location</button>
-          </form>
         </div>
       ))}
 
       {zones.length === 0 && (
         <div className="panel p-4 text-center" style={{ color: "var(--muted)" }}>
-          No zones yet. Run <code>npm run db:seed-zones</code>.
+          No zones yet. Run <code>npm run db:sync-locations</code>.
         </div>
       )}
     </div>

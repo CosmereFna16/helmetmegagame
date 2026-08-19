@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma, advanceTurn as advanceTurnInDb, runFullChannelWipe } from "@lifeweb/db";
+import { prisma, advanceTurn as advanceTurnInDb, runFullChannelWipe, syncLocationsFromYaml } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import {
@@ -155,10 +155,13 @@ const DEFAULT_GAME_CONFIG = {
 // schema defaults, clears every Discord channel this game has actually
 // written to (#archive, #turns, and every Location's plain/public/private
 // channel — messages, forum posts, and threads, public or private), and
-// opens a fresh Turn 1/DAWN. Leaves untouched: Faction/Zone/Location rows
-// and their Discord provisioning (channels/categories themselves are never
-// deleted, only emptied), and the Tag catalog. Faction silos reset to 0,
-// same "back to day one" treatment as the Turn counter, rather than
+// opens a fresh Turn 1/DAWN. Then re-syncs Zone/Location rows from
+// docs/locations.yaml (syncLocationsFromYaml, @lifeweb/db) so the game
+// starts from the canonical location set — still create/update-only, never
+// destructive, so a Zone/Location that existed before but isn't in the yaml
+// (or its Discord provisioning) is left untouched, not deleted/deprovisioned.
+// Leaves the Faction rows and the Tag catalog untouched. Faction silos reset
+// to 0, same "back to day one" treatment as the Turn counter, rather than
 // carrying over stale economy numbers.
 //
 // Requires typing the literal string "WIPE" in the confirm field — this is
@@ -209,8 +212,17 @@ export async function wipeGameData(formData) {
     data: { number: 1, phase: "DAWN", weather: "CLEAR", status: "OPEN", gameDate: new Date() },
   });
 
+  const locationSync = await syncLocationsFromYaml(prisma).catch((err) => {
+    console.error("Location sync failed during game wipe:", err);
+    return null;
+  });
+
   await prisma.auditLog.create({
-    data: { actorDiscordUserId: session.discordUserId, actionType: "superadmin_game_wipe" },
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "superadmin_game_wipe",
+      details: locationSync ? { locationSync } : undefined,
+    },
   });
 
   revalidatePath("/", "layout");
@@ -505,17 +517,6 @@ export async function updateLocation(formData) {
   // channel/category names, so editing this after provisioning can't
   // accidentally disrupt live channels or message history.
   await prisma.location.update({ where: { id: locationId }, data: { name } });
-  revalidatePath("/gm/dev/zones");
-}
-
-export async function createLocation(formData) {
-  await requireSuperadmin();
-
-  const zoneId = str(formData, "zoneId").trim();
-  const name = str(formData, "name").trim();
-  if (!zoneId || !name) return;
-
-  await prisma.location.create({ data: { zoneId, name } });
   revalidatePath("/gm/dev/zones");
 }
 

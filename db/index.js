@@ -3,6 +3,7 @@ const { rollWeather, buildTurnAnnouncement } = require("./weather");
 const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
 const { runDawnWipe } = require("./lib/dawnWipe");
 const { runFullChannelWipe } = require("./lib/fullWipe");
+const { syncLocationsFromYaml } = require("./lib/syncLocations");
 
 const globalForPrisma = globalThis;
 
@@ -112,6 +113,7 @@ module.exports = {
   resolveNeeds,
   advanceTurn,
   runFullChannelWipe,
+  syncLocationsFromYaml,
   LIFEWEB_SPUTTER_THRESHOLD,
   ...require("./weather"),
   ...require("./lib/constants"),
