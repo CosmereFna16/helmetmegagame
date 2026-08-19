@@ -18,7 +18,6 @@ export default async function PlayerDetailPage({ params }) {
       faction: true,
       zone: true,
       tags: { include: { tag: true } },
-      desires: { where: { status: "ACTIVE" } },
     },
   });
   if (!character) notFound();

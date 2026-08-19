@@ -4,6 +4,26 @@ import { prisma } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 
 const PAGE_SIZE = 50;
+const NO_FACTION_LABEL = "No faction";
+
+// Groups + sorts characters for the Target character <select>: factions
+// alphabetical (No faction last), characters alphabetical within each.
+function groupCharactersByFaction(characters) {
+  const groups = new Map();
+  for (const c of characters) {
+    const key = c.faction?.name || NO_FACTION_LABEL;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(c);
+  }
+  const factionNames = [...groups.keys()]
+    .filter((name) => name !== NO_FACTION_LABEL)
+    .sort((a, b) => a.localeCompare(b));
+  if (groups.has(NO_FACTION_LABEL)) factionNames.push(NO_FACTION_LABEL);
+  return factionNames.map((name) => ({
+    name,
+    characters: groups.get(name).sort((a, b) => a.name.localeCompare(b.name)),
+  }));
+}
 
 export default async function AuditLogPage({ searchParams }) {
   const { session, isGm: gm } = await getGmSession();
@@ -14,14 +34,40 @@ export default async function AuditLogPage({ searchParams }) {
   const actionType = params?.actionType?.toString().trim() || "";
   const actor = params?.actor?.toString().trim() || "";
   const target = params?.target?.toString().trim() || "";
+  const q = params?.q?.toString().trim() || "";
   const from = params?.from?.toString().trim() || "";
   const to = params?.to?.toString().trim() || "";
   const page = Math.max(1, Number.parseInt(params?.page?.toString() ?? "1", 10) || 1);
 
+  const [allCharacters, guildMembers] = await Promise.all([
+    prisma.character.findMany({
+      select: { id: true, name: true, status: true, discordUserId: true, faction: { select: { name: true } } },
+    }),
+    listGuildMembers(),
+  ]);
+  const characterGroups = groupCharactersByFaction(allCharacters);
+
+  // Free-text search: matches action type, actor Discord ID, actor's
+  // Discord username / character name(s), or target character name.
+  let qClauses = [];
+  if (q) {
+    const qLower = q.toLowerCase();
+    const matchedActorIds = new Set([
+      ...allCharacters.filter((c) => c.name.toLowerCase().includes(qLower)).map((c) => c.discordUserId),
+      ...guildMembers.filter((m) => m.username?.toLowerCase().includes(qLower)).map((m) => m.id),
+    ]);
+    qClauses = [
+      { actionType: { contains: q, mode: "insensitive" } },
+      { actorDiscordUserId: { contains: q, mode: "insensitive" } },
+      { targetCharacter: { name: { contains: q, mode: "insensitive" } } },
+      ...(matchedActorIds.size ? [{ actorDiscordUserId: { in: [...matchedActorIds] } }] : []),
+    ];
+  }
+
   const where = {
     ...(actionType ? { actionType: { contains: actionType, mode: "insensitive" } } : {}),
     ...(actor ? { actorDiscordUserId: { contains: actor, mode: "insensitive" } } : {}),
-    ...(target ? { targetCharacter: { name: { contains: target, mode: "insensitive" } } } : {}),
+    ...(target ? { targetCharacterId: target } : {}),
     ...(from || to
       ? {
           createdAt: {
@@ -30,9 +76,10 @@ export default async function AuditLogPage({ searchParams }) {
           },
         }
       : {}),
+    ...(qClauses.length ? { OR: qClauses } : {}),
   };
 
-  const [entries, total, guildMembers] = await Promise.all([
+  const [entries, total] = await Promise.all([
     prisma.auditLog.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -41,24 +88,18 @@ export default async function AuditLogPage({ searchParams }) {
       include: { targetCharacter: { select: { name: true } } },
     }),
     prisma.auditLog.count({ where }),
-    listGuildMembers(),
   ]);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const usernameById = new Map(guildMembers.map((m) => [m.id, m.username]));
-  const actorIds = [...new Set(entries.map((e) => e.actorDiscordUserId))];
-  const actorCharacters = await prisma.character.findMany({
-    where: { discordUserId: { in: actorIds } },
-    select: { discordUserId: true, name: true, status: true },
-  });
   const characterNameById = new Map();
-  for (const c of actorCharacters) {
+  for (const c of allCharacters) {
     const existing = characterNameById.get(c.discordUserId);
     if (!existing || c.status === "ALIVE") characterNameById.set(c.discordUserId, c.name);
   }
 
   function pageHref(newPage) {
-    const next = new URLSearchParams({ actionType, actor, target, from, to, page: String(newPage) });
+    const next = new URLSearchParams({ actionType, actor, target, q, from, to, page: String(newPage) });
     for (const key of [...next.keys()]) {
       if (!next.get(key)) next.delete(key);
     }
@@ -71,6 +112,10 @@ export default async function AuditLogPage({ searchParams }) {
 
       <form className="panel flex flex-wrap items-end gap-3 p-4">
         <label className="field">
+          <span className="field-label">Search</span>
+          <input name="q" defaultValue={q} placeholder="action, actor, character..." />
+        </label>
+        <label className="field">
           <span className="field-label">Action type</span>
           <input name="actionType" defaultValue={actionType} placeholder="e.g. resource_transfer" />
         </label>
@@ -80,7 +125,19 @@ export default async function AuditLogPage({ searchParams }) {
         </label>
         <label className="field">
           <span className="field-label">Target character</span>
-          <input name="target" defaultValue={target} />
+          <select name="target" defaultValue={target}>
+            <option value="">Any</option>
+            {characterGroups.map((group) => (
+              <optgroup key={group.name} label={group.name}>
+                {group.characters.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {c.status !== "ALIVE" ? ` (${c.status.toLowerCase()})` : ""}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
         </label>
         <label className="field">
           <span className="field-label">From</span>

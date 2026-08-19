@@ -17,17 +17,13 @@ export async function createCharacter(formData) {
   });
   if (existing) redirect("/character");
 
-  const [config, unaffiliated] = await Promise.all([
-    prisma.gameConfig.findUnique({ where: { id: 1 } }),
-    prisma.faction.findFirst({ where: { name: "Unaffiliated" } }),
-  ]);
+  const unaffiliated = await prisma.faction.findFirst({ where: { name: "Unaffiliated" } });
 
   const created = await prisma.character.create({
     data: {
       discordUserId: session.discordUserId,
       name,
       roleTitle: formData.get("roleTitle")?.toString().trim() || null,
-      tagPoints: config?.startingTagPoints ?? 0,
       factionId: unaffiliated?.id ?? null,
     },
   });

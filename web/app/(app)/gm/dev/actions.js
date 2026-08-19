@@ -1,13 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import {
-  prisma,
-  advanceTurn as advanceTurnInDb,
-  runFullChannelWipe,
-  HUNGERLESS_SLUG,
-  RADIO_SLUG,
-} from "@lifeweb/db";
+import { prisma, advanceTurn as advanceTurnInDb, runFullChannelWipe } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import {
@@ -16,8 +10,6 @@ import {
   CHANNEL_TYPE_CATEGORY,
   syncCharacterLocationAccess,
   sortLocationCategories,
-  provisionRadioChannel,
-  syncCharacterRadioAccess,
   deleteCharacterRole,
   updateGuildNickname,
 } from "@/lib/discordGuild";
@@ -61,14 +53,9 @@ export async function updateGameConfig(formData) {
     where: { id: 1 },
     create: { id: 1 },
     update: {
-      startingTagPoints: intOrZero(formData, "startingTagPoints"),
-      resourceConsumptionPerTurn: intOrZero(formData, "resourceConsumptionPerTurn"),
       moodDurationTurns: intOrZero(formData, "moodDurationTurns"),
-      hungerMovePenalty: intOrZero(formData, "hungerMovePenalty"),
       moodMovePenalty: intOrZero(formData, "moodMovePenalty"),
       moodMoveBonus: intOrZero(formData, "moodMoveBonus"),
-      alcoholCost: intOrZero(formData, "alcoholCost"),
-      alcoholShieldDurationTurns: intOrZero(formData, "alcoholShieldDurationTurns"),
       lifewebBlood: Math.max(0, Math.min(100, intOrZero(formData, "lifewebBlood"))),
       lifewebDecayPerTurn: intOrZero(formData, "lifewebDecayPerTurn"),
       lifewebDrainedDurationTurns: intOrZero(formData, "lifewebDrainedDurationTurns"),
@@ -150,20 +137,11 @@ export async function forceAdvanceTurn() {
 // surfaced on the "Game Config" form above — deliberately excludes
 // nextWeather/nextTurnNote (handled separately, "Next Turn" section) and the
 // Discord provisioning pointers (turnsAnnouncementChannelId/MessageId,
-// locationPromptChannelId/MessageId, radioChannelId): those self-heal or, in
-// radioChannelId's case, would actively cause harm if cleared — nulling it
-// makes provisionRadioChannel() (web/lib/discordGuild.js) create a *second*
-// #radio channel next time, since it only checks the stored id, never looks
-// up an existing channel by name.
+// locationPromptChannelId/MessageId): those self-heal on their own.
 const DEFAULT_GAME_CONFIG = {
-  startingTagPoints: 0,
-  resourceConsumptionPerTurn: 1,
   moodDurationTurns: 2,
-  hungerMovePenalty: -1,
   moodMovePenalty: -1,
   moodMoveBonus: 1,
-  alcoholCost: 3,
-  alcoholShieldDurationTurns: 4,
   lifewebBlood: 100,
   lifewebDecayPerTurn: 10,
   lifewebDrainedDurationTurns: 4,
@@ -172,17 +150,16 @@ const DEFAULT_GAME_CONFIG = {
 };
 
 // Full game restart for dev/testing: wipes every player- and turn-scoped
-// row (characters, tags-on-characters, desires, tag change requests, Moves,
-// default efforts, notes, DM log, audit log, silo history), resets
-// GameConfig's balance knobs to their schema defaults, clears every
-// Discord channel this game has actually written to (#archive, #turns, and
-// every Location's plain/public/private channel — messages, forum posts,
-// and threads, public or private), and opens a fresh Turn 1/DAWN. Leaves
-// untouched: Faction/Zone/Location rows and their Discord provisioning
-// (channels/categories themselves are never deleted, only emptied),
-// and the Tag catalog. Faction silos reset to 0, same "back to day one"
-// treatment as the Turn counter, rather than carrying over stale economy
-// numbers.
+// row (characters, tags-on-characters, Moves, default efforts, notes, DM
+// log, audit log, silo history), resets GameConfig's balance knobs to their
+// schema defaults, clears every Discord channel this game has actually
+// written to (#archive, #turns, and every Location's plain/public/private
+// channel — messages, forum posts, and threads, public or private), and
+// opens a fresh Turn 1/DAWN. Leaves untouched: Faction/Zone/Location rows
+// and their Discord provisioning (channels/categories themselves are never
+// deleted, only emptied), and the Tag catalog. Faction silos reset to 0,
+// same "back to day one" treatment as the Turn counter, rather than
+// carrying over stale economy numbers.
 //
 // Requires typing the literal string "WIPE" in the confirm field — this is
 // the most destructive action in the Dev Panel and has no undo.
@@ -213,8 +190,6 @@ export async function wipeGameData(formData) {
   // reference (Prisma doesn't cascade by default here).
   await prisma.$transaction([
     prisma.note.deleteMany({}),
-    prisma.tagChangeRequest.deleteMany({}),
-    prisma.desire.deleteMany({}),
     prisma.defaultEffort.deleteMany({}),
     prisma.action.deleteMany({}),
     prisma.characterTag.deleteMany({}),
@@ -275,11 +250,9 @@ export async function updateCharacterRaw(formData) {
       isLeader: formData.get("isLeader") === "on",
       status: str(formData, "status"),
       resources: intOrZero(formData, "resources"),
-      tagPoints: intOrZero(formData, "tagPoints"),
       moodState: str(formData, "moodState"),
       moodExpiresTurn: intOrNull(formData, "moodExpiresTurn"),
       moodNote,
-      isHungry: formData.get("isHungry") === "on",
       appearance,
     },
   });
@@ -312,17 +285,7 @@ export async function grantTag(formData) {
   const tag = await prisma.tag.findUnique({ where: { id: tagId } });
   if (!tag) return;
 
-  await prisma.$transaction([
-    prisma.characterTag.create({ data: { characterId, tagId, source: "GM_GRANT" } }),
-    ...(tag.slug === HUNGERLESS_SLUG
-      ? [prisma.character.update({ where: { id: characterId }, data: { isHungry: false } })]
-      : []),
-  ]);
-
-  if (tag.slug === RADIO_SLUG) {
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (character?.discordRoleId) await syncCharacterRadioAccess(character.discordRoleId, true);
-  }
+  await prisma.characterTag.create({ data: { characterId, tagId, source: "GM_GRANT" } });
 
   await prisma.auditLog.create({
     data: {
@@ -346,12 +309,6 @@ export async function revokeTag(formData) {
 
   const ct = await prisma.characterTag.delete({ where: { id: characterTagId } }).catch(() => null);
   if (!ct) return;
-
-  const revokedTag = await prisma.tag.findUnique({ where: { id: ct.tagId } });
-  if (revokedTag?.slug === RADIO_SLUG) {
-    const character = await prisma.character.findUnique({ where: { id: ct.characterId } });
-    if (character?.discordRoleId) await syncCharacterRadioAccess(character.discordRoleId, false);
-  }
 
   await prisma.auditLog.create({
     data: {

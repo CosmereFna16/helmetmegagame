@@ -57,7 +57,7 @@ const META_TAGS = [
   },
 ];
 
-// Given as a starting tag to every role in the Windlands (see docs/ROLES.md)
+// Given as a starting tag to every role in the Windlands (see docs/roles.yaml)
 // and also purchasable on their own.
 const WINDLANDS_TAGS = [
   {
@@ -80,7 +80,7 @@ const WINDLANDS_TAGS = [
 // Companion tags. Windlander (Horse) requires Windlander; the Follower (*)
 // tags require Follower — neither prerequisite is store-enforced, just
 // noted in the description, same as most other role/tag prerequisites in
-// docs/ROLES.md.
+// docs/roles.yaml.
 const COMPANION_TAGS = [
   {
     name: "Windlander (Horse)",
@@ -231,7 +231,7 @@ const STATUS_TAGS = [
 ];
 
 // Non-purchasable markers for role identity, granted by hand from a role's
-// "starting tag" (see docs/ROLES.md) rather than through the tag store.
+// "starting tag" (see docs/roles.yaml) rather than through the tag store.
 const ROLE_TAGS = [
   {
     name: "Mortus",

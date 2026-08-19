@@ -56,6 +56,51 @@ async function postMessage(channelId, content) {
   return discordRequest(`/channels/${channelId}/messages`, { method: "POST", body: { content } });
 }
 
+const DISCORD_MESSAGE_LIMIT = 2000;
+
+// Splits text into as few ≤2000-char chunks as possible, preferring to
+// break on paragraph boundaries (blank lines) and falling back to a hard
+// split for any single paragraph that alone exceeds the cap.
+function chunkMessage(text) {
+  const paragraphs = text.split("\n\n");
+  const chunks = [];
+  let current = "";
+
+  for (const paragraph of paragraphs) {
+    for (let i = 0; i < paragraph.length; i += DISCORD_MESSAGE_LIMIT) {
+      const piece = paragraph.slice(i, i + DISCORD_MESSAGE_LIMIT);
+      const candidate = current ? `${current}\n\n${piece}` : piece;
+      if (candidate.length > DISCORD_MESSAGE_LIMIT) {
+        if (current) chunks.push(current);
+        current = piece;
+      } else {
+        current = candidate;
+      }
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks;
+}
+
+// Posts text as one message, or as several in order if it exceeds Discord's
+// 2000-char limit — used for #info's directory message and thread bodies,
+// which are hand-authored and occasionally run long.
+async function postMessageBatched(channelId, text) {
+  for (const chunk of chunkMessage(text)) {
+    await postMessage(channelId, chunk);
+  }
+}
+
+// Creates a standalone public thread on a text channel with no starter
+// message (type 11 = GUILD_PUBLIC_THREAD) — the caller posts the thread's
+// first message(s) separately via postMessage/postMessageBatched.
+async function startThread(channelId, name, autoArchiveMinutes = 10080) {
+  return discordRequest(`/channels/${channelId}/threads`, {
+    method: "POST",
+    body: { name, type: 11, auto_archive_duration: autoArchiveMinutes },
+  });
+}
+
 async function deleteMessage(channelId, messageId) {
   return discordRequest(`/channels/${channelId}/messages/${messageId}`, { method: "DELETE", allow404: true });
 }
@@ -161,6 +206,7 @@ module.exports = {
   getChannel,
   patchChannel,
   postMessage,
+  postMessageBatched,
   deleteMessage,
   fetchAllMessages,
   bulkDeleteMessages,
@@ -170,4 +216,5 @@ module.exports = {
   deleteThread,
   getForumTagId,
   ensureForumTag,
+  startThread,
 };

@@ -154,7 +154,7 @@ Discord's rate-limit buckets, and every channel/thread is archived *before*
 it's touched for deletion, so a mid-run crash leaves content merely
 "not yet wiped," never "wiped without being archived" — an accepted known
 limitation (no checkpoint/resume machinery), same framing as the node-cron
-catch-up gap already documented in `docs/ARCHITECTURE.md`.
+catch-up gap already documented in `docs/systemdocs/ARCHITECTURE.md`.
 
 **Consolidation**: `db/index.js#advanceTurn()` now owns both the turn
 announcement and the Dawn wipe directly (both REST-only, no gateway

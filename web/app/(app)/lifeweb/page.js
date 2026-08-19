@@ -35,7 +35,7 @@ export default async function LifewebPage() {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6 sm:p-8">
-      <h1 className="text-3xl">The Lifeweb</h1>
+      <h1 className="text-2xl font-bold">The Lifeweb</h1>
 
       <section className="panel p-5">
         <div className="flex items-baseline justify-between">

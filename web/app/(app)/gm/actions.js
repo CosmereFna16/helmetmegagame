@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@lifeweb/db";
 import { getGmSession, sendDm } from "@/lib/discordGuild";
-import { finalDesirePoints, DESIRE_MIN_POINTS } from "@/lib/desire";
 
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
@@ -100,101 +99,6 @@ export async function updateMove(formData) {
   });
 
   await sendPartyMessages(formData, session);
-
-  revalidatePath("/gm/turns");
-  revalidatePath("/character");
-  revalidatePath("/gm/players");
-}
-
-export async function adjudicateDesire(formData) {
-  const session = await requireGm();
-
-  const desireId = formData.get("desireId")?.toString();
-  if (!desireId) return;
-  const approved = formData.get("decision") === "approve";
-  const basePoints = Number.parseInt(formData.get("points")?.toString() ?? "", 10);
-  const message = formData.get("message")?.toString().trim() || null;
-  const gmNotes = formData.get("gmNotes")?.toString().trim() || null;
-
-  const desire = await prisma.desire.findUnique({
-    where: { id: desireId },
-    include: { character: { include: { tags: { include: { tag: true } } } } },
-  });
-  if (!desire || desire.status !== "PENDING") return;
-
-  if (approved) {
-    const ownedSlugs = new Set(desire.character.tags.map((ct) => ct.tag.slug).filter(Boolean));
-    const points = finalDesirePoints(Number.isFinite(basePoints) ? basePoints : DESIRE_MIN_POINTS, ownedSlugs);
-
-    await prisma.$transaction([
-      prisma.desire.update({
-        where: { id: desire.id },
-        data: { status: "COMPLETED", completedAt: new Date(), pointsAwarded: points, resultMessage: message, gmNotes },
-      }),
-      prisma.character.update({ where: { id: desire.characterId }, data: { tagPoints: { increment: points } } }),
-    ]);
-
-    await sendDm(
-      desire.character.discordUserId,
-      `Desire approved: "${desire.description}" (+${points} tag points)${message ? ` — ${message}` : ""}`,
-    ).catch(() => {});
-  } else {
-    await prisma.desire.update({
-      where: { id: desire.id },
-      data: { status: "ACTIVE", resultMessage: message, gmNotes },
-    });
-
-    await sendDm(
-      desire.character.discordUserId,
-      `Desire not approved: "${desire.description}"${message ? ` — ${message}` : ""}`,
-    ).catch(() => {});
-  }
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "desire_adjudicated",
-      targetCharacterId: desire.characterId,
-      details: { desireId, approved },
-    },
-  });
-
-  revalidatePath("/gm/turns");
-  revalidatePath("/character");
-  revalidatePath("/gm/players");
-}
-
-export async function adjudicateTagChangeRequest(formData) {
-  const session = await requireGm();
-
-  const requestId = formData.get("requestId")?.toString();
-  if (!requestId) return;
-  const message = formData.get("message")?.toString().trim() || null;
-  const gmNotes = formData.get("gmNotes")?.toString().trim() || null;
-
-  const request = await prisma.tagChangeRequest.findUnique({
-    where: { id: requestId },
-    include: { character: true },
-  });
-  if (!request || request.status !== "PENDING") return;
-
-  await prisma.tagChangeRequest.update({
-    where: { id: request.id },
-    data: { status: "RESOLVED", resolvedAt: new Date(), resultMessage: message, gmNotes },
-  });
-
-  if (message) {
-    await sendDm(request.character.discordUserId, `Tag change request resolved: "${request.description}" — ${message}`).catch(() => {});
-  }
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "tag_change_request_resolved",
-      targetCharacterId: request.characterId,
-      details: { requestId },
-    },
-  });
 
   revalidatePath("/gm/turns");
   revalidatePath("/character");

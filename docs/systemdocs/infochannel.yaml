@@ -1,0 +1,100 @@
+# Source of truth for #info's content, hand-edited then pushed with
+# `npm run db:rebuild-info-channel` (db/prisma/rebuild-info-channel.js).
+#
+# Unlike locations.yaml/roles.yaml, this is NOT an upsert — every run is a
+# full destructive wipe of #info (every message, every thread) followed by
+# a full rebuild from whatever is currently in this file. There's no
+# player-generated content in #info worth preserving, so there's no diffing
+# logic; the script always throws away what's live and reposts from here.
+#
+# - main_message: the directory's intro/pitch/rules copy, posted verbatim
+#   as the first message(s) in #info. Discord markdown (bold, bullets) is
+#   preserved as-is. The category/thread-link listing that follows it in
+#   the actually-posted message is NOT written here — the script generates
+#   it from `categories` below, because thread IDs only exist once threads
+#   are created.
+# - categories: ordered list of { name, threads }. `name` becomes a bold
+#   heading line in the directory message; `threads` under it become
+#   clickable thread-mention links, in the order listed here.
+# - threads: ordered list of { title, body }. Each becomes its own
+#   standalone public thread on #info, titled `title`, with `body` posted
+#   as the thread's first message (batched automatically if it exceeds
+#   Discord's 2000-char limit).
+
+main_message: |-
+  Lifeweb is a large-scale, rules-light story generator, 70% roleplay and 30% strategy. It’s intended to be serious, grim, heroic, and occasionally funny.
+
+  The game takes place over a 30 day period both in real life and in game. Twice a day, you declare what your character did, making a Move. Based on dice and your character’s Tags, the GMs adjudicate the resulting consequences.
+
+  Lifeweb simultaneously plays out on several levels. Kings win wars and move big pieces around the map while commoners try to fulfill their day-to-day desires.
+
+  **Rules**:
+
+  * All players must be 18+. Romance is allowed. Sexual content can be hinted at, but nothing more overt. You can opt out of any romance-related content in the web interface.
+  * Grim or not, this is a game! Sensitive subjects aren’t allowed. There are no children or SA in Lifeweb. Bigotry is fine, but keep it tame, and remember Lifeweb’s people have different beliefs than we do.
+  * The game is strategic—you’re encouraged to play to win—but your character should act realistically. Navigating challenges like your character’s fear is part of the strategy.
+
+categories:
+  - name: Mechanics
+    threads:
+      - title: Moves
+        body: |-
+          **Moves**:
+
+          * There are two turns a day—Dawn and Dusk. Once a turn, declare the most important thing your character did that turn in #moves.
+          * Moves are **Routine** if they are predictable and have no chance of failure, **Gambit** if it could go any way.
+             * **Routine** moves—such as spending the morning farming, brewing alcohol, or laying simple fortifications—are automatically approved.
+             * **Gambit** moves—such as engaging in a duel, going to a party to try to be happy, or spying on a house—require a 1d6 roll and a GM adjudication. The GM adjudicates primarily on the Tags and the narrative (Is your character a good fighter? How many people are on your side? Are you sick or healthy?) but also factors in the dice roll as a matter of chance (a roll of 1 means things went way worse than expected; a roll of 6 means they went surprisingly good).
+          * Moves are **Opposed** if they impact another player. If a move is Opposed, the GMs wait to see what other players do.
+          * Moves are optional; you don’t have to play all of the time. You can set a default Routine Move using the /default command, to be executed if you don’t act that day. Leaders can use the /default command on other people too.
+          * Group actions are simple. Someone, usually the faction leader, assigns—by pinging or otherwise referencing—several people to one effort. Those people are assumed to participate unless they explicitly do their own thing. For Gambits, only the Leader has to roll.
+      - title: Tags
+        body: |-
+          **Tags**:
+
+          * Tags represent your character’s abilities, items, health, etc.
+          * You can use Moves to try to obtain or remove Tags, such as by smithing a Zweihander or curing someone’s illness. You can transfer certain Tags (typically items) to any player.
+          * You start with Tag Points but gain more throughout the game.
+      - title: Desires
+        body: |-
+          **Desires**:
+
+          * Characters obtain Tag Points by fulfilling Desires.
+          * The more difficult and personal the Desire, the more Tag Points you earn.
+          * Leader characters can set Desires aligned with their faction goals (such as conquering territory), but lower level characters are encouraged to find personally relevant Desires, ranging from having a nice meal to proving themselves in front of an audience.
+      - title: Resources
+        body: |-
+          **Resources**:
+
+          * The game’s central currency are Resources (⬢), abstracting food, money, and other bulk goods.
+          * Anyone can produce Resources by spending a Routine Move either on Hunting, Herding, or Farming (You can use the /labor command as a shortcut) but only people with the Laborer tag produce enough to feed people.
+          * Resources can either be stored in your character or in your faction’s Silo.
+          * Players (but especially faction Leaders and Treasurers) are responsible for organizing, taxing, distributing, and trading Resources.
+          * Characters automatically consume 1 ⬢ a day. If you have 0 ⬢ at the start of a turn, you’ll go Hungry, netting you -1 to all Rolls until the next time you eat.
+  - name: Discord
+    threads:
+      - title: Channels
+        body: |-
+          **Channels**
+
+          * You always have three roleplay channels available to you (plus some like the Radio if you have the relevant Tag) depending on the Location you’re in: the summary channel, the public channel, and the private channel.
+          * Summary: Big picture play. Describe what other people would see your character doing throughout that turn. Make announcements.
+          * Public: A forum channel for your public, moment-to-moment roleplay. Make a post for a certain location or meeting, have chats, argue.
+          * Private: A thread channel for your private meetings. Create a private thread (Thread button on the top right) and ping other characters to plot in secret.
+          * Your messages in roleplay channels are automatically sent as your character.
+      - title: Archive
+        body: |-
+          **Archive**
+
+          * All messages are wiped from the channels on Dawn and sent to the Archive. You’ll get to see all of your writing on game end.
+          * Forum topics marked with the Persistent tag (such as locations) remain, but their posts are also cleared.
+          * You can react to a message with ⭐ to save it on your Notes tab on the web interface.
+      - title: Reacts
+        body: |-
+          **Reacts**
+
+          * React to a message in a roleplay channel for more options.
+          * 🔍: view more information about a character, including their visible Tags.
+          * ⭐: save the message to your Notes panel on the web interface.
+          * ❌: delete your own message.
+          * ✏️: edit your own message.

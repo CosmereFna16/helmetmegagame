@@ -78,8 +78,8 @@ export default async function DevPanelPage() {
 
         <p className="mt-3 text-xs" style={{ color: "var(--muted)" }}>
           Save overrides the current turn&apos;s day/phase/weather directly, without resolving Needs. End
-          turn resolves Needs on the current turn (resource decay, hunger, mood expiry) and opens the next
-          one — same as the automatic dawn/dusk advance.
+          turn resolves Needs on the current turn (mood expiry) and opens the next one — same as the
+          automatic dawn/dusk advance.
         </p>
       </section>
 
@@ -115,20 +115,8 @@ export default async function DevPanelPage() {
         <h2 className="mb-3 font-bold">Game Config</h2>
         <form action={updateGameConfig} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <label className="field">
-            <span className="field-label">Starting tag points</span>
-            <input type="number" name="startingTagPoints" defaultValue={config.startingTagPoints} />
-          </label>
-          <label className="field">
-            <span className="field-label">Resource ⬢ consumption / turn</span>
-            <input type="number" name="resourceConsumptionPerTurn" defaultValue={config.resourceConsumptionPerTurn} />
-          </label>
-          <label className="field">
             <span className="field-label">Mood duration (turns)</span>
             <input type="number" name="moodDurationTurns" defaultValue={config.moodDurationTurns} />
-          </label>
-          <label className="field">
-            <span className="field-label">Hunger move penalty</span>
-            <input type="number" name="hungerMovePenalty" defaultValue={config.hungerMovePenalty} />
           </label>
           <label className="field">
             <span className="field-label">Mood move penalty</span>
@@ -137,14 +125,6 @@ export default async function DevPanelPage() {
           <label className="field">
             <span className="field-label">Mood move bonus</span>
             <input type="number" name="moodMoveBonus" defaultValue={config.moodMoveBonus} />
-          </label>
-          <label className="field">
-            <span className="field-label">Alcohol cost (resources)</span>
-            <input type="number" name="alcoholCost" defaultValue={config.alcoholCost} />
-          </label>
-          <label className="field">
-            <span className="field-label">Alcohol shield duration (turns)</span>
-            <input type="number" name="alcoholShieldDurationTurns" defaultValue={config.alcoholShieldDurationTurns} />
           </label>
           <label className="field">
             <span className="field-label">Lifeweb Blood (0-100, raw override)</span>
@@ -164,7 +144,7 @@ export default async function DevPanelPage() {
           </label>
           <label className="flex items-center gap-2 text-sm col-span-full">
             <input type="checkbox" name="messageWipeEnabled" defaultChecked={config.messageWipeEnabled} />
-            Wipe messages at Dawn (archives everything to #archive first — see docs/CHANNELS.md)
+            Wipe messages at Dawn (archives everything to #archive first — see docs/systemdocs/CHANNELS.md)
           </label>
           <div className="col-span-full">
             <button type="submit" className="btn">Save config</button>
@@ -182,8 +162,8 @@ export default async function DevPanelPage() {
       <section className="panel p-4" style={{ borderColor: "var(--accent)" }}>
         <h2 className="mb-3 font-bold" style={{ color: "var(--accent)" }}>Restart Game</h2>
         <p className="mb-3 text-sm" style={{ color: "var(--muted)" }}>
-          Wipes every character, Move, Desire, tag change request, default effort, note, DM log, and
-          audit log entry; resets every Faction&apos;s Silo to 0 and the Game Config above to its
+          Wipes every character, Move, default effort, note, DM log, and audit log entry; resets every
+          Faction&apos;s Silo to 0 and the Game Config above to its
           defaults; deletes each character&apos;s personal Discord role and nickname; clears every
           message in #archive and #turns; and deletes every message, forum post, and thread (public or
           private) in every provisioned Location channel. Opens a fresh Turn 1, Dawn. Factions, Zones,

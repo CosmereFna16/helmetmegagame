@@ -17,7 +17,7 @@
 // mid-run crash leaves "not yet wiped," never "wiped without being
 // archived" — treated as an accepted known limitation (no checkpoint/
 // resume machinery), same framing as the node-cron catch-up gap already
-// documented in docs/ARCHITECTURE.md.
+// documented in docs/systemdocs/ARCHITECTURE.md.
 const {
   getGuildChannels,
   postMessage,

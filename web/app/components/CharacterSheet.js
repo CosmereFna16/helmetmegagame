@@ -1,13 +1,8 @@
-import { NOBILITY_SLUG, TIPSY_SLUG } from "@lifeweb/db";
 import { updateCharacterProfile, setMood, transferResources } from "../(app)/character/actions";
 import AppearanceField from "./AppearanceField";
 import AvatarField from "./AvatarField";
 import TagChip from "./TagChip";
-import TagStorePanel from "./TagStorePanel";
-import TagRequestPanel from "./TagRequestPanel";
-import DesirePanel from "./DesirePanel";
 import DefaultEffortPanel from "./DefaultEffortPanel";
-import MealPanel from "./MealPanel";
 import LifewebFeedButton from "./LifewebFeedButton";
 import RichText from "./RichText";
 import FactionLink from "./FactionLink";
@@ -82,14 +77,10 @@ export default function CharacterSheet({
   openTurn,
   avatarSrc,
   transferTargets,
-  storeTags,
   summaryChannels,
-  alcoholCost,
 }) {
   const isSelf = mode === "self";
   const tagGroups = groupTagsByCategory(character.tags);
-  const hasNobility = character.tags.some((ct) => ct.tag.slug === NOBILITY_SLUG);
-  const tipsyTag = character.tags.find((ct) => ct.tag.slug === TIPSY_SLUG);
   const turnsLeft =
     character.moodState !== "NEUTRAL" && openTurn && character.moodExpiresTurn != null
       ? character.moodExpiresTurn - openTurn.number
@@ -159,36 +150,6 @@ export default function CharacterSheet({
             {character.moodNote ? ` — "${character.moodNote}"` : ""}
             {turnsLeft != null ? ` (${turnsLeft} turn${turnsLeft === 1 ? "" : "s"} left)` : ""}
           </li>
-          <li>
-            {character.isHungry ? (
-              <span style={{ color: "var(--accent)" }}>Hungry</span>
-            ) : (
-              <span style={{ color: "var(--muted)" }}>Sated</span>
-            )}
-            {character.skipNextMealConsumption && (
-              <span className="tag-hover" tabIndex={0} style={{ marginLeft: "0.4rem" }}>
-                <span aria-hidden="true">🍴</span>
-                <span className="tag-tooltip" role="tooltip">
-                  Ate meal — won&rsquo;t go hungry next turn
-                </span>
-              </span>
-            )}
-          </li>
-          <li>
-            Tag Points:{" "}
-            <span
-              style={{
-                color:
-                  character.tagPoints > 0
-                    ? "var(--mood-happy)"
-                    : character.tagPoints < 0
-                    ? "var(--accent)"
-                    : "var(--text)",
-              }}
-            >
-              {character.tagPoints > 0 ? `+${character.tagPoints}` : character.tagPoints}
-            </span>
-          </li>
         </ul>
 
         {isSelf && (
@@ -217,19 +178,6 @@ export default function CharacterSheet({
               Update
             </button>
           </form>
-        )}
-
-        {isSelf && (
-          <MealPanel
-            characterId={character.id}
-            resources={character.resources}
-            hasNobility={hasNobility}
-            lastFineMealTurn={character.lastFineMealTurn}
-            openTurnNumber={openTurn?.number ?? null}
-            skipNextMealConsumption={character.skipNextMealConsumption}
-            tipsyExpiresTurn={tipsyTag?.expiresTurn ?? null}
-            alcoholCost={alcoholCost}
-          />
         )}
 
         {isSelf && (
@@ -305,33 +253,15 @@ export default function CharacterSheet({
             ))}
           </div>
         )}
-        {isSelf && (
-          <TagStorePanel
-            characterId={character.id}
-            tagPoints={character.tagPoints}
-            ownedCharacterTags={character.tags}
-            storeTags={storeTags}
-          />
-        )}
-        <TagRequestPanel characterId={character.id} />
       </section>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <DesirePanel
+      {isSelf && (
+        <DefaultEffortPanel
           characterId={character.id}
-          desire={character.desires[0] ?? null}
-          openTurnNumber={openTurn?.number ?? null}
-          isSelf={isSelf}
+          defaultEffort={character.defaultEffort ?? null}
+          summaryChannels={summaryChannels ?? []}
         />
-
-        {isSelf && (
-          <DefaultEffortPanel
-            characterId={character.id}
-            defaultEffort={character.defaultEffort ?? null}
-            summaryChannels={summaryChannels ?? []}
-          />
-        )}
-      </div>
+      )}
     </div>
   );
 }

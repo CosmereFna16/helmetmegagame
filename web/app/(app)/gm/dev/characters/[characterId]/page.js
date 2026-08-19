@@ -91,16 +91,10 @@ export default async function DevCharacterEditPage({ params }) {
           </label>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <label className="field">
-            <span className="field-label">Resources ⬢</span>
-            <input type="number" name="resources" defaultValue={character.resources} />
-          </label>
-          <label className="field">
-            <span className="field-label">Tag points</span>
-            <input type="number" name="tagPoints" defaultValue={character.tagPoints} />
-          </label>
-        </div>
+        <label className="field">
+          <span className="field-label">Resources ⬢</span>
+          <input type="number" name="resources" defaultValue={character.resources} />
+        </label>
 
         <div className="grid grid-cols-2 gap-3">
           <label className="field">
@@ -120,11 +114,6 @@ export default async function DevCharacterEditPage({ params }) {
         <label className="field">
           <span className="field-label">Mood note</span>
           <input name="moodNote" defaultValue={character.moodNote ?? ""} />
-        </label>
-
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" name="isHungry" defaultChecked={character.isHungry} />
-          Hungry
         </label>
 
         <label className="field">

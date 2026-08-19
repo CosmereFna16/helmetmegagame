@@ -353,9 +353,9 @@ export async function ensureCharacterRole(character) {
 
 // Deletes a character's personal Discord role outright — Discord itself
 // drops any channel permission overwrites tied to the role (Location
-// categories, #radio) the moment the role is deleted, so this alone undoes
-// ensureCharacterRole/syncCharacterLocationAccess/syncCharacterRadioAccess
-// without needing to touch those channels individually. Used by
+// categories) the moment the role is deleted, so this alone undoes
+// ensureCharacterRole/syncCharacterLocationAccess without needing to touch
+// those channels individually. Used by
 // wipeGameData (web/app/(app)/gm/dev/actions.js) when deleting a character
 // outright, not by any per-character edit flow.
 export async function deleteCharacterRole(discordRoleId) {
@@ -403,72 +403,6 @@ export async function syncCharacterLocationAccess(discordRoleId, oldLocationId, 
       body: JSON.stringify({ id: discordRoleId, type: 0, allow: String(PERM_VIEW_CHANNEL) }),
     }).catch(() => {});
   }
-}
-
-const PERM_SEND_MESSAGES = 1 << 11;
-
-// REST twin of syncCharacterLocationAccess, same single-overwrite-per-role
-// primitive, just keyed off the Radio Tag instead of Character.locationId:
-// grants/revokes the calling character's own personal role ViewChannel +
-// SendMessages on the singleton #radio channel (GameConfig.radioChannelId).
-// There is no separate "Radio Access" role — access is a permission
-// overwrite on each character's existing per-character role, exactly like
-// Location categories. Called from grantTag/revokeTag
-// (web/app/(app)/gm/dev/actions.js) whenever the mutated tag is the Radio Tag.
-export async function syncCharacterRadioAccess(discordRoleId, hasTag) {
-  const token = process.env.DISCORD_TOKEN;
-  if (!token || !discordRoleId) return;
-
-  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
-  const channelId = config?.radioChannelId;
-  if (!channelId) return;
-
-  try {
-    if (hasTag) {
-      const res = await fetch(`${DISCORD_API}/channels/${channelId}/permissions/${discordRoleId}`, {
-        method: "PUT",
-        headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ id: discordRoleId, type: 0, allow: String(PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES) }),
-      });
-      if (!res.ok) {
-        console.error(`Failed to grant radio access to role ${discordRoleId}: ${res.status} ${await res.text()}`);
-      }
-    } else {
-      const res = await fetch(`${DISCORD_API}/channels/${channelId}/permissions/${discordRoleId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bot ${token}` },
-      });
-      if (!res.ok && res.status !== 404) {
-        console.error(`Failed to revoke radio access from role ${discordRoleId}: ${res.status} ${await res.text()}`);
-      }
-    }
-  } catch (err) {
-    console.error(`Failed to sync radio access for role ${discordRoleId}:`, err);
-  }
-}
-
-// One-time provisioning, mirroring provisionLocationChannels (web/app/(app)/gm/dev/actions.js):
-// creates the #radio text channel with @everyone denied ViewChannel/SendMessages
-// and no other overwrites — each holder of the Radio Tag gets their own
-// personal role granted access individually via syncCharacterRadioAccess, the
-// same way Location category access works. Stores the ID on GameConfig. A
-// no-op if already provisioned.
-export async function provisionRadioChannel() {
-  const guildId = process.env.DISCORD_GUILD_ID;
-  const token = process.env.DISCORD_TOKEN;
-  if (!guildId || !token) throw new Error("Discord guild is not configured.");
-
-  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
-  if (config?.radioChannelId) return { channelId: config.radioChannelId };
-
-  const channel = await createGuildChannel({
-    name: "radio",
-    type: CHANNEL_TYPE_TEXT,
-    permission_overwrites: [{ id: guildId, type: 0, deny: String(PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES) }],
-  });
-
-  await prisma.gameConfig.update({ where: { id: 1 }, data: { radioChannelId: channel.id } });
-  return { channelId: channel.id };
 }
 
 const CHANNEL_TYPE_CATEGORY = 4;

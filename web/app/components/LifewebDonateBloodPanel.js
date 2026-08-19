@@ -29,17 +29,20 @@ export default function LifewebDonateBloodPanel({ characters }) {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <select value={characterId} onChange={(e) => setCharacterId(e.target.value)}>
-        <option value="" disabled>
-          Choose a player...
-        </option>
-        {characters.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
+    <div className="flex flex-wrap items-end gap-2">
+      <label className="field">
+        <span className="field-label">Player</span>
+        <select value={characterId} onChange={(e) => setCharacterId(e.target.value)}>
+          <option value="" disabled>
+            Choose a player...
           </option>
-        ))}
-      </select>
+          {characters.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </label>
       <button type="button" className="btn" disabled={!characterId || pending} onClick={handleClick}>
         Donate blood
       </button>

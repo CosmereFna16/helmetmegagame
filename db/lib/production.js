@@ -1,5 +1,5 @@
 // Canonical Farming/Fishing/Herding production rates (base/Laborer/specialist
-// tiers, see docs/ROLES.md's Laborer tree and docs/documents.yaml's
+// tiers, see docs/roles.yaml's Laborer tree and docs/documents.yaml's
 // "Producing Resources" doc) and the Hunting dice expressions. Single source
 // of truth for both /labor (bot/src/lib/labor.js, computed live against
 // GameConfig.productionCoefficient) and the doc generator

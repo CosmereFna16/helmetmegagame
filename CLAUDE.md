@@ -4,26 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What Lifeweb is
 
-Lifeweb is a huge, month-long asynchronous megagame. A barony in the middle of a wasteland, a bastard come to reclaim his throne, and a village of people trying their best — all built on top of domains of inscrutable technological goo. Players delve into caves as a Mercenary, defend the innocent as a Knight, whine to their father as the Princess, sell drugs and host illicit gatherings as a Pusher, or raid caravans as a Brigand.
+Lifeweb is a huge, month-long asynchronous megagame set in a cryptic low-fantasy, sci-fi mix.
 
-It's half-strategy, half-roleplay, meant to run smoothly at large scale (100+ players ideally) with each in-game day mapping to one real-world day. A website and a Discord bot work together to automate communication and mechanics so the game stays asynchronous and low-friction. Design pillars called out by the project owner:
+It's half-strategy, half-roleplay, meant to run smoothly at large scale (100+ players ideally) with each in-game day mapping to one real-world day. A website and a Discord bot work together to automate communication and mechanics so the game stays asynchronous and low-friction.
 
-- **Leader system** — if you don't act, you automatically follow your faction leader's commands. Nobody is forced to play when they don't want to.
-- **Desires and Needs** — fulfilling your character's dreams earns Tags that customize and buff them.
-- **Roles and situations engineered for PvP conflict** — and the stories that come out of it — from day one.
-
-Above all else, the priority is **functionality, usability, cleanliness, responsiveness, and browser performance**. The explicit reference point to avoid is the typical slow, laggy Discord bot dashboard — this needs to feel fast and scroll smoothly.
-
-## Web Design
-Inspired by Caves of Qud, revised 2026-08-14 after the original bright-gradient direction didn't land in practice. Monospace font (IBM Plex Mono). Flat, near-solid grounds — no animated gradients, no CRT warp/flicker, just a faint static scanline texture. Underlined options when you select them (`.menu-item`). The wordmark is solid text (`--text`) with a short terracotta rule beneath it, not a gradient-clip.
-
-Palette is driven by the currently open `Turn.phase` (see `web/lib/turn.js`), not the wall clock, and both themes share the same structural logic: cool blue-grey for borders/chrome, warm beige/cream for text, terracotta held back for accents only (buttons, active nav state, small highlights) rather than spread across borders.
-
-- **Dusk** — near-black teal ground (`#0b1614`), warm beige text (`#f0e9d8`), cool blue-grey borders, terracotta accent `#c9552b`.
-- **Dawn** — bright warm parchment ground (`#ede4cc`), dark teal-charcoal ink text (`#2c332f`), same blue-grey borders, terracotta accent `#b8481f`. Not a bright orange sky — the same fire, lit at a different hour.
-
-Exact tokens live in `web/app/globals.css` under `[data-theme="dusk"]` / `[data-theme="dawn"]`.
-
+There's two faces to the game: the Discord and the web app. For the web app, priority is **functionality, usability, cleanliness, responsiveness, and browser performance**. The explicit reference point to avoid is the typical slow, laggy Discord bot dashboard — this needs to feel fast and scroll smoothly.
 
 ## Repository layout
 
@@ -31,7 +16,7 @@ This is an npm-workspaces monorepo with three packages:
 
 - `bot/` — the Discord bot (discord.js v14). Entry point `bot/src/index.js`.
 - `web/` — the web app (Next.js 16, App Router, JavaScript, Tailwind v4). Standard Next.js structure rooted at `web/app`.
-- `db/` — shared data layer (`@lifeweb/db`). Prisma schema at `db/prisma/schema.prisma`, targeting PostgreSQL. Exports a singleton `PrismaClient` from `db/index.js` (`const { prisma } = require("@lifeweb/db")`) so the bot and web app read/write the same game state without duplicating connection logic. Models: `GameConfig`, `Faction`, `Zone`, `Character`, `Tag`/`CharacterTag`, `Desire`, `Turn`, `Action` (a turn's Move — see "Moves and adjudication" below), `DefaultEffort`, `AuditLog`.
+- `db/` — shared data layer (`@lifeweb/db`). Prisma schema at `db/prisma/schema.prisma`, targeting PostgreSQL. Exports a singleton `PrismaClient` from `db/index.js` (`const { prisma } = require("@lifeweb/db")`) so the bot and web app read/write the same game state without duplicating connection logic. Models: `GameConfig`, `Faction`, `Zone`, `Character`, `Tag`/`CharacterTag`, `Turn`, `Action` (a turn's Move — see "Moves and adjudication" below), `DefaultEffort`, `AuditLog`.
 
 Both `bot` and `web` are meant to depend on `@lifeweb/db` via the workspace once they need database access — add it with `npm install @lifeweb/db --workspace=<bot|web>` rather than duplicating a Prisma client per package.
 
@@ -66,11 +51,35 @@ On `ready`, the bot upserts a `GameConfig` singleton row. `guildMemberAdd` write
 
 The web app uses Auth.js (`next-auth@5`, `web/lib/auth.js`) with the Discord provider for login — `session.discordUserId` is the Discord user ID, attached via the `jwt`/`session` callbacks. `Character` rows are looked up by `discordUserId`, not by a separate user table. GM-only pages (`web/app/gm`) check the signed-in user's guild roles via `web/lib/discordGuild.js`, which calls the Discord REST API with the bot token (`DISCORD_TOKEN`) against `DISCORD_GUILD_ID`/`DISCORD_GM_ROLE_ID`, rather than trusting anything from the OAuth profile itself.
 
+## Confirm dialog
+
+For any "are you sure?" moment in the web app, use the shared confirm dialog instead of rolling a one-off modal or `window.confirm`. `web/app/components/ConfirmProvider.js` mounts once in `web/app/layout.js` (wrapping the whole tree) and exposes `useConfirm()`, a promise-based hook: `const confirm = useConfirm(); if (!(await confirm({ title, message, confirmLabel, cancelLabel }))) return;`. All fields are optional and it reuses the existing `.modal-overlay`/`.modal-panel` styling, so it matches every other modal in the app for free.
+
+## Web app style conventions
+
+Source of truth for exact values is `web/app/globals.css` and the font setup in `web/app/layout.js` — this section is a map of what's there and the rules for using it, not a copy of the values themselves (keep it that way; don't let this drift into a duplicate that can go stale).
+
+**Fonts** — three faces loaded via `next/font/google` in `layout.js`, exposed as CSS variables on `<html>`:
+- `--font-mono` (IBM Plex Mono) is the app default, set on `body`. Everything (chrome, tables, forms, buttons) stays in this unless a rule below says otherwise.
+- `--font-serif` (Source Serif 4) is applied automatically to every `h1`/`h2` by a global CSS rule — never hand-apply a font class to a heading, just use the tag.
+- `--font-display` (UnifrakturMaguntia, a gothic/blackletter face) is reserved for a handful of thematic moments — the login wordmark and a couple of flavor-heavy titles — via `.font-display`/`.wordmark`. Never use it for bulk headings, loading-state text, or arbitrary player-authored content; it's illegible at small sizes and reads as a mismatch everywhere else (this is the mistake fixed on the `/lifeweb` panel's `loading.js`).
+
+**Colors** — entirely CSS custom properties (`--bg`, `--panel-bg`, `--field-bg`, `--border`, `--muted`, `--text`, `--accent`, `--mood-happy`, `--row-hover`), redefined per-theme under `[data-theme="dusk"]`/`[data-theme="dawn"]` in `globals.css` (theme follows the current turn's phase, see `themeForPhase`). Never hardcode a hex/rgb color in a component — always reference a token via `var(--x)`, so it tracks the active theme.
+
+**Shared classes** — use these instead of rolling one-off markup:
+- `.panel` for any card/section container.
+- `.btn` / `.btn-quiet` for buttons.
+- `.field` wrapping a `.field-label` + input/textarea/select is how *every* form control in the app gets themed (background, border, font). A bare `<select>`/`<input>` outside `.field` falls back to unstyled native browser chrome and visibly breaks the theme — always wrap it, even for a single standalone control.
+- `.chip` for small tag/pill labels, `.data-table` for tabular data, `.menu-item` for link-like row actions.
+- `.modal-overlay`/`.modal-panel`, normally reached via `useConfirm()` (see "Confirm dialog" above) rather than built by hand.
+
+**Page shell convention** — every top-level page follows `<div className="mx-auto flex max-w-{2xl–6xl} flex-col gap-6 p-6 sm:p-8">` with `<h1 className="text-2xl font-bold">{Title}</h1>` as the first child (the serif face and weight come from the rules above — don't add `text-3xl` or other one-off sizing). Its `loading.js` skeleton mirrors this: same shell at `max-w-5xl`, the same `<h1>`, and a `.panel animate-pulse p-4` block reading `Loading…` in `var(--muted)`.
+
 ## Character proxying ("tupper" messages)
 
 Players edit their character's name, profile picture, and appearance/bio on `/character`. Profile pictures are stored as bytes on `Character.avatarData`/`avatarMimeType` (resized/compressed with `sharp` on upload) rather than in a third-party bucket, and served back out by the web app itself at `/api/avatar/<characterId>` — the bot builds this into a full URL via `WEB_BASE_URL` when it needs an `avatarURL` for a webhook.
 
-Tupper and summary channels are not manually configured — a channel opts in only by being one of a provisioned Location's plain/public/private channels (see "Zones, Locations, and character roles" below, and `docs/CHANNELS.md`): the plain (text) channel is both tupper *and* summary, the public (forum) and private (text) channels are tupper-only. `bot/src/lib/channels.js` (gateway cache) and `web/lib/discordGuild.js` (`isSummaryChannel`/`isTupperChannel`/`listGuildChannels`, REST-based) are the two independent implementations of this rule — keep them in sync if it changes. Inside a tupper channel, `bot/src/events/messageCreate.js` auto-proxies every message from a user with an `ALIVE` character: it reposts the message via a per-channel webhook (`bot/src/lib/proxy.js`) using the character's name/avatar, then deletes the original — no bracket/trigger syntax needed, since each player only has one living character at a time. `bot/src/events/messageReactionAdd.js` handles ❌ (delete), ✏️ (DM-based edit), and ❓ (DMs the character's bio) on proxied messages, tracked in an in-memory map (fine at this scale — single bot process, no sharding). Public adjudications (see below) post to every summary channel.
+Tupper and summary channels are not manually configured — a channel opts in only by being one of a provisioned Location's plain/public/private channels (see "Zones, Locations, and character roles" below, and `docs/systemdocs/CHANNELS.md`): the plain (text) channel is both tupper *and* summary, the public (forum) and private (text) channels are tupper-only. `bot/src/lib/channels.js` (gateway cache) and `web/lib/discordGuild.js` (`isSummaryChannel`/`isTupperChannel`/`listGuildChannels`, REST-based) are the two independent implementations of this rule — keep them in sync if it changes. Inside a tupper channel, `bot/src/events/messageCreate.js` auto-proxies every message from a user with an `ALIVE` character: it reposts the message via a per-channel webhook (`bot/src/lib/proxy.js`) using the character's name/avatar, then deletes the original — no bracket/trigger syntax needed, since each player only has one living character at a time. `bot/src/events/messageReactionAdd.js` handles ❌ (delete), ✏️ (DM-based edit), and ❓ (DMs the character's bio) on proxied messages, tracked in an in-memory map (fine at this scale — single bot process, no sharding). Public adjudications (see below) post to every summary channel.
 
 This requires the `MESSAGE_CONTENT` privileged intent enabled for the bot application (Discord Developer Portal -> Bot -> Privileged Gateway Intents), in addition to the `GuildMembers` intent already noted above.
 
@@ -82,13 +91,13 @@ Every `ALIVE` named character's Discord server nickname is kept as `{base} | {ch
 
 There is no more Effort/Move split — every turn submission is a **Move**, which is either **Routine** or **Gambit** (`Action.moveKind`; only Gambit rolls a d6) and may additionally be flagged **Opposed** (`Action.opposed`). A message posted in the channel named exactly `turns` becomes a `PENDING_TYPE` `Action` via `bot/src/lib/actionSubmission.js#handleActionSubmission` — it deletes the original message, records the character's current zone, and DMs the player **one message** carrying a Kind select menu, an Opposed select menu, and a Confirm button (`bot/src/lib/moveComponents.js#buildMoveComponents`/`buildMoveContent`). Changing either dropdown writes straight to the `Action` row and re-renders the same message in place via `interaction.update()` — nothing is ever deleted and resent, unlike the old reaction-based picker. All three components are handled in `bot/src/events/interactionCreate.js` (`move:kind:<actionId>`, `move:opposed:<actionId>`, `move:confirm:<actionId>` custom IDs): `handleMoveConfirm` requires a Kind to already be chosen, rolls 1d6 only if `moveKind === "GAMBIT"`, edits the DM to `» *Waiting on adjudication...*` with components stripped, and flips the action to `CONFIRMED`. DMs no longer carry any reaction-driven flow — `bot/src/events/messageReactionAdd.js` only handles guild-channel reactions (tupper ✏️/❌/🔍/⭐, GM 🌫️), and the bot no longer requests the `DirectMessageReactions` gateway intent. Posting a second Move in `#turns` on the same turn is deleted with a DM (`» *You've already sent a Move this turn...*`) rather than recorded.
 
-Turns advance via `advanceTurn()` in `db/index.js` — resolves Needs on the open turn, closes it, opens the next with alternated phase, then owns every Discord side effect itself (REST-only, no gateway needed): posting the `#turns` announcement (`db/lib/turnAnnouncement.js`) and, if the new phase is `DAWN` and `GameConfig.messageWipeEnabled` is on, the Dawn message wipe (`db/lib/dawnWipe.js` — see `docs/CHANNELS.md` §5). Both are best-effort (`.catch()`'d) so a Discord-side failure never blocks the turn advance. Called from two places, each of which now just adds its own `AuditLog` entry afterward: the bot's twice-daily cron (`bot/src/lib/turnEngine.js`) and the superadmin's "End turn" button on `/gm/dev` (`forceAdvanceTurn` in `web/app/(app)/gm/dev/actions.js`) — manual turn control lives only in the Dev Panel now, not on `/gm/turns`. The Dev Panel's Current Turn widget can also directly overwrite the open turn's day/phase (`updateCurrentTurn`) without resolving Needs, for raw correction.
+Turns advance via `advanceTurn()` in `db/index.js` — resolves Needs on the open turn, closes it, opens the next with alternated phase, then owns every Discord side effect itself (REST-only, no gateway needed): posting the `#turns` announcement (`db/lib/turnAnnouncement.js`) and, if the new phase is `DAWN` and `GameConfig.messageWipeEnabled` is on, the Dawn message wipe (`db/lib/dawnWipe.js` — see `docs/systemdocs/CHANNELS.md` §5). Both are best-effort (`.catch()`'d) so a Discord-side failure never blocks the turn advance. Called from two places, each of which now just adds its own `AuditLog` entry afterward: the bot's twice-daily cron (`bot/src/lib/turnEngine.js`) and the superadmin's "End turn" button on `/gm/dev` (`forceAdvanceTurn` in `web/app/(app)/gm/dev/actions.js`) — manual turn control lives only in the Dev Panel now, not on `/gm/turns`. The Dev Panel's Current Turn widget can also directly overwrite the open turn's day/phase (`updateCurrentTurn`) without resolving Needs, for raw correction.
 
 GMs work the Moves tab of `/gm/turns` as a spreadsheet: the balance-scale button on each row opens `MoveEditorModal` (a popup, not a page navigation) where every value is editable regardless of status — Move kind (switching it rerolls/nulls `diceRoll` the same way the bot does at confirm time), Opposed, and the GM-facing workflow status `Action.moveReviewStatus` (`OPEN` / `WAITING_FOR_OPPONENTS` / `IN_PROGRESS` / `SOLVED`, independent of the submission-pipeline `Action.status`). `resultMessage` and `gmNotes` are labeled **Outcome** and **Other Notes** in this UI — both GM-facing only, never auto-sent to the player or posted anywhere; a resource-change value on the Move is applied to the character's balance exactly once, the moment `moveReviewStatus` first transitions to `SOLVED`. All player messaging is manual from here on — the modal's "Message players" section (`PartyRows`/`sendPartyMessages` in `web/app/(app)/gm/actions.js#updateMove`) DMs whoever the GM picks, on demand. Group Moves (a leader pinging/naming other players into one shared Move) are purely narrative — there's no participant tracking in the schema; per the Leader system design pillar, anyone who doesn't submit their own Move is assumed to follow their faction leader's.
 
 ## Zones, Locations, and character roles
 
-See also `docs/CHANNELS.md` for the full schematic of the Location Discord layout (category/channel naming, slowmode, forum-vs-text) and how per-character role visibility is kept in sync.
+See also `docs/systemdocs/CHANNELS.md` for the full schematic of the Location Discord layout (category/channel naming, slowmode, forum-vs-text) and how per-character role visibility is kept in sync.
 
 Geography is two levels: `Zone` (e.g. "Town") and `Location` (e.g. "church", nested under a Zone via `Location.zoneId`). Each `Location` maps to a standard Discord layout — one category plus three channels named after the location (`church`, `church-public`, `church-private`) — created by a superadmin clicking "Provision Discord channels" per Location on `/gm/dev/zones` (`provisionLocationChannels` in `web/app/(app)/gm/dev/actions.js`). This is **deliberately a one-time, explicitly-triggered action, never auto-synced** — re-running it on an already-provisioned Location is a no-op, so editing a Location's name in the DB later can't accidentally rename/delete live channels or their message history. `db/prisma/seed-zones.js` (idempotent, `npm run db:seed-zones`) seeds the initial Zone/Location list; Locations start unprovisioned (all `discord*Id` fields null) until a GM provisions them.
 
@@ -109,11 +118,17 @@ There is no single unified permission system — a few independent kinds of Disc
 - **Personal character role** (`Character.discordRoleId`, one per `ALIVE` character, titled after the character's name) — the sole access-control primitive for Location categories (see above). Created/renamed by `ensureCharacterRole`, granted/revoked per-category by `swapLocationAccess`/`syncCharacterLocationAccess`.
 - **GM role** (`DISCORD_GM_ROLE_ID` env var) — checked via REST (`web/lib/discordGuild.js#isGm`) against the signed-in user's guild member roles to gate `/gm` pages and the `/gm`/`/message` slash commands; not stored on any Lifeweb model.
 - **Turn-ping role** (`DISCORD_TURN_PING_ROLE_ID` env var) — a plain opt-in notification role, added/removed by `setTurnPingRole` when a player toggles "Turn Ping?" on `/character`.
-- **Tag-gated channels** — the pattern used for the `#radio` channel (below): the character's own **personal role** (not a separate shared role) gets a permission overwrite added directly on the channel, synced to whoever currently holds a specific `Tag`, driven from the tag-grant/revoke call sites rather than from Location or Faction state.
 
-### Tag-gated channels (`#radio`)
+## Info channel
 
-The `radio` Tag (`RADIO_SLUG`, point-buy under the `Skills` store category at `pointCost: 2`, see `db/prisma/seed-tags.js`) gates a single text channel, `#radio`, provisioned once via `provisionRadioChannel()` (`web/lib/discordGuild.js`): it denies `@everyone` `ViewChannel`/`SendMessages` on the channel and adds no other overwrites — the channel ID is stored on the `GameConfig` singleton (`radioChannelId`), same pattern as `locationPromptChannelId`. There is no dedicated "Radio Access" role; access reuses the exact same primitive as Location categories (`Character.discordRoleId`, one personal role per `ALIVE` character — see above). `syncCharacterRadioAccess(discordRoleId, hasTag)` grants/revokes a per-role permission overwrite on the `#radio` channel via REST (same PUT/DELETE-channel-permission primitive as `syncCharacterLocationAccess`) and is called from every place a `CharacterTag` for the Radio Tag can be created/deleted — `grantTag`/`revokeTag` (GM raw edit) and `purchaseTags` (player point-buy, both in the relevant `actions.js`) — whenever the mutated tag's slug is `RADIO_SLUG`, passing the target character's `discordRoleId`. This is a template for any future Tag that should gate a Discord channel: add the slug to `db/lib/constants.js`, seed the `Tag`, provision the channel with `@everyone` denied, and call a `syncCharacterXAccess(discordRoleId, hasTag)` from every call site that can grant/revoke that tag — never a new shared role.
+`#info` is a static, GM-authored player directory (game pitch, rules, and a
+set of topic threads), maintained entirely outside the DB. Its content lives
+in `docs/systemdocs/infochannel.yaml`; editing that file and running
+`npm run db:rebuild-info-channel` (`db/prisma/rebuild-info-channel.js`) wipes
+every message and thread on the channel and reposts from scratch — a full
+destructive rebuild every time, never an upsert, since there's no player
+state on that channel to preserve. See `docs/systemdocs/INFOCHANNEL.md` for
+the full mechanism.
 
 ## Notes
 

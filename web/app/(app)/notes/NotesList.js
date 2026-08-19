@@ -2,8 +2,10 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { unstarNote } from "./actions";
+import { useConfirm } from "../../components/ConfirmProvider";
 
 export default function NotesList({ notes }) {
+  const confirm = useConfirm();
   const [zoneFilter, setZoneFilter] = useState("");
   const [sort, setSort] = useState("newest");
   const [removed, setRemoved] = useState(new Set());
@@ -20,7 +22,9 @@ export default function NotesList({ notes }) {
     sort === "oldest" ? new Date(a.sentAt) - new Date(b.sentAt) : new Date(b.sentAt) - new Date(a.sentAt),
   );
 
-  function handleUnstar(id) {
+  async function handleUnstar(id) {
+    if (!(await confirm({ title: "Unstar this note?", message: "This can't be undone.", confirmLabel: "Unstar" })))
+      return;
     setRemoved((prev) => new Set(prev).add(id));
     startTransition(() => {
       unstarNote(id);
@@ -68,7 +72,7 @@ export default function NotesList({ notes }) {
                 aria-label="Unstar this note"
                 title="Unstar"
               >
-                ⭐
+                ★
               </button>
             </div>
             <p className="whitespace-pre-wrap text-sm">{note.content}</p>

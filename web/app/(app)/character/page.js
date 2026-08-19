@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
-import { TAG_STORE_CATEGORY_NAMES } from "@/lib/tagStore";
 import { listGuildChannels, isSummaryChannel, getLocationChannelIds } from "@/lib/discordGuild";
 import CharacterSheet from "../../components/CharacterSheet";
 
@@ -16,14 +15,13 @@ export default async function CharacterPage() {
       faction: true,
       zone: true,
       tags: { include: { tag: true } },
-      desires: { orderBy: { createdAt: "desc" }, take: 1 },
       defaultEffort: true,
     },
   });
 
   if (!character) redirect("/character/new");
 
-  const [openTurn, otherCharacters, factions, storeTags, guildChannels, config, locationChannelIds] = await Promise.all([
+  const [openTurn, otherCharacters, factions, guildChannels, locationChannelIds] = await Promise.all([
     getOpenTurn(),
     prisma.character.findMany({
       where: { status: "ALIVE", id: { not: character.id } },
@@ -35,9 +33,7 @@ export default async function CharacterPage() {
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
-    prisma.tag.findMany({ where: { category: { in: TAG_STORE_CATEGORY_NAMES } } }),
     listGuildChannels(),
-    prisma.gameConfig.findUnique({ where: { id: 1 } }),
     getLocationChannelIds(),
   ]);
 
@@ -57,9 +53,7 @@ export default async function CharacterPage() {
       openTurn={openTurn}
       avatarSrc={avatarSrc}
       transferTargets={{ characters: otherCharacters, factions }}
-      storeTags={storeTags}
       summaryChannels={summaryChannels}
-      alcoholCost={config?.alcoholCost ?? 3}
     />
   );
 }

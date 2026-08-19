@@ -54,13 +54,6 @@ enum MoveReviewStatus {
   SOLVED
 }
 
-enum DesireStatus {
-  ACTIVE
-  PENDING
-  COMPLETED
-  ABANDONED
-}
-
 enum TurnPhase {
   DAWN
   DUSK
@@ -87,21 +80,11 @@ enum TagSource {
   EVENT
 }
 
-enum TagChangeRequestStatus {
-  PENDING
-  RESOLVED
-}
-
 model GameConfig {
   id                        Int @id @default(1)
-  startingTagPoints         Int @default(0)
-  resourceConsumptionPerTurn Int @default(1)
   moodDurationTurns         Int @default(2)
-  hungerMovePenalty         Int @default(-1)
   moodMovePenalty           Int @default(-1)
   moodMoveBonus             Int @default(1)
-  alcoholCost               Int @default(3)
-  alcoholShieldDurationTurns Int @default(4)
   lifewebBlood              Int @default(100)
   lifewebDecayPerTurn       Int @default(10)
   lifewebDrainedDurationTurns Int @default(4)
@@ -120,14 +103,6 @@ model GameConfig {
   // pattern as turnsAnnouncement* above.
   locationPromptChannelId String?
   locationPromptMessageId String?
-
-  // The single #radio text channel. Gated the same way as Location
-  // categories — each holder of the Radio Tag gets their own personal
-  // Character.discordRoleId granted a permission overwrite directly on this
-  // channel (see web/lib/discordGuild.js#syncCharacterRadioAccess), no
-  // separate shared role. Provisioned once via provisionRadioChannel
-  // (web/app/(app)/gm/dev/actions.js).
-  radioChannelId String?
 
   // Multiplier applied to every rate in db/lib/production.js's
   // PRODUCTION_RATES table (Farming/Fishing/Herding, base/Laborer/specialist
@@ -235,13 +210,9 @@ model Character {
   isLeader       Boolean         @default(false)
   status         CharacterStatus @default(ALIVE)
   resources      Int             @default(0)
-  tagPoints      Int             @default(0)
   moodState      MoodState       @default(NEUTRAL)
   moodExpiresTurn Int?
   moodNote       String?
-  isHungry       Boolean         @default(false)
-  skipNextMealConsumption Boolean @default(false)
-  lastFineMealTurn Int?
   avatarData     Bytes?
   avatarMimeType String?
   appearance     String?
@@ -249,8 +220,6 @@ model Character {
   turnPingOptIn  Boolean         @default(true)
 
   tags           CharacterTag[]
-  desires        Desire[]
-  tagChangeRequests TagChangeRequest[]
   actions        Action[]
   defaultEffort  DefaultEffort?
   setDefaultsFor DefaultEffort[] @relation("DefaultEffortSetBy")
@@ -307,42 +276,6 @@ model CharacterTag {
   expiresTurn Int?
 
   @@unique([characterId, tagId])
-}
-
-model Desire {
-  id            String       @id @default(cuid())
-  characterId   String
-  character     Character    @relation(fields: [characterId], references: [id])
-  description   String
-  status        DesireStatus @default(ACTIVE)
-  turnNumber    Int?
-  pointsAwarded Int?
-  resultMessage String?
-  gmNotes       String?
-  createdAt     DateTime     @default(now())
-  completedAt   DateTime?
-
-  @@index([status, createdAt])
-  @@index([characterId])
-}
-
-// A player-submitted note that their character's tags need GM attention
-// (wrong, missing, outdated) — reviewed from the Tags tab of /gm/turns,
-// same PENDING -> terminal shape as Desire but without a points award.
-model TagChangeRequest {
-  id                       String                  @id @default(cuid())
-  characterId              String
-  character                Character               @relation(fields: [characterId], references: [id])
-  requestedByDiscordUserId String
-  description              String
-  status                   TagChangeRequestStatus  @default(PENDING)
-  resultMessage            String?
-  gmNotes                  String?
-  createdAt                DateTime                @default(now())
-  resolvedAt               DateTime?
-
-  @@index([status, createdAt])
-  @@index([characterId])
 }
 
 model Turn {

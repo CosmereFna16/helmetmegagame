@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
-import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
+import { getGmSession } from "@/lib/discordGuild";
 import { describeTurn, getOpenTurn } from "@/lib/turn";
 import AdjudicatePanel from "./AdjudicatePanel";
 
@@ -16,17 +16,7 @@ export default async function TurnsPage() {
   if (!session?.discordUserId) redirect("/");
   if (!gm) redirect("/character");
 
-  const [
-    pendingActions,
-    historyActions,
-    pendingDesires,
-    historyDesires,
-    pendingTagRequests,
-    historyTagRequests,
-    allTurns,
-    openTurnRecord,
-    guildMembers,
-  ] = await Promise.all([
+  const [pendingActions, historyActions, openTurnRecord] = await Promise.all([
     prisma.action.findMany({
       where: {
         OR: [
@@ -43,31 +33,7 @@ export default async function TurnsPage() {
       take: HISTORY_TAKE,
       include: { character: { include: { faction: true, zone: true } }, turn: true },
     }),
-    prisma.desire.findMany({
-      where: { status: { in: ["ACTIVE", "PENDING"] } },
-      orderBy: { createdAt: "desc" },
-      include: { character: { include: { faction: true } } },
-    }),
-    prisma.desire.findMany({
-      where: { status: { in: ["COMPLETED", "ABANDONED"] } },
-      orderBy: { createdAt: "desc" },
-      take: HISTORY_TAKE,
-      include: { character: { include: { faction: true } } },
-    }),
-    prisma.tagChangeRequest.findMany({
-      where: { status: "PENDING" },
-      orderBy: { createdAt: "desc" },
-      include: { character: { include: { faction: true } } },
-    }),
-    prisma.tagChangeRequest.findMany({
-      where: { status: "RESOLVED" },
-      orderBy: { createdAt: "desc" },
-      take: HISTORY_TAKE,
-      include: { character: { include: { faction: true } } },
-    }),
-    prisma.turn.findMany({ select: { number: true, phase: true } }),
     getOpenTurn(),
-    listGuildMembers(),
   ]);
 
   const allCharacters = await prisma.character.findMany({
@@ -77,22 +43,6 @@ export default async function TurnsPage() {
   });
 
   const allActions = [...pendingActions, ...historyActions].sort((a, b) => b.createdAt - a.createdAt);
-  const allDesires = [...pendingDesires, ...historyDesires].sort((a, b) => b.createdAt - a.createdAt);
-  const allTagRequests = [...pendingTagRequests, ...historyTagRequests].sort((a, b) => b.createdAt - a.createdAt);
-
-  const usernameById = new Map(guildMembers.map((m) => [m.id, m.username]));
-  const requesterDiscordUserIds = [...new Set(allTagRequests.map((r) => r.requestedByDiscordUserId))];
-  const requesterCharacters = await prisma.character.findMany({
-    where: { discordUserId: { in: requesterDiscordUserIds } },
-    select: { discordUserId: true, name: true, status: true },
-  });
-  const requesterNameById = new Map();
-  for (const c of requesterCharacters) {
-    const existing = requesterNameById.get(c.discordUserId);
-    if (!existing || c.status === "ALIVE") requesterNameById.set(c.discordUserId, c.name);
-  }
-
-  const phaseByTurnNumber = new Map(allTurns.map((t) => [t.number, t.phase]));
 
   const actions = allActions.map((a) => ({
     id: a.id,
@@ -115,37 +65,6 @@ export default async function TurnsPage() {
     turnPhase: a.turn.phase,
   }));
 
-  const desires = allDesires.map((d) => ({
-    id: d.id,
-    characterId: d.characterId,
-    characterName: d.character.name,
-    factionId: d.character.factionId,
-    factionName: d.character.faction?.name ?? "",
-    description: d.description,
-    status: d.status,
-    pointsAwarded: d.pointsAwarded,
-    resultMessage: d.resultMessage,
-    gmNotes: d.gmNotes,
-    turnNumber: d.turnNumber,
-    turnPhase: d.turnNumber != null ? phaseByTurnNumber.get(d.turnNumber) : null,
-  }));
-
-  const tagRequests = allTagRequests.map((r) => ({
-    id: r.id,
-    characterId: r.characterId,
-    characterName: r.character.name,
-    factionId: r.character.factionId,
-    factionName: r.character.faction?.name ?? "",
-    requestedByName:
-      requesterNameById.get(r.requestedByDiscordUserId) ??
-      usernameById.get(r.requestedByDiscordUserId) ??
-      r.requestedByDiscordUserId,
-    description: r.description,
-    status: r.status,
-    resultMessage: r.resultMessage,
-    gmNotes: r.gmNotes,
-  }));
-
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6 sm:p-8">
       <h1 className="text-2xl font-bold">Adjudicate</h1>
@@ -158,7 +77,7 @@ export default async function TurnsPage() {
         </p>
       </section>
 
-      <AdjudicatePanel actions={actions} desires={desires} tagRequests={tagRequests} allCharacters={allCharacters} />
+      <AdjudicatePanel actions={actions} allCharacters={allCharacters} />
     </div>
   );
 }
