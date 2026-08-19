@@ -3,7 +3,8 @@ import Link from "next/link";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
-import { describeTurn, getOpenTurn } from "@/lib/turn";
+import { getOpenTurn } from "@/lib/turn";
+import { describeTurn } from "@/lib/turnFormat";
 import { updateGameConfig, updateCurrentTurn, updateNextTurn, forceAdvanceTurn, wipeGameData } from "./actions";
 
 const WEATHER_OPTIONS = [

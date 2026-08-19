@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
-import { describeTurn, getOpenTurn } from "@/lib/turn";
+import { getOpenTurn } from "@/lib/turn";
+import { describeTurn } from "@/lib/turnFormat";
 import AdjudicatePanel from "./AdjudicatePanel";
 
 // Terminal-status rows only grow for the rest of the month-long game; the

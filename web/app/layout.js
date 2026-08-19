@@ -1,6 +1,7 @@
 import { IBM_Plex_Mono, Source_Serif_4, UnifrakturMaguntia } from "next/font/google";
 import "./globals.css";
-import { getOpenTurn, themeForPhase } from "@/lib/turn";
+import { getOpenTurn } from "@/lib/turn";
+import { themeForPhase } from "@/lib/turnFormat";
 import TagsProvider from "./components/TagsProvider";
 import ConfirmProvider from "./components/ConfirmProvider";
 

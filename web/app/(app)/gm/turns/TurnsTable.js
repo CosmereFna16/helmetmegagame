@@ -4,7 +4,7 @@ import { Fragment, useMemo, useState } from "react";
 import { ScaleIcon, MessageIcon } from "../../../components/icons";
 import CharacterLink from "../../../components/CharacterLink";
 import FactionLink from "../../../components/FactionLink";
-import { formatTurnLabel } from "@/lib/turn";
+import { formatTurnLabel } from "@/lib/turnFormat";
 import { sendGmMessage } from "../actions";
 import MoveEditorModal from "./MoveEditorModal";
 

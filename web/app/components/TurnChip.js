@@ -1,4 +1,4 @@
-import { describeTurn } from "@/lib/turn";
+import { describeTurn } from "@/lib/turnFormat";
 
 export default function TurnChip({ turn }) {
   const { label } = describeTurn(turn);

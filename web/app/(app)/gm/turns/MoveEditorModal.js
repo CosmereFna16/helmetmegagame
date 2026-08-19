@@ -1,6 +1,6 @@
 "use client";
 
-import { formatTurnLabel } from "@/lib/turn";
+import { formatTurnLabel } from "@/lib/turnFormat";
 import CharacterLink from "../../../components/CharacterLink";
 import FactionLink from "../../../components/FactionLink";
 import { updateMove } from "../actions";

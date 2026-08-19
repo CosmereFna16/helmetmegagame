@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { getOpenTurn, describeTurn } from "@/lib/turn";
+import { getOpenTurn } from "@/lib/turn";
+import { describeTurn } from "@/lib/turnFormat";
 import HomeScreen from "./components/HomeScreen";
 
 export default async function Home() {
