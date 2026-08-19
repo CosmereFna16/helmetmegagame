@@ -1,3 +1,18 @@
+# Source of truth for every playable role/faction/threat. Hand-edited;
+# no sync script reads this yet.
+#
+# `weight` (only present on `multiple: true` roles) is the seat cap,
+# expressed as seats allowed per 100 total signed-up players — e.g.
+# `weight: 10` means up to 10 seats at 100 players, scaling proportionally
+# with signup size (future scripting would do something like
+# `round(weight * playerCount / 100)`). `weight: unlimited` means no cap
+# at any scale (chaff roles like Peasant/Bum).
+#
+# `multiple: false` roles get no `weight` field at all — they're a single
+# specific named character (Baron, Bishop, Headman, ...) and always stay
+# at exactly one seat no matter how large the game gets, which is not the
+# same thing as "1 per 100 players". Every role tagged `Leader` is
+# `multiple: false` for this reason.
 zones:
 - name: Fortress
   situation:
@@ -155,6 +170,7 @@ zones:
         your wine and your politics.
       difficulty: easy
       multiple: true
+      weight: 10
       starting_tags:
       - Courtier
       doc_elements:
@@ -168,7 +184,7 @@ zones:
         happy.
       difficulty: easy
       multiple: true
-      parent_role: Courtier
+      weight: 4
       starting_tags:
       - Musician
       doc_elements:
@@ -182,7 +198,7 @@ zones:
         your interstellar federation.
       difficulty: easy
       multiple: true
-      parent_role: Courtier
+      weight: 4
       starting_tags: []
       doc_elements:
       - courtier
@@ -196,6 +212,7 @@ zones:
       - Take Cooking (Skilled) if you want to run the kitchens properly as the Chef.
       difficulty: easy
       multiple: true
+      weight: 15
       starting_tags:
       - Cooking (Basic)
       doc_elements:
@@ -259,6 +276,7 @@ zones:
       - As the
       difficulty: easy
       multiple: true
+      weight: 15
       starting_tags:
       - Fighting (Trained)
       doc_elements:
@@ -273,6 +291,7 @@ zones:
       - Train. One day, you might become a knight.
       difficulty: easy
       multiple: true
+      weight: 8
       starting_tags:
       - Fighting (Basic)
       doc_elements:
@@ -358,6 +377,7 @@ zones:
         person must first confess to you, then spend a whole day in prayer (2 Efforts).
       difficulty: easy
       multiple: true
+      weight: 8
       starting_tags:
       - Chaplain
       - Pious
@@ -417,6 +437,7 @@ zones:
         and action cost.
       difficulty: normal
       multiple: true
+      weight: 10
       starting_tags:
       - Medical (Skilled)
       - Brewing (Skilled)
@@ -472,6 +493,7 @@ zones:
         it from him.'
       difficulty: easy
       multiple: true
+      weight: 8
       starting_tags:
       - Pious
       doc_elements:
@@ -497,6 +519,7 @@ zones:
         it from him.'
       difficulty: easy
       multiple: true
+      weight: 8
       starting_tags:
       - Pious
       doc_elements:
@@ -557,6 +580,7 @@ zones:
         You’ll have to roll to see what the quality ends up being.
       difficulty: normal
       multiple: true
+      weight: 6
       starting_tags:
       - Smithing
       doc_elements:
@@ -578,6 +602,7 @@ zones:
         dedicated rate in one of them—or find your own trade.
       difficulty: easy
       multiple: true
+      weight: unlimited
       starting_tags:
       - Laborer
       starting_points: '+2'
@@ -612,6 +637,7 @@ zones:
         ⬢ amount — add something like +1d6\*2 to your message and it''ll be rolled once you confirm.'
       difficulty: easy
       multiple: true
+      weight: unlimited
       starting_tags:
       - Forester
       - '+3'
@@ -635,6 +661,7 @@ zones:
         themselves, but if dead people are scarce, you can ask the Headman for some food.
       difficulty: easy
       multiple: true
+      weight: 5
       starting_tags:
       - Mortus
       doc_elements:
@@ -648,6 +675,7 @@ zones:
         food and coin.
       difficulty: easy
       multiple: true
+      weight: unlimited
       starting_tags: []
       doc_elements:
       - townstarting
@@ -683,6 +711,7 @@ zones:
         if you're a brewer with ambition.
       difficulty: easy
       multiple: true
+      weight: 10
       starting_tags:
       - Cooking (Basic)
       doc_elements:
@@ -732,6 +761,7 @@ zones:
     - You can leave the Cult at any point, but you must confess everything you've ever done to a preacher,
       lose -10 Tag Points (yes, you can go into negative), and suffer through life-changing, excruciating
       withdrawal.
+    multiple: false
     starting_tags:
     - Follower of Bacchus
     doc_elements:
@@ -755,6 +785,8 @@ zones:
     - You can leave the Cult at any point, but you must confess everything you've ever done to a preacher,
       lose -10 Tag Points (yes, you can go into negative), and suffer through life-changing, excruciating
       withdrawal.
+    multiple: true
+    weight: 6
     starting_tags:
     - Follower of Bacchus
     doc_elements:
@@ -777,6 +809,8 @@ zones:
     - Do not hide your nature or commit murders in the dark. You're not a serial killer.
     - People can't help but love you.
     - Your Desires must relate to violence, glory, control, or competition.
+    multiple: true
+    weight: 3
     starting_tags:
     - Infamous
     doc_elements:
@@ -856,6 +890,7 @@ zones:
       - Clanless, you follow the Bastard, as a warrior, a healer, a herder, or anything else.
       difficulty: easy
       multiple: true
+      weight: unlimited
       starting_tags:
       - Windlander
       - Sign Language
@@ -907,6 +942,7 @@ zones:
         a herder, or simply a camp follower—the spouse or servant of one of the above.'
       difficulty: easy
       multiple: true
+      weight: unlimited
       starting_tags:
       - Windlander
       - Sign Language
@@ -956,6 +992,7 @@ zones:
         a herder, or simply a camp follower—the spouse or servant of one of the above.'
       difficulty: easy
       multiple: true
+      weight: unlimited
       starting_tags:
       - Windlander
       - Sign Language
@@ -967,6 +1004,7 @@ zones:
     intro: You raided a shipment on the way to the Fortress—well done!
     description:
     - You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
+    multiple: false
     starting_tags:
     - Opportunist
     - Leader
@@ -976,6 +1014,8 @@ zones:
     intro: You raided a shipment on the way to the Fortress—well done!
     description:
     - You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
+    multiple: true
+    weight: unlimited
     starting_tags:
     - Opportunist
     doc_elements:
@@ -1012,6 +1052,7 @@ zones:
         if things ever get bad around here.
       difficulty: easy
       multiple: true
+      weight: 6
       starting_tags: []
       doc_elements:
       - townstarting
@@ -1022,6 +1063,7 @@ zones:
       - Make it to the fortress.
       difficulty: easy
       multiple: true
+      weight: unlimited
       starting_tags:
       - Determined
       doc_elements: []
@@ -1031,6 +1073,7 @@ zones:
       - Delve into the Caves for pay.
       difficulty: normal
       multiple: true
+      weight: 8
       starting_tags:
       - Battle-Hardened
       doc_elements: []
@@ -1040,10 +1083,13 @@ zones:
       - Work the Caves.
       difficulty: easy
       multiple: true
+      weight: 10
       starting_tags:
       - Sturdy
       doc_elements: []
   threats:
+  # Monsters (NPC) is GM/NPC-run, not a player-selectable seat, so it has
+  # no multiple/weight fields.
   - name: Monsters (NPC)
     intro: Monsters in the caves, to be hunted.
     description:
@@ -1054,6 +1100,7 @@ zones:
     intro: Loot the caves (dangerous) as a way to fund the Camp's war effort.
     description:
     - Loot the caves (dangerous) as a way to fund the Camp's war effort.
+    multiple: false
     starting_tags:
     - Opportunist
     - Leader
@@ -1062,6 +1109,8 @@ zones:
     intro: Loot the caves (dangerous) as a way to fund the Camp's war effort.
     description:
     - Loot the caves (dangerous) as a way to fund the Camp's war effort.
+    multiple: true
+    weight: unlimited
     starting_tags:
     - Opportunist
     doc_elements: []
