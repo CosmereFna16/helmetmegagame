@@ -12,11 +12,12 @@
     "db:generate": "npm run generate --workspace=db",
     "db:migrate": "npm run migrate --workspace=db",
     "db:migrate:deploy": "npm run migrate:deploy --workspace=db",
-    "db:seed-tags": "node db/prisma/seed-tags.js",
     "db:backfill-roles": "node db/prisma/backfill-roles.js",
     "db:backfill-location-access": "node db/prisma/backfill-location-access.js",
     "db:backfill-persistent-tag": "node db/prisma/backfill-persistent-tag.js",
+    "db:backfill-tag-rework": "node db/prisma/backfill-tag-rework.js",
     "db:sync-locations": "node db/prisma/sync-locations.js",
+    "db:sync-tags": "node db/prisma/sync-tags.js",
     "db:sync-production-doc": "node db/prisma/sync-production-doc.js",
     "db:rebuild-info-channel": "node db/prisma/rebuild-info-channel.js"
   },

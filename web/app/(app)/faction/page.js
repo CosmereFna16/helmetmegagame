@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { prisma, TREASURER_SLUG } from "@lifeweb/db";
+import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import { getMyFactionRole, getSiloAccess } from "@/lib/factionPermissions";
@@ -24,7 +24,7 @@ async function loadFaction(factionId) {
           name: true,
           status: true,
           isLeader: true,
-          tags: { where: { tag: { slug: TREASURER_SLUG } }, select: { id: true } },
+          isTreasurer: true,
         },
       },
     },
@@ -346,7 +346,7 @@ export default async function FactionPage({ searchParams }) {
             </thead>
             <tbody>
               {faction.characters.map((c) => {
-                const treasurer = c.tags.length > 0;
+                const treasurer = c.isTreasurer;
                 return (
                   <tr key={c.id}>
                     <td>
@@ -467,7 +467,7 @@ export default async function FactionPage({ searchParams }) {
           </thead>
           <tbody>
             {faction.characters.map((c) => {
-              const treasurer = c.tags.length > 0;
+              const treasurer = c.isTreasurer;
               return (
                 <tr key={c.id}>
                   <td>

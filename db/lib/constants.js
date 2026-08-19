@@ -1,7 +1,5 @@
 const HUNGERLESS_SLUG = "hungerless";
 const FOLLOWER_OF_BACCHUS_SLUG = "follower-of-bacchus";
-const LEADER_SLUG = "leader";
-const TREASURER_SLUG = "treasurer";
 const NOBILITY_SLUG = "nobility";
 const ATE_MEAL_SLUG = "ate-meal";
 const TIPSY_SLUG = "tipsy";
@@ -9,7 +7,6 @@ const ALCOHOLIC_SLUG = "alcoholic";
 const MORTUS_SLUG = "mortus";
 const DRAINED_SLUG = "drained";
 const RADIO_SLUG = "radio";
-const COURTIER_SLUG = "courtier";
 const MANOR_SLUG = "manor";
 const ARTHRITIS_SLUG = "arthritis";
 const LABORER_SLUG = "laborer";
@@ -21,8 +18,6 @@ const HUNTER_SLUG = "hunter";
 module.exports = {
   HUNGERLESS_SLUG,
   FOLLOWER_OF_BACCHUS_SLUG,
-  LEADER_SLUG,
-  TREASURER_SLUG,
   NOBILITY_SLUG,
   ATE_MEAL_SLUG,
   TIPSY_SLUG,
@@ -30,7 +25,6 @@ module.exports = {
   MORTUS_SLUG,
   DRAINED_SLUG,
   RADIO_SLUG,
-  COURTIER_SLUG,
   MANOR_SLUG,
   ARTHRITIS_SLUG,
   LABORER_SLUG,

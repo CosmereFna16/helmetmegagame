@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { prisma, LEADER_SLUG, TREASURER_SLUG } from "@lifeweb/db";
+import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import { getMyFactionRole, getSiloAccess } from "@/lib/factionPermissions";
@@ -26,26 +26,9 @@ export async function setFactionLeader(formData) {
   const character = await prisma.character.findUnique({ where: { id: characterId } });
   if (!character || character.factionId !== factionId) return;
 
-  const [leaderTag, previousLeaders] = await Promise.all([
-    prisma.tag.findUnique({ where: { slug: LEADER_SLUG } }),
-    prisma.character.findMany({ where: { factionId, isLeader: true }, select: { id: true } }),
-  ]);
-
   await prisma.$transaction([
     prisma.character.updateMany({ where: { factionId, isLeader: true }, data: { isLeader: false } }),
     prisma.character.update({ where: { id: characterId }, data: { isLeader: true } }),
-    ...(leaderTag
-      ? [
-          prisma.characterTag.deleteMany({
-            where: { tagId: leaderTag.id, characterId: { in: previousLeaders.map((c) => c.id) } },
-          }),
-          prisma.characterTag.upsert({
-            where: { characterId_tagId: { characterId, tagId: leaderTag.id } },
-            update: {},
-            create: { characterId, tagId: leaderTag.id, source: "GM_GRANT" },
-          }),
-        ]
-      : []),
   ]);
 
   await prisma.auditLog.create({
@@ -60,7 +43,7 @@ export async function setFactionLeader(formData) {
   revalidatePath("/faction");
 }
 
-// Grants or revokes the Treasurer tag for a faction member — callable by the
+// Grants or revokes Treasurer for a faction member — callable by the
 // faction's own Leader (checked via getMyFactionRole, not just GMs) since
 // delegating Silo access is meant to be a Leader's call, not a GM errand.
 export async function setTreasurer(formData) {
@@ -79,18 +62,7 @@ export async function setTreasurer(formData) {
   const character = await prisma.character.findUnique({ where: { id: characterId } });
   if (!character || character.factionId !== factionId) return;
 
-  const treasurerTag = await prisma.tag.findUnique({ where: { slug: TREASURER_SLUG } });
-  if (!treasurerTag) return;
-
-  if (grant) {
-    await prisma.characterTag.upsert({
-      where: { characterId_tagId: { characterId, tagId: treasurerTag.id } },
-      update: {},
-      create: { characterId, tagId: treasurerTag.id, source: gm && !isLeader ? "GM_GRANT" : "LEADER_GRANT" },
-    });
-  } else {
-    await prisma.characterTag.deleteMany({ where: { characterId, tagId: treasurerTag.id } });
-  }
+  await prisma.character.update({ where: { id: characterId }, data: { isTreasurer: grant } });
 
   await prisma.auditLog.create({
     data: {

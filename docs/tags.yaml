@@ -1,0 +1,420 @@
+# Master source for the Tag/TagGroup catalog. Hand-edited; synced into
+# Postgres by db/lib/syncTags.js#syncTagsFromYaml (npm run db:sync-tags),
+# same non-destructive upsert-by-slug contract as docs/locations.yaml:
+# removing an entry here never deletes its DB row, it just stops getting
+# updated. `slug` is the stable match key across syncs.
+#
+# `categories` is validation-only — syncTagsFromYaml checks every tag/group's
+# `category` against this list, but categories aren't their own DB table.
+#
+# `groups` are optional and scoped to one category, purely for display
+# coloring (see web/app/globals.css's --tag-<color> tokens and TagChip.js).
+# A tag with no `group` renders uncolored.
+#
+# `parentTag` vs `requiredTag` on a tag are two different relations:
+#   - parentTag: sequential tier chain (Fighting (Basic) -> (Trained) -> ...)
+#     — acquiring a tier is meant to replace the previous one, not stack.
+#   - requiredTag: non-replacing prerequisite — you must already hold
+#     requiredTag, but acquiring this tag does NOT remove/replace it (e.g.
+#     Fighting (Archer) requires Fighting (Basic) but coexists with
+#     Fighting (Skilled)). A TagGroup can also carry its own requiredTag to
+#     gate every tag in that group at once (e.g. a whole "Cultist" group
+#     hidden behind a membership tag) — no group currently uses this, it's
+#     just supported.
+#
+# Neither relation is enforced by any code yet — there's no player-facing
+# purchase flow. `purchasable`/`purchasableAfterStart` are catalog data for
+# a future store to read, same idea.
+
+categories:
+  - slug: meta
+    name: Meta
+  - slug: general
+    name: General
+  - slug: skills
+    name: Skills
+  - slug: status
+    name: Status
+  - slug: items
+    name: Items
+  - slug: companions
+    name: Companions
+
+groups:
+  - slug: general-social
+    name: Social
+    category: general
+    color: null
+  - slug: status-health
+    name: Health
+    category: status
+    color: rose
+  - slug: status-food
+    name: Food
+    category: status
+    color: amber
+  - slug: status-buffs
+    name: Buffs
+    category: status
+    color: sage
+  - slug: status-debuffs
+    name: Debuffs
+    category: status
+    color: slate
+
+tags:
+  # --- Meta ---------------------------------------------------------------
+  - slug: hungerless
+    name: Hungerless
+    category: meta
+    description: "Never flagged hungry, even with insufficient resources."
+    pointCost: 0
+    purchasable: false
+
+  - slug: follower-of-bacchus
+    name: Follower of Bacchus
+    category: meta
+    description: "Unlocks the Bacchus tag category. Desire completions grant +5 tag points instead of +3."
+    pointCost: 0
+    purchasable: false
+
+  - slug: nobility
+    name: Nobility
+    category: meta
+    description: "Expects a fine meal at least every 3 turns — go without and it sours into Unhappy until you eat again."
+    pointCost: 0
+    purchasable: false
+
+  - slug: alcoholic
+    name: Alcoholic
+    category: meta
+    description: "Built up a tolerance — immune to Tipsy's combat penalty."
+    pointCost: 0
+    purchasable: false
+
+  - slug: romance-disabled
+    name: Romance Disabled
+    category: meta
+    description: "Opts this character out of romance plotlines entirely."
+    pointCost: 0
+    purchasable: false
+
+  - slug: turn-ping
+    name: Turn Ping
+    category: meta
+    description: "Wants a ping when a new turn opens."
+    pointCost: 0
+    purchasable: false
+
+  # --- General --------------------------------------------------------------
+  - slug: mortus
+    name: Mortus
+    category: general
+    description: "One of the Mortii — tends to the dead and to the Lifeweb beneath Ravenheart."
+    pointCost: 0
+    purchasable: false
+
+  - slug: manor
+    name: Manor
+    category: general
+    description: "A household of your own within the Fortress."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  # --- Skills ---------------------------------------------------------------
+  - slug: windlander
+    name: Windlander
+    category: skills
+    description: "You may move and live freely in the Windlands. Additionally, weather conditions restrict you less than a normal person."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: sign-language
+    name: Sign Language
+    category: skills
+    description: "You know sign language, the ancestral language of the Windlanders."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: radio
+    name: Radio
+    category: skills
+    description: "Grants access to the #radio channel."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: laborer
+    name: Laborer
+    category: skills
+    description: "Works harder than most at every trade — a middling bonus to Farming, Fishing, and Herding production."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: laborer-farming
+    name: Laborer (Farming)
+    category: skills
+    description: "Specializes in Farming — produces at a dedicated farmer's rate."
+    pointCost: 2
+    requiredTag: laborer
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: laborer-fishing
+    name: Laborer (Fishing)
+    category: skills
+    description: "Specializes in Fishing — produces at a dedicated fisherman's rate."
+    pointCost: 2
+    requiredTag: laborer
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: laborer-herding
+    name: Laborer (Herding)
+    category: skills
+    description: "Specializes in Herding — produces at a dedicated herder's rate."
+    pointCost: 2
+    requiredTag: laborer
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: hunter
+    name: Hunter
+    category: skills
+    description: "Tracks game through the wilds — triples Hunting production."
+    pointCost: 0
+    purchasable: false
+
+  # Fighting tier chain
+  - slug: fighting-basic
+    name: Fighting (Basic)
+    category: skills
+    description: "Can hold a weapon and defend yourself in a pinch."
+    pointCost: 2
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+  - slug: fighting-trained
+    name: Fighting (Trained)
+    category: skills
+    description: "Formally trained combat — a Watchman's or Sheriff's baseline."
+    pointCost: 2
+    parentTag: fighting-basic
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+  - slug: fighting-skilled
+    name: Fighting (Skilled)
+    category: skills
+    description: "A seasoned fighter, dangerous in a real fight."
+    pointCost: 2
+    parentTag: fighting-trained
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+  - slug: fighting-expert
+    name: Fighting (Expert)
+    category: skills
+    description: "A master of arms — few in the barony can match them blade for blade."
+    pointCost: 2
+    parentTag: fighting-skilled
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+  - slug: fighting-legendary
+    name: Fighting (Legendary)
+    category: skills
+    description: "A living legend of combat, spoken of in the same breath as the barony's greatest champions."
+    pointCost: 2
+    parentTag: fighting-expert
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+  # Specialized branch — prerequisite only, does not chain-replace any
+  # Fighting tier (a character can hold Fighting (Skilled) and Fighting
+  # (Archer) at the same time). Demonstrates requiredTag vs. parentTag.
+  - slug: fighting-archer
+    name: Fighting (Archer)
+    category: skills
+    description: "Specialized in ranged combat — deadly with a bow at range."
+    pointCost: 2
+    requiredTag: fighting-basic
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Medical tier chain
+  - slug: medical-basic
+    name: Medical (Basic)
+    category: skills
+    description: "Can bandage a wound and treat minor ailments."
+    pointCost: 2
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+  - slug: medical-skilled
+    name: Medical (Skilled)
+    category: skills
+    description: "Trained medical care — can treat serious injuries and illness."
+    pointCost: 2
+    parentTag: medical-basic
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+  - slug: medical-excellent
+    name: Medical (Excellent)
+    category: skills
+    description: "Expert-level medicine, on par with the Sanctuary's own."
+    pointCost: 2
+    parentTag: medical-skilled
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Brewing tier chain
+  - slug: brewing-basic
+    name: Brewing (Basic)
+    category: skills
+    description: "Can brew basic alcohol (beer, ale, mead) and basic tonics."
+    pointCost: 2
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+  - slug: brewing-skilled
+    name: Brewing (Skilled)
+    category: skills
+    description: "Can brew advanced alcohol (wine and other refined drinks) and advanced tonics, which call for hard-to-find ingredients."
+    pointCost: 2
+    parentTag: brewing-basic
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Cooking tier chain
+  - slug: cooking-basic
+    name: Cooking (Basic)
+    category: skills
+    description: "Can put together an edible meal."
+    pointCost: 2
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+  - slug: cooking-skilled
+    name: Cooking (Skilled)
+    category: skills
+    description: "Skilled cooking — meals worth the coin."
+    pointCost: 2
+    parentTag: cooking-basic
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+
+  # --- Status -----------------------------------------------------------
+  - slug: ate-meal
+    name: Ate Meal
+    category: status
+    group: status-food
+    description: "Won't go hungry next turn — ate a proper meal this turn."
+    pointCost: 0
+    purchasable: false
+
+  - slug: tipsy
+    name: Tipsy
+    category: status
+    group: status-debuffs
+    description: "Immune to Unhappy for 4 turns. Slightly worse at combat."
+    pointCost: 0
+    purchasable: false
+
+  - slug: drained
+    name: Drained
+    category: status
+    group: status-debuffs
+    description: "You are weak and your vision is blurry."
+    pointCost: 0
+    purchasable: false
+
+  - slug: arthritis
+    name: Arthritis
+    category: status
+    group: status-health
+    description: "Stiff, aching joints — a lifetime of wear catching up with you."
+    pointCost: 0
+    purchasable: false
+
+  # --- Companions -------------------------------------------------------
+  - slug: windlander-horse
+    name: Windlander (Horse)
+    category: companions
+    description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending an Effort. Requires Windlander."
+    pointCost: 1
+    requiredTag: windlander
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: horse
+    name: Horse
+    category: companions
+    description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending an Effort, but you will be easily visible."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: bird
+    name: Bird
+    category: companions
+    description: "You have a highly-trained bird."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: dog
+    name: Dog
+    category: companions
+    description: "You have a highly-trained dog. It has a good sense of smell."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: follower
+    name: Follower
+    category: companions
+    description: "You have a follower, servant, or friend. You control them."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: follower-cook
+    name: Follower (Cook)
+    category: companions
+    description: "Your follower has the Cooking (Basic) tag. Requires Follower."
+    pointCost: 1
+    requiredTag: follower
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: follower-laborer
+    name: Follower (Laborer)
+    category: companions
+    description: "Your follower has the Laborer tag. Requires Follower."
+    pointCost: 1
+    requiredTag: follower
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: follower-goon
+    name: Follower (Goon)
+    category: companions
+    description: "Your follower has the Fighting (Basic) tag. Requires Follower."
+    pointCost: 1
+    requiredTag: follower
+    purchasable: true
+    purchasableAfterStart: true
+
+  # --- Items --------------------------------------------------------------
+  # Empty for now — no existing tag maps here. Ready for future
+  # tradeable-item tags (set `tradeable: true` on those).

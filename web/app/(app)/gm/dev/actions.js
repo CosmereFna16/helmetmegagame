@@ -1,7 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma, advanceTurn as advanceTurnInDb, runFullChannelWipe, syncLocationsFromYaml } from "@lifeweb/db";
+import {
+  prisma,
+  advanceTurn as advanceTurnInDb,
+  runFullChannelWipe,
+  syncLocationsFromYaml,
+  syncTagsFromYaml,
+} from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import {
@@ -156,13 +162,14 @@ const DEFAULT_GAME_CONFIG = {
 // written to (#archive, #turns, and every Location's plain/public/private
 // channel — messages, forum posts, and threads, public or private), and
 // opens a fresh Turn 1/DAWN. Then re-syncs Zone/Location rows from
-// docs/locations.yaml (syncLocationsFromYaml, @lifeweb/db) so the game
-// starts from the canonical location set — still create/update-only, never
-// destructive, so a Zone/Location that existed before but isn't in the yaml
-// (or its Discord provisioning) is left untouched, not deleted/deprovisioned.
-// Leaves the Faction rows and the Tag catalog untouched. Faction silos reset
-// to 0, same "back to day one" treatment as the Turn counter, rather than
-// carrying over stale economy numbers.
+// docs/locations.yaml (syncLocationsFromYaml, @lifeweb/db) and Tag/TagGroup
+// rows from docs/tags.yaml (syncTagsFromYaml) so the game starts from the
+// canonical location and tag catalog sets — both are still
+// create/update-only, never destructive, so an entry that existed before
+// but isn't in its yaml is left untouched, not deleted. Leaves the Faction
+// rows untouched. Faction silos reset to 0, same "back to day one"
+// treatment as the Turn counter, rather than carrying over stale economy
+// numbers.
 //
 // Requires typing the literal string "WIPE" in the confirm field — this is
 // the most destructive action in the Dev Panel and has no undo.
@@ -216,12 +223,16 @@ export async function wipeGameData(formData) {
     console.error("Location sync failed during game wipe:", err);
     return null;
   });
+  const tagSync = await syncTagsFromYaml(prisma).catch((err) => {
+    console.error("Tag sync failed during game wipe:", err);
+    return null;
+  });
 
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: session.discordUserId,
       actionType: "superadmin_game_wipe",
-      details: locationSync ? { locationSync } : undefined,
+      details: locationSync || tagSync ? { locationSync, tagSync } : undefined,
     },
   });
 

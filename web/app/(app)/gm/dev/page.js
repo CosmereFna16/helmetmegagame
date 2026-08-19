@@ -168,8 +168,8 @@ export default async function DevPanelPage() {
           defaults; deletes each character&apos;s personal Discord role and nickname; clears every
           message in #archive and #turns; and deletes every message, forum post, and thread (public or
           private) in every provisioned Location channel. Opens a fresh Turn 1, Dawn. Factions, Zones,
-          Locations, the channels/categories themselves, and the Tag catalog are left in place, just
-          emptied out. This cannot be undone.
+          Locations, and the channels/categories themselves are left in place, just emptied out; the Tag
+          catalog is re-synced from docs/tags.yaml. This cannot be undone.
         </p>
         <form action={wipeGameData} className="flex flex-wrap items-end gap-3">
           <label className="field">

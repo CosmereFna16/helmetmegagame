@@ -16,6 +16,16 @@
   --accent: #c9552b;
   --mood-happy: #7fa87a;
   --row-hover: rgba(255, 255, 255, 0.04);
+
+  /* Fixed palette for TagGroup.color (see TagChip.js) — muted, in the same
+     family as roleColor.js's character-role gradient, never referenced
+     directly by hex outside this block. */
+  --tag-rose: #c97a86;
+  --tag-amber: #cf9f56;
+  --tag-cyan: #6fa8ab;
+  --tag-violet: #9c88c4;
+  --tag-sage: #8bab76;
+  --tag-slate: #7f92a3;
 }
 
 /* Dawn: the same fire at first light — bright warm parchment ground, same
@@ -30,6 +40,14 @@
   --accent: #b8481f;
   --mood-happy: #4f6b46;
   --row-hover: rgba(0, 0, 0, 0.03);
+
+  /* See the [data-theme="dusk"] block above for what these are for. */
+  --tag-rose: #a14f5c;
+  --tag-amber: #a4762c;
+  --tag-cyan: #3f7678;
+  --tag-violet: #6c4f94;
+  --tag-sage: #5c7a45;
+  --tag-slate: #56697a;
 }
 
 html,

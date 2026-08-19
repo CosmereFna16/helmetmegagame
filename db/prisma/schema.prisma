@@ -208,6 +208,7 @@ model Character {
   discordRoleId  String?         @unique
 
   isLeader       Boolean         @default(false)
+  isTreasurer    Boolean         @default(false)
   status         CharacterStatus @default(ALIVE)
   resources      Int             @default(0)
   moodState      MoodState       @default(NEUTRAL)
@@ -233,19 +234,29 @@ model Character {
   @@index([status])
 }
 
+// Master-sourced from docs/tags.yaml (db/lib/syncTags.js#syncTagsFromYaml,
+// npm run db:sync-tags) — same non-destructive upsert-by-slug contract as
+// Location/docs/locations.yaml: removing a tag from the YAML never deletes
+// its row here.
 model Tag {
   id          String   @id @default(cuid())
   name        String   @unique
-  slug        String?  @unique
+  slug        String   @unique
   description String?
-  category    String?
+  category    String
   pointCost   Int      @default(0)
 
   // Shown to other players who 🔍-react to this character's proxied
   // messages (see bot/src/events/messageReactionAdd.js), alongside
   // Character.appearance. Defaults closed so identity/status tags (Mortus,
-  // Leader, Drained, ...) stay hidden unless explicitly opened up.
+  // Drained, ...) stay hidden unless explicitly opened up.
   visibleOnInspect Boolean @default(false)
+
+  // Optional grouping within a category (e.g. Status -> Health/Food/Buffs/
+  // Debuffs), purely for display coloring (see TagGroup.color / TagChip.js)
+  // — groupless tags render with no color accent.
+  groupId String?
+  group   TagGroup? @relation(fields: [groupId], references: [id])
 
   // For sequential/tiered skill tags (Cooking (Basic) -> Cooking (Skilled)):
   // the tier this one upgrades from. Buying/granting a tag with a parent
@@ -254,7 +265,67 @@ model Tag {
   parentTag   Tag?     @relation("TagUpgrade", fields: [parentTagId], references: [id])
   upgrades    Tag[]    @relation("TagUpgrade")
 
-  characters CharacterTag[]
+  // Non-replacing prerequisite, distinct from the parentTag chain above: a
+  // character must already hold requiredTag before this one is meant to be
+  // obtainable, but acquiring this one does NOT remove/replace requiredTag
+  // (e.g. Fighting (Archer) requires Fighting (Basic) but coexists with
+  // Fighting (Skilled)). Also the mechanism behind whole-group gating — see
+  // TagGroup.requiredTag — for hiding an entire group behind a membership
+  // tag. Not enforced anywhere yet (no purchase flow exists); catalog data
+  // only.
+  requiredTagId String?
+  requiredTag   Tag?   @relation("TagPrerequisite", fields: [requiredTagId], references: [id])
+  unlocks       Tag[]  @relation("TagPrerequisite")
+
+  // Items-category flag for a future trade flow — no transfer logic exists
+  // yet, this just marks which tags are candidates for it.
+  tradeable Boolean @default(false)
+
+  // Whether a player could ever buy this via point-buy, and (only meaningful
+  // when true) whether it stays buyable once the game is underway vs. being
+  // a starting-package-only pick. No purchase flow exists yet — catalog data
+  // only, for a future store to read.
+  purchasable           Boolean @default(false)
+  purchasableAfterStart Boolean @default(true)
+
+  // Catalog-level default duration in turns, for tags that auto-expire once
+  // granted (mirrors CharacterTag.expiresTurn's "absolute turn number, swept
+  // by resolveNeeds()" convention). Purely additive — does not replace the
+  // bespoke GameConfig.moodDurationTurns/lifewebDrainedDurationTurns knobs
+  // those two specific mechanics already use.
+  defaultDurationTurns Int?
+
+  characters   CharacterTag[]
+  gatedGroups  TagGroup[]     @relation("TagGroupGate")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Optional grouping of tags within a single category, purely for display
+// coloring (see TagChip.js) — e.g. the Status category's Health/Food/Buffs/
+// Debuffs groups. Also master-sourced from docs/tags.yaml, same
+// non-destructive upsert-by-slug contract as Tag.
+model TagGroup {
+  id   String @id @default(cuid())
+  slug String @unique
+  name String
+
+  // Must match one of the categories declared at the top of docs/tags.yaml —
+  // a plain string, not a DB-enforced FK, same as Tag.category.
+  category String
+
+  // Palette key referencing one of the fixed --tag-<color> tokens in
+  // web/app/globals.css (e.g. "rose", "amber") — null means uncolored.
+  color String?
+
+  // Whole-group gate: every tag in this group stays hidden until the
+  // character holds requiredTag (e.g. an entire "Cultist" group behind a
+  // membership tag). Not enforced anywhere yet — catalog data only.
+  requiredTagId String?
+  requiredTag   Tag?    @relation("TagGroupGate", fields: [requiredTagId], references: [id])
+
+  tags Tag[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

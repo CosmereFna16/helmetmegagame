@@ -6,7 +6,15 @@ import { prisma } from "@lifeweb/db";
 // cache client-side rather than looking up one at a time.
 export async function GET() {
   const tags = await prisma.tag.findMany({
-    select: { id: true, slug: true, name: true, description: true, pointCost: true, category: true },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      description: true,
+      pointCost: true,
+      category: true,
+      group: { select: { slug: true, name: true, color: true } },
+    },
   });
   return NextResponse.json(tags);
 }
