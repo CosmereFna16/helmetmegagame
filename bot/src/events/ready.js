@@ -1,7 +1,6 @@
 const cron = require("node-cron");
 const { ActivityType } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
-const { syncFactionsForGuild } = require("../lib/factionSync");
 const { syncNicknamesForGuild } = require("../lib/nickname");
 const { advanceTurn } = require("../lib/turnEngine");
 const { ensureLocationPrompt } = require("../lib/location");
@@ -28,8 +27,6 @@ module.exports = {
     await refreshLocationChannels().catch((err) => console.error("Failed to refresh location channels:", err));
 
     for (const guild of client.guilds.cache.values()) {
-      await syncFactionsForGuild(guild);
-      console.log(`Synced factions for guild ${guild.name}`);
       await syncNicknamesForGuild(guild).catch((err) => console.error("Failed to sync nicknames:", err));
       await ensureLocationPrompt(guild).catch((err) => console.error("Failed to ensure location prompt:", err));
       await registerCommands(guild).catch((err) => console.error("Failed to register slash commands:", err));

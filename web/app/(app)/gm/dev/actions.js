@@ -1,7 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma, advanceTurn as advanceTurnInDb, HUNGERLESS_SLUG, RADIO_SLUG } from "@lifeweb/db";
+import {
+  prisma,
+  advanceTurn as advanceTurnInDb,
+  runFullChannelWipe,
+  HUNGERLESS_SLUG,
+  RADIO_SLUG,
+} from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import {
@@ -140,15 +146,43 @@ export async function forceAdvanceTurn() {
   revalidatePath("/", "layout");
 }
 
+// Matches GameConfig's schema @default values for the balance-knob fields
+// surfaced on the "Game Config" form above — deliberately excludes
+// nextWeather/nextTurnNote (handled separately, "Next Turn" section) and the
+// Discord provisioning pointers (turnsAnnouncementChannelId/MessageId,
+// locationPromptChannelId/MessageId, radioChannelId): those self-heal or, in
+// radioChannelId's case, would actively cause harm if cleared — nulling it
+// makes provisionRadioChannel() (web/lib/discordGuild.js) create a *second*
+// #radio channel next time, since it only checks the stored id, never looks
+// up an existing channel by name.
+const DEFAULT_GAME_CONFIG = {
+  startingTagPoints: 0,
+  resourceConsumptionPerTurn: 1,
+  moodDurationTurns: 2,
+  hungerMovePenalty: -1,
+  moodMovePenalty: -1,
+  moodMoveBonus: 1,
+  alcoholCost: 3,
+  alcoholShieldDurationTurns: 4,
+  lifewebBlood: 100,
+  lifewebDecayPerTurn: 10,
+  lifewebDrainedDurationTurns: 4,
+  messageWipeEnabled: false,
+  productionCoefficient: 1,
+};
+
 // Full game restart for dev/testing: wipes every player- and turn-scoped
 // row (characters, tags-on-characters, desires, tag change requests, Moves,
-// default efforts, notes, DM log, audit log, silo history) and opens a fresh
-// Turn 1/DAWN, but leaves structural/config data untouched — GameConfig's
-// balance knobs, Faction/Zone/Location rows (and their Discord provisioning:
-// channels/categories are never touched, only re-emptied of characters), and
-// the Tag catalog itself. Faction silos reset to 0 and Lifeweb Blood resets
-// to full (100), same "back to day one" treatment as the Turn counter,
-// rather than carrying over stale economy/world-state numbers.
+// default efforts, notes, DM log, audit log, silo history), resets
+// GameConfig's balance knobs to their schema defaults, clears every
+// Discord channel this game has actually written to (#archive, #turns, and
+// every Location's plain/public/private channel — messages, forum posts,
+// and threads, public or private), and opens a fresh Turn 1/DAWN. Leaves
+// untouched: Faction/Zone/Location rows and their Discord provisioning
+// (channels/categories themselves are never deleted, only emptied),
+// and the Tag catalog. Faction silos reset to 0, same "back to day one"
+// treatment as the Turn counter, rather than carrying over stale economy
+// numbers.
 //
 // Requires typing the literal string "WIPE" in the confirm field — this is
 // the most destructive action in the Dev Panel and has no undo.
@@ -164,13 +198,16 @@ export async function wipeGameData(formData) {
   });
 
   // Best-effort Discord cleanup first, while the Character rows (and their
-  // discordRoleId/discordUserId) still exist to look up.
-  await Promise.all(
-    characters.flatMap((c) => [
+  // discordRoleId/discordUserId) still exist to look up. Channel wiping is
+  // its own slow, sequential pass (see fullWipe.js) so it runs alongside
+  // the per-character role/nickname cleanup rather than blocking it.
+  await Promise.all([
+    ...characters.flatMap((c) => [
       c.discordRoleId ? deleteCharacterRole(c.discordRoleId).catch(() => {}) : null,
       updateGuildNickname(c.discordUserId, null).catch(() => {}),
     ]).filter(Boolean),
-  );
+    runFullChannelWipe(prisma).catch((err) => console.error("Full channel wipe failed:", err)),
+  ]);
 
   // Deletes ordered so dependents go before the Character/Turn rows they
   // reference (Prisma doesn't cascade by default here).
@@ -189,7 +226,7 @@ export async function wipeGameData(formData) {
     prisma.faction.updateMany({ data: { silo: 0 } }),
     prisma.gameConfig.update({
       where: { id: 1 },
-      data: { nextWeather: null, nextTurnNote: null, lifewebBlood: 100 },
+      data: { ...DEFAULT_GAME_CONFIG, nextWeather: null, nextTurnNote: null },
     }),
   ]);
 
@@ -354,7 +391,6 @@ export async function updateFaction(formData) {
     where: { id: factionId },
     data: {
       name: str(formData, "name").trim(),
-      discordRoleId: str(formData, "discordRoleId").trim(),
       silo: newSilo,
       parentFactionId,
     },
@@ -380,10 +416,7 @@ export async function updateFaction(formData) {
 }
 
 // Reassigns the faction's members to "Unaffiliated" (same pattern as
-// removeCharacterFromFaction in faction/actions.js) before deleting the row
-// — for stray factions auto-synced from a Discord role that was never meant
-// to be a game faction (e.g. an opt-in notification role), not for factions
-// with real in-game meaning.
+// removeCharacterFromFaction in faction/actions.js) before deleting the row.
 export async function deleteFaction(formData) {
   const session = await requireSuperadmin();
 

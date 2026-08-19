@@ -1,6 +1,5 @@
 "use server";
 
-import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma, LEADER_SLUG, TREASURER_SLUG } from "@lifeweb/db";
@@ -21,7 +20,7 @@ export async function createFaction(formData) {
   if (!name) return;
 
   const faction = await prisma.faction.create({
-    data: { name, discordRoleId: `manual:${randomUUID()}` },
+    data: { name },
   });
 
   await prisma.auditLog.create({

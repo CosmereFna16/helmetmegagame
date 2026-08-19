@@ -183,10 +183,12 @@ export default async function DevPanelPage() {
         <h2 className="mb-3 font-bold" style={{ color: "var(--accent)" }}>Restart Game</h2>
         <p className="mb-3 text-sm" style={{ color: "var(--muted)" }}>
           Wipes every character, Move, Desire, tag change request, default effort, note, DM log, and
-          audit log entry; resets every Faction&apos;s Silo to 0 and Lifeweb Blood to 100; deletes each
-          character&apos;s personal Discord role and nickname; and opens a fresh Turn 1, Dawn. Factions,
-          Zones, Locations, provisioned Discord channels, the Tag catalog, and Game Config above are left
-          untouched. This cannot be undone.
+          audit log entry; resets every Faction&apos;s Silo to 0 and the Game Config above to its
+          defaults; deletes each character&apos;s personal Discord role and nickname; clears every
+          message in #archive and #turns; and deletes every message, forum post, and thread (public or
+          private) in every provisioned Location channel. Opens a fresh Turn 1, Dawn. Factions, Zones,
+          Locations, the channels/categories themselves, and the Tag catalog are left in place, just
+          emptied out. This cannot be undone.
         </p>
         <form action={wipeGameData} className="flex flex-wrap items-end gap-3">
           <label className="field">

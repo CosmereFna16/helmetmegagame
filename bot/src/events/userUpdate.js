@@ -2,7 +2,7 @@ const { syncMemberNickname } = require("../lib/nickname");
 
 // Fires the instant a Discord user's username/global name/avatar changes —
 // re-syncs their nickname right away rather than waiting for the next bot
-// restart, the same way guildRoleUpdate.js keeps Faction names live.
+// restart.
 module.exports = {
   name: "userUpdate",
   async execute(oldUser, newUser) {

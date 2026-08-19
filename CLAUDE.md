@@ -58,7 +58,9 @@ Environment variables (see `.env.example`): `DATABASE_URL`, `DISCORD_TOKEN`, `DI
 
 ## How the bot populates the database
 
-On `ready` and on `guildCreate` (bot invited to a new server), the bot upserts a `GameConfig` singleton row and syncs every non-managed Discord role in the guild into a `Faction` row (`bot/src/lib/factionSync.js`), keeping it live via `guildRoleCreate`/`guildRoleUpdate`/`guildRoleDelete`. This means plugging the bot into a server immediately populates Factions with no manual setup. `guildMemberAdd` writes a `member_joined` `AuditLog` entry. The `GuildMembers` intent is privileged — it must be enabled for the bot application in the Discord Developer Portal (Bot -> Privileged Gateway Intents -> Server Members Intent) or the bot will fail to log in.
+On `ready`, the bot upserts a `GameConfig` singleton row. `guildMemberAdd` writes a `member_joined` `AuditLog` entry. The `GuildMembers` intent is privileged — it must be enabled for the bot application in the Discord Developer Portal (Bot -> Privileged Gateway Intents -> Server Members Intent) or the bot will fail to log in.
+
+`Faction` rows have no connection to Discord roles — they're a pure Lifeweb game-state concept, created/edited/deleted manually by GMs on `/faction` and `/gm/dev/factions` (`web/app/(app)/faction/actions.js`, `web/app/(app)/gm/dev/actions.js`). Discord's native roles (used for faction pings, etc.) are independent and unmanaged by Lifeweb.
 
 ## Web app auth
 
@@ -74,7 +76,7 @@ This requires the `MESSAGE_CONTENT` privileged intent enabled for the bot applic
 
 ## Nickname sync
 
-Every `ALIVE` named character's Discord server nickname is kept as `{base} | {characterName}` — `base` is `Character.preferredNickname` if the player set one on `/character`, else their Discord display name — truncated to fit Discord's 32-char cap (both halves shrink proportionally, not just one). Nothing here polls: `bot/src/lib/nickname.js#syncMemberNickname` is called instantly from `bot/src/events/userUpdate.js` (fires the moment a player's Discord username/display name changes) and from `guildMemberAdd.js` (rejoins), the same event-driven pattern as everything else in this bot (`isTupperChannel`/`isSummaryChannel`, faction sync, action confirms). `web/lib/discordGuild.js#syncCharacterNickname` does the REST-based equivalent immediately after a character is created or its name/nickname is edited on `/character`, so saves reflect in Discord without waiting on any bot event. `bot/src/events/ready.js` also runs a one-time bulk `syncNicknamesForGuild` on every connect/reconnect, alongside the existing `syncFactionsForGuild` call — a catch-up resync for anything missed while the bot was offline, not a recurring tick. `buildNickname()` is duplicated by hand between `bot/src/lib/nickname.js` and `web/lib/discordGuild.js`, same convention as `isTupperChannel`/`isSummaryChannel`.
+Every `ALIVE` named character's Discord server nickname is kept as `{base} | {characterName}` — `base` is `Character.preferredNickname` if the player set one on `/character`, else their Discord display name — truncated to fit Discord's 32-char cap (both halves shrink proportionally, not just one). Nothing here polls: `bot/src/lib/nickname.js#syncMemberNickname` is called instantly from `bot/src/events/userUpdate.js` (fires the moment a player's Discord username/display name changes) and from `guildMemberAdd.js` (rejoins), the same event-driven pattern as everything else in this bot (`isTupperChannel`/`isSummaryChannel`, action confirms). `web/lib/discordGuild.js#syncCharacterNickname` does the REST-based equivalent immediately after a character is created or its name/nickname is edited on `/character`, so saves reflect in Discord without waiting on any bot event. `bot/src/events/ready.js` also runs a one-time bulk `syncNicknamesForGuild` on every connect/reconnect — a catch-up resync for anything missed while the bot was offline, not a recurring tick. `buildNickname()` is duplicated by hand between `bot/src/lib/nickname.js` and `web/lib/discordGuild.js`, same convention as `isTupperChannel`/`isSummaryChannel`.
 
 ## Moves and adjudication
 
@@ -102,12 +104,11 @@ Players self-serve travel from the guild's single `location` text channel (read-
 
 ## Discord permission model
 
-There is no single unified permission system — three independent kinds of Discord role drive access, each synced from a different piece of state, plus one env-configured admin role:
+There is no single unified permission system — a few independent kinds of Discord role drive access, each synced from a different piece of state, plus one env-configured admin role. `Faction` is not one of them — it's a pure Lifeweb game-state concept (see "How the bot populates the database" above) with no Discord role backing it at all.
 
 - **Personal character role** (`Character.discordRoleId`, one per `ALIVE` character, titled after the character's name) — the sole access-control primitive for Location categories (see above). Created/renamed by `ensureCharacterRole`, granted/revoked per-category by `swapLocationAccess`/`syncCharacterLocationAccess`.
-- **Faction role** (`Faction.discordRoleId`) — these are just the guild's existing native Discord roles, passively synced into `Faction` rows by `bot/src/lib/factionSync.js#syncFactionsForGuild` (on `ready`/`guildCreate`/role events). They aren't a Lifeweb-driven access-control mechanism — whatever native channel permissions those roles already carry in Discord keep working unchanged; Lifeweb only reads them for faction membership/Silo/Leader logic, not to grant channel visibility.
 - **GM role** (`DISCORD_GM_ROLE_ID` env var) — checked via REST (`web/lib/discordGuild.js#isGm`) against the signed-in user's guild member roles to gate `/gm` pages and the `/gm`/`/message` slash commands; not stored on any Lifeweb model.
-- **Turn-ping role** (`DISCORD_TURN_PING_ROLE_ID` env var) — a plain opt-in notification role, added/removed by `setTurnPingRole` when a player toggles "Turn Ping?" on `/character`. Excluded from faction sync (`factionSync.js`) so it never becomes a fake Faction row.
+- **Turn-ping role** (`DISCORD_TURN_PING_ROLE_ID` env var) — a plain opt-in notification role, added/removed by `setTurnPingRole` when a player toggles "Turn Ping?" on `/character`.
 - **Tag-gated channels** — the pattern used for the `#radio` channel (below): the character's own **personal role** (not a separate shared role) gets a permission overwrite added directly on the channel, synced to whoever currently holds a specific `Tag`, driven from the tag-grant/revoke call sites rather than from Location or Faction state.
 
 ### Tag-gated channels (`#radio`)

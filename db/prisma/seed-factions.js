@@ -14,10 +14,6 @@ const FACTIONS = [
   "Unaffiliated",
 ];
 
-function slug(name) {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-}
-
 async function main() {
   for (const name of FACTIONS) {
     const existing = await prisma.faction.findFirst({ where: { name } });
@@ -26,7 +22,7 @@ async function main() {
       continue;
     }
     await prisma.faction.create({
-      data: { name, discordRoleId: `seed:${slug(name)}` },
+      data: { name },
     });
     console.log(`created: ${name}`);
   }

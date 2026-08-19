@@ -41,8 +41,8 @@ async function syncMemberNickname(member) {
   }
 }
 
-// One-time bulk catch-up (called on bot connect, alongside syncFactionsForGuild)
-// for whatever drifted while the bot was offline — not a recurring poll.
+// One-time bulk catch-up (called on bot connect) for whatever drifted while
+// the bot was offline — not a recurring poll.
 async function syncNicknamesForGuild(guild) {
   await guild.members.fetch();
   const results = { updated: 0, skipped: 0, failed: 0 };

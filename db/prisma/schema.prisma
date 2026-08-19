@@ -139,10 +139,9 @@ model GameConfig {
 }
 
 model Faction {
-  id            String  @id @default(cuid())
-  name          String
-  discordRoleId String  @unique
-  silo          Int     @default(0)
+  id   String @id @default(cuid())
+  name String
+  silo Int    @default(0)
 
   // A parent faction's Leader/Treasurer can also manage a subject faction's
   // Silo (see web/lib/factionPermissions.js#getSiloAccess) — never the

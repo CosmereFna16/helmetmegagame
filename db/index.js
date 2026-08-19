@@ -3,6 +3,7 @@ const { rollWeather, buildTurnAnnouncement } = require("./weather");
 const { HUNGERLESS_SLUG, NOBILITY_SLUG, TIPSY_SLUG } = require("./lib/constants");
 const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
 const { runDawnWipe } = require("./lib/dawnWipe");
+const { runFullChannelWipe } = require("./lib/fullWipe");
 
 const globalForPrisma = globalThis;
 
@@ -172,6 +173,7 @@ module.exports = {
   prisma,
   resolveNeeds,
   advanceTurn,
+  runFullChannelWipe,
   LIFEWEB_SPUTTER_THRESHOLD,
   ...require("./weather"),
   ...require("./lib/constants"),
