@@ -1,6 +1,6 @@
 export default function TagChip({ tag }) {
   const cost = tag.pointCost ?? 0;
-  const costColor = cost > 0 ? "var(--mood-happy)" : cost < 0 ? "var(--accent)" : "var(--muted)";
+  const costColor = cost > 0 ? "var(--positive)" : cost < 0 ? "var(--accent)" : "var(--muted)";
   const costLabel = cost > 0 ? `+${cost}` : `${cost}`;
   const groupColor = tag.group?.color ? `var(--tag-${tag.group.color})` : null;
 

@@ -31,7 +31,6 @@ export default async function DevCharactersPage() {
               <th>Zone</th>
               <th>Status</th>
               <th>Resources ⬢</th>
-              <th>Mood</th>
             </tr>
           </thead>
           <tbody>
@@ -46,12 +45,11 @@ export default async function DevCharactersPage() {
                 <td>{c.zone?.name ?? "-"}</td>
                 <td>{c.status}</td>
                 <td>{c.resources}</td>
-                <td>{c.moodState}</td>
               </tr>
             ))}
             {characters.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center" style={{ color: "var(--muted)" }}>
+                <td colSpan={5} className="text-center" style={{ color: "var(--muted)" }}>
                   No characters yet.
                 </td>
               </tr>

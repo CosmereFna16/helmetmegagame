@@ -72,8 +72,8 @@ is catalog structure, ready for that logic when it's built.
   logic exists yet.
 - `defaultDurationTurns` — catalog-level "how many turns does this last once
   granted," for tags that auto-expire. Purely additive; does **not** replace
-  the bespoke `GameConfig.moodDurationTurns`/`lifewebDrainedDurationTurns`
-  knobs those two specific mechanics already use. The actual per-instance
+  the bespoke `GameConfig.lifewebDrainedDurationTurns` knob that mechanic
+  already uses. The actual per-instance
   expiry lives on `CharacterTag.expiresTurn` (an absolute turn number,
   unrelated to this default), swept by `resolveNeeds()` in `db/index.js`
   once the closing turn's number reaches it.

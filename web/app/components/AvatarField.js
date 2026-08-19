@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-export default function AvatarField({ defaultTurnPingOptIn }) {
+export default function AvatarField({ defaultTurnPingOptIn, defaultRomanceOptOut }) {
   const [fileName, setFileName] = useState("");
 
   return (
@@ -23,6 +23,12 @@ export default function AvatarField({ defaultTurnPingOptIn }) {
           <input type="checkbox" name="turnPingOptIn" defaultChecked={defaultTurnPingOptIn} />
           <span className="field-label" style={{ marginBottom: 0 }}>
             Turn Ping?
+          </span>
+        </label>
+        <label className="flex items-center gap-2 text-sm" style={{ cursor: "pointer" }}>
+          <input type="checkbox" name="romanceOptOut" defaultChecked={defaultRomanceOptOut} />
+          <span className="field-label" style={{ marginBottom: 0 }}>
+            Disable Romance Content?
           </span>
         </label>
         {fileName ? (

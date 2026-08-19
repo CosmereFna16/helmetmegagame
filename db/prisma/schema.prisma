@@ -13,12 +13,6 @@ enum CharacterStatus {
   CURSED
 }
 
-enum MoodState {
-  NEUTRAL
-  HAPPY
-  UNHAPPY
-}
-
 enum ActionType {
   EFFORT
   MOVE
@@ -82,9 +76,6 @@ enum TagSource {
 
 model GameConfig {
   id                        Int @id @default(1)
-  moodDurationTurns         Int @default(2)
-  moodMovePenalty           Int @default(-1)
-  moodMoveBonus             Int @default(1)
   lifewebBlood              Int @default(100)
   lifewebDecayPerTurn       Int @default(10)
   lifewebDrainedDurationTurns Int @default(4)
@@ -211,14 +202,12 @@ model Character {
   isTreasurer    Boolean         @default(false)
   status         CharacterStatus @default(ALIVE)
   resources      Int             @default(0)
-  moodState      MoodState       @default(NEUTRAL)
-  moodExpiresTurn Int?
-  moodNote       String?
   avatarData     Bytes?
   avatarMimeType String?
   appearance     String?
   preferredNickname String?
   turnPingOptIn  Boolean         @default(true)
+  romanceOptOut  Boolean         @default(false)
 
   tags           CharacterTag[]
   actions        Action[]
@@ -291,8 +280,8 @@ model Tag {
   // Catalog-level default duration in turns, for tags that auto-expire once
   // granted (mirrors CharacterTag.expiresTurn's "absolute turn number, swept
   // by resolveNeeds()" convention). Purely additive — does not replace the
-  // bespoke GameConfig.moodDurationTurns/lifewebDrainedDurationTurns knobs
-  // those two specific mechanics already use.
+  // bespoke GameConfig.lifewebDrainedDurationTurns knob that mechanic
+  // already uses.
   defaultDurationTurns Int?
 
   characters   CharacterTag[]
@@ -341,9 +330,9 @@ model CharacterTag {
   acquiredAt  DateTime  @default(now())
 
   // Turn number this tag auto-expires at (deleted by resolveNeeds() in
-  // db/index.js once the closing turn's number reaches it), same convention
-  // as Character.moodExpiresTurn. Null means it never auto-expires. Used for
-  // system-granted temporary status tags (Ate Meal, Tipsy) — see EVENT below.
+  // db/index.js once the closing turn's number reaches it). Null means it
+  // never auto-expires. Used for system-granted temporary status tags (Ate
+  // Meal, Tipsy) — see EVENT below.
   expiresTurn Int?
 
   @@unique([characterId, tagId])

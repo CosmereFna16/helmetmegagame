@@ -4,7 +4,7 @@ import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { getOpenTurn } from "@/lib/turn";
 import CharacterSheet from "../../../../components/CharacterSheet";
-import { sendGmMessage, resetCharacterMood } from "../../actions";
+import { sendGmMessage } from "../../actions";
 
 export default async function PlayerDetailPage({ params }) {
   const { characterId } = await params;
@@ -56,12 +56,6 @@ export default async function PlayerDetailPage({ params }) {
             </label>
             <button type="submit" className="btn self-start">
               Send
-            </button>
-          </form>
-          <form action={resetCharacterMood}>
-            <input type="hidden" name="characterId" value={character.id} />
-            <button type="submit" className="btn-quiet">
-              Reset mood to Neutral
             </button>
           </form>
         </section>

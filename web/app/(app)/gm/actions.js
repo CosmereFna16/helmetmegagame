@@ -149,24 +149,3 @@ export async function sendDmReply(formData) {
   revalidatePath("/gm/messages");
   revalidatePath(`/gm/messages/${discordUserId}`);
 }
-
-export async function resetCharacterMood(formData) {
-  const session = await requireGm();
-  const characterId = formData.get("characterId")?.toString();
-  if (!characterId) return;
-
-  await prisma.character.update({
-    where: { id: characterId },
-    data: { moodState: "NEUTRAL", moodNote: null, moodExpiresTurn: null },
-  });
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "mood_gm_reset",
-      targetCharacterId: characterId,
-    },
-  });
-
-  revalidatePath("/gm/players");
-}

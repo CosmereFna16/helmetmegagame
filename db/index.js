@@ -20,32 +20,18 @@ if (process.env.NODE_ENV !== "production") {
 // (web/app/(app)/lifeweb/page.js).
 const LIFEWEB_SPUTTER_THRESHOLD = 20;
 
-// Applies per-turn Needs decay (mood expiry) to every ALIVE character for
-// the turn being closed. Shared between the bot's cron-triggered
-// advanceTurn() and the GM dashboard's manual close-turn override, so both
-// paths behave identically instead of only the automated one actually
-// resolving Needs.
+// Applies per-turn Needs decay to the turn being closed. Shared between the
+// bot's cron-triggered advanceTurn() and the GM dashboard's manual
+// close-turn override, so both paths behave identically instead of only the
+// automated one actually resolving Needs.
 async function resolveNeeds(turn, config) {
-  const characters = await prisma.character.findMany({ where: { status: "ALIVE" } });
-
-  await Promise.all(
-    characters.map((character) => {
-      if (character.moodExpiresTurn == null || character.moodExpiresTurn > turn.number) return null;
-      return prisma.character.update({
-        where: { id: character.id },
-        data: { moodState: "NEUTRAL", moodNote: null, moodExpiresTurn: null },
-      });
-    }),
-  );
-
   // Sweep any turn-scoped tags (Drained, ...) whose expiresTurn has been
-  // reached — a single bulk delete rather than a per-character check, since
-  // it's independent of everything computed above.
+  // reached — a single bulk delete, independent of everything else here.
   await prisma.characterTag.deleteMany({ where: { expiresTurn: { lte: turn.number } } });
 
   // The Lifeweb bleeds out a fixed amount every turn regardless of what fed
-  // it last — see feedLifewebBlood()/feedLifewebCorpse() (web/app/(app)/character/actions.js,
-  // web/app/(app)/lifeweb/actions.js) for the two ways it's topped back up.
+  // it last — see donateBlood()/feedLifewebPerson() in
+  // web/app/(app)/lifeweb/actions.js for the ways it's topped back up.
   const newBlood = Math.max(0, (config?.lifewebBlood ?? 100) - (config?.lifewebDecayPerTurn ?? 10));
   await prisma.gameConfig.update({ where: { id: 1 }, data: { lifewebBlood: newBlood } });
   return newBlood;

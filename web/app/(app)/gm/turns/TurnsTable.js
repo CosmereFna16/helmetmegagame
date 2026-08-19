@@ -171,7 +171,7 @@ export default function TurnsTable({ actions, allCharacters }) {
                   <td>{a.diceRoll ?? "-"}</td>
                   <td>
                     {statusLabel(a) === "Solved" ? (
-                      <span style={{ color: "var(--mood-happy)" }}>Solved</span>
+                      <span style={{ color: "var(--positive)" }}>Solved</span>
                     ) : (
                       statusLabel(a)
                     )}

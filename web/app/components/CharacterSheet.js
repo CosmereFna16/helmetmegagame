@@ -1,9 +1,8 @@
-import { updateCharacterProfile, setMood, transferResources } from "../(app)/character/actions";
+import { updateCharacterProfile, transferResources } from "../(app)/character/actions";
 import AppearanceField from "./AppearanceField";
 import AvatarField from "./AvatarField";
 import TagChip from "./TagChip";
 import DefaultEffortPanel from "./DefaultEffortPanel";
-import LifewebFeedButton from "./LifewebFeedButton";
 import RichText from "./RichText";
 import FactionLink from "./FactionLink";
 
@@ -53,21 +52,11 @@ function ActionStatus({ currentAction, openTurn }) {
       )}
       {(currentAction.status === "ADJUDICATED" || currentAction.moveReviewStatus === "SOLVED") && (
         <p>
-          <span style={{ color: "var(--mood-happy)" }}>Solved</span>
+          <span style={{ color: "var(--positive)" }}>Solved</span>
         </p>
       )}
     </div>
   );
-}
-
-function moodColor(moodState) {
-  if (moodState === "HAPPY") return "var(--mood-happy)";
-  if (moodState === "UNHAPPY") return "var(--accent)";
-  return "var(--text)";
-}
-
-function capitalize(s) {
-  return s.charAt(0) + s.slice(1).toLowerCase();
 }
 
 export default function CharacterSheet({
@@ -81,10 +70,6 @@ export default function CharacterSheet({
 }) {
   const isSelf = mode === "self";
   const tagGroups = groupTagsByCategory(character.tags);
-  const turnsLeft =
-    character.moodState !== "NEUTRAL" && openTurn && character.moodExpiresTurn != null
-      ? character.moodExpiresTurn - openTurn.number
-      : null;
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 p-6 sm:p-8">
@@ -122,7 +107,10 @@ export default function CharacterSheet({
                 <span className="field-label">Name</span>
                 <input name="name" defaultValue={character.name} required />
               </label>
-              <AvatarField defaultTurnPingOptIn={character.turnPingOptIn} />
+              <AvatarField
+                defaultTurnPingOptIn={character.turnPingOptIn}
+                defaultRomanceOptOut={character.romanceOptOut}
+              />
               <AppearanceField defaultValue={character.appearance ?? ""} />
               <button type="submit" className="btn self-start">
                 Save
@@ -145,46 +133,7 @@ export default function CharacterSheet({
         <ul className="flex flex-col gap-1 text-sm">
           <li>Zone: {character.zone?.name ?? "Unassigned"}</li>
           <li>Resources ⬢: {character.resources}</li>
-          <li>
-            Mood: <span style={{ color: moodColor(character.moodState) }}>{capitalize(character.moodState)}</span>
-            {character.moodNote ? ` — "${character.moodNote}"` : ""}
-            {turnsLeft != null ? ` (${turnsLeft} turn${turnsLeft === 1 ? "" : "s"} left)` : ""}
-          </li>
         </ul>
-
-        {isSelf && (
-          <form action={setMood} className="mt-4 flex flex-wrap items-end gap-3">
-            <label className="field">
-              <span className="field-label">
-                Set mood
-                {turnsLeft != null ? (
-                  <span style={{ color: moodColor(character.moodState) }}>
-                    {" "}
-                    ({turnsLeft} turn{turnsLeft === 1 ? "" : "s"} left)
-                  </span>
-                ) : null}
-              </span>
-              <select name="moodState" defaultValue={character.moodState}>
-                <option value="NEUTRAL">Neutral</option>
-                <option value="HAPPY">Happy</option>
-                <option value="UNHAPPY">Unhappy</option>
-              </select>
-            </label>
-            <label className="field flex-1">
-              <span className="field-label">Why (optional, for the GM)</span>
-              <input name="moodNote" defaultValue={character.moodNote ?? ""} placeholder="A lavish meal, a duel lost..." />
-            </label>
-            <button type="submit" className="btn">
-              Update
-            </button>
-          </form>
-        )}
-
-        {isSelf && (
-          <div className="mt-4 flex flex-wrap items-center gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
-            <LifewebFeedButton characterId={character.id} />
-          </div>
-        )}
 
         {isSelf && (
           <form action={transferResources} className="mt-4 flex flex-wrap items-end gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>

@@ -79,8 +79,8 @@ export default async function DevPanelPage() {
 
         <p className="mt-3 text-xs" style={{ color: "var(--muted)" }}>
           Save overrides the current turn&apos;s day/phase/weather directly, without resolving Needs. End
-          turn resolves Needs on the current turn (mood expiry) and opens the next one — same as the
-          automatic dawn/dusk advance.
+          turn resolves Needs on the current turn and opens the next one — same as the automatic
+          dawn/dusk advance.
         </p>
       </section>
 
@@ -115,18 +115,6 @@ export default async function DevPanelPage() {
       <section className="panel p-4">
         <h2 className="mb-3 font-bold">Game Config</h2>
         <form action={updateGameConfig} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <label className="field">
-            <span className="field-label">Mood duration (turns)</span>
-            <input type="number" name="moodDurationTurns" defaultValue={config.moodDurationTurns} />
-          </label>
-          <label className="field">
-            <span className="field-label">Mood move penalty</span>
-            <input type="number" name="moodMovePenalty" defaultValue={config.moodMovePenalty} />
-          </label>
-          <label className="field">
-            <span className="field-label">Mood move bonus</span>
-            <input type="number" name="moodMoveBonus" defaultValue={config.moodMoveBonus} />
-          </label>
           <label className="field">
             <span className="field-label">Lifeweb Blood (0-100, raw override)</span>
             <input type="number" name="lifewebBlood" min="0" max="100" defaultValue={config.lifewebBlood} />

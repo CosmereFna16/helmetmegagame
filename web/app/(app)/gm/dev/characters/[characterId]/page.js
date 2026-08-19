@@ -96,26 +96,6 @@ export default async function DevCharacterEditPage({ params }) {
           <input type="number" name="resources" defaultValue={character.resources} />
         </label>
 
-        <div className="grid grid-cols-2 gap-3">
-          <label className="field">
-            <span className="field-label">Mood state</span>
-            <select name="moodState" defaultValue={character.moodState}>
-              <option value="NEUTRAL">NEUTRAL</option>
-              <option value="HAPPY">HAPPY</option>
-              <option value="UNHAPPY">UNHAPPY</option>
-            </select>
-          </label>
-          <label className="field">
-            <span className="field-label">Mood expires turn #</span>
-            <input type="number" name="moodExpiresTurn" defaultValue={character.moodExpiresTurn ?? ""} />
-          </label>
-        </div>
-
-        <label className="field">
-          <span className="field-label">Mood note</span>
-          <input name="moodNote" defaultValue={character.moodNote ?? ""} />
-        </label>
-
         <label className="field">
           <span className="field-label">Appearance / bio</span>
           <textarea name="appearance" rows={4} defaultValue={character.appearance ?? ""} />

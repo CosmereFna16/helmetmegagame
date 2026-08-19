@@ -14,7 +14,7 @@
   --muted: #a89a7c;
   --text: #f0e9d8;
   --accent: #c9552b;
-  --mood-happy: #7fa87a;
+  --positive: #7fa87a;
   --row-hover: rgba(255, 255, 255, 0.04);
 
   /* Fixed palette for TagGroup.color (see TagChip.js) — muted, in the same
@@ -38,7 +38,7 @@
   --muted: #7d7259;
   --text: #2c332f;
   --accent: #b8481f;
-  --mood-happy: #4f6b46;
+  --positive: #4f6b46;
   --row-hover: rgba(0, 0, 0, 0.03);
 
   /* See the [data-theme="dusk"] block above for what these are for. */

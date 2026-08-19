@@ -59,9 +59,6 @@ export async function updateGameConfig(formData) {
     where: { id: 1 },
     create: { id: 1 },
     update: {
-      moodDurationTurns: intOrZero(formData, "moodDurationTurns"),
-      moodMovePenalty: intOrZero(formData, "moodMovePenalty"),
-      moodMoveBonus: intOrZero(formData, "moodMoveBonus"),
       lifewebBlood: Math.max(0, Math.min(100, intOrZero(formData, "lifewebBlood"))),
       lifewebDecayPerTurn: intOrZero(formData, "lifewebDecayPerTurn"),
       lifewebDrainedDurationTurns: intOrZero(formData, "lifewebDrainedDurationTurns"),
@@ -145,9 +142,6 @@ export async function forceAdvanceTurn() {
 // Discord provisioning pointers (turnsAnnouncementChannelId/MessageId,
 // locationPromptChannelId/MessageId): those self-heal on their own.
 const DEFAULT_GAME_CONFIG = {
-  moodDurationTurns: 2,
-  moodMovePenalty: -1,
-  moodMoveBonus: 1,
   lifewebBlood: 100,
   lifewebDecayPerTurn: 10,
   lifewebDrainedDurationTurns: 4,
@@ -249,7 +243,6 @@ export async function updateCharacterRaw(formData) {
 
   const factionId = str(formData, "factionId").trim() || null;
   const locationId = str(formData, "locationId").trim() || null;
-  const moodNote = str(formData, "moodNote").trim() || null;
   const appearance = str(formData, "appearance").trim() || null;
   const roleTitle = str(formData, "roleTitle").trim() || null;
 
@@ -273,9 +266,6 @@ export async function updateCharacterRaw(formData) {
       isLeader: formData.get("isLeader") === "on",
       status: str(formData, "status"),
       resources: intOrZero(formData, "resources"),
-      moodState: str(formData, "moodState"),
-      moodExpiresTurn: intOrNull(formData, "moodExpiresTurn"),
-      moodNote,
       appearance,
     },
   });
@@ -441,7 +431,7 @@ const PERM_CREATE_PRIVATE_THREADS = 68719476736;
 // comment in schema.prisma. Deliberately not auto-synced: re-running this
 // for an already-provisioned Location is a no-op so edits here never risk
 // deleting/recreating live channels or their message history. The category
-// is named "{Zone} / {Location}" (e.g. "Town / Church"); the three channels
+// is named "{Zone} / {Location}" (e.g. "Town / Cathedral"); the three channels
 // underneath stay named after the Location alone.
 export async function provisionLocationChannels(locationId) {
   await requireSuperadmin();

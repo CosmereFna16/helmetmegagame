@@ -3,10 +3,10 @@
 import { revalidatePath } from "next/cache";
 import sharp from "sharp";
 import { redirect } from "next/navigation";
-import { prisma, DRAINED_SLUG } from "@lifeweb/db";
+import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
-import { syncCharacterNickname, setTurnPingRole, ensureCharacterRole } from "@/lib/discordGuild";
+import { syncCharacterNickname, setTurnPingRole, setRomanceOptOutRole, ensureCharacterRole } from "@/lib/discordGuild";
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const AVATAR_SIZE = 256;
@@ -25,9 +25,10 @@ export async function updateCharacterProfile(formData) {
     formData.get("appearance")?.toString().trim().slice(0, APPEARANCE_MAX_LENGTH) || null;
   const preferredNickname = formData.get("preferredNickname")?.toString().trim() || null;
   const turnPingOptIn = formData.get("turnPingOptIn") === "on";
+  const romanceOptOut = formData.get("romanceOptOut") === "on";
   const avatar = formData.get("avatar");
 
-  const data = { appearance, preferredNickname, turnPingOptIn };
+  const data = { appearance, preferredNickname, turnPingOptIn, romanceOptOut };
   if (name) data.name = name;
 
   if (avatar && avatar.size > 0) {
@@ -45,97 +46,9 @@ export async function updateCharacterProfile(formData) {
   const updated = await prisma.character.update({ where: { id: character.id }, data });
   await syncCharacterNickname(session.discordUserId, updated.name, updated.preferredNickname).catch(() => {});
   await setTurnPingRole(session.discordUserId, updated.turnPingOptIn).catch(() => {});
+  await setRomanceOptOutRole(session.discordUserId, updated.romanceOptOut).catch(() => {});
   await ensureCharacterRole(updated).catch(() => {});
   revalidatePath("/character");
-}
-
-export async function setMood(formData) {
-  const session = await auth();
-  if (!session?.discordUserId) redirect("/");
-
-  const character = await prisma.character.findFirst({
-    where: { discordUserId: session.discordUserId, status: "ALIVE" },
-  });
-  if (!character) redirect("/character/new");
-
-  const moodState = formData.get("moodState")?.toString();
-  if (!["NEUTRAL", "HAPPY", "UNHAPPY"].includes(moodState)) return;
-  const moodNote = formData.get("moodNote")?.toString().trim() || null;
-
-  let moodExpiresTurn = null;
-  if (moodState !== "NEUTRAL") {
-    const [config, openTurn] = await Promise.all([
-      prisma.gameConfig.findUnique({ where: { id: 1 } }),
-      prisma.turn.findFirst({ where: { status: "OPEN" } }),
-    ]);
-    if (openTurn) moodExpiresTurn = openTurn.number + (config?.moodDurationTurns ?? 2);
-  }
-
-  await prisma.character.update({
-    where: { id: character.id },
-    data: { moodState, moodNote, moodExpiresTurn },
-  });
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "mood_self_reported",
-      targetCharacterId: character.id,
-      details: { moodState, moodNote },
-    },
-  });
-
-  revalidatePath("/character");
-}
-
-// Volunteering blood for the Lifeweb: always adds a flat amount (capped at
-// 100) regardless of the current level, since regular players never see the
-// number (see MORTUS_SLUG gating in web/app/(app)/layout.js) — disabling the
-// button near full would silently leak that state to them. The cost is the
-// Drained tag, not resources; see feedLifewebCorpse() in
-// web/app/(app)/lifeweb/actions.js for the other (GM-run) way to feed it.
-const LIFEWEB_VOLUNTEER_AMOUNT = 20;
-
-export async function feedLifewebBlood(characterId) {
-  const session = await auth();
-  if (!session?.discordUserId) redirect("/");
-
-  const character = await prisma.character.findFirst({
-    where: { id: characterId, discordUserId: session.discordUserId, status: "ALIVE" },
-  });
-  if (!character) redirect("/character/new");
-
-  const [config, openTurn] = await Promise.all([
-    prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
-    prisma.turn.findFirst({ where: { status: "OPEN" } }),
-  ]);
-
-  const newBlood = Math.min(100, (config.lifewebBlood ?? 0) + LIFEWEB_VOLUNTEER_AMOUNT);
-  await prisma.gameConfig.update({ where: { id: 1 }, data: { lifewebBlood: newBlood } });
-
-  if (openTurn) {
-    const drainedTag = await prisma.tag.findUnique({ where: { slug: DRAINED_SLUG } });
-    if (drainedTag) {
-      const expiresTurn = openTurn.number + (config.lifewebDrainedDurationTurns ?? 4);
-      await prisma.characterTag.upsert({
-        where: { characterId_tagId: { characterId: character.id, tagId: drainedTag.id } },
-        create: { characterId: character.id, tagId: drainedTag.id, source: "EVENT", expiresTurn },
-        update: { expiresTurn },
-      });
-    }
-  }
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "fed_lifeweb_blood",
-      targetCharacterId: character.id,
-      details: { amount: LIFEWEB_VOLUNTEER_AMOUNT },
-    },
-  });
-
-  revalidatePath("/character");
-  revalidatePath("/lifeweb");
 }
 
 export async function transferResources(formData) {

@@ -11,10 +11,9 @@ async function requireGm() {
   return session;
 }
 
-// Same cost as the player self-serve volunteer flow (feedLifewebBlood in
-// web/app/(app)/character/actions.js) — flat blood amount plus a Drained tag
-// that expires after GameConfig.lifewebDrainedDurationTurns — just GM-triggered
-// on behalf of any living character instead of self.
+// Flat blood amount plus a Drained tag that expires after
+// GameConfig.lifewebDrainedDurationTurns — GM-triggered on behalf of any
+// living character.
 const DONATE_BLOOD_AMOUNT = 20;
 
 export async function donateBlood(characterId) {
