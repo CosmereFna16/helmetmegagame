@@ -298,13 +298,23 @@ export default async function FactionPage({ searchParams }) {
     const faction = await loadFaction(viewFactionId);
     if (!faction) return null;
 
+    // Unaffiliated is the DB's placeholder home for characters with no real
+    // faction — players should experience it identically to having none at
+    // all: no title, no member roster, no Silo.
+    if (faction.name === "Unaffiliated") {
+      return (
+        <div className="mx-auto max-w-2xl p-6 sm:p-8">
+          <p style={{ color: "var(--muted)" }}>You aren&apos;t assigned to a faction yet.</p>
+        </div>
+      );
+    }
+
     const leader = faction.characters.find((c) => c.isLeader);
-    const playerViewIsUnaffiliated = faction.name === "Unaffiliated";
-    const siloHistory = viewCanManageSilo && !playerViewIsUnaffiliated ? await loadSiloHistory(faction.id) : [];
+    const siloHistory = viewCanManageSilo ? await loadSiloHistory(faction.id) : [];
 
     // Membership administration (Assign/Revoke Treasurer) never extends to
     // subject factions — only Silo access does.
-    const canManageMembers = !viewingSubject && ownRole.isLeader && !playerViewIsUnaffiliated;
+    const canManageMembers = !viewingSubject && ownRole.isLeader;
 
     const subjectFactions =
       !viewingSubject && ownRole.isLeader ? await getDescendantFactions(myCharacter.factionId) : [];
@@ -329,7 +339,7 @@ export default async function FactionPage({ searchParams }) {
         <section className="panel p-4">
           <ul className="flex flex-col gap-1 text-sm">
             <li>Leader: {leader?.name ?? "None"}</li>
-            {!playerViewIsUnaffiliated && <li>Faction Silo ⬢: {faction.silo}</li>}
+            <li>Faction Silo ⬢: {faction.silo}</li>
             {!viewingSubject && <li>Your Resources ⬢: {myCharacter.resources}</li>}
           </ul>
         </section>
@@ -374,7 +384,7 @@ export default async function FactionPage({ searchParams }) {
           </table>
         </section>
 
-        {viewCanManageSilo && !playerViewIsUnaffiliated && (
+        {viewCanManageSilo && (
           <>
             <TransferFromSiloPanel
               faction={faction}

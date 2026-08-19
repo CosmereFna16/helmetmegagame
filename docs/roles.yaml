@@ -1080,29 +1080,35 @@ zones:
             doc_elements:
               - campstarting
               - windrider
-    threats:
-      - name: Brigand Leader
-        intro: You raided a shipment on the way to the Fortress—well done!
-        description:
-          - You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
-        multiple: false
-        starting_resources: 3
-        starting_tags:
-          - Opportunist
-          - Leader
-        doc_elements:
-          - campstarting
-      - name: Brigand
-        intro: You raided a shipment on the way to the Fortress—well done!
-        description:
-          - You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
-        multiple: true
-        weight: 2
-        starting_resources: 2
-        starting_tags:
-          - Opportunist
-        doc_elements:
-          - campstarting
+      - name: Brigands
+        starting_resources: 5
+        roles:
+          - name: Brigand Leader
+            intro: You raided a shipment on the way to the Fortress—well done!
+            description:
+              - You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
+            difficulty: normal
+            multiple: false
+            starting_resources: 3
+            starting_tags:
+              - Opportunist
+              - Leader
+              - Fighting (Basic)
+            doc_elements:
+              - campstarting
+          - name: Brigand
+            intro: You raided a shipment on the way to the Fortress—well done!
+            description:
+              - You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
+            difficulty: easy
+            multiple: true
+            weight: 2
+            starting_resources: 2
+            starting_tags:
+              - Opportunist
+              - Fighting (Basic)
+            doc_elements:
+              - campstarting
   - name: Caves
     situation:
       - "The Caves: Migrants make it to the Fortress from here."

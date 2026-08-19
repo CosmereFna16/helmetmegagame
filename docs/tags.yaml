@@ -23,8 +23,8 @@
 #     just supported.
 #
 # Neither relation is enforced by any code yet — there's no player-facing
-# purchase flow. `purchasable`/`purchasableAfterStart` are catalog data for
-# a future store to read, same idea.
+# purchase flow. `purchasable` is catalog data for a future store to read,
+# same idea.
 
 categories:
   - slug: meta
@@ -120,7 +120,6 @@ tags:
     description: "A household of your own within the Fortress."
     pointCost: 2
     purchasable: true
-    purchasableAfterStart: true
 
   # --- Skills ---------------------------------------------------------------
   - slug: windlander
@@ -129,7 +128,6 @@ tags:
     description: "You may move and live freely in the Windlands. Additionally, weather conditions restrict you less than a normal person."
     pointCost: 1
     purchasable: true
-    purchasableAfterStart: true
 
   - slug: sign-language
     name: Sign Language
@@ -137,7 +135,6 @@ tags:
     description: "You know sign language, the ancestral language of the Windlanders."
     pointCost: 1
     purchasable: true
-    purchasableAfterStart: true
 
   - slug: radio
     name: Radio
@@ -145,7 +142,6 @@ tags:
     description: "Grants access to the #radio channel."
     pointCost: 2
     purchasable: true
-    purchasableAfterStart: true
 
   - slug: laborer
     name: Laborer
@@ -153,7 +149,6 @@ tags:
     description: "Works harder than most at every trade — a middling bonus to Farming, Fishing, and Herding production."
     pointCost: 2
     purchasable: true
-    purchasableAfterStart: true
 
   - slug: laborer-farming
     name: Laborer (Farming)
@@ -162,7 +157,6 @@ tags:
     pointCost: 2
     requiredTag: laborer
     purchasable: true
-    purchasableAfterStart: true
 
   - slug: laborer-fishing
     name: Laborer (Fishing)
@@ -171,7 +165,6 @@ tags:
     pointCost: 2
     requiredTag: laborer
     purchasable: true
-    purchasableAfterStart: true
 
   - slug: laborer-herding
     name: Laborer (Herding)
@@ -180,7 +173,6 @@ tags:
     pointCost: 2
     requiredTag: laborer
     purchasable: true
-    purchasableAfterStart: true
 
   - slug: hunter
     name: Hunter
@@ -197,7 +189,6 @@ tags:
     pointCost: 2
     visible: true
     purchasable: true
-    purchasableAfterStart: true
   - slug: fighting-trained
     name: Fighting (Trained)
     category: skills
@@ -206,7 +197,6 @@ tags:
     parentTag: fighting-basic
     visible: true
     purchasable: true
-    purchasableAfterStart: true
   - slug: fighting-skilled
     name: Fighting (Skilled)
     category: skills
@@ -215,7 +205,6 @@ tags:
     parentTag: fighting-trained
     visible: true
     purchasable: true
-    purchasableAfterStart: true
   - slug: fighting-expert
     name: Fighting (Expert)
     category: skills
@@ -224,7 +213,6 @@ tags:
     parentTag: fighting-skilled
     visible: true
     purchasable: true
-    purchasableAfterStart: true
   - slug: fighting-legendary
     name: Fighting (Legendary)
     category: skills
@@ -233,7 +221,6 @@ tags:
     parentTag: fighting-expert
     visible: true
     purchasable: true
-    purchasableAfterStart: true
   # Specialized branch — prerequisite only, does not chain-replace any
   # Fighting tier (a character can hold Fighting (Skilled) and Fighting
   # (Archer) at the same time). Demonstrates requiredTag vs. parentTag.
@@ -245,7 +232,6 @@ tags:
     requiredTag: fighting-basic
     visible: true
     purchasable: true
-    purchasableAfterStart: true
 
   # Medical tier chain
   - slug: medical-basic
@@ -255,7 +241,6 @@ tags:
     pointCost: 2
     visible: true
     purchasable: true
-    purchasableAfterStart: true
   - slug: medical-skilled
     name: Medical (Skilled)
     category: skills
@@ -264,7 +249,6 @@ tags:
     parentTag: medical-basic
     visible: true
     purchasable: true
-    purchasableAfterStart: true
   - slug: medical-excellent
     name: Medical (Excellent)
     category: skills
@@ -273,7 +257,6 @@ tags:
     parentTag: medical-skilled
     visible: true
     purchasable: true
-    purchasableAfterStart: true
 
   # Brewing tier chain
   - slug: brewing-basic
@@ -283,7 +266,6 @@ tags:
     pointCost: 2
     visible: true
     purchasable: true
-    purchasableAfterStart: true
   - slug: brewing-skilled
     name: Brewing (Skilled)
     category: skills
@@ -292,7 +274,6 @@ tags:
     parentTag: brewing-basic
     visible: true
     purchasable: true
-    purchasableAfterStart: true
 
   # Cooking tier chain
   - slug: cooking-basic
@@ -302,7 +283,6 @@ tags:
     pointCost: 2
     visible: true
     purchasable: true
-    purchasableAfterStart: true
   - slug: cooking-skilled
     name: Cooking (Skilled)
     category: skills
@@ -311,7 +291,6 @@ tags:
     parentTag: cooking-basic
     visible: true
     purchasable: true
-    purchasableAfterStart: true
 
   # --- Status -----------------------------------------------------------
   - slug: ate-meal
@@ -354,7 +333,6 @@ tags:
     pointCost: 1
     requiredTag: windlander
     purchasable: true
-    purchasableAfterStart: true
 
   - slug: horse
     name: Horse
@@ -362,7 +340,6 @@ tags:
     description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending an Effort, but you will be easily visible."
     pointCost: 2
     purchasable: true
-    purchasableAfterStart: true
 
   - slug: bird
     name: Bird
@@ -370,7 +347,6 @@ tags:
     description: "You have a highly-trained bird."
     pointCost: 2
     purchasable: true
-    purchasableAfterStart: true
 
   - slug: dog
     name: Dog
@@ -378,7 +354,6 @@ tags:
     description: "You have a highly-trained dog. It has a good sense of smell."
     pointCost: 2
     purchasable: true
-    purchasableAfterStart: true
 
   - slug: follower
     name: Follower
@@ -386,7 +361,6 @@ tags:
     description: "You have a follower, servant, or friend. You control them."
     pointCost: 2
     purchasable: true
-    purchasableAfterStart: true
 
   - slug: follower-cook
     name: Follower (Cook)
@@ -395,7 +369,6 @@ tags:
     pointCost: 1
     requiredTag: follower
     purchasable: true
-    purchasableAfterStart: true
 
   - slug: follower-laborer
     name: Follower (Laborer)
@@ -404,7 +377,6 @@ tags:
     pointCost: 1
     requiredTag: follower
     purchasable: true
-    purchasableAfterStart: true
 
   - slug: follower-goon
     name: Follower (Goon)
@@ -413,7 +385,6 @@ tags:
     pointCost: 1
     requiredTag: follower
     purchasable: true
-    purchasableAfterStart: true
 
   # --- Items --------------------------------------------------------------
   # Empty for now — no existing tag maps here. Ready for future
