@@ -281,9 +281,12 @@ model Tag {
   // yet, this just marks which tags are candidates for it.
   tradeable Boolean @default(false)
 
-  // Whether a player could ever buy this via point-buy. No purchase flow
-  // exists yet — catalog data only, for a future store to read.
-  purchasable Boolean @default(false)
+  // Whether a player could ever buy this via point-buy, and (only meaningful
+  // when true) whether it stays buyable once the game is underway vs. being
+  // a starting-package-only pick. No purchase flow exists yet — catalog data
+  // only, for a future store to read.
+  purchasable           Boolean @default(false)
+  purchasableAfterStart Boolean @default(true)
 
   // Catalog-level default duration in turns, for tags that auto-expire once
   // granted (mirrors CharacterTag.expiresTurn's "absolute turn number, swept

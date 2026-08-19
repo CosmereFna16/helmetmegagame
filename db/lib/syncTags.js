@@ -90,6 +90,7 @@ async function syncTagsFromYaml(prisma) {
       visibleOnInspect: entry.visible ?? false,
       tradeable: entry.tradeable ?? false,
       purchasable: entry.purchasable ?? false,
+      purchasableAfterStart: entry.purchasableAfterStart ?? true,
       defaultDurationTurns: entry.durationTurns ?? null,
       groupId,
     };
