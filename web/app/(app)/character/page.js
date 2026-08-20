@@ -49,6 +49,8 @@ async function loadCreationData(discordUserId) {
       pointCost: t.pointCost,
       purchasable: t.purchasable,
       purchasableAfterStart: t.purchasableAfterStart,
+      parentTagId: t.parentTagId,
+      requiredTagId: t.requiredTagId,
       group: t.group,
     })),
     zones: zones

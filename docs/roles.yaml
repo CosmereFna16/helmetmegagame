@@ -204,10 +204,8 @@ zones:
             treasurer: true
             starting_tags:
               - Ravenhearter
-              - Intelligent
               - Frail
               - Medical (Skilled)
-              - Ravenkeeper
             doc_elements:
               - courtstructure
               - lifewebbasic
@@ -320,7 +318,6 @@ zones:
             starting_tags:
               - Ravenhearter
               - Fighting (Trained)
-              - Alcoholic
               - Dog
             doc_elements:
               - courtstructure
@@ -1020,8 +1017,7 @@ zones:
         starting_resources: 2
         starting_location: town
         extra_starting_points: 15
-        starting_tags:
-          - Infamous
+        starting_tags: []
         doc_elements:
           - townstarting
   - name: Windlands
@@ -1100,7 +1096,6 @@ zones:
             starting_resources: 2
             starting_location: warcamp
             starting_tags:
-              - Watchful
               - Windlander
               - Sign Language
             doc_elements:
@@ -1263,7 +1258,6 @@ zones:
             starting_location: forest
             leader: true
             starting_tags:
-              - Opportunist
               - Fighting (Basic)
             doc_elements:
               - campstarting
@@ -1278,7 +1272,6 @@ zones:
             starting_resources: 2
             starting_location: forest
             starting_tags:
-              - Opportunist
               - Fighting (Basic)
             doc_elements:
               - campstarting
@@ -1310,7 +1303,7 @@ zones:
             starting_resources: 50
             starting_location: merchants-depot
             leader: true
-            starting_tags:
+            starting_tags: []
             doc_elements:
               - townstarting
               - merchantlist
@@ -1343,8 +1336,7 @@ zones:
             weight: unlimited
             starting_resources: 2
             starting_location: customs
-            starting_tags:
-              - Determined
+            starting_tags: []
             doc_elements: []
           - name: Mercenary
             slug: mercenary
@@ -1356,8 +1348,7 @@ zones:
             weight: 2
             starting_resources: 2
             starting_location: customs
-            starting_tags:
-              - Battle-Hardened
+            starting_tags: []
             doc_elements: []
           - name: Miner
             slug: miner
@@ -1369,8 +1360,7 @@ zones:
             weight: 2
             starting_resources: 2
             starting_location: customs
-            starting_tags:
-              - Sturdy
+            starting_tags: []
             doc_elements: []
     threats:
       # Monsters (NPC) is GM/NPC-run, not a player-selectable seat, so it has
@@ -1392,8 +1382,7 @@ zones:
         starting_resources: 3
         starting_location: customs
         leader: true
-        starting_tags:
-          - Opportunist
+        starting_tags: []
         doc_elements: []
       - name: Brigand (Caves)
         slug: brigand-caves
@@ -1404,6 +1393,5 @@ zones:
         weight: unlimited
         starting_resources: 2
         starting_location: customs
-        starting_tags:
-          - Opportunist
+        starting_tags: []
         doc_elements: []

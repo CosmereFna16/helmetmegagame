@@ -1,31 +1,3 @@
-# Master source for the Tag/TagGroup catalog. Hand-edited; synced into
-# Postgres by db/lib/syncTags.js#syncTagsFromYaml (npm run db:sync-tags),
-# same non-destructive upsert-by-slug contract as docs/locations.yaml:
-# removing an entry here never deletes its DB row, it just stops getting
-# updated. `slug` is the stable match key across syncs.
-#
-# `categories` is validation-only — syncTagsFromYaml checks every tag/group's
-# `category` against this list, but categories aren't their own DB table.
-#
-# `groups` are optional and scoped to one category, purely for display
-# coloring (see web/app/globals.css's --tag-<color> tokens and TagChip.js).
-# A tag with no `group` renders uncolored.
-#
-# `parentTag` vs `requiredTag` on a tag are two different relations:
-#   - parentTag: sequential tier chain (Fighting (Basic) -> (Trained) -> ...)
-#     — acquiring a tier is meant to replace the previous one, not stack.
-#   - requiredTag: non-replacing prerequisite — you must already hold
-#     requiredTag, but acquiring this tag does NOT remove/replace it (e.g.
-#     Fighting (Archer) requires Fighting (Basic) but coexists with
-#     Fighting (Skilled)). A TagGroup can also carry its own requiredTag to
-#     gate every tag in that group at once (e.g. a whole "Cultist" group
-#     hidden behind a membership tag) — no group currently uses this, it's
-#     just supported.
-#
-# Neither relation is enforced by any code yet — there's no player-facing
-# purchase flow. `purchasable`/`purchasableAfterStart` are catalog data for
-# a future store to read, same idea.
-
 categories:
   - slug: meta
     name: Meta
@@ -41,16 +13,12 @@ categories:
     name: Assets
 
 groups:
-  - slug: general-social
-    name: Social
-    category: general
-    color: null
   - slug: general-traits
     name: Traits
     category: general
     color: cyan
-  - slug: general-standing
-    name: Standing
+  - slug: general-social
+    name: Social
     category: general
     color: violet
   - slug: status-health
@@ -79,31 +47,17 @@ tags:
     pointCost: 0
     purchasable: false
 
-  - slug: nobility
-    name: Nobility
-    category: meta
-    description: "Expects a fine meal at least every 3 turns — go without and it sours into Unhappy until you eat again."
-    pointCost: 0
-    purchasable: false
-
-  - slug: alcoholic
-    name: Alcoholic
-    category: meta
-    description: "Built up a tolerance — immune to Tipsy's combat penalty."
-    pointCost: 0
-    purchasable: false
-
   - slug: romance-disabled
     name: Romance Disabled
     category: meta
-    description: "Opts this character out of romance plotlines entirely."
+    description: "No romance."
     pointCost: 0
     purchasable: false
+    visible: true
 
   - slug: turn-ping
     name: Turn Ping
     category: meta
-    description: "Wants a ping when a new turn opens."
     pointCost: 0
     purchasable: false
 
@@ -112,9 +66,17 @@ tags:
   - slug: follower-of-bacchus
     name: Follower of Bacchus
     category: general
-    description: "Unlocks the Bacchus tag category."
+    description: "Unlocks the Bacchus tag group."
     pointCost: 0
     purchasable: false
+
+  - slug: nobility
+    name: Nobility
+    category: general
+    description: "Expects a fine meal at least every 3 turns — go without and it sours into Unhappy until you eat again."
+    pointCost: 0
+    purchasable: false
+    visible: true
 
   - slug: ravenhearter
     name: Ravenhearter
@@ -122,6 +84,7 @@ tags:
     description: "You live in Ravenheart."
     pointCost: 0
     purchasable: false
+    visible: true
 
   - slug: mortus
     name: Mortus
@@ -129,135 +92,16 @@ tags:
     description: "One of the Mortii. Tends to the dead and to the Lifeweb beneath Ravenheart."
     pointCost: 0
     purchasable: false
+    visible: true
 
-  # Standing — who you are to everyone else. Role-granted identity tags are
-  # purchasable: false; they arrive with the role, not the point-buy menu.
   - slug: courtier
     name: Courtier
     category: general
-    group: general-standing
+    group: general
     description: "A member of the Baron's retinue."
     pointCost: 0
     purchasable: false
 
-  - slug: chaplain
-    name: Chaplain
-    category: general
-    group: general-standing
-    description: "Ordained to the Church — may hear confession and read the rites over the dead."
-    pointCost: 0
-    purchasable: false
-
-  - slug: ravenkeeper
-    name: Ravenkeeper
-    category: general
-    group: general-standing
-    description: "Keeps the Fortress ravens, and with them the only messages that outrun a rider."
-    pointCost: 0
-    purchasable: false
-
-  - slug: infamous
-    name: Infamous
-    category: general
-    group: general-standing
-    description: "Your name travels ahead of you, and it is not loved."
-    pointCost: 0
-    purchasable: false
-
-  - slug: pious
-    name: Pious
-    category: general
-    group: general-standing
-    description: "Genuine devotion, legible to others — the Church trusts you further than it trusts most."
-    pointCost: 1
-    purchasable: true
-    purchasableAfterStart: true
-
-  # Traits — what you are made of. The two negative-cost entries below GRANT
-  # points at creation, so both are purchasableAfterStart: false; a drawback
-  # you could buy mid-game would be a point farm.
-  - slug: determined
-    name: Determined
-    category: general
-    group: general-traits
-    description: "You do not stop. Hardship that would turn most people back barely slows you."
-    pointCost: 1
-    purchasable: true
-    purchasableAfterStart: true
-
-  - slug: opportunist
-    name: Opportunist
-    category: general
-    group: general-traits
-    description: "You see the opening before anyone else does, and you are already moving."
-    pointCost: 1
-    purchasable: true
-    purchasableAfterStart: true
-
-  - slug: insightful
-    name: Insightful
-    category: general
-    group: general-traits
-    description: "You read people well — motives, lies, and the shape of what they are not saying."
-    pointCost: 2
-    purchasable: true
-    purchasableAfterStart: true
-
-  - slug: intelligent
-    name: Intelligent
-    category: general
-    group: general-traits
-    description: "Quick and retentive. Complicated problems come apart in your hands."
-    pointCost: 2
-    purchasable: true
-    purchasableAfterStart: true
-
-  - slug: sturdy
-    name: Sturdy
-    category: general
-    group: general-traits
-    description: "Built to take it — hard labor and hard weather cost you less than they cost others."
-    pointCost: 2
-    purchasable: true
-    purchasableAfterStart: true
-
-  - slug: watchful
-    name: Watchful
-    category: general
-    group: general-traits
-    description: "Little gets past you. You notice the thing out of place before it becomes a problem."
-    pointCost: 2
-    purchasable: true
-    purchasableAfterStart: true
-
-  - slug: battle-hardened
-    name: Battle-Hardened
-    category: general
-    group: general-traits
-    description: "You have seen enough killing that it no longer shakes you when it starts."
-    pointCost: 2
-    purchasable: true
-    purchasableAfterStart: true
-
-  - slug: old
-    name: Old
-    category: general
-    group: general-traits
-    description: "Age has taken your body's edge, though not your judgment. Grants points at creation."
-    pointCost: -1
-    purchasable: true
-    purchasableAfterStart: false
-
-  - slug: frail
-    name: Frail
-    category: general
-    group: general-traits
-    description: "Sickly and easily hurt — injury lands harder on you than on most. Grants points at creation."
-    pointCost: -2
-    purchasable: true
-    purchasableAfterStart: false
-
-  # --- Skills ---------------------------------------------------------------
   - slug: windlander
     name: Windlander
     category: skills
@@ -265,6 +109,49 @@ tags:
     pointCost: 1
     purchasable: true
     purchasableAfterStart: true
+
+  - slug: chaplain
+    name: Chaplain
+    category: general
+    group: general
+    description: "Ordained to the Church. May take confession, read the rites over the dead, and remove people's negative mental traits."
+    pointCost: 0
+    purchasable: false
+
+  - slug: pious
+    name: Pious
+    category: general
+    group: general-traits
+    description: "You cannot be forcibly converted."
+    pointCost: 0
+    purchasable: false
+
+  - slug: insightful
+    name: Insightful
+    category: general
+    group: general-traits
+    description: "You read people well and can use a Gambit to discover 1-6 random tags about a person."
+    pointCost: 4
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: old
+    name: Old
+    category: general
+    group: general-traits
+    pointCost: -2
+    purchasable: true
+    purchasableAfterStart: false
+
+  - slug: frail
+    name: Frail
+    category: general
+    group: general-traits
+    pointCost: -3
+    purchasable: true
+    purchasableAfterStart: false
+
+  # --- Skills ---------------------------------------------------------------
 
   - slug: sign-language
     name: Sign Language
@@ -285,7 +172,7 @@ tags:
   - slug: laborer
     name: Laborer
     category: skills
-    description: "Works harder than most at every trade — a middling bonus to Farming, Fishing, and Herding production."
+    description: "You can produce food at an actually productive pace. Further specializations increase your production."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -293,7 +180,6 @@ tags:
   - slug: laborer-farming
     name: Laborer (Farming)
     category: skills
-    description: "Specializes in Farming — produces at a dedicated farmer's rate."
     pointCost: 2
     requiredTag: laborer
     purchasable: true
@@ -302,7 +188,6 @@ tags:
   - slug: laborer-fishing
     name: Laborer (Fishing)
     category: skills
-    description: "Specializes in Fishing — produces at a dedicated fisherman's rate."
     pointCost: 2
     requiredTag: laborer
     purchasable: true
@@ -311,31 +196,30 @@ tags:
   - slug: laborer-herding
     name: Laborer (Herding)
     category: skills
-    description: "Specializes in Herding — produces at a dedicated herder's rate."
     pointCost: 2
     requiredTag: laborer
     purchasable: true
     purchasableAfterStart: true
 
-  - slug: hunter
-    name: Hunter
+  - slug: laborer-hunting
+    name: Laborer (Hunting)
     category: skills
-    description: "Tracks game through the wilds — triples Hunting production."
-    pointCost: 0
-    purchasable: false
+    pointCost: 2
+    requiredTag: laborer
+    purchasable: true
+    purchasableAfterStart: true
 
   - slug: intercom
     name: Intercom
     category: skills
-    description: "Cleared to speak on Ravenheart's PA system — grants send access in #intercom."
-    pointCost: 2
-    purchasable: true
-    purchasableAfterStart: true
+    description: "Can send announcements to all of Ravenheart. You have access to #intercom."
+    purchasable: false
+    purchasableAfterStart: false
 
   - slug: forester
     name: Forester
     category: skills
-    description: "At home in the woods — you forage, track, and shelter where others simply get lost."
+    description: "At home in the woods. You forage, track, and shelter better than others."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -343,7 +227,7 @@ tags:
   - slug: musician
     name: Musician
     category: skills
-    description: "You play well enough to be paid for it, or at least fed for it."
+    description: "You play well enough to be paid for it."
     pointCost: 1
     purchasable: true
     purchasableAfterStart: true
@@ -351,12 +235,11 @@ tags:
   - slug: smithing
     name: Smithing
     category: skills
-    description: "Works iron — repairs, tools, and edged weapons at a forge."
+    description: "See the Smithing document."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
-  # Fighting tier chain
   - slug: fighting-basic
     name: Fighting (Basic)
     category: skills
@@ -368,7 +251,7 @@ tags:
   - slug: fighting-trained
     name: Fighting (Trained)
     category: skills
-    description: "Formally trained combat — a Watchman's or Sheriff's baseline."
+    description: "Formally trained combatant, but not particularly talented."
     pointCost: 2
     parentTag: fighting-basic
     visible: true
@@ -377,7 +260,7 @@ tags:
   - slug: fighting-skilled
     name: Fighting (Skilled)
     category: skills
-    description: "A seasoned fighter, dangerous in a real fight."
+    description: "You've actually fought before. You're a grizzled presence on the battlefield."
     pointCost: 2
     parentTag: fighting-trained
     visible: true
@@ -386,7 +269,7 @@ tags:
   - slug: fighting-expert
     name: Fighting (Expert)
     category: skills
-    description: "A master of arms — few in the barony can match them blade for blade."
+    description: "A master of arms. Almost no one matches you."
     pointCost: 2
     parentTag: fighting-skilled
     visible: true
@@ -395,26 +278,22 @@ tags:
   - slug: fighting-legendary
     name: Fighting (Legendary)
     category: skills
-    description: "A living legend of combat, spoken of in the same breath as the barony's greatest champions."
+    description: "The peak of your generation."
     pointCost: 2
     parentTag: fighting-expert
     visible: true
     purchasable: true
     purchasableAfterStart: true
-  # Specialized branch — prerequisite only, does not chain-replace any
-  # Fighting tier (a character can hold Fighting (Skilled) and Fighting
-  # (Archer) at the same time). Demonstrates requiredTag vs. parentTag.
   - slug: fighting-archer
     name: Fighting (Archer)
     category: skills
-    description: "Specialized in ranged combat — deadly with a bow at range."
-    pointCost: 2
+    description: "When using bows, your fighting skill is two levels higher."
+    pointCost: 3
     requiredTag: fighting-basic
     visible: true
     purchasable: true
     purchasableAfterStart: true
 
-  # Medical tier chain
   - slug: medical-basic
     name: Medical (Basic)
     category: skills
@@ -442,7 +321,6 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # Brewing tier chain
   - slug: brewing-basic
     name: Brewing (Basic)
     category: skills
@@ -461,7 +339,6 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # Cooking tier chain
   - slug: cooking-basic
     name: Cooking (Basic)
     category: skills
@@ -610,8 +487,6 @@ tags:
     purchasableAfterStart: true
 
   # --- Items --------------------------------------------------------------
-  # Empty for now — no existing tag maps here. Ready for future
-  # tradeable-item tags (set `tradeable: true` on those).
   - slug: old-45-revolver
     name: Old .45 Revolver
     category: items

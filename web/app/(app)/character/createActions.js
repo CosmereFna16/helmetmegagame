@@ -13,7 +13,10 @@ import {
 import {
   computeBudget,
   isRoleSelectable,
-  totalCost,
+  tagsById as buildTagsById,
+  effectiveTotalCost,
+  chainSiblingsToRemove,
+  requirementSatisfied,
   CURSED_ROLE_SLUGS,
 } from "@/lib/characterCreation";
 
@@ -69,17 +72,42 @@ export async function createCharacter(formData) {
     return { error: "One of those tags isn't available for purchase." };
   }
 
-  const budget = computeBudget({ startingTagPoints: config?.startingTagPoints ?? 0, role, cursed });
-  const spent = totalCost(selected);
-  if (spent > budget) {
-    return { error: `That costs ${spent} points and you have ${budget}.` };
-  }
-
   // Role tags come from the catalog by name (roles.yaml authors them as
   // display names, and db:sync-roles has already validated every one).
   const startingTags = role.startingTagSlugs.length
     ? await prisma.tag.findMany({ where: { name: { in: role.startingTagSlugs } } })
     : [];
+
+  // The full catalog, not just what's selected/granted, so a chain walk
+  // (parentTagId) never dead-ends on an ancestor the client didn't send.
+  const allTags = await prisma.tag.findMany({
+    select: { id: true, pointCost: true, parentTagId: true, requiredTagId: true },
+  });
+  const byId = buildTagsById(allTags);
+  const grantedIds = startingTags.map((t) => t.id);
+
+  // A hand-posted request could submit two tiers of the same chain at once
+  // (the UI never lets that happen — selecting one auto-drops the other).
+  for (const tag of selected) {
+    if (chainSiblingsToRemove(tag, byId, tagIds).length > 0) {
+      return { error: "You can only hold one tier of the same skill chain." };
+    }
+  }
+
+  // Prerequisites: requiredTag must be satisfied by something granted or
+  // selected alongside it (any tier of that tag's own chain counts).
+  const heldOrSelectedIds = [...grantedIds, ...tagIds];
+  for (const tag of selected) {
+    if (!requirementSatisfied(tag, byId, heldOrSelectedIds)) {
+      return { error: "One of those tags is missing a prerequisite." };
+    }
+  }
+
+  const budget = computeBudget({ startingTagPoints: config?.startingTagPoints ?? 0, role, cursed });
+  const spent = effectiveTotalCost(selected, byId);
+  if (spent > budget) {
+    return { error: `That costs ${spent} points and you have ${budget}.` };
+  }
 
   // Deduplicate: a player can pay for a tag the role also grants only if the
   // menu let them, but a direct post could. Union them, and refund nothing —

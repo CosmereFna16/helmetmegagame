@@ -6,7 +6,11 @@
 // Nothing here touches Discord or the DB; it's pure functions over rows the
 // caller already loaded, which is what makes it safe to run on both sides of
 // the client/server boundary.
-import { roleCapacity } from "@lifeweb/db";
+// Imported from the standalone module rather than the @lifeweb/db barrel:
+// this file is reached from client components (PointBuy, TagChip,
+// CreateCharacterWizard), and the barrel pulls in the Prisma client and
+// the YAML syncs (node:fs), which cannot be bundled for the browser.
+import { roleCapacity } from "@lifeweb/db/lib/roleCapacity";
 
 // Points a cursed player forfeits on their next character. Cursed is set on
 // the Player (the Discord account) when a character dies, and cleared by a GM
@@ -36,6 +40,100 @@ export function totalCost(tags) {
 
 export function remainingPoints({ budget, selectedTags }) {
   return budget - totalCost(selectedTags);
+}
+
+// --- Tier chains (parentTag) and prerequisites (requiredTag) ---
+//
+// A tier chain (Fighting (Basic) -> (Trained) -> (Skilled) -> ...) is
+// sequential and replacing: buying a tier is meant to replace whichever
+// lower tier of the same chain you already hold/have selected, not stack
+// with it. Each tag's pointCost is the incremental cost of that one hop, so
+// the cost of buying straight into a tier is the sum of every hop up to it
+// -- letting a player jump straight to Expert for the combined cost without
+// first buying Basic/Trained/Skilled as separate purchases, which the
+// point-buy UI has no way to sequence (nothing is "owned" yet mid-wizard).
+//
+// requiredTag is a non-replacing prerequisite (Fighting (Archer) requires
+// Fighting (Basic), but coexists with whatever Fighting tier you hold).
+// Since tiers replace rather than stack, holding *any* tier of a chain
+// satisfies a requirement pointing at a lower tier in that same chain.
+
+// tag -> [tag, ...ancestors] via parentTagId, closest-first.
+export function chainOf(tag, tagsById) {
+  const chain = [];
+  let current = tag;
+  const seen = new Set();
+  while (current && !seen.has(current.id)) {
+    chain.push(current);
+    seen.add(current.id);
+    current = current.parentTagId ? tagsById.get(current.parentTagId) : null;
+  }
+  return chain;
+}
+
+export function tagsById(tags) {
+  return new Map(tags.map((tag) => [tag.id, tag]));
+}
+
+export function cumulativeCost(tag, tagsById) {
+  return totalCost(chainOf(tag, tagsById));
+}
+
+// The highest-cost chain member of `tag`'s own chain that's already
+// held/selected, or null if none is. "Highest-cost" rather than
+// "first found" so an out-of-order id list still resolves to the actual
+// tier already owned.
+function heldChainMember(tag, tagsById, heldOrSelectedIds) {
+  const held = new Set(heldOrSelectedIds);
+  const chain = chainOf(tag, tagsById);
+  let best = null;
+  for (const member of chain) {
+    if (member.id === tag.id) continue;
+    if (!held.has(member.id)) continue;
+    if (!best || cumulativeCost(member, tagsById) > cumulativeCost(best, tagsById)) {
+      best = member;
+    }
+  }
+  return best;
+}
+
+// Cost to acquire `tag` given what's already held/selected: the full
+// cumulative chain cost, minus whatever's already paid for via a lower tier
+// of the same chain.
+export function effectiveCost(tag, tagsById, heldOrSelectedIds) {
+  const held = heldChainMember(tag, tagsById, heldOrSelectedIds);
+  const base = cumulativeCost(tag, tagsById);
+  return held ? base - cumulativeCost(held, tagsById) : base;
+}
+
+// Other ids of the same chain present in heldOrSelectedIds, to drop when
+// `tag` is newly selected (a chain replaces, it doesn't stack).
+export function chainSiblingsToRemove(tag, tagsById, heldOrSelectedIds) {
+  const chainIds = new Set(chainOf(tag, tagsById).map((t) => t.id));
+  chainIds.delete(tag.id);
+  return heldOrSelectedIds.filter((id) => chainIds.has(id));
+}
+
+// True if `tag` has no requiredTag, or requiredTag's id appears in the chain
+// of something already held/selected (any tier of that chain qualifies).
+export function requirementSatisfied(tag, tagsById, heldOrSelectedIds) {
+  if (!tag.requiredTagId) return true;
+  return heldOrSelectedIds.some((id) => {
+    const held = tagsById.get(id);
+    if (!held) return false;
+    return chainOf(held, tagsById).some((member) => member.id === tag.requiredTagId);
+  });
+}
+
+// Total cost of a set of selected tags, chain-aware: each tag's contribution
+// is its own cumulative chain cost rather than its raw incremental
+// pointCost, since a chain tier is meant to be bought outright, not stacked
+// on top of separately-purchased lower tiers. Callers are expected to keep
+// `tags` collapsed to at most one member per chain (chainSiblingsToRemove is
+// how selection UIs enforce that) -- with that invariant, summing
+// cumulativeCost per tag is exactly the "buy this tier outright" cost.
+export function effectiveTotalCost(tags, tagsById) {
+  return tags.reduce((sum, tag) => sum + cumulativeCost(tag, tagsById), 0);
 }
 
 // A cursed player is restricted to CURSED_ROLE_SLUGS; everyone else may take

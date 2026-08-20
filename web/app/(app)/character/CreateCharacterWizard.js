@@ -3,7 +3,14 @@
 import { useMemo, useState } from "react";
 import { createCharacter } from "./createActions";
 import PointBuy from "../../components/PointBuy";
-import { computeBudget, formatCost, costColor, totalCost } from "@/lib/characterCreation";
+import {
+  computeBudget,
+  formatCost,
+  costColor,
+  tagsById as buildTagsById,
+  effectiveTotalCost,
+  effectiveCost,
+} from "@/lib/characterCreation";
 
 const STEPS = ["Identity", "Role", "Tags", "Confirm"];
 
@@ -84,13 +91,15 @@ export default function CreateCharacterWizard({ zones, tags, startingTagPoints, 
   );
   const role = allRoles.find((r) => r.id === roleId) ?? null;
 
+  const byId = useMemo(() => buildTagsById(tags), [tags]);
   const budget = computeBudget({ startingTagPoints, role, cursed });
   const selectedTags = tags.filter((t) => selectedIds.includes(t.id));
-  const remaining = budget - totalCost(selectedTags);
+  const remaining = budget - effectiveTotalCost(selectedTags, byId);
   const grantedTags = useMemo(
     () => (role ? tags.filter((t) => role.startingTagNames.includes(t.name)) : []),
     [role, tags],
   );
+  const grantedIds = useMemo(() => grantedTags.map((t) => t.id), [grantedTags]);
 
   // Switching roles changes the budget and what's already granted, so a
   // carried-over selection could silently be over budget or duplicate a
@@ -250,9 +259,11 @@ export default function CreateCharacterWizard({ zones, tags, startingTagPoints, 
             {[...grantedTags, ...selectedTags].map((t) => (
               <span key={t.id} className="chip">
                 {t.name}
-                {selectedIds.includes(t.id) && (
-                  <span style={{ color: costColor(t.pointCost) }}> {formatCost(t.pointCost)}</span>
-                )}
+                {selectedIds.includes(t.id) &&
+                  (() => {
+                    const cost = effectiveCost(t, byId, grantedIds);
+                    return <span style={{ color: costColor(cost) }}> {formatCost(cost)}</span>;
+                  })()}
               </span>
             ))}
             {grantedTags.length + selectedTags.length === 0 && (
