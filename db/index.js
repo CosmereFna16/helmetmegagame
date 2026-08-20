@@ -6,7 +6,8 @@ const { runFullChannelWipe } = require("./lib/fullWipe");
 const { syncLocationsFromYaml } = require("./lib/syncLocations");
 const { syncTagsFromYaml } = require("./lib/syncTags");
 const { syncRolesFromYaml } = require("./lib/syncRoles");
-const { syncSpecialChannelsFromYaml } = require("./lib/syncSpecialChannels");
+const { NARROWCAST_SLUGS, buildNarrowcastContext, computeNarrowcastAccess } = require("./lib/narrowcastAccess");
+const { syncNarrowcastChannels } = require("./lib/syncNarrowcastChannels");
 
 const globalForPrisma = globalThis;
 
@@ -105,7 +106,10 @@ module.exports = {
   syncLocationsFromYaml,
   syncTagsFromYaml,
   syncRolesFromYaml,
-  syncSpecialChannelsFromYaml,
+  NARROWCAST_SLUGS,
+  buildNarrowcastContext,
+  computeNarrowcastAccess,
+  syncNarrowcastChannels,
   LIFEWEB_SPUTTER_THRESHOLD,
   ...require("./weather"),
   ...require("./lib/constants"),

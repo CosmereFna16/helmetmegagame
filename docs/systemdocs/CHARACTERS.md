@@ -131,70 +131,68 @@ Discord role afterward. `web/lib/discordGuild.js#killCharacter`, called from
 
 1. Deletes the personal Discord role. This does most of the work: Discord
    drops every permission overwrite tied to a role the moment the role goes,
-   so Location access disappears with it and no categories need walking.
+   so Location access *and* narrowcast-channel access (§6) disappear with it
+   and nothing needs walking individually.
 2. Nulls `discordRoleId` — it's `@unique`, and a dangling id would have
    `ensureCharacterRole` PATCHing a deleted role forever.
-3. Strips every special-channel gate role (§6) — those aren't tied to the
-   personal role, so they need removing separately.
-4. Clears the Discord nickname.
-5. Sets `Player.cursed = true`.
+3. Clears the Discord nickname.
+4. Sets `Player.cursed = true`.
 
 `updateCharacterRaw` skips the role/location sync entirely for a non-`ALIVE`
 character.
 
-## 6. Tag-gated channels
+## 6. Narrowcast channels (`#radio`, `#intercom`)
 
 Location access is *place*-based: one `ViewChannel` overwrite per resident
-character on the Location category, swapped on travel. That works because a
-character stands in exactly one place at a time.
+character on the Location category, swapped on travel. `#radio` and
+`#intercom` sit outside that category structure, but use the exact same
+primitive — a permission overwrite on the character's own personal Discord
+role — rather than a separate gate role, because each channel's condition is
+bespoke and depends on the character's current Zone/Location as well as tags,
+not a simple "hold a tag" gate:
 
-A **tag** doesn't work that way — everyone can hold one at once, and Discord
-caps a channel at ~100 permission overwrites. So `SpecialChannel` gates go
-through a plain guild role instead: each gate has its own role, the channel
-carries at most three overwrites total, and what changes is *membership*.
+- **`#radio`** — viewable/speakable by anyone holding the Radio tag, unless
+  they're currently in **Depths**.
+- **`#intercom`** — viewable by anyone in the **Fortress** or **Town** Zone;
+  speakable only by an Intercom-tagged character standing in the **Keep**.
 
-`docs/channels.yaml` is the master
-(`db/lib/syncSpecialChannels.js`, `npm run db:sync-channels`). Each entry
-declares up to two gates:
+Rules live in `db/lib/narrowcastAccess.js#NARROWCAST_RULES`, hardcoded rather
+than YAML-authored since neither condition is a generic gate. Reconciled by
+`bot/src/lib/location.js#syncCharacterNarrowcastAccess` (gateway, called from
+`performMove` after every Move) and `web/lib/discordGuild.js`'s function of
+the same name (REST, called from character creation, GM raw location edits,
+and `grantTag`/`revokeTag` — tag changes only ever happen through the web
+app). `@everyone` is denied `ViewChannel`+`SendMessages` on both channels by
+default; a qualifying character's personal role gets the matching `allow`
+overwrite, or has it removed if they qualify for neither.
 
-| Gate | `@everyone` | Gate role |
-|---|---|---|
-| `viewTag` | denied `ViewChannel` | allowed `ViewChannel` |
-| `sendTag` | denied `SendMessages` | allowed `ViewChannel`+`SendMessages` |
-
-So `#radio` (`viewTag: radio`) is invisible without the tag, and `#intercom`
-(`sendTag: intercom`) is readable by everyone but speakable only by holders.
-Adding a third channel is a YAML entry plus a re-sync.
-
-`web/lib/discordGuild.js#syncCharacterSpecialAccess` reconciles a member's
-gate roles against the tags they actually hold. It's a reconcile, not an
-add-only pass, so revoking a tag really does remove access. Call sites:
-character creation, the GM's `grantTag`/`revokeTag`, and death.
-`npm run db:backfill-special-access` is the catch-up for anything that
-bypassed those.
+Channel provisioning (`GameConfig.radioChannelId`/`intercomChannelId`) is a
+one-off script, `db/lib/syncNarrowcastChannels.js`
+(`npm run db:sync-narrowcast-channels`) — not part of `wipeGameData`, the ids
+persist across a restart.
 
 ## 7. Sync order
 
-The four YAML masters have dependencies, so order is load-bearing — this is
+The three YAML masters have dependencies, so order is load-bearing — this is
 the order `wipeGameData`'s "Restart Game" runs them in:
 
 ```
-locations  ->  tags  ->  roles  ->  channels
+locations  ->  tags  ->  roles
 ```
 
-Roles resolve a starting Location *and* validate `starting_tags`; channel
-gates resolve Tags. Their delete contracts differ and are worth knowing:
-locations is **fully destructive** (a dropped Location loses its Discord
-category and its row), roles prunes only rows nothing references, and
-tags/channels are pure upserts that never delete.
+Roles resolve a starting Location *and* validate `starting_tags`. Their
+delete contracts differ and are worth knowing: locations is **fully
+destructive** (a dropped Location loses its Discord category and its row),
+roles prunes only rows nothing references, and tags is a pure upsert that
+never deletes.
 
 ## 8. Where the code lives
 
 | Concern | File |
 |---|---|
-| Masters | `docs/roles.yaml`, `docs/tags.yaml`, `docs/locations.yaml`, `docs/channels.yaml` |
+| Masters | `docs/roles.yaml`, `docs/tags.yaml`, `docs/locations.yaml` |
 | Role sync | `db/lib/syncRoles.js`, `db/prisma/sync-roles.js` |
-| Channel sync | `db/lib/syncSpecialChannels.js`, `db/prisma/sync-channels.js` |
+| Narrowcast channels | `db/lib/narrowcastAccess.js`, `db/lib/syncNarrowcastChannels.js`, `db/prisma/sync-narrowcast-channels.js` |
 | Seat math | `db/lib/roleCapacity.js` |
 | Budget/eligibility rules | `web/lib/characterCreation.js` |
 | Wizard | `web/app/(app)/character/CreateCharacterWizard.js` |

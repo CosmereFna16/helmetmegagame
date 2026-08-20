@@ -8,7 +8,6 @@ import {
   syncLocationsFromYaml,
   syncTagsFromYaml,
   syncRolesFromYaml,
-  syncSpecialChannelsFromYaml,
 } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -20,7 +19,7 @@ import {
   sortLocationCategories,
   deleteCharacterRole,
   updateGuildNickname,
-  syncCharacterSpecialAccess,
+  syncCharacterNarrowcastAccess,
   killCharacter,
 } from "@/lib/discordGuild";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
@@ -169,19 +168,19 @@ const DEFAULT_GAME_CONFIG = {
 // channel — messages, forum posts, and threads, public or private), and
 // opens a fresh Turn 1/DAWN. Then re-syncs every YAML master, in dependency
 // order, so the game starts from the canonical sets:
-//   locations (docs/locations.yaml) -> tags (docs/tags.yaml)
-//   -> roles (docs/roles.yaml)      -> special channels (docs/channels.yaml)
-// Roles resolve a starting Location and validate starting_tags, and channel
-// gates resolve Tags, so that order is load-bearing, not cosmetic.
+//   locations (docs/locations.yaml) -> tags (docs/tags.yaml) -> roles (docs/roles.yaml)
+// Roles resolve a starting Location and validate starting_tags, so that
+// order is load-bearing, not cosmetic. The #radio/#intercom channel ids on
+// GameConfig are left untouched (same "self-heals, provisioning is one-time"
+// treatment as turnsAnnouncementChannelId) rather than reset here.
 //
-// The four syncs do NOT share one contract, which is worth knowing before
+// The three syncs do NOT share one contract, which is worth knowing before
 // relying on any of them: syncLocationsFromYaml is fully destructive (a
 // Location dropped from the YAML has its Discord category+channels deleted
 // and its row removed), syncRolesFromYaml prunes only rows nothing
-// references, and syncTagsFromYaml/syncSpecialChannelsFromYaml are pure
-// upserts that never delete. Faction silos reset to 0, same "back to day
-// one" treatment as the Turn counter, rather than carrying over stale
-// economy numbers.
+// references, and syncTagsFromYaml is a pure upsert that never deletes.
+// Faction silos reset to 0, same "back to day one" treatment as the Turn
+// counter, rather than carrying over stale economy numbers.
 //
 // Requires typing the literal string "WIPE" in the confirm field — this is
 // the most destructive action in the Dev Panel and has no undo.
@@ -246,16 +245,12 @@ export async function wipeGameData(formData) {
     console.error("Role sync failed during game wipe:", err);
     return null;
   });
-  const channelSync = await syncSpecialChannelsFromYaml(prisma).catch((err) => {
-    console.error("Special channel sync failed during game wipe:", err);
-    return null;
-  });
 
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: session.discordUserId,
       actionType: "superadmin_game_wipe",
-      details: { locationSync, tagSync, roleSync, channelSync },
+      details: { locationSync, tagSync, roleSync },
     },
   });
 
@@ -310,8 +305,8 @@ export async function updateCharacterRaw(formData) {
   });
 
   // Death is the one status change with side effects: killCharacter deletes
-  // the personal Discord role (which takes its Location overwrites with it),
-  // strips special-channel gates, clears the nickname, and curses the player.
+  // the personal Discord role (which takes its Location and narrowcast
+  // overwrites with it), clears the nickname, and curses the player.
   // Everything below is skipped for a dead character — re-syncing the role of
   // a corpse is exactly the bug this replaces.
   if (status === "DEAD" && existing?.status !== "DEAD") {
@@ -320,6 +315,7 @@ export async function updateCharacterRaw(formData) {
     await ensureCharacterRole(updated).catch(() => {});
     if (existing?.locationId !== locationId) {
       await syncCharacterLocationAccess(updated.discordRoleId, existing?.locationId ?? null, locationId).catch(() => {});
+      await syncCharacterNarrowcastAccess(characterId).catch(() => {});
     }
   }
 
@@ -358,9 +354,8 @@ export async function grantTag(formData) {
 
   await prisma.characterTag.create({ data: { characterId, tagId, source: "GM_GRANT" } });
 
-  // A granted tag may be the gate on a SpecialChannel (#radio, #intercom).
-  const granted = await prisma.character.findUnique({ where: { id: characterId }, select: { discordUserId: true } });
-  if (granted) await syncCharacterSpecialAccess(granted.discordUserId, characterId).catch(() => {});
+  // A granted tag may affect narrowcast access (#radio, #intercom).
+  await syncCharacterNarrowcastAccess(characterId).catch(() => {});
 
   await prisma.auditLog.create({
     data: {
@@ -385,8 +380,7 @@ export async function revokeTag(formData) {
   const ct = await prisma.characterTag.delete({ where: { id: characterTagId } }).catch(() => null);
   if (!ct) return;
 
-  const revoked = await prisma.character.findUnique({ where: { id: ct.characterId }, select: { discordUserId: true } });
-  if (revoked) await syncCharacterSpecialAccess(revoked.discordUserId, ct.characterId).catch(() => {});
+  await syncCharacterNarrowcastAccess(ct.characterId).catch(() => {});
 
   await prisma.auditLog.create({
     data: {

@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { auth } from "@/lib/auth";
-import { prisma, hashNameToColor } from "@lifeweb/db";
+import { prisma, hashNameToColor, buildNarrowcastContext, computeNarrowcastAccess } from "@lifeweb/db";
 
 const DISCORD_API = "https://discord.com/api/v10";
 
@@ -11,6 +11,7 @@ const DISCORD_API = "https://discord.com/api/v10";
 const CHANNEL_TYPE_TEXT = 0;
 const CHANNEL_TYPE_FORUM = 15;
 const PERM_VIEW_CHANNEL = 1024;
+const PERM_SEND_MESSAGES = 2048;
 
 // Tupper/summary status is entirely Location-channel-ID-based (see
 // getLocationChannelIds below) — a channel opts in only by being one of a
@@ -428,56 +429,59 @@ export async function syncCharacterLocationAccess(discordRoleId, oldLocationId, 
   }
 }
 
-// Reconciles a character's membership in the gate roles behind every
-// SpecialChannel (#radio, #intercom, ...) against the tags they actually
-// hold. Idempotent — safe to call on every tag change, and the natural
-// catch-up call after character creation.
-//
-// Access goes through a guild role rather than a per-character permission
-// overwrite because a tag can be held by everybody at once and Discord caps
-// a channel at ~100 overwrites; see db/lib/syncSpecialChannels.js for the
-// provisioning side. Pass `tagIds` when the caller already has them (e.g.
-// mid-transaction), otherwise they're loaded here.
-export async function syncCharacterSpecialAccess(discordUserId, characterId, tagIds = null) {
-  const guildId = process.env.DISCORD_GUILD_ID;
+// Reconciles a character's personal-role permission overwrites on the two
+// hardcoded narrowcast channels (#radio, #intercom) against their current
+// tags and Location/Zone — see db/lib/narrowcastAccess.js for the actual
+// rules, and bot/src/lib/location.js's twin of the same name (gateway-based,
+// called after every Move) for the other half. This one is the REST path,
+// called from GM raw location/tag edits and from character creation.
+// Idempotent — safe to call after any tag or location change.
+export async function syncCharacterNarrowcastAccess(characterId) {
   const token = process.env.DISCORD_TOKEN;
-  if (!guildId || !token || !discordUserId) return;
+  if (!token || !characterId) return;
 
-  const channels = await prisma.specialChannel.findMany({
-    where: { OR: [{ viewTagId: { not: null } }, { sendTagId: { not: null } }] },
+  const character = await prisma.character.findUnique({
+    where: { id: characterId },
+    select: { discordRoleId: true },
   });
-  if (channels.length === 0) return;
+  if (!character?.discordRoleId) return;
 
-  const held = new Set(
-    tagIds ??
-      (characterId
-        ? (await prisma.characterTag.findMany({ where: { characterId }, select: { tagId: true } })).map((t) => t.tagId)
-        : []),
-  );
-
-  // One PUT/DELETE per gate. Deletes are issued unconditionally for gates the
-  // character doesn't qualify for, which is what makes this a reconcile
-  // rather than an add-only pass — revoking a tag actually removes access.
-  const gates = channels.flatMap((c) => [
-    { roleId: c.discordViewRoleId, tagId: c.viewTagId },
-    { roleId: c.discordSendRoleId, tagId: c.sendTagId },
+  const [ctx, config] = await Promise.all([
+    buildNarrowcastContext(prisma, characterId),
+    prisma.gameConfig.findUnique({ where: { id: 1 } }),
   ]);
+  const access = computeNarrowcastAccess(ctx);
+  const channelIds = { radio: config?.radioChannelId, intercom: config?.intercomChannelId };
 
   await Promise.all(
-    gates
-      .filter((g) => g.roleId && g.tagId)
-      .map(async ({ roleId, tagId }) => {
-        const method = held.has(tagId) ? "PUT" : "DELETE";
+    Object.entries(channelIds)
+      .filter(([, channelId]) => channelId)
+      .map(async ([slug, channelId]) => {
+        const grant = access[slug];
         try {
-          const res = await fetch(
-            `${DISCORD_API}/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`,
-            { method, headers: { Authorization: `Bot ${token}` } },
-          );
-          if (!res.ok && res.status !== 204 && res.status !== 404) {
-            console.error(`Failed to ${method} special-channel role ${roleId} for ${discordUserId}: ${res.status} ${await res.text()}`);
+          if (grant) {
+            let allow = 0;
+            if (grant.view || grant.send) allow |= PERM_VIEW_CHANNEL;
+            if (grant.send) allow |= PERM_SEND_MESSAGES;
+            const res = await fetch(`${DISCORD_API}/channels/${channelId}/permissions/${character.discordRoleId}`, {
+              method: "PUT",
+              headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ id: character.discordRoleId, type: 0, allow: String(allow), deny: "0" }),
+            });
+            if (!res.ok) {
+              console.error(`Failed to grant narrowcast access on ${slug} for ${characterId}: ${res.status} ${await res.text()}`);
+            }
+          } else {
+            const res = await fetch(`${DISCORD_API}/channels/${channelId}/permissions/${character.discordRoleId}`, {
+              method: "DELETE",
+              headers: { Authorization: `Bot ${token}` },
+            });
+            if (!res.ok && res.status !== 404) {
+              console.error(`Failed to revoke narrowcast access on ${slug} for ${characterId}: ${res.status} ${await res.text()}`);
+            }
           }
         } catch (err) {
-          console.error(`Failed to ${method} special-channel role ${roleId} for ${discordUserId}:`, err);
+          console.error(`Narrowcast sync failed for ${slug}/${characterId}:`, err);
         }
       }),
   );
@@ -501,9 +505,8 @@ export async function killCharacter(character) {
       .catch(() => {});
   }
 
-  // Special-channel gates aren't tied to the personal role, so they need
-  // removing separately. Passing an empty tag set revokes every gate.
-  await syncCharacterSpecialAccess(character.discordUserId, character.id, []).catch(() => {});
+  // Narrowcast access (radio/intercom) is granted on the personal role too,
+  // so it disappears along with it — no separate revoke needed.
   await updateGuildNickname(character.discordUserId, null).catch(() => {});
 
   await prisma.player

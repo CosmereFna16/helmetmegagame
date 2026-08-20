@@ -36,11 +36,13 @@ npm run db:generate                  # prisma generate
 npm run db:migrate                   # prisma migrate dev (needs DATABASE_URL set)
 
 # YAML masters -> DB. Order matters: roles resolve Locations and validate
-# Tags, and channel gates resolve Tags.
+# Tags.
 npm run db:sync-locations            # docs/locations.yaml  (destructive)
 npm run db:sync-tags                 # docs/tags.yaml       (upsert-only)
 npm run db:sync-roles                # docs/roles.yaml      (prunes unreferenced)
-npm run db:sync-channels             # docs/channels.yaml   (upsert-only)
+
+# One-off provisioning for #radio/#intercom — see "Narrowcast channels" below.
+npm run db:sync-narrowcast-channels
 
 npm run build --workspace=web        # production build of the web app
 npm run lint --workspace=web         # eslint over the web app
@@ -158,25 +160,27 @@ from `/gm/dev/characters/[characterId]`.
 
 Death is no longer a bare column write:
 `web/lib/discordGuild.js#killCharacter` deletes the personal Discord role
-(which takes its Location overwrites with it), nulls `discordRoleId`, strips
-special-channel gate roles, clears the nickname, and sets the curse.
+(which takes its Location and narrowcast-channel overwrites with it), nulls
+`discordRoleId`, clears the nickname, and sets the curse.
 
 Full writeup: `docs/systemdocs/CHARACTERS.md`.
 
-## Special channels (tag-gated)
+## Narrowcast channels (`#radio`, `#intercom`)
 
-`docs/channels.yaml` masters standalone channels gated on holding a Tag
-rather than on standing in a Location — `#radio` (view-gated) and `#intercom`
-(send-gated) ship with it. Synced by
-`db/lib/syncSpecialChannels.js` (`npm run db:sync-channels`).
-
-Access goes through a **plain guild role per gate**, not per-character
-permission overwrites: a tag can be held by everyone at once and Discord caps
-a channel at ~100 overwrites, so this keeps it at three regardless of roster
-size. `web/lib/discordGuild.js#syncCharacterSpecialAccess` reconciles a
-member's gate roles against their tags (both directions — a revoked tag
-really loses access), called on creation, GM `grantTag`/`revokeTag`, and
-death. See `docs/systemdocs/CHANNELS.md` §6.
+`#radio` and `#intercom` sit outside the Location layout, gated on Zone/
+Location and Tags rather than on standing in a Location, using the **same**
+access primitive Locations do — a permission overwrite on the character's own
+personal Discord role — rather than a separate gate role per channel.
+`#radio` is viewable/speakable by anyone holding the Radio tag unless they're
+in Depths; `#intercom` is viewable by anyone in Fortress or Town, speakable
+only by an Intercom-tagged character standing in the Keep. Rules live in
+`db/lib/narrowcastAccess.js`; reconciled by `bot/src/lib/location.js`'s
+`syncCharacterNarrowcastAccess` (gateway, after every Move) and
+`web/lib/discordGuild.js`'s function of the same name (REST, on character
+creation, GM raw location edits, and `grantTag`/`revokeTag`). Channel
+provisioning (channel ids cached on `GameConfig.radioChannelId`/
+`intercomChannelId`) is a one-off script,
+`npm run db:sync-narrowcast-channels`. See `docs/systemdocs/CHANNELS.md` §6.
 
 ## Tags
 
@@ -190,7 +194,7 @@ There is no single unified permission system — a few independent kinds of Disc
 
 - **Personal character role** (`Character.discordRoleId`, one per `ALIVE` character, titled after the character's name) — the sole access-control primitive for Location categories (see above). Created/renamed by `ensureCharacterRole`, granted/revoked per-category by `swapLocationAccess`/`syncCharacterLocationAccess`.
 - **GM role** (`DISCORD_GM_ROLE_ID` env var) — checked via REST (`web/lib/discordGuild.js#isGm`) against the signed-in user's guild member roles to gate `/gm` pages and the `/gm`/`/message` slash commands; not stored on any Lifeweb model.
-- **Special-channel gate roles** (`SpecialChannel.discordViewRoleId`/`discordSendRoleId`, one per gate, named `{channel}-view`/`{channel}-send`) — grant view or send on a tag-gated channel like `#radio`/`#intercom`. Created by `db:sync-channels`; membership reconciled against a character's tags by `syncCharacterSpecialAccess`.
+- **Narrowcast channels** (`#radio`, `#intercom`) use the personal character role above, not a separate role — see "Narrowcast channels" below.
 - **Turn-ping role** (`DISCORD_TURN_PING_ROLE_ID` env var) — a plain opt-in notification role, added/removed by `setTurnPingRole` when a player toggles "Turn Ping?" on `/character`.
 
 ## Info channel

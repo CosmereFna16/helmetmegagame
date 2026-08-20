@@ -1,5 +1,5 @@
 const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
-const { prisma } = require("@lifeweb/db");
+const { prisma, buildNarrowcastContext, computeNarrowcastAccess } = require("@lifeweb/db");
 const { isLocationPromptChannel } = require("./channels");
 
 const FLEUR_EMOJI = "⚜️";
@@ -67,6 +67,42 @@ async function swapLocationAccess(guild, characterRoleId, oldLocation, newLocati
   }
 }
 
+// Reconciles a character's personal-role overwrites on the narrowcast
+// channels (#radio, #intercom) against their current tags/Location — see
+// db/lib/narrowcastAccess.js for the actual rules and
+// web/lib/discordGuild.js#syncCharacterNarrowcastAccess for the REST twin
+// (used by GM raw edits and tag grant/revoke, which only ever happen through
+// the web app). Called after every location change (performMove, below).
+async function syncCharacterNarrowcastAccess(guild, character) {
+  if (!character.discordRoleId) return;
+  const role = await getRole(guild, character.discordRoleId);
+  if (!role) return;
+
+  const [ctx, config] = await Promise.all([
+    buildNarrowcastContext(prisma, character.id),
+    prisma.gameConfig.findUnique({ where: { id: 1 } }),
+  ]);
+  const access = computeNarrowcastAccess(ctx);
+  const channelIds = { radio: config?.radioChannelId, intercom: config?.intercomChannelId };
+
+  await Promise.all(
+    Object.entries(channelIds)
+      .filter(([, channelId]) => channelId)
+      .map(async ([slug, channelId]) => {
+        const channel = await getChannel(guild, channelId);
+        if (!channel) return;
+        const grant = access[slug];
+        if (grant) {
+          await channel.permissionOverwrites
+            .edit(role, { ViewChannel: grant.view || grant.send || null, SendMessages: grant.send || null })
+            .catch(() => {});
+        } else {
+          await channel.permissionOverwrites.delete(role).catch(() => {});
+        }
+      }),
+  );
+}
+
 // Executes a validated zone/location change: free if staying within the
 // same zone (or the character has no zone yet), otherwise a turn-consuming
 // auto-resolved Move — reuses the existing turn-economy (Action rows scoped
@@ -105,6 +141,8 @@ async function performMove(guild, character, targetLocation) {
     where: { id: character.id },
     data: { locationId: targetLocation.id, zoneId: targetLocation.zoneId },
   });
+
+  await syncCharacterNarrowcastAccess(guild, character);
 
   if (!isFree) {
     await prisma.action.create({

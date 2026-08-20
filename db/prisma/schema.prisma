@@ -114,6 +114,12 @@ model GameConfig {
   // round(6 * playerCount / 100) seats. Raising this mid-signup widens every
   // capped role proportionally without touching the YAML.
   playerCount Int @default(100)
+
+  // The two hardcoded narrowcast channels (#radio, #intercom) — see
+  // db/lib/narrowcastAccess.js. Provisioned once by
+  // npm run db:sync-narrowcast-channels; never touched again after that.
+  radioChannelId    String?
+  intercomChannelId String?
 }
 
 // Master-sourced from docs/roles.yaml's zones[].factions[]
@@ -344,10 +350,8 @@ model Tag {
   // already uses.
   defaultDurationTurns Int?
 
-  characters       CharacterTag[]
-  gatedGroups      TagGroup[]       @relation("TagGroupGate")
-  gatesChannelView SpecialChannel[] @relation("SpecialChannelView")
-  gatesChannelSend SpecialChannel[] @relation("SpecialChannelSend")
+  characters  CharacterTag[]
+  gatedGroups TagGroup[]     @relation("TagGroupGate")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -464,40 +468,6 @@ model Role {
   updatedAt DateTime @updatedAt
 
   @@index([factionId])
-}
-
-// A standalone, tag-gated channel that lives outside the Location layout —
-// #radio, #intercom, and whatever else gets added to docs/channels.yaml
-// (db/lib/syncSpecialChannels.js, npm run db:sync-channels).
-//
-// Access is granted through a plain guild role per gate rather than a
-// per-character permission overwrite: Discord caps a channel at ~100
-// overwrites, which a 100+ player game would blow straight through, whereas
-// this leaves at most three on the channel no matter how many people hold
-// the tag. web/lib/discordGuild.js#syncCharacterSpecialAccess adds/removes
-// those roles on a member as their CharacterTag rows change.
-model SpecialChannel {
-  id       String  @id @default(cuid())
-  slug     String  @unique
-  name     String
-  topic    String  @default("")
-  isTupper Boolean @default(true)
-
-  discordChannelId String?
-
-  // Null viewTag means @everyone can see the channel; null sendTag means
-  // anyone who can see it can post. Each non-null gate gets its own guild
-  // role, whose id is cached alongside it.
-  viewTagId String?
-  viewTag   Tag?    @relation("SpecialChannelView", fields: [viewTagId], references: [id])
-  sendTagId String?
-  sendTag   Tag?    @relation("SpecialChannelSend", fields: [sendTagId], references: [id])
-
-  discordViewRoleId String?
-  discordSendRoleId String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 model Turn {

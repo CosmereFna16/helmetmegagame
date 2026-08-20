@@ -166,44 +166,56 @@ legitimately still differs per caller). Both Discord side effects are
 best-effort — wrapped in `.catch()` — so a Discord-side failure can never
 block or roll back the turn advance itself.
 
-## 6. Special channels (tag-gated, outside the Location layout)
+## 6. Narrowcast channels (`#radio`, `#intercom`, outside the Location layout)
 
-`#radio`, `#intercom`, and anything else added to `docs/channels.yaml` sit
-outside the Location category structure entirely. They're gated on holding a
-**Tag** rather than on standing in a **place**, and that difference forces a
-different mechanism.
+`#radio` and `#intercom` sit outside the Location category structure
+entirely, and unlike the tag-gate-role mechanism this replaced, they use the
+*exact same* access primitive Locations do: a permission overwrite on the
+character's own personal Discord role (`Character.discordRoleId`), added or
+removed as their tags or Location/Zone change. There's no separate gate role
+for either channel anymore — just the personal role everyone already has.
 
-A Location can use one permission overwrite per resident character because a
-character stands in exactly one place at a time. A tag can be held by
-everybody at once, and Discord caps a channel at ~100 overwrites — so tag
-gating goes through a plain guild role instead. Each gate gets its own role,
-the channel carries at most three overwrites no matter how many people hold
-the tag, and what changes over time is role *membership*.
+Each channel's rule is bespoke, not a symmetric "hold a tag" gate, so they're
+hardcoded in `db/lib/narrowcastAccess.js`'s `NARROWCAST_RULES` rather than
+authored in a YAML:
 
-Provisioned by `db/lib/syncSpecialChannels.js#syncSpecialChannelsFromYaml`
-(`npm run db:sync-channels`), which sets exactly these overwrites:
+- **`#radio`** — viewable and speakable by anyone holding the **Radio** tag,
+  *unless* their current Location is **Depths**.
+- **`#intercom`** — viewable by anyone whose current Zone is **Fortress** or
+  **Town**; speakable only by a character holding the **Intercom** tag *and*
+  currently standing in the **Keep** (a Location inside Fortress).
 
-| Declared gate | `@everyone` | Gate role |
-|---|---|---|
-| `viewTag: <slug>` | deny `ViewChannel` | allow `ViewChannel` |
-| `sendTag: <slug>` | deny `SendMessages` | allow `ViewChannel` + `SendMessages` |
-| neither | no overwrite — fully public | — |
+`@everyone` is denied `ViewChannel` + `SendMessages` on both by default (set
+once at provisioning, see below); a qualifying character's personal role then
+gets an `allow` overwrite for whichever of `ViewChannel`/`SendMessages` their
+current context grants, or has its overwrite removed entirely if it
+qualifies for neither.
 
-So `#radio` (`viewTag: radio`) is invisible to anyone without the tag, while
-`#intercom` (`sendTag: intercom`) is readable by the whole server and
-speakable only by holders.
+Two call sites keep this reconciled, mirroring the Location access split:
+`bot/src/lib/location.js`'s `syncCharacterNarrowcastAccess` (gateway, called
+from `performMove` after every Move) and `web/lib/discordGuild.js`'s
+function of the same name (REST, called from character creation, GM raw
+location edits, and `grantTag`/`revokeTag` — tag changes only ever happen
+through the web app). Both load the character's current tags/Location via
+`db/lib/narrowcastAccess.js#buildNarrowcastContext` and run
+`computeNarrowcastAccess` against the rules table. No revoke is needed on
+death: `killCharacter` deletes the personal role outright, which drops every
+permission overwrite tied to it — Location and narrowcast alike — for free.
 
-Membership is reconciled by
-`web/lib/discordGuild.js#syncCharacterSpecialAccess`, called on character
-creation, on the GM's `grantTag`/`revokeTag`, and on death. It issues a
-`DELETE` for every gate the character *doesn't* qualify for as well as a
-`PUT` for those they do — an add-only pass would mean revoking a tag never
-actually took access away. `npm run db:backfill-special-access` is the
-catch-up for anything that bypassed those call sites.
+Provisioning is a one-off, hand-run script:
+`db/lib/syncNarrowcastChannels.js#syncNarrowcastChannels`
+(`npm run db:sync-narrowcast-channels`) creates each channel if its id (kept
+on `GameConfig.radioChannelId`/`intercomChannelId`) is unset or missing from
+the guild, sets a static topic, and applies the `@everyone` deny — then never
+touches it again. It is not part of `wipeGameData`'s "Restart Game" flow; the
+channel ids persist across a reset, same treatment as
+`turnsAnnouncementChannelId`.
 
-Like Location channels, provisioning is one-time (an existing channel is
-never renamed or recreated), but the topic and the overwrites are rewritten
-on every sync. Unlike Location channels, the sync is upsert-only: a channel
-dropped from `docs/channels.yaml` keeps its row and its Discord channel, it
-just stops being updated.
+Known scaling caveat: `#intercom`'s view condition spans a whole Zone
+(Fortress or Town), which can include many simultaneously-present characters
+at once — unlike a single Location, this could approach Discord's
+~100-permission-overwrite-per-channel ceiling at a large enough roster. This
+was a known, accepted tradeoff when the tag-gate-role mechanism was replaced
+with personal-role overwrites; revisit if it becomes a real problem in
+practice.
 

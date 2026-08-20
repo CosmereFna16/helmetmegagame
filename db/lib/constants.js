@@ -6,7 +6,6 @@ const TIPSY_SLUG = "tipsy";
 const ALCOHOLIC_SLUG = "alcoholic";
 const MORTUS_SLUG = "mortus";
 const DRAINED_SLUG = "drained";
-const RADIO_SLUG = "radio";
 const MANOR_SLUG = "manor";
 const ARTHRITIS_SLUG = "arthritis";
 const LABORER_SLUG = "laborer";
@@ -24,7 +23,6 @@ module.exports = {
   ALCOHOLIC_SLUG,
   MORTUS_SLUG,
   DRAINED_SLUG,
-  RADIO_SLUG,
   MANOR_SLUG,
   ARTHRITIS_SLUG,
   LABORER_SLUG,

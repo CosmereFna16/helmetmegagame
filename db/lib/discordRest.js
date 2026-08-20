@@ -218,48 +218,6 @@ async function ensureForumTag(channelId, tagName, emojiName) {
   return updated.available_tags.find((t) => t.name === tagName)?.id ?? null;
 }
 
-// --- Guild roles -------------------------------------------------------
-// Used by db/lib/syncSpecialChannels.js for the per-gate access roles, and
-// available to any other caller that needs role plumbing without pulling in
-// discord.js. Character-name roles are managed separately by
-// web/lib/discordGuild.js#ensureCharacterRole.
-
-async function getGuildRoles() {
-  const guildId = process.env.DISCORD_GUILD_ID;
-  return discordRequest(`/guilds/${guildId}/roles`);
-}
-
-async function createGuildRole(payload) {
-  const guildId = process.env.DISCORD_GUILD_ID;
-  return discordRequest(`/guilds/${guildId}/roles`, { method: "POST", body: payload });
-}
-
-async function patchGuildRole(roleId, payload) {
-  const guildId = process.env.DISCORD_GUILD_ID;
-  return discordRequest(`/guilds/${guildId}/roles/${roleId}`, { method: "PATCH", body: payload });
-}
-
-async function deleteGuildRole(roleId) {
-  const guildId = process.env.DISCORD_GUILD_ID;
-  return discordRequest(`/guilds/${guildId}/roles/${roleId}`, { method: "DELETE", allow404: true });
-}
-
-async function addRoleToMember(discordUserId, roleId) {
-  const guildId = process.env.DISCORD_GUILD_ID;
-  return discordRequest(`/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`, {
-    method: "PUT",
-    allow404: true,
-  });
-}
-
-async function removeRoleFromMember(discordUserId, roleId) {
-  const guildId = process.env.DISCORD_GUILD_ID;
-  return discordRequest(`/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`, {
-    method: "DELETE",
-    allow404: true,
-  });
-}
-
 // Replaces a single permission overwrite on a channel. `type` is 0 for a
 // role, 1 for a member; allow/deny are decimal permission bit strings.
 async function putChannelOverwrite(channelId, targetId, { allow = "0", deny = "0", type = 0 } = {}) {
@@ -288,11 +246,5 @@ module.exports = {
   getForumTagId,
   ensureForumTag,
   startThread,
-  getGuildRoles,
-  createGuildRole,
-  patchGuildRole,
-  deleteGuildRole,
-  addRoleToMember,
-  removeRoleFromMember,
   putChannelOverwrite,
 };

@@ -8,7 +8,7 @@ import {
   syncCharacterNickname,
   ensureCharacterRole,
   syncCharacterLocationAccess,
-  syncCharacterSpecialAccess,
+  syncCharacterNarrowcastAccess,
 } from "@/lib/discordGuild";
 import {
   computeBudget,
@@ -155,15 +155,15 @@ export async function createCharacter(formData) {
   }
 
   // Discord side effects, best-effort and strictly ordered: the personal role
-  // must exist before it can be granted category access, and the special
-  // channel gates read the tags written above.
+  // must exist before it can be granted category access, and narrowcast
+  // access reads the location/tags written above.
   await ensureCharacterRole(created).catch(() => {});
   const withRole = await prisma.character.findUnique({ where: { id: created.id } });
   if (withRole?.discordRoleId && created.locationId) {
     await syncCharacterLocationAccess(withRole.discordRoleId, null, created.locationId).catch(() => {});
   }
   await syncCharacterNickname(discordUserId, name, preferredNickname).catch(() => {});
-  await syncCharacterSpecialAccess(discordUserId, created.id).catch(() => {});
+  await syncCharacterNarrowcastAccess(created.id).catch(() => {});
 
   await prisma.auditLog.create({
     data: {
