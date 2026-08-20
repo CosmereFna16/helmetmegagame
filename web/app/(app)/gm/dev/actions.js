@@ -23,12 +23,25 @@ import {
   killCharacter,
   listGuildMembers,
   removeCursedRole,
+  getGmSession,
 } from "@/lib/discordGuild";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 
 async function requireSuperadmin() {
   const session = await auth();
   if (!session?.discordUserId || !isSuperadmin(session.discordUserId)) {
+    throw new Error("Not authorized.");
+  }
+  return session;
+}
+
+// The character editor at /gm/dev/characters/[characterId] is reachable by
+// any in-game GM (not just superadmins) via character-name links elsewhere
+// in the app — these three actions back that page, so they gate on isGm
+// rather than requireSuperadmin like the rest of this file.
+async function requireGm() {
+  const { session, isGm: gm } = await getGmSession();
+  if (!session?.discordUserId || !gm) {
     throw new Error("Not authorized.");
   }
   return session;
@@ -261,7 +274,7 @@ export async function wipeGameData(formData) {
 }
 
 export async function updateCharacterRaw(formData) {
-  await requireSuperadmin();
+  await requireGm();
 
   const characterId = str(formData, "characterId");
   if (!characterId) return;
@@ -337,7 +350,7 @@ export async function updateCharacterRaw(formData) {
 }
 
 export async function grantTag(formData) {
-  const session = await requireSuperadmin();
+  const session = await requireGm();
 
   const characterId = str(formData, "characterId");
   const tagId = str(formData, "tagId");
@@ -365,7 +378,7 @@ export async function grantTag(formData) {
 }
 
 export async function revokeTag(formData) {
-  const session = await requireSuperadmin();
+  const session = await requireGm();
 
   const characterTagId = str(formData, "characterTagId");
   const characterId = str(formData, "characterId");

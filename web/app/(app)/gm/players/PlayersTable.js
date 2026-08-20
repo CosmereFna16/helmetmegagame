@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { sendGmMessage } from "../actions";
+import CharacterLink from "../../../components/CharacterLink";
 import FactionLink from "../../../components/FactionLink";
 
 export default function PlayersTable({ characters }) {
@@ -118,9 +118,7 @@ export default function PlayersTable({ characters }) {
                   />
                 </td>
                 <td>
-                  <Link href={`/gm/players/${c.id}`} className="menu-item">
-                    {c.name}
-                  </Link>
+                  <CharacterLink characterId={c.id} name={c.name} isGm />
                 </td>
                 <td>{c.roleTitle ?? "-"}</td>
                 <td>

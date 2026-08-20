@@ -1,16 +1,14 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@lifeweb/db";
-import { auth } from "@/lib/auth";
-import { isSuperadmin } from "@/lib/superadmin";
-import { getGuildMember, isCursed } from "@/lib/discordGuild";
+import { getGmSession, getGuildMember, isCursed } from "@/lib/discordGuild";
 import { updateCharacterRaw, grantTag, revokeTag } from "../../actions";
 
 export default async function DevCharacterEditPage({ params }) {
   const { characterId } = await params;
-  const session = await auth();
+  const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
-  if (!isSuperadmin(session.discordUserId)) redirect("/character");
+  if (!gm) redirect("/character");
 
   const [character, factions, zones, ownedTags, allTags, roles] = await Promise.all([
     prisma.character.findUnique({ where: { id: characterId } }),
@@ -32,7 +30,7 @@ export default async function DevCharacterEditPage({ params }) {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6 sm:p-8">
-      <Link href="/gm/dev/characters" className="btn-quiet">&larr; Back to Characters</Link>
+      <Link href="/gm/players" className="btn-quiet">&larr; Back to Players</Link>
       <h1 className="text-2xl font-bold">{character.name}</h1>
 
       <form action={updateCharacterRaw} className="panel flex flex-col gap-3 p-4">

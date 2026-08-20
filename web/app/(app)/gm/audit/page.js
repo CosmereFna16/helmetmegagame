@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
+import CharacterLink from "../../../components/CharacterLink";
 
 const PAGE_SIZE = 50;
 const NO_FACTION_LABEL = "No faction";
@@ -85,17 +86,17 @@ export default async function AuditLogPage({ searchParams }) {
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
-      include: { targetCharacter: { select: { name: true } } },
+      include: { targetCharacter: { select: { id: true, name: true } } },
     }),
     prisma.auditLog.count({ where }),
   ]);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const usernameById = new Map(guildMembers.map((m) => [m.id, m.username]));
-  const characterNameById = new Map();
+  const characterByDiscordUserId = new Map();
   for (const c of allCharacters) {
-    const existing = characterNameById.get(c.discordUserId);
-    if (!existing || c.status === "ALIVE") characterNameById.set(c.discordUserId, c.name);
+    const existing = characterByDiscordUserId.get(c.discordUserId);
+    if (!existing || c.status === "ALIVE") characterByDiscordUserId.set(c.discordUserId, c);
   }
 
   function pageHref(newPage) {
@@ -170,13 +171,19 @@ export default async function AuditLogPage({ searchParams }) {
                 <td>{entry.actionType}</td>
                 <td className="whitespace-nowrap">
                   {usernameById.get(entry.actorDiscordUserId) ?? entry.actorDiscordUserId}
-                  {characterNameById.has(entry.actorDiscordUserId) ? (
+                  {characterByDiscordUserId.has(entry.actorDiscordUserId) ? (
                     <div className="text-xs" style={{ color: "var(--muted)" }}>
-                      {characterNameById.get(entry.actorDiscordUserId)}
+                      <CharacterLink
+                        characterId={characterByDiscordUserId.get(entry.actorDiscordUserId).id}
+                        name={characterByDiscordUserId.get(entry.actorDiscordUserId).name}
+                        isGm
+                      />
                     </div>
                   ) : null}
                 </td>
-                <td>{entry.targetCharacter?.name ?? "-"}</td>
+                <td>
+                  <CharacterLink characterId={entry.targetCharacter?.id} name={entry.targetCharacter?.name} isGm />
+                </td>
                 <td className="max-w-xs truncate">{entry.details ? JSON.stringify(entry.details) : ""}</td>
               </tr>
             ))}
