@@ -11,9 +11,10 @@ async function requireGm() {
   return session;
 }
 
-// Flat blood amount plus a Drained tag that expires after
-// GameConfig.lifewebDrainedDurationTurns — GM-triggered on behalf of any
-// living character.
+// Flat blood amount plus the Drained tag, which auto-expires via its own
+// Tag.defaultDurationTurns (docs/tags.yaml) — GM-triggered on behalf of any
+// living character. A character already holding Drained cannot be drained
+// again until it expires.
 const DONATE_BLOOD_AMOUNT = 20;
 
 export async function donateBlood(characterId) {
@@ -22,6 +23,11 @@ export async function donateBlood(characterId) {
 
   const character = await prisma.character.findFirst({ where: { id: characterId, status: "ALIVE" } });
   if (!character) return;
+
+  const alreadyDrained = await prisma.characterTag.findFirst({
+    where: { characterId: character.id, tag: { slug: DRAINED_SLUG } },
+  });
+  if (alreadyDrained) return;
 
   const [config, openTurn] = await Promise.all([
     prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
@@ -34,11 +40,10 @@ export async function donateBlood(characterId) {
   if (openTurn) {
     const drainedTag = await prisma.tag.findUnique({ where: { slug: DRAINED_SLUG } });
     if (drainedTag) {
-      const expiresTurn = openTurn.number + (config.lifewebDrainedDurationTurns ?? 4);
-      await prisma.characterTag.upsert({
-        where: { characterId_tagId: { characterId: character.id, tagId: drainedTag.id } },
-        create: { characterId: character.id, tagId: drainedTag.id, source: "EVENT", expiresTurn },
-        update: { expiresTurn },
+      const expiresTurn =
+        drainedTag.defaultDurationTurns != null ? openTurn.number + drainedTag.defaultDurationTurns : null;
+      await prisma.characterTag.create({
+        data: { characterId: character.id, tagId: drainedTag.id, source: "EVENT", expiresTurn },
       });
     }
   }

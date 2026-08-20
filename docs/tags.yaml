@@ -381,6 +381,7 @@ tags:
     description: "You are weak and your vision is blurry."
     pointCost: 0
     purchasable: false
+    durationTurns: 3
 
   - slug: arthritis
     name: Arthritis

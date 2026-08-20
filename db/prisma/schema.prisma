@@ -78,7 +78,6 @@ model GameConfig {
   id                          Int      @id @default(1)
   lifewebBlood                Int      @default(100)
   lifewebDecayPerTurn         Int      @default(10)
-  lifewebDrainedDurationTurns Int      @default(4)
   nextWeather                 Weather?
   nextTurnNote                String?
   turnsAnnouncementChannelId  String?
@@ -346,9 +345,8 @@ model Tag {
 
   // Catalog-level default duration in turns, for tags that auto-expire once
   // granted (mirrors CharacterTag.expiresTurn's "absolute turn number, swept
-  // by resolveNeeds()" convention). Purely additive — does not replace the
-  // bespoke GameConfig.lifewebDrainedDurationTurns knob that mechanic
-  // already uses.
+  // by resolveNeeds()" convention). E.g. Drained sets this to 3, so donating
+  // blood expires 3 turns after it's granted.
   defaultDurationTurns Int?
 
   characters  CharacterTag[]

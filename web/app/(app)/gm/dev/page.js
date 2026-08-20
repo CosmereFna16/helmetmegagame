@@ -124,10 +124,6 @@ export default async function DevPanelPage() {
             <input type="number" name="lifewebDecayPerTurn" defaultValue={config.lifewebDecayPerTurn} />
           </label>
           <label className="field">
-            <span className="field-label">Drained duration (turns)</span>
-            <input type="number" name="lifewebDrainedDurationTurns" defaultValue={config.lifewebDrainedDurationTurns} />
-          </label>
-          <label className="field">
             <span className="field-label">Production coefficient (Farming/Fishing/Herding)</span>
             <input type="number" step="0.05" name="productionCoefficient" defaultValue={config.productionCoefficient} />
           </label>

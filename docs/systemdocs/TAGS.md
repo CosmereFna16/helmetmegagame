@@ -97,12 +97,11 @@ Full writeup of creation, roles, and the wizard: `CHARACTERS.md`.
 - `tradeable` — Items-category flag for a future trade flow; no transfer
   logic exists yet.
 - `defaultDurationTurns` — catalog-level "how many turns does this last once
-  granted," for tags that auto-expire. Purely additive; does **not** replace
-  the bespoke `GameConfig.lifewebDrainedDurationTurns` knob that mechanic
-  already uses. The actual per-instance
-  expiry lives on `CharacterTag.expiresTurn` (an absolute turn number,
-  unrelated to this default), swept by `resolveNeeds()` in `db/index.js`
-  once the closing turn's number reaches it.
+  granted," for tags that auto-expire (e.g. Drained is 3). The actual
+  per-instance expiry lives on `CharacterTag.expiresTurn` (an absolute turn
+  number, computed from this default at grant time), swept by
+  `resolveNeeds()` in `db/index.js` once the closing turn's number reaches
+  it.
 
 ## 6. Things that used to be tags and aren't anymore
 
