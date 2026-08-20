@@ -1,8 +1,8 @@
 import { formatCost, costColor } from "@/lib/characterCreation";
-import { formatTagRequirement } from "@lifeweb/db";
+import { formatTagRequirement } from "@/lib/formatTagRequirement";
 
 export default function TagChip({ tag }) {
-  const groupColor = tag.group?.color ? `var(--tag-${tag.group.color})` : null;
+  const groupColor = tag.group?.color ?? null;
   // Minified "cost to add/remove this tag in play" — see
   // Tag.requirement* in schema.prisma. Null when unset, so it's simply
   // omitted rather than rendering an empty line.

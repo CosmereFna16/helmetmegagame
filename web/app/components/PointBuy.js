@@ -13,7 +13,7 @@ import {
   chainSiblingsToRemove,
   requirementSatisfied,
 } from "@/lib/characterCreation";
-import { formatTagRequirement } from "@lifeweb/db";
+import { formatTagRequirement } from "@/lib/formatTagRequirement";
 
 // The point-buy menu, shared by both stores.
 //
