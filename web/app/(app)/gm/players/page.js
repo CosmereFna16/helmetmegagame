@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
-import { getGmSession } from "@/lib/discordGuild";
+import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import PlayersTable from "./PlayersTable";
 
 export default async function PlayersPage() {
@@ -16,11 +16,12 @@ export default async function PlayersPage() {
     take: 1000,
   });
 
-  // Cursed is account-scoped (Player), not character-scoped, so it's joined
-  // in by discordUserId rather than included above.
+  // Cursed is a live Discord role, not a DB field — joined in by
+  // discordUserId from the guild's member list rather than included above.
+  const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
+  const members = await listGuildMembers();
   const cursedUserIds = new Set(
-    (await prisma.player.findMany({ where: { cursed: true }, select: { discordUserId: true } }))
-      .map((p) => p.discordUserId),
+    cursedRoleId ? members.filter((m) => m.roles.includes(cursedRoleId)).map((m) => m.id) : [],
   );
 
   return (

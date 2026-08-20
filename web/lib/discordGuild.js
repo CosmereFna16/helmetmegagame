@@ -126,7 +126,7 @@ async function fetchGuildMembers() {
 
     if (!res.ok) return [];
     const members = await res.json();
-    return members.map((m) => ({ id: m.user.id, username: m.user.username }));
+    return members.map((m) => ({ id: m.user.id, username: m.user.username, roles: m.roles ?? [] }));
   } catch {
     return [];
   }
@@ -172,6 +172,12 @@ export function isGm(member) {
   const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
   if (!member || !gmRoleId) return false;
   return member.roles?.includes(gmRoleId) ?? false;
+}
+
+export function isCursed(member) {
+  const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
+  if (!member || !cursedRoleId) return false;
+  return member.roles?.includes(cursedRoleId) ?? false;
 }
 
 // Shared auth+role lookup for both pages (which redirect on failure) and
@@ -326,6 +332,48 @@ export async function setRomanceOptOutRole(discordUserId, optOut) {
     }
   } catch (err) {
     console.error(`Failed to ${optOut ? "add" : "remove"} no-romance role for ${discordUserId}:`, err);
+  }
+}
+
+// Granted automatically by killCharacter on death, removed automatically by
+// createCharacter once the cursed player successfully rolls a new one. A GM
+// clearing the curse early (body buried / rites read) is now just removing
+// the role directly in Discord — there's no app-side "uncurse" action.
+export async function grantCursedRole(discordUserId) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  const token = process.env.DISCORD_TOKEN;
+  const roleId = process.env.DISCORD_CURSED_ROLE_ID;
+  if (!guildId || !token || !roleId) return;
+
+  try {
+    const res = await fetch(
+      `${DISCORD_API}/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`,
+      { method: "PUT", headers: { Authorization: `Bot ${token}` } },
+    );
+    if (!res.ok && res.status !== 204) {
+      console.error(`Failed to grant cursed role to ${discordUserId}: ${res.status} ${await res.text()}`);
+    }
+  } catch (err) {
+    console.error(`Failed to grant cursed role to ${discordUserId}:`, err);
+  }
+}
+
+export async function removeCursedRole(discordUserId) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  const token = process.env.DISCORD_TOKEN;
+  const roleId = process.env.DISCORD_CURSED_ROLE_ID;
+  if (!guildId || !token || !roleId) return;
+
+  try {
+    const res = await fetch(
+      `${DISCORD_API}/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`,
+      { method: "DELETE", headers: { Authorization: `Bot ${token}` } },
+    );
+    if (!res.ok && res.status !== 204) {
+      console.error(`Failed to remove cursed role from ${discordUserId}: ${res.status} ${await res.text()}`);
+    }
+  } catch (err) {
+    console.error(`Failed to remove cursed role from ${discordUserId}:`, err);
   }
 }
 
@@ -495,8 +543,8 @@ export async function syncCharacterNarrowcastAccess(characterId) {
   );
 }
 
-// Everything that has to happen in Discord when a character dies, plus the
-// Player-level Cursed flag. Called from updateCharacterRaw whenever status
+// Everything that has to happen in Discord when a character dies, plus
+// granting the Cursed role. Called from updateCharacterRaw whenever status
 // transitions TO DEAD.
 //
 // Deleting the personal role is doing most of the work: Discord drops every
@@ -517,13 +565,7 @@ export async function killCharacter(character) {
   // so it disappears along with it — no separate revoke needed.
   await updateGuildNickname(character.discordUserId, null).catch(() => {});
 
-  await prisma.player
-    .upsert({
-      where: { discordUserId: character.discordUserId },
-      create: { discordUserId: character.discordUserId, cursed: true },
-      update: { cursed: true },
-    })
-    .catch((err) => console.error("Failed to set cursed flag:", err));
+  await grantCursedRole(character.discordUserId);
 }
 
 const CHANNEL_TYPE_CATEGORY = 4;

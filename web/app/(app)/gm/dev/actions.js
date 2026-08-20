@@ -21,6 +21,8 @@ import {
   updateGuildNickname,
   syncCharacterNarrowcastAccess,
   killCharacter,
+  listGuildMembers,
+  removeCursedRole,
 } from "@/lib/discordGuild";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 
@@ -191,19 +193,25 @@ export async function wipeGameData(formData) {
     throw new Error('Type "WIPE" (all caps) to confirm.');
   }
 
-  const characters = await prisma.character.findMany({
-    select: { discordUserId: true, discordRoleId: true },
-  });
+  const [characters, members] = await Promise.all([
+    prisma.character.findMany({ select: { discordUserId: true, discordRoleId: true } }),
+    listGuildMembers(),
+  ]);
+  const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
+  const cursedMemberIds = cursedRoleId ? members.filter((m) => m.roles.includes(cursedRoleId)).map((m) => m.id) : [];
 
   // Best-effort Discord cleanup first, while the Character rows (and their
   // discordRoleId/discordUserId) still exist to look up. Channel wiping is
   // its own slow, sequential pass (see fullWipe.js) so it runs alongside
-  // the per-character role/nickname cleanup rather than blocking it.
+  // the per-character role/nickname cleanup rather than blocking it. A full
+  // restart should not leave anyone still cursed from the last game, so
+  // every member currently holding the Cursed role gets it stripped too.
   await Promise.all([
     ...characters.flatMap((c) => [
       c.discordRoleId ? deleteCharacterRole(c.discordRoleId).catch(() => {}) : null,
       updateGuildNickname(c.discordUserId, null).catch(() => {}),
     ]).filter(Boolean),
+    ...cursedMemberIds.map((id) => removeCursedRole(id)),
     runFullChannelWipe(prisma).catch((err) => console.error("Full channel wipe failed:", err)),
   ]);
 
@@ -216,9 +224,6 @@ export async function wipeGameData(formData) {
     prisma.characterTag.deleteMany({}),
     prisma.auditLog.deleteMany({}),
     prisma.character.deleteMany({}),
-    // Player is account-scoped rather than character-scoped, but a full
-    // restart should not leave anyone still cursed from the last game.
-    prisma.player.deleteMany({}),
     prisma.turn.deleteMany({}),
     prisma.siloTransaction.deleteMany({}),
     prisma.directMessage.deleteMany({}),
@@ -306,7 +311,7 @@ export async function updateCharacterRaw(formData) {
 
   // Death is the one status change with side effects: killCharacter deletes
   // the personal Discord role (which takes its Location and narrowcast
-  // overwrites with it), clears the nickname, and curses the player.
+  // overwrites with it), clears the nickname, and grants the Cursed role.
   // Everything below is skipped for a dead character — re-syncing the role of
   // a corpse is exactly the bug this replaces.
   if (status === "DEAD" && existing?.status !== "DEAD") {
@@ -318,15 +323,6 @@ export async function updateCharacterRaw(formData) {
       await syncCharacterNarrowcastAccess(characterId).catch(() => {});
     }
   }
-
-  // Cursed lives on the Player (the Discord account), not the character, so
-  // it survives the character it was earned by.
-  const cursed = formData.get("cursed") === "on";
-  await prisma.player.upsert({
-    where: { discordUserId: updated.discordUserId },
-    create: { discordUserId: updated.discordUserId, cursed },
-    update: { cursed },
-  });
 
   await prisma.auditLog.create({
     data: {

@@ -92,6 +92,13 @@ categories:
           * Resources can either be stored in your character or in your faction’s Silo.
           * Players (but especially faction Leaders and Treasurers) are responsible for organizing, taxing, distributing, and trading Resources.
           * Characters automatically consume 1 ⬢ a day. If you have 0 ⬢ at the start of a turn, you’ll go Hungry, netting you -1 to all Rolls until the next time you eat.
+      - title: Respawning
+        body: |-
+          **Respawning**:
+
+          When you die, you can rejoin at any time—but you'll be Cursed, meaning you can only start as a Bum or Migrant and you'll suffer a -3 penalty to your starting points.
+
+          To rejoin as any other role, wait until your body is buried or your name is engraved. It is the Church and Mortii's jobs to do so.
       - title: Roles
         body: |-
           Choose a role at game start, determining your starting tags, faction, and location. Leader roles (★) are reserved for players who can vouch frequent and long term availability, and some proficiency in roleplay. The <@&1539673757910564864> role can be acquired in <#1539672933268459591>.

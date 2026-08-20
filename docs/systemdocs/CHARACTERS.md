@@ -109,14 +109,27 @@ Cost renders `+N` in `var(--accent)` (red, it costs you) and `-N` in
 
 ## 4. Cursed
 
-`Cursed` is on the **Discord account** (`Player.cursed`), not the character,
-so it outlives the character that earned it. It is set automatically when a
-character dies.
+`Cursed` is a live Discord role (`DISCORD_CURSED_ROLE_ID`), not a DB field —
+it's on the Discord account rather than the `Character` row, so it outlives
+the character that earned it. `web/lib/discordGuild.js#isCursed(member)`
+reads it off a guild member's current roles, fed by `getGuildMember`
+(`isGm`'s exact pattern, just a different role id).
+
+It's granted automatically by `killCharacter` when a character dies, and
+removed automatically by `createCharacter` the moment the cursed player
+successfully rolls a new one — the curse doesn't outlast the Bum/Migrant it
+forced. A GM can also curse someone by hand (narrative punishment) simply by
+adding the role in Discord — there's no code path needed for that.
 
 While cursed, a player may still roll a new character — but only as a
-**Migrant** or a **Bum**, and with **3 fewer points**. A GM clears the flag
-from `/gm/dev/characters/[characterId]` once the body is buried and the rites
-are read, which restores normal creation.
+**Migrant** or a **Bum**, and with **3 fewer points**
+(`web/lib/characterCreation.js`'s `CURSED_ROLE_SLUGS`/`CURSED_POINT_PENALTY`,
+enforced by `isRoleSelectable`/`computeBudget`, unchanged by this — only
+where the `cursed` boolean they're fed comes from changed). A GM clears the
+curse early (body buried / rites read) by removing the role directly in
+Discord's member panel — `/gm/dev/characters/[characterId]` only shows a
+read-only Cursed status line now, there's no checkbox to toggle it from the
+app.
 
 (`CharacterStatus.CURSED` still exists in the enum and is unrelated — it's an
 unused leftover, kept only because dropping a Postgres enum value is a risky
@@ -136,7 +149,7 @@ Discord role afterward. `web/lib/discordGuild.js#killCharacter`, called from
 2. Nulls `discordRoleId` — it's `@unique`, and a dangling id would have
    `ensureCharacterRole` PATCHing a deleted role forever.
 3. Clears the Discord nickname.
-4. Sets `Player.cursed = true`.
+4. Grants the Cursed role (§4).
 
 `updateCharacterRaw` skips the role/location sync entirely for a non-`ALIVE`
 character.

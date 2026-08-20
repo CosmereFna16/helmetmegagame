@@ -139,8 +139,8 @@ export default function CreateCharacterWizard({ zones, tags, startingTagPoints, 
 
       {cursed && (
         <p className="panel p-3 text-sm" style={{ color: "var(--accent)" }}>
-          You are <strong>Cursed</strong>. Until your rites are read you may only return as a
-          Migrant or a Bum, and you begin with 3 fewer points.
+          You&apos;re <strong>Cursed</strong>! You can only be a Bum or a Migrant, and you suffer -3 to
+          starting points. Wait until someone buries your body.
         </p>
       )}
 

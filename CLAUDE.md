@@ -153,10 +153,16 @@ everything the client sent — a server action is a public endpoint — and
 re-counts the seat cap **inside** the creating transaction, which is what
 resolves two players racing for the last Baron seat.
 
-**Cursed** is on `Player` (the Discord account), not `Character`, so it
-outlives the character that earned it. Death sets it; while cursed a player
-may only return as a Migrant or a Bum, with 3 fewer points; a GM clears it
-from `/gm/dev/characters/[characterId]`.
+**Cursed** is a live Discord role (`DISCORD_CURSED_ROLE_ID`), not a DB field,
+so it outlives the character that earned it and a GM can grant it by hand
+(narrative punishment) with no code path needed. `killCharacter` grants it on
+death; `createCharacter` removes it the moment the cursed player successfully
+rolls a new one — the curse doesn't stick around. While cursed a player may
+only return as a Migrant or a Bum, with 3 fewer points
+(`web/lib/characterCreation.js`). A GM clears the curse early (body buried /
+rites read) by removing the role directly in Discord — `/gm/dev/characters/
+[characterId]` only shows a read-only status line, there's no app-side
+toggle.
 
 Death is no longer a bare column write:
 `web/lib/discordGuild.js#killCharacter` deletes the personal Discord role

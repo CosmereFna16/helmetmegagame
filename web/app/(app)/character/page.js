@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma, roleCapacity } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
-import { listGuildChannels, isSummaryChannel, getLocationChannelIds } from "@/lib/discordGuild";
+import { listGuildChannels, isSummaryChannel, getLocationChannelIds, getGuildMember, isCursed } from "@/lib/discordGuild";
 import { isRoleSelectable } from "@/lib/characterCreation";
 import CharacterSheet from "../../components/CharacterSheet";
 import CreateCharacterWizard from "./CreateCharacterWizard";
@@ -12,7 +12,7 @@ import CreateCharacterWizard from "./CreateCharacterWizard";
 // the numbers can't be stale-rendered from a cached page; the server action
 // re-counts inside its transaction anyway, since this is only advisory.
 async function loadCreationData(discordUserId) {
-  const [zones, tags, config, player, takenRows] = await Promise.all([
+  const [zones, tags, config, member, takenRows] = await Promise.all([
     prisma.zone.findMany({
       orderBy: { name: "asc" },
       include: {
@@ -29,11 +29,11 @@ async function loadCreationData(discordUserId) {
       include: { group: { select: { slug: true, name: true, color: true } } },
     }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
-    prisma.player.findUnique({ where: { discordUserId } }),
+    getGuildMember(discordUserId),
     prisma.character.groupBy({ by: ["roleId"], where: { status: "ALIVE" }, _count: true }),
   ]);
 
-  const cursed = player?.cursed ?? false;
+  const cursed = isCursed(member);
   const playerCount = config?.playerCount ?? 100;
   const takenByRole = new Map(takenRows.map((r) => [r.roleId, r._count]));
 

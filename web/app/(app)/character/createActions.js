@@ -9,6 +9,9 @@ import {
   ensureCharacterRole,
   syncCharacterLocationAccess,
   syncCharacterNarrowcastAccess,
+  getGuildMember,
+  isCursed,
+  removeCursedRole,
 } from "@/lib/discordGuild";
 import {
   computeBudget,
@@ -51,14 +54,14 @@ export async function createCharacter(formData) {
     redirect("/character");
   }
 
-  const [role, config, player] = await Promise.all([
+  const [role, config, member] = await Promise.all([
     prisma.role.findUnique({ where: { id: roleId }, include: { faction: true, startingLocation: true } }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
-    prisma.player.findUnique({ where: { discordUserId } }),
+    getGuildMember(discordUserId),
   ]);
   if (!role) return { error: "That role no longer exists." };
 
-  const cursed = player?.cursed ?? false;
+  const cursed = isCursed(member);
   if (!isRoleSelectable({ role, cursed })) {
     return { error: `While cursed you may only return as ${CURSED_ROLE_SLUGS.join(" or ")}.` };
   }
@@ -164,6 +167,7 @@ export async function createCharacter(formData) {
   }
   await syncCharacterNickname(discordUserId, name, preferredNickname).catch(() => {});
   await syncCharacterNarrowcastAccess(created.id).catch(() => {});
+  if (cursed) await removeCursedRole(discordUserId).catch(() => {});
 
   await prisma.auditLog.create({
     data: {

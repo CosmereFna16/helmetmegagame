@@ -405,22 +405,6 @@ model CharacterTag {
   @@unique([characterId, tagId])
 }
 
-// A Discord *account*, as opposed to a Character. Exists so state can outlive
-// the character it attached to — a player's characters come and go, this row
-// doesn't.
-model Player {
-  discordUserId String @id
-
-  // Set when a character dies. A cursed player may still roll a new
-  // character, but only as a Migrant or a Bum, and with CURSED_POINT_PENALTY
-  // fewer point-buy points (web/lib/characterCreation.js). It clears when a
-  // GM says the rites were read / the body was buried, which is what
-  // restores normal character creation.
-  cursed Boolean @default(false)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
 
 // A playable seat, master-sourced from docs/roles.yaml's
 // zones[].factions[].roles[] (db/lib/syncRoles.js, npm run db:sync-roles).

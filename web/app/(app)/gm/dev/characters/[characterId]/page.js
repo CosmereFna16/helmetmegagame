@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
+import { getGuildMember, isCursed } from "@/lib/discordGuild";
 import { updateCharacterRaw, grantTag, revokeTag } from "../../actions";
 
 export default async function DevCharacterEditPage({ params }) {
@@ -21,8 +22,10 @@ export default async function DevCharacterEditPage({ params }) {
   ]);
   if (!character) notFound();
 
-  // Cursed is account-scoped, so it's read off Player rather than Character.
-  const player = await prisma.player.findUnique({ where: { discordUserId: character.discordUserId } });
+  // Cursed is a live Discord role (DISCORD_CURSED_ROLE_ID), not a DB field —
+  // read the account's current guild roles rather than the Character row.
+  const member = await getGuildMember(character.discordUserId);
+  const cursed = isCursed(member);
 
   const ownedTagIds = new Set(ownedTags.map((ct) => ct.tagId));
   const grantableTags = allTags.filter((t) => !ownedTagIds.has(t.id));
@@ -121,14 +124,11 @@ export default async function DevCharacterEditPage({ params }) {
           </label>
         </div>
 
-        <label className="flex items-start gap-2 text-sm">
-          <input type="checkbox" name="cursed" defaultChecked={player?.cursed ?? false} className="mt-1" />
-          <span>
-            <strong>Cursed</strong> — set automatically when a character dies. While cursed this
-            player may only return as a Migrant or a Bum, with 3 fewer points. Untick once the body
-            is buried / the rites are read.
-          </span>
-        </label>
+        <p className="text-sm">
+          <strong>Cursed:</strong> {cursed ? "Yes" : "No"} — granted automatically when this
+          character dies, removed automatically once the player rolls a new one. To clear it early
+          (body buried / rites read), remove the role directly in Discord.
+        </p>
 
         <label className="field">
           <span className="field-label">Appearance / bio</span>

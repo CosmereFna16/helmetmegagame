@@ -12,9 +12,10 @@
 // the YAML syncs (node:fs), which cannot be bundled for the browser.
 import { roleCapacity } from "@lifeweb/db/lib/roleCapacity";
 
-// Points a cursed player forfeits on their next character. Cursed is set on
-// the Player (the Discord account) when a character dies, and cleared by a GM
-// once the body is buried / the rites are read.
+// Points a cursed player forfeits on their next character. Cursed is a live
+// Discord role (see web/lib/discordGuild.js#isCursed), granted automatically
+// when a character dies and cleared by a GM removing the role directly in
+// Discord once the body is buried / the rites are read.
 export const CURSED_POINT_PENALTY = 3;
 
 // The only roles a cursed player may take: they come back as nobody in
