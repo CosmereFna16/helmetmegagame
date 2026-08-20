@@ -34,8 +34,21 @@ const ROLES_YAML_PATH = path.join(__dirname, "..", "..", "docs", "roles.yaml");
 // and zone-level `threats` are skipped entirely), grouped under a bold
 // faction heading, itself grouped under a Discord "# " (native big-text)
 // zone heading, in docs/roles.yaml's zone -> faction -> role order. A role
-// whose `starting_tags` includes "Leader" gets a ★ marker next to its name.
+// flagged `leader: true` gets a ★ marker next to its name.
 // Reads roles.yaml fresh every run, so this thread can never drift from it.
+// Higher-cap, more generalized roles get called out in bold in the roles-intro
+// thread (see the "Bolded roles" blurb in infochannel.yaml) instead of the
+// default italics.
+const BOLD_ROLE_NAMES = new Set([
+  "Courtier",
+  "Watchman",
+  "Peasant",
+  "Follower",
+  "Clansman (Broken Spears Clan)",
+  "Clansman (Windrider Clan)",
+  "Migrant",
+]);
+
 function buildRolesIntroBody() {
   const rolesDoc = yaml.load(fs.readFileSync(ROLES_YAML_PATH, "utf8"));
 
@@ -44,8 +57,9 @@ function buildRolesIntroBody() {
     const factionSections = [];
     for (const faction of zone.factions ?? []) {
       const roleLines = (faction.roles ?? []).map((role) => {
-        const leaderMark = role.starting_tags?.includes("Leader") ? " (★)" : "";
-        return `*${role.name}*${leaderMark} — ${role.intro}`;
+        const leaderMark = role.leader === true ? " (★)" : "";
+        const marker = BOLD_ROLE_NAMES.has(role.name) ? "**" : "*";
+        return `${marker}${role.name}${marker}${leaderMark} — ${role.intro}`;
       });
       if (roleLines.length === 0) continue;
       factionSections.push(`***${faction.name}***\n${roleLines.join("\n")}`);

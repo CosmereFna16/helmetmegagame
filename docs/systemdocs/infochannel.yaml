@@ -95,6 +95,8 @@ categories:
       - title: Roles
         body: |-
           Choose a role at game start, determining your starting tags, faction, and location. Leader roles (★) are reserved for players who can vouch frequent and long term availability, and some proficiency in roleplay. The <@&1539673757910564864> role can be acquired in <#1539672933268459591>.
+
+          Most roles have small limits, but **Bolded** roles have higher caps and are more generalized, allowing for more freedom of play.
         generated: roles-intro
   - name: Discord
     threads:
