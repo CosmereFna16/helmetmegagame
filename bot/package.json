@@ -4,6 +4,7 @@
   "private": true,
   "main": "src/index.js",
   "scripts": {
+    "prestart": "npm run generate --workspace=db",
     "start": "node src/index.js",
     "dev": "node --watch src/index.js"
   },
