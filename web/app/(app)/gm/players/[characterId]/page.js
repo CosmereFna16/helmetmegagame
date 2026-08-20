@@ -27,9 +27,7 @@ export default async function PlayerDetailPage({ params }) {
     ? await prisma.action.findFirst({ where: { characterId: character.id, turnId: openTurn.id } })
     : null;
 
-  const avatarSrc = character.avatarMimeType
-    ? `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`
-    : null;
+  const avatarSrc = `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`;
 
   return (
     <div>

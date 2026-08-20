@@ -146,7 +146,7 @@ module.exports = {
       if (visibleTags.length > 0) {
         embed.addFields({ name: "Tags", value: visibleTags.join(", ") });
       }
-      if (character.avatarMimeType && process.env.WEB_BASE_URL) {
+      if (process.env.WEB_BASE_URL) {
         embed.setThumbnail(
           `${process.env.WEB_BASE_URL}/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`,
         );

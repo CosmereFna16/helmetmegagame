@@ -31,7 +31,6 @@ async function fetchOrCreateWebhook(channel) {
 }
 
 function avatarUrlFor(character) {
-  if (!character.avatarMimeType) return undefined;
   const base = process.env.WEB_BASE_URL;
   if (!base) return undefined;
   return `${base}/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`;

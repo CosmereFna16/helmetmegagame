@@ -130,9 +130,7 @@ export default async function CharacterPage() {
     .map((c) => ({ id: c.id, name: c.name }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const avatarSrc = character.avatarMimeType
-    ? `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`
-    : null;
+  const avatarSrc = `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`;
 
   return (
     <CharacterSheet
