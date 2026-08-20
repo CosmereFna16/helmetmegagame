@@ -43,21 +43,39 @@
 # Discord's actual category ordering, which stays alphabetical by
 # "{Zone} / {Location}" (see sortLocationCategories).
 #
-# zoneConnections: the sole master for which Zones a character can directly
-# travel between (Zone.connectsTo, a symmetric/undirected adjacency graph —
-# each pair below connects both ways). A Zone pair NOT listed here does NOT
-# connect — there is no "fully connected unless restricted" fallback, so a
-# newly-added Zone starts isolated until you add a pair for it here. Order
-# within a pair doesn't matter. Moving within a Zone (between its Locations)
-# is always free/unrestricted regardless of this list; this only gates
-# cross-Zone Moves.
+# locationConnections: the sole master for which Locations a character can
+# directly travel between (Location.connectsTo, a symmetric/undirected
+# adjacency graph — each pair below connects both ways, by `id` slug). A
+# Location pair NOT listed here does NOT connect — there is no
+# "fully connected unless restricted" fallback, so a newly-added Location
+# starts isolated until you add a pair for it here. Order within a pair
+# doesn't matter. Whether a hop is free or costs a turn is still decided by
+# whether the two Locations share a Zone (see performMove in
+# bot/src/lib/location.js) — this list only decides which hops are legal at
+# all, i.e. you can only ever move to a direct neighbor, never teleport
+# elsewhere in your own Zone.
 
-zoneConnections:
-  - [Fortress, Town]
-  - [Fortress, Caves]
-  - [Town, Windlands]
-  - [Town, Caves]
-  - [Windlands, Caves]
+locationConnections:
+  - [undercroft, keep]
+  - [gatehouse, undercroft]
+  - [keep, gatehouse]
+  - [gatehouse, depths]
+  - [gatehouse, forest]
+  - [gatehouse, town]
+  - [gatehouse, church]
+  - [church, forest]
+  - [church, town]
+  - [sanctuary, town]
+  - [sanctuary, forest]
+  - [underquarter, town]
+  - [underquarter, sanctuary]
+  - [town, customs]
+  - [customs, merchants-depot]
+  - [customs, depths]
+  - [depths, warcamp]
+  - [warcamp, forest]
+  - [garrison, gatehouse]
+  - [garrison, keep]
 
 locations:
   # --- Fortress ---

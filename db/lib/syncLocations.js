@@ -40,8 +40,33 @@ const CHANNEL_TYPE_FORUM = 15;
 
 const PERM_VIEW_CHANNEL = 1024;
 const PERM_SEND_MESSAGES = 2048;
+const PERM_MANAGE_MESSAGES = 8192;
+const PERM_MANAGE_THREADS = 17179869184;
 const PERM_CREATE_PUBLIC_THREADS = 34359738368;
 const PERM_CREATE_PRIVATE_THREADS = 68719476736;
+const PERM_SEND_MESSAGES_IN_THREADS = 274877906944;
+
+// GM gets an explicit overwrite on every Location channel (not just the
+// category) so it can't be silently clawed back by a channel-level
+// @everyone overwrite (the -private channel sets one) — Discord resolves
+// channel-level overwrites after category-level ones, so a role with no
+// entry of its own at the channel falls through to whatever @everyone says
+// there. Covers view/send/delete-any-message/manage-and-create-threads so a
+// GM can fully moderate forum posts (-public) and private threads
+// (-private) in addition to the plain channel.
+function gmChannelOverwrite(gmRoleId, allow) {
+  return gmRoleId ? [{ id: gmRoleId, type: 0, allow: String(allow) }] : [];
+}
+const GM_PLAIN_PERMS = PERM_VIEW_CHANNEL + PERM_SEND_MESSAGES + PERM_MANAGE_MESSAGES;
+const GM_PUBLIC_PERMS =
+  PERM_VIEW_CHANNEL + PERM_CREATE_PUBLIC_THREADS + PERM_SEND_MESSAGES_IN_THREADS + PERM_MANAGE_THREADS + PERM_MANAGE_MESSAGES;
+const GM_PRIVATE_PERMS =
+  PERM_VIEW_CHANNEL +
+  PERM_SEND_MESSAGES +
+  PERM_CREATE_PRIVATE_THREADS +
+  PERM_SEND_MESSAGES_IN_THREADS +
+  PERM_MANAGE_THREADS +
+  PERM_MANAGE_MESSAGES;
 
 function buildSummaryTopic(location) {
   const description = location.description || "";
@@ -69,6 +94,7 @@ async function provisionLocationChannels(prisma, location) {
     parent_id: category.id,
     rate_limit_per_user: 60,
     topic: buildSummaryTopic(location) ?? undefined,
+    permission_overwrites: gmChannelOverwrite(gmRoleId, GM_PLAIN_PERMS),
   });
   const publicChannel = await createChannel({
     name: `${location.name}-public`,
@@ -76,6 +102,7 @@ async function provisionLocationChannels(prisma, location) {
     parent_id: category.id,
     default_auto_archive_duration: 1440,
     available_tags: [{ name: "Persistent", emoji_name: "⏰" }],
+    permission_overwrites: gmChannelOverwrite(gmRoleId, GM_PUBLIC_PERMS),
   });
   const privateChannel = await createChannel({
     name: `${location.name}-private`,
@@ -88,6 +115,7 @@ async function provisionLocationChannels(prisma, location) {
         deny: String(PERM_VIEW_CHANNEL + PERM_SEND_MESSAGES + PERM_CREATE_PUBLIC_THREADS),
         allow: String(PERM_CREATE_PRIVATE_THREADS),
       },
+      ...gmChannelOverwrite(gmRoleId, GM_PRIVATE_PERMS),
     ],
   });
 
@@ -143,22 +171,28 @@ async function sortLocationCategories(prisma) {
   await patchGuildChannelPositions(updates);
 }
 
-async function syncZoneConnections(prisma, zoneCache, connections) {
-  const byZoneName = new Map();
+// Every slug referenced by locationConnections must belong to a Location
+// upserted this run — a typo or a slug that was removed from `locations:`
+// is a data-authoring error, not something to silently ignore.
+async function syncLocationConnections(prisma, upserted, connections) {
+  const bySlug = new Map(upserted.map((l) => [l.slug, l]));
   for (const [a, b] of connections) {
-    if (!byZoneName.has(a)) byZoneName.set(a, new Set());
-    if (!byZoneName.has(b)) byZoneName.set(b, new Set());
-    byZoneName.get(a).add(b);
-    byZoneName.get(b).add(a);
+    if (!bySlug.has(a)) throw new Error(`locationConnections references unknown location slug "${a}"`);
+    if (!bySlug.has(b)) throw new Error(`locationConnections references unknown location slug "${b}"`);
   }
 
-  for (const [name, zone] of zoneCache) {
-    const neighborNames = [...(byZoneName.get(name) ?? [])];
-    const neighbors = neighborNames
-      .map((n) => zoneCache.get(n))
-      .filter(Boolean)
-      .map((z) => ({ id: z.id }));
-    await prisma.zone.update({ where: { id: zone.id }, data: { connectsTo: { set: neighbors } } });
+  const bySlugNeighbors = new Map();
+  for (const [a, b] of connections) {
+    if (!bySlugNeighbors.has(a)) bySlugNeighbors.set(a, new Set());
+    if (!bySlugNeighbors.has(b)) bySlugNeighbors.set(b, new Set());
+    bySlugNeighbors.get(a).add(b);
+    bySlugNeighbors.get(b).add(a);
+  }
+
+  for (const location of upserted) {
+    const neighborSlugs = [...(bySlugNeighbors.get(location.slug) ?? [])];
+    const neighbors = neighborSlugs.map((slug) => ({ id: bySlug.get(slug).id }));
+    await prisma.location.update({ where: { id: location.id }, data: { connectsTo: { set: neighbors } } });
   }
 }
 
@@ -166,7 +200,7 @@ async function syncLocationsFromYaml(prisma) {
   const yamlPath = path.join(__dirname, "..", "..", "docs", "locations.yaml");
   const doc = yaml.load(fs.readFileSync(yamlPath, "utf8"));
   const entries = doc?.locations ?? [];
-  const zoneConnections = doc?.zoneConnections ?? [];
+  const locationConnections = doc?.locationConnections ?? [];
   const entryIds = new Set(entries.map((e) => e.id));
   const entryZoneNames = new Set(entries.map((e) => e.zone));
 
@@ -225,11 +259,7 @@ async function syncLocationsFromYaml(prisma) {
     upserted.push(location);
   }
 
-  for (const [a, b] of zoneConnections) {
-    await resolveZone(a);
-    await resolveZone(b);
-  }
-  await syncZoneConnections(prisma, zoneCache, zoneConnections);
+  await syncLocationConnections(prisma, upserted, locationConnections);
 
   const unprovisioned = upserted.filter((l) => !l.discordCategoryId);
   for (const location of unprovisioned) {

@@ -1,11 +1,6 @@
 const { MessageFlags } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
-const {
-  buildZoneSelectRow,
-  buildLocationSelectRow,
-  buildConfirmRow,
-  performMove,
-} = require("../lib/location");
+const { buildLocationSelectRow, buildConfirmRow, performMove } = require("../lib/location");
 const { performLabor } = require("../lib/labor");
 const { sendDm } = require("../lib/dm");
 const { buildMoveComponents, buildMoveContent, moveKindLabel } = require("../lib/moveComponents");
@@ -104,44 +99,30 @@ async function handleOpen(interaction) {
     return;
   }
 
-  // An unset zone (brand-new character) can freely pick any zone to start
-  // in; otherwise the picker only offers the current zone (free movement
-  // within it) plus zones directly connected to it (see Zone.connectsTo /
-  // performMove).
-  let zones;
-  if (!character.zoneId) {
-    zones = await prisma.zone.findMany({ orderBy: { name: "asc" } });
+  // An unset Location (brand-new character) can freely pick any Location to
+  // start in; otherwise the picker only offers the current Location's
+  // direct neighbors (see Location.connectsTo / performMove) — moving is
+  // now location-by-location, not "anywhere in zone, or any connected
+  // zone."
+  let locations;
+  if (!character.locationId) {
+    locations = await prisma.location.findMany({ orderBy: { name: "asc" } });
   } else {
-    const currentZone = await prisma.zone.findUnique({
-      where: { id: character.zoneId },
+    const currentLocation = await prisma.location.findUnique({
+      where: { id: character.locationId },
       include: { connectsTo: true },
     });
-    const reachableIds = new Set([character.zoneId, ...(currentZone?.connectsTo.map((z) => z.id) ?? [])]);
-    zones = await prisma.zone.findMany({ where: { id: { in: [...reachableIds] } }, orderBy: { name: "asc" } });
+    locations = [...(currentLocation?.connectsTo ?? [])].sort((a, b) => a.name.localeCompare(b.name));
   }
-  if (zones.length === 0) {
-    await interaction.reply({ content: "» *No zones exist yet.*", flags: MessageFlags.Ephemeral });
+  if (locations.length === 0) {
+    await interaction.reply({ content: "» *Nowhere to go from here.*", flags: MessageFlags.Ephemeral });
     return;
   }
 
   await interaction.reply({
-    content: "Where would you like to move? Choose a zone.",
-    components: [buildZoneSelectRow(zones)],
+    content: "Where would you like to move? Choose a location.",
+    components: [buildLocationSelectRow(locations, character.zoneId)],
     flags: MessageFlags.Ephemeral,
-  });
-}
-
-async function handleZoneSelect(interaction) {
-  const zoneId = interaction.values[0];
-  const locations = await prisma.location.findMany({ where: { zoneId }, orderBy: { name: "asc" } });
-  if (locations.length === 0) {
-    await interaction.update({ content: "» *That zone has no locations yet.*", components: [] });
-    return;
-  }
-
-  await interaction.update({
-    content: "Choose a location.",
-    components: [buildLocationSelectRow(zoneId, locations)],
   });
 }
 
@@ -296,8 +277,7 @@ module.exports = {
           return void (await handleMoveConfirm(interaction, interaction.customId.slice("move:confirm:".length)));
         }
       } else if (interaction.isStringSelectMenu()) {
-        if (interaction.customId === "loc:zone") return void (await handleZoneSelect(interaction));
-        if (interaction.customId.startsWith("loc:place:")) return void (await handlePlaceSelect(interaction));
+        if (interaction.customId === "loc:place") return void (await handlePlaceSelect(interaction));
         if (interaction.customId.startsWith("move:kind:")) {
           return void (await handleMoveKindSelect(interaction, interaction.customId.slice("move:kind:".length)));
         }

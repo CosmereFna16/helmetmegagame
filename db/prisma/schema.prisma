@@ -157,17 +157,6 @@ model Faction {
   updatedAt DateTime @updatedAt
 }
 
-// connectsTo/connectedFrom back a single undirected adjacency graph (not a
-// directed "A can reach B but not vice versa" one), mastered by
-// docs/locations.yaml's zoneConnections list and applied by
-// syncLocationsFromYaml, which always writes each Zone's own `connectsTo`
-// to its full neighbor set (both directions explicitly, never relying on
-// Prisma's relation to mirror it) — so only `connectsTo` is ever read;
-// `connectedFrom` exists solely because Prisma requires a named field on
-// both sides of a self-relation and is otherwise unused. A zone pair not
-// listed in the YAML is NOT connected — there is no "fully connected by
-// default" fallback — which is what performMove (bot/src/lib/location.js)
-// checks before allowing a turn-spending cross-zone Move.
 model Zone {
   id                String   @id @default(cuid())
   name              String
@@ -179,9 +168,6 @@ model Zone {
   actions        Action[]
   defaultEfforts DefaultEffort[]
   notes          Note[]
-
-  connectsTo    Zone[] @relation("ZoneConnections")
-  connectedFrom Zone[] @relation("ZoneConnections")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -204,6 +190,18 @@ model Zone {
 // Prisma's generated cuids. tags are free-text flavor/categorization labels
 // authored in the YAML, unrelated to the player-facing Tag/CharacterTag
 // system.
+//
+// connectsTo/connectedFrom back a single undirected adjacency graph (not a
+// directed "A can reach B but not vice versa" one), mastered by
+// docs/locations.yaml's locationConnections list and applied by
+// syncLocationsFromYaml, which always writes each Location's own
+// `connectsTo` to its full neighbor set (both directions explicitly, never
+// relying on Prisma's relation to mirror it) — so only `connectsTo` is ever
+// read; `connectedFrom` exists solely because Prisma requires a named field
+// on both sides of a self-relation and is otherwise unused. A Location pair
+// not listed in the YAML is NOT connected — there is no "fully connected by
+// default" fallback — which is what performMove (bot/src/lib/location.js)
+// checks before allowing any Move (whether free or turn-spending).
 model Location {
   id                  String   @id @default(cuid())
   slug                String?  @unique
@@ -222,6 +220,9 @@ model Location {
 
   characters       Character[]
   startingForRoles Role[]      @relation("RoleStartingLocation")
+
+  connectsTo    Location[] @relation("LocationConnections")
+  connectedFrom Location[] @relation("LocationConnections")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -482,8 +482,30 @@ export async function deleteFaction(formData) {
 // API as decimal strings per Discord's permission-bitfield contract.
 const PERM_VIEW_CHANNEL = 1024;
 const PERM_SEND_MESSAGES = 2048;
+const PERM_MANAGE_MESSAGES = 8192;
+const PERM_MANAGE_THREADS = 17179869184;
 const PERM_CREATE_PUBLIC_THREADS = 34359738368;
 const PERM_CREATE_PRIVATE_THREADS = 68719476736;
+const PERM_SEND_MESSAGES_IN_THREADS = 274877906944;
+
+// GM gets an explicit overwrite on every Location channel (not just the
+// category) so it can't be silently clawed back by a channel-level
+// @everyone overwrite (the -private channel sets one) — see the matching
+// comment in db/lib/syncLocations.js#provisionLocationChannels, the other
+// half of this duplicated-by-convention provisioning implementation.
+function gmChannelOverwrite(gmRoleId, allow) {
+  return gmRoleId ? [{ id: gmRoleId, type: 0, allow: String(allow) }] : [];
+}
+const GM_PLAIN_PERMS = PERM_VIEW_CHANNEL + PERM_SEND_MESSAGES + PERM_MANAGE_MESSAGES;
+const GM_PUBLIC_PERMS =
+  PERM_VIEW_CHANNEL + PERM_CREATE_PUBLIC_THREADS + PERM_SEND_MESSAGES_IN_THREADS + PERM_MANAGE_THREADS + PERM_MANAGE_MESSAGES;
+const GM_PRIVATE_PERMS =
+  PERM_VIEW_CHANNEL +
+  PERM_SEND_MESSAGES +
+  PERM_CREATE_PRIVATE_THREADS +
+  PERM_SEND_MESSAGES_IN_THREADS +
+  PERM_MANAGE_THREADS +
+  PERM_MANAGE_MESSAGES;
 
 // One-time, explicitly GM-triggered creation of a Location's Discord layout
 // (1 category + plain/public/private channels) — see the Location model
@@ -516,6 +538,7 @@ export async function provisionLocationChannels(locationId) {
     type: 0,
     parent_id: category.id,
     rate_limit_per_user: 60,
+    permission_overwrites: gmChannelOverwrite(gmRoleId, GM_PLAIN_PERMS),
   });
 
   const publicChannel = await createGuildChannel({
@@ -530,6 +553,7 @@ export async function provisionLocationChannels(locationId) {
     // wipe (db/lib/dawnWipe.js) — the post survives, only its messages get
     // cleared. Looked up by name at wipe-time, not stored anywhere.
     available_tags: [{ name: "Persistent", emoji_name: "⏰" }],
+    permission_overwrites: gmChannelOverwrite(gmRoleId, GM_PUBLIC_PERMS),
   });
 
   const privateChannel = await createGuildChannel({
@@ -548,6 +572,7 @@ export async function provisionLocationChannels(locationId) {
         deny: String(PERM_VIEW_CHANNEL + PERM_SEND_MESSAGES + PERM_CREATE_PUBLIC_THREADS),
         allow: String(PERM_CREATE_PRIVATE_THREADS),
       },
+      ...gmChannelOverwrite(gmRoleId, GM_PRIVATE_PERMS),
     ],
   });
 

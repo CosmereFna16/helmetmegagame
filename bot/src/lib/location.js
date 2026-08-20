@@ -3,7 +3,7 @@ const { prisma, buildNarrowcastContext, computeNarrowcastAccess } = require("@li
 const { isLocationPromptChannel } = require("./channels");
 
 const FLEUR_EMOJI = "⚜️";
-const LOCATION_PROMPT_TEXT = "» Where would you like to move? Changing Zones takes a turn.";
+const LOCATION_PROMPT_TEXT = "» Where would you like to move? You can only travel to a directly connected location — changing Zones takes a turn.";
 
 function buildOpenButtonRow() {
   const button = new ButtonBuilder()
@@ -14,19 +14,23 @@ function buildOpenButtonRow() {
   return new ActionRowBuilder().addComponents(button);
 }
 
-function buildZoneSelectRow(zones) {
+// `locations` are the destinations to offer — either the character's
+// current Location's direct neighbors, or (first-ever placement, no
+// Location yet) every Location in the game. Each option's description notes
+// whether picking it will be free or spend the turn, based on whether that
+// Location shares the character's current Zone (see performMove) — skipped
+// when the character has no zone yet, since every choice is free then.
+function buildLocationSelectRow(locations, currentZoneId) {
   const menu = new StringSelectMenuBuilder()
-    .setCustomId("loc:zone")
-    .setPlaceholder("Choose a zone...")
-    .addOptions(zones.map((z) => ({ label: z.name, value: z.id })));
-  return new ActionRowBuilder().addComponents(menu);
-}
-
-function buildLocationSelectRow(zoneId, locations) {
-  const menu = new StringSelectMenuBuilder()
-    .setCustomId(`loc:place:${zoneId}`)
+    .setCustomId("loc:place")
     .setPlaceholder("Choose a location...")
-    .addOptions(locations.map((l) => ({ label: l.name, value: l.id })));
+    .addOptions(
+      locations.map((l) => ({
+        label: l.name,
+        value: l.id,
+        ...(currentZoneId ? { description: l.zoneId === currentZoneId ? "Free" : "Costs your turn" } : {}),
+      })),
+    );
   return new ActionRowBuilder().addComponents(menu);
 }
 
@@ -103,25 +107,31 @@ async function syncCharacterNarrowcastAccess(guild, character) {
   );
 }
 
-// Executes a validated zone/location change: free if staying within the
-// same zone (or the character has no zone yet), otherwise a turn-consuming
+// Executes a validated location change: free if staying within the same
+// zone (or the character has no zone yet), otherwise a turn-consuming
 // auto-resolved Move — reuses the existing turn-economy (Action rows scoped
 // to the open Turn) rather than a parallel tracker, and the same check
-// blocks a second Move submission this turn (see actionSubmission.js).
-// Returns { ok: true, free } or { ok: false, reason }.
+// blocks a second Move submission this turn (see actionSubmission.js). A
+// Move is only legal at all if targetLocation is a direct neighbor of the
+// character's current Location (Location.connectsTo, see the picker in
+// bot/src/events/interactionCreate.js) — unrestricted if the character has
+// no Location yet (first-ever placement). Returns { ok: true, free } or
+// { ok: false, reason }.
 async function performMove(guild, character, targetLocation) {
+  if (character.locationId) {
+    const currentLocation = await prisma.location.findUnique({
+      where: { id: character.locationId },
+      include: { connectsTo: { where: { id: targetLocation.id } } },
+    });
+    if (!currentLocation || currentLocation.connectsTo.length === 0) {
+      return { ok: false, reason: "You can't get there directly from here." };
+    }
+  }
+
   const isFree = !character.zoneId || targetLocation.zoneId === character.zoneId;
 
   let openTurn = null;
   if (!isFree) {
-    const currentZone = await prisma.zone.findUnique({
-      where: { id: character.zoneId },
-      include: { connectsTo: { where: { id: targetLocation.zoneId } } },
-    });
-    if (!currentZone || currentZone.connectsTo.length === 0) {
-      return { ok: false, reason: "That zone isn't reachable from here." };
-    }
-
     openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
     if (!openTurn) return { ok: false, reason: "No turn is currently open." };
 
@@ -191,7 +201,6 @@ async function ensureLocationPrompt(guild) {
 module.exports = {
   FLEUR_EMOJI,
   buildOpenButtonRow,
-  buildZoneSelectRow,
   buildLocationSelectRow,
   buildConfirmRow,
   swapLocationAccess,
