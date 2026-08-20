@@ -2,7 +2,7 @@
 // build on (the very first turn the game ever plays) — every turn after
 // that is driven by WEATHER_TRANSITIONS below. Bias toward CLEAR as the
 // game's baseline condition.
-const WEATHER_WEIGHTS = { CLEAR: 45, FOG: 25, RAIN: 17, STORM: 10, MIGRATION: 3 }; // sums to 100
+const WEATHER_WEIGHTS = { CLEAR: 47, FOG: 25, RAIN: 17, STORM: 10, MIGRATION: 1 }; // sums to 100
 
 // Weather rolls every turn (twice a day — see advanceTurn() in
 // db/index.js), as a Markov transition off the *previous turn's* weather,
@@ -27,17 +27,17 @@ const WEATHER_WEIGHTS = { CLEAR: 45, FOG: 25, RAIN: 17, STORM: 10, MIGRATION: 3 
 // back to CLEAR instead of persisting.
 const WEATHER_TRANSITIONS = {
   DAWN: {
-    CLEAR: { CLEAR: 47, FOG: 35, RAIN: 13, STORM: 2, MIGRATION: 3 },
-    FOG: { CLEAR: 32, FOG: 45, RAIN: 18, STORM: 3, MIGRATION: 2 },
-    RAIN: { CLEAR: 20, FOG: 22, RAIN: 48, STORM: 7, MIGRATION: 3 },
-    STORM: { CLEAR: 10, FOG: 8, RAIN: 12, STORM: 65, MIGRATION: 5 },
+    CLEAR: { CLEAR: 49, FOG: 35, RAIN: 13, STORM: 2, MIGRATION: 1 },
+    FOG: { CLEAR: 33, FOG: 45, RAIN: 18, STORM: 3, MIGRATION: 1 },
+    RAIN: { CLEAR: 22, FOG: 22, RAIN: 48, STORM: 7, MIGRATION: 1 },
+    STORM: { CLEAR: 13, FOG: 8, RAIN: 12, STORM: 65, MIGRATION: 2 },
     MIGRATION: { CLEAR: 36, FOG: 40, RAIN: 20, STORM: 4, MIGRATION: 0 },
   },
   DUSK: {
-    CLEAR: { CLEAR: 65, FOG: 10, RAIN: 17, STORM: 3, MIGRATION: 5 },
-    FOG: { CLEAR: 58, FOG: 15, RAIN: 22, STORM: 3, MIGRATION: 2 },
-    RAIN: { CLEAR: 25, FOG: 8, RAIN: 55, STORM: 9, MIGRATION: 3 },
-    STORM: { CLEAR: 10, FOG: 4, RAIN: 16, STORM: 65, MIGRATION: 5 },
+    CLEAR: { CLEAR: 68, FOG: 10, RAIN: 17, STORM: 3, MIGRATION: 2 },
+    FOG: { CLEAR: 59, FOG: 15, RAIN: 22, STORM: 3, MIGRATION: 1 },
+    RAIN: { CLEAR: 27, FOG: 8, RAIN: 55, STORM: 9, MIGRATION: 1 },
+    STORM: { CLEAR: 13, FOG: 4, RAIN: 16, STORM: 65, MIGRATION: 2 },
     MIGRATION: { CLEAR: 53, FOG: 15, RAIN: 28, STORM: 4, MIGRATION: 0 },
   },
 };
