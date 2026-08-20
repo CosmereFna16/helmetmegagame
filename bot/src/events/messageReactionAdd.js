@@ -11,11 +11,11 @@ const FOG_EMOJI = "🌫️"; // :fog:
 
 // Starring a proxied tupper message saves it to the reacting user's personal
 // Notes list (web/app/(app)/notes) — a private note, not a shared archive,
-// so it's keyed on (message, starrer). The bot always strips the ⭐ reaction
-// straight back off (see dispatch below) so Discord never shows an
-// accumulating star count; the note living on /notes is the only lasting
-// record, and unstarring happens there (a delete button), not by reacting
-// again.
+// so it's keyed on (message, starrer). Every reaction handled below (🔍/❌/
+// ✏️/⭐) is stripped back off right after being processed, so none of them
+// show as an accumulating count on the message; ⭐ is the one that also
+// persists a Note, and unstarring happens on /notes (a delete button), not
+// by reacting again.
 async function handleStarReaction(reaction, proxy, user) {
   const character = await prisma.character.findUnique({ where: { id: proxy.characterId } });
   if (!character) return;
@@ -99,6 +99,7 @@ module.exports = {
       await webhookClient
         .deleteMessage(reaction.message.id, { threadId: proxy.threadId })
         .catch(() => {});
+      await reaction.users.remove(user.id).catch(() => {});
       recentProxies.delete(reaction.message.id);
       return;
     }
@@ -121,13 +122,17 @@ module.exports = {
         .catch(() => null);
 
       const reply = collected?.first();
-      if (!reply) return;
+      if (!reply) {
+        await reaction.users.remove(user.id).catch(() => {});
+        return;
+      }
 
       const webhookClient = new WebhookClient({ id: proxy.webhookId, token: proxy.webhookToken });
       await webhookClient
         .editMessage(reaction.message.id, { content: reply.content, threadId: proxy.threadId })
         .then(() => sendDm(user, "» *Updated.*"))
         .catch(() => sendDm(user, "» *Couldn't update that message — it may be too old.*"));
+      await reaction.users.remove(user.id).catch(() => {});
       return;
     }
 
@@ -157,6 +162,7 @@ module.exports = {
       } catch {
         await reaction.message.channel.send({ embeds: [embed] }).catch(() => {});
       }
+      await reaction.users.remove(user.id).catch(() => {});
     }
   },
 };
