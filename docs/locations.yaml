@@ -42,6 +42,22 @@
 # first, etc.) — purely for readability of this file; it has no effect on
 # Discord's actual category ordering, which stays alphabetical by
 # "{Zone} / {Location}" (see sortLocationCategories).
+#
+# zoneConnections: the sole master for which Zones a character can directly
+# travel between (Zone.connectsTo, a symmetric/undirected adjacency graph —
+# each pair below connects both ways). A Zone pair NOT listed here does NOT
+# connect — there is no "fully connected unless restricted" fallback, so a
+# newly-added Zone starts isolated until you add a pair for it here. Order
+# within a pair doesn't matter. Moving within a Zone (between its Locations)
+# is always free/unrestricted regardless of this list; this only gates
+# cross-Zone Moves.
+
+zoneConnections:
+  - [Fortress, Town]
+  - [Fortress, Caves]
+  - [Town, Windlands]
+  - [Town, Caves]
+  - [Windlands, Caves]
 
 locations:
   # --- Fortress ---
@@ -100,7 +116,7 @@ locations:
 
   # --- Town ---
   - id: town
-    name: Town
+    name: Square
     zone: Town
     description: Vines dress the homes. A crumbling wall, patched with wooden palisade, surrounds the town.
     publicSubLocations:

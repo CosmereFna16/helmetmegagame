@@ -78,6 +78,14 @@ async function performMove(guild, character, targetLocation) {
 
   let openTurn = null;
   if (!isFree) {
+    const currentZone = await prisma.zone.findUnique({
+      where: { id: character.zoneId },
+      include: { connectsTo: { where: { id: targetLocation.zoneId } } },
+    });
+    if (!currentZone || currentZone.connectsTo.length === 0) {
+      return { ok: false, reason: "That zone isn't reachable from here." };
+    }
+
     openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
     if (!openTurn) return { ok: false, reason: "No turn is currently open." };
 

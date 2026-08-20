@@ -104,7 +104,21 @@ async function handleOpen(interaction) {
     return;
   }
 
-  const zones = await prisma.zone.findMany({ orderBy: { name: "asc" } });
+  // An unset zone (brand-new character) can freely pick any zone to start
+  // in; otherwise the picker only offers the current zone (free movement
+  // within it) plus zones directly connected to it (see Zone.connectsTo /
+  // performMove).
+  let zones;
+  if (!character.zoneId) {
+    zones = await prisma.zone.findMany({ orderBy: { name: "asc" } });
+  } else {
+    const currentZone = await prisma.zone.findUnique({
+      where: { id: character.zoneId },
+      include: { connectsTo: true },
+    });
+    const reachableIds = new Set([character.zoneId, ...(currentZone?.connectsTo.map((z) => z.id) ?? [])]);
+    zones = await prisma.zone.findMany({ where: { id: { in: [...reachableIds] } }, orderBy: { name: "asc" } });
+  }
   if (zones.length === 0) {
     await interaction.reply({ content: "» *No zones exist yet.*", flags: MessageFlags.Ephemeral });
     return;

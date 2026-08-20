@@ -143,10 +143,30 @@ async function sortLocationCategories(prisma) {
   await patchGuildChannelPositions(updates);
 }
 
+async function syncZoneConnections(prisma, zoneCache, connections) {
+  const byZoneName = new Map();
+  for (const [a, b] of connections) {
+    if (!byZoneName.has(a)) byZoneName.set(a, new Set());
+    if (!byZoneName.has(b)) byZoneName.set(b, new Set());
+    byZoneName.get(a).add(b);
+    byZoneName.get(b).add(a);
+  }
+
+  for (const [name, zone] of zoneCache) {
+    const neighborNames = [...(byZoneName.get(name) ?? [])];
+    const neighbors = neighborNames
+      .map((n) => zoneCache.get(n))
+      .filter(Boolean)
+      .map((z) => ({ id: z.id }));
+    await prisma.zone.update({ where: { id: zone.id }, data: { connectsTo: { set: neighbors } } });
+  }
+}
+
 async function syncLocationsFromYaml(prisma) {
   const yamlPath = path.join(__dirname, "..", "..", "docs", "locations.yaml");
   const doc = yaml.load(fs.readFileSync(yamlPath, "utf8"));
   const entries = doc?.locations ?? [];
+  const zoneConnections = doc?.zoneConnections ?? [];
   const entryIds = new Set(entries.map((e) => e.id));
   const entryZoneNames = new Set(entries.map((e) => e.zone));
 
@@ -204,6 +224,12 @@ async function syncLocationsFromYaml(prisma) {
     location.zone = zone;
     upserted.push(location);
   }
+
+  for (const [a, b] of zoneConnections) {
+    await resolveZone(a);
+    await resolveZone(b);
+  }
+  await syncZoneConnections(prisma, zoneCache, zoneConnections);
 
   const unprovisioned = upserted.filter((l) => !l.discordCategoryId);
   for (const location of unprovisioned) {
