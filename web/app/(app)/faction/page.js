@@ -164,16 +164,27 @@ function FactionOverview({ factions }) {
               <th></th>
             </tr>
           </thead>
-          <tbody>{FactionRows({ factions: topLevel, childrenMap, depth: 0, showSilo: true })}</tbody>
+          <tbody>
+            {FactionRows({ factions: topLevel, childrenMap, depth: 0, showSilo: true })}
+            {unaffiliated.map((f) => {
+              const leader = f.characters.find((c) => c.isLeader);
+              return (
+                <tr key={f.id} style={{ borderTop: "2px solid var(--border)" }}>
+                  <td>{f.name}</td>
+                  <td>{f.characters.length}</td>
+                  <td>{leader?.name ?? "-"}</td>
+                  <td>{f.silo}</td>
+                  <td>
+                    <Link href={`/faction?factionId=${f.id}`} className="menu-item">
+                      View
+                    </Link>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
         </table>
       </div>
-
-      {unaffiliated.length > 0 && (
-        <div>
-          <h2 className="mb-2 font-bold">Unaffiliated</h2>
-          <FactionTable factions={unaffiliated} showSilo />
-        </div>
-      )}
     </div>
   );
 }

@@ -15,23 +15,24 @@ Three levels:
   tag/group whose `category` isn't in that list.
 - **Group** (`TagGroup`) — optional, scoped to exactly one category, exists
   purely to color tags for display (e.g. Status's Health/Food/Buffs/Debuffs
-  groups). A tag with no group renders uncolored. `TagGroup.color` is a key
-  into a small fixed palette of theme-aware CSS custom properties defined in
-  `web/app/globals.css` (`--tag-rose`, `--tag-amber`, `--tag-cyan`,
-  `--tag-violet`, `--tag-sage`, `--tag-slate`) — never a raw hex value, so
-  colors stay correct across the dusk/dawn theme swap the same way every
-  other color in the app does.
+  groups). A tag with no group renders uncolored. `TagGroup.color` is a
+  freeform hex string (e.g. `"#6fa8ab"`), rendered directly by `TagChip.js`
+  — not theme-aware, so pick a value that reads on both the dusk and dawn
+  backgrounds.
 - **Tag** — the catalog entry itself.
 
-## 2. Master source: `docs/tags.yaml`
+## 2. Master sources: `docs/tags.yaml` and `docs/taggroups.yaml`
 
-Same posture as `docs/locations.yaml`: hand-edited, `slug` is the stable
-match key across syncs, and syncing is **upsert-only** — removing an entry
-from the YAML never deletes its row, it just stops receiving updates.
-`db/lib/syncTags.js#syncTagsFromYaml(prisma)` does the sync, run by hand via
-`npm run db:sync-tags` (`db/prisma/sync-tags.js`) or automatically at the end
-of `wipeGameData`'s "Restart Game" flow
-(`web/app/(app)/gm/dev/actions.js`), right after `syncLocationsFromYaml`.
+`docs/tags.yaml` holds categories and tags; `docs/taggroups.yaml` holds the
+`TagGroup` catalog (split into its own file so group colors can be freeform
+hex rather than a fixed token set). Same posture as `docs/locations.yaml`:
+hand-edited, `slug` is the stable match key across syncs, and syncing is
+**upsert-only** — removing an entry from either YAML never deletes its row,
+it just stops receiving updates. `db/lib/syncTags.js#syncTagsFromYaml(prisma)`
+reads both files and does the sync, run by hand via `npm run db:sync-tags`
+(`db/prisma/sync-tags.js`) or automatically at the end of `wipeGameData`'s
+"Restart Game" flow (`web/app/(app)/gm/dev/actions.js`), right after
+`syncLocationsFromYaml`.
 
 The sync is four passes, since tags/groups can reference each other by slug
 before every row necessarily exists yet: TagGroup scalars, then Tag scalars
@@ -142,7 +143,8 @@ Skills respectively) since both drive real logic elsewhere — Mortus gates
 ## 7. Where the code lives
 
 `db/lib/syncTags.js` (the sync itself), `db/prisma/sync-tags.js` (terminal
-entry point, `npm run db:sync-tags`), `docs/tags.yaml` (content),
-`web/app/api/tags/route.js` (read API backing `{tag:slug}`/`{tag:id}`
-references, `web/app/components/RichText.js`/`TagsProvider.js`), `TagChip.js`
+entry point, `npm run db:sync-tags`), `docs/tags.yaml` /
+`docs/taggroups.yaml` (content), `web/app/api/tags/route.js` (read API
+backing `{tag:slug}`/`{tag:id}` references,
+`web/app/components/RichText.js`/`TagsProvider.js`), `TagChip.js`
 (the hover-tooltip chip that renders group color).

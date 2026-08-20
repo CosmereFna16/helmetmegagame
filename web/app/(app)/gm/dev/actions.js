@@ -166,7 +166,7 @@ const DEFAULT_GAME_CONFIG = {
   lifewebBlood: 100,
   lifewebDecayPerTurn: 10,
   messageWipeEnabled: false,
-  tupperAutocorrectEnabled: false,
+  tupperAutocorrectEnabled: true,
   productionCoefficient: 1,
   startingTagPoints: 12,
   playerCount: 100,

@@ -131,7 +131,10 @@ export default function CharacterSheet({
       <section className="panel p-4">
         <h2 className="mb-3 font-bold">Status</h2>
         <ul className="flex flex-col gap-1 text-sm">
-          <li>Zone: {character.zone?.name ?? "Unassigned"}</li>
+          <li>
+            Location: {character.zone?.name ?? "Unassigned"}
+            {character.location?.name ? ` / ${character.location.name}` : ""}
+          </li>
           <li>Resources ⬢: {character.resources}</li>
         </ul>
 

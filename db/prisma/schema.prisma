@@ -91,7 +91,7 @@ model GameConfig {
   // Capitalizes the first letter of each sentence in Tupper-proxied messages
   // before they're reposted (bot/src/lib/textCorrection.js) — off by default,
   // purely cosmetic, never touches anything but sentence-start casing.
-  tupperAutocorrectEnabled Boolean @default(false)
+  tupperAutocorrectEnabled Boolean @default(true)
 
   // The single, always-present "location" channel used for the zone/location
   // travel picker (see bot/src/lib/location.js) — same tracked-message
@@ -400,8 +400,9 @@ model TagGroup {
   // a plain string, not a DB-enforced FK, same as Tag.category.
   category String
 
-  // Palette key referencing one of the fixed --tag-<color> tokens in
-  // web/app/globals.css (e.g. "rose", "amber") — null means uncolored.
+  // Freeform hex color (e.g. "#6fa8ab"), rendered directly by TagChip.js —
+  // null means uncolored. Not theme-aware; docs/taggroups.yaml is the
+  // source of truth for values in use.
   color String?
 
   // Whole-group gate: every tag in this group stays hidden until the

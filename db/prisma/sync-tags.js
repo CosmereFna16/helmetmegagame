@@ -1,4 +1,4 @@
-// Manual, terminal-invoked sync from docs/tags.yaml -> DB. Run with
+// Manual, terminal-invoked sync from docs/tags.yaml + docs/taggroups.yaml -> DB. Run with
 // `npm run db:sync-tags`. Never runs automatically on its own, but the same
 // logic (db/lib/syncTags.js#syncTagsFromYaml) is also called from
 // wipeGameData's "Restart Game" flow (web/app/(app)/gm/dev/actions.js) so a

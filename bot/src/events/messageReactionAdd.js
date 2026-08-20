@@ -4,8 +4,8 @@ const { recentProxies } = require("../lib/proxy");
 const { sendDm } = require("../lib/dm");
 
 const DELETE_EMOJI = "❌"; // ❌
-const EDIT_EMOJI = "✏️"; // ✏️
-const INSPECT_EMOJI = "🔍"; // 🔍
+const EDIT_EMOJIS = ["✏️", "📝"]; // ✏️ pencil, 📝 memo (pencil and paper)
+const INSPECT_EMOJIS = ["🔍", "🔎"]; // 🔍 left-pointing, 🔎 right-pointing (rotated) magnifying glass
 const STAR_EMOJI = "⭐"; // ⭐
 const FOG_EMOJI = "🌫️"; // :fog:
 
@@ -104,7 +104,7 @@ module.exports = {
       return;
     }
 
-    if (emoji === EDIT_EMOJI) {
+    if (EDIT_EMOJIS.includes(emoji)) {
       if (!isOwner) return;
       let dm;
       try {
@@ -136,7 +136,7 @@ module.exports = {
       return;
     }
 
-    if (emoji === INSPECT_EMOJI) {
+    if (INSPECT_EMOJIS.includes(emoji)) {
       const character = await prisma.character.findUnique({
         where: { id: proxy.characterId },
         include: {

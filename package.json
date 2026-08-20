@@ -17,6 +17,7 @@
     "db:backfill-persistent-tag": "node db/prisma/backfill-persistent-tag.js",
     "db:backfill-tag-rework": "node db/prisma/backfill-tag-rework.js",
     "db:backfill-gm-permissions": "node db/prisma/backfill-gm-permissions.js",
+    "db:backfill-tupper-attachment-restriction": "node db/prisma/backfill-tupper-attachment-restriction.js",
     "db:prune-orphan-categories": "node db/prisma/prune-orphan-categories.js",
     "db:sync-locations": "node db/prisma/sync-locations.js",
     "db:sync-tags": "node db/prisma/sync-tags.js",

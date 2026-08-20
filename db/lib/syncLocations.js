@@ -40,6 +40,7 @@ const CHANNEL_TYPE_FORUM = 15;
 
 const PERM_VIEW_CHANNEL = 1024;
 const PERM_SEND_MESSAGES = 2048;
+const PERM_ATTACH_FILES = 32768;
 const PERM_MANAGE_MESSAGES = 8192;
 const PERM_MANAGE_THREADS = 17179869184;
 const PERM_CREATE_PUBLIC_THREADS = 34359738368;
@@ -84,8 +85,14 @@ async function provisionLocationChannels(prisma, location) {
     name: `${location.zone.name} / ${location.name}`,
     type: CHANNEL_TYPE_CATEGORY,
     permission_overwrites: [
-      { id: guildId, type: 0, deny: String(PERM_VIEW_CHANNEL) },
-      ...(gmRoleId ? [{ id: gmRoleId, type: 0, allow: String(PERM_VIEW_CHANNEL) }] : []),
+      // ATTACH_FILES deny lives here rather than per-channel because none of
+      // the three channels below set their own overwrite for that bit, so
+      // they all inherit this category-level deny. GMs get an explicit
+      // category-level allow for the same reason: their per-channel
+      // overwrites (GM_PLAIN_PERMS etc.) don't mention ATTACH_FILES either,
+      // so they'd otherwise inherit the deny too.
+      { id: guildId, type: 0, deny: String(PERM_VIEW_CHANNEL + PERM_ATTACH_FILES) },
+      ...(gmRoleId ? [{ id: gmRoleId, type: 0, allow: String(PERM_VIEW_CHANNEL + PERM_ATTACH_FILES) }] : []),
     ],
   });
   const plainChannel = await createChannel({

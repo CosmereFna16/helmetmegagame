@@ -1,0 +1,42 @@
+# Sole master for the TagGroup catalog — split out of docs/tags.yaml so
+# group colors can be freeform hex rather than a fixed set of tokens. Same
+# posture as docs/tags.yaml: hand-edited, `slug` is the stable match key,
+# synced upsert-only (never deletes) by db/lib/syncTags.js#syncTagsFromYaml,
+# which reads this file and docs/tags.yaml together — see docs/tags.yaml's
+# header and docs/systemdocs/TAGS.md.
+#
+# Per-group fields:
+#   category    - must match one of the category slugs declared in
+#                 docs/tags.yaml's `categories:` list.
+#   color       - freeform hex color (e.g. "#6fa8ab") used to tint every tag
+#                 chip in this group (TagChip.js). Omit for an uncolored
+#                 group. Not theme-aware — pick a value that reads on both
+#                 the dusk and dawn backgrounds (see web/app/globals.css).
+#   requiredTag - optional slug of a Tag that gates every tag in this group
+#                 (see docs/tags.yaml's requiredTag docs for the same idea
+#                 at the single-tag level).
+groups:
+  - slug: general-traits
+    name: Traits
+    category: general
+    color: "#6fa8ab"
+  - slug: general-social
+    name: Social
+    category: general
+    color: "#9c88c4"
+  - slug: status-health
+    name: Health
+    category: status
+    color: "#c97a86"
+  - slug: status-food
+    name: Food
+    category: status
+    color: "#cf9f56"
+  - slug: status-buffs
+    name: Buffs
+    category: status
+    color: "#8bab76"
+  - slug: status-debuffs
+    name: Debuffs
+    category: status
+    color: "#7f92a3"

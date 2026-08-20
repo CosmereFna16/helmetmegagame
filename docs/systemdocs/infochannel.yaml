@@ -40,14 +40,14 @@ main_message: |-
   * All players must be 18+. Romance is allowed. Sexual content can be hinted at, but nothing more overt; keep it PG-13. You can opt out of any romance-related content in the web interface.
   * Grim or not, this is a game! Sensitive subjects aren’t allowed. There are no children or SA in Lifeweb. Bigotry is fine, but keep it tame, and remember Lifeweb’s people have different beliefs than we do.
   * The game is strategic—you’re encouraged to play to win—but your character should act realistically. Navigating challenges like your character’s fear is part of the strategy.
-  * No generative AI.
+  * You can conflict with other faction members, especially to fulfill your Desires. However, unless you are an Antagonist, your character should start, at minimum, being cooperative with their fellow faction members. Antagonist roles are secretly assigned at game start.
 
 categories:
-  - name: Lore
+  - name: Premise
     threads:
-      - title: Premise
+      - title: Lore
         body: |-
-          **Premise**
+          **Lore**
 
           Centuries of oppression, darkness, and humiliation. Humankind, windwhipped on the crags of the wet but barren Earth, were forced into the caves to live there like animals.
 

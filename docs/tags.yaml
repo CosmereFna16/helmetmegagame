@@ -1,3 +1,6 @@
+# Sole master for the Tag catalog. TagGroup catalog is a sibling file,
+# docs/taggroups.yaml — see there for group/color fields.
+#
 # Per-tag fields not covered elsewhere in this file:
 #   durationTurns   - default turns-to-expire once granted, for tags that
 #                     auto-expire (e.g. Drained: 3). Omit for tags that don't
@@ -34,31 +37,10 @@ categories:
   - slug: assets
     name: Assets
 
-groups:
-  - slug: general-traits
-    name: Traits
-    category: general
-    color: cyan
-  - slug: general-social
-    name: Social
-    category: general
-    color: violet
-  - slug: status-health
-    name: Health
-    category: status
-    color: rose
-  - slug: status-food
-    name: Food
-    category: status
-    color: amber
-  - slug: status-buffs
-    name: Buffs
-    category: status
-    color: sage
-  - slug: status-debuffs
-    name: Debuffs
-    category: status
-    color: slate
+# TagGroup catalog (Traits, Social, Health, ...) now lives in
+# docs/taggroups.yaml — split out so group colors can be freeform hex
+# instead of a fixed token set. Tags below reference a group by its slug
+# via `group:`, same as before.
 
 tags:
   # --- Meta ---------------------------------------------------------------

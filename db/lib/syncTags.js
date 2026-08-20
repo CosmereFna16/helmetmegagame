@@ -1,10 +1,10 @@
-// docs/tags.yaml -> DB, called by db/prisma/sync-tags.js (manual
-// `npm run db:sync-tags`) and wipeGameData's "Restart Game" flow
+// docs/tags.yaml + docs/taggroups.yaml -> DB, called by db/prisma/sync-tags.js
+// (manual `npm run db:sync-tags`) and wipeGameData's "Restart Game" flow
 // (web/app/(app)/gm/dev/actions.js) — see docs/systemdocs/TAGS.md.
-// docs/tags.yaml is the sole creation path for TagGroup/Tag rows; this
+// Those two files are the sole creation path for TagGroup/Tag rows; this
 // function is upsert-only and never deletes anything, so removing an entry
-// from the YAML just leaves its existing DB row untouched (same contract as
-// syncLocations.js).
+// from either YAML just leaves its existing DB row untouched (same contract
+// as syncLocations.js).
 //
 // Five passes, since tags/groups can reference each other by slug before
 // every row necessarily exists yet:
@@ -27,19 +27,25 @@ function loadDoc() {
   return yaml.load(fs.readFileSync(yamlPath, "utf8"));
 }
 
+function loadGroupsDoc() {
+  const yamlPath = path.join(__dirname, "..", "..", "docs", "taggroups.yaml");
+  return yaml.load(fs.readFileSync(yamlPath, "utf8"));
+}
+
 async function syncTagsFromYaml(prisma) {
   const doc = loadDoc();
+  const groupsDoc = loadGroupsDoc();
   // Tags/groups reference a category by its slug (a stable YAML key), but
   // Tag.category/TagGroup.category store the human-readable display name —
   // that's what CharacterSheet.js's category headings and the GM grant
   // <select> render raw, so the DB should never hold the lowercase slug.
   const categoryNameBySlug = new Map((doc?.categories ?? []).map((c) => [c.slug, c.name]));
-  const groupEntries = doc?.groups ?? [];
+  const groupEntries = groupsDoc?.groups ?? [];
   const tagEntries = doc?.tags ?? [];
 
   for (const g of groupEntries) {
     if (!categoryNameBySlug.has(g.category)) {
-      throw new Error(`docs/tags.yaml: group "${g.slug}" has unknown category "${g.category}"`);
+      throw new Error(`docs/taggroups.yaml: group "${g.slug}" has unknown category "${g.category}"`);
     }
   }
   for (const t of tagEntries) {
@@ -144,7 +150,7 @@ async function syncTagsFromYaml(prisma) {
     if (!entry.requiredTag) continue;
     const requiredTagId = tagIdBySlug.get(entry.requiredTag) ?? null;
     if (!requiredTagId) {
-      throw new Error(`docs/tags.yaml: group "${entry.slug}" references unknown requiredTag "${entry.requiredTag}"`);
+      throw new Error(`docs/taggroups.yaml: group "${entry.slug}" references unknown requiredTag "${entry.requiredTag}"`);
     }
     const groupId = groupIdBySlug.get(entry.slug);
     const current = await prisma.tagGroup.findUnique({ where: { id: groupId }, select: { requiredTagId: true } });

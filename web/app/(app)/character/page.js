@@ -106,6 +106,7 @@ export default async function CharacterPage() {
     include: {
       faction: true,
       zone: true,
+      location: true,
       tags: { include: { tag: true } },
       defaultEffort: true,
     },
