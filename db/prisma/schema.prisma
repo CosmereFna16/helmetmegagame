@@ -75,19 +75,19 @@ enum TagSource {
 }
 
 model GameConfig {
-  id                        Int @id @default(1)
-  lifewebBlood              Int @default(100)
-  lifewebDecayPerTurn       Int @default(10)
-  lifewebDrainedDurationTurns Int @default(4)
-  nextWeather               Weather?
-  nextTurnNote              String?
-  turnsAnnouncementChannelId String?
-  turnsAnnouncementMessageId String?
+  id                          Int      @id @default(1)
+  lifewebBlood                Int      @default(100)
+  lifewebDecayPerTurn         Int      @default(10)
+  lifewebDrainedDurationTurns Int      @default(4)
+  nextWeather                 Weather?
+  nextTurnNote                String?
+  turnsAnnouncementChannelId  String?
+  turnsAnnouncementMessageId  String?
 
   // Gates the whole Dawn message-wipe system (db/lib/dawnWipe.js) — off by
   // default so nothing gets swept until a GM explicitly opts in from the
   // Dev Panel.
-  messageWipeEnabled        Boolean @default(false)
+  messageWipeEnabled Boolean @default(false)
 
   // The single, always-present "location" channel used for the zone/location
   // travel picker (see bot/src/lib/location.js) — same tracked-message
@@ -102,12 +102,41 @@ model GameConfig {
   // `npm run db:sync-production-doc` (db/prisma/sync-production-doc.js) by
   // hand afterward so the doc text stays in sync.
   productionCoefficient Float @default(1)
+
+  // Base point-buy budget every new character starts with, before the
+  // role's own `extra_starting_points` and the Cursed penalty are applied
+  // (see web/lib/characterCreation.js#computeBudget). Editable live from
+  // the Dev Panel so it can be tuned right up to launch.
+  startingTagPoints Int @default(12)
+
+  // Expected total number of players, the denominator for every role's seat
+  // cap: a role with `weight: 6` in docs/roles.yaml gets
+  // round(6 * playerCount / 100) seats. Raising this mid-signup widens every
+  // capped role proportionally without touching the YAML.
+  playerCount Int @default(100)
 }
 
+// Master-sourced from docs/roles.yaml's zones[].factions[]
+// (db/lib/syncRoles.js#syncRolesFromYaml, npm run db:sync-roles). `slug` is
+// the stable match key; `silo` is live game state and is only ever seeded on
+// creation, never overwritten by a later sync.
 model Faction {
-  id   String @id @default(cuid())
+  id   String  @id @default(cuid())
+  slug String? @unique
   name String
-  silo Int    @default(0)
+  silo Int     @default(0)
+
+  // The Zone this faction belongs to, from its nesting in roles.yaml. Used
+  // to group the character-creation role picker (Zone -> Faction -> Role);
+  // a faction's members are not confined to it.
+  zoneId String?
+  zone   Zone?   @relation(fields: [zoneId], references: [id])
+
+  // Authoring order within the zone, so the picker lists factions the way
+  // roles.yaml does rather than alphabetically.
+  sortOrder Int @default(0)
+
+  roles Role[]
 
   // A parent faction's Leader/Treasurer can also manage a subject faction's
   // Silo (see web/lib/factionPermissions.js#getSiloAccess) — never the
@@ -128,6 +157,7 @@ model Zone {
   discordChannelIds String[]
 
   locations      Location[]
+  factions       Faction[]
   characters     Character[]
   actions        Action[]
   defaultEfforts DefaultEffort[]
@@ -155,34 +185,42 @@ model Zone {
 // authored in the YAML, unrelated to the player-facing Tag/CharacterTag
 // system.
 model Location {
-  id                      String   @id @default(cuid())
-  slug                    String?  @unique
-  name                    String
-  description             String   @default("")
-  publicSubLocations      String[] @default([])
-  privateSubLocations     String[] @default([])
-  tags                    String[] @default([])
-  zoneId                  String
-  zone                    Zone     @relation(fields: [zoneId], references: [id])
+  id                  String   @id @default(cuid())
+  slug                String?  @unique
+  name                String
+  description         String   @default("")
+  publicSubLocations  String[] @default([])
+  privateSubLocations String[] @default([])
+  tags                String[] @default([])
+  zoneId              String
+  zone                Zone     @relation(fields: [zoneId], references: [id])
 
   discordCategoryId       String?
   discordChannelId        String?
   discordPublicChannelId  String?
   discordPrivateChannelId String?
 
-  characters Character[]
+  characters       Character[]
+  startingForRoles Role[]      @relation("RoleStartingLocation")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Character {
-  id             String          @id @default(cuid())
-  discordUserId  String
-  name           String
-  roleTitle      String?
-  factionId      String?
-  faction        Faction?        @relation(fields: [factionId], references: [id])
+  id            String @id @default(cuid())
+  discordUserId String
+  name          String
+
+  // Display-only snapshot of the role's name at creation. `roleId` is the
+  // authoritative link; roleTitle survives so a GM can hand-write something
+  // off-catalog and so history reads correctly if a Role row is later pruned.
+  roleTitle String?
+  roleId    String?
+  role      Role?   @relation(fields: [roleId], references: [id])
+
+  factionId String?
+  faction   Faction? @relation(fields: [factionId], references: [id])
 
   // zoneId is a denormalized mirror of location.zoneId, kept in sync
   // whenever locationId changes (see bot/src/lib/location.js) so the
@@ -190,34 +228,39 @@ model Character {
   // stamped onto Action/DefaultEffort/Note keep working unchanged.
   // locationId is the authoritative "where is this character" field and
   // the source of their category-level channel access.
-  zoneId         String?
-  zone           Zone?           @relation(fields: [zoneId], references: [id])
-  locationId     String?
-  location       Location?       @relation(fields: [locationId], references: [id])
+  zoneId     String?
+  zone       Zone?     @relation(fields: [zoneId], references: [id])
+  locationId String?
+  location   Location? @relation(fields: [locationId], references: [id])
 
   // Personal Discord role titled after this character's name, seeded to a
   // muted color by db/lib/roleColor.js#hashNameToColor and re-synced
   // whenever name changes (web/lib/discordGuild.js#ensureCharacterRole).
   // Doubles as the access-control primitive for Location categories.
-  discordRoleId  String?         @unique
+  discordRoleId String? @unique
 
-  isLeader       Boolean         @default(false)
-  isTreasurer    Boolean         @default(false)
-  status         CharacterStatus @default(ALIVE)
-  resources      Int             @default(0)
-  avatarData     Bytes?
-  avatarMimeType String?
-  appearance     String?
+  isLeader    Boolean         @default(false)
+  isTreasurer Boolean         @default(false)
+  status      CharacterStatus @default(ALIVE)
+  resources   Int             @default(0)
+
+  // Unspent point-buy points. Seeded at creation with whatever the player
+  // didn't spend in the wizard (budget minus purchases) and drawn down by
+  // the mid-game store.
+  tagPoints         Int     @default(0)
+  avatarData        Bytes?
+  avatarMimeType    String?
+  appearance        String?
   preferredNickname String?
-  turnPingOptIn  Boolean         @default(true)
-  romanceOptOut  Boolean         @default(false)
+  turnPingOptIn     Boolean @default(true)
+  romanceOptOut     Boolean @default(false)
 
-  tags           CharacterTag[]
-  actions        Action[]
-  defaultEffort  DefaultEffort?
-  setDefaultsFor DefaultEffort[] @relation("DefaultEffortSetBy")
+  tags            CharacterTag[]
+  actions         Action[]
+  defaultEffort   DefaultEffort?
+  setDefaultsFor  DefaultEffort[] @relation("DefaultEffortSetBy")
   auditLogTargets AuditLog[]
-  notes          Note[]
+  notes           Note[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -231,12 +274,12 @@ model Character {
 // Location/docs/locations.yaml: removing a tag from the YAML never deletes
 // its row here.
 model Tag {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  slug        String   @unique
+  id          String  @id @default(cuid())
+  name        String  @unique
+  slug        String  @unique
   description String?
   category    String
-  pointCost   Int      @default(0)
+  pointCost   Int     @default(0)
 
   // Shown to other players who 🔍-react to this character's proxied
   // messages (see bot/src/events/messageReactionAdd.js), alongside
@@ -254,8 +297,8 @@ model Tag {
   // the tier this one upgrades from. Buying/granting a tag with a parent
   // replaces the parent on the character rather than stacking with it.
   parentTagId String?
-  parentTag   Tag?     @relation("TagUpgrade", fields: [parentTagId], references: [id])
-  upgrades    Tag[]    @relation("TagUpgrade")
+  parentTag   Tag?    @relation("TagUpgrade", fields: [parentTagId], references: [id])
+  upgrades    Tag[]   @relation("TagUpgrade")
 
   // Non-replacing prerequisite, distinct from the parentTag chain above: a
   // character must already hold requiredTag before this one is meant to be
@@ -266,8 +309,8 @@ model Tag {
   // tag. Not enforced anywhere yet (no purchase flow exists); catalog data
   // only.
   requiredTagId String?
-  requiredTag   Tag?   @relation("TagPrerequisite", fields: [requiredTagId], references: [id])
-  unlocks       Tag[]  @relation("TagPrerequisite")
+  requiredTag   Tag?    @relation("TagPrerequisite", fields: [requiredTagId], references: [id])
+  unlocks       Tag[]   @relation("TagPrerequisite")
 
   // Items-category flag for a future trade flow — no transfer logic exists
   // yet, this just marks which tags are candidates for it.
@@ -287,8 +330,10 @@ model Tag {
   // already uses.
   defaultDurationTurns Int?
 
-  characters   CharacterTag[]
-  gatedGroups  TagGroup[]     @relation("TagGroupGate")
+  characters       CharacterTag[]
+  gatedGroups      TagGroup[]       @relation("TagGroupGate")
+  gatesChannelView SpecialChannel[] @relation("SpecialChannelView")
+  gatesChannelSend SpecialChannel[] @relation("SpecialChannelSend")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -341,34 +386,134 @@ model CharacterTag {
   @@unique([characterId, tagId])
 }
 
+// A Discord *account*, as opposed to a Character. Exists so state can outlive
+// the character it attached to — a player's characters come and go, this row
+// doesn't.
+model Player {
+  discordUserId String @id
+
+  // Set when a character dies. A cursed player may still roll a new
+  // character, but only as a Migrant or a Bum, and with CURSED_POINT_PENALTY
+  // fewer point-buy points (web/lib/characterCreation.js). It clears when a
+  // GM says the rites were read / the body was buried, which is what
+  // restores normal character creation.
+  cursed Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// A playable seat, master-sourced from docs/roles.yaml's
+// zones[].factions[].roles[] (db/lib/syncRoles.js, npm run db:sync-roles).
+// The YAML's zones[].threats[] are deliberately NOT synced — those are
+// hand-assigned by a GM and never appear in the player-facing picker.
+model Role {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  intro       String   @default("")
+  description String[] @default([])
+  difficulty  String?
+
+  // Authoring order within the faction, so the picker matches roles.yaml.
+  sortOrder Int @default(0)
+
+  factionId String
+  faction   Faction @relation(fields: [factionId], references: [id])
+
+  // Seat math, from the YAML's `multiple`/`weight` pair. Exactly one of
+  // these three shapes applies, resolved by roleCapacity() in
+  // db/lib/roleCapacity.js:
+  //   isUnique  -> exactly 1 seat, forever (`multiple: false`)
+  //   unlimited -> no cap at any scale (`weight: unlimited`)
+  //   weight    -> round(weight * GameConfig.playerCount / 100)
+  isUnique  Boolean @default(false)
+  unlimited Boolean @default(false)
+  weight    Int?
+
+  // The starting package handed to a character who picks this role.
+  startingResources   Int      @default(0)
+  extraStartingPoints Int      @default(0)
+  startingTagSlugs    String[] @default([])
+  grantsLeader        Boolean  @default(false)
+  grantsTreasurer     Boolean  @default(false)
+  docElements         String[] @default([])
+
+  // Where characters with this role begin — and therefore the one Location
+  // category their personal Discord role gets ViewChannel on at creation.
+  startingLocationId String?
+  startingLocation   Location? @relation("RoleStartingLocation", fields: [startingLocationId], references: [id])
+
+  characters Character[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([factionId])
+}
+
+// A standalone, tag-gated channel that lives outside the Location layout —
+// #radio, #intercom, and whatever else gets added to docs/channels.yaml
+// (db/lib/syncSpecialChannels.js, npm run db:sync-channels).
+//
+// Access is granted through a plain guild role per gate rather than a
+// per-character permission overwrite: Discord caps a channel at ~100
+// overwrites, which a 100+ player game would blow straight through, whereas
+// this leaves at most three on the channel no matter how many people hold
+// the tag. web/lib/discordGuild.js#syncCharacterSpecialAccess adds/removes
+// those roles on a member as their CharacterTag rows change.
+model SpecialChannel {
+  id       String  @id @default(cuid())
+  slug     String  @unique
+  name     String
+  topic    String  @default("")
+  isTupper Boolean @default(true)
+
+  discordChannelId String?
+
+  // Null viewTag means @everyone can see the channel; null sendTag means
+  // anyone who can see it can post. Each non-null gate gets its own guild
+  // role, whose id is cached alongside it.
+  viewTagId String?
+  viewTag   Tag?    @relation("SpecialChannelView", fields: [viewTagId], references: [id])
+  sendTagId String?
+  sendTag   Tag?    @relation("SpecialChannelSend", fields: [sendTagId], references: [id])
+
+  discordViewRoleId String?
+  discordSendRoleId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Turn {
-  id          String     @id @default(cuid())
-  number      Int        @unique
-  phase       TurnPhase
-  weather     Weather    @default(CLEAR)
-  gameDate    DateTime
-  status      TurnStatus @default(OPEN)
-  startedAt   DateTime   @default(now())
-  resolvedAt  DateTime?
+  id         String     @id @default(cuid())
+  number     Int        @unique
+  phase      TurnPhase
+  weather    Weather    @default(CLEAR)
+  gameDate   DateTime
+  status     TurnStatus @default(OPEN)
+  startedAt  DateTime   @default(now())
+  resolvedAt DateTime?
 
   actions Action[]
 }
 
 model Action {
-  id             String       @id @default(cuid())
-  characterId    String
-  character      Character    @relation(fields: [characterId], references: [id])
-  turnId         String
-  turn           Turn         @relation(fields: [turnId], references: [id])
-  type           ActionType?
-  description    String
-  zoneId         String?
-  zone           Zone?        @relation(fields: [zoneId], references: [id])
-  resourceDelta  Int?
+  id                     String       @id @default(cuid())
+  characterId            String
+  character              Character    @relation(fields: [characterId], references: [id])
+  turnId                 String
+  turn                   Turn         @relation(fields: [turnId], references: [id])
+  type                   ActionType?
+  description            String
+  zoneId                 String?
+  zone                   Zone?        @relation(fields: [zoneId], references: [id])
+  resourceDelta          Int?
   resourceDiceExpression String?
-  resourceDiceRoll Int?
-  diceRoll       Int?
-  status         ActionStatus @default(PENDING)
+  resourceDiceRoll       Int?
+  diceRoll               Int?
+  status                 ActionStatus @default(PENDING)
 
   // Routine vs Gambit (see MoveKind above), whether the player and/or GM has
   // flagged it Opposed, and the GM's spreadsheet-workflow status — all set
@@ -383,12 +528,12 @@ model Action {
   // "Other Notes" in the GM UI. GMs message players manually (see
   // sendPartyMessages/sendGmMessage in web/app/(app)/gm/actions.js) once
   // they've written these up.
-  resultMessage  String?
-  gmNotes        String?
-  forumThreadId  String?
-  confirmDmMessageId String? @unique
-  confirmedAt    DateTime?
-  createdAt      DateTime     @default(now())
+  resultMessage      String?
+  gmNotes            String?
+  forumThreadId      String?
+  confirmDmMessageId String?   @unique
+  confirmedAt        DateTime?
+  createdAt          DateTime  @default(now())
 
   @@index([status, createdAt])
   @@index([characterId])
@@ -396,19 +541,19 @@ model Action {
 }
 
 model DefaultEffort {
-  id               String    @id @default(cuid())
-  characterId      String    @unique
-  character        Character @relation(fields: [characterId], references: [id])
+  id               String     @id @default(cuid())
+  characterId      String     @unique
+  character        Character  @relation(fields: [characterId], references: [id])
   description      String
   zoneId           String?
-  zone             Zone?     @relation(fields: [zoneId], references: [id])
+  zone             Zone?      @relation(fields: [zoneId], references: [id])
   resourceDelta    Int?
-  shareInSummary   Boolean   @default(false)
+  shareInSummary   Boolean    @default(false)
   summaryChannelId String?
   summaryMessage   String?
   setByCharacterId String?
   setByCharacter   Character? @relation("DefaultEffortSetBy", fields: [setByCharacterId], references: [id])
-  updatedAt        DateTime  @updatedAt
+  updatedAt        DateTime   @updatedAt
 }
 
 enum DmDirection {
@@ -477,13 +622,13 @@ model SiloTransaction {
 }
 
 model AuditLog {
-  id                 String    @id @default(cuid())
+  id                 String     @id @default(cuid())
   actorDiscordUserId String
   actionType         String
   targetCharacterId  String?
   targetCharacter    Character? @relation(fields: [targetCharacterId], references: [id])
   details            Json?
-  createdAt          DateTime  @default(now())
+  createdAt          DateTime   @default(now())
 
   @@index([actionType])
   @@index([actorDiscordUserId])

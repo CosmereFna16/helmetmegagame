@@ -50,7 +50,7 @@ flowchart LR
     end
 ```
 
-- **Players see exactly one icon: Character.** There is no "create a character" flow to navigate to — every guild member already has a row (created on join, per `factionSync.js`'s existing pattern), so `/character` *is* the only screen. `character/new` should only ever be hit as a fallback, not a discoverable nav destination.
+- **Players see exactly one icon: Character.** `/character` is still the only screen, but not because every member has a row — they don't. A player with no `ALIVE` character (new to the server, or freshly dead) gets the creation wizard rendered *at* `/character`, inline, rather than being redirected to a separate route. The old `character/new` route is gone. See `CHARACTERS.md`.
 - **GMs get four icons**: Character (GMs play characters too), Players, Turns, Audit Log.
 - The turn chip (`DAY 3 · DUSK`, §1) lives in the shell chrome, not repeated per-page.
 - Routes: `/character` (existing), `/gm/players` (new), `/gm/turns` (new), `/gm/audit` (new). `/gm` itself becomes a redirect to `/gm/players` — the current single-page dashboard gets split across these three.

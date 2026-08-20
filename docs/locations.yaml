@@ -154,6 +154,14 @@ locations:
     privateSubLocations: []
     tags: []
 
+  - id: forest
+    name: Forest
+    zone: Town
+    description: Streams part mossy boulders under the green shadows of spruce and beech.
+    publicSubLocations: []
+    privateSubLocations: []
+    tags: []
+
   # --- Windlands ---
   - id: warcamp
     name: Warcamp
@@ -184,10 +192,17 @@ locations:
   - id: merchants-depot
     name: Merchant's Depot
     zone: Caves
-    description: Tunnels.
+    description: Inside the caves, crates around a decayed metal frame. There is a small gap in the roof where light comes in.
     publicSubLocations:
       - Ledger Room
       - Shuttle Pad
       - Bunkhouse
+    privateSubLocations: []
+    tags: []
+  - id: depths
+    name: Depths
+    zone: Caves
+    description: The start and end of all things.
+    publicSubLocations: []
     privateSubLocations: []
     tags: []

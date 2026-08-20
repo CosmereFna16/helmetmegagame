@@ -7,6 +7,8 @@ import {
   runFullChannelWipe,
   syncLocationsFromYaml,
   syncTagsFromYaml,
+  syncRolesFromYaml,
+  syncSpecialChannelsFromYaml,
 } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -18,6 +20,8 @@ import {
   sortLocationCategories,
   deleteCharacterRole,
   updateGuildNickname,
+  syncCharacterSpecialAccess,
+  killCharacter,
 } from "@/lib/discordGuild";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 
@@ -64,11 +68,17 @@ export async function updateGameConfig(formData) {
       lifewebDrainedDurationTurns: intOrZero(formData, "lifewebDrainedDurationTurns"),
       messageWipeEnabled: formData.get("messageWipeEnabled") === "on",
       productionCoefficient: floatOrDefault(formData, "productionCoefficient", 1),
+      startingTagPoints: intOrZero(formData, "startingTagPoints"),
+      // Guarded at 1 because it's the denominator of every weighted role's
+      // seat cap — a 0 here would collapse the whole role picker.
+      playerCount: Math.max(1, intOrZero(formData, "playerCount")),
     },
   });
 
   revalidatePath("/gm/dev");
   revalidatePath("/lifeweb");
+  // Both knobs feed the character-creation wizard's budget and seat caps.
+  revalidatePath("/character");
 }
 
 // Directly overrides the current turn's day/phase (creating one if none is
@@ -147,6 +157,8 @@ const DEFAULT_GAME_CONFIG = {
   lifewebDrainedDurationTurns: 4,
   messageWipeEnabled: false,
   productionCoefficient: 1,
+  startingTagPoints: 12,
+  playerCount: 100,
 };
 
 // Full game restart for dev/testing: wipes every player- and turn-scoped
@@ -155,15 +167,21 @@ const DEFAULT_GAME_CONFIG = {
 // schema defaults, clears every Discord channel this game has actually
 // written to (#archive, #turns, and every Location's plain/public/private
 // channel — messages, forum posts, and threads, public or private), and
-// opens a fresh Turn 1/DAWN. Then re-syncs Zone/Location rows from
-// docs/locations.yaml (syncLocationsFromYaml, @lifeweb/db) and Tag/TagGroup
-// rows from docs/tags.yaml (syncTagsFromYaml) so the game starts from the
-// canonical location and tag catalog sets — both are still
-// create/update-only, never destructive, so an entry that existed before
-// but isn't in its yaml is left untouched, not deleted. Leaves the Faction
-// rows untouched. Faction silos reset to 0, same "back to day one"
-// treatment as the Turn counter, rather than carrying over stale economy
-// numbers.
+// opens a fresh Turn 1/DAWN. Then re-syncs every YAML master, in dependency
+// order, so the game starts from the canonical sets:
+//   locations (docs/locations.yaml) -> tags (docs/tags.yaml)
+//   -> roles (docs/roles.yaml)      -> special channels (docs/channels.yaml)
+// Roles resolve a starting Location and validate starting_tags, and channel
+// gates resolve Tags, so that order is load-bearing, not cosmetic.
+//
+// The four syncs do NOT share one contract, which is worth knowing before
+// relying on any of them: syncLocationsFromYaml is fully destructive (a
+// Location dropped from the YAML has its Discord category+channels deleted
+// and its row removed), syncRolesFromYaml prunes only rows nothing
+// references, and syncTagsFromYaml/syncSpecialChannelsFromYaml are pure
+// upserts that never delete. Faction silos reset to 0, same "back to day
+// one" treatment as the Turn counter, rather than carrying over stale
+// economy numbers.
 //
 // Requires typing the literal string "WIPE" in the confirm field — this is
 // the most destructive action in the Dev Panel and has no undo.
@@ -199,6 +217,9 @@ export async function wipeGameData(formData) {
     prisma.characterTag.deleteMany({}),
     prisma.auditLog.deleteMany({}),
     prisma.character.deleteMany({}),
+    // Player is account-scoped rather than character-scoped, but a full
+    // restart should not leave anyone still cursed from the last game.
+    prisma.player.deleteMany({}),
     prisma.turn.deleteMany({}),
     prisma.siloTransaction.deleteMany({}),
     prisma.directMessage.deleteMany({}),
@@ -221,12 +242,20 @@ export async function wipeGameData(formData) {
     console.error("Tag sync failed during game wipe:", err);
     return null;
   });
+  const roleSync = await syncRolesFromYaml(prisma).catch((err) => {
+    console.error("Role sync failed during game wipe:", err);
+    return null;
+  });
+  const channelSync = await syncSpecialChannelsFromYaml(prisma).catch((err) => {
+    console.error("Special channel sync failed during game wipe:", err);
+    return null;
+  });
 
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: session.discordUserId,
       actionType: "superadmin_game_wipe",
-      details: locationSync || tagSync ? { locationSync, tagSync } : undefined,
+      details: { locationSync, tagSync, roleSync, channelSync },
     },
   });
 
@@ -244,7 +273,12 @@ export async function updateCharacterRaw(formData) {
   const factionId = str(formData, "factionId").trim() || null;
   const locationId = str(formData, "locationId").trim() || null;
   const appearance = str(formData, "appearance").trim() || null;
-  const roleTitle = str(formData, "roleTitle").trim() || null;
+  const roleId = str(formData, "roleId").trim() || null;
+
+  // Picking a Role from the dropdown restamps the display title from the
+  // catalog; roleTitle stays hand-editable for off-catalog cases.
+  const role = roleId ? await prisma.role.findUnique({ where: { id: roleId } }) : null;
+  const roleTitle = role ? role.name : str(formData, "roleTitle").trim() || null;
 
   // zoneId mirrors location.zoneId whenever a Location is set (see the
   // Location model comment in schema.prisma) — a raw zoneId field is only
@@ -255,24 +289,48 @@ export async function updateCharacterRaw(formData) {
     zoneId = location?.zoneId ?? zoneId;
   }
 
+  const status = str(formData, "status");
+
   const updated = await prisma.character.update({
     where: { id: characterId },
     data: {
       name: str(formData, "name").trim(),
       roleTitle,
+      roleId,
       factionId,
       zoneId,
       locationId,
       isLeader: formData.get("isLeader") === "on",
-      status: str(formData, "status"),
+      isTreasurer: formData.get("isTreasurer") === "on",
+      status,
       resources: intOrZero(formData, "resources"),
+      tagPoints: intOrZero(formData, "tagPoints"),
       appearance,
     },
   });
-  await ensureCharacterRole(updated).catch(() => {});
-  if (existing?.locationId !== locationId) {
-    await syncCharacterLocationAccess(updated.discordRoleId, existing?.locationId ?? null, locationId).catch(() => {});
+
+  // Death is the one status change with side effects: killCharacter deletes
+  // the personal Discord role (which takes its Location overwrites with it),
+  // strips special-channel gates, clears the nickname, and curses the player.
+  // Everything below is skipped for a dead character — re-syncing the role of
+  // a corpse is exactly the bug this replaces.
+  if (status === "DEAD" && existing?.status !== "DEAD") {
+    await killCharacter(updated).catch((err) => console.error("killCharacter failed:", err));
+  } else if (status === "ALIVE") {
+    await ensureCharacterRole(updated).catch(() => {});
+    if (existing?.locationId !== locationId) {
+      await syncCharacterLocationAccess(updated.discordRoleId, existing?.locationId ?? null, locationId).catch(() => {});
+    }
   }
+
+  // Cursed lives on the Player (the Discord account), not the character, so
+  // it survives the character it was earned by.
+  const cursed = formData.get("cursed") === "on";
+  await prisma.player.upsert({
+    where: { discordUserId: updated.discordUserId },
+    create: { discordUserId: updated.discordUserId, cursed },
+    update: { cursed },
+  });
 
   await prisma.auditLog.create({
     data: {
@@ -300,6 +358,10 @@ export async function grantTag(formData) {
 
   await prisma.characterTag.create({ data: { characterId, tagId, source: "GM_GRANT" } });
 
+  // A granted tag may be the gate on a SpecialChannel (#radio, #intercom).
+  const granted = await prisma.character.findUnique({ where: { id: characterId }, select: { discordUserId: true } });
+  if (granted) await syncCharacterSpecialAccess(granted.discordUserId, characterId).catch(() => {});
+
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: session.discordUserId,
@@ -322,6 +384,9 @@ export async function revokeTag(formData) {
 
   const ct = await prisma.characterTag.delete({ where: { id: characterTagId } }).catch(() => null);
   if (!ct) return;
+
+  const revoked = await prisma.character.findUnique({ where: { id: ct.characterId }, select: { discordUserId: true } });
+  if (revoked) await syncCharacterSpecialAccess(revoked.discordUserId, ct.characterId).catch(() => {});
 
   await prisma.auditLog.create({
     data: {

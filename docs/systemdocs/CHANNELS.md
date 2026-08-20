@@ -21,7 +21,7 @@ them in sync if the rule changes.
 
 ## 2. Location channel layout
 
-Each `Location` (e.g. "Church", nested under Zone "Town") maps to one
+Each `Location` (e.g. "Cathedral", nested under Zone "Town") maps to one
 Discord category and three channels underneath it, created once by
 `provisionLocationChannels` — either via the GM Panel's "Provision Discord
 channels" button (`web/app/(app)/gm/dev/actions.js`) or in bulk by
@@ -29,7 +29,7 @@ channels" button (`web/app/(app)/gm/dev/actions.js`) or in bulk by
 `docs/locations.yaml`). Both call sites build the exact same layout; keep
 them in sync if it changes.
 
-**Category name**: `"{Zone} / {Location}"`, e.g. `Town / Church`. Purely
+**Category name**: `"{Zone} / {Location}"`, e.g. `Town / Cathedral`. Purely
 cosmetic, for grouping in the Discord channel list — categories aren't
 channels of type text/forum, so `isTupperChannel`/`isSummaryChannel` never
 look at them. After provisioning, `sortLocationCategories`
@@ -44,9 +44,9 @@ since Discord assigns position by creation order):
 
 | Channel | Type | Purpose | Slowmode |
 |---|---|---|---|
-| `church` | text | Summary channel — tupper proxying, turn/adjudication updates post here | 60s |
-| `church-public` | forum | Subrooms — players spin up their own posts ("The Inn's Kitchen!"). Posts auto-archive (hidden from the active list, not deleted) after 24h of inactivity (`default_auto_archive_duration: 1440`) | — |
-| `church-private` | text | Secret conversations — `@everyone` is denied `ViewChannel`/`SendMessages`/`CreatePublicThreads` but allowed `CreatePrivateThreads`, so it's only ever used to spin up a private thread and ping people into it. The `ViewChannel` deny is already inherited from the category (see §3) — it's set explicitly here too so Discord's own permissions UI shows it as an explicit deny on this channel instead of "inherited/neutral", which reads as unrestricted at a glance |
+| `cathedral` | text | Summary channel — tupper proxying, turn/adjudication updates post here | 60s |
+| `cathedral-public` | forum | Subrooms — players spin up their own posts ("The Inn's Kitchen!"). Posts auto-archive (hidden from the active list, not deleted) after 24h of inactivity (`default_auto_archive_duration: 1440`) | — |
+| `cathedral-private` | text | Secret conversations — `@everyone` is denied `ViewChannel`/`SendMessages`/`CreatePublicThreads` but allowed `CreatePrivateThreads`, so it's only ever used to spin up a private thread and ping people into it. The `ViewChannel` deny is already inherited from the category (see §3) — it's set explicitly here too so Discord's own permissions UI shows it as an explicit deny on this channel instead of "inherited/neutral", which reads as unrestricted at a glance |
 
 **Renaming**: editing a `Location.name` in the DB or in `locations.yaml`
 after provisioning does **not** rename the live Discord category/channels —
@@ -81,7 +81,7 @@ active-Location primitive:
 |---|---|---|
 | Player self-service travel (`⚜` button in the `location` channel) | `bot/src/lib/location.js#performMove` → `swapLocationAccess` | Gateway `Guild`/`Role` objects (bot already has them cached) |
 | GM raw edit (`/gm/dev/characters/[characterId]`) | `web/app/(app)/gm/dev/actions.js#updateCharacterRaw` → `syncCharacterLocationAccess` | REST (`PUT`/`DELETE /channels/{id}/permissions/{roleId}`) — the web app has no gateway connection |
-| New character created with a Location already set | not currently wired — new characters start with `locationId: null` per root `CLAUDE.md`, so this hasn't come up | — |
+| New character created with a Location already set | `web/app/(app)/character/createActions.js#createCharacter` → `syncCharacterLocationAccess` | REST. Character creation picks up the role's `starting_location`, so every new character now has a Location from the moment they exist |
 
 If a new call site ever sets `Character.locationId` directly, it needs to
 call one of these two (or a shared equivalent) — a raw Prisma write alone
@@ -165,3 +165,45 @@ and `web/app/(app)/gm/dev/actions.js#forceAdvanceTurn` now just call
 legitimately still differs per caller). Both Discord side effects are
 best-effort — wrapped in `.catch()` — so a Discord-side failure can never
 block or roll back the turn advance itself.
+
+## 6. Special channels (tag-gated, outside the Location layout)
+
+`#radio`, `#intercom`, and anything else added to `docs/channels.yaml` sit
+outside the Location category structure entirely. They're gated on holding a
+**Tag** rather than on standing in a **place**, and that difference forces a
+different mechanism.
+
+A Location can use one permission overwrite per resident character because a
+character stands in exactly one place at a time. A tag can be held by
+everybody at once, and Discord caps a channel at ~100 overwrites — so tag
+gating goes through a plain guild role instead. Each gate gets its own role,
+the channel carries at most three overwrites no matter how many people hold
+the tag, and what changes over time is role *membership*.
+
+Provisioned by `db/lib/syncSpecialChannels.js#syncSpecialChannelsFromYaml`
+(`npm run db:sync-channels`), which sets exactly these overwrites:
+
+| Declared gate | `@everyone` | Gate role |
+|---|---|---|
+| `viewTag: <slug>` | deny `ViewChannel` | allow `ViewChannel` |
+| `sendTag: <slug>` | deny `SendMessages` | allow `ViewChannel` + `SendMessages` |
+| neither | no overwrite — fully public | — |
+
+So `#radio` (`viewTag: radio`) is invisible to anyone without the tag, while
+`#intercom` (`sendTag: intercom`) is readable by the whole server and
+speakable only by holders.
+
+Membership is reconciled by
+`web/lib/discordGuild.js#syncCharacterSpecialAccess`, called on character
+creation, on the GM's `grantTag`/`revokeTag`, and on death. It issues a
+`DELETE` for every gate the character *doesn't* qualify for as well as a
+`PUT` for those they do — an add-only pass would mean revoking a tag never
+actually took access away. `npm run db:backfill-special-access` is the
+catch-up for anything that bypassed those call sites.
+
+Like Location channels, provisioning is one-time (an existing channel is
+never renamed or recreated), but the topic and the overwrites are rewritten
+on every sync. Unlike Location channels, the sync is upsert-only: a channel
+dropped from `docs/channels.yaml` keeps its row and its Discord channel, it
+just stops being updated.
+

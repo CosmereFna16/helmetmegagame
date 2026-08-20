@@ -428,6 +428,93 @@ export async function syncCharacterLocationAccess(discordRoleId, oldLocationId, 
   }
 }
 
+// Reconciles a character's membership in the gate roles behind every
+// SpecialChannel (#radio, #intercom, ...) against the tags they actually
+// hold. Idempotent — safe to call on every tag change, and the natural
+// catch-up call after character creation.
+//
+// Access goes through a guild role rather than a per-character permission
+// overwrite because a tag can be held by everybody at once and Discord caps
+// a channel at ~100 overwrites; see db/lib/syncSpecialChannels.js for the
+// provisioning side. Pass `tagIds` when the caller already has them (e.g.
+// mid-transaction), otherwise they're loaded here.
+export async function syncCharacterSpecialAccess(discordUserId, characterId, tagIds = null) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  const token = process.env.DISCORD_TOKEN;
+  if (!guildId || !token || !discordUserId) return;
+
+  const channels = await prisma.specialChannel.findMany({
+    where: { OR: [{ viewTagId: { not: null } }, { sendTagId: { not: null } }] },
+  });
+  if (channels.length === 0) return;
+
+  const held = new Set(
+    tagIds ??
+      (characterId
+        ? (await prisma.characterTag.findMany({ where: { characterId }, select: { tagId: true } })).map((t) => t.tagId)
+        : []),
+  );
+
+  // One PUT/DELETE per gate. Deletes are issued unconditionally for gates the
+  // character doesn't qualify for, which is what makes this a reconcile
+  // rather than an add-only pass — revoking a tag actually removes access.
+  const gates = channels.flatMap((c) => [
+    { roleId: c.discordViewRoleId, tagId: c.viewTagId },
+    { roleId: c.discordSendRoleId, tagId: c.sendTagId },
+  ]);
+
+  await Promise.all(
+    gates
+      .filter((g) => g.roleId && g.tagId)
+      .map(async ({ roleId, tagId }) => {
+        const method = held.has(tagId) ? "PUT" : "DELETE";
+        try {
+          const res = await fetch(
+            `${DISCORD_API}/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`,
+            { method, headers: { Authorization: `Bot ${token}` } },
+          );
+          if (!res.ok && res.status !== 204 && res.status !== 404) {
+            console.error(`Failed to ${method} special-channel role ${roleId} for ${discordUserId}: ${res.status} ${await res.text()}`);
+          }
+        } catch (err) {
+          console.error(`Failed to ${method} special-channel role ${roleId} for ${discordUserId}:`, err);
+        }
+      }),
+  );
+}
+
+// Everything that has to happen in Discord when a character dies, plus the
+// Player-level Cursed flag. Called from updateCharacterRaw whenever status
+// transitions TO DEAD.
+//
+// Deleting the personal role is doing most of the work: Discord drops every
+// permission overwrite tied to a role the moment the role goes, so the
+// character's Location category access disappears with it and there's no
+// need to walk categories. The row's discordRoleId is then nulled because
+// it's @unique and a dangling id would make ensureCharacterRole PATCH a
+// deleted role forever.
+export async function killCharacter(character) {
+  if (character.discordRoleId) {
+    await deleteCharacterRole(character.discordRoleId).catch(() => {});
+    await prisma.character
+      .update({ where: { id: character.id }, data: { discordRoleId: null } })
+      .catch(() => {});
+  }
+
+  // Special-channel gates aren't tied to the personal role, so they need
+  // removing separately. Passing an empty tag set revokes every gate.
+  await syncCharacterSpecialAccess(character.discordUserId, character.id, []).catch(() => {});
+  await updateGuildNickname(character.discordUserId, null).catch(() => {});
+
+  await prisma.player
+    .upsert({
+      where: { discordUserId: character.discordUserId },
+      create: { discordUserId: character.discordUserId, cursed: true },
+      update: { cursed: true },
+    })
+    .catch((err) => console.error("Failed to set cursed flag:", err));
+}
+
 const CHANNEL_TYPE_CATEGORY = 4;
 
 // Generic channel/category creation used by provisionLocationChannels

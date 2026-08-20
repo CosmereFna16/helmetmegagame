@@ -35,6 +35,13 @@ npm run dev:bot                      # node --watch src/index.js, in bot/
 npm run db:generate                  # prisma generate
 npm run db:migrate                   # prisma migrate dev (needs DATABASE_URL set)
 
+# YAML masters -> DB. Order matters: roles resolve Locations and validate
+# Tags, and channel gates resolve Tags.
+npm run db:sync-locations            # docs/locations.yaml  (destructive)
+npm run db:sync-tags                 # docs/tags.yaml       (upsert-only)
+npm run db:sync-roles                # docs/roles.yaml      (prunes unreferenced)
+npm run db:sync-channels             # docs/channels.yaml   (upsert-only)
+
 npm run build --workspace=web        # production build of the web app
 npm run lint --workspace=web         # eslint over the web app
 ```
@@ -45,7 +52,7 @@ Environment variables (see `.env.example`): `DATABASE_URL`, `DISCORD_TOKEN`, `DI
 
 On `ready`, the bot upserts a `GameConfig` singleton row. `guildMemberAdd` writes a `member_joined` `AuditLog` entry. The `GuildMembers` intent is privileged — it must be enabled for the bot application in the Discord Developer Portal (Bot -> Privileged Gateway Intents -> Server Members Intent) or the bot will fail to log in.
 
-`Faction` rows have no connection to Discord roles — they're a pure Lifeweb game-state concept, created/edited/deleted manually by GMs on `/faction` and `/gm/dev/factions` (`web/app/(app)/faction/actions.js`, `web/app/(app)/gm/dev/actions.js`). Discord's native roles (used for faction pings, etc.) are independent and unmanaged by Lifeweb.
+`Faction` rows have no connection to Discord roles — they're a pure Lifeweb game-state concept, master-sourced from `docs/roles.yaml` via `npm run db:sync-roles` (see "Character creation and roles" below) and editable by GMs on `/faction` and `/gm/dev/factions` (`web/app/(app)/faction/actions.js`, `web/app/(app)/gm/dev/actions.js`). Discord's native roles (used for faction pings, etc.) are independent and unmanaged by Lifeweb.
 
 ## Web app auth
 
@@ -111,9 +118,69 @@ Players self-serve travel from the guild's single `location` text channel (read-
 
 `Character.zoneId` is kept as a denormalized mirror of `location.zoneId` (updated in the same write as `locationId`) purely so the pre-existing zone-stamping on `Action`/`DefaultEffort`/`Note` and the zone-filter UI across `/gm/players`, `/gm/turns`, and `/notes` keep working unchanged — `locationId` is the authoritative "where is this character" field. New characters start with `locationId: null` (no location channel access) until a GM assigns one via `/gm/dev/characters/[characterId]` — there's no default-starting-location config.
 
+## Character creation and roles
+
+A signed-in player with no `ALIVE` character sees the **creation wizard**
+rendered inline at `/character` (there is no `/character/new` route — it was
+removed). Four steps: name → role → point-buy → confirm.
+
+`docs/roles.yaml` is the master for the `Zone`/`Faction`/`Role` tables, synced
+by `db/lib/syncRoles.js#syncRolesFromYaml` (`npm run db:sync-roles`), which
+replaced the old `db/lib/factionSync.js`. Its `zones[].threats[]` block is
+deliberately **never synced** — those are hand-assigned GM seats and must not
+appear in the picker. Roles are matched by `slug`, carry a starting package
+(faction, `starting_location` slug, resources, `starting_tags`,
+`leader:`/`treasurer:` booleans), and declare seat caps via `multiple`/`weight`
+— `weight` meaning seats per 100 players, scaled live by
+`GameConfig.playerCount`. `db/lib/roleCapacity.js#roleCapacity` is the one
+place that math lives. The sync throws on an unknown `starting_location` or
+`starting_tags` name rather than half-applying.
+
+Point-buy budget is `GameConfig.startingTagPoints` (default 12) plus the
+role's `extra_starting_points` minus 3 if the player is Cursed;
+`web/lib/characterCreation.js` holds that arithmetic and is shared by the
+wizard, the server action, and the GM panel. `Tag.pointCost` is signed —
+negative-cost drawbacks grant points and are always
+`purchasableAfterStart: false`. Unspent points land on `Character.tagPoints`.
+`web/app/components/PointBuy.js` is one component serving both menus via an
+`afterStartOnly` flag (creation passes `false`; the mid-game store, not yet
+routed, passes `true`).
+
+`createCharacter` (`web/app/(app)/character/createActions.js`) re-validates
+everything the client sent — a server action is a public endpoint — and
+re-counts the seat cap **inside** the creating transaction, which is what
+resolves two players racing for the last Baron seat.
+
+**Cursed** is on `Player` (the Discord account), not `Character`, so it
+outlives the character that earned it. Death sets it; while cursed a player
+may only return as a Migrant or a Bum, with 3 fewer points; a GM clears it
+from `/gm/dev/characters/[characterId]`.
+
+Death is no longer a bare column write:
+`web/lib/discordGuild.js#killCharacter` deletes the personal Discord role
+(which takes its Location overwrites with it), nulls `discordRoleId`, strips
+special-channel gate roles, clears the nickname, and sets the curse.
+
+Full writeup: `docs/systemdocs/CHARACTERS.md`.
+
+## Special channels (tag-gated)
+
+`docs/channels.yaml` masters standalone channels gated on holding a Tag
+rather than on standing in a Location — `#radio` (view-gated) and `#intercom`
+(send-gated) ship with it. Synced by
+`db/lib/syncSpecialChannels.js` (`npm run db:sync-channels`).
+
+Access goes through a **plain guild role per gate**, not per-character
+permission overwrites: a tag can be held by everyone at once and Discord caps
+a channel at ~100 overwrites, so this keeps it at three regardless of roster
+size. `web/lib/discordGuild.js#syncCharacterSpecialAccess` reconciles a
+member's gate roles against their tags (both directions — a revoked tag
+really loses access), called on creation, GM `grantTag`/`revokeTag`, and
+death. See `docs/systemdocs/CHANNELS.md` §6.
+
 ## Tags
 
-`docs/tags.yaml` is the **sole master** for the `Tag`/`TagGroup` catalog, same posture as `docs/locations.yaml` — hand-edited, `slug` is the stable match key, and `db/lib/syncTags.js#syncTagsFromYaml` (run via `npm run db:sync-tags`, or automatically at the end of `wipeGameData`'s "Restart Game" flow right after `syncLocationsFromYaml`) is upsert-only and never deletes a row just because its YAML entry was removed. A `Tag` belongs to a `category` (a flat string validated against `tags.yaml`'s own `categories:` list, not a DB table: `Meta`, `General`, `Skills`, `Status`, `Items`, `Companions`) and optionally a `TagGroup` scoped to that category, which exists purely to color the tag via a fixed palette of theme-aware tokens in `web/app/globals.css` (`--tag-rose`/`-amber`/`-cyan`/`-violet`/`-sage`/`-slate`) — a groupless tag just renders uncolored. Full schema/mechanism writeup, including the two distinct self-relations (`parentTag`, a replacing tier chain like Fighting (Basic) → (Trained) → ...; vs. `requiredTag`, a non-replacing prerequisite like Fighting (Archer) requiring Fighting (Basic) while coexisting with higher Fighting tiers — neither is enforced by any code yet, there's no purchase flow), is in `docs/systemdocs/TAGS.md`. `web/app/api/tags/route.js` feeds the read-only catalog to `TagsProvider`/`RichText.js`'s `{tag:slug}`/`{tag:id}` inline references and to `TagChip.js` (the hover-tooltip chip used everywhere a character's tags render, e.g. `CharacterSheet.js`).
+`docs/tags.yaml` is the **sole master** for the `Tag`/`TagGroup` catalog, same posture as `docs/locations.yaml` — hand-edited, `slug` is the stable match key, and `db/lib/syncTags.js#syncTagsFromYaml` (run via `npm run db:sync-tags`, or automatically at the end of `wipeGameData`'s "Restart Game" flow right after `syncLocationsFromYaml`) is upsert-only and never deletes a row just because its YAML entry was removed. A `Tag` belongs to a `category` (a flat string validated against `tags.yaml`'s own `categories:` list, not a DB table: `Meta`, `General`, `Skills`, `Status`, `Items`, `Companions`) and optionally a `TagGroup` scoped to that category, which exists purely to color the tag via a fixed palette of theme-aware tokens in `web/app/globals.css` (`--tag-rose`/`-amber`/`-cyan`/`-violet`/`-sage`/`-slate`) — a groupless tag just renders uncolored. Full schema/mechanism writeup, including the two distinct self-relations (`parentTag`, a replacing tier chain like Fighting (Basic) → (Trained) → ...; vs. `requiredTag`, a non-replacing prerequisite like Fighting (Archer) requiring Fighting (Basic) while coexisting with higher Fighting tiers — neither relation is enforced by any code yet), is in `docs/systemdocs/TAGS.md`. `pointCost`/`purchasable`/`purchasableAfterStart` are no longer inert catalog data: they drive the point-buy menu (see "Character creation and roles" above). `web/app/api/tags/route.js` feeds the read-only catalog to `TagsProvider`/`RichText.js`'s `{tag:slug}`/`{tag:id}` inline references and to `TagChip.js` (the hover-tooltip chip used everywhere a character's tags render, e.g. `CharacterSheet.js`).
 
 `Leader`/`Treasurer` are **not** tags — both are plain booleans on `Character` (`isLeader`, `isTreasurer`), assigned dynamically from `/faction` (`web/app/(app)/faction/actions.js#setFactionLeader`/`setTreasurer`) by a GM (Leader) or a GM/the faction's current Leader (Treasurer), and read by `web/lib/factionPermissions.js#getMyFactionRole` to gate Silo management. `Character.status === "ALIVE"` isn't a tag either.
 
@@ -123,6 +190,7 @@ There is no single unified permission system — a few independent kinds of Disc
 
 - **Personal character role** (`Character.discordRoleId`, one per `ALIVE` character, titled after the character's name) — the sole access-control primitive for Location categories (see above). Created/renamed by `ensureCharacterRole`, granted/revoked per-category by `swapLocationAccess`/`syncCharacterLocationAccess`.
 - **GM role** (`DISCORD_GM_ROLE_ID` env var) — checked via REST (`web/lib/discordGuild.js#isGm`) against the signed-in user's guild member roles to gate `/gm` pages and the `/gm`/`/message` slash commands; not stored on any Lifeweb model.
+- **Special-channel gate roles** (`SpecialChannel.discordViewRoleId`/`discordSendRoleId`, one per gate, named `{channel}-view`/`{channel}-send`) — grant view or send on a tag-gated channel like `#radio`/`#intercom`. Created by `db:sync-channels`; membership reconciled against a character's tags by `syncCharacterSpecialAccess`.
 - **Turn-ping role** (`DISCORD_TURN_PING_ROLE_ID` env var) — a plain opt-in notification role, added/removed by `setTurnPingRole` when a player toggles "Turn Ping?" on `/character`.
 
 ## Info channel
@@ -162,4 +230,5 @@ Unless the user says otherwise, after finishing a set of changes: commit and pus
 
 - `web/CLAUDE.md` / `web/AGENTS.md` are generated and maintained by the Next.js tooling itself (regenerated by `next dev`) — they carry version-specific Next.js guidance and are separate from this file.
 - The bot has no ESLint config yet; the web app's linting is scoped to `web/` only.
-- No player-facing slash commands exist in the bot yet (`/effort`, `/move`, `/resource`, `/zone`, `/tag`, etc.) — only `/gm` and `/message` (GM-only, see above), the passive guild/role sync, audit logging, and character-proxying described elsewhere in this file. The web app has a character-creation/bio form and read-only character/GM views; there's no point-buy flow, turn resolution, or zone-channel-visibility logic yet.
+- No player-facing slash commands exist in the bot yet (`/effort`, `/move`, `/resource`, `/zone`, `/tag`, etc.) — only `/gm` and `/message` (GM-only, see above), the passive guild/role sync, audit logging, and character-proxying described elsewhere in this file.
+- The **mid-game** tag store isn't routed yet. `PointBuy.js` already supports it (`afterStartOnly`) and `Character.tagPoints` already carries the balance; what's missing is a route that spends it and the rules for earning points during play (the old Desire system was ripped out).

@@ -18,7 +18,7 @@ export async function updateCharacterProfile(formData) {
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
   });
-  if (!character) redirect("/character/new");
+  if (!character) redirect("/character");
 
   const name = formData.get("name")?.toString().trim();
   const appearance =
@@ -58,7 +58,7 @@ export async function transferResources(formData) {
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
   });
-  if (!character) redirect("/character/new");
+  if (!character) redirect("/character");
 
   const target = formData.get("target")?.toString() ?? "";
   const [targetType, targetId] = target.split(":");
@@ -129,7 +129,7 @@ export async function setDefaultEffort(characterId, formData) {
   const character = await prisma.character.findFirst({
     where: { id: characterId, discordUserId: session.discordUserId, status: "ALIVE" },
   });
-  if (!character) redirect("/character/new");
+  if (!character) redirect("/character");
 
   const description = formData.get("description")?.toString().trim();
   if (!description) return;
@@ -169,7 +169,7 @@ export async function deleteDefaultEffort(characterId) {
   const character = await prisma.character.findFirst({
     where: { id: characterId, discordUserId: session.discordUserId, status: "ALIVE" },
   });
-  if (!character) redirect("/character/new");
+  if (!character) redirect("/character");
 
   await prisma.defaultEffort.deleteMany({ where: { characterId: character.id } });
 

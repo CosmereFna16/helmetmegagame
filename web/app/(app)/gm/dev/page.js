@@ -131,6 +131,14 @@ export default async function DevPanelPage() {
             <span className="field-label">Production coefficient (Farming/Fishing/Herding)</span>
             <input type="number" step="0.05" name="productionCoefficient" defaultValue={config.productionCoefficient} />
           </label>
+          <label className="field">
+            <span className="field-label">Starting tag points</span>
+            <input type="number" name="startingTagPoints" min="0" defaultValue={config.startingTagPoints} />
+          </label>
+          <label className="field">
+            <span className="field-label">Player count (scales role seat caps)</span>
+            <input type="number" name="playerCount" min="1" defaultValue={config.playerCount} />
+          </label>
           <label className="flex items-center gap-2 text-sm col-span-full">
             <input type="checkbox" name="messageWipeEnabled" defaultChecked={config.messageWipeEnabled} />
             Wipe messages at Dawn (archives everything to #archive first — see docs/systemdocs/CHANNELS.md)

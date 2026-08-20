@@ -1,0 +1,47 @@
+# Master source for standalone, tag-gated Discord channels — the ones that
+# aren't part of a Location's category/3-channel layout (docs/locations.yaml)
+# and instead sit on their own, visible or speakable only to characters
+# holding a particular Tag. Synced into Postgres and Discord by
+# db/lib/syncSpecialChannels.js#syncSpecialChannelsFromYaml
+# (npm run db:sync-channels). `id` is the stable match key across syncs,
+# same contract as docs/locations.yaml and docs/tags.yaml.
+#
+# Each gate materializes its OWN plain guild role, which the bot/web app
+# adds to and removes from members as their tags change
+# (web/lib/discordGuild.js#syncCharacterSpecialAccess). That indirection is
+# the whole point: a per-character permission overwrite would blow past
+# Discord's ~100-overwrite-per-channel ceiling at 100+ players, whereas this
+# leaves at most three overwrites on the channel no matter how many people
+# hold the tag.
+#
+# - viewTag: Tag slug required to SEE the channel. Null means everyone sees
+#   it (@everyone keeps ViewChannel).
+# - sendTag: Tag slug required to POST in it. Null means anyone who can see
+#   it can post.
+#
+# So `viewTag: radio, sendTag: null` is a hidden channel its holders can talk
+# freely in, and `viewTag: null, sendTag: intercom` is a channel everyone can
+# read but only holders can broadcast on.
+#
+# - tupper: whether messages here get proxied as the character (same
+#   treatment as Location channels — see docs/systemdocs/CHANNELS.md §1).
+#
+# The sync is upsert-only and never deletes a channel that has dropped out of
+# this file; it just stops updating it. Provisioning is one-time, like
+# Locations: re-running never renames or recreates an existing channel, but
+# the topic and the permission overwrites are rewritten on every run.
+
+channels:
+  - id: radio
+    name: radio
+    topic: Crackling long-range voice traffic. Only those with a set can hear it.
+    viewTag: radio
+    sendTag: null
+    tupper: true
+
+  - id: intercom
+    name: intercom
+    topic: Ravenheart's PA system. Everyone hears it; few are cleared to speak on it.
+    viewTag: null
+    sendTag: intercom
+    tupper: true

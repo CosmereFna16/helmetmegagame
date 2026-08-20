@@ -11,14 +11,18 @@ export default async function DevCharacterEditPage({ params }) {
   if (!session?.discordUserId) redirect("/");
   if (!isSuperadmin(session.discordUserId)) redirect("/character");
 
-  const [character, factions, zones, ownedTags, allTags] = await Promise.all([
+  const [character, factions, zones, ownedTags, allTags, roles] = await Promise.all([
     prisma.character.findUnique({ where: { id: characterId } }),
     prisma.faction.findMany({ orderBy: { name: "asc" } }),
     prisma.zone.findMany({ orderBy: { name: "asc" }, include: { locations: { orderBy: { name: "asc" } } } }),
     prisma.characterTag.findMany({ where: { characterId }, include: { tag: true } }),
     prisma.tag.findMany({ orderBy: [{ category: "asc" }, { name: "asc" }] }),
+    prisma.role.findMany({ orderBy: [{ sortOrder: "asc" }], include: { faction: true } }),
   ]);
   if (!character) notFound();
+
+  // Cursed is account-scoped, so it's read off Player rather than Character.
+  const player = await prisma.player.findUnique({ where: { discordUserId: character.discordUserId } });
 
   const ownedTagIds = new Set(ownedTags.map((ct) => ct.tagId));
   const grantableTags = allTags.filter((t) => !ownedTagIds.has(t.id));
@@ -37,7 +41,17 @@ export default async function DevCharacterEditPage({ params }) {
         </label>
 
         <label className="field">
-          <span className="field-label">Role title</span>
+          <span className="field-label">Role</span>
+          <select name="roleId" defaultValue={character.roleId ?? ""}>
+            <option value="">(none — keeps the free-text title below)</option>
+            {roles.map((r) => (
+              <option key={r.id} value={r.id}>{r.faction.name} / {r.name}</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="field">
+          <span className="field-label">Role title (ignored when a Role is picked above)</span>
           <input name="roleTitle" defaultValue={character.roleTitle ?? ""} />
         </label>
 
@@ -82,18 +96,38 @@ export default async function DevCharacterEditPage({ params }) {
             <select name="status" defaultValue={character.status}>
               <option value="ALIVE">ALIVE</option>
               <option value="DEAD">DEAD</option>
-              <option value="CURSED">CURSED</option>
             </select>
           </label>
-          <label className="flex items-center gap-2 text-sm" style={{ marginTop: "1.6rem" }}>
-            <input type="checkbox" name="isLeader" defaultChecked={character.isLeader} />
-            Faction leader
+          <div className="flex flex-col gap-2 text-sm" style={{ marginTop: "1.6rem" }}>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" name="isLeader" defaultChecked={character.isLeader} />
+              Faction leader
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" name="isTreasurer" defaultChecked={character.isTreasurer} />
+              Faction treasurer
+            </label>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="field">
+            <span className="field-label">Resources ⬢</span>
+            <input type="number" name="resources" defaultValue={character.resources} />
+          </label>
+          <label className="field">
+            <span className="field-label">Unspent tag points</span>
+            <input type="number" name="tagPoints" defaultValue={character.tagPoints} />
           </label>
         </div>
 
-        <label className="field">
-          <span className="field-label">Resources ⬢</span>
-          <input type="number" name="resources" defaultValue={character.resources} />
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="cursed" defaultChecked={player?.cursed ?? false} className="mt-1" />
+          <span>
+            <strong>Cursed</strong> — set automatically when a character dies. While cursed this
+            player may only return as a Migrant or a Bum, with 3 fewer points. Untick once the body
+            is buried / the rites are read.
+          </span>
         </label>
 
         <label className="field">

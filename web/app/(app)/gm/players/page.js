@@ -16,6 +16,13 @@ export default async function PlayersPage() {
     take: 1000,
   });
 
+  // Cursed is account-scoped (Player), not character-scoped, so it's joined
+  // in by discordUserId rather than included above.
+  const cursedUserIds = new Set(
+    (await prisma.player.findMany({ where: { cursed: true }, select: { discordUserId: true } }))
+      .map((p) => p.discordUserId),
+  );
+
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6 sm:p-8">
       <h1 className="text-2xl font-bold">Players</h1>
@@ -28,6 +35,7 @@ export default async function PlayersPage() {
           factionName: c.faction?.name ?? "",
           zoneName: c.zone?.name ?? "",
           status: c.status,
+          cursed: cursedUserIds.has(c.discordUserId),
           resources: c.resources,
         }))}
       />

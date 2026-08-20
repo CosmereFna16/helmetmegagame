@@ -37,14 +37,22 @@ categories:
     name: Status
   - slug: items
     name: Items
-  - slug: companions
-    name: Companions
+  - slug: assets
+    name: Assets
 
 groups:
   - slug: general-social
     name: Social
     category: general
     color: null
+  - slug: general-traits
+    name: Traits
+    category: general
+    color: cyan
+  - slug: general-standing
+    name: Standing
+    category: general
+    color: violet
   - slug: status-health
     name: Health
     category: status
@@ -68,13 +76,6 @@ tags:
     name: Hungerless
     category: meta
     description: "Never flagged hungry, even with insufficient resources."
-    pointCost: 0
-    purchasable: false
-
-  - slug: follower-of-bacchus
-    name: Follower of Bacchus
-    category: meta
-    description: "Unlocks the Bacchus tag category."
     pointCost: 0
     purchasable: false
 
@@ -107,20 +108,154 @@ tags:
     purchasable: false
 
   # --- General --------------------------------------------------------------
-  - slug: mortus
-    name: Mortus
+
+  - slug: follower-of-bacchus
+    name: Follower of Bacchus
     category: general
-    description: "One of the Mortii — tends to the dead and to the Lifeweb beneath Ravenheart."
+    description: "Unlocks the Bacchus tag category."
     pointCost: 0
     purchasable: false
 
-  - slug: manor
-    name: Manor
+  - slug: ravenhearter
+    name: Ravenhearter
     category: general
-    description: "A household of your own within the Fortress."
+    description: "You live in Ravenheart."
+    pointCost: 0
+    purchasable: false
+
+  - slug: mortus
+    name: Mortus
+    category: general
+    description: "One of the Mortii. Tends to the dead and to the Lifeweb beneath Ravenheart."
+    pointCost: 0
+    purchasable: false
+
+  # Standing — who you are to everyone else. Role-granted identity tags are
+  # purchasable: false; they arrive with the role, not the point-buy menu.
+  - slug: courtier
+    name: Courtier
+    category: general
+    group: general-standing
+    description: "A member of the Baron's retinue."
+    pointCost: 0
+    purchasable: false
+
+  - slug: chaplain
+    name: Chaplain
+    category: general
+    group: general-standing
+    description: "Ordained to the Church — may hear confession and read the rites over the dead."
+    pointCost: 0
+    purchasable: false
+
+  - slug: ravenkeeper
+    name: Ravenkeeper
+    category: general
+    group: general-standing
+    description: "Keeps the Fortress ravens, and with them the only messages that outrun a rider."
+    pointCost: 0
+    purchasable: false
+
+  - slug: infamous
+    name: Infamous
+    category: general
+    group: general-standing
+    description: "Your name travels ahead of you, and it is not loved."
+    pointCost: 0
+    purchasable: false
+
+  - slug: pious
+    name: Pious
+    category: general
+    group: general-standing
+    description: "Genuine devotion, legible to others — the Church trusts you further than it trusts most."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Traits — what you are made of. The two negative-cost entries below GRANT
+  # points at creation, so both are purchasableAfterStart: false; a drawback
+  # you could buy mid-game would be a point farm.
+  - slug: determined
+    name: Determined
+    category: general
+    group: general-traits
+    description: "You do not stop. Hardship that would turn most people back barely slows you."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: opportunist
+    name: Opportunist
+    category: general
+    group: general-traits
+    description: "You see the opening before anyone else does, and you are already moving."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: insightful
+    name: Insightful
+    category: general
+    group: general-traits
+    description: "You read people well — motives, lies, and the shape of what they are not saying."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
+
+  - slug: intelligent
+    name: Intelligent
+    category: general
+    group: general-traits
+    description: "Quick and retentive. Complicated problems come apart in your hands."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: sturdy
+    name: Sturdy
+    category: general
+    group: general-traits
+    description: "Built to take it — hard labor and hard weather cost you less than they cost others."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: watchful
+    name: Watchful
+    category: general
+    group: general-traits
+    description: "Little gets past you. You notice the thing out of place before it becomes a problem."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: battle-hardened
+    name: Battle-Hardened
+    category: general
+    group: general-traits
+    description: "You have seen enough killing that it no longer shakes you when it starts."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: old
+    name: Old
+    category: general
+    group: general-traits
+    description: "Age has taken your body's edge, though not your judgment. Grants points at creation."
+    pointCost: -1
+    purchasable: true
+    purchasableAfterStart: false
+
+  - slug: frail
+    name: Frail
+    category: general
+    group: general-traits
+    description: "Sickly and easily hurt — injury lands harder on you than on most. Grants points at creation."
+    pointCost: -2
+    purchasable: true
+    purchasableAfterStart: false
 
   # --- Skills ---------------------------------------------------------------
   - slug: windlander
@@ -188,6 +323,38 @@ tags:
     description: "Tracks game through the wilds — triples Hunting production."
     pointCost: 0
     purchasable: false
+
+  - slug: intercom
+    name: Intercom
+    category: skills
+    description: "Cleared to speak on Ravenheart's PA system — grants send access in #intercom."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: forester
+    name: Forester
+    category: skills
+    description: "At home in the woods — you forage, track, and shelter where others simply get lost."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: musician
+    name: Musician
+    category: skills
+    description: "You play well enough to be paid for it, or at least fed for it."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: smithing
+    name: Smithing
+    category: skills
+    description: "Works iron — repairs, tools, and edged weapons at a forge."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
 
   # Fighting tier chain
   - slug: fighting-basic
@@ -346,11 +513,11 @@ tags:
     pointCost: 0
     purchasable: false
 
-  # --- Companions -------------------------------------------------------
+  # --- assets -------------------------------------------------------
   - slug: windlander-horse
     name: Windlander (Horse)
-    category: companions
-    description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending an Effort. Requires Windlander."
+    category: assets
+    description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending a turn, but you will be easily visible."
     pointCost: 1
     requiredTag: windlander
     purchasable: true
@@ -358,23 +525,32 @@ tags:
 
   - slug: horse
     name: Horse
-    category: companions
-    description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending an Effort, but you will be easily visible."
+    category: assets
+    description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending a turn, but you will be easily visible."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
   - slug: bird
     name: Bird
-    category: companions
+    category: assets
     description: "You have a highly-trained bird."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
+  - slug: manor
+    name: Manor
+    category: assets
+    description: "A household of your own within the Fortress."
+    pointCost: 3
+    requiredTag: courtier
+    purchasable: true
+    purchasableAfterStart: true
+
   - slug: dog
     name: Dog
-    category: companions
+    category: assets
     description: "You have a highly-trained dog. It has a good sense of smell."
     pointCost: 2
     purchasable: true
@@ -382,7 +558,7 @@ tags:
 
   - slug: follower
     name: Follower
-    category: companions
+    category: assets
     description: "You have a follower, servant, or friend. You control them."
     pointCost: 2
     purchasable: true
@@ -390,7 +566,7 @@ tags:
 
   - slug: follower-cook
     name: Follower (Cook)
-    category: companions
+    category: assets
     description: "Your follower has the Cooking (Basic) tag. Requires Follower."
     pointCost: 1
     requiredTag: follower
@@ -399,7 +575,7 @@ tags:
 
   - slug: follower-laborer
     name: Follower (Laborer)
-    category: companions
+    category: assets
     description: "Your follower has the Laborer tag. Requires Follower."
     pointCost: 1
     requiredTag: follower
@@ -408,13 +584,40 @@ tags:
 
   - slug: follower-goon
     name: Follower (Goon)
-    category: companions
+    category: assets
     description: "Your follower has the Fighting (Basic) tag. Requires Follower."
     pointCost: 1
     requiredTag: follower
     purchasable: true
     purchasableAfterStart: true
 
+  - slug: house
+    name: House
+    category: assets
+    description: "You own a small, one-story house in town. +1 point"
+    pointCost: 1
+    requiredTag: ravenhearter
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: shack
+    name: Shack
+    category: assets
+    description: "You own a shanty house in the Underquarter."
+    pointCost: 0
+    requiredTag: ravenhearter
+    purchasable: true
+    purchasableAfterStart: true
+
   # --- Items --------------------------------------------------------------
   # Empty for now — no existing tag maps here. Ready for future
   # tradeable-item tags (set `tradeable: true` on those).
+  - slug: old-45-revolver
+    name: Old .45 Revolver
+    category: items
+    description: "A worn revolver. Devastating, but not much ammunition."
+    pointCost: 4
+    tradeable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true

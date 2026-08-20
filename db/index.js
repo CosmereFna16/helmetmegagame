@@ -5,6 +5,8 @@ const { runDawnWipe } = require("./lib/dawnWipe");
 const { runFullChannelWipe } = require("./lib/fullWipe");
 const { syncLocationsFromYaml } = require("./lib/syncLocations");
 const { syncTagsFromYaml } = require("./lib/syncTags");
+const { syncRolesFromYaml } = require("./lib/syncRoles");
+const { syncSpecialChannelsFromYaml } = require("./lib/syncSpecialChannels");
 
 const globalForPrisma = globalThis;
 
@@ -102,9 +104,12 @@ module.exports = {
   runFullChannelWipe,
   syncLocationsFromYaml,
   syncTagsFromYaml,
+  syncRolesFromYaml,
+  syncSpecialChannelsFromYaml,
   LIFEWEB_SPUTTER_THRESHOLD,
   ...require("./weather"),
   ...require("./lib/constants"),
   ...require("./lib/roleColor"),
+  ...require("./lib/roleCapacity"),
   ...require("./lib/production"),
 };

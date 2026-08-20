@@ -1,9 +1,90 @@
 import { redirect } from "next/navigation";
-import { prisma } from "@lifeweb/db";
+import { prisma, roleCapacity } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { listGuildChannels, isSummaryChannel, getLocationChannelIds } from "@/lib/discordGuild";
+import { isRoleSelectable } from "@/lib/characterCreation";
 import CharacterSheet from "../../components/CharacterSheet";
+import CreateCharacterWizard from "./CreateCharacterWizard";
+
+// Everything the creation wizard needs, shaped as the Zone -> Faction -> Role
+// tree it renders. Seat counts are computed here rather than in the client so
+// the numbers can't be stale-rendered from a cached page; the server action
+// re-counts inside its transaction anyway, since this is only advisory.
+async function loadCreationData(discordUserId) {
+  const [zones, tags, config, player, takenRows] = await Promise.all([
+    prisma.zone.findMany({
+      orderBy: { name: "asc" },
+      include: {
+        factions: {
+          orderBy: { sortOrder: "asc" },
+          include: {
+            roles: { orderBy: { sortOrder: "asc" }, include: { startingLocation: true } },
+          },
+        },
+      },
+    }),
+    prisma.tag.findMany({
+      where: { purchasable: true },
+      include: { group: { select: { slug: true, name: true, color: true } } },
+    }),
+    prisma.gameConfig.findUnique({ where: { id: 1 } }),
+    prisma.player.findUnique({ where: { discordUserId } }),
+    prisma.character.groupBy({ by: ["roleId"], where: { status: "ALIVE" }, _count: true }),
+  ]);
+
+  const cursed = player?.cursed ?? false;
+  const playerCount = config?.playerCount ?? 100;
+  const takenByRole = new Map(takenRows.map((r) => [r.roleId, r._count]));
+
+  return {
+    cursed,
+    playerCount,
+    startingTagPoints: config?.startingTagPoints ?? 0,
+    tags: tags.map((t) => ({
+      id: t.id,
+      name: t.name,
+      description: t.description,
+      category: t.category,
+      pointCost: t.pointCost,
+      purchasable: t.purchasable,
+      purchasableAfterStart: t.purchasableAfterStart,
+      group: t.group,
+    })),
+    zones: zones
+      .map((zone) => ({
+        id: zone.id,
+        name: zone.name,
+        factions: zone.factions
+          .map((faction) => ({
+            id: faction.id,
+            name: faction.name,
+            roles: faction.roles.map((role) => {
+              const cap = roleCapacity(role, playerCount);
+              return {
+                id: role.id,
+                name: role.name,
+                intro: role.intro,
+                difficulty: role.difficulty,
+                factionName: faction.name,
+                startingLocationName: role.startingLocation?.name ?? null,
+                startingResources: role.startingResources,
+                extraStartingPoints: role.extraStartingPoints,
+                startingTagNames: role.startingTagSlugs,
+                grantsLeader: role.grantsLeader,
+                // Infinity doesn't survive serialization to the client, so
+                // uncapped roles cross the boundary as null and render "∞".
+                cap: cap === Infinity ? null : cap,
+                taken: takenByRole.get(role.id) ?? 0,
+                selectable: isRoleSelectable({ role, cursed }),
+              };
+            }),
+          }))
+          .filter((f) => f.roles.length > 0),
+      }))
+      .filter((z) => z.factions.length > 0),
+  };
+}
 
 export default async function CharacterPage() {
   const session = await auth();
@@ -19,7 +100,12 @@ export default async function CharacterPage() {
     },
   });
 
-  if (!character) redirect("/character/new");
+  // No living character — this IS the create-a-character screen. Rendered
+  // inline rather than redirecting to a separate route, so a player who just
+  // died lands somewhere that explains itself instead of bouncing.
+  if (!character) {
+    return <CreateCharacterWizard {...(await loadCreationData(session.discordUserId))} />;
+  }
 
   const [openTurn, otherCharacters, factions, guildChannels, locationChannelIds] = await Promise.all([
     getOpenTurn(),

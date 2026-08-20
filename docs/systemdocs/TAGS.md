@@ -57,13 +57,39 @@ diff check, same style as `syncLocationsFromYaml`'s `needsUpdate`).
   hidden behind a single membership tag without repeating `requiredTag` on
   every tag in it.
 
-**Neither relation is enforced anywhere yet.** There's no player-facing
-purchase flow (`purchasable`/`purchasableAfterStart` are catalog data for a
-future store to read, same idea) and no code currently checks
+**Neither relation is enforced anywhere yet.** No code checks
 `requiredTag`/`TagGroup.requiredTag` before showing or granting a tag — this
-is catalog structure, ready for that logic when it's built.
+is catalog structure, ready for that logic when it's built. (`purchasable`
+and `purchasableAfterStart` *are* now read, by the point-buy menu — see §4.)
 
-## 4. Other fields
+## 4. The point economy
+
+`pointCost` is the price in the point-buy menu, and it is **signed**:
+positive costs the player points, negative *grants* them (the drawbacks,
+Frail at `-2` and Old at `-1`). Both directions fall out of one subtraction,
+so `remaining >= 0` is the only rule for whether a build is legal.
+
+A character's budget is
+`GameConfig.startingTagPoints` (default 12) `+ role.extra_starting_points`
+`- 3 if the player is Cursed`, computed by
+`web/lib/characterCreation.js#computeBudget`. Anything unspent is kept on
+`Character.tagPoints`.
+
+`purchasable` gates whether a tag can ever be bought — role-granted identity
+tags (Courtier, Chaplain, Nobility) are `false`, so they arrive with the role
+and never through the menu.
+
+`purchasableAfterStart` splits the two menus that share
+`web/app/components/PointBuy.js`: character creation offers every
+`purchasable` tag, while the mid-game store offers only those still marked
+`purchasableAfterStart`. That's what lets a pick like "Secretly an Android"
+exist at launch and never afterward. **Every negative-cost tag must be
+`purchasableAfterStart: false`** — a drawback buyable mid-game is a point
+farm.
+
+Full writeup of creation, roles, and the wizard: `CHARACTERS.md`.
+
+## 5. Other fields
 
 - `visibleOnInspect` — shown to another player who 🔍-reacts to this
   character's proxied messages (`bot/src/events/messageReactionAdd.js`).
@@ -78,10 +104,11 @@ is catalog structure, ready for that logic when it's built.
   unrelated to this default), swept by `resolveNeeds()` in `db/index.js`
   once the closing turn's number reaches it.
 
-## 5. Things that used to be tags and aren't anymore
+## 6. Things that used to be tags and aren't anymore
 
 `Leader` and `Treasurer` were retired as tags in the same rework that
-introduced this system — both are now plain booleans on `Character`
+introduced this system (and were finally removed from `docs/roles.yaml`'s
+`starting_tags` too, in favor of per-role `leader:`/`treasurer:` booleans) — both are now plain booleans on `Character`
 (`isLeader`, `isTreasurer`), assigned dynamically by a GM (Leader) or by a
 GM/the faction's own Leader (Treasurer) from `/faction`
 (`web/app/(app)/faction/actions.js`), exactly as before — only the storage
@@ -92,7 +119,7 @@ Skills respectively) since both drive real logic elsewhere — Mortus gates
 `/lifeweb` nav visibility, Hunter drives a production-tier check in
 `bot/src/lib/labor.js`.
 
-## 6. Where the code lives
+## 7. Where the code lives
 
 `db/lib/syncTags.js` (the sync itself), `db/prisma/sync-tags.js` (terminal
 entry point, `npm run db:sync-tags`), `docs/tags.yaml` (content),

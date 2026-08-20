@@ -16,8 +16,12 @@
     "db:backfill-location-access": "node db/prisma/backfill-location-access.js",
     "db:backfill-persistent-tag": "node db/prisma/backfill-persistent-tag.js",
     "db:backfill-tag-rework": "node db/prisma/backfill-tag-rework.js",
+    "db:backfill-special-access": "node db/prisma/backfill-special-access.js",
+    "db:prune-orphan-categories": "node db/prisma/prune-orphan-categories.js",
     "db:sync-locations": "node db/prisma/sync-locations.js",
     "db:sync-tags": "node db/prisma/sync-tags.js",
+    "db:sync-roles": "node db/prisma/sync-roles.js",
+    "db:sync-channels": "node db/prisma/sync-channels.js",
     "db:sync-production-doc": "node db/prisma/sync-production-doc.js",
     "db:rebuild-info-channel": "node db/prisma/rebuild-info-channel.js"
   },

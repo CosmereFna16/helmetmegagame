@@ -102,6 +102,7 @@ export default function PlayersTable({ characters }) {
               <th>Faction</th>
               <th>Zone</th>
               <th>Status</th>
+              <th>Cursed</th>
               <th>Resources ⬢</th>
             </tr>
           </thead>
@@ -127,12 +128,15 @@ export default function PlayersTable({ characters }) {
                 </td>
                 <td>{c.zoneName || "-"}</td>
                 <td>{c.status}</td>
+                <td style={{ color: c.cursed ? "var(--accent)" : "var(--muted)" }}>
+                  {c.cursed ? "Cursed" : "-"}
+                </td>
                 <td>{c.resources}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="text-center" style={{ color: "var(--muted)" }}>
+                <td colSpan={8} className="text-center" style={{ color: "var(--muted)" }}>
                   No characters match these filters.
                 </td>
               </tr>

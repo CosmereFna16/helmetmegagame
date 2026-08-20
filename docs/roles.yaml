@@ -1,23 +1,47 @@
-# Source of truth for every playable role/faction/threat. Hand-edited;
-# no sync script reads this yet.
+# Source of truth for every playable role/faction/threat, synced into
+# Postgres by db/lib/syncRoles.js#syncRolesFromYaml (npm run db:sync-roles).
+#
+# `slug` is the stable match key across syncs, on both factions and roles —
+# same contract as docs/locations.yaml's `id` and docs/tags.yaml's `slug`.
+# Renaming later means changing `name`, NOT `slug`; a changed slug is treated
+# as a brand-new row (old one pruned) rather than a rename.
+#
+# The `threats:` block under each zone is NOT read by any sync — those seats
+# are assigned by hand by a GM, and never appear in the player-facing role
+# picker. They keep slugs purely so they can be referred to consistently.
 #
 # `weight` (only present on `multiple: true` roles) is the seat cap,
-# expressed as seats allowed per 100 total signed-up players — e.g.
-# `weight: 10` means up to 10 seats at 100 players, scaling proportionally
-# with signup size (future scripting would do something like
-# `round(weight * playerCount / 100)`). `weight: unlimited` means no cap
-# at any scale (chaff roles like Peasant/Bum).
+# expressed as seats allowed per 100 total players — the picker computes
+# `round(weight * GameConfig.playerCount / 100)`, so raising playerCount to
+# 120 scales every capped role by 1.2. `weight: unlimited` means no cap at
+# any scale (chaff roles like Peasant/Bum).
 #
 # `multiple: false` roles get no `weight` field at all — they're a single
 # specific named character (Baron, Bishop, Headman, ...) and always stay
 # at exactly one seat no matter how large the game gets, which is not the
-# same thing as "1 per 100 players". Every role tagged `Leader` is
-# `multiple: false` for this reason.
+# same thing as "1 per 100 players".
+#
+# `leader: true` / `treasurer: true` set Character.isLeader/isTreasurer at
+# creation. These were once entries in `starting_tags`, but Leader and
+# Treasurer are plain booleans on Character, not Tags (see
+# docs/systemdocs/TAGS.md §6).
 #
 # `starting_resources` appears on both roles and factions, but means two
 # different things depending on where it sits: on a role, it's how many
 # Resources ⬢ that character starts play with; on a faction, it's how many
 # Resources ⬢ start in that faction's Silo.
+#
+# `starting_location` (role-level) is a Location **slug** from
+# docs/locations.yaml — it decides where the character starts, and therefore
+# which Discord Location category they get view access to on creation.
+#
+# `starting_tags` are Tag names from docs/tags.yaml, granted free at
+# creation on top of whatever the player buys with points. The sync throws on
+# any name not in the catalog, so a typo can't silently ship a character
+# missing tags.
+#
+# `extra_starting_points` (optional, defaults 0) is added to
+# GameConfig.startingTagPoints to form that role's point-buy budget.
 zones:
   - name: Fortress
     situation:
@@ -29,9 +53,11 @@ zones:
         suspecting each other to be traitors, rival for the betrothal.
     factions:
       - name: The Court
+        slug: the-court
         starting_resources: 20
         roles:
           - name: Baron
+            slug: baron
             intro:
               They will know your glory, O Baron! This land is yours, hope incarnate—for humanity, for
               peace, for justice. Walk the path of your ancestors.
@@ -56,9 +82,11 @@ zones:
             difficulty: hard
             multiple: false
             starting_resources: 10
+            starting_location: keep
+            leader: true
             starting_tags:
+              - Ravenhearter
               - Nobility
-              - Leader
             doc_elements:
               - courtstructure
               - lifewebbasic
@@ -67,6 +95,7 @@ zones:
               - ravenhearteconomy
               - charon
           - name: Baroness
+            slug: baroness
             intro:
               Someone must raise and protect the Heir, that invaluable link in the chain of infinity. Be
               the Lioness—or succumb to anxiety.
@@ -77,13 +106,16 @@ zones:
             difficulty: easy
             multiple: false
             starting_resources: 3
+            starting_location: keep
             starting_tags:
+              - Ravenhearter
               - Nobility
             doc_elements:
               - courtstructure
               - lifewebbasic
               - fortressstarting
           - name: Heir
+            slug: heir
             intro: You are your father’s son. Are you the exact opposite of him, or his closest ally?
             description:
               - You are your father’s son. Are you the exact opposite of him, or his closest ally?
@@ -92,26 +124,32 @@ zones:
             difficulty: easy
             multiple: false
             starting_resources: 3
+            starting_location: keep
             starting_tags:
+              - Ravenhearter
               - Nobility
             doc_elements:
               - courtstructure
               - lifewebbasic
               - fortressstarting
           - name: Successor
+            slug: successor
             intro: You are the Baron’s daughter. Bring some light to the darkness.
             description:
               - You are the Baron’s daughter. Bring some light to the darkness.
             difficulty: easy
             multiple: false
             starting_resources: 3
+            starting_location: keep
             starting_tags:
+              - Ravenhearter
               - Nobility
             doc_elements:
               - courtstructure
               - lifewebbasic
               - fortressstarting
           - name: Hand
+            slug: hand
             intro:
               You’re the Baron’s best friend and perhaps the only man he can truly trust. If anyone can
               be said to shape fate, Hand, it is you.
@@ -134,8 +172,10 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 2
+            starting_location: keep
+            treasurer: true
             starting_tags:
-              - Treasurer
+              - Ravenhearter
             doc_elements:
               - courtstructure
               - lifewebbasic
@@ -145,6 +185,7 @@ zones:
               - ravenhearteconomy
               - charon
           - name: Meister
+            slug: meister
             intro:
               You are the Keep’s brains, but more importantly, its circulatory system. Feel the weight
               of the world, Meister, you Atlas!
@@ -159,10 +200,12 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 2
+            starting_location: keep
+            treasurer: true
             starting_tags:
+              - Ravenhearter
               - Intelligent
               - Frail
-              - Treasurer
               - Medical (Skilled)
               - Ravenkeeper
             doc_elements:
@@ -174,6 +217,7 @@ zones:
               - medical
               - ravenhearteconomy
           - name: Courtier
+            slug: courtier
             intro:
               Live life indulgently or honorably—there is not much binding you except your own decisions.
               What freedom!
@@ -189,13 +233,16 @@ zones:
             multiple: true
             weight: 6
             starting_resources: 3
+            starting_location: keep
             starting_tags:
+              - Ravenhearter
               - Courtier
             doc_elements:
               - courtier
               - courtstructure
               - fortressstarting
           - name: Minstrel
+            slug: minstrel
             intro: Compose ballads, smuggle drugs from the Town, and keep the Baron happy.
             description:
               - Compose ballads, smuggle drugs from the Town (and peddle them to the courtiers), keep the Baron
@@ -204,13 +251,16 @@ zones:
             multiple: true
             weight: 1
             starting_resources: 3
+            starting_location: keep
             starting_tags:
+              - Ravenhearter
               - Musician
             doc_elements:
               - courtier
               - courtstructure
               - fortressstarting
           - name: Diplomat
+            slug: diplomat
             intro: Recover ancient artifacts and study Ravenheartian culture.
             description:
               - Recover ancient artifacts and study Ravenheartian culture. Meddle. Convince the Baron to join
@@ -219,13 +269,16 @@ zones:
             multiple: true
             weight: 1
             starting_resources: 3
-            starting_tags: []
+            starting_location: keep
+            starting_tags:
+              - Ravenhearter
             doc_elements:
               - courtier
               - diplomat
               - courtstructure
               - fortressstarting
           - name: Servant
+            slug: servant
             intro: Keep the fortress running.
             description:
               - Keep the fortress running. Clean, cook, maintain, and serve.
@@ -234,17 +287,21 @@ zones:
             multiple: true
             weight: 3
             starting_resources: 2
+            starting_location: keep
             starting_tags:
+              - Ravenhearter
               - Cooking (Basic)
             doc_elements:
               - courtier
               - courtstructure
               - fortressstarting
       - name: The Watch
+        slug: the-watch
         parent: The Court
         starting_resources: 20
         roles:
           - name: Captain
+            slug: captain
             intro: Bravely lead the Watch and hold back the darkness, you goddamn hero.
             description:
               - Ravenheart is an ancient bastion of humanity, a beacon of light. It is your solemn duty—at least
@@ -257,11 +314,14 @@ zones:
             difficulty: hard
             multiple: false
             starting_resources: 3
+            starting_location: garrison
+            leader: true
+            treasurer: true
             starting_tags:
+              - Ravenhearter
               - Fighting (Trained)
-              - Treasurer
-              - Leader
               - Alcoholic
+              - Dog
             doc_elements:
               - courtstructure
               - fortressstarting
@@ -269,6 +329,7 @@ zones:
               - armory
               - combat
           - name: Incarn
+            slug: incarn
             intro: You are a warrior monk, the Warden, the unbound spirit of the Keep.
             description:
               - In your heart, you know it is the nature of the Universe that good will win. It is not important
@@ -283,9 +344,11 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 2
+            starting_location: garrison
+            treasurer: true
             starting_tags:
+              - Ravenhearter
               - Fighting (Skilled)
-              - Treasurer
             doc_elements:
               - courtstructure
               - fortressstarting
@@ -294,6 +357,7 @@ zones:
               - armory
               - combat
           - name: Watchman
+            slug: watchman
             intro: Serve the Baron and salute your Captain. You are the man of the hour!
             description:
               - Serve the Baron, salute your Captain. Darkness is coming—do you heed the call, or frolick about?
@@ -302,7 +366,9 @@ zones:
             multiple: true
             weight: 8
             starting_resources: 2
+            starting_location: garrison
             starting_tags:
+              - Ravenhearter
               - Fighting (Trained)
             doc_elements:
               - courtstructure
@@ -311,6 +377,7 @@ zones:
               - armory
               - combat
           - name: Squire
+            slug: squire
             intro: Train. One day, you might become a knight.
             description:
               - Train. One day, you might become a knight.
@@ -318,7 +385,9 @@ zones:
             multiple: true
             weight: 2
             starting_resources: 2
+            starting_location: garrison
             starting_tags:
+              - Ravenhearter
               - Fighting (Basic)
             doc_elements:
               - courtstructure
@@ -328,6 +397,7 @@ zones:
               - combat
     threats:
       - name: Sympathizer (Fortress)
+        slug: sympathizer-fortress
         intro: Install the Bastard on the throne, by any means necessary.
         description:
           - "Your main goal: install the Bastard on the throne. To that end, turn the court against itself,
@@ -338,9 +408,11 @@ zones:
           - Be creative. Turn people against each other, convert people, cause incidents that make other people
             look bad.
         starting_resources: 2
+        starting_location: keep
         starting_tags: []
         doc_elements: []
       - name: Succubus (Fortress)
+        slug: succubus-fortress
         intro: You live for the thrill of enslaving souls and causing pain.
         description:
           - You don't need to eat. Instead, you live for the thrill of enslaving souls and causing pain, and
@@ -356,6 +428,7 @@ zones:
             and torturing people (+4). You also gain points by making someone obsessed with you, either through
             romance, jealousy, or anger (+4).
         starting_resources: 2
+        starting_location: keep
         starting_tags:
           - Hungerless
         doc_elements: []
@@ -369,9 +442,11 @@ zones:
         hanged."
     factions:
       - name: The Church
+        slug: the-church
         starting_resources: 10
         roles:
           - name: Bishop
+            slug: bishop
             intro:
               In the animal world, who can choose good but Man? Even if Ravenheart falls, O Bishop, do
               not let the people's souls fall with it!
@@ -387,9 +462,11 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 3
+            starting_location: church
+            leader: true
             starting_tags:
+              - Ravenhearter
               - Chaplain
-              - Leader
               - Pious
             doc_elements:
               - townstarting
@@ -397,6 +474,7 @@ zones:
               - church
               - ravenhearteconomy
           - name: Chaplain
+            slug: chaplain
             intro: Care for the needy, lend an ear, and kindle goodness in others.
             description:
               - It is not the first time dark days have come to Ravenheart. The people will survive—God will ensure
@@ -410,7 +488,9 @@ zones:
             multiple: true
             weight: 3
             starting_resources: 2
+            starting_location: church
             starting_tags:
+              - Ravenhearter
               - Chaplain
               - Pious
             doc_elements:
@@ -418,6 +498,7 @@ zones:
               - postchristianity
               - church
           - name: Scholastic
+            slug: scholastic
             intro:
               You are a servant of the truth, delving to places no other man would. Contemplate, search
               for knowledge—occult or otherwise—and write your magnum opus.
@@ -430,15 +511,19 @@ zones:
             multiple: true
             weight: 1
             starting_resources: 2
-            starting_tags: []
+            starting_location: church
+            starting_tags:
+              - Ravenhearter
             doc_elements:
               - townstarting
               - postchristianity
               - church
       - name: The Sanctuary
+        slug: the-sanctuary
         starting_resources: 10
         roles:
           - name: Esculap
+            slug: esculap
             intro:
               Lead the Sanctuary, developing medicines and putting bodies back together. Be the Eye in
               the Storm—or lose yourself to curiosity.
@@ -455,14 +540,17 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 2
+            starting_location: sanctuary
+            leader: true
             starting_tags:
-              - Leader
+              - Ravenhearter
               - Medical (Excellent)
               - Brewing (Skilled)
             doc_elements:
               - townstarting
               - medical
           - name: Serpent
+            slug: serpent
             intro:
               Cure illnesses, perform surgeries, brew potions, and keep people in this world—where they're
               needed.
@@ -479,17 +567,21 @@ zones:
             multiple: true
             weight: 4
             starting_resources: 2
+            starting_location: sanctuary
             starting_tags:
+              - Ravenhearter
               - Medical (Skilled)
               - Brewing (Basic)
             doc_elements:
               - townstarting
               - medical
       - name: Order of the Silver Cross
+        slug: order-of-the-silver-cross
         parent: The Church
         starting_resources: 10
         roles:
           - name: Inquisitor
+            slug: inquisitor
             intro: It is your everlasting duty to protect your people by expunging the barony’s corruption.
             description:
               - Do you know what it means to love God?
@@ -509,14 +601,17 @@ zones:
             difficulty: hard
             multiple: false
             starting_resources: 3
+            starting_location: church
+            leader: true
             starting_tags:
-              - Leader
+              - Ravenhearter
               - Pious
             doc_elements:
               - townstarting
               - postchristianity
               - church
           - name: Practicus
+            slug: practicus
             intro:
               Serve the Inquisitor, and work to radicalize the Town, the Church, and possibly even the
               Court.
@@ -539,13 +634,16 @@ zones:
             multiple: true
             weight: 3
             starting_resources: 2
+            starting_location: church
             starting_tags:
+              - Ravenhearter
               - Pious
             doc_elements:
               - townstarting
               - postchristianity
               - church
           - name: Preacher
+            slug: preacher
             intro: You are the Order’s face. Speak in the Town Square for all to hear.
             description:
               - You are the Order’s face. Speak in the Town Square for all to hear.
@@ -566,16 +664,20 @@ zones:
             multiple: true
             weight: 1
             starting_resources: 2
+            starting_location: church
             starting_tags:
+              - Ravenhearter
               - Pious
             doc_elements:
               - townstarting
               - postchristianity
               - church
       - name: The Town
+        slug: the-town
         starting_resources: 10
         roles:
           - name: Headman
+            slug: headman
             intro: Lead the Town. Ensure it works and pays its taxes.
             description:
               - On certain days, you hike up the mountain and behold the Town. Those are the people that are beholden
@@ -590,16 +692,20 @@ zones:
             difficulty: hard
             multiple: false
             starting_resources: 3
+            starting_location: town
+            leader: true
             starting_tags:
+              - Ravenhearter
               - Insightful
-              - Leader
               - Old
               - Laborer (Farming)
+              - House
             doc_elements:
               - townstarting
               - farming
               - ravenhearteconomy
           - name: Sheriff
+            slug: sheriff
             intro: Keep the peace in the Town, six-shooter at your hip.
             description:
               - On certain days, you hike up the mountain and behold the Town. Those are the people that are beholden
@@ -609,13 +715,17 @@ zones:
             multiple: true
             weight: 1
             starting_resources: 2
+            starting_location: town
             starting_tags:
+              - Ravenhearter
               - Fighting (Trained)
               - Old .45 Revolver
+              - House
             doc_elements:
               - townstarting
               - combat
           - name: Metalsmith
+            slug: metalsmith
             intro: Forge anything from basic tools to siege implements and legendary weapons.
             description:
               - With smithing, you are only limited by your Resources ⬢ and your creativity. You can make weapons,
@@ -632,14 +742,18 @@ zones:
             multiple: true
             weight: 1
             starting_resources: 2
+            starting_location: town
             starting_tags:
+              - Ravenhearter
               - Smithing
+              - House
             doc_elements:
               - townstarting
               - smithinglist
               - combat
               - independent
           - name: Peasant
+            slug: peasant
             intro: You’re a peasant. Make a living at day, live your life at night.
             description:
               - Peasantry—the unlimitedness of knowing you are not being watched, because you are one of Many.
@@ -655,14 +769,17 @@ zones:
             multiple: true
             weight: unlimited
             starting_resources: 2
+            starting_location: town
+            extra_starting_points: 2
             starting_tags:
+              - Ravenhearter
               - Laborer
-            starting_points: "+2"
             doc_elements:
               - townstarting
               - production
               - independent
           - name: Herald
+            slug: herald
             intro: Tell the news, take messages, and hope either the Baron or the Headman will pay you.
             description:
               - Done rightly, your job can be quite profitable—particularly if you're willing to spy and play
@@ -676,11 +793,14 @@ zones:
             multiple: true
             weight: 1
             starting_resources: 2
-            starting_tags: []
+            starting_location: town
+            starting_tags:
+              - Ravenhearter
             doc_elements:
               - townstarting
               - independent
           - name: Outsider
+            slug: outsider
             intro: Nature garbs you. Live on the outskirts, free and independent.
             description:
               - Live on the outskirts, free and independent.
@@ -693,15 +813,18 @@ zones:
             multiple: true
             weight: 2
             starting_resources: 2
+            starting_location: town
+            extra_starting_points: 3
             starting_tags:
+              - Ravenhearter
               - Forester
-              - "+3"
             doc_elements:
               - townstarting
               - production
               - medical
               - independent
           - name: Mortus
+            slug: mortus
             intro: Bring spirits to peace and feed the Lifeweb.
             description:
               - "You have two jobs, both of them sacred: 1. feed the Lifeweb and 2. bury people, bringing their
@@ -718,13 +841,16 @@ zones:
             multiple: true
             weight: 3
             starting_resources: 2
+            starting_location: town
             starting_tags:
+              - Ravenhearter
               - Mortus
             doc_elements:
               - townstarting
               - lifeweb
               - respawning
           - name: Bum
+            slug: bum
             intro: You live in a shell and sleep with the dogs, but you understand life (or think you do).
             description:
               - You live in a shell and sleep with the dogs, but you understand life (or think you do). Beg for
@@ -733,10 +859,13 @@ zones:
             multiple: true
             weight: unlimited
             starting_resources: 2
-            starting_tags: []
+            starting_location: town
+            starting_tags:
+              - Ravenhearter
             doc_elements:
               - townstarting
           - name: Pusher
+            slug: pusher
             intro: Sell drugs.
             description:
               - Sell drugs.
@@ -744,17 +873,21 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 2
+            starting_location: town
             starting_tags:
+              - Ravenhearter
               - Brewing (Skilled)
             doc_elements:
               - townstarting
               - alcoholdrugs
               - independent
       - name: The Inn
+        slug: the-inn
         parent: The Town
         starting_resources: 10
         roles:
           - name: Innkeeper
+            slug: innkeeper
             intro: "Name and run the inn: set prices, hire and fire staff, and run an actual, living business."
             description:
               - The inn is a game of its own. It's up to you to figure out how to make a living out of it. For
@@ -767,8 +900,10 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 25
+            starting_location: town
+            leader: true
             starting_tags:
-              - Leader
+              - Ravenhearter
               - Cooking (Basic)
               - Brewing (Basic)
             doc_elements:
@@ -777,6 +912,7 @@ zones:
               - meals
               - inn
           - name: Inn Staff
+            slug: inn-staff
             intro: Work the floor, the kitchen, or the cellar—whatever the Inn needs.
             description:
               - Keep the Inn running under the Innkeeper. Cook (Cooking (Skilled)), brew (Brewing (Skilled)),
@@ -786,7 +922,9 @@ zones:
             multiple: true
             weight: 3
             starting_resources: 2
+            starting_location: town
             starting_tags:
+              - Ravenhearter
               - Cooking (Basic)
             doc_elements:
               - townstarting
@@ -796,6 +934,7 @@ zones:
               - independent
     threats:
       - name: Cult of Bacchus (Leader)
+        slug: cult-of-bacchus-leader
         intro: Bacchus has willed you to take Ravenheart for them.
         description:
           - Bacchus is the Lustful God, Creator of Illusions, the Eternal One. Bacchus is honest. Bacchus is
@@ -824,12 +963,14 @@ zones:
             withdrawal.
         multiple: false
         starting_resources: 3
+        starting_location: town
         starting_tags:
           - Follower of Bacchus
         doc_elements:
           - townstarting
           - cult
       - name: Cult of Bacchus (Cultist)
+        slug: cult-of-bacchus-cultist
         intro: You either love Bacchus and believe in their message, or love-hate them.
         description:
           - Bacchus is the Lustful God, Creator of Illusions, the Eternal One. Bacchus is honest. Bacchus is
@@ -850,12 +991,14 @@ zones:
         multiple: true
         weight: 6
         starting_resources: 2
+        starting_location: town
         starting_tags:
           - Follower of Bacchus
         doc_elements:
           - townstarting
           - cult
       - name: The Judge (Town, or Cave)
+        slug: the-judge-town-or-cave
         intro: '"Whatever in creation exists without my knowledge exists without my consent."'
         description:
           - '"Whatever in creation exists without my knowledge exists without my consent." You start with +15
@@ -875,6 +1018,8 @@ zones:
         multiple: true
         weight: 3
         starting_resources: 2
+        starting_location: town
+        extra_starting_points: 15
         starting_tags:
           - Infamous
         doc_elements:
@@ -887,9 +1032,11 @@ zones:
         on whether to raid the Town. Food stores are running low, and there's no time to waste on old grudges."
     factions:
       - name: The Bastard's Camp
+        slug: the-bastards-camp
         starting_resources: 5
         roles:
           - name: Bastard
+            slug: bastard
             intro:
               You have thirty days to take Ravenheart. Unite your Lieutenants, feed your men, and march—it's
               your people's only hope.
@@ -913,8 +1060,9 @@ zones:
             difficulty: hard
             multiple: false
             starting_resources: 3
+            starting_location: warcamp
+            leader: true
             starting_tags:
-              - Leader
               - Fighting (Trained)
               - Windlander
               - Sign Language
@@ -924,6 +1072,7 @@ zones:
               - brokenspear
               - windrider
           - name: Champion
+            slug: champion
             intro:
               You taught the Bastard how to fight, how to play the lute, how to survive. You will follow
               him even into death.
@@ -933,6 +1082,7 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 2
+            starting_location: warcamp
             starting_tags:
               - Musician
               - Fighting (Skilled)
@@ -941,12 +1091,14 @@ zones:
             doc_elements:
               - campstarting
           - name: Mother
+            slug: mother
             intro: Counsel and support your son.
             description:
               - Counsel and support your son.
             difficulty: normal
             multiple: false
             starting_resources: 2
+            starting_location: warcamp
             starting_tags:
               - Watchful
               - Windlander
@@ -954,6 +1106,7 @@ zones:
             doc_elements:
               - campstarting
           - name: Follower
+            slug: follower
             intro: Clanless, you follow the Bastard, as a warrior, a healer, a herder, or anything else.
             description:
               - Clanless, you follow the Bastard, as a warrior, a healer, a herder, or anything else.
@@ -961,16 +1114,19 @@ zones:
             multiple: true
             weight: 3
             starting_resources: 2
+            starting_location: warcamp
             starting_tags:
               - Windlander
               - Sign Language
             doc_elements:
               - campstarting
       - name: Broken Spears Clan
+        slug: broken-spears-clan
         parent: The Bastard's Camp
         starting_resources: 5
         roles:
           - name: Lieutenant (Broken Spears Clan)
+            slug: lieutenant-broken-spears-clan
             intro: Glory for the Broken Spears!
             description:
               - Glory for the Broken Spears!
@@ -983,15 +1139,17 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 3
+            starting_location: warcamp
+            leader: true
             starting_tags:
               - Fighting (Trained)
-              - Leader
               - Windlander
               - Sign Language
             doc_elements:
               - campstarting
               - brokenspear
           - name: Master of Parties
+            slug: master-of-parties
             intro: Supply the Clan with tonics, sound the drums, and keep the men fighting!
             description:
               - Supply the Clan with tonics, sound the drums, and keep the men fighting!
@@ -999,6 +1157,7 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 2
+            starting_location: warcamp
             starting_tags:
               - Brewing (Skilled)
               - Musician
@@ -1009,6 +1168,7 @@ zones:
               - campstarting
               - brokenspear
           - name: Clansman (Broken Spears Clan)
+            slug: clansman-broken-spears-clan
             intro:
               "A member of the Broken Spears: a warrior, a drug alchemist, a drummer, a healer, a fortune
               teller, a herder, or simply a camp follower—the spouse or servant of one of the above."
@@ -1019,6 +1179,7 @@ zones:
             multiple: true
             weight: 6
             starting_resources: 2
+            starting_location: warcamp
             starting_tags:
               - Windlander
               - Sign Language
@@ -1026,9 +1187,11 @@ zones:
               - campstarting
               - brokenspear
       - name: Windrider Clan
+        slug: windrider-clan
         starting_resources: 5
         roles:
           - name: Lieutenant (Windrider Clan)
+            slug: lieutenant-windrider-clan
             intro: Your ultimate task is at hand. Fulfill your destiny.
             description:
               - Your ultimate task is at hand. Fulfill your destiny.
@@ -1039,14 +1202,16 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 3
+            starting_location: warcamp
+            leader: true
             starting_tags:
-              - Leader
               - Windlander
               - Sign Language
             doc_elements:
               - campstarting
               - windrider
           - name: Ranger
+            slug: ranger
             intro: Track the enemy and ensure the plan comes to fruition.
             description:
               - Track the enemy and ensure the plan comes to fruition.
@@ -1054,6 +1219,7 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 2
+            starting_location: warcamp
             starting_tags:
               - Old .45 Revolver
               - Windlander (Horse)
@@ -1064,6 +1230,7 @@ zones:
               - campstarting
               - windrider
           - name: Clansman (Windrider Clan)
+            slug: clansman-windrider-clan
             intro:
               "You are the essence of the Windlands: a warrior, a healer, a mentat, a scribe, an inventor-engineer,
               a herder, or simply a camp follower—the spouse or servant of one of the above."
@@ -1074,6 +1241,7 @@ zones:
             multiple: true
             weight: 6
             starting_resources: 2
+            starting_location: warcamp
             starting_tags:
               - Windlander
               - Sign Language
@@ -1081,22 +1249,26 @@ zones:
               - campstarting
               - windrider
       - name: Brigands
+        slug: brigands
         starting_resources: 5
         roles:
           - name: Brigand Leader
+            slug: brigand-leader
             intro: You raided a shipment on the way to the Fortress—well done!
             description:
               - You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
             difficulty: normal
             multiple: false
             starting_resources: 3
+            starting_location: forest
+            leader: true
             starting_tags:
               - Opportunist
-              - Leader
               - Fighting (Basic)
             doc_elements:
               - campstarting
           - name: Brigand
+            slug: brigand
             intro: You raided a shipment on the way to the Fortress—well done!
             description:
               - You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
@@ -1104,6 +1276,7 @@ zones:
             multiple: true
             weight: 2
             starting_resources: 2
+            starting_location: forest
             starting_tags:
               - Opportunist
               - Fighting (Basic)
@@ -1114,9 +1287,11 @@ zones:
       - "The Caves: Migrants make it to the Fortress from here."
     factions:
       - name: The Company
+        slug: the-company
         starting_resources: 5
         roles:
           - name: Merchant
+            slug: merchant
             intro: Make your fortune buying and selling Tags.
             description:
               - Ravenheart is a great source of business and not much else. You wouldn’t dare put your heart here—the
@@ -1133,12 +1308,14 @@ zones:
             difficulty: hard
             multiple: false
             starting_resources: 50
+            starting_location: merchants-depot
+            leader: true
             starting_tags:
-              - Leader
             doc_elements:
               - townstarting
               - merchantlist
           - name: Docker
+            slug: docker
             intro: Serve the Merchant and get drunk during the night.
             description:
               - Serve the Merchant and get drunk during the night. Maybe he’ll let you get a ride on his spaceship
@@ -1147,14 +1324,17 @@ zones:
             multiple: true
             weight: 2
             starting_resources: 2
+            starting_location: merchants-depot
             starting_tags: []
             doc_elements:
               - townstarting
               - merchantlist
       - name: Unaffiliated
+        slug: unaffiliated
         starting_resources: 5
         roles:
           - name: Migrant
+            slug: migrant
             intro: Make it to the fortress.
             description:
               - Make it to the fortress.
@@ -1162,10 +1342,12 @@ zones:
             multiple: true
             weight: unlimited
             starting_resources: 2
+            starting_location: customs
             starting_tags:
               - Determined
             doc_elements: []
           - name: Mercenary
+            slug: mercenary
             intro: Delve into the Caves for pay.
             description:
               - Delve into the Caves for pay.
@@ -1173,10 +1355,12 @@ zones:
             multiple: true
             weight: 2
             starting_resources: 2
+            starting_location: customs
             starting_tags:
               - Battle-Hardened
             doc_elements: []
           - name: Miner
+            slug: miner
             intro: Work the Caves.
             description:
               - Work the Caves.
@@ -1184,6 +1368,7 @@ zones:
             multiple: true
             weight: 2
             starting_resources: 2
+            starting_location: customs
             starting_tags:
               - Sturdy
             doc_elements: []
@@ -1191,28 +1376,34 @@ zones:
       # Monsters (NPC) is GM/NPC-run, not a player-selectable seat, so it has
       # no multiple/weight fields.
       - name: Monsters (NPC)
+        slug: monsters-npc
         intro: Monsters in the caves, to be hunted.
         description:
           - Monsters in the caves, to be hunted.
+        starting_location: customs
         starting_tags: []
         doc_elements: []
       - name: Brigand Leader (Caves)
+        slug: brigand-leader-caves
         intro: Loot the caves (dangerous) as a way to fund the Camp's war effort.
         description:
           - Loot the caves (dangerous) as a way to fund the Camp's war effort.
         multiple: false
         starting_resources: 3
+        starting_location: customs
+        leader: true
         starting_tags:
           - Opportunist
-          - Leader
         doc_elements: []
       - name: Brigand (Caves)
+        slug: brigand-caves
         intro: Loot the caves (dangerous) as a way to fund the Camp's war effort.
         description:
           - Loot the caves (dangerous) as a way to fund the Camp's war effort.
         multiple: true
         weight: unlimited
         starting_resources: 2
+        starting_location: customs
         starting_tags:
           - Opportunist
         doc_elements: []
