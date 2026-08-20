@@ -361,6 +361,32 @@ tags:
     purchasableAfterStart: true
 
   # --- Status -----------------------------------------------------------
+  # Happy/Unhappy are the Mood system (docs/systemdocs/REQUESTS.md §4).
+  # Deliberately purchasable: false / removable: false so they never appear in
+  # any player-facing tag picker — the only ways in are the Set Mood button on
+  # the character sheet and a GM. "Neutral" is the absence of both, not a tag.
+  - slug: happy
+    name: Happy
+    category: status
+    group: status-buffs
+    description: "+1 to the die on all Gambits. Wears off after 2 turns."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 2
+
+  - slug: unhappy
+    name: Unhappy
+    category: status
+    group: status-debuffs
+    description: "-1 to the die on all Gambits. Wears off after 2 turns."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 2
+
   - slug: ate-meal
     name: Ate Meal
     category: status

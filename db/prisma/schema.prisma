@@ -74,14 +74,41 @@ enum TagSource {
   EVENT
 }
 
+// A Request is a player-initiated change that took effect IMMEDIATELY and is
+// reviewed by a GM afterwards, rather than waiting on approval first. See
+// docs/systemdocs/REQUESTS.md. Adding a type here is one of the two places a
+// new request kind touches (the other is web/lib/requestEffects.js).
+enum RequestType {
+  FULFILL_DESIRE
+  ADD_TAG
+  REMOVE_TAG
+  TRANSFER_RESOURCES
+  TRANSFER_TAG
+  SET_MOOD
+}
+
+// PASSED is the default and means "not yet touched by a GM" — the request
+// stands as the player made it. EDITED/UNDONE are both terminal GM verdicts.
+enum RequestStatus {
+  PASSED
+  EDITED
+  UNDONE
+}
+
+enum DesireStatus {
+  ACTIVE
+  FULFILLED
+  CANCELLED
+}
+
 model GameConfig {
-  id                          Int      @id @default(1)
-  lifewebBlood                Int      @default(100)
-  lifewebDecayPerTurn         Int      @default(10)
-  nextWeather                 Weather?
-  nextTurnNote                String?
-  turnsAnnouncementChannelId  String?
-  turnsAnnouncementMessageId  String?
+  id                         Int      @id @default(1)
+  lifewebBlood               Int      @default(100)
+  lifewebDecayPerTurn        Int      @default(10)
+  nextWeather                Weather?
+  nextTurnNote               String?
+  turnsAnnouncementChannelId String?
+  turnsAnnouncementMessageId String?
 
   // Gates the whole Dawn message-wipe system (db/lib/dawnWipe.js) — off by
   // default so nothing gets swept until a GM explicitly opts in from the
@@ -286,6 +313,8 @@ model Character {
   setDefaultsFor  DefaultEffort[] @relation("DefaultEffortSetBy")
   auditLogTargets AuditLog[]
   notes           Note[]
+  requests        Request[]
+  desires         Desire[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -435,7 +464,6 @@ model CharacterTag {
   @@unique([characterId, tagId])
 }
 
-
 // A playable seat, master-sourced from docs/roles.yaml's
 // zones[].factions[].roles[] (db/lib/syncRoles.js, npm run db:sync-roles).
 // The YAML's zones[].threats[] are deliberately NOT synced — those are
@@ -495,24 +523,31 @@ model Turn {
   startedAt  DateTime   @default(now())
   resolvedAt DateTime?
 
-  actions Action[]
+  actions  Action[]
+  requests Request[]
 }
 
 model Action {
-  id                     String       @id @default(cuid())
+  id                     String      @id @default(cuid())
   characterId            String
-  character              Character    @relation(fields: [characterId], references: [id])
+  character              Character   @relation(fields: [characterId], references: [id])
   turnId                 String
-  turn                   Turn         @relation(fields: [turnId], references: [id])
+  turn                   Turn        @relation(fields: [turnId], references: [id])
   type                   ActionType?
   description            String
   zoneId                 String?
-  zone                   Zone?        @relation(fields: [zoneId], references: [id])
+  zone                   Zone?       @relation(fields: [zoneId], references: [id])
   resourceDelta          Int?
   resourceDiceExpression String?
   resourceDiceRoll       Int?
   diceRoll               Int?
-  status                 ActionStatus @default(PENDING)
+
+  // The mood adjustment applied to a Gambit's d6 (+1 Happy / -1 Unhappy, see
+  // db/lib/mood.js). Kept SEPARATE from diceRoll, which always stores the raw
+  // roll — otherwise a GM can't tell a modified 5 from a natural 5, and a
+  // re-roll during adjudication would compound the modifier.
+  diceModifier Int?
+  status       ActionStatus @default(PENDING)
 
   // Routine vs Gambit (see MoveKind above), whether the player and/or GM has
   // flagged it Opposed, and the GM's spreadsheet-workflow status — all set
@@ -627,8 +662,59 @@ model AuditLog {
   targetCharacterId  String?
   targetCharacter    Character? @relation(fields: [targetCharacterId], references: [id])
   details            Json?
-  createdAt          DateTime   @default(now())
+
+  // Only populated by Request-backed entries (see RequestType) — the
+  // player's own words, surfaced as a column on /gm/audit.
+  reason    String?
+  createdAt DateTime @default(now())
 
   @@index([actionType])
   @@index([actorDiscordUserId])
+}
+
+// One row per player action that took effect without GM approval. `payload`
+// is what the player asked for; `effect` is what was actually applied, and is
+// the ONLY thing Undo reads. That split is load-bearing: reversing a request
+// by re-deriving it from current state would corrupt as soon as a GM edits an
+// amount or the character transacts again in the meantime.
+model Request {
+  id          String        @id @default(cuid())
+  characterId String
+  character   Character     @relation(fields: [characterId], references: [id])
+  turnId      String?
+  turn        Turn?         @relation(fields: [turnId], references: [id])
+  type        RequestType
+  status      RequestStatus @default(PASSED)
+  reason      String
+  payload     Json
+  effect      Json
+  gmNotes     String?
+
+  reviewedAt              DateTime?
+  reviewedByDiscordUserId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([status, createdAt])
+  @@index([characterId])
+}
+
+// A character's self-set goal, worth 1-5 Tag Points on fulfillment. At most
+// one ACTIVE row per character (enforced in the server action, not the
+// schema, since the constraint is "one ACTIVE" rather than "one row").
+// endedTurnNumber drives the one-turn cooldown after a cancel or a fulfill.
+model Desire {
+  id              String       @id @default(cuid())
+  characterId     String
+  character       Character    @relation(fields: [characterId], references: [id])
+  text            String
+  points          Int
+  status          DesireStatus @default(ACTIVE)
+  setTurnNumber   Int?
+  endedTurnNumber Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([characterId, status])
 }

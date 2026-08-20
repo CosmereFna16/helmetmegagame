@@ -85,7 +85,7 @@ wizard, the server action, and the GM panel so the number a player is shown
 and the number the server enforces cannot drift apart.
 
 `Tag.pointCost` is **signed**. Positive costs points; negative *grants* them
-(the drawbacks, Frail at `-2` and Old at `-1`). Summing signed costs means
+(the drawbacks, Old at `-2` and Frail at `-3`). Summing signed costs means
 both directions fall out of one subtraction, and `remaining >= 0` is the only
 completion rule. Every negative-cost tag is `purchasableAfterStart: false` —
 a drawback you could buy mid-game would be a point farm.

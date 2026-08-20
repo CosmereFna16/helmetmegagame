@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma, roleCapacity } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
-import { listGuildChannels, isSummaryChannel, getLocationChannelIds, getGuildMember, isCursed } from "@/lib/discordGuild";
+import { getGuildMember, isCursed } from "@/lib/discordGuild";
 import { isRoleSelectable } from "@/lib/characterCreation";
 import CharacterSheet from "../../components/CharacterSheet";
 import CreateCharacterWizard from "./CreateCharacterWizard";
@@ -119,7 +119,7 @@ export default async function CharacterPage() {
     return <CreateCharacterWizard {...(await loadCreationData(session.discordUserId))} />;
   }
 
-  const [openTurn, otherCharacters, factions, guildChannels, locationChannelIds] = await Promise.all([
+  const [openTurn, otherCharacters, factions, tagCatalog, desire, lastEndedDesire] = await Promise.all([
     getOpenTurn(),
     prisma.character.findMany({
       where: { status: "ALIVE", id: { not: character.id } },
@@ -131,15 +131,35 @@ export default async function CharacterPage() {
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
-    listGuildChannels(),
-    getLocationChannelIds(),
+    // The Add Tag menu needs purchasable/craftable, which /api/tags doesn't
+    // select (and which that unauthenticated route shouldn't grow just to
+    // serve a picker) — so the catalog comes down as props, same as the
+    // creation wizard does it.
+    prisma.tag.findMany({
+      where: { OR: [{ purchasable: true }, { craftable: true }] },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        category: true,
+        pointCost: true,
+        purchasable: true,
+        craftable: true,
+        group: { select: { name: true, color: true } },
+      },
+    }),
+    prisma.desire.findFirst({ where: { characterId: character.id, status: "ACTIVE" } }),
+    prisma.desire.findFirst({
+      where: { characterId: character.id, status: { in: ["FULFILLED", "CANCELLED"] } },
+      orderBy: { updatedAt: "desc" },
+      select: { endedTurnNumber: true },
+    }),
   ]);
 
-  const summaryChannels = guildChannels
-    .filter((c) => isSummaryChannel(c, locationChannelIds))
-    .map((c) => ({ id: c.id, name: c.name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-
+  // Self is a valid transfer SOURCE (the common case) but not a valid
+  // recipient, so the two lists differ by exactly one entry.
+  const selfEntry = { id: character.id, name: character.name };
   const avatarSrc = `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`;
 
   return (
@@ -148,8 +168,15 @@ export default async function CharacterPage() {
       mode="self"
       openTurn={openTurn}
       avatarSrc={avatarSrc}
+      transferSources={{
+        characters: [...otherCharacters, selfEntry].sort((a, b) => a.name.localeCompare(b.name)),
+        factions,
+      }}
       transferTargets={{ characters: otherCharacters, factions }}
-      summaryChannels={summaryChannels}
+      tagCatalog={tagCatalog}
+      otherCharacters={otherCharacters}
+      desire={desire}
+      desireCooldownUntilTurn={lastEndedDesire?.endedTurnNumber ?? null}
     />
   );
 }

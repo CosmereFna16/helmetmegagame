@@ -51,77 +51,6 @@ export async function updateCharacterProfile(formData) {
   revalidatePath("/character");
 }
 
-export async function transferResources(formData) {
-  const session = await auth();
-  if (!session?.discordUserId) redirect("/");
-
-  const character = await prisma.character.findFirst({
-    where: { discordUserId: session.discordUserId, status: "ALIVE" },
-  });
-  if (!character) redirect("/character");
-
-  const target = formData.get("target")?.toString() ?? "";
-  const [targetType, targetId] = target.split(":");
-  const amount = Number.parseInt(formData.get("amount")?.toString() ?? "", 10);
-  if (!targetType || !targetId || !Number.isFinite(amount) || amount <= 0) return;
-  if (amount > character.resources) return;
-
-  if (targetType === "character") {
-    if (targetId === character.id) return;
-    const targetCharacter = await prisma.character.findFirst({
-      where: { id: targetId, status: "ALIVE" },
-    });
-    if (!targetCharacter) return;
-
-    await prisma.$transaction([
-      prisma.character.update({
-        where: { id: character.id },
-        data: { resources: { decrement: amount } },
-      }),
-      prisma.character.update({
-        where: { id: targetCharacter.id },
-        data: { resources: { increment: amount } },
-      }),
-    ]);
-
-    await prisma.auditLog.create({
-      data: {
-        actorDiscordUserId: session.discordUserId,
-        actionType: "resource_transfer",
-        targetCharacterId: targetCharacter.id,
-        details: { fromCharacterId: character.id, toCharacterId: targetCharacter.id, amount },
-      },
-    });
-  } else if (targetType === "faction") {
-    const faction = await prisma.faction.findUnique({ where: { id: targetId } });
-    if (!faction || faction.name === "Unaffiliated") return;
-
-    await prisma.$transaction([
-      prisma.character.update({
-        where: { id: character.id },
-        data: { resources: { decrement: amount } },
-      }),
-      prisma.faction.update({
-        where: { id: faction.id },
-        data: { silo: { increment: amount } },
-      }),
-    ]);
-
-    await prisma.auditLog.create({
-      data: {
-        actorDiscordUserId: session.discordUserId,
-        actionType: "resource_transfer_to_faction_silo",
-        details: { fromCharacterId: character.id, factionId: faction.id, amount },
-      },
-    });
-  } else {
-    return;
-  }
-
-  revalidatePath("/character");
-  revalidatePath("/faction");
-}
-
 export async function setDefaultEffort(characterId, formData) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
@@ -135,8 +64,18 @@ export async function setDefaultEffort(characterId, formData) {
   if (!description) return;
 
   const shareInSummary = formData.get("shareInSummary") === "on";
-  const summaryChannelId = formData.get("summaryChannelId")?.toString().trim() || null;
   const summaryMessage = formData.get("summaryMessage")?.toString().trim() || null;
+
+  // A Location's plain channel IS its summary channel (see
+  // bot/src/lib/channels.js#isSummaryChannel), so it's derived from where the
+  // character stands rather than picked — the panel has no channel field.
+  const location = character.locationId
+    ? await prisma.location.findUnique({
+        where: { id: character.locationId },
+        select: { discordChannelId: true },
+      })
+    : null;
+  const summaryChannelId = location?.discordChannelId ?? null;
 
   await prisma.defaultEffort.upsert({
     where: { characterId: character.id },

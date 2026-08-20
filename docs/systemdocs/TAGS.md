@@ -10,7 +10,7 @@ unrelated to this system).
 Three levels:
 
 - **Category** — a flat string (`Meta`, `General`, `Skills`, `Status`,
-  `Items`, `Companions`). Not its own DB table; `docs/tags.yaml`'s top-level
+  `Items`, `Assets`). Not its own DB table; `docs/tags.yaml`'s top-level
   `categories:` list is validation-only — `syncTagsFromYaml` rejects any
   tag/group whose `category` isn't in that list.
 - **Group** (`TagGroup`) — optional, scoped to exactly one category, exists
@@ -67,7 +67,7 @@ and `purchasableAfterStart` *are* now read, by the point-buy menu — see §4.)
 
 `pointCost` is the price in the point-buy menu, and it is **signed**:
 positive costs the player points, negative *grants* them (the drawbacks,
-Frail at `-2` and Old at `-1`). Both directions fall out of one subtraction,
+Old at `-2` and Frail at `-3`). Both directions fall out of one subtraction,
 so `remaining >= 0` is the only rule for whether a build is legal.
 
 A character's budget is
@@ -97,7 +97,7 @@ Full writeup of creation, roles, and the wizard: `CHARACTERS.md`.
   Defaults closed.
 - `tradeable` — Items-category flag for a future trade flow; no transfer
   logic exists yet.
-- `defaultDurationTurns` — catalog-level "how many turns does this last once
+- `defaultDurationTurns` (spelled `durationTurns` in the YAML) — catalog-level "how many turns does this last once
   granted," for tags that auto-expire (e.g. Drained is 3). The actual
   per-instance expiry lives on `CharacterTag.expiresTurn` (an absolute turn
   number, computed from this default at grant time), swept by

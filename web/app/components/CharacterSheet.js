@@ -1,19 +1,35 @@
-import { updateCharacterProfile, transferResources } from "../(app)/character/actions";
+import { formatMoodModifier, moodFromTags } from "@lifeweb/db/lib/mood";
+import { updateCharacterProfile } from "../(app)/character/actions";
 import AppearanceField from "./AppearanceField";
 import AvatarField from "./AvatarField";
 import TagChip from "./TagChip";
 import DefaultEffortPanel from "./DefaultEffortPanel";
+import DesirePanel from "./DesirePanel";
+import StatusPanel from "./StatusPanel";
+import TagRequestButtons from "./TagRequestButtons";
 import RichText from "./RichText";
 import FactionLink from "./FactionLink";
 
+// Groups the CharacterTag rows, not the bare Tags — the wrapper carries
+// expiresTurn, which the mood countdown in StatusPanel needs.
 function groupTagsByCategory(characterTags) {
   const groups = new Map();
   for (const ct of characterTags) {
     const category = ct.tag.category?.trim() || "Other";
     if (!groups.has(category)) groups.set(category, []);
-    groups.get(category).push(ct.tag);
+    groups.get(category).push(ct);
   }
   return [...groups.entries()];
+}
+
+// Raw d6 first, then the mood adjustment and the total — a GM reading this
+// has to be able to tell a modified 5 from a natural 5.
+function formatRoll(action) {
+  if (action.diceRoll == null) return "";
+  const mod = action.diceModifier ?? 0;
+  if (!mod) return ` — rolled ${action.diceRoll}`;
+  const sign = mod > 0 ? `+${mod}` : `${mod}`;
+  return ` — rolled ${action.diceRoll} (${sign}) = ${action.diceRoll + mod}`;
 }
 
 function ActionStatus({ currentAction, openTurn }) {
@@ -47,7 +63,7 @@ function ActionStatus({ currentAction, openTurn }) {
       )}
       {currentAction.status === "CONFIRMED" && currentAction.moveReviewStatus !== "SOLVED" && (
         <p style={{ color: "var(--muted)" }}>
-          Confirmed{currentAction.diceRoll != null ? ` — rolled ${currentAction.diceRoll}` : ""} — awaiting GM review.
+          Confirmed{formatRoll(currentAction)} — awaiting GM review.
         </p>
       )}
       {(currentAction.status === "ADJUDICATED" || currentAction.moveReviewStatus === "SOLVED") && (
@@ -65,8 +81,12 @@ export default function CharacterSheet({
   currentAction,
   openTurn,
   avatarSrc,
+  transferSources,
   transferTargets,
-  summaryChannels,
+  tagCatalog,
+  otherCharacters,
+  desire,
+  desireCooldownUntilTurn,
 }) {
   const isSelf = mode === "self";
   const tagGroups = groupTagsByCategory(character.tags);
@@ -128,54 +148,13 @@ export default function CharacterSheet({
           </section>
         )}
 
-      <section className="panel p-4">
-        <h2 className="mb-3 font-bold">Status</h2>
-        <ul className="flex flex-col gap-1 text-sm">
-          <li>
-            Location: {character.zone?.name ?? "Unassigned"}
-            {character.location?.name ? ` / ${character.location.name}` : ""}
-          </li>
-          <li>Resources ⬢: {character.resources}</li>
-        </ul>
-
-        {isSelf && (
-          <form action={transferResources} className="mt-4 flex flex-wrap items-end gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
-            <label className="field">
-              <span className="field-label">Send resources ⬢ to</span>
-              <select name="target" required defaultValue="">
-                <option value="" disabled>
-                  Choose a recipient...
-                </option>
-                {transferTargets?.characters?.length ? (
-                  <optgroup label="Players">
-                    {transferTargets.characters.map((c) => (
-                      <option key={c.id} value={`character:${c.id}`}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                ) : null}
-                {transferTargets?.factions?.length ? (
-                  <optgroup label="Factions (adds to Silo)">
-                    {transferTargets.factions.map((f) => (
-                      <option key={f.id} value={`faction:${f.id}`}>
-                        {f.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                ) : null}
-              </select>
-            </label>
-            <label className="field" style={{ width: "6rem" }}>
-              <span className="field-label">Amount</span>
-              <input name="amount" type="number" min="1" max={character.resources} required />
-            </label>
-            <button type="submit" className="btn" disabled={character.resources <= 0}>
-              Transfer
-            </button>
-          </form>
-        )}
-      </section>
+        <StatusPanel
+          character={character}
+          isSelf={isSelf}
+          openTurn={openTurn}
+          sources={transferSources}
+          targets={transferTargets}
+        />
 
       {!isSelf && currentAction && (
         <section className="panel p-4">
@@ -186,7 +165,17 @@ export default function CharacterSheet({
       </div>
 
       <section className="panel p-4">
-        <h2 className="mb-3 font-bold">Tags</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-bold">Tags</h2>
+          {isSelf && (
+            <TagRequestButtons
+              catalog={tagCatalog ?? []}
+              characterTags={character.tags}
+              resources={character.resources}
+              otherCharacters={otherCharacters ?? []}
+            />
+          )}
+        </div>
         {tagGroups.length === 0 ? (
           <p className="text-sm" style={{ color: "var(--muted)" }}>No tags yet.</p>
         ) : (
@@ -195,9 +184,9 @@ export default function CharacterSheet({
               <div key={category}>
                 <p className="field-label mb-1">{category}</p>
                 <ul className="flex flex-wrap gap-2">
-                  {tags.map((tag) => (
-                    <li key={tag.id}>
-                      <TagChip tag={tag} />
+                  {tags.map((ct) => (
+                    <li key={ct.tag.id}>
+                      <TagChip tag={ct.tag} />
                     </li>
                   ))}
                 </ul>
@@ -208,10 +197,18 @@ export default function CharacterSheet({
       </section>
 
       {isSelf && (
+        <DesirePanel
+          desire={desire ?? null}
+          cooldownUntilTurn={desireCooldownUntilTurn ?? null}
+          openTurnNumber={openTurn?.number ?? null}
+        />
+      )}
+
+      {isSelf && (
         <DefaultEffortPanel
           characterId={character.id}
           defaultEffort={character.defaultEffort ?? null}
-          summaryChannels={summaryChannels ?? []}
+          location={character.location ?? null}
         />
       )}
     </div>

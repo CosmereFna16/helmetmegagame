@@ -153,14 +153,17 @@ export default async function AuditLogPage({ searchParams }) {
         </button>
       </form>
 
-      <div className="panel overflow-x-auto">
-        <table className="data-table">
+      {/* Tall, fixed-height scroller with a pinned header — the log is long
+          and a GM scans it rather than paging through it. */}
+      <div className="panel table-scroll">
+        <table className="data-table" style={{ minWidth: "900px" }}>
           <thead>
             <tr>
               <th>Time</th>
               <th>Action</th>
               <th>Player</th>
               <th>Target</th>
+              <th>Reason</th>
               <th>Details</th>
             </tr>
           </thead>
@@ -184,12 +187,15 @@ export default async function AuditLogPage({ searchParams }) {
                 <td>
                   <CharacterLink characterId={entry.targetCharacter?.id} name={entry.targetCharacter?.name} isGm />
                 </td>
+                {/* Only Request-backed entries carry a reason (see
+                    web/lib/requests.js#logRequest); everything else is blank. */}
+                <td style={{ minWidth: "14rem" }}>{entry.reason ?? ""}</td>
                 <td className="max-w-xs truncate">{entry.details ? JSON.stringify(entry.details) : ""}</td>
               </tr>
             ))}
             {entries.length === 0 && (
               <tr>
-                <td colSpan={5} className="text-center" style={{ color: "var(--muted)" }}>
+                <td colSpan={6} className="text-center" style={{ color: "var(--muted)" }}>
                   No entries match these filters.
                 </td>
               </tr>

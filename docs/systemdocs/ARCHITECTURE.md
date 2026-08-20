@@ -115,14 +115,12 @@ Source: `web/app/character/actions.js` (`submitAction`), `bot/src/events/message
 
 ## 6. Resources ⬢ & Needs
 
-Schema already carries the fields (`Character.resources`, `isHungry`, `moodState`, `moodExpiresTurn`, `GameConfig.resourceConsumptionPerTurn/hungerMovePenalty/moodMovePenalty/moodMoveBonus/moodDurationTurns`) but **no code applies them yet**. This logic belongs inside `advanceTurn()` (§2), run once per turn close:
-
-1. Decrement every `ALIVE` character's `resources` by `resourceConsumptionPerTurn`.
-2. Any character whose `resources` went below 0 (or who had 0 and consumed nothing): set `isHungry = true`. Anyone who ate: `isHungry = false`.
-3. Decrement `moodExpiresTurn` tracking; when it lapses, reset `moodState` to `NEUTRAL`.
-4. Hunger and mood penalties/bonuses apply as modifiers wherever dice are rolled (currently `rollDie()` in `messageReactionAdd.js` — that function doesn't take modifiers today; it will need to read the character's `isHungry`/`moodState` and adjust, or report the roll and modifier separately for the GM to combine).
-
-Happy/Unhappy is explicitly player-judgment per the brief ("it's up to you to determine whether your character is happy... don't abuse it") — not automatic. **Decision: self-report, with a GM override as the anti-abuse valve.** Character view gets a small mood selector (Neutral/Happy/Unhappy) the player sets themselves, plus an optional short note for GM visibility; the Players view (§4) gives GMs a way to force-reset a character's mood if it's being gamed. `moodExpiresTurn` gets (re)set whenever the mood changes, per `GameConfig.moodDurationTurns` (currently 2 turns).
+> **Superseded.** This section previously specified a Mood system built on
+> `Character.moodState` / `moodExpiresTurn` columns and a set of
+> `GameConfig.mood*` knobs. Those columns never existed in the shipped schema
+> and the design was replaced: Mood is now two ordinary Status tags riding
+> `CharacterTag.expiresTurn` and the existing `resolveNeeds()` sweep. See
+> `REQUESTS.md` §4. Hunger remains unbuilt.
 
 **Convention: `⬢` is the canonical Resources glyph.** It's placed right after the word "Resources" (or "Silo", see below) wherever a count is shown in the dashboard — status lists, table headers, transfer forms. Keep using it on any new Resources/Silo display rather than introducing a different icon.
 

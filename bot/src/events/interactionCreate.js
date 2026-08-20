@@ -5,6 +5,7 @@ const { performLabor } = require("../lib/labor");
 const { sendDm } = require("../lib/dm");
 const { buildMoveComponents, buildMoveContent, moveKindLabel } = require("../lib/moveComponents");
 const { rollResourceDice } = require("../lib/resourceDelta");
+const { moodFromTags, moodModifier, moodLabel } = require("@lifeweb/db/lib/mood");
 
 function rollDie(sides = 6) {
   return 1 + Math.floor(Math.random() * sides);
@@ -174,7 +175,12 @@ async function handleCancel(interaction) {
 // picks are written straight to the Action row and the message is re-rendered
 // in place via interaction.update() so nothing is ever deleted/resent.
 async function findMoveAction(actionId) {
-  return prisma.action.findUnique({ where: { id: actionId }, include: { character: true } });
+  return prisma.action.findUnique({
+    where: { id: actionId },
+    // Mood is two ordinary Status tags, so the ±1 Gambit modifier is read off
+    // the character's tags rather than a column (db/lib/mood.js).
+    include: { character: { include: { tags: { include: { tag: true } } } } },
+  });
 }
 
 function isEditableMove(action, interaction) {
@@ -221,6 +227,11 @@ async function handleMoveConfirm(interaction, actionId) {
   }
 
   const diceRoll = action.moveKind === "GAMBIT" ? rollDie() : null;
+  // Only a Gambit rolls, so only a Gambit can carry a mood modifier. diceRoll
+  // stays the RAW roll and the adjustment is stored beside it — see the
+  // Action.diceModifier comment in schema.prisma.
+  const mood = moodFromTags(action.character.tags);
+  const diceModifier = diceRoll != null ? moodModifier(mood) : null;
   const diceResult = action.resourceDiceExpression ? rollResourceDice(action.resourceDiceExpression) : null;
 
   await prisma.action.update({
@@ -228,7 +239,7 @@ async function handleMoveConfirm(interaction, actionId) {
     data: {
       status: "CONFIRMED",
       confirmedAt: new Date(),
-      ...(diceRoll != null ? { diceRoll } : {}),
+      ...(diceRoll != null ? { diceRoll, diceModifier } : {}),
       ...(diceResult
         ? { resourceDiceRoll: diceResult.value, resourceDelta: (action.resourceDelta ?? 0) + diceResult.value }
         : {}),
@@ -240,7 +251,7 @@ async function handleMoveConfirm(interaction, actionId) {
       actorDiscordUserId: interaction.user.id,
       actionType: "move_confirmed",
       targetCharacterId: action.characterId,
-      details: { actionId: action.id, diceRoll, resourceDiceRoll: diceResult?.value ?? null },
+      details: { actionId: action.id, diceRoll, diceModifier, resourceDiceRoll: diceResult?.value ?? null },
     },
   });
 
@@ -248,7 +259,13 @@ async function handleMoveConfirm(interaction, actionId) {
     `» ${action.description}`,
     `Kind: **${moveKindLabel(action.moveKind)}**${action.opposed ? " — Opposed" : ""}`,
   ];
-  if (diceRoll != null) lines.push(`🎲 **${diceRoll}**`);
+  if (diceRoll != null) {
+    lines.push(
+      diceModifier
+        ? `🎲 **${diceRoll}** ${diceModifier > 0 ? "+" : "−"}${Math.abs(diceModifier)} ${moodLabel(mood)} → **${diceRoll + diceModifier}**`
+        : `🎲 **${diceRoll}**`,
+    );
+  }
   if (diceResult) {
     lines.push(
       `**Resource roll (${action.resourceDiceExpression}):** rolled ${diceResult.sum} → ${diceResult.value > 0 ? "+" : ""}${diceResult.value}`,

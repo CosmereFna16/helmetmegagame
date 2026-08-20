@@ -1,3 +1,20 @@
+// Some launchers export DATABASE_URL with its .env quotes still attached
+// (`DATABASE_URL="postgres://..."`), which Prisma rejects with a baffling
+// "the URL must start with the protocol postgresql://". Strip one matched
+// pair of surrounding quotes. This has to happen BEFORE @prisma/client is
+// required — the generated client snapshots its datasource env at module
+// load, so fixing it afterwards is too late. This is the single place the
+// client is constructed for the bot, the web app, and every script.
+function normalizedDatabaseUrl() {
+  const raw = process.env.DATABASE_URL;
+  if (!raw) return raw;
+  const unquoted = raw.trim().replace(/^(["'])([\s\S]*)\1$/, "$2");
+  if (unquoted !== raw) process.env.DATABASE_URL = unquoted;
+  return unquoted;
+}
+
+const databaseUrl = normalizedDatabaseUrl();
+
 const { PrismaClient } = require("@prisma/client");
 const { rollWeather, buildTurnAnnouncement } = require("./weather");
 const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
@@ -11,7 +28,8 @@ const { syncNarrowcastChannels } = require("./lib/syncNarrowcastChannels");
 
 const globalForPrisma = globalThis;
 
-const prisma = globalForPrisma.prisma ?? new PrismaClient();
+const prisma =
+  globalForPrisma.prisma ?? new PrismaClient(databaseUrl ? { datasourceUrl: databaseUrl } : undefined);
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
@@ -117,4 +135,5 @@ module.exports = {
   ...require("./lib/roleCapacity"),
   ...require("./lib/production"),
   ...require("./lib/formatTagRequirement"),
+  ...require("./lib/mood"),
 };

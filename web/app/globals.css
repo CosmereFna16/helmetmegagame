@@ -15,6 +15,7 @@
   --text: #f0e9d8;
   --accent: #c9552b;
   --positive: #7fa87a;
+  --warning: #d08a3c;
   --row-hover: rgba(255, 255, 255, 0.04);
 }
 
@@ -29,6 +30,7 @@
   --text: #2c332f;
   --accent: #b8481f;
   --positive: #4f6b46;
+  --warning: #a35f13;
   --row-hover: rgba(0, 0, 0, 0.03);
 }
 
@@ -455,6 +457,63 @@ h2 {
 
 .data-table tbody tr:hover td {
   background: var(--row-hover);
+}
+
+/* A long table that stays put: fixed tall viewport, both scroll axes inside
+   the container, and a header that stays pinned while the body scrolls. The
+   page body itself must never scroll sideways, which is why the overflow
+   lives here rather than on an ancestor. */
+.table-scroll {
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.table-scroll .data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel-bg);
+}
+
+/* Sortable column headers — a button that inherits the th's own type styling
+   rather than introducing a second look inside the header row. */
+.th-sort {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.th-sort:hover {
+  color: var(--text);
+}
+
+/* Square icon button for a table row action (adjudicate, message). Framed by
+   default and filled on hover, matching .btn-quiet -> .btn. */
+.icon-btn {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--muted);
+  line-height: 1;
+}
+
+.icon-btn:hover {
+  color: var(--text);
+  background: var(--row-hover);
+  border-color: var(--accent);
+}
+
+.icon-btn:disabled {
+  cursor: default;
+  opacity: 0.4;
 }
 
 /* App shell: left rail on desktop, bottom bar on mobile. */
