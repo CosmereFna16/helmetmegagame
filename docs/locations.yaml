@@ -1,9 +1,16 @@
-# Source of truth for the game's Zones/Locations, meant to be hand-edited
-# then pushed with `npm run db:sync-locations` (db/prisma/sync-locations.js).
+# Source of truth for the game's Zones/Locations, hand-edited then pushed
+# with `npm run db:sync-locations` (db/prisma/sync-locations.js). This sync
+# is fully destructive in both directions: entries here are upserted into
+# the DB and Discord, and any Zone/Location NOT listed here gets its Discord
+# category+channels deleted and its DB row removed. Removing an entry is a
+# real delete — there's no undo short of re-adding it (which provisions a
+# brand-new category/channels, since removed/re-added locations lose their
+# old Discord IDs).
 #
 # - id: a stable slug, used to match this entry to its DB row across syncs.
 #   Renaming a location later means changing `name` here, NOT `id` — a
-#   changed `id` is treated as a brand-new location instead of a rename.
+#   changed `id` is treated as a brand-new location (old one gets pruned,
+#   new one gets provisioned from scratch) instead of a rename.
 # - name: display name (standardize on Title Case). Only used as the Discord
 #   channel/category name the FIRST time a location is provisioned —
 #   renaming it here later does not rename already-provisioned Discord
@@ -14,62 +21,173 @@
 #   "town-square"/"town-square-public"/"town-square-private". Not a bug,
 #   just a Discord platform rule.
 # - zone: the Zone this location belongs to, matched/created by name.
+# - description: a sentence or two of flavor text for the location.
+# - publicSubLocations: ordered list (most important/flavorful first) of the
+#   sub-areas players can spin up forum posts for in the location's `-public`
+#   channel. Purely descriptive — there's no enforcement tying a forum post
+#   to one of these names.
+# - privateSubLocations: same idea, for secret/GM-facing sub-areas. Not
+#   surfaced anywhere yet beyond this file.
 # - tags: free-text flavor/categorization labels for the location itself —
 #   unrelated to the player-facing Tag system. Empty until you fill them in.
 #
-# Adding a new entry and re-running the sync creates its Zone (if new) and
-# Location row, then provisions its Discord channels. Removing an entry from
-# this file does NOT delete anything in Discord or the DB — sync is
-# create/update only, never destructive.
+# `description` + `publicSubLocations` are also pushed to Discord: every
+# sync (re)writes the location's plain/summary channel topic to
+# `{description} | **Sublocations**: {publicSubLocations, comma-joined}` —
+# unlike the channel name, this keeps syncing on every run, even for
+# already-provisioned locations, so editing these two fields and re-running
+# the sync is enough to update the live channel topic.
+#
+# Locations within a zone are ordered by narrative importance (throne room
+# first, etc.) — purely for readability of this file; it has no effect on
+# Discord's actual category ordering, which stays alphabetical by
+# "{Zone} / {Location}" (see sortLocationCategories).
 
 locations:
-  - id: church
-    name: Church
-    zone: Town
-    tags: []
-  - id: sanctuary
-    name: Sanctuary
-    zone: Town
-    tags: []
-  - id: inn
-    name: Inn
-    zone: Town
-    tags: []
-  - id: town-square
-    name: Town Square
-    zone: Town
-    tags: []
-  - id: fields
-    name: Fields
-    zone: Town
-    tags: []
-
+  # --- Fortress ---
   - id: keep
     name: Keep
     zone: Fortress
+    description: Ceramite, the color of terracotta and steel, supports the impregnable fortress.
+    publicSubLocations:
+      - Throne Room
+      - Drawing Room
+      - Ballroom
+      - Council
+      - The Charon
+      - Quarters
+      - Kitchen
+      - Healer's Ward
+      - Library
+      - Reliquary Chapel
+    privateSubLocations: []
     tags: []
   - id: garrison
     name: Garrison
     zone: Fortress
+    description: The garrison tower, surrounded by smaller stone buildings.
+    publicSubLocations:
+      - Captain's Office
+      - Barracks
+      - Armory
+      - Dungeons
+      - Training Yard
+      - Kennels
+    privateSubLocations: []
     tags: []
-  - id: lifeweb
-    name: Lifeweb
+  - id: gatehouse
+    name: Gatehouse
     zone: Fortress
+    description: Grass rises rebelliously around the manicured paths. Past the portcullis, old stone stairs rise towards the Keep, and further yet, to the Lifeweb.
+    publicSubLocations:
+      - Gate
+      - Lifeweb
+      - Yard
+      - Stables
+      - Bell Tower
+    privateSubLocations: []
     tags: []
-  - id: catacombs
-    name: Catacombs
+  - id: undercroft
+    name: Undercroft
     zone: Fortress
+    description: Pillars uphold the keep from collapsing onto the barrels of wine and antiquities. There are deeper passages.
+    publicSubLocations:
+      - Cistern
+      - Tombs
+      - Bricked-up Door
+    privateSubLocations: []
     tags: []
 
-  - id: six-spoked-wheel-camp
-    name: Six-Spoked Wheel Camp
-    zone: Windlands
+  # --- Town ---
+  - id: town
+    name: Town
+    zone: Town
+    description: Vines dress the homes. A crumbling wall, patched with wooden palisade, surrounds the town.
+    publicSubLocations:
+      - Town Square
+      - Fields
+      - Inn
+      - Market Row
+      - Gallows
+      - Fountain
+      - Smithery
+    privateSubLocations: []
     tags: []
-  - id: broken-spears-camp
-    name: Broken Spears Camp
-    zone: Windlands
+  - id: church
+    name: Cathedral
+    zone: Town
+    description: Stained limestone erected modestly upon a tall wooded hill. The inside is vastly illuminated.
+    publicSubLocations:
+      - Hall
+      - Vestry
+      - Crypt
+      - Bell Tower
+      - Confessionals
+      - Scriptorium
+      - Courtyard
+      - Houses
+    privateSubLocations: []
     tags: []
-  - id: bastards-camp
-    name: Bastard's Camp
+  - id: sanctuary
+    name: Sanctuary
+    zone: Town
+    description: A squat and vulnerable place, immaculately clean.
+    publicSubLocations:
+      - Ward
+      - Esculap's Office
+      - Theater
+      - Icebox
+      - Morgue
+      - Garden
+    privateSubLocations: []
+    tags: []
+  - id: underquarter
+    name: Underquarter
+    zone: Town
+    description: Squat buildings, piled into discomfort.
+    publicSubLocations:
+      - Shacks
+      - Abandoned Theater
+      - Gambling Den
+      - Bathhouse
+      - Old Lots
+    privateSubLocations: []
+    tags: []
+
+  # --- Windlands ---
+  - id: warcamp
+    name: Warcamp
     zone: Windlands
+    description: An arbitrary array of tents, shields, and banners rise against the mountainside.
+    publicSubLocations:
+      - War Pavilion
+      - Common Grounds
+      - Healer's Tents
+      - Mess Hall
+      - Broken Spears Camp
+      - Lieutenant's Camp
+      - Fields
+      - Mountains
+    privateSubLocations: []
+    tags: []
+
+  # --- Caves ---
+  - id: customs
+    name: Customs
+    zone: Caves
+    description: The sentry beholds migrants and miners as they talk around the fire.
+    publicSubLocations:
+      - Outpost
+      - Mining Camp
+    privateSubLocations: []
+    tags: []
+  - id: merchants-depot
+    name: Merchant's Depot
+    zone: Caves
+    description: Tunnels.
+    publicSubLocations:
+      - Ledger Room
+      - Shuttle Pad
+      - Bunkhouse
+    privateSubLocations: []
     tags: []

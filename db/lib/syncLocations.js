@@ -2,24 +2,37 @@
 // (manual `npm run db:sync-locations`) and wipeGameData's "Restart Game" flow
 // (web/app/(app)/gm/dev/actions.js) — see the "Zones, Locations, and
 // character roles" section of root CLAUDE.md. docs/locations.yaml is the
-// sole creation path for Zone/Location rows; this function is upsert-only
-// and never deletes/deprovisions anything, so a removed YAML entry just
-// leaves its existing DB row and Discord channels in place.
+// sole source of truth for the Zone/Location roster: this function fully
+// reconciles DB + Discord to match it, both upserting entries present in the
+// YAML and destructively removing (DB row + Discord category/channels) any
+// Zone/Location no longer listed there.
 //
-// Two passes:
+// Three passes:
 //   1. DB upsert: for each YAML entry, upsert its Zone (matched by name —
-//      Zone has no slug, a known fragility left for the upcoming location
-//      redesign) and its Location (matched by slug, falling back to a
-//      name+zone match for legacy pre-slug rows). Only name/tags/zoneId are
-//      ever written — discord*Id fields are untouched.
-//   2. Discord provisioning: any Location still missing discordCategoryId
-//      gets its category + 3 channels created (same layout as the GM Panel's
-//      "Provision Discord channels" button). Already-provisioned locations
-//      are never touched.
+//      Zone has no slug, a known fragility) and its Location (matched by
+//      slug, falling back to a name+zone match for legacy pre-slug rows).
+//   2. Discord provisioning + topic sync: any Location still missing
+//      discordCategoryId gets its category + 3 channels created (same layout
+//      as the GM Panel's "Provision Discord channels" button). Every
+//      Location's plain (summary) channel topic is then (re)written to
+//      `{description} | **Sublocations**: {publicSubLocations}` so edits to
+//      those YAML fields keep propagating even for already-provisioned
+//      Locations — unlike the category/channel *names*, which are never
+//      touched post-provisioning (see CLAUDE.md).
+//   3. Prune: any Location whose slug isn't in the current YAML entries has
+//      its Discord category+channels deleted and its DB row removed;
+//      afterwards, any Zone left with zero Locations and whose name isn't in
+//      the current YAML zone list is deleted too.
 const fs = require("node:fs");
 const path = require("node:path");
 const yaml = require("js-yaml");
-const { createChannel, getGuildChannels, patchGuildChannelPositions } = require("./discordRest");
+const {
+  createChannel,
+  deleteChannel,
+  getGuildChannels,
+  patchChannel,
+  patchGuildChannelPositions,
+} = require("./discordRest");
 
 const CHANNEL_TYPE_TEXT = 0;
 const CHANNEL_TYPE_CATEGORY = 4;
@@ -29,6 +42,14 @@ const PERM_VIEW_CHANNEL = 1024;
 const PERM_SEND_MESSAGES = 2048;
 const PERM_CREATE_PUBLIC_THREADS = 34359738368;
 const PERM_CREATE_PRIVATE_THREADS = 68719476736;
+
+function buildSummaryTopic(location) {
+  const description = location.description || "";
+  const subLocations = location.publicSubLocations ?? [];
+  if (subLocations.length === 0) return description || null;
+  const suffix = `**Sublocations**: ${subLocations.join(", ")}`;
+  return description ? `${description} | ${suffix}` : suffix;
+}
 
 async function provisionLocationChannels(prisma, location) {
   const guildId = process.env.DISCORD_GUILD_ID;
@@ -47,6 +68,7 @@ async function provisionLocationChannels(prisma, location) {
     type: CHANNEL_TYPE_TEXT,
     parent_id: category.id,
     rate_limit_per_user: 60,
+    topic: buildSummaryTopic(location) ?? undefined,
   });
   const publicChannel = await createChannel({
     name: `${location.name}-public`,
@@ -80,6 +102,23 @@ async function provisionLocationChannels(prisma, location) {
   });
 }
 
+// Deletes a Location's Discord category + all three channels, if it was ever
+// provisioned. Order doesn't matter to Discord (deleting a category doesn't
+// cascade to its children), but each call is independently allow404'd so a
+// partially-deprovisioned Location (e.g. a channel already removed by hand)
+// doesn't block the rest.
+async function deprovisionLocationChannels(location) {
+  const ids = [
+    location.discordChannelId,
+    location.discordPublicChannelId,
+    location.discordPrivateChannelId,
+    location.discordCategoryId,
+  ].filter(Boolean);
+  for (const id of ids) {
+    await deleteChannel(id);
+  }
+}
+
 // Re-sorts every provisioned Location's category alphabetically by
 // "{Zone} / {Location}", leaving every other category's position untouched.
 async function sortLocationCategories(prisma) {
@@ -108,6 +147,8 @@ async function syncLocationsFromYaml(prisma) {
   const yamlPath = path.join(__dirname, "..", "..", "docs", "locations.yaml");
   const doc = yaml.load(fs.readFileSync(yamlPath, "utf8"));
   const entries = doc?.locations ?? [];
+  const entryIds = new Set(entries.map((e) => e.id));
+  const entryZoneNames = new Set(entries.map((e) => e.zone));
 
   let zonesCreated = 0;
   let locationsCreated = 0;
@@ -129,6 +170,9 @@ async function syncLocationsFromYaml(prisma) {
   for (const entry of entries) {
     const zone = await resolveZone(entry.zone);
     const tags = entry.tags ?? [];
+    const description = entry.description ?? "";
+    const publicSubLocations = entry.publicSubLocations ?? [];
+    const privateSubLocations = entry.privateSubLocations ?? [];
 
     let location = await prisma.location.findUnique({ where: { slug: entry.id } });
     if (!location) {
@@ -138,22 +182,22 @@ async function syncLocationsFromYaml(prisma) {
       location = await prisma.location.findFirst({ where: { name: entry.name, zoneId: zone.id } });
     }
 
+    const data = { slug: entry.id, name: entry.name, zoneId: zone.id, tags, description, publicSubLocations, privateSubLocations };
+
     if (!location) {
-      location = await prisma.location.create({
-        data: { slug: entry.id, name: entry.name, zoneId: zone.id, tags },
-      });
+      location = await prisma.location.create({ data });
       locationsCreated += 1;
     } else {
       const needsUpdate =
         location.slug !== entry.id ||
         location.name !== entry.name ||
         location.zoneId !== zone.id ||
-        JSON.stringify(location.tags) !== JSON.stringify(tags);
+        location.description !== description ||
+        JSON.stringify(location.tags) !== JSON.stringify(tags) ||
+        JSON.stringify(location.publicSubLocations) !== JSON.stringify(publicSubLocations) ||
+        JSON.stringify(location.privateSubLocations) !== JSON.stringify(privateSubLocations);
       if (needsUpdate) {
-        location = await prisma.location.update({
-          where: { id: location.id },
-          data: { slug: entry.id, name: entry.name, zoneId: zone.id, tags },
-        });
+        location = await prisma.location.update({ where: { id: location.id }, data });
         locationsUpdated += 1;
       }
     }
@@ -169,11 +213,37 @@ async function syncLocationsFromYaml(prisma) {
     await sortLocationCategories(prisma);
   }
 
+  // Topic sync: keep every already-provisioned Location's summary-channel
+  // topic in step with its (possibly just-edited) description/sublocations —
+  // the one thing this deliberately still touches post-provisioning, since
+  // it's cosmetic content rather than the channel's name/identity.
+  const provisioned = upserted.filter((l) => l.discordChannelId);
+  for (const location of provisioned) {
+    await patchChannel(location.discordChannelId, { topic: buildSummaryTopic(location) ?? "" });
+  }
+
+  // Prune: destructively remove any Location no longer listed in the YAML.
+  const stale = await prisma.location.findMany({ where: { slug: { notIn: [...entryIds] } } });
+  for (const location of stale) {
+    await deprovisionLocationChannels(location);
+    await prisma.location.delete({ where: { id: location.id } });
+  }
+
+  // Prune empty, no-longer-referenced Zones.
+  const staleZones = await prisma.zone.findMany({
+    where: { name: { notIn: [...entryZoneNames] }, locations: { none: {} } },
+  });
+  for (const zone of staleZones) {
+    await prisma.zone.delete({ where: { id: zone.id } });
+  }
+
   return {
     zonesCreated,
     locationsCreated,
     locationsUpdated,
     provisioned: unprovisioned.map((l) => l.name),
+    pruned: stale.map((l) => l.name),
+    zonesPruned: staleZones.map((z) => z.name),
   };
 }
 

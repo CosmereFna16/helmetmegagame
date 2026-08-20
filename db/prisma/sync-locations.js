@@ -23,6 +23,12 @@ async function main() {
   } else {
     console.log("no locations needed Discord provisioning");
   }
+  if (summary.pruned.length > 0) {
+    console.log(`pruned (deleted from DB + Discord): ${summary.pruned.join(", ")}`);
+  }
+  if (summary.zonesPruned.length > 0) {
+    console.log(`zones pruned: ${summary.zonesPruned.join(", ")}`);
+  }
 }
 
 main()

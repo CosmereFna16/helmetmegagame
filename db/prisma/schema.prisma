@@ -158,6 +158,9 @@ model Location {
   id                      String   @id @default(cuid())
   slug                    String?  @unique
   name                    String
+  description             String   @default("")
+  publicSubLocations      String[] @default([])
+  privateSubLocations     String[] @default([])
   tags                    String[] @default([])
   zoneId                  String
   zone                    Zone     @relation(fields: [zoneId], references: [id])

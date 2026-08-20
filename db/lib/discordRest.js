@@ -61,6 +61,10 @@ async function getChannel(channelId) {
   return discordRequest(`/channels/${channelId}`);
 }
 
+async function deleteChannel(channelId) {
+  return discordRequest(`/channels/${channelId}`, { method: "DELETE", allow404: true });
+}
+
 async function patchChannel(channelId, payload) {
   return discordRequest(`/channels/${channelId}`, { method: "PATCH", body: payload });
 }
@@ -217,6 +221,7 @@ async function ensureForumTag(channelId, tagName, emojiName) {
 module.exports = {
   getGuildChannels,
   getChannel,
+  deleteChannel,
   createChannel,
   patchGuildChannelPositions,
   patchChannel,
