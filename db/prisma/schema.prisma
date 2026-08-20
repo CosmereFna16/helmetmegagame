@@ -89,7 +89,7 @@ model GameConfig {
   messageWipeEnabled Boolean @default(false)
 
   // Capitalizes the first letter of each sentence in Tupper-proxied messages
-  // before they're reposted (bot/src/lib/textCorrection.js) — off by default,
+  // before they're reposted (bot/src/lib/textCorrection.js) — on by default,
   // purely cosmetic, never touches anything but sentence-start casing.
   tupperAutocorrectEnabled Boolean @default(true)
 
