@@ -287,11 +287,14 @@ h2 {
   letter-spacing: 0.03em;
 }
 
-/* Universal tag hover tooltip — wraps a .chip, shows name/description/value. */
+/* Universal tag hover tooltip — wraps a .chip, shows name/description/value.
+   Declared here (not left to inherit) since .tag-hover/InfoIcon often sit
+   inside an <h1>/<h2>, which globally switches to the serif face. */
 .tag-hover {
   position: relative;
   display: inline-flex;
   outline: none;
+  font-family: var(--font-mono), ui-monospace, "SFMono-Regular", monospace;
 }
 
 .tag-tooltip {
@@ -306,6 +309,7 @@ h2 {
   background: var(--panel-bg);
   border-radius: var(--radius);
   padding: 8px 10px;
+  font-family: var(--font-mono), ui-monospace, "SFMono-Regular", monospace;
   font-size: 0.75rem;
   line-height: 1.4;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);

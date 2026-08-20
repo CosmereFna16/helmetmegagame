@@ -10,6 +10,15 @@ import TagRequestButtons from "./TagRequestButtons";
 import RichText from "./RichText";
 import FactionLink from "./FactionLink";
 
+// Fixed display order rather than alphabetical or catalog order — Status
+// (Mood, buffs/debuffs) belongs near the top, ahead of General/Skills.
+const CATEGORY_ORDER = ["Meta", "Status", "General", "Skills", "Assets"];
+
+function categoryRank(category) {
+  const i = CATEGORY_ORDER.indexOf(category);
+  return i === -1 ? CATEGORY_ORDER.length : i;
+}
+
 // Groups the CharacterTag rows, not the bare Tags — the wrapper carries
 // expiresTurn, which the mood countdown in StatusPanel needs.
 function groupTagsByCategory(characterTags) {
@@ -19,7 +28,9 @@ function groupTagsByCategory(characterTags) {
     if (!groups.has(category)) groups.set(category, []);
     groups.get(category).push(ct);
   }
-  return [...groups.entries()];
+  return [...groups.entries()].sort(
+    (a, b) => categoryRank(a[0]) - categoryRank(b[0]) || a[0].localeCompare(b[0]),
+  );
 }
 
 // Raw d6 first, then the mood adjustment and the total — a GM reading this
