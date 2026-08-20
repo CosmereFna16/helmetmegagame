@@ -1,5 +1,5 @@
 const { WebhookClient, EmbedBuilder } = require("discord.js");
-const { prisma } = require("@lifeweb/db");
+const { prisma, formatTagRequirement } = require("@lifeweb/db");
 const { recentProxies } = require("../lib/proxy");
 const { sendDm } = require("../lib/dm");
 
@@ -139,11 +139,21 @@ module.exports = {
     if (emoji === INSPECT_EMOJI) {
       const character = await prisma.character.findUnique({
         where: { id: proxy.characterId },
-        include: { tags: { include: { tag: true } } },
+        include: {
+          tags: { include: { tag: { include: { requirementSkills: { select: { name: true } } } } } },
+        },
       });
       if (!character) return;
 
-      const visibleTags = character.tags.filter((ct) => ct.tag.visibleOnInspect).map((ct) => ct.tag.name);
+      // Each entry is the tag name, plus a minified "cost to add/remove"
+      // suffix (see formatTagRequirement, @lifeweb/db) when the tag has
+      // requirement data set — mind Discord's 1024-char embed field cap.
+      const visibleTags = character.tags
+        .filter((ct) => ct.tag.visibleOnInspect)
+        .map((ct) => {
+          const requirement = formatTagRequirement(ct.tag);
+          return requirement ? `${ct.tag.name} (${requirement})` : ct.tag.name;
+        });
 
       const embed = new EmbedBuilder()
         .setTitle(character.name)

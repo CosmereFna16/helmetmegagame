@@ -6,13 +6,16 @@
 // from the YAML just leaves its existing DB row untouched (same contract as
 // syncLocations.js).
 //
-// Four passes, since tags/groups can reference each other by slug before
+// Five passes, since tags/groups can reference each other by slug before
 // every row necessarily exists yet:
 //   1. Upsert every TagGroup's scalar fields (slug/name/category/color).
 //   2. Upsert every Tag's scalar fields + groupId (groups exist from pass 1).
 //   3. Resolve each Tag's parentTag/requiredTag slug references now that
 //      every Tag row exists.
 //   4. Resolve each TagGroup's requiredTag slug reference.
+//   5. Resolve each Tag's requirement.skills slug list (requirementSkills,
+//      a many-to-many self-relation) now that every Tag row exists — same
+//      reason this can't happen in pass 2, alongside pass 3/4.
 // Each pass only writes when something actually changed, same
 // needsUpdate-style diff check as syncLocationsFromYaml.
 const fs = require("node:fs");
@@ -92,6 +95,11 @@ async function syncTagsFromYaml(prisma) {
       purchasable: entry.purchasable ?? false,
       purchasableAfterStart: entry.purchasableAfterStart ?? true,
       defaultDurationTurns: entry.durationTurns ?? null,
+      removable: entry.removable ?? false,
+      craftable: entry.craftable ?? false,
+      requirementTurns: entry.requirement?.turnsCost ?? null,
+      requirementResources: entry.requirement?.resourceCost ?? null,
+      requirementGambit: entry.requirement?.gambit ?? false,
       groupId,
     };
 
@@ -142,6 +150,38 @@ async function syncTagsFromYaml(prisma) {
     const current = await prisma.tagGroup.findUnique({ where: { id: groupId }, select: { requiredTagId: true } });
     if (current.requiredTagId !== requiredTagId) {
       await prisma.tagGroup.update({ where: { id: groupId }, data: { requiredTagId } });
+      linksUpdated += 1;
+    }
+  }
+
+  // Pass 5: requirement.skills slug list -> requirementSkills connections.
+  // Self-referential many-to-many, so — same reason as pass 3/4 — this has
+  // to wait until every Tag row is guaranteed to exist.
+  for (const entry of tagEntries) {
+    const skillSlugs = entry.requirement?.skills ?? [];
+    if (skillSlugs.length === 0) continue;
+    const tagId = tagIdBySlug.get(entry.slug);
+    const skillIds = skillSlugs.map((slug) => {
+      const id = tagIdBySlug.get(slug);
+      if (!id) {
+        throw new Error(`docs/tags.yaml: tag "${entry.slug}" references unknown requirement skill "${slug}"`);
+      }
+      return id;
+    });
+
+    const current = await prisma.tag.findUnique({
+      where: { id: tagId },
+      select: { requirementSkills: { select: { id: true } } },
+    });
+    const currentIds = current.requirementSkills.map((t) => t.id).sort();
+    const desiredIds = [...skillIds].sort();
+    const changed =
+      currentIds.length !== desiredIds.length || currentIds.some((id, i) => id !== desiredIds[i]);
+    if (changed) {
+      await prisma.tag.update({
+        where: { id: tagId },
+        data: { requirementSkills: { set: skillIds.map((id) => ({ id })) } },
+      });
       linksUpdated += 1;
     }
   }

@@ -102,6 +102,27 @@ Full writeup of creation, roles, and the wizard: `CHARACTERS.md`.
   number, computed from this default at grant time), swept by
   `resolveNeeds()` in `db/index.js` once the closing turn's number reaches
   it.
+- `removable` — whether a player can strip this tag off themselves mid-game
+  without a GM. Catalog data only, same unenforced posture as `tradeable` —
+  no self-removal flow reads it yet (the mid-game tag store isn't routed).
+- `craftable` — whether this tag represents something a player can
+  craft/make, as opposed to one that only ever arrives via role, GM grant,
+  or automatic game logic. Catalog data only, same posture as `removable`.
+- `requirementTurns` / `requirementResources` / `requirementGambit` /
+  `requirementSkills` (YAML: nested under `requirement:` as `turnsCost` /
+  `resourceCost` / `gambit` / `skills`) — what it costs a character to add
+  or remove this tag in play (e.g. curing Arthritis needs Medical (Skilled)
+  and some turns; forging the revolver tag costs turns, resources, and
+  Smithing). `requirementSkills` is a many-to-many self-relation onto `Tag`
+  (multiple skill tags accepted), resolved in `syncTags.js`'s pass 5. This
+  is a GM adjudication reference, also shown to players — not
+  automated/enforced by any code, same posture as `requiredTag`/`tradeable`.
+  One shared block covers whichever direction (add or remove) is
+  narratively relevant to a given tag, rather than separate blocks per
+  direction. Rendered everywhere a tag's description already renders, in a
+  minified form, via `formatTagRequirement()` (`db/lib/formatTagRequirement.js`,
+  exported from `@lifeweb/db`) — see `TagChip.js`, `PointBuy.js`, and the
+  🔍-inspect embed in `bot/src/events/messageReactionAdd.js`.
 
 ## 6. Things that used to be tags and aren't anymore
 

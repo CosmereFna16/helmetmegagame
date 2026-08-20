@@ -40,7 +40,6 @@ export default async function DevPanelPage() {
         <nav className="mt-3 flex gap-4 text-sm">
           <Link href="/gm/dev/characters" className="menu-item">Characters</Link>
           <Link href="/gm/dev/factions" className="menu-item">Factions</Link>
-          <Link href="/gm/dev/zones" className="menu-item">Zones</Link>
         </nav>
       </div>
 
@@ -138,6 +137,10 @@ export default async function DevPanelPage() {
           <label className="flex items-center gap-2 text-sm col-span-full">
             <input type="checkbox" name="messageWipeEnabled" defaultChecked={config.messageWipeEnabled} />
             Wipe messages at Dawn (archives everything to #archive first — see docs/systemdocs/CHANNELS.md)
+          </label>
+          <label className="flex items-center gap-2 text-sm col-span-full">
+            <input type="checkbox" name="tupperAutocorrectEnabled" defaultChecked={config.tupperAutocorrectEnabled} />
+            Capitalize sentence starts in Tupper messages before proxying
           </label>
           <div className="col-span-full">
             <button type="submit" className="btn">Save config</button>

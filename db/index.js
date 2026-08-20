@@ -116,4 +116,5 @@ module.exports = {
   ...require("./lib/roleColor"),
   ...require("./lib/roleCapacity"),
   ...require("./lib/production"),
+  ...require("./lib/formatTagRequirement"),
 };

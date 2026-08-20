@@ -26,7 +26,10 @@ async function loadCreationData(discordUserId) {
     }),
     prisma.tag.findMany({
       where: { purchasable: true },
-      include: { group: { select: { slug: true, name: true, color: true } } },
+      include: {
+        group: { select: { slug: true, name: true, color: true } },
+        requirementSkills: { select: { id: true, slug: true, name: true } },
+      },
     }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     getGuildMember(discordUserId),
@@ -52,6 +55,12 @@ async function loadCreationData(discordUserId) {
       parentTagId: t.parentTagId,
       requiredTagId: t.requiredTagId,
       group: t.group,
+      removable: t.removable,
+      craftable: t.craftable,
+      requirementTurns: t.requirementTurns,
+      requirementResources: t.requirementResources,
+      requirementGambit: t.requirementGambit,
+      requirementSkills: t.requirementSkills,
     })),
     zones: zones
       .map((zone) => ({

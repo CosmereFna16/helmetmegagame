@@ -13,6 +13,7 @@ import {
   chainSiblingsToRemove,
   requirementSatisfied,
 } from "@/lib/characterCreation";
+import { formatTagRequirement } from "@lifeweb/db";
 
 // The point-buy menu, shared by both stores.
 //
@@ -150,6 +151,11 @@ export default function PointBuy({
                   {tag.description && (
                     <span className="text-sm" style={{ color: "var(--muted)" }}>
                       {tag.description}
+                    </span>
+                  )}
+                  {formatTagRequirement(tag) && (
+                    <span className="text-sm" style={{ color: "var(--muted)" }}>
+                      {formatTagRequirement(tag)}
                     </span>
                   )}
                 </span>

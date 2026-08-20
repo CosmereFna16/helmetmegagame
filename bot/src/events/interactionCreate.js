@@ -259,6 +259,27 @@ async function handleMoveConfirm(interaction, actionId) {
   await interaction.update({ content: lines.join("\n"), components: [] });
 }
 
+async function handleMoveCancel(interaction, actionId) {
+  const action = await findMoveAction(actionId);
+  if (!isEditableMove(action, interaction)) {
+    await interaction.update({ content: "» *This Move can no longer be cancelled.*", components: [] });
+    return;
+  }
+
+  await prisma.action.delete({ where: { id: action.id } });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: interaction.user.id,
+      actionType: "move_cancelled",
+      targetCharacterId: action.characterId,
+      details: { actionId: action.id },
+    },
+  });
+
+  await interaction.update({ content: "» *Move cancelled. You may submit a new one in #turns.*", components: [] });
+}
+
 module.exports = {
   name: "interactionCreate",
   async execute(interaction) {
@@ -275,6 +296,9 @@ module.exports = {
         }
         if (interaction.customId.startsWith("move:confirm:")) {
           return void (await handleMoveConfirm(interaction, interaction.customId.slice("move:confirm:".length)));
+        }
+        if (interaction.customId.startsWith("move:cancel:")) {
+          return void (await handleMoveCancel(interaction, interaction.customId.slice("move:cancel:".length)));
         }
       } else if (interaction.isStringSelectMenu()) {
         if (interaction.customId === "loc:place") return void (await handlePlaceSelect(interaction));

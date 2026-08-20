@@ -13,10 +13,7 @@ import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import {
   ensureCharacterRole,
-  createGuildChannel,
-  CHANNEL_TYPE_CATEGORY,
   syncCharacterLocationAccess,
-  sortLocationCategories,
   deleteCharacterRole,
   updateGuildNickname,
   syncCharacterNarrowcastAccess,
@@ -80,6 +77,7 @@ export async function updateGameConfig(formData) {
       lifewebBlood: Math.max(0, Math.min(100, intOrZero(formData, "lifewebBlood"))),
       lifewebDecayPerTurn: intOrZero(formData, "lifewebDecayPerTurn"),
       messageWipeEnabled: formData.get("messageWipeEnabled") === "on",
+      tupperAutocorrectEnabled: formData.get("tupperAutocorrectEnabled") === "on",
       productionCoefficient: floatOrDefault(formData, "productionCoefficient", 1),
       startingTagPoints: intOrZero(formData, "startingTagPoints"),
       // Guarded at 1 because it's the denominator of every weighted role's
@@ -168,6 +166,7 @@ const DEFAULT_GAME_CONFIG = {
   lifewebBlood: 100,
   lifewebDecayPerTurn: 10,
   messageWipeEnabled: false,
+  tupperAutocorrectEnabled: false,
   productionCoefficient: 1,
   startingTagPoints: 12,
   playerCount: 100,
@@ -484,152 +483,3 @@ export async function deleteFaction(formData) {
   revalidatePath("/faction");
 }
 
-// Discord permission bit flags used below. Combined via addition (not `|`,
-// which truncates to 32 bits in JS) since none of these overlap; sent to the
-// API as decimal strings per Discord's permission-bitfield contract.
-const PERM_VIEW_CHANNEL = 1024;
-const PERM_SEND_MESSAGES = 2048;
-const PERM_MANAGE_MESSAGES = 8192;
-const PERM_MANAGE_THREADS = 17179869184;
-const PERM_CREATE_PUBLIC_THREADS = 34359738368;
-const PERM_CREATE_PRIVATE_THREADS = 68719476736;
-const PERM_SEND_MESSAGES_IN_THREADS = 274877906944;
-
-// GM gets an explicit overwrite on every Location channel (not just the
-// category) so it can't be silently clawed back by a channel-level
-// @everyone overwrite (the -private channel sets one) — see the matching
-// comment in db/lib/syncLocations.js#provisionLocationChannels, the other
-// half of this duplicated-by-convention provisioning implementation.
-function gmChannelOverwrite(gmRoleId, allow) {
-  return gmRoleId ? [{ id: gmRoleId, type: 0, allow: String(allow) }] : [];
-}
-const GM_PLAIN_PERMS = PERM_VIEW_CHANNEL + PERM_SEND_MESSAGES + PERM_MANAGE_MESSAGES;
-const GM_PUBLIC_PERMS =
-  PERM_VIEW_CHANNEL + PERM_CREATE_PUBLIC_THREADS + PERM_SEND_MESSAGES_IN_THREADS + PERM_MANAGE_THREADS + PERM_MANAGE_MESSAGES;
-const GM_PRIVATE_PERMS =
-  PERM_VIEW_CHANNEL +
-  PERM_SEND_MESSAGES +
-  PERM_CREATE_PRIVATE_THREADS +
-  PERM_SEND_MESSAGES_IN_THREADS +
-  PERM_MANAGE_THREADS +
-  PERM_MANAGE_MESSAGES;
-
-// One-time, explicitly GM-triggered creation of a Location's Discord layout
-// (1 category + plain/public/private channels) — see the Location model
-// comment in schema.prisma. Deliberately not auto-synced: re-running this
-// for an already-provisioned Location is a no-op so edits here never risk
-// deleting/recreating live channels or their message history. The category
-// is named "{Zone} / {Location}" (e.g. "Town / Cathedral"); the three channels
-// underneath stay named after the Location alone.
-export async function provisionLocationChannels(locationId) {
-  await requireSuperadmin();
-
-  const location = await prisma.location.findUnique({ where: { id: locationId }, include: { zone: true } });
-  if (!location) throw new Error("Location not found.");
-  if (location.discordCategoryId) return;
-
-  const everyoneId = process.env.DISCORD_GUILD_ID;
-  const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
-
-  const category = await createGuildChannel({
-    name: `${location.zone.name} / ${location.name}`,
-    type: CHANNEL_TYPE_CATEGORY,
-    permission_overwrites: [
-      { id: everyoneId, type: 0, deny: String(PERM_VIEW_CHANNEL) },
-      ...(gmRoleId ? [{ id: gmRoleId, type: 0, allow: String(PERM_VIEW_CHANNEL) }] : []),
-    ],
-  });
-
-  const plainChannel = await createGuildChannel({
-    name: location.name,
-    type: 0,
-    parent_id: category.id,
-    rate_limit_per_user: 60,
-    permission_overwrites: gmChannelOverwrite(gmRoleId, GM_PLAIN_PERMS),
-  });
-
-  const publicChannel = await createGuildChannel({
-    name: `${location.name}-public`,
-    type: 15,
-    parent_id: category.id,
-    // Posts (threads) auto-archive — hidden from the active list, not
-    // deleted — after 24h of inactivity. 1440 is minutes; Discord only
-    // accepts 60/1440/4320/10080 here.
-    default_auto_archive_duration: 1440,
-    // Players tag a post "Persistent" to exempt it from the Dawn message
-    // wipe (db/lib/dawnWipe.js) — the post survives, only its messages get
-    // cleared. Looked up by name at wipe-time, not stored anywhere.
-    available_tags: [{ name: "Persistent", emoji_name: "⏰" }],
-    permission_overwrites: gmChannelOverwrite(gmRoleId, GM_PUBLIC_PERMS),
-  });
-
-  const privateChannel = await createGuildChannel({
-    name: `${location.name}-private`,
-    type: 0,
-    parent_id: category.id,
-    permission_overwrites: [
-      {
-        id: everyoneId,
-        type: 0,
-        // ViewChannel is already denied by the category overwrite above, so
-        // this bit is redundant in principle — set explicitly anyway so the
-        // Discord permissions UI shows it as an explicit deny on this
-        // channel rather than "inherited/neutral", which reads as
-        // unrestricted at a glance.
-        deny: String(PERM_VIEW_CHANNEL + PERM_SEND_MESSAGES + PERM_CREATE_PUBLIC_THREADS),
-        allow: String(PERM_CREATE_PRIVATE_THREADS),
-      },
-      ...gmChannelOverwrite(gmRoleId, GM_PRIVATE_PERMS),
-    ],
-  });
-
-  await prisma.location.update({
-    where: { id: locationId },
-    data: {
-      discordCategoryId: category.id,
-      discordChannelId: plainChannel.id,
-      discordPublicChannelId: publicChannel.id,
-      discordPrivateChannelId: privateChannel.id,
-    },
-  });
-
-  await sortLocationCategories().catch(() => {});
-
-  revalidatePath("/gm/dev/zones");
-}
-
-export async function updateLocation(formData) {
-  await requireSuperadmin();
-
-  const locationId = str(formData, "locationId").trim();
-  const name = str(formData, "name").trim();
-  if (!locationId || !name) return;
-
-  // DB-only rename — deliberately does not touch already-provisioned Discord
-  // channel/category names, so editing this after provisioning can't
-  // accidentally disrupt live channels or message history.
-  await prisma.location.update({ where: { id: locationId }, data: { name } });
-  revalidatePath("/gm/dev/zones");
-}
-
-export async function updateZone(formData) {
-  await requireSuperadmin();
-
-  const zoneId = str(formData, "zoneId");
-  if (!zoneId) return;
-
-  const discordChannelIds = str(formData, "discordChannelIds")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  await prisma.zone.update({
-    where: { id: zoneId },
-    data: {
-      name: str(formData, "name").trim(),
-      discordChannelIds,
-    },
-  });
-
-  revalidatePath("/gm/dev/zones");
-}

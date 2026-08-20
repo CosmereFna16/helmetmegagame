@@ -29,10 +29,15 @@ function buildMoveComponents(action) {
     .setLabel("Confirm")
     .setStyle(ButtonStyle.Success);
 
+  const cancelButton = new ButtonBuilder()
+    .setCustomId(`move:cancel:${action.id}`)
+    .setLabel("Cancel")
+    .setStyle(ButtonStyle.Danger);
+
   return [
     new ActionRowBuilder().addComponents(kindMenu),
     new ActionRowBuilder().addComponents(opposedMenu),
-    new ActionRowBuilder().addComponents(confirmButton),
+    new ActionRowBuilder().addComponents(confirmButton, cancelButton),
   ];
 }
 

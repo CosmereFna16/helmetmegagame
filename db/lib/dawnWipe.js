@@ -1,10 +1,12 @@
 // Dawn message wipe: called from db/index.js#advanceTurn() whenever the
 // newly-opened turn's phase is DAWN and GameConfig.messageWipeEnabled is
 // on. Every Location's plain (summary) channel, public (forum) posts, and
-// private-channel threads get archived to a single guild-wide #archive
-// channel (chronological order per channel/thread, batched into as few
-// messages as possible) and then cleared:
-//   - plain channel: every message deleted.
+// private-channel threads — plus the guild-wide #radio/#intercom narrowcast
+// channels (GameConfig.radioChannelId/intercomChannelId) — get archived to
+// a single guild-wide #archive channel (chronological order per
+// channel/thread, batched into as few messages as possible) and then
+// cleared:
+//   - plain channel / narrowcast channel: every message deleted.
 //   - public forum posts: deleted entirely, UNLESS tagged "Persistent" (⏰)
 //     — those survive but have their messages cleared instead.
 //   - private channel threads: always deleted entirely (no top-level
@@ -33,8 +35,35 @@ const {
 const PERSISTENT_TAG_NAME = "Persistent";
 const DISCORD_MESSAGE_LIMIT = 2000;
 
-function formatLine(zoneName, locationName, message) {
-  return `\`[${zoneName} / ${locationName}]\` **${message.author.username}**: ${message.content}`;
+// Tupper messages are reposted via webhook, so message.author.username is
+// the character's name at post time, not a real Discord user — there's no
+// author id to look a Character up by (same fundamental limitation as the
+// in-memory recentProxies map used for ❌/✏️/❓/⭐, which we don't rely on
+// here since it resets on restart and only holds the last 500 anyway).
+// Best-effort: match by the character's *current* name. A rename between
+// the message being sent and the next Dawn wipe means a miss.
+function roleTitleFor(charactersByName, message) {
+  return charactersByName.get(message.author.username) ?? null;
+}
+
+// Turns don't stamp a turn number onto messages, so we infer it from
+// send time vs. each Turn's gameDate (when it opened) — the message
+// belongs to the latest turn that had already opened by then.
+function turnNumberForTimestamp(turns, timestampMs) {
+  let number = null;
+  for (const turn of turns) {
+    if (turn.gameDate.getTime() > timestampMs) break;
+    number = turn.number;
+  }
+  return number;
+}
+
+function formatLine(label, message, context) {
+  const turnNumber = turnNumberForTimestamp(context.turns, new Date(message.timestamp).getTime());
+  const turnLabel = turnNumber != null ? `T${turnNumber}` : "T?";
+  const roleTitle = roleTitleFor(context.charactersByName, message);
+  const roleText = roleTitle ? ` (${roleTitle})` : "";
+  return `\`[${turnLabel} | ${label}]\` **${message.author.username}**${roleText}: ${message.content}`;
 }
 
 // Batches lines into as few messages as possible under the char cap. A
@@ -69,22 +98,33 @@ async function postArchiveBatches(archiveChannelId, lines) {
 // Archives every message in a channel/thread to #archive, then returns the
 // archived message ids (for the caller to delete) — or null if there was
 // nothing to archive.
-async function archiveMessages(archiveChannelId, zoneName, locationName, channelOrThreadId) {
+async function archiveMessages(archiveChannelId, label, channelOrThreadId, context) {
   const messages = await fetchAllMessages(channelOrThreadId);
   if (messages.length === 0) return null;
 
   const lines = messages
     .filter((m) => m.content || m.attachments?.length)
-    .map((m) => formatLine(zoneName, locationName, m));
+    .map((m) => formatLine(label, m, context));
   if (lines.length > 0) await postArchiveBatches(archiveChannelId, lines);
 
   return messages.map((m) => m.id);
 }
 
-async function wipePlainChannel(archiveChannelId, zoneName, location) {
+async function wipePlainChannel(archiveChannelId, zoneName, location, context) {
   if (!location.discordChannelId) return;
-  const ids = await archiveMessages(archiveChannelId, zoneName, location.name, location.discordChannelId);
+  const ids = await archiveMessages(
+    archiveChannelId,
+    `${zoneName} / ${location.name}`,
+    location.discordChannelId,
+    context,
+  );
   if (ids?.length) await bulkDeleteMessages(location.discordChannelId, ids);
+}
+
+async function wipeNarrowcastChannel(archiveChannelId, label, channelId, context) {
+  if (!channelId) return;
+  const ids = await archiveMessages(archiveChannelId, label, channelId, context);
+  if (ids?.length) await bulkDeleteMessages(channelId, ids);
 }
 
 async function collectThreads(channelId, { public: includePublic, private: includePrivate }) {
@@ -97,14 +137,15 @@ async function collectThreads(channelId, { public: includePublic, private: inclu
   return [...byId.values()];
 }
 
-async function wipePublicForum(archiveChannelId, zoneName, location) {
+async function wipePublicForum(archiveChannelId, zoneName, location, context) {
   if (!location.discordPublicChannelId) return;
 
   const persistentTagId = await getForumTagId(location.discordPublicChannelId, PERSISTENT_TAG_NAME);
   const threads = await collectThreads(location.discordPublicChannelId, { public: true, private: false });
+  const label = `${zoneName} / ${location.name}`;
 
   for (const thread of threads) {
-    const ids = await archiveMessages(archiveChannelId, zoneName, location.name, thread.id);
+    const ids = await archiveMessages(archiveChannelId, label, thread.id, context);
     const isPersistent = persistentTagId && thread.applied_tags?.includes(persistentTagId);
 
     if (isPersistent) {
@@ -115,12 +156,13 @@ async function wipePublicForum(archiveChannelId, zoneName, location) {
   }
 }
 
-async function wipePrivateChannel(archiveChannelId, zoneName, location) {
+async function wipePrivateChannel(archiveChannelId, zoneName, location, context) {
   if (!location.discordPrivateChannelId) return;
 
   const threads = await collectThreads(location.discordPrivateChannelId, { public: false, private: true });
+  const label = `${zoneName} / ${location.name}`;
   for (const thread of threads) {
-    await archiveMessages(archiveChannelId, zoneName, location.name, thread.id);
+    await archiveMessages(archiveChannelId, label, thread.id, context);
     await deleteThread(thread.id);
   }
 }
@@ -133,18 +175,32 @@ async function runDawnWipe(prisma) {
     return;
   }
 
-  const locations = await prisma.location.findMany({ include: { zone: true } });
+  const [locations, config, characters, turns] = await Promise.all([
+    prisma.location.findMany({ include: { zone: true } }),
+    prisma.gameConfig.findUnique({ where: { id: 1 } }),
+    prisma.character.findMany({ select: { name: true, roleTitle: true } }),
+    prisma.turn.findMany({ orderBy: { gameDate: "asc" }, select: { number: true, gameDate: true } }),
+  ]);
   const sorted = [...locations].sort((a, b) =>
     `${a.zone.name} / ${a.name}`.localeCompare(`${b.zone.name} / ${b.name}`),
   );
+  const context = {
+    charactersByName: new Map(characters.map((c) => [c.name, c.roleTitle])),
+    turns,
+  };
 
   for (const location of sorted) {
     if (!location.discordCategoryId) continue;
     console.log(`Dawn wipe: ${location.zone.name} / ${location.name}`);
-    await wipePlainChannel(archiveChannel.id, location.zone.name, location);
-    await wipePublicForum(archiveChannel.id, location.zone.name, location);
-    await wipePrivateChannel(archiveChannel.id, location.zone.name, location);
+    await wipePlainChannel(archiveChannel.id, location.zone.name, location, context);
+    await wipePublicForum(archiveChannel.id, location.zone.name, location, context);
+    await wipePrivateChannel(archiveChannel.id, location.zone.name, location, context);
   }
+
+  console.log("Dawn wipe: Radio");
+  await wipeNarrowcastChannel(archiveChannel.id, "Radio", config?.radioChannelId, context);
+  console.log("Dawn wipe: Intercom");
+  await wipeNarrowcastChannel(archiveChannel.id, "Intercom", config?.intercomChannelId, context);
 }
 
 module.exports = { runDawnWipe };

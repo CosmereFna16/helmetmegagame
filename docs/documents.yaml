@@ -182,9 +182,9 @@ documents:
       - Mortus
       - Dead
     description: |-
-      When you die, you can rejoin at any time—but you'll be Cursed, meaning you can only start as a Bum or Migrant, and you'll suffer a -3 penalty to your starting points.
+      When you die, you can rejoin at any time—but you'll be Cursed, meaning you can only start as a Bum or Migrant and you'll suffer a -3 penalty to your starting points.
 
-      To rejoin as any other role, wait until your body is buried or your name is engraved. Either one finds you peace, lifts the Curse, and lets you start fresh.
+      To rejoin as any other role, wait until your body is buried or your name is engraved. It is the Church and Mortii's jobs to do so.
   - name: Court Structure
     key: courtstructure
     public: false

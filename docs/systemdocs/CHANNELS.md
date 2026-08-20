@@ -109,8 +109,9 @@ owner's own account.
 
 Every time a new `Turn` opens with `phase === "DAWN"` (never Dusk), if
 `GameConfig.messageWipeEnabled` is on (a Dev Panel checkbox, default off),
-`db/lib/dawnWipe.js#runDawnWipe` clears every Location's roleplay content —
-after archiving it first, in order, to a single guild-wide `#archive` text
+`db/lib/dawnWipe.js#runDawnWipe` clears every Location's roleplay content,
+plus the guild-wide `#radio`/`#intercom` narrowcast channels (§6) — after
+archiving it first, in order, to a single guild-wide `#archive` text
 channel (exact-name match like `#turns`/`#location` — a GM creates it once,
 no auto-provisioning). This is wired into `db/index.js#advanceTurn()`
 itself (see below), so it fires identically regardless of whether Dawn was
@@ -123,17 +124,20 @@ triggered by the bot's twice-daily cron or a GM's manual "End Turn" button.
 | Plain (summary) | Every message archived, then deleted. |
 | Public (forum) | Every post (thread) is archived. Posts **without** the "Persistent" (⏰) forum tag are then deleted entirely — post gone. Posts **with** it survive; only their messages are cleared. |
 | Private | Has no top-level messages, only threads (anyone can spin one up, not just GMs). Every thread — active or already auto-archived — is archived, then deleted entirely. No Persistent exception here. |
+| Narrowcast (`#radio`/`#intercom`) | Same as plain: every message archived, then deleted. Looked up from `GameConfig.radioChannelId`/`intercomChannelId` (§6) rather than a `Location` row, so it runs once after the per-Location loop rather than per Zone/Location. |
 
-**Archive format**: each line is `` `[Zone / Location]` **AuthorName**: content ``
-— `AuthorName` is `message.author.username`, which for tupper-proxied
-messages is already the character's name (the webhook's `username` is set
-to it, see "Character proxying" in the root `CLAUDE.md`) — no DB join
-needed, and it works uniformly for non-proxied messages (e.g. bot-posted
-adjudication results) too. Lines are batched into as few `#archive`
-messages as possible (≤2000 chars each) rather than one API call per line.
-Order is chronological within each channel/thread; Locations are processed
-in the same `Zone / Location` alphabetical order as `sortLocationCategories`
-(§2), not a strict cross-channel global merge.
+**Archive format**: each line is `` `[label]` **AuthorName**: content `` —
+`label` is `Zone / Location` for Location-derived channels/threads, or a
+bare `"Radio"`/`"Intercom"` for the narrowcast channels. `AuthorName` is
+`message.author.username`, which for tupper-proxied messages is already the
+character's name (the webhook's `username` is set to it, see "Character
+proxying" in the root `CLAUDE.md`) — no DB join needed, and it works
+uniformly for non-proxied messages (e.g. bot-posted adjudication results)
+too. Lines are batched into as few `#archive` messages as possible (≤2000
+chars each) rather than one API call per line. Order is chronological
+within each channel/thread; Locations are processed in the same
+`Zone / Location` alphabetical order as `sortLocationCategories` (§2), not a
+strict cross-channel global merge; `#radio`/`#intercom` are processed last.
 
 Private-channel content **is** archived (not skipped) — the privacy
 tradeoff is handled out-of-band by the GM keeping `#archive` itself hidden
@@ -229,4 +233,10 @@ Both channels are tupper-only (§1) — `bot/src/lib/channels.js`'s
 private channels, so a message posted there is auto-proxied as the sending
 character exactly like any other tupper channel — never summary, since
 neither channel is tied to a place.
+
+Both channels are also included in the Dawn message wipe (§5) —
+`db/lib/dawnWipe.js#runDawnWipe` reads the same `GameConfig.radioChannelId`/
+`intercomChannelId` fields and archives+clears each channel's messages
+exactly like a Location's plain channel, just without a `Zone`/`Location`
+pairing for the archive label.
 

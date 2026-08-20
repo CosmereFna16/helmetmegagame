@@ -1,3 +1,25 @@
+# Per-tag fields not covered elsewhere in this file:
+#   durationTurns   - default turns-to-expire once granted, for tags that
+#                     auto-expire (e.g. Drained: 3). Omit for tags that don't
+#                     expire on their own.
+#   removable       - whether a player can strip this tag off themselves
+#                     mid-game without a GM. Catalog data only for now (the
+#                     mid-game tag store isn't routed yet). Default false.
+#   craftable       - whether this tag represents something a player can
+#                     craft/make, vs. one that only ever arrives via role, GM
+#                     grant, or automatic game logic. Catalog data only for
+#                     now. Default false.
+#   requirement:    - what it costs a character to add or remove this tag in
+#                     play (GM adjudication reference, also shown to
+#                     players; not automated/enforced by any code). One
+#                     shared block covers whichever direction is
+#                     narratively relevant to a given tag - e.g. crafting a
+#                     sword only cares about the cost to add it, curing
+#                     Arthritis only cares about the cost to remove it.
+#     turnsCost     - turns of in-game time
+#     resourceCost  - resource cost
+#     skills        - list of skill tag slugs required; multiple accepted
+#     gambit        - whether a Gambit roll is needed
 categories:
   - slug: meta
     name: Meta
@@ -97,7 +119,7 @@ tags:
   - slug: courtier
     name: Courtier
     category: general
-    group: general
+    group: general-traits
     description: "A member of the Baron's retinue."
     pointCost: 0
     purchasable: false
@@ -113,7 +135,6 @@ tags:
   - slug: chaplain
     name: Chaplain
     category: general
-    group: general
     description: "Ordained to the Church. May take confession, read the rites over the dead, and remove people's negative mental traits."
     pointCost: 0
     purchasable: false
@@ -390,6 +411,10 @@ tags:
     description: "Stiff, aching joints — a lifetime of wear catching up with you."
     pointCost: 0
     purchasable: false
+    removable: false
+    requirement:
+      turnsCost: 3
+      skills: [medical-skilled]
 
   # --- assets -------------------------------------------------------
   - slug: windlander-horse
@@ -497,3 +522,9 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: true
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 4
+      skills: [smithing]
+      gambit: false

@@ -88,6 +88,11 @@ model GameConfig {
   // Dev Panel.
   messageWipeEnabled Boolean @default(false)
 
+  // Capitalizes the first letter of each sentence in Tupper-proxied messages
+  // before they're reposted (bot/src/lib/textCorrection.js) — off by default,
+  // purely cosmetic, never touches anything but sentence-start casing.
+  tupperAutocorrectEnabled Boolean @default(false)
+
   // The single, always-present "location" channel used for the zone/location
   // travel picker (see bot/src/lib/location.js) — same tracked-message
   // pattern as turnsAnnouncement* above.
@@ -348,6 +353,32 @@ model Tag {
   // by resolveNeeds()" convention). E.g. Drained sets this to 3, so donating
   // blood expires 3 turns after it's granted.
   defaultDurationTurns Int?
+
+  // Whether a player can remove this tag from themselves mid-game without a
+  // GM. Catalog data only — no self-removal flow reads this yet (the
+  // mid-game tag store isn't routed), same posture as tradeable above.
+  removable Boolean @default(false)
+
+  // Whether this tag represents something a player can craft/make, as
+  // opposed to a tag that only ever arrives via role, GM grant, or
+  // automatic game logic. Catalog data only — no crafting flow reads this
+  // yet, same posture as removable/tradeable.
+  craftable Boolean @default(false)
+
+  // --- Requirement to add or remove this tag in play -------------------
+  // What it costs a character to gain or shed this tag through play (e.g.
+  // curing Arthritis needs Medical (Skilled), some turns, and resources;
+  // forging a sword tag costs turns, resources, Smithing, no Gambit). GM
+  // adjudication reference, also shown to players — not automated/enforced
+  // by any code, same posture as requiredTag/tradeable above. One shared
+  // set of fields covers whichever direction is narratively relevant for a
+  // given tag (crafting only cares about adding it; healing only cares
+  // about removing it) rather than separate add/remove blocks.
+  requirementTurns     Int?
+  requirementResources Int?
+  requirementGambit    Boolean @default(false)
+  requirementSkills    Tag[]   @relation("TagRequirementSkill")
+  requiredForSkillOf   Tag[]   @relation("TagRequirementSkill")
 
   characters  CharacterTag[]
   gatedGroups TagGroup[]     @relation("TagGroupGate")

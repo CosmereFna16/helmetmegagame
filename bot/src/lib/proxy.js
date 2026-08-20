@@ -1,4 +1,6 @@
 const { WebhookClient } = require("discord.js");
+const { prisma } = require("@lifeweb/db");
+const { capitalizeSentences } = require("./textCorrection");
 
 const WEBHOOK_NAME = "Lifeweb Tupper";
 const MAX_RECENT = 500;
@@ -41,8 +43,11 @@ async function sendAsCharacter(channel, character, message) {
   const webhookClient = new WebhookClient({ id, token });
   const threadId = channel.isThread() ? channel.id : undefined;
 
+  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+  const content = config?.tupperAutocorrectEnabled ? capitalizeSentences(message.content) : message.content;
+
   const webhookMessage = await webhookClient.send({
-    content: message.content,
+    content,
     username: character.name,
     avatarURL: avatarUrlFor(character),
     files: [...message.attachments.values()].map((a) => a.url),
