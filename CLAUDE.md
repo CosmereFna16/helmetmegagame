@@ -88,7 +88,7 @@ Source of truth for exact values is `web/app/globals.css` and the font setup in 
 
 Players edit their character's name, profile picture, and appearance/bio on `/character`. Profile pictures are stored as bytes on `Character.avatarData`/`avatarMimeType` (resized/compressed with `sharp` on upload) rather than in a third-party bucket, and served back out by the web app itself at `/api/avatar/<characterId>` — the bot builds this into a full URL via `WEB_BASE_URL` when it needs an `avatarURL` for a webhook.
 
-Tupper and summary channels are not manually configured — a channel opts in only by being one of a provisioned Location's plain/public/private channels (see "Zones, Locations, and character roles" below, and `docs/systemdocs/CHANNELS.md`): the plain (text) channel is both tupper *and* summary, the public (forum) and private (text) channels are tupper-only. `bot/src/lib/channels.js` (gateway cache) and `web/lib/discordGuild.js` (`isSummaryChannel`/`isTupperChannel`/`listGuildChannels`, REST-based) are the two independent implementations of this rule — keep them in sync if it changes. Inside a tupper channel, `bot/src/events/messageCreate.js` auto-proxies every message from a user with an `ALIVE` character: it reposts the message via a per-channel webhook (`bot/src/lib/proxy.js`) using the character's name/avatar, then deletes the original — no bracket/trigger syntax needed, since each player only has one living character at a time. `bot/src/events/messageReactionAdd.js` handles ❌ (delete), ✏️ (DM-based edit), and ❓ (DMs the character's bio) on proxied messages, tracked in an in-memory map (fine at this scale — single bot process, no sharding). Public adjudications (see below) post to every summary channel.
+Tupper and summary channels are not manually configured — a channel opts in only by being one of a provisioned Location's plain/public/private channels (see "Zones, Locations, and character roles" below, and `docs/systemdocs/CHANNELS.md`): the plain (text) channel is both tupper *and* summary, the public (forum) and private (text) channels are tupper-only. The narrowcast channels `#radio`/`#intercom` (see below) are also tupper-only, same as a Location's public/private channels — they aren't tied to a place, so they're never summary. `bot/src/lib/channels.js` (gateway cache) and `web/lib/discordGuild.js` (`isSummaryChannel`/`isTupperChannel`/`listGuildChannels`, REST-based) are the two independent implementations of this rule — keep them in sync if it changes. Inside a tupper channel, `bot/src/events/messageCreate.js` auto-proxies every message from a user with an `ALIVE` character: it reposts the message via a per-channel webhook (`bot/src/lib/proxy.js`) using the character's name/avatar, then deletes the original — no bracket/trigger syntax needed, since each player only has one living character at a time. `bot/src/events/messageReactionAdd.js` handles ❌ (delete), ✏️ (DM-based edit), and ❓ (DMs the character's bio) on proxied messages, tracked in an in-memory map (fine at this scale — single bot process, no sharding). Public adjudications (see below) post to every summary channel.
 
 This requires the `MESSAGE_CONTENT` privileged intent enabled for the bot application (Discord Developer Portal -> Bot -> Privileged Gateway Intents), in addition to the `GuildMembers` intent already noted above.
 
@@ -180,7 +180,12 @@ only by an Intercom-tagged character standing in the Keep. Rules live in
 creation, GM raw location edits, and `grantTag`/`revokeTag`). Channel
 provisioning (channel ids cached on `GameConfig.radioChannelId`/
 `intercomChannelId`) is a one-off script,
-`npm run db:sync-narrowcast-channels`. See `docs/systemdocs/CHANNELS.md` §6.
+`npm run db:sync-narrowcast-channels`. Both channels are also tupper-only
+(see "Character proxying" above) — `bot/src/lib/channels.js`'s
+`refreshLocationChannels`/`web/lib/discordGuild.js`'s
+`fetchLocationChannelIds` fold `GameConfig.radioChannelId`/
+`intercomChannelId` into the same tupper-only set as a Location's public/
+private channels. See `docs/systemdocs/CHANNELS.md` §6.
 
 ## Tags
 

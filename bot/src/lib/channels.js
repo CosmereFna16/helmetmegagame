@@ -1,20 +1,27 @@
 const { ChannelType } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 
-// Tupper/summary status is entirely Location-channel-ID-based (see
-// locationChannelIds below) — a channel opts in only by being one of a
-// Location's plain/public/private channels, provisioned via
-// web/app/(app)/gm/dev/actions.js#provisionLocationChannels.
+// Tupper/summary status is Location-channel-ID-based (see locationChannelIds
+// below) — a channel opts in by being one of a Location's plain/public/
+// private channels, provisioned via
+// web/app/(app)/gm/dev/actions.js#provisionLocationChannels — plus the two
+// narrowcast channels (#radio, #intercom, GameConfig.radioChannelId/
+// intercomChannelId), which are tupper-only, never summary: they aren't tied
+// to a place, so there's no Location adjudication result to post there.
 
-// Refreshed on bot ready and every 5 minutes after — Location rows change
-// rarely (only via GM provisioning), so a periodic in-memory refresh is
-// plenty fresh without a DB round trip on every message.
+// Refreshed on bot ready and every 5 minutes after — Location rows and the
+// narrowcast channel ids change rarely (GM provisioning, one-off sync), so a
+// periodic in-memory refresh is plenty fresh without a DB round trip on
+// every message.
 let locationChannelIds = { tupperSummary: new Set(), tupperOnly: new Set() };
 
 async function refreshLocationChannels() {
-  const locations = await prisma.location.findMany({
-    select: { discordChannelId: true, discordPublicChannelId: true, discordPrivateChannelId: true },
-  });
+  const [locations, config] = await Promise.all([
+    prisma.location.findMany({
+      select: { discordChannelId: true, discordPublicChannelId: true, discordPrivateChannelId: true },
+    }),
+    prisma.gameConfig.findUnique({ where: { id: 1 } }),
+  ]);
   const tupperSummary = new Set();
   const tupperOnly = new Set();
   for (const loc of locations) {
@@ -22,6 +29,8 @@ async function refreshLocationChannels() {
     if (loc.discordPublicChannelId) tupperSummary.add(loc.discordPublicChannelId);
     if (loc.discordPrivateChannelId) tupperOnly.add(loc.discordPrivateChannelId);
   }
+  if (config?.radioChannelId) tupperOnly.add(config.radioChannelId);
+  if (config?.intercomChannelId) tupperOnly.add(config.intercomChannelId);
   locationChannelIds = { tupperSummary, tupperOnly };
 }
 setInterval(() => refreshLocationChannels().catch((err) => console.error("Failed to refresh location channels:", err)), 5 * 60_000);

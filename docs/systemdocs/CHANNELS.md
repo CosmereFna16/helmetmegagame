@@ -7,12 +7,15 @@ it) — and they're easy to conflate, so this doc keeps them separate.
 
 ## 1. Tupper / summary opt-in
 
-A channel opts into tupper/summary behavior only by being one of a
-provisioned Location's three channels (see §2), matched by Discord channel
-ID — there is no name-based marker, and channel names are otherwise
-meaningless to this system. Of the three: the plain (text) channel is both
-tupper (auto-proxying, ❌/✏️/⭐ reactions) and summary (adjudication results
-post there); the public (forum) and private (text) channels are tupper-only.
+A channel opts into tupper/summary behavior by being one of a provisioned
+Location's three channels (see §2), or one of the two narrowcast channels
+(see §6), matched by Discord channel ID — there is no name-based marker, and
+channel names are otherwise meaningless to this system. Of a Location's
+three: the plain (text) channel is both tupper (auto-proxying, ❌/✏️/⭐
+reactions) and summary (adjudication results post there); the public (forum)
+and private (text) channels are tupper-only. `#radio`/`#intercom` are
+tupper-only as well — never summary, since neither is tied to a place with
+its own adjudication results.
 
 Two independent implementations check this: `bot/src/lib/channels.js`
 (gateway cache, for the bot) and `web/lib/discordGuild.js`
@@ -218,4 +221,12 @@ at once — unlike a single Location, this could approach Discord's
 was a known, accepted tradeoff when the tag-gate-role mechanism was replaced
 with personal-role overwrites; revisit if it becomes a real problem in
 practice.
+
+Both channels are tupper-only (§1) — `bot/src/lib/channels.js`'s
+`refreshLocationChannels` and `web/lib/discordGuild.js`'s
+`fetchLocationChannelIds` fold `GameConfig.radioChannelId`/
+`intercomChannelId` into the same `tupperOnly` set as a Location's public/
+private channels, so a message posted there is auto-proxied as the sending
+character exactly like any other tupper channel — never summary, since
+neither channel is tied to a place.
 

@@ -13,10 +13,13 @@ const CHANNEL_TYPE_FORUM = 15;
 const PERM_VIEW_CHANNEL = 1024;
 const PERM_SEND_MESSAGES = 2048;
 
-// Tupper/summary status is entirely Location-channel-ID-based (see
-// getLocationChannelIds below) — a channel opts in only by being one of a
+// Tupper/summary status is Location-channel-ID-based (see
+// getLocationChannelIds below) — a channel opts in by being one of a
 // Location's plain/public/private channels, provisioned via
-// web/app/(app)/gm/dev/actions.js#provisionLocationChannels.
+// web/app/(app)/gm/dev/actions.js#provisionLocationChannels — plus the two
+// narrowcast channels (#radio, #intercom), which are tupper-only, never
+// summary: they aren't tied to a place, so there's no Location adjudication
+// result to post there.
 export function isSummaryChannel(channel, locationChannelIds) {
   if (channel.type !== CHANNEL_TYPE_TEXT) return false;
   return locationChannelIds?.tupperSummary?.has(channel.id) ?? false;
@@ -32,9 +35,12 @@ export function isTupperChannel(channel, locationChannelIds) {
 const locationChannelCache = ttlCache(30_000);
 
 async function fetchLocationChannelIds() {
-  const locations = await prisma.location.findMany({
-    select: { discordChannelId: true, discordPublicChannelId: true, discordPrivateChannelId: true },
-  });
+  const [locations, config] = await Promise.all([
+    prisma.location.findMany({
+      select: { discordChannelId: true, discordPublicChannelId: true, discordPrivateChannelId: true },
+    }),
+    prisma.gameConfig.findUnique({ where: { id: 1 } }),
+  ]);
   const tupperSummary = new Set();
   const tupperOnly = new Set();
   for (const loc of locations) {
@@ -42,6 +48,8 @@ async function fetchLocationChannelIds() {
     if (loc.discordPublicChannelId) tupperSummary.add(loc.discordPublicChannelId);
     if (loc.discordPrivateChannelId) tupperOnly.add(loc.discordPrivateChannelId);
   }
+  if (config?.radioChannelId) tupperOnly.add(config.radioChannelId);
+  if (config?.intercomChannelId) tupperOnly.add(config.intercomChannelId);
   return { tupperSummary, tupperOnly };
 }
 
