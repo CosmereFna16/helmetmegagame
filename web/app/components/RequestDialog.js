@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MAX_REASON_LENGTH } from "@/lib/requests";
+import { MAX_REASON_LENGTH } from "@/lib/constants";
 
 // The universal Requests popup. Every player action that takes effect without
 // GM approval opens one of these: a required reason on top (the thing the GM

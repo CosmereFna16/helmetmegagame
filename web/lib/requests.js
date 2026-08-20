@@ -1,10 +1,11 @@
 import { prisma } from "@lifeweb/db";
+import { MAX_REASON_LENGTH } from "@/lib/constants";
 
 // A Request is a change the player already made. There is no approval step:
 // the effect is applied and the row is written in the same transaction, and a
 // GM reviews it afterwards from /gm/turns. See docs/systemdocs/REQUESTS.md.
 
-export const MAX_REASON_LENGTH = 500;
+export { MAX_REASON_LENGTH };
 
 export const REQUEST_TYPE_LABELS = {
   FULFILL_DESIRE: "Fulfill Desire",
