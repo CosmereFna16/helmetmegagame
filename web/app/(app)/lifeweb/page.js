@@ -34,7 +34,7 @@ export default async function LifewebPage() {
     // (Nobility 40 / Courtier 30 / 20) without a round trip per selection.
     prisma.character.findMany({
       where: { status: "ALIVE" },
-      orderBy: { name: "asc" },
+      orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
       include: { tags: { include: { tag: { select: { slug: true } } } } },
     }),
   ]);

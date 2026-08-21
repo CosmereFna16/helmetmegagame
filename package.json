@@ -16,6 +16,7 @@
     "db:migrate": "npm run migrate --workspace=db",
     "db:migrate:deploy": "npm run migrate:deploy --workspace=db",
     "db:backfill-roles": "node db/prisma/backfill-roles.js",
+    "db:backfill-name-parts": "node db/prisma/backfill-name-parts.js",
     "db:backfill-location-access": "node db/prisma/backfill-location-access.js",
     "db:backfill-persistent-tag": "node db/prisma/backfill-persistent-tag.js",
     "db:backfill-tag-rework": "node db/prisma/backfill-tag-rework.js",

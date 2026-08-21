@@ -18,7 +18,7 @@ async function loadFaction(factionId) {
     include: {
       parentFaction: { select: { id: true, name: true } },
       characters: {
-        orderBy: { name: "asc" },
+        orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
         select: {
           id: true,
           name: true,
@@ -393,7 +393,7 @@ export default async function FactionPage({ searchParams }) {
     loadFaction(requestedFactionId),
     prisma.character.findMany({
       where: { status: "ALIVE", factionId: { not: requestedFactionId } },
-      orderBy: { name: "asc" },
+      orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
       select: { id: true, name: true },
     }),
   ]);

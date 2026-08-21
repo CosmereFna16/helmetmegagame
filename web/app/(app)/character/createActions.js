@@ -25,8 +25,12 @@ import {
 } from "@/lib/characterCreation";
 
 import { WORST_FEAR_MAX_LENGTH } from "@/lib/constants";
-
-const NAME_MAX_LENGTH = 60;
+import {
+  NAME_LIMITS,
+  formatCharacterName,
+  formatBareName,
+  normalizeHonorific,
+} from "@/lib/characterName";
 
 // Creates a character from the wizard's final Confirm step.
 //
@@ -45,7 +49,13 @@ export async function createCharacter(formData) {
   if (!session?.discordUserId) redirect("/");
   const discordUserId = session.discordUserId;
 
-  const name = formData.get("name")?.toString().trim().slice(0, NAME_MAX_LENGTH);
+  const part = (key, limit) => formData.get(key)?.toString().trim().slice(0, limit) || null;
+  // `title` is deliberately absent: it is GM-granted, set only from
+  // /gm/dev/characters/[characterId]. Not reading it here is the lock.
+  const honorific = normalizeHonorific(formData.get("honorific"));
+  const firstName = part("firstName", NAME_LIMITS.firstName);
+  const lastName = part("lastName", NAME_LIMITS.lastName);
+  const name = formatCharacterName({ honorific, firstName, title: null, lastName });
   const preferredNickname = formData.get("preferredNickname")?.toString().trim() || null;
   const roleId = formData.get("roleId")?.toString();
   const tagIds = formData.getAll("tagIds").map((t) => t.toString()).filter(Boolean);
@@ -54,7 +64,7 @@ export async function createCharacter(formData) {
   const worstFear =
     formData.get("worstFear")?.toString().trim().slice(0, WORST_FEAR_MAX_LENGTH) || null;
 
-  if (!name) return { error: "Your character needs a name." };
+  if (!firstName) return { error: "Your character needs a first name." };
   if (!roleId) return { error: "Pick a role before confirming." };
 
   if (await prisma.character.findFirst({ where: { discordUserId, status: "ALIVE" } })) {
@@ -174,6 +184,10 @@ export async function createCharacter(formData) {
       const character = await tx.character.create({
         data: {
           discordUserId,
+          honorific,
+          firstName,
+          title: null,
+          lastName,
           name,
           preferredNickname,
           roleId: role.id,
@@ -218,7 +232,7 @@ export async function createCharacter(formData) {
   if (withRole?.discordRoleId && created.locationId) {
     await syncCharacterLocationAccess(withRole.discordRoleId, null, created.locationId).catch(() => {});
   }
-  await syncCharacterNickname(discordUserId, name, preferredNickname).catch(() => {});
+  await syncCharacterNickname(discordUserId, formatBareName({ firstName, lastName }), preferredNickname).catch(() => {});
   await syncCharacterNarrowcastAccess(created.id).catch(() => {});
   if (cursed) await removeCursedRole(discordUserId).catch(() => {});
 

@@ -4,6 +4,7 @@ import { prisma } from "@lifeweb/db";
 import { getGmSession, getGuildMember, isCursed } from "@/lib/discordGuild";
 import { updateCharacterRaw, grantTag, revokeTag } from "../../actions";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
+import { HONORIFICS, NAME_LIMITS } from "@/lib/characterName";
 
 export default async function DevCharacterEditPage({ params }) {
   const { characterId } = await params;
@@ -37,10 +38,48 @@ export default async function DevCharacterEditPage({ params }) {
       <form action={updateCharacterRaw} className="panel flex flex-col gap-3 p-4">
         <input type="hidden" name="characterId" value={character.id} />
 
-        <label className="field">
-          <span className="field-label">Name</span>
-          <input name="name" defaultValue={character.name} required />
-        </label>
+        {/* The only place `title` is editable — the player's own form shows it
+            disabled. It renders in quotes between the two names. */}
+        <div className="grid grid-cols-2 gap-3">
+          <label className="field">
+            <span className="field-label">Honorific</span>
+            <select name="honorific" defaultValue={character.honorific ?? ""}>
+              <option value="">(none)</option>
+              {HONORIFICS.map((h) => (
+                <option key={h} value={h}>{h}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="field">
+            <span className="field-label">First name</span>
+            <input
+              name="firstName"
+              defaultValue={character.firstName}
+              maxLength={NAME_LIMITS.firstName}
+              required
+            />
+          </label>
+
+          <label className="field">
+            <span className="field-label">Granted title</span>
+            <input
+              name="title"
+              defaultValue={character.title ?? ""}
+              maxLength={NAME_LIMITS.title}
+              placeholder={'renders as "the Blind"'}
+            />
+          </label>
+
+          <label className="field">
+            <span className="field-label">Last name</span>
+            <input
+              name="lastName"
+              defaultValue={character.lastName ?? ""}
+              maxLength={NAME_LIMITS.lastName}
+            />
+          </label>
+        </div>
 
         <label className="field">
           <span className="field-label">Role</span>

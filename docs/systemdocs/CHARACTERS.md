@@ -13,8 +13,19 @@ separate `/character/new` route; one URL, no redirect bounce.
 
 The wizard has five steps:
 
-1. **Identity** — character name, and an optional preferred nickname (the
-   `{base} | {character}` Discord nickname convention).
+1. **Identity** — an honorific (a free pick from the fixed `HONORIFICS`
+   dropdown), a required first name and an optional last name, plus an
+   optional preferred nickname (the `{base} | {character}` Discord nickname
+   convention, which uses the **bare** first + last).
+
+   A displayed name is four fields joined by
+   `db/lib/characterName.js#formatCharacterName` as
+   `Sir Jorren "the Blind" Vask`. The fourth, `title`, renders in quotes
+   between the names and is **GM-only** — it has no input in the wizard, and
+   the character sheet shows it disabled with a "make your case to a GM"
+   tooltip. `Character.name` remains as a denormalized mirror of the join,
+   kept in sync by exactly three writers; see "Character names" in
+   `CLAUDE.md` for why it survives and what `NAME_LIMITS` is protecting.
 2. **Role** — the role list, grouped Zone → Faction → Role, with live seat
    counts.
 3. **Tags** — the point-buy menu.
