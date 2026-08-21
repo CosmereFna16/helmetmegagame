@@ -229,6 +229,59 @@ async function ensureForumTag(channelId, tagName, emojiName) {
   return updated.available_tags.find((t) => t.name === tagName)?.id ?? null;
 }
 
+const WEBHOOK_NAME = "Lifeweb Tupper";
+
+// REST twin of bot/src/lib/proxy.js#fetchOrCreateWebhook — same webhook name
+// and same "reuse the bot's own webhook on this channel, create one only if
+// there isn't one" rule, so a channel never ends up with two. No cache here:
+// this runs once per turn at most (db/lib/defaultMovePass.js), not per
+// message.
+async function ensureChannelWebhook(channelId) {
+  const existing = await discordRequest(`/channels/${channelId}/webhooks`);
+  const mine = existing?.find((w) => w.token);
+  if (mine) return { id: mine.id, token: mine.token };
+
+  const created = await discordRequest(`/channels/${channelId}/webhooks`, {
+    method: "POST",
+    body: { name: WEBHOOK_NAME },
+  });
+  return { id: created.id, token: created.token };
+}
+
+// Deliberately a bare fetch rather than discordRequest: the webhook token in
+// the URL *is* the credential, and sending a bot Authorization header
+// alongside it makes Discord authorize the request as the bot instead, which
+// it may reject outright.
+async function executeWebhook({ id, token }, { content, username, avatarUrl }) {
+  const res = await fetch(`${DISCORD_API}/webhooks/${id}/${token}?wait=true`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      content,
+      username,
+      avatar_url: avatarUrl,
+      // Player-authored text posted under a character's name — never let it
+      // ping a role or @everyone just by typing it.
+      allowed_mentions: { parse: ["users"] },
+    }),
+  });
+  if (!res.ok) throw new Error(`Discord webhook execute failed: ${res.status} ${await res.text()}`);
+  return res.json();
+}
+
+// Posts `content` into `channelId` under a character's name and avatar — the
+// REST equivalent of a tupper proxy, for anything composed by the game itself
+// rather than by a player typing in a channel.
+async function postAsCharacter(channelId, character, content) {
+  const webhook = await ensureChannelWebhook(channelId);
+  const base = process.env.WEB_BASE_URL;
+  return executeWebhook(webhook, {
+    content,
+    username: character.name,
+    avatarUrl: base ? `${base}/api/avatar/${character.id}?v=${character.updatedAt?.getTime?.() ?? ""}` : undefined,
+  });
+}
+
 // Replaces a single permission overwrite on a channel. `type` is 0 for a
 // role, 1 for a member; allow/deny are decimal permission bit strings.
 async function putChannelOverwrite(channelId, targetId, { allow = "0", deny = "0", type = 0 } = {}) {
@@ -259,4 +312,7 @@ module.exports = {
   ensureForumTag,
   startThread,
   putChannelOverwrite,
+  ensureChannelWebhook,
+  executeWebhook,
+  postAsCharacter,
 };
