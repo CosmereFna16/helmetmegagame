@@ -9,6 +9,7 @@ import {
   syncLocationsFromYaml,
   syncTagsFromYaml,
   syncRolesFromYaml,
+  syncDocumentsFromYaml,
 } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -216,11 +217,14 @@ const DEFAULT_GAME_CONFIG = {
 // GameConfig are left untouched (same "self-heals, provisioning is one-time"
 // treatment as turnsAnnouncementChannelId) rather than reset here.
 //
-// The three syncs do NOT share one contract, which is worth knowing before
+// The four syncs do NOT share one contract, which is worth knowing before
 // relying on any of them: syncLocationsFromYaml is fully destructive (a
 // Location dropped from the YAML has its Discord category+channels deleted
-// and its row removed), syncRolesFromYaml prunes only rows nothing
-// references, and syncTagsFromYaml is a pure upsert that never deletes.
+// and its row removed), syncDocumentsFromYaml is destructive in the same
+// sense but with nothing to delete in Discord (a Document is pure reference
+// content, so a dropped key just loses its row), syncRolesFromYaml prunes
+// only rows nothing references, and syncTagsFromYaml is a pure upsert that
+// never deletes.
 // Faction silos reset to 0, same "back to day one" treatment as the Turn
 // counter, rather than carrying over stale economy numbers.
 //
@@ -290,12 +294,18 @@ export async function wipeGameData(formData) {
     console.error("Role sync failed during game wipe:", err);
     return null;
   });
+  // Last of the four: its assignment references are validated against the
+  // Tag/Role/Faction rows the syncs above create.
+  const documentSync = await syncDocumentsFromYaml(prisma).catch((err) => {
+    console.error("Document sync failed during game wipe:", err);
+    return null;
+  });
 
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: session.discordUserId,
       actionType: "superadmin_game_wipe",
-      details: { locationSync, tagSync, roleSync },
+      details: { locationSync, tagSync, roleSync, documentSync },
     },
   });
 

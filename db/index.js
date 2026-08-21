@@ -30,6 +30,7 @@ const { runFullChannelWipe } = require("./lib/fullWipe");
 const { syncLocationsFromYaml } = require("./lib/syncLocations");
 const { syncTagsFromYaml } = require("./lib/syncTags");
 const { syncRolesFromYaml } = require("./lib/syncRoles");
+const { syncDocumentsFromYaml } = require("./lib/syncDocuments");
 const { NARROWCAST_SLUGS, buildNarrowcastContext, computeNarrowcastAccess } = require("./lib/narrowcastAccess");
 const { syncNarrowcastChannels } = require("./lib/syncNarrowcastChannels");
 
@@ -339,6 +340,7 @@ module.exports = {
   syncLocationsFromYaml,
   syncTagsFromYaml,
   syncRolesFromYaml,
+  syncDocumentsFromYaml,
   NARROWCAST_SLUGS,
   buildNarrowcastContext,
   computeNarrowcastAccess,

@@ -409,6 +409,19 @@ model Tag {
   // means expiry just removes the tag, as it always did.
   grantsOnExpiry String[]
 
+  // Whether this tag can be deliberately spent by its holder, as opposed to
+  // grantsOnExpiry above, which fires on its own when the timer runs out.
+  // Consuming removes one unit (a Tag.stackable one sheds a single unit and
+  // keeps the rest, same arithmetic the expiry sweep uses) and grants
+  // consumeGrants.
+  consumable Boolean @default(false)
+
+  // Tag slugs granted when this tag is consumed — the deliberate twin of
+  // grantsOnExpiry, sharing db/lib/expiryGrants.js' granting helper and its
+  // repeat-a-slug-to-grant-several rule. Empty means consuming just spends
+  // the tag.
+  consumeGrants String[]
+
   // Whether a player can remove this tag from themselves mid-game without a
   // GM. Catalog data only — no self-removal flow reads this yet (the
   // mid-game tag store isn't routed), same posture as tradeable above.
@@ -546,6 +559,44 @@ model Role {
   updatedAt DateTime @updatedAt
 
   @@index([factionId])
+}
+
+// Master-sourced from docs/documents.yaml
+// (db/lib/syncDocuments.js#syncDocumentsFromYaml, npm run db:sync-documents).
+// `key` is the stable match key, and is what docs/roles.yaml's
+// `doc_elements` lists point at. The sync is destructive: an entry no longer
+// in the YAML has its row removed, same posture as syncLocations.
+//
+// Assignment is denormalized into string arrays rather than join tables. The
+// catalog is ~30 rows, fully rebuilt from YAML on every sync, and read in one
+// query per page view, so four relations would buy nothing. A document is
+// ASSIGNED to a character if ANY of these matches: their role's docElements
+// lists this key, they hold one of tagSlugs, their role is in roleSlugs,
+// their faction is in factionSlugs, or flags names a Character boolean they
+// have set.
+model Document {
+  id          String @id @default(cuid())
+  key         String @unique
+  name        String
+  description String @default("")
+
+  // Everyone sees it, character or not — this is what the PUBLIC tab of
+  // /documents renders, and the reason that page is readable before the
+  // game opens.
+  isPublic Boolean @default(false)
+
+  tagSlugs     String[] @default([])
+  roleSlugs    String[] @default([])
+  factionSlugs String[] @default([])
+  // "leader" / "treasurer", read against Character.isLeader/isTreasurer,
+  // which are booleans rather than tags (see docs/systemdocs/TAGS.md §6).
+  flags        String[] @default([])
+
+  // Authoring order from the YAML, so the gallery matches the file.
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Turn {
