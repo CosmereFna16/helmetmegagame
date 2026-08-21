@@ -140,9 +140,16 @@ Source: `web/app/character/actions.js` (`submitAction`), `bot/src/events/message
 > premise — both phases are now darks differing by lamplight temperature, with
 > the light theme kept only as the `limestone` comparison backup. Live tokens
 > are at the top of `web/app/globals.css`; the conventions are in CLAUDE.md's
-> "Web app style conventions". Still outstanding: the `PageShell`/`PageHeader`
-> migration, the 14 `loading.js` skeletons, the mobile nav "More" sheet, and
-> retiring the ~160 colour-only inline `style` objects.
+> "Web app style conventions". The page-composition pass has since landed too:
+> `PageShell`/`PageHeader`/`SkeletonPage`, all 14 skeletons, the 28 section
+> headings, the mobile nav "More" sheet, the character sheet's explicit
+> columns, and the 120 colour-only inline `style` objects (now `text-muted` /
+> `text-accent` / `text-danger` utilities). Two items from that plan were
+> deliberately NOT done, with reasons recorded in `globals.css`: `.panel` gets
+> no default padding (it is used both as a padded card and as an unpadded
+> frame around a table, so a default would inset every table), and limestone's
+> raised tier is carried by shadow rather than luminance (its surface is
+> already near-white).
 
 There's no "auto-styler" tool for a real codebase the way a one-off page builder works — the equivalent discipline here is a small, deliberate token + component system in Tailwind v4, applied consistently, instead of hand-rolled classes per page (which is what `gm/page.js` and `character/page.js` currently do).
 

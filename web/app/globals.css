@@ -277,12 +277,17 @@ h3 {
    before this, very nearly invisible: bg->panel contrast was 1.08. It now
    sits on --surface with a hairline that actually reads (~2.0).
 
-   Deliberately NO default padding yet, though the design calls for one. This
-   rule is unlayered while Tailwind's utilities live in @layer utilities, and
-   unlayered CSS outranks any layer — so `padding` here would silently beat
-   the `p-4`/`p-6` that call sites currently pass, resizing panels the author
-   had already spaced. It lands with the PageShell migration, when those
-   utilities come off the call sites in the same edit. */
+   Deliberately NO default padding, and not as a deferral — it shouldn't have
+   one. `.panel` is used two ways: as a padded card (`panel p-4`, and p-3/p-5
+   where the density differs) and as an UNPADDED frame around something that
+   fills it edge to edge (`panel overflow-x-auto`, `panel table-scroll`). A
+   default would put an unwanted inset around every table. Padding stays at
+   the call site, where the two cases are distinguishable.
+
+   Related trap if you ever reconsider: this rule is unlayered while Tailwind's
+   utilities live in @layer utilities, and unlayered CSS outranks any layer, so
+   a `padding` here would silently beat the p-* the call sites pass rather than
+   losing to it. */
 .panel {
   border: 1px solid var(--border);
   background: var(--surface);
@@ -661,6 +666,18 @@ h3 {
   gap: 12px;
 }
 
+/* Same serif and size as .panel-header, deliberately without the hairline
+   rule. Use it wherever the heading is a flex child sitting beside something
+   else — a modal title next to its close button, a status band next to its
+   value — because there a border-bottom underlines the title text instead of
+   spanning the container, which reads as an underline, not a divider. */
+.section-title {
+  margin: 0;
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: var(--fs-lg);
+  line-height: var(--lh-heading);
+}
+
 @keyframes shake {
   10%, 90% { transform: translateX(-1px); }
   20%, 80% { transform: translateX(2px); }
@@ -904,6 +921,14 @@ h3 {
   color: var(--text);
 }
 
+/* The mobile bottom bar's overflow affordance. On desktop the rail is a tall
+   column with room for every item, so neither the More button nor its sheet
+   has any business existing — see NavRail.js. */
+.rail-more,
+.nav-sheet-overlay {
+  display: none;
+}
+
 @media (max-width: 720px) {
   .app-rail {
     position: fixed;
@@ -922,10 +947,79 @@ h3 {
     padding-bottom: 72px;
   }
 
+  /* Items past NavRail's MOBILE_PRIMARY cap live in the sheet instead. */
+  .rail-item--overflow {
+    display: none;
+  }
+
+  .rail-more {
+    display: flex;
+  }
+
+  /* Share the width evenly and let labels shrink. Without this the items size
+     to their text and the widest one ("Adjudicate") pushes More off-screen —
+     the bar does not scroll, so the overflow is simply unreachable. */
+  .app-rail .rail-item {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 8px 2px;
+    /* The rail's 0.05em tracking costs ~10% of the label width, which is the
+       difference between fitting six targets on a 390px viewport and not. */
+    letter-spacing: normal;
+    font-size: 10px;
+  }
+
+  .app-rail .rail-item span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Sign out moves into the sheet on mobile rather than taking one of the
+     few touch targets the bottom bar has. */
   .rail-signout {
-    margin-top: 0;
-    margin-left: auto;
-    width: auto;
+    display: none;
+  }
+
+  .nav-sheet-overlay {
+    display: flex;
+    align-items: flex-end;
+    padding: 0;
+    /* Above the bottom bar (z-index 30) but using the shared overlay scrim. */
+    z-index: 40;
+  }
+
+  .nav-sheet {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: var(--surface-raised);
+    border-top: 1px solid var(--border);
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    box-shadow: var(--e-3);
+    padding: var(--sp-3) var(--sp-3) calc(var(--sp-3) + env(safe-area-inset-bottom, 0px));
+  }
+
+  .nav-sheet-item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-3);
+    /* Comfortably over the 44px touch minimum the bottom bar was under. */
+    min-height: 48px;
+    border-radius: var(--r-sm);
+  }
+
+  .nav-sheet-item svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  .nav-sheet-item[data-active="true"] {
+    color: var(--accent-text);
   }
 
   .turn-chip {

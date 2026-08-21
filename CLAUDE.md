@@ -93,7 +93,11 @@ Three things about the token set are load-bearing and easy to undo by accident:
 - `.chip` for small tag/pill labels, `.data-table` for tabular data, `.menu-item` for link-like row actions.
 - `.modal-overlay`/`.modal-panel`, normally reached via `useConfirm()` (see "Confirm dialog" above) rather than built by hand.
 
-**Page shell convention** — every top-level page follows `<div className="mx-auto flex max-w-{2xl–6xl} flex-col gap-6 p-6 sm:p-8">` with `<h1 className="text-2xl font-bold">{Title}</h1>` as the first child (the serif face and weight come from the rules above — don't add `text-3xl` or other one-off sizing). Its `loading.js` skeleton mirrors this: same shell at `max-w-5xl`, the same `<h1>`, and a `.panel animate-pulse p-4` block reading `Loading…` in `var(--muted)`.
+**Page shell** — `web/app/components/PageShell.js`, not a convention any more. Every top-level page is `<PageShell width><PageHeader title subtitle actions />…</PageShell>`; `width` is `narrow` / `default` / `wide`, which is the whole menu (it replaced five ad-hoc `max-w-*` values chosen per page). `PageHeader`'s `actions` slot is for anything that belongs beside the title — a sub-nav, a faction switcher — which pages used to improvise. Don't hand-roll `mx-auto flex max-w-… p-6 sm:p-8` or a bare `<h1>` again; that convention was documented for months and drifted anyway, which is why it's a component now.
+
+Its `loading.js` is `<SkeletonPage width title panels />` from the same file, so a skeleton physically cannot disagree with its page about width or title — they did, everywhere (every skeleton was `max-w-5xl` regardless of its page, and four had no `<h1>` at all, so every navigation visibly re-flowed). `panels` is an array of bar-width percentages roughly tracing what lands. The one exception is `web/app/(app)/loading.js`, the group fallback: it renders no title, because it can't know which page is arriving.
+
+**Headings inside a page** — `.panel-header` for a section heading (serif, `--fs-lg`, hairline rule beneath). Use `.section-title` instead wherever the heading is a *flex child sitting beside something else* — a modal title next to its close button, a status band next to its value, a "Tags" heading next to its buttons. `.panel-header`'s `border-bottom` would underline just the title text there rather than spanning the container, which reads as an underline, not a divider.
 
 ## Character proxying ("tupper" messages)
 

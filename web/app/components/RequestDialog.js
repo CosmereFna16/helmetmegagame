@@ -46,7 +46,7 @@ function RequestDialogBody({
     <div className="modal-overlay" onClick={() => !busy && onCancel?.()}>
       <div className="modal-panel" style={{ maxWidth: "34rem" }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2 className="text-lg font-bold">{title}</h2>
+          <h2 className="section-title">{title}</h2>
         </div>
 
         <form
@@ -80,7 +80,7 @@ function RequestDialogBody({
           )}
 
           {error && (
-            <p className="text-sm" style={{ color: "var(--accent)" }}>
+            <p className="text-sm text-accent">
               {error}
             </p>
           )}
