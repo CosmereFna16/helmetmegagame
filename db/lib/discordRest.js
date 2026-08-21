@@ -69,6 +69,17 @@ async function patchChannel(channelId, payload) {
   return discordRequest(`/channels/${channelId}`, { method: "PATCH", body: payload });
 }
 
+// Opens (or returns the existing) DM channel with a user. Discord treats this
+// as idempotent — repeated calls return the same channel — so there's nothing
+// to cache. The logged wrapper that actually sends is db/lib/dm.js#sendDm,
+// which lives elsewhere because it needs prisma (see this file's header).
+async function createDmChannel(discordUserId) {
+  return discordRequest("/users/@me/channels", {
+    method: "POST",
+    body: { recipient_id: discordUserId },
+  });
+}
+
 async function postMessage(channelId, content) {
   return discordRequest(`/channels/${channelId}/messages`, { method: "POST", body: { content } });
 }
@@ -229,6 +240,7 @@ async function putChannelOverwrite(channelId, targetId, { allow = "0", deny = "0
 
 module.exports = {
   getGuildChannels,
+  createDmChannel,
   getChannel,
   deleteChannel,
   createChannel,

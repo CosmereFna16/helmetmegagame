@@ -19,6 +19,7 @@ const { PrismaClient } = require("@prisma/client");
 const { rollWeather, buildTurnAnnouncement } = require("./weather");
 const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
 const { runDawnWipe } = require("./lib/dawnWipe");
+const { runHungerPass } = require("./lib/hungerPass");
 const { runFullChannelWipe } = require("./lib/fullWipe");
 const { syncLocationsFromYaml } = require("./lib/syncLocations");
 const { syncTagsFromYaml } = require("./lib/syncTags");
@@ -46,9 +47,34 @@ const LIFEWEB_SPUTTER_THRESHOLD = 20;
 // close-turn override, so both paths behave identically instead of only the
 // automated one actually resolving Needs.
 async function resolveNeeds(turn, config) {
-  // Sweep any turn-scoped tags (Drained, ...) whose expiresTurn has been
-  // reached — a single bulk delete, independent of everything else here.
+  // Sweep any turn-scoped tags (Mood, Drained, last turn's Hunger) whose
+  // expiresTurn has been reached — a single bulk delete, independent of
+  // everything else here.
   await prisma.characterTag.deleteMany({ where: { expiresTurn: { lte: turn.number } } });
+
+  // Hunger upkeep runs AFTER the sweep, deliberately: a Hunger granted while
+  // closing turn N-1 carries expiresTurn N, so the sweep is what clears it a
+  // moment before this pass may grant a fresh one. In the other order a
+  // still-broke character's re-grant would collide with
+  // @@unique([characterId, tagId]) and be silently dropped, leaving them
+  // holding a tag that expires immediately. See db/lib/hungerPass.js.
+  //
+  // One summary audit row rather than one per character: at 100+ players a
+  // per-character row would push 200 entries a day into /gm/audit and drown
+  // every human-authored line. Written here rather than by the two advance
+  // callers because the whole point of resolveNeeds being shared is that both
+  // paths resolve Needs identically.
+  const hunger = await runHungerPass(prisma, turn).catch((err) => {
+    console.error("Hunger pass failed:", err);
+    return null;
+  });
+  if (hunger) {
+    await prisma.auditLog
+      .create({
+        data: { actorDiscordUserId: "system", actionType: "hunger_resolved", details: hunger },
+      })
+      .catch((err) => console.error("Hunger audit log failed:", err));
+  }
 
   // The Lifeweb bleeds out a fixed amount every turn regardless of what fed
   // it last — see donateBlood()/feedLifewebPerson() in
@@ -136,4 +162,5 @@ module.exports = {
   ...require("./lib/production"),
   ...require("./lib/formatTagRequirement"),
   ...require("./lib/mood"),
+  ...require("./lib/gambitModifier"),
 };

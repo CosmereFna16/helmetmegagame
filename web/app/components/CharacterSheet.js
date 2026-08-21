@@ -1,4 +1,3 @@
-import { formatMoodModifier, moodFromTags } from "@lifeweb/db/lib/mood";
 import { updateCharacterProfile } from "../(app)/character/actions";
 import AppearanceField from "./AppearanceField";
 import AvatarField from "./AvatarField";
@@ -33,8 +32,8 @@ function groupTagsByCategory(characterTags) {
   );
 }
 
-// Raw d6 first, then the mood adjustment and the total — a GM reading this
-// has to be able to tell a modified 5 from a natural 5.
+// Raw d6 first, then the summed modifier (Mood ±1, Hunger -1) and the total —
+// a GM reading this has to be able to tell a modified 5 from a natural 5.
 function formatRoll(action) {
   if (action.diceRoll == null) return "";
   const mod = action.diceModifier ?? 0;
