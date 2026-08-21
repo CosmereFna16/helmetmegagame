@@ -33,7 +33,7 @@ export default async function NotesPage() {
     <PageShell width="narrow">
       <PageHeader
         title="Notes"
-        subtitle="Messages you&apos;ve starred with ⭐ in a location channel land here."
+        subtitle="Messages you&apos;ve starred with ⭐ in a location channel appear here."
       />
       <NotesList notes={entries} />
     </PageShell>

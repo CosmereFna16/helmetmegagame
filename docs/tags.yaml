@@ -553,27 +553,19 @@ tags:
     name: Drained
     category: status
     group: status-debuffs
-    description: "You are weak and your vision is blurry."
+    description: "You're weak, you can barely keep food down, and your vision is blurry. You're barely fit to work."
     pointCost: 0
     purchasable: false
     durationTurns: 4
-    requirement:
-      turnsCost: 1
-      resourceCost: 2
-      skills: [medical-basic]
-      gambit: false
 
   - slug: arthritis
     name: Arthritis
     category: status
     group: status-health
-    description: "Stiff, aching joints — a lifetime of wear catching up with you."
-    pointCost: 0
+    description: "Stiff, aching joints.."
+    pointCost: -2
     purchasable: false
     removable: false
-    requirement:
-      turnsCost: 3
-      skills: [medical-skilled]
 
   # Inflicted, never chosen: a GM grants these (a Demoness true form is the
   # usual source), and the expiry sweep in resolveNeeds() clears them if left
@@ -591,10 +583,6 @@ tags:
     purchasableAfterStart: false
     removable: false
     durationTurns: 1
-    requirement:
-      turnsCost: 1
-      skills: [medical-basic]
-      gambit: false
 
   - slug: hallucinating
     name: Hallucinating
@@ -604,7 +592,7 @@ tags:
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
-    removable: false
+    removable: true
     durationTurns: 2
     requirement:
       turnsCost: 1
@@ -620,7 +608,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: false
+    removable: true
     durationTurns: 3
     requirement:
       turnsCost: 1
