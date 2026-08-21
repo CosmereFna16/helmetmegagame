@@ -34,3 +34,11 @@ export function transferableTags(characterTags = []) {
     .filter((ct) => ct.tag && TRANSFERABLE_CATEGORIES.includes(ct.tag.category))
     .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1 }));
 }
+
+// What the character can use up. Consuming always takes exactly one unit, so
+// unlike Remove/Transfer the held count here is only ever shown, never a cap.
+export function consumableTags(characterTags = []) {
+  return characterTags
+    .filter((ct) => ct.tag?.consumable)
+    .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1 }));
+}

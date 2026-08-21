@@ -9,7 +9,7 @@ import { getOpenTurn } from "@/lib/turn";
 import { createRequest, logRequest, requireReason } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { TRANSFERABLE_CATEGORIES } from "@/lib/tagRequests";
-import { addToStack, dropCharacterTag } from "@/lib/requestEffects";
+import { addToStack, dropCharacterTag, grantTagSlugs } from "@/lib/requestEffects";
 import { syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
 
 // Every player-initiated change that is applied immediately and reviewed
@@ -327,6 +327,69 @@ async function removeTagRequestImpl({
   return {};
 }
 
+// Using something up: the tag comes off the sheet and whatever it declares in
+// Tag.consumesInto goes on. Always exactly ONE unit, so a stack of meals feeds
+// the character several times — there is deliberately no quantity field
+// anywhere in this path.
+//
+// No resource cost either: a meal already cost ⬢ to make, and the Hunger pass
+// charges its own upkeep separately, so a third charge here would be the same
+// meal paid for three times.
+async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+
+  const held = character.tags.find((ct) => ct.tagId === tagId);
+  if (!held) throw new UserError("You don't have that tag.");
+  // Mirrors consumableTags() in web/lib/tagRequests.js — re-checked here
+  // because the client's filtered menu is only advisory.
+  if (!held.tag.consumable) throw new UserError("That tag can't be consumed.");
+
+  const openTurn = await getOpenTurn();
+  // Snapshot before consuming — Undo restores the original source and expiry,
+  // and exactly the one unit this took, not the whole stack.
+  const restore = {
+    tagId: held.tagId,
+    source: held.source,
+    expiresTurn: held.expiresTurn,
+    quantity: 1,
+  };
+
+  await prisma.$transaction(async (tx) => {
+    await dropCharacterTag(tx, character.id, tagId, 1);
+    const granted = await grantTagSlugs(
+      tx,
+      character.id,
+      held.tag.consumesInto ?? [],
+      openTurn?.number ?? null,
+    );
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn?.id ?? null,
+      type: "CONSUME_TAG",
+      reason,
+      payload: { tagId },
+      effect: { tagId, tagName: held.tag.name, restore, granted },
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_consume_tag",
+      targetCharacterId: character.id,
+      reason,
+      details: {
+        tagId,
+        tagName: held.tag.name,
+        granted: granted.map((g) => g.tagName),
+      },
+    });
+  });
+
+  // Both the tag consumed and anything it became can gate #radio/#intercom.
+  await syncCharacterNarrowcastAccess(character.id).catch(() => {});
+  revalidateAll();
+  return {};
+}
+
 // Send-only by design: there is no "request a tag from someone", because
 // browsing another player's inventory to pick something is the abuse the
 // one-way flow prevents.
@@ -534,6 +597,10 @@ export async function removeTagRequest(input) {
 
 export async function transferTagRequest(input) {
   return guarded(() => transferTagRequestImpl(input));
+}
+
+export async function consumeTagRequest(input) {
+  return guarded(() => consumeTagRequestImpl(input));
 }
 
 export async function setDesire(input) {

@@ -12,6 +12,7 @@ export const REQUEST_TYPE_LABELS = {
   FULFILL_DESIRE: "Fulfill Desire",
   ADD_TAG: "Add Tag",
   REMOVE_TAG: "Remove Tag",
+  CONSUME_TAG: "Consume Tag",
   TRANSFER_RESOURCES: "Transfer Resources",
   TRANSFER_TAG: "Transfer Tag",
   SET_MOOD: "Set Mood",

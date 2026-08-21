@@ -40,10 +40,12 @@ reads both files and does the sync, run by hand via `npm run db:sync-tags`
 "Restart Game" flow (`web/app/(app)/gm/dev/actions.js`), right after
 `syncLocationsFromYaml`.
 
-The sync is four passes, since tags/groups can reference each other by slug
+The sync is five passes, since tags/groups can reference each other by slug
 before every row necessarily exists yet: TagGroup scalars, then Tag scalars
 + `groupId`, then `parentTag`/`requiredTag` links, then `TagGroup.requiredTag`
-links. Each pass only writes a row when something actually changed (a
+links, then `requirement.skills`. (`consumesInto` is the exception — it is
+validated up front against the YAML's own slug set, before any write, so a
+typo fails cleanly instead of half-applying.) Each pass only writes a row when something actually changed (a
 diff check, same style as `syncLocationsFromYaml`'s `needsUpdate`).
 
 ## 3. Two relations that look similar but aren't
@@ -147,11 +149,15 @@ Full writeup of creation, roles, and the wizard: `CHARACTERS.md`.
   re-granted rather than colliding with `@@unique([characterId, tagId])`. See
   `REQUESTS.md` §4.
 - `removable` — whether a player can strip this tag off themselves mid-game
-  without a GM. Catalog data only, same unenforced posture as `tradeable` —
-  no self-removal flow reads it yet (the mid-game tag store isn't routed).
+  without a GM. Live: it is the whole filter behind the Remove Tag menu
+  (`removableTags()`, `web/lib/tagRequests.js`) and is re-checked by
+  `removeTagRequest`.
 - `craftable` — whether this tag represents something a player can
   craft/make, as opposed to one that only ever arrives via role, GM grant,
-  or automatic game logic. Catalog data only, same posture as `removable`.
+  or automatic game logic. Live too: `addableTags()` offers Purchasable *or*
+  Craftable tags in the Add Tag menu.
+- `consumable` / `consumesInto` — whether a player can use this tag up, and
+  what it becomes. Live; see §5b.
 - `requirementTurns` / `requirementResources` / `requirementGambit` /
   `requirementSkills` (YAML: nested under `requirement:` as `turnsCost` /
   `resourceCost` / `gambit` / `skills`) — what it costs a character to add
@@ -200,8 +206,50 @@ Revoke button takes one unit off a stack rather than the whole larder.
 anywhere, so a bought tag lands on `quantity`'s default of 1 and a stackable
 tag cannot be point-farmed at creation. Stacks are built in play only.
 
-**Don't combine `stackable` with `durationTurns`.** The expiry sweep deletes
-whole rows, stack and all.
+**`stackable` combines safely with `durationTurns`.** It didn't used to —
+the sweep deleted whole rows, stack and all — but `sweepExpiredStacks()`
+(`db/index.js`) now sheds a single unit per expiry and rerolls the
+remainder's timer, deleting the row only when the last unit goes. So three
+of a two-turn tag lose one every two turns.
+
+## 5b. Consuming
+
+`consumable` marks a tag a player can **use up** from their own character
+sheet, and `consumesInto` (a list of tag *slugs*) is what it turns into. A
+meal is `consumable` with `consumesInto: [ate-meal]`; `ate-meal` carries
+`durationTurns: 1` and the Hunger pass consumes it — so the whole chain falls
+out of machinery that already existed, with no bespoke meal logic anywhere.
+
+Four rules carry it:
+
+- **Always exactly one unit.** Consuming from a stack of three meals takes
+  one, so there is deliberately no quantity field in this path at all.
+- **Slugs, not a relation, specifically so a slug may repeat.** Listing one
+  twice is the only way to ask for two of something — and that only
+  multiplies for a `stackable` target; a non-stackable repeat collapses to
+  one, exactly like §5a's rules elsewhere.
+- **A granted tag starts its own clock.** `expiresTurn` is computed as
+  `turn.number + defaultDurationTurns` at the moment of the grant — the same
+  absolute-turn expression every other writer uses — which is what makes
+  chains work (meal -> Ate Meal that the sweep then clears).
+- **An already-held non-stackable grant is left completely alone**, expiry
+  included: the character's existing one is the live truth, and clobbering it
+  would silently extend or cut short something they already had.
+
+Consuming is a **Request** (`CONSUME_TAG`), so it lands immediately, carries
+a reason, and a GM can Undo it — see `REQUESTS.md` §3. The undo snapshot
+records what was *actually* added per slug (`added: 0` for a grant that was
+skipped as already-held), because Undo may only take back what this request
+really put there.
+
+`grantTagSlugs()` in `web/lib/requestEffects.js` is the single writer, a
+fourth sibling to the three stack primitives in §5a.
+
+**This replaces the old `grantsOnExpiry` ("expires into") field**, which did
+the same conversion on a timer instead of on demand. It was removed outright:
+letting the player choose *when* to unpack a crate is strictly better than
+making them wait a turn, and two near-identical "tag becomes other tags"
+mechanisms in one catalog is one too many.
 
 ## 6. Things that used to be tags and aren't anymore
 

@@ -151,9 +151,14 @@ function parseTagRow(row) {
   if (row.parentTag) tag.parentTag = getString(row.parentTag);
   if (row.requiredTag) tag.requiredTag = getString(row.requiredTag);
 
-  if (row.grantsOnExpiry) {
-    const grants = getList(row.grantsOnExpiry);
-    if (grants) tag.grantsOnExpiry = grants;
+  if (row.consumable !== undefined) {
+    const val = getBoolean(row.consumable);
+    if (val !== undefined) tag.consumable = val;
+  }
+
+  if (row.consumesInto) {
+    const grants = getList(row.consumesInto);
+    if (grants) tag.consumesInto = grants;
   }
 
   // requirement is a complex object — store as JSON in the sheet and parse it
@@ -191,17 +196,21 @@ function buildYamlContent(data) {
 #                     unaffected. Fine to combine with durationTurns: each
 #                     expiry sheds one unit and restarts the timer for the
 #                     rest, so 3 of a 2-turn tag lose one every 2 turns.
-#   grantsOnExpiry  - list of tag slugs this tag turns INTO when it expires,
-#                     instead of expiry only taking something away (Starting
-#                     Wares unpacking into goods; a Wound leaving a Scar; a
-#                     sickness resolving into a lasting condition). Needs
-#                     durationTurns to ever fire. Repeat a slug to grant
-#                     several of it — that only multiplies for a stackable
-#                     tag, a non-stackable repeat collapses to one. Granted
-#                     tags that have their own durationTurns start their
-#                     clock at that moment, so chains work. If the character
-#                     already holds a non-stackable granted tag, their
-#                     existing one is left alone.
+#   consumable      - whether a player can use this tag up from their
+#                     character sheet — eat the meal, unpack the crate.
+#                     Default false. Consuming always takes exactly ONE
+#                     unit, so a stack of meals feeds you several times.
+#   consumesInto    - list of tag slugs this tag turns INTO when it is
+#                     consumed (a meal becoming ate-meal; Starting Wares
+#                     unpacking into goods). Repeat a slug to grant several
+#                     of it — that only multiplies for a stackable tag, a
+#                     non-stackable repeat collapses to one. Granted tags
+#                     that have their own durationTurns start their clock at
+#                     that moment, so chains work (meal -> ate-meal, which
+#                     the expiry sweep then clears). If the character already
+#                     holds a non-stackable granted tag, their existing one
+#                     is left alone. Omit it for a consumable that simply
+#                     gets used up.
 #   requirement:    - what it costs a character to add or remove this tag in
 #                     play (GM adjudication reference, also shown to
 #                     players; not automated/enforced by any code). One
@@ -288,9 +297,13 @@ tags:
       output += `    durationTurns: ${tag.durationTurns}\n`;
     }
 
-    if (tag.grantsOnExpiry) {
-      output += `    grantsOnExpiry:\n`;
-      for (const grant of tag.grantsOnExpiry) {
+    if (tag.consumable !== undefined) {
+      output += `    consumable: ${tag.consumable}\n`;
+    }
+
+    if (tag.consumesInto) {
+      output += `    consumesInto:\n`;
+      for (const grant of tag.consumesInto) {
         output += `      - ${grant}\n`;
       }
     }

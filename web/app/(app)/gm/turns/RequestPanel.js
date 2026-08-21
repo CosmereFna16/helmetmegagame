@@ -108,6 +108,27 @@ const SECTIONS = {
     ),
   },
 
+  CONSUME_TAG: {
+    heading: "Consume Tag",
+    render: ({ effect }) => (
+      <>
+        <Line label="Consumed">{effect.tagName ?? "—"}</Line>
+        <Line label="Became">
+          {(effect.granted ?? []).filter((g) => g.added > 0).length
+            ? effect.granted
+                .filter((g) => g.added > 0)
+                .map((g) => (g.added > 1 ? `${g.tagName} \u00d7${g.added}` : g.tagName))
+                .join(", ")
+            : "—"}
+        </Line>
+        <p className="text-xs text-muted">
+          Nothing to re-score here. Undo puts back the one unit it took, with its original source
+          and expiry, and takes back what it became.
+        </p>
+      </>
+    ),
+  },
+
   TRANSFER_RESOURCES: {
     heading: "Transfer Resources",
     render: ({ effect }) => (

@@ -1,37 +1,13 @@
 import { updateCharacterProfile } from "../(app)/character/actions";
 import AppearanceField from "./AppearanceField";
 import AvatarField from "./AvatarField";
-import TagChip from "./TagChip";
 import DefaultEffortPanel from "./DefaultEffortPanel";
 import DesirePanel from "./DesirePanel";
 import StatusPanel from "./StatusPanel";
-import TagRequestButtons from "./TagRequestButtons";
+import TagsPanel from "./TagsPanel";
 import RichText from "./RichText";
 import FactionLink from "./FactionLink";
 import PageShell from "@/app/components/PageShell";
-
-// Fixed display order rather than alphabetical or catalog order — Status
-// (Mood, buffs/debuffs) belongs near the top, ahead of General/Skills.
-const CATEGORY_ORDER = ["Meta", "Status", "General", "Skills", "Assets"];
-
-function categoryRank(category) {
-  const i = CATEGORY_ORDER.indexOf(category);
-  return i === -1 ? CATEGORY_ORDER.length : i;
-}
-
-// Groups the CharacterTag rows, not the bare Tags — the wrapper carries
-// expiresTurn, which the mood countdown in StatusPanel needs.
-function groupTagsByCategory(characterTags) {
-  const groups = new Map();
-  for (const ct of characterTags) {
-    const category = ct.tag.category?.trim() || "Other";
-    if (!groups.has(category)) groups.set(category, []);
-    groups.get(category).push(ct);
-  }
-  return [...groups.entries()].sort(
-    (a, b) => categoryRank(a[0]) - categoryRank(b[0]) || a[0].localeCompare(b[0]),
-  );
-}
 
 // Raw d6 first, then the summed modifier (Mood ±1, Hunger -1) and the total —
 // a GM reading this has to be able to tell a modified 5 from a natural 5.
@@ -99,7 +75,6 @@ export default function CharacterSheet({
   desireCooldownUntilTurn,
 }) {
   const isSelf = mode === "self";
-  const tagGroups = groupTagsByCategory(character.tags);
 
   return (
     <PageShell width="wide">
@@ -183,37 +158,13 @@ export default function CharacterSheet({
         </div>
       </div>
 
-      <section className="panel p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="section-title">Tags</h2>
-          {isSelf && (
-            <TagRequestButtons
-              catalog={tagCatalog ?? []}
-              characterTags={character.tags}
-              resources={character.resources}
-              otherCharacters={otherCharacters ?? []}
-            />
-          )}
-        </div>
-        {tagGroups.length === 0 ? (
-          <p className="text-sm text-muted">No tags yet.</p>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {tagGroups.map(([category, tags]) => (
-              <div key={category}>
-                <p className="field-label mb-1">{category}</p>
-                <ul className="flex flex-wrap gap-2">
-                  {tags.map((ct) => (
-                    <li key={ct.tag.id}>
-                      <TagChip tag={ct.tag} quantity={ct.quantity} />
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+      <TagsPanel
+        characterTags={character.tags}
+        isSelf={isSelf}
+        catalog={tagCatalog ?? []}
+        resources={character.resources}
+        otherCharacters={otherCharacters ?? []}
+      />
 
       {isSelf && (
         <DesirePanel

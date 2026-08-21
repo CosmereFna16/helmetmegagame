@@ -21,7 +21,6 @@ const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
 const { runDawnWipe } = require("./lib/dawnWipe");
 const { runHungerPass, HUNGER_DM } = require("./lib/hungerPass");
 const { runDefaultMovePass } = require("./lib/defaultMovePass");
-const { applyExpiryGrants } = require("./lib/expiryGrants");
 // Required by path, not through the barrel: see the note in db/lib/dm.js about
 // why there are three same-named sendDm exports with three signatures.
 const { sendDm } = require("./lib/dm");
@@ -130,26 +129,6 @@ async function resolveNeeds(turn, config) {
   // Hunger) is deleted outright, but a stackable one only sheds a single
   // unit per expiry and rerolls the remainder's timer — otherwise one
   // ration's clock coming due would wipe the character's whole holding.
-  //
-  // Anything expiring that declares Tag.grantsOnExpiry converts into other
-  // tags first, before the deletes below remove the rows it reads. A tag
-  // granted here that is itself already due this turn won't be swept until
-  // next turn — accepted, since the alternative is looping the sweep.
-  // Best-effort like the Hunger pass: a failure must never block a turn
-  // advance, and one summary audit row rather than one per character (at
-  // 100+ players the latter would drown /gm/audit).
-  const grants = await applyExpiryGrants(prisma, turn).catch((err) => {
-    console.error("Expiry grants failed:", err);
-    return null;
-  });
-  if (grants) {
-    await prisma.auditLog
-      .create({
-        data: { actorDiscordUserId: "system", actionType: "expiry_grants_resolved", details: grants },
-      })
-      .catch((err) => console.error("Expiry grants audit log failed:", err));
-  }
-
   await prisma.characterTag.deleteMany({
     where: { expiresTurn: { lte: turn.number }, tag: { stackable: false } },
   });

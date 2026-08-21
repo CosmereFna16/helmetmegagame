@@ -53,12 +53,12 @@ async function syncTagsFromYaml(prisma) {
     if (!categoryNameBySlug.has(t.category)) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" has unknown category "${t.category}"`);
     }
-    // grantsOnExpiry is validated up here rather than in a late pass like
+    // consumesInto is validated up here rather than in a late pass like
     // parentTag/requiredTag: every slug is already known from the document
     // itself, so a typo can fail cleanly instead of half-applying.
-    for (const slug of t.grantsOnExpiry ?? []) {
+    for (const slug of t.consumesInto ?? []) {
       if (!allTagSlugs.has(slug)) {
-        throw new Error(`docs/tags.yaml: tag "${t.slug}" grantsOnExpiry references unknown tag "${slug}"`);
+        throw new Error(`docs/tags.yaml: tag "${t.slug}" consumesInto references unknown tag "${slug}"`);
       }
     }
   }
@@ -113,10 +113,11 @@ async function syncTagsFromYaml(prisma) {
       defaultDurationTurns: entry.durationTurns ?? null,
       removable: entry.removable ?? false,
       craftable: entry.craftable ?? false,
+      consumable: entry.consumable ?? false,
       requirementTurns: entry.requirement?.turnsCost ?? null,
       requirementResources: entry.requirement?.resourceCost ?? null,
       requirementGambit: entry.requirement?.gambit ?? false,
-      grantsOnExpiry: entry.grantsOnExpiry ?? [],
+      consumesInto: entry.consumesInto ?? [],
       groupId,
     };
 
@@ -125,7 +126,7 @@ async function syncTagsFromYaml(prisma) {
       tag = await prisma.tag.create({ data: { slug: entry.slug, ...scalars } });
       tagsCreated += 1;
     } else {
-      // grantsOnExpiry is a scalar list, so !== compares references and would
+      // consumesInto is a scalar list, so !== compares references and would
       // report "changed" on every single run. Compare element-wise, and by
       // order — a repeated slug is meaningful (it's how a bundle grants two
       // of something), so this is a sequence, not a set.

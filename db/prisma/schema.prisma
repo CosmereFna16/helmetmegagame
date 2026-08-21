@@ -86,6 +86,7 @@ enum RequestType {
   FULFILL_DESIRE
   ADD_TAG
   REMOVE_TAG
+  CONSUME_TAG
   TRANSFER_RESOURCES
   TRANSFER_TAG
   SET_MOOD
@@ -400,14 +401,22 @@ model Tag {
   // blood expires 3 turns after it's granted.
   defaultDurationTurns Int?
 
-  // Tag slugs this tag converts into when it expires, applied by
-  // db/lib/expiryGrants.js from resolveNeeds()' sweep: Starting Wares
-  // becoming a revolver and jewelry, a Wound leaving a Scar, a sickness
-  // resolving into a lasting condition. Slugs rather than a relation
-  // specifically so a slug may REPEAT — listing one twice grants two of it
-  // (for a stackable tag; a non-stackable repeat collapses to one). Empty
-  // means expiry just removes the tag, as it always did.
-  grantsOnExpiry String[]
+  // Whether a player can use this tag up — eat the meal, unpack the crate.
+  // Live, like removable/craftable above: it drives the Consume menu on
+  // /character (web/lib/tagRequests.js) and is re-checked server-side by
+  // consumeTagRequest, since the client's filtered menu is only advisory.
+  // See docs/systemdocs/REQUESTS.md. Consuming always takes exactly ONE
+  // unit, so a stack of meals feeds the character several times.
+  consumable Boolean @default(false)
+
+  // Tag slugs this tag turns INTO when it is consumed: a meal becoming Ate
+  // Meal, Starting Wares unpacking into a revolver and jewelry. Slugs rather
+  // than a relation specifically so a slug may REPEAT — listing one twice
+  // grants two of it (for a stackable tag; a non-stackable repeat collapses
+  // to one). A granted tag with its own defaultDurationTurns starts that
+  // clock at the moment it's granted, so chains work (meal -> Ate Meal that
+  // the sweep then clears). Empty means consuming just uses the tag up.
+  consumesInto String[]
 
   // Whether a player can remove this tag from themselves mid-game without a
   // GM. Catalog data only — no self-removal flow reads this yet (the

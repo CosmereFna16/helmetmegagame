@@ -56,9 +56,9 @@ the whole new stack clawed back — only what this request moved. See
 invokes it inside its own `prisma.$transaction` so a request can never exist
 without its effect, or an effect without its request.
 
-## 3. The eight types
+## 3. The nine types
 
-Six live in `web/app/(app)/character/requestActions.js` and the two Lifeweb
+Seven live in `web/app/(app)/character/requestActions.js` and the two Lifeweb
 types in `web/app/(app)/lifeweb/requestActions.js`. Each one
 authenticates, **re-validates everything the client sent** (a server action is
 a public endpoint, and the client's filtered menus are only advisory), applies
@@ -71,6 +71,7 @@ reason.
 | `TRANSFER_RESOURCES` | Moves ⬢ between any two parties | — | Reverses the movement |
 | `ADD_TAG` | Takes a Purchasable or Craftable tag, optionally paying ⬢. Stackable tags take a quantity and stay on the menu once held | cost; remove what this request added | Drops what it added, refunds the cost |
 | `REMOVE_TAG` | Drops one of their own `removable` tags, optionally paying ⬢, in a quantity if it stacks | cost | Restores the tag and its count, refunds the cost |
+| `CONSUME_TAG` | Uses up one of their own `consumable` tags — always exactly one, even from a stack — and gains whatever it `consumesInto` | — | Restores the one unit with its original expiry, takes back what it granted |
 | `TRANSFER_TAG` | Hands an Item or Asset to another player, in a quantity if it stacks | — | Moves that many back |
 | `FULFILL_DESIRE` | Claims their active Desire | Tag Points awarded | Revokes the points, reopens the Desire |
 | `DONATE_BLOOD` | Mortus bleeds someone into the Lifeweb | blood added; clear Drained | Draws the blood back, clears Drained |
@@ -101,6 +102,10 @@ Three notes on deliberate choices:
 - **Transfer Tag is send-only.** There is no "request a tag from someone",
   because browsing another player's inventory to pick something is the abuse
   the one-way flow prevents.
+- **Consume has no resource field and no quantity field.** A meal already
+  cost ⬢ to make and the Hunger pass charges its own upkeep, so a third
+  charge here would be the same meal paid for three times; and taking one
+  unit at a time is the point of a stack. See `TAGS.md` §5b.
 - **Transfer Tag filters on `category`, not `tradeable`.** `Tag.tradeable`
   exists and would be more precise, but it is set on exactly one tag in
   `docs/tags.yaml` today, so Items/Assets is the honest signal. Revisit once
@@ -311,7 +316,8 @@ of a transfer. Deposits into a Silo previously left no ledger entry at all.
 | Universal popup | `web/app/components/RequestDialog.js` |
 | Status panel, mood readout, Set Mood | `web/app/components/StatusPanel.js`, `SetMoodButton.js` |
 | Transfer Resources | `web/app/components/TransferResourcesButton.js` |
-| Add / Remove / Transfer Tag | `web/app/components/TagRequestButtons.js`, `web/lib/tagRequests.js` |
+| Add / Remove / Transfer / Consume Tag | `web/app/components/TagRequestButtons.js`, `web/lib/tagRequests.js` |
+| Tags panel + click-a-chip-to-consume | `web/app/components/TagsPanel.js`, `TagChip.js` |
 | Desires | `web/app/components/DesirePanel.js` |
 | Lifeweb blood tiers + cap, shared bot/web | `db/lib/lifeweb.js` |
 | Lifeweb requests, GM bypass panel | `web/app/(app)/lifeweb/requestActions.js`, `actions.js` |
