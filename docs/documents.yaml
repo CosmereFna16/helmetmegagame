@@ -7,8 +7,8 @@ documents:
     public: false
     tags: []
     description: As a member of the Baron’s retinue, you may take food from the faction Silo whenever you please—within reason (Treasurer and Leader roles can see their Silo’s transaction history, so don’t steal. If you’d like to steal, arrange it with a GM).
-  - name: Independent
-    key: independent
+  - name: Church
+    key: church
     public: false
     tags: []
     description: As a member of the Church, you may take food from the faction Silo whenever you please—within reason (Treasurer and Leader roles can see their Silo’s transaction history, so don’t steal. If you’d like to steal, arrange it with a GM).
@@ -17,8 +17,8 @@ documents:
     public: false
     tags: []
     description: As an independent townsman, you aren't on anyone's payroll. The Headman isn't expected to pay you. You should therefore ply a trade so you don't starve to death.
-  - name: ravenhearteconomy
-    key: Ravenheart's Economy
+  - name: Ravenheart's Economy
+    key: ravenhearteconomy
     public: true
     tags: []
     description: |-
@@ -196,7 +196,7 @@ documents:
 
       Below them all, Courtiers gossip, scheme, and try not to get caught doing either.
   - name: Guard Duty
-    key: guard
+    key: watchman
     public: false
     tags: []
     description: ""
@@ -296,3 +296,21 @@ documents:
       - Slightly worse at combat while Tipsy, unless you have the Alcoholic
         tag — built up from a lifetime of practice, not something you buy.
       - Doesn't touch hunger. Drink all you like, you'll still need to eat.
+  # Referenced by roles via doc_elements but not yet written. Stubs keep the
+  # reference resolvable (same posture as Guard Duty above) — fill in the
+  # description when the content is ready.
+  - name: The Armory
+    key: armory
+    public: false
+    tags: []
+    description: ""
+  - name: The Inn
+    key: inn
+    public: false
+    tags: []
+    description: ""
+  - name: Farming
+    key: farming
+    public: false
+    tags: []
+    description: ""
