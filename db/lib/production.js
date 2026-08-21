@@ -2,9 +2,10 @@
 // tiers, see docs/roles.yaml's Laborer tree and docs/documents.yaml's
 // "Producing Resources" doc) and the Hunting dice expressions. Single source
 // of truth for both /labor (bot/src/lib/labor.js, computed live against
-// GameConfig.productionCoefficient) and the doc generator
-// (db/prisma/sync-production-doc.js) — change a rate here, not in either of
-// those places.
+// GameConfig.productionCoefficient) and web/app/api/production-rates/route.js
+// (which backs the {resource:field:tier} bubbles docs/documents.yaml's
+// "Producing Resources" doc renders through) — change a rate here, not in
+// either of those places.
 const PRODUCTION_RATES = {
   herding: { base: 3, laborer: 8, specialist: 13 },
   farming: { base: 4, laborer: 12, specialist: 21 },
