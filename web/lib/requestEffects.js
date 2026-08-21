@@ -12,7 +12,7 @@ import { applyBlood } from "@lifeweb/db";
 
 // --- shared primitives ------------------------------------------------
 
-async function creditResources(tx, party, amount, ctx) {
+export async function creditResources(tx, party, amount, ctx) {
   if (!party || !amount) return;
   if (party.kind === "character") {
     await tx.character.update({ where: { id: party.id }, data: { resources: { increment: amount } } });
@@ -33,7 +33,7 @@ async function creditResources(tx, party, amount, ctx) {
   }
 }
 
-async function debitResources(tx, party, amount, ctx) {
+export async function debitResources(tx, party, amount, ctx) {
   if (!party || !amount) return;
   if (party.kind === "character") {
     await tx.character.update({ where: { id: party.id }, data: { resources: { decrement: amount } } });
@@ -501,6 +501,52 @@ export const REQUEST_EFFECTS = {
       }
 
       return `Refunded ${pointsDeducted ?? 0} Tag Point(s). The Worst Fear stands, unfulfilled.`;
+    },
+  },
+
+  // The only type whose subject is a DIFFERENT character from the one who
+  // filed it: `request.characterId` is the medic, `effect.targetCharacterId`
+  // the patient. Every tag write below therefore takes the target's id — the
+  // reflex to reach for request.characterId is wrong here.
+  //
+  // A heal is a SPEND, not a transfer: the cost leaves the payer and goes
+  // nowhere, so only one side ever moves.
+  HEAL_CHARACTER: {
+    editableFields: ["resourcesSpent", "restoreHealedTag"],
+    async applyEdit(tx, request, edits, ctx) {
+      const effect = { ...request.effect };
+      const notes = [];
+      const noteCtx = { ...ctx, note: `Edit of heal request ${request.id}` };
+
+      const previous = effect.resourcesSpent ?? 0;
+      const next = clampNonNegative(edits.resourcesSpent, previous);
+      if (next !== previous) {
+        if (next < previous) await creditResources(tx, effect.payer, previous - next, noteCtx);
+        else await debitResources(tx, effect.payer, next - previous, noteCtx);
+        notes.push(`Cost ${previous} -> ${next} ⬢, ${effect.payer?.name ?? "the payer"} settled up.`);
+        effect.resourcesSpent = next;
+      }
+
+      // "The treatment didn't take" — the affliction comes back but the
+      // medicine was still bought. Flagged so Undo doesn't restore it twice.
+      if (edits.restoreHealedTag && effect.restore?.tagId && !effect.tagRestoredByGm) {
+        await restoreCharacterTag(tx, effect.targetCharacterId, effect.restore);
+        notes.push(`Put ${effect.tagName ?? "the affliction"} back on ${effect.targetName ?? "the patient"}.`);
+        effect.tagRestoredByGm = true;
+      }
+
+      return { effect, note: notes.join(" ") || "No changes." };
+    },
+    async undo(tx, request, ctx) {
+      const { resourcesSpent, payer, restore, targetCharacterId, targetName, tagName, tagRestoredByGm } =
+        request.effect;
+      if (resourcesSpent) {
+        await creditResources(tx, payer, resourcesSpent, { ...ctx, note: `Undo of heal request ${request.id}` });
+      }
+      if (restore?.tagId && targetCharacterId && !tagRestoredByGm) {
+        await restoreCharacterTag(tx, targetCharacterId, restore);
+      }
+      return `Put ${tagName ?? "the affliction"} back on ${targetName ?? "the patient"} and refunded ${resourcesSpent ?? 0} ⬢ to ${payer?.name ?? "the payer"}.`;
     },
   },
 

@@ -56,9 +56,9 @@ the whole new stack clawed back — only what this request moved. See
 invokes it inside its own `prisma.$transaction` so a request can never exist
 without its effect, or an effect without its request.
 
-## 3. The eleven types
+## 3. The twelve types
 
-Nine live in `web/app/(app)/character/requestActions.js` and the two Lifeweb
+Ten live in `web/app/(app)/character/requestActions.js` and the two Lifeweb
 types in `web/app/(app)/lifeweb/requestActions.js`. Each one
 authenticates, **re-validates everything the client sent** (a server action is
 a public endpoint, and the client's filtered menus are only advisory), applies
@@ -78,6 +78,7 @@ reason.
 | `FULFILL_WORST_FEAR` | Declares their Worst Fear came true, for a flat −3 Tag Points | — | Refunds the points and unwinds the cooldown |
 | `DONATE_BLOOD` | Mortus bleeds someone into the Lifeweb | blood added; clear Drained | Draws the blood back, clears Drained |
 | `FEED_PERSON` | Mortus feeds someone to the Lifeweb | blood added | Draws the blood back (never revives) |
+| `HEAL_CHARACTER` | Treats an affliction on anyone standing in their Location, on whoever's tab they choose | cost; put the affliction back | Restores the tag with its original expiry, refunds the payer |
 
 The per-type behaviour lives in `web/lib/requestEffects.js` as one
 `REQUEST_EFFECTS` entry each. **Adding a type means adding one entry
@@ -326,6 +327,62 @@ Both buttons ask twice: the `RequestDialog` reason, then `useConfirm()` before
 anything is written. They act on someone else's character, which is the one
 place in the Requests system where that second gate is worth the friction.
 
+## 5c. Healing
+
+The Heal button on `/character` sits beside Consume and is the third request
+that touches someone else's sheet — and the first whose price the **catalog**
+owns rather than the player.
+
+**Three gates, all re-checked server-side.** The button only renders for a
+character holding `medical-basic`; the patient must share the healer's
+`locationId`; and the affliction's own `requirementSkills` must be satisfied —
+Arthritis names Medical (Skilled), so a character with only the Basic tier
+sees it in the menu, greyed, reading "needs Medical (Skilled)". The menu is
+advisory as always: `healCharacterRequestImpl` re-derives every one of those
+from the database before it writes anything.
+
+**Holding a higher tier satisfies a lower requirement.** Medical tiers
+*replace* each other up `Tag.parentTagId` (Basic → Skilled → Excellent), so a
+surgeon must be able to do a nurse's job. `buildSkillAncestry` in
+`web/lib/healRequests.js` walks that chain once over the flat catalog and
+`satisfiedSkillIds` unions it across everything the character holds — cheaper
+than three nested Prisma includes, cycle-guarded, and pure, so the picker and
+the server action can never disagree.
+
+**What counts as treatable** is data, not a slug list: a held tag in the
+`Status` category that carries *any* requirement field. A Status tag with no
+requirement block — Hungry, Drained, Unhappy — is a condition that runs its
+own course, not something a doctor removes. Today Arthritis is the only tag
+that qualifies; adding a `requirement:` block to a Status tag in
+`docs/tags.yaml` is the whole of "make this curable".
+
+**The cost is `Tag.requirementResources`, and a payer is demanded even at
+zero.** `schema.prisma` documents the requirement block as covering whichever
+direction is narratively relevant — crafting reads it as the price of gaining
+a tag, healing as the price of shedding one. Arthritis carries `turnsCost: 3`
+and no `resourceCost`, so it cures for 0 ⬢ today; the payer is still asked for
+and still recorded, because who was on the hook is the part a GM needs. The
+turns and any Gambit are shown as reference and enforced by nobody.
+
+**Who pays is anyone.** Every co-located living player including the healer,
+plus every faction Silo regardless of Silo authority — the same reach
+`TRANSFER_RESOURCES` has, for the same reason (see "the source can be anyone"
+in §3). Billing someone other than yourself asks twice: the reason dialog,
+then a `useConfirm()` naming the payer and the amount. Treating another
+character does not, which is the opposite of the Lifeweb rule below and
+deliberate — a cure is not a harm, and being charged for one is.
+
+Co-location is re-validated inside the target's `WHERE` clause rather than by
+a second read, so a patient who walked out between page load and submit fails
+closed with "They aren't here" and nothing is written.
+
+It is also the one type whose subject is a different character from the one
+who filed it: `request.characterId` is the medic, `effect.targetCharacterId`
+the patient, and every tag write in `requestEffects.js` takes the latter. A
+GM can re-price the cure or tick "put the affliction back but keep the
+payment" — the treatment that didn't take, the one partial outcome a full
+Undo can't express.
+
 ## 6. The player-facing surface
 
 `RequestDialog.js` is the universal popup. It is a rendered component taking
@@ -364,11 +421,13 @@ of a transfer. Deposits into a Silo previously left no ledger entry at all.
 | Request creation, reason validation, audit helper | `web/lib/requests.js` |
 | `UserError` + `guarded()` result wrapper | `web/lib/actionResult.js` |
 | Per-type Undo/Edit behaviour | `web/lib/requestEffects.js` |
-| The six player-facing server actions | `web/app/(app)/character/requestActions.js` |
+| The player-facing server actions | `web/app/(app)/character/requestActions.js` |
 | Universal popup | `web/app/components/RequestDialog.js` |
 | Status panel, mood readout, Set Mood | `web/app/components/StatusPanel.js`, `SetMoodButton.js` |
 | Transfer Resources | `web/app/components/TransferResourcesButton.js` |
-| Add / Remove / Transfer / Consume Tag | `web/app/components/TagRequestButtons.js`, `web/lib/tagRequests.js` |
+| Add / Remove / Transfer / Consume Tag / Heal | `web/app/components/TagRequestButtons.js`, `web/lib/tagRequests.js` |
+| Heal gate, tier chain, treatable-tag filter | `web/lib/healRequests.js` |
+| One end of a resource movement (Silo or player) | `web/app/components/PartySelect.js` |
 | Tags panel + click-a-chip-to-consume | `web/app/components/TagsPanel.js`, `TagChip.js` |
 | Desires and Worst Fears | `web/app/components/GoalsPanel.js` (tab shell), `DesirePanel.js`, `WorstFearPanel.js` |
 | Lifeweb blood tiers + cap, shared bot/web | `db/lib/lifeweb.js` |

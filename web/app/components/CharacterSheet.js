@@ -75,6 +75,9 @@ export default function CharacterSheet({
   otherCharacters,
   desire,
   desireCooldownUntilTurn,
+  canHeal = false,
+  healTargets = [],
+  healParties = null,
 }) {
   const isSelf = mode === "self";
 
@@ -207,6 +210,10 @@ export default function CharacterSheet({
         resources={character.resources}
         otherCharacters={otherCharacters ?? []}
         currentTurn={openTurn?.number ?? null}
+        selfId={character.id}
+        canHeal={canHeal}
+        healTargets={healTargets}
+        healParties={healParties}
       />
 
       {isSelf && (

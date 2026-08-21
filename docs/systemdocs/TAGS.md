@@ -211,8 +211,12 @@ Full writeup of creation, roles, and the wizard: `CHARACTERS.md`.
   and some turns; forging the revolver tag costs turns, resources, and
   Smithing). `requirementSkills` is a many-to-many self-relation onto `Tag`
   (multiple skill tags accepted), resolved in `syncTags.js`'s pass 5. This
-  is a GM adjudication reference, also shown to players — not
-  automated/enforced by any code, same posture as `requiredTag`/`tradeable`.
+  is mostly a GM adjudication reference, shown to players, with one
+  exception: the Heal request (`HEAL_CHARACTER`, REQUESTS.md §5c) enforces
+  the *removal* direction on `Status` tags — `requirementResources` is the ⬢
+  it charges and `requirementSkills` is what the medic must hold (any
+  equal-or-higher tier up the `parentTag` chain counts). Turns and Gambit
+  stay reference-only everywhere, as do all four in the adding direction.
   One shared block covers whichever direction (add or remove) is
   narratively relevant to a given tag, rather than separate blocks per
   direction. Rendered everywhere a tag's description already renders, in a

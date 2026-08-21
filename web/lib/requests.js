@@ -22,6 +22,7 @@ export const REQUEST_TYPE_LABELS = {
   // Not "Fulfill Worst Fear" — that reads like the player achieved
   // something, and every other label here is a thing they did.
   FULFILL_WORST_FEAR: "Worst Fear Comes True",
+  HEAL_CHARACTER: "Heal",
 };
 
 export const REQUEST_STATUS_LABELS = {
