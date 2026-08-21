@@ -4,7 +4,7 @@ import { prisma } from "@lifeweb/db";
 import { getGmSession, getGuildMember, isCursed } from "@/lib/discordGuild";
 import { updateCharacterRaw, grantTag, revokeTag } from "../../actions";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
-import { HONORIFICS, NAME_LIMITS } from "@/lib/characterName";
+import { HONORIFICS, NAME_LIMITS, AGE_MIN, AGE_MAX } from "@/lib/characterName";
 
 export default async function DevCharacterEditPage({ params }) {
   const { characterId } = await params;
@@ -68,6 +68,17 @@ export default async function DevCharacterEditPage({ params }) {
               defaultValue={character.title ?? ""}
               maxLength={NAME_LIMITS.title}
               placeholder={'renders as "the Blind"'}
+            />
+          </label>
+
+          <label className="field">
+            <span className="field-label">Age</span>
+            <input
+              type="number"
+              name="age"
+              min={AGE_MIN}
+              max={AGE_MAX}
+              defaultValue={character.age ?? ""}
             />
           </label>
 

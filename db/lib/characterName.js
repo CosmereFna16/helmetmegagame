@@ -102,8 +102,15 @@ function normalizeHonorific(value) {
   return HONORIFICS.includes(v) ? v : null;
 }
 
+// A character is an adult, and nobody in Ravenheart is spry at 91. Enforced
+// server-side in both writers; the number is fixed once first saved.
+const AGE_MIN = 18;
+const AGE_MAX = 90;
+
 module.exports = {
   HONORIFICS,
+  AGE_MIN,
+  AGE_MAX,
   NAME_LIMITS,
   formatCharacterName,
   formatBareName,

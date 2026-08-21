@@ -561,6 +561,60 @@ h3 {
   resize: vertical;
 }
 
+/* Equipment rack. Slots wrap into as many columns as fit, so six slots read
+   as one row on a laptop and two or three on a phone without a breakpoint —
+   the tap targets stay full-width-ish rather than shrinking to fit. */
+.equip-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+.equip-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px; /* the usual floor for a comfortable touch target */
+  padding: var(--sp-1) var(--sp-2);
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.equip-slot:disabled {
+  cursor: default;
+}
+
+.equip-slot.is-empty {
+  border-style: dashed;
+  opacity: 0.5;
+}
+
+.equip-slot:not(.is-empty):hover:not(:disabled) {
+  border-color: var(--accent-text);
+}
+
+.equip-add {
+  min-height: 44px;
+  padding: var(--sp-1) var(--sp-2);
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.equip-add:hover:not(:disabled) {
+  border-color: var(--accent-text);
+  border-style: solid;
+}
+
+.equip-add:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 /* A read-only field — today only the GM-granted title on the character
    sheet. It has to read as "shown, not yours to change" rather than as a
    broken input, so it keeps the recessed background and loses the caret. */

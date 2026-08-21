@@ -151,7 +151,7 @@ export default async function CharacterPage() {
     return <CreateCharacterWizard {...creation} />;
   }
 
-  const [openTurn, otherCharacters, factions, tagCatalog, tierRows, desire, lastEndedDesire] =
+  const [openTurn, otherCharacters, factions, tagCatalog, tierRows, desire, lastEndedDesire, gameConfig] =
     await Promise.all([
       getOpenTurn(),
       prisma.character.findMany({
@@ -198,6 +198,7 @@ export default async function CharacterPage() {
         orderBy: { updatedAt: "desc" },
         select: { endedTurnNumber: true },
       }),
+      prisma.gameConfig.findUnique({ where: { id: 1 }, select: { equipSlots: true } }),
     ]);
 
   // Both ends of a transfer list every Silo and every living player,
@@ -293,6 +294,7 @@ export default async function CharacterPage() {
       desire={desire}
       desireCooldownUntilTurn={lastEndedDesire?.endedTurnNumber ?? null}
       canHeal={canHeal}
+      equipSlots={gameConfig?.equipSlots ?? 6}
       healTargets={healTargets}
       healParties={healParties}
     />

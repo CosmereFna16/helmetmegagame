@@ -161,6 +161,12 @@ model GameConfig {
   // either way, so players can read the rules before launch.
   openToPlayers Boolean @default(false)
 
+  // How many tags a character may have equipped at once. Enforced inside the
+  // transaction that flips CharacterTag.equipped, so two tabs racing on the
+  // last slot cannot both win. Editable live from the Dev Panel, same posture
+  // as startingTagPoints above.
+  equipSlots Int @default(6)
+
   // Expected total number of players, the denominator for every role's seat
   // cap: a role with `weight: 6` in docs/roles.yaml gets
   // round(6 * playerCount / 100) seats. Raising this mid-signup widens every
@@ -357,6 +363,14 @@ model Character {
   turnPingOptIn     Boolean @default(true)
   romanceOptOut     Boolean @default(false)
 
+  // 18-90, or null until the player first sets one. Free to edit while null;
+  // the moment a number lands it is fixed — the /character input renders
+  // disabled and updateCharacterProfile refuses to overwrite a non-null age,
+  // the same shape as the GM-granted `title` above. A GM can still change it
+  // from /gm/dev/characters/[characterId]. Read by
+  // db/lib/concealedIdentity.js for the Young/Old half of a concealed alias.
+  age Int?
+
   // A single, persistent, self-set dread — see docs/systemdocs/REQUESTS.md
   // §5b. Deliberately three columns rather than a model: there is exactly one
   // per character, it has no ACTIVE/ENDED lifecycle (fulfilling it does NOT
@@ -443,6 +457,17 @@ model Tag {
   // Items-category flag for a future trade flow — no transfer logic exists
   // yet, this just marks which tags are candidates for it.
   tradeable Boolean @default(false)
+
+  // Whether this tag is a thing a character can wear or carry readied, and so
+  // occupies one of their GameConfig.equipSlots. Equipped state lives on
+  // CharacterTag.equipped; equipping is instant and writes no Request.
+  equippable Boolean @default(false)
+
+  // Whether equipping this tag lets the character post with `/conceal` — a
+  // mask, hood or closed helm. Only meaningful together with equippable, and
+  // db/lib/syncTags.js throws if it is set without it, since a mask nobody can
+  // equip could never enable anything.
+  concealsIdentity Boolean @default(false)
 
   // Whether a character can hold more than one of this tag at a time —
   // meals, ammunition, anything a crafting Move produces in a batch. A
@@ -586,6 +611,13 @@ model CharacterTag {
   // Used for system-granted temporary status tags (Ate Meal, Tipsy) — see
   // EVENT below.
   expiresTurn Int?
+
+  // Whether this held tag is currently equipped, capped across a character by
+  // GameConfig.equipSlots and only ever true for a Tag.equippable one. A
+  // stackable tag takes ONE slot however many units are held — the flag is a
+  // property of holding the tag, not of each unit, which is also why this is
+  // a column here rather than a separate join table.
+  equipped Boolean @default(false)
 
   // How many of this tag the character holds. Always 1 for an ordinary tag;
   // only Tag.stackable ones ever go above it, and nothing may drive it

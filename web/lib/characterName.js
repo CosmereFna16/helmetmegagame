@@ -9,6 +9,8 @@
 export {
   HONORIFICS,
   NAME_LIMITS,
+  AGE_MIN,
+  AGE_MAX,
   formatCharacterName,
   formatBareName,
   splitLegacyName,

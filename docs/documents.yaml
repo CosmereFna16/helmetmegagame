@@ -346,3 +346,11 @@ documents:
     public: false
     tags: []
     description: ""
+  - name: Concealing Your Identity
+    key: concealing
+    public: true
+    tags: []
+    description: |-
+      Typing /conceal before your message hides your identity. Anyone may do this at any time, and you need nothing equipped for it.
+
+      You will appear as a stranger—a young man, an old woman—with no name and no face. People can still see any visible wounds you are carrying and any visible gear you have equipped, so a concealed man in plate is still a man in plate.

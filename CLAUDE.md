@@ -222,6 +222,16 @@ Sir Jorren "the Blind" Vask
 
 Exactly **three writers** keep the mirror honest, and all three go through the formatter: `character/createActions.js`, `character/actions.js#updateCharacterProfile`, and `gm/dev/actions.js#updateCharacterRaw`. A fourth must do the same; `npm run db:backfill-name-parts` is the drift check that catches one that doesn't.
 
+`Character.age` (18–90, nullable) sits with the name fields and follows the
+same shown-but-locked posture as `title`, from the other direction: it is the
+player's to set, but only once. While null the `/character` input is live; the
+moment a number is saved it renders `disabled` with an `InfoIcon`, and
+`updateCharacterProfile` refuses to overwrite a non-null age however the form is
+posted — the disabled input is the hint, not the lock. The wizard takes it
+optionally, and a GM can always correct it from
+`/gm/dev/characters/[characterId]`. It is read by `db/lib/concealedIdentity.js`
+for the Young/Old half of a concealed alias.
+
 `NAME_LIMITS` (10/24/20/20) is not cosmetic. Discord caps a webhook username at 80 characters and the proxy sends `name` as-is; slicing it there would silently break the `dawnWipe` lookup, so the *inputs* are capped instead and the composed name is ≤79 by construction. All three writers apply the caps and `normalizeHonorific`'s allowlist server-side — every one of those forms is a public endpoint.
 
 Two surfaces deliberately use the **bare** name (`formatBareName`, first + last) instead: the personal Discord role's name and colour seed, and the nickname — see "Nickname sync" above and "Zones, Locations, and character roles" below. Because a bare name is byte-identical to what `name` held before the split, the migration is a no-op on the Discord side: nothing renames, nothing recolours, no REST call fires on deploy.
@@ -321,6 +331,70 @@ private channels. See `docs/systemdocs/CHANNELS.md` §6.
 `stackable` combines safely with `durationTurns` — the expiry sweep sheds one unit per expiry and rerolls the remaining stack's timer (`sweepExpiredStacks` in `db/index.js`), deleting the row only when the last unit goes. `web/app/api/tags/route.js` feeds the read-only catalog to `TagsProvider`/`RichText.js`'s `{tag:slug}`/`{tag:id}` inline references and to `TagChip.js` (the hover-tooltip chip used everywhere a character's tags render, e.g. `CharacterSheet.js`).
 
 `Leader`/`Treasurer` are **not** tags — both are plain booleans on `Character` (`isLeader`, `isTreasurer`), assigned dynamically from `/faction` (`web/app/(app)/faction/actions.js#setFactionLeader`/`setTreasurer`) by a GM (Leader) or a GM/the faction's current Leader (Treasurer), and read by `db/lib/factionPermissions.js#getMyFactionRole`/`getSiloAccess` to gate Silo management. That module lives in `db/lib` (taking `prisma` as its first parameter, same convention as `db/lib/dm.js`, and deliberately not spread into the `@lifeweb/db` barrel) because both faces of the game ask the question; `web/lib/factionPermissions.js` is a thin shim binding the singleton `prisma` so web call sites keep the shorter signature. Silo authority is also what gates **seeing a member's Resources**: the roster column on `/faction` (including the subject-faction view a parent's Leader/Treasurer can open) and the Resources field on the bot's 🔍 inspect embed (`bot/src/events/messageReactionAdd.js`) are both behind `getSiloAccess`, and are simply absent rather than masked for anyone else. Two more inspect fields follow that same absent-not-masked posture but are gated on the **inspector's** own tags rather than the subject's: Seductive reveals the subject's active Desire and Torturer their Worst Fear, resolved by `db/lib/inspectVision.js` (which also accepts each tag's discounted Demoness twin). It's bot-only — the web has no other-player character sheet. `Character.status === "ALIVE"` isn't a tag either. Silo authority no longer gates a *transfer* UI of its own, though: `/faction`'s "Transfer from Silo" panel was removed, since it was a direct mutation with an optional note and no `Request` row, so a GM could neither review nor undo it. The one way to move ⬢ out of a Silo is now the `TRANSFER_RESOURCES` request on `/character` (`TransferResourcesButton`), which demands a reason, shows up in the Requests tab, and is undoable. `SiloTransaction` rows are still written on both directions of that transfer, so `/faction`'s Silo history is unchanged.
+
+## Equipment and concealed identity
+
+A character may have up to `GameConfig.equipSlots` (default 6, editable from
+the Dev Panel) tags equipped at once. `Tag.equippable` marks what qualifies —
+set from `equippable: true` in `docs/tags.yaml` — and `CharacterTag.equipped`
+carries the state, so equipping is a property of *holding* the tag and every
+existing "does this character hold X" query is untouched. A `stackable` tag
+takes **one** slot however many units are held.
+
+Equipping is **instant and writes neither a `Request` nor an `AuditLog` row**,
+unlike everything in "Requests, Mood, and Desires" above. It costs nothing, the
+player undoes it in one tap, and at 100+ players a row per toggle would drown
+`/gm/audit`. `toggleEquip` (`web/app/(app)/character/equipActions.js`) resolves
+the character from the session rather than trusting a posted id, re-checks
+`tag.equippable`, and counts the slots in a transaction — but the count alone is
+**not** sufficient: Prisma runs at READ COMMITTED, so two tabs both read the same
+free slot and both write. The transaction opens with
+`SELECT id FROM "Character" ... FOR UPDATE`, which serializes equips per
+character; without it a burst of 8 concurrent equips all land against a cap of 6
+(verified). `EquipmentPanel.js` is click-to-toggle rather than drag-and-drop —
+drag needs a touch fallback that would be exactly this anyway — and is its own
+surface rather than an affordance on `TagChip`, whose click already opens the
+Consume dialog.
+
+`Tag.concealsIdentity` marks gear that hides who you are (a mask, hood, closed
+helm). `db/lib/syncTags.js` **throws** on `concealsIdentity` without
+`equippable`, since a mask nobody can equip could never conceal anything. The
+field is currently **inert** — concealing is open to everyone (below) — and is
+kept only so the gate can be restored without a migration.
+
+A message in a tupper channel beginning `/conceal` is reposted under an
+anonymous alias instead of the character's name. It is **open to everyone**,
+with nothing equipped and no tag required — a player decides for themselves
+when to go unnamed. `Tag.concealsIdentity` still exists in the catalog and is
+still synced, but nothing reads it; re-gating would be one query in
+`messageCreate.js`. It is a literal text prefix, deliberately **not** a
+registered slash command: a slash command replies
+through an interaction rather than the webhook, so ✏️/❌/⭐/🔍 would all stop
+working on the result. As a prefix it rides the ordinary proxy path and every
+reaction behaves unchanged.
+
+The alias comes from `db/lib/concealedIdentity.js` (pure, in the barrel beside
+`characterName.js`): `[Young|Old|]` from `Character.age` (under 25 / 55+, nothing
+between, nothing when age is null) plus `[Man|Woman|Person]` from the honorific —
+rank and profession say nothing about the wearer, so Captain, Doctor and the rest
+fall through to Person, as does having no honorific. `assertHonorificsCovered()`
+is the guard against `HONORIFICS` gaining an entry that silently reads as Person.
+The avatar is `web/public/assets/unknown.png`, served straight out of `public/`
+and identical for everyone — a per-character concealed avatar would be a
+fingerprint.
+
+`recentProxies` records `concealed`/`alias`, and three handlers read it:
+🔍 returns a **hardcoded** embed before any of the normal field logic (the
+concealed line, plus only `visibleOnInspect` ailments and `visibleOnInspect`
+equipped gear — no appearance, name, Desire, Worst Fear or Resources, even for a
+viewer whose gates are open); ⭐ files the alias in `Note.characterName` rather
+than the real name; ✏️/❌ are unchanged, since both already gate on
+`proxy.discordUserId`. "Ailments" resolves as `tag.group?.slug ===
+"status-health"` alone — `TagGroup` is already category-scoped, and `Tag.category`
+stores the *display* name ("Status"), so testing it would be a casing trap.
+Because `recentProxies` is in-memory and capped at 500, a bot restart makes an
+old concealed message inert to every reaction, which is the safe direction.
+`db/lib/dawnWipe.js` needs nothing: its name lookup simply misses an alias.
 
 ## Discord permission model
 

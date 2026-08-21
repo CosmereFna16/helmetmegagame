@@ -14,6 +14,8 @@ import {
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import {
+  AGE_MIN,
+  AGE_MAX,
   NAME_LIMITS,
   formatCharacterName,
   normalizeHonorific,
@@ -92,6 +94,7 @@ export async function updateGameConfig(formData) {
       // Guarded at 1 because it's the denominator of every weighted role's
       // seat cap — a 0 here would collapse the whole role picker.
       playerCount: Math.max(1, intOrZero(formData, "playerCount")),
+      equipSlots: Math.max(1, intOrZero(formData, "equipSlots")),
     },
   });
 
@@ -208,6 +211,7 @@ const DEFAULT_GAME_CONFIG = {
   productionCoefficient: 1,
   startingTagPoints: 12,
   playerCount: 100,
+  equipSlots: 6,
 };
 
 // Full game restart for dev/testing: wipes every player- and turn-scoped
@@ -375,10 +379,17 @@ export async function updateCharacterRaw(formData) {
     lastName: namePart("lastName", NAME_LIMITS.lastName),
   };
 
+  // A GM may set or correct an age freely — the once-only lock is a
+  // player-side rule, not a database one.
+  const rawAge = Number.parseInt(str(formData, "age"), 10);
+  const age =
+    Number.isInteger(rawAge) && rawAge >= AGE_MIN && rawAge <= AGE_MAX ? rawAge : null;
+
   const updated = await prisma.character.update({
     where: { id: characterId },
     data: {
       ...nameParts,
+      age,
       // Keep firstName NOT NULL satisfied even if the field is cleared.
       firstName: nameParts.firstName ?? existing?.firstName ?? "",
       name: formatCharacterName({
