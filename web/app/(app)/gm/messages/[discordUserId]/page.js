@@ -3,7 +3,7 @@ import Link from "next/link";
 import { prisma } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { sendDmReply } from "../../actions";
-import MarkdownContent from "../../../../components/MarkdownContent";
+import MessageList from "./MessageList";
 
 export default async function MessageThreadPage({ params }) {
   const { discordUserId } = await params;
@@ -28,34 +28,7 @@ export default async function MessageThreadPage({ params }) {
       </Link>
       <h1 className="text-2xl font-bold">{label}</h1>
 
-      <div className="panel flex flex-col gap-3 p-4">
-        {messages.map((m) => (
-          <div
-            key={m.id}
-            className="flex flex-col"
-            style={{ alignItems: m.direction === "OUTBOUND" ? "flex-end" : "flex-start" }}
-          >
-            <div
-              className="max-w-md rounded-md px-3 py-2 text-sm"
-              style={{
-                background: m.direction === "OUTBOUND" ? "var(--accent)" : "var(--field-bg)",
-                color: m.direction === "OUTBOUND" ? "var(--bg)" : "var(--text)",
-                border: m.direction === "OUTBOUND" ? "none" : "1px solid var(--border)",
-              }}
-            >
-              <MarkdownContent content={m.content} />
-            </div>
-            <span className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
-              {m.createdAt.toLocaleString()}
-            </span>
-          </div>
-        ))}
-        {messages.length === 0 && (
-          <p className="text-sm" style={{ color: "var(--muted)" }}>
-            No messages yet.
-          </p>
-        )}
-      </div>
+      <MessageList messages={messages} />
 
       <form action={sendDmReply} className="panel flex flex-col gap-3 p-4">
         <input type="hidden" name="discordUserId" value={discordUserId} />

@@ -472,6 +472,13 @@ h2 {
   overflow: auto;
 }
 
+/* A DM thread that stays put: fixed viewport, scrolls internally instead of
+   growing the page. */
+.message-list {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
 .table-scroll .data-table thead th {
   position: sticky;
   top: 0;
