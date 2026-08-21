@@ -28,7 +28,10 @@ async function loadCreationData(discordUserId) {
     prisma.tag.findMany({
       where: { purchasable: true },
       include: {
-        group: { select: { slug: true, name: true, color: true } },
+        // requiredTagId comes along because a group carrying one is the
+        // hidden-category gate (docs/systemdocs/TAGS.md §3). Drop it and
+        // every gated category silently opens for everyone.
+        group: { select: { slug: true, name: true, color: true, requiredTagId: true } },
         requirementSkills: { select: { id: true, slug: true, name: true } },
       },
     }),
@@ -159,7 +162,12 @@ export default async function CharacterPage() {
         purchasable: true,
         craftable: true,
         stackable: true,
-        group: { select: { name: true, color: true } },
+        // Both gates the Add Tag menu enforces — the per-tag prerequisite and
+        // the whole-group one behind a hidden category. parentTagId comes
+        // along because requirementSatisfied walks the tier chain.
+        parentTagId: true,
+        requiredTagId: true,
+        group: { select: { name: true, color: true, requiredTagId: true } },
       },
     }),
     prisma.desire.findFirst({ where: { characterId: character.id, status: "ACTIVE" } }),

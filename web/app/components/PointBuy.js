@@ -11,9 +11,10 @@ import {
   effectiveCost,
   effectiveTotalCost,
   chainSiblingsToRemove,
-  requirementSatisfied,
+  unlockedTags,
 } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
+import ChipText from "./ChipText";
 
 // The point-buy menu, shared by both stores.
 //
@@ -42,10 +43,6 @@ export default function PointBuy({
     [tags, afterStartOnly, grantedTags],
   );
 
-  const categories = useMemo(() => menuCategories(offered), [offered]);
-  const [category, setCategory] = useState(categories[0] ?? null);
-  const active = categories.includes(category) ? category : categories[0];
-
   // "Held" for cost/requirement purposes = granted-for-free tags plus
   // whatever's currently selected — a chain tier already granted by the role
   // discounts a purchase the same way an already-selected lower tier does.
@@ -54,6 +51,19 @@ export default function PointBuy({
     () => [...grantedIds, ...selectedIds],
     [grantedIds, selectedIds],
   );
+
+  // Requirement filtering happens BEFORE the tabs are derived, not per row:
+  // a category whose every tag is gated (Demoness, Bacchus) must have no tab
+  // at all. Selected tags stay in, so unticking one can't make it vanish
+  // mid-interaction.
+  const unlocked = useMemo(
+    () => unlockedTags(offered, byId, heldOrSelectedIds, selectedIds),
+    [offered, byId, heldOrSelectedIds, selectedIds],
+  );
+
+  const categories = useMemo(() => menuCategories(unlocked), [unlocked]);
+  const [category, setCategory] = useState(null);
+  const active = categories.includes(category) ? category : categories[0];
 
   const selected = useMemo(
     () => offered.filter((t) => selectedIds.includes(t.id)),
@@ -70,7 +80,7 @@ export default function PointBuy({
     onChange([...selectedIds.filter((id) => !siblings.includes(id)), tag.id]);
   }
 
-  const visible = offered.filter((t) => t.category === active);
+  const visible = unlocked.filter((t) => t.category === active);
 
   return (
     <div className="flex flex-col gap-4">
@@ -113,14 +123,13 @@ export default function PointBuy({
           // TagChip.js. It was wrapped as var(--tag-<hex>) here, a token that
           // has never existed, so group colours silently didn't render.
           const groupColor = tag.group?.color ?? null;
-          const locked = !isSelected && !requirementSatisfied(tag, byId, heldOrSelectedIds);
           const cost = effectiveCost(tag, byId, heldOrSelectedIds);
           // A tag you can't currently afford is still shown, just marked —
           // hiding it would make the catalog feel like it changes shape.
-          // A locked one (unmet requiredTag) is hidden outright instead,
-          // same as a tag the role already grants for free.
+          // A locked one (unmet requiredTag, or an unmet group gate) never
+          // reaches here at all: `unlocked` above dropped it, along with its
+          // category tab.
           const unaffordable = !isSelected && cost > remaining;
-          if (locked) return null;
           return (
             <li key={tag.id}>
               <button
@@ -155,10 +164,11 @@ export default function PointBuy({
                       </span>
                     )}
                   </span>
+                  {/* ChipText rather than RichText: the row is a <button>,
+                      so a hoverable chip inside it would be a button in a
+                      button. */}
                   {tag.description && (
-                    <span className="text-sm text-muted">
-                      {tag.description}
-                    </span>
+                    <ChipText text={tag.description} as="span" className="text-sm text-muted" />
                   )}
                   {formatTagRequirement(tag) && (
                     <span className="text-sm text-muted">

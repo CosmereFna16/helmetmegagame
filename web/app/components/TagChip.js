@@ -1,5 +1,7 @@
 import { formatCost, costColor } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
+import ChipLabel from "./ChipLabel";
+import ChipText from "./ChipText";
 
 // `onConsume`/`consumeHint` are set only for a consumable tag on your own
 // sheet (see TagsPanel.js), which turns the chip into a shortcut into the
@@ -7,10 +9,7 @@ import { formatTagRequirement } from "@/lib/formatTagRequirement";
 // client parent so this component keeps rendering fine on the server
 // everywhere else it's used.
 export default function TagChip({ tag, quantity = 1, onConsume = null, consumeHint = null }) {
-  // Only a stack says how many; an ordinary tag reads as a bare name, which
-  // is every tag outside Items today.
   const stack = quantity > 1 ? quantity : null;
-  const groupColor = tag.group?.color ?? null;
   // Minified "cost to add/remove this tag in play" — see
   // Tag.requirement* in schema.prisma. Null when unset, so it's simply
   // omitted rather than rendering an empty line.
@@ -37,21 +36,16 @@ export default function TagChip({ tag, quantity = 1, onConsume = null, consumeHi
           : undefined
       }
     >
-      <span
-        className="chip"
-        style={groupColor ? { borderLeftColor: groupColor, borderLeftWidth: 3 } : undefined}
-      >
-        {tag.name}
-        {stack && (
-          <span className="text-muted"> &times;{stack}</span>
-        )}
-      </span>
+      <ChipLabel tag={tag} quantity={quantity} />
       <span className="tag-tooltip" role="tooltip">
         <strong>
           {tag.name}
           {stack ? ` ×${stack}` : ""}
         </strong>
-        {tag.description && <p>{tag.description}</p>}
+        {/* ChipText, not RichText: a {tag:…} in here resolves to a plain
+            label, since a chip nested inside a hover tooltip could never be
+            hovered to reach its own tooltip. */}
+        {tag.description && <ChipText text={tag.description} as="p" />}
         {requirement && <p className="text-muted">{requirement}</p>}
         {consumeHint && <p className="text-accent">{consumeHint}</p>}
         <span style={{ color: costColor(tag.pointCost) }}>{formatCost(tag.pointCost)} pts</span>

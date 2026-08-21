@@ -1,6 +1,7 @@
 const { WebhookClient, EmbedBuilder } = require("discord.js");
 const { prisma, formatTagRequirement } = require("@lifeweb/db");
 const { getSiloAccess } = require("@lifeweb/db/lib/factionPermissions");
+const { inspectVision } = require("@lifeweb/db/lib/inspectVision");
 const { recentProxies } = require("../lib/proxy");
 const { sendDm } = require("../lib/dm");
 
@@ -138,14 +139,26 @@ module.exports = {
     }
 
     if (INSPECT_EMOJIS.includes(emoji)) {
-      const character = await prisma.character.findUnique({
-        where: { id: proxy.characterId },
-        include: {
-          tags: { include: { tag: { include: { requirementSkills: { select: { name: true } } } } } },
-          faction: { select: { name: true } },
-        },
-      });
+      // The inspected character, and the inspector — what the embed shows
+      // depends on both. Seductive/Torturer (and their Demoness twins) are
+      // read off the REACTOR, not the subject: they're the sight, not the
+      // thing seen.
+      const [character, viewer] = await Promise.all([
+        prisma.character.findUnique({
+          where: { id: proxy.characterId },
+          include: {
+            tags: { include: { tag: { include: { requirementSkills: { select: { name: true } } } } } },
+            faction: { select: { name: true } },
+          },
+        }),
+        prisma.character.findFirst({
+          where: { discordUserId: user.id, status: "ALIVE" },
+          select: { tags: { select: { tag: { select: { slug: true } } } } },
+        }),
+      ]);
       if (!character) return;
+
+      const { canSeeDesire, canSeeFear } = inspectVision(viewer?.tags ?? []);
 
       // Each entry is the tag name, plus a minified "cost to add/remove"
       // suffix (see formatTagRequirement, @lifeweb/db) when the tag has
@@ -162,6 +175,24 @@ module.exports = {
         .setDescription(character.appearance || "No visible appearance.");
       if (visibleTags.length > 0) {
         embed.addFields({ name: "Tags", value: visibleTags.join(", ") });
+      }
+
+      // An unseen field is ABSENT, never a "hidden" placeholder — a
+      // placeholder advertises that there's something worth going after.
+      // Same posture as the Resources field below. Nothing tells the subject
+      // they were read, either; every inspect is silent.
+      if (canSeeDesire) {
+        const desire = await prisma.desire.findFirst({
+          where: { characterId: character.id, status: "ACTIVE" },
+          select: { text: true, points: true },
+        });
+        if (desire) {
+          embed.addFields({ name: "Desire", value: `${desire.text} (+${desire.points})` });
+        }
+      }
+
+      if (canSeeFear && character.worstFear) {
+        embed.addFields({ name: "Worst Fear", value: character.worstFear });
       }
 
       // Whoever holds Silo authority over this character's faction — its

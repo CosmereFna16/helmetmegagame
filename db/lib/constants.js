@@ -16,6 +16,17 @@ const LABORER_FISHING_SLUG = "laborer-fishing";
 const LABORER_HERDING_SLUG = "laborer-herding";
 const HUNTER_SLUG = "hunter";
 
+// The two "read someone else's sheet" tags and their discounted Demoness
+// twins — see db/lib/inspectVision.js, the only reader.
+const SEDUCTIVE_SLUG = "seductive";
+const SEDUCTIVE_DEMONESS_SLUG = "seductive-demoness";
+const TORTURER_SLUG = "torturer";
+const TORTURER_DEMONESS_SLUG = "torturer-demoness";
+
+// Gates the hidden Demoness tag category (via the `demoness` group's
+// requiredTag in docs/taggroups.yaml).
+const DEMONESS_SLUG = "demoness";
+
 module.exports = {
   HUNGER_SLUG,
   HUNGERLESS_SLUG,
@@ -34,4 +45,9 @@ module.exports = {
   LABORER_FISHING_SLUG,
   LABORER_HERDING_SLUG,
   HUNTER_SLUG,
+  SEDUCTIVE_SLUG,
+  SEDUCTIVE_DEMONESS_SLUG,
+  TORTURER_SLUG,
+  TORTURER_DEMONESS_SLUG,
+  DEMONESS_SLUG,
 };

@@ -1,10 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-import { sortTagsForMenu, menuCategories, formatCost, costColor } from "@/lib/characterCreation";
+import {
+  sortTagsForMenu,
+  menuCategories,
+  formatCost,
+  costColor,
+  tagsById as buildTagsById,
+  unlockedTags,
+} from "@/lib/characterCreation";
 import { addableTags, removableTags, transferableTags, consumableTags } from "@/lib/tagRequests";
 import RequestDialog from "./RequestDialog";
 import InfoIcon from "./InfoIcon";
+import ChipText from "./ChipText";
 import { useTags } from "./TagsProvider";
 import {
   addTagRequest,
@@ -17,14 +25,26 @@ import {
 // row layout from PointBuy.js, but not PointBuy itself: there's no budget, no
 // tier-chain math, and no point total here, so sharing the component would
 // mean threading "no economy" flags through all of it.
-function TagPicker({ tags, selectedId, onSelect }) {
+//
+// `byId`/`heldIds` are only meaningful for the Add menu, where a tag has to
+// clear its prerequisites before it can be asked for. The other three menus
+// list what the character already holds, so they pass nothing and every tag
+// is offered.
+function TagPicker({ tags, selectedId, onSelect, byId = null, heldIds = null }) {
   const offered = useMemo(() => sortTagsForMenu(tags), [tags]);
-  const categories = useMemo(() => menuCategories(offered), [offered]);
-  const [category, setCategory] = useState(categories[0] ?? null);
+  // Same rule as PointBuy: gate first, derive the tabs from what survived. A
+  // hidden category (Demoness, Bacchus) must have no tab at all rather than
+  // an empty one, which would advertise that there's something there.
+  const unlocked = useMemo(
+    () => (byId ? unlockedTags(offered, byId, heldIds ?? []) : offered),
+    [offered, byId, heldIds],
+  );
+  const categories = useMemo(() => menuCategories(unlocked), [unlocked]);
+  const [category, setCategory] = useState(null);
   const active = categories.includes(category) ? category : categories[0];
-  const visible = offered.filter((t) => t.category === active);
+  const visible = unlocked.filter((t) => t.category === active);
 
-  if (!offered.length) {
+  if (!unlocked.length) {
     return (
       <p className="text-sm text-muted">
         Nothing available.
@@ -79,10 +99,15 @@ function TagPicker({ tags, selectedId, onSelect }) {
                     </span>
                   ) : null}
                 </span>
+                {/* ChipText rather than RichText — the row is a <button>,
+                    so a hoverable chip inside it would nest one button in
+                    another. */}
                 {tag.description && (
-                  <span className="mt-1 block text-xs text-muted">
-                    {tag.description}
-                  </span>
+                  <ChipText
+                    text={tag.description}
+                    as="span"
+                    className="mt-1 block text-xs text-muted"
+                  />
                 )}
               </span>
             </button>
@@ -147,6 +172,14 @@ export default function TagRequestButtons({
 
   const heldIds = useMemo(() => characterTags.map((ct) => ct.tagId), [characterTags]);
   const addable = useMemo(() => addableTags(catalog, heldIds), [catalog, heldIds]);
+  // The catalog is purchasable-or-craftable only, so the tags that OPEN a
+  // gate — Demoness, Cultist of Bacchus — aren't in it. Fold the character's
+  // own held tags in, or a chain walk from a held gate tag dead-ends and the
+  // category stays shut for the one person meant to see it.
+  const gateById = useMemo(
+    () => buildTagsById([...catalog, ...characterTags.map((ct) => ct.tag).filter(Boolean)]),
+    [catalog, characterTags],
+  );
   const removable = useMemo(() => removableTags(characterTags), [characterTags]);
   const transferable = useMemo(() => transferableTags(characterTags), [characterTags]);
   const consumable = useMemo(() => consumableTags(characterTags), [characterTags]);
@@ -267,7 +300,13 @@ export default function TagRequestButtons({
       >
         {mode === "add" && (
           <>
-            <TagPicker tags={addable} selectedId={tagId} onSelect={pick} />
+            <TagPicker
+              tags={addable}
+              selectedId={tagId}
+              onSelect={pick}
+              byId={gateById}
+              heldIds={heldIds}
+            />
             {stacking && (
               <QuantityField value={quantity} onChange={setQuantity} max={99} label="How many?" />
             )}

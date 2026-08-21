@@ -10,9 +10,12 @@ unrelated to this system).
 Three levels:
 
 - **Category** — a flat string (`Meta`, `General`, `Skills`, `Status`,
-  `Items`, `Assets`). Not its own DB table; `docs/tags.yaml`'s top-level
-  `categories:` list is validation-only — `syncTagsFromYaml` rejects any
-  tag/group whose `category` isn't in that list. **Items are the portable
+  `Items`, `Assets`, plus the two hidden ones, `Demoness` and `Bacchus`).
+  Not its own DB table; `docs/tags.yaml`'s top-level `categories:` list is
+  validation-only — `syncTagsFromYaml` rejects any tag/group whose
+  `category` isn't in that list. Because a category has no row of its own, a
+  **hidden** category isn't a category-level field either: it's a group-level
+  `requiredTag` on the one group that category contains (§3a). **Items are the portable
   half and Assets the standing half**: a revolver or a meal you carry and
   hand over, versus a Manor, a House, or a Follower you simply have. There is
   deliberately no third `Companions` category — the property-vs-companion
@@ -67,20 +70,57 @@ diff check, same style as `syncLocationsFromYaml`'s `needsUpdate`).
   specializations on one Laborer, each charged once.
 - **`TagGroup.requiredTag`** — the group-level version of the same
   prerequisite: every tag in that group stays gated behind one required tag,
-  so a whole category-of-flavor (e.g. a hypothetical "Cultist" group) can be
-  hidden behind a single membership tag without repeating `requiredTag` on
-  every tag in it.
+  so a whole category-of-flavor can be hidden behind a single membership tag
+  without repeating `requiredTag` on every tag in it. See §3a.
 
-**Both per-tag relations are enforced by the point-buy menu** (§4), and only
-there. `web/lib/characterCreation.js` is where the logic lives:
-`requirementSatisfied` hides a tag whose `requiredTag` isn't held or selected,
-while `chainOf`/`cumulativeCost`/`effectiveCost` price a `parentTag` chain as
-the sum of its hops and `chainSiblingsToRemove` collapses a selection down to
-one member per chain. `PointBuy.js` calls them and
-`web/app/(app)/character/createActions.js` re-validates both server-side.
-Nothing enforces either relation on a GM grant or the (unrouted) mid-game tag
-store, and **`TagGroup.requiredTag` is still unenforced everywhere** — that
-one is catalog structure waiting on its logic.
+`web/lib/characterCreation.js` is where the logic lives.
+`holdsRequirement(requiredTagId, …)` answers "is this one id satisfied by
+anything held or selected, at any tier of its chain"; `requirementSatisfied`
+calls it for **both** `tag.requiredTagId` and `tag.group.requiredTagId`, and
+is the only place the two are combined. `chainOf`/`cumulativeCost`/
+`effectiveCost` price a `parentTag` chain as the sum of its hops, and
+`chainSiblingsToRemove` collapses a selection down to one member per chain.
+
+Enforced in five places, all reading that one function: `PointBuy.js`
+(creation), the Add Tag picker in `TagRequestButtons.js` (mid-game),
+`createActions.js` and `requestActions.js#addTagRequest` (the server-side
+re-checks, since both menus are advisory), and `web/app/api/tags/route.js`
+(§3a). **A GM grant still ignores both, deliberately** — a GM handing out a
+tag is the one path that should never be second-guessed.
+
+Every caller must select `group.requiredTagId` alongside `requiredTagId`.
+Miss it and a hidden category silently opens for everyone, with nothing to
+show that it has.
+
+## 3a. Hidden categories
+
+Two categories are secret: **Demoness** (behind the `demoness` tag) and
+**Bacchus** (behind `follower-of-bacchus`, displayed as "Cultist of
+Bacchus"). Each contains exactly one `TagGroup` carrying the `requiredTag`,
+which is where the whole mechanism lives — the tags inside deliberately do
+**not** repeat `requiredTag`, so the gate is written once.
+
+Three things make a category actually hidden rather than merely empty:
+
+- **The tabs are derived after the filter, not before.** `unlockedTags()`
+  runs first and `menuCategories()` reads its output, so a fully-gated
+  category has *no tab*. It used to be the other way round, which left a tab
+  reading "Nothing available in this category" — an advertisement.
+  `unlockedTags` takes a `keepIds` list for the menu's current picks, since
+  selecting a tag doesn't satisfy that tag's own requirement and it would
+  otherwise vanish under the cursor.
+- **The Add Tag picker folds the character's held tags into its `byId` map.**
+  The catalog it gets is purchasable-or-craftable only, so the tags that
+  *open* a gate (both are `purchasable: false`, GM-assigned) aren't in it —
+  without the fold, the chain walk dead-ends and the category stays shut for
+  the one person meant to see it.
+- **`/api/tags` withholds them.** That route is the app-wide tag catalog
+  `RichText`/`TagChip` read, and it used to be unauthenticated and complete,
+  so the whole Demoness catalog was one DevTools tab away. It now resolves
+  the caller's own character and drops any tag whose group is gated. Gating
+  is on the **group** gate only, never a tag's own `requiredTag`: Fighting
+  (Archer) isn't a secret, and hiding it would break `{tag:fighting-archer}`
+  in public documents for everyone who hasn't bought it.
 
 ## 4. The point economy
 
@@ -132,7 +172,13 @@ Full writeup of creation, roles, and the wizard: `CHARACTERS.md`.
 
 - `visibleOnInspect` — shown to another player who 🔍-reacts to this
   character's proxied messages (`bot/src/events/messageReactionAdd.js`).
-  Defaults closed.
+  Defaults closed. Note it is a property of the tag being *seen*. The two
+  tags that widen what an inspect shows are read off the **inspector**
+  instead: Seductive reveals the subject's active Desire and Torturer their
+  Worst Fear, resolved by `db/lib/inspectVision.js`, which also accepts the
+  discounted Demoness twins of each. Like the Silo-gated Resources field, an
+  unseen field is absent rather than placeholdered — a placeholder
+  advertises that there is something to go after.
 - `tradeable` — Items-category flag for a future trade flow; no transfer
   logic exists yet (Transfer Tag filters on `category`, not this).
 - `stackable` — whether a character can hold more than one at a time. Live
@@ -271,9 +317,22 @@ Skills respectively) since both drive real logic elsewhere — Mortus gates
 `db/lib/syncTags.js` (the sync itself), `db/prisma/sync-tags.js` (terminal
 entry point, `npm run db:sync-tags`), `docs/tags.yaml` /
 `docs/taggroups.yaml` (content), `web/app/api/tags/route.js` (read API
-backing `{tag:slug}`/`{tag:id}` references,
-`web/app/components/RichText.js`/`TagsProvider.js`), `TagChip.js`
-(the hover-tooltip chip that renders group color).
+backing `{tag:slug}`/`{tag:id}` references, and the gate from §3a),
+`web/app/components/RichText.js`/`TagsProvider.js`, `TagChip.js` (the
+hover-tooltip chip that renders group color), and
+`db/lib/inspectVision.js` (Seductive/Torturer, §5).
+
+**Tag descriptions carry `{tag:…}`/`{resource:…}` tokens too**, not just
+documents — that's how a True Form names the {tag} it inflicts. The three
+places a description renders all forbid an *interactive* chip, though: a
+`TagChip` nested in a hover tooltip could never be hovered to reach its own
+tooltip, and the point-buy / Add Tag rows are `<button>` elements. So they
+render through `ChipText.js`, which resolves the same tokens to a plain
+`ChipLabel`. `RichText.js` stays the full-fat renderer for prose the reader
+can point at (documents, a character's appearance). Both share the parser in
+`richTokens.js` — which exists in its own file precisely because `RichText`
+renders `TagChip` and `TagChip` renders `ChipText`, so importing one from
+the other would close an import cycle.
 
 `hunger`, `hungerless` and `ate-meal` are the first tags granted and consumed
 by automatic game logic rather than by a player, a GM, or a starting package —

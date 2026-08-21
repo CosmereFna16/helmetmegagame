@@ -4,8 +4,7 @@ import { useTags } from "./TagsProvider";
 import { useProductionRates } from "./ProductionRatesProvider";
 import TagChip from "./TagChip";
 import ResourceChip from "./ResourceChip";
-
-const BUBBLE_REF_RE = /\{(\w+):([^}]+)\}/g;
+import { splitTokens } from "./richTokens";
 
 function TagToken({ payload, fallback }) {
   const { tagsById, tagsBySlug } = useTags();
@@ -35,24 +34,21 @@ const BUBBLE_KINDS = {
 // added without touching this dispatch logic. Unknown kinds and unresolved
 // payloads are left as literal text (rather than silently dropped) so a bad
 // reference is easy to spot.
+//
+// This is the full-fat renderer: a {tag:…} becomes a hoverable TagChip. Text
+// that already lives inside a tooltip or a button wants ChipText instead —
+// see richTokens.js, which holds the parser both share.
 export default function RichText({ text, as: Tag = "span" }) {
   if (!text) return null;
 
-  const parts = [];
-  let lastIndex = 0;
-
-  for (const match of text.matchAll(BUBBLE_REF_RE)) {
-    if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
-
-    const [full, kind, payload] = match;
-    const Token = BUBBLE_KINDS[kind];
-    parts.push(
-      Token ? <Token key={`${kind}-${payload}-${match.index}`} payload={payload} fallback={full} /> : full,
+  const parts = splitTokens(text).map((part, i) => {
+    if (part.text !== undefined) return part.text;
+    const Token = BUBBLE_KINDS[part.kind];
+    if (!Token) return part.raw;
+    return (
+      <Token key={`${part.kind}-${part.payload}-${i}`} payload={part.payload} fallback={part.raw} />
     );
-
-    lastIndex = match.index + full.length;
-  }
-  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  });
 
   return <Tag>{parts}</Tag>;
 }

@@ -115,15 +115,48 @@ export function chainSiblingsToRemove(tag, tagsById, heldOrSelectedIds) {
   return heldOrSelectedIds.filter((id) => chainIds.has(id));
 }
 
-// True if `tag` has no requiredTag, or requiredTag's id appears in the chain
-// of something already held/selected (any tier of that chain qualifies).
-export function requirementSatisfied(tag, tagsById, heldOrSelectedIds) {
-  if (!tag.requiredTagId) return true;
+// True if `requiredTagId` is null, or its id appears in the chain of
+// something already held/selected (any tier of that chain qualifies).
+export function holdsRequirement(requiredTagId, tagsById, heldOrSelectedIds) {
+  if (!requiredTagId) return true;
   return heldOrSelectedIds.some((id) => {
     const held = tagsById.get(id);
     if (!held) return false;
-    return chainOf(held, tagsById).some((member) => member.id === tag.requiredTagId);
+    return chainOf(held, tagsById).some((member) => member.id === requiredTagId);
   });
+}
+
+// Both prerequisites a tag can carry, and the only place they're combined:
+//
+//   - `tag.requiredTagId` — the per-tag gate (Fighting (Archer) needs
+//     Fighting (Basic)).
+//   - `tag.group.requiredTagId` — the whole-group gate, which is the hidden
+//     category mechanism. Every Demoness tag sits behind the Demoness tag via
+//     its group rather than repeating requiredTag six times; see
+//     docs/taggroups.yaml and docs/systemdocs/TAGS.md §3.
+//
+// Callers must select group.requiredTagId alongside requiredTagId, or a
+// hidden category silently opens for everyone.
+export function requirementSatisfied(tag, tagsById, heldOrSelectedIds) {
+  return (
+    holdsRequirement(tag.requiredTagId, tagsById, heldOrSelectedIds) &&
+    holdsRequirement(tag.group?.requiredTagId, tagsById, heldOrSelectedIds)
+  );
+}
+
+// The tags a character may actually see and buy: everything whose gates they
+// satisfy. Menus must derive their category tabs from THIS, not from the raw
+// offer — a category whose every tag is locked has to have no tab at all, not
+// a tab reading "nothing available", which would advertise the secret.
+//
+// `keepIds` is what a selection UI passes for its current picks: selecting a
+// tag doesn't satisfy that tag's own requirement, so without it a tag would
+// disappear from under the cursor the moment it was ticked.
+export function unlockedTags(tags, tagsById, heldOrSelectedIds, keepIds = []) {
+  const keep = new Set(keepIds);
+  return tags.filter(
+    (tag) => keep.has(tag.id) || requirementSatisfied(tag, tagsById, heldOrSelectedIds),
+  );
 }
 
 // Total cost of a set of selected tags, chain-aware: each tag's contribution
@@ -138,7 +171,8 @@ export function effectiveTotalCost(tags, tagsById) {
 }
 
 // A cursed player is restricted to CURSED_ROLE_SLUGS; everyone else may take
-// any synced role. Threats are never synced, so they can't appear here.
+// any synced role. Threats aren't data at all (docs/threats.md), so they
+// can't appear here.
 export function isRoleSelectable({ role, cursed }) {
   if (!cursed) return true;
   return CURSED_ROLE_SLUGS.includes(role.slug);

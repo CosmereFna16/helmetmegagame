@@ -10,6 +10,7 @@ import { createRequest, logRequest, requireReason } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { WORST_FEAR_PENALTY, WORST_FEAR_MAX_LENGTH } from "@/lib/constants";
 import { TRANSFERABLE_CATEGORIES } from "@/lib/tagRequests";
+import { tagsById as buildTagsById, requirementSatisfied } from "@/lib/characterCreation";
 import { addToStack, dropCharacterTag, grantTagSlugs } from "@/lib/requestEffects";
 import { syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
 
@@ -217,11 +218,27 @@ async function addTagRequestImpl({
   const resourcesSpent = parseCount(rawSpend, { min: 0 }) ?? 0;
   if (resourcesSpent > character.resources) throw new UserError("You don't have that many ⬢.");
 
-  const tag = await prisma.tag.findUnique({ where: { id: tagId } });
+  const tag = await prisma.tag.findUnique({
+    where: { id: tagId },
+    include: { group: { select: { requiredTagId: true } } },
+  });
   if (!tag) throw new UserError("Unknown tag.");
   // Mirrors addableTags() in web/lib/tagRequests.js — re-checked here because
   // the client's filtered list is only advisory.
   if (!tag.purchasable && !tag.craftable) throw new UserError("That tag can't be added this way.");
+
+  // Both prerequisites the point-buy menu enforces, enforced here too: the
+  // per-tag requiredTag, and the group gate that hides a whole category
+  // (Demoness, Bacchus). Without this the menu's filtering is decorative —
+  // a hand-posted request would walk straight into a hidden category.
+  //
+  // The whole catalog's ids/parents come down (~80 rows) so a chain walk
+  // never dead-ends on an ancestor the character doesn't hold, same reason
+  // createCharacter does it.
+  const chainRows = await prisma.tag.findMany({ select: { id: true, parentTagId: true } });
+  if (!requirementSatisfied(tag, buildTagsById(chainRows), character.tags.map((ct) => ct.tagId))) {
+    throw new UserError("You're missing a prerequisite for that tag.");
+  }
 
   // A stackable tag adds to what's already there; anything else is still
   // one-or-nothing. Both checks are server-side because the client's

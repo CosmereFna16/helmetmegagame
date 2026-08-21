@@ -296,6 +296,32 @@ documents:
       - Slightly worse at combat while Tipsy, unless you have the Alcoholic
         tag — built up from a lifetime of practice, not something you buy.
       - Doesn't touch hunger. Drink all you like, you'll still need to eat.
+  # The Demoness threat's own brief (docs/threats.md). Assigned by the
+  # Demoness tag, which is also what unlocks the hidden Demoness tag
+  # category — so the paper and the powers arrive together.
+  - name: Demoness
+    key: demoness
+    public: false
+    tags:
+      - Demoness
+    description: |-
+      You are a being from the Caves. You have been alive for a long time, but your memory is fuzzy.
+
+      You don't need to eat. Instead, you live for the thrill of enslaving souls, manipulating people, and causing pain. You will become {tag:unhappy} if you don't.
+
+      You can Break souls — see {tag:demoness}. If you have {tag:slavemaster}, they become {tag:broken-enslaved} instead of merely {tag:broken}.
+
+      Desire examples:
+      - Enslaving the soul of the Heir — the highest high, truly sublime (+5).
+      - Causing people to fall in love with you for good (+4).
+      - Fulfilling people's Worst Fears, or capturing and torturing them (+3).
+      - Humiliating someone (+2).
+      - Encouraging someone to let loose (+1).
+
+      You find normal crosses tacky and boring. Fire scares you somewhat — it definitely hurts. The Silver Cross, on the other hand, terrifies you. If you touch it, your powers are disabled for the rest of the day.
+
+      There may be people in the area who want to use your power. They'll take your treasured independence — the demented, servile idiots.
+
   # Referenced by roles via doc_elements but not yet written. Stubs keep the
   # reference resolvable (same posture as Guard Duty above) — fill in the
   # description when the content is ready.
