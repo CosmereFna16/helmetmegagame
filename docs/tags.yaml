@@ -361,6 +361,14 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  - slug: crafting
+    name: Crafting
+    category: skills
+    description: "Lets you tailor, craft, woodwork, and any other miscellaneous production."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
   - slug: fighting-basic
     name: Fighting (Basic)
     category: skills
@@ -856,6 +864,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 10
+      skills: [crafting]
 
   - slug: brigandine
     name: Brigandine
@@ -870,8 +879,8 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 2
-      resourceCost: 30
+      turnsCost: 1
+      resourceCost: 20
       skills: [smithing]
 
   - slug: mail-shirt
@@ -1012,6 +1021,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 10
+      skills: [crafting]
 
   - slug: pavise
     name: Pavise
@@ -1028,6 +1038,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 10
+      skills: [crafting]
 
   # --- Setting-specific --------------------------------------------------
 
