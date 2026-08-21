@@ -118,7 +118,15 @@ export default async function CharacterPage() {
       location: true,
       // group comes along so TagChip can tint the chip, same as
       // /gm/turns does it — otherwise every Item renders uncoloured.
-      tags: { include: { tag: { include: { group: true } } } },
+      // requirementSkills has to be named explicitly: `include` returns every
+      // scalar but no unnamed relation, and formatTagRequirement guards with
+      // `?.length`, so leaving it off silently drops the skill from the
+      // tooltip's cost line rather than failing.
+      tags: {
+        include: {
+          tag: { include: { group: true, requirementSkills: { select: { name: true } } } },
+        },
+      },
       defaultEffort: true,
     },
   });

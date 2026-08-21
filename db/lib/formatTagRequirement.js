@@ -15,8 +15,13 @@ function formatTagRequirement(tag) {
   if (tag.requirementSkills?.length) {
     parts.push(tag.requirementSkills.map((t) => t.name).join("/"));
   }
-  if (tag.requirementGambit) parts.push("Gambit");
-  return parts.length > 0 ? parts.join(" · ") : null;
+  // The Move kind is always stated, so "no Gambit needed" reads differently
+  // from "no data" — but only once there's something to qualify. A tag with
+  // no requirement block at all (79 of 84) still renders nothing rather than
+  // a bare "Routine".
+  if (parts.length === 0 && !tag.requirementGambit) return null;
+  parts.push(tag.requirementGambit ? "Gambit" : "Routine");
+  return parts.join(" · ");
 }
 
 module.exports = { formatTagRequirement };

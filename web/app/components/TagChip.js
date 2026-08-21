@@ -59,7 +59,16 @@ export default function TagChip({
             label, since a chip nested inside a hover tooltip could never be
             hovered to reach its own tooltip. */}
         {tag.description && <ChipText text={tag.description} as="p" />}
-        {left != null && <p className="text-muted">Expiry: {formatTurnsLeft(left)}</p>}
+        {/* A held tag shows its real remaining turns; a catalog reference (a
+            {tag:…} in prose, which has no CharacterTag behind it) falls back
+            to how long it lasts when granted. */}
+        {left != null ? (
+          <p className="text-muted">Expiry: {formatTurnsLeft(left)}</p>
+        ) : tag.defaultDurationTurns ? (
+          <p className="text-muted">
+            Lasts {tag.defaultDurationTurns} turn{tag.defaultDurationTurns === 1 ? "" : "s"}
+          </p>
+        ) : null}
         {requirement && <p className="text-muted">{requirement}</p>}
         {consumeHint && <p className="text-accent">{consumeHint}</p>}
         <span style={{ color: costColor(tag.pointCost) }}>{formatCost(tag.pointCost)} pts</span>

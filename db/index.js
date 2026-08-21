@@ -332,6 +332,7 @@ module.exports = {
   ...require("./lib/roleCapacity"),
   ...require("./lib/production"),
   ...require("./lib/formatTagRequirement"),
+  ...require("./lib/turnFormat"),
   ...require("./lib/mood"),
   ...require("./lib/lifeweb"),
   ...require("./lib/gambitModifier"),
