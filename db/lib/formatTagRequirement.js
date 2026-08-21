@@ -11,7 +11,7 @@
 function formatTagRequirement(tag) {
   const parts = [];
   if (tag.requirementTurns) parts.push(`${tag.requirementTurns}t`);
-  if (tag.requirementResources) parts.push(`${tag.requirementResources}res`);
+  if (tag.requirementResources) parts.push(`${tag.requirementResources} ⬢`);
   if (tag.requirementSkills?.length) {
     parts.push(tag.requirementSkills.map((t) => t.name).join("/"));
   }

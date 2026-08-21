@@ -5,7 +5,9 @@ import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getOpenTurn } from "@/lib/turn";
 import { describeTurn } from "@/lib/turnFormat";
-import { updateGameConfig, updateCurrentTurn, updateNextTurn, forceAdvanceTurn, wipeGameData } from "./actions";
+import { updateGameConfig, updateCurrentTurn, updateNextTurn, wipeGameData } from "./actions";
+import EndTurnButton from "./EndTurnButton";
+import PageShell, { PageHeader } from "@/app/components/PageShell";
 
 const WEATHER_OPTIONS = [
   { value: "CLEAR", label: "Clear" },
@@ -30,22 +32,27 @@ export default async function DevPanelPage() {
   const currentPhase = openTurnRecord?.phase ?? (lastTurn?.phase === "DAWN" ? "DUSK" : "DAWN");
   const currentWeather = openTurnRecord?.weather ?? "CLEAR";
 
+  // Mirrors advanceTurn()'s own phase alternation, so the confirm dialog can
+  // warn about the Dawn wipe only when the next turn actually triggers one.
+  const lastForPhase = openTurnRecord ?? lastTurn;
+  const nextPhase = !lastForPhase || lastForPhase.phase === "DUSK" ? "DAWN" : "DUSK";
+
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6 sm:p-8">
-      <div>
-        <h1 className="text-2xl font-bold">Dev Panel</h1>
-        <p className="text-sm" style={{ color: "var(--muted)" }}>
-          Superadmin only. Edits here bypass all game rules — use with care.
-        </p>
-        <nav className="mt-3 flex gap-4 text-sm">
-          <Link href="/gm/dev/characters" className="menu-item">Characters</Link>
-          <Link href="/gm/dev/factions" className="menu-item">Factions</Link>
-        </nav>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Dev Panel"
+        subtitle="Superadmin only. Edits here bypass all game rules — use with care."
+        actions={
+          <nav className="flex gap-4 text-sm">
+            <Link href="/gm/dev/characters" className="menu-item">Characters</Link>
+            <Link href="/gm/dev/factions" className="menu-item">Factions</Link>
+          </nav>
+        }
+      />
 
       <section className="panel p-4">
-        <h2 className="mb-3 font-bold">Current Turn</h2>
-        <p className="mb-3 text-sm" style={{ color: "var(--muted)" }}>
+        <h2 className="panel-header">Current Turn</h2>
+        <p className="mb-3 text-sm text-muted">
           {openTurnRecord ? `${describeTurn(openTurnRecord).label} — OPEN` : "No turn is currently open."}
         </p>
 
@@ -72,20 +79,22 @@ export default async function DevPanelPage() {
           <button type="submit" className="btn">Save</button>
         </form>
 
-        <form action={forceAdvanceTurn} className="mt-3">
-          <button type="submit" className="btn">End turn</button>
-        </form>
+        <EndTurnButton
+          turnLabel={openTurnRecord ? describeTurn(openTurnRecord).label : null}
+          wipesMessages={nextPhase === "DAWN" && config.messageWipeEnabled}
+        />
 
-        <p className="mt-3 text-xs" style={{ color: "var(--muted)" }}>
+        <p className="mt-3 text-xs text-muted">
           Save overrides the current turn&apos;s day/phase/weather directly, without resolving Needs. End
           turn resolves Needs on the current turn and opens the next one — same as the automatic
-          dawn/dusk advance.
+          dawn/dusk advance. The Discord announcement and the Dawn wipe finish in the background after
+          this page updates, so #turns may lag it by a moment.
         </p>
       </section>
 
       <section className="panel p-4">
-        <h2 className="mb-3 font-bold">Next Turn</h2>
-        <p className="mb-3 text-sm" style={{ color: "var(--muted)" }}>
+        <h2 className="panel-header">Next Turn</h2>
+        <p className="mb-3 text-sm text-muted">
           {config.nextWeather ? `Weather set to ${config.nextWeather}` : "Weather will be rolled automatically."}
           {config.nextTurnNote ? ` — note: "${config.nextTurnNote}"` : ""}
         </p>
@@ -105,14 +114,14 @@ export default async function DevPanelPage() {
           </label>
           <button type="submit" className="btn self-start">Save</button>
         </form>
-        <p className="mt-3 text-xs" style={{ color: "var(--muted)" }}>
+        <p className="mt-3 text-xs text-muted">
           Applies the next time the turn advances (via End turn above or the bot&apos;s automatic
           dawn/dusk cron), then clears itself.
         </p>
       </section>
 
       <section className="panel p-4">
-        <h2 className="mb-3 font-bold">Game Config</h2>
+        <h2 className="panel-header">Game Config</h2>
         <form action={updateGameConfig} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <label className="field">
             <span className="field-label">Lifeweb Blood (0-100, raw override)</span>
@@ -146,18 +155,19 @@ export default async function DevPanelPage() {
             <button type="submit" className="btn">Save config</button>
           </div>
         </form>
-        <p className="mt-3 text-xs" style={{ color: "var(--muted)" }}>
+        <p className="mt-3 text-xs text-muted">
           Tupper/summary channels are the plain/public/private channels of a provisioned Location. Moves and Efforts
-          come from channels named exactly &quot;moves&quot; and &quot;effort&quot;. With Dawn wipe enabled, forcing a
-          turn advance into Dawn may take a few minutes to resolve. Production coefficient scales /labor&apos;s payouts
+          come from channels named exactly &quot;moves&quot; and &quot;effort&quot;. With Dawn wipe enabled, the wipe
+          itself runs in the background after a Dawn advance and can take a few minutes to finish in Discord — the
+          turn is already open before it starts. Production coefficient scales /labor&apos;s payouts
           and docs/documents.yaml&apos;s printed numbers (via live {"{resource:...}"} bubbles) immediately — nothing
           to sync by hand.
         </p>
       </section>
 
       <section className="panel p-4" style={{ borderColor: "var(--accent)" }}>
-        <h2 className="mb-3 font-bold" style={{ color: "var(--accent)" }}>Restart Game</h2>
-        <p className="mb-3 text-sm" style={{ color: "var(--muted)" }}>
+        <h2 className="panel-header text-accent">Restart Game</h2>
+        <p className="mb-3 text-sm text-muted">
           Wipes every character, Move, default effort, note, DM log, and audit log entry; resets every
           Faction&apos;s Silo to 0 and the Game Config above to its
           defaults; deletes each character&apos;s personal Discord role and nickname; clears every
@@ -176,6 +186,6 @@ export default async function DevPanelPage() {
           </button>
         </form>
       </section>
-    </div>
+    </PageShell>
   );
 }

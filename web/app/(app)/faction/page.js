@@ -11,6 +11,7 @@ import {
   addCharacterToFaction,
   removeCharacterFromFaction,
 } from "./actions";
+import PageShell, { PageHeader } from "@/app/components/PageShell";
 
 async function loadFaction(factionId) {
   return prisma.faction.findUnique({
@@ -99,7 +100,7 @@ function FactionTable({ factions, showSilo }) {
           })}
           {factions.length === 0 && (
             <tr>
-              <td colSpan={showSilo ? 5 : 4} className="text-center" style={{ color: "var(--muted)" }}>
+              <td colSpan={showSilo ? 5 : 4} className="text-center text-muted">
                 None.
               </td>
             </tr>
@@ -154,8 +155,8 @@ function FactionOverview({ factions }) {
   const topLevel = rest.filter((f) => !f.parentFactionId);
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6 sm:p-8">
-      <h1 className="text-2xl font-bold">Factions</h1>
+    <PageShell>
+      <PageHeader title="Factions" />
       <div className="panel overflow-x-auto">
         <table className="data-table">
           <thead>
@@ -188,14 +189,14 @@ function FactionOverview({ factions }) {
           </tbody>
         </table>
       </div>
-    </div>
+    </PageShell>
   );
 }
 
 function SiloHistoryPanel({ history }) {
   return (
     <section className="panel p-4">
-      <h2 className="mb-3 font-bold">Silo History</h2>
+      <h2 className="panel-header">Silo History</h2>
       <table className="data-table">
         <thead>
           <tr>
@@ -220,7 +221,7 @@ function SiloHistoryPanel({ history }) {
           ))}
           {history.length === 0 && (
             <tr>
-              <td colSpan={5} className="text-center" style={{ color: "var(--muted)" }}>
+              <td colSpan={5} className="text-center text-muted">
                 No Silo activity yet.
               </td>
             </tr>
@@ -234,7 +235,7 @@ function SiloHistoryPanel({ history }) {
 function TransferFromSiloPanel({ faction, members }) {
   return (
     <section className="panel p-4">
-      <h2 className="mb-2 font-bold">Transfer from Silo</h2>
+      <h2 className="panel-header">Transfer from Silo</h2>
       <form action={transferFromSilo} className="flex flex-wrap items-end gap-2">
         <input type="hidden" name="factionId" value={faction.id} />
         <label className="field">
@@ -286,7 +287,7 @@ export default async function FactionPage({ searchParams }) {
     if (!myCharacter?.factionId) {
       return (
         <div className="mx-auto max-w-2xl p-6 sm:p-8">
-          <p style={{ color: "var(--muted)" }}>You aren&apos;t assigned to a faction yet.</p>
+          <p className="text-muted">You aren&apos;t assigned to a faction yet.</p>
         </div>
       );
     }
@@ -318,7 +319,7 @@ export default async function FactionPage({ searchParams }) {
     if (faction.name === "Unaffiliated") {
       return (
         <div className="mx-auto max-w-2xl p-6 sm:p-8">
-          <p style={{ color: "var(--muted)" }}>You aren&apos;t assigned to a faction yet.</p>
+          <p className="text-muted">You aren&apos;t assigned to a faction yet.</p>
         </div>
       );
     }
@@ -334,21 +335,21 @@ export default async function FactionPage({ searchParams }) {
       !viewingSubject && ownRole.isLeader ? await getDescendantFactions(myCharacter.factionId) : [];
 
     return (
-      <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6 sm:p-8">
+      <PageShell width="narrow">
         {viewingSubject && (
           <Link href="/faction" className="btn-quiet">
             &larr; Back to your faction
           </Link>
         )}
 
-        <div>
-          <h1 className="text-2xl font-bold">{faction.name}</h1>
-          {viewingSubject && faction.parentFaction && (
-            <p className="text-sm" style={{ color: "var(--muted)" }}>
-              Subject of {faction.parentFaction.name}
-            </p>
-          )}
-        </div>
+        <PageHeader
+          title={faction.name}
+          subtitle={
+            viewingSubject && faction.parentFaction
+              ? `Subject of ${faction.parentFaction.name}`
+              : null
+          }
+        />
 
         <section className="panel p-4">
           <ul className="flex flex-col gap-1 text-sm">
@@ -359,7 +360,7 @@ export default async function FactionPage({ searchParams }) {
         </section>
 
         <section className="panel p-4">
-          <h2 className="mb-3 font-bold">Members ({faction.characters.length})</h2>
+          <h2 className="panel-header">Members ({faction.characters.length})</h2>
           <table className="data-table">
             <thead>
               <tr>
@@ -415,11 +416,11 @@ export default async function FactionPage({ searchParams }) {
 
         {subjectFactions.length > 0 && (
           <div>
-            <h2 className="mb-2 font-bold">Subject Factions</h2>
+            <h2 className="panel-header">Subject Factions</h2>
             <FactionTable factions={subjectFactions} showSilo />
           </div>
         )}
-      </div>
+      </PageShell>
     );
   }
 
@@ -447,33 +448,34 @@ export default async function FactionPage({ searchParams }) {
   const subjectFactions = await getDescendantFactions(faction.id);
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6 sm:p-8">
+    <PageShell width="narrow">
       <Link href="/faction" className="btn-quiet">
         &larr; All Factions
       </Link>
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{faction.name}</h1>
-          {faction.parentFaction && (
-            <p className="text-sm" style={{ color: "var(--muted)" }}>
-              Subject of {faction.parentFaction.name}
-            </p>
-          )}
-        </div>
-        <form method="get" className="flex gap-2">
-          <select name="factionId" defaultValue={faction.id}>
-            {allFactions.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </select>
-          <button type="submit" className="btn">
-            View
-          </button>
-        </form>
-      </div>
+      <PageHeader
+        title={faction.name}
+        subtitle={faction.parentFaction ? `Subject of ${faction.parentFaction.name}` : null}
+        actions={
+          <form method="get" className="flex items-end gap-2">
+            {/* Wrapped in .field: a bare select falls back to unstyled native
+                browser chrome and visibly breaks the theme. */}
+            <label className="field">
+              <span className="field-label">Faction</span>
+              <select name="factionId" defaultValue={faction.id}>
+                {allFactions.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="submit" className="btn">
+              View
+            </button>
+          </form>
+        }
+      />
 
       <section className="panel p-4">
         <ul className="flex flex-col gap-1 text-sm">
@@ -483,7 +485,7 @@ export default async function FactionPage({ searchParams }) {
       </section>
 
       <section className="panel p-4">
-        <h2 className="mb-3 font-bold">Members ({faction.characters.length})</h2>
+        <h2 className="panel-header">Members ({faction.characters.length})</h2>
         <table className="data-table">
           <thead>
             <tr>
@@ -545,7 +547,7 @@ export default async function FactionPage({ searchParams }) {
             })}
             {faction.characters.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center" style={{ color: "var(--muted)" }}>
+                <td colSpan={6} className="text-center text-muted">
                   No members yet.
                 </td>
               </tr>
@@ -566,13 +568,13 @@ export default async function FactionPage({ searchParams }) {
 
       {subjectFactions.length > 0 && (
         <div>
-          <h2 className="mb-2 font-bold">Subject Factions</h2>
+          <h2 className="panel-header">Subject Factions</h2>
           <FactionTable factions={subjectFactions} showSilo />
         </div>
       )}
 
       <section className="panel p-4">
-        <h2 className="mb-2 font-bold">Add Member</h2>
+        <h2 className="panel-header">Add Member</h2>
         <form action={addCharacterToFaction} className="flex gap-2">
           <input type="hidden" name="factionId" value={faction.id} />
           <select name="characterId" required defaultValue="">
@@ -590,6 +592,6 @@ export default async function FactionPage({ searchParams }) {
           </button>
         </form>
       </section>
-    </div>
+    </PageShell>
   );
 }

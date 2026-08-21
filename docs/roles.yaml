@@ -110,6 +110,7 @@ zones:
             starting_tags:
               - Ravenhearter
               - Nobility
+              - Jewelry
             doc_elements:
               - courtstructure
               - lifewebbasic
@@ -144,6 +145,7 @@ zones:
             starting_tags:
               - Ravenhearter
               - Nobility
+              - Jewelry
             doc_elements:
               - courtstructure
               - lifewebbasic

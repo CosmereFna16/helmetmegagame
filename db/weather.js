@@ -74,13 +74,67 @@ function rollWeather(previousWeather, phase) {
 // Turns advance at 4:00 and 16:00 America/Chicago (bot/src/events/ready.js's
 // cron schedule), strictly alternating DAWN/DUSK — a DAWN turn always opens
 // at 4 AM and runs until 4 PM the same day, a DUSK turn always opens at
-// 4 PM and runs until 4 AM the next day. So the label for when the
-// currently-open turn ends is just the other boundary from its own phase;
-// no clock math needed. Plain text rather than a Discord <t:> timestamp
-// tag, since the boundary is a fixed wall-clock time, not something worth
-// rendering as a per-viewer relative countdown.
-function turnEndLabel(phase) {
-  return phase === "DAWN" ? "4 PM" : "4 AM";
+// 4 PM and runs until 4 AM the next day. The announcement renders this as a
+// Discord <t:EPOCH:t>/<t:EPOCH:R> tag (per-viewer local time + relative
+// countdown), which needs an actual Unix epoch rather than a text label —
+// these two helpers do a DST-safe local-time-in-a-zone -> UTC conversion
+// using only the built-in Intl API (no date library needed for one zone).
+function getTimeZoneOffsetMs(utcMs, timeZone) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  })
+    .formatToParts(new Date(utcMs))
+    .reduce((acc, p) => {
+      acc[p.type] = p.value;
+      return acc;
+    }, {});
+  const asUTC = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+  return asUTC - utcMs;
+}
+
+function zonedTimeToUtc(y, m, d, h, min, s, timeZone) {
+  let utc = Date.UTC(y, m - 1, d, h, min, s);
+  for (let i = 0; i < 2; i++) {
+    utc = Date.UTC(y, m - 1, d, h, min, s) - getTimeZoneOffsetMs(utc, timeZone);
+  }
+  return utc;
+}
+
+// Given the phase of the turn that just opened, returns the epoch seconds
+// (for a Discord <t:> tag) of the boundary when it closes: DAWN closes at
+// 4 PM the same Chicago day it opened, DUSK closes at 4 AM the next one.
+function turnEndEpochSeconds(phase) {
+  const timeZone = "America/Chicago";
+  const nowParts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .formatToParts(new Date())
+    .reduce((acc, p) => {
+      acc[p.type] = p.value;
+      return acc;
+    }, {});
+  const targetHour = phase === "DAWN" ? 16 : 4;
+  const dayOffset = phase === "DAWN" ? 0 : 1;
+  const utcMs = zonedTimeToUtc(
+    Number(nowParts.year),
+    Number(nowParts.month),
+    Number(nowParts.day) + dayOffset,
+    targetHour,
+    0,
+    0,
+    timeZone,
+  );
+  return Math.round(utcMs / 1000);
 }
 
 // Shared by the bot's cron-triggered turn advance and the GM dashboard's
@@ -92,8 +146,9 @@ function buildTurnAnnouncement(turn, note) {
   const phaseLabel = turn.phase === "DAWN" ? "Dawn" : "Dusk";
   const pingRoleId = process.env.DISCORD_TURN_PING_ROLE_ID;
   const ping = pingRoleId ? ` <@&${pingRoleId}>` : "";
-  const header = `» Day ${day} | ${phaseLabel}. ${WEATHER_MESSAGES[turn.weather]}${ping}\nThis turn ends at ${turnEndLabel(turn.phase)} CST.`;
+  const endEpoch = turnEndEpochSeconds(turn.phase);
+  const header = `» Day ${day} | ${phaseLabel}. ${WEATHER_MESSAGES[turn.weather]}${ping}\nThis turn ends at <t:${endEpoch}:t>, or <t:${endEpoch}:R>.`;
   return note ? `${header}\n\n${note}` : header;
 }
 
-module.exports = { WEATHER_WEIGHTS, WEATHER_TRANSITIONS, WEATHER_MESSAGES, rollWeather, buildTurnAnnouncement, turnEndLabel };
+module.exports = { WEATHER_WEIGHTS, WEATHER_TRANSITIONS, WEATHER_MESSAGES, rollWeather, buildTurnAnnouncement, turnEndEpochSeconds };

@@ -3,8 +3,15 @@
 import { useState, useTransition } from "react";
 import { bloodValueForTags } from "@lifeweb/db/lib/lifeweb";
 import RequestDialog from "./RequestDialog";
+import TagChip from "./TagChip";
 import { useConfirm } from "./ConfirmProvider";
+import { useTags } from "./TagsProvider";
 import { donateBloodRequest, feedPersonRequest } from "../(app)/lifeweb/requestActions";
+
+// Matches db/lib/constants.js's DRAINED_SLUG — not imported from
+// @lifeweb/db directly since that barrel drags node:fs into this client
+// bundle (same reason lib/formatTagRequirement.js is duplicated).
+const DRAINED_SLUG = "drained";
 
 // The Mortus's two Lifeweb Requests. Both take effect immediately and are
 // reviewed afterwards like every other Request, but they act on SOMEONE ELSE'S
@@ -26,6 +33,8 @@ const MODES = {
 
 export default function LifewebRequestButtons({ characters }) {
   const confirm = useConfirm();
+  const { tagsBySlug } = useTags();
+  const drainedTag = tagsBySlug.get(DRAINED_SLUG) ?? null;
   const [mode, setMode] = useState(null);
   const [targetId, setTargetId] = useState("");
   const [error, setError] = useState(null);
@@ -48,9 +57,14 @@ export default function LifewebRequestButtons({ characters }) {
     startTransition(async () => {
       const ok = await confirm({
         title: isFeed ? `Feed ${name} to the Lifeweb?` : `Draw ${name}'s blood?`,
-        message: isFeed
-          ? "This is not reversible by you. A GM will read your reason and decide whether they die."
-          : `The Lifeweb gains ${worth?.amount ?? 0} and ${name} is left Drained.`,
+        message: isFeed ? (
+          "This is not reversible by you. A GM will read your reason and decide whether they die."
+        ) : (
+          <>
+            The Lifeweb gains {worth?.amount ?? 0} and {name} is left{" "}
+            {drainedTag ? <TagChip tag={drainedTag} /> : "Drained"}.
+          </>
+        ),
         confirmLabel: isFeed ? "Feed them" : "Draw blood",
         cancelLabel: "Back out",
       });
@@ -74,8 +88,7 @@ export default function LifewebRequestButtons({ characters }) {
         </button>
         <button
           type="button"
-          className="btn-quiet"
-          style={{ color: "var(--accent)" }}
+          className="btn-danger"
           onClick={() => open("feed")}
         >
           ☠ Feed Person
@@ -108,14 +121,14 @@ export default function LifewebRequestButtons({ characters }) {
 
         {mode === "donate" && worth && (
           <p className="text-sm">
-            Worth <span style={{ color: "var(--positive)" }}>{worth.amount}</span> to the Lifeweb
+            Worth <span className="text-positive">{worth.amount}</span> to the Lifeweb
             {worth.tier ? (
-              <span style={{ color: "var(--muted)" }}> — {worth.tier} blood</span>
+              <span className="text-muted"> — {worth.tier} blood</span>
             ) : null}
           </p>
         )}
 
-        <p className="text-xs" style={{ color: "var(--muted)" }}>
+        <p className="text-xs text-muted">
           {spec?.hint}
         </p>
       </RequestDialog>

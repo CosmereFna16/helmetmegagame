@@ -25,7 +25,9 @@
     "db:sync-tags": "node db/prisma/sync-tags.js",
     "db:sync-roles": "node db/prisma/sync-roles.js",
     "db:sync-narrowcast-channels": "node db/prisma/sync-narrowcast-channels.js",
-    "db:rebuild-info-channel": "node db/prisma/rebuild-info-channel.js"
+    "db:rebuild-info-channel": "node db/prisma/rebuild-info-channel.js",
+    "sheet:export-tags": "node db/prisma/export-tags-from-sheet.js",
+    "sheet:import-tags": "node db/prisma/import-tags-to-sheet.js"
   },
   "allowScripts": {
     "@prisma/client@6.19.3": true,
