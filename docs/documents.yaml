@@ -82,32 +82,28 @@ documents:
     public: true
     tags: []
     description: |-
-      Different equipment excels in different situations.
+      The theory and nitty-gritty of combat—like, the realistic physics—is as important as the skill. Even a master fencer won't be able to do much against a random guy in plate armor, and just a few horse archers can take out a whole squad of footpads. Different weapons excel in different circumstances, like: how much space you have, whether you’re alone or in formation, and whether your opponent is armored.
 
-      Weapons
-      - Blunt (clubs, staves, fists) — the most versatile option, but rarely puts someone down for good on its own.
-      - Stabbing (spears, rapiers, daggers) — precise and effective against unarmored targets.
-      - Cutting (swords, knives) — even light armor blunts a cutting weapon's edge.
-      - Slashing (axes) — good at cutting through shields.
+      Melee
+      - Polearms are ubiquitous. Their reach means you can keep the opponent away and decide when the battle starts. They come in stabby, crushy, and pokey varieties.
+      - Blunt weapons are useful even against armored targets, but won’t help find weakspots.
+      - Precision weapons, like swords held by the blade (halfswording) or daggers, are useful against armored opponents if you can wrestle them down to the ground.
+      - Hidden weapons are useful in social environments.
+      - Cutting and stabbing weapons really hurt unarmored people.
+      - Axes can break shields or drag them out of position.
 
-      Armor
-      - Plate and other rigid, single-piece armor reliably turns aside blows, but has joints and gaps a determined attacker can exploit.
-      - Chainmail and other soft armor stops a blade, but a blunt weapon can still bruise or break bone underneath.
-      - Quilted armor (gambesons and the like) softens blunt impacts further, and layers well under other armor—chainmail can even go under formal court dress.
-      - Almost nothing stops a bullet.
-      - Always wear a helmet.
+      Ranged
+      - Bows and slingshots are quiet and really hurt unarmored targets. Very big bows can crack or penetrate armor.
+      - Crossbows take time to reload but are better against armored opponents.
+      - Firearms beat everything.
 
-      Shields
-      - A shield is a serious advantage in melee.
-      - Fighters standing shield-to-shield are safer together than apart.
+      Shields are very useful. For armor, there’s a few important traits: material, concealability, weight, and donning time. Some items can be worn under regular clothes. Certain items, like plate, will make a long trek through the forest difficult—you’ll get very hot under all that metal—but make you a veritable tank in combat. Seriously, almost nothing can get through plate. However, it also has the downside of being hard to equip, so if you’re, say, at a feast and someone pulls out a dagger, you’d better have a padded jack or brigandine underneath.
 
       Energy Shields
-      Rare and expensive personal-scale energy shields exist in the wasteland around Ravenheart, remnants of finer technology than the barony can produce itself.
-      - Stop bullets, arrows, and energy blasts outright.
+      - Stop projectiles.
       - Reduce, but don't stop, melee damage.
       - Do nothing against needles or syringes.
       - Worn on the belt or the wrist.
-      - Short out on contact with liquid.
   - name: Town Starting Packet
     key: townstarting
     public: false
