@@ -5,8 +5,9 @@ import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getOpenTurn } from "@/lib/turn";
 import { describeTurn } from "@/lib/turnFormat";
-import { updateGameConfig, updateCurrentTurn, updateNextTurn, wipeGameData } from "./actions";
+import { updateGameConfig, updateCurrentTurn, updateNextTurn } from "./actions";
 import EndTurnButton from "./EndTurnButton";
+import WipeGameButton from "./WipeGameButton";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 
 const WEATHER_OPTIONS = [
@@ -181,15 +182,7 @@ export default async function DevPanelPage() {
           Locations, and the channels/categories themselves are left in place, just emptied out; the Tag
           catalog is re-synced from docs/tags.yaml. This cannot be undone.
         </p>
-        <form action={wipeGameData} className="flex flex-wrap items-end gap-3">
-          <label className="field">
-            <span className="field-label">Type WIPE to confirm</span>
-            <input type="text" name="confirm" autoComplete="off" style={{ width: "10rem" }} />
-          </label>
-          <button type="submit" className="btn" style={{ borderColor: "var(--accent)" }}>
-            Wipe &amp; restart game
-          </button>
-        </form>
+        <WipeGameButton />
       </section>
     </PageShell>
   );

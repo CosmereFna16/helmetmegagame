@@ -241,82 +241,97 @@ export async function wipeGameData(formData) {
   const session = await requireSuperadmin();
 
   if (str(formData, "confirm").trim() !== "WIPE") {
-    throw new Error('Type "WIPE" (all caps) to confirm.');
+    return { ok: false, error: 'Type "WIPE" (all caps) to confirm.' };
   }
 
-  const [characters, members] = await Promise.all([
-    prisma.character.findMany({ select: { discordUserId: true, discordRoleId: true } }),
-    listGuildMembers(),
-  ]);
-  const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
-  const cursedMemberIds = cursedRoleId ? members.filter((m) => m.roles.includes(cursedRoleId)).map((m) => m.id) : [];
+  try {
+    const [characters, members] = await Promise.all([
+      prisma.character.findMany({ select: { discordUserId: true, discordRoleId: true } }),
+      listGuildMembers(),
+    ]);
+    const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
+    const cursedMemberIds = cursedRoleId ? members.filter((m) => m.roles.includes(cursedRoleId)).map((m) => m.id) : [];
 
-  // Best-effort Discord cleanup first, while the Character rows (and their
-  // discordRoleId/discordUserId) still exist to look up. Channel wiping is
-  // its own slow, sequential pass (see fullWipe.js) so it runs alongside
-  // the per-character role/nickname cleanup rather than blocking it. A full
-  // restart should not leave anyone still cursed from the last game, so
-  // every member currently holding the Cursed role gets it stripped too.
-  await Promise.all([
-    ...characters.flatMap((c) => [
-      c.discordRoleId ? deleteCharacterRole(c.discordRoleId).catch(() => {}) : null,
-      updateGuildNickname(c.discordUserId, null).catch(() => {}),
-    ]).filter(Boolean),
-    ...cursedMemberIds.map((id) => removeCursedRole(id)),
-    runFullChannelWipe(prisma).catch((err) => console.error("Full channel wipe failed:", err)),
-  ]);
+    // Best-effort Discord cleanup first, while the Character rows (and their
+    // discordRoleId/discordUserId) still exist to look up. Channel wiping is
+    // its own slow, sequential pass (see fullWipe.js) so it runs alongside
+    // the per-character role/nickname cleanup rather than blocking it. A full
+    // restart should not leave anyone still cursed from the last game, so
+    // every member currently holding the Cursed role gets it stripped too.
+    await Promise.all([
+      ...characters.flatMap((c) => [
+        c.discordRoleId ? deleteCharacterRole(c.discordRoleId).catch(() => {}) : null,
+        updateGuildNickname(c.discordUserId, null).catch(() => {}),
+      ]).filter(Boolean),
+      ...cursedMemberIds.map((id) => removeCursedRole(id)),
+      runFullChannelWipe(prisma).catch((err) => console.error("Full channel wipe failed:", err)),
+    ]);
 
-  // Deletes ordered so dependents go before the Character/Turn rows they
-  // reference (Prisma doesn't cascade by default here).
-  await prisma.$transaction([
-    prisma.note.deleteMany({}),
-    prisma.defaultEffort.deleteMany({}),
-    prisma.action.deleteMany({}),
-    prisma.characterTag.deleteMany({}),
-    prisma.auditLog.deleteMany({}),
-    prisma.character.deleteMany({}),
-    prisma.turn.deleteMany({}),
-    prisma.siloTransaction.deleteMany({}),
-    prisma.directMessage.deleteMany({}),
-    prisma.faction.updateMany({ data: { silo: 0 } }),
-    prisma.gameConfig.update({
-      where: { id: 1 },
-      data: { ...DEFAULT_GAME_CONFIG, nextWeather: null, nextTurnNote: null },
-    }),
-  ]);
+    // Deletes ordered so dependents go before the Character/Turn rows they
+    // reference (Prisma doesn't cascade by default here). Request and Desire
+    // both carry a required FK to Character (Request also has an optional one
+    // to Turn), so they have to go before character/turn.deleteMany or those
+    // statements throw a Postgres FK violation that rolls back the whole
+    // transaction, wiping nothing at all.
+    await prisma.$transaction([
+      prisma.note.deleteMany({}),
+      prisma.defaultEffort.deleteMany({}),
+      prisma.action.deleteMany({}),
+      prisma.request.deleteMany({}),
+      prisma.desire.deleteMany({}),
+      prisma.characterTag.deleteMany({}),
+      prisma.auditLog.deleteMany({}),
+      prisma.character.deleteMany({}),
+      prisma.turn.deleteMany({}),
+      prisma.siloTransaction.deleteMany({}),
+      prisma.directMessage.deleteMany({}),
+      prisma.faction.updateMany({ data: { silo: 0 } }),
+      prisma.gameConfig.update({
+        where: { id: 1 },
+        data: { ...DEFAULT_GAME_CONFIG, nextWeather: null, nextTurnNote: null },
+      }),
+    ]);
 
-  await prisma.turn.create({
-    data: { number: 1, phase: "DAWN", weather: "CLEAR", status: "OPEN", gameDate: new Date() },
-  });
+    await prisma.turn.create({
+      data: { number: 1, phase: "DAWN", weather: "CLEAR", status: "OPEN", gameDate: new Date() },
+    });
 
-  const locationSync = await syncLocationsFromYaml(prisma).catch((err) => {
-    console.error("Location sync failed during game wipe:", err);
-    return null;
-  });
-  const tagSync = await syncTagsFromYaml(prisma).catch((err) => {
-    console.error("Tag sync failed during game wipe:", err);
-    return null;
-  });
-  const roleSync = await syncRolesFromYaml(prisma).catch((err) => {
-    console.error("Role sync failed during game wipe:", err);
-    return null;
-  });
-  // Last of the four: its assignment references are validated against the
-  // Tag/Role/Faction rows the syncs above create.
-  const documentSync = await syncDocumentsFromYaml(prisma).catch((err) => {
-    console.error("Document sync failed during game wipe:", err);
-    return null;
-  });
+    const locationSync = await syncLocationsFromYaml(prisma).catch((err) => {
+      console.error("Location sync failed during game wipe:", err);
+      return null;
+    });
+    const tagSync = await syncTagsFromYaml(prisma).catch((err) => {
+      console.error("Tag sync failed during game wipe:", err);
+      return null;
+    });
+    const roleSync = await syncRolesFromYaml(prisma).catch((err) => {
+      console.error("Role sync failed during game wipe:", err);
+      return null;
+    });
+    // Last of the four: its assignment references are validated against the
+    // Tag/Role/Faction rows the syncs above create.
+    const documentSync = await syncDocumentsFromYaml(prisma).catch((err) => {
+      console.error("Document sync failed during game wipe:", err);
+      return null;
+    });
 
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "superadmin_game_wipe",
-      details: { locationSync, tagSync, roleSync, documentSync },
-    },
-  });
+    await prisma.auditLog.create({
+      data: {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "superadmin_game_wipe",
+        details: { locationSync, tagSync, roleSync, documentSync },
+      },
+    });
 
-  revalidatePath("/", "layout");
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (err) {
+    // There's no error.js boundary in this app, so an uncaught throw here
+    // would replace the panel with Next's generic error page and leave the GM
+    // unable to tell whether the wipe happened. Report it in place instead.
+    console.error("Game wipe failed:", err);
+    return { ok: false, error: "Could not wipe the game. Check the server logs." };
+  }
 }
 
 export async function updateCharacterRaw(formData) {
