@@ -40,15 +40,22 @@ documents:
       - Treasurer
       - Leader
     description: |-
-      As Treasurer or Leader, you control your faction's Silo—the shared stockpile everyone on your payroll eats from. Let it run dry and your people starve.
+      As Treasurer or Leader, you can control your faction's Silo.
 
-      From the Faction page, you can see every deposit and withdrawal, and send Resources straight to a member from the Silo.
+      You can see every deposit and withdrawal, in addition to each member's Resource amounts.
   - name: Medical
     key: medical
     public: true
     tags:
       - any of the medical tags
-    description: "Add here list of medical tags, hover"
+    description: |-
+      Most negative health effect tags, like {tag:paralyzed}, can be removed by people with the Medical skills (Basic, Skilled, and Expert). Different tags have different resource, turn (measured in Routine moves), and skill costs. Some grievous wounds even require Gambits to treat.
+
+      You're welcome to try to treat a wound outside of your level of expertise, but it'll be a Gambit. You might make things worse.
+
+      To find a removal cost, hover over the tag's tooltip. A full list is below:
+
+      [Placeholder]
   - name: Producing Resources
     key: production
     public: true
