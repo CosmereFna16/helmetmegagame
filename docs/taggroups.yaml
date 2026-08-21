@@ -14,7 +14,13 @@
 #                 the dusk and dawn backgrounds (see web/app/globals.css).
 #   requiredTag - optional slug of a Tag that gates every tag in this group
 #                 (see docs/tags.yaml's requiredTag docs for the same idea
-#                 at the single-tag level).
+#                 at the single-tag level). This is the "hidden category"
+#                 mechanism: a category whose every group is gated has no tab
+#                 at all in the point-buy and Add Tag menus, and its tags are
+#                 withheld from /api/tags, until the character holds the
+#                 required tag. Enforced in web/lib/characterCreation.js
+#                 (requirementSatisfied), and re-checked server-side by
+#                 createCharacter and addTagRequest.
 groups:
   - slug: general-traits
     name: Traits
@@ -56,3 +62,17 @@ groups:
     name: Companions
     category: assets
     color: "#7fa38b"
+  # --- Gated groups ------------------------------------------------------
+  # These two carry `requiredTag`, which is what makes their categories
+  # hidden. Every tag in them is gated by the group, so the tags themselves
+  # deliberately do NOT repeat `requiredTag` — the gate is written once here.
+  - slug: demoness
+    name: Demoness
+    category: demoness
+    color: "#c98bb0"
+    requiredTag: demoness
+  - slug: bacchus
+    name: Bacchus
+    category: bacchus
+    color: "#9c6fb8"
+    requiredTag: follower-of-bacchus

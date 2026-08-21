@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import RichText from "../../components/RichText";
+import ChipText from "../../components/ChipText";
 
 // One card in the pinned board. Collapsed it shows its title, its source and
 // a few lines of the text bleeding out under a fade; clicking opens the full
@@ -12,9 +13,10 @@ function DocumentCard({ doc, onOpen }) {
     <button type="button" className="doc-card" onClick={() => onOpen(doc)}>
       <span className="doc-card-source">{doc.source}</span>
       <span className="doc-card-title">{doc.name}</span>
-      <span className="doc-card-body">
-        <RichText text={doc.description} />
-      </span>
+      {/* ChipText, not RichText: the card is a <button>, so a {tag:…} here
+          has to be a plain label rather than a focusable chip. The open
+          sheet below is free to use the real thing. */}
+      <ChipText text={doc.description} className="doc-card-body" />
     </button>
   );
 }

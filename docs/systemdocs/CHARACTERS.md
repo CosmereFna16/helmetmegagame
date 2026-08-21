@@ -29,9 +29,12 @@ The wizard has five steps:
 (`npm run db:sync-roles`) reads its `zones[].factions[].roles[]` nesting into
 the `Zone`/`Faction`/`Role` tables, matched by `slug`.
 
-**`zones[].threats[]` is never synced.** Sympathizer, Succubus, the Cult of
-Bacchus, the Judge, the NPC monsters — those seats are assigned by hand by a
-GM and must never appear in the player-facing picker.
+**Threats are not in `roles.yaml`.** Sympathizer, the Demoness, the Cult of
+Bacchus, the Judge, the NPC monsters, the Brigands — those seats are assigned
+by hand by a GM and must never appear in the player-facing picker, so they are
+prose in `docs/threats.md` rather than data. They used to sit in
+`zones[].threats[]`, carrying a full role's worth of fields that no sync ever
+read.
 
 It replaced the old `db/lib/factionSync.js`, which read the same file but
 only ever used faction `name`/`parent`/`starting_resources`.

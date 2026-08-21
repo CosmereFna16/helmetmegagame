@@ -402,9 +402,10 @@ model Tag {
   // (e.g. Fighting (Archer) requires Fighting (Basic) but coexists with
   // Fighting (Skilled)). Also the mechanism behind whole-group gating — see
   // TagGroup.requiredTag — for hiding an entire group behind a membership
-  // tag. Enforced by the point-buy menu (web/lib/characterCreation.js) and
-  // nowhere else — a GM grant ignores it, and TagGroup.requiredTag is still
-  // enforced nowhere at all.
+  // tag. Both are enforced by requirementSatisfied()
+  // (web/lib/characterCreation.js): the point-buy menu, the Add Tag picker,
+  // and the createCharacter/addTagRequest server actions that re-check them.
+  // A GM grant still ignores both, deliberately.
   requiredTagId String?
   requiredTag   Tag?    @relation("TagPrerequisite", fields: [requiredTagId], references: [id])
   unlocks       Tag[]   @relation("TagPrerequisite")
@@ -518,8 +519,13 @@ model TagGroup {
   color String?
 
   // Whole-group gate: every tag in this group stays hidden until the
-  // character holds requiredTag (e.g. an entire "Cultist" group behind a
-  // membership tag). Not enforced anywhere yet — catalog data only.
+  // character holds requiredTag. This is the hidden-category mechanism —
+  // the Demoness and Bacchus categories each hold exactly one gated group,
+  // so until you hold the unlocking tag the category has no tab in any
+  // picker and its tags are withheld from /api/tags outright. Live:
+  // requirementSatisfied() in web/lib/characterCreation.js is the single
+  // reader, called by PointBuy, the Add Tag picker, createCharacter and
+  // addTagRequest; the API route filters on it directly.
   requiredTagId String?
   requiredTag   Tag?    @relation("TagGroupGate", fields: [requiredTagId], references: [id])
 
@@ -558,8 +564,9 @@ model CharacterTag {
 
 // A playable seat, master-sourced from docs/roles.yaml's
 // zones[].factions[].roles[] (db/lib/syncRoles.js, npm run db:sync-roles).
-// The YAML's zones[].threats[] are deliberately NOT synced — those are
-// hand-assigned by a GM and never appear in the player-facing picker.
+// Threats are deliberately not in that YAML at all — they live in
+// docs/threats.md as prose, hand-assigned by a GM, and never appear in the
+// player-facing picker.
 model Role {
   id          String   @id @default(cuid())
   slug        String   @unique

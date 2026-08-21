@@ -14,7 +14,16 @@ import { resolveConsumeGrants, heldSlugsOf } from "@/lib/consumeGrants";
 
 // Fixed display order rather than alphabetical or catalog order — Status
 // (Mood, buffs/debuffs) belongs near the top, ahead of General/Skills.
-const CATEGORY_ORDER = ["Meta", "Status", "General", "Skills", "Assets"];
+const CATEGORY_ORDER = [
+  "Meta",
+  "Status",
+  "General",
+  "Skills",
+  "Items",
+  "Assets",
+  "Demoness",
+  "Bacchus",
+];
 
 function categoryRank(category) {
   const i = CATEGORY_ORDER.indexOf(category);

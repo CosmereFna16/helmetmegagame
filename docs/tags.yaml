@@ -79,6 +79,15 @@ categories:
     name: Items
   - slug: assets
     name: Assets
+  # Hidden categories. Each has exactly one group in docs/taggroups.yaml
+  # carrying a `requiredTag`, and that group gate is the only thing hiding
+  # them — there is no per-category field. Until a character holds the
+  # unlocking tag the category has no tab in any picker and its tags are
+  # withheld from /api/tags entirely.
+  - slug: demoness
+    name: Demoness
+  - slug: bacchus
+    name: Bacchus
 
 # TagGroup catalog (Traits, Social, Health, ...) now lives in
 # docs/taggroups.yaml — split out so group colors can be freeform hex
@@ -110,10 +119,19 @@ tags:
 
   # --- General --------------------------------------------------------------
 
+  # Slug kept deliberately: renaming means changing `name`, not `slug` (see
+  # this file's header). This is the gate on the hidden Bacchus category.
   - slug: follower-of-bacchus
-    name: Follower of Bacchus
+    name: Cultist of Bacchus
     category: general
-    description: "Unlocks the Bacchus tag group."
+    description: "Initiated into the Cult of Bacchus. Unlocks the Bacchus tags."
+    pointCost: 0
+    purchasable: false
+
+  - slug: demoness
+    name: Demoness
+    category: general
+    description: "“Pleasure is so painful—ah~! I don’t care!” You can Break souls, turning their owners into walking, empty shells, by making them fall in love with you—and then sealing it with a (voluntary) kiss. If people want more after that, that’s your business, not mine."
     pointCost: 0
     purchasable: false
 
@@ -196,6 +214,63 @@ tags:
     pointCost: -3
     purchasable: true
     purchasableAfterStart: false
+
+  # Seductive/Torturer are the two tags that grant real read access to another
+  # character's sheet: 🔍-reacting to one of their proxied messages adds a
+  # Desire or Worst Fear field to the inspect embed. db/lib/inspectVision.js
+  # is the single reader, and it accepts the discounted Demoness twins below
+  # as well. Deliberately not `visible` — being able to read people is not
+  # something people should be able to read off you.
+  - slug: seductive
+    name: Seductive
+    category: general
+    group: general-social
+    description: "You can see a person's Desire by examining them."
+    pointCost: 4
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: torturer
+    name: Torturer
+    category: general
+    group: general-social
+    description: "You can see a person's Worst Fear by examining them."
+    pointCost: 4
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: iron-constitution
+    name: Iron Constitution
+    category: general
+    group: general-traits
+    description: "You are very healthy. Poisons and diseases are less effective on you."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Broken is what a Demoness leaves behind, so it is never bought or shed —
+  # only a GM grants it, and only a GM takes it away. It does not expire: the
+  # whole point is that it is permanent.
+  - slug: broken
+    name: Broken
+    category: general
+    group: general-traits
+    description: "Life has lost its color. Nothing matters. Wander endlessly."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
+  - slug: broken-enslaved
+    name: Broken (Enslaved)
+    category: general
+    group: general-traits
+    description: "You'd do anything for her. Anything!"
+    pointCost: 0
+    parentTag: broken
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
 
   # --- Skills ---------------------------------------------------------------
 
@@ -487,6 +562,49 @@ tags:
       turnsCost: 3
       skills: [medical-skilled]
 
+  # Inflicted, never chosen: a GM grants these (a Demoness true form is the
+  # usual source), and the expiry sweep in resolveNeeds() clears them. Only
+  # Envenomated can be shortened by anyone, and only by a medic — hence the
+  # requirement block, which is GM adjudication reference, not automation.
+  - slug: paralyzed
+    name: Paralyzed
+    category: status
+    group: status-health
+    description: "You can't move or talk."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 1
+
+  - slug: hallucinating
+    name: Hallucinating
+    category: status
+    group: status-health
+    description: "Nothing makes sense. What is happening?! Oh my God!"
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 2
+
+  - slug: envenomated
+    name: Envenomated
+    category: status
+    group: status-health
+    description: "So much pain. Unless your constitution is particularly robust, you might die…"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 3
+    requirement:
+      turnsCost: 1
+      resourceCost: 4
+      skills: [medical-skilled]
+
   # --- assets -------------------------------------------------------
   - slug: windlander-horse
     name: Windlander (Horse)
@@ -694,3 +812,67 @@ tags:
       resourceCost: 3
       skills: [cooking-skilled]
       gambit: false
+
+  # --- Demoness -------------------------------------------------------------
+  # A hidden category (see the `categories:` note at the top of this file).
+  # The Demoness prerequisite is written ONCE, as `requiredTag: demoness` on
+  # the `demoness` group in docs/taggroups.yaml — deliberately not repeated on
+  # each tag here, since the group gate is what hides the category and a
+  # second copy of the same rule is a second thing to keep in sync.
+  - slug: slavemaster
+    name: Slavemaster
+    category: demoness
+    group: demoness
+    description: "When you Break a soul, that person gains {tag:broken-enslaved} instead. They will follow your every command. You can only have two slaves at a time."
+    pointCost: 4
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Discounted twins of the General Seductive/Torturer. Deliberately separate
+  # tags rather than a parentTag chain: a chain prices cumulatively, so
+  # Seductive (Demoness) would cost 4 + 3 = 7 — the opposite of a discount.
+  # db/lib/inspectVision.js reads both slugs of each pair.
+  - slug: seductive-demoness
+    name: Seductive (Demoness)
+    category: demoness
+    group: demoness
+    description: "You can see a person's Desire by examining them."
+    pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: torturer-demoness
+    name: Torturer (Demoness)
+    category: demoness
+    group: demoness
+    description: "You can see a person's Worst Fear by examining them."
+    pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: true-form-serpent
+    name: "True Form: Serpent"
+    category: demoness
+    group: demoness
+    description: "You can switch into your true form at will: a beautiful, monstrous woman with a serpentine lower body and eyes, tongues like a snake's. Can wrap around people, immobilizing them, and has fangs which inflict {tag:envenomated}."
+    pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: true-form-spider
+    name: "True Form: Spider"
+    category: demoness
+    group: demoness
+    description: "You can switch into your true form at will: a beautiful woman with a furry, eight-legged abdomen. Hard to see in the dark — can inflict {tag:paralyzed} and {tag:hallucinating}."
+    pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: true-form-siren
+    name: "True Form: Siren"
+    category: demoness
+    group: demoness
+    description: "You can switch into your true form at will — a beautiful, monstrous woman with a scaled face and a long, finned tail. Can swim expertly, and has a call that lures the weak-willed."
+    pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true

@@ -19,8 +19,9 @@
 //   4. Prune roles/factions that dropped out of the YAML, but only when
 //      nothing references them (see below).
 //
-// zones[].threats[] are deliberately NOT synced. Those seats are assigned by
-// hand by a GM and must never show up in the player-facing picker.
+// Threats are not in this file at all — they live in docs/threats.md as
+// prose, since those seats are assigned by hand by a GM and must never show
+// up in the player-facing picker.
 //
 // Validation is strict and up-front: an unknown starting_location slug or an
 // unknown starting_tags name throws before anything is written, so a typo in

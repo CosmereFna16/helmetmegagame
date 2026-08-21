@@ -89,7 +89,13 @@ export async function createCharacter(formData) {
   // Selected tags must actually be buyable — a hand-posted request could
   // otherwise name a 0-cost, non-purchasable tag like Nobility.
   const selected = tagIds.length
-    ? await prisma.tag.findMany({ where: { id: { in: tagIds }, purchasable: true } })
+    ? await prisma.tag.findMany({
+        where: { id: { in: tagIds }, purchasable: true },
+        // The group's requiredTagId is the hidden-category gate that
+        // requirementSatisfied() checks below — without it a hand-posted
+        // request could buy straight into the Demoness category.
+        include: { group: { select: { requiredTagId: true } } },
+      })
     : [];
   if (selected.length !== tagIds.length) {
     return { error: "One of those tags isn't available for purchase." };
@@ -117,8 +123,9 @@ export async function createCharacter(formData) {
     }
   }
 
-  // Prerequisites: requiredTag must be satisfied by something granted or
-  // selected alongside it (any tier of that tag's own chain counts).
+  // Prerequisites: requiredTag — and the group gate behind a hidden category
+  // — must be satisfied by something granted or selected alongside it (any
+  // tier of that tag's own chain counts).
   const heldOrSelectedIds = [...grantedIds, ...tagIds];
   for (const tag of selected) {
     if (!requirementSatisfied(tag, byId, heldOrSelectedIds)) {

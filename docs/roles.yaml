@@ -1,4 +1,4 @@
-# Source of truth for every playable role/faction/threat, synced into
+# Source of truth for every playable role/faction, synced into
 # Postgres by db/lib/syncRoles.js#syncRolesFromYaml (npm run db:sync-roles).
 #
 # `slug` is the stable match key across syncs, on both factions and roles —
@@ -6,9 +6,10 @@
 # Renaming later means changing `name`, NOT `slug`; a changed slug is treated
 # as a brand-new row (old one pruned) rather than a rename.
 #
-# The `threats:` block under each zone is NOT read by any sync — those seats
-# are assigned by hand by a GM, and never appear in the player-facing role
-# picker. They keep slugs purely so they can be referred to consistently.
+# Threats — Sympathizer, the Demoness, the Cult of Bacchus, the Judge, the
+# Brigands — are NOT in this file. They were never read by any sync (a GM
+# hands those seats out by hand and they never appear in the player-facing
+# picker), so the whole brief lives in docs/threats.md as prose instead.
 #
 # `weight` (only present on `multiple: true` roles) is the seat cap,
 # expressed as seats allowed per 100 total players — the picker computes
@@ -394,43 +395,6 @@ zones:
               - watchman
               - armory
               - combat
-    threats:
-      - name: Sympathizer (Fortress)
-        slug: sympathizer-fortress
-        intro: Install the Bastard on the throne, by any means necessary.
-        description:
-          - "Your main goal: install the Bastard on the throne. To that end, turn the court against itself,
-            scheme, and so on."
-          - "You must also choose a second, self-serving goal. Ideas: kill the Baron in a dramatic way as revenge;
-            kidnap the Heir or Successor (you're obsessed); take the Manor from the Lord and install yourself
-            in it. In other words, figure out why you are personally invested in seeing this through."
-          - Be creative. Turn people against each other, convert people, cause incidents that make other people
-            look bad.
-        starting_resources: 2
-        starting_location: keep
-        starting_tags: []
-        doc_elements: []
-      - name: Succubus (Fortress)
-        slug: succubus-fortress
-        intro: You live for the thrill of enslaving souls and causing pain.
-        description:
-          - You don't need to eat. Instead, you live for the thrill of enslaving souls and causing pain, and
-            will become depressed if you don't. You gain Tag Points by enslaving souls.
-          - When you enslave a soul, that person has to follow your commands. You can only control up to two
-            people at a time.
-          - You find normal crosses tacky and boring. Fire scares you somewhat—it definitely hurts. However,
-            the Silver Cross terrifies you and burns you on touch.
-          - The Cult of Bacchus is active in the area. They'd love to have you at their parties, and may be
-            tracking you down. Flee! They'll take your treasured independence, the demented, servile idiots.
-          - "Choose your true form from the following: Satyr, Serpent, or Siren."
-          - You gain Tag Points by sleeping with people (+7), but you can also entertain yourself by capturing
-            and torturing people (+4). You also gain points by making someone obsessed with you, either through
-            romance, jealousy, or anger (+4).
-        starting_resources: 2
-        starting_location: keep
-        starting_tags:
-          - Hungerless
-        doc_elements: []
   - name: Town
     situation:
       - The last tithe wagon didn't return from the Fortress. Brigands, probably. The Meister won't be happy
@@ -931,97 +895,6 @@ zones:
               - meals
               - inn
               - independent
-    threats:
-      - name: Cult of Bacchus (Leader)
-        slug: cult-of-bacchus-leader
-        intro: Bacchus has willed you to take Ravenheart for them.
-        description:
-          - Bacchus is the Lustful God, Creator of Illusions, the Eternal One. Bacchus is honest. Bacchus is
-            life. Bacchus is pleasure. Bacchus is a zealot of hedonism. They rejoice over the fulfillment of
-            desires and the euphoric suicide of their followers.
-          - Bacchus has willed you to take Ravenheart for them.
-          - Bacchus is often depicted as an apple, a deer, or, in some circles, as a gigantic dead sea creature.
-            Bacchus's gender is irrelevant. The specifics of doctrine are for you to figure out if you want.
-          - The stuck-ups in Ravenheart would kill you if they knew. Be careful.
-          - Followers of Bacchus gain +5 Tag Points per Desire instead of +3, but their Desires cannot be heroic
-            or mild. They must, at least, be very indulgent. You also gain access to powerful Bacchus tags.
-          - Your goal is to spread the influence of Bacchus and throw parties. All cult members gain free Tags
-            if you manage to host a party with 5, 10, or 15 people. People do not have to be part of the Cult
-            to count towards the party number. Anyone with Nobility (Baron, Heir, Successor, Baroness, Bastard)
-            counts as 3 people.
-          - There is a Succubus on the loose. She is an amazing asset, but she finds your ways too controlling.
-            If you manage to bring her to the fold, she'll count as 3 people towards each party.
-          - Something very special happens if you host a party of 20 people. This is your ultimate goal. If
-            the Succubus is present during the party, the surprise will be even better!
-          - You can either initiate people willingly or forcibly. Either way, you must perform a ritual that
-            involves (1) either alcohol, music, lavish food, or drugs, and (2) secret chants in an ancient tongue.
-            To initiate people against their will, lash them down and chant the rites—if they resist, it will
-            be a Move.
-          - You can leave the Cult at any point, but you must confess everything you've ever done to a preacher,
-            lose -10 Tag Points (yes, you can go into negative), and suffer through life-changing, excruciating
-            withdrawal.
-        multiple: false
-        starting_resources: 3
-        starting_location: town
-        starting_tags:
-          - Follower of Bacchus
-        doc_elements:
-          - townstarting
-          - cult
-      - name: Cult of Bacchus (Cultist)
-        slug: cult-of-bacchus-cultist
-        intro: You either love Bacchus and believe in their message, or love-hate them.
-        description:
-          - Bacchus is the Lustful God, Creator of Illusions, the Eternal One. Bacchus is honest. Bacchus is
-            life. Bacchus is pleasure. Bacchus is a zealot of hedonism. They rejoice over the fulfillment of
-            desires and the euphoric suicide of their followers.
-          - You either love Bacchus and believe in their message, or love-hate them. Either way, you are certain
-            you'll never leave.
-          - Bacchus is often depicted as an apple, a deer, or, in some circles, as a gigantic dead sea creature.
-            Bacchus's gender is irrelevant. The specifics of doctrine are for you to figure out if you want.
-          - The stuck-ups in Ravenheart would kill you if they knew. Be careful.
-          - Followers of Bacchus gain +5 Tag Points per Desire instead of +3, but their Desires cannot be heroic
-            or mild. They must, at least, be very indulgent. You also gain access to powerful Bacchus tags.
-          - You can either initiate people willingly or forcibly. Either way, you must perform a ritual that
-            involves (1) either alcohol, music, lavish food, or drugs, and (2) secret chants in an ancient tongue.
-          - You can leave the Cult at any point, but you must confess everything you've ever done to a preacher,
-            lose -10 Tag Points (yes, you can go into negative), and suffer through life-changing, excruciating
-            withdrawal.
-        multiple: true
-        weight: 6
-        starting_resources: 2
-        starting_location: town
-        starting_tags:
-          - Follower of Bacchus
-        doc_elements:
-          - townstarting
-          - cult
-      - name: The Judge (Town, or Cave)
-        slug: the-judge-town-or-cave
-        intro: '"Whatever in creation exists without my knowledge exists without my consent."'
-        description:
-          - '"Whatever in creation exists without my knowledge exists without my consent." You start with +15
-            Tag Points.'
-          - True evil doesn't exist, but you come close. Among the lost, weak, and misunderstood, history contains
-            those who inexplicably choose darkness. That is you.
-          - Your ultimate goal is to become infamous—not because you care what other people think, but because
-            it sends a message. The more people know, fear, or respect your name, the better.
-          - Immortal or delusional, you treat life like a game. You glory in war and despise weakness. You fear
-            nothing, although people that are genuinely good through and through make you uncomfortable. Fortunately,
-            there are very few of those left.
-          - You can work alone, but you are a natural leader. Take over the Brigands, start an adventurer troop,
-            or rise the ranks of the Bastard's entourage.
-          - Do not hide your nature or commit murders in the dark. You're not a serial killer.
-          - People can't help but love you.
-          - Your Desires must relate to violence, glory, control, or competition.
-        multiple: true
-        weight: 3
-        starting_resources: 2
-        starting_location: town
-        extra_starting_points: 15
-        starting_tags: []
-        doc_elements:
-          - townstarting
   - name: Windlands
     situation:
       - The Bastard has united the clans. The Windriders and the Broken Spears are the two that survived the
@@ -1365,36 +1238,3 @@ zones:
             starting_location: customs
             starting_tags: []
             doc_elements: []
-    threats:
-      # Monsters (NPC) is GM/NPC-run, not a player-selectable seat, so it has
-      # no multiple/weight fields.
-      - name: Monsters (NPC)
-        slug: monsters-npc
-        intro: Monsters in the caves, to be hunted.
-        description:
-          - Monsters in the caves, to be hunted.
-        starting_location: customs
-        starting_tags: []
-        doc_elements: []
-      - name: Brigand Leader (Caves)
-        slug: brigand-leader-caves
-        intro: Loot the caves (dangerous) as a way to fund the Camp's war effort.
-        description:
-          - Loot the caves (dangerous) as a way to fund the Camp's war effort.
-        multiple: false
-        starting_resources: 3
-        starting_location: customs
-        leader: true
-        starting_tags: []
-        doc_elements: []
-      - name: Brigand (Caves)
-        slug: brigand-caves
-        intro: Loot the caves (dangerous) as a way to fund the Camp's war effort.
-        description:
-          - Loot the caves (dangerous) as a way to fund the Camp's war effort.
-        multiple: true
-        weight: unlimited
-        starting_resources: 2
-        starting_location: customs
-        starting_tags: []
-        doc_elements: []

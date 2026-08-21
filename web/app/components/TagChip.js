@@ -1,6 +1,8 @@
 import { formatCost, costColor } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { turnsLeft, formatTurnsLeft } from "@/lib/turnFormat";
+import ChipLabel from "./ChipLabel";
+import ChipText from "./ChipText";
 
 // `onConsume`/`consumeHint` are set only for a consumable tag on your own
 // sheet (see TagsPanel.js), which turns the chip into a shortcut into the
@@ -15,10 +17,7 @@ export default function TagChip({
   expiresTurn = null,
   currentTurn = null,
 }) {
-  // Only a stack says how many; an ordinary tag reads as a bare name, which
-  // is every tag outside Items today.
   const stack = quantity > 1 ? quantity : null;
-  const groupColor = tag.group?.color ?? null;
   // Minified "cost to add/remove this tag in play" — see
   // Tag.requirement* in schema.prisma. Null when unset, so it's simply
   // omitted rather than rendering an empty line.
@@ -50,27 +49,16 @@ export default function TagChip({
           : undefined
       }
     >
-      <span
-        className="chip"
-        style={groupColor ? { borderLeftColor: groupColor, borderLeftWidth: 3 } : undefined}
-      >
-        {tag.name}
-        {stack && (
-          <span className="text-muted"> &times;{stack}</span>
-        )}
-        {/* Compact on the face, spelled out in the tooltip below — a chip
-            has no room for "2 turns left". aria-hidden because the tooltip
-            carries the readable version. */}
-        {left != null && (
-          <span className="text-muted" aria-hidden="true"> &middot; {left}t</span>
-        )}
-      </span>
+      <ChipLabel tag={tag} quantity={quantity} left={left} />
       <span className="tag-tooltip" role="tooltip">
         <strong>
           {tag.name}
           {stack ? ` ×${stack}` : ""}
         </strong>
-        {tag.description && <p>{tag.description}</p>}
+        {/* ChipText, not RichText: a {tag:…} in here resolves to a plain
+            label, since a chip nested inside a hover tooltip could never be
+            hovered to reach its own tooltip. */}
+        {tag.description && <ChipText text={tag.description} as="p" />}
         {left != null && <p className="text-muted">Expiry: {formatTurnsLeft(left)}</p>}
         {requirement && <p className="text-muted">{requirement}</p>}
         {consumeHint && <p className="text-accent">{consumeHint}</p>}
