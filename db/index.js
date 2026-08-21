@@ -15,11 +15,12 @@ function normalizedDatabaseUrl() {
 
 const databaseUrl = normalizedDatabaseUrl();
 
-const { PrismaClient } = require("@prisma/client");
+const { PrismaClient, Prisma } = require("@prisma/client");
 const { rollWeather, buildTurnAnnouncement } = require("./weather");
 const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
 const { runDawnWipe } = require("./lib/dawnWipe");
 const { runHungerPass } = require("./lib/hungerPass");
+const { runDefaultMovePass } = require("./lib/defaultMovePass");
 const { applyExpiryGrants } = require("./lib/expiryGrants");
 const { runFullChannelWipe } = require("./lib/fullWipe");
 const { syncLocationsFromYaml } = require("./lib/syncLocations");
@@ -91,6 +92,24 @@ async function sweepExpiredStacks(turn) {
 // close-turn override, so both paths behave identically instead of only the
 // automated one actually resolving Needs.
 async function resolveNeeds(turn, config) {
+  // Default Moves file FIRST, before anything else here: a Default Move can
+  // pay resources in, and the Hunger pass below charges them out, so income
+  // has to land before upkeep is taken or a player whose default earns them
+  // a meal still goes hungry. It also has to happen while the turn is still
+  // the one being closed — it files a real Action against it. Same summary-
+  // audit-row shape as the Hunger pass, for the same reason.
+  const defaults = await runDefaultMovePass(prisma, turn).catch((err) => {
+    console.error("Default Move pass failed:", err);
+    return null;
+  });
+  if (defaults?.filed) {
+    await prisma.auditLog
+      .create({
+        data: { actorDiscordUserId: "system", actionType: "default_moves_resolved", details: defaults },
+      })
+      .catch((err) => console.error("Default Move audit log failed:", err));
+  }
+
   // Sweep any turn-scoped tags whose expiresTurn has been reached,
   // independent of everything else here. Two passes, because a stack is ONE
   // CharacterTag row carrying a count rather than N rows (see
@@ -215,6 +234,11 @@ async function advanceTurn() {
 
 module.exports = {
   prisma,
+  // Re-exported so nothing outside db/ has to reach for @prisma/client
+  // directly — only this package declares it as a dependency. Needed for
+  // Prisma.DbNull, which is the ONLY way to write a SQL NULL into a
+  // nullable Json column (a plain null is a validation error).
+  Prisma,
   resolveNeeds,
   advanceTurn,
   runFullChannelWipe,
@@ -236,4 +260,5 @@ module.exports = {
   ...require("./lib/lifeweb"),
   ...require("./lib/gambitModifier"),
   ...require("./lib/moveEffects"),
+  ...require("./lib/resourceDelta"),
 };

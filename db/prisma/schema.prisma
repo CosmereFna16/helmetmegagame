@@ -366,8 +366,9 @@ model Tag {
   // (e.g. Fighting (Archer) requires Fighting (Basic) but coexists with
   // Fighting (Skilled)). Also the mechanism behind whole-group gating — see
   // TagGroup.requiredTag — for hiding an entire group behind a membership
-  // tag. Not enforced anywhere yet (no purchase flow exists); catalog data
-  // only.
+  // tag. Enforced by the point-buy menu (web/lib/characterCreation.js) and
+  // nowhere else — a GM grant ignores it, and TagGroup.requiredTag is still
+  // enforced nowhere at all.
   requiredTagId String?
   requiredTag   Tag?    @relation("TagPrerequisite", fields: [requiredTagId], references: [id])
   unlocks       Tag[]   @relation("TagPrerequisite")

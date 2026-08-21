@@ -106,6 +106,14 @@ GM-side **adjudication** lives on `/gm/turns` ("Adjudicate" in the nav), rebuilt
 
 A **Gambit**'s d6 carries a modifier summed from Mood (±1) and Hunger (−1), which stack additively: `handleMoveConfirm` stores the raw roll on `Action.diceRoll` and the total separately on `Action.diceModifier` (never baked together — a GM has to be able to tell a modified 5 from a natural 5). `db/lib/gambitModifier.js` is the single source of that sum, a thin composer over `db/lib/mood.js` shared by bot and web; since the column is one `Int`, the per-contributor breakdown is display-only, rebuilt for the confirm DM (`🎲 **4** −1 Unhappy −1 Hungry → **2**`) and mirrored into the `move_confirmed` audit entry. See "Requests, Mood, and Desires" and "Hunger" below.
 
+## Default Moves
+
+The "Default Move" panel on `/character` (`DefaultEffortPanel.js` → `setDefaultEffort`, one `DefaultEffort` row per character) is what a player falls back on for a turn they never file anything on. `db/lib/defaultMovePass.js#runDefaultMovePass` is the half that makes it real: called first thing in `resolveNeeds()`, it finds every `ALIVE` character holding a `DefaultEffort` with **no `Action` at all** on the closing turn (an auto-resolved zone change counts as acting, same rule `handleActionSubmission` enforces) and files one for them.
+
+What it files is always a **Routine**, resolved exactly the way `handleMoveConfirm` resolves a hand-confirmed one — `CONFIRMED`/`PASSED`, resources pushed via `applyMoveEffects` and snapshotted onto `appliedEffects` so a GM can still revert it — and never a Gambit, since a Gambit is a deliberate risk and nobody's there to take it. It's marked `gmNotes: "auto:default_move"`, the identifiable-marker convention `performMove`'s zone change uses.
+
+Three details are load-bearing. It runs **before** the Hunger pass, so a default that earns resources pays for that turn's meal rather than arriving too late. The `+N`/`1d6*2` notation is parsed out of `description` **at resolution time** (`db/lib/resourceDelta.js`, moved out of `bot/src/lib/` for this and re-exported from there) rather than at save time — no extra `DefaultEffort` columns, the player keeps seeing the text they typed, and a written roll actually re-rolls each turn. And the summary post goes to the character's **current** Location's plain channel, not the `summaryChannelId` snapshotted when they saved the panel, so travelling moves where their default gets narrated; it's posted under the character's name/avatar through `db/lib/discordRest.js#postAsCharacter`, the REST twin of `bot/src/lib/proxy.js`'s webhook proxy. One summary `default_moves_resolved` audit row per turn (not one per character, same reasoning as `hunger_resolved`), and one DM per affected player.
+
 ## Requests, Mood, and Desires
 
 Players change their own sheets **without waiting on GM approval**: they act, the effect lands immediately, and a GM reviews afterwards from the Requests tab. Full writeup: `docs/systemdocs/REQUESTS.md`.
@@ -267,6 +275,16 @@ Every DM the bot or web app sends or receives is logged to `DirectMessage` (`dis
 
 Bot-authored Discord text should feel understated, not like a typical bot dashboard: no big colorful emoji, small unicode marks only. Lines that quote or restate player/character content are prefixed with `»` — e.g. `» {move description}`. `web/lib/discordGuild.js#sendDm` applies this `»` prefix automatically to every DM a GM sends a player (adjudication results, broadcasts, inbox replies), so callers pass the raw message text. Bot-side DMs that the bot itself composes (move/effort confirmations, edit prompts) are written with the `»` prefix inline at the call site instead, since they're paired with other formatting (zone, dice roll) that doesn't come through `sendDm`.
 
+## Resources glyph (`⬢`)
+
+`⬢` is the canonical Resources glyph, and it **stands in for the word rather than sitting next to it** — this applies everywhere text is written: the YAML masters (`docs/roles.yaml`, `docs/documents.yaml`, `docs/tags.yaml`, `docs/systemdocs/infochannel.yaml`), bot/DM strings, and the web UI alike.
+
+- Prose naming Resources (or the Silo) **as a concept** takes the plain word and no glyph: "you are only limited by your Resources", "send Resources straight to a member".
+- Wherever a **quantity** is shown, drop the word and write `{number} ⬢`: `1d4 ⬢`, `3 ⬢`, `+5 ⬢`, `30 ⬢ flat`. Never `3 Resources ⬢`.
+- In the UI that means the label/header carries the word and the value carries the glyph — `<th>Resources</th>` over cells reading `12 ⬢`, `<Row label="Resources">{n} ⬢</Row>` — never the reverse. A number `<input>` just gets a plain label; there's nowhere to hang the glyph.
+
+Two carve-outs. A `{resource:…}` bubble already renders its own glyph via `web/app/components/ResourceChip.js` (`{value} ⬢`), so never write one after it. And literal syntax a player is meant to *type* (`+3`, `+1d6*3`) is quoted as-is, never with a glyph appended. `docs/systemdocs/infochannel.yaml`'s glossary line ("the game's central currency are Resources (⬢)") is deliberately left as the one place the glyph is introduced to players.
+
 ## GM slash commands
 
 `/gm` and `/message` are the bot's first slash commands (`bot/src/lib/commands.js`), registered per-guild on `ready` (`registerCommands`, guild-scoped rather than global so they update instantly instead of waiting on Discord's ~1hr global-command propagation) and handled in `bot/src/events/interactionCreate.js` alongside the pre-existing button/select-menu location picker. Both are gated on `DISCORD_GM_ROLE_ID` membership, checked the same way as the location picker and `messageReactionAdd.js`'s fog-reaction handler. `/gm <message> [attachment]` posts to the current channel as the bot itself (the slash-command replacement for the old ":gm"-prefix text shorthand, which deleted+reposted a GM's message). `/message <recipient> <message>` DMs a chosen server member as the bot itself, routed through `bot/src/lib/dm.js#sendDm` for `DirectMessage` logging, with the `»` prefix applied inline since it's a bot-composed DM (see "Bot message style" above).
@@ -282,7 +300,31 @@ npm run deploy      # git push origin master, then redeploy web + bot
 npm run redeploy    # just the redeploy, no push
 ```
 
-Two things that bite:
+**Migrations do not run themselves.** Railway builds and starts the app; it
+does not apply schema changes, so a deploy carrying a new migration ships code
+whose Prisma queries reference columns the database doesn't have. The symptom
+is brutal to diagnose from the browser: the page throws `P2022` server-side and
+Next redacts it to a bare digest (`ERROR 330354103`), so nothing readable
+reaches the client — and it takes out the whole route, not just the feature
+that needed the column. This has bitten twice.
+
+The fix is a **Pre-Deploy Command on the `web` service only** (Railway
+dashboard → web → Settings → Deploy):
+
+```
+npm run db:migrate:deploy
+```
+
+It runs after the build and before the new version takes traffic, so a failed
+migration aborts the deploy instead of shipping a half-migrated app. Scoped to
+`web` deliberately — `bot` shares the database and would only race it. It is
+deliberately not a root `railway.json`, which would apply to both services.
+
+Until that field is set, run `npm run db:migrate:deploy` by hand after any
+deploy that adds a migration (`db:migrate` is `migrate dev` — never point that
+at production).
+
+Two more things that bite:
 
 - **`--from-source` is load-bearing.** A plain `railway redeploy` re-runs the
   *existing* deployment — the same commit. Railway builds from GitHub, so it
@@ -322,5 +364,6 @@ global CLIs. To make one able to build, run and deploy:
 - `web/CLAUDE.md` / `web/AGENTS.md` are generated and maintained by the Next.js tooling itself (regenerated by `next dev`) — they carry version-specific Next.js guidance and are separate from this file.
 - The bot has no ESLint config yet; the web app's linting is scoped to `web/` only.
 - No player-facing slash commands exist in the bot yet (`/effort`, `/move`, `/resource`, `/zone`, `/tag`, etc.) — only `/gm` and `/message` (GM-only, see above), the passive guild/role sync, audit logging, and character-proxying described elsewhere in this file.
-- The **Move Adjudication Panel** (Phase 2 of the adjudication rebuild) isn't built — `docs/systemdocs/ADJUDICATION.md` §5.
+- **Waiting for Opponents** is a `MoveReviewStatus` value the Moves table already colours, but nothing ever sets it — a GM parks an Opposed Move by simply not solving it yet. The Opposed tooltip in `MovePanel.js` is the only thing pointing at the workflow.
+- The **Dev Character Panel** is still `/gm/dev/characters/[characterId]`, the plain character editor. `DevCharacterButton.js` (the hammer on both adjudication panels) points there, so replacing it with the comprehensive version — every field editable, plus kill / clear-status shortcuts — needs no change at the call sites.
 - The **mid-game** tag store isn't routed yet. `PointBuy.js` already supports it (`afterStartOnly`) and `Character.tagPoints` already carries the balance; what's missing is a route that spends it and the rules for earning points during play (the old Desire system was ripped out).

@@ -523,9 +523,9 @@ tags:
     name: Follower (Cook)
     category: assets
     group: assets-companions
-    description: "Your follower has the Cooking (Basic) tag. Requires Follower."
+    description: "Your follower has the Cooking (Basic) tag."
     pointCost: 1
-    requiredTag: follower
+    parentTag: follower
     purchasable: true
     purchasableAfterStart: true
 
@@ -533,9 +533,9 @@ tags:
     name: Follower (Laborer)
     category: assets
     group: assets-companions
-    description: "Your follower has the Laborer tag. Requires Follower."
+    description: "Your follower has the Laborer tag."
     pointCost: 1
-    requiredTag: follower
+    parentTag: follower
     purchasable: true
     purchasableAfterStart: true
 
@@ -543,9 +543,9 @@ tags:
     name: Follower (Goon)
     category: assets
     group: assets-companions
-    description: "Your follower has the Fighting (Basic) tag. Requires Follower."
+    description: "Your follower has the Fighting (Basic) tag."
     pointCost: 1
-    requiredTag: follower
+    parentTag: follower
     purchasable: true
     purchasableAfterStart: true
 

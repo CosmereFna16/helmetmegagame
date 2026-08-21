@@ -289,12 +289,15 @@ h2 {
 
 /* Universal tag hover tooltip — wraps a .chip, shows name/description/value.
    Declared here (not left to inherit) since .tag-hover/InfoIcon often sit
-   inside an <h1>/<h2>, which globally switches to the serif face. */
+   inside an <h1>/<h2> (or a bold label), which globally switches to the
+   serif face and can hand down font-weight: 700 — force both back to
+   normal so a tooltip reads the same wherever it's mounted. */
 .tag-hover {
   position: relative;
   display: inline-flex;
   outline: none;
   font-family: var(--font-mono), ui-monospace, "SFMono-Regular", monospace;
+  font-weight: normal;
 }
 
 .tag-tooltip {
@@ -310,6 +313,7 @@ h2 {
   border-radius: var(--radius);
   padding: 8px 10px;
   font-family: var(--font-mono), ui-monospace, "SFMono-Regular", monospace;
+  font-weight: normal;
   font-size: 0.75rem;
   line-height: 1.4;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -470,6 +474,13 @@ h2 {
 .table-scroll {
   max-height: 70vh;
   overflow: auto;
+}
+
+/* A DM thread that stays put: fixed viewport, scrolls internally instead of
+   growing the page. */
+.message-list {
+  max-height: 60vh;
+  overflow-y: auto;
 }
 
 .table-scroll .data-table thead th {
