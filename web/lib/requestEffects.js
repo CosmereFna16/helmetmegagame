@@ -1,3 +1,5 @@
+import { applyBlood } from "@lifeweb/db";
+
 // The per-type behaviour of a Request: how a GM's Undo reverses it, and which
 // fields (if any) a GM can Edit. Adding a new RequestType means adding one
 // entry here and one entry in RequestPanel.js's section map — nothing else in
@@ -50,6 +52,17 @@ async function debitResources(tx, party, amount, ctx) {
       },
     });
   }
+}
+
+// Moves the Lifeweb's blood pool by a signed delta, re-clamped to 0-100.
+// Every Lifeweb edit and undo goes through here so the pool can't be pushed
+// out of range by an inverse that no longer fits (undoing +10 after a GM has
+// already spent the pool down, say).
+async function moveBlood(tx, delta) {
+  if (!delta) return;
+  const config = await tx.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
+  const next = applyBlood(config.lifewebBlood, delta);
+  await tx.gameConfig.update({ where: { id: 1 }, data: { lifewebBlood: next.after } });
 }
 
 // Restores a CharacterTag from a snapshot taken before it was removed. Uses
@@ -211,6 +224,64 @@ export const REQUEST_EFFECTS = {
         await restoreCharacterTag(tx, fromCharacterId, { tagId, ...(restore ?? {}) });
       }
       return `Moved ${tagName ?? "the tag"} back to its original holder.`;
+    },
+  },
+
+  // Both Lifeweb types edit and undo the SNAPSHOT delta, never the nominal
+  // amount — the pool caps at 100, so a "+40" that only moved 10 must reverse
+  // 10. db/lib/lifeweb.js#applyBlood is what produced that number.
+  DONATE_BLOOD: {
+    editableFields: ["bloodDelta", "removeDrained"],
+    async applyEdit(tx, request, edits) {
+      const effect = { ...request.effect };
+      const notes = [];
+
+      const previous = effect.bloodDelta ?? 0;
+      const next = clampNonNegative(edits.bloodDelta, previous);
+      if (next !== previous) {
+        await moveBlood(tx, next - previous);
+        notes.push(`Blood ${previous} -> ${next}.`);
+        effect.bloodDelta = next;
+      }
+
+      if (edits.removeDrained && effect.drainedTagId) {
+        await dropCharacterTag(tx, effect.targetCharacterId, effect.drainedTagId);
+        notes.push(`Cleared Drained from ${effect.targetName ?? "the target"}.`);
+        effect.drainedRemovedByGm = true;
+      }
+
+      return { effect, note: notes.join(" ") || "No changes." };
+    },
+    async undo(tx, request) {
+      const { bloodDelta, targetCharacterId, targetName, drainedTagId, drainedRemovedByGm } = request.effect;
+      await moveBlood(tx, -(bloodDelta ?? 0));
+      if (drainedTagId && targetCharacterId && !drainedRemovedByGm) {
+        await dropCharacterTag(tx, targetCharacterId, drainedTagId);
+      }
+      return `Drew back ${bloodDelta ?? 0} blood and cleared Drained from ${targetName ?? "the target"}.`;
+    },
+  },
+
+  // Undo reverses the blood only. If a GM has already run the Kill button the
+  // character stays dead — reviving them is a separate, deliberate act on
+  // /gm/dev/characters/[characterId], not a side effect of undoing a request.
+  FEED_PERSON: {
+    editableFields: ["bloodDelta"],
+    async applyEdit(tx, request, edits) {
+      const effect = { ...request.effect };
+      const previous = effect.bloodDelta ?? 0;
+      const next = clampNonNegative(edits.bloodDelta, previous);
+      if (next === previous) return { effect, note: "No changes." };
+      await moveBlood(tx, next - previous);
+      effect.bloodDelta = next;
+      return { effect, note: `Blood ${previous} -> ${next}.` };
+    },
+    async undo(tx, request) {
+      const { bloodDelta, targetName, killed } = request.effect;
+      await moveBlood(tx, -(bloodDelta ?? 0));
+      return killed
+        ? `Drew back ${bloodDelta ?? 0} blood. ${targetName ?? "The target"} stays dead — revive them by hand if that was wrong.`
+        : `Drew back ${bloodDelta ?? 0} blood.`;
     },
   },
 

@@ -85,6 +85,8 @@ enum RequestType {
   TRANSFER_RESOURCES
   TRANSFER_TAG
   SET_MOOD
+  DONATE_BLOOD
+  FEED_PERSON
 }
 
 // PASSED is the default and means "not yet touched by a GM" — the request

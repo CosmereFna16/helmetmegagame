@@ -71,6 +71,12 @@ function summarize(request) {
       return `${e.tagName ?? "tag"} → ${e.toName ?? "?"}`;
     case "SET_MOOD":
       return `Mood: ${e.mood ?? "NEUTRAL"}`;
+    case "DONATE_BLOOD":
+      return `+${e.bloodDelta ?? 0} blood — drained ${e.targetName ?? "?"}${e.tier ? ` (${e.tier})` : ""}`;
+    case "FEED_PERSON":
+      return `+${e.bloodDelta ?? 0} blood — fed ${e.targetName ?? "?"} to the Lifeweb${
+        e.killed ? "" : " · NOT YET KILLED"
+      }`;
     default:
       return "";
   }

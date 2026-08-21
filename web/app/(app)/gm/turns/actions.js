@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@lifeweb/db";
-import { getGmSession } from "@/lib/discordGuild";
+import { getGmSession, killCharacter } from "@/lib/discordGuild";
 import { REQUEST_EFFECTS } from "@/lib/requestEffects";
 import { UserError, guarded } from "@/lib/actionResult";
 
@@ -92,8 +92,62 @@ async function resolveRequestImpl({ requestId, mode, edits = {}, gmNotes }) {
   return result;
 }
 
+// A Feed Person request never kills anyone on its own — letting a player end
+// another player's game from a dropdown is the abuse that design avoids. This
+// is the GM closing that loop from the Requests tab instead, running the same
+// death path as the character editor (gm/dev/actions.js): status DEAD, then
+// killCharacter() to delete the personal Discord role (which takes the
+// Location and narrowcast overwrites with it), clear the nickname and grant
+// Cursed.
+async function killRequestTargetImpl({ requestId }) {
+  const session = await requireGm();
+
+  const request = await prisma.request.findUnique({ where: { id: requestId } });
+  if (!request) throw new UserError("Request not found.");
+  if (request.type !== "FEED_PERSON") throw new UserError("That request doesn't name someone to kill.");
+
+  const effect = request.effect ?? {};
+  if (effect.killed) throw new UserError("They've already been killed.");
+
+  const target = await prisma.character.findUnique({ where: { id: effect.targetCharacterId ?? "" } });
+  if (!target) throw new UserError("That character no longer exists.");
+  if (target.status === "DEAD") throw new UserError(`${target.name} is already dead.`);
+
+  const updated = await prisma.character.update({
+    where: { id: target.id },
+    data: { status: "DEAD" },
+  });
+
+  await killCharacter(updated).catch((err) => console.error("killCharacter failed:", err));
+
+  await prisma.request.update({
+    where: { id: requestId },
+    data: { effect: { ...effect, killed: true, killedAt: new Date().toISOString() } },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_feed_person_killed",
+      targetCharacterId: target.id,
+      reason: request.reason,
+      details: { requestId, targetName: target.name },
+    },
+  });
+
+  revalidatePath("/gm/turns");
+  revalidatePath("/gm/players");
+  revalidatePath("/gm/audit");
+  revalidatePath("/lifeweb");
+  return { targetName: target.name };
+}
+
 // Wrapped so a GM sees "That request was already undone." rather than React
 // error #441 — see web/lib/actionResult.js.
 export async function resolveRequest(input) {
   return guarded(() => resolveRequestImpl(input));
+}
+
+export async function killRequestTarget(input) {
+  return guarded(() => killRequestTargetImpl(input));
 }

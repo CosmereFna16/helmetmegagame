@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma, DRAINED_SLUG } from "@lifeweb/db";
+import { prisma, DRAINED_SLUG, bloodValueForTags, applyBlood, FEED_PERSON_AMOUNT } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 
 async function requireGm() {
@@ -11,22 +11,22 @@ async function requireGm() {
   return session;
 }
 
-// Flat blood amount plus the Drained tag, which auto-expires via its own
-// Tag.defaultDurationTurns (docs/tags.yaml) — GM-triggered on behalf of any
-// living character. A character already holding Drained cannot be drained
-// again until it expires.
-const DONATE_BLOOD_AMOUNT = 20;
-
+// The Drained tag auto-expires via its own Tag.defaultDurationTurns
+// (docs/tags.yaml) — GM-triggered on behalf of any living character. A
+// character already holding Drained cannot be drained again until it expires.
+// The amount comes from db/lib/lifeweb.js, the same module the player-facing
+// Donate Blood request reads, so the two paths can't grant different numbers.
 export async function donateBlood(characterId) {
   const session = await requireGm();
   if (!characterId) return;
 
-  const character = await prisma.character.findFirst({ where: { id: characterId, status: "ALIVE" } });
+  const character = await prisma.character.findFirst({
+    where: { id: characterId, status: "ALIVE" },
+    include: { tags: { include: { tag: true } } },
+  });
   if (!character) return;
 
-  const alreadyDrained = await prisma.characterTag.findFirst({
-    where: { characterId: character.id, tag: { slug: DRAINED_SLUG } },
-  });
+  const alreadyDrained = character.tags.some((ct) => ct.tag.slug === DRAINED_SLUG);
   if (alreadyDrained) return;
 
   const [config, openTurn] = await Promise.all([
@@ -34,8 +34,9 @@ export async function donateBlood(characterId) {
     prisma.turn.findFirst({ where: { status: "OPEN" } }),
   ]);
 
-  const newBlood = Math.min(100, (config.lifewebBlood ?? 0) + DONATE_BLOOD_AMOUNT);
-  await prisma.gameConfig.update({ where: { id: 1 }, data: { lifewebBlood: newBlood } });
+  const { amount, tier } = bloodValueForTags(character.tags);
+  const blood = applyBlood(config.lifewebBlood, amount);
+  await prisma.gameConfig.update({ where: { id: 1 }, data: { lifewebBlood: blood.after } });
 
   if (openTurn) {
     const drainedTag = await prisma.tag.findUnique({ where: { slug: DRAINED_SLUG } });
@@ -53,7 +54,7 @@ export async function donateBlood(characterId) {
       actorDiscordUserId: session.discordUserId,
       actionType: "gm_donated_lifeweb_blood",
       targetCharacterId: character.id,
-      details: { amount: DONATE_BLOOD_AMOUNT },
+      details: { amount, tier, bloodDelta: blood.delta },
     },
   });
 
@@ -63,20 +64,18 @@ export async function donateBlood(characterId) {
 }
 
 // No character cost, no Drained tag — a flat top-up.
-const FEED_PERSON_AMOUNT = 100;
-
 export async function feedLifewebPerson() {
   const session = await requireGm();
 
   const config = await prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
-  const newBlood = Math.min(100, (config.lifewebBlood ?? 0) + FEED_PERSON_AMOUNT);
-  await prisma.gameConfig.update({ where: { id: 1 }, data: { lifewebBlood: newBlood } });
+  const blood = applyBlood(config.lifewebBlood, FEED_PERSON_AMOUNT);
+  await prisma.gameConfig.update({ where: { id: 1 }, data: { lifewebBlood: blood.after } });
 
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: session.discordUserId,
       actionType: "gm_fed_lifeweb_person",
-      details: { amount: FEED_PERSON_AMOUNT },
+      details: { amount: FEED_PERSON_AMOUNT, bloodDelta: blood.delta },
     },
   });
 

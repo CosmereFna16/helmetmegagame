@@ -14,6 +14,13 @@ const STATUS_COLORS = {
   Undone: "var(--accent)",
 };
 
+// A Feed Person request tops up the Lifeweb but deliberately leaves its
+// target alive — a GM has to do the killing. Until the request is resolved
+// the whole row burns red, so it can't be scrolled past.
+function awaitingKill(row) {
+  return row.type === "FEED_PERSON" && row.statusLabel === "Passed" && !row.effect?.killed;
+}
+
 const FILTER_DEFS = [
   { key: "turn", label: "Turn", value: (r) => r.turnLabel },
   { key: "faction", label: "Faction", value: (r) => r.factionName },
@@ -76,7 +83,7 @@ export default function RequestsTable({ requests, onReview }) {
           <tbody>
             {visible.map((row) => (
               <Fragment key={row.id}>
-                <tr>
+                <tr style={awaitingKill(row) ? { color: "var(--accent)" } : undefined}>
                   <td>
                     <button
                       type="button"
@@ -99,7 +106,9 @@ export default function RequestsTable({ requests, onReview }) {
                     {row.discordUsername}
                   </td>
                   <td className="whitespace-nowrap">{row.factionName || "—"}</td>
-                  <td className="whitespace-nowrap">{row.typeLabel}</td>
+                  <td className="whitespace-nowrap">
+                    {awaitingKill(row) ? `☠ ${row.typeLabel}` : row.typeLabel}
+                  </td>
                   <td>
                     <span className="block">{row.reason}</span>
                     <span className="mt-1 block text-xs" style={{ color: "var(--muted)" }}>

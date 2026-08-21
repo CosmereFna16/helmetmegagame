@@ -136,4 +136,5 @@ module.exports = {
   ...require("./lib/production"),
   ...require("./lib/formatTagRequirement"),
   ...require("./lib/mood"),
+  ...require("./lib/lifeweb"),
 };

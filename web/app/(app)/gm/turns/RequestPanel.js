@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
-import { resolveRequest } from "./actions";
+import { useConfirm } from "@/app/components/ConfirmProvider";
+import { resolveRequest, killRequestTarget } from "./actions";
 
 // The Request Adjudication Panel: a universal top half describing the
 // request, then a type-specific bottom half. Adding a RequestType means
@@ -24,6 +25,15 @@ function SpendField({ value, onChange }) {
   return (
     <label className="field" style={{ width: "12rem" }}>
       <span className="field-label">Resources spent ⬢</span>
+      <input type="number" min="0" value={value} onChange={(e) => onChange(e.target.value)} />
+    </label>
+  );
+}
+
+function BloodField({ value, onChange }) {
+  return (
+    <label className="field" style={{ width: "12rem" }}>
+      <span className="field-label">Blood added</span>
       <input type="number" min="0" value={value} onChange={(e) => onChange(e.target.value)} />
     </label>
   );
@@ -117,6 +127,78 @@ const SECTIONS = {
     ),
   },
 
+  DONATE_BLOOD: {
+    heading: "Donate Blood",
+    render: ({ effect, edits, setEdit }) => (
+      <>
+        <Line label="Bled">
+          {effect.targetName ?? "—"}
+          {effect.tier ? (
+            <span style={{ color: "var(--muted)" }}> · {effect.tier} blood, worth {effect.nominalAmount}</span>
+          ) : null}
+        </Line>
+        <Line label="Pool">
+          {effect.bloodBefore ?? 0} → {effect.bloodAfter ?? 0}
+        </Line>
+        <BloodField value={edits.bloodDelta} onChange={(v) => setEdit("bloodDelta", v)} />
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={Boolean(edits.removeDrained)}
+            onChange={(e) => setEdit("removeDrained", e.target.checked)}
+          />
+          Clear their Drained tag but keep the blood
+        </label>
+        <p className="text-xs" style={{ color: "var(--muted)" }}>
+          The pool caps at 100, so this edits what actually moved, not what was asked for. Undo draws
+          the same amount back and clears Drained.
+        </p>
+      </>
+    ),
+  },
+
+  FEED_PERSON: {
+    heading: "Feed Person",
+    render: ({ effect, edits, setEdit, onKill, killing }) => (
+      <>
+        <Line label="Fed">{effect.targetName ?? "—"}</Line>
+        <Line label="Pool">
+          {effect.bloodBefore ?? 0} → {effect.bloodAfter ?? 0}
+        </Line>
+        <BloodField value={edits.bloodDelta} onChange={(v) => setEdit("bloodDelta", v)} />
+
+        {effect.killed ? (
+          <p className="text-sm" style={{ color: "var(--muted)" }}>
+            ☠ {effect.targetName ?? "They"} has been killed.
+          </p>
+        ) : (
+          <div
+            className="flex flex-col gap-2 border-t pt-3"
+            style={{ borderColor: "var(--accent)" }}
+          >
+            <p className="text-sm" style={{ color: "var(--accent)" }}>
+              ☠ {effect.targetName ?? "This character"} is still alive. Feeding someone to the Lifeweb
+              never kills them automatically — read the reason, then do it here.
+            </p>
+            <button
+              type="button"
+              className="btn self-start"
+              style={{ borderColor: "var(--accent)", color: "var(--accent)" }}
+              onClick={onKill}
+              disabled={killing}
+            >
+              {killing ? "Working…" : `Kill ${effect.targetName ?? "them"}`}
+            </button>
+            <p className="text-xs" style={{ color: "var(--muted)" }}>
+              This deletes their personal Discord role, clears their nickname and marks them Cursed —
+              the same thing the character editor does. Undo does not revive them.
+            </p>
+          </div>
+        )}
+      </>
+    ),
+  },
+
   SET_MOOD: {
     heading: "Set Mood",
     render: ({ effect }) => (
@@ -136,12 +218,16 @@ export default function RequestPanel({ request, onClose }) {
   const [edits, setEdits] = useState({
     resourcesSpent: String(effect.resourcesSpent ?? 0),
     pointsAwarded: String(effect.pointsAwarded ?? 0),
+    bloodDelta: String(effect.bloodDelta ?? 0),
     removeTag: false,
+    removeDrained: false,
   });
   const [gmNotes, setGmNotes] = useState(request?.gmNotes ?? "");
   const [error, setError] = useState(null);
+  const [killing, setKilling] = useState(false);
   const [pending, startTransition] = useTransition();
   const { markDirty, markClean, guardedClose } = useDirtyGuard();
+  const confirm = useConfirm();
 
   if (!request) return null;
   const section = SECTIONS[request.type];
@@ -159,6 +245,30 @@ export default function RequestPanel({ request, onClose }) {
       markClean();
       onClose();
     });
+  }
+
+  // Killing is irreversible and lands on someone else's character, so it sits
+  // behind the shared confirm dialog on top of this panel.
+  async function onKill() {
+    setError(null);
+    const ok = await confirm({
+      title: `Kill ${effect.targetName ?? "this character"}?`,
+      message:
+        "This ends their game: the personal Discord role is deleted, the nickname cleared, and Cursed granted. It cannot be undone from here.",
+      confirmLabel: "Kill them",
+      cancelLabel: "Not yet",
+    });
+    if (!ok) return;
+
+    setKilling(true);
+    try {
+      const res = await killRequestTarget({ requestId: request.id });
+      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
+      markClean();
+      onClose();
+    } finally {
+      setKilling(false);
+    }
   }
 
   const close = () => guardedClose(onClose);
@@ -188,7 +298,7 @@ export default function RequestPanel({ request, onClose }) {
         {section && (
           <div className="mt-4 flex flex-col gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
             <h3 className="field-label">{section.heading}</h3>
-            {section.render({ effect, edits, setEdit })}
+            {section.render({ effect, edits, setEdit, onKill, killing })}
           </div>
         )}
 

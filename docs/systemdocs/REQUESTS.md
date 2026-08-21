@@ -52,9 +52,10 @@ rather than a fresh grant with a full duration.
 invokes it inside its own `prisma.$transaction` so a request can never exist
 without its effect, or an effect without its request.
 
-## 3. The six types
+## 3. The eight types
 
-All six live in `web/app/(app)/character/requestActions.js`. Each one
+Six live in `web/app/(app)/character/requestActions.js` and the two Lifeweb
+types in `web/app/(app)/lifeweb/requestActions.js`. Each one
 authenticates, **re-validates everything the client sent** (a server action is
 a public endpoint, and the client's filtered menus are only advisory), applies
 the effect, and writes the `Request` plus an `AuditLog` row carrying the same
@@ -68,12 +69,15 @@ reason.
 | `REMOVE_TAG` | Drops one of their own `removable` tags, optionally paying ⬢ | cost | Restores the tag, refunds the cost |
 | `TRANSFER_TAG` | Hands an Item or Asset to another player | — | Moves it back |
 | `FULFILL_DESIRE` | Claims their active Desire | Tag Points awarded | Revokes the points, reopens the Desire |
+| `DONATE_BLOOD` | Mortus bleeds someone into the Lifeweb | blood added; clear Drained | Draws the blood back, clears Drained |
+| `FEED_PERSON` | Mortus feeds someone to the Lifeweb | blood added | Draws the blood back (never revives) |
 
 The per-type behaviour lives in `web/lib/requestEffects.js` as one
-`REQUEST_EFFECTS` entry each. **Adding a seventh type means adding one entry
+`REQUEST_EFFECTS` entry each. **Adding a type means adding one entry
 there, one entry in `RequestPanel.js`'s `SECTIONS` map, and one value to the
 `RequestType` enum — nothing else in the adjudication surface changes.** That
-extensibility was an explicit requirement.
+extensibility was an explicit requirement, and the two Lifeweb types added
+later cost exactly that.
 
 **Validation is returned, never thrown.** Every one of these actions and
 `resolveRequest` reports a validation failure as `{ ok: false, error }` via
@@ -162,6 +166,37 @@ The 1–5 ladder is shown in an `InfoIcon` beside the points field:
 5. Win back your lover.                            Extraordinary.
 ```
 
+## 5a. The Lifeweb
+
+`/lifeweb` is gated on the `mortus` tag. Its two buttons are Requests like any
+other — they land immediately and a GM reviews afterwards — with two wrinkles.
+
+**Whose blood it is decides what it's worth.** Keyed on the *target's* tags,
+not the Mortus doing the bleeding: Nobility 40, Courtier 30, anyone else 20;
+holding both pays the higher. Feeding a whole person is a flat 100.
+`db/lib/lifeweb.js` is the single source of those numbers, shared with the GM
+panel on the same page (`web/app/(app)/lifeweb/actions.js`) so the two paths
+can't grant different amounts — the same posture as `mood.js`.
+
+**The pool caps at 100, so the nominal amount is not the applied amount.**
+Donating 40 onto a pool at 90 moves 10. `applyBlood()` returns that delta and
+it is `bloodDelta` on the effect that Undo reverses — §2's payload-vs-effect
+rule applied to the blood pool. Reversing the nominal 40 would mint 30 blood
+out of nothing.
+
+**Feed Person does not kill anyone.** Letting a player end another player's
+game from a dropdown is too abusable, so the request only fills the pool and
+flags itself: in the Requests tab the row burns red with a `☠` until it's
+resolved, and `RequestPanel` carries a **Kill** button — behind the shared
+`useConfirm()`, on top of the panel — that runs the same death path as the
+character editor (`status: "DEAD"` then `killCharacter()`). It stamps
+`effect.killed`, so a reopened panel shows the outcome instead of offering the
+button twice. Undo reverses the blood and never revives.
+
+Both buttons ask twice: the `RequestDialog` reason, then `useConfirm()` before
+anything is written. They act on someone else's character, which is the one
+place in the Requests system where that second gate is worth the friction.
+
 ## 6. The player-facing surface
 
 `RequestDialog.js` is the universal popup. It is a rendered component taking
@@ -204,6 +239,10 @@ of a transfer. Deposits into a Silo previously left no ledger entry at all.
 | Transfer Resources | `web/app/components/TransferResourcesButton.js` |
 | Add / Remove / Transfer Tag | `web/app/components/TagRequestButtons.js`, `web/lib/tagRequests.js` |
 | Desires | `web/app/components/DesirePanel.js` |
+| Lifeweb blood tiers + cap, shared bot/web | `db/lib/lifeweb.js` |
+| Lifeweb requests, GM bypass panel | `web/app/(app)/lifeweb/requestActions.js`, `actions.js` |
+| Lifeweb player buttons | `web/app/components/LifewebRequestButtons.js` |
+| GM kill-the-target action | `web/app/(app)/gm/turns/actions.js#killRequestTarget` |
 | Mood modifier, shared bot/web | `db/lib/mood.js` |
 | Gambit roll + modifier | `bot/src/events/interactionCreate.js#handleMoveConfirm` |
 | Mood tag catalog entries | `docs/tags.yaml` (`happy`, `unhappy`) |

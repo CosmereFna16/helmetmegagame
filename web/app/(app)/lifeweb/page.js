@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import LifewebDonateBloodPanel from "../../components/LifewebDonateBloodPanel";
 import LifewebFeedPersonButton from "../../components/LifewebFeedPersonButton";
+import LifewebRequestButtons from "../../components/LifewebRequestButtons";
 
 function bloodBand(blood) {
   if (blood <= 0) return { label: "Dry", color: "var(--accent)" };
@@ -18,16 +19,23 @@ export default async function LifewebPage() {
 
   const { isGm: gm } = await getGmSession();
 
-  const hasMortus = gm
-    ? true
-    : !!(await prisma.characterTag.findFirst({
-        where: { character: { discordUserId: session.discordUserId, status: "ALIVE" }, tag: { slug: MORTUS_SLUG } },
-      }));
-  if (!hasMortus) redirect("/character");
+  // A GM reaches the page without a Mortus character; only a Mortus gets the
+  // player-facing Request buttons, since the server action re-checks the tag.
+  const mortusCharacter = await prisma.character.findFirst({
+    where: { discordUserId: session.discordUserId, status: "ALIVE", tags: { some: { tag: { slug: MORTUS_SLUG } } } },
+    select: { id: true },
+  });
+  if (!mortusCharacter && !gm) redirect("/character");
 
   const [config, aliveCharacters] = await Promise.all([
     prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
-    gm ? prisma.character.findMany({ where: { status: "ALIVE" }, orderBy: { name: "asc" } }) : Promise.resolve([]),
+    // Tags come down with them so the Donate Blood dialog can price a target
+    // (Nobility 40 / Courtier 30 / 20) without a round trip per selection.
+    prisma.character.findMany({
+      where: { status: "ALIVE" },
+      orderBy: { name: "asc" },
+      include: { tags: { include: { tag: { select: { slug: true } } } } },
+    }),
   ]);
 
   const blood = config.lifewebBlood ?? 0;
@@ -56,6 +64,16 @@ export default async function LifewebPage() {
           <div style={{ height: "100%", width: `${blood}%`, background: band.color }} />
         </div>
       </section>
+
+      {mortusCharacter && (
+        <section className="panel p-5">
+          <h2 className="mb-3 font-bold">Tend the Web</h2>
+          <LifewebRequestButtons characters={aliveCharacters} />
+          <p className="mt-3 text-xs" style={{ color: "var(--muted)" }}>
+            Both take effect at once. A GM reviews them afterwards and may undo or edit them.
+          </p>
+        </section>
+      )}
 
       {gm && (
         <section className="panel p-5">

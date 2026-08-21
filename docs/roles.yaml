@@ -1062,6 +1062,7 @@ zones:
               - Fighting (Trained)
               - Windlander
               - Sign Language
+              - Nobility
             doc_elements:
               - campstarting
               - charon

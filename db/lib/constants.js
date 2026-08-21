@@ -1,6 +1,7 @@
 const HUNGERLESS_SLUG = "hungerless";
 const FOLLOWER_OF_BACCHUS_SLUG = "follower-of-bacchus";
 const NOBILITY_SLUG = "nobility";
+const COURTIER_SLUG = "courtier";
 const ATE_MEAL_SLUG = "ate-meal";
 const TIPSY_SLUG = "tipsy";
 const ALCOHOLIC_SLUG = "alcoholic";
@@ -18,6 +19,7 @@ module.exports = {
   HUNGERLESS_SLUG,
   FOLLOWER_OF_BACCHUS_SLUG,
   NOBILITY_SLUG,
+  COURTIER_SLUG,
   ATE_MEAL_SLUG,
   TIPSY_SLUG,
   ALCOHOLIC_SLUG,

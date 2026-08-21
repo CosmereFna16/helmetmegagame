@@ -15,6 +15,8 @@ export const REQUEST_TYPE_LABELS = {
   TRANSFER_RESOURCES: "Transfer Resources",
   TRANSFER_TAG: "Transfer Tag",
   SET_MOOD: "Set Mood",
+  DONATE_BLOOD: "Donate Blood",
+  FEED_PERSON: "Feed Person",
 };
 
 export const REQUEST_STATUS_LABELS = {
