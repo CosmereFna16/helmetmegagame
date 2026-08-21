@@ -1,7 +1,3 @@
--- AlterTable
-ALTER TABLE "Tag" ADD COLUMN     "consumable" BOOLEAN NOT NULL DEFAULT false,
-ADD COLUMN     "consumeGrants" TEXT[];
-
 -- CreateTable
 CREATE TABLE "Document" (
     "id" TEXT NOT NULL,

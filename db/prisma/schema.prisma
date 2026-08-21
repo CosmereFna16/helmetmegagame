@@ -420,19 +420,6 @@ model Tag {
   // means expiry just removes the tag, as it always did.
   grantsOnExpiry String[]
 
-  // Whether this tag can be deliberately spent by its holder, as opposed to
-  // grantsOnExpiry above, which fires on its own when the timer runs out.
-  // Consuming removes one unit (a Tag.stackable one sheds a single unit and
-  // keeps the rest, same arithmetic the expiry sweep uses) and grants
-  // consumeGrants.
-  consumable Boolean @default(false)
-
-  // Tag slugs granted when this tag is consumed — the deliberate twin of
-  // grantsOnExpiry, sharing db/lib/expiryGrants.js' granting helper and its
-  // repeat-a-slug-to-grant-several rule. Empty means consuming just spends
-  // the tag.
-  consumeGrants String[]
-
   // Whether a player can remove this tag from themselves mid-game without a
   // GM. Catalog data only — no self-removal flow reads this yet (the
   // mid-game tag store isn't routed), same posture as tradeable above.
