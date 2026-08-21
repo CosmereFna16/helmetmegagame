@@ -43,18 +43,9 @@ module.exports = {
     if (wantsConceal) {
       content = trimmed.slice(CONCEAL_PREFIX.length).trim();
 
-      // Concealment is a property of what you are WEARING, so it is checked
-      // against equipped gear rather than everything carried — a mask in your
-      // pack hides nothing.
-      const masked = await prisma.characterTag.findFirst({
-        where: { characterId: character.id, equipped: true, tag: { concealsIdentity: true } },
-        select: { id: true },
-      });
-      if (!masked) {
-        await message.delete().catch(() => {});
-        await sendDm(message.author, "» *Nothing you have equipped conceals your identity.*").catch(() => {});
-        return;
-      }
+      // Open to everyone, with nothing equipped and no tag required — a player
+      // decides for themselves when to go unnamed. Tag.concealsIdentity still
+      // exists in the catalog but nothing reads it; re-gating is one query here.
       if (!content && message.attachments.size === 0) {
         await message.delete().catch(() => {});
         await sendDm(message.author, "» *Add a message after `/conceal`.*").catch(() => {});

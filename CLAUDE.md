@@ -358,12 +358,17 @@ Consume dialog.
 
 `Tag.concealsIdentity` marks gear that hides who you are (a mask, hood, closed
 helm). `db/lib/syncTags.js` **throws** on `concealsIdentity` without
-`equippable`, since a mask nobody can equip could never conceal anything.
+`equippable`, since a mask nobody can equip could never conceal anything. The
+field is currently **inert** — concealing is open to everyone (below) — and is
+kept only so the gate can be restored without a migration.
 
 A message in a tupper channel beginning `/conceal` is reposted under an
-anonymous alias instead of the character's name — but only if they have a
-`concealsIdentity` tag **equipped**, not merely carried. It is a literal text
-prefix, deliberately **not** a registered slash command: a slash command replies
+anonymous alias instead of the character's name. It is **open to everyone**,
+with nothing equipped and no tag required — a player decides for themselves
+when to go unnamed. `Tag.concealsIdentity` still exists in the catalog and is
+still synced, but nothing reads it; re-gating would be one query in
+`messageCreate.js`. It is a literal text prefix, deliberately **not** a
+registered slash command: a slash command replies
 through an interaction rather than the webhook, so ✏️/❌/⭐/🔍 would all stop
 working on the result. As a prefix it rides the ordinary proxy path and every
 reaction behaves unchanged.

@@ -54,6 +54,14 @@ groups:
     name: Gear
     category: items
     color: "#a08a70"
+  - slug: items-armor
+    name: Armor
+    category: items
+    color: "#7c8794"
+  - slug: items-weapons
+    name: Weapons
+    category: items
+    color: "#9c6b5a"
   - slug: assets-property
     name: Property
     category: assets

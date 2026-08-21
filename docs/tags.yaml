@@ -762,7 +762,7 @@ tags:
   - slug: old-45-revolver
     name: Old .45 Revolver
     category: items
-    group: items-gear
+    group: items-weapons
     description: "A worn revolver. Devastating, but not much ammunition."
     pointCost: 4
     equippable: true
@@ -835,6 +835,230 @@ tags:
   # the `demoness` group in docs/taggroups.yaml — deliberately not repeated on
   # each tag here, since the group gate is what hides the category and a
   # second copy of the same rule is a second thing to keep in sync.
+  # --- Armor -------------------------------------------------------------
+  # Crafting costs follow the standard ladder: dead simple 1 Effort / 4 ⬢,
+  # simple 1 / 10, moderate 1 / 20, high quality 2 / 30, plate 2 / 40.
+  # `visible` decides whether the piece shows on a 🔍 inspect while equipped,
+  # which is what makes a Brigandine worth its points.
+
+  - slug: padded-armor
+    name: Padded Armor
+    category: items
+    group: items-armor
+    description: "Quilted linen. It absorbs impact and blunts a cut. A thrust goes through it. Plain enough to wear at court."
+    pointCost: 2
+    equippable: true
+    visible: true
+    tradeable: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 10
+
+  - slug: brigandine
+    name: Brigandine
+    category: items
+    group: items-armor
+    description: "Small steel plates riveted inside a fabric coat. Protection close to plate, worn under clothing, and it does not show."
+    pointCost: 4
+    equippable: true
+    visible: false
+    tradeable: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 30
+      skills: [smithing]
+
+  - slug: mail-shirt
+    name: Mail Shirt
+    category: items
+    group: items-armor
+    description: "Interlocking rings. It cannot be cut. A blunt blow passes through it, and a heavy thrust bursts the rings."
+    pointCost: 3
+    equippable: true
+    visible: true
+    tradeable: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 20
+      skills: [smithing]
+
+  - slug: breastplate
+    name: Breastplate
+    category: items
+    group: items-armor
+    description: "A shaped steel plate over the chest. Most of the protection of full plate at a fraction of the weight, and one person can put it on alone."
+    pointCost: 4
+    equippable: true
+    visible: true
+    tradeable: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 20
+      skills: [smithing]
+
+  - slug: plate-armor
+    name: Plate Armor
+    category: items
+    group: items-armor
+    description: "Articulated steel over the whole body. It takes a second pair of hands and several minutes to put on."
+    pointCost: 6
+    equippable: true
+    visible: true
+    tradeable: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 40
+      skills: [smithing]
+
+  # --- Head --------------------------------------------------------------
+
+  - slug: simple-helm
+    name: Simple Helm
+    category: items
+    group: items-armor
+    description: "An open helmet. You can see and breathe. Your face is exposed."
+    pointCost: 1
+    equippable: true
+    visible: true
+    tradeable: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 10
+      skills: [smithing]
+
+  - slug: knights-helmet
+    name: Knight's Helmet
+    category: items
+    group: items-armor
+    description: "A closed helmet. It covers the face. You see and hear poorly through it, and it is hot to wear."
+    pointCost: 3
+    equippable: true
+    visible: true
+    tradeable: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 20
+      skills: [smithing]
+
+  - slug: mail-coif
+    name: Mail Coif
+    category: items
+    group: items-armor
+    description: "A mail hood covering the head and neck. It is worn under a helmet."
+    pointCost: 1
+    equippable: true
+    visible: true
+    tradeable: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 10
+      skills: [smithing]
+
+  # --- Off-hand ----------------------------------------------------------
+
+  - slug: buckler
+    name: Buckler
+    category: items
+    group: items-armor
+    description: "A small shield held in the fist. It hangs from a belt when not in use. It is used to strike as well as to block, and carrying one draws no comment."
+    pointCost: 1
+    equippable: true
+    visible: true
+    tradeable: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 10
+      skills: [smithing]
+
+  - slug: shield
+    name: Shield
+    category: items
+    group: items-armor
+    description: "A shield carried on the arm. Two people fighting shield to shield are worth more than the same two apart."
+    pointCost: 2
+    equippable: true
+    visible: true
+    tradeable: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 10
+
+  - slug: pavise
+    name: Pavise
+    category: items
+    group: items-armor
+    description: "A shield tall enough to stand behind. It can be set on the ground as cover."
+    pointCost: 2
+    equippable: true
+    visible: true
+    tradeable: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 10
+
+  # --- Setting-specific --------------------------------------------------
+
+  - slug: salvage-plate
+    name: Salvage Plate
+    category: items
+    group: items-armor
+    description: "Scrap metal strapped over the body, none of it matching. It works. It also marks the wearer as a scavenger."
+    pointCost: 1
+    equippable: true
+    visible: true
+    tradeable: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 4
+
+  - slug: energy-shield
+    name: Energy Shield
+    category: items
+    group: items-armor
+    description: "A projected field. It stops bullets, arrows and blasts, and softens a melee blow. A slow needle passes through it. Any liquid touching it destroys it. GM-granted only."
+    pointCost: 0
+    equippable: true
+    visible: true
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+
   - slug: slavemaster
     name: Slavemaster
     category: demoness

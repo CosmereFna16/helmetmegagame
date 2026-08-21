@@ -380,8 +380,10 @@ of holding the tag, so `@@unique([characterId, tagId])` stays and every
 takes one slot however many units are held.
 
 `concealsIdentity: true` marks gear that hides who the wearer is — a mask, a
-hood, a closed helm. Equipping one enables the `/conceal` message prefix (see
-"Equipment and concealed identity" in `CLAUDE.md`). It is only meaningful
+hood, a closed helm. It is currently **inert**: `/conceal` is open to every
+character with nothing equipped (see "Equipment and concealed identity" in
+`CLAUDE.md`), and the field is kept only so that gate can be restored without a
+migration. It is only meaningful
 alongside `equippable`, and `syncTagsFromYaml` **throws** if it is set without
 it rather than syncing a tag that could never do anything — the kind of quiet
 failure that is miserable to debug from inside the game.
