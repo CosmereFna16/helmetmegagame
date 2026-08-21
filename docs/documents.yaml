@@ -32,7 +32,16 @@ documents:
     key: diplomat
     public: false
     tags: []
-    description: 'You are from the Culture, a post-scarcity interstellar empire ruled by benevolent robots. You want the best for the people of Ravenheart—and that would mean convincing the Baron to join the Culture—but Contact (the Culture''s diplomatic wing) operates in the scale of centuries, not human generations. They don''t think it''s the right time. Therefore, do the best you can to quietly help people and further the Culture''s mission: install an open-minded ruler, ensure the Order of the Iron Cross doesn''t grow out of control, and above all, do not blow your cover. You have limited gadgets—including an autonomous, sentient drone disguised as a raven. If anything goes wrong, the "Helpless Is The Face Of Your Beauty" will teleport you on board. It''ll take your message three minutes to reach them.'
+    description: |-
+      You are from the Culture, a post-scarcity interstellar empire of hedonists ruled by benevolent AI. You want the best for the people of Ravenheart—and that would mean convincing the Baron to join the Culture—but Contact (the Culture's diplomatic wing) operates in the scale of centuries, not human generations. They don't think it's the right time, although they haven't told you why. In general, Contact is very non-interventionist. Therefore, do the best you can to quietly help people and further the Culture's mission: help push for a leader likely to cooperate, ensure the Order of the Iron Cross doesn't grow out of control, and above all, do not blow your cover! The *last* thing the Culture wants is for the people of Ravenheart to know you're here...
+
+      They would appreciate it if you collected any interesting gear, took some photos with your drone, and sent logs to the mothership. The caves supposedly have a lot of interesting things going on, but it's probably dangerous.
+
+      Also, you probably had a good reason to come here (boredom?) and your friends thought you were cr*aaa*zy! Coming here? Where you could die?! Back home, almost no one dies, ever. Everything is just very safe.
+
+      You have one (!) gadget—an autonomous, sentient flying drone with a supercomputer for a brain. It's disguised as a bird and has a strong personality. It likes to fly and look around the forest. It's harmless.
+
+      If anything goes wrong, the General Contact Vessel *Helpless Is The Face Of Your Beauty* will teleport you on board. It'll take your message three minutes to reach them.
   - name: Treasurer
     key: treasurer
     public: true
@@ -166,21 +175,17 @@ documents:
     public: true
     tags: []
     description: |-
-      "The Lifeweb is a profoundly unintelligible piece of machinery within the Fortress's walls—a tower that, at its peak, spews the Life Fire. Although it also produces electricity, it is mainly prized for the Fire, which is said to be what keeps Ravenheart arable, breathable, and livable. One only needs to follow the river a few miles south east before seeing, far in the distance, the wind-scorched lands of the rest of the world, humid, scarred, and inhospitable.
+      The Lifeweb is a profoundly unintelligible piece of machinery within the Fortress's walls—a tower that, at its peak, spews the Life Fire. Although it also produces electricity, it is mainly prized for the Fire, which is said to be what keeps Ravenheart arable, breathable, and livable. One only needs to follow the river a few miles southeast before seeing, far in the distance, the wind-scorched lands of the rest of the world, humid, scarred, and inhospitable.
 
-      The tower has a door leading downwards. Presumably, that is where the Mortii feed the Lifeweb.
-
-      The Lifeweb must be fed every 3 days (6 turns) to stay alive. It requires a living person."
+      The tower has a door leading downwards.
   - name: The Lifeweb
     key: lifeweb
     public: false
     tags: []
     description: |-
-      "The Lifeweb is a profoundly unintelligible piece of machinery within the Fortress's walls—a tower that, at its peak, spews the Life Fire. Although it also produces electricity, it is mainly prized for the Fire, which is said to be what keeps Ravenheart arable, breathable, and livable. One only needs to follow the river a few miles south east before seeing, far in the distance, the wind-scorched lands of the rest of the world, humid, scarred, and inhospitable.
+      The Lifeweb is a profoundly unintelligible piece of machinery within the Fortress's walls—a tower that, at its peak, spews the Life Fire. Although it also produces electricity, it is mainly prized for the Fire, which is said to be what keeps Ravenheart arable, breathable, and livable. One only needs to follow the river a few miles south east before seeing, far in the distance, the wind-scorched lands of the rest of the world, humid, scarred, and inhospitable.
 
-      The tower has a door leading downwards. Inside, levers control what parts of Ravenheart receive power.
-
-      Only the Mortii know how to feed the Lifeweb"
+      The tower has a door leading downwards. Inside, levers control what parts of Ravenheart receive power. It also has a door which can be opened to reveal pistons, firing madly, witchfire green. There's a chair on a platform with complex implements. You can hook someone in, strap them down, align the machinery, cue the machine to speculate the vitrii, select the injection point, and decide whether you want some blood drawn—granting {tag:drained} and feeding the Lifeweb 20 points—or all the person's blood, feeding the Lifeweb 100 points but killing the donor.
   - name: Respawning
     key: respawning
     public: true
@@ -209,15 +214,23 @@ documents:
     description: ""
   - name: Post-Christianity
     key: postchristianity
-    public: false
+    public: true
     tags: []
     description: |-
-      Nobody remembers exactly which schism did it, or which century. Only that somewhere between the old world ending and Ravenheart being built on its bones, the Church kept the parts that mattered and let the rest wash away with everything else. What's left is simpler: God is still watching, still kind, and still asks the same three things He always did—feed the hungry, forgive the guilty, and don't let the dark win.
+      In the darkness, there are sacred things. And what is most sacred? That which remembers. What is darkness but ignorance?
 
-      The scripture reads a little differently now, half-remembered verses stitched next to warnings about the wasteland and the things that live in it, but the shape of the faith hasn't changed. It's not fire and brimstone. It's people who've lost almost everything, believing anyway, and trying to be good to each other because the alternative is so much worse.
+      Can you blame them, the writhing monsters, suckling beneath the surface? They are less than animal. They have proven that that essence of purity which God imbued us with is not immutable; to the contrary, people have lost it, spat on it, cursed it.
+
+      ... And some people mock it, but what do they know of the stability, the openness of an ennobled mind, the very peace they seek through their perversions? It is good—it is the ultimate good—to love oneself, and through oneself, God.
+
+      It is regrettable, but not reproachable, that God smote the Earth. At the very least, those of us who remained faithful were given this sliver of Paradise.
+
+      The problem with the Heretic is just that: they crawl out from their holes, seeking to turn us against the Truth. But they cannot. Even if they were to murder and devour all of us, we would not forget God—as long as we chose not to. Nothing can take away faith, charity, and virtue, except our own malfeasance.
+
+      In any case, the Afterlife is around the corner, as it always was and it always will be. Only by forgetting that could we prioritize the gratification of the moment.
   - name: Messenger Ravens
     key: ravens
-    public: false
+    public: public
     tags:
       - Ravenkeeper
     description: |-
@@ -263,46 +276,7 @@ documents:
       - Brewing (Skilled)
       - Alcoholic
     description: |-
-      Alcohol & Drugs
-
-      The Inn's Brewer keeps two shelves in the cellar: one for drink, one
-      for things that aren't. Both are made the same way — water, patience,
-      and whatever's growing down there — and both are worth good coin.
-
-      BASIC ALCOHOL (Brewing (Basic))
-      Fast to brew, faster to drink.
-      - Barleyback — an honest ale. Whatever's on tap at the Inn tonight.
-      - Widow's Mead — honeyed and strong. Ask around about the name.
-      - Muckwater Stout — thick, dark, tastes like the wasteland smells. Caravaners swear by it.
-      - Farmhand's Cider — cheap, sharp, gets the job done.
-
-      ADVANCED ALCOHOL (Brewing (Skilled))
-      Slower, finer, worth serving at the Baron's own table.
-      - Ravenheart Red — the barony's pride, aged in oak salvaged from the old keep's cellar.
-      - Goldenrod Mead Royale — spiced and gilded, reserved for court.
-      - Wassail of the Iron Cross — mulled wine, spiked with something the Order won't name.
-
-      BASIC TONICS (Brewing (Basic))
-      Recreational, easy to come by — a Pusher's bread and butter.
-      - Ravenroot Chew — a bitter root, chewed for a light head-buzz.
-      - Sootleaf Pipeweed — mellow smoke, makes a long watch on the wall bearable.
-      - Widow's Kiss Drops — a few drops under the tongue. A warm little lie that everything's fine.
-
-      ADVANCED TONICS (Brewing (Skilled))
-      The ingredients are foraged, not farmed — expect the Caves, not the cellar.
-      - Glowroot Tincture — distilled from a fungus that only grows near the old tech ruins. Makes colors sing.
-      - Weeper's Salve — eases pain fast. Worth its weight for anyone doing real fighting.
-      - Cultist's Communion — the Cult of Bacchus's own sacrament, used in their initiation rites. Not sold; you're given it.
-
-      DRINKING (mechanics)
-      "Take Alcohol" on your character sheet, next to "Ate Meal" — costs 3 ⬢
-      (a Brewing Effort nets you 3 back, same rate).
-      - Grants the Tipsy tag for 4 turns: for the first 2 you're actually
-        Happy; for the 2 after that you're merely immune to Unhappy — Tipsy
-        is still shielding you, just quietly.
-      - Slightly worse at combat while Tipsy, unless you have the Alcoholic
-        tag — built up from a lifetime of practice, not something you buy.
-      - Doesn't touch hunger. Drink all you like, you'll still need to eat.
+      WIP
   # The Demoness threat's own brief (docs/threats.md). Assigned by the
   # Demoness tag, which is also what unlocks the hidden Demoness tag
   # category — so the paper and the powers arrive together.
