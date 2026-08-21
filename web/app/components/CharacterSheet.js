@@ -8,6 +8,8 @@ import TagsPanel from "./TagsPanel";
 import RichText from "./RichText";
 import FactionLink from "./FactionLink";
 import PageShell from "@/app/components/PageShell";
+import { HONORIFICS, NAME_LIMITS } from "@/lib/characterName";
+import InfoIcon from "./InfoIcon";
 
 // Raw d6 first, then the summed modifier (Mood ±1, Hunger -1) and the total —
 // a GM reading this has to be able to tell a modified 5 from a natural 5.
@@ -131,10 +133,50 @@ export default function CharacterSheet({
           <section className="panel p-4">
             <h2 className="panel-header">Bio</h2>
             <form action={updateCharacterProfile} encType="multipart/form-data" className="flex flex-col gap-3">
-              <label className="field">
-                <span className="field-label">Name</span>
-                <input name="name" defaultValue={character.name} required />
-              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="field">
+                  <span className="field-label">Title</span>
+                  <select name="honorific" defaultValue={character.honorific ?? ""}>
+                    <option value="">(none)</option>
+                    {HONORIFICS.map((h) => (
+                      <option key={h} value={h}>
+                        {h}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span className="field-label">First name</span>
+                  <input
+                    name="firstName"
+                    defaultValue={character.firstName}
+                    maxLength={NAME_LIMITS.firstName}
+                    required
+                  />
+                </label>
+                <label className="field">
+                  <span className="field-label">Last name (optional)</span>
+                  <input
+                    name="lastName"
+                    defaultValue={character.lastName ?? ""}
+                    maxLength={NAME_LIMITS.lastName}
+                  />
+                </label>
+                {/* Granted by a GM, so it is shown but not editable. Being
+                    `disabled` it submits nothing, and updateCharacterProfile
+                    never reads it — that, not the greying, is the lock. */}
+                <label className="field">
+                  <span className="field-label flex items-center gap-1.5">
+                    Granted title
+                    <InfoIcon text="Granted by a GM, and rendered in quotes between your names. Make your case to a GM." />
+                  </span>
+                  <input
+                    defaultValue={character.title ?? ""}
+                    placeholder="None granted"
+                    disabled
+                  />
+                </label>
+              </div>
               <AvatarField
                 defaultTurnPingOptIn={character.turnPingOptIn}
                 defaultRomanceOptOut={character.romanceOptOut}

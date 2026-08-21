@@ -138,7 +138,7 @@ export default async function CharacterPage() {
     getOpenTurn(),
     prisma.character.findMany({
       where: { status: "ALIVE", id: { not: character.id } },
-      orderBy: { name: "asc" },
+      orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
       select: { id: true, name: true },
     }),
     prisma.faction.findMany({

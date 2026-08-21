@@ -15,7 +15,7 @@ export default async function MessagesPage() {
     listGuildMembers(),
     prisma.character.findMany({
       where: { status: "ALIVE" },
-      orderBy: { name: "asc" },
+      orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
       select: { id: true, discordUserId: true, name: true },
     }),
   ]);

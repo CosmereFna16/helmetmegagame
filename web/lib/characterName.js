@@ -3,4 +3,14 @@
 // CreateCharacterWizard.js is a client component, and importing the
 // @lifeweb/db barrel would construct a PrismaClient in the browser bundle.
 // The deep path resolves because @lifeweb/db declares no `exports` map.
-export * from "@lifeweb/db/lib/characterName";
+//
+// Named rather than `export *`: the target is CommonJS, so a star re-export
+// makes Turbopack emit runtime interop and warn on every build.
+export {
+  HONORIFICS,
+  NAME_LIMITS,
+  formatCharacterName,
+  formatBareName,
+  splitLegacyName,
+  normalizeHonorific,
+} from "@lifeweb/db/lib/characterName";

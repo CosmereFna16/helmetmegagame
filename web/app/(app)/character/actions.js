@@ -6,6 +6,12 @@ import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
+import {
+  NAME_LIMITS,
+  formatCharacterName,
+  formatBareName,
+  normalizeHonorific,
+} from "@/lib/characterName";
 import { syncCharacterNickname, setTurnPingRole, setRomanceOptOutRole, ensureCharacterRole } from "@/lib/discordGuild";
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
@@ -20,7 +26,14 @@ export async function updateCharacterProfile(formData) {
   });
   if (!character) redirect("/character");
 
-  const name = formData.get("name")?.toString().trim();
+  const part = (key, limit) => formData.get(key)?.toString().trim().slice(0, limit) || null;
+  // `title` is GM-granted and never read from this form — the input on the
+  // character sheet is disabled and submits nothing. It still has to be fed
+  // back into formatCharacterName below, or a player saving their bio would
+  // silently strip a title a GM had granted them.
+  const honorific = normalizeHonorific(formData.get("honorific"));
+  const firstName = part("firstName", NAME_LIMITS.firstName);
+  const lastName = part("lastName", NAME_LIMITS.lastName);
   const appearance =
     formData.get("appearance")?.toString().trim().slice(0, APPEARANCE_MAX_LENGTH) || null;
   const preferredNickname = formData.get("preferredNickname")?.toString().trim() || null;
@@ -29,7 +42,14 @@ export async function updateCharacterProfile(formData) {
   const avatar = formData.get("avatar");
 
   const data = { appearance, preferredNickname, turnPingOptIn, romanceOptOut };
-  if (name) data.name = name;
+  if (firstName) {
+    Object.assign(data, {
+      honorific,
+      firstName,
+      lastName,
+      name: formatCharacterName({ honorific, firstName, title: character.title, lastName }),
+    });
+  }
 
   if (avatar && avatar.size > 0) {
     if (avatar.size > MAX_UPLOAD_BYTES) {
@@ -44,7 +64,7 @@ export async function updateCharacterProfile(formData) {
   }
 
   const updated = await prisma.character.update({ where: { id: character.id }, data });
-  await syncCharacterNickname(session.discordUserId, updated.name, updated.preferredNickname).catch(() => {});
+  await syncCharacterNickname(session.discordUserId, formatBareName(updated), updated.preferredNickname).catch(() => {});
   await setTurnPingRole(session.discordUserId, updated.turnPingOptIn).catch(() => {});
   await setRomanceOptOutRole(session.discordUserId, updated.romanceOptOut).catch(() => {});
   await ensureCharacterRole(updated).catch(() => {});
