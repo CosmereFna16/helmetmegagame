@@ -5,6 +5,8 @@ const LEAVE_ANNOUNCE_CHANNEL_ID = "1540014692926361651";
 module.exports = {
   name: "guildMemberRemove",
   async execute(member) {
+    if (member.user?.bot) return;
+
     const character = await prisma.character.findFirst({
       where: { discordUserId: member.id, status: "ALIVE" },
       include: { role: true },
@@ -21,9 +23,7 @@ module.exports = {
       },
     });
 
-    if (!character) return;
-
-    const roleLabel = character.roleTitle ?? character.role?.name ?? "Unaffiliated";
+    const roleLabel = character?.roleTitle ?? character?.role?.name ?? "Unaffiliated";
     const playerName = member.user?.username ?? member.user?.tag ?? member.id;
 
     const channel = await member.client.channels
@@ -31,9 +31,15 @@ module.exports = {
       .catch(() => null);
     if (channel?.isTextBased()) {
       await channel
-        .send(`${playerName} has left. Their character was ${character.name}, a ${roleLabel}.`)
+        .send(
+          character
+            ? `${playerName} has left. Their character was ${character.name}, a ${roleLabel}.`
+            : `${playerName} has left. They had no living character.`,
+        )
         .catch(() => {});
     }
+
+    if (!character) return;
 
     if (character.discordRoleId) {
       await member.guild.roles.delete(character.discordRoleId).catch(() => {});
