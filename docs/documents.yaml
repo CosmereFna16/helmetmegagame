@@ -62,21 +62,24 @@ documents:
       - Laborer (Farming)
       - Laborer (Fishing)
       - Laborer (Herding)
+      - Laborer (Hunting)
     description: |-
       Everyone can use Routine Moves to produce resources, but only people with the {tag:laborer} set of tags will produce an actually good amount.
 
-      You can use the /labor command in the #turns chat, but make sure you're in the right location.
+      Use the `/hunt`, `/fish`, `/farm` and `/herd` commands and the right amount for your tags is worked out for you — but you have to be somewhere the work is actually possible. **Nothing can be farmed, fished, herded or hunted in the Caves.**
 
-      | Activity | Base | Laborer | Specialist | Location |
+      | Activity | Base | Laborer | Specialist | Where |
       |---|---|---|---|---|
-      | Herding | {resource:herding:base} | {resource:herding:laborer} | {resource:herding:specialist} | Requirements |
-      | Farming | {resource:farming:base} | {resource:farming:laborer} | {resource:farming:specialist} | Requirements |
-      | Fishing | {resource:fishing:base} | {resource:fishing:laborer} | {resource:fishing:specialist} | Requirements |
-      | Hunting | 1d4 -1 ⬢ (×3 with Hunter) | — | — | Town, Fortress, or Caves |
+      | Herding | {resource:herding:base} | {resource:herding:laborer} | {resource:herding:specialist} | Anywhere but the Caves |
+      | Farming | {resource:farming:base} | {resource:farming:laborer} | {resource:farming:specialist} | Town |
+      | Fishing | {resource:fishing:base} | {resource:fishing:laborer} | {resource:fishing:specialist} | Fortress or Town |
+      | Hunting | {resource:hunting:base} | {resource:hunting:laborer} | {resource:hunting:specialist} | The Forest |
+
+      Hunting is the gamble of the four: it can come back with nothing at all, or with more than a day's farming. The rest pay the same every time.
 
       Laborer is a general-purpose 2-point tag that makes producing resources more viable than just as a survival method, while the specialist tags (you can buy them for 2 points on top of Laborer) make that specific trade a lot more valuable.
 
-      To automatically add Resources on an Effort, type +(resources) anywhere in your message. For example, write `I hunt. +1d4*3` or `I farm. +{resource:farming:specialist}`. Also works on default moves.
+      To automatically add Resources on a Move, type +(resources) anywhere in your message — for example `I sell my wares. +3`. Write a range like `5-12` to roll for it instead, or just write `/hunt` and let your tags decide. All of this works on default moves too.
   - name: Combat
     key: combat
     public: true
@@ -270,7 +273,7 @@ documents:
       Fast to brew, faster to drink.
       - Barleyback — an honest ale. Whatever's on tap at the Inn tonight.
       - Widow's Mead — honeyed and strong. Ask around about the name.
-      - Muckwater Stout — thick, dark, tastes like the wasteland smells. Miners swear by it.
+      - Muckwater Stout — thick, dark, tastes like the wasteland smells. Caravaners swear by it.
       - Farmhand's Cider — cheap, sharp, gets the job done.
 
       ADVANCED ALCOHOL (Brewing (Skilled))

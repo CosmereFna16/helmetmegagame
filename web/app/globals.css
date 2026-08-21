@@ -658,6 +658,19 @@ h3 {
   letter-spacing: var(--ls-tight);
 }
 
+/* A chip whose content is data, not a label — the resource-rate bubbles
+   ({resource:field:tier}, see ResourceChip.js). They used to inherit mono
+   from the .tag-hover wrapper their tooltip needed; the tooltip is gone, so
+   the mono face has to be asked for directly. Declared like .tag-hover
+   below, since these sit inside table cells and prose that may hand down a
+   serif face or bold weight. */
+.chip-mono {
+  font-family: var(--font-mono), ui-monospace, "SFMono-Regular", monospace;
+  font-weight: normal;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 /* Universal tag hover tooltip — wraps a .chip, shows name/description/value.
    Declared here (not left to inherit) since .tag-hover/InfoIcon often sit
    inside an <h1>/<h2> (or a bold label), which globally switches to the

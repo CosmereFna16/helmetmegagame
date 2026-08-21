@@ -741,8 +741,11 @@ model Action {
   zoneId                 String?
   zone                   Zone?       @relation(fields: [zoneId], references: [id])
   resourceDelta          Int?
-  resourceDiceExpression String?
-  resourceDiceRoll       Int?
+  // A range like "5-12", rolled at ⚜ confirm. @map keeps the original column
+  // names: this used to hold dice notation ("1d6*2"), which the labor
+  // shorthands and ranges replaced, so the field renamed but the SQL didn't.
+  resourceRollExpression String? @map("resourceDiceExpression")
+  resourceRollValue      Int?    @map("resourceDiceRoll")
   diceRoll               Int?
 
   // The mood adjustment applied to a Gambit's d6 (+1 Happy / -1 Unhappy, see

@@ -217,10 +217,9 @@ locations:
   - id: customs
     name: Customs
     zone: Caves
-    description: The sentry beholds migrants and miners as they talk around the fire.
+    description: The sentry beholds migrants and mercenaries as they talk around the fire.
     publicSubLocations:
       - Outpost
-      - Mining Camp
     privateSubLocations: []
     tags: []
   - id: merchants-depot

@@ -14,7 +14,7 @@ const LABORER_SLUG = "laborer";
 const LABORER_FARMING_SLUG = "laborer-farming";
 const LABORER_FISHING_SLUG = "laborer-fishing";
 const LABORER_HERDING_SLUG = "laborer-herding";
-const HUNTER_SLUG = "hunter";
+const LABORER_HUNTING_SLUG = "laborer-hunting";
 
 // The two "read someone else's sheet" tags and their discounted Demoness
 // twins — see db/lib/inspectVision.js, the only reader.
@@ -44,7 +44,7 @@ module.exports = {
   LABORER_FARMING_SLUG,
   LABORER_FISHING_SLUG,
   LABORER_HERDING_SLUG,
-  HUNTER_SLUG,
+  LABORER_HUNTING_SLUG,
   SEDUCTIVE_SLUG,
   SEDUCTIVE_DEMONESS_SLUG,
   TORTURER_SLUG,

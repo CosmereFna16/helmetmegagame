@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 
-const ProductionRatesContext = createContext({ rates: {}, hunting: {}, coefficient: 1 });
+const ProductionRatesContext = createContext({ rates: {}, coefficient: 1 });
 
 export function useProductionRates() {
   return useContext(ProductionRatesContext);
@@ -13,7 +13,7 @@ export function useProductionRates() {
 // references (see RichText.js) can resolve without every component
 // threading rate data through props. Mirrors TagsProvider.js.
 export default function ProductionRatesProvider({ children }) {
-  const [data, setData] = useState({ rates: {}, hunting: {}, coefficient: 1 });
+  const [data, setData] = useState({ rates: {}, coefficient: 1 });
 
   useEffect(() => {
     let cancelled = false;

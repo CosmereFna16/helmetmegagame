@@ -23,9 +23,9 @@ function RichTokenRenderer({ kind, payload, raw }) {
 
   if (kind === "resource") {
     const [field, tier] = payload.split(":").map((p) => p.trim());
-    const value = rates[field]?.[tier];
-    if (value == null) return raw;
-    return <ResourceChip value={value} label={`${field} — ${tier}`} />;
+    const rate = rates[field]?.[tier];
+    if (!rate) return raw;
+    return <ResourceChip value={rate.display} />;
   }
 
   return raw;

@@ -139,7 +139,7 @@ wasted day.
 `MoveReviewStatus` gained `PASSED`, rendered as plainly as `Open`. It is where
 every **Routine** lands the moment the player confirms: a Routine's resources
 are pushed there and then (`handleMoveConfirm`, and `performLabor` for the
-`/labor` path), so it only needs a GM if one disagrees. A **Gambit** pushes
+`/hunt`/`/fish`/`/farm`/`/herd` path), so it only needs a GM if one disagrees. A **Gambit** pushes
 nothing until a GM Solves it — the point of rolling is that the outcome isn't
 the player's to declare.
 

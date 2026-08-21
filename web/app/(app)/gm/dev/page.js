@@ -170,7 +170,7 @@ export default async function DevPanelPage() {
           Tupper/summary channels are the plain/public/private channels of a provisioned Location. Moves and Efforts
           come from channels named exactly &quot;moves&quot; and &quot;effort&quot;. With Dawn wipe enabled, the wipe
           itself runs in the background after a Dawn advance and can take a few minutes to finish in Discord — the
-          turn is already open before it starts. Production coefficient scales /labor&apos;s payouts
+          turn is already open before it starts. Production coefficient scales the /hunt, /fish, /farm and /herd payouts
           and docs/documents.yaml&apos;s printed numbers (via live {"{resource:...}"} bubbles) immediately — nothing
           to sync by hand.
         </p>

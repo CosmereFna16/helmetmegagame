@@ -48,7 +48,7 @@ function moveKindLabel(moveKind) {
 function buildMoveContent(action) {
   return [
     `» ${action.description}`,
-    ...formatResourceLines(action.resourceDelta, action.resourceDiceExpression),
+    ...formatResourceLines(action.resourceDelta, action.resourceRollExpression),
     "",
     `Kind: **${moveKindLabel(action.moveKind)}**`,
     `Opposed: **${action.opposed ? "Yes" : "No"}**`,

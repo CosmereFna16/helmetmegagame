@@ -14,13 +14,14 @@ function TagToken({ payload, fallback }) {
 }
 
 // Payload is "field:tier", e.g. "herding:laborer" — see
-// db/lib/production.js's PRODUCTION_RATES for the field/tier names.
+// db/lib/production.js's PRODUCTION_RATES for the field/tier names. The API
+// ships each tier pre-formatted as `display` ("3", or "0–4" when it rolls).
 function ResourceToken({ payload, fallback }) {
   const { rates } = useProductionRates();
   const [field, tier] = payload.split(":").map((p) => p.trim());
-  const value = rates[field]?.[tier];
-  if (value == null) return fallback;
-  return <ResourceChip value={value} label={`${field} — ${tier}`} />;
+  const rate = rates[field]?.[tier];
+  if (!rate) return fallback;
+  return <ResourceChip value={rate.display} />;
 }
 
 const BUBBLE_KINDS = {

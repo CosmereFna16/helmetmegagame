@@ -769,9 +769,9 @@ zones:
               - Live on the outskirts, free and independent.
               - You are aware of the Goddess of Nature, Sylva. Some still worship her in Ravenheart. It is up
                 to you to follow the Church or stick to the oldways.
-              - 'Forage and heal as a Healer (Medical (Basic), Brewing (Basic)), or track game as a Hunter (Hunter)—both
-                still Forester at heart. In #turns, a Hunter can roll for a hunt instead of stating a flat Resource
-                amount — add something like +1d6\*2 to your message and it''ll be rolled once you confirm.'
+              - 'Forage and heal as a Healer (Medical (Basic), Brewing (Basic)), or track game as a Hunter (Laborer
+                (Hunting))—both still Forester at heart. Hunting pays better than any other honest work and can
+                just as easily pay nothing: use the /hunt command from the Forest, or write /hunt in your Move.'
             difficulty: easy
             multiple: true
             weight: 2
@@ -1222,18 +1222,6 @@ zones:
             description:
               - Delve into the Caves for pay.
             difficulty: normal
-            multiple: true
-            weight: 2
-            starting_resources: 2
-            starting_location: customs
-            starting_tags: []
-            doc_elements: []
-          - name: Miner
-            slug: miner
-            intro: Work the Caves.
-            description:
-              - Work the Caves.
-            difficulty: easy
             multiple: true
             weight: 2
             starting_resources: 2

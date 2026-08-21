@@ -1,10 +1,10 @@
 const { MessageFlags } = require("discord.js");
-const { prisma } = require("@lifeweb/db");
+const { prisma, LABOR_FIELDS, FIELD_INFO } = require("@lifeweb/db");
 const { buildLocationSelectRow, buildConfirmRow, performMove } = require("../lib/location");
 const { performLabor } = require("../lib/labor");
 const { sendDm } = require("../lib/dm");
 const { buildMoveComponents, buildMoveContent, moveKindLabel } = require("../lib/moveComponents");
-const { rollResourceDice } = require("../lib/resourceDelta");
+const { rollResourceRange, formatRangeExpression } = require("../lib/resourceDelta");
 const {
   gambitModifiers,
   gambitModifierTotal,
@@ -57,29 +57,30 @@ async function handleMessageCommand(interaction) {
   }
 }
 
-// /labor: any player with a living, un-acted character can use this — no GM
-// gate. See bot/src/lib/labor.js#performLabor for the tag-tier lookup and
-// auto-resolved Action creation.
-async function handleLaborCommand(interaction) {
+// /hunt, /fish, /farm, /herd: any player with a living, un-acted character
+// can use these — no GM gate. The command name IS the field. See
+// bot/src/lib/labor.js#performLabor for the tag-tier lookup, the location
+// gate and the auto-resolved Action creation.
+async function handleLaborCommand(interaction, field) {
   const character = await findAliveCharacter(interaction.user.id);
   if (!character) {
     await interaction.reply({ content: "» *You don't have a living character.*", flags: MessageFlags.Ephemeral });
     return;
   }
 
-  const field = interaction.options.getString("field", true);
   const result = await performLabor(character, field);
   if (!result.ok) {
     await interaction.reply({ content: `» *${result.reason}*`, flags: MessageFlags.Ephemeral });
     return;
   }
 
-  const lines = [`» ${character.name} ${field === "hunt" ? "hunted" : field === "herd" ? "herded" : field === "fish" ? "fished" : "farmed"}.`];
-  if (result.resourceDiceExpression) {
-    lines.push(`**Resource roll (${result.resourceDiceExpression}):** rolled ${result.diceSum} → +${result.resourceDelta} ⬢`);
-  } else {
-    lines.push(`**Resource change:** +${result.resourceDelta} ⬢`);
-  }
+  const lines = [`» ${character.name} ${FIELD_INFO[field].verb}.`];
+  // A flat tier (min === max) has nothing to show its work for.
+  lines.push(
+    result.min === result.max
+      ? `**Resource change:** +${result.resourceDelta} ⬢`
+      : `**Resource roll (${result.min}–${result.max}):** +${result.resourceDelta} ⬢`,
+  );
   lines.push("» *Move confirmed — waiting on GM review.*");
 
   await interaction.reply({ content: lines.join("\n"), flags: MessageFlags.Ephemeral });
@@ -235,10 +236,12 @@ async function handleMoveConfirm(interaction, actionId) {
   // The per-contributor breakdown is display-only, for the DM below.
   const modifiers = diceRoll != null ? gambitModifiers(action.character.tags) : [];
   const diceModifier = diceRoll != null ? gambitModifierTotal(action.character.tags) : null;
-  const diceResult = action.resourceDiceExpression ? rollResourceDice(action.resourceDiceExpression) : null;
+  // Null for a row written before ranges existed (a leftover "1d4*3"), which
+  // then confirms on its flat delta alone rather than throwing.
+  const rollResult = action.resourceRollExpression ? rollResourceRange(action.resourceRollExpression) : null;
 
-  const resourceDelta = diceResult
-    ? (action.resourceDelta ?? 0) + diceResult.value
+  const resourceDelta = rollResult
+    ? (action.resourceDelta ?? 0) + rollResult.value
     : (action.resourceDelta ?? null);
 
   // A Routine resolves itself: its resources land now and it enters the queue
@@ -254,7 +257,7 @@ async function handleMoveConfirm(interaction, actionId) {
         status: "CONFIRMED",
         confirmedAt: new Date(),
         ...(diceRoll != null ? { diceRoll, diceModifier } : {}),
-        ...(diceResult ? { resourceDiceRoll: diceResult.value, resourceDelta } : {}),
+        ...(rollResult ? { resourceRollValue: rollResult.value, resourceDelta } : {}),
         ...(isRoutine ? { moveReviewStatus: "PASSED" } : {}),
       },
     });
@@ -274,7 +277,7 @@ async function handleMoveConfirm(interaction, actionId) {
         diceModifier,
         // The only place the breakdown survives — the column stores the sum.
         diceModifiers: modifiers,
-        resourceDiceRoll: diceResult?.value ?? null,
+        resourceRollValue: rollResult?.value ?? null,
         appliedEffects: updated.appliedEffects ?? null,
       },
     },
@@ -293,9 +296,9 @@ async function handleMoveConfirm(interaction, actionId) {
         : `🎲 **${diceRoll}**`,
     );
   }
-  if (diceResult) {
+  if (rollResult) {
     lines.push(
-      `**Resource roll (${action.resourceDiceExpression}):** rolled ${diceResult.sum} → ${diceResult.value > 0 ? "+" : ""}${diceResult.value} ⬢`,
+      `**Resource roll (${formatRangeExpression(action.resourceRollExpression)}):** ${rollResult.value > 0 ? "+" : ""}${rollResult.value} ⬢`,
     );
   }
   lines.push("» *Waiting on adjudication...*");
@@ -331,7 +334,9 @@ module.exports = {
       if (interaction.isChatInputCommand()) {
         if (interaction.commandName === "gm") return void (await handleGmCommand(interaction));
         if (interaction.commandName === "message") return void (await handleMessageCommand(interaction));
-        if (interaction.commandName === "labor") return void (await handleLaborCommand(interaction));
+        if (LABOR_FIELDS.includes(interaction.commandName)) {
+          return void (await handleLaborCommand(interaction, interaction.commandName));
+        }
       } else if (interaction.isButton()) {
         if (interaction.customId === "loc:open") return void (await handleOpen(interaction));
         if (interaction.customId === "loc:cancel") return void (await handleCancel(interaction));

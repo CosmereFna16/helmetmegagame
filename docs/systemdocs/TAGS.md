@@ -336,11 +336,13 @@ introduced this system (and were finally removed from `docs/roles.yaml`'s
 GM/the faction's own Leader (Treasurer) from `/faction`
 (`web/app/(app)/faction/actions.js`), exactly as before — only the storage
 mechanism changed, not who can assign what. `Courtier` was deleted outright
-(it only ever gated the now-ungated `Manor` tag). `Mortus` and `Hunter`
-survived the "Role" category's retirement as ordinary tags (General and
-Skills respectively) since both drive real logic elsewhere — Mortus gates
-`/lifeweb` nav visibility, Hunter drives a production-tier check in
-`bot/src/lib/labor.js`.
+(it only ever gated the now-ungated `Manor` tag). `Mortus` survived the
+"Role" category's retirement as an ordinary General tag since it drives real
+logic elsewhere — it gates `/lifeweb` nav visibility. `Hunter` survived
+alongside it for the same reason, but has since been retired: hunting joined
+the Laborer ladder, so the production-tier check in `bot/src/lib/labor.js`
+reads `laborer-hunting` like every other specialisation and no `hunter` entry
+remains in `docs/tags.yaml`.
 
 ## 7. Where the code lives
 

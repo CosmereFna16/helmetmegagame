@@ -5,9 +5,16 @@
 // and there's still exactly one implementation.
 const {
   parseResourceDelta,
-  parseResourceDice,
-  rollResourceDice,
+  parseResourceExpression,
+  rollResourceRange,
+  formatRangeExpression,
   formatResourceLines,
 } = require("@lifeweb/db");
 
-module.exports = { parseResourceDelta, parseResourceDice, rollResourceDice, formatResourceLines };
+module.exports = {
+  parseResourceDelta,
+  parseResourceExpression,
+  rollResourceRange,
+  formatRangeExpression,
+  formatResourceLines,
+};

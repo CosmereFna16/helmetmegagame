@@ -53,9 +53,19 @@ export default function DefaultEffortPanel({ characterId, defaultEffort, locatio
             <>
               <p>If you don&apos;t submit a Move on a given day, this is assumed instead.</p>
               <p className="text-muted">
-                Tip: add a Resource amount like +3 or a dice roll like +1d6*3 anywhere in the
-                text and it&apos;ll be applied automatically. It can be negative too — say a Cook
-                spending Resources on ingredients (-3 ⬢).
+                Tip: add a Resource amount like +3 anywhere in the text and it&apos;ll be applied
+                automatically. It can be negative too — say a Cook spending Resources on
+                ingredients (-3 ⬢). Write a range like 5-12 to roll for it instead.
+              </p>
+              <p className="text-muted">
+                Or write /hunt, /fish, /farm or /herd and the right amount for your tags is
+                worked out for you. Those only pay out where the work is possible — hunting in
+                the Forest, fishing in the Fortress or Town, farming in Town, herding anywhere
+                but the Caves.
+              </p>
+              <p className="text-muted">
+                Careful: any bare range in the text is read as a roll, so &quot;waits 5-10
+                minutes&quot; would be taken as one.
               </p>
             </>
           }

@@ -1,6 +1,6 @@
-const { prisma } = require("@lifeweb/db");
+const { prisma, resolveLaborRate } = require("@lifeweb/db");
 const { sendDm } = require("./dm");
-const { parseResourceDelta, parseResourceDice } = require("./resourceDelta");
+const { parseResourceExpression } = require("./resourceDelta");
 const { buildMoveComponents, buildMoveContent } = require("./moveComponents");
 
 // A message posted in the #turns channel becomes a PENDING_TYPE Move: the
@@ -47,8 +47,23 @@ async function handleActionSubmission(message) {
     return;
   }
 
-  const { description: afterDice, resourceDiceExpression } = parseResourceDice(raw);
-  const { description, resourceDelta } = parseResourceDelta(afterDice);
+  const { description, resourceDelta, roll } = parseResourceExpression(raw);
+
+  // A "/hunt"-style shorthand is collapsed into a concrete range here rather
+  // than at confirm, for two reasons: the turn is spent by the Action row
+  // existing, so the location gate has to run before we create one (a refusal
+  // must cost nothing); and resolving now means only one grammar — a plain
+  // range — ever reaches the database.
+  let resourceRollExpression = roll?.expression ?? null;
+  if (roll?.kind === "shorthand") {
+    const rate = await resolveLaborRate(prisma, character.id, roll.field);
+    if (!rate.ok) {
+      await message.delete().catch(() => {});
+      await sendDm(message.author, { content: `» *${rate.reason}*` }).catch(() => {});
+      return;
+    }
+    resourceRollExpression = rate.expression;
+  }
 
   const action = await prisma.action.create({
     data: {
@@ -58,7 +73,7 @@ async function handleActionSubmission(message) {
       status: "PENDING_TYPE",
       description,
       resourceDelta,
-      resourceDiceExpression,
+      resourceRollExpression,
       zoneId: character.zoneId ?? null,
     },
   });

@@ -31,9 +31,9 @@ export default function ChipText({ text, as: Wrapper = "span", className }) {
 
     if (part.kind === "resource") {
       const [field, tier] = part.payload.split(":").map((p) => p.trim());
-      const value = rates[field]?.[tier];
-      if (value == null) return part.raw;
-      return <ResourceChip key={`r-${i}`} value={value} label={`${field} — ${tier}`} />;
+      const rate = rates[field]?.[tier];
+      if (!rate) return part.raw;
+      return <ResourceChip key={`r-${i}`} value={rate.display} />;
     }
 
     return part.raw;

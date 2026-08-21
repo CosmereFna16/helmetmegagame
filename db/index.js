@@ -340,4 +340,5 @@ module.exports = {
   ...require("./lib/gambitModifier"),
   ...require("./lib/moveEffects"),
   ...require("./lib/resourceDelta"),
+  ...require("./lib/laborAccess"),
 };
