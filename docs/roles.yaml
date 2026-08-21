@@ -1184,6 +1184,7 @@ zones:
               - brokenspear
       - name: Windrider Clan
         slug: windrider-clan
+        parent: The Bastard's Camp
         starting_resources: 5
         roles:
           - name: Lieutenant (Windrider Clan)
