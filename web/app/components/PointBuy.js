@@ -102,10 +102,17 @@ export default function PointBuy({
         </p>
       )}
 
+      {/* Deliberately a toggle-set, with no quantity anywhere: a bought tag
+          lands on CharacterTag.quantity's default of 1, so a stackable tag
+          can never be point-farmed. Stacks are built in play, through the
+          Add Tag request. */}
       <ul className="flex flex-col gap-2">
         {visible.map((tag) => {
           const isSelected = selectedIds.includes(tag.id);
-          const groupColor = tag.group?.color ? `var(--tag-${tag.group.color})` : null;
+          // TagGroup.color is a freeform hex string, used raw — same as
+          // TagChip.js. It was wrapped as var(--tag-<hex>) here, a token that
+          // has never existed, so group colours silently didn't render.
+          const groupColor = tag.group?.color ?? null;
           const locked = !isSelected && !requirementSatisfied(tag, byId, heldOrSelectedIds);
           const cost = effectiveCost(tag, byId, heldOrSelectedIds);
           // A tag you can't currently afford is still shown, just marked —

@@ -9,6 +9,7 @@ import { getOpenTurn } from "@/lib/turn";
 import { createRequest, logRequest, requireReason } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { TRANSFERABLE_CATEGORIES } from "@/lib/tagRequests";
+import { addToStack, dropCharacterTag } from "@/lib/requestEffects";
 import { syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
 
 // Every player-initiated change that is applied immediately and reviewed
@@ -203,7 +204,12 @@ async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount,
 
 // --- Tags -------------------------------------------------------------
 
-async function addTagRequestImpl({ tagId, resourcesSpent: rawSpend, reason: rawReason }) {
+async function addTagRequestImpl({
+  tagId,
+  quantity: rawQuantity,
+  resourcesSpent: rawSpend,
+  reason: rawReason,
+}) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
@@ -215,13 +221,22 @@ async function addTagRequestImpl({ tagId, resourcesSpent: rawSpend, reason: rawR
   // Mirrors addableTags() in web/lib/tagRequests.js — re-checked here because
   // the client's filtered list is only advisory.
   if (!tag.purchasable && !tag.craftable) throw new UserError("That tag can't be added this way.");
-  if (character.tags.some((ct) => ct.tagId === tag.id)) throw new UserError("You already have that tag.");
+
+  // A stackable tag adds to what's already there; anything else is still
+  // one-or-nothing. Both checks are server-side because the client's
+  // quantity field is advisory too.
+  const quantity = tag.stackable ? parseCount(rawQuantity, { min: 1, max: 99 }) ?? 1 : 1;
+  if (!tag.stackable && character.tags.some((ct) => ct.tagId === tag.id)) {
+    throw new UserError("You already have that tag.");
+  }
 
   const openTurn = await getOpenTurn();
 
   await prisma.$transaction(async (tx) => {
-    await tx.characterTag.create({
-      data: { characterId: character.id, tagId: tag.id, source: "EVENT", expiresTurn: null },
+    await addToStack(tx, character.id, tag.id, quantity, {
+      source: "EVENT",
+      expiresTurn: null,
+      stackable: tag.stackable,
     });
     if (resourcesSpent) {
       await tx.character.update({
@@ -234,15 +249,15 @@ async function addTagRequestImpl({ tagId, resourcesSpent: rawSpend, reason: rawR
       turnId: openTurn?.id ?? null,
       type: "ADD_TAG",
       reason,
-      payload: { tagId: tag.id, resourcesSpent },
-      effect: { tagId: tag.id, tagName: tag.name, resourcesSpent },
+      payload: { tagId: tag.id, quantity, resourcesSpent },
+      effect: { tagId: tag.id, tagName: tag.name, quantity, resourcesSpent },
     });
     await logRequest(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_add_tag",
       targetCharacterId: character.id,
       reason,
-      details: { tagId: tag.id, tagName: tag.name, resourcesSpent },
+      details: { tagId: tag.id, tagName: tag.name, quantity, resourcesSpent },
     });
   });
 
@@ -252,7 +267,12 @@ async function addTagRequestImpl({ tagId, resourcesSpent: rawSpend, reason: rawR
   return {};
 }
 
-async function removeTagRequestImpl({ tagId, resourcesSpent: rawSpend, reason: rawReason }) {
+async function removeTagRequestImpl({
+  tagId,
+  quantity: rawQuantity,
+  resourcesSpent: rawSpend,
+  reason: rawReason,
+}) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
@@ -263,13 +283,22 @@ async function removeTagRequestImpl({ tagId, resourcesSpent: rawSpend, reason: r
   if (!held) throw new UserError("You don't have that tag.");
   if (!held.tag.removable) throw new UserError("That tag can't be removed this way.");
 
+  const quantity = held.tag.stackable
+    ? parseCount(rawQuantity, { min: 1, max: held.quantity }) ?? 1
+    : held.quantity;
+
   const openTurn = await getOpenTurn();
-  // Snapshot before deleting — Undo restores the original source and expiry,
-  // not a fresh grant.
-  const restore = { tagId: held.tagId, source: held.source, expiresTurn: held.expiresTurn };
+  // Snapshot before deleting — Undo restores the original source, expiry and
+  // count, not a fresh grant.
+  const restore = {
+    tagId: held.tagId,
+    source: held.source,
+    expiresTurn: held.expiresTurn,
+    quantity,
+  };
 
   await prisma.$transaction(async (tx) => {
-    await tx.characterTag.deleteMany({ where: { characterId: character.id, tagId } });
+    await dropCharacterTag(tx, character.id, tagId, quantity);
     if (resourcesSpent) {
       await tx.character.update({
         where: { id: character.id },
@@ -281,15 +310,15 @@ async function removeTagRequestImpl({ tagId, resourcesSpent: rawSpend, reason: r
       turnId: openTurn?.id ?? null,
       type: "REMOVE_TAG",
       reason,
-      payload: { tagId, resourcesSpent },
-      effect: { tagId, tagName: held.tag.name, resourcesSpent, restore },
+      payload: { tagId, quantity, resourcesSpent },
+      effect: { tagId, tagName: held.tag.name, quantity, resourcesSpent, restore },
     });
     await logRequest(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_remove_tag",
       targetCharacterId: character.id,
       reason,
-      details: { tagId, tagName: held.tag.name, resourcesSpent },
+      details: { tagId, tagName: held.tag.name, quantity, resourcesSpent },
     });
   });
 
@@ -301,7 +330,12 @@ async function removeTagRequestImpl({ tagId, resourcesSpent: rawSpend, reason: r
 // Send-only by design: there is no "request a tag from someone", because
 // browsing another player's inventory to pick something is the abuse the
 // one-way flow prevents.
-async function transferTagRequestImpl({ tagId, toCharacterId, reason: rawReason }) {
+async function transferTagRequestImpl({
+  tagId,
+  quantity: rawQuantity,
+  toCharacterId,
+  reason: rawReason,
+}) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
@@ -312,6 +346,12 @@ async function transferTagRequestImpl({ tagId, toCharacterId, reason: rawReason 
   }
   if (toCharacterId === character.id) throw new UserError("That's you.");
 
+  // Capped at what the sender actually holds, so a hand-crafted request can't
+  // mint items out of a stack that isn't there.
+  const quantity = held.tag.stackable
+    ? parseCount(rawQuantity, { min: 1, max: held.quantity }) ?? 1
+    : held.quantity;
+
   const recipient = await prisma.character.findFirst({
     where: { id: toCharacterId, status: "ALIVE" },
     select: { id: true, name: true },
@@ -319,24 +359,25 @@ async function transferTagRequestImpl({ tagId, toCharacterId, reason: rawReason 
   if (!recipient) throw new UserError("Unknown recipient.");
 
   const openTurn = await getOpenTurn();
-  const restore = { source: held.source, expiresTurn: held.expiresTurn };
+  const restore = { source: held.source, expiresTurn: held.expiresTurn, quantity };
 
   await prisma.$transaction(async (tx) => {
-    await tx.characterTag.deleteMany({ where: { characterId: character.id, tagId } });
-    await tx.characterTag.upsert({
-      where: { characterId_tagId: { characterId: recipient.id, tagId } },
-      create: { characterId: recipient.id, tagId, source: "EVENT", expiresTurn: held.expiresTurn },
-      update: { expiresTurn: held.expiresTurn },
+    await dropCharacterTag(tx, character.id, tagId, quantity);
+    await addToStack(tx, recipient.id, tagId, quantity, {
+      source: "EVENT",
+      expiresTurn: held.expiresTurn,
+      stackable: held.tag.stackable,
     });
     await createRequest(tx, {
       characterId: character.id,
       turnId: openTurn?.id ?? null,
       type: "TRANSFER_TAG",
       reason,
-      payload: { tagId, toCharacterId: recipient.id },
+      payload: { tagId, quantity, toCharacterId: recipient.id },
       effect: {
         tagId,
         tagName: held.tag.name,
+        quantity,
         fromCharacterId: character.id,
         toCharacterId: recipient.id,
         toName: recipient.name,
@@ -348,7 +389,7 @@ async function transferTagRequestImpl({ tagId, toCharacterId, reason: rawReason 
       actionType: "request_transfer_tag",
       targetCharacterId: recipient.id,
       reason,
-      details: { tagId, tagName: held.tag.name, toName: recipient.name },
+      details: { tagId, tagName: held.tag.name, quantity, toName: recipient.name },
     });
   });
 

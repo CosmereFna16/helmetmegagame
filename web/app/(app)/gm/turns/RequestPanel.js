@@ -41,6 +41,13 @@ function BloodField({ value, onChange }) {
   );
 }
 
+// "Fine Meal x3" for a stack, a plain name otherwise. Reads the count off
+// `effect`, never off live state — same rule as Undo (REQUESTS.md §2).
+function stackLabel(effect) {
+  const name = effect.tagName ?? "—";
+  return (effect.quantity ?? 1) > 1 ? `${name} \u00d7${effect.quantity}` : name;
+}
+
 const SECTIONS = {
   FULFILL_DESIRE: {
     heading: "Fulfill Desire",
@@ -74,7 +81,7 @@ const SECTIONS = {
     heading: "Add Tag",
     render: ({ effect, edits, setEdit }) => (
       <>
-        <Line label="Tag added">{effect.tagName ?? "—"}</Line>
+        <Line label="Tag added">{stackLabel(effect)}</Line>
         <SpendField value={edits.resourcesSpent} onChange={(v) => setEdit("resourcesSpent", v)} />
         <label className="flex items-center gap-2 text-sm">
           <input
@@ -82,7 +89,7 @@ const SECTIONS = {
             checked={Boolean(edits.removeTag)}
             onChange={(e) => setEdit("removeTag", e.target.checked)}
           />
-          Remove the tag but keep the resource cost
+          Remove what this request added, but keep the resource cost
         </label>
       </>
     ),
@@ -92,7 +99,7 @@ const SECTIONS = {
     heading: "Remove Tag",
     render: ({ effect, edits, setEdit }) => (
       <>
-        <Line label="Tag removed">{effect.tagName ?? "—"}</Line>
+        <Line label="Tag removed">{stackLabel(effect)}</Line>
         <SpendField value={edits.resourcesSpent} onChange={(v) => setEdit("resourcesSpent", v)} />
         <p className="text-xs" style={{ color: "var(--muted)" }}>
           Undo puts the tag back with its original source and expiry, and refunds the cost.
@@ -120,7 +127,7 @@ const SECTIONS = {
     render: ({ effect }) => (
       <>
         <Line label="Handed over">
-          {effect.tagName ?? "—"} to {effect.toName ?? "?"}
+          {stackLabel(effect)} to {effect.toName ?? "?"}
         </Line>
         <p className="text-xs" style={{ color: "var(--muted)" }}>
           Undo moves the tag back to its original holder.

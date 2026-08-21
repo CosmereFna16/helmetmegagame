@@ -65,24 +65,80 @@ async function moveBlood(tx, delta) {
   await tx.gameConfig.update({ where: { id: 1 }, data: { lifewebBlood: next.after } });
 }
 
+// --- stacks -----------------------------------------------------------
+// A stackable tag is ONE CharacterTag row carrying a count, never N rows —
+// @@unique([characterId, tagId]) stays, so every presence check elsewhere
+// still reads "holds it or doesn't". These three are the only writers that
+// know about quantity; everything else goes through them.
+
+// Adds `quantity` of a tag, creating the row or incrementing an existing
+// one. Non-stackable tags are pinned at 1 no matter what is asked for, so a
+// caller that forgot to check `tag.stackable` can't mint a phantom stack.
+export async function addToStack(tx, characterId, tagId, quantity, options = {}) {
+  const { source = "GM_GRANT", expiresTurn = null, stackable = false } = options;
+  const n = stackable ? Math.max(1, Math.trunc(quantity ?? 1)) : 1;
+  const existing = await tx.characterTag.findUnique({
+    where: { characterId_tagId: { characterId, tagId } },
+  });
+  if (!existing) {
+    return tx.characterTag.create({
+      data: { characterId, tagId, source, expiresTurn, quantity: n },
+    });
+  }
+  if (!stackable) return existing;
+  return tx.characterTag.update({
+    where: { id: existing.id },
+    data: { quantity: existing.quantity + n },
+  });
+}
+
 // Restores a CharacterTag from a snapshot taken before it was removed. Uses
 // an upsert because a player may well have re-acquired the tag by other means
-// between the request and the GM getting to it.
-function restoreCharacterTag(tx, characterId, snapshot) {
-  return tx.characterTag.upsert({
+// between the request and the GM getting to it — which is also why the
+// update branch INCREMENTS rather than overwrites: the snapshot's quantity is
+// what this request took away, not what the character ought to end up with.
+export async function restoreCharacterTag(tx, characterId, snapshot) {
+  const n = Math.max(1, Math.trunc(snapshot.quantity ?? 1));
+  const existing = await tx.characterTag.findUnique({
     where: { characterId_tagId: { characterId, tagId: snapshot.tagId } },
-    create: {
+  });
+  if (existing) {
+    return tx.characterTag.update({
+      where: { id: existing.id },
+      data: {
+        quantity: existing.quantity + n,
+        expiresTurn: snapshot.expiresTurn ?? null,
+      },
+    });
+  }
+  return tx.characterTag.create({
+    data: {
       characterId,
       tagId: snapshot.tagId,
       source: snapshot.source ?? "GM_GRANT",
       expiresTurn: snapshot.expiresTurn ?? null,
+      quantity: n,
     },
-    update: { expiresTurn: snapshot.expiresTurn ?? null },
   });
 }
 
-function dropCharacterTag(tx, characterId, tagId) {
-  return tx.characterTag.deleteMany({ where: { characterId, tagId } });
+// Removes `quantity` of a tag, deleting the row once nothing is left. Pass
+// null (the default) to drop the whole holding however large the stack —
+// that is what an ordinary, non-stackable tag always wants.
+export async function dropCharacterTag(tx, characterId, tagId, quantity = null) {
+  const existing = await tx.characterTag.findUnique({
+    where: { characterId_tagId: { characterId, tagId } },
+  });
+  if (!existing) return;
+  const take = quantity == null ? existing.quantity : Math.max(1, Math.trunc(quantity));
+  if (take >= existing.quantity) {
+    await tx.characterTag.delete({ where: { id: existing.id } });
+    return;
+  }
+  await tx.characterTag.update({
+    where: { id: existing.id },
+    data: { quantity: existing.quantity - take },
+  });
 }
 
 // --- per-type handlers ------------------------------------------------
@@ -156,23 +212,27 @@ export const REQUEST_EFFECTS = {
       }
 
       if (edits.removeTag && effect.tagId) {
-        await dropCharacterTag(tx, request.characterId, effect.tagId);
-        notes.push(`Removed ${effect.tagName ?? "the tag"}.`);
+        // Only what this request added comes off — a stack the player built
+        // over several requests keeps whatever the others put there.
+        await dropCharacterTag(tx, request.characterId, effect.tagId, effect.quantity ?? 1);
+        notes.push(`Removed ${formatStack(effect.tagName, effect.quantity)}.`);
         effect.tagRemovedByGm = true;
       }
 
       return { effect, note: notes.join(" ") || "No changes." };
     },
     async undo(tx, request, ctx) {
-      const { tagId, tagName, resourcesSpent } = request.effect;
-      if (tagId && !request.effect.tagRemovedByGm) await dropCharacterTag(tx, request.characterId, tagId);
+      const { tagId, tagName, resourcesSpent, quantity } = request.effect;
+      if (tagId && !request.effect.tagRemovedByGm) {
+        await dropCharacterTag(tx, request.characterId, tagId, quantity ?? 1);
+      }
       if (resourcesSpent) {
         await tx.character.update({
           where: { id: request.characterId },
           data: { resources: { increment: resourcesSpent } },
         });
       }
-      return `Removed ${tagName ?? "the tag"} and refunded ${resourcesSpent ?? 0} ⬢.`;
+      return `Removed ${formatStack(tagName, quantity)} and refunded ${resourcesSpent ?? 0} ⬢.`;
     },
   },
 
@@ -200,7 +260,7 @@ export const REQUEST_EFFECTS = {
           data: { resources: { increment: resourcesSpent } },
         });
       }
-      return `Restored ${tagName ?? "the tag"} and refunded ${resourcesSpent ?? 0} ⬢.`;
+      return `Restored ${formatStack(tagName, request.effect.quantity)} and refunded ${resourcesSpent ?? 0} ⬢.`;
     },
   },
 
@@ -218,12 +278,13 @@ export const REQUEST_EFFECTS = {
   TRANSFER_TAG: {
     editableFields: [],
     async undo(tx, request) {
-      const { tagId, tagName, fromCharacterId, toCharacterId, restore } = request.effect;
-      if (toCharacterId && tagId) await dropCharacterTag(tx, toCharacterId, tagId);
+      const { tagId, tagName, fromCharacterId, toCharacterId, restore, quantity } = request.effect;
+      const n = quantity ?? 1;
+      if (toCharacterId && tagId) await dropCharacterTag(tx, toCharacterId, tagId, n);
       if (fromCharacterId && tagId) {
-        await restoreCharacterTag(tx, fromCharacterId, { tagId, ...(restore ?? {}) });
+        await restoreCharacterTag(tx, fromCharacterId, { tagId, ...(restore ?? {}), quantity: n });
       }
-      return `Moved ${tagName ?? "the tag"} back to its original holder.`;
+      return `Moved ${formatStack(tagName, quantity)} back to its original holder.`;
     },
   },
 
@@ -298,6 +359,14 @@ export const REQUEST_EFFECTS = {
 
 // A GM can only ever set a non-negative amount; anything else is a typo, and
 // silently letting a negative through would mint resources (or Tag Points).
+// "Fine Meal x3" / "the Manor" — GM-facing note text for a possibly-stacked
+// tag. Quantity 1 (or absent) reads as a plain name, so nothing changes for
+// the ordinary case.
+function formatStack(tagName, quantity) {
+  const name = tagName ?? "the tag";
+  return (quantity ?? 1) > 1 ? `${name} x${quantity}` : name;
+}
+
 function clampNonNegative(raw, fallback) {
   const n = Number.parseInt(raw ?? "", 10);
   if (!Number.isFinite(n) || n < 0) return fallback ?? 0;

@@ -194,7 +194,7 @@ export default function CharacterSheet({
                 <ul className="flex flex-wrap gap-2">
                   {tags.map((ct) => (
                     <li key={ct.tag.id}>
-                      <TagChip tag={ct.tag} />
+                      <TagChip tag={ct.tag} quantity={ct.quantity} />
                     </li>
                   ))}
                 </ul>

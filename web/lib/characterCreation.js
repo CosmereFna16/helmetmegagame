@@ -177,20 +177,26 @@ export function menuCategories(tags) {
   return [...new Set(tags.map((tag) => tag.category))].sort((a, b) => a.localeCompare(b));
 }
 
-// Signed cost: a tag that costs points reads "+2", one that grants them
-// reads "-2".
+// Sign AND colour both describe the player's point pool, never whether the
+// tag is a good or bad thing to have: a drawback grants points (Frail is
+// "+3", green), an advantage spends them (Fighting (Basic) is "-3", accent).
+// The two axes used to disagree — the sign was catalog-style while the
+// colour was pool-style — which read as "Frail is worth -3 and that's good".
+//
+// Tag.pointCost itself stays signed catalog-style (Frail = -3) in the YAML,
+// the DB, and every calculation, so `remaining = budget - sum(pointCost)`
+// is untouched. This is display only. Shared by TagChip, PointBuy,
+// TagRequestButtons and the creation wizard so a tag reads the same
+// everywhere.
 export function formatCost(pointCost) {
-  const cost = pointCost ?? 0;
-  return cost > 0 ? `+${cost}` : String(cost);
+  const delta = -(pointCost ?? 0);
+  return delta > 0 ? `+${delta}` : String(delta);
 }
 
-// Spending is red, earning is green — the sign is about the player's wallet,
-// not about the tag being good or bad. Shared with TagChip.js so a tag reads
-// the same colour in the point-buy menu and on a character sheet.
 export function costColor(pointCost) {
   const cost = pointCost ?? 0;
-  if (cost > 0) return "var(--accent)";
-  if (cost < 0) return "var(--positive)";
+  if (cost < 0) return "var(--positive)"; // grants points
+  if (cost > 0) return "var(--accent)"; // spends points
   return "var(--muted)";
 }
 

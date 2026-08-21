@@ -12,17 +12,25 @@ export const TRANSFERABLE_CATEGORIES = ["Items", "Assets"];
 // Per the brief, Add Tag offers Purchasable or Craftable tags only — the
 // point-buy drawbacks and the GM/system-only statuses (Happy, Unhappy,
 // Drained, ...) stay out of reach.
+// A stackable tag stays on offer once held — cooking a fifth meal is the
+// whole point — while an ordinary one drops off the menu as before.
 export function addableTags(tags, heldTagIds = []) {
   const held = new Set(heldTagIds);
-  return tags.filter((tag) => (tag.purchasable || tag.craftable) && !held.has(tag.id));
+  return tags.filter(
+    (tag) => (tag.purchasable || tag.craftable) && (tag.stackable || !held.has(tag.id)),
+  );
 }
 
+// Both of these carry the held count onto the tag they return, so the menus
+// can cap a quantity field at what the character actually has.
 export function removableTags(characterTags = []) {
-  return characterTags.map((ct) => ct.tag).filter((tag) => tag?.removable);
+  return characterTags
+    .filter((ct) => ct.tag?.removable)
+    .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1 }));
 }
 
 export function transferableTags(characterTags = []) {
   return characterTags
-    .map((ct) => ct.tag)
-    .filter((tag) => tag && TRANSFERABLE_CATEGORIES.includes(tag.category));
+    .filter((ct) => ct.tag && TRANSFERABLE_CATEGORIES.includes(ct.tag.category))
+    .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1 }));
 }

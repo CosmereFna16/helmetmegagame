@@ -12,6 +12,12 @@
 #                     craft/make, vs. one that only ever arrives via role, GM
 #                     grant, or automatic game logic. Catalog data only for
 #                     now. Default false.
+#   stackable       - whether a character can hold more than one at a time
+#                     (meals, ammunition, anything a crafting Move makes in a
+#                     batch). Default false. A stack is one CharacterTag row
+#                     carrying a count, not N rows, so presence checks are
+#                     unaffected. Do NOT combine with durationTurns: the
+#                     expiry sweep deletes whole rows, stack and all.
 #   requirement:    - what it costs a character to add or remove this tag in
 #                     play (GM adjudication reference, also shown to
 #                     players; not automated/enforced by any code). One
@@ -345,7 +351,7 @@ tags:
   - slug: cooking-basic
     name: Cooking (Basic)
     category: skills
-    description: "Can put together an edible meal."
+    description: "Can cook Fine Meals — 2 ⬢ each, up to 4 in one Routine Move."
     pointCost: 2
     visible: true
     purchasable: true
@@ -353,7 +359,7 @@ tags:
   - slug: cooking-skilled
     name: Cooking (Skilled)
     category: skills
-    description: "Skilled cooking — meals worth the coin."
+    description: "Can cook Lavish Meals — 3 ⬢ and one exotic ingredient each, up to 3 in one Routine Move. Fine Meals too."
     pointCost: 2
     parentTag: cooking-basic
     visible: true
@@ -448,6 +454,7 @@ tags:
   - slug: windlander-horse
     name: Windlander (Horse)
     category: assets
+    group: assets-companions
     description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending a turn, but you will be easily visible."
     pointCost: 1
     requiredTag: windlander
@@ -457,6 +464,7 @@ tags:
   - slug: horse
     name: Horse
     category: assets
+    group: assets-companions
     description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending a turn, but you will be easily visible."
     pointCost: 2
     purchasable: true
@@ -465,6 +473,7 @@ tags:
   - slug: bird
     name: Bird
     category: assets
+    group: assets-companions
     description: "You have a highly-trained bird."
     pointCost: 2
     purchasable: true
@@ -473,6 +482,7 @@ tags:
   - slug: manor
     name: Manor
     category: assets
+    group: assets-property
     description: "A household of your own within the Fortress."
     pointCost: 3
     requiredTag: courtier
@@ -482,6 +492,7 @@ tags:
   - slug: dog
     name: Dog
     category: assets
+    group: assets-companions
     description: "You have a highly-trained dog. It has a good sense of smell."
     pointCost: 2
     purchasable: true
@@ -490,6 +501,7 @@ tags:
   - slug: follower
     name: Follower
     category: assets
+    group: assets-companions
     description: "You have a follower, servant, or friend. You control them."
     pointCost: 2
     purchasable: true
@@ -498,6 +510,7 @@ tags:
   - slug: follower-cook
     name: Follower (Cook)
     category: assets
+    group: assets-companions
     description: "Your follower has the Cooking (Basic) tag. Requires Follower."
     pointCost: 1
     requiredTag: follower
@@ -507,6 +520,7 @@ tags:
   - slug: follower-laborer
     name: Follower (Laborer)
     category: assets
+    group: assets-companions
     description: "Your follower has the Laborer tag. Requires Follower."
     pointCost: 1
     requiredTag: follower
@@ -516,6 +530,7 @@ tags:
   - slug: follower-goon
     name: Follower (Goon)
     category: assets
+    group: assets-companions
     description: "Your follower has the Fighting (Basic) tag. Requires Follower."
     pointCost: 1
     requiredTag: follower
@@ -525,6 +540,7 @@ tags:
   - slug: house
     name: House
     category: assets
+    group: assets-property
     description: "You own a small, one-story house in town. +1 point"
     pointCost: 1
     requiredTag: ravenhearter
@@ -534,6 +550,7 @@ tags:
   - slug: shack
     name: Shack
     category: assets
+    group: assets-property
     description: "You own a shanty house in the Underquarter."
     pointCost: 0
     requiredTag: ravenhearter
@@ -541,12 +558,17 @@ tags:
     purchasableAfterStart: true
 
   # --- Items --------------------------------------------------------------
+  # Portable things a character owns, carries, hands over, and (where
+  # stackable) holds several of. Standing property and companions live in
+  # Assets below, not here.
   - slug: old-45-revolver
     name: Old .45 Revolver
     category: items
+    group: items-gear
     description: "A worn revolver. Devastating, but not much ammunition."
     pointCost: 4
     tradeable: true
+    stackable: true
     visible: true
     purchasable: true
     purchasableAfterStart: true
@@ -555,4 +577,44 @@ tags:
       turnsCost: 2
       resourceCost: 4
       skills: [smithing]
+      gambit: false
+
+  # Meals. Cooked as a Routine Move, not bought: purchasable false keeps them
+  # out of both point-buy menus, while craftable true is what lets
+  # addTagRequestImpl accept a player cooking one. The per-Move batch caps
+  # (4 Fine, 3 Lavish) are a GM adjudication reference, like every other
+  # requirement block — see docs/documents.yaml's Meals & Kitchens document.
+  - slug: fine-meal
+    name: Fine Meal
+    category: items
+    group: items-food
+    description: "An honest, well-made meal. Makes an ordinary person happy; Nobility expect one as a matter of course."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      resourceCost: 2
+      skills: [cooking-basic]
+      gambit: false
+  - slug: lavish-meal
+    name: Lavish Meal
+    category: items
+    group: items-food
+    description: "A meal worth the Baron's own table. Makes anyone happy, Nobility included, and is a fair object of a Desire. Needs one hard-to-get exotic ingredient on top of the cost."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      resourceCost: 3
+      skills: [cooking-skilled]
       gambit: false
