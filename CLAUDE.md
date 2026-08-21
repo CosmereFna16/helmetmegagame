@@ -341,7 +341,9 @@ deliberately not a root `railway.json`, which would apply to both services.
 
 Until that field is set, run `npm run db:migrate:deploy` by hand after any
 deploy that adds a migration (`db:migrate` is `migrate dev` — never point that
-at production).
+at production). `./migrate.sh` at the repo root is the one-liner for this — it
+sources the root `.env` first, since `db:migrate:deploy` needs `DATABASE_URL`
+in the environment and npm won't load the file for you.
 
 Two more things that bite:
 
