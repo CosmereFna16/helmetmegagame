@@ -10,7 +10,12 @@
 // requirementGambit, and requirementSkills (at least { name: true }).
 export function formatTagRequirement(tag) {
   const parts = [];
-  if (tag.requirementTurns) parts.push(`${tag.requirementTurns}t`);
+  // Spelled out, not "1t": the chip face uses a `Nt` badge for turns
+  // REMAINING, and an unlabelled "1t" here (turns of work to cure) sat in
+  // the same tooltip meaning something unrelated.
+  if (tag.requirementTurns) {
+    parts.push(`${tag.requirementTurns} turn${tag.requirementTurns === 1 ? "" : "s"}`);
+  }
   if (tag.requirementResources) parts.push(`${tag.requirementResources} ⬢`);
   if (tag.requirementSkills?.length) {
     parts.push(tag.requirementSkills.map((t) => t.name).join("/"));

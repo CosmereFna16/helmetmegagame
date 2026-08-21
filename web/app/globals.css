@@ -649,6 +649,10 @@ h3 {
 .chip {
   display: inline-flex;
   align-items: center;
+  /* Flexbox discards whitespace between items, so the literal spaces in
+     ChipLabel's markup vanish and a stack/expiry suffix collides with the
+     name ("Paralyzed· 2t"). The gap is what separates them. */
+  gap: 4px;
   border: 1px solid var(--border);
   background: var(--field-bg);
   color: var(--text);
@@ -687,14 +691,19 @@ h3 {
   color: var(--text);
 }
 
+/* Fixed, not absolute, and portaled to document.body by HoverCard.js — an
+   in-tree tooltip was clipped by every scrolling ancestor (.doc-sheet,
+   .table-scroll, .modal-panel, .app-rail). Top/left are set inline from a
+   measurement; nothing here may reintroduce a position that depends on an
+   ancestor. z-index sits above .modal-overlay (100), since chips render
+   inside modals. */
 .tag-tooltip {
-  display: none;
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
-  z-index: 50;
+  position: fixed;
+  z-index: 120;
+  display: block;
   width: max-content;
-  max-width: 240px;
+  max-width: 280px;
+  overflow-y: auto;
   border: 1px solid var(--border);
   background: var(--surface-raised);
   border-radius: var(--r-md);
@@ -704,6 +713,10 @@ h3 {
   font-size: var(--fs-xs);
   line-height: var(--lh-table);
   box-shadow: var(--e-3);
+  /* The panel is a hover target's sibling in the DOM but nowhere near it on
+     screen; letting it take pointer events would let it eat clicks meant for
+     whatever it happens to cover. */
+  pointer-events: none;
 }
 
 .tag-tooltip strong {
@@ -712,13 +725,30 @@ h3 {
 }
 
 .tag-tooltip p {
-  color: var(--muted);
+  color: var(--text);
   margin: 0 0 4px;
 }
 
-.tag-hover:hover .tag-tooltip,
-.tag-hover:focus-visible .tag-tooltip {
-  display: block;
+/* Label/value rows. Values carry --text and labels --muted, so the eye lands
+   on the answer rather than the question — the whole tooltip used to be one
+   undifferentiated block of --muted <p>s. */
+.tag-meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1px var(--sp-3);
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.tag-meta dt {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.tag-meta dd {
+  color: var(--text);
+  margin: 0;
 }
 
 .info-icon-glyph {

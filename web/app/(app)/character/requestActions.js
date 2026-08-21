@@ -8,6 +8,7 @@ import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { createRequest, logRequest, requireReason } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
+import { expiryFor } from "@/lib/turnFormat";
 import { WORST_FEAR_PENALTY, WORST_FEAR_MAX_LENGTH } from "@/lib/constants";
 import { TRANSFERABLE_CATEGORIES } from "@/lib/tagRequests";
 import { tagsById as buildTagsById, requirementSatisfied } from "@/lib/characterCreation";
@@ -262,7 +263,13 @@ async function addTagRequestImpl({
   await prisma.$transaction(async (tx) => {
     await addToStack(tx, character.id, tag.id, quantity, {
       source: "EVENT",
-      expiresTurn: null,
+      // A timed tag has to arrive already stamped or it never expires:
+      // resolveNeeds()'s sweep matches on expiresTurn and nothing backfills
+      // it. This used to pass a hard null with openTurn already in scope,
+      // which is why a Paralyzed could sit on a sheet forever while its
+      // tooltip promised "Lasts 1 turn". Same stamp createCharacter and the
+      // Hunger pass apply.
+      expiresTurn: expiryFor(tag, openTurn),
       stackable: tag.stackable,
     });
     if (resourcesSpent) {

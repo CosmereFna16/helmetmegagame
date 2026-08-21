@@ -62,3 +62,43 @@ export function formatTurnsLeft(n) {
   if (n === 0) return "expires this turn";
   return `${n} turn${n === 1 ? "" : "s"} left`;
 }
+
+// The single source for "how long does this tag last", covering all four
+// states a chip can be in. `left` is turnsLeft() for a held CharacterTag (null
+// for a bare catalog reference); `defaultDurationTurns` is the Tag's catalog
+// duration.
+//
+// Returns { label, badge } or null when the tag simply doesn't expire:
+//   held, counting down  -> { "2 turns left",            "2t"   }
+//   held, final turn     -> { "Expires this turn",       "last" }
+//   catalog reference    -> { "Lasts 1 turn once granted","1t"  }
+//   neither              -> null
+//
+// "once granted" is load-bearing: it is the entire difference between a live
+// countdown and a catalog fact, and its absence is why the same tag read two
+// different ways depending on how it was granted.
+export function tagDuration(left, defaultDurationTurns) {
+  if (left != null) {
+    return left === 0
+      ? { label: "Expires this turn", badge: "last" }
+      : { label: `${left} turn${left === 1 ? "" : "s"} left`, badge: `${left}t` };
+  }
+  if (defaultDurationTurns) {
+    const n = defaultDurationTurns;
+    return {
+      label: `Lasts ${n} turn${n === 1 ? "" : "s"} once granted`,
+      badge: `${n}t`,
+    };
+  }
+  return null;
+}
+
+// The absolute turn a tag granted right now should expire on, or null when it
+// has no catalog duration (and so never expires). Every grant path must use
+// this: resolveNeeds()'s sweep matches `expiresTurn <= turn.number`, so a row
+// left null is permanent no matter what durationTurns says in the YAML.
+// Before the game opens there is no turn to count from, so nothing expires.
+export function expiryFor(tag, openTurn) {
+  if (!tag?.defaultDurationTurns || !openTurn) return null;
+  return openTurn.number + tag.defaultDurationTurns;
+}
