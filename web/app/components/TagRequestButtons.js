@@ -112,7 +112,7 @@ function QuantityField({ value, onChange, max, label }) {
 function ResourceCostField({ value, onChange, max }) {
   return (
     <label className="field" style={{ width: "10rem" }}>
-      <span className="field-label">Does this cost any resources? ⬢</span>
+      <span className="field-label">Does this cost any resources?</span>
       <input type="number" min="0" max={max} value={value} onChange={(e) => onChange(e.target.value)} />
     </label>
   );

@@ -76,9 +76,9 @@ async function handleLaborCommand(interaction) {
 
   const lines = [`» ${character.name} ${field === "hunt" ? "hunted" : field === "herd" ? "herded" : field === "fish" ? "fished" : "farmed"}.`];
   if (result.resourceDiceExpression) {
-    lines.push(`**Resource ⬢ roll (${result.resourceDiceExpression}):** rolled ${result.diceSum} → +${result.resourceDelta}`);
+    lines.push(`**Resource roll (${result.resourceDiceExpression}):** rolled ${result.diceSum} → +${result.resourceDelta} ⬢`);
   } else {
-    lines.push(`**Resource ⬢ change:** +${result.resourceDelta}`);
+    lines.push(`**Resource change:** +${result.resourceDelta} ⬢`);
   }
   lines.push("» *Move confirmed — waiting on GM review.*");
 
@@ -295,7 +295,7 @@ async function handleMoveConfirm(interaction, actionId) {
   }
   if (diceResult) {
     lines.push(
-      `**Resource roll (${action.resourceDiceExpression}):** rolled ${diceResult.sum} → ${diceResult.value > 0 ? "+" : ""}${diceResult.value}`,
+      `**Resource roll (${action.resourceDiceExpression}):** rolled ${diceResult.sum} → ${diceResult.value > 0 ? "+" : ""}${diceResult.value} ⬢`,
     );
   }
   lines.push("» *Waiting on adjudication...*");

@@ -28,8 +28,8 @@
 #
 # `starting_resources` appears on both roles and factions, but means two
 # different things depending on where it sits: on a role, it's how many
-# Resources ⬢ that character starts play with; on a faction, it's how many
-# Resources ⬢ start in that faction's Silo.
+# Resources that character starts play with; on a faction, it's how many
+# Resources start in that faction's Silo.
 #
 # `starting_location` (role-level) is a Location **slug** from
 # docs/locations.yaml — it decides where the character starts, and therefore
@@ -192,7 +192,7 @@ zones:
             description:
               - You are the Keep’s brains, but more importantly, its circulatory system. Ensure the Town sends
                 its taxes—your main contact there is the Headman—and oversee that no one is taking undue amounts
-                of Resources ⬢ from the Silo.
+                of Resources from the Silo.
               - Your part in fate is not well-loved nor well-understood, but it is essential. You may not understand
                 yet, Meister, but there are great things at play.
               - Consider keeping records of what happens every day. They may be useful later.
@@ -532,7 +532,7 @@ zones:
                 and even experiment for the good of science.
               - If there’s no wounded, get creative. Offer clinical trials; go foraging for unique ingredients
                 and try to brew new potions; ask if the Incarn will let you experiment on his prisoners.
-              - You can perform medicine, removing negative medical tags according to their skill, Resource ⬢,
+              - You can perform medicine, removing negative medical tags according to their skill, Resource,
                 and action cost.
             difficulty: normal
             multiple: false
@@ -558,7 +558,7 @@ zones:
                 and even experiment for the good of science.
               - If there’s no wounded, get creative. Offer clinical trials; go foraging for unique ingredients
                 and try to brew new potions; ask if the Incarn will let you experiment on his prisoners.
-              - You can perform medicine, removing negative medical tags according to their skill, Resource ⬢,
+              - You can perform medicine, removing negative medical tags according to their skill, Resource,
                 and action cost.
             difficulty: normal
             multiple: true
@@ -725,15 +725,15 @@ zones:
             slug: metalsmith
             intro: Forge anything from basic tools to siege implements and legendary weapons.
             description:
-              - With smithing, you are only limited by your Resources ⬢ and your creativity. You can make weapons,
+              - With smithing, you are only limited by your Resources and your creativity. You can make weapons,
                 but you can also make armor, tools, siege equipment, sculptures...
               - You’re not on the Headman’s payroll, so it’s important you find clients so that you can feed yourself.
               - The theory is important. Axes are good at breaking shields; blunt weapons harm people even in
                 full armor; swords excel in one-to-one combat.
-              - Simple things, like shortswords or basic tools, cost 1 Effort and 2 Resources ⬢. Moderately difficult
-                things, like swords or breastplates, cost 1 Effort and 4 Resources ⬢. High quality objects cost
-                2 Efforts and 6 Resources ⬢.
-              - You can also make Unique Tags—name and describe them—for 2 Efforts, 1 Move, and 12 Resources ⬢.
+              - Simple things, like shortswords or basic tools, cost 1 Effort and 2 ⬢. Moderately difficult
+                things, like swords or breastplates, cost 1 Effort and 4 ⬢. High quality objects cost
+                2 Efforts and 6 ⬢.
+              - You can also make Unique Tags—name and describe them—for 2 Efforts, 1 Move, and 12 ⬢.
                 You’ll have to roll to see what the quality ends up being.
             difficulty: normal
             multiple: true
@@ -805,7 +805,7 @@ zones:
                 to you to follow the Church or stick to the oldways.
               - 'Forage and heal as a Healer (Medical (Basic), Brewing (Basic)), or track game as a Hunter (Hunter)—both
                 still Forester at heart. In #turns, a Hunter can roll for a hunt instead of stating a flat Resource
-                ⬢ amount — add something like +1d6\*2 to your message and it''ll be rolled once you confirm.'
+                amount — add something like +1d6\*2 to your message and it''ll be rolled once you confirm.'
             difficulty: easy
             multiple: true
             weight: 2
@@ -1292,14 +1292,14 @@ zones:
               - Ravenheart is a great source of business and not much else. You wouldn’t dare put your heart here—the
                 place is doomed.
               - You start with a huge amount of capital, invest it.
-              - "Your goal is to make as many Resources ⬢ as you can by buying and selling Tags. You have a Supply
+              - "Your goal is to make as many Resources as you can by buying and selling Tags. You have a Supply
                 Depot in the caves: go there to request Tags by shuttle (it’ll cost you), and then sell them.
                 To sell Tags, simply message a GM explaining who’d like the tag and how much you’re selling it
                 for."
               - Try your hand at usury. Lend loans with interest, and call on your Dockers to enforce them. That's
                 probably the easiest way to make serious bucks.
               - If things ever get too dour, simply hop on your sponsor’s shuttle… if you can pay for it. Trip’s
-                30 Resources ⬢ flat, pal.
+                30 ⬢ flat, pal.
             difficulty: hard
             multiple: false
             starting_resources: 50

@@ -273,6 +273,16 @@ Every DM the bot or web app sends or receives is logged to `DirectMessage` (`dis
 
 Bot-authored Discord text should feel understated, not like a typical bot dashboard: no big colorful emoji, small unicode marks only. Lines that quote or restate player/character content are prefixed with `»` — e.g. `» {move description}`. `web/lib/discordGuild.js#sendDm` applies this `»` prefix automatically to every DM a GM sends a player (adjudication results, broadcasts, inbox replies), so callers pass the raw message text. Bot-side DMs that the bot itself composes (move/effort confirmations, edit prompts) are written with the `»` prefix inline at the call site instead, since they're paired with other formatting (zone, dice roll) that doesn't come through `sendDm`.
 
+## Resources glyph (`⬢`)
+
+`⬢` is the canonical Resources glyph, and it **stands in for the word rather than sitting next to it** — this applies everywhere text is written: the YAML masters (`docs/roles.yaml`, `docs/documents.yaml`, `docs/tags.yaml`, `docs/systemdocs/infochannel.yaml`), bot/DM strings, and the web UI alike.
+
+- Prose naming Resources (or the Silo) **as a concept** takes the plain word and no glyph: "you are only limited by your Resources", "send Resources straight to a member".
+- Wherever a **quantity** is shown, drop the word and write `{number} ⬢`: `1d4 ⬢`, `3 ⬢`, `+5 ⬢`, `30 ⬢ flat`. Never `3 Resources ⬢`.
+- In the UI that means the label/header carries the word and the value carries the glyph — `<th>Resources</th>` over cells reading `12 ⬢`, `<Row label="Resources">{n} ⬢</Row>` — never the reverse. A number `<input>` just gets a plain label; there's nowhere to hang the glyph.
+
+Two carve-outs. A `{resource:…}` bubble already renders its own glyph via `web/app/components/ResourceChip.js` (`{value} ⬢`), so never write one after it. And literal syntax a player is meant to *type* (`+3`, `+1d6*3`) is quoted as-is, never with a glyph appended. `docs/systemdocs/infochannel.yaml`'s glossary line ("the game's central currency are Resources (⬢)") is deliberately left as the one place the glyph is introduced to players.
+
 ## GM slash commands
 
 `/gm` and `/message` are the bot's first slash commands (`bot/src/lib/commands.js`), registered per-guild on `ready` (`registerCommands`, guild-scoped rather than global so they update instantly instead of waiting on Discord's ~1hr global-command propagation) and handled in `bot/src/events/interactionCreate.js` alongside the pre-existing button/select-menu location picker. Both are gated on `DISCORD_GM_ROLE_ID` membership, checked the same way as the location picker and `messageReactionAdd.js`'s fog-reaction handler. `/gm <message> [attachment]` posts to the current channel as the bot itself (the slash-command replacement for the old ":gm"-prefix text shorthand, which deleted+reposted a GM's message). `/message <recipient> <message>` DMs a chosen server member as the bot itself, routed through `bot/src/lib/dm.js#sendDm` for `DirectMessage` logging, with the `»` prefix applied inline since it's a bot-composed DM (see "Bot message style" above).
