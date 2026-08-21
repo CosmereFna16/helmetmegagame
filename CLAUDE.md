@@ -257,7 +257,49 @@ Bot-authored Discord text should feel understated, not like a typical bot dashbo
 
 ## Deploy workflow
 
-Unless the user says otherwise, after finishing a set of changes: commit and push to `master` (the branch Railway deploys from), then trigger a Railway redeploy of the affected service(s) via the `railway` CLI (already authenticated/linked — see project memory `railway_project_lifeweb`) so the live app picks up the change without waiting on manual action.
+Unless the user says otherwise, after finishing a set of changes: `npm run deploy`
+from the repo root. That pushes `master` (the branch Railway builds from) and
+then redeploys both services.
+
+```
+npm run deploy      # git push origin master, then redeploy web + bot
+npm run redeploy    # just the redeploy, no push
+```
+
+Two things that bite:
+
+- **`--from-source` is load-bearing.** A plain `railway redeploy` re-runs the
+  *existing* deployment — the same commit. Railway builds from GitHub, so it
+  has to be told to pull the commit that was just pushed. Both scripts already
+  pass it.
+- **A `RAILWAY_TOKEN` must be in the environment.** A *project* token (Railway
+  dashboard → the project → Settings → Tokens), not an account token; it needs
+  no `railway link`. In a cloud/agent session that means setting it as an
+  environment variable — see "Cloud session setup" below. Without it the CLI
+  fails with an unauthenticated error and nothing deploys.
+
+The service names in the scripts (`web`, `bot`) must match the service names in
+the Railway project.
+
+## Cloud session setup (Claude Code on the web, and similar)
+
+A fresh remote container clones the repo and nothing else — no `.env`, no
+global CLIs. To make one able to build, run and deploy:
+
+1. **Secrets.** Set every key from `.env.example` as an environment variable on
+   the environment, plus `RAILWAY_TOKEN`. The bot and the Prisma CLI read a
+   root `.env` file, so a setup step should also write those values out to
+   `/home/user/lifeweb/.env` (it is gitignored; never commit it).
+2. **Railway CLI.** `npm i -g @railway/cli` — not preinstalled.
+3. **The database is not reachable by default.** `DATABASE_URL` points at
+   Railway's public TCP proxy on a non-443 port. Sandboxed sessions route
+   egress through an HTTPS proxy that does not carry raw-TCP Postgres, so
+   `prisma migrate`/seed scripts fail with `P1001` even though the URL is
+   correct. Run DB commands from a machine with direct network access, or
+   against a local throwaway Postgres.
+4. **Next.js does not read the root `.env`.** It loads env from its own project
+   root, so local `npm run dev:web` needs `web/.env` (a symlink to the root one
+   is enough). Railway is unaffected — there the service supplies the vars.
 
 ## Notes for future work
 
