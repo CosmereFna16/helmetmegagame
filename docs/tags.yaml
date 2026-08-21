@@ -61,3 +61,600 @@ categories:
 # via `group:`, same as before.
 
 tags:
+  # --- Meta ---------------------------------------------------------------
+  - slug: hungerless
+    name: Hungerless
+    category: meta
+    description: "Never flagged hungry, even with insufficient resources."
+    pointCost: 0
+    purchasable: false
+
+  - slug: romance-disabled
+    name: Romance Disabled
+    category: meta
+    description: "No romance."
+    pointCost: 0
+    purchasable: false
+    visible: true
+
+  - slug: turn-ping
+    name: Turn Ping
+    category: meta
+    pointCost: 0
+    purchasable: false
+
+  # --- General --------------------------------------------------------------
+
+  - slug: follower-of-bacchus
+    name: Follower of Bacchus
+    category: general
+    description: "Unlocks the Bacchus tag group."
+    pointCost: 0
+    purchasable: false
+
+  - slug: nobility
+    name: Nobility
+    category: general
+    description: "Expects a fine meal at least every 3 turns — go without and it sours into Unhappy until you eat again."
+    pointCost: 0
+    purchasable: false
+    visible: true
+
+  - slug: ravenhearter
+    name: Ravenhearter
+    category: general
+    description: "You live in Ravenheart."
+    pointCost: 0
+    purchasable: false
+    visible: true
+
+  - slug: mortus
+    name: Mortus
+    category: general
+    description: "One of the Mortii. Tends to the dead and to the Lifeweb beneath Ravenheart."
+    pointCost: 0
+    purchasable: false
+    visible: true
+
+  - slug: courtier
+    name: Courtier
+    category: general
+    group: general-traits
+    description: "A member of the Baron's retinue."
+    pointCost: 0
+    purchasable: false
+
+  - slug: windlander
+    name: Windlander
+    category: skills
+    description: "You may move and live freely in the Windlands. Additionally, weather conditions restrict you less than a normal person."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: chaplain
+    name: Chaplain
+    category: general
+    description: "Ordained to the Church. May take confession, read the rites over the dead, and remove people's negative mental traits."
+    pointCost: 0
+    purchasable: false
+
+  - slug: pious
+    name: Pious
+    category: general
+    group: general-traits
+    description: "You cannot be forcibly converted."
+    pointCost: 0
+    purchasable: false
+
+  - slug: insightful
+    name: Insightful
+    category: general
+    group: general-traits
+    description: "You read people well and can use a Gambit to discover 1-6 random tags about a person."
+    pointCost: 4
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: old
+    name: Old
+    category: general
+    group: general-traits
+    pointCost: -2
+    purchasable: true
+    purchasableAfterStart: false
+
+  - slug: frail
+    name: Frail
+    category: general
+    group: general-traits
+    pointCost: -3
+    purchasable: true
+    purchasableAfterStart: false
+
+  # --- Skills ---------------------------------------------------------------
+
+  - slug: sign-language
+    name: Sign Language
+    category: skills
+    description: "You know sign language, the ancestral language of the Windlanders."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: radio
+    name: Radio
+    category: skills
+    description: "Grants access to the #radio channel."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: laborer
+    name: Laborer
+    category: skills
+    description: "You can produce food at an actually productive pace. Further specializations increase your production."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: laborer-farming
+    name: Laborer (Farming)
+    category: skills
+    pointCost: 2
+    requiredTag: laborer
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: laborer-fishing
+    name: Laborer (Fishing)
+    category: skills
+    pointCost: 2
+    requiredTag: laborer
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: laborer-herding
+    name: Laborer (Herding)
+    category: skills
+    pointCost: 2
+    requiredTag: laborer
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: laborer-hunting
+    name: Laborer (Hunting)
+    category: skills
+    pointCost: 2
+    requiredTag: laborer
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: intercom
+    name: Intercom
+    category: skills
+    description: "Can send announcements to all of Ravenheart. You have access to #intercom."
+    purchasable: false
+    purchasableAfterStart: false
+
+  - slug: forester
+    name: Forester
+    category: skills
+    description: "At home in the woods. You forage, track, and shelter better than others."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: musician
+    name: Musician
+    category: skills
+    description: "You play well enough to be paid for it."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: smithing
+    name: Smithing
+    category: skills
+    description: "See the Smithing document."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: fighting-basic
+    name: Fighting (Basic)
+    category: skills
+    description: "Can hold a weapon and defend yourself in a pinch."
+    pointCost: 2
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+  - slug: fighting-trained
+    name: Fighting (Trained)
+    category: skills
+    description: "Formally trained combatant, but not particularly talented."
+    pointCost: 2
+    parentTag: fighting-basic
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+  - slug: fighting-skilled
+    name: Fighting (Skilled)
+    category: skills
+    description: "You've actually fought before. You're a grizzled presence on the battlefield."
+    pointCost: 2
+    parentTag: fighting-trained
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+  - slug: fighting-expert
+    name: Fighting (Expert)
+    category: skills
+    description: "A master of arms. Almost no one matches you."
+    pointCost: 2
+    parentTag: fighting-skilled
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+  - slug: fighting-legendary
+    name: Fighting (Legendary)
+    category: skills
+    description: "The peak of your generation."
+    pointCost: 2
+    parentTag: fighting-expert
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+  - slug: fighting-archer
+    name: Fighting (Archer)
+    category: skills
+    description: "When using bows, your fighting skill is two levels higher."
+    pointCost: 3
+    requiredTag: fighting-basic
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: medical-basic
+    name: Medical (Basic)
+    category: skills
+    description: "Can bandage a wound and treat minor ailments."
+    pointCost: 2
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+  - slug: medical-skilled
+    name: Medical (Skilled)
+    category: skills
+    description: "Trained medical care — can treat serious injuries and illness."
+    pointCost: 2
+    parentTag: medical-basic
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+  - slug: medical-excellent
+    name: Medical (Excellent)
+    category: skills
+    description: "Expert-level medicine, on par with the Sanctuary's own."
+    pointCost: 2
+    parentTag: medical-skilled
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: brewing-basic
+    name: Brewing (Basic)
+    category: skills
+    description: "Can brew basic alcohol (beer, ale, mead) and basic tonics."
+    pointCost: 2
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+  - slug: brewing-skilled
+    name: Brewing (Skilled)
+    category: skills
+    description: "Can brew advanced alcohol (wine and other refined drinks) and advanced tonics, which call for hard-to-find ingredients."
+    pointCost: 2
+    parentTag: brewing-basic
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: cooking-basic
+    name: Cooking (Basic)
+    category: skills
+    description: "Can cook Fine Meals — 2 ⬢ each, up to 4 in one Routine Move."
+    pointCost: 2
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+  - slug: cooking-skilled
+    name: Cooking (Skilled)
+    category: skills
+    description: "Can cook Lavish Meals — 3 ⬢ and one exotic ingredient each, up to 3 in one Routine Move. Fine Meals too."
+    pointCost: 2
+    parentTag: cooking-basic
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+
+  # --- Status -----------------------------------------------------------
+  # Happy/Unhappy are the Mood system (docs/systemdocs/REQUESTS.md §4).
+  # Deliberately purchasable: false / removable: false so they never appear in
+  # any player-facing tag picker — the only ways in are the Set Mood button on
+  # the character sheet and a GM. "Neutral" is the absence of both, not a tag.
+  - slug: happy
+    name: Happy
+    category: status
+    group: status-buffs
+    description: "+1 to the die on all Gambits. Wears off after 2 turns."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 2
+
+  - slug: unhappy
+    name: Unhappy
+    category: status
+    group: status-debuffs
+    description: "-1 to the die on all Gambits. Wears off after 2 turns."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 2
+
+  - slug: ate-meal
+    name: Ate Meal
+    category: status
+    group: status-food
+    description: "Won't go hungry next turn — ate a proper meal this turn."
+    pointCost: 0
+    purchasable: false
+
+  # Granted automatically by the per-turn upkeep pass (db/lib/hungerPass.js,
+  # called from resolveNeeds) — never by a player or a picker, hence
+  # purchasable/removable false, same as Happy/Unhappy. Deliberately no
+  # durationTurns on Ate Meal above: it must NOT be swept, because the pass
+  # consumes it explicitly.
+  #
+  # durationTurns: 1 means a Hunger granted while closing turn N carries
+  # expiresTurn N+1 — it bites for exactly turn N+1 and is swept when N+1
+  # closes.
+  - slug: hunger
+    name: Hungry
+    category: status
+    group: status-debuffs
+    description: "-1 to the die on all Gambits. You went without food this turn."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 1
+
+  - slug: tipsy
+    name: Tipsy
+    category: status
+    group: status-debuffs
+    description: "Immune to Unhappy for 4 turns. Slightly worse at combat."
+    pointCost: 0
+    purchasable: false
+
+  - slug: drained
+    name: Drained
+    category: status
+    group: status-debuffs
+    description: "You are weak and your vision is blurry."
+    pointCost: 0
+    purchasable: false
+    durationTurns: 4
+
+  - slug: arthritis
+    name: Arthritis
+    category: status
+    group: status-health
+    description: "Stiff, aching joints — a lifetime of wear catching up with you."
+    pointCost: 0
+    purchasable: false
+    removable: false
+    requirement:
+      turnsCost: 3
+      skills: [medical-skilled]
+
+  # --- assets -------------------------------------------------------
+  - slug: windlander-horse
+    name: Windlander (Horse)
+    category: assets
+    group: assets-companions
+    description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending a turn, but you will be easily visible."
+    pointCost: 1
+    requiredTag: windlander
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: horse
+    name: Horse
+    category: assets
+    group: assets-companions
+    description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending a turn, but you will be easily visible."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: bird
+    name: Bird
+    category: assets
+    group: assets-companions
+    description: "You have a highly-trained bird."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: manor
+    name: Manor
+    category: assets
+    group: assets-property
+    description: "A household of your own within the Fortress."
+    pointCost: 3
+    requiredTag: courtier
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: dog
+    name: Dog
+    category: assets
+    group: assets-companions
+    description: "You have a highly-trained dog. It has a good sense of smell."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: follower
+    name: Follower
+    category: assets
+    group: assets-companions
+    description: "You have a follower, servant, or friend. You control them."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: follower-cook
+    name: Follower (Cook)
+    category: assets
+    group: assets-companions
+    description: "Your follower has the Cooking (Basic) tag."
+    pointCost: 1
+    parentTag: follower
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: follower-laborer
+    name: Follower (Laborer)
+    category: assets
+    group: assets-companions
+    description: "Your follower has the Laborer tag."
+    pointCost: 1
+    parentTag: follower
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: follower-goon
+    name: Follower (Goon)
+    category: assets
+    group: assets-companions
+    description: "Your follower has the Fighting (Basic) tag."
+    pointCost: 1
+    parentTag: follower
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: house
+    name: House
+    category: assets
+    group: assets-property
+    description: "You own a small, one-story house in town. +1 point"
+    pointCost: 1
+    requiredTag: ravenhearter
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: shack
+    name: Shack
+    category: assets
+    group: assets-property
+    description: "You own a shanty house in the Underquarter."
+    pointCost: 0
+    requiredTag: ravenhearter
+    purchasable: true
+    purchasableAfterStart: true
+
+  # --- Items --------------------------------------------------------------
+  # Portable things a character owns, carries, hands over, and (where
+  # stackable) holds several of. Standing property and companions live in
+  # Assets below, not here.
+  - slug: jewelry
+    name: Jewelry
+    category: items
+    group: items-gear
+    description: "Could be pawned off for your life."
+    pointCost: 1
+    tradeable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+
+  # A creation-only bundle rather than a thing you carry: it sits on the sheet
+  # for one turn and then unpacks into the goods below (see grantsOnExpiry in
+  # this file's header). Not tradeable or stackable — there's nothing to hand
+  # over, and buying two would just collapse into one.
+  - slug: starting-wares
+    name: Starting Wares
+    category: items
+    group: items-gear
+    description: "Goods you came in with, still crated. You'll get them unpacked next turn."
+    pointCost: 4
+    purchasable: true
+    purchasableAfterStart: false
+    durationTurns: 1
+    grantsOnExpiry:
+      - old-45-revolver
+      - jewelry
+
+  - slug: old-45-revolver
+    name: Old .45 Revolver
+    category: items
+    group: items-gear
+    description: "A worn revolver. Devastating, but not much ammunition."
+    pointCost: 4
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 4
+      skills: [smithing]
+      gambit: false
+
+  # Meals. Cooked as a Routine Move, not bought: purchasable false keeps them
+  # out of both point-buy menus, while craftable true is what lets
+  # addTagRequestImpl accept a player cooking one. The per-Move batch caps
+  # (4 Fine, 3 Lavish) are a GM adjudication reference, like every other
+  # requirement block — see docs/documents.yaml's Meals & Kitchens document.
+  - slug: fine-meal
+    name: Fine Meal
+    category: items
+    group: items-food
+    description: "An honest, well-made meal. Makes an ordinary person happy; Nobility expect one as a matter of course."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      resourceCost: 2
+      skills: [cooking-basic]
+      gambit: false
+  - slug: lavish-meal
+    name: Lavish Meal
+    category: items
+    group: items-food
+    description: "A meal worth the Baron's own table. Makes anyone happy, Nobility included, and is a fair object of a Desire. Needs one hard-to-get exotic ingredient on top of the cost."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      resourceCost: 3
+      skills: [cooking-skilled]
+      gambit: false
