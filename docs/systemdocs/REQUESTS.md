@@ -98,7 +98,7 @@ Three notes on deliberate choices:
   `docs/tags.yaml` today, so Items/Assets is the honest signal. Revisit once
   the catalog populates it (`web/lib/tagRequests.js`).
 
-## 4. Mood
+## 4. Mood, Hunger, and the Gambit modifier
 
 Mood is **not a column**. It is two ordinary Status tags, `happy` and
 `unhappy`, mastered in `docs/tags.yaml` with `durationTurns: 2`. Neutral is
@@ -121,16 +121,74 @@ Both tags are `purchasable: false`, `purchasableAfterStart: false` and
 `removable: false`, which keeps them out of every player-facing tag picker.
 **The only ways in are the Set Mood button and a GM.**
 
-`db/lib/mood.js` is the single source of the modifier, shared by the bot and
-the web app so the number a player is shown and the number applied cannot
-drift — the same posture as `narrowcastAccess.js`.
+`db/lib/mood.js` remains the single source of **Mood itself** — the tri-state,
+its labels, and the tag slug the Set Mood write path resolves.
+
+### Hunger
+
+Hunger is the second Needs half, built on exactly the same pattern: a `hunger`
+Status tag (`docs/tags.yaml`, `durationTurns: 1`, `purchasable`/`removable`
+false) worth **−1 to the die on all Gambits**. Nothing player-initiated ever
+grants or removes it — there is no request type, no picker entry, no
+`requestEffects.js` case. `db/lib/hungerPass.js#runHungerPass` is the only
+writer, called from `resolveNeeds()` at the close of every turn:
+
+1. Holds `hungerless` → **skipped entirely**. No resource taken, no Hunger.
+2. Holds `ate-meal` → **shielded** from Hunger, and the tag is consumed
+   whether or not they were broke. The ⬢ is still owed per step 3 — the
+   resource *is* what eating costs, so waiving it would let one meal pay for
+   itself twice.
+3. **Check first, then pay**: at `resources === 0` you go Hungry and owe
+   nothing; at 1+ ⬢ you pay 1 and stay fed.
+
+So 1 ⬢ always buys a fed turn, and `Character.resources` can never go negative
+— the clamp is structural, not a `Math.max`.
+
+**The expiry arithmetic**, and why the pass runs *after* the sweep:
+
+| moment | what happens |
+| --- | --- |
+| close of turn **N** | sweep deletes `expiresTurn <= N` — clears Hunger granted at the close of N−1 |
+| close of turn **N** | pass grants Hunger with `expiresTurn = N + 1` |
+| turn **N+1** open | tag is live; every Gambit rolled this turn takes the −1 |
+| close of turn **N+1** | sweep (`lte: N+1`) deletes it |
+
+Exactly one turn of bite, and it is the *next* turn — which is also what makes
+`ate-meal`'s "won't go hungry next turn" copy literally true. Run the pass
+*before* the sweep instead and a still-broke character's re-grant collides with
+`@@unique([characterId, tagId])` and is silently dropped, leaving them holding
+a tag that expires immediately.
+
+Going hungry sends one DM (`» You went hungry this turn. −1 to Gambits.`) via
+`db/lib/dm.js#sendDm`, the REST twin that exists so this fires from both the
+bot's cron and the Dev Panel's End-turn button. A quiet −1 ⬢ sends nothing.
+The pass writes **one summary `hunger_resolved` audit row** per turn, not one
+per character — at 100+ players the latter would push 200 entries a day into
+`/gm/audit` and drown every human-authored line.
+
+### The summed modifier
+
+Mood's ±1 and Hunger's −1 **stack additively**: Unhappy + Hungry = −2, Happy +
+Hungry = 0. `db/lib/gambitModifier.js` is the single source of that sum, shared
+by the bot and the web app so the number a player is shown and the number
+applied cannot drift — the same posture as `narrowcastAccess.js`. It is a thin
+composer *over* `mood.js` rather than a generalization of it, because Mood is a
+tri-state with a player-facing write path while Hunger is a boolean the turn
+engine grants.
 
 Only a Gambit rolls a die, so only a Gambit can carry the modifier.
 `bot/src/events/interactionCreate.js#handleMoveConfirm` stores the **raw** roll
-on `Action.diceRoll` and the adjustment separately on `Action.diceModifier`.
+on `Action.diceRoll` and the **sum** separately on `Action.diceModifier`.
 Keeping them apart is deliberate: a GM has to be able to tell a modified 5
 from a natural 5, and a re-roll during adjudication must not compound the
-modifier. The DM reads `🎲 **4** +1 Happy → **5**`.
+modifier. `Action.diceModifier` is one `Int`, so the per-contributor breakdown
+is display-only — rebuilt for the DM, and mirrored into the `move_confirmed`
+audit entry's `diceModifiers`, which is the only place it survives.
+
+The DM reads `🎲 **4** −1 Unhappy −1 Hungry → **2**`. It is keyed on whether
+*any* contributor applied rather than on the total, so a Happy+Hungry wash
+still shows its work (`🎲 **4** +1 Happy −1 Hungry → **4**`) instead of
+pretending nothing happened. `StatusPanel`'s Gambit row reads the same module.
 
 ## 5. Desires
 

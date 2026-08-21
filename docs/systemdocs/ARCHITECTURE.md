@@ -120,7 +120,11 @@ Source: `web/app/character/actions.js` (`submitAction`), `bot/src/events/message
 > `GameConfig.mood*` knobs. Those columns never existed in the shipped schema
 > and the design was replaced: Mood is now two ordinary Status tags riding
 > `CharacterTag.expiresTurn` and the existing `resolveNeeds()` sweep. See
-> `REQUESTS.md` §4. Hunger remains unbuilt.
+> `REQUESTS.md` §4. Hunger shipped on the same pattern (a `hunger` Status tag
+> with `durationTurns: 1`, granted by `db/lib/hungerPass.js` from that same
+> `resolveNeeds()` hook) — the `GameConfig.hungerMovePenalty` knob this
+> section once specified never existed either; the −1 is a module constant in
+> `db/lib/gambitModifier.js`.
 
 **Convention: `⬢` is the canonical Resources glyph.** It's placed right after the word "Resources" (or "Silo", see below) wherever a count is shown in the dashboard — status lists, table headers, transfer forms. Keep using it on any new Resources/Silo display rather than introducing a different icon.
 
@@ -168,6 +172,6 @@ model Tag {
 5. **Restyle existing pages** (Character, and the pieces of the old `/gm` page) onto the new shell + components.
 6. **Build the three new GM views** (Players, Turns + arbitration screen, Audit Log) for real, including resource transfer and the private-DM-to-affected-parties affordance.
 7. **Tick automation**: `node-cron` in `bot/`, `advanceTurn()` with Needs resolution.
-8. **Needs mechanics**: hunger/mood decay wired into `advanceTurn()`, dice-roll modifiers.
+8. **Needs mechanics**: hunger/mood decay wired into `advanceTurn()`, dice-roll modifiers. *(Done — both halves resolve in `resolveNeeds()`, and the summed Gambit modifier lives in `db/lib/gambitModifier.js`.)*
 
 Steps 1–5 are the "redo the website" ask and can proceed without further input — all the mechanics decisions above (§6, §4, §8) are resolved in this document rather than left open.

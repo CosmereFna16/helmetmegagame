@@ -395,6 +395,26 @@ tags:
     pointCost: 0
     purchasable: false
 
+  # Granted automatically by the per-turn upkeep pass (db/lib/hungerPass.js,
+  # called from resolveNeeds) — never by a player or a picker, hence
+  # purchasable/removable false, same as Happy/Unhappy. Deliberately no
+  # durationTurns on Ate Meal above: it must NOT be swept, because the pass
+  # consumes it explicitly.
+  #
+  # durationTurns: 1 means a Hunger granted while closing turn N carries
+  # expiresTurn N+1 — it bites for exactly turn N+1 and is swept when N+1
+  # closes.
+  - slug: hunger
+    name: Hungry
+    category: status
+    group: status-debuffs
+    description: "-1 to the die on all Gambits. You went without food this turn."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 1
+
   - slug: tipsy
     name: Tipsy
     category: status

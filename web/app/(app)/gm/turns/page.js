@@ -35,8 +35,8 @@ function kindLabel(a) {
   return "Move";
 }
 
-// Raw roll, then the mood modifier and total — a GM has to be able to tell a
-// modified 5 from a natural 5.
+// Raw roll, then the summed modifier (Mood ±1, Hunger -1) and total — a GM
+// has to be able to tell a modified 5 from a natural 5.
 function rollLabel(a) {
   if (a.diceRoll == null) return "";
   const mod = a.diceModifier ?? 0;

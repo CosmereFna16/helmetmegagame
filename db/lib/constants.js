@@ -1,3 +1,4 @@
+const HUNGER_SLUG = "hunger";
 const HUNGERLESS_SLUG = "hungerless";
 const FOLLOWER_OF_BACCHUS_SLUG = "follower-of-bacchus";
 const NOBILITY_SLUG = "nobility";
@@ -15,6 +16,7 @@ const LABORER_HERDING_SLUG = "laborer-herding";
 const HUNTER_SLUG = "hunter";
 
 module.exports = {
+  HUNGER_SLUG,
   HUNGERLESS_SLUG,
   FOLLOWER_OF_BACCHUS_SLUG,
   NOBILITY_SLUG,

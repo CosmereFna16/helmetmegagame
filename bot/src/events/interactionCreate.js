@@ -5,7 +5,11 @@ const { performLabor } = require("../lib/labor");
 const { sendDm } = require("../lib/dm");
 const { buildMoveComponents, buildMoveContent, moveKindLabel } = require("../lib/moveComponents");
 const { rollResourceDice } = require("../lib/resourceDelta");
-const { moodFromTags, moodModifier, moodLabel } = require("@lifeweb/db/lib/mood");
+const {
+  gambitModifiers,
+  gambitModifierTotal,
+  formatGambitModifiers,
+} = require("@lifeweb/db/lib/gambitModifier");
 
 function rollDie(sides = 6) {
   return 1 + Math.floor(Math.random() * sides);
@@ -177,8 +181,9 @@ async function handleCancel(interaction) {
 async function findMoveAction(actionId) {
   return prisma.action.findUnique({
     where: { id: actionId },
-    // Mood is two ordinary Status tags, so the ±1 Gambit modifier is read off
-    // the character's tags rather than a column (db/lib/mood.js).
+    // Mood and Hunger are ordinary Status tags, so the whole Gambit modifier
+    // is read off the character's tags rather than a column
+    // (db/lib/gambitModifier.js).
     include: { character: { include: { tags: { include: { tag: true } } } } },
   });
 }
@@ -227,11 +232,12 @@ async function handleMoveConfirm(interaction, actionId) {
   }
 
   const diceRoll = action.moveKind === "GAMBIT" ? rollDie() : null;
-  // Only a Gambit rolls, so only a Gambit can carry a mood modifier. diceRoll
-  // stays the RAW roll and the adjustment is stored beside it — see the
-  // Action.diceModifier comment in schema.prisma.
-  const mood = moodFromTags(action.character.tags);
-  const diceModifier = diceRoll != null ? moodModifier(mood) : null;
+  // Only a Gambit rolls, so only a Gambit can carry a modifier. diceRoll stays
+  // the RAW roll and the SUM of every contributor (Mood ±1, Hunger -1) is
+  // stored beside it — see the Action.diceModifier comment in schema.prisma.
+  // The per-contributor breakdown is display-only, for the DM below.
+  const modifiers = diceRoll != null ? gambitModifiers(action.character.tags) : [];
+  const diceModifier = diceRoll != null ? gambitModifierTotal(action.character.tags) : null;
   const diceResult = action.resourceDiceExpression ? rollResourceDice(action.resourceDiceExpression) : null;
 
   await prisma.action.update({
@@ -251,7 +257,14 @@ async function handleMoveConfirm(interaction, actionId) {
       actorDiscordUserId: interaction.user.id,
       actionType: "move_confirmed",
       targetCharacterId: action.characterId,
-      details: { actionId: action.id, diceRoll, diceModifier, resourceDiceRoll: diceResult?.value ?? null },
+      details: {
+        actionId: action.id,
+        diceRoll,
+        diceModifier,
+        // The only place the breakdown survives — the column stores the sum.
+        diceModifiers: modifiers,
+        resourceDiceRoll: diceResult?.value ?? null,
+      },
     },
   });
 
@@ -261,8 +274,10 @@ async function handleMoveConfirm(interaction, actionId) {
   ];
   if (diceRoll != null) {
     lines.push(
-      diceModifier
-        ? `🎲 **${diceRoll}** ${diceModifier > 0 ? "+" : "−"}${Math.abs(diceModifier)} ${moodLabel(mood)} → **${diceRoll + diceModifier}**`
+      // Keyed on modifiers.length, not diceModifier: a Happy+Hungry wash sums
+      // to 0 but should still show its work rather than pretend nothing applied.
+      modifiers.length
+        ? `🎲 **${diceRoll}** ${formatGambitModifiers(modifiers)} → **${diceRoll + diceModifier}**`
         : `🎲 **${diceRoll}**`,
     );
   }
