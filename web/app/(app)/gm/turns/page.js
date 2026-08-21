@@ -158,7 +158,7 @@ export default async function TurnsPage({ searchParams }) {
           // Panel-only fields — the Character section and the resolution form.
           locationLabel: [a.character.zone?.name, a.character.location?.name].filter(Boolean).join(" / ") || "Unassigned",
           resources: a.character.resources,
-          tags: a.character.tags.map((ct) => ct.tag),
+          tags: a.character.tags.map((ct) => ({ ...ct.tag, quantity: ct.quantity })),
           resourceDelta: a.resourceDelta ?? null,
           resultMessage: a.resultMessage ?? "",
           appliedSummary: describeMoveEffects(a.appliedEffects),

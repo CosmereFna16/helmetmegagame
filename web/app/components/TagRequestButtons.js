@@ -91,6 +91,24 @@ function TagPicker({ tags, selectedId, onSelect }) {
   );
 }
 
+// Only rendered for a stackable tag, so the ordinary case keeps the exact
+// dialog it had. `max` is what the character holds for Remove/Transfer, and
+// an open-ended cap for Add.
+function QuantityField({ value, onChange, max, label }) {
+  return (
+    <label className="field" style={{ width: "10rem" }}>
+      <span className="field-label">{label}</span>
+      <input
+        type="number"
+        min="1"
+        max={max}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </label>
+  );
+}
+
 function ResourceCostField({ value, onChange, max }) {
   return (
     <label className="field" style={{ width: "10rem" }}>
@@ -104,6 +122,7 @@ export default function TagRequestButtons({ catalog, characterTags, resources, o
   const [mode, setMode] = useState(null); // "add" | "remove" | "transfer"
   const [tagId, setTagId] = useState(null);
   const [spend, setSpend] = useState("0");
+  const [quantity, setQuantity] = useState("1");
   const [recipient, setRecipient] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
@@ -113,10 +132,25 @@ export default function TagRequestButtons({ catalog, characterTags, resources, o
   const removable = useMemo(() => removableTags(characterTags), [characterTags]);
   const transferable = useMemo(() => transferableTags(characterTags), [characterTags]);
 
+  // The tag currently picked, in whichever menu is open. Add draws from the
+  // catalog (no held count); the other two from what the character holds.
+  const chosen = useMemo(() => {
+    const pool = mode === "add" ? addable : mode === "remove" ? removable : transferable;
+    return pool.find((t) => t.id === tagId) ?? null;
+  }, [mode, tagId, addable, removable, transferable]);
+  const stacking = Boolean(chosen?.stackable);
+  const heldCount = mode === "add" ? undefined : (chosen?.quantity ?? 1);
+
+  function pick(nextTagId) {
+    setTagId(nextTagId);
+    setQuantity("1");
+  }
+
   function open(next) {
     setMode(next);
     setTagId(null);
     setSpend("0");
+    setQuantity("1");
     setRecipient("");
     setError(null);
   }
@@ -124,12 +158,13 @@ export default function TagRequestButtons({ catalog, characterTags, resources, o
   function submit(reason) {
     setError(null);
     startTransition(async () => {
+      // Always sent; the server pins it to 1 for a non-stackable tag anyway.
       const res =
         mode === "add"
-          ? await addTagRequest({ tagId, resourcesSpent: spend, reason })
+          ? await addTagRequest({ tagId, quantity, resourcesSpent: spend, reason })
           : mode === "remove"
-            ? await removeTagRequest({ tagId, resourcesSpent: spend, reason })
-            : await transferTagRequest({ tagId, toCharacterId: recipient, reason });
+            ? await removeTagRequest({ tagId, quantity, resourcesSpent: spend, reason })
+            : await transferTagRequest({ tagId, quantity, toCharacterId: recipient, reason });
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
       setMode(null);
     });
@@ -169,7 +204,10 @@ export default function TagRequestButtons({ catalog, characterTags, resources, o
       >
         {mode === "add" && (
           <>
-            <TagPicker tags={addable} selectedId={tagId} onSelect={setTagId} />
+            <TagPicker tags={addable} selectedId={tagId} onSelect={pick} />
+            {stacking && (
+              <QuantityField value={quantity} onChange={setQuantity} max={99} label="How many?" />
+            )}
             <ResourceCostField value={spend} onChange={setSpend} max={resources} />
           </>
         )}
@@ -178,17 +216,26 @@ export default function TagRequestButtons({ catalog, characterTags, resources, o
           <>
             <label className="field">
               <span className="field-label">Tag to remove</span>
-              <select value={tagId ?? ""} onChange={(e) => setTagId(e.target.value || null)} required>
+              <select value={tagId ?? ""} onChange={(e) => pick(e.target.value || null)} required>
                 <option value="" disabled>
                   Choose a tag…
                 </option>
                 {removable.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
+                    {t.quantity > 1 ? ` \u00d7${t.quantity}` : ""}
                   </option>
                 ))}
               </select>
             </label>
+            {stacking && (
+              <QuantityField
+                value={quantity}
+                onChange={setQuantity}
+                max={heldCount}
+                label={`How many? (you have ${heldCount})`}
+              />
+            )}
             <ResourceCostField value={spend} onChange={setSpend} max={resources} />
           </>
         )}
@@ -197,17 +244,26 @@ export default function TagRequestButtons({ catalog, characterTags, resources, o
           <>
             <label className="field">
               <span className="field-label">Item or Asset to hand over</span>
-              <select value={tagId ?? ""} onChange={(e) => setTagId(e.target.value || null)} required>
+              <select value={tagId ?? ""} onChange={(e) => pick(e.target.value || null)} required>
                 <option value="" disabled>
                   Choose a tag…
                 </option>
                 {transferable.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
+                    {t.quantity > 1 ? ` \u00d7${t.quantity}` : ""}
                   </option>
                 ))}
               </select>
             </label>
+            {stacking && (
+              <QuantityField
+                value={quantity}
+                onChange={setQuantity}
+                max={heldCount}
+                label={`How many? (you have ${heldCount})`}
+              />
+            )}
             <label className="field">
               <span className="field-label">Give it to</span>
               <select value={recipient} onChange={(e) => setRecipient(e.target.value)} required>

@@ -23,6 +23,7 @@ import {
   getGmSession,
 } from "@/lib/discordGuild";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
+import { addToStack } from "@/lib/requestEffects";
 
 async function requireSuperadmin() {
   const session = await auth();
@@ -358,7 +359,12 @@ export async function grantTag(formData) {
   const tag = await prisma.tag.findUnique({ where: { id: tagId } });
   if (!tag) return;
 
-  await prisma.characterTag.create({ data: { characterId, tagId, source: "GM_GRANT" } });
+  // Create-or-increment: granting a stackable tag a second time adds to the
+  // stack rather than colliding with @@unique([characterId, tagId]).
+  await addToStack(prisma, characterId, tagId, 1, {
+    source: "GM_GRANT",
+    stackable: tag.stackable,
+  });
 
   // A granted tag may affect narrowcast access (#radio, #intercom).
   await syncCharacterNarrowcastAccess(characterId).catch(() => {});
@@ -383,8 +389,21 @@ export async function revokeTag(formData) {
   const characterId = str(formData, "characterId");
   if (!characterTagId) return;
 
-  const ct = await prisma.characterTag.delete({ where: { id: characterTagId } }).catch(() => null);
+  // One unit at a time for a stack, the whole row otherwise — so a GM
+  // correcting an over-grant doesn't wipe a player's whole larder.
+  const ct = await prisma.characterTag.findUnique({
+    where: { id: characterTagId },
+    include: { tag: true },
+  });
   if (!ct) return;
+  if (ct.tag.stackable && ct.quantity > 1) {
+    await prisma.characterTag.update({
+      where: { id: ct.id },
+      data: { quantity: ct.quantity - 1 },
+    });
+  } else {
+    await prisma.characterTag.delete({ where: { id: ct.id } }).catch(() => null);
+  }
 
   await syncCharacterNarrowcastAccess(ct.characterId).catch(() => {});
 

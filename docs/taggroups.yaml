@@ -40,3 +40,19 @@ groups:
     name: Debuffs
     category: status
     color: "#7f92a3"
+  - slug: items-food
+    name: Food
+    category: items
+    color: "#cf9f56"
+  - slug: items-gear
+    name: Gear
+    category: items
+    color: "#a08a70"
+  - slug: assets-property
+    name: Property
+    category: assets
+    color: "#8e94a8"
+  - slug: assets-companions
+    name: Companions
+    category: assets
+    color: "#7fa38b"

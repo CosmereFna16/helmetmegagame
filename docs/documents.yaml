@@ -242,7 +242,12 @@ documents:
     tags:
       - Cooking (Basic)
       - Cooking (Skilled)
-    description: ""
+      - Nobility
+    description: |-
+      Fine meals make average people happy, but Nobility have them as a baseline. They need to eat them every once in a while or they'll be unhappy. Lavish meals make everyone happy and are valid objects of a Desire.
+
+      Fine meals: cost 2 ⬢ per meal. You can make up to 4 Fine meals in one Routine move.
+      Lavish meals: cost 3 ⬢ per meal and one hard to get exotic ingredient. You can make up to 3 Lavish meals in one Routine move.
   - name: Alcohol & Drugs
     key: alcoholdrugs
     public: true

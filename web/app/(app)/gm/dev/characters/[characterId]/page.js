@@ -146,11 +146,14 @@ export default async function DevCharacterEditPage({ params }) {
             {ownedTags.map((ct) => (
               <li key={ct.id} className="flex items-center justify-between gap-2 text-sm">
                 <span>
-                  {ct.tag.name} <span style={{ color: "var(--muted)" }}>({ct.source})</span>
+                  {ct.tag.name}
+                  {ct.quantity > 1 && <> &times;{ct.quantity}</>}{" "}
+                  <span style={{ color: "var(--muted)" }}>({ct.source})</span>
                 </span>
                 <form action={revokeTag}>
                   <input type="hidden" name="characterTagId" value={ct.id} />
                   <input type="hidden" name="characterId" value={character.id} />
+                  {/* Takes one off a stack; drops the row when that's the last. */}
                   <button type="submit" className="btn-quiet">Revoke</button>
                 </form>
               </li>

@@ -376,6 +376,16 @@ model Tag {
   // yet, this just marks which tags are candidates for it.
   tradeable Boolean @default(false)
 
+  // Whether a character can hold more than one of this tag at a time —
+  // meals, ammunition, anything a crafting Move produces in a batch. A
+  // stack is ONE CharacterTag row carrying a count (CharacterTag.quantity),
+  // never N rows: @@unique([characterId, tagId]) stays, so every presence
+  // check in the codebase (narrowcastAccess, gambitModifier, mood, labor)
+  // keeps reading "holds it or doesn't" unchanged. Don't combine with
+  // defaultDurationTurns — the expiry sweep deletes whole rows, stacks and
+  // all.
+  stackable Boolean @default(false)
+
   // Whether a player could ever buy this via point-buy, and (only meaningful
   // when true) whether it stays buyable once the game is underway vs. being
   // a starting-package-only pick. No purchase flow exists yet — catalog data
@@ -466,6 +476,12 @@ model CharacterTag {
   // never auto-expires. Used for system-granted temporary status tags (Ate
   // Meal, Tipsy) — see EVENT below.
   expiresTurn Int?
+
+  // How many of this tag the character holds. Always 1 for an ordinary tag;
+  // only Tag.stackable ones ever go above it, and nothing may drive it
+  // below 1 — the row is deleted instead. Point-buy never sets this: the
+  // wizard is a toggle-set, so a bought tag lands on the default.
+  quantity Int @default(1)
 
   @@unique([characterId, tagId])
 }

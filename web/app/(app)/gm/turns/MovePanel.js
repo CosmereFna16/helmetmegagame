@@ -197,7 +197,7 @@ export default function MovePanel({ move, readOnly = false, onClose }) {
             {move.tags?.length ? (
               <div className="flex flex-wrap gap-1.5">
                 {move.tags.map((t) => (
-                  <TagChip key={t.id} tag={t} />
+                  <TagChip key={t.id} tag={t} quantity={t.quantity} />
                 ))}
               </div>
             ) : (

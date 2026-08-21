@@ -12,7 +12,13 @@ Three levels:
 - **Category** — a flat string (`Meta`, `General`, `Skills`, `Status`,
   `Items`, `Assets`). Not its own DB table; `docs/tags.yaml`'s top-level
   `categories:` list is validation-only — `syncTagsFromYaml` rejects any
-  tag/group whose `category` isn't in that list.
+  tag/group whose `category` isn't in that list. **Items are the portable
+  half and Assets the standing half**: a revolver or a meal you carry and
+  hand over, versus a Manor, a House, or a Follower you simply have. There is
+  deliberately no third `Companions` category — the property-vs-companion
+  split inside Assets is carried by the `assets-property` /
+  `assets-companions` groups, which keeps `TRANSFERABLE_CATEGORIES` (Transfer
+  Tag's filter, `web/lib/tagRequests.js`) a two-item list.
 - **Group** (`TagGroup`) — optional, scoped to exactly one category, exists
   purely to color tags for display (e.g. Status's Health/Food/Buffs/Debuffs
   groups). A tag with no group renders uncolored. `TagGroup.color` is a
@@ -70,6 +76,25 @@ positive costs the player points, negative *grants* them (the drawbacks,
 Old at `-2` and Frail at `-3`). Both directions fall out of one subtraction,
 so `remaining >= 0` is the only rule for whether a build is legal.
 
+**The display inverts it, and both axes agree.** `formatCost`/`costColor`
+(`web/lib/characterCreation.js`) show the effect on the player's *point
+pool*, never whether the tag is a good thing to have:
+
+| tag | `pointCost` | shown as | colour |
+|---|---|---|---|
+| Frail | `-3` | `+3 pts` | `--positive` (pool grows) |
+| Fighting (Basic) | `3` | `-3 pts` | `--accent` (pool shrinks) |
+| Shack | `0` | `0 pts` | `--muted` |
+
+These two functions are the only place that flip lives — every caller
+(`TagChip`, `PointBuy`, `TagRequestButtons`, `CreateCharacterWizard`) passes
+the raw signed `pointCost` and lets them decide, so nothing else should ever
+negate it. The arithmetic is untouched: `PointBuy`'s affordability check and
+`remaining = budget - sum(pointCost)` both still read the raw catalog value.
+
+Before this, the sign was catalog-style while the colour was pool-style, so
+Frail read as "`-3`, in green" — two conventions disagreeing on one line.
+
 A character's budget is
 `GameConfig.startingTagPoints` (default 12) `+ role.extra_starting_points`
 `- 3 if the player is Cursed`, computed by
@@ -96,7 +121,9 @@ Full writeup of creation, roles, and the wizard: `CHARACTERS.md`.
   character's proxied messages (`bot/src/events/messageReactionAdd.js`).
   Defaults closed.
 - `tradeable` — Items-category flag for a future trade flow; no transfer
-  logic exists yet.
+  logic exists yet (Transfer Tag filters on `category`, not this).
+- `stackable` — whether a character can hold more than one at a time. Live
+  code reads this; see §5a.
 - `defaultDurationTurns` (spelled `durationTurns` in the YAML) — catalog-level "how many turns does this last once
   granted," for tags that auto-expire (e.g. Drained is 3). The actual
   per-instance expiry lives on `CharacterTag.expiresTurn` (an absolute turn
@@ -129,6 +156,41 @@ Full writeup of creation, roles, and the wizard: `CHARACTERS.md`.
   minified form, via `formatTagRequirement()` (`db/lib/formatTagRequirement.js`,
   exported from `@lifeweb/db`) — see `TagChip.js`, `PointBuy.js`, and the
   🔍-inspect embed in `bot/src/events/messageReactionAdd.js`.
+
+## 5a. Stacks
+
+Meals, ammunition, anything a crafting Move makes in a batch — a character
+needs to hold four Fine Meals and hand them out one at a time. `stackable:
+true` in `docs/tags.yaml` sets `Tag.stackable`; the count lives on
+`CharacterTag.quantity` (default `1`).
+
+**A stack is one row carrying a count, never N rows.**
+`@@unique([characterId, tagId])` stays exactly as it was, which is the whole
+point: every presence check in the codebase — `narrowcastAccess.js`,
+`gambitModifier.js`, `mood.js`, `labor.js`, the Mortus nav gate — keeps
+reading "holds it or doesn't" with no change, and `restoreCharacterTag`'s
+upsert stays valid.
+
+Three functions in `web/lib/requestEffects.js` are the only writers that know
+about `quantity`; everything else goes through them:
+
+| | |
+|---|---|
+| `addToStack(tx, characterId, tagId, n, opts)` | create-or-increment. Pins `n` to 1 unless `opts.stackable`, so a caller that forgot to check can't mint a phantom stack. |
+| `dropCharacterTag(tx, characterId, tagId, n)` | decrement, deleting the row at 0. `n = null` (the default) drops the whole holding — what an ordinary tag always wants. |
+| `restoreCharacterTag(tx, characterId, snapshot)` | undo's inverse. **Increments** on the update branch: `snapshot.quantity` is what the request took away, not what the character should end up holding. |
+
+Add Tag, Remove Tag and Transfer Tag all carry a quantity, clamped
+server-side to what the sender actually holds, and record it on
+`Request.effect` so Undo stays an exact inverse (`REQUESTS.md` §2). A GM's
+Revoke button takes one unit off a stack rather than the whole larder.
+
+**Point-buy never stacks.** `PointBuy.js` is a toggle-set with no quantity
+anywhere, so a bought tag lands on `quantity`'s default of 1 and a stackable
+tag cannot be point-farmed at creation. Stacks are built in play only.
+
+**Don't combine `stackable` with `durationTurns`.** The expiry sweep deletes
+whole rows, stack and all.
 
 ## 6. Things that used to be tags and aren't anymore
 

@@ -45,8 +45,12 @@ apply the wrong numbers. Snapshotting the applied deltas is what makes Undo an
 exact inverse.
 
 The same reasoning drives the restore snapshots: removing a tag stores its
-original `source` and `expiresTurn`, so Undo puts back the tag that was there
-rather than a fresh grant with a full duration.
+original `source`, `expiresTurn` and `quantity`, so Undo puts back the tag
+that was there rather than a fresh grant with a full duration. The quantity
+matters for the same reason everything else here does: a player who cooked
+four more meals between the request and the GM getting to it must not have
+the whole new stack clawed back — only what this request moved. See
+`TAGS.md` §5a.
 
 `web/lib/requests.js#createRequest` is the one writer, and every caller
 invokes it inside its own `prisma.$transaction` so a request can never exist
@@ -65,9 +69,9 @@ reason.
 |---|---|---|---|
 | `SET_MOOD` | Picks Neutral / Happy / Unhappy | — | Restores the displaced mood, with its original expiry |
 | `TRANSFER_RESOURCES` | Moves ⬢ between any two parties | — | Reverses the movement |
-| `ADD_TAG` | Takes a Purchasable or Craftable tag, optionally paying ⬢ | cost; remove the tag | Drops the tag, refunds the cost |
-| `REMOVE_TAG` | Drops one of their own `removable` tags, optionally paying ⬢ | cost | Restores the tag, refunds the cost |
-| `TRANSFER_TAG` | Hands an Item or Asset to another player | — | Moves it back |
+| `ADD_TAG` | Takes a Purchasable or Craftable tag, optionally paying ⬢. Stackable tags take a quantity and stay on the menu once held | cost; remove what this request added | Drops what it added, refunds the cost |
+| `REMOVE_TAG` | Drops one of their own `removable` tags, optionally paying ⬢, in a quantity if it stacks | cost | Restores the tag and its count, refunds the cost |
+| `TRANSFER_TAG` | Hands an Item or Asset to another player, in a quantity if it stacks | — | Moves that many back |
 | `FULFILL_DESIRE` | Claims their active Desire | Tag Points awarded | Revokes the points, reopens the Desire |
 | `DONATE_BLOOD` | Mortus bleeds someone into the Lifeweb | blood added; clear Drained | Draws the blood back, clears Drained |
 | `FEED_PERSON` | Mortus feeds someone to the Lifeweb | blood added | Draws the blood back (never revives) |

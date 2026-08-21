@@ -107,7 +107,9 @@ export default async function CharacterPage() {
       faction: true,
       zone: true,
       location: true,
-      tags: { include: { tag: true } },
+      // group comes along so TagChip can tint the chip, same as
+      // /gm/turns does it — otherwise every Item renders uncoloured.
+      tags: { include: { tag: { include: { group: true } } } },
       defaultEffort: true,
     },
   });
@@ -146,6 +148,7 @@ export default async function CharacterPage() {
         pointCost: true,
         purchasable: true,
         craftable: true,
+        stackable: true,
         group: { select: { name: true, color: true } },
       },
     }),
