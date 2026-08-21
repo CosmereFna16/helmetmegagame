@@ -327,6 +327,7 @@ module.exports = {
   LIFEWEB_SPUTTER_THRESHOLD,
   ...require("./weather"),
   ...require("./lib/constants"),
+  ...require("./lib/roleIds"),
   ...require("./lib/roleColor"),
   ...require("./lib/roleCapacity"),
   ...require("./lib/production"),

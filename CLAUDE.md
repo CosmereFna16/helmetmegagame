@@ -54,7 +54,7 @@ npm run build --workspace=web        # production build of the web app
 npm run lint --workspace=web         # eslint over the web app
 ```
 
-Environment variables (see `.env.example`): `DATABASE_URL`, `DISCORD_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_GM_ROLE_ID`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `AUTH_SECRET`, `DISCORD_PLAYER_ROLE_ID`, `DISCORD_SPECTATOR_ROLE_ID`. Neither package has test infrastructure set up yet.
+Environment variables (see `.env.example`): `DATABASE_URL`, `DISCORD_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_GM_ROLE_ID`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `AUTH_SECRET`. The player and spectator role IDs are **not** env vars — they are hardcoded in `db/lib/roleIds.js` (see "Discord permission model" below). Neither package has test infrastructure set up yet.
 
 ## How the bot populates the database
 
@@ -275,15 +275,17 @@ There is no single unified permission system — a few independent kinds of Disc
 - **Personal character role** (`Character.discordRoleId`, one per `ALIVE` character, titled after the character's name) — the sole access-control primitive for Location categories (see above). Created/renamed by `ensureCharacterRole`, granted/revoked per-category by `swapLocationAccess`/`syncCharacterLocationAccess`.
 - **GM role** (`DISCORD_GM_ROLE_ID` env var) — checked via REST (`web/lib/discordGuild.js#isGm`) against the signed-in user's guild member roles to gate `/gm` pages and the `/gm`/`/message` slash commands; not stored on any Lifeweb model.
 - **Narrowcast channels** (`#radio`, `#intercom`) use the personal character role above, not a separate role — see "Narrowcast channels" below.
-- **Spectator role** (`DISCORD_SPECTATOR_ROLE_ID` env var) — a standing read-only observer seat: `ViewChannel` on every Location **category** (all three channels inherit) and on `#radio`/`#intercom`, with `SendMessages`/`AddReactions`/`AttachFiles`/`ManageMessages` and all three thread bits denied. One static role, unlike the personal character role — it never moves, so it's applied at provisioning time (`db/lib/spectatorAccess.js`, called from `syncLocations`/`syncNarrowcastChannels`) and by `npm run db:backfill-spectator-access` for anything provisioned earlier, and is deliberately **not** part of the per-Move access sync. The wide deny list is load-bearing: `ViewChannel` alone still leaves a forum postable and a thread writable, and `-private` channels allow `CreatePrivateThreads` for `@everyone`, which a spectator would otherwise inherit.
-- **Player role** (`DISCORD_PLAYER_ROLE_ID` env var) — who may create a character, checked by `web/lib/discordGuild.js#isApprovedPlayer` and paired with `GameConfig.openToPlayers` (see "Launch gating" below). Unlike every other role helper here it **fails closed** when the env var is unset.
+- **Spectator role** (`SPECTATOR_ROLE_ID`, hardcoded in `db/lib/roleIds.js`) — a standing read-only observer seat: `ViewChannel` on every Location **category** (all three channels inherit) and on `#radio`/`#intercom`, with `SendMessages`/`AddReactions`/`AttachFiles`/`ManageMessages` and all three thread bits denied. One static role, unlike the personal character role — it never moves, so it's applied at provisioning time (`db/lib/spectatorAccess.js`, called from `syncLocations`/`syncNarrowcastChannels`) and by `npm run db:backfill-spectator-access` for anything provisioned earlier, and is deliberately **not** part of the per-Move access sync. The wide deny list is load-bearing: `ViewChannel` alone still leaves a forum postable and a thread writable, and `-private` channels allow `CreatePrivateThreads` for `@everyone`, which a spectator would otherwise inherit.
+- **Player role** (`PLAYER_ROLE_ID`, hardcoded in `db/lib/roleIds.js`) — who may create a character, checked by `web/lib/discordGuild.js#isApprovedPlayer` and paired with `GameConfig.openToPlayers` (see "Launch gating" below).
+
+The last two are the only role IDs kept **in code** rather than in the environment. A role ID is not a secret (anyone in the guild can read it) and Lifeweb is single-guild, so there is exactly one correct value that can never differ per environment — while a missing env var would have meant a deploy where the player gate silently locked everyone out, or the spectator overwrite silently did nothing. Same reasoning as `web/lib/superadmin.js`. `DISCORD_TOKEN` is a real credential and `DISCORD_GUILD_ID`/`DISCORD_GM_ROLE_ID`/`DISCORD_CURSED_ROLE_ID`/`DISCORD_TURN_PING_ROLE_ID` predate this, so those stay in `.env`.
 - **Turn-ping role** (`DISCORD_TURN_PING_ROLE_ID` env var) — a plain opt-in notification role, added/removed by `setTurnPingRole` when a player toggles "Turn Ping?" on `/character`.
 
 ## Launch gating
 
 Character creation is behind two independent locks, both of which must be
 open: `GameConfig.openToPlayers` (a Dev Panel toggle, off by default — "the
-doors are open") and `DISCORD_PLAYER_ROLE_ID` ("you are on the list"). The
+doors are open") and the hardcoded `PLAYER_ROLE_ID` ("you are on the list"). The
 enforcement boundary is `createCharacter`
 (`web/app/(app)/character/createActions.js`), checked before any point-buy
 validation; `/character` additionally renders `CreationClosed.js` instead of

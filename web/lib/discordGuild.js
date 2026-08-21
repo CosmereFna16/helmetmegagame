@@ -1,6 +1,12 @@
 import { cache } from "react";
 import { auth } from "@/lib/auth";
-import { prisma, hashNameToColor, buildNarrowcastContext, computeNarrowcastAccess } from "@lifeweb/db";
+import {
+  prisma,
+  hashNameToColor,
+  buildNarrowcastContext,
+  computeNarrowcastAccess,
+  PLAYER_ROLE_ID,
+} from "@lifeweb/db";
 
 const DISCORD_API = "https://discord.com/api/v10";
 
@@ -178,15 +184,13 @@ export function isGm(member) {
 // GameConfig.openToPlayers: the config says the doors are open, this says
 // you are on the list. Same env-gated shape as isGm/isCursed above.
 //
-// Fails CLOSED when DISCORD_PLAYER_ROLE_ID is unset, unlike isGm/isCursed
-// which fail open to "not a GM"/"not cursed". An unset role here would
-// otherwise mean everyone who can see the server can create a character the
-// moment the game opens, which is the exact thing this gate exists to stop.
+// The role ID is hardcoded (db/lib/roleIds.js) rather than env-configured,
+// precisely because this gate fails CLOSED: an unset env var would have meant
+// a deploy that silently locked every player out, with nothing in the UI to
+// explain why. There is one correct value and it lives in the repo.
 export function isApprovedPlayer(member) {
-  const playerRoleId = process.env.DISCORD_PLAYER_ROLE_ID;
-  if (!playerRoleId) return false;
   if (!member) return false;
-  return member.roles?.includes(playerRoleId) ?? false;
+  return member.roles?.includes(PLAYER_ROLE_ID) ?? false;
 }
 
 export function isCursed(member) {

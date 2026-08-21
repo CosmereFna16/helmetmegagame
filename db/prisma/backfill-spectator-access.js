@@ -17,18 +17,13 @@
 // and keeps the per-channel overwrite count down.
 require("dotenv").config();
 const { prisma } = require("../index");
-const { spectatorRoleId, applySpectatorOverwrite } = require("../lib/spectatorAccess");
+const { applySpectatorOverwrite } = require("../lib/spectatorAccess");
 
 async function main() {
   if (!process.env.DISCORD_TOKEN) {
     console.error("DISCORD_TOKEN must be set.");
     process.exit(1);
   }
-  if (!spectatorRoleId()) {
-    console.error("DISCORD_SPECTATOR_ROLE_ID is not set — nothing to grant.");
-    process.exit(1);
-  }
-
   const locations = await prisma.location.findMany({
     where: { discordCategoryId: { not: null } },
     include: { zone: true },

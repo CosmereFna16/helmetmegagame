@@ -1,4 +1,4 @@
-// The spectator role (DISCORD_SPECTATOR_ROLE_ID) — a standing observer seat.
+// The spectator role — a standing observer seat.
 // Read-only visibility into every Location channel and both narrowcast
 // channels, with no way to contribute anything anywhere.
 //
@@ -19,6 +19,7 @@
 // bits explicitly closes all three, which is what "read-only, no private
 // threads" has to mean.
 const { putChannelOverwrite } = require("./discordRest");
+const { SPECTATOR_ROLE_ID } = require("./roleIds");
 
 const PERM_VIEW_CHANNEL = 1024n;
 const PERM_SEND_MESSAGES = 2048n;
@@ -39,29 +40,22 @@ const SPECTATOR_DENY =
   PERM_CREATE_PRIVATE_THREADS |
   PERM_SEND_MESSAGES_IN_THREADS;
 
-function spectatorRoleId() {
-  return process.env.DISCORD_SPECTATOR_ROLE_ID || null;
-}
-
 // The overwrite object for inlining into a createChannel()
-// permission_overwrites array at provisioning time. Returns [] when the role
-// isn't configured, so call sites can spread it unconditionally — same shape
-// as syncLocations' gmChannelOverwrite.
+// permission_overwrites array at provisioning time — same shape as
+// syncLocations' gmChannelOverwrite, so call sites can spread it.
 function spectatorOverwrite() {
-  const roleId = spectatorRoleId();
-  if (!roleId) return [];
-  return [{ id: roleId, type: 0, allow: SPECTATOR_ALLOW.toString(), deny: SPECTATOR_DENY.toString() }];
+  return [
+    { id: SPECTATOR_ROLE_ID, type: 0, allow: SPECTATOR_ALLOW.toString(), deny: SPECTATOR_DENY.toString() },
+  ];
 }
 
 // The REST equivalent, for channels that already exist. A single PUT that
 // adds/updates just this one overwrite without disturbing the channel's
 // others (unlike PATCHing the whole permission_overwrites array), so it is
 // safe to re-run and safe alongside the @everyone and GM overwrites.
-// No-ops when the role isn't configured.
 async function applySpectatorOverwrite(channelId) {
-  const roleId = spectatorRoleId();
-  if (!roleId || !channelId) return false;
-  await putChannelOverwrite(channelId, roleId, {
+  if (!channelId) return false;
+  await putChannelOverwrite(channelId, SPECTATOR_ROLE_ID, {
     allow: SPECTATOR_ALLOW.toString(),
     deny: SPECTATOR_DENY.toString(),
   });
@@ -69,7 +63,6 @@ async function applySpectatorOverwrite(channelId) {
 }
 
 module.exports = {
-  spectatorRoleId,
   spectatorOverwrite,
   applySpectatorOverwrite,
   SPECTATOR_ALLOW,
