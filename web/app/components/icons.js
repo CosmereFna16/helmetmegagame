@@ -87,3 +87,31 @@ export function SignOutIcon(props) {
     </svg>
   );
 }
+
+export function HammerIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M13.5 3.5l7 7-2.5 2.5-7-7 2.5-2.5z" strokeLinejoin="round" />
+      <path d="M11 6L6.5 10.5M4 20.5l7-7" strokeLinecap="round" />
+      <path d="M3 13.5l3.5-3.5 4 4L7 17.5 3 13.5z" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function EyeIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" strokeLinejoin="round" />
+      <circle cx="12" cy="12" r="2.75" />
+    </svg>
+  );
+}
+
+export function EditIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M4 20h4L19 9l-4-4L4 16v4z" strokeLinejoin="round" />
+      <path d="M14.5 5.5l4 4" strokeLinecap="round" />
+    </svg>
+  );
+}

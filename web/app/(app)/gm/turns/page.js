@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { prisma } from "@lifeweb/db";
+import { prisma, describeMoveEffects } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requests";
 import AdjudicateTabs from "./AdjudicateTabs";
@@ -16,6 +16,7 @@ const PIPELINE_LABELS = {
 
 const REVIEW_LABELS = {
   OPEN: "Open",
+  PASSED: "Passed",
   WAITING_FOR_OPPONENTS: "Waiting for Opponents",
   IN_PROGRESS: "In Progress",
   SOLVED: "Solved",
@@ -25,8 +26,12 @@ function isConfirmed(a) {
   return a.status === "CONFIRMED" || a.status === "ADJUDICATED";
 }
 
-function statusLabel(a) {
-  return isConfirmed(a) ? (REVIEW_LABELS[a.moveReviewStatus] ?? "Open") : (PIPELINE_LABELS[a.status] ?? a.status);
+// "In Progress" is DERIVED from a live lock rather than stored, so a GM whose
+// browser died can never strand a Move in that state — the lock simply lapses.
+function statusLabel(a, now) {
+  if (!isConfirmed(a)) return PIPELINE_LABELS[a.status] ?? a.status;
+  if (a.lockExpiresAt && a.lockExpiresAt > now) return "In Progress";
+  return REVIEW_LABELS[a.moveReviewStatus] ?? "Open";
 }
 
 function kindLabel(a) {
@@ -82,6 +87,19 @@ function summarize(request) {
   }
 }
 
+// The ⬢ a Request moved, from whichever effect key carries it. Sign is from
+// the requesting character's point of view: a cost is negative, a transfer in
+// is positive.
+function requestResourceDelta(request) {
+  const e = request.effect ?? {};
+  if (e.resourcesSpent) return -e.resourcesSpent;
+  if (request.type === "TRANSFER_RESOURCES" && e.amount) {
+    if (e.to?.kind === "character" && e.to.id === request.characterId) return e.amount;
+    if (e.from?.kind === "character" && e.from.id === request.characterId) return -e.amount;
+  }
+  return null;
+}
+
 export default async function TurnsPage({ searchParams }) {
   const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
@@ -93,7 +111,17 @@ export default async function TurnsPage({ searchParams }) {
     prisma.action.findMany({
       orderBy: { createdAt: "desc" },
       take: HISTORY_LIMIT,
-      include: { character: { include: { faction: true } }, turn: true },
+      include: {
+        character: {
+          include: {
+            faction: true,
+            zone: true,
+            location: true,
+            tags: { include: { tag: { include: { group: true } } } },
+          },
+        },
+        turn: true,
+      },
     }),
     prisma.request.findMany({
       orderBy: { createdAt: "desc" },
@@ -105,6 +133,7 @@ export default async function TurnsPage({ searchParams }) {
 
   const usernameById = new Map(members.map((m) => [m.id, m.username]));
   const nameFor = (c) => usernameById.get(c.discordUserId) ?? c.discordUserId;
+  const now = new Date();
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 p-6 sm:p-8">
@@ -121,10 +150,22 @@ export default async function TurnsPage({ searchParams }) {
           turnLabel: turnLabel(a.turn),
           description: truncate(a.description, DESCRIPTION_LIMIT),
           kindLabel: kindLabel(a),
+          moveKind: a.moveKind ?? "ROUTINE",
           opposed: a.opposed,
           rollLabel: rollLabel(a),
-          statusLabel: statusLabel(a),
+          statusLabel: statusLabel(a, now),
           gmNotes: a.gmNotes ?? "",
+          // Panel-only fields — the Character section and the resolution form.
+          locationLabel: [a.character.zone?.name, a.character.location?.name].filter(Boolean).join(" / ") || "Unassigned",
+          resources: a.character.resources,
+          tags: a.character.tags.map((ct) => ct.tag),
+          resourceDelta: a.resourceDelta ?? null,
+          resultMessage: a.resultMessage ?? "",
+          appliedSummary: describeMoveEffects(a.appliedEffects),
+          reviewedByUsername: a.reviewedByDiscordUserId
+            ? (usernameById.get(a.reviewedByDiscordUserId) ?? a.reviewedByDiscordUserId)
+            : null,
+          reviewedAtLabel: a.reviewedAt ? a.reviewedAt.toISOString().slice(0, 16).replace("T", " ") : null,
         }))}
         requests={requests.map((r) => ({
           id: r.id,
@@ -139,6 +180,7 @@ export default async function TurnsPage({ searchParams }) {
           statusLabel: REQUEST_STATUS_LABELS[r.status] ?? r.status,
           reason: r.reason,
           summary: summarize(r),
+          resourceDelta: requestResourceDelta(r),
           effect: r.effect ?? {},
           gmNotes: r.gmNotes ?? "",
           createdAtMs: r.createdAt.getTime(),

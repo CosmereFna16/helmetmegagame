@@ -164,4 +164,5 @@ module.exports = {
   ...require("./lib/mood"),
   ...require("./lib/lifeweb"),
   ...require("./lib/gambitModifier"),
+  ...require("./lib/moveEffects"),
 };

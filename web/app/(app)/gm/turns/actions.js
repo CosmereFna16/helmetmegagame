@@ -1,9 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@lifeweb/db";
-import { getGmSession, killCharacter } from "@/lib/discordGuild";
+import { Prisma } from "@prisma/client";
+import { prisma, applyMoveEffects, revertMoveEffects, describeMoveEffects, rollDie } from "@lifeweb/db";
+import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
+import { getGmSession, killCharacter, listGuildMembers, sendDm } from "@/lib/discordGuild";
 import { REQUEST_EFFECTS } from "@/lib/requestEffects";
+import { requireReason } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 
 async function requireGm() {
@@ -150,4 +153,257 @@ export async function resolveRequest(input) {
 
 export async function killRequestTarget(input) {
   return guarded(() => killRequestTargetImpl(input));
+}
+
+// ---------------------------------------------------------------------------
+// Moves
+// ---------------------------------------------------------------------------
+
+// A cooperative lock, not a status. Two GMs working the same queue must not
+// adjudicate the same Move, but a lock that lives in moveReviewStatus strands
+// the row forever the moment someone's browser dies. So the lock is its own
+// pair of columns with a short TTL the open panel refreshes; "In Progress" is
+// derived from a live lock. Nothing can get stuck — the worst case is a GM
+// waits out MOVE_LOCK_TTL_MS.
+const MOVE_LOCK_TTL_MS = 90_000;
+
+function lockIsLive(action, now = new Date()) {
+  return Boolean(action.lockExpiresAt && action.lockExpiresAt > now);
+}
+
+async function claimMoveLockImpl({ actionId }) {
+  const session = await requireGm();
+
+  const action = await prisma.action.findUnique({ where: { id: actionId } });
+  if (!action) throw new UserError("Move not found.");
+
+  if (lockIsLive(action) && action.lockedByDiscordUserId !== session.discordUserId) {
+    const holder = await lockHolderName(action.lockedByDiscordUserId);
+    throw new UserError(`${holder} is adjudicating this Move.`);
+  }
+
+  await prisma.action.update({
+    where: { id: actionId },
+    data: {
+      lockedByDiscordUserId: session.discordUserId,
+      lockExpiresAt: new Date(Date.now() + MOVE_LOCK_TTL_MS),
+    },
+  });
+  revalidatePath("/gm/turns");
+  return { ttlMs: MOVE_LOCK_TTL_MS };
+}
+
+async function lockHolderName(discordUserId) {
+  if (!discordUserId) return "Another GM";
+  const members = await listGuildMembers().catch(() => []);
+  return members.find((m) => m.id === discordUserId)?.username ?? "Another GM";
+}
+
+// The heartbeat. Extends only a lock this GM still holds — if it was taken
+// over after expiry, say so rather than silently stealing it back.
+async function refreshMoveLockImpl({ actionId }) {
+  const session = await requireGm();
+  const { count } = await prisma.action.updateMany({
+    where: { id: actionId, lockedByDiscordUserId: session.discordUserId },
+    data: { lockExpiresAt: new Date(Date.now() + MOVE_LOCK_TTL_MS) },
+  });
+  if (!count) throw new UserError("Your hold on this Move expired.");
+  return {};
+}
+
+async function releaseMoveLockImpl({ actionId }) {
+  const session = await requireGm();
+  await prisma.action.updateMany({
+    where: { id: actionId, lockedByDiscordUserId: session.discordUserId },
+    data: { lockedByDiscordUserId: null, lockExpiresAt: null },
+  });
+  revalidatePath("/gm/turns");
+  return {};
+}
+
+// Everything a GM can change about a Move before resolving it. Kind is the
+// interesting one: a Gambit always carries a fresh roll and a Routine never
+// carries one, so switching either way rewrites the dice rather than leaving a
+// stale number behind (the invariant ADJUDICATION.md §5 asked to restore).
+function normalizeEdits(action, edits, characterTags) {
+  const data = {};
+
+  const kind = edits.moveKind === "GAMBIT" || edits.moveKind === "ROUTINE" ? edits.moveKind : action.moveKind;
+  if (kind !== action.moveKind) {
+    data.moveKind = kind;
+    if (kind === "ROUTINE") {
+      data.diceRoll = null;
+      data.diceModifier = null;
+    } else {
+      // Rolled from the character's CURRENT tags — a Mood that lapsed between
+      // submission and adjudication shouldn't haunt a roll made today.
+      data.diceRoll = rollDie();
+      data.diceModifier = gambitModifierTotal(characterTags);
+    }
+  }
+
+  data.opposed = Boolean(edits.opposed);
+  data.resourceDelta = clampResourceDelta(edits.resourceDelta, action.resourceDelta);
+  data.resultMessage = edits.resultMessage?.toString().trim() || null;
+  data.gmNotes = edits.gmNotes?.toString().trim() || null;
+  return data;
+}
+
+// Signed, unlike a request's cost — a Move can take resources away. Capped
+// either side so a slipped keystroke can't hand out a fortune.
+const MAX_RESOURCE_DELTA = 20;
+
+function clampResourceDelta(raw, fallback) {
+  if (raw === "" || raw == null) return null;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n)) return fallback ?? null;
+  return Math.max(-MAX_RESOURCE_DELTA, Math.min(MAX_RESOURCE_DELTA, n));
+}
+
+// mode "save"    -> keep the edits, hand the Move back to the queue
+// mode "solve"   -> keep the edits, push the effects, mark SOLVED
+// mode "unsolve" -> hand back everything that was pushed, return to the queue
+async function resolveMoveImpl({ actionId, mode, edits = {}, notifyPlayer = false }) {
+  const session = await requireGm();
+  if (!["save", "solve", "unsolve"].includes(mode)) throw new UserError("Unknown mode.");
+
+  const action = await prisma.action.findUnique({
+    where: { id: actionId },
+    include: { character: { include: { tags: { include: { tag: true } } } } },
+  });
+  if (!action) throw new UserError("Move not found.");
+  if (lockIsLive(action) && action.lockedByDiscordUserId !== session.discordUserId) {
+    throw new UserError(`${await lockHolderName(action.lockedByDiscordUserId)} is adjudicating this Move.`);
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    if (mode === "unsolve") {
+      // Reverses exactly what the snapshot says was pushed — never recomputed
+      // from the row's current numbers, which a GM may have just edited.
+      const given = await revertMoveEffects(tx, action);
+      await tx.action.update({
+        where: { id: actionId },
+        data: {
+          appliedEffects: Prisma.DbNull,
+          moveReviewStatus: "OPEN",
+          reviewedAt: null,
+          reviewedByDiscordUserId: null,
+          lockedByDiscordUserId: null,
+          lockExpiresAt: null,
+        },
+      });
+      return { status: "OPEN", note: describeMoveEffects(given) ? `Handed back ${describeMoveEffects(given)}.` : "Reopened." };
+    }
+
+    const data = normalizeEdits(action, edits, action.character.tags);
+
+    if (mode === "save") {
+      await tx.action.update({
+        where: { id: actionId },
+        data: { ...data, moveReviewStatus: "OPEN", lockedByDiscordUserId: null, lockExpiresAt: null },
+      });
+      return { status: "OPEN", note: "Saved." };
+    }
+
+    // Solve. Push against the EDITED row, so a GM who changed the delta pushes
+    // their number rather than the player's.
+    const edited = await tx.action.update({ where: { id: actionId }, data });
+    const applied = await applyMoveEffects(tx, edited);
+    await tx.action.update({
+      where: { id: actionId },
+      data: {
+        appliedEffects: applied,
+        moveReviewStatus: "SOLVED",
+        reviewedAt: new Date(),
+        reviewedByDiscordUserId: session.discordUserId,
+        lockedByDiscordUserId: null,
+        lockExpiresAt: null,
+      },
+    });
+    return { status: "SOLVED", note: describeMoveEffects(applied) || "Solved." };
+  });
+
+  if (mode === "solve" && notifyPlayer && edits.resultMessage?.toString().trim()) {
+    await sendDm(action.character.discordUserId, edits.resultMessage.toString().trim()).catch(() => null);
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: `move_${mode}`,
+      targetCharacterId: action.characterId,
+      details: { actionId, note: result.note },
+    },
+  });
+
+  revalidatePath("/gm/turns");
+  revalidatePath("/character");
+  return result;
+}
+
+// Reject deletes the row outright. That's the point: the turn-economy checks
+// in bot/src/lib/actionSubmission.js and location.js#performMove both look for
+// ANY Action on the open turn, so only a deletion actually frees the player to
+// act again. The description and reason are copied into the audit row first so
+// nothing is lost with it, and the player is told — a freed turn they don't
+// know about is a wasted day.
+async function rejectMoveImpl({ actionId, reason: rawReason }) {
+  const session = await requireGm();
+  const reason = requireReason(rawReason);
+
+  const action = await prisma.action.findUnique({ where: { id: actionId }, include: { character: true } });
+  if (!action) throw new UserError("Move not found.");
+  if (lockIsLive(action) && action.lockedByDiscordUserId !== session.discordUserId) {
+    throw new UserError(`${await lockHolderName(action.lockedByDiscordUserId)} is adjudicating this Move.`);
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // A rejected Routine already pushed its resources; take them back, or the
+    // player keeps the ⬢ from a Move that no longer exists.
+    if (action.appliedEffects) await revertMoveEffects(tx, action);
+    await tx.action.delete({ where: { id: actionId } });
+    await tx.auditLog.create({
+      data: {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "move_rejected",
+        targetCharacterId: action.characterId,
+        reason,
+        details: {
+          actionId,
+          description: action.description,
+          moveKind: action.moveKind,
+          appliedEffects: action.appliedEffects ?? null,
+        },
+      },
+    });
+  });
+
+  await sendDm(
+    action.character.discordUserId,
+    `Your Move was returned to you — you can act again this turn.\n${reason}`,
+  ).catch(() => null);
+
+  revalidatePath("/gm/turns");
+  revalidatePath("/character");
+  return { description: action.description };
+}
+
+export async function claimMoveLock(input) {
+  return guarded(() => claimMoveLockImpl(input));
+}
+
+export async function refreshMoveLock(input) {
+  return guarded(() => refreshMoveLockImpl(input));
+}
+
+export async function releaseMoveLock(input) {
+  return guarded(() => releaseMoveLockImpl(input));
+}
+
+export async function resolveMove(input) {
+  return guarded(() => resolveMoveImpl(input));
+}
+
+export async function rejectMove(input) {
+  return guarded(() => rejectMoveImpl(input));
 }

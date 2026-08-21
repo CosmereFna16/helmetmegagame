@@ -3,8 +3,12 @@
 import { Fragment, useMemo, useState } from "react";
 import { useTableState, SortHeader, FilterBar } from "./tableUtils";
 import MessageCell, { MessageComposerRow } from "./MessageRow";
+import IconButton from "@/app/components/IconButton";
+import CharacterLink from "@/app/components/CharacterLink";
+import ResourceDeltaCell from "./ResourceDeltaCell";
+import { EditIcon, EyeIcon } from "@/app/components/icons";
 
-const COL_COUNT = 9;
+const COL_COUNT = 11;
 
 // Passed is the untouched default and stays plain; both GM verdicts are red,
 // because either one means "this didn't stand as the player made it".
@@ -36,7 +40,7 @@ const SEARCH_FIELDS = [
   (r) => r.gmNotes,
 ];
 
-export default function RequestsTable({ requests, onReview }) {
+export default function RequestsTable({ requests, onReview, onView }) {
   const [messagingId, setMessagingId] = useState(null);
   const filterDefs = useMemo(() => FILTER_DEFS, []);
   const searchFields = useMemo(() => SEARCH_FIELDS, []);
@@ -69,6 +73,9 @@ export default function RequestsTable({ requests, onReview }) {
               <th scope="col" style={{ width: "1%" }}>
                 <span className="sr-only">Message</span>
               </th>
+              <th scope="col" style={{ width: "1%" }}>
+                <span className="sr-only">View</span>
+              </th>
               <SortHeader label="Turn" sortKey="turnNumber" sort={sort} onSort={toggleSort} />
               <SortHeader label="Character" sortKey="characterName" sort={sort} onSort={toggleSort} />
               <SortHeader label="Discord" sortKey="discordUsername" sort={sort} onSort={toggleSort} />
@@ -78,6 +85,7 @@ export default function RequestsTable({ requests, onReview }) {
                 Reason
               </th>
               <SortHeader label="Status" sortKey="statusLabel" sort={sort} onSort={toggleSort} />
+              <SortHeader label="Resources" sortKey="resourceDelta" sort={sort} onSort={toggleSort} />
             </tr>
           </thead>
           <tbody>
@@ -85,23 +93,20 @@ export default function RequestsTable({ requests, onReview }) {
               <Fragment key={row.id}>
                 <tr style={awaitingKill(row) ? { color: "var(--accent)" } : undefined}>
                   <td>
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      title="Review this request"
-                      aria-label="Review this request"
-                      onClick={() => onReview?.(row)}
-                    >
-                      ✎
-                    </button>
+                    <IconButton icon={EditIcon} label="Review this request" onClick={() => onReview?.(row)} />
                   </td>
                   <MessageCell
                     characterId={row.characterId}
                     open={messagingId === row.characterId}
                     onToggle={setMessagingId}
                   />
+                  <td>
+                    <IconButton icon={EyeIcon} label="View this request" onClick={() => onView?.(row)} />
+                  </td>
                   <td className="whitespace-nowrap">{row.turnLabel}</td>
-                  <td className="whitespace-nowrap">{row.characterName}</td>
+                  <td className="whitespace-nowrap">
+                    <CharacterLink characterId={row.characterId} name={row.characterName} isGm />
+                  </td>
                   <td className="whitespace-nowrap" style={{ color: "var(--muted)" }}>
                     {row.discordUsername}
                   </td>
@@ -122,6 +127,7 @@ export default function RequestsTable({ requests, onReview }) {
                   >
                     {row.statusLabel}
                   </td>
+                  <ResourceDeltaCell value={row.resourceDelta} />
                 </tr>
                 {messagingId === row.characterId && (
                   <MessageComposerRow

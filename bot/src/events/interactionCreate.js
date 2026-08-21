@@ -10,10 +10,7 @@ const {
   gambitModifierTotal,
   formatGambitModifiers,
 } = require("@lifeweb/db/lib/gambitModifier");
-
-function rollDie(sides = 6) {
-  return 1 + Math.floor(Math.random() * sides);
-}
+const { applyMoveEffects, rollDie } = require("@lifeweb/db/lib/moveEffects");
 
 function isGmMember(interaction) {
   const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
@@ -240,16 +237,30 @@ async function handleMoveConfirm(interaction, actionId) {
   const diceModifier = diceRoll != null ? gambitModifierTotal(action.character.tags) : null;
   const diceResult = action.resourceDiceExpression ? rollResourceDice(action.resourceDiceExpression) : null;
 
-  await prisma.action.update({
-    where: { id: action.id },
-    data: {
-      status: "CONFIRMED",
-      confirmedAt: new Date(),
-      ...(diceRoll != null ? { diceRoll, diceModifier } : {}),
-      ...(diceResult
-        ? { resourceDiceRoll: diceResult.value, resourceDelta: (action.resourceDelta ?? 0) + diceResult.value }
-        : {}),
-    },
+  const resourceDelta = diceResult
+    ? (action.resourceDelta ?? 0) + diceResult.value
+    : (action.resourceDelta ?? null);
+
+  // A Routine resolves itself: its resources land now and it enters the queue
+  // already PASSED, needing a GM only if one disagrees. A Gambit is the
+  // opposite — nothing is pushed until a GM Solves it, because the whole point
+  // of rolling is that the outcome isn't the player's to declare.
+  const isRoutine = action.moveKind === "ROUTINE";
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const row = await tx.action.update({
+      where: { id: action.id },
+      data: {
+        status: "CONFIRMED",
+        confirmedAt: new Date(),
+        ...(diceRoll != null ? { diceRoll, diceModifier } : {}),
+        ...(diceResult ? { resourceDiceRoll: diceResult.value, resourceDelta } : {}),
+        ...(isRoutine ? { moveReviewStatus: "PASSED" } : {}),
+      },
+    });
+    if (!isRoutine) return row;
+    const applied = await applyMoveEffects(tx, row);
+    return tx.action.update({ where: { id: row.id }, data: { appliedEffects: applied } });
   });
 
   await prisma.auditLog.create({
@@ -264,6 +275,7 @@ async function handleMoveConfirm(interaction, actionId) {
         // The only place the breakdown survives — the column stores the sum.
         diceModifiers: modifiers,
         resourceDiceRoll: diceResult?.value ?? null,
+        appliedEffects: updated.appliedEffects ?? null,
       },
     },
   });

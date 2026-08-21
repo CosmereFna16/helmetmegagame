@@ -9,6 +9,7 @@ const {
   HUNTER_SLUG,
 } = require("@lifeweb/db");
 const { rollResourceDice } = require("./resourceDelta");
+const { applyMoveEffects } = require("@lifeweb/db/lib/moveEffects");
 
 // field -> { rateField (db/lib/production.js key), specialistSlug, verb }.
 // Hunting isn't in this map — it's dice-based and handled separately below.
@@ -67,22 +68,29 @@ async function performLabor(character, field) {
 
   const description = `${character.name} ${info.verb} (Auto-generated).`;
 
-  await prisma.action.create({
-    data: {
-      characterId: character.id,
-      turnId: openTurn.id,
-      type: "MOVE",
-      status: "CONFIRMED",
-      moveKind: "ROUTINE",
-      opposed: false,
-      confirmedAt: new Date(),
-      description,
-      resourceDelta,
-      resourceDiceExpression,
-      resourceDiceRoll,
-      zoneId: character.zoneId ?? null,
-      gmNotes: "auto:labor",
-    },
+  // Labor is a Routine, so it follows the Routine rule: resources land now and
+  // the row enters the queue already PASSED. See handleMoveConfirm.
+  await prisma.$transaction(async (tx) => {
+    const row = await tx.action.create({
+      data: {
+        characterId: character.id,
+        turnId: openTurn.id,
+        type: "MOVE",
+        status: "CONFIRMED",
+        moveKind: "ROUTINE",
+        moveReviewStatus: "PASSED",
+        opposed: false,
+        confirmedAt: new Date(),
+        description,
+        resourceDelta,
+        resourceDiceExpression,
+        resourceDiceRoll,
+        zoneId: character.zoneId ?? null,
+        gmNotes: "auto:labor",
+      },
+    });
+    const applied = await applyMoveEffects(tx, row);
+    await tx.action.update({ where: { id: row.id }, data: { appliedEffects: applied } });
   });
 
   await prisma.auditLog.create({
