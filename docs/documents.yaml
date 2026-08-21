@@ -49,9 +49,7 @@ documents:
     tags:
       - any of the medical tags
     description: |-
-      Most negative health effect tags, like {tag:paralyzed}, can be removed by people with the Medical skills (Basic, Skilled, and Expert). Different tags have different resource, turn (measured in Routine moves), and skill costs. Some grievous wounds even require Gambits to treat.
-
-      You're welcome to try to treat a wound outside of your level of expertise, but it'll be a Gambit. You might make things worse.
+      Most negative health effect tags, like {tag:paralyzed}, can be removed by people with the Medical skills (Basic, Skilled, and Expert). Different tags have different resource, turn (measured in Routine moves), and skill costs. Some grievous wounds even require Gambits to treat. You're welcome to try to treat a wound outside of your level of expertise, but it'll be a Gambit and you might make things worse.
 
       To find a removal cost, hover over the tag's tooltip. A full list is below:
 
@@ -65,17 +63,18 @@ documents:
       - Laborer (Fishing)
       - Laborer (Herding)
     description: |-
-      Producing Resources
+      Each is an Effort, and pays out more with the right tags:
 
-      Herding (Effort): {resource:herding:base} for anyone; {resource:herding:laborer} with Laborer; {resource:herding:specialist} with Laborer (Herding).
-      Farming (Effort): {resource:farming:base} for anyone; {resource:farming:laborer} with Laborer; {resource:farming:specialist} with Laborer (Farming). Must be in Town or Fortress (the only arable land).
-      Fishing (Effort): {resource:fishing:base} for anyone; {resource:fishing:laborer} with Laborer; {resource:fishing:specialist} with Laborer (Fishing). Must be in Town or Fortress (near the river).
-      Hunting (Effort): 1d4 ⬢ for anyone (*3 with Hunter tag), must be in Town, Fortress, or Caves.
-      Brewing (Effort): 3 ⬢, requires Brewing (Basic) or (Skilled) — see the Alcohol & Drugs document.
+      | Activity | Base | +Laborer | +Specialist | Location |
+      |---|---|---|---|---|
+      | Herding | {resource:herding:base} | {resource:herding:laborer} | {resource:herding:specialist} | Anywhere |
+      | Farming | {resource:farming:base} | {resource:farming:laborer} | {resource:farming:specialist} | Town or Fortress (arable land) |
+      | Fishing | {resource:fishing:base} | {resource:fishing:laborer} | {resource:fishing:specialist} | Town or Fortress (near the river) |
+      | Hunting | 1d4 ⬢ (×3 with Hunter) | — | — | Town, Fortress, or Caves |
 
-      Laborer is a general-purpose 2-point tag that works every trade a little harder than most. Laborer (Farming), Laborer (Fishing), and Laborer (Herding) each cost a further 2 points, require Laborer first, and push that one trade up to a dedicated specialist's rate.
+      Laborer is a general-purpose 2-point tag that makes producing resources more viable than just as a survival method, while the specialist tags (you can buy them for 2 points on top of Laborer) make that specific trade a lot more valuable.
 
-      To automatically add Resources on an Effort, type +(resources) anywhere in your message. For example, write “I hunt. +1d4*3” or “I farm. +{resource:farming:specialist}”.
+      To automatically add Resources on an Effort, type +(resources) anywhere in your message. For example, write `I hunt. +1d4*3` or `I farm. +{resource:farming:specialist}`. Also works on default moves.
   - name: Combat
     key: combat
     public: true

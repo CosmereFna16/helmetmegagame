@@ -3,6 +3,7 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import PageShell, { PageHeader } from "../../components/PageShell";
 import DocumentsBoard from "./DocumentsBoard";
+import { toDocumentPreviewText } from "@/lib/documentPreview";
 
 export const metadata = { title: "Documents" };
 
@@ -51,22 +52,23 @@ export default async function DocumentsPage() {
     key: d.key,
     name: d.name,
     description: d.description,
+    previewText: toDocumentPreviewText(d.description),
     source,
   });
 
   const publicDocs = written.filter((d) => d.isPublic).map((d) => shape(d, "Public"));
   const assignedDocs = character
     ? written
-        .map((d) => [d, assignedTo(d, character)])
-        .filter(([, source]) => source !== null)
-        .map(([d, source]) => shape(d, source))
+      .map((d) => [d, assignedTo(d, character)])
+      .filter(([, source]) => source !== null)
+      .map(([d, source]) => shape(d, source))
     : [];
 
   return (
     <PageShell width="wide">
       <PageHeader
         title="Documents"
-        subtitle="Everything Ravenheart has written down, and what it expects you to know."
+        subtitle="Use these documents to learn more about your role, the game mechanics, and Ravenheart in general."
       />
       <DocumentsBoard
         publicDocs={publicDocs}

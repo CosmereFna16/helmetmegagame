@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import RichText from "../../components/RichText";
+import DocumentMarkdown from "../../components/DocumentMarkdown";
 import ChipText from "../../components/ChipText";
 
 // One card in the pinned board. Collapsed it shows its title, its source and
@@ -13,10 +13,13 @@ function DocumentCard({ doc, onOpen }) {
     <button type="button" className="doc-card" onClick={() => onOpen(doc)}>
       <span className="doc-card-source">{doc.source}</span>
       <span className="doc-card-title">{doc.name}</span>
-      {/* ChipText, not RichText: the card is a <button>, so a {tag:…} here
-          has to be a plain label rather than a focusable chip. The open
-          sheet below is free to use the real thing. */}
-      <ChipText text={doc.description} className="doc-card-body" />
+      {/* ChipText, not DocumentMarkdown: the card is a <button>, so a
+          {tag:…} here has to be a plain label rather than a focusable chip,
+          and Markdown's own <a>/<table> aren't legal inside one either.
+          doc.previewText (see lib/documentPreview.js) is already flattened
+          to plain prose server-side. The open sheet below is free to use
+          the real thing. */}
+      <ChipText text={doc.previewText} className="doc-card-body" />
     </button>
   );
 }
@@ -35,11 +38,7 @@ function DocumentSheet({ doc, onClose }) {
           </button>
         </div>
         <div className="doc-sheet-body">
-          {doc.description.split(/\n{2,}/).map((para, i) => (
-            <p key={i}>
-              <RichText text={para} />
-            </p>
-          ))}
+          <DocumentMarkdown text={doc.description} />
         </div>
       </div>
     </div>

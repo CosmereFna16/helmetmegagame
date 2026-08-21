@@ -365,6 +365,20 @@ h3 {
   padding-left: 1.3em;
 }
 
+.markdown-content table {
+  margin: 0.5em 0;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3 {
+  margin: 0.8em 0 0.3em;
+}
+
+.markdown-content > :first-child {
+  margin-top: 0;
+}
+
 .menu-item {
   all: unset;
   cursor: pointer;
@@ -1147,14 +1161,12 @@ h3 {
   border-bottom: 1px solid var(--border);
 }
 
+/* Markdown (see DocumentMarkdown.js) supplies its own block structure now —
+   spacing between paragraphs/lists/tables comes from .markdown-content
+   below, not from preserving raw source whitespace. */
 .doc-sheet-body {
   font-family: var(--font-serif), Georgia, serif;
   font-size: var(--fs-base);
   line-height: var(--lh-body);
   color: var(--text);
-  white-space: pre-wrap;
-}
-
-.doc-sheet-body p + p {
-  margin-top: var(--sp-4);
 }
