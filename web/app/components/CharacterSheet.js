@@ -115,7 +115,7 @@ export default function CharacterSheet({
           <div
             aria-hidden="true"
             className="h-16 w-16"
-            style={{ background: "#9a9a9a", borderRadius: "var(--radius)", border: "1px solid var(--border)" }}
+            style={{ background: "var(--field-bg)", borderRadius: "var(--radius)", border: "1px solid var(--border)" }}
           />
         )}
         <div>
