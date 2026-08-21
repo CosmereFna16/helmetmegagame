@@ -313,13 +313,20 @@ Two carve-outs. A `{resource:…}` bubble already renders its own glyph via `web
 ## Deploy workflow
 
 Unless the user says otherwise, after finishing a set of changes: `npm run deploy`
-from the repo root. That pushes `master` (the branch Railway builds from) and
-then redeploys both services.
+from the repo root. That pushes `master` (the branch Railway builds from),
+applies any pending migrations, and then redeploys both services.
 
 ```
-npm run deploy      # git push origin master, then redeploy web + bot
-npm run redeploy    # just the redeploy, no push
+npm run deploy      # git push origin master, ./migrate.sh, redeploy web + bot
+npm run redeploy    # just the redeploy, no push, no migration
 ```
+
+The `./migrate.sh` step sits deliberately **between** the push and the redeploy.
+Migrating first means additive columns simply go unused for a few seconds;
+redeploying first ships code whose queries reference columns that don't exist
+yet, for the whole length of a build. It is a backstop, not a substitute for the
+Pre-Deploy Command below — a plain `git push` to `master` auto-deploys without
+ever running this script.
 
 **Migrations do not run themselves.** Railway builds and starts the app; it
 does not apply schema changes, so a deploy carrying a new migration ships code
@@ -328,6 +335,12 @@ is brutal to diagnose from the browser: the page throws `P2022` server-side and
 Next redacts it to a bare digest (`ERROR 330354103`), so nothing readable
 reaches the client — and it takes out the whole route, not just the feature
 that needed the column. This has bitten twice.
+
+This has now bitten three times, the third being a push straight to `master`:
+**Railway builds from this GitHub repo, so pushing to `master` is itself a
+deploy trigger** — no `npm run deploy` needed, and so no chance for any script
+in this repo to run the migration first. That is why the dashboard setting
+below, not the deploy script, is the only complete fix.
 
 The fix is a **Pre-Deploy Command on the `web` service only** (Railway
 dashboard → web → Settings → Deploy):
