@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import {
   prisma,
   hashNameToColor,
+  formatBareName,
   buildNarrowcastContext,
   computeNarrowcastAccess,
   PLAYER_ROLE_ID,
@@ -299,6 +300,12 @@ export async function updateGuildNickname(discordUserId, nickname) {
 
 // Called right after a character is created/renamed so the nickname reflects
 // it immediately instead of waiting for the bot's next connect-time resync.
+//
+// `characterName` is the BARE name (first + last, via formatBareName) at every
+// call site, never the displayed one. The 32-char cap is shared between the
+// two halves — about 14 each — so an honorific and a quoted title would
+// truncate the result to garbage. This is the one surface where a title
+// deliberately does not appear; bot/src/lib/nickname.js does the same.
 export async function syncCharacterNickname(discordUserId, characterName, preferredNickname) {
   const member = await getGuildMember(discordUserId);
   if (!member) return;
@@ -397,7 +404,8 @@ export async function removeCursedRole(discordUserId) {
 }
 
 // Personal Discord role titled after this character's name, colored
-// deterministically by db/lib/roleColor.js#hashNameToColor. Creates+assigns
+// deterministically by db/lib/roleColor.js#hashNameToColor from that same
+// bare name. Creates+assigns
 // the role the first time a character gets a name; every later call
 // (idempotent, safe to call on every profile save) renames/recolors it to
 // match the character's current name. Called as a best-effort side effect
@@ -406,16 +414,21 @@ export async function removeCursedRole(discordUserId) {
 export async function ensureCharacterRole(character) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const token = process.env.DISCORD_TOKEN;
-  if (!guildId || !token || !character.name) return character.discordRoleId ?? null;
+  // Bare (first + last), never the displayed name: the role is an
+  // @-mentionable access primitive, not an RP surface, and seeding both the
+  // name and the colour off the bare string means granting or changing a
+  // title never renames or recolours anyone.
+  const bare = formatBareName(character);
+  if (!guildId || !token || !bare) return character.discordRoleId ?? null;
 
-  const color = hashNameToColor(character.name);
+  const color = hashNameToColor(bare);
 
   try {
     if (!character.discordRoleId) {
       const res = await fetch(`${DISCORD_API}/guilds/${guildId}/roles`, {
         method: "POST",
         headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ name: character.name, color, hoist: false, mentionable: true }),
+        body: JSON.stringify({ name: bare, color, hoist: false, mentionable: true }),
       });
       if (!res.ok) {
         console.error(`Failed to create role for character ${character.id}: ${res.status} ${await res.text()}`);
@@ -438,7 +451,7 @@ export async function ensureCharacterRole(character) {
     const res = await fetch(`${DISCORD_API}/guilds/${guildId}/roles/${character.discordRoleId}`, {
       method: "PATCH",
       headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ name: character.name, color }),
+      body: JSON.stringify({ name: bare, color }),
     });
     if (!res.ok) {
       console.error(`Failed to rename/recolor role ${character.discordRoleId}: ${res.status} ${await res.text()}`);

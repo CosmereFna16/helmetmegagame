@@ -14,6 +14,11 @@ import {
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import {
+  NAME_LIMITS,
+  formatCharacterName,
+  normalizeHonorific,
+} from "@/lib/characterName";
+import {
   ensureCharacterRole,
   syncCharacterLocationAccess,
   deleteCharacterRole,
@@ -343,10 +348,28 @@ export async function updateCharacterRaw(formData) {
 
   const status = str(formData, "status");
 
+  // The only place `title` is writable. Still allowlisted and length-capped
+  // like the player forms — a GM form is a public endpoint too, and the
+  // NAME_LIMITS caps are what keep the composed name inside Discord's 80-char
+  // webhook username limit.
+  const namePart = (key, limit) => str(formData, key).trim().slice(0, limit) || null;
+  const nameParts = {
+    honorific: normalizeHonorific(formData.get("honorific")),
+    firstName: namePart("firstName", NAME_LIMITS.firstName),
+    title: namePart("title", NAME_LIMITS.title),
+    lastName: namePart("lastName", NAME_LIMITS.lastName),
+  };
+
   const updated = await prisma.character.update({
     where: { id: characterId },
     data: {
-      name: str(formData, "name").trim(),
+      ...nameParts,
+      // Keep firstName NOT NULL satisfied even if the field is cleared.
+      firstName: nameParts.firstName ?? existing?.firstName ?? "",
+      name: formatCharacterName({
+        ...nameParts,
+        firstName: nameParts.firstName ?? existing?.firstName ?? "",
+      }),
       roleTitle,
       roleId,
       factionId,

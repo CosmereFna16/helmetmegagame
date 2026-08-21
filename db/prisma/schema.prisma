@@ -282,7 +282,32 @@ model Location {
 model Character {
   id            String @id @default(cuid())
   discordUserId String
-  name          String
+
+  // A displayed name is four parts, joined by
+  // db/lib/characterName.js#formatCharacterName as
+  // `Sir Jorren "the Blind" Vask`. `honorific` is picked freely by the player
+  // from a fixed dropdown; `title` is GM-only and renders in quotes — no
+  // player-facing form ever reads it, which is the whole lock.
+  honorific String?
+  firstName String
+  title     String?
+  lastName  String?
+
+  // Denormalized mirror of formatCharacterName(...) above, same posture as
+  // zoneId below. It exists because ~60 readers want a single string —
+  // orderBy, `select: { name: true }`, the /gm/audit `contains` search, the
+  // proxy webhook username and the dawnWipe map key — and Prisma cannot
+  // concatenate columns in orderBy or contains, so dropping it would force
+  // search and sort into OR-over-three-columns for correctness nobody sees.
+  //
+  // Exactly three writers keep it in sync, and every one of them goes
+  // through formatCharacterName:
+  //   web/app/(app)/character/createActions.js      (creation)
+  //   web/app/(app)/character/actions.js            (player edit)
+  //   web/app/(app)/gm/dev/actions.js               (GM raw edit)
+  // A fourth writer must do the same; `npm run db:backfill-name-parts` is the
+  // drift check that catches one that doesn't.
+  name String
 
   // Display-only snapshot of the role's name at creation. `roleId` is the
   // authoritative link; roleTitle survives so a GM can hand-write something
@@ -305,9 +330,13 @@ model Character {
   locationId String?
   location   Location? @relation(fields: [locationId], references: [id])
 
-  // Personal Discord role titled after this character's name, seeded to a
-  // muted color by db/lib/roleColor.js#hashNameToColor and re-synced
-  // whenever name changes (web/lib/discordGuild.js#ensureCharacterRole).
+  // Personal Discord role titled after this character's BARE name (first +
+  // last, via formatBareName) and seeded to a muted color by
+  // db/lib/roleColor.js#hashNameToColor from that same bare string, re-synced
+  // whenever it changes (web/lib/discordGuild.js#ensureCharacterRole). Bare,
+  // not the displayed name: the role is an @-mentionable access primitive
+  // rather than an RP surface, and seeding off the bare name means granting
+  // or changing a title never renames or recolours anyone.
   // Doubles as the access-control primitive for Location categories.
   discordRoleId String? @unique
 

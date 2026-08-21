@@ -18,9 +18,10 @@ export default function ChipLabel({ tag, quantity = 1, left = null }) {
     >
       {tag.name}
       {stack && <span className="text-muted"> &times;{stack}</span>}
-      {/* Compact on the face, spelled out in the tooltip below — a chip has
-          no room for "2 turns left". aria-hidden because the tooltip carries
-          the readable version. */}
+      {/* Compact on the face, spelled out in TagChip's tooltip — a chip has no
+          room for "2 turns left". aria-hidden because the tooltip carries the
+          readable version. Null everywhere expiry is meaningless (point-buy
+          rows, nested tooltip labels), so those render exactly as before. */}
       {left != null && (
         <span className="text-muted" aria-hidden="true"> &middot; {left}t</span>
       )}

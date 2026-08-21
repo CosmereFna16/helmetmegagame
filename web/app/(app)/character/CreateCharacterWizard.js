@@ -16,6 +16,7 @@ import InfoIcon from "@/app/components/InfoIcon";
 import Tooltip from "@/app/components/Tooltip";
 import { WORST_FEAR_HELP } from "@/app/components/WorstFearPanel";
 import { WORST_FEAR_PENALTY, WORST_FEAR_MAX_LENGTH } from "@/lib/constants";
+import { HONORIFICS, NAME_LIMITS, formatCharacterName } from "@/lib/characterName";
 
 const STEPS = ["Identity", "Role", "Tags", "Fear", "Confirm"];
 
@@ -84,7 +85,9 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
 export default function CreateCharacterWizard({ zones, tags, startingTagPoints, playerCount, cursed }) {
 
   const [step, setStep] = useState(0);
-  const [name, setName] = useState("");
+  const [honorific, setHonorific] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [preferredNickname, setPreferredNickname] = useState("");
   const [roleId, setRoleId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -116,8 +119,12 @@ export default function CreateCharacterWizard({ zones, tags, startingTagPoints, 
     setSelectedIds([]);
   }
 
+  // The player never sees a `title` here — it is GM-granted — so this is
+  // exactly what their name will read as on creation.
+  const displayName = formatCharacterName({ honorific, firstName, lastName });
+
   const canAdvance =
-    (step === 0 && name.trim().length > 0) ||
+    (step === 0 && firstName.trim().length > 0) ||
     (step === 1 && role !== null) ||
     (step === 2 && remaining >= 0) ||
     // The Worst Fear step is optional — you may walk straight past it and set
@@ -130,7 +137,9 @@ export default function CreateCharacterWizard({ zones, tags, startingTagPoints, 
     setPending(true);
     setError(null);
     const fd = new FormData();
-    fd.set("name", name.trim());
+    fd.set("firstName", firstName.trim());
+    if (honorific) fd.set("honorific", honorific);
+    if (lastName.trim()) fd.set("lastName", lastName.trim());
     if (preferredNickname.trim()) fd.set("preferredNickname", preferredNickname.trim());
     fd.set("roleId", roleId);
     for (const id of selectedIds) fd.append("tagIds", id);
@@ -163,16 +172,41 @@ export default function CreateCharacterWizard({ zones, tags, startingTagPoints, 
 
       {step === 0 && (
         <div className="panel flex flex-col gap-4 p-4">
-          <label className="field">
-            <span className="field-label">Character name</span>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={60}
-              autoFocus
-              required
-            />
-          </label>
+          {/* Honorific stays narrow beside the two name inputs; it collapses
+              to full width on a phone like every other grid in the app. */}
+          <div className="grid gap-3 sm:grid-cols-[9rem_1fr_1fr]">
+            <label className="field">
+              <span className="field-label">Title</span>
+              <select value={honorific} onChange={(e) => setHonorific(e.target.value)}>
+                <option value="">(none)</option>
+                {HONORIFICS.map((h) => (
+                  <option key={h} value={h}>
+                    {h}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span className="field-label">First name</span>
+              <input
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                maxLength={NAME_LIMITS.firstName}
+                autoFocus
+                required
+              />
+            </label>
+            <label className="field">
+              <span className="field-label">Last name (optional)</span>
+              <input
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                maxLength={NAME_LIMITS.lastName}
+              />
+            </label>
+          </div>
+          {/* The only place a player sees the join rule before submitting. */}
+          {displayName && <p className="text-sm text-muted">You will be known as {displayName}.</p>}
           <label className="field">
             <span className="field-label">Preferred nickname (optional)</span>
             <input
@@ -269,7 +303,7 @@ export default function CreateCharacterWizard({ zones, tags, startingTagPoints, 
 
       {step === 4 && role && (
         <div className="panel flex flex-col gap-3 p-4">
-          <h2 className="panel-header">{name}</h2>
+          <h2 className="panel-header">{displayName}</h2>
           <dl className="grid gap-2 text-sm sm:grid-cols-2">
             <div>
               <dt className="text-muted">Role</dt>

@@ -11,7 +11,7 @@ export default async function DevCharactersPage() {
   if (!isSuperadmin(session.discordUserId)) redirect("/character");
 
   const characters = await prisma.character.findMany({
-    orderBy: { name: "asc" },
+    orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
     include: { faction: true, zone: true },
     // Safety net against unbounded growth, not a real limit — far above any
     // realistic roster size for this game (100+ players).
