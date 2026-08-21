@@ -41,6 +41,10 @@ export async function GET() {
         requirementResources: true,
         requirementGambit: true,
         requirementSkills: { select: { id: true, slug: true, name: true } },
+        // A prose {tag:…} reference has no CharacterTag behind it and so no
+        // live expiresTurn — this is the only thing that can tell a reader
+        // how long the tag would last. See TagChip.js's expiry line.
+        defaultDurationTurns: true,
       },
     }),
     session?.discordUserId

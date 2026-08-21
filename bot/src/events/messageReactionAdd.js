@@ -1,5 +1,5 @@
 const { WebhookClient, EmbedBuilder } = require("discord.js");
-const { prisma, formatTagRequirement } = require("@lifeweb/db");
+const { prisma, formatTagRequirement, turnsLeft, formatTurnsLeft } = require("@lifeweb/db");
 const { getSiloAccess } = require("@lifeweb/db/lib/factionPermissions");
 const { inspectVision } = require("@lifeweb/db/lib/inspectVision");
 const { recentProxies } = require("../lib/proxy");
@@ -143,7 +143,7 @@ module.exports = {
       // depends on both. Seductive/Torturer (and their Demoness twins) are
       // read off the REACTOR, not the subject: they're the sight, not the
       // thing seen.
-      const [character, viewer] = await Promise.all([
+      const [character, viewer, openTurn] = await Promise.all([
         prisma.character.findUnique({
           where: { id: proxy.characterId },
           include: {
@@ -155,19 +155,25 @@ module.exports = {
           where: { discordUserId: user.id, status: "ALIVE" },
           select: { tags: { select: { tag: { select: { slug: true } } } } },
         }),
+        prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
       ]);
       if (!character) return;
 
       const { canSeeDesire, canSeeFear } = inspectVision(viewer?.tags ?? []);
 
-      // Each entry is the tag name, plus a minified "cost to add/remove"
-      // suffix (see formatTagRequirement, @lifeweb/db) when the tag has
-      // requirement data set — mind Discord's 1024-char embed field cap.
+      // Each entry is the tag name, plus a parenthetical carrying the minified
+      // "cost to add/remove" (see formatTagRequirement, @lifeweb/db) and how
+      // long it has left, whichever are set. Same `·` separator the web
+      // tooltip uses, so both faces of the game read alike — mind Discord's
+      // 1024-char embed field cap.
       const visibleTags = character.tags
         .filter((ct) => ct.tag.visibleOnInspect)
         .map((ct) => {
-          const requirement = formatTagRequirement(ct.tag);
-          return requirement ? `${ct.tag.name} (${requirement})` : ct.tag.name;
+          const bits = [
+            formatTagRequirement(ct.tag),
+            formatTurnsLeft(turnsLeft(ct.expiresTurn, openTurn?.number)),
+          ].filter(Boolean);
+          return bits.length > 0 ? `${ct.tag.name} (${bits.join(" · ")})` : ct.tag.name;
         });
 
       const embed = new EmbedBuilder()

@@ -549,6 +549,11 @@ tags:
     pointCost: 0
     purchasable: false
     durationTurns: 4
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [medical-basic]
+      gambit: false
 
   - slug: arthritis
     name: Arthritis
@@ -563,9 +568,10 @@ tags:
       skills: [medical-skilled]
 
   # Inflicted, never chosen: a GM grants these (a Demoness true form is the
-  # usual source), and the expiry sweep in resolveNeeds() clears them. Only
-  # Envenomated can be shortened by anyone, and only by a medic — hence the
-  # requirement block, which is GM adjudication reference, not automation.
+  # usual source), and the expiry sweep in resolveNeeds() clears them if left
+  # alone. A medic can cut that short — every requirement block below is the
+  # cure cost, and is GM adjudication reference shown to players, not
+  # automation. See the Medical document in docs/documents.yaml.
   - slug: paralyzed
     name: Paralyzed
     category: status
@@ -577,6 +583,10 @@ tags:
     purchasableAfterStart: false
     removable: false
     durationTurns: 1
+    requirement:
+      turnsCost: 1
+      skills: [medical-basic]
+      gambit: false
 
   - slug: hallucinating
     name: Hallucinating
@@ -588,6 +598,10 @@ tags:
     purchasableAfterStart: false
     removable: false
     durationTurns: 2
+    requirement:
+      turnsCost: 1
+      skills: [medical-basic]
+      gambit: false
 
   - slug: envenomated
     name: Envenomated

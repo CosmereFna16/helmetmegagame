@@ -132,7 +132,13 @@ export default async function TurnsPage({ searchParams }) {
             faction: true,
             zone: true,
             location: true,
-            tags: { include: { tag: { include: { group: true } } } },
+            // requirementSkills must be named — see the same include in
+            // web/app/(app)/character/page.js for why omitting it fails quietly.
+            tags: {
+              include: {
+                tag: { include: { group: true, requirementSkills: { select: { name: true } } } },
+              },
+            },
           },
         },
         turn: true,
