@@ -70,6 +70,11 @@ export default function TagChip({
           </p>
         ) : null}
         {requirement && <p className="text-muted">{requirement}</p>}
+        {/* Whether another player sees this tag on the 🔍 inspect embed
+            (Tag.visibleOnInspect, `visible:` in docs/tags.yaml). Only the
+            affirmative renders — a hidden tag is the default, so a "Hidden"
+            line on most of the catalog would be noise. */}
+        {tag.visibleOnInspect && <p className="text-muted">Visible</p>}
         {consumeHint && <p className="text-accent">{consumeHint}</p>}
         <span style={{ color: costColor(tag.pointCost) }}>{formatCost(tag.pointCost)} pts</span>
       </span>

@@ -45,6 +45,9 @@ export async function GET() {
         // live expiresTurn — this is the only thing that can tell a reader
         // how long the tag would last. See TagChip.js's expiry line.
         defaultDurationTurns: true,
+        // Drives TagChip's "Visible" line — whether a 🔍 inspect shows this
+        // tag to another player.
+        visibleOnInspect: true,
       },
     }),
     session?.discordUserId
