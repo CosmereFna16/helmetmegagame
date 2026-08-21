@@ -63,14 +63,16 @@ documents:
       - Laborer (Fishing)
       - Laborer (Herding)
     description: |-
-      Each is an Effort, and pays out more with the right tags:
+      Everyone can use Routine Moves to produce resources, but only people with the {tag:laborer} set of tags will produce an actually good amount.
 
-      | Activity | Base | +Laborer | +Specialist | Location |
+      You can use the /labor command in the #turns chat, but make sure you're in the right location.
+
+      | Activity | Base | Laborer | Specialist | Location |
       |---|---|---|---|---|
-      | Herding | {resource:herding:base} | {resource:herding:laborer} | {resource:herding:specialist} | Anywhere |
-      | Farming | {resource:farming:base} | {resource:farming:laborer} | {resource:farming:specialist} | Town or Fortress (arable land) |
-      | Fishing | {resource:fishing:base} | {resource:fishing:laborer} | {resource:fishing:specialist} | Town or Fortress (near the river) |
-      | Hunting | 1d4 ⬢ (×3 with Hunter) | — | — | Town, Fortress, or Caves |
+      | Herding | {resource:herding:base} | {resource:herding:laborer} | {resource:herding:specialist} | Requirements |
+      | Farming | {resource:farming:base} | {resource:farming:laborer} | {resource:farming:specialist} | Requirements |
+      | Fishing | {resource:fishing:base} | {resource:fishing:laborer} | {resource:fishing:specialist} | Requirements |
+      | Hunting | 1d4 -1 ⬢ (×3 with Hunter) | — | — | Town, Fortress, or Caves |
 
       Laborer is a general-purpose 2-point tag that makes producing resources more viable than just as a survival method, while the specialist tags (you can buy them for 2 points on top of Laborer) make that specific trade a lot more valuable.
 
@@ -351,6 +353,6 @@ documents:
     public: true
     tags: []
     description: |-
-      Typing /conceal before your message hides your identity. Anyone may do this at any time, and you need nothing equipped for it.
+      Typing /conceal before your message hides your identity.
 
-      You will appear as a stranger—a young man, an old woman—with no name and no face. People can still see any visible wounds you are carrying and any visible gear you have equipped, so a concealed man in plate is still a man in plate.
+      You'll appear as a stranger, but people can still see (using the 🔎 reaction) any visible wounds or gear.
