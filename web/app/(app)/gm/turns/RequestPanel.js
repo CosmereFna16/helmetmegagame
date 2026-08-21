@@ -266,6 +266,45 @@ const SECTIONS = {
     ),
   },
 
+  // The one type whose subject isn't the character who filed it, so the
+  // patient is named explicitly rather than left to the panel's universal
+  // half (which shows the requester).
+  HEAL_CHARACTER: {
+    heading: "Heal",
+    render: ({ effect, edits, setEdit }) => (
+      <>
+        <Line label="Patient">
+          {effect.targetCharacterId ? (
+            <CharacterLink id={effect.targetCharacterId} name={effect.targetName ?? "—"} />
+          ) : (
+            (effect.targetName ?? "—")
+          )}
+          {effect.selfHeal ? <span className="text-muted"> — themselves</span> : null}
+        </Line>
+        <Line label="Cured">{effect.tagName ?? "—"}</Line>
+        {effect.requirement?.skills?.length ? (
+          <Line label="Needed">{effect.requirement.skills.join(", ")}</Line>
+        ) : null}
+        <Line label="Paid by">
+          {effect.payer?.name ?? "—"} — <span className="mono">{effect.resourcesSpent ?? 0} ⬢</span>
+        </Line>
+        <SpendField value={edits.resourcesSpent} onChange={(v) => setEdit("resourcesSpent", v)} />
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={Boolean(edits.restoreHealedTag)}
+            onChange={(e) => setEdit("restoreHealedTag", e.target.checked)}
+          />
+          Put the affliction back but keep the payment
+        </label>
+        <p className="text-xs text-muted">
+          Confirm moves only the difference in cost, charged to whoever actually paid. Undo puts the
+          affliction back with its original source and expiry and refunds them in full.
+        </p>
+      </>
+    ),
+  },
+
   SET_MOOD: {
     heading: "Set Mood",
     render: ({ effect }) => (
@@ -288,6 +327,7 @@ export default function RequestPanel({ request, readOnly = false, onClose }) {
     bloodDelta: String(effect.bloodDelta ?? 0),
     removeTag: false,
     removeDrained: false,
+    restoreHealedTag: false,
   });
   const [gmNotes, setGmNotes] = useState(request?.gmNotes ?? "");
   const [error, setError] = useState(null);

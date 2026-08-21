@@ -94,6 +94,7 @@ enum RequestType {
   FEED_PERSON
   CHANGE_WORST_FEAR
   FULFILL_WORST_FEAR
+  HEAL_CHARACTER
 }
 
 // PASSED is the default and means "not yet touched by a GM" — the request
@@ -510,12 +511,16 @@ model Tag {
   // --- Requirement to add or remove this tag in play -------------------
   // What it costs a character to gain or shed this tag through play (e.g.
   // curing Arthritis needs Medical (Skilled), some turns, and resources;
-  // forging a sword tag costs turns, resources, Smithing, no Gambit). GM
-  // adjudication reference, also shown to players — not automated/enforced
-  // by any code, same posture as requiredTag/tradeable above. One shared
-  // set of fields covers whichever direction is narratively relevant for a
-  // given tag (crafting only cares about adding it; healing only cares
+  // forging a sword tag costs turns, resources, Smithing, no Gambit). One
+  // shared set of fields covers whichever direction is narratively relevant
+  // for a given tag (crafting only cares about adding it; healing only cares
   // about removing it) rather than separate add/remove blocks.
+  //
+  // Mostly a GM adjudication reference, shown to players, with ONE exception:
+  // the Heal request (RequestType.HEAL_CHARACTER) enforces the removal
+  // direction on Status tags — requirementResources is the ⬢ it charges and
+  // requirementSkills is what the medic must hold. Turns and Gambit stay
+  // reference-only everywhere, as do all four when adding a tag.
   requirementTurns     Int?
   requirementResources Int?
   requirementGambit    Boolean @default(false)

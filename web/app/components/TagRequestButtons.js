@@ -11,8 +11,10 @@ import {
 } from "@/lib/characterCreation";
 import { addableTags, removableTags, transferableTags, consumableTags } from "@/lib/tagRequests";
 import RequestDialog from "./RequestDialog";
+import PartySelect from "./PartySelect";
 import InfoIcon from "./InfoIcon";
 import ChipText from "./ChipText";
+import { useConfirm } from "./ConfirmProvider";
 import { useTags } from "./TagsProvider";
 import { resolveConsumeGrants, heldSlugsOf } from "@/lib/consumeGrants";
 import {
@@ -20,6 +22,7 @@ import {
   removeTagRequest,
   transferTagRequest,
   consumeTagRequest,
+  healCharacterRequest,
 } from "../(app)/character/requestActions";
 
 // The three tag-request menus. Add Tag reuses the category-tab + selectable
@@ -151,6 +154,22 @@ function ResourceCostField({ value, onChange, max }) {
   );
 }
 
+// "Paid for by" shows a name, but the dropdown speaks in keys — this maps
+// back for the confirm prompt.
+function payerLabel(parties, key) {
+  const [kind, id] = (key ?? "").split(":");
+  const pool = kind === "faction" ? parties?.factions : parties?.characters;
+  const match = pool?.find((p) => p.id === id);
+  if (!match) return "They";
+  return kind === "faction" ? `${match.name}'s Silo` : match.name;
+}
+
+const HEAL_HELP =
+  "Treating an affliction. You can only work on people standing where you " +
+  "are — yourself included — and only on things your Medical training " +
+  "covers. Someone has to pay for the medicine: any of you, or a faction's " +
+  "Silo.";
+
 const CONSUME_HELP =
   "Using something up. A meal becomes Ate Meal; a crate unpacks into what's " +
   "inside. It always takes one from a stack, so three meals feed you three " +
@@ -161,15 +180,22 @@ export default function TagRequestButtons({
   characterTags,
   resources,
   otherCharacters,
+  selfId,
+  canHeal = false,
+  healTargets = [],
+  healParties = null,
   onReady,
 }) {
-  const [mode, setMode] = useState(null); // "add" | "remove" | "transfer" | "consume"
+  const [mode, setMode] = useState(null); // "add" | "remove" | "transfer" | "consume" | "heal"
   const [tagId, setTagId] = useState(null);
   const [spend, setSpend] = useState("0");
   const [quantity, setQuantity] = useState("1");
   const [recipient, setRecipient] = useState("");
+  const [patientId, setPatientId] = useState("");
+  const [payerKey, setPayerKey] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
+  const confirm = useConfirm();
 
   const heldIds = useMemo(() => characterTags.map((ct) => ct.tagId), [characterTags]);
   const addable = useMemo(() => addableTags(catalog, heldIds), [catalog, heldIds]);
@@ -187,6 +213,18 @@ export default function TagRequestButtons({
 
   // The tag currently picked, in whichever menu is open. Add draws from the
   // catalog (no held count); the rest from what the character holds.
+  // Heal's menus are per-patient rather than per-tag, so they sit outside the
+  // `chosen` pool below — an affliction row is a summary the server built,
+  // not a Tag from the catalog.
+  const patient = useMemo(
+    () => healTargets.find((t) => t.id === patientId) ?? null,
+    [healTargets, patientId],
+  );
+  const affliction = useMemo(
+    () => patient?.healable.find((h) => h.tagId === tagId) ?? null,
+    [patient, tagId],
+  );
+
   const chosen = useMemo(() => {
     const pool =
       mode === "add"
@@ -195,7 +233,9 @@ export default function TagRequestButtons({
           ? removable
           : mode === "consume"
             ? consumable
-            : transferable;
+            : mode === "heal"
+              ? [] // heal's tagId is an affliction on someone else's sheet
+              : transferable;
     return pool.find((t) => t.id === tagId) ?? null;
   }, [mode, tagId, addable, removable, transferable, consumable]);
   // Consume never asks how many — it always takes one — so it opts out of the
@@ -228,8 +268,10 @@ export default function TagRequestButtons({
     setSpend("0");
     setQuantity("1");
     setRecipient("");
+    setPatientId("");
+    setPayerKey(selfId ? `character:${selfId}` : "");
     setError(null);
-  }, []);
+  }, [selfId]);
 
   // Hand the opener up so the chip list can drive it. `open` is stable, so
   // this fires once rather than on every render.
@@ -237,7 +279,19 @@ export default function TagRequestButtons({
     onReady?.(open);
   }, [onReady, open]);
 
-  function submit(reason) {
+  // Spending someone else's ⬢ is the sharp edge here, so that — and only
+  // that — asks twice. The confirm is awaited OUTSIDE startTransition: inside
+  // it the dialog never renders and the button hangs on "Working...".
+  async function submit(reason) {
+    if (mode === "heal" && payerKey !== `character:${selfId}`) {
+      const payerName = payerLabel(healParties, payerKey);
+      const ok = await confirm({
+        title: "Bill someone else?",
+        message: `${payerName} will be charged ${affliction?.cost ?? 0} \u2b22 for this treatment.`,
+        confirmLabel: "Charge them",
+      });
+      if (!ok) return;
+    }
     setError(null);
     startTransition(async () => {
       // Always sent; the server pins it to 1 for a non-stackable tag anyway.
@@ -248,13 +302,25 @@ export default function TagRequestButtons({
             ? await removeTagRequest({ tagId, quantity, resourcesSpent: spend, reason })
             : mode === "consume"
               ? await consumeTagRequest({ tagId, reason })
-              : await transferTagRequest({ tagId, quantity, toCharacterId: recipient, reason });
+              : mode === "heal"
+                ? await healCharacterRequest({
+                    targetCharacterId: patientId,
+                    tagId,
+                    payerKey,
+                    reason,
+                  })
+                : await transferTagRequest({ tagId, quantity, toCharacterId: recipient, reason });
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
       setMode(null);
     });
   }
 
-  const canSubmit = mode === "transfer" ? Boolean(tagId && recipient) : Boolean(tagId);
+  const canSubmit =
+    mode === "transfer"
+      ? Boolean(tagId && recipient)
+      : mode === "heal"
+        ? Boolean(patientId && payerKey && affliction && !affliction.missingSkills.length)
+        : Boolean(tagId);
   const title =
     mode === "add"
       ? "Add Tag"
@@ -262,7 +328,9 @@ export default function TagRequestButtons({
         ? "Remove Tag"
         : mode === "consume"
           ? "Consume Tag"
-          : "Transfer Tag";
+          : mode === "heal"
+            ? "Heal"
+            : "Transfer Tag";
 
   return (
     <>
@@ -292,6 +360,19 @@ export default function TagRequestButtons({
           </button>
           <InfoIcon text={CONSUME_HELP} />
         </span>
+        {canHeal && (
+          <span className="flex items-center gap-1">
+            <button
+              type="button"
+              className="btn-quiet"
+              onClick={() => open("heal")}
+              disabled={!healTargets.length}
+            >
+              Heal
+            </button>
+            <InfoIcon text={HEAL_HELP} />
+          </span>
+        )}
       </div>
 
       <RequestDialog
@@ -371,6 +452,65 @@ export default function TagRequestButtons({
                   : "Gets used up — it doesn't leave anything behind."}
                 {chosen.quantity > 1 ? ` Takes one of your ${chosen.quantity}.` : ""}
               </p>
+            )}
+          </>
+        )}
+
+        {mode === "heal" && (
+          <>
+            <label className="field">
+              <span className="field-label">Who are you treating?</span>
+              <select
+                value={patientId}
+                onChange={(e) => {
+                  setPatientId(e.target.value);
+                  setTagId(null);
+                }}
+                required
+              >
+                <option value="" disabled>
+                  Choose someone here…
+                </option>
+                {healTargets.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.id === selfId ? `${t.name} (you)` : t.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {patient && (
+              <label className="field">
+                <span className="field-label">What are you treating?</span>
+                <select value={tagId ?? ""} onChange={(e) => setTagId(e.target.value || null)} required>
+                  <option value="" disabled>
+                    Choose an affliction…
+                  </option>
+                  {patient.healable.map((h) => (
+                    <option key={h.tagId} value={h.tagId} disabled={h.missingSkills.length > 0}>
+                      {h.tagName}
+                      {h.missingSkills.length ? ` \u2014 needs ${h.missingSkills.join("/")}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {affliction && (
+              <>
+                <PartySelect
+                  label="Paid for by"
+                  value={payerKey}
+                  onChange={setPayerKey}
+                  hint="Choose who pays…"
+                  characters={healParties?.characters ?? []}
+                  factions={healParties?.factions ?? []}
+                />
+                <p className="text-xs text-muted">
+                  Costs <span className="mono">{affliction.cost} ⬢</span>.
+                  {affliction.requirementLabel
+                    ? ` The full course of treatment is ${affliction.requirementLabel} \u2014 the turns and any Gambit are between you and a GM.`
+                    : ""}
+                </p>
+              </>
             )}
           </>
         )}

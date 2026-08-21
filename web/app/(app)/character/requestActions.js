@@ -11,7 +11,15 @@ import { UserError, guarded } from "@/lib/actionResult";
 import { WORST_FEAR_PENALTY, WORST_FEAR_MAX_LENGTH } from "@/lib/constants";
 import { TRANSFERABLE_CATEGORIES } from "@/lib/tagRequests";
 import { tagsById as buildTagsById, requirementSatisfied } from "@/lib/characterCreation";
-import { addToStack, dropCharacterTag, grantTagSlugs } from "@/lib/requestEffects";
+import { addToStack, debitResources, dropCharacterTag, grantTagSlugs } from "@/lib/requestEffects";
+import {
+  HEAL_SKILL_SLUG,
+  buildSkillAncestry,
+  healCost,
+  isHealable,
+  missingSkillsFor,
+  satisfiedSkillIds,
+} from "@/lib/healRequests";
 import { resolveConsumeGrants, heldSlugsOf } from "@/lib/consumeGrants";
 import { syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
 
@@ -487,6 +495,140 @@ async function transferTagRequestImpl({
   return {};
 }
 
+// --- Healing ----------------------------------------------------------
+
+// Treating someone else's affliction. The only request whose subject is a
+// different character from the one filing it, so almost every id below is the
+// TARGET's rather than the actor's — see the HEAL_CHARACTER note in
+// web/lib/requestEffects.js.
+//
+// Three gates, all re-checked here because the dialog is advisory: the medic
+// must hold a Medical skill, the patient must be standing in the medic's
+// Location, and the affliction's own requirementSkills must be satisfied. The
+// PAYER is deliberately ungated beyond being present — any co-located player
+// or any faction Silo, same bet as TRANSFER_RESOURCES.
+async function healCharacterRequestImpl({
+  targetCharacterId,
+  tagId,
+  payerKey,
+  reason: rawReason,
+}) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+
+  if (!character.locationId) {
+    throw new UserError("You aren't anywhere you could treat someone.");
+  }
+
+  // The flat catalog, for the tier chain: holding Medical (Excellent) has to
+  // satisfy a requirement written against Medical (Basic).
+  const catalog = await prisma.tag.findMany({ select: { id: true, slug: true, parentTagId: true } });
+  const ancestry = buildSkillAncestry(catalog);
+  const satisfied = satisfiedSkillIds(
+    character.tags.map((ct) => ct.tagId),
+    ancestry,
+  );
+  const healSkillId = catalog.find((t) => t.slug === HEAL_SKILL_SLUG)?.id;
+  if (!healSkillId || !satisfied.has(healSkillId)) {
+    throw new UserError("You need Medical (Basic) to treat anyone.");
+  }
+
+  // No `id: { not: character.id }` — treating yourself is the ordinary case.
+  const target = await prisma.character.findFirst({
+    where: { id: targetCharacterId ?? "", status: "ALIVE", locationId: character.locationId },
+    include: { tags: { include: { tag: { include: { requirementSkills: true } } } } },
+  });
+  if (!target) throw new UserError("They aren't here.");
+
+  const held = target.tags.find((ct) => ct.tagId === tagId);
+  if (!held || !isHealable(held.tag)) throw new UserError("That isn't something you can treat.");
+
+  const missing = missingSkillsFor(held.tag, satisfied);
+  if (missing.length) {
+    throw new UserError(`Treating that needs ${missing.map((t) => t.name).join("/")}.`);
+  }
+
+  const payer = await resolveParty(payerKey);
+  if (!payer) throw new UserError("Unknown payer.");
+  // A Silo can pay from anywhere; a person has to be in the room.
+  if (payer.kind === "character") {
+    const present = await prisma.character.count({
+      where: { id: payer.id, status: "ALIVE", locationId: character.locationId },
+    });
+    if (!present) throw new UserError("They aren't here to pay for it.");
+  }
+
+  // Straight off the tag, never off the client — null prices a cure at
+  // nothing, which still records who stood good for it.
+  const cost = healCost(held.tag);
+  if (cost > payer.balance) throw new UserError(`${payer.name} only has ${payer.balance} ⬢.`);
+
+  const openTurn = await getOpenTurn();
+  const ledger = {
+    actorDiscordUserId: session.discordUserId,
+    actorCharacterId: character.id,
+    actorName: character.name,
+    turnNumber: openTurn?.number ?? null,
+    turnPhase: openTurn?.phase ?? null,
+    note: reason,
+  };
+
+  const effect = {
+    targetCharacterId: target.id,
+    targetName: target.name,
+    // The panel's render() gets `effect` but not `request`, so "did they
+    // treat themselves?" has to be answered here.
+    selfHeal: target.id === character.id,
+    tagId: held.tagId,
+    tagName: held.tag.name,
+    // What Undo puts back — exactly what was taken, never re-derived.
+    restore: {
+      tagId: held.tagId,
+      source: held.source,
+      expiresTurn: held.expiresTurn,
+      quantity: held.quantity ?? 1,
+    },
+    // Named to match RequestPanel's existing SpendField/edits key, so the
+    // GM panel needs no new state seeded for it.
+    resourcesSpent: cost,
+    payer: { kind: payer.kind, id: payer.id, name: payer.name },
+    // What the catalog charged at the time, so a GM reviewing later sees the
+    // price the player was actually quoted rather than today's tags.yaml.
+    requirement: {
+      turns: held.tag.requirementTurns,
+      resources: held.tag.requirementResources,
+      gambit: held.tag.requirementGambit,
+      skills: held.tag.requirementSkills.map((t) => t.name),
+    },
+  };
+
+  await prisma.$transaction(async (tx) => {
+    // A spend, not a transfer: the cost leaves the payer and goes nowhere.
+    await debitResources(tx, payer, cost, ledger);
+    await dropCharacterTag(tx, target.id, held.tagId);
+    await createRequest(tx, {
+      characterId: character.id, // the medic
+      turnId: openTurn?.id ?? null,
+      type: "HEAL_CHARACTER",
+      reason,
+      payload: { targetCharacterId: target.id, tagId, payerKey },
+      effect,
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_heal_character",
+      targetCharacterId: target.id, // the patient
+      reason,
+      details: effect,
+    });
+  });
+
+  // A tag moved, and #radio/#intercom access is tag-gated.
+  await syncCharacterNarrowcastAccess(target.id).catch(() => {});
+  revalidateAll();
+  return { targetName: target.name, tagName: held.tag.name, cost };
+}
+
 // --- Desires ----------------------------------------------------------
 
 // Setting and cancelling are NOT requests — nothing has been granted yet, so
@@ -767,6 +909,10 @@ export async function transferTagRequest(input) {
 
 export async function consumeTagRequest(input) {
   return guarded(() => consumeTagRequestImpl(input));
+}
+
+export async function healCharacterRequest(input) {
+  return guarded(() => healCharacterRequestImpl(input));
 }
 
 export async function setDesire(input) {

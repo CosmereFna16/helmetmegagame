@@ -4,6 +4,15 @@ import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { getGuildMember, isApprovedPlayer, isCursed } from "@/lib/discordGuild";
 import { isRoleSelectable } from "@/lib/characterCreation";
+import { formatTagRequirement } from "@/lib/formatTagRequirement";
+import {
+  HEAL_SKILL_SLUG,
+  buildSkillAncestry,
+  healCost,
+  isHealable,
+  missingSkillsFor,
+  satisfiedSkillIds,
+} from "@/lib/healRequests";
 import CharacterSheet from "../../components/CharacterSheet";
 import CreateCharacterWizard from "./CreateCharacterWizard";
 import CreationClosed from "./CreationClosed";
@@ -142,49 +151,54 @@ export default async function CharacterPage() {
     return <CreateCharacterWizard {...creation} />;
   }
 
-  const [openTurn, otherCharacters, factions, tagCatalog, desire, lastEndedDesire] = await Promise.all([
-    getOpenTurn(),
-    prisma.character.findMany({
-      where: { status: "ALIVE", id: { not: character.id } },
-      orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
-      select: { id: true, name: true },
-    }),
-    prisma.faction.findMany({
-      where: { name: { not: "Unaffiliated" } },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-    // The Add Tag menu needs purchasable/craftable, which /api/tags doesn't
-    // select (and which that unauthenticated route shouldn't grow just to
-    // serve a picker) — so the catalog comes down as props, same as the
-    // creation wizard does it.
-    prisma.tag.findMany({
-      where: { OR: [{ purchasable: true }, { craftable: true }] },
-      orderBy: { name: "asc" },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        category: true,
-        pointCost: true,
-        purchasable: true,
-        craftable: true,
-        stackable: true,
-        // Both gates the Add Tag menu enforces — the per-tag prerequisite and
-        // the whole-group one behind a hidden category. parentTagId comes
-        // along because requirementSatisfied walks the tier chain.
-        parentTagId: true,
-        requiredTagId: true,
-        group: { select: { name: true, color: true, requiredTagId: true } },
-      },
-    }),
-    prisma.desire.findFirst({ where: { characterId: character.id, status: "ACTIVE" } }),
-    prisma.desire.findFirst({
-      where: { characterId: character.id, status: { in: ["FULFILLED", "CANCELLED"] } },
-      orderBy: { updatedAt: "desc" },
-      select: { endedTurnNumber: true },
-    }),
-  ]);
+  const [openTurn, otherCharacters, factions, tagCatalog, tierRows, desire, lastEndedDesire] =
+    await Promise.all([
+      getOpenTurn(),
+      prisma.character.findMany({
+        where: { status: "ALIVE", id: { not: character.id } },
+        orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
+        select: { id: true, name: true },
+      }),
+      prisma.faction.findMany({
+        where: { name: { not: "Unaffiliated" } },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      }),
+      // The Add Tag menu needs purchasable/craftable, which /api/tags doesn't
+      // select (and which that unauthenticated route shouldn't grow just to
+      // serve a picker) — so the catalog comes down as props, same as the
+      // creation wizard does it.
+      prisma.tag.findMany({
+        where: { OR: [{ purchasable: true }, { craftable: true }] },
+        orderBy: { name: "asc" },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          category: true,
+          pointCost: true,
+          purchasable: true,
+          craftable: true,
+          stackable: true,
+          // Both gates the Add Tag menu enforces — the per-tag prerequisite and
+          // the whole-group one behind a hidden category. parentTagId comes
+          // along because requirementSatisfied walks the tier chain.
+          parentTagId: true,
+          requiredTagId: true,
+          group: { select: { name: true, color: true, requiredTagId: true } },
+        },
+      }),
+      // id -> parentTagId for the whole catalog, so a held Medical (Excellent)
+      // resolves back down its chain to the Medical (Basic) gate. Four columns
+      // over a few hundred rows — cheaper than nesting three parentTag includes.
+      prisma.tag.findMany({ select: { id: true, slug: true, parentTagId: true } }),
+      prisma.desire.findFirst({ where: { characterId: character.id, status: "ACTIVE" } }),
+      prisma.desire.findFirst({
+        where: { characterId: character.id, status: { in: ["FULFILLED", "CANCELLED"] } },
+        orderBy: { updatedAt: "desc" },
+        select: { endedTurnNumber: true },
+      }),
+    ]);
 
   // Both ends of a transfer list every Silo and every living player,
   // INCLUDING yourself — pulling ⬢ out of a Silo into your own pocket is the
@@ -195,6 +209,76 @@ export default async function CharacterPage() {
     characters: [...otherCharacters, selfEntry].sort((a, b) => a.name.localeCompare(b.name)),
     factions,
   };
+  // Healing. The medical gate is resolved here, server-side, so no tier-chain
+  // math (and no other character's full sheet) reaches the client bundle —
+  // TagRequestButtons gets a finished, presentational shape.
+  const ancestry = buildSkillAncestry(tierRows);
+  const satisfied = satisfiedSkillIds(
+    character.tags.map((ct) => ct.tagId),
+    ancestry,
+  );
+  const healSkillId = tierRows.find((t) => t.slug === HEAL_SKILL_SLUG)?.id;
+  const canHeal = Boolean(healSkillId && satisfied.has(healSkillId));
+
+  // Skipped entirely for the great majority who aren't medics, and for anyone
+  // a GM hasn't placed yet. locationId is the authoritative "where are you"
+  // field; zoneId is only a mirror.
+  const coLocated =
+    canHeal && character.locationId
+      ? await prisma.character.findMany({
+          where: { status: "ALIVE", locationId: character.locationId },
+          orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
+          select: {
+            id: true,
+            name: true,
+            // Deliberately no `resources` — a member's balance stays behind
+            // Silo authority (see CLAUDE.md), and the payer menu never shows
+            // balances anyway. Affordability is re-checked server-side.
+            tags: {
+              select: {
+                tag: {
+                  select: {
+                    id: true,
+                    name: true,
+                    category: true,
+                    requirementTurns: true,
+                    requirementResources: true,
+                    requirementGambit: true,
+                    requirementSkills: { select: { id: true, name: true } },
+                  },
+                },
+              },
+            },
+          },
+        })
+      : [];
+
+  // Filtered down to treatable tags HERE rather than in the client, so nobody
+  // else's full sheet crosses the wire. A target with nothing to treat drops
+  // out of the menu entirely.
+  const healTargets = coLocated
+    .map((t) => ({
+      id: t.id,
+      name: t.name,
+      healable: t.tags
+        .map((ct) => ct.tag)
+        .filter(isHealable)
+        .map((tag) => ({
+          tagId: tag.id,
+          tagName: tag.name,
+          cost: healCost(tag),
+          requirementLabel: formatTagRequirement(tag),
+          // Empty means this medic may treat it; otherwise the names the
+          // disabled row shows. Re-derived server-side on submit.
+          missingSkills: missingSkillsFor(tag, satisfied).map((s) => s.name),
+        })),
+    }))
+    .filter((t) => t.healable.length > 0);
+
+  // Everyone standing here, plus EVERY faction Silo regardless of authority —
+  // the same reach TRANSFER_RESOURCES has, per REQUESTS.md.
+  const healParties = { characters: coLocated.map(({ id, name }) => ({ id, name })), factions };
+
   const avatarSrc = `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`;
 
   return (
@@ -208,6 +292,9 @@ export default async function CharacterPage() {
       otherCharacters={otherCharacters}
       desire={desire}
       desireCooldownUntilTurn={lastEndedDesire?.endedTurnNumber ?? null}
+      canHeal={canHeal}
+      healTargets={healTargets}
+      healParties={healParties}
     />
   );
 }

@@ -51,6 +51,10 @@ export default function TagsPanel({
   resources,
   otherCharacters,
   currentTurn = null,
+  selfId = null,
+  canHeal = false,
+  healTargets = [],
+  healParties = null,
 }) {
   // TagRequestButtons owns the dialog, and hands its opener up through
   // onReady so a chip click can drive it.
@@ -82,6 +86,10 @@ export default function TagsPanel({
             characterTags={characterTags}
             resources={resources}
             otherCharacters={otherCharacters ?? []}
+            selfId={selfId}
+            canHeal={canHeal}
+            healTargets={healTargets}
+            healParties={healParties}
             onReady={onReady}
           />
         )}
