@@ -3,13 +3,19 @@
 import { Fragment, useMemo, useState } from "react";
 import { useTableState, SortHeader, FilterBar } from "./tableUtils";
 import MessageCell, { MessageComposerRow } from "./MessageRow";
+import IconButton from "@/app/components/IconButton";
+import CharacterLink from "@/app/components/CharacterLink";
+import ResourceDeltaCell from "./ResourceDeltaCell";
+import { ScaleIcon, EyeIcon } from "@/app/components/icons";
 
-const COL_COUNT = 9;
+const COL_COUNT = 11;
 
 // Open is deliberately plain body text, not a colour — it's the default
 // state of every Move and colouring it would make the whole table shout.
 const STATUS_COLORS = {
   Open: "var(--text)",
+  // Where Routines land: already resolved, so it reads as quiet as Open.
+  Passed: "var(--text)",
   "Waiting for Opponents": "var(--warning)",
   "In Progress": "var(--warning)",
   Solved: "var(--positive)",
@@ -25,7 +31,7 @@ const FILTER_DEFS = [
 
 const SEARCH_FIELDS = [(r) => r.characterName, (r) => r.discordUsername, (r) => r.description, (r) => r.gmNotes];
 
-export default function MovesTable({ moves, onAdjudicate }) {
+export default function MovesTable({ moves, onAdjudicate, onView }) {
   const [messagingId, setMessagingId] = useState(null);
   const filterDefs = useMemo(() => FILTER_DEFS, []);
   const searchFields = useMemo(() => SEARCH_FIELDS, []);
@@ -58,6 +64,9 @@ export default function MovesTable({ moves, onAdjudicate }) {
               <th scope="col" style={{ width: "1%" }}>
                 <span className="sr-only">Message</span>
               </th>
+              <th scope="col" style={{ width: "1%" }}>
+                <span className="sr-only">View</span>
+              </th>
               <SortHeader label="Turn" sortKey="turnNumber" sort={sort} onSort={toggleSort} />
               <SortHeader label="Character" sortKey="characterName" sort={sort} onSort={toggleSort} />
               <SortHeader label="Discord" sortKey="discordUsername" sort={sort} onSort={toggleSort} />
@@ -66,6 +75,7 @@ export default function MovesTable({ moves, onAdjudicate }) {
                 Move
               </th>
               <SortHeader label="Status" sortKey="statusLabel" sort={sort} onSort={toggleSort} />
+              <SortHeader label="Resources" sortKey="resourceDelta" sort={sort} onSort={toggleSort} />
               <th scope="col" style={{ minWidth: "12rem" }}>
                 GM Notes
               </th>
@@ -76,23 +86,20 @@ export default function MovesTable({ moves, onAdjudicate }) {
               <Fragment key={row.id}>
                 <tr>
                   <td>
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      title="Adjudicate this Move"
-                      aria-label="Adjudicate this Move"
-                      onClick={() => onAdjudicate?.(row)}
-                    >
-                      ⚖
-                    </button>
+                    <IconButton icon={ScaleIcon} label="Adjudicate this Move" onClick={() => onAdjudicate?.(row)} />
                   </td>
                   <MessageCell
                     characterId={row.characterId}
                     open={messagingId === row.characterId}
                     onToggle={setMessagingId}
                   />
+                  <td>
+                    <IconButton icon={EyeIcon} label="View this Move" onClick={() => onView?.(row)} />
+                  </td>
                   <td className="whitespace-nowrap">{row.turnLabel}</td>
-                  <td className="whitespace-nowrap">{row.characterName}</td>
+                  <td className="whitespace-nowrap">
+                    <CharacterLink characterId={row.characterId} name={row.characterName} isGm />
+                  </td>
                   <td className="whitespace-nowrap" style={{ color: "var(--muted)" }}>
                     {row.discordUsername}
                   </td>
@@ -111,6 +118,7 @@ export default function MovesTable({ moves, onAdjudicate }) {
                   >
                     {row.statusLabel}
                   </td>
+                  <ResourceDeltaCell value={row.resourceDelta} />
                   <td style={{ color: "var(--muted)" }}>{row.gmNotes || "—"}</td>
                 </tr>
                 {messagingId === row.characterId && (

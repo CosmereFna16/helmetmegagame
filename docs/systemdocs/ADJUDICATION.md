@@ -44,6 +44,7 @@ Opposed and the dice result on a second muted line. Status colours:
 | Status | Colour |
 |---|---|
 | Open | `var(--text)` — the default state of every Move, deliberately not shouted |
+| Passed | `var(--text)` — a self-resolved Routine, just as quiet |
 | Waiting for Opponents / In Progress | `var(--warning)` |
 | Solved | `var(--positive)` |
 
@@ -52,9 +53,14 @@ Opposed and the dice result on a second muted line. Status colours:
 `var(--accent)`, because either one means the request did not stand as the
 player made it.
 
-Each row carries two icon buttons (`.icon-btn`, framed by default and filled
-on hover): the balance scale ⚖ / edit ✎ that opens the panel, and ✉ which
-expands one extra `<tr>` holding a message composer. The composer reuses
+Each row carries three icon buttons (`IconButton` over `.icon-btn`, framed by
+default and filled on hover, wrapping the SVGs in `components/icons.js`): the
+balance scale / edit pencil that opens the panel, the envelope that expands one
+extra `<tr>` holding a message composer, and the **eye**, which opens the same
+panel `readOnly` — inert controls, no footer actions, and no lock claimed.
+Every character name is a `CharacterLink` into the GM's character editor, and a
+**Resources** column shows the ⬢ the row moved (green gain, accent loss, em-dash
+when it moved none). The composer reuses
 `sendGmMessage` from `web/app/(app)/gm/actions.js` rather than opening a modal
 over a table the GM is mid-scan.
 
@@ -103,28 +109,63 @@ layers:
 The panel is marked dirty by any edit to a field or the GM notes, and marked
 clean on a successful save.
 
-## 5. Not built yet
+## 5. The Move panel
 
-**The Move Adjudication Panel is Phase 2.** The scale button on the Moves tab
-is rendered but wired to nothing, deliberately — hiding it would shift the
-column layout a GM learns now.
+`MovePanel.js`. Same shell as the Request panel — `useDirtyGuard`,
+`useConfirm()`, `{ ok, error }` results — with three sections: **Character**
+(name, Zone / Location, faction, resources, tags), **Situation** (turn,
+description, Kind and Opposed switches, the dice line), and **Result**
+(a signed resources box capped at ±20, and the GM-only Result text).
 
-When it lands it needs:
+Kind is a live switch, restoring the invariant the deleted `updateMove` had:
+**Gambit → Routine** nulls `diceRoll` and `diceModifier`, **Routine → Gambit**
+rolls a fresh d6 and recomputes the modifier from the character's *current*
+tags via `gambitModifier.js`. A Mood that lapsed between submission and
+adjudication shouldn't haunt a roll made today.
 
-- The same `useDirtyGuard` shell as `RequestPanel.js`.
-- A universal top half (character, turn, zone, description, raw roll +
-  modifier + total), then a bottom half switching on Routine / Gambit /
-  Location Change.
-- An answer to an open question: **location changes are not currently their
-  own Move type.** `bot/src/lib/location.js#performMove` writes an ordinary
-  `Action` tagged `gmNotes: "auto:zone_change"` with `moveReviewStatus:
-  "SOLVED"`, so cross-zone travel never reaches the queue at all. Follow
-  whatever is current at implementation time rather than inventing a type.
-- Two invariants from the deleted `updateMove`, both worth restoring:
-  switching Kind rerolls or nulls the d6 (a Gambit always has a fresh roll, a
-  Routine never has one), and `resourceDelta` applies to `Character.resources`
-  **only on the transition into `SOLVED`**, so re-saving a solved Move cannot
-  double-apply it.
+Footer: **Cancel** · **Reject** · **Save** (back to Open) · **Solve**. Reject
+deletes the row — the turn-economy checks in `actionSubmission.js` and
+`location.js#performMove` look for *any* Action on the open turn, so only a
+deletion actually frees the player. The description and reason are copied into
+an `AuditLog` row first, any resources a Routine already pushed are clawed
+back, and the player is DM'd, since a freed turn they don't know about is a
+wasted day.
+
+### Passed, and when resources land
+
+`MoveReviewStatus` gained `PASSED`, rendered as plainly as `Open`. It is where
+every **Routine** lands the moment the player confirms: a Routine's resources
+are pushed there and then (`handleMoveConfirm`, and `performLabor` for the
+`/labor` path), so it only needs a GM if one disagrees. A **Gambit** pushes
+nothing until a GM Solves it — the point of rolling is that the outcome isn't
+the player's to declare.
+
+`db/lib/moveEffects.js` owns both directions. `applyMoveEffects` pushes and
+returns a snapshot; `revertMoveEffects` reads **only** that snapshot, never
+recomputing from the row a GM may have just edited. The snapshot lives on
+`Action.appliedEffects` as JSON rather than an Int column, so a second pushable
+thing (a tag, a location, a Status) costs one entry in `MOVE_EFFECTS` and
+nothing else — and an old row written before that key existed still reverts,
+because revert skips keys it doesn't recognise. This is `Request`'s
+`payload`-vs-`effect` rule (`REQUESTS.md` §2) applied to Moves.
+
+Re-opening a Solved Move goes through `useConfirm()`, whose message names what
+is about to be handed back before the GM commits to it.
+
+### The lock
+
+Two GMs must not adjudicate the same Move, but a lock stored *as* a status
+strands the row the moment a browser dies. So it is its own pair of columns —
+`lockedByDiscordUserId` / `lockExpiresAt` — with a 90s TTL the open panel
+refreshes every 30s, and **"In Progress" is derived** from a live lock rather
+than written. Nothing can get stuck; the worst case is a GM waiting out the
+TTL.
+
+Released explicitly on Cancel / Save / Solve / Reject, on unmount, and
+best-effort via `navigator.sendBeacon` to `/api/move-lock/release` when the tab
+closes. The heartbeat only extends a lock this GM still holds, so a lock taken
+over after expiry is not silently stolen back. The eye (read-only) **never**
+claims a lock — looking must not block the GM who intends to resolve.
 
 ## 6. Where the code lives
 
@@ -136,6 +177,10 @@ When it lands it needs:
 | The two tables | `MovesTable.js`, `RequestsTable.js` |
 | Per-row message composer | `MessageRow.js` |
 | Request panel | `RequestPanel.js` |
+| Move panel | `MovePanel.js` |
+| Move push/revert, the d6 | `db/lib/moveEffects.js` |
+| Lock release beacon | `web/app/api/move-lock/release/route.js` |
+| Framed icon button, Dev jump | `web/app/components/IconButton.js`, `DevCharacterButton.js` |
 | GM verdict server action | `web/app/(app)/gm/turns/actions.js` |
 | Unsaved-edit guard | `web/app/components/useDirtyGuard.js` |
 | Table / icon-button styling, `--warning` token | `web/app/globals.css` |

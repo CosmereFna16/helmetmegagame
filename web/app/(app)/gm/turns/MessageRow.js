@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import IconButton from "@/app/components/IconButton";
+import { MessageIcon } from "@/app/components/icons";
 import { sendGmMessage } from "../actions";
 
 // The per-row "message this player" affordance, shared by both tables: an
@@ -9,16 +11,12 @@ import { sendGmMessage } from "../actions";
 export default function MessageCell({ characterId, open, onToggle }) {
   return (
     <td>
-      <button
-        type="button"
-        className="icon-btn"
-        title="Message this player"
-        aria-label="Message this player"
+      <IconButton
+        icon={MessageIcon}
+        label="Message this player"
         aria-expanded={open}
         onClick={() => onToggle(open ? null : characterId)}
-      >
-        ✉
-      </button>
+      />
     </td>
   );
 }

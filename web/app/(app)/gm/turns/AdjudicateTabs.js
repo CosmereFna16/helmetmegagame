@@ -4,10 +4,17 @@ import { useState } from "react";
 import MovesTable from "./MovesTable";
 import RequestsTable from "./RequestsTable";
 import RequestPanel from "./RequestPanel";
+import MovePanel from "./MovePanel";
 
 export default function AdjudicateTabs({ moves, requests, initialTab }) {
   const [tab, setTab] = useState(initialTab === "requests" ? "requests" : "moves");
-  const [reviewing, setReviewing] = useState(null);
+  // { row, readOnly } — the eye opens the same panel as the scale/edit icon
+  // with every control inert, so there's one panel per type rather than a
+  // second read-only rendering to keep in step.
+  const [open, setOpen] = useState(null);
+
+  const show = (row, readOnly) => setOpen({ row, readOnly });
+  const close = () => setOpen(null);
 
   return (
     <div className="flex flex-col gap-4">
@@ -31,15 +38,25 @@ export default function AdjudicateTabs({ moves, requests, initialTab }) {
       </div>
 
       {tab === "moves" ? (
-        // The Move Adjudication Panel is Phase 2 — the scale button is wired
-        // to nothing yet rather than being hidden, so the column layout the
-        // GM learns now doesn't shift when it lands.
-        <MovesTable moves={moves} onAdjudicate={null} />
+        <MovesTable
+          moves={moves}
+          onAdjudicate={(row) => show(row, false)}
+          onView={(row) => show(row, true)}
+        />
       ) : (
-        <RequestsTable requests={requests} onReview={setReviewing} />
+        <RequestsTable
+          requests={requests}
+          onReview={(row) => show(row, false)}
+          onView={(row) => show(row, true)}
+        />
       )}
 
-      {reviewing && <RequestPanel request={reviewing} onClose={() => setReviewing(null)} />}
+      {open && tab === "moves" && (
+        <MovePanel move={open.row} readOnly={open.readOnly} onClose={close} />
+      )}
+      {open && tab === "requests" && (
+        <RequestPanel request={open.row} readOnly={open.readOnly} onClose={close} />
+      )}
     </div>
   );
 }

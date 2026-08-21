@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { useConfirm } from "@/app/components/ConfirmProvider";
+import CharacterLink from "@/app/components/CharacterLink";
+import DevCharacterButton from "@/app/components/DevCharacterButton";
 import { resolveRequest, killRequestTarget } from "./actions";
 
 // The Request Adjudication Panel: a universal top half describing the
@@ -213,7 +215,7 @@ const SECTIONS = {
   },
 };
 
-export default function RequestPanel({ request, onClose }) {
+export default function RequestPanel({ request, readOnly = false, onClose }) {
   const effect = request?.effect ?? {};
   const [edits, setEdits] = useState({
     resourcesSpent: String(effect.resourcesSpent ?? 0),
@@ -226,7 +228,7 @@ export default function RequestPanel({ request, onClose }) {
   const [error, setError] = useState(null);
   const [killing, setKilling] = useState(false);
   const [pending, startTransition] = useTransition();
-  const { markDirty, markClean, guardedClose } = useDirtyGuard();
+  const { markDirty, markClean, guardedClose } = useDirtyGuard({ enabled: !readOnly });
   const confirm = useConfirm();
 
   if (!request) return null;
@@ -271,18 +273,19 @@ export default function RequestPanel({ request, onClose }) {
     }
   }
 
-  const close = () => guardedClose(onClose);
+  const close = () => (readOnly ? onClose() : guardedClose(onClose));
 
   return (
     <div className="modal-overlay" onClick={() => !pending && close()}>
       <div className="modal-panel" style={{ maxWidth: "36rem" }} onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2 className="text-lg font-bold">Request</h2>
+        <div className="modal-header flex items-center justify-between gap-3">
+          <h2 className="text-lg font-bold">{readOnly ? "Request (read only)" : "Request"}</h2>
+          <DevCharacterButton characterId={request.characterId} name={request.characterName} />
         </div>
 
         <div className="mt-3 flex flex-col gap-2">
           <Line label="Character">
-            {request.characterName}{" "}
+            <CharacterLink characterId={request.characterId} name={request.characterName} isGm />{" "}
             <span style={{ color: "var(--muted)" }}>({request.discordUsername})</span>
           </Line>
           <Line label="Faction">{request.factionName || "—"}</Line>
@@ -298,7 +301,11 @@ export default function RequestPanel({ request, onClose }) {
         {section && (
           <div className="mt-4 flex flex-col gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
             <h3 className="field-label">{section.heading}</h3>
-            {section.render({ effect, edits, setEdit, onKill, killing })}
+            <fieldset disabled={readOnly} style={{ border: 0, margin: 0, padding: 0 }}>
+              <div className="flex flex-col gap-3">
+                {section.render({ effect, edits, setEdit, onKill, killing })}
+              </div>
+            </fieldset>
           </div>
         )}
 
@@ -307,6 +314,7 @@ export default function RequestPanel({ request, onClose }) {
           <textarea
             rows={2}
             value={gmNotes}
+            disabled={readOnly}
             onChange={(e) => {
               markDirty();
               setGmNotes(e.target.value);
@@ -328,26 +336,30 @@ export default function RequestPanel({ request, onClose }) {
             onClick={close}
             disabled={pending}
           >
-            Cancel
+            {readOnly ? "Close" : "Cancel"}
           </button>
-          <button
-            type="button"
-            className="btn-quiet"
-            title="Reverse the change entirely and mark the request Undone"
-            onClick={() => run("undo")}
-            disabled={pending}
-          >
-            Undo
-          </button>
-          <button
-            type="button"
-            className="btn"
-            title="Apply your edits and mark the request Edited"
-            onClick={() => run("confirm")}
-            disabled={pending}
-          >
-            {pending ? "Working…" : "Confirm"}
-          </button>
+          {!readOnly && (
+            <>
+              <button
+                type="button"
+                className="btn-quiet"
+                title="Reverse the change entirely and mark the request Undone"
+                onClick={() => run("undo")}
+                disabled={pending}
+              >
+                Undo
+              </button>
+              <button
+                type="button"
+                className="btn"
+                title="Apply your edits and mark the request Edited"
+                onClick={() => run("confirm")}
+                disabled={pending}
+              >
+                {pending ? "Working…" : "Confirm"}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -46,6 +46,10 @@ enum MoveReviewStatus {
   WAITING_FOR_OPPONENTS
   IN_PROGRESS
   SOLVED
+  // Where every Routine lands the moment it's confirmed: its effects have
+  // already been pushed, so it needs a GM only if one disagrees. Rendered as
+  // plain body text, same as OPEN — neither is a state worth shouting about.
+  PASSED
 }
 
 enum TurnPhase {
@@ -564,6 +568,26 @@ model Action {
   // "Other Notes" in the GM UI. GMs message players manually (see
   // sendPartyMessages/sendGmMessage in web/app/(app)/gm/actions.js) once
   // they've written these up.
+  // Who resolved this Move and when. Request has carried these since the
+  // rework; Moves need them too now that several GMs share the queue behind a
+  // lock. The ID is stored, the Discord username is rendered.
+  reviewedAt              DateTime?
+  reviewedByDiscordUserId String?
+
+  // Cooperative lock so two GMs don't adjudicate the same Move. Deliberately
+  // NOT moveReviewStatus: a crashed browser lets lockExpiresAt lapse, where a
+  // status write would strand the row "In Progress" forever. The Moves table
+  // derives "In Progress" from a live lock.
+  lockedByDiscordUserId String?
+  lockExpiresAt         DateTime?
+
+  // Snapshot of what a Solve actually pushed onto the sheet — `{"resources":5}`
+  // today. Revert-on-unsolve reads ONLY this and never re-derives from live
+  // state, the same payload-vs-effect rule Request.effect follows (see
+  // REQUESTS.md §2). JSON rather than an Int so the push can grow past
+  // resources without a migration. Null means nothing has been pushed yet.
+  appliedEffects Json?
+
   resultMessage      String?
   gmNotes            String?
   forumThreadId      String?
