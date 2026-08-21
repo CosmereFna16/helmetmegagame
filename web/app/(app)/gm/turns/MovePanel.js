@@ -252,7 +252,7 @@ export default function MovePanel({ move, readOnly = false, onClose }) {
             <h3 className="field-label">Result</h3>
 
             <label className="field" style={{ width: "12rem" }}>
-              <span className="field-label">Resources ⬢</span>
+              <span className="field-label">Resources</span>
               <input
                 type="number"
                 min={-MAX_RESOURCE_DELTA}

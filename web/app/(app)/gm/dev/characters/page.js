@@ -31,7 +31,7 @@ export default async function DevCharactersPage() {
               <th>Faction</th>
               <th>Zone</th>
               <th>Status</th>
-              <th>Resources ⬢</th>
+              <th>Resources</th>
             </tr>
           </thead>
           <tbody>
@@ -45,7 +45,7 @@ export default async function DevCharactersPage() {
                 <td>{c.faction?.name ?? "-"}</td>
                 <td>{c.zone?.name ?? "-"}</td>
                 <td>{c.status}</td>
-                <td>{c.resources}</td>
+                <td>{c.resources} ⬢</td>
               </tr>
             ))}
             {characters.length === 0 && (

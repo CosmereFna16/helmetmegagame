@@ -103,7 +103,7 @@ export default function PlayersTable({ characters }) {
               <th>Zone</th>
               <th>Status</th>
               <th>Cursed</th>
-              <th>Resources ⬢</th>
+              <th>Resources</th>
             </tr>
           </thead>
           <tbody>
@@ -129,7 +129,7 @@ export default function PlayersTable({ characters }) {
                 <td style={{ color: c.cursed ? "var(--accent)" : "var(--muted)" }}>
                   {c.cursed ? "Cursed" : "-"}
                 </td>
-                <td>{c.resources}</td>
+                <td>{c.resources} ⬢</td>
               </tr>
             ))}
             {filtered.length === 0 && (

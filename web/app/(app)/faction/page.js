@@ -74,7 +74,7 @@ function FactionTable({ factions, showSilo }) {
             <th>Name</th>
             <th>Members</th>
             <th>Leader</th>
-            {showSilo && <th>Silo ⬢</th>}
+            {showSilo && <th>Silo</th>}
             <th></th>
           </tr>
         </thead>
@@ -86,7 +86,7 @@ function FactionTable({ factions, showSilo }) {
                 <td>{f.name}</td>
                 <td>{f.characters.length}</td>
                 <td>{leader?.name ?? "-"}</td>
-                {showSilo && <td>{f.silo}</td>}
+                {showSilo && <td>{f.silo} ⬢</td>}
                 <td>
                   <Link href={`/faction?factionId=${f.id}`} className="menu-item">
                     View
@@ -133,7 +133,7 @@ function FactionRows({ factions, childrenMap, depth, showSilo }) {
         </td>
         <td>{f.characters.length}</td>
         <td>{leader?.name ?? "-"}</td>
-        {showSilo && <td>{f.silo}</td>}
+        {showSilo && <td>{f.silo} ⬢</td>}
         <td>
           <Link href={`/faction?factionId=${f.id}`} className="menu-item">
             View
@@ -161,7 +161,7 @@ function FactionOverview({ factions }) {
               <th>Name</th>
               <th>Members</th>
               <th>Leader</th>
-              <th>Silo ⬢</th>
+              <th>Silo</th>
               <th></th>
             </tr>
           </thead>
@@ -174,7 +174,7 @@ function FactionOverview({ factions }) {
                   <td>{f.name}</td>
                   <td>{f.characters.length}</td>
                   <td>{leader?.name ?? "-"}</td>
-                  <td>{f.silo}</td>
+                  <td>{f.silo} ⬢</td>
                   <td>
                     <Link href={`/faction?factionId=${f.id}`} className="menu-item">
                       View
@@ -210,7 +210,7 @@ function SiloHistoryPanel({ history }) {
               <td className="whitespace-nowrap">
                 {t.turnNumber != null ? `#${t.turnNumber} (${t.turnPhase})` : "-"}
               </td>
-              <td>{t.amount > 0 ? `+${t.amount}` : t.amount}</td>
+              <td>{`${t.amount > 0 ? "+" : ""}${t.amount} ⬢`}</td>
               <td>{t.actorName}</td>
               <td>{t.toName ?? "-"}</td>
               <td className="max-w-xs truncate">{t.note ?? ""}</td>
@@ -351,8 +351,8 @@ export default async function FactionPage({ searchParams }) {
         <section className="panel p-4">
           <ul className="flex flex-col gap-1 text-sm">
             <li>Leader: {leader?.name ?? "None"}</li>
-            <li>Faction Silo ⬢: {faction.silo}</li>
-            {!viewingSubject && <li>Your Resources ⬢: {myCharacter.resources}</li>}
+            <li>Faction Silo: {faction.silo} ⬢</li>
+            {!viewingSubject && <li>Your Resources: {myCharacter.resources} ⬢</li>}
           </ul>
         </section>
 
@@ -472,7 +472,7 @@ export default async function FactionPage({ searchParams }) {
       <section className="panel p-4">
         <ul className="flex flex-col gap-1 text-sm">
           <li>Leader: {faction.characters.find((c) => c.isLeader)?.name ?? "None"}</li>
-          {!isUnaffiliated && <li>Faction Silo ⬢: {faction.silo}</li>}
+          {!isUnaffiliated && <li>Faction Silo: {faction.silo} ⬢</li>}
         </ul>
       </section>
 

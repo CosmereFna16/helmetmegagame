@@ -69,7 +69,7 @@ function RequestDialogBody({
               placeholder="This goes to the GMs — say what happened."
             />
           </label>
-          <p className="text-xs" style={{ color: "var(--muted)", marginTop: "-0.25rem" }}>
+          <p className="text-xs text-muted" style={{ marginTop: "-0.25rem" }}>
             This takes effect immediately. A GM reviews it afterwards and may undo or edit it.
           </p>
 

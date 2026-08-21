@@ -114,7 +114,7 @@ export default async function DevCharacterEditPage({ params }) {
 
         <div className="grid grid-cols-2 gap-3">
           <label className="field">
-            <span className="field-label">Resources ⬢</span>
+            <span className="field-label">Resources</span>
             <input type="number" name="resources" defaultValue={character.resources} />
           </label>
           <label className="field">

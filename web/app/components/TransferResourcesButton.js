@@ -101,7 +101,7 @@ export default function TransferResourcesButton({ selfId, selfName, parties }) {
             factions={parties.factions}
           />
           <label className="field" style={{ width: "6rem" }}>
-            <span className="field-label">Amount ⬢</span>
+            <span className="field-label">Amount</span>
             <input
               type="number"
               min="1"

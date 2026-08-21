@@ -26,7 +26,7 @@ function Line({ label, children }) {
 function SpendField({ value, onChange }) {
   return (
     <label className="field" style={{ width: "12rem" }}>
-      <span className="field-label">Resources spent ⬢</span>
+      <span className="field-label">Resources spent</span>
       <input type="number" min="0" value={value} onChange={(e) => onChange(e.target.value)} />
     </label>
   );

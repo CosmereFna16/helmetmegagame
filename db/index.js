@@ -21,6 +21,7 @@ const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
 const { runDawnWipe } = require("./lib/dawnWipe");
 const { runHungerPass } = require("./lib/hungerPass");
 const { runDefaultMovePass } = require("./lib/defaultMovePass");
+const { applyExpiryGrants } = require("./lib/expiryGrants");
 const { runFullChannelWipe } = require("./lib/fullWipe");
 const { syncLocationsFromYaml } = require("./lib/syncLocations");
 const { syncTagsFromYaml } = require("./lib/syncTags");
@@ -42,6 +43,49 @@ if (process.env.NODE_ENV !== "production") {
 // value itself stays visible only to Mortus-tagged characters and GMs
 // (web/app/(app)/lifeweb/page.js).
 const LIFEWEB_SPUTTER_THRESHOLD = 20;
+
+// The stackable half of resolveNeeds()' expiry sweep: every expired stack
+// loses exactly one unit, and whatever is left gets its clock restarted from
+// the tag's catalog duration — so three two-turn rations shed one every two
+// turns rather than all three at once. The last unit takes the row with it,
+// since quantity may never fall below 1. Kept to a bounded number of
+// statements (one delete, one update per distinct new expiry) rather than a
+// query per row: durations come from a tiny catalog, so this is a couple of
+// statements however many characters are holding stacks.
+async function sweepExpiredStacks(turn) {
+  const expired = await prisma.characterTag.findMany({
+    where: { expiresTurn: { lte: turn.number }, tag: { stackable: true } },
+    select: { id: true, quantity: true, tag: { select: { defaultDurationTurns: true } } },
+  });
+  if (expired.length === 0) return;
+
+  const spent = [];
+  // new expiresTurn -> ids landing on it
+  const rescheduled = new Map();
+  for (const ct of expired) {
+    if (ct.quantity <= 1) {
+      spent.push(ct.id);
+      continue;
+    }
+    // Same absolute-turn expression as db/lib/hungerPass.js, so both writers
+    // derive expiry identically.
+    const next = turn.number + (ct.tag.defaultDurationTurns ?? 1);
+    if (!rescheduled.has(next)) rescheduled.set(next, []);
+    rescheduled.get(next).push(ct.id);
+  }
+
+  await prisma.$transaction([
+    ...(spent.length ? [prisma.characterTag.deleteMany({ where: { id: { in: spent } } })] : []),
+    // decrement rather than a computed literal, so a concurrent grant on the
+    // same row can't be clobbered between the read above and this write.
+    ...[...rescheduled].map(([expiresTurn, ids]) =>
+      prisma.characterTag.updateMany({
+        where: { id: { in: ids } },
+        data: { quantity: { decrement: 1 }, expiresTurn },
+      }),
+    ),
+  ]);
+}
 
 // Applies per-turn Needs decay to the turn being closed. Shared between the
 // bot's cron-triggered advanceTurn() and the GM dashboard's manual
@@ -66,10 +110,37 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Default Move audit log failed:", err));
   }
 
-  // Sweep any turn-scoped tags (Mood, Drained, last turn's Hunger) whose
-  // expiresTurn has been reached — a single bulk delete, independent of
-  // everything else here.
-  await prisma.characterTag.deleteMany({ where: { expiresTurn: { lte: turn.number } } });
+  // Sweep any turn-scoped tags whose expiresTurn has been reached,
+  // independent of everything else here. Two passes, because a stack is ONE
+  // CharacterTag row carrying a count rather than N rows (see
+  // web/lib/requestEffects.js): an ordinary tag (Mood, Drained, last turn's
+  // Hunger) is deleted outright, but a stackable one only sheds a single
+  // unit per expiry and rerolls the remainder's timer — otherwise one
+  // ration's clock coming due would wipe the character's whole holding.
+  //
+  // Anything expiring that declares Tag.grantsOnExpiry converts into other
+  // tags first, before the deletes below remove the rows it reads. A tag
+  // granted here that is itself already due this turn won't be swept until
+  // next turn — accepted, since the alternative is looping the sweep.
+  // Best-effort like the Hunger pass: a failure must never block a turn
+  // advance, and one summary audit row rather than one per character (at
+  // 100+ players the latter would drown /gm/audit).
+  const grants = await applyExpiryGrants(prisma, turn).catch((err) => {
+    console.error("Expiry grants failed:", err);
+    return null;
+  });
+  if (grants) {
+    await prisma.auditLog
+      .create({
+        data: { actorDiscordUserId: "system", actionType: "expiry_grants_resolved", details: grants },
+      })
+      .catch((err) => console.error("Expiry grants audit log failed:", err));
+  }
+
+  await prisma.characterTag.deleteMany({
+    where: { expiresTurn: { lte: turn.number }, tag: { stackable: false } },
+  });
+  await sweepExpiredStacks(turn);
 
   // Hunger upkeep runs AFTER the sweep, deliberately: a Hunger granted while
   // closing turn N-1 carries expiresTurn N, so the sweep is what clears it a

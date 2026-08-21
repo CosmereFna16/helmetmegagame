@@ -11,6 +11,7 @@ import {
   effectiveTotalCost,
   effectiveCost,
 } from "@/lib/characterCreation";
+import PageShell, { PageHeader } from "@/app/components/PageShell";
 
 const STEPS = ["Identity", "Role", "Tags", "Confirm"];
 
@@ -133,8 +134,8 @@ export default function CreateCharacterWizard({ zones, tags, startingTagPoints, 
   }
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6 sm:p-8">
-      <h1 className="text-2xl font-bold">Create Your Character</h1>
+    <PageShell>
+      <PageHeader title="Create Your Character" />
       <StepBar step={step} />
 
       {cursed && (
@@ -303,6 +304,6 @@ export default function CreateCharacterWizard({ zones, tags, startingTagPoints, 
           </button>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 }
