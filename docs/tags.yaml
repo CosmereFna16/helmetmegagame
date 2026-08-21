@@ -624,7 +624,7 @@ tags:
     durationTurns: 3
     requirement:
       turnsCost: 1
-      resourceCost: 4
+      resourceCost: 5
       skills: [medical-skilled]
 
   # --- assets -------------------------------------------------------
@@ -782,7 +782,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 4
+      resourceCost: 5
       skills: [smithing]
       gambit: false
 
@@ -844,8 +844,8 @@ tags:
   # each tag here, since the group gate is what hides the category and a
   # second copy of the same rule is a second thing to keep in sync.
   # --- Armor -------------------------------------------------------------
-  # Crafting costs follow the standard ladder: dead simple 1 Effort / 4 ⬢,
-  # simple 1 / 10, moderate 1 / 20, high quality 2 / 30, plate 2 / 40.
+  # Crafting costs follow the standard ladder: dead simple 1 Effort / 5 ⬢,
+  # simple 1 / 12, moderate 1 / 23, high quality 2 / 35, plate 2 / 46.
   # `visible` decides whether the piece shows on a 🔍 inspect while equipped,
   # which is what makes a Brigandine worth its points.
 
@@ -863,7 +863,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 10
+      resourceCost: 12
       skills: [crafting]
 
   - slug: brigandine
@@ -880,7 +880,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 20
+      resourceCost: 23
       skills: [smithing]
 
   - slug: mail-shirt
@@ -897,7 +897,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 20
+      resourceCost: 23
       skills: [smithing]
 
   - slug: breastplate
@@ -914,7 +914,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 20
+      resourceCost: 23
       skills: [smithing]
 
   - slug: plate-armor
@@ -931,7 +931,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 40
+      resourceCost: 46
       skills: [smithing]
 
   # --- Head --------------------------------------------------------------
@@ -950,7 +950,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 10
+      resourceCost: 12
       skills: [smithing]
 
   - slug: knights-helmet
@@ -967,7 +967,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 20
+      resourceCost: 23
       skills: [smithing]
 
   - slug: mail-coif
@@ -984,7 +984,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 10
+      resourceCost: 12
       skills: [smithing]
 
   # --- Off-hand ----------------------------------------------------------
@@ -1003,7 +1003,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 10
+      resourceCost: 12
       skills: [smithing]
 
   - slug: shield
@@ -1020,7 +1020,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 10
+      resourceCost: 12
       skills: [crafting]
 
   - slug: pavise
@@ -1037,7 +1037,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 10
+      resourceCost: 12
       skills: [crafting]
 
   # --- Setting-specific --------------------------------------------------
@@ -1056,7 +1056,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 4
+      resourceCost: 5
 
   - slug: energy-shield
     name: Energy Shield
