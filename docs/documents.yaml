@@ -244,36 +244,10 @@ documents:
       - Cooking (Skilled)
       - Nobility
     description: |-
-      Meals & Kitchens
+      Fine meals make average people happy, but Nobility have them as a baseline. They need to eat them every once in a while or they'll be unhappy. Lavish meals make everyone happy and are valid objects of a Desire.
 
-      Anyone can eat enough to stay alive — that is what the turn quietly
-      takes out of your pocket. A cook makes it worth sitting down for.
-
-      FINE MEALS (Cooking (Basic))
-      2 Resources ⬢ each. Up to 4 in one Routine Move.
-      An honest, well-made meal. It makes an average person happy.
-      Nobility are the exception: a Fine meal is simply what they expect
-      at the table, so it doesn't lift them. Let a noble go long enough
-      without one and they turn Unhappy about it.
-
-      LAVISH MEALS (Cooking (Skilled))
-      3 Resources ⬢ each, plus one hard-to-get exotic ingredient. Up to 3
-      in one Routine Move.
-      A Lavish meal makes everyone happy, Nobility included, and is a fair
-      object of a Desire.
-
-      MECHANICS
-      - Fine Meal and Lavish Meal are Items, and Items stack. Cook four,
-        hold four, hand them out one at a time — Transfer Tag on your
-        character sheet takes a quantity.
-      - Cooking is a Routine Move. Say what you are making and for whom;
-        the batch caps above are per Move, not per turn.
-      - The exotic ingredient is not a tag. Sourcing one is narrative —
-        forage it, trade for it, steal it — and a GM decides whether what
-        you turned up counts.
-      - A meal buys Mood, not a free turn of food. The Resource ⬢ the turn
-        takes for eating is owed either way; the meal is what you paid on
-        top to eat well.
+      Fine meals: cost 2 ⬢ per meal. You can make up to 4 Fine meals in one Routine move.
+      Lavish meals: cost 3 ⬢ per meal and one hard to get exotic ingredient. You can make up to 3 Lavish meals in one Routine move.
   - name: Alcohol & Drugs
     key: alcoholdrugs
     public: true
