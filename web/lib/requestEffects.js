@@ -79,7 +79,28 @@ export const REQUEST_EFFECTS = {
   // if that drives the balance negative — deliberately, per the brief: if the
   // player already spent them, digging out is their problem, not a GM's.
   FULFILL_DESIRE: {
-    editableFields: [],
+    editableFields: ["pointsAwarded"],
+    // A GM re-scores the Desire: only the DELTA moves onto tagPoints. Writing
+    // the whole award again would double-pay the player every time the panel
+    // is Confirmed a second time.
+    async applyEdit(tx, request, edits) {
+      const effect = { ...request.effect };
+      const previous = effect.pointsAwarded ?? 0;
+      const next = clampNonNegative(edits.pointsAwarded, previous);
+      if (next === previous) return { effect, note: "No changes." };
+
+      await tx.character.update({
+        where: { id: request.characterId },
+        data: { tagPoints: { increment: next - previous } },
+      });
+      // Mirror it onto the Desire so the sheet and any later Undo agree with
+      // what was actually paid out.
+      if (effect.desireId) {
+        await tx.desire.updateMany({ where: { id: effect.desireId }, data: { points: next } });
+      }
+      effect.pointsAwarded = next;
+      return { effect, note: `Tag Points ${previous} -> ${next}.` };
+    },
     async undo(tx, request, ctx) {
       const { desireId, pointsAwarded } = request.effect;
       if (pointsAwarded) {
@@ -104,7 +125,7 @@ export const REQUEST_EFFECTS = {
       const effect = { ...request.effect };
       const notes = [];
 
-      const nextSpend = clampSpend(edits.resourcesSpent, effect.resourcesSpent);
+      const nextSpend = clampNonNegative(edits.resourcesSpent, effect.resourcesSpent);
       const delta = nextSpend - (effect.resourcesSpent ?? 0);
       if (delta !== 0) {
         // Positive delta = the GM decided it should have cost more.
@@ -141,7 +162,7 @@ export const REQUEST_EFFECTS = {
     editableFields: ["resourcesSpent"],
     async applyEdit(tx, request, edits) {
       const effect = { ...request.effect };
-      const nextSpend = clampSpend(edits.resourcesSpent, effect.resourcesSpent);
+      const nextSpend = clampNonNegative(edits.resourcesSpent, effect.resourcesSpent);
       const delta = nextSpend - (effect.resourcesSpent ?? 0);
       if (delta === 0) return { effect, note: "No changes." };
       await tx.character.update({
@@ -199,9 +220,9 @@ export const REQUEST_EFFECTS = {
   },
 };
 
-// A GM can only ever set a non-negative cost; anything else is a typo, and
-// silently letting a negative through would mint resources.
-function clampSpend(raw, fallback) {
+// A GM can only ever set a non-negative amount; anything else is a typo, and
+// silently letting a negative through would mint resources (or Tag Points).
+function clampNonNegative(raw, fallback) {
   const n = Number.parseInt(raw ?? "", 10);
   if (!Number.isFinite(n) || n < 0) return fallback ?? 0;
   return n;

@@ -7,6 +7,7 @@ import { moodTagSlug, moodLabel, MOOD_SLUGS } from "@lifeweb/db/lib/mood";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { createRequest, logRequest, requireReason } from "@/lib/requests";
+import { UserError, guarded } from "@/lib/actionResult";
 import { TRANSFERABLE_CATEGORIES } from "@/lib/tagRequests";
 import { syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
 
@@ -45,10 +46,10 @@ function parseCount(raw, { min = 0, max = Number.MAX_SAFE_INTEGER } = {}) {
 
 // --- Mood -------------------------------------------------------------
 
-export async function setMoodRequest({ mood, reason: rawReason }) {
+async function setMoodRequestImpl({ mood, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
-  if (!["NEUTRAL", "HAPPY", "UNHAPPY"].includes(mood)) throw new Error("Unknown mood.");
+  if (!["NEUTRAL", "HAPPY", "UNHAPPY"].includes(mood)) throw new UserError("Unknown mood.");
 
   const openTurn = await getOpenTurn();
   const moodTags = await prisma.tag.findMany({
@@ -65,7 +66,7 @@ export async function setMoodRequest({ mood, reason: rawReason }) {
 
   const slug = moodTagSlug(mood);
   const target = slug ? moodTags.find((t) => t.slug === slug) : null;
-  if (slug && !target) throw new Error("Mood tags are missing — run npm run db:sync-tags.");
+  if (slug && !target) throw new UserError("Mood tags are missing — run npm run db:sync-tags.");
 
   const expiresTurn =
     target && openTurn && target.defaultDurationTurns != null
@@ -99,7 +100,7 @@ export async function setMoodRequest({ mood, reason: rawReason }) {
   });
 
   revalidateAll();
-  return { ok: true, mood: moodLabel(mood) };
+  return { mood: moodLabel(mood) };
 }
 
 // --- Resources --------------------------------------------------------
@@ -122,18 +123,18 @@ async function resolveParty(key) {
   return null;
 }
 
-export async function transferResourcesRequest({ fromKey, toKey, amount: rawAmount, reason: rawReason }) {
+async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
   const amount = parseCount(rawAmount, { min: 1 });
-  if (amount == null) throw new Error("Amount must be a positive whole number.");
+  if (amount == null) throw new UserError("Amount must be a positive whole number.");
 
   const [from, to] = await Promise.all([resolveParty(fromKey), resolveParty(toKey)]);
-  if (!from) throw new Error("Unknown source.");
-  if (!to) throw new Error("Unknown recipient.");
-  if (from.kind === to.kind && from.id === to.id) throw new Error("Source and recipient are the same.");
-  if (amount > from.balance) throw new Error(`${from.name} only has ${from.balance} ⬢.`);
+  if (!from) throw new UserError("Unknown source.");
+  if (!to) throw new UserError("Unknown recipient.");
+  if (from.kind === to.kind && from.id === to.id) throw new UserError("Source and recipient are the same.");
+  if (amount > from.balance) throw new UserError(`${from.name} only has ${from.balance} ⬢.`);
 
   const openTurn = await getOpenTurn();
   const ledger = {
@@ -197,24 +198,24 @@ export async function transferResourcesRequest({ fromKey, toKey, amount: rawAmou
   });
 
   revalidateAll();
-  return { ok: true };
+  return {};
 }
 
 // --- Tags -------------------------------------------------------------
 
-export async function addTagRequest({ tagId, resourcesSpent: rawSpend, reason: rawReason }) {
+async function addTagRequestImpl({ tagId, resourcesSpent: rawSpend, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
   const resourcesSpent = parseCount(rawSpend, { min: 0 }) ?? 0;
-  if (resourcesSpent > character.resources) throw new Error("You don't have that many ⬢.");
+  if (resourcesSpent > character.resources) throw new UserError("You don't have that many ⬢.");
 
   const tag = await prisma.tag.findUnique({ where: { id: tagId } });
-  if (!tag) throw new Error("Unknown tag.");
+  if (!tag) throw new UserError("Unknown tag.");
   // Mirrors addableTags() in web/lib/tagRequests.js — re-checked here because
   // the client's filtered list is only advisory.
-  if (!tag.purchasable && !tag.craftable) throw new Error("That tag can't be added this way.");
-  if (character.tags.some((ct) => ct.tagId === tag.id)) throw new Error("You already have that tag.");
+  if (!tag.purchasable && !tag.craftable) throw new UserError("That tag can't be added this way.");
+  if (character.tags.some((ct) => ct.tagId === tag.id)) throw new UserError("You already have that tag.");
 
   const openTurn = await getOpenTurn();
 
@@ -248,19 +249,19 @@ export async function addTagRequest({ tagId, resourcesSpent: rawSpend, reason: r
   // Tags gate #radio access, so a grant can change narrowcast visibility.
   await syncCharacterNarrowcastAccess(character.id).catch(() => {});
   revalidateAll();
-  return { ok: true };
+  return {};
 }
 
-export async function removeTagRequest({ tagId, resourcesSpent: rawSpend, reason: rawReason }) {
+async function removeTagRequestImpl({ tagId, resourcesSpent: rawSpend, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
   const resourcesSpent = parseCount(rawSpend, { min: 0 }) ?? 0;
-  if (resourcesSpent > character.resources) throw new Error("You don't have that many ⬢.");
+  if (resourcesSpent > character.resources) throw new UserError("You don't have that many ⬢.");
 
   const held = character.tags.find((ct) => ct.tagId === tagId);
-  if (!held) throw new Error("You don't have that tag.");
-  if (!held.tag.removable) throw new Error("That tag can't be removed this way.");
+  if (!held) throw new UserError("You don't have that tag.");
+  if (!held.tag.removable) throw new UserError("That tag can't be removed this way.");
 
   const openTurn = await getOpenTurn();
   // Snapshot before deleting — Undo restores the original source and expiry,
@@ -294,28 +295,28 @@ export async function removeTagRequest({ tagId, resourcesSpent: rawSpend, reason
 
   await syncCharacterNarrowcastAccess(character.id).catch(() => {});
   revalidateAll();
-  return { ok: true };
+  return {};
 }
 
 // Send-only by design: there is no "request a tag from someone", because
 // browsing another player's inventory to pick something is the abuse the
 // one-way flow prevents.
-export async function transferTagRequest({ tagId, toCharacterId, reason: rawReason }) {
+async function transferTagRequestImpl({ tagId, toCharacterId, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
   const held = character.tags.find((ct) => ct.tagId === tagId);
-  if (!held) throw new Error("You don't have that tag.");
+  if (!held) throw new UserError("You don't have that tag.");
   if (!TRANSFERABLE_CATEGORIES.includes(held.tag.category)) {
-    throw new Error("Only Items and Assets can be handed over.");
+    throw new UserError("Only Items and Assets can be handed over.");
   }
-  if (toCharacterId === character.id) throw new Error("That's you.");
+  if (toCharacterId === character.id) throw new UserError("That's you.");
 
   const recipient = await prisma.character.findFirst({
     where: { id: toCharacterId, status: "ALIVE" },
     select: { id: true, name: true },
   });
-  if (!recipient) throw new Error("Unknown recipient.");
+  if (!recipient) throw new UserError("Unknown recipient.");
 
   const openTurn = await getOpenTurn();
   const restore = { source: held.source, expiresTurn: held.expiresTurn };
@@ -356,7 +357,7 @@ export async function transferTagRequest({ tagId, toCharacterId, reason: rawReas
     syncCharacterNarrowcastAccess(recipient.id).catch(() => {}),
   ]);
   revalidateAll();
-  return { ok: true };
+  return {};
 }
 
 // --- Desires ----------------------------------------------------------
@@ -364,13 +365,13 @@ export async function transferTagRequest({ tagId, toCharacterId, reason: rawReas
 // Setting and cancelling are NOT requests — nothing has been granted yet, so
 // there's nothing for a GM to undo. Only fulfilling one moves Tag Points and
 // therefore needs a reason and a review.
-export async function setDesire({ text: rawText, points: rawPoints }) {
+async function setDesireImpl({ text: rawText, points: rawPoints }) {
   const { session, character } = await requireCharacter();
 
   const text = rawText?.toString().trim();
-  if (!text) throw new Error("Describe your Desire.");
+  if (!text) throw new UserError("Describe your Desire.");
   const points = parseCount(rawPoints, { min: DESIRE_MIN_POINTS, max: DESIRE_MAX_POINTS });
-  if (points == null) throw new Error(`Points must be between ${DESIRE_MIN_POINTS} and ${DESIRE_MAX_POINTS}.`);
+  if (points == null) throw new UserError(`Points must be between ${DESIRE_MIN_POINTS} and ${DESIRE_MAX_POINTS}.`);
 
   const openTurn = await getOpenTurn();
   const [active, lastEnded] = await Promise.all([
@@ -380,9 +381,9 @@ export async function setDesire({ text: rawText, points: rawPoints }) {
       orderBy: { updatedAt: "desc" },
     }),
   ]);
-  if (active) throw new Error("You already have an active Desire.");
+  if (active) throw new UserError("You already have an active Desire.");
   if (openTurn && lastEnded?.endedTurnNumber != null && openTurn.number <= lastEnded.endedTurnNumber) {
-    throw new Error("You're on cooldown — you can set a new Desire next turn.");
+    throw new UserError("You're on cooldown — you can set a new Desire next turn.");
   }
 
   await prisma.desire.create({
@@ -403,15 +404,15 @@ export async function setDesire({ text: rawText, points: rawPoints }) {
   });
 
   revalidatePath("/character");
-  return { ok: true };
+  return {};
 }
 
-export async function cancelDesire() {
+async function cancelDesireImpl() {
   const { session, character } = await requireCharacter();
   const openTurn = await getOpenTurn();
 
   const active = await prisma.desire.findFirst({ where: { characterId: character.id, status: "ACTIVE" } });
-  if (!active) return { ok: true };
+  if (!active) return {};
 
   await prisma.desire.update({
     where: { id: active.id },
@@ -427,16 +428,16 @@ export async function cancelDesire() {
   });
 
   revalidatePath("/character");
-  return { ok: true };
+  return {};
 }
 
-export async function fulfillDesireRequest({ reason: rawReason }) {
+async function fulfillDesireRequestImpl({ reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
   const openTurn = await getOpenTurn();
   const active = await prisma.desire.findFirst({ where: { characterId: character.id, status: "ACTIVE" } });
-  if (!active) throw new Error("You have no active Desire.");
+  if (!active) throw new UserError("You have no active Desire.");
 
   await prisma.$transaction(async (tx) => {
     await tx.desire.update({
@@ -465,5 +466,43 @@ export async function fulfillDesireRequest({ reason: rawReason }) {
   });
 
   revalidateAll();
-  return { ok: true };
+  return {};
+}
+
+// --- public surface ---------------------------------------------------
+
+// Each action is wrapped so validation comes back as { ok: false, error }
+// instead of being thrown — see web/lib/actionResult.js for why throwing is
+// invisible to the player in a production build.
+
+export async function setMoodRequest(input) {
+  return guarded(() => setMoodRequestImpl(input));
+}
+
+export async function transferResourcesRequest(input) {
+  return guarded(() => transferResourcesRequestImpl(input));
+}
+
+export async function addTagRequest(input) {
+  return guarded(() => addTagRequestImpl(input));
+}
+
+export async function removeTagRequest(input) {
+  return guarded(() => removeTagRequestImpl(input));
+}
+
+export async function transferTagRequest(input) {
+  return guarded(() => transferTagRequestImpl(input));
+}
+
+export async function setDesire(input) {
+  return guarded(() => setDesireImpl(input));
+}
+
+export async function cancelDesire() {
+  return guarded(() => cancelDesireImpl());
+}
+
+export async function fulfillDesireRequest(input) {
+  return guarded(() => fulfillDesireRequestImpl(input));
 }

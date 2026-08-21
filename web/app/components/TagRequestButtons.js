@@ -124,14 +124,14 @@ export default function TagRequestButtons({ catalog, characterTags, resources, o
   function submit(reason) {
     setError(null);
     startTransition(async () => {
-      try {
-        if (mode === "add") await addTagRequest({ tagId, resourcesSpent: spend, reason });
-        else if (mode === "remove") await removeTagRequest({ tagId, resourcesSpent: spend, reason });
-        else if (mode === "transfer") await transferTagRequest({ tagId, toCharacterId: recipient, reason });
-        setMode(null);
-      } catch (e) {
-        setError(e?.message ?? "Something went wrong.");
-      }
+      const res =
+        mode === "add"
+          ? await addTagRequest({ tagId, resourcesSpent: spend, reason })
+          : mode === "remove"
+            ? await removeTagRequest({ tagId, resourcesSpent: spend, reason })
+            : await transferTagRequest({ tagId, toCharacterId: recipient, reason });
+      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
+      setMode(null);
     });
   }
 

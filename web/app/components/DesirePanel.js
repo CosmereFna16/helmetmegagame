@@ -51,13 +51,10 @@ export default function DesirePanel({ desire, cooldownUntilTurn, openTurnNumber 
     });
     if (!ok) return;
     startTransition(async () => {
-      try {
-        await setDesire({ text, points });
-        setText("");
-        setPoints("1");
-      } catch (err) {
-        setError(err?.message ?? "Something went wrong.");
-      }
+      const res = await setDesire({ text, points });
+      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
+      setText("");
+      setPoints("1");
     });
   }
 
@@ -71,23 +68,17 @@ export default function DesirePanel({ desire, cooldownUntilTurn, openTurnNumber 
     });
     if (!ok) return;
     startTransition(async () => {
-      try {
-        await cancelDesire();
-      } catch (err) {
-        setError(err?.message ?? "Something went wrong.");
-      }
+      const res = await cancelDesire();
+      if (!res?.ok) setError(res?.error ?? "Something went wrong.");
     });
   }
 
   function submitFulfill(reason) {
     setError(null);
     startTransition(async () => {
-      try {
-        await fulfillDesireRequest({ reason });
-        setFulfilling(false);
-      } catch (err) {
-        setError(err?.message ?? "Something went wrong.");
-      }
+      const res = await fulfillDesireRequest({ reason });
+      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
+      setFulfilling(false);
     });
   }
 

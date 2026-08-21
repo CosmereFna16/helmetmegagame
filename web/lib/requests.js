@@ -1,5 +1,6 @@
 import { prisma } from "@lifeweb/db";
 import { MAX_REASON_LENGTH } from "@/lib/constants";
+import { UserError } from "@/lib/actionResult";
 
 // A Request is a change the player already made. There is no approval step:
 // the effect is applied and the row is written in the same transaction, and a
@@ -26,7 +27,7 @@ export const REQUEST_STATUS_LABELS = {
 // than trusted from the dialog that collected it.
 export function requireReason(raw) {
   const reason = raw?.toString().trim() ?? "";
-  if (!reason) throw new Error("A reason is required.");
+  if (!reason) throw new UserError("A reason is required.");
   return reason.slice(0, MAX_REASON_LENGTH);
 }
 

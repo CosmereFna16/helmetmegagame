@@ -4,11 +4,12 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { REQUEST_EFFECTS } from "@/lib/requestEffects";
+import { UserError, guarded } from "@/lib/actionResult";
 
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
-  if (!session?.discordUserId) throw new Error("Not authenticated.");
-  if (!gm) throw new Error("Not authorized.");
+  if (!session?.discordUserId) throw new UserError("Not authenticated.");
+  if (!gm) throw new UserError("Not authorized.");
   return session;
 }
 
@@ -17,16 +18,16 @@ async function requireGm() {
 //   "undo"    -> invert request.effect, mark UNDONE
 // Cancelling is purely client-side (the panel closes and discards), so it
 // never reaches this action — a cancelled review leaves the row PASSED.
-export async function resolveRequest({ requestId, mode, edits = {}, gmNotes }) {
+async function resolveRequestImpl({ requestId, mode, edits = {}, gmNotes }) {
   const session = await requireGm();
-  if (!["confirm", "undo"].includes(mode)) throw new Error("Unknown mode.");
+  if (!["confirm", "undo"].includes(mode)) throw new UserError("Unknown mode.");
 
   const result = await prisma.$transaction(async (tx) => {
     const request = await tx.request.findUnique({ where: { id: requestId } });
-    if (!request) throw new Error("Request not found.");
+    if (!request) throw new UserError("Request not found.");
 
     const handler = REQUEST_EFFECTS[request.type];
-    if (!handler) throw new Error(`No handler for ${request.type}.`);
+    if (!handler) throw new UserError(`No handler for ${request.type}.`);
 
     const ctx = {
       actorDiscordUserId: session.discordUserId,
@@ -49,7 +50,7 @@ export async function resolveRequest({ requestId, mode, edits = {}, gmNotes }) {
         status = "UNDONE";
       }
     } else {
-      if (request.status === "UNDONE") throw new Error("That request was already undone.");
+      if (request.status === "UNDONE") throw new UserError("That request was already undone.");
       if (handler.applyEdit) {
         const out = await handler.applyEdit(tx, request, edits, ctx);
         effect = out.effect ?? request.effect;
@@ -89,4 +90,10 @@ export async function resolveRequest({ requestId, mode, edits = {}, gmNotes }) {
   revalidatePath("/character");
   revalidatePath("/faction");
   return result;
+}
+
+// Wrapped so a GM sees "That request was already undone." rather than React
+// error #441 — see web/lib/actionResult.js.
+export async function resolveRequest(input) {
+  return guarded(() => resolveRequestImpl(input));
 }

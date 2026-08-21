@@ -67,13 +67,21 @@ reason.
 | `ADD_TAG` | Takes a Purchasable or Craftable tag, optionally paying ⬢ | cost; remove the tag | Drops the tag, refunds the cost |
 | `REMOVE_TAG` | Drops one of their own `removable` tags, optionally paying ⬢ | cost | Restores the tag, refunds the cost |
 | `TRANSFER_TAG` | Hands an Item or Asset to another player | — | Moves it back |
-| `FULFILL_DESIRE` | Claims their active Desire | — | Revokes the points, reopens the Desire |
+| `FULFILL_DESIRE` | Claims their active Desire | Tag Points awarded | Revokes the points, reopens the Desire |
 
 The per-type behaviour lives in `web/lib/requestEffects.js` as one
 `REQUEST_EFFECTS` entry each. **Adding a seventh type means adding one entry
 there, one entry in `RequestPanel.js`'s `SECTIONS` map, and one value to the
 `RequestType` enum — nothing else in the adjudication surface changes.** That
 extensibility was an explicit requirement.
+
+**Validation is returned, never thrown.** Every one of these actions and
+`resolveRequest` reports a validation failure as `{ ok: false, error }` via
+`guarded()`/`UserError` (`web/lib/actionResult.js`), because a production
+Next.js build redacts anything thrown out of a Server Action and shows React
+error #441 instead — which made every `catch (e) => setError(e.message)` in
+the feature dead code. Anything that isn't a `UserError` still throws, so real
+faults keep their stack and `redirect()` keeps working.
 
 Three notes on deliberate choices:
 
@@ -188,6 +196,7 @@ of a transfer. Deposits into a Silo previously left no ledger entry at all.
 | Concern | File |
 |---|---|
 | Request creation, reason validation, audit helper | `web/lib/requests.js` |
+| `UserError` + `guarded()` result wrapper | `web/lib/actionResult.js` |
 | Per-type Undo/Edit behaviour | `web/lib/requestEffects.js` |
 | The six player-facing server actions | `web/app/(app)/character/requestActions.js` |
 | Universal popup | `web/app/components/RequestDialog.js` |

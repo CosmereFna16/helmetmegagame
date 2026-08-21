@@ -19,12 +19,9 @@ export default function SetMoodButton({ currentMood = "NEUTRAL" }) {
   function submit(reason) {
     setError(null);
     startTransition(async () => {
-      try {
-        await setMoodRequest({ mood, reason });
-        setOpen(false);
-      } catch (e) {
-        setError(e?.message ?? "Something went wrong.");
-      }
+      const res = await setMoodRequest({ mood, reason });
+      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
+      setOpen(false);
     });
   }
 

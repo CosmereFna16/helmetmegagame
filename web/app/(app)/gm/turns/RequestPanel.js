@@ -32,12 +32,22 @@ function SpendField({ value, onChange }) {
 const SECTIONS = {
   FULFILL_DESIRE: {
     heading: "Fulfill Desire",
-    render: ({ effect }) => (
+    render: ({ effect, edits, setEdit }) => (
       <>
         <Line label="Desire">{effect.desireText ?? "—"}</Line>
         <Line label="Awarded">{effect.pointsAwarded ?? 0} Tag Points</Line>
+        <label className="field" style={{ width: "12rem" }}>
+          <span className="field-label">Tag Points awarded</span>
+          <input
+            type="number"
+            min="0"
+            value={edits.pointsAwarded}
+            onChange={(e) => setEdit("pointsAwarded", e.target.value)}
+          />
+        </label>
         <p className="text-xs" style={{ color: "var(--muted)" }}>
-          Undo revokes those points even if the balance goes negative, and reopens the Desire.
+          Confirm moves only the difference, so re-scoring twice never double-pays. Undo revokes the
+          award even if the balance goes negative, and reopens the Desire.
         </p>
       </>
     ),
@@ -120,6 +130,7 @@ export default function RequestPanel({ request, onClose }) {
   const effect = request?.effect ?? {};
   const [edits, setEdits] = useState({
     resourcesSpent: String(effect.resourcesSpent ?? 0),
+    pointsAwarded: String(effect.pointsAwarded ?? 0),
     removeTag: false,
   });
   const [gmNotes, setGmNotes] = useState(request?.gmNotes ?? "");
@@ -138,13 +149,10 @@ export default function RequestPanel({ request, onClose }) {
   function run(mode) {
     setError(null);
     startTransition(async () => {
-      try {
-        await resolveRequest({ requestId: request.id, mode, edits, gmNotes });
-        markClean();
-        onClose();
-      } catch (e) {
-        setError(e?.message ?? "Something went wrong.");
-      }
+      const res = await resolveRequest({ requestId: request.id, mode, edits, gmNotes });
+      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
+      markClean();
+      onClose();
     });
   }
 

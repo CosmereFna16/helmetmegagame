@@ -51,12 +51,9 @@ export default function TransferResourcesButton({ selfId, selfName, sources, tar
   function submit(reason) {
     setError(null);
     startTransition(async () => {
-      try {
-        await transferResourcesRequest({ fromKey, toKey, amount, reason });
-        setOpen(false);
-      } catch (e) {
-        setError(e?.message ?? "Something went wrong.");
-      }
+      const res = await transferResourcesRequest({ fromKey, toKey, amount, reason });
+      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
+      setOpen(false);
     });
   }
 
