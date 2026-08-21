@@ -25,6 +25,9 @@ async function loadFaction(factionId) {
           status: true,
           isLeader: true,
           isTreasurer: true,
+          // Only ever rendered behind a Silo-access check (viewCanManageSilo
+          // below, or the GM branch) — a plain member never sees the column.
+          resources: true,
         },
       },
     },
@@ -362,6 +365,10 @@ export default async function FactionPage({ searchParams }) {
               <tr>
                 <th>Name</th>
                 <th>Fate</th>
+                {/* Silo authority — a faction's Leader/Treasurer, or an
+                    ancestor faction's — is exactly who may see what each
+                    member is holding, same gate as the Silo panels below. */}
+                {viewCanManageSilo && <th>Resources</th>}
                 {canManageMembers && <th></th>}
               </tr>
             </thead>
@@ -376,6 +383,7 @@ export default async function FactionPage({ searchParams }) {
                       {treasurer ? " (Treasurer)" : ""}
                     </td>
                     <td>{c.status}</td>
+                    {viewCanManageSilo && <td>{c.resources} ⬢</td>}
                     {canManageMembers && (
                       <td>
                         <form action={setTreasurer}>
@@ -481,6 +489,7 @@ export default async function FactionPage({ searchParams }) {
             <tr>
               <th>Name</th>
               <th>Fate</th>
+              <th>Resources</th>
               <th></th>
               <th></th>
               <th></th>
@@ -497,6 +506,7 @@ export default async function FactionPage({ searchParams }) {
                     {treasurer ? " (Treasurer)" : ""}
                   </td>
                   <td>{c.status}</td>
+                  <td>{c.resources} ⬢</td>
                   <td>
                     {!isUnaffiliated && !c.isLeader && (
                       <form action={setFactionLeader}>
@@ -535,7 +545,7 @@ export default async function FactionPage({ searchParams }) {
             })}
             {faction.characters.length === 0 && (
               <tr>
-                <td colSpan={5} className="text-center" style={{ color: "var(--muted)" }}>
+                <td colSpan={6} className="text-center" style={{ color: "var(--muted)" }}>
                   No members yet.
                 </td>
               </tr>

@@ -1,5 +1,6 @@
 const { WebhookClient, EmbedBuilder } = require("discord.js");
 const { prisma, formatTagRequirement } = require("@lifeweb/db");
+const { getSiloAccess } = require("@lifeweb/db/lib/factionPermissions");
 const { recentProxies } = require("../lib/proxy");
 const { sendDm } = require("../lib/dm");
 
@@ -141,6 +142,7 @@ module.exports = {
         where: { id: proxy.characterId },
         include: {
           tags: { include: { tag: { include: { requirementSkills: { select: { name: true } } } } } },
+          faction: { select: { name: true } },
         },
       });
       if (!character) return;
@@ -161,6 +163,21 @@ module.exports = {
       if (visibleTags.length > 0) {
         embed.addFields({ name: "Tags", value: visibleTags.join(", ") });
       }
+
+      // Whoever holds Silo authority over this character's faction — its
+      // Leader/Treasurer, or an ancestor faction's — sees what they're
+      // carrying, the same gate /faction's roster column uses. For anyone
+      // else the field is simply absent rather than a "hidden" placeholder,
+      // which would advertise that there's a number to go looking for.
+      // Unaffiliated is the DB's placeholder home for the factionless, so
+      // nobody inherits authority over it.
+      if (character.factionId && character.faction?.name !== "Unaffiliated") {
+        const access = await getSiloAccess(prisma, user.id, character.factionId);
+        if (access.canManageSilo) {
+          embed.addFields({ name: "Resources", value: `${character.resources} ⬢`, inline: true });
+        }
+      }
+
       if (process.env.WEB_BASE_URL) {
         embed.setThumbnail(
           `${process.env.WEB_BASE_URL}/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`,

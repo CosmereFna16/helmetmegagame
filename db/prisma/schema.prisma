@@ -182,7 +182,7 @@ model Faction {
   roles Role[]
 
   // A parent faction's Leader/Treasurer can also manage a subject faction's
-  // Silo (see web/lib/factionPermissions.js#getSiloAccess) — never the
+  // Silo (see db/lib/factionPermissions.js#getSiloAccess) — never the
   // reverse. Membership/leadership administration stays same-faction only.
   parentFactionId String?
   parentFaction   Faction?  @relation("FactionHierarchy", fields: [parentFactionId], references: [id])
