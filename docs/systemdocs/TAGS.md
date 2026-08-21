@@ -102,7 +102,12 @@ Full writeup of creation, roles, and the wizard: `CHARACTERS.md`.
   per-instance expiry lives on `CharacterTag.expiresTurn` (an absolute turn
   number, computed from this default at grant time), swept by
   `resolveNeeds()` in `db/index.js` once the closing turn's number reaches
-  it.
+  it. Live code reads this — Mood (2) and Hunger (1) both compute their
+  `expiresTurn` as `turn.number + defaultDurationTurns` — so it is no longer
+  catalog-only. Note the ordering it implies: `resolveNeeds()` sweeps *before*
+  the Hunger pass grants, so a still-broke character's Hunger is cleared and
+  re-granted rather than colliding with `@@unique([characterId, tagId])`. See
+  `REQUESTS.md` §4.
 - `removable` — whether a player can strip this tag off themselves mid-game
   without a GM. Catalog data only, same unenforced posture as `tradeable` —
   no self-removal flow reads it yet (the mid-game tag store isn't routed).
@@ -148,3 +153,9 @@ entry point, `npm run db:sync-tags`), `docs/tags.yaml` /
 backing `{tag:slug}`/`{tag:id}` references,
 `web/app/components/RichText.js`/`TagsProvider.js`), `TagChip.js`
 (the hover-tooltip chip that renders group color).
+
+`hunger`, `hungerless` and `ate-meal` are the first tags granted and consumed
+by automatic game logic rather than by a player, a GM, or a starting package —
+`db/lib/hungerPass.js` is their only writer, and `db/lib/gambitModifier.js`
+their only reader. `db/lib/constants.js` holds the slugs so neither file
+hardcodes a string.

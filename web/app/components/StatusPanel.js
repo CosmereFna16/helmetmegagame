@@ -1,4 +1,5 @@
 import { moodFromTags, moodLabel, MOOD_SLUGS } from "@lifeweb/db/lib/mood";
+import { gambitModifiers, formatGambitModifiers } from "@lifeweb/db/lib/gambitModifier";
 import SetMoodButton from "./SetMoodButton";
 import TransferResourcesButton from "./TransferResourcesButton";
 
@@ -19,6 +20,12 @@ function Row({ label, children }) {
 
 export default function StatusPanel({ character, isSelf, openTurn, parties }) {
   const mood = moodFromTags(character.tags);
+
+  // Mood's ±1 and Hunger's -1 stack additively into one number, and this is
+  // the same module the bot rolls against (db/lib/gambitModifier.js) — so
+  // what a player reads here is exactly what gets applied.
+  const modifiers = gambitModifiers(character.tags);
+  const total = modifiers.reduce((sum, m) => sum + m.value, 0);
 
   // Mood rides CharacterTag.expiresTurn (an absolute turn number), so the
   // countdown is just the gap to the open turn. Requires the CharacterTag
@@ -54,6 +61,21 @@ export default function StatusPanel({ character, isSelf, openTurn, parties }) {
             </span>
           )}
           {isSelf && <SetMoodButton currentMood={mood} />}
+        </Row>
+
+        <Row label="Gambit">
+          {modifiers.length ? (
+            <span style={{ color: total < 0 ? "var(--accent)" : total > 0 ? "var(--positive)" : "var(--text)" }}>
+              {total > 0 ? `+${total}` : total} to the die
+            </span>
+          ) : (
+            <span style={{ color: "var(--muted)" }}>No modifier</span>
+          )}
+          {/* Spelled out only when more than one thing stacks — a lone Unhappy
+              doesn't need "(−1 Unhappy)" next to "−1 to the die". */}
+          {modifiers.length > 1 && (
+            <span style={{ color: "var(--muted)" }}>({formatGambitModifiers(modifiers)})</span>
+          )}
         </Row>
 
         <Row label="Tag Points">{character.tagPoints}</Row>
