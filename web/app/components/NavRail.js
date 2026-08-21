@@ -12,6 +12,7 @@ import {
   DevIcon,
   MessageIcon,
   NotesIcon,
+  DocumentsIcon,
   LifewebIcon,
   SignOutIcon,
   MoreIcon,
@@ -27,6 +28,7 @@ const ICONS = {
   dev: DevIcon,
   messages: MessageIcon,
   notes: NotesIcon,
+  documents: DocumentsIcon,
   lifeweb: LifewebIcon,
 };
 

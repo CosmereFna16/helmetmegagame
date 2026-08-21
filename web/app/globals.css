@@ -1029,3 +1029,117 @@ h3 {
     padding: 4px 8px;
   }
 }
+
+/* ---- Documents board ------------------------------------------------- */
+
+/* A pinned board of papers. The cards are deliberately a little unlike the
+   rest of the app's chrome — squarer corners, a warmer surface, a serif
+   body — so a document reads as a physical handout rather than another
+   panel. Everything still resolves through the theme tokens, so it tracks
+   dusk/dawn/limestone like everything else. */
+.doc-board {
+  display: grid;
+  gap: var(--sp-4);
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+}
+
+.doc-card {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  position: relative;
+  /* Tall enough that the body text is a real excerpt, short enough that a
+     dozen cards still scan as a board. */
+  height: 13rem;
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  /* Raised rather than --surface: a paper sits on the desk, not in it. */
+  background: var(--surface-raised);
+  border-radius: var(--r-sm);
+  box-shadow: var(--e-2);
+  overflow: hidden;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.doc-card:hover,
+.doc-card:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: var(--e-3);
+}
+
+.doc-card:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+/* The "where this came from" line — the tag, role, faction or Public that
+   put this paper in your folder. Alt colour on purpose: it is metadata
+   about the document, not part of it. */
+.doc-card-source {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+
+.doc-card-title {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: var(--fs-lg);
+  line-height: var(--lh-heading);
+  color: var(--text);
+}
+
+/* The excerpt bleeds out under a mask rather than a gradient overlay, so it
+   needs no knowledge of the surface colour behind it and stays correct on
+   every theme. */
+.doc-card-body {
+  flex: 1;
+  min-height: 0;
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+  color: var(--muted);
+  overflow: hidden;
+  white-space: pre-wrap;
+  -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+}
+
+/* The opened document. Wider and more generous than .modal-panel — this is
+   meant to be read, not answered. */
+.doc-sheet {
+  width: 100%;
+  max-width: 44rem;
+  max-height: 86vh;
+  overflow-y: auto;
+  padding: var(--sp-6);
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  border-radius: var(--r-sm);
+  box-shadow: var(--e-3);
+}
+
+.doc-sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.doc-sheet-body {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: var(--fs-base);
+  line-height: var(--lh-body);
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+.doc-sheet-body p + p {
+  margin-top: var(--sp-4);
+}

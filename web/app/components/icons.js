@@ -62,6 +62,15 @@ export function DevIcon(props) {
   );
 }
 
+export function DocumentsIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M14 3H7a1.5 1.5 0 00-1.5 1.5v15A1.5 1.5 0 007 21h10a1.5 1.5 0 001.5-1.5V7.5L14 3z" strokeLinejoin="round" />
+      <path d="M13.75 3.2V7.5h4.3M8.75 12h6.5M8.75 15.5h6.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function NotesIcon(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
