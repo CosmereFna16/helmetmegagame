@@ -24,6 +24,9 @@ export default async function NotesPage() {
     zoneName: n.zone?.name ?? null,
     content: n.content,
     sentAt: n.sentAt.toISOString(),
+    // Numeric twin of sentAt, so the shared table state sorts on a number
+    // rather than re-parsing a date string per comparison.
+    sentAtMs: n.sentAt.getTime(),
   }));
 
   return (

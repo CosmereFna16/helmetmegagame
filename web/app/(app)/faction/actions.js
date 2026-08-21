@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
-import { getMyFactionRole, getSiloAccess } from "@/lib/factionPermissions";
+import { getMyFactionRole } from "@/lib/factionPermissions";
 
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
@@ -72,63 +72,6 @@ export async function setTreasurer(formData) {
       details: { factionId },
     },
   });
-
-  revalidatePath("/faction");
-}
-
-// Moves resources out of a faction's Silo to a member's personal resources —
-// the mechanism by which non-producing roles (courtiers, debutantes, etc.)
-// actually get fed, disbursed by whoever holds the Leader or Treasurer tag.
-// Every call is logged to SiloTransaction so the faction panel can show a
-// plain "who took what, when, how much, to whom" history.
-export async function transferFromSilo(formData) {
-  const session = await auth();
-  if (!session?.discordUserId) redirect("/");
-
-  const factionId = formData.get("factionId")?.toString();
-  const toCharacterId = formData.get("toCharacterId")?.toString();
-  const amount = Number.parseInt(formData.get("amount")?.toString() ?? "", 10);
-  const note = formData.get("note")?.toString().trim() || null;
-  if (!factionId || !toCharacterId || !Number.isFinite(amount) || amount <= 0) return;
-
-  const { isGm: gm } = await getGmSession();
-  // Ancestor-aware: also covers a parent faction's Leader/Treasurer acting
-  // on a subject faction's Silo, not just the same-faction case.
-  const { character: myCharacter, canManageSilo } = await getSiloAccess(session.discordUserId, factionId);
-  if (!gm && !canManageSilo) throw new Error("Not authorized.");
-  // Only attribute the transaction to the actor's character when they
-  // actually hold real standing here (own faction or an ancestor of it) — a
-  // GM acting on a faction with no such standing shouldn't log an unrelated
-  // character's name.
-  const actorCharacter = canManageSilo ? myCharacter : null;
-
-  const [faction, toCharacter, openTurn] = await Promise.all([
-    prisma.faction.findUnique({ where: { id: factionId } }),
-    prisma.character.findUnique({ where: { id: toCharacterId } }),
-    prisma.turn.findFirst({ where: { status: "OPEN" } }),
-  ]);
-  if (!faction || faction.name === "Unaffiliated") return;
-  if (!toCharacter || toCharacter.factionId !== factionId) return;
-  if (amount > faction.silo) return;
-
-  await prisma.$transaction([
-    prisma.faction.update({ where: { id: factionId }, data: { silo: { decrement: amount } } }),
-    prisma.character.update({ where: { id: toCharacterId }, data: { resources: { increment: amount } } }),
-    prisma.siloTransaction.create({
-      data: {
-        factionId,
-        amount: -amount,
-        actorDiscordUserId: session.discordUserId,
-        actorCharacterId: actorCharacter?.id ?? null,
-        actorName: actorCharacter?.name ?? "GM",
-        toCharacterId,
-        toName: toCharacter.name,
-        turnNumber: openTurn?.number ?? null,
-        turnPhase: openTurn?.phase ?? null,
-        note,
-      },
-    }),
-  ]);
 
   revalidatePath("/faction");
 }

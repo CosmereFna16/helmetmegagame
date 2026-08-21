@@ -7,7 +7,6 @@ import { getMyFactionRole, getSiloAccess } from "@/lib/factionPermissions";
 import {
   setFactionLeader,
   setTreasurer,
-  transferFromSilo,
   addCharacterToFaction,
   removeCharacterFromFaction,
 } from "./actions";
@@ -232,41 +231,6 @@ function SiloHistoryPanel({ history }) {
   );
 }
 
-function TransferFromSiloPanel({ faction, members }) {
-  return (
-    <section className="panel p-4">
-      <h2 className="panel-header">Transfer from Silo</h2>
-      <form action={transferFromSilo} className="flex flex-wrap items-end gap-2">
-        <input type="hidden" name="factionId" value={faction.id} />
-        <label className="field">
-          <span className="field-label">To</span>
-          <select name="toCharacterId" required defaultValue="">
-            <option value="" disabled>
-              Choose a member...
-            </option>
-            {members.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span className="field-label">Amount</span>
-          <input type="number" name="amount" min="1" max={faction.silo} required className="text-input" style={{ width: "6rem" }} />
-        </label>
-        <label className="field">
-          <span className="field-label">Note</span>
-          <input type="text" name="note" placeholder="optional" className="text-input" />
-        </label>
-        <button type="submit" className="btn">
-          Transfer
-        </button>
-      </form>
-    </section>
-  );
-}
-
 export default async function FactionPage({ searchParams }) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
@@ -404,15 +368,7 @@ export default async function FactionPage({ searchParams }) {
           </table>
         </section>
 
-        {viewCanManageSilo && (
-          <>
-            <TransferFromSiloPanel
-              faction={faction}
-              members={faction.characters.filter((c) => c.status === "ALIVE")}
-            />
-            <SiloHistoryPanel history={siloHistory} />
-          </>
-        )}
+        {viewCanManageSilo && <SiloHistoryPanel history={siloHistory} />}
 
         {subjectFactions.length > 0 && (
           <div>
@@ -515,7 +471,7 @@ export default async function FactionPage({ searchParams }) {
                         <input type="hidden" name="characterId" value={c.id} />
                         <input type="hidden" name="factionId" value={faction.id} />
                         <button type="submit" className="btn-quiet">
-                          Make leader
+                          Make Leader
                         </button>
                       </form>
                     )}
@@ -556,15 +512,7 @@ export default async function FactionPage({ searchParams }) {
         </table>
       </section>
 
-      {!isUnaffiliated && (
-        <>
-          <TransferFromSiloPanel
-            faction={faction}
-            members={faction.characters.filter((c) => c.status === "ALIVE")}
-          />
-          <SiloHistoryPanel history={siloHistory} />
-        </>
-      )}
+      {!isUnaffiliated && <SiloHistoryPanel history={siloHistory} />}
 
       {subjectFactions.length > 0 && (
         <div>

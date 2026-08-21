@@ -347,8 +347,10 @@ the **`CharacterTag` rows**, not the bare `Tag`s. The wrapper carries
 Every request writes an `AuditLog` row through
 `web/lib/requests.js#logRequest`, carrying the player's reason verbatim. That
 fills the new **Reason** column on `/gm/audit`, which is blank for every
-non-request entry. The audit table is also now a fixed-height scroller with a
-pinned header (`.table-scroll`), since it is scanned rather than paged.
+non-request entry. The audit table is a fixed-height scroller with a pinned
+header (`.table-scroll`) over 50 rows a page — the same shell every other
+list in the app uses, though `/gm/audit` is the one that pages server-side,
+over the URL, so a filtered view stays linkable.
 
 Faction Silos additionally get a `SiloTransaction` row on **both** directions
 of a transfer. Deposits into a Silo previously left no ledger entry at all.
