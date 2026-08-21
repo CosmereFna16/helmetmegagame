@@ -143,6 +143,11 @@ export default async function DevPanelPage() {
             <span className="field-label">Player count (scales role seat caps)</span>
             <input type="number" name="playerCount" min="1" defaultValue={config.playerCount} />
           </label>
+
+          <label className="field">
+            <span className="field-label">Equip slots</span>
+            <input type="number" name="equipSlots" min="1" max="20" defaultValue={config.equipSlots} />
+          </label>
           <label className="flex items-center gap-2 text-sm col-span-full">
             <input type="checkbox" name="openToPlayers" defaultChecked={config.openToPlayers} />
             Open to players (lets anyone holding the player role create a character — off means the game

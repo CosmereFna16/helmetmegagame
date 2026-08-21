@@ -5,10 +5,11 @@ import DefaultEffortPanel from "./DefaultEffortPanel";
 import GoalsPanel from "./GoalsPanel";
 import StatusPanel from "./StatusPanel";
 import TagsPanel from "./TagsPanel";
+import EquipmentPanel from "./EquipmentPanel";
 import RichText from "./RichText";
 import FactionLink from "./FactionLink";
 import PageShell from "@/app/components/PageShell";
-import { HONORIFICS, NAME_LIMITS } from "@/lib/characterName";
+import { HONORIFICS, NAME_LIMITS, AGE_MIN, AGE_MAX } from "@/lib/characterName";
 import InfoIcon from "./InfoIcon";
 
 // Raw d6 first, then the summed modifier (Mood ±1, Hunger -1) and the total —
@@ -78,6 +79,7 @@ export default function CharacterSheet({
   canHeal = false,
   healTargets = [],
   healParties = null,
+  equipSlots = 6,
 }) {
   const isSelf = mode === "self";
 
@@ -165,6 +167,27 @@ export default function CharacterSheet({
                     maxLength={NAME_LIMITS.lastName}
                   />
                 </label>
+                {/* Free to set once, then fixed — same treatment as the
+                    GM-granted title below. The disabled input submits nothing,
+                    and updateCharacterProfile refuses to overwrite a non-null
+                    age regardless, which is the actual lock. */}
+                <label className="field">
+                  <span className="field-label flex items-center gap-1.5">
+                    Age
+                    {character.age !== null && (
+                      <InfoIcon text="Your age is fixed once you set it. Ask a GM if it needs changing." />
+                    )}
+                  </span>
+                  <input
+                    type="number"
+                    name="age"
+                    min={AGE_MIN}
+                    max={AGE_MAX}
+                    defaultValue={character.age ?? ""}
+                    placeholder={`${AGE_MIN}\u2013${AGE_MAX}`}
+                    disabled={character.age !== null}
+                  />
+                </label>
                 {/* Granted by a GM, so it is shown but not editable. Being
                     `disabled` it submits nothing, and updateCharacterProfile
                     never reads it — that, not the greying, is the lock. */}
@@ -202,6 +225,12 @@ export default function CharacterSheet({
         )}
         </div>
       </div>
+
+      <EquipmentPanel
+        characterTags={character.tags}
+        slots={equipSlots}
+        isSelf={isSelf}
+      />
 
       <TagsPanel
         characterTags={character.tags}

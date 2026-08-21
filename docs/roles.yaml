@@ -1138,6 +1138,7 @@ zones:
               - Fighting (Basic)
             doc_elements:
               - campstarting
+              - concealing
           - name: Brigand
             slug: brigand
             intro: You raided a shipment on the way to the Fortress—well done!
@@ -1152,6 +1153,7 @@ zones:
               - Fighting (Basic)
             doc_elements:
               - campstarting
+              - concealing
   - name: Caves
     situation:
       - "The Caves: Migrants make it to the Fortress from here."

@@ -1,5 +1,5 @@
 const { WebhookClient, EmbedBuilder } = require("discord.js");
-const { prisma, formatTagRequirement, turnsLeft, formatTurnsLeft } = require("@lifeweb/db");
+const { prisma, formatTagRequirement, turnsLeft, formatTurnsLeft, concealedLine } = require("@lifeweb/db");
 const { getSiloAccess } = require("@lifeweb/db/lib/factionPermissions");
 const { inspectVision } = require("@lifeweb/db/lib/inspectVision");
 const { recentProxies } = require("../lib/proxy");
@@ -28,7 +28,10 @@ async function handleStarReaction(reaction, proxy, user) {
       discordMessageId: reaction.message.id,
       discordChannelId: reaction.message.channelId,
       characterId: character.id,
-      characterName: character.name,
+      // A concealed message is filed under the alias it was posted as. The
+      // note is already private to the starrer, but recording the real name
+      // would quietly hand them the answer the concealment was hiding.
+      characterName: proxy.concealed ? (proxy.alias ?? "Unknown") : character.name,
       zoneId: character.zoneId ?? null,
       content: reaction.message.content ?? "",
       sentAt: reaction.message.createdAt,
@@ -143,6 +146,57 @@ module.exports = {
       // depends on both. Seductive/Torturer (and their Demoness twins) are
       // read off the REACTOR, not the subject: they're the sight, not the
       // thing seen.
+      // A concealed message answers with a hardcoded, deliberately impoverished
+      // embed: what a stranger could see, and nothing else. It returns before
+      // any of the normal field logic below, so no appearance, name, Desire,
+      // Worst Fear or Resources can leak through a gate that happens to be
+      // open for this particular viewer.
+      if (proxy.concealed) {
+        const concealedChar = await prisma.character.findUnique({
+          where: { id: proxy.characterId },
+          select: {
+            tags: {
+              select: {
+                equipped: true,
+                tag: {
+                  select: {
+                    name: true,
+                    visibleOnInspect: true,
+                    group: { select: { slug: true } },
+                  },
+                },
+              },
+            },
+          },
+        });
+        if (!concealedChar) return;
+
+        const seen = concealedChar.tags.filter((ct) => ct.tag.visibleOnInspect);
+        // "status-health" alone, not the category: TagGroup is already
+        // category-scoped, and Tag.category stores the display name
+        // ("Status"), so testing that would be a casing trap. Hungry and
+        // Unhappy live in status-debuffs and correctly stay out of this.
+        const ailments = seen
+          .filter((ct) => ct.tag.group?.slug === "status-health")
+          .map((ct) => ct.tag.name);
+        const worn = seen.filter((ct) => ct.equipped).map((ct) => ct.tag.name);
+
+        const hidden = new EmbedBuilder().setDescription(concealedLine(proxy.alias));
+        if (ailments.length > 0) hidden.addFields({ name: "Ailments", value: ailments.join(", ") });
+        if (worn.length > 0) hidden.addFields({ name: "Equipment", value: worn.join(", ") });
+        if (process.env.WEB_BASE_URL) {
+          hidden.setThumbnail(`${process.env.WEB_BASE_URL}/assets/unknown.png`);
+        }
+
+        try {
+          await sendDm(user, { embeds: [hidden] });
+        } catch {
+          await reaction.message.channel.send({ embeds: [hidden] }).catch(() => {});
+        }
+        await reaction.users.remove(user.id).catch(() => {});
+        return;
+      }
+
       const [character, viewer, openTurn] = await Promise.all([
         prisma.character.findUnique({
           where: { id: proxy.characterId },

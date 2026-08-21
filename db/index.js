@@ -330,6 +330,7 @@ module.exports = {
   ...require("./lib/roleIds"),
   ...require("./lib/roleColor"),
   ...require("./lib/characterName"),
+  ...require("./lib/concealedIdentity"),
   ...require("./lib/roleCapacity"),
   ...require("./lib/production"),
   ...require("./lib/formatTagRequirement"),

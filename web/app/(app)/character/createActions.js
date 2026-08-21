@@ -26,6 +26,8 @@ import {
 
 import { WORST_FEAR_MAX_LENGTH } from "@/lib/constants";
 import {
+  AGE_MIN,
+  AGE_MAX,
   NAME_LIMITS,
   formatCharacterName,
   formatBareName,
@@ -57,6 +59,11 @@ export async function createCharacter(formData) {
   const lastName = part("lastName", NAME_LIMITS.lastName);
   const name = formatCharacterName({ honorific, firstName, title: null, lastName });
   const preferredNickname = formData.get("preferredNickname")?.toString().trim() || null;
+  // Optional at creation — a player who skips it sets it later from
+  // /character, where it locks on that first save instead.
+  const rawAge = Number.parseInt(formData.get("age")?.toString() ?? "", 10);
+  const age =
+    Number.isInteger(rawAge) && rawAge >= AGE_MIN && rawAge <= AGE_MAX ? rawAge : null;
   const roleId = formData.get("roleId")?.toString();
   const tagIds = formData.getAll("tagIds").map((t) => t.toString()).filter(Boolean);
   // Optional — the wizard's Fear step can be walked straight past, and the
@@ -189,6 +196,7 @@ export async function createCharacter(formData) {
           title: null,
           lastName,
           name,
+          age,
           preferredNickname,
           roleId: role.id,
           roleTitle: role.name,

@@ -736,6 +736,7 @@ tags:
     group: items-gear
     description: "Could be pawned off for your life."
     pointCost: 1
+    equippable: true
     tradeable: true
     visible: true
     purchasable: true
@@ -764,6 +765,7 @@ tags:
     group: items-gear
     description: "A worn revolver. Devastating, but not much ammunition."
     pointCost: 4
+    equippable: true
     tradeable: true
     stackable: true
     visible: true

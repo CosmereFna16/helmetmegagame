@@ -18,6 +18,11 @@ The wizard has five steps:
    optional preferred nickname (the `{base} | {character}` Discord nickname
    convention, which uses the **bare** first + last).
 
+   Age is optional here (18–90). Left blank, it stays editable on `/character`
+   until the player saves a number, and locks at that point — a GM can still
+   correct it afterwards. It feeds the Young/Old half of a concealed alias
+   (`db/lib/concealedIdentity.js`).
+
    A displayed name is four fields joined by
    `db/lib/characterName.js#formatCharacterName` as
    `Sir Jorren "the Blind" Vask`. The fourth, `title`, renders in quotes

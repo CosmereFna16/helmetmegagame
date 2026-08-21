@@ -16,7 +16,7 @@ import InfoIcon from "@/app/components/InfoIcon";
 import Tooltip from "@/app/components/Tooltip";
 import { WORST_FEAR_HELP } from "@/app/components/WorstFearPanel";
 import { WORST_FEAR_PENALTY, WORST_FEAR_MAX_LENGTH } from "@/lib/constants";
-import { HONORIFICS, NAME_LIMITS, formatCharacterName } from "@/lib/characterName";
+import { HONORIFICS, NAME_LIMITS, AGE_MIN, AGE_MAX, formatCharacterName } from "@/lib/characterName";
 
 const STEPS = ["Identity", "Role", "Tags", "Fear", "Confirm"];
 
@@ -88,6 +88,7 @@ export default function CreateCharacterWizard({ zones, tags, startingTagPoints, 
   const [honorific, setHonorific] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [age, setAge] = useState("");
   const [preferredNickname, setPreferredNickname] = useState("");
   const [roleId, setRoleId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -140,6 +141,7 @@ export default function CreateCharacterWizard({ zones, tags, startingTagPoints, 
     fd.set("firstName", firstName.trim());
     if (honorific) fd.set("honorific", honorific);
     if (lastName.trim()) fd.set("lastName", lastName.trim());
+    if (age.trim()) fd.set("age", age.trim());
     if (preferredNickname.trim()) fd.set("preferredNickname", preferredNickname.trim());
     fd.set("roleId", roleId);
     for (const id of selectedIds) fd.append("tagIds", id);
@@ -207,6 +209,17 @@ export default function CreateCharacterWizard({ zones, tags, startingTagPoints, 
           </div>
           {/* The only place a player sees the join rule before submitting. */}
           {displayName && <p className="text-sm text-muted">You will be known as {displayName}.</p>}
+          <label className="field">
+            <span className="field-label">Age (optional)</span>
+            <input
+              type="number"
+              value={age}
+              onChange={(e) => setAge(e.target.value)}
+              min={AGE_MIN}
+              max={AGE_MAX}
+              placeholder={`${AGE_MIN}\u2013${AGE_MAX} \u2014 fixed once set, so you may leave it for later`}
+            />
+          </label>
           <label className="field">
             <span className="field-label">Preferred nickname (optional)</span>
             <input

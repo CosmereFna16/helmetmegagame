@@ -369,3 +369,24 @@ by automatic game logic rather than by a player, a GM, or a starting package —
 `db/lib/hungerPass.js` is their only writer, and `db/lib/gambitModifier.js`
 their only reader. `db/lib/constants.js` holds the slugs so neither file
 hardcodes a string.
+
+## `equippable` / `concealsIdentity`
+
+`equippable: true` marks a tag as something a character can wear or carry
+readied, and so occupies one of `GameConfig.equipSlots` (default 6). The state
+lives on `CharacterTag.equipped`, not on a join table: equipping is a property
+of holding the tag, so `@@unique([characterId, tagId])` stays and every
+"holds it or doesn't" check in the codebase is unaffected. A `stackable` tag
+takes one slot however many units are held.
+
+`concealsIdentity: true` marks gear that hides who the wearer is — a mask, a
+hood, a closed helm. Equipping one enables the `/conceal` message prefix (see
+"Equipment and concealed identity" in `CLAUDE.md`). It is only meaningful
+alongside `equippable`, and `syncTagsFromYaml` **throws** if it is set without
+it rather than syncing a tag that could never do anything — the kind of quiet
+failure that is miserable to debug from inside the game.
+
+Neither field interacts with `visible` (`Tag.visibleOnInspect`), which does
+double duty here: a concealed character's 🔍 embed lists only their
+`visibleOnInspect` equipped gear and their `visibleOnInspect` health statuses,
+so a hidden cuirass stays hidden even while worn.

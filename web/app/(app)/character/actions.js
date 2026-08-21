@@ -7,6 +7,8 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
 import {
+  AGE_MIN,
+  AGE_MAX,
   NAME_LIMITS,
   formatCharacterName,
   formatBareName,
@@ -41,7 +43,16 @@ export async function updateCharacterProfile(formData) {
   const romanceOptOut = formData.get("romanceOptOut") === "on";
   const avatar = formData.get("avatar");
 
+  // Age is set once and then fixed. The input renders `disabled` after the
+  // first save so it submits nothing, but that is only the UI half — this is
+  // the lock: a non-null age is never overwritten, however the form is posted.
+  // A GM can still change it from /gm/dev/characters/[characterId].
+  const rawAge = Number.parseInt(formData.get("age")?.toString() ?? "", 10);
+  const age =
+    Number.isInteger(rawAge) && rawAge >= AGE_MIN && rawAge <= AGE_MAX ? rawAge : null;
+
   const data = { appearance, preferredNickname, turnPingOptIn, romanceOptOut };
+  if (age !== null && character.age === null) data.age = age;
   if (firstName) {
     Object.assign(data, {
       honorific,

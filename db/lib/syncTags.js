@@ -84,6 +84,15 @@ async function syncTagsFromYaml(prisma) {
     if (!categoryNameBySlug.has(t.category)) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" has unknown category "${t.category}"`);
     }
+    // A tag can only conceal an identity by being equipped, so this pairing is
+    // a typo guard rather than a rule: concealsIdentity on an un-equippable tag
+    // would sync happily and then never do anything, which is the worst kind
+    // of quiet failure to debug from inside the game.
+    if (t.concealsIdentity && !t.equippable) {
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" sets concealsIdentity but not equippable — it could never be equipped, so it could never conceal anything`,
+      );
+    }
     // consumesInto is validated up here rather than in a late pass like
     // parentTag/requiredTag: every slug is already known from the document
     // itself, so a typo can fail cleanly instead of half-applying. Both halves
@@ -147,6 +156,8 @@ async function syncTagsFromYaml(prisma) {
       pointCost: entry.pointCost ?? 0,
       visibleOnInspect: entry.visible ?? false,
       tradeable: entry.tradeable ?? false,
+      equippable: entry.equippable ?? false,
+      concealsIdentity: entry.concealsIdentity ?? false,
       stackable: entry.stackable ?? false,
       purchasable: entry.purchasable ?? false,
       purchasableAfterStart: entry.purchasableAfterStart ?? true,
