@@ -1,10 +1,17 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { sortTagsForMenu, menuCategories, formatCost, costColor } from "@/lib/characterCreation";
-import { addableTags, removableTags, transferableTags } from "@/lib/tagRequests";
+import { addableTags, removableTags, transferableTags, consumableTags } from "@/lib/tagRequests";
 import RequestDialog from "./RequestDialog";
-import { addTagRequest, removeTagRequest, transferTagRequest } from "../(app)/character/requestActions";
+import InfoIcon from "./InfoIcon";
+import { useTags } from "./TagsProvider";
+import {
+  addTagRequest,
+  removeTagRequest,
+  transferTagRequest,
+  consumeTagRequest,
+} from "../(app)/character/requestActions";
 
 // The three tag-request menus. Add Tag reuses the category-tab + selectable
 // row layout from PointBuy.js, but not PointBuy itself: there's no budget, no
@@ -118,8 +125,19 @@ function ResourceCostField({ value, onChange, max }) {
   );
 }
 
-export default function TagRequestButtons({ catalog, characterTags, resources, otherCharacters }) {
-  const [mode, setMode] = useState(null); // "add" | "remove" | "transfer"
+const CONSUME_HELP =
+  "Using something up. A meal becomes Ate Meal; a crate unpacks into what's " +
+  "inside. It always takes one from a stack, so three meals feed you three " +
+  "times. You can also just click a consumable tag on your sheet.";
+
+export default function TagRequestButtons({
+  catalog,
+  characterTags,
+  resources,
+  otherCharacters,
+  onReady,
+}) {
+  const [mode, setMode] = useState(null); // "add" | "remove" | "transfer" | "consume"
   const [tagId, setTagId] = useState(null);
   const [spend, setSpend] = useState("0");
   const [quantity, setQuantity] = useState("1");
@@ -131,29 +149,54 @@ export default function TagRequestButtons({ catalog, characterTags, resources, o
   const addable = useMemo(() => addableTags(catalog, heldIds), [catalog, heldIds]);
   const removable = useMemo(() => removableTags(characterTags), [characterTags]);
   const transferable = useMemo(() => transferableTags(characterTags), [characterTags]);
+  const consumable = useMemo(() => consumableTags(characterTags), [characterTags]);
 
   // The tag currently picked, in whichever menu is open. Add draws from the
-  // catalog (no held count); the other two from what the character holds.
+  // catalog (no held count); the rest from what the character holds.
   const chosen = useMemo(() => {
-    const pool = mode === "add" ? addable : mode === "remove" ? removable : transferable;
+    const pool =
+      mode === "add"
+        ? addable
+        : mode === "remove"
+          ? removable
+          : mode === "consume"
+            ? consumable
+            : transferable;
     return pool.find((t) => t.id === tagId) ?? null;
-  }, [mode, tagId, addable, removable, transferable]);
-  const stacking = Boolean(chosen?.stackable);
+  }, [mode, tagId, addable, removable, transferable, consumable]);
+  // Consume never asks how many — it always takes one — so it opts out of the
+  // quantity field even for a stackable tag.
+  const stacking = Boolean(chosen?.stackable) && mode !== "consume";
   const heldCount = mode === "add" ? undefined : (chosen?.quantity ?? 1);
+
+  // Slug -> name for the "Becomes:" line. Tag.consumesInto carries slugs (a
+  // repeat is how a bundle grants two of something), and the app-wide tag
+  // catalog is the same source RichText's {tag:slug} references read. It
+  // arrives via fetch, so fall back to the raw slug while that's in flight.
+  const { tagsBySlug } = useTags();
+  const becomes = (chosen?.consumesInto ?? []).map((slug) => tagsBySlug.get(slug)?.name ?? slug);
 
   function pick(nextTagId) {
     setTagId(nextTagId);
     setQuantity("1");
   }
 
-  function open(next) {
+  // `presetTagId` is what lets clicking a chip on the character sheet open
+  // this dialog already pointed at that tag (see TagsPanel.js).
+  const open = useCallback((next, presetTagId = null) => {
     setMode(next);
-    setTagId(null);
+    setTagId(presetTagId);
     setSpend("0");
     setQuantity("1");
     setRecipient("");
     setError(null);
-  }
+  }, []);
+
+  // Hand the opener up so the chip list can drive it. `open` is stable, so
+  // this fires once rather than on every render.
+  useEffect(() => {
+    onReady?.(open);
+  }, [onReady, open]);
 
   function submit(reason) {
     setError(null);
@@ -164,14 +207,23 @@ export default function TagRequestButtons({ catalog, characterTags, resources, o
           ? await addTagRequest({ tagId, quantity, resourcesSpent: spend, reason })
           : mode === "remove"
             ? await removeTagRequest({ tagId, quantity, resourcesSpent: spend, reason })
-            : await transferTagRequest({ tagId, quantity, toCharacterId: recipient, reason });
+            : mode === "consume"
+              ? await consumeTagRequest({ tagId, reason })
+              : await transferTagRequest({ tagId, quantity, toCharacterId: recipient, reason });
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
       setMode(null);
     });
   }
 
   const canSubmit = mode === "transfer" ? Boolean(tagId && recipient) : Boolean(tagId);
-  const title = mode === "add" ? "Add Tag" : mode === "remove" ? "Remove Tag" : "Transfer Tag";
+  const title =
+    mode === "add"
+      ? "Add Tag"
+      : mode === "remove"
+        ? "Remove Tag"
+        : mode === "consume"
+          ? "Consume Tag"
+          : "Transfer Tag";
 
   return (
     <>
@@ -190,6 +242,17 @@ export default function TagRequestButtons({ catalog, characterTags, resources, o
         >
           Transfer Tag
         </button>
+        <span className="flex items-center gap-1">
+          <button
+            type="button"
+            className="btn-quiet"
+            onClick={() => open("consume")}
+            disabled={!consumable.length}
+          >
+            Consume
+          </button>
+          <InfoIcon text={CONSUME_HELP} />
+        </span>
       </div>
 
       <RequestDialog
@@ -237,6 +300,33 @@ export default function TagRequestButtons({ catalog, characterTags, resources, o
               />
             )}
             <ResourceCostField value={spend} onChange={setSpend} max={resources} />
+          </>
+        )}
+
+        {mode === "consume" && (
+          <>
+            <label className="field">
+              <span className="field-label">What are you using up?</span>
+              <select value={tagId ?? ""} onChange={(e) => pick(e.target.value || null)} required>
+                <option value="" disabled>
+                  Choose a tag…
+                </option>
+                {consumable.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                    {t.quantity > 1 ? ` \u00d7${t.quantity}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {chosen && (
+              <p className="text-xs text-muted">
+                {becomes.length
+                  ? `Becomes: ${becomes.join(", ")}.`
+                  : "Gets used up — it doesn't leave anything behind."}
+                {chosen.quantity > 1 ? ` Takes one of your ${chosen.quantity}.` : ""}
+              </p>
+            )}
           </>
         )}
 

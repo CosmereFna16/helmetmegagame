@@ -77,6 +77,19 @@ function summarize(request) {
       return `${e.tagName ?? "tag"} → ${e.toName ?? "?"}`;
     case "SET_MOOD":
       return `Mood: ${e.mood ?? "NEUTRAL"}`;
+    case "CONSUME_TAG":
+      return `Used up ${e.tagName ?? "a tag"}${
+        (e.granted ?? []).filter((g) => g.added > 0).length
+          ? ` → ${e.granted
+              .filter((g) => g.added > 0)
+              .map((g) => g.tagName)
+              .join(", ")}`
+          : ""
+      }`;
+    case "CHANGE_WORST_FEAR":
+      return `Worst Fear: ${truncate(e.text, 60)}`;
+    case "FULFILL_WORST_FEAR":
+      return `\u2212${e.pointsDeducted ?? 0} Tag Points — ${truncate(e.fearText, 60)}`;
     case "DONATE_BLOOD":
       return `+${e.bloodDelta ?? 0} blood — drained ${e.targetName ?? "?"}${e.tier ? ` (${e.tier})` : ""}`;
     case "FEED_PERSON":

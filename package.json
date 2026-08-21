@@ -10,7 +10,7 @@
     "dev:web": "npm run dev --workspace=web",
     "dev:bot": "npm run dev --workspace=bot",
     "redeploy": "railway redeploy -s web --from-source -y && railway redeploy -s '@lifeweb/bot' --from-source -y",
-    "deploy": "git push origin master && npm run redeploy",
+    "deploy": "git push origin master && ./migrate.sh && npm run redeploy",
     "db:generate": "npm run generate --workspace=db",
     "db:migrate": "npm run migrate --workspace=db",
     "db:migrate:deploy": "npm run migrate:deploy --workspace=db",

@@ -83,11 +83,13 @@ export default function DesirePanel({ desire, cooldownUntilTurn, openTurnNumber 
   }
 
   return (
-    <section className="panel p-4">
-      <h2 className="panel-header panel-header--with-icon">
+    // Body only — the panel chrome and the tab bar live in GoalsPanel.js,
+    // which renders this beside WorstFearPanel.
+    <div className="flex flex-col gap-3">
+      <h3 className="field-label panel-header--with-icon">
         Desire
         <InfoIcon text={DESIRE_HELP} />
-      </h2>
+      </h3>
 
       {desire ? (
         <div className="flex flex-col gap-3">
@@ -162,6 +164,6 @@ export default function DesirePanel({ desire, cooldownUntilTurn, openTurnNumber 
           The points land immediately. Tell the GMs how you pulled it off.
         </p>
       </RequestDialog>
-    </section>
+    </div>
   );
 }

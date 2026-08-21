@@ -12,8 +12,11 @@ import {
   effectiveCost,
 } from "@/lib/characterCreation";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
+import InfoIcon from "@/app/components/InfoIcon";
+import { WORST_FEAR_HELP } from "@/app/components/WorstFearPanel";
+import { WORST_FEAR_PENALTY, WORST_FEAR_MAX_LENGTH } from "@/lib/constants";
 
-const STEPS = ["Identity", "Role", "Tags", "Confirm"];
+const STEPS = ["Identity", "Role", "Tags", "Fear", "Confirm"];
 
 function StepBar({ step }) {
   return (
@@ -84,6 +87,7 @@ export default function CreateCharacterWizard({ zones, tags, startingTagPoints, 
   const [preferredNickname, setPreferredNickname] = useState("");
   const [roleId, setRoleId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [worstFear, setWorstFear] = useState("");
   const [error, setError] = useState(null);
   const [pending, setPending] = useState(false);
 
@@ -115,7 +119,10 @@ export default function CreateCharacterWizard({ zones, tags, startingTagPoints, 
     (step === 0 && name.trim().length > 0) ||
     (step === 1 && role !== null) ||
     (step === 2 && remaining >= 0) ||
-    step === 3;
+    // The Worst Fear step is optional — you may walk straight past it and set
+    // one later — so there is nothing to gate on.
+    step === 3 ||
+    step === 4;
 
   async function submit() {
     if (pending) return;
@@ -126,6 +133,7 @@ export default function CreateCharacterWizard({ zones, tags, startingTagPoints, 
     if (preferredNickname.trim()) fd.set("preferredNickname", preferredNickname.trim());
     fd.set("roleId", roleId);
     for (const id of selectedIds) fd.append("tagIds", id);
+    if (worstFear.trim()) fd.set("worstFear", worstFear.trim());
     // A successful create redirects, so anything returned here is an error.
     const result = await createCharacter(fd);
     if (result?.error) {
@@ -235,7 +243,30 @@ export default function CreateCharacterWizard({ zones, tags, startingTagPoints, 
         </div>
       )}
 
-      {step === 3 && role && (
+      {step === 3 && (
+        <div className="panel flex flex-col gap-4 p-4">
+          <h2 className="panel-header panel-header--with-icon">
+            Worst Fear (optional)
+            <InfoIcon text={WORST_FEAR_HELP} />
+          </h2>
+          <p className="text-sm text-muted">
+            One dread your character carries. If it ever comes true you lose {WORST_FEAR_PENALTY}{" "}
+            Tag Points — and you keep the fear, so it can come true again. You can skip this and
+            name one later, but once it&apos;s set, changing it is a request a GM reviews.
+          </p>
+          <label className="field">
+            <span className="field-label">What does your character dread?</span>
+            <input
+              value={worstFear}
+              onChange={(e) => setWorstFear(e.target.value)}
+              maxLength={WORST_FEAR_MAX_LENGTH}
+              placeholder="Dying alone and unremembered…"
+            />
+          </label>
+        </div>
+      )}
+
+      {step === 4 && role && (
         <div className="panel flex flex-col gap-3 p-4">
           <h2 className="panel-header">{name}</h2>
           <dl className="grid gap-2 text-sm sm:grid-cols-2">
@@ -254,6 +285,10 @@ export default function CreateCharacterWizard({ zones, tags, startingTagPoints, 
             <div>
               <dt className="text-muted">Resources</dt>
               <dd>{role.startingResources} ⬢</dd>
+            </div>
+            <div>
+              <dt className="text-muted">Worst Fear</dt>
+              <dd>{worstFear.trim() || <span className="text-muted">none</span>}</dd>
             </div>
           </dl>
           <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -290,7 +325,7 @@ export default function CreateCharacterWizard({ zones, tags, startingTagPoints, 
         >
           Back
         </button>
-        {step < 3 ? (
+        {step < 4 ? (
           <button
             type="button"
             className="btn"

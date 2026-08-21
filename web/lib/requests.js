@@ -12,11 +12,16 @@ export const REQUEST_TYPE_LABELS = {
   FULFILL_DESIRE: "Fulfill Desire",
   ADD_TAG: "Add Tag",
   REMOVE_TAG: "Remove Tag",
+  CONSUME_TAG: "Consume Tag",
   TRANSFER_RESOURCES: "Transfer Resources",
   TRANSFER_TAG: "Transfer Tag",
   SET_MOOD: "Set Mood",
   DONATE_BLOOD: "Donate Blood",
   FEED_PERSON: "Feed Person",
+  CHANGE_WORST_FEAR: "Change Worst Fear",
+  // Not "Fulfill Worst Fear" — that reads like the player achieved
+  // something, and every other label here is a thing they did.
+  FULFILL_WORST_FEAR: "Worst Fear Comes True",
 };
 
 export const REQUEST_STATUS_LABELS = {

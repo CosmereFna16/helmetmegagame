@@ -108,6 +108,27 @@ const SECTIONS = {
     ),
   },
 
+  CONSUME_TAG: {
+    heading: "Consume Tag",
+    render: ({ effect }) => (
+      <>
+        <Line label="Consumed">{effect.tagName ?? "—"}</Line>
+        <Line label="Became">
+          {(effect.granted ?? []).filter((g) => g.added > 0).length
+            ? effect.granted
+                .filter((g) => g.added > 0)
+                .map((g) => (g.added > 1 ? `${g.tagName} \u00d7${g.added}` : g.tagName))
+                .join(", ")
+            : "—"}
+        </Line>
+        <p className="text-xs text-muted">
+          Nothing to re-score here. Undo puts back the one unit it took, with its original source
+          and expiry, and takes back what it became.
+        </p>
+      </>
+    ),
+  },
+
   TRANSFER_RESOURCES: {
     heading: "Transfer Resources",
     render: ({ effect }) => (
@@ -204,6 +225,42 @@ const SECTIONS = {
             </p>
           </div>
         )}
+      </>
+    ),
+  },
+
+  CHANGE_WORST_FEAR: {
+    heading: "Change Worst Fear",
+    render: ({ effect }) => (
+      <>
+        <Line label="Now">{effect.text ?? "—"}</Line>
+        <Line label="Was">
+          {effect.previousText ?? <span className="text-muted">nothing</span>}
+        </Line>
+        <p className="text-xs text-muted">
+          Nothing to re-score — a Worst Fear costs nothing to set. Undo puts the previous wording
+          back.
+        </p>
+      </>
+    ),
+  },
+
+  FULFILL_WORST_FEAR: {
+    heading: "Worst Fear Comes True",
+    render: ({ effect }) => (
+      <>
+        <Line label="Fear">{effect.fearText ?? "—"}</Line>
+        <Line label="Cost">
+          <span className="text-accent">&minus;{effect.pointsDeducted ?? 0} Tag Points</span>
+        </Line>
+        {effect.fulfilledTurnNumber != null && (
+          <Line label="On turn">{effect.fulfilledTurnNumber}</Line>
+        )}
+        <p className="text-xs text-muted">
+          Always exactly &minus;{effect.pointsDeducted ?? 0}, so there is nothing to edit. The fear
+          is not used up — they keep it and can claim it again next turn. Undo refunds the points
+          and unwinds the cooldown.
+        </p>
       </>
     ),
   },

@@ -10,7 +10,7 @@
 # A spreadsheet is still a fine place to draft ideas — just treat it as
 # scratch. To bring drafted tags in, point Claude at the sheet and ask for
 # the specific entries to be added here by hand, so existing fields that
-# only ever lived in this file (grantsOnExpiry, stackable, craftable,
+# only ever lived in this file (consumesInto, stackable, craftable,
 # requirement) can't be clobbered by a bulk overwrite.
 #
 # Per-tag fields not covered elsewhere in this file:
@@ -31,17 +31,21 @@
 #                     unaffected. Fine to combine with durationTurns: each
 #                     expiry sheds one unit and restarts the timer for the
 #                     rest, so 3 of a 2-turn tag lose one every 2 turns.
-#   grantsOnExpiry  - list of tag slugs this tag turns INTO when it expires,
-#                     instead of expiry only taking something away (Starting
-#                     Wares unpacking into goods; a Wound leaving a Scar; a
-#                     sickness resolving into a lasting condition). Needs
-#                     durationTurns to ever fire. Repeat a slug to grant
-#                     several of it — that only multiplies for a stackable
-#                     tag, a non-stackable repeat collapses to one. Granted
-#                     tags that have their own durationTurns start their
-#                     clock at that moment, so chains work. If the character
-#                     already holds a non-stackable granted tag, their
-#                     existing one is left alone.
+#   consumable      - whether a player can use this tag up from their
+#                     character sheet — eat the meal, unpack the crate.
+#                     Default false. Consuming always takes exactly ONE
+#                     unit, so a stack of meals feeds you several times.
+#   consumesInto    - list of tag slugs this tag turns INTO when it is
+#                     consumed (a meal becoming ate-meal; Starting Wares
+#                     unpacking into goods). Repeat a slug to grant several
+#                     of it — that only multiplies for a stackable tag, a
+#                     non-stackable repeat collapses to one. Granted tags
+#                     that have their own durationTurns start their clock at
+#                     that moment, so chains work (meal -> ate-meal, which
+#                     the expiry sweep then clears). If the character already
+#                     holds a non-stackable granted tag, their existing one
+#                     is left alone. Omit it for a consumable that simply
+#                     gets used up.
 #   requirement:    - what it costs a character to add or remove this tag in
 #                     play (GM adjudication reference, also shown to
 #                     players; not automated/enforced by any code). One
@@ -597,19 +601,19 @@ tags:
     purchasableAfterStart: true
 
   # A creation-only bundle rather than a thing you carry: it sits on the sheet
-  # for one turn and then unpacks into the goods below (see grantsOnExpiry in
-  # this file's header). Not tradeable or stackable — there's nothing to hand
-  # over, and buying two would just collapse into one.
+  # until the player unpacks it from their own character sheet (see consumable
+  # in this file's header). Not tradeable or stackable — there's nothing to
+  # hand over, and buying two would just collapse into one.
   - slug: starting-wares
     name: Starting Wares
     category: items
     group: items-gear
-    description: "Goods you came in with, still crated. You'll get them unpacked next turn."
+    description: "Goods you came in with, still crated. Unpack them whenever you like."
     pointCost: 4
     purchasable: true
     purchasableAfterStart: false
-    durationTurns: 1
-    grantsOnExpiry:
+    consumable: true
+    consumesInto:
       - old-45-revolver
       - jewelry
 
@@ -649,6 +653,9 @@ tags:
     purchasableAfterStart: false
     removable: true
     craftable: true
+    consumable: true
+    consumesInto:
+      - ate-meal
     requirement:
       resourceCost: 2
       skills: [cooking-basic]
@@ -666,6 +673,10 @@ tags:
     purchasableAfterStart: false
     removable: true
     craftable: true
+    consumable: true
+    consumesInto:
+      - ate-meal
+      - happy
     requirement:
       resourceCost: 3
       skills: [cooking-skilled]

@@ -68,7 +68,7 @@ async function moveBlood(tx, delta) {
 // --- stacks -----------------------------------------------------------
 // A stackable tag is ONE CharacterTag row carrying a count, never N rows —
 // @@unique([characterId, tagId]) stays, so every presence check elsewhere
-// still reads "holds it or doesn't". These three are the only writers that
+// still reads "holds it or doesn't". These four are the only writers that
 // know about quantity; everything else goes through them.
 
 // Adds `quantity` of a tag, creating the row or incrementing an existing
@@ -139,6 +139,78 @@ export async function dropCharacterTag(tx, characterId, tagId, quantity = null) 
     where: { id: existing.id },
     data: { quantity: existing.quantity - take },
   });
+}
+
+// Grants a list of tag SLUGS to one character — what a consumed tag turns
+// into (Tag.consumesInto: a meal becoming Ate Meal, a crate unpacking into
+// its contents). Slugs rather than ids because that is what the catalog
+// carries, specifically so a slug may REPEAT: listing one twice is the only
+// way to ask for two of something.
+//
+// Returns the snapshot Undo needs — one entry per distinct slug, with
+// `added` being what was ACTUALLY put on the sheet. That is 0 for a
+// non-stackable tag the character already held, which is left entirely alone
+// (expiry included: their existing one is the live truth, and clobbering it
+// would silently extend or cut short something they already had). Undo may
+// only take back what this request really added.
+export async function grantTagSlugs(tx, characterId, slugs, turnNumber) {
+  if (!slugs?.length) return [];
+
+  const owed = new Map();
+  for (const slug of slugs) owed.set(slug, (owed.get(slug) ?? 0) + 1);
+
+  const tags = await tx.tag.findMany({
+    where: { slug: { in: [...owed.keys()] } },
+    select: { id: true, slug: true, name: true, stackable: true, defaultDurationTurns: true },
+  });
+  const tagBySlug = new Map(tags.map((t) => [t.slug, t]));
+
+  const granted = [];
+  for (const [slug, count] of owed) {
+    // Unknown slugs are rejected at sync time (db/lib/syncTags.js), so this
+    // can only be a row predating a catalog edit — skip it rather than fail
+    // the whole request.
+    const tag = tagBySlug.get(slug);
+    if (!tag) continue;
+
+    const existing = await tx.characterTag.findUnique({
+      where: { characterId_tagId: { characterId, tagId: tag.id } },
+    });
+
+    if (!existing) {
+      // A granted tag with its own duration starts its clock now, which is
+      // what makes a chain work (meal -> Ate Meal that the sweep clears).
+      // Same absolute-turn expression as db/lib/hungerPass.js.
+      const expiresTurn =
+        turnNumber != null && tag.defaultDurationTurns != null
+          ? turnNumber + tag.defaultDurationTurns
+          : null;
+      await tx.characterTag.create({
+        data: {
+          characterId,
+          tagId: tag.id,
+          source: "EVENT",
+          quantity: tag.stackable ? count : 1,
+          expiresTurn,
+        },
+      });
+      granted.push({ tagId: tag.id, tagName: tag.name, added: tag.stackable ? count : 1 });
+      continue;
+    }
+
+    if (tag.stackable) {
+      await tx.characterTag.update({
+        where: { id: existing.id },
+        data: { quantity: existing.quantity + count },
+      });
+      granted.push({ tagId: tag.id, tagName: tag.name, added: count });
+      continue;
+    }
+
+    granted.push({ tagId: tag.id, tagName: tag.name, added: 0 });
+  }
+
+  return granted;
 }
 
 // --- per-type handlers ------------------------------------------------
@@ -264,6 +336,28 @@ export const REQUEST_EFFECTS = {
     },
   },
 
+  // Nothing numeric to re-score, so a GM's only lever is Undo: put the one
+  // unit back with its original source and expiry, and take back exactly what
+  // it became. Reads `granted` off the effect rather than re-deriving from
+  // Tag.consumesInto, which may well have been edited in the catalog since.
+  CONSUME_TAG: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { restore, tagName, granted = [] } = request.effect;
+      for (const g of granted) {
+        // `added: 0` means the character already held that tag and this
+        // request left it alone — taking it away now would confiscate
+        // something it never gave.
+        if (g.tagId && g.added > 0) await dropCharacterTag(tx, request.characterId, g.tagId, g.added);
+      }
+      if (restore?.tagId) await restoreCharacterTag(tx, request.characterId, restore);
+      const took = granted.filter((g) => g.added > 0).map((g) => formatStack(g.tagName, g.added));
+      return took.length
+        ? `Restored ${tagName ?? "the tag"} and took back ${took.join(", ")}.`
+        : `Restored ${tagName ?? "the tag"}.`;
+    },
+  },
+
   TRANSFER_RESOURCES: {
     editableFields: [],
     async undo(tx, request, ctx) {
@@ -343,6 +437,70 @@ export const REQUEST_EFFECTS = {
       return killed
         ? `Drew back ${bloodDelta ?? 0} blood. ${targetName ?? "The target"} stays dead — revive them by hand if that was wrong.`
         : `Drew back ${bloodDelta ?? 0} blood.`;
+    },
+  },
+
+  // Changing a locked-in Worst Fear. Nothing numeric moved, so a GM's only
+  // lever is Undo: put the previous wording and its set-turn back. The first
+  // set is NOT a request (see requestActions.js), so every row of this type
+  // really is a change and previousText is always populated.
+  //
+  // Lossy in the same way SET_MOOD is: undoing the FIRST of two changes
+  // clobbers the second one's text. That is the price of "Undo reads only
+  // effect, never live state" (REQUESTS.md §2), and re-deriving from the
+  // sheet is exactly what that rule forbids.
+  CHANGE_WORST_FEAR: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { previousText, previousSetTurnNumber } = request.effect;
+      await tx.character.update({
+        where: { id: request.characterId },
+        data: {
+          worstFear: previousText ?? null,
+          worstFearSetTurnNumber: previousSetTurnNumber ?? null,
+        },
+      });
+      return previousText
+        ? "Restored the previous Worst Fear."
+        : "Cleared the Worst Fear — there wasn't one before this.";
+    },
+  },
+
+  // The fear coming true: a flat penalty, never a ladder, so there is nothing
+  // to re-score and editableFields is empty by design. The fear itself
+  // PERSISTS — this request only moves Tag Points and stamps the cooldown.
+  FULFILL_WORST_FEAR: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { pointsDeducted, fulfilledTurnNumber, previousLastFulfilledTurn } = request.effect;
+
+      // Read off the snapshot rather than WORST_FEAR_PENALTY, so an old row
+      // still reverses by what it actually took if that number is retuned.
+      if (pointsDeducted) {
+        await tx.character.update({
+          where: { id: request.characterId },
+          data: { tagPoints: { increment: pointsDeducted } },
+        });
+      }
+
+      // Only unwind the cooldown if this request is still the one that set
+      // it. A player who claimed the fear again on a later turn owns the
+      // stamp now, and blindly restoring our snapshot would hand them a free
+      // extra claim. This reads live state to decide WHETHER the restore
+      // still applies — never to recompute WHAT to restore, which is the
+      // thing REQUESTS.md §2 forbids.
+      const live = await tx.character.findUnique({
+        where: { id: request.characterId },
+        select: { worstFearLastFulfilledTurn: true },
+      });
+      if (live && live.worstFearLastFulfilledTurn === (fulfilledTurnNumber ?? null)) {
+        await tx.character.update({
+          where: { id: request.characterId },
+          data: { worstFearLastFulfilledTurn: previousLastFulfilledTurn ?? null },
+        });
+      }
+
+      return `Refunded ${pointsDeducted ?? 0} Tag Point(s). The Worst Fear stands, unfulfilled.`;
     },
   },
 
