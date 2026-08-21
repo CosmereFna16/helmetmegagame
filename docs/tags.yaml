@@ -16,8 +16,20 @@
 #                     (meals, ammunition, anything a crafting Move makes in a
 #                     batch). Default false. A stack is one CharacterTag row
 #                     carrying a count, not N rows, so presence checks are
-#                     unaffected. Do NOT combine with durationTurns: the
-#                     expiry sweep deletes whole rows, stack and all.
+#                     unaffected. Fine to combine with durationTurns: each
+#                     expiry sheds one unit and restarts the timer for the
+#                     rest, so 3 of a 2-turn tag lose one every 2 turns.
+#   grantsOnExpiry  - list of tag slugs this tag turns INTO when it expires,
+#                     instead of expiry only taking something away (Starting
+#                     Wares unpacking into goods; a Wound leaving a Scar; a
+#                     sickness resolving into a lasting condition). Needs
+#                     durationTurns to ever fire. Repeat a slug to grant
+#                     several of it — that only multiplies for a stackable
+#                     tag, a non-stackable repeat collapses to one. Granted
+#                     tags that have their own durationTurns start their
+#                     clock at that moment, so chains work. If the character
+#                     already holds a non-stackable granted tag, their
+#                     existing one is left alone.
 #   requirement:    - what it costs a character to add or remove this tag in
 #                     play (GM adjudication reference, also shown to
 #                     players; not automated/enforced by any code). One
@@ -561,6 +573,34 @@ tags:
   # Portable things a character owns, carries, hands over, and (where
   # stackable) holds several of. Standing property and companions live in
   # Assets below, not here.
+  - slug: jewelry
+    name: Jewelry
+    category: items
+    group: items-gear
+    description: "Could be pawned off for your life."
+    pointCost: 1
+    tradeable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+
+  # A creation-only bundle rather than a thing you carry: it sits on the sheet
+  # for one turn and then unpacks into the goods below (see grantsOnExpiry in
+  # this file's header). Not tradeable or stackable — there's nothing to hand
+  # over, and buying two would just collapse into one.
+  - slug: starting-wares
+    name: Starting Wares
+    category: items
+    group: items-gear
+    description: "Goods you came in with, still crated. You'll get them unpacked next turn."
+    pointCost: 4
+    purchasable: true
+    purchasableAfterStart: false
+    durationTurns: 1
+    grantsOnExpiry:
+      - old-45-revolver
+      - jewelry
+
   - slug: old-45-revolver
     name: Old .45 Revolver
     category: items

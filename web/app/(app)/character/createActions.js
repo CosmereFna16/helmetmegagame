@@ -54,10 +54,11 @@ export async function createCharacter(formData) {
     redirect("/character");
   }
 
-  const [role, config, member] = await Promise.all([
+  const [role, config, member, openTurn] = await Promise.all([
     prisma.role.findUnique({ where: { id: roleId }, include: { faction: true, startingLocation: true } }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     getGuildMember(discordUserId),
+    prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
   ]);
   if (!role) return { error: "That role no longer exists." };
 
@@ -115,9 +116,26 @@ export async function createCharacter(formData) {
   // Deduplicate: a player can pay for a tag the role also grants only if the
   // menu let them, but a direct post could. Union them, and refund nothing —
   // the budget check above already passed.
+  //
+  // A tag with a catalog duration has to arrive already stamped, or it sits
+  // on the sheet forever: resolveNeeds()' sweep only ever looks at
+  // expiresTurn, and nothing else backfills it. This is what makes a
+  // one-turn bundle like Starting Wares actually expire (and so convert —
+  // see Tag.grantsOnExpiry). Both tag sets are fetched without a `select`,
+  // so defaultDurationTurns is already on them. Before the game opens there
+  // is no turn to count from, so nothing expires.
+  const expiryFor = (tag) =>
+    tag.defaultDurationTurns != null && openTurn ? openTurn.number + tag.defaultDurationTurns : null;
+
   const tagIdsToGrant = new Map();
-  for (const tag of startingTags) tagIdsToGrant.set(tag.id, "GM_GRANT");
-  for (const tag of selected) if (!tagIdsToGrant.has(tag.id)) tagIdsToGrant.set(tag.id, "POINT_BUY");
+  for (const tag of startingTags) {
+    tagIdsToGrant.set(tag.id, { source: "GM_GRANT", expiresTurn: expiryFor(tag) });
+  }
+  for (const tag of selected) {
+    if (!tagIdsToGrant.has(tag.id)) {
+      tagIdsToGrant.set(tag.id, { source: "POINT_BUY", expiresTurn: expiryFor(tag) });
+    }
+  }
 
   let created;
   try {
@@ -145,7 +163,12 @@ export async function createCharacter(formData) {
       });
 
       await tx.characterTag.createMany({
-        data: [...tagIdsToGrant].map(([tagId, source]) => ({ characterId: character.id, tagId, source })),
+        data: [...tagIdsToGrant].map(([tagId, { source, expiresTurn }]) => ({
+          characterId: character.id,
+          tagId,
+          source,
+          expiresTurn,
+        })),
       });
 
       return character;

@@ -48,9 +48,18 @@ async function syncTagsFromYaml(prisma) {
       throw new Error(`docs/taggroups.yaml: group "${g.slug}" has unknown category "${g.category}"`);
     }
   }
+  const allTagSlugs = new Set(tagEntries.map((t) => t.slug));
   for (const t of tagEntries) {
     if (!categoryNameBySlug.has(t.category)) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" has unknown category "${t.category}"`);
+    }
+    // grantsOnExpiry is validated up here rather than in a late pass like
+    // parentTag/requiredTag: every slug is already known from the document
+    // itself, so a typo can fail cleanly instead of half-applying.
+    for (const slug of t.grantsOnExpiry ?? []) {
+      if (!allTagSlugs.has(slug)) {
+        throw new Error(`docs/tags.yaml: tag "${t.slug}" grantsOnExpiry references unknown tag "${slug}"`);
+      }
     }
   }
 
@@ -107,6 +116,7 @@ async function syncTagsFromYaml(prisma) {
       requirementTurns: entry.requirement?.turnsCost ?? null,
       requirementResources: entry.requirement?.resourceCost ?? null,
       requirementGambit: entry.requirement?.gambit ?? false,
+      grantsOnExpiry: entry.grantsOnExpiry ?? [],
       groupId,
     };
 
@@ -115,7 +125,15 @@ async function syncTagsFromYaml(prisma) {
       tag = await prisma.tag.create({ data: { slug: entry.slug, ...scalars } });
       tagsCreated += 1;
     } else {
-      const needsUpdate = Object.entries(scalars).some(([key, value]) => tag[key] !== value);
+      // grantsOnExpiry is a scalar list, so !== compares references and would
+      // report "changed" on every single run. Compare element-wise, and by
+      // order — a repeated slug is meaningful (it's how a bundle grants two
+      // of something), so this is a sequence, not a set.
+      const needsUpdate = Object.entries(scalars).some(([key, value]) =>
+        Array.isArray(value)
+          ? value.length !== tag[key].length || value.some((v, i) => v !== tag[key][i])
+          : tag[key] !== value,
+      );
       if (needsUpdate) {
         tag = await prisma.tag.update({ where: { id: tag.id }, data: scalars });
         tagsUpdated += 1;

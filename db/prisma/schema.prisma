@@ -381,9 +381,9 @@ model Tag {
   // stack is ONE CharacterTag row carrying a count (CharacterTag.quantity),
   // never N rows: @@unique([characterId, tagId]) stays, so every presence
   // check in the codebase (narrowcastAccess, gambitModifier, mood, labor)
-  // keeps reading "holds it or doesn't" unchanged. Don't combine with
-  // defaultDurationTurns — the expiry sweep deletes whole rows, stacks and
-  // all.
+  // keeps reading "holds it or doesn't" unchanged. Safe to combine with
+  // defaultDurationTurns: the expiry sweep sheds one unit per expiry and
+  // rerolls the remaining stack's timer, rather than deleting the row.
   stackable Boolean @default(false)
 
   // Whether a player could ever buy this via point-buy, and (only meaningful
@@ -398,6 +398,15 @@ model Tag {
   // by resolveNeeds()" convention). E.g. Drained sets this to 3, so donating
   // blood expires 3 turns after it's granted.
   defaultDurationTurns Int?
+
+  // Tag slugs this tag converts into when it expires, applied by
+  // db/lib/expiryGrants.js from resolveNeeds()' sweep: Starting Wares
+  // becoming a revolver and jewelry, a Wound leaving a Scar, a sickness
+  // resolving into a lasting condition. Slugs rather than a relation
+  // specifically so a slug may REPEAT — listing one twice grants two of it
+  // (for a stackable tag; a non-stackable repeat collapses to one). Empty
+  // means expiry just removes the tag, as it always did.
+  grantsOnExpiry String[]
 
   // Whether a player can remove this tag from themselves mid-game without a
   // GM. Catalog data only — no self-removal flow reads this yet (the
@@ -471,10 +480,13 @@ model CharacterTag {
   source      TagSource
   acquiredAt  DateTime  @default(now())
 
-  // Turn number this tag auto-expires at (deleted by resolveNeeds() in
-  // db/index.js once the closing turn's number reaches it). Null means it
-  // never auto-expires. Used for system-granted temporary status tags (Ate
-  // Meal, Tipsy) — see EVENT below.
+  // Turn number this tag expires at, swept by resolveNeeds() in db/index.js
+  // once the closing turn's number reaches it. Null means it never
+  // auto-expires. An ordinary tag's row is deleted; a Tag.stackable one
+  // instead loses a single unit and has this field pushed forward by the
+  // tag's defaultDurationTurns, until the last unit takes the row with it.
+  // Used for system-granted temporary status tags (Ate Meal, Tipsy) — see
+  // EVENT below.
   expiresTurn Int?
 
   // How many of this tag the character holds. Always 1 for an ordinary tag;
