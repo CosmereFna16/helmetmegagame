@@ -38,7 +38,7 @@ function PartySelect({ label, value, onChange, characters, factions, hint }) {
   );
 }
 
-export default function TransferResourcesButton({ selfId, selfName, sources, targets }) {
+export default function TransferResourcesButton({ selfId, selfName, parties }) {
   const [open, setOpen] = useState(false);
   const [fromKey, setFromKey] = useState(`character:${selfId}`);
   const [toKey, setToKey] = useState("");
@@ -89,16 +89,16 @@ export default function TransferResourcesButton({ selfId, selfName, sources, tar
             value={fromKey}
             onChange={setFromKey}
             hint="Choose a source…"
-            characters={sources.characters}
-            factions={sources.factions}
+            characters={parties.characters}
+            factions={parties.factions}
           />
           <PartySelect
             label="To"
             value={toKey}
             onChange={setToKey}
             hint="Choose a recipient…"
-            characters={targets.characters}
-            factions={targets.factions}
+            characters={parties.characters}
+            factions={parties.factions}
           />
           <label className="field" style={{ width: "6rem" }}>
             <span className="field-label">Amount ⬢</span>

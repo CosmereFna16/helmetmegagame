@@ -17,7 +17,7 @@ function Row({ label, children }) {
   );
 }
 
-export default function StatusPanel({ character, isSelf, openTurn, sources, targets }) {
+export default function StatusPanel({ character, isSelf, openTurn, parties }) {
   const mood = moodFromTags(character.tags);
 
   // Mood rides CharacterTag.expiresTurn (an absolute turn number), so the
@@ -64,8 +64,7 @@ export default function StatusPanel({ character, isSelf, openTurn, sources, targ
           <TransferResourcesButton
             selfId={character.id}
             selfName={character.name}
-            sources={sources ?? { characters: [], factions: [] }}
-            targets={targets ?? { characters: [], factions: [] }}
+            parties={parties ?? { characters: [], factions: [] }}
           />
         </div>
       )}

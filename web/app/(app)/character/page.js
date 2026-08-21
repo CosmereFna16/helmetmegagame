@@ -157,9 +157,15 @@ export default async function CharacterPage() {
     }),
   ]);
 
-  // Self is a valid transfer SOURCE (the common case) but not a valid
-  // recipient, so the two lists differ by exactly one entry.
+  // Both ends of a transfer list every Silo and every living player,
+  // INCLUDING yourself — pulling ⬢ out of a Silo into your own pocket is the
+  // common case, and self -> self is already refused by the same-party guard
+  // in transferResourcesRequest. See REQUESTS.md §"the source can be anyone".
   const selfEntry = { id: character.id, name: character.name };
+  const transferParties = {
+    characters: [...otherCharacters, selfEntry].sort((a, b) => a.name.localeCompare(b.name)),
+    factions,
+  };
   const avatarSrc = `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`;
 
   return (
@@ -168,11 +174,7 @@ export default async function CharacterPage() {
       mode="self"
       openTurn={openTurn}
       avatarSrc={avatarSrc}
-      transferSources={{
-        characters: [...otherCharacters, selfEntry].sort((a, b) => a.name.localeCompare(b.name)),
-        factions,
-      }}
-      transferTargets={{ characters: otherCharacters, factions }}
+      transferParties={transferParties}
       tagCatalog={tagCatalog}
       otherCharacters={otherCharacters}
       desire={desire}

@@ -49,18 +49,28 @@ function roleTitleFor(charactersByName, message) {
 // Turns don't stamp a turn number onto messages, so we infer it from
 // send time vs. each Turn's gameDate (when it opened) — the message
 // belongs to the latest turn that had already opened by then.
-function turnNumberForTimestamp(turns, timestampMs) {
-  let number = null;
+function turnForTimestamp(turns, timestampMs) {
+  let match = null;
   for (const turn of turns) {
     if (turn.gameDate.getTime() > timestampMs) break;
-    number = turn.number;
+    match = turn;
   }
-  return number;
+  return match;
+}
+
+// "D3 Dusk". The archive is read back as a diary, so it's stamped with the
+// in-game day and phase rather than the raw sequential turn number, which is
+// an internal counter no player ever sees. Two turns to a day, Dawn first —
+// the same ceil(number / 2) grouping describeTurn() uses on the web side.
+function turnLabelFor(turn) {
+  if (!turn) return "D?";
+  const day = Math.ceil(turn.number / 2);
+  if (!turn.phase) return `D${day}`;
+  return `D${day} ${turn.phase.charAt(0)}${turn.phase.slice(1).toLowerCase()}`;
 }
 
 function formatLine(label, message, context) {
-  const turnNumber = turnNumberForTimestamp(context.turns, new Date(message.timestamp).getTime());
-  const turnLabel = turnNumber != null ? `T${turnNumber}` : "T?";
+  const turnLabel = turnLabelFor(turnForTimestamp(context.turns, new Date(message.timestamp).getTime()));
   const roleTitle = roleTitleFor(context.charactersByName, message);
   const roleText = roleTitle ? ` (${roleTitle})` : "";
   return `\`[${turnLabel} | ${label}]\` **${message.author.username}**${roleText}: ${message.content}`;
@@ -179,7 +189,7 @@ async function runDawnWipe(prisma) {
     prisma.location.findMany({ include: { zone: true } }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     prisma.character.findMany({ select: { name: true, roleTitle: true } }),
-    prisma.turn.findMany({ orderBy: { gameDate: "asc" }, select: { number: true, gameDate: true } }),
+    prisma.turn.findMany({ orderBy: { gameDate: "asc" }, select: { number: true, phase: true, gameDate: true } }),
   ]);
   const sorted = [...locations].sort((a, b) =>
     `${a.zone.name} / ${a.name}`.localeCompare(`${b.zone.name} / ${b.name}`),

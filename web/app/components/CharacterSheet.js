@@ -92,8 +92,7 @@ export default function CharacterSheet({
   currentAction,
   openTurn,
   avatarSrc,
-  transferSources,
-  transferTargets,
+  transferParties,
   tagCatalog,
   otherCharacters,
   desire,
@@ -163,8 +162,7 @@ export default function CharacterSheet({
           character={character}
           isSelf={isSelf}
           openTurn={openTurn}
-          sources={transferSources}
-          targets={transferTargets}
+          parties={transferParties}
         />
 
       {!isSelf && currentAction && (
