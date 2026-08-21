@@ -43,3 +43,22 @@ export function formatTurnLabel(turnNumber, phase) {
   const phaseLabel = phase.charAt(0) + phase.slice(1).toLowerCase();
   return `Turn ${turnNumber}, ${phaseLabel}`;
 }
+
+// How many turns a timed tag has left. `CharacterTag.expiresTurn` is an
+// absolute turn number, never a countdown, so the answer is just the gap to
+// the open turn — see the sweep in db/index.js#resolveNeeds. Null whenever
+// either side is missing, which is the common case: most tags never expire.
+//
+// Shared so the Mood countdown on StatusPanel and the countdown on every tag
+// chip cannot disagree, since they read the same column.
+export function turnsLeft(expiresTurn, currentTurn) {
+  if (expiresTurn == null || currentTurn == null) return null;
+  return Math.max(0, expiresTurn - currentTurn);
+}
+
+// "2 turns left" / "1 turn left" / "expires this turn".
+export function formatTurnsLeft(n) {
+  if (n == null) return null;
+  if (n === 0) return "expires this turn";
+  return `${n} turn${n === 1 ? "" : "s"} left`;
+}

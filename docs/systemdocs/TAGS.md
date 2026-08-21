@@ -218,9 +218,11 @@ of a two-turn tag lose one every two turns.
 sheet, and `consumesInto` (a list of tag *slugs*) is what it turns into. A
 meal is `consumable` with `consumesInto: [ate-meal]`; `ate-meal` carries
 `durationTurns: 1` and the Hunger pass consumes it — so the whole chain falls
-out of machinery that already existed, with no bespoke meal logic anywhere.
+out of machinery that already existed. Nothing here is meal-specific: the one
+rule that *is* about meals (a Fine Meal cheers everyone but a noble) is
+expressed as catalog data in `docs/tags.yaml`, not as code.
 
-Four rules carry it:
+Five rules carry it:
 
 - **Always exactly one unit.** Consuming from a stack of three meals takes
   one, so there is deliberately no quantity field in this path at all.
@@ -234,7 +236,31 @@ Four rules carry it:
   chains work (meal -> Ate Meal that the sweep then clears).
 - **An already-held non-stackable grant is left completely alone**, expiry
   included: the character's existing one is the live truth, and clobbering it
-  would silently extend or cut short something they already had.
+  would silently extend or cut short something they already had. One
+  consequence worth knowing: eating a Lavish Meal while already Happy does
+  *not* extend Happy, unlike `setMoodRequest`, which deletes and re-creates the
+  tag and so refreshes its clock. Undo depends on `added: 0` meaning "this
+  request didn't grant it", so a refresh here would need its own snapshot.
+- **A grant may be conditional.** A `consumesInto` entry can be an object
+  rather than a bare slug, and is then granted only to a character holding
+  *none* of its `unlessTags`:
+
+  ```yaml
+  consumesInto:
+    - ate-meal
+    - slug: happy
+      unlessTags: [nobility]
+  ```
+
+  `Tag.consumesInto` still stores every target slug in order; the conditions
+  live beside it in `Tag.consumesIntoUnless` (`Json`, null for the many tags
+  that have none), and `syncTags.js` validates both halves against this file.
+  `resolveConsumeGrants()` in `web/lib/consumeGrants.js` applies them, and is
+  deliberately pure so the server action and the client "Becomes:" preview
+  share it — a preview that promised a noble the Happy they won't get would be
+  worse than no preview. Fine Meal is the only conditional entry today:
+  it cheers an ordinary person, while Nobility expect one as a matter of
+  course.
 
 Consuming is a **Request** (`CONSUME_TAG`), so it lands immediately, carries
 a reason, and a GM can Undo it — see `REQUESTS.md` §3. The undo snapshot

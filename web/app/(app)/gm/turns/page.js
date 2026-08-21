@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma, describeMoveEffects } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requests";
+import { getOpenTurn } from "@/lib/turn";
 import AdjudicateTabs from "./AdjudicateTabs";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 
@@ -121,7 +122,7 @@ export default async function TurnsPage({ searchParams }) {
 
   const { tab } = (await searchParams) ?? {};
 
-  const [actions, requests, members] = await Promise.all([
+  const [actions, requests, members, openTurn] = await Promise.all([
     prisma.action.findMany({
       orderBy: { createdAt: "desc" },
       take: HISTORY_LIMIT,
@@ -143,6 +144,10 @@ export default async function TurnsPage({ searchParams }) {
       include: { character: { include: { faction: true } }, turn: true },
     }),
     listGuildMembers(),
+    // Only for the tag-expiry countdown in MovePanel: a row's own turn number
+    // is the turn it was filed on, which is not what "2 turns left" is
+    // measured against. cache()-deduped, so this costs nothing.
+    getOpenTurn(),
   ]);
 
   const usernameById = new Map(members.map((m) => [m.id, m.username]));
@@ -172,7 +177,12 @@ export default async function TurnsPage({ searchParams }) {
           // Panel-only fields — the Character section and the resolution form.
           locationLabel: [a.character.zone?.name, a.character.location?.name].filter(Boolean).join(" / ") || "Unassigned",
           resources: a.character.resources,
-          tags: a.character.tags.map((ct) => ({ ...ct.tag, quantity: ct.quantity })),
+          tags: a.character.tags.map((ct) => ({
+            ...ct.tag,
+            quantity: ct.quantity,
+            expiresTurn: ct.expiresTurn,
+          })),
+          currentTurnNumber: openTurn?.number ?? null,
           resourceDelta: a.resourceDelta ?? null,
           resultMessage: a.resultMessage ?? "",
           appliedSummary: describeMoveEffects(a.appliedEffects),

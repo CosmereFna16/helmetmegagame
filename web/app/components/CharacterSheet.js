@@ -164,6 +164,7 @@ export default function CharacterSheet({
         catalog={tagCatalog ?? []}
         resources={character.resources}
         otherCharacters={otherCharacters ?? []}
+        currentTurn={openTurn?.number ?? null}
       />
 
       {isSelf && (

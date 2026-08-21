@@ -22,6 +22,37 @@ const fs = require("node:fs");
 const path = require("node:path");
 const yaml = require("js-yaml");
 
+// A consumesInto entry is either a bare slug ("ate-meal") or an object
+// carrying a condition ({ slug: "happy", unlessTags: ["nobility"] }). Both
+// shapes normalise to the same pair here so validation and the write path
+// only ever handle one of them.
+function normalizeConsumesInto(entries) {
+  return (entries ?? []).map((entry) => {
+    if (typeof entry === "string") return { slug: entry, unlessTags: [] };
+    if (!entry?.slug) {
+      throw new Error(`docs/tags.yaml: a consumesInto entry is missing its "slug"`);
+    }
+    return { slug: entry.slug, unlessTags: entry.unlessTags ?? [] };
+  });
+}
+
+// Splits the normalised list back into the two columns it's stored in.
+// consumesInto keeps every target, in order, so a repeated slug still means
+// "grant two" and every existing reader (the previews, the grant path) sees
+// the full list. consumesIntoUnless is null unless something is conditional,
+// which keeps the column empty for all but a handful of tags.
+function consumesIntoScalars(entries) {
+  const normalized = normalizeConsumesInto(entries);
+  const unless = {};
+  for (const { slug, unlessTags } of normalized) {
+    if (unlessTags.length) unless[slug] = unlessTags;
+  }
+  return {
+    consumesInto: normalized.map((e) => e.slug),
+    consumesIntoUnless: Object.keys(unless).length ? unless : null,
+  };
+}
+
 function loadDoc() {
   const yamlPath = path.join(__dirname, "..", "..", "docs", "tags.yaml");
   return yaml.load(fs.readFileSync(yamlPath, "utf8"));
@@ -55,10 +86,19 @@ async function syncTagsFromYaml(prisma) {
     }
     // consumesInto is validated up here rather than in a late pass like
     // parentTag/requiredTag: every slug is already known from the document
-    // itself, so a typo can fail cleanly instead of half-applying.
-    for (const slug of t.consumesInto ?? []) {
+    // itself, so a typo can fail cleanly instead of half-applying. Both halves
+    // of a conditional entry are checked — an unknown blocking tag would
+    // silently never block.
+    for (const { slug, unlessTags } of normalizeConsumesInto(t.consumesInto)) {
       if (!allTagSlugs.has(slug)) {
         throw new Error(`docs/tags.yaml: tag "${t.slug}" consumesInto references unknown tag "${slug}"`);
+      }
+      for (const blocker of unlessTags) {
+        if (!allTagSlugs.has(blocker)) {
+          throw new Error(
+            `docs/tags.yaml: tag "${t.slug}" consumesInto "${slug}" has unknown unlessTags entry "${blocker}"`,
+          );
+        }
       }
     }
   }
@@ -117,7 +157,7 @@ async function syncTagsFromYaml(prisma) {
       requirementTurns: entry.requirement?.turnsCost ?? null,
       requirementResources: entry.requirement?.resourceCost ?? null,
       requirementGambit: entry.requirement?.gambit ?? false,
-      consumesInto: entry.consumesInto ?? [],
+      ...consumesIntoScalars(entry.consumesInto),
       groupId,
     };
 
@@ -130,11 +170,17 @@ async function syncTagsFromYaml(prisma) {
       // report "changed" on every single run. Compare element-wise, and by
       // order — a repeated slug is meaningful (it's how a bundle grants two
       // of something), so this is a sequence, not a set.
-      const needsUpdate = Object.entries(scalars).some(([key, value]) =>
-        Array.isArray(value)
-          ? value.length !== tag[key].length || value.some((v, i) => v !== tag[key][i])
-          : tag[key] !== value,
-      );
+      const needsUpdate = Object.entries(scalars).some(([key, value]) => {
+        if (Array.isArray(value)) {
+          return value.length !== tag[key].length || value.some((v, i) => v !== tag[key][i]);
+        }
+        // consumesIntoUnless is a Json object, so !== compares references and
+        // would report "changed" on every run, exactly like the array above.
+        if (value !== null && typeof value === "object") {
+          return JSON.stringify(value) !== JSON.stringify(tag[key]);
+        }
+        return tag[key] !== value;
+      });
       if (needsUpdate) {
         tag = await prisma.tag.update({ where: { id: tag.id }, data: scalars });
         tagsUpdated += 1;

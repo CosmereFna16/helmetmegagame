@@ -453,6 +453,19 @@ model Tag {
   // the sweep then clears). Empty means consuming just uses the tag up.
   consumesInto String[]
 
+  // Per-target conditions on the list above, as { "<target slug>": ["<blocking
+  // slug>", ...] } — the target is granted only if the character holds NONE of
+  // its blocking tags. Null when a tag's grants are all unconditional, which is
+  // almost all of them. consumesInto still carries every target slug in order,
+  // so validation and the "Becomes:" previews keep reading one field.
+  //
+  // Fine Meal is the case this exists for: { "happy": ["nobility"] } — an
+  // ordinary person is cheered by a good meal, a noble expects one as a matter
+  // of course. Resolved by web/lib/consumeGrants.js, which both the server
+  // action and the client previews call so a preview can't promise a mood
+  // lift the grant won't deliver.
+  consumesIntoUnless Json?
+
   // Whether a player can remove this tag from themselves mid-game without a
   // GM. Catalog data only — no self-removal flow reads this yet (the
   // mid-game tag store isn't routed), same posture as tradeable above.

@@ -149,15 +149,17 @@ grants or removes it — there is no request type, no picker entry, no
 writer, called from `resolveNeeds()` at the close of every turn:
 
 1. Holds `hungerless` → **skipped entirely**. No resource taken, no Hunger.
-2. Holds `ate-meal` → **shielded** from Hunger, and the tag is consumed
-   whether or not they were broke. The ⬢ is still owed per step 3 — the
-   resource *is* what eating costs, so waiving it would let one meal pay for
-   itself twice.
+2. Holds `ate-meal` → **shielded** from Hunger, the tag is consumed whether or
+   not they were broke, and **no ⬢ is taken**. The meal was already paid for
+   when it was cooked (2 ⬢ a Fine, 3 ⬢ a Lavish), so charging the upkeep on
+   top of that made eating strictly worse than the 1 ⬢ it saves. Eating
+   *settles* the turn's upkeep rather than coming on top of it.
 3. **Check first, then pay**: at `resources === 0` you go Hungry and owe
    nothing; at 1+ ⬢ you pay 1 and stay fed.
 
-So 1 ⬢ always buys a fed turn, and `Character.resources` can never go negative
-— the clamp is structural, not a `Math.max`.
+So 1 ⬢ always buys a fed turn, a meal buys one outright, and
+`Character.resources` can never go negative — the clamp is structural, not a
+`Math.max`, and it lives on step 3, the only branch that still pays.
 
 **The expiry arithmetic**, and why the pass runs *after* the sweep:
 
