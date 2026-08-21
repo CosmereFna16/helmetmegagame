@@ -5,6 +5,7 @@ import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import CharacterLink from "@/app/components/CharacterLink";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
+import Tooltip from "@/app/components/Tooltip";
 import { resolveRequest, killRequestTarget } from "./actions";
 
 // The Request Adjudication Panel: a universal top half describing the
@@ -393,35 +394,28 @@ export default function RequestPanel({ request, readOnly = false, onClose }) {
         )}
 
         <div className="mt-4 flex flex-wrap justify-end gap-3">
-          <button
-            type="button"
-            className="btn-quiet"
-            title="Leave the request as the player made it and discard your edits"
-            onClick={close}
-            disabled={pending}
-          >
-            {readOnly ? "Close" : "Cancel"}
-          </button>
+          <Tooltip text="Leave the request as the player made it and discard your edits">
+            <button type="button" className="btn-quiet" onClick={close} disabled={pending}>
+              {readOnly ? "Close" : "Cancel"}
+            </button>
+          </Tooltip>
           {!readOnly && (
             <>
-              <button
-                type="button"
-                className="btn-quiet"
-                title="Reverse the change entirely and mark the request Undone"
-                onClick={() => run("undo")}
-                disabled={pending}
-              >
-                Undo
-              </button>
-              <button
-                type="button"
-                className="btn"
-                title="Apply your edits and mark the request Edited"
-                onClick={() => run("confirm")}
-                disabled={pending}
-              >
-                {pending ? "Working…" : "Confirm"}
-              </button>
+              <Tooltip text="Reverse the change entirely and mark the request Undone">
+                <button
+                  type="button"
+                  className="btn-quiet"
+                  onClick={() => run("undo")}
+                  disabled={pending}
+                >
+                  Undo
+                </button>
+              </Tooltip>
+              <Tooltip text="Apply your edits and mark the request Edited">
+                <button type="button" className="btn" onClick={() => run("confirm")} disabled={pending}>
+                  {pending ? "Working…" : "Confirm"}
+                </button>
+              </Tooltip>
             </>
           )}
         </div>

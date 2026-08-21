@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { unstarNote } from "./actions";
 import { useConfirm } from "../../components/ConfirmProvider";
+import Tooltip from "../../components/Tooltip";
 
 export default function NotesList({ notes }) {
   const confirm = useConfirm();
@@ -64,16 +65,17 @@ export default function NotesList({ notes }) {
                   {note.zoneName ?? "-"} · {new Date(note.sentAt).toLocaleString()}
                 </span>
               </div>
-              <button
-                type="button"
-                className="btn-quiet"
-                onClick={() => handleUnstar(note.id)}
-                disabled={isPending}
-                aria-label="Unstar this note"
-                title="Unstar"
-              >
-                ★
-              </button>
+              <Tooltip text="Unstar">
+                <button
+                  type="button"
+                  className="btn-quiet"
+                  onClick={() => handleUnstar(note.id)}
+                  disabled={isPending}
+                  aria-label="Unstar this note"
+                >
+                  ★
+                </button>
+              </Tooltip>
             </div>
             <p className="whitespace-pre-wrap text-sm">{note.content}</p>
           </div>

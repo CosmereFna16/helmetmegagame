@@ -1,12 +1,11 @@
+import Tooltip from "./Tooltip";
+
 export default function InfoIcon({ text }) {
   return (
-    <span className="tag-hover info-icon" tabIndex={0}>
+    <Tooltip text={text} className="info-icon">
       <span className="info-icon-glyph" aria-label="More info">
         ?
       </span>
-      <span className="tag-tooltip" role="tooltip">
-        {text}
-      </span>
-    </span>
+    </Tooltip>
   );
 }

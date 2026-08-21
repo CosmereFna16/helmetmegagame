@@ -13,6 +13,7 @@ import {
 } from "@/lib/characterCreation";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import InfoIcon from "@/app/components/InfoIcon";
+import Tooltip from "@/app/components/Tooltip";
 import { WORST_FEAR_HELP } from "@/app/components/WorstFearPanel";
 import { WORST_FEAR_PENALTY, WORST_FEAR_MAX_LENGTH } from "@/lib/constants";
 
@@ -56,7 +57,7 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
       <span className="flex flex-wrap items-baseline justify-between gap-2">
         <strong>
           {role.name}
-          {role.grantsLeader && <span title="Leader"> ★</span>}
+          {role.grantsLeader && <Tooltip text="Leader"> ★</Tooltip>}
         </strong>
         <span className="text-sm" style={{ color: full ? "var(--accent)" : "var(--muted)" }}>
           {taken}/{cap === null ? "∞" : cap}

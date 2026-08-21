@@ -6,6 +6,7 @@ import { useConfirm } from "@/app/components/ConfirmProvider";
 import CharacterLink from "@/app/components/CharacterLink";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
 import InfoIcon from "@/app/components/InfoIcon";
+import Tooltip from "@/app/components/Tooltip";
 import TagChip from "@/app/components/TagChip";
 import RequestDialog from "@/app/components/RequestDialog";
 import { claimMoveLock, refreshMoveLock, releaseMoveLock, resolveMove, rejectMove } from "./actions";
@@ -330,7 +331,7 @@ export default function MovePanel({ move, readOnly = false, onClose }) {
 
             {!readOnly && (
               <>
-                <span className="tag-hover" tabIndex={0} style={{ display: "inline-flex" }}>
+                <Tooltip text={REJECT_HELP}>
                   <button
                     type="button"
                     className="btn-danger"
@@ -339,10 +340,7 @@ export default function MovePanel({ move, readOnly = false, onClose }) {
                   >
                     Reject
                   </button>
-                  <span className="tag-tooltip" role="tooltip">
-                    {REJECT_HELP}
-                  </span>
-                </span>
+                </Tooltip>
 
                 {solved ? (
                   <button type="button" className="btn" onClick={onUnsolve} disabled={disabled || !locked}>

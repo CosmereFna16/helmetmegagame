@@ -585,6 +585,9 @@ h3 {
   outline: none;
   font-family: var(--font-mono), ui-monospace, "SFMono-Regular", monospace;
   font-weight: normal;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text);
 }
 
 .tag-tooltip {
