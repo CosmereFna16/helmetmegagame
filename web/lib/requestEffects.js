@@ -89,6 +89,11 @@ export const REQUEST_EFFECTS = {
       const next = clampNonNegative(edits.pointsAwarded, previous);
       if (next === previous) return { effect, note: "No changes." };
 
+      // Stamped once, on the first edit: `pointsAwarded` is about to stop
+      // being the player's number, and the panel still needs to show what they
+      // originally claimed the Desire was worth.
+      if (effect.playerClaimedPoints == null) effect.playerClaimedPoints = previous;
+
       await tx.character.update({
         where: { id: request.characterId },
         data: { tagPoints: { increment: next - previous } },

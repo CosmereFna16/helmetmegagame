@@ -35,7 +35,12 @@ const SECTIONS = {
     render: ({ effect, edits, setEdit }) => (
       <>
         <Line label="Desire">{effect.desireText ?? "—"}</Line>
-        <Line label="Awarded">{effect.pointsAwarded ?? 0} Tag Points</Line>
+        <Line label="Player claimed">
+          {effect.playerClaimedPoints ?? effect.pointsAwarded ?? 0} Tag Points
+          {effect.playerClaimedPoints != null && (
+            <span style={{ color: "var(--muted)" }}> — now {effect.pointsAwarded ?? 0}</span>
+          )}
+        </Line>
         <label className="field" style={{ width: "12rem" }}>
           <span className="field-label">Tag Points awarded</span>
           <input
