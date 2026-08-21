@@ -50,24 +50,35 @@ diff check, same style as `syncLocationsFromYaml`'s `needsUpdate`).
 
 - **`parentTag` (tier chain)** — sequential, replacing. Fighting (Basic) ->
   Fighting (Trained) -> Fighting (Skilled) -> ... Acquiring a tier is meant
-  to replace the previous one on the character, not stack alongside it.
+  to replace the previous one on the character, not stack alongside it. Also
+  used where a specialization *is* the base thing rather than a second copy of
+  it: `Follower (Cook)`/`(Laborer)`/`(Goon)` all chain off `Follower`, so
+  picking one gives you a follower who cooks — not a follower plus a cook.
 - **`requiredTag` (prerequisite)** — non-replacing. The character must
   already hold `requiredTag`, but acquiring this tag does **not** remove or
   replace it. Example in the catalog: `Fighting (Archer)` requires
   `Fighting (Basic)` but coexists with `Fighting (Skilled)` — a character can
-  hold both at once. Also used for the Companion "requires the base
-  Follower/Windlander tag" cases (`Follower (Cook)`, `Windlander (Horse)`,
-  etc.).
+  hold both at once. Also the right relation for an origin/membership gate the
+  gated tag doesn't consume: `Windlander (Horse)` requires `Windlander`,
+  `Manor` requires `Courtier`, `House`/`Shack` require `Ravenhearter`, and the
+  `Laborer (…)` specializations require `Laborer` — those stack, several
+  specializations on one Laborer, each charged once.
 - **`TagGroup.requiredTag`** — the group-level version of the same
   prerequisite: every tag in that group stays gated behind one required tag,
   so a whole category-of-flavor (e.g. a hypothetical "Cultist" group) can be
   hidden behind a single membership tag without repeating `requiredTag` on
   every tag in it.
 
-**Neither relation is enforced anywhere yet.** No code checks
-`requiredTag`/`TagGroup.requiredTag` before showing or granting a tag — this
-is catalog structure, ready for that logic when it's built. (`purchasable`
-and `purchasableAfterStart` *are* now read, by the point-buy menu — see §4.)
+**Both per-tag relations are enforced by the point-buy menu** (§4), and only
+there. `web/lib/characterCreation.js` is where the logic lives:
+`requirementSatisfied` hides a tag whose `requiredTag` isn't held or selected,
+while `chainOf`/`cumulativeCost`/`effectiveCost` price a `parentTag` chain as
+the sum of its hops and `chainSiblingsToRemove` collapses a selection down to
+one member per chain. `PointBuy.js` calls them and
+`web/app/(app)/character/createActions.js` re-validates both server-side.
+Nothing enforces either relation on a GM grant or the (unrouted) mid-game tag
+store, and **`TagGroup.requiredTag` is still unenforced everywhere** — that
+one is catalog structure waiting on its logic.
 
 ## 4. The point economy
 
