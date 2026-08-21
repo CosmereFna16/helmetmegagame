@@ -274,7 +274,31 @@ npm run deploy      # git push origin master, then redeploy web + bot
 npm run redeploy    # just the redeploy, no push
 ```
 
-Two things that bite:
+**Migrations do not run themselves.** Railway builds and starts the app; it
+does not apply schema changes, so a deploy carrying a new migration ships code
+whose Prisma queries reference columns the database doesn't have. The symptom
+is brutal to diagnose from the browser: the page throws `P2022` server-side and
+Next redacts it to a bare digest (`ERROR 330354103`), so nothing readable
+reaches the client — and it takes out the whole route, not just the feature
+that needed the column. This has bitten twice.
+
+The fix is a **Pre-Deploy Command on the `web` service only** (Railway
+dashboard → web → Settings → Deploy):
+
+```
+npm run db:migrate:deploy
+```
+
+It runs after the build and before the new version takes traffic, so a failed
+migration aborts the deploy instead of shipping a half-migrated app. Scoped to
+`web` deliberately — `bot` shares the database and would only race it. It is
+deliberately not a root `railway.json`, which would apply to both services.
+
+Until that field is set, run `npm run db:migrate:deploy` by hand after any
+deploy that adds a migration (`db:migrate` is `migrate dev` — never point that
+at production).
+
+Two more things that bite:
 
 - **`--from-source` is load-bearing.** A plain `railway redeploy` re-runs the
   *existing* deployment — the same commit. Railway builds from GitHub, so it

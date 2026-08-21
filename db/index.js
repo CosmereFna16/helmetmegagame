@@ -15,7 +15,7 @@ function normalizedDatabaseUrl() {
 
 const databaseUrl = normalizedDatabaseUrl();
 
-const { PrismaClient } = require("@prisma/client");
+const { PrismaClient, Prisma } = require("@prisma/client");
 const { rollWeather, buildTurnAnnouncement } = require("./weather");
 const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
 const { runDawnWipe } = require("./lib/dawnWipe");
@@ -144,6 +144,11 @@ async function advanceTurn() {
 
 module.exports = {
   prisma,
+  // Re-exported so nothing outside db/ has to reach for @prisma/client
+  // directly — only this package declares it as a dependency. Needed for
+  // Prisma.DbNull, which is the ONLY way to write a SQL NULL into a
+  // nullable Json column (a plain null is a validation error).
+  Prisma,
   resolveNeeds,
   advanceTurn,
   runFullChannelWipe,

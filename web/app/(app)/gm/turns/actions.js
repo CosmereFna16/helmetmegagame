@@ -1,8 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { Prisma } from "@prisma/client";
-import { prisma, applyMoveEffects, revertMoveEffects, describeMoveEffects, rollDie } from "@lifeweb/db";
+import { Prisma, prisma, applyMoveEffects, revertMoveEffects, describeMoveEffects, rollDie } from "@lifeweb/db";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { getGmSession, killCharacter, listGuildMembers, sendDm } from "@/lib/discordGuild";
 import { REQUEST_EFFECTS } from "@/lib/requestEffects";
