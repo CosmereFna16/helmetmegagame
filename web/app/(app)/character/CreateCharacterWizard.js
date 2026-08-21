@@ -78,6 +78,7 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
 }
 
 export default function CreateCharacterWizard({ zones, tags, startingTagPoints, playerCount, cursed }) {
+
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
   const [preferredNickname, setPreferredNickname] = useState("");

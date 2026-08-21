@@ -174,6 +174,21 @@ export function isGm(member) {
   return member.roles?.includes(gmRoleId) ?? false;
 }
 
+// Whether this member is cleared to roll a character at all. Paired with
+// GameConfig.openToPlayers: the config says the doors are open, this says
+// you are on the list. Same env-gated shape as isGm/isCursed above.
+//
+// Fails CLOSED when DISCORD_PLAYER_ROLE_ID is unset, unlike isGm/isCursed
+// which fail open to "not a GM"/"not cursed". An unset role here would
+// otherwise mean everyone who can see the server can create a character the
+// moment the game opens, which is the exact thing this gate exists to stop.
+export function isApprovedPlayer(member) {
+  const playerRoleId = process.env.DISCORD_PLAYER_ROLE_ID;
+  if (!playerRoleId) return false;
+  if (!member) return false;
+  return member.roles?.includes(playerRoleId) ?? false;
+}
+
 export function isCursed(member) {
   const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
   if (!member || !cursedRoleId) return false;

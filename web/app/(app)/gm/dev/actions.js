@@ -79,6 +79,7 @@ export async function updateGameConfig(formData) {
     update: {
       lifewebBlood: Math.max(0, Math.min(100, intOrZero(formData, "lifewebBlood"))),
       lifewebDecayPerTurn: intOrZero(formData, "lifewebDecayPerTurn"),
+      openToPlayers: formData.get("openToPlayers") === "on",
       messageWipeEnabled: formData.get("messageWipeEnabled") === "on",
       tupperAutocorrectEnabled: formData.get("tupperAutocorrectEnabled") === "on",
       productionCoefficient: floatOrDefault(formData, "productionCoefficient", 1),
@@ -196,6 +197,7 @@ export async function forceAdvanceTurn() {
 const DEFAULT_GAME_CONFIG = {
   lifewebBlood: 100,
   lifewebDecayPerTurn: 10,
+  openToPlayers: false,
   messageWipeEnabled: false,
   tupperAutocorrectEnabled: true,
   productionCoefficient: 1,

@@ -144,6 +144,11 @@ export default async function DevPanelPage() {
             <input type="number" name="playerCount" min="1" defaultValue={config.playerCount} />
           </label>
           <label className="flex items-center gap-2 text-sm col-span-full">
+            <input type="checkbox" name="openToPlayers" defaultChecked={config.openToPlayers} />
+            Open to players (lets anyone holding the player role create a character — off means the game
+            hasn&apos;t launched; /documents stays readable either way)
+          </label>
+          <label className="flex items-center gap-2 text-sm col-span-full">
             <input type="checkbox" name="messageWipeEnabled" defaultChecked={config.messageWipeEnabled} />
             Wipe messages at Dawn (archives everything to #archive first — see docs/systemdocs/CHANNELS.md)
           </label>

@@ -146,6 +146,17 @@ model GameConfig {
   // the Dev Panel so it can be tuned right up to launch.
   startingTagPoints Int @default(12)
 
+  // Master switch for the game being open to players at all. While false,
+  // nobody can create a character — the game has not launched. Turning it on
+  // is not by itself enough: a player also has to hold DISCORD_PLAYER_ROLE_ID
+  // (see web/lib/discordGuild.js#isApprovedPlayer), so the two together are
+  // "the doors are open" AND "you are on the list". Deliberately off by
+  // default, same posture as messageWipeEnabled.
+  //
+  // Note this gates character creation only. /documents stays readable
+  // either way, so players can read the rules before launch.
+  openToPlayers Boolean @default(false)
+
   // Expected total number of players, the denominator for every role's seat
   // cap: a role with `weight: 6` in docs/roles.yaml gets
   // round(6 * playerCount / 100) seats. Raising this mid-signup widens every

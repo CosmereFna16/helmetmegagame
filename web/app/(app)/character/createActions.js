@@ -11,6 +11,7 @@ import {
   syncCharacterNarrowcastAccess,
   getGuildMember,
   isCursed,
+  isApprovedPlayer,
   removeCursedRole,
 } from "@/lib/discordGuild";
 import {
@@ -61,6 +62,18 @@ export async function createCharacter(formData) {
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
   ]);
   if (!role) return { error: "That role no longer exists." };
+
+  // The launch gate, checked before any of the point-buy work below so a
+  // closed game costs nothing to bounce. Both halves have to hold: the game
+  // has to be open, and this member has to be on the list. This is the real
+  // enforcement boundary — the wizard hides itself too, but a server action
+  // is a public endpoint, so the check that matters is this one.
+  if (!config?.openToPlayers) {
+    return { error: "Ravenheart isn't open yet. Character creation opens when the game begins." };
+  }
+  if (!isApprovedPlayer(member)) {
+    return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong." };
+  }
 
   const cursed = isCursed(member);
   if (!isRoleSelectable({ role, cursed })) {

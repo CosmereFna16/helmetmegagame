@@ -2,10 +2,11 @@ import { redirect } from "next/navigation";
 import { prisma, roleCapacity } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
-import { getGuildMember, isCursed } from "@/lib/discordGuild";
+import { getGuildMember, isApprovedPlayer, isCursed } from "@/lib/discordGuild";
 import { isRoleSelectable } from "@/lib/characterCreation";
 import CharacterSheet from "../../components/CharacterSheet";
 import CreateCharacterWizard from "./CreateCharacterWizard";
+import CreationClosed from "./CreationClosed";
 
 // Everything the creation wizard needs, shaped as the Zone -> Faction -> Role
 // tree it renders. Seat counts are computed here rather than in the client so
@@ -37,10 +38,15 @@ async function loadCreationData(discordUserId) {
   ]);
 
   const cursed = isCursed(member);
+  const gate = {
+    open: config?.openToPlayers === true,
+    approved: isApprovedPlayer(member),
+  };
   const playerCount = config?.playerCount ?? 100;
   const takenByRole = new Map(takenRows.map((r) => [r.roleId, r._count]));
 
   return {
+    gate,
     cursed,
     playerCount,
     startingTagPoints: config?.startingTagPoints ?? 0,
@@ -118,7 +124,11 @@ export default async function CharacterPage() {
   // inline rather than redirecting to a separate route, so a player who just
   // died lands somewhere that explains itself instead of bouncing.
   if (!character) {
-    return <CreateCharacterWizard {...(await loadCreationData(session.discordUserId))} />;
+    const { gate, ...creation } = await loadCreationData(session.discordUserId);
+    // Both halves have to hold before the wizard is worth rendering; the
+    // server action re-checks them regardless.
+    if (!gate.open || !gate.approved) return <CreationClosed open={gate.open} />;
+    return <CreateCharacterWizard {...creation} />;
   }
 
   const [openTurn, otherCharacters, factions, tagCatalog, desire, lastEndedDesire] = await Promise.all([
