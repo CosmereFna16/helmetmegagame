@@ -19,7 +19,8 @@ const { PrismaClient } = require("@prisma/client");
 const { rollWeather, buildTurnAnnouncement } = require("./weather");
 const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
 const { runDawnWipe } = require("./lib/dawnWipe");
-const { runHungerPass } = require("./lib/hungerPass");
+const { runHungerPass, HUNGER_DM } = require("./lib/hungerPass");
+const { sendDm } = require("./lib/dm");
 const { runFullChannelWipe } = require("./lib/fullWipe");
 const { syncLocationsFromYaml } = require("./lib/syncLocations");
 const { syncTagsFromYaml } = require("./lib/syncTags");
@@ -46,6 +47,10 @@ const LIFEWEB_SPUTTER_THRESHOLD = 20;
 // bot's cron-triggered advanceTurn() and the GM dashboard's manual
 // close-turn override, so both paths behave identically instead of only the
 // automated one actually resolving Needs.
+//
+// Returns { lifewebBlood, starvedDiscordUserIds } — the second is the Hunger
+// pass's DM list, which this function deliberately does not send. See
+// advanceTurn() below.
 async function resolveNeeds(turn, config) {
   // Sweep any turn-scoped tags (Mood, Drained, last turn's Hunger) whose
   // expiresTurn has been reached — a single bulk delete, independent of
@@ -68,10 +73,15 @@ async function resolveNeeds(turn, config) {
     console.error("Hunger pass failed:", err);
     return null;
   });
+
+  // The DM list is split off the summary before it's logged: it's routing
+  // data for runSideEffects(), not part of the turn's record, so the audit
+  // details stay exactly the shape they've always been.
+  const { starvedDiscordUserIds = [], ...summary } = hunger ?? {};
   if (hunger) {
     await prisma.auditLog
       .create({
-        data: { actorDiscordUserId: "system", actionType: "hunger_resolved", details: hunger },
+        data: { actorDiscordUserId: "system", actionType: "hunger_resolved", details: summary },
       })
       .catch((err) => console.error("Hunger audit log failed:", err));
   }
@@ -81,7 +91,7 @@ async function resolveNeeds(turn, config) {
   // web/app/(app)/lifeweb/actions.js for the ways it's topped back up.
   const newBlood = Math.max(0, (config?.lifewebBlood ?? 100) - (config?.lifewebDecayPerTurn ?? 10));
   await prisma.gameConfig.update({ where: { id: 1 }, data: { lifewebBlood: newBlood } });
-  return newBlood;
+  return { lifewebBlood: newBlood, starvedDiscordUserIds };
 }
 
 async function getConfig() {
@@ -90,24 +100,64 @@ async function getConfig() {
 
 // Resolves the currently OPEN turn (applying Needs decay) and opens the next
 // one, alternating DAWN/DUSK. Shared by the bot's cron-triggered advance and
-// any GM-triggered "End Turn" action so both apply identical turn logic —
-// this now also owns every Discord side effect (turn announcement, and the
-// Dawn message wipe if enabled), all REST-based (db/lib/turnAnnouncement.js,
-// db/lib/dawnWipe.js), so callers don't need to duplicate any of it
-// regardless of whether they have a gateway client or not. Both are
-// best-effort: a Discord-side failure is logged, never thrown, so it can
-// never block or roll back the turn advance itself.
+// any GM-triggered "End Turn" action so both apply identical turn logic.
+//
+// This still composes every Discord side effect (the Hunger DMs, the turn
+// announcement, and the Dawn message wipe if enabled — all REST-based, see
+// db/lib/turnAnnouncement.js and db/lib/dawnWipe.js), but it no longer *runs*
+// them: they're returned as a single `runSideEffects()` thunk and the caller
+// decides when. That's the fix for the Dev Panel lockup — the wipe walks every
+// location, thread and message page sequentially and can take minutes, and
+// awaiting it inside a server action froze the whole web app behind a pending
+// request. The bot's cron awaits the thunk inline (it's a background process,
+// the wait is harmless); the web action runs it via next/server's after(), so
+// the response is flushed first. Everything inside is still best-effort:
+// individually caught, logged, never thrown.
+//
+// Returns { advanced, previousTurn, newTurn, note, runSideEffects }. `advanced`
+// is false when another caller won the race to close the open turn (see the
+// guard below) — this call did nothing, and `newTurn` is then whatever the
+// winner opened, or null if it hasn't got that far yet. Callers must check
+// `advanced` before logging or dereferencing `newTurn`; a null `previousTurn`
+// on its own is ambiguous, since opening the very first turn has one too.
 async function advanceTurn() {
   const config = await getConfig();
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
 
   let lifewebBlood = config.lifewebBlood;
+  let starvedDiscordUserIds = [];
   if (openTurn) {
-    lifewebBlood = await resolveNeeds(openTurn, config);
-    await prisma.turn.update({
-      where: { id: openTurn.id },
+    // Close the turn FIRST, conditioned on it still being OPEN. This is the
+    // guard against two advances racing — a GM double-clicking End turn, or
+    // clicking it just as the bot's twice-daily cron fires. Postgres
+    // serializes the two updateMany's, so exactly one sees count === 1; the
+    // loser bails out here instead of resolving Needs a second time and
+    // opening a duplicate turn (which needs hand-editing the DB to undo).
+    //
+    // Closing before resolving (rather than after, as this used to) is what
+    // makes the claim atomic. The cost is that a mid-resolve crash leaves the
+    // turn RESOLVED with Needs half-applied; the alternative is that a losing
+    // racer runs the whole of resolveNeeds() before finding out it lost,
+    // double-charging every character's upkeep and double-decaying the
+    // Lifeweb. A half-resolved turn is the cheaper failure.
+    const closed = await prisma.turn.updateMany({
+      where: { id: openTurn.id, status: "OPEN" },
       data: { status: "RESOLVED", resolvedAt: new Date() },
     });
+    if (closed.count === 0) {
+      // The winner may still be mid-advance, so this read can come back null.
+      // That's reported as-is rather than waited on — see the return contract.
+      const winner = await prisma.turn.findFirst({ where: { status: "OPEN" } });
+      return {
+        advanced: false,
+        previousTurn: null,
+        newTurn: winner,
+        note: null,
+        runSideEffects: async () => {},
+      };
+    }
+
+    ({ lifewebBlood, starvedDiscordUserIds } = await resolveNeeds(openTurn, config));
   }
 
   const lastTurn = openTurn ?? (await prisma.turn.findFirst({ orderBy: { number: "desc" } }));
@@ -131,15 +181,28 @@ async function advanceTurn() {
     data: { nextWeather: null, nextTurnNote: null },
   });
 
-  await postTurnsAnnouncement(prisma, newTurn, note).catch((err) =>
-    console.error("Failed to post turn announcement:", err),
-  );
+  // Everything below this line talks to Discord and nothing above it does, so
+  // the turn is fully committed by the time the caller gets this back. Order
+  // is the same as when these ran inline: DMs, announcement, then the wipe.
+  const runSideEffects = async () => {
+    // One DM per hungry player, sequential (discordRequest already backs off
+    // on 429) and individually caught. No DM for a quiet -1 ⬢.
+    for (const discordUserId of starvedDiscordUserIds) {
+      await sendDm(prisma, discordUserId, HUNGER_DM).catch((err) =>
+        console.error(`Hunger DM to ${discordUserId} failed:`, err),
+      );
+    }
 
-  if (newTurn.phase === "DAWN" && config.messageWipeEnabled) {
-    await runDawnWipe(prisma).catch((err) => console.error("Dawn message wipe failed:", err));
-  }
+    await postTurnsAnnouncement(prisma, newTurn, note).catch((err) =>
+      console.error("Failed to post turn announcement:", err),
+    );
 
-  return { previousTurn: openTurn, newTurn, note };
+    if (newTurn.phase === "DAWN" && config.messageWipeEnabled) {
+      await runDawnWipe(prisma).catch((err) => console.error("Dawn message wipe failed:", err));
+    }
+  };
+
+  return { advanced: true, previousTurn: openTurn, newTurn, note, runSideEffects };
 }
 
 module.exports = {
