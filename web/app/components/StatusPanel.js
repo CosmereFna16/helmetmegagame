@@ -1,5 +1,6 @@
 import { moodFromTags, moodLabel, MOOD_SLUGS } from "@lifeweb/db/lib/mood";
 import { gambitModifiers, formatGambitModifiers } from "@lifeweb/db/lib/gambitModifier";
+import { turnsLeft, formatTurnsLeft } from "@/lib/turnFormat";
 import SetMoodButton from "./SetMoodButton";
 import TransferResourcesButton from "./TransferResourcesButton";
 
@@ -33,10 +34,7 @@ export default function StatusPanel({ character, isSelf, openTurn, parties }) {
   const moodTag = character.tags.find(
     (ct) => ct.tag.slug === MOOD_SLUGS.HAPPY || ct.tag.slug === MOOD_SLUGS.UNHAPPY,
   );
-  const turnsLeft =
-    moodTag?.expiresTurn != null && openTurn?.number != null
-      ? Math.max(0, moodTag.expiresTurn - openTurn.number)
-      : null;
+  const moodTurnsLeft = turnsLeft(moodTag?.expiresTurn, openTurn?.number);
 
   return (
     <section className="panel p-4">
@@ -55,10 +53,8 @@ export default function StatusPanel({ character, isSelf, openTurn, parties }) {
 
         <Row label="Mood">
           <span style={{ color: MOOD_COLORS[mood] }}>{moodLabel(mood)}</span>
-          {turnsLeft != null && (
-            <span className="text-default">
-              ({turnsLeft} turn{turnsLeft === 1 ? "" : "s"} left)
-            </span>
+          {moodTurnsLeft != null && (
+            <span className="text-default">({formatTurnsLeft(moodTurnsLeft)})</span>
           )}
           {isSelf && <SetMoodButton currentMood={mood} />}
         </Row>

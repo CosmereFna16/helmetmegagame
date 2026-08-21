@@ -3,11 +3,13 @@
 //
 // At the close of every turn each ALIVE character is checked, in this order:
 //   1. Holds Hungerless -> skipped entirely. No resource taken, no Hunger.
-//   2. Holds Ate Meal   -> shielded from Hunger, and the tag is consumed
-//                          (whether or not they were broke). The ⬢ is still
-//                          owed per step 3 — the resource IS what eating
-//                          costs, so waiving it would let one meal pay for
-//                          itself twice.
+//   2. Holds Ate Meal   -> shielded from Hunger, the tag is consumed
+//                          (whether or not they were broke), and NO ⬢ is
+//                          taken. The meal was already paid for when it was
+//                          cooked — 2 ⬢ for a Fine, 3 ⬢ for a Lavish — so
+//                          billing the upkeep on top made eating strictly
+//                          worse than the 1 ⬢ it saves. Eating settles the
+//                          turn's upkeep; it doesn't come on top of it.
 //   3. Check FIRST, then pay: at 0 ⬢ you go Hungry and owe nothing; at 1+ ⬢
 //      you pay 1 and stay fed. So 1 ⬢ always buys a fed turn, and resources
 //      can never go negative — the clamp is structural, not a Math.max.
@@ -65,7 +67,6 @@ async function runHungerPass(prisma, turn) {
 
     if (ateMealId && held.has(ateMealId)) {
       shieldedIds.push(character.id);
-      if (character.resources >= 1) toPay.push(character.id);
       continue;
     }
 

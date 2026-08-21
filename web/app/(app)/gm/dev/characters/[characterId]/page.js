@@ -103,11 +103,11 @@ export default async function DevCharacterEditPage({ params }) {
           <div className="flex flex-col gap-2 text-sm" style={{ marginTop: "1.6rem" }}>
             <label className="flex items-center gap-2">
               <input type="checkbox" name="isLeader" defaultChecked={character.isLeader} />
-              Faction leader
+              Faction Leader
             </label>
             <label className="flex items-center gap-2">
               <input type="checkbox" name="isTreasurer" defaultChecked={character.isTreasurer} />
-              Faction treasurer
+              Faction Treasurer
             </label>
           </div>
         </div>

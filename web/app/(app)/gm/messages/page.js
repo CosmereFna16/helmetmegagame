@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { prisma } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import MessagesToolbar from "./MessagesToolbar";
+import ConversationsTable from "./ConversationsTable";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 
 export default async function MessagesPage() {
@@ -40,12 +40,21 @@ export default async function MessagesPage() {
     if (!existing || c.status === "ALIVE") characterNameById.set(c.discordUserId, c.name);
   }
 
-  const rows = [...conversations.values()].sort(
-    (a, b) => b.lastMessage.createdAt - a.lastMessage.createdAt,
-  );
+  // Flattened to plain serializable fields — the table is a client component,
+  // and it sorts on `lastAtMs` rather than on a Date it can't receive.
+  const rows = [...conversations.values()].map((row) => ({
+    discordUserId: row.discordUserId,
+    name:
+      characterNameById.get(row.discordUserId) ??
+      usernameById.get(row.discordUserId) ??
+      row.discordUserId,
+    preview: `${row.lastMessage.direction === "OUTBOUND" ? "You: " : ""}${row.lastMessage.content}`,
+    lastAtMs: row.lastMessage.createdAt.getTime(),
+    count: row.count,
+  }));
 
   return (
-    <PageShell width="narrow">
+    <PageShell>
       <PageHeader
         title="Messages"
         subtitle="Every direct message the bot has sent or received, grouped by player."
@@ -53,46 +62,7 @@ export default async function MessagesPage() {
 
       <MessagesToolbar characters={aliveCharacters} />
 
-      <div className="panel overflow-x-auto">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Player</th>
-              <th>Last message</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.discordUserId}>
-                <td className="whitespace-nowrap">
-                  <Link href={`/gm/messages/${row.discordUserId}`} className="menu-item">
-                    {characterNameById.get(row.discordUserId) ??
-                      usernameById.get(row.discordUserId) ??
-                      row.discordUserId}
-                  </Link>
-                </td>
-                <td className="max-w-md truncate">
-                  {row.lastMessage.direction === "OUTBOUND" ? "You: " : ""}
-                  {row.lastMessage.content}
-                </td>
-                <td>
-                  <Link href={`/gm/messages/${row.discordUserId}`} className="menu-item">
-                    Open ({row.count})
-                  </Link>
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={3} className="text-center text-muted">
-                  No direct messages yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <ConversationsTable conversations={rows} />
     </PageShell>
   );
 }

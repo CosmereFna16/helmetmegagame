@@ -46,6 +46,15 @@
 #                     holds a non-stackable granted tag, their existing one
 #                     is left alone. Omit it for a consumable that simply
 #                     gets used up.
+#                     An entry may also be conditional, granted only to a
+#                     character holding NONE of the listed tags:
+#                         consumesInto:
+#                           - ate-meal
+#                           - slug: happy
+#                             unlessTags: [nobility]
+#                     Both halves are validated against this file, and the
+#                     condition is applied identically by the grant itself and
+#                     by the "Becomes:" preview a player sees first.
 #   requirement:    - what it costs a character to add or remove this tag in
 #                     play (GM adjudication reference, also shown to
 #                     players; not automated/enforced by any code). One
@@ -500,7 +509,7 @@ tags:
     name: Ate Meal
     category: status
     group: status-food
-    description: "Won't go hungry next turn — ate a proper meal this turn."
+    description: "Won't go hungry next turn, and owes no upkeep this turn — ate a proper meal."
     pointCost: 0
     purchasable: false
 
@@ -774,6 +783,10 @@ tags:
     consumable: true
     consumesInto:
       - ate-meal
+      # An honest meal cheers an ordinary person; a noble expects one as a
+      # matter of course, so it does nothing for their mood. They still eat.
+      - slug: happy
+        unlessTags: [nobility]
     requirement:
       resourceCost: 2
       skills: [cooking-basic]

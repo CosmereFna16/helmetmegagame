@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { prisma } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import CharacterLink from "../../../components/CharacterLink";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
+import { TableScroll } from "@/app/components/DataTable";
+import Pager from "@/app/components/Pager";
 
 const PAGE_SIZE = 50;
 const NO_FACTION_LABEL = "No faction";
@@ -154,74 +155,66 @@ export default async function AuditLogPage({ searchParams }) {
         </button>
       </form>
 
-      {/* Tall, fixed-height scroller with a pinned header — the log is long
-          and a GM scans it rather than paging through it. */}
-      <div className="panel table-scroll">
-        <table className="data-table" style={{ minWidth: "900px" }}>
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>Action</th>
-              <th>Player</th>
-              <th>Target</th>
-              <th>Reason</th>
-              <th>Details</th>
+      {/* Same fixed-height, pinned-header frame every list in the app sits
+          in — see web/app/components/DataTable.js. */}
+      <TableScroll minWidth="900px">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Action</th>
+            <th>Player</th>
+            <th>Target</th>
+            <th>Reason</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((entry) => (
+            <tr key={entry.id}>
+              <td className="whitespace-nowrap">{entry.createdAt.toISOString()}</td>
+              <td>{entry.actionType}</td>
+              <td className="whitespace-nowrap">
+                {usernameById.get(entry.actorDiscordUserId) ?? entry.actorDiscordUserId}
+                {characterByDiscordUserId.has(entry.actorDiscordUserId) ? (
+                  <div className="text-xs text-muted">
+                    <CharacterLink
+                      characterId={characterByDiscordUserId.get(entry.actorDiscordUserId).id}
+                      name={characterByDiscordUserId.get(entry.actorDiscordUserId).name}
+                      isGm
+                    />
+                  </div>
+                ) : null}
+              </td>
+              <td>
+                <CharacterLink characterId={entry.targetCharacter?.id} name={entry.targetCharacter?.name} isGm />
+              </td>
+              {/* Only Request-backed entries carry a reason (see
+                  web/lib/requests.js#logRequest); everything else is blank. */}
+              <td style={{ minWidth: "14rem" }}>{entry.reason ?? ""}</td>
+              <td className="max-w-xs truncate">{entry.details ? JSON.stringify(entry.details) : ""}</td>
             </tr>
-          </thead>
-          <tbody>
-            {entries.map((entry) => (
-              <tr key={entry.id}>
-                <td className="whitespace-nowrap">{entry.createdAt.toISOString()}</td>
-                <td>{entry.actionType}</td>
-                <td className="whitespace-nowrap">
-                  {usernameById.get(entry.actorDiscordUserId) ?? entry.actorDiscordUserId}
-                  {characterByDiscordUserId.has(entry.actorDiscordUserId) ? (
-                    <div className="text-xs text-muted">
-                      <CharacterLink
-                        characterId={characterByDiscordUserId.get(entry.actorDiscordUserId).id}
-                        name={characterByDiscordUserId.get(entry.actorDiscordUserId).name}
-                        isGm
-                      />
-                    </div>
-                  ) : null}
-                </td>
-                <td>
-                  <CharacterLink characterId={entry.targetCharacter?.id} name={entry.targetCharacter?.name} isGm />
-                </td>
-                {/* Only Request-backed entries carry a reason (see
-                    web/lib/requests.js#logRequest); everything else is blank. */}
-                <td style={{ minWidth: "14rem" }}>{entry.reason ?? ""}</td>
-                <td className="max-w-xs truncate">{entry.details ? JSON.stringify(entry.details) : ""}</td>
-              </tr>
-            ))}
-            {entries.length === 0 && (
-              <tr>
-                <td colSpan={6} className="text-center text-muted">
-                  No entries match these filters.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+          ))}
+          {entries.length === 0 && (
+            <tr>
+              <td colSpan={6} className="text-center text-muted">
+                No entries match these filters.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </TableScroll>
 
-      <div className="flex items-center justify-between text-sm text-muted">
-        <span>
-          Page {page} of {totalPages} ({total} entries)
-        </span>
-        <div className="flex gap-3">
-          {page > 1 && (
-            <Link href={pageHref(page - 1)} className="menu-item">
-              Previous
-            </Link>
-          )}
-          {page < totalPages && (
-            <Link href={pageHref(page + 1)} className="menu-item">
-              Next
-            </Link>
-          )}
-        </div>
-      </div>
+      {/* Server-side paging: /gm/audit keeps its page in the URL so a
+          filtered view stays linkable, which is why Pager takes hrefs here
+          rather than the callback the in-memory tables pass. */}
+      <Pager
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        unit="entries"
+        prevHref={pageHref(page - 1)}
+        nextHref={pageHref(page + 1)}
+      />
     </PageShell>
   );
 }

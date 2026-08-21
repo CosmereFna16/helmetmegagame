@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import TagChip from "./TagChip";
 import TagRequestButtons from "./TagRequestButtons";
 import { useTags } from "./TagsProvider";
+import { resolveConsumeGrants, heldSlugsOf } from "@/lib/consumeGrants";
 
 // The Tags section of a character sheet. It's a client component for one
 // reason: the chips and the request buttons have to share state, so that
@@ -49,6 +50,7 @@ export default function TagsPanel({
   catalog,
   resources,
   otherCharacters,
+  currentTurn = null,
 }) {
   // TagRequestButtons owns the dialog, and hands its opener up through
   // onReady so a chip click can drive it.
@@ -57,11 +59,16 @@ export default function TagsPanel({
 
   const { tagsBySlug } = useTags();
   const tagGroups = useMemo(() => groupTagsByCategory(characterTags), [characterTags]);
+  const heldSlugs = useMemo(() => heldSlugsOf(characterTags), [characterTags]);
 
   // Tag.consumesInto carries slugs; the app-wide catalog turns them into
   // names. It arrives via fetch, so fall back to the raw slug meanwhile.
+  // Resolved against what this character holds, since a grant can be
+  // conditional (Fine Meal cheers everyone but a noble) — promising a tag the
+  // grant won't deliver would be worse than saying nothing.
   function consumeHintFor(tag) {
-    const names = (tag.consumesInto ?? []).map((slug) => tagsBySlug.get(slug)?.name ?? slug);
+    const { slugs } = resolveConsumeGrants(tag, heldSlugs);
+    const names = slugs.map((slug) => tagsBySlug.get(slug)?.name ?? slug);
     return names.length ? `Click to consume → ${names.join(", ")}` : "Click to consume";
   }
 
@@ -98,6 +105,8 @@ export default function TagsPanel({
                         quantity={ct.quantity}
                         onConsume={clickable ? () => openDialog("consume", ct.tag.id) : null}
                         consumeHint={clickable ? consumeHintFor(ct.tag) : null}
+                        expiresTurn={ct.expiresTurn}
+                        currentTurn={currentTurn}
                       />
                     </li>
                   );

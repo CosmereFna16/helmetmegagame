@@ -1,5 +1,6 @@
 import { formatCost, costColor } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
+import { turnsLeft, formatTurnsLeft } from "@/lib/turnFormat";
 import ChipLabel from "./ChipLabel";
 import ChipText from "./ChipText";
 
@@ -8,12 +9,24 @@ import ChipText from "./ChipText";
 // Consume dialog. The name resolution behind `consumeHint` stays in the
 // client parent so this component keeps rendering fine on the server
 // everywhere else it's used.
-export default function TagChip({ tag, quantity = 1, onConsume = null, consumeHint = null }) {
+export default function TagChip({
+  tag,
+  quantity = 1,
+  onConsume = null,
+  consumeHint = null,
+  expiresTurn = null,
+  currentTurn = null,
+}) {
   const stack = quantity > 1 ? quantity : null;
   // Minified "cost to add/remove this tag in play" — see
   // Tag.requirement* in schema.prisma. Null when unset, so it's simply
   // omitted rather than rendering an empty line.
   const requirement = formatTagRequirement(tag);
+
+  // Most tags never expire, so both of these stay null and the chip renders
+  // exactly as it always did. Pass the CharacterTag's expiresTurn (not the
+  // Tag's defaultDurationTurns) — the clock started when it was granted.
+  const left = turnsLeft(expiresTurn, currentTurn);
 
   // The wrapper already carries tabIndex for the hover tooltip, so once it's
   // clickable it has to answer the keyboard too.
@@ -36,7 +49,7 @@ export default function TagChip({ tag, quantity = 1, onConsume = null, consumeHi
           : undefined
       }
     >
-      <ChipLabel tag={tag} quantity={quantity} />
+      <ChipLabel tag={tag} quantity={quantity} left={left} />
       <span className="tag-tooltip" role="tooltip">
         <strong>
           {tag.name}
@@ -46,6 +59,7 @@ export default function TagChip({ tag, quantity = 1, onConsume = null, consumeHi
             label, since a chip nested inside a hover tooltip could never be
             hovered to reach its own tooltip. */}
         {tag.description && <ChipText text={tag.description} as="p" />}
+        {left != null && <p className="text-muted">Expiry: {formatTurnsLeft(left)}</p>}
         {requirement && <p className="text-muted">{requirement}</p>}
         {consumeHint && <p className="text-accent">{consumeHint}</p>}
         <span style={{ color: costColor(tag.pointCost) }}>{formatCost(tag.pointCost)} pts</span>

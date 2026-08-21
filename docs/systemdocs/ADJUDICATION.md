@@ -24,18 +24,21 @@ pipeline survived, and the Moves tab is where it resurfaces.
 
 ## 2. The tables
 
-Both are long, static tables with **both scroll axes inside the container** and
-a header pinned to the top — the GM scans rather than pages. That is one CSS
-class, `.table-scroll` (`web/app/globals.css`), reused by `/gm/audit`. The
-page body itself never scrolls sideways, which is why the overflow lives on
-the container rather than an ancestor.
+Both are long tables with **both scroll axes inside the container**, a header
+pinned to the top, and pages of 50 beneath. That frame is not local to this
+page — it is the app-wide list shell (`web/app/components/DataTable.js`,
+`Pager.js`, and the `.table-scroll` class in `web/app/globals.css`), shared
+with `/gm/audit`, `/gm/players`, `/gm/messages` and `/notes`. The page body
+itself never scrolls sideways, which is why the overflow lives on the
+container rather than an ancestor.
 
-Filtering, sorting and search are client-side over the full set, the same
-posture as `PlayersTable.js` — the rows are already in memory, so filtering is
-a plain pass rather than a round trip. The shared machinery is
-`tableUtils.js#useTableState`, plus `SortHeader` and `FilterBar`. Sorting is
-new; no table in the app had it before, and `.th-sort` is the header-button
-style it introduced.
+Filtering, sorting, search and paging are client-side over the full set — the
+rows are already in memory (`take: 500`), so filtering is a plain pass rather
+than a round trip. The machinery is `DataTable.js#useTableState`, plus
+`SortHeader`, `FilterBar` and `TableScroll`; it started life here as
+`gm/turns/tableUtils.js` and moved out once four other surfaces wanted it.
+Changing a filter, the search or the sort resets you to page 1, done in the
+setters rather than an effect so it lands in the same render.
 
 **Moves tab** — Turn, Character, Discord username, Faction, Move, Status, GM
 Notes. The Move cell wraps and is truncated to 100 characters, with Kind,
@@ -173,7 +176,7 @@ claims a lock — looking must not block the GM who intends to resolve.
 |---|---|
 | Page shell, row DTOs, status/kind labels | `web/app/(app)/gm/turns/page.js` |
 | Tab state | `web/app/(app)/gm/turns/AdjudicateTabs.js` |
-| Filter / sort / search machinery | `web/app/(app)/gm/turns/tableUtils.js` |
+| Filter / sort / search / paging machinery | `web/app/components/DataTable.js`, `web/app/components/Pager.js` |
 | The two tables | `MovesTable.js`, `RequestsTable.js` |
 | Per-row message composer | `MessageRow.js` |
 | Request panel | `RequestPanel.js` |

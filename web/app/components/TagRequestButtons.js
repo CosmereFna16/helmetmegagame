@@ -14,6 +14,7 @@ import RequestDialog from "./RequestDialog";
 import InfoIcon from "./InfoIcon";
 import ChipText from "./ChipText";
 import { useTags } from "./TagsProvider";
+import { resolveConsumeGrants, heldSlugsOf } from "@/lib/consumeGrants";
 import {
   addTagRequest,
   removeTagRequest,
@@ -206,8 +207,13 @@ export default function TagRequestButtons({
   // repeat is how a bundle grants two of something), and the app-wide tag
   // catalog is the same source RichText's {tag:slug} references read. It
   // arrives via fetch, so fall back to the raw slug while that's in flight.
+  // Filtered through the same resolver the server action uses, so the preview
+  // can't promise a conditional grant this character won't get.
   const { tagsBySlug } = useTags();
-  const becomes = (chosen?.consumesInto ?? []).map((slug) => tagsBySlug.get(slug)?.name ?? slug);
+  const heldSlugs = useMemo(() => heldSlugsOf(characterTags), [characterTags]);
+  const becomes = resolveConsumeGrants(chosen, heldSlugs).slugs.map(
+    (slug) => tagsBySlug.get(slug)?.name ?? slug,
+  );
 
   function pick(nextTagId) {
     setTagId(nextTagId);

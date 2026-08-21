@@ -12,6 +12,7 @@ import { WORST_FEAR_PENALTY, WORST_FEAR_MAX_LENGTH } from "@/lib/constants";
 import { TRANSFERABLE_CATEGORIES } from "@/lib/tagRequests";
 import { tagsById as buildTagsById, requirementSatisfied } from "@/lib/characterCreation";
 import { addToStack, dropCharacterTag, grantTagSlugs } from "@/lib/requestEffects";
+import { resolveConsumeGrants, heldSlugsOf } from "@/lib/consumeGrants";
 import { syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
 
 // Every player-initiated change that is applied immediately and reviewed
@@ -350,9 +351,13 @@ async function removeTagRequestImpl({
 // the character several times — there is deliberately no quantity field
 // anywhere in this path.
 //
-// No resource cost either: a meal already cost ⬢ to make, and the Hunger pass
-// charges its own upkeep separately, so a third charge here would be the same
-// meal paid for three times.
+// No resource cost either: a meal already cost ⬢ to make, so charging again
+// here would be the same meal paid for twice. (The Hunger pass no longer bills
+// upkeep on a turn you ate — see db/lib/hungerPass.js.)
+//
+// A grant may be conditional on what the character already holds — Fine Meal
+// cheers an ordinary person but not a noble — which is why the slug list runs
+// through resolveConsumeGrants rather than going straight to grantTagSlugs.
 async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
@@ -373,14 +378,14 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
     quantity: 1,
   };
 
+  // requireCharacter() already eager-loads tags.tag, so the held slugs cost
+  // no extra query. Undo needs no matching change: it reads the `granted`
+  // snapshot below, never re-deriving from the catalog.
+  const { slugs: grantSlugs } = resolveConsumeGrants(held.tag, heldSlugsOf(character.tags));
+
   await prisma.$transaction(async (tx) => {
     await dropCharacterTag(tx, character.id, tagId, 1);
-    const granted = await grantTagSlugs(
-      tx,
-      character.id,
-      held.tag.consumesInto ?? [],
-      openTurn?.number ?? null,
-    );
+    const granted = await grantTagSlugs(tx, character.id, grantSlugs, openTurn?.number ?? null);
     await createRequest(tx, {
       characterId: character.id,
       turnId: openTurn?.id ?? null,

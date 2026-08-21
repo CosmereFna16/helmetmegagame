@@ -58,6 +58,11 @@
   --r-full: 999px; /* pills */
   --radius: var(--r-md); /* legacy alias — pre-existing call sites */
 
+  /* Every long list — tables, the notes board, a DM thread — is the same
+     height. One knob, because this used to be four unrelated ones (70vh,
+     60vh, max-h-40, and nothing at all). */
+  --list-h: 70vh;
+
   /* Elevation. --e-1 is border-only and intentionally has no shadow. */
   --e-2: 0 2px 6px var(--shadow-color);
   --e-3: 0 12px 32px var(--shadow-color);
@@ -585,6 +590,9 @@ h3 {
   outline: none;
   font-family: var(--font-mono), ui-monospace, "SFMono-Regular", monospace;
   font-weight: normal;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text);
 }
 
 .tag-tooltip {
@@ -780,14 +788,21 @@ h3 {
    page body itself must never scroll sideways, which is why the overflow
    lives here rather than on an ancestor. */
 .table-scroll {
-  max-height: 70vh;
+  max-height: var(--list-h);
   overflow: auto;
+}
+
+/* The same frame for a list that isn't a table — the /notes card board. Only
+   the vertical axis, since cards wrap rather than run wide. */
+.list-scroll {
+  max-height: var(--list-h);
+  overflow-y: auto;
 }
 
 /* A DM thread that stays put: fixed viewport, scrolls internally instead of
    growing the page. */
 .message-list {
-  max-height: 60vh;
+  max-height: var(--list-h);
   overflow-y: auto;
 }
 

@@ -3,24 +3,39 @@
 import { useMemo, useState, useTransition } from "react";
 import { unstarNote } from "./actions";
 import { useConfirm } from "../../components/ConfirmProvider";
+import Tooltip from "../../components/Tooltip";
+import { useTableState, FilterBar } from "@/app/components/DataTable";
+import Pager from "@/app/components/Pager";
+
+const FILTER_DEFS = [{ key: "zone", label: "Zone", value: (n) => n.zoneName }];
+
+const SEARCH_FIELDS = [(n) => n.content, (n) => n.characterName];
+
+// A card list has no header row to hang a SortHeader off, so its sort is a
+// select in the filter bar instead.
+const SORT_OPTIONS = [
+  { key: "sentAtMs", dir: "desc", label: "Newest first" },
+  { key: "sentAtMs", dir: "asc", label: "Oldest first" },
+];
 
 export default function NotesList({ notes }) {
   const confirm = useConfirm();
-  const [zoneFilter, setZoneFilter] = useState("");
-  const [sort, setSort] = useState("newest");
   const [removed, setRemoved] = useState(new Set());
   const [isPending, startTransition] = useTransition();
 
-  const zones = useMemo(
-    () => [...new Set(notes.map((n) => n.zoneName).filter(Boolean))].sort(),
-    [notes],
-  );
+  const filterDefs = useMemo(() => FILTER_DEFS, []);
+  const searchFields = useMemo(() => SEARCH_FIELDS, []);
+  // Optimistically-removed notes are dropped before the hook sees them, so
+  // the count and the page boundaries stay honest after an unstar.
+  const rows = useMemo(() => notes.filter((n) => !removed.has(n.id)), [notes, removed]);
 
-  const visible = notes.filter((n) => !removed.has(n.id));
-  const filtered = visible.filter((n) => !zoneFilter || n.zoneName === zoneFilter);
-  const sorted = [...filtered].sort((a, b) =>
-    sort === "oldest" ? new Date(a.sentAt) - new Date(b.sentAt) : new Date(b.sentAt) - new Date(a.sentAt),
-  );
+  const { query, setQuery, filters, setFilters, sort, setSort, options, pageRows, page, setPage, total, totalPages } =
+    useTableState({
+      rows,
+      filterDefs,
+      searchFields,
+      initialSort: { key: "sentAtMs", dir: "desc" },
+    });
 
   async function handleUnstar(id) {
     if (!(await confirm({ title: "Unstar this note?", message: "This can't be undone.", confirmLabel: "Unstar" })))
@@ -33,29 +48,21 @@ export default function NotesList({ notes }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="field">
-          <span className="field-label">Zone</span>
-          <select value={zoneFilter} onChange={(e) => setZoneFilter(e.target.value)}>
-            <option value="">All zones</option>
-            {zones.map((z) => (
-              <option key={z} value={z}>
-                {z}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span className="field-label">Sort by</span>
-          <select value={sort} onChange={(e) => setSort(e.target.value)}>
-            <option value="newest">Newest first</option>
-            <option value="oldest">Oldest first</option>
-          </select>
-        </label>
-      </div>
+      <FilterBar
+        filterDefs={filterDefs}
+        filters={filters}
+        setFilters={setFilters}
+        options={options}
+        query={query}
+        setQuery={setQuery}
+        searchLabel="Search notes"
+        sortOptions={SORT_OPTIONS}
+        sort={sort}
+        setSort={setSort}
+      />
 
-      <div className="flex flex-col gap-3">
-        {sorted.map((note) => (
+      <div className="list-scroll flex flex-col gap-3">
+        {pageRows.map((note) => (
           <div key={note.id} className="panel flex flex-col gap-2 p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex flex-col">
@@ -64,26 +71,29 @@ export default function NotesList({ notes }) {
                   {note.zoneName ?? "-"} · {new Date(note.sentAt).toLocaleString()}
                 </span>
               </div>
-              <button
-                type="button"
-                className="btn-quiet"
-                onClick={() => handleUnstar(note.id)}
-                disabled={isPending}
-                aria-label="Unstar this note"
-                title="Unstar"
-              >
-                ★
-              </button>
+              <Tooltip text="Unstar">
+                <button
+                  type="button"
+                  className="btn-quiet"
+                  onClick={() => handleUnstar(note.id)}
+                  disabled={isPending}
+                  aria-label="Unstar this note"
+                >
+                  ★
+                </button>
+              </Tooltip>
             </div>
             <p className="whitespace-pre-wrap text-sm">{note.content}</p>
           </div>
         ))}
-        {sorted.length === 0 && (
+        {pageRows.length === 0 && (
           <p className="text-sm text-muted">
             No starred messages match these filters.
           </p>
         )}
       </div>
+
+      <Pager page={page} totalPages={totalPages} total={total} unit="notes" onPage={setPage} />
     </div>
   );
 }
