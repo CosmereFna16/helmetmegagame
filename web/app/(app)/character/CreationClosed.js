@@ -16,13 +16,13 @@ export default function CreationClosed({ open }) {
       <div className="panel flex flex-col gap-3 p-4">
         <p className="text-sm">
           {open
-            ? "Character creation is open, but your Discord account doesn't carry the player role for this game."
-            : "The game hasn't begun. When it does, this is where you'll roll your character."}
+            ? "Character creation is open, but your Discord account doesn't carry the player role for this game. Apply in #apply."
+            : "Character creation's not open yet!"}
         </p>
         <p className="text-sm text-muted">
           {open
             ? "If you think that's a mistake, ask a GM to add you. In the meantime, the public rules are worth reading."
-            : "In the meantime, the Documents page carries the public rules — worth reading before you pick a role."}
+            : "Have a look at the Documents page in the meantime."}
         </p>
         <div>
           <Link href="/documents" className="btn-secondary">
