@@ -5,7 +5,8 @@ import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getOpenTurn } from "@/lib/turn";
 import { describeTurn } from "@/lib/turnFormat";
-import { updateGameConfig, updateCurrentTurn, updateNextTurn, forceAdvanceTurn, wipeGameData } from "./actions";
+import { updateGameConfig, updateCurrentTurn, updateNextTurn, wipeGameData } from "./actions";
+import EndTurnButton from "./EndTurnButton";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 
 const WEATHER_OPTIONS = [
@@ -30,6 +31,11 @@ export default async function DevPanelPage() {
   const currentDay = openTurnRecord ? Math.ceil(openTurnRecord.number / 2) : Math.ceil(((lastTurn?.number ?? 0) + 1) / 2);
   const currentPhase = openTurnRecord?.phase ?? (lastTurn?.phase === "DAWN" ? "DUSK" : "DAWN");
   const currentWeather = openTurnRecord?.weather ?? "CLEAR";
+
+  // Mirrors advanceTurn()'s own phase alternation, so the confirm dialog can
+  // warn about the Dawn wipe only when the next turn actually triggers one.
+  const lastForPhase = openTurnRecord ?? lastTurn;
+  const nextPhase = !lastForPhase || lastForPhase.phase === "DUSK" ? "DAWN" : "DUSK";
 
   return (
     <PageShell>
@@ -73,14 +79,16 @@ export default async function DevPanelPage() {
           <button type="submit" className="btn">Save</button>
         </form>
 
-        <form action={forceAdvanceTurn} className="mt-3">
-          <button type="submit" className="btn">End turn</button>
-        </form>
+        <EndTurnButton
+          turnLabel={openTurnRecord ? describeTurn(openTurnRecord).label : null}
+          wipesMessages={nextPhase === "DAWN" && config.messageWipeEnabled}
+        />
 
         <p className="mt-3 text-xs text-muted">
           Save overrides the current turn&apos;s day/phase/weather directly, without resolving Needs. End
           turn resolves Needs on the current turn and opens the next one — same as the automatic
-          dawn/dusk advance.
+          dawn/dusk advance. The Discord announcement and the Dawn wipe finish in the background after
+          this page updates, so #turns may lag it by a moment.
         </p>
       </section>
 
@@ -149,8 +157,9 @@ export default async function DevPanelPage() {
         </form>
         <p className="mt-3 text-xs text-muted">
           Tupper/summary channels are the plain/public/private channels of a provisioned Location. Moves and Efforts
-          come from channels named exactly &quot;moves&quot; and &quot;effort&quot;. With Dawn wipe enabled, forcing a
-          turn advance into Dawn may take a few minutes to resolve. Production coefficient scales /labor&apos;s payouts
+          come from channels named exactly &quot;moves&quot; and &quot;effort&quot;. With Dawn wipe enabled, the wipe
+          itself runs in the background after a Dawn advance and can take a few minutes to finish in Discord — the
+          turn is already open before it starts. Production coefficient scales /labor&apos;s payouts
           and docs/documents.yaml&apos;s printed numbers (via live {"{resource:...}"} bubbles) immediately — nothing
           to sync by hand.
         </p>
