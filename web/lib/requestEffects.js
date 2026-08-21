@@ -440,6 +440,70 @@ export const REQUEST_EFFECTS = {
     },
   },
 
+  // Changing a locked-in Worst Fear. Nothing numeric moved, so a GM's only
+  // lever is Undo: put the previous wording and its set-turn back. The first
+  // set is NOT a request (see requestActions.js), so every row of this type
+  // really is a change and previousText is always populated.
+  //
+  // Lossy in the same way SET_MOOD is: undoing the FIRST of two changes
+  // clobbers the second one's text. That is the price of "Undo reads only
+  // effect, never live state" (REQUESTS.md §2), and re-deriving from the
+  // sheet is exactly what that rule forbids.
+  CHANGE_WORST_FEAR: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { previousText, previousSetTurnNumber } = request.effect;
+      await tx.character.update({
+        where: { id: request.characterId },
+        data: {
+          worstFear: previousText ?? null,
+          worstFearSetTurnNumber: previousSetTurnNumber ?? null,
+        },
+      });
+      return previousText
+        ? "Restored the previous Worst Fear."
+        : "Cleared the Worst Fear — there wasn't one before this.";
+    },
+  },
+
+  // The fear coming true: a flat penalty, never a ladder, so there is nothing
+  // to re-score and editableFields is empty by design. The fear itself
+  // PERSISTS — this request only moves Tag Points and stamps the cooldown.
+  FULFILL_WORST_FEAR: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { pointsDeducted, fulfilledTurnNumber, previousLastFulfilledTurn } = request.effect;
+
+      // Read off the snapshot rather than WORST_FEAR_PENALTY, so an old row
+      // still reverses by what it actually took if that number is retuned.
+      if (pointsDeducted) {
+        await tx.character.update({
+          where: { id: request.characterId },
+          data: { tagPoints: { increment: pointsDeducted } },
+        });
+      }
+
+      // Only unwind the cooldown if this request is still the one that set
+      // it. A player who claimed the fear again on a later turn owns the
+      // stamp now, and blindly restoring our snapshot would hand them a free
+      // extra claim. This reads live state to decide WHETHER the restore
+      // still applies — never to recompute WHAT to restore, which is the
+      // thing REQUESTS.md §2 forbids.
+      const live = await tx.character.findUnique({
+        where: { id: request.characterId },
+        select: { worstFearLastFulfilledTurn: true },
+      });
+      if (live && live.worstFearLastFulfilledTurn === (fulfilledTurnNumber ?? null)) {
+        await tx.character.update({
+          where: { id: request.characterId },
+          data: { worstFearLastFulfilledTurn: previousLastFulfilledTurn ?? null },
+        });
+      }
+
+      return `Refunded ${pointsDeducted ?? 0} Tag Point(s). The Worst Fear stands, unfulfilled.`;
+    },
+  },
+
   SET_MOOD: {
     editableFields: [],
     async undo(tx, request) {

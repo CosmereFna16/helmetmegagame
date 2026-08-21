@@ -11,14 +11,17 @@ character — brand new to the server, or their last one died — that page
 renders the **creation wizard** instead of a character sheet. There's no
 separate `/character/new` route; one URL, no redirect bounce.
 
-The wizard has four steps:
+The wizard has five steps:
 
 1. **Identity** — character name, and an optional preferred nickname (the
    `{base} | {character}` Discord nickname convention).
 2. **Role** — the role list, grouped Zone → Faction → Role, with live seat
    counts.
 3. **Tags** — the point-buy menu.
-4. **Confirm** — a summary, then `createCharacter`.
+4. **Fear** — the character's Worst Fear. **Optional**: `canAdvance` is
+   unconditionally true on this step, so a player may walk straight past it and
+   name one later from `/character`. See `REQUESTS.md` §5b.
+5. **Confirm** — a summary, then `createCharacter`.
 
 ## 2. Roles
 
@@ -91,6 +94,11 @@ completion rule. Every negative-cost tag is `purchasableAfterStart: false` —
 a drawback you could buy mid-game would be a point farm.
 
 Leftover points are kept, not lost: they land on `Character.tagPoints`.
+
+Fulfilling a Desire is the only way points are *earned* in play, and a Worst
+Fear coming true is the only way they are *spent* — the first and so far only
+sink (`REQUESTS.md` §5b). The balance is allowed to go **negative**: clamping it
+at 0 would let a broke player take the −3 for free, which is the mechanic.
 
 ### Two menus, one component
 

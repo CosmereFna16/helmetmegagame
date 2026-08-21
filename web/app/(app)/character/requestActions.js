@@ -8,6 +8,7 @@ import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { createRequest, logRequest, requireReason } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
+import { WORST_FEAR_PENALTY, WORST_FEAR_MAX_LENGTH } from "@/lib/constants";
 import { TRANSFERABLE_CATEGORIES } from "@/lib/tagRequests";
 import { addToStack, dropCharacterTag, grantTagSlugs } from "@/lib/requestEffects";
 import { syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
@@ -573,6 +574,149 @@ async function fulfillDesireRequestImpl({ reason: rawReason }) {
   return {};
 }
 
+// --- Worst Fear -------------------------------------------------------
+
+// One persistent, self-set dread per character. Unlike a Desire it is NOT
+// consumed by being fulfilled and has no ACTIVE/ENDED lifecycle — see the
+// Character model comment in schema.prisma.
+//
+// Two write paths, deliberately: the FIRST set is free (nothing has been
+// granted, so there is nothing for a GM to undo — the same reasoning that
+// keeps setDesire out of the Requests system), while CHANGING a fear that is
+// already locked in is a request that lands immediately and is reviewed after.
+async function setWorstFearImpl({ text: rawText }) {
+  const { session, character } = await requireCharacter();
+
+  const text = rawText?.toString().trim().slice(0, WORST_FEAR_MAX_LENGTH);
+  if (!text) throw new UserError("Describe your Worst Fear.");
+  if (character.worstFear) {
+    throw new UserError("You already have a Worst Fear — changing it takes a request.");
+  }
+
+  const openTurn = await getOpenTurn();
+
+  await prisma.character.update({
+    where: { id: character.id },
+    data: { worstFear: text, worstFearSetTurnNumber: openTurn?.number ?? null },
+  });
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "worst_fear_set",
+      targetCharacterId: character.id,
+      details: { text },
+    },
+  });
+
+  revalidatePath("/character");
+  return {};
+}
+
+async function changeWorstFearRequestImpl({ text: rawText, reason: rawReason }) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+
+  const text = rawText?.toString().trim().slice(0, WORST_FEAR_MAX_LENGTH);
+  if (!text) throw new UserError("Describe your Worst Fear.");
+  if (!character.worstFear) throw new UserError("You haven't set a Worst Fear yet.");
+  if (text === character.worstFear) throw new UserError("That's already your Worst Fear.");
+
+  const openTurn = await getOpenTurn();
+  // Snapshot before overwriting — Undo puts the previous wording back rather
+  // than re-deriving anything from the sheet.
+  const previousText = character.worstFear;
+  const previousSetTurnNumber = character.worstFearSetTurnNumber ?? null;
+  const setTurnNumber = openTurn?.number ?? null;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.character.update({
+      where: { id: character.id },
+      data: { worstFear: text, worstFearSetTurnNumber: setTurnNumber },
+    });
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn?.id ?? null,
+      type: "CHANGE_WORST_FEAR",
+      reason,
+      payload: { text },
+      effect: { text, setTurnNumber, previousText, previousSetTurnNumber },
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_change_worst_fear",
+      targetCharacterId: character.id,
+      reason,
+      details: { text, previousText },
+    });
+  });
+
+  revalidateAll();
+  return {};
+}
+
+// The fear coming true: a flat WORST_FEAR_PENALTY off the balance, never a
+// ladder. The fear is NOT consumed — the same fear stands and can come true
+// again next turn, which is the whole reason this stamps a turn number
+// instead of flipping a status.
+async function fulfillWorstFearRequestImpl({ reason: rawReason }) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+
+  if (!character.worstFear) throw new UserError("You haven't set a Worst Fear.");
+
+  // The cooldown is turn-keyed, so there has to be a turn to key it to.
+  // Stamping null would silently clear an existing cooldown. Desire tolerates
+  // a null turn because setting one isn't a request; this is, so it refuses.
+  const openTurn = await getOpenTurn();
+  if (!openTurn) throw new UserError("No turn is open.");
+
+  // Fulfilled on turn 5: blocked on 5, allowed from 6.
+  const previousLastFulfilledTurn = character.worstFearLastFulfilledTurn ?? null;
+  if (previousLastFulfilledTurn != null && openTurn.number <= previousLastFulfilledTurn) {
+    throw new UserError(
+      "Your Worst Fear already came true this turn — you can claim it again next turn.",
+    );
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // Deliberately allowed to go negative, the mirror of undoing a fulfilled
+    // Desire: the penalty is the point, and clamping at 0 would let a broke
+    // player dodge it entirely.
+    await tx.character.update({
+      where: { id: character.id },
+      data: {
+        tagPoints: { decrement: WORST_FEAR_PENALTY },
+        worstFearLastFulfilledTurn: openTurn.number,
+      },
+    });
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn.id,
+      type: "FULFILL_WORST_FEAR",
+      reason,
+      payload: {},
+      // fearText is snapshotted so the GM panel shows what was claimed even
+      // if the player rewords the fear before it's reviewed.
+      effect: {
+        fearText: character.worstFear,
+        pointsDeducted: WORST_FEAR_PENALTY,
+        fulfilledTurnNumber: openTurn.number,
+        previousLastFulfilledTurn,
+      },
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_fulfill_worst_fear",
+      targetCharacterId: character.id,
+      reason,
+      details: { fearText: character.worstFear, pointsDeducted: WORST_FEAR_PENALTY },
+    });
+  });
+
+  revalidateAll();
+  return {};
+}
+
 // --- public surface ---------------------------------------------------
 
 // Each action is wrapped so validation comes back as { ok: false, error }
@@ -613,4 +757,16 @@ export async function cancelDesire() {
 
 export async function fulfillDesireRequest(input) {
   return guarded(() => fulfillDesireRequestImpl(input));
+}
+
+export async function setWorstFear(input) {
+  return guarded(() => setWorstFearImpl(input));
+}
+
+export async function changeWorstFearRequest(input) {
+  return guarded(() => changeWorstFearRequestImpl(input));
+}
+
+export async function fulfillWorstFearRequest(input) {
+  return guarded(() => fulfillWorstFearRequestImpl(input));
 }

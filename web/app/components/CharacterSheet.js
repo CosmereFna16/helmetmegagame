@@ -2,7 +2,7 @@ import { updateCharacterProfile } from "../(app)/character/actions";
 import AppearanceField from "./AppearanceField";
 import AvatarField from "./AvatarField";
 import DefaultEffortPanel from "./DefaultEffortPanel";
-import DesirePanel from "./DesirePanel";
+import GoalsPanel from "./GoalsPanel";
 import StatusPanel from "./StatusPanel";
 import TagsPanel from "./TagsPanel";
 import RichText from "./RichText";
@@ -167,9 +167,12 @@ export default function CharacterSheet({
       />
 
       {isSelf && (
-        <DesirePanel
+        <GoalsPanel
           desire={desire ?? null}
-          cooldownUntilTurn={desireCooldownUntilTurn ?? null}
+          desireCooldownUntilTurn={desireCooldownUntilTurn ?? null}
+          worstFear={character.worstFear ?? null}
+          worstFearSetTurnNumber={character.worstFearSetTurnNumber ?? null}
+          worstFearLastFulfilledTurn={character.worstFearLastFulfilledTurn ?? null}
           openTurnNumber={openTurn?.number ?? null}
         />
       )}

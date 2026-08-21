@@ -23,6 +23,8 @@ import {
   CURSED_ROLE_SLUGS,
 } from "@/lib/characterCreation";
 
+import { WORST_FEAR_MAX_LENGTH } from "@/lib/constants";
+
 const NAME_MAX_LENGTH = 60;
 
 // Creates a character from the wizard's final Confirm step.
@@ -46,6 +48,10 @@ export async function createCharacter(formData) {
   const preferredNickname = formData.get("preferredNickname")?.toString().trim() || null;
   const roleId = formData.get("roleId")?.toString();
   const tagIds = formData.getAll("tagIds").map((t) => t.toString()).filter(Boolean);
+  // Optional — the wizard's Fear step can be walked straight past, and the
+  // player names one later from /character instead.
+  const worstFear =
+    formData.get("worstFear")?.toString().trim().slice(0, WORST_FEAR_MAX_LENGTH) || null;
 
   if (!name) return { error: "Your character needs a name." };
   if (!roleId) return { error: "Pick a role before confirming." };
@@ -157,6 +163,10 @@ export async function createCharacter(formData) {
           zoneId: role.startingLocation?.zoneId ?? null,
           resources: role.startingResources,
           tagPoints: budget - spent,
+          worstFear,
+          // Display-only stamp, and null before the game opens — the same
+          // shape expiryFor() uses above.
+          worstFearSetTurnNumber: worstFear ? (openTurn?.number ?? null) : null,
           isLeader: role.grantsLeader,
           isTreasurer: role.grantsTreasurer,
         },
@@ -204,6 +214,7 @@ export async function createCharacter(formData) {
         budget,
         spent,
         purchased: selected.map((t) => t.name),
+        worstFear,
       },
     },
   });

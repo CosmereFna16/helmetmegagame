@@ -229,6 +229,42 @@ const SECTIONS = {
     ),
   },
 
+  CHANGE_WORST_FEAR: {
+    heading: "Change Worst Fear",
+    render: ({ effect }) => (
+      <>
+        <Line label="Now">{effect.text ?? "—"}</Line>
+        <Line label="Was">
+          {effect.previousText ?? <span className="text-muted">nothing</span>}
+        </Line>
+        <p className="text-xs text-muted">
+          Nothing to re-score — a Worst Fear costs nothing to set. Undo puts the previous wording
+          back.
+        </p>
+      </>
+    ),
+  },
+
+  FULFILL_WORST_FEAR: {
+    heading: "Worst Fear Comes True",
+    render: ({ effect }) => (
+      <>
+        <Line label="Fear">{effect.fearText ?? "—"}</Line>
+        <Line label="Cost">
+          <span className="text-accent">&minus;{effect.pointsDeducted ?? 0} Tag Points</span>
+        </Line>
+        {effect.fulfilledTurnNumber != null && (
+          <Line label="On turn">{effect.fulfilledTurnNumber}</Line>
+        )}
+        <p className="text-xs text-muted">
+          Always exactly &minus;{effect.pointsDeducted ?? 0}, so there is nothing to edit. The fear
+          is not used up — they keep it and can claim it again next turn. Undo refunds the points
+          and unwinds the cooldown.
+        </p>
+      </>
+    ),
+  },
+
   SET_MOOD: {
     heading: "Set Mood",
     render: ({ effect }) => (

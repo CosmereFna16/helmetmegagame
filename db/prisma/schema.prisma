@@ -92,6 +92,8 @@ enum RequestType {
   SET_MOOD
   DONATE_BLOOD
   FEED_PERSON
+  CHANGE_WORST_FEAR
+  FULFILL_WORST_FEAR
 }
 
 // PASSED is the default and means "not yet touched by a GM" — the request
@@ -313,6 +315,28 @@ model Character {
   preferredNickname String?
   turnPingOptIn     Boolean @default(true)
   romanceOptOut     Boolean @default(false)
+
+  // A single, persistent, self-set dread — see docs/systemdocs/REQUESTS.md
+  // §5b. Deliberately three columns rather than a model: there is exactly one
+  // per character, it has no ACTIVE/ENDED lifecycle (fulfilling it does NOT
+  // consume it), and Undo restores the previous text from Request.effect, so
+  // there is no history for a table to hold. Fulfilment history lives in the
+  // Request/AuditLog rows.
+  //
+  // Named (optionally) as the last step of character creation and then locked
+  // in: the first set is free, but changing it afterwards is a
+  // CHANGE_WORST_FEAR request. Fulfilling it is a FULFILL_WORST_FEAR request
+  // worth a flat -3 Tag Points, never a ladder.
+  worstFear String?
+
+  // Turn the current text was set on — display only.
+  worstFearSetTurnNumber Int?
+
+  // Turn it was last fulfilled on, driving the one-turn cooldown (blocked
+  // while openTurn.number <= this). Null means never. The fear itself
+  // PERSISTS through a fulfilment — same fear, again next turn — which is
+  // why this is a turn stamp and not a status.
+  worstFearLastFulfilledTurn Int?
 
   tags            CharacterTag[]
   actions         Action[]
