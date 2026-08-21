@@ -6,7 +6,7 @@
 // Next.js's "@/..." path aliases which don't resolve outside the web
 // package.
 require("dotenv").config();
-const { prisma, hashNameToColor } = require("../index");
+const { prisma, hashNameToColor, formatBareName } = require("../index");
 
 const DISCORD_API = "https://discord.com/api/v10";
 
@@ -19,16 +19,20 @@ async function main() {
   }
 
   const characters = await prisma.character.findMany({
-    where: { status: "ALIVE", discordRoleId: null, name: { not: "" } },
+    where: { status: "ALIVE", discordRoleId: null, firstName: { not: "" } },
   });
 
   for (const character of characters) {
-    const color = hashNameToColor(character.name);
+    // Bare (first + last) for both the role name and the colour seed, matching
+    // web/lib/discordGuild.js#ensureCharacterRole. Log lines still use the
+    // displayed name, since that's what a GM would recognise.
+    const bare = formatBareName(character);
+    const color = hashNameToColor(bare);
 
     const roleRes = await fetch(`${DISCORD_API}/guilds/${guildId}/roles`, {
       method: "POST",
       headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ name: character.name, color, hoist: false, mentionable: true }),
+      body: JSON.stringify({ name: bare, color, hoist: false, mentionable: true }),
     });
     if (!roleRes.ok) {
       console.error(`  failed to create role for ${character.name}: ${roleRes.status} ${await roleRes.text()}`);

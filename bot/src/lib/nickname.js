@@ -1,4 +1,4 @@
-const { prisma } = require("@lifeweb/db");
+const { prisma, formatBareName } = require("@lifeweb/db");
 
 const NICK_MAX = 32;
 const SEP = " | ";
@@ -24,12 +24,17 @@ function buildNickname(base, characterName) {
 // instead of failures disappearing into a blanket .catch(() => {}).
 async function syncMemberNickname(member) {
   const character = await prisma.character.findFirst({
-    where: { discordUserId: member.id, status: "ALIVE", name: { not: "" } },
+    where: { discordUserId: member.id, status: "ALIVE", firstName: { not: "" } },
   });
   if (!character) return "skipped";
 
   const base = character.preferredNickname?.trim() || member.user.displayName;
-  const nickname = buildNickname(base, character.name);
+  // Bare (first + last), not the displayed name. The 32-char cap is shared
+  // between the two halves — about 14 each — and `Sir Jorren "the Blind"
+  // Vask` is 27 on its own, so titling here would truncate every nickname in
+  // the guild to garbage. This is the one place a title deliberately does
+  // not show. web/lib/discordGuild.js#syncCharacterNickname does the same.
+  const nickname = buildNickname(base, formatBareName(character));
   if (member.nickname === nickname) return "skipped";
 
   try {
