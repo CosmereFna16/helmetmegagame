@@ -150,8 +150,8 @@ export default async function DevPanelPage() {
           Tupper/summary channels are the plain/public/private channels of a provisioned Location. Moves and Efforts
           come from channels named exactly &quot;moves&quot; and &quot;effort&quot;. With Dawn wipe enabled, forcing a
           turn advance into Dawn may take a few minutes to resolve. Production coefficient scales /labor&apos;s payouts
-          immediately, but docs/documents.yaml&apos;s printed numbers only update after a dev runs
-          <code>npm run db:sync-production-doc</code> by hand.
+          and docs/documents.yaml&apos;s printed numbers (via live {"{resource:...}"} bubbles) immediately — nothing
+          to sync by hand.
         </p>
       </section>
 

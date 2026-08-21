@@ -60,15 +60,15 @@ documents:
     description: |-
       Producing Resources ⬢
 
-      Herding (Effort): 3 Resources ⬢ for anyone; 8 with Laborer; 13 with Laborer (Herding).
-      Farming (Effort): 4 Resources ⬢ for anyone; 12 with Laborer; 21 with Laborer (Farming). Must be in Town or Fortress (the only arable land).
-      Fishing (Effort): 3 Resources ⬢ for anyone; 11 with Laborer; 19 with Laborer (Fishing). Must be in Town or Fortress (near the river).
+      Herding (Effort): {resource:herding:base} Resources ⬢ for anyone; {resource:herding:laborer} with Laborer; {resource:herding:specialist} with Laborer (Herding).
+      Farming (Effort): {resource:farming:base} Resources ⬢ for anyone; {resource:farming:laborer} with Laborer; {resource:farming:specialist} with Laborer (Farming). Must be in Town or Fortress (the only arable land).
+      Fishing (Effort): {resource:fishing:base} Resources ⬢ for anyone; {resource:fishing:laborer} with Laborer; {resource:fishing:specialist} with Laborer (Fishing). Must be in Town or Fortress (near the river).
       Hunting (Effort): 1d4 Resources ⬢ for anyone (*3 with Hunter tag), must be in Town, Fortress, or Caves.
       Brewing (Effort): 3 Resources ⬢, requires Brewing (Basic) or (Skilled) — see the Alcohol & Drugs document.
 
       Laborer is a general-purpose 2-point tag that works every trade a little harder than most. Laborer (Farming), Laborer (Fishing), and Laborer (Herding) each cost a further 2 points, require Laborer first, and push that one trade up to a dedicated specialist's rate.
 
-      To automatically add Resources ⬢ on an Effort, type +(resources) anywhere in your message. For example, write “I hunt. +1d4*3” or “I farm. +21”.
+      To automatically add Resources ⬢ on an Effort, type +(resources) anywhere in your message. For example, write “I hunt. +1d4*3” or “I farm. +{resource:farming:specialist}”.
   - name: Combat
     key: combat
     public: true

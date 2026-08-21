@@ -3,6 +3,7 @@ import "./globals.css";
 import { getOpenTurn } from "@/lib/turn";
 import { themeForPhase } from "@/lib/turnFormat";
 import TagsProvider from "./components/TagsProvider";
+import ProductionRatesProvider from "./components/ProductionRatesProvider";
 import ConfirmProvider from "./components/ConfirmProvider";
 
 const mono = IBM_Plex_Mono({
@@ -46,7 +47,9 @@ export default async function RootLayout({ children }) {
       <body className="h-full">
         <div className="scanlines" />
         <ConfirmProvider>
-          <TagsProvider>{children}</TagsProvider>
+          <TagsProvider>
+            <ProductionRatesProvider>{children}</ProductionRatesProvider>
+          </TagsProvider>
         </ConfirmProvider>
       </body>
     </html>

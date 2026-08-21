@@ -23,7 +23,6 @@
     "db:sync-tags": "node db/prisma/sync-tags.js",
     "db:sync-roles": "node db/prisma/sync-roles.js",
     "db:sync-narrowcast-channels": "node db/prisma/sync-narrowcast-channels.js",
-    "db:sync-production-doc": "node db/prisma/sync-production-doc.js",
     "db:rebuild-info-channel": "node db/prisma/rebuild-info-channel.js"
   },
   "allowScripts": {
