@@ -9,6 +9,7 @@
 // GameConfig.radioChannelId/intercomChannelId) is never renamed, recreated,
 // or have its overwrites reset again.
 const { getGuildChannels, createChannel, putChannelOverwrite } = require("./discordRest");
+const { applySpectatorOverwrite } = require("./spectatorAccess");
 
 const PERM_VIEW_CHANNEL = 1024n;
 const PERM_SEND_MESSAGES = 2048n;
@@ -66,6 +67,9 @@ async function syncNarrowcastChannels(prisma) {
     if (gmRoleId) {
       await putChannelOverwrite(newChannelId, gmRoleId, { allow: PERM_ATTACH_FILES.toString() });
     }
+    // Spectators read #radio/#intercom the same way they read a Location:
+    // visible, never speakable.
+    await applySpectatorOverwrite(newChannelId);
     await prisma.gameConfig.update({ where: { id: 1 }, data: { [entry.configKey]: newChannelId } });
   }
 

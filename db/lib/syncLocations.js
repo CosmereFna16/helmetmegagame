@@ -33,6 +33,7 @@ const {
   patchChannel,
   patchGuildChannelPositions,
 } = require("./discordRest");
+const { spectatorOverwrite } = require("./spectatorAccess");
 
 const CHANNEL_TYPE_TEXT = 0;
 const CHANNEL_TYPE_CATEGORY = 4;
@@ -93,6 +94,8 @@ async function provisionLocationChannels(prisma, location) {
       // so they'd otherwise inherit the deny too.
       { id: guildId, type: 0, deny: String(PERM_VIEW_CHANNEL + PERM_ATTACH_FILES) },
       ...(gmRoleId ? [{ id: gmRoleId, type: 0, allow: String(PERM_VIEW_CHANNEL + PERM_ATTACH_FILES) }] : []),
+      // Read-only observer seat; all three channels inherit it from here.
+      ...spectatorOverwrite(),
     ],
   });
   const plainChannel = await createChannel({

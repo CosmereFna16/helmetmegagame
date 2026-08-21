@@ -40,15 +40,21 @@ npm run db:migrate                   # prisma migrate dev (needs DATABASE_URL se
 npm run db:sync-locations            # docs/locations.yaml  (destructive)
 npm run db:sync-tags                 # docs/tags.yaml       (upsert-only)
 npm run db:sync-roles                # docs/roles.yaml      (prunes unreferenced)
+npm run db:sync-documents            # docs/documents.yaml  (destructive; run last,
+                                     #   validates against tags/roles/factions)
 
 # One-off provisioning for #radio/#intercom — see "Narrowcast channels" below.
 npm run db:sync-narrowcast-channels
+
+# One-off: grant the spectator role read-only view on everything already
+# provisioned. Anything provisioned after this change gets it automatically.
+npm run db:backfill-spectator-access
 
 npm run build --workspace=web        # production build of the web app
 npm run lint --workspace=web         # eslint over the web app
 ```
 
-Environment variables (see `.env.example`): `DATABASE_URL`, `DISCORD_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_GM_ROLE_ID`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `AUTH_SECRET`. Neither package has test infrastructure set up yet.
+Environment variables (see `.env.example`): `DATABASE_URL`, `DISCORD_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_GM_ROLE_ID`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `AUTH_SECRET`, `DISCORD_PLAYER_ROLE_ID`, `DISCORD_SPECTATOR_ROLE_ID`. Neither package has test infrastructure set up yet.
 
 ## How the bot populates the database
 
@@ -267,7 +273,58 @@ There is no single unified permission system — a few independent kinds of Disc
 - **Personal character role** (`Character.discordRoleId`, one per `ALIVE` character, titled after the character's name) — the sole access-control primitive for Location categories (see above). Created/renamed by `ensureCharacterRole`, granted/revoked per-category by `swapLocationAccess`/`syncCharacterLocationAccess`.
 - **GM role** (`DISCORD_GM_ROLE_ID` env var) — checked via REST (`web/lib/discordGuild.js#isGm`) against the signed-in user's guild member roles to gate `/gm` pages and the `/gm`/`/message` slash commands; not stored on any Lifeweb model.
 - **Narrowcast channels** (`#radio`, `#intercom`) use the personal character role above, not a separate role — see "Narrowcast channels" below.
+- **Spectator role** (`DISCORD_SPECTATOR_ROLE_ID` env var) — a standing read-only observer seat: `ViewChannel` on every Location **category** (all three channels inherit) and on `#radio`/`#intercom`, with `SendMessages`/`AddReactions`/`AttachFiles`/`ManageMessages` and all three thread bits denied. One static role, unlike the personal character role — it never moves, so it's applied at provisioning time (`db/lib/spectatorAccess.js`, called from `syncLocations`/`syncNarrowcastChannels`) and by `npm run db:backfill-spectator-access` for anything provisioned earlier, and is deliberately **not** part of the per-Move access sync. The wide deny list is load-bearing: `ViewChannel` alone still leaves a forum postable and a thread writable, and `-private` channels allow `CreatePrivateThreads` for `@everyone`, which a spectator would otherwise inherit.
+- **Player role** (`DISCORD_PLAYER_ROLE_ID` env var) — who may create a character, checked by `web/lib/discordGuild.js#isApprovedPlayer` and paired with `GameConfig.openToPlayers` (see "Launch gating" below). Unlike every other role helper here it **fails closed** when the env var is unset.
 - **Turn-ping role** (`DISCORD_TURN_PING_ROLE_ID` env var) — a plain opt-in notification role, added/removed by `setTurnPingRole` when a player toggles "Turn Ping?" on `/character`.
+
+## Launch gating
+
+Character creation is behind two independent locks, both of which must be
+open: `GameConfig.openToPlayers` (a Dev Panel toggle, off by default — "the
+doors are open") and `DISCORD_PLAYER_ROLE_ID` ("you are on the list"). The
+enforcement boundary is `createCharacter`
+(`web/app/(app)/character/createActions.js`), checked before any point-buy
+validation; `/character` additionally renders `CreationClosed.js` instead of
+the wizard so the reason is legible up front rather than arriving as an error
+after four steps.
+
+The gate covers character creation **only**. Everything else, `/documents`
+especially, stays readable — that's the point, since the site goes up before
+the game opens so players can read the rules.
+
+## Documents
+
+`docs/documents.yaml` is the sole master for the `Document` catalog, matched
+by `key`, synced by `db/lib/syncDocuments.js#syncDocumentsFromYaml`
+(`npm run db:sync-documents`, and automatically at the end of `wipeGameData`'s
+"Restart Game" flow after the tag/role syncs it validates against). The sync
+is **destructive** in the `syncLocations` sense — a key dropped from the YAML
+loses its row — since a Document is pure reference content with no player
+state to preserve.
+
+`/documents` (`web/app/(app)/documents/`) renders them as a pinned board of
+expandable cards, in two tabs. **PUBLIC** is every `public: true` document and
+is readable by any signed-in user, character or not. **ASSIGNED** is not
+rendered at all without an `ALIVE` character, rather than rendered empty.
+Documents with an empty `description` are filtered out — seven are still
+stubs, and a slot awaiting prose shouldn't reach a player as a blank page.
+
+Assignment resolves server-side, and each card shows the reason it's in your
+folder in an alt colour (it's metadata about the paper, not part of it). Five
+things can put one there: your role's `doc_elements` list in
+`docs/roles.yaml` (the primary link — `Role.docElements` was already in the
+schema and already synced), a held tag, your role slug, your faction slug, or
+a `flags:` entry naming `leader`/`treasurer`, which are `Character` booleans
+rather than tags. Those are denormalized onto `Document` as string arrays
+rather than four join tables: ~30 rows, rebuilt wholesale each sync, read in
+one query per page view.
+
+One deliberate softness in an otherwise strict sync: `documents.yaml`'s
+`tags:` lists conflate real Tag names, the Leader/Treasurer booleans, and
+free-text authoring notes like `"any of the medical tags"`. Each entry is
+routed to whichever bucket it belongs in and anything matching nothing is
+*reported*, not thrown — a placeholder is a note to a human. The explicit
+`roles:`/`factions:`/`flags:` keys are strict and throw on a typo.
 
 ## Info channel
 
