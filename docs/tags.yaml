@@ -1,6 +1,18 @@
 # Sole master for the Tag catalog. TagGroup catalog is a sibling file,
 # docs/taggroups.yaml — see there for group/color fields.
 #
+# This file is hand-edited and is the ONLY thing that writes the catalog.
+# There is deliberately no automated sync from anywhere else: a Google
+# Sheet was previously wired up to regenerate this file wholesale, which
+# is how the whole catalog came to be silently emptied once (see the
+# restore in git history). Those scripts are gone.
+#
+# A spreadsheet is still a fine place to draft ideas — just treat it as
+# scratch. To bring drafted tags in, point Claude at the sheet and ask for
+# the specific entries to be added here by hand, so existing fields that
+# only ever lived in this file (grantsOnExpiry, stackable, craftable,
+# requirement) can't be clobbered by a bulk overwrite.
+#
 # Per-tag fields not covered elsewhere in this file:
 #   durationTurns   - default turns-to-expire once granted, for tags that
 #                     auto-expire (e.g. Drained: 3). Omit for tags that don't
