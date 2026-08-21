@@ -40,22 +40,28 @@ export default function LifewebRequestButtons({ characters }) {
     setError(null);
   }
 
-  function submit(reason) {
+  // The confirm is awaited OUTSIDE startTransition, deliberately. useConfirm()
+  // resolves on a click, so its setState has to render immediately; inside an
+  // async transition scope that update is deferred behind a transition that is
+  // itself waiting on the promise, and the dialog never appears — the button
+  // just sits on "Working…" forever. Confirm first, transition second, same
+  // shape as every other useConfirm() call site.
+  async function submit(reason) {
     setError(null);
     const name = target?.name ?? "them";
     const isFeed = mode === "feed";
 
-    startTransition(async () => {
-      const ok = await confirm({
-        title: isFeed ? `Feed ${name} to the Lifeweb?` : `Draw ${name}'s blood?`,
-        message: isFeed
-          ? "This is not reversible by you. A GM will read your reason and decide whether they die."
-          : `The Lifeweb gains ${worth?.amount ?? 0} and ${name} is left Drained.`,
-        confirmLabel: isFeed ? "Feed them" : "Draw blood",
-        cancelLabel: "Back out",
-      });
-      if (!ok) return;
+    const ok = await confirm({
+      title: isFeed ? `Feed ${name} to the Lifeweb?` : `Draw ${name}'s blood?`,
+      message: isFeed
+        ? "This is not reversible by you. A GM will read your reason and decide whether they die."
+        : `The Lifeweb gains ${worth?.amount ?? 0} and ${name} is left Drained.`,
+      confirmLabel: isFeed ? "Feed them" : "Draw blood",
+      cancelLabel: "Back out",
+    });
+    if (!ok) return;
 
+    startTransition(async () => {
       const res = isFeed
         ? await feedPersonRequest({ targetCharacterId: targetId, reason })
         : await donateBloodRequest({ targetCharacterId: targetId, reason });
