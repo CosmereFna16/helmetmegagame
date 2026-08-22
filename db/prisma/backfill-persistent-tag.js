@@ -6,12 +6,13 @@
 require("dotenv").config();
 const { prisma } = require("../index");
 const { ensureForumTag } = require("../lib/discordRest");
+const { PERSISTENT_TAG_NAME, PERSISTENT_EMOJI } = require("../lib/persistence");
 
 async function main() {
   const locations = await prisma.location.findMany({ where: { discordPublicChannelId: { not: null } } });
 
   for (const location of locations) {
-    await ensureForumTag(location.discordPublicChannelId, "Persistent", "⏰");
+    await ensureForumTag(location.discordPublicChannelId, PERSISTENT_TAG_NAME, PERSISTENT_EMOJI);
     console.log(`tagged: ${location.name}`);
   }
 

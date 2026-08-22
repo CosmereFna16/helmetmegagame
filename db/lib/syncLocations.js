@@ -38,6 +38,7 @@ const {
   putChannelOverwrite,
 } = require("./discordRest");
 const { spectatorOverwrite } = require("./spectatorAccess");
+const { PERSISTENT_TAG_NAME, PERSISTENT_EMOJI } = require("./persistence");
 
 const CHANNEL_TYPE_TEXT = 0;
 const CHANNEL_TYPE_CATEGORY = 4;
@@ -125,7 +126,7 @@ function locationChannelSpec(location) {
       name: `${location.name}-public`,
       type: CHANNEL_TYPE_FORUM,
       default_auto_archive_duration: 1440,
-      available_tags: [{ name: "Persistent", emoji_name: "⏰" }],
+      available_tags: [{ name: PERSISTENT_TAG_NAME, emoji_name: PERSISTENT_EMOJI }],
       permission_overwrites: gmChannelOverwrite(gmRoleId, GM_PUBLIC_PERMS),
     },
     private: {

@@ -1,4 +1,4 @@
-const { MessageFlags } = require("discord.js");
+const { ChannelType, MessageFlags } = require("discord.js");
 const { prisma, LABOR_FIELDS, FIELD_INFO } = require("@lifeweb/db");
 const { buildLocationSelectRow, buildConfirmRow, performMove } = require("../lib/location");
 const { performLabor } = require("../lib/labor");
@@ -12,6 +12,14 @@ const {
 } = require("@lifeweb/db/lib/gambitModifier");
 const { applyMoveEffects, rollDie } = require("@lifeweb/db/lib/moveEffects");
 const { canJoinThread, isPrivateThread } = require("../lib/mentions");
+const { ensureForumTag } = require("@lifeweb/db/lib/discordRest");
+const {
+  PERSISTENT_TAG_NAME,
+  PERSISTENT_EMOJI,
+  isPersistentThreadName,
+  withPersistentPrefix,
+  withoutPersistentPrefix,
+} = require("@lifeweb/db/lib/persistence");
 const { resolveChannelContext } = require("../lib/channels");
 
 function isGmMember(interaction) {
@@ -93,9 +101,11 @@ async function handleLaborCommand(interaction, field) {
 // bot/src/lib/commands.js), and both refuse outside a private thread.
 //
 // Anyone already in the thread may add or remove, plus GMs — the same posture
-// as pinging someone in, which any participant can already do. Membership is
-// inherently per-turn: every private thread is deleted wholesale at Dawn
-// (db/lib/dawnWipe.js), so none of this needs persisting.
+// as pinging someone in, which any participant can already do. Nothing here
+// needs persisting: an ordinary private thread is deleted wholesale at Dawn
+// (db/lib/dawnWipe.js) and takes its guest list with it, while one marked by
+// /persistent survives and keeps that list on Discord's side — which is most
+// of why marking one is worth doing.
 async function handleThreadMemberCommand(interaction, action) {
   const channel = interaction.channel;
   if (!isPrivateThread(channel)) {
@@ -171,6 +181,92 @@ async function handleThreadMemberCommand(interaction, action) {
     return;
   }
   await interaction.reply({ content: `» *${target.name} was added.*`, flags: MessageFlags.Ephemeral });
+}
+
+// /persistent: toggle whether the current thread survives the Dawn wipe.
+//
+// Two markers because the two channel types can't share one — a forum post
+// carries the real ⏰ forum tag, a private thread carries a ⏰ name prefix,
+// since a text channel can't have forum tags at all. db/lib/persistence.js
+// owns both, and db/lib/dawnWipe.js reads both.
+//
+// Gate is a living character or GM, deliberately NOT the thread-membership
+// check /add uses: that's wrong for a forum post, where you can act on a post
+// without having joined it, and redundant in a private thread, where being
+// able to run the command already proves access.
+async function handlePersistentCommand(interaction) {
+  const channel = interaction.channel;
+  const forumPost = channel?.type === ChannelType.PublicThread && channel.parent?.type === ChannelType.GuildForum;
+  const privateThread = isPrivateThread(channel);
+
+  if (!forumPost && !privateThread) {
+    await interaction.reply({
+      content: "» *That only works inside a forum post or a private thread.*",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  if (!isGmMember(interaction) && !(await findAliveCharacter(interaction.user.id))) {
+    await interaction.reply({ content: "» *You don't have a living character.*", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  let persistent;
+  try {
+    persistent = forumPost ? await toggleForumPostTag(channel) : await togglePrivateThreadPrefix(channel);
+  } catch (err) {
+    console.error(`Failed to toggle persistence on thread ${channel.id}:`, err);
+    await interaction.reply({
+      content: "» *Couldn't change that — the bot may be missing Manage Threads here.*",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  const context = resolveChannelContext(channel);
+  await prisma.auditLog
+    .create({
+      data: {
+        actorDiscordUserId: interaction.user.id,
+        actionType: "thread_persistence_changed",
+        details: {
+          threadId: channel.id,
+          threadName: channel.name,
+          persistent,
+          locationName: context.locationName ?? null,
+        },
+      },
+    })
+    .catch((err) => console.error("Persistence audit log failed:", err));
+
+  await interaction.reply({
+    content: persistent
+      ? "» *This thread will now survive the Dawn wipe — its messages still get cleared.*"
+      : "» *This thread is no longer persistent, and will be removed at Dawn.*",
+    flags: MessageFlags.Ephemeral,
+  });
+}
+
+// ensureForumTag rather than getForumTagId: a forum channel provisioned before
+// the Persistent tag existed would otherwise fail silently here, and this
+// creates it idempotently instead. Returns the thread's new persistence state.
+async function toggleForumPostTag(thread) {
+  const tagId = await ensureForumTag(thread.parentId, PERSISTENT_TAG_NAME, PERSISTENT_EMOJI);
+  if (!tagId) throw new Error(`No ${PERSISTENT_TAG_NAME} tag available on ${thread.parentId}`);
+
+  const current = thread.appliedTags ?? [];
+  const has = current.includes(tagId);
+  await thread.setAppliedTags(has ? current.filter((id) => id !== tagId) : [...current, tagId]);
+  return !has;
+}
+
+async function togglePrivateThreadPrefix(thread) {
+  const persistent = !isPersistentThreadName(thread.name);
+  await thread.setName(
+    persistent ? withPersistentPrefix(thread.name) : withoutPersistentPrefix(thread.name),
+  );
+  return persistent;
 }
 
 // All custom IDs below are namespaced "loc:" for the zone/location travel
@@ -424,6 +520,9 @@ module.exports = {
         if (interaction.commandName === "message") return void (await handleMessageCommand(interaction));
         if (interaction.commandName === "add" || interaction.commandName === "remove") {
           return void (await handleThreadMemberCommand(interaction, interaction.commandName));
+        }
+        if (interaction.commandName === "persistent") {
+          return void (await handlePersistentCommand(interaction));
         }
         if (LABOR_FIELDS.includes(interaction.commandName)) {
           return void (await handleLaborCommand(interaction, interaction.commandName));

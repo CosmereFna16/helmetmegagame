@@ -6,9 +6,11 @@
 //   - plain channel / narrowcast channel: every message deleted.
 //   - public forum posts: deleted entirely, UNLESS tagged "Persistent" (⏰)
 //     — those survive but have their messages cleared instead.
-//   - private channel threads: always deleted entirely (no top-level
-//     messages exist there, only threads — anyone can spin one up, not
-//     just GMs).
+//   - private channel threads: deleted entirely (no top-level messages exist
+//     there, only threads — anyone can spin one up, not just GMs), UNLESS the
+//     thread's name carries the ⏰ prefix, which is the text-channel
+//     equivalent of the forum tag since text channels can't have forum tags.
+//     Both markers are set by /persistent; see db/lib/persistence.js.
 //
 // This used to also ARCHIVE, by reading every message back out of Discord and
 // re-posting it into a single #archive channel. That was the most expensive
@@ -27,6 +29,7 @@
 //
 // Entirely sequential (no Promise.all fan-out across locations/channels/
 // threads) to avoid bursting Discord's rate-limit buckets.
+const { PERSISTENT_TAG_NAME, isPersistentThreadName } = require("./persistence");
 const {
   fetchAllMessages,
   bulkDeleteMessages,
@@ -36,8 +39,6 @@ const {
   deleteThread,
   getForumTagId,
 } = require("./discordRest");
-
-const PERSISTENT_TAG_NAME = "Persistent";
 
 async function clearMessages(channelOrThreadId) {
   const messages = await fetchAllMessages(channelOrThreadId);
@@ -89,7 +90,19 @@ async function wipePrivateChannel(location) {
 
   const threads = await collectThreads(location.discordPrivateChannelId, { public: false, private: true });
   for (const thread of threads) {
-    await deleteThread(thread.id);
+    // A private thread lives under a TEXT channel, which can't carry forum
+    // tags — so persistence is marked by a ⏰ prefix on the thread's own name
+    // instead (see db/lib/persistence.js, set by /persistent). Free to check:
+    // collectThreads already returns raw thread objects with `name` on them.
+    //
+    // Surviving keeps the thread's MEMBER LIST as well as the thread, which is
+    // the practical point — otherwise a standing secret side-room has to be
+    // re-invited every single turn.
+    if (isPersistentThreadName(thread.name)) {
+      await clearMessages(thread.id);
+    } else {
+      await deleteThread(thread.id);
+    }
   }
 }
 

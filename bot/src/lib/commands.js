@@ -34,6 +34,14 @@ const commandDefinitions = [
     .setDescription("Remove a character from this private thread.")
     .addRoleOption((opt) => opt.setName("character").setDescription("Whose role to remove").setRequired(true))
     .setDMPermission(false),
+  // Marks the current thread to survive the Dawn wipe — the ⏰ forum tag on a
+  // forum post, a ⏰ name prefix on a private thread (text channels can't carry
+  // forum tags). Toggles, so the same command unmarks. No options: it always
+  // acts on the thread it was run in.
+  new SlashCommandBuilder()
+    .setName("persistent")
+    .setDescription("Toggle whether this thread survives the Dawn wipe.")
+    .setDMPermission(false),
   // One command per field rather than the old `/labor field:hunt`, so the
   // slash command and the "/hunt" text shorthand a Move or a Default Move
   // accepts are spelled identically. Built from LABOR_FIELDS so the two

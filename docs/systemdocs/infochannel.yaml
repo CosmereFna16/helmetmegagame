@@ -135,6 +135,7 @@ categories:
 
           * All messages are wiped from the channels on Dawn and sent to the Archive. You’ll get to see all of your writing on game end.
           * Forum topics marked with the Persistent tag (such as locations) remain, but their posts are also cleared.
+          * Run `/persistent` inside a forum topic or a private thread to mark it that way yourself — it survives Dawn (though its messages are still cleared), and a private thread keeps everyone you've invited into it. Run it again to unmark.
           * You can react to a message with ⭐ to save it on your Notes tab on the web interface.
       - title: Reacts
         body: |-

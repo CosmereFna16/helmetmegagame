@@ -169,7 +169,7 @@ nothing is ever near the 14-day floor where bulk delete stops working.
 |---|---|
 | Plain (summary) | Every message deleted. |
 | Public (forum) | Posts **without** the "Persistent" (⏰) forum tag are deleted entirely — post gone. Posts **with** it survive; only their messages are cleared. |
-| Private | Has no top-level messages, only threads (anyone can spin one up, not just GMs). Every thread — active or already auto-archived — is deleted entirely. No Persistent exception here. |
+| Private | Has no top-level messages, only threads (anyone can spin one up, not just GMs). Every thread — active or already auto-archived — is deleted entirely, **unless its name carries the ⏰ prefix**, in which case it survives with its messages cleared, exactly like a tagged forum post. |
 | Narrowcast (`#radio`/`#intercom`) | Same as plain: every message deleted. Looked up from `GameConfig.radioChannelId`/`intercomChannelId` (§6) rather than a `Location` row, so it runs once after the per-Location loop rather than per Zone/Location. |
 
 **Order**: Locations are processed in the same `Zone / Location` alphabetical
@@ -183,12 +183,41 @@ Private-channel content **is** in the transcript (not skipped) — the privacy
 tradeoff is handled by `GameConfig.archiveVisible` keeping `/archive` shut to
 players until the game ends, not by the code.
 
-**Persistent tag**: added to every public forum channel's `available_tags`
-at creation time (`locationChannelSpec`'s `public.available_tags`) and via a
-one-off backfill (`npm run db:backfill-persistent-tag`,
-`db/prisma/backfill-persistent-tag.js`) for ones that predate it. Looked up
-by name at wipe-time (`getForumTagId` in `db/lib/discordRest.js`) rather
-than stored anywhere, so it can't drift if ever recreated.
+### Persistence — surviving the wipe
+
+**Two markers, because the two channel types can't share one.** A forum post
+carries the real "Persistent" (⏰) forum tag. A private thread lives under a
+*text* channel, which cannot have forum tags at all, so it is marked by a **⏰
+prefix on the thread's own name** instead. `db/lib/persistence.js` owns both —
+the tag name, the emoji, and the prefix add/strip/detect helpers — so the
+command that sets them and the wipe that reads them can't drift apart.
+
+The prefix is deliberately the cheap marker rather than a DB flag: the wipe's
+`collectThreads` already fetches raw thread objects with `name` populated, so
+testing it costs no extra API call. Detection is lenient about the trailing
+space, so a GM who renames a thread by hand still gets one that survives.
+
+**`/persistent` toggles it**, on either kind of thread, run inside the thread
+itself. Anyone with a living character can use it (plus GMs) — the gate is
+deliberately *not* the thread-membership check `/add` uses, which would be
+wrong for a forum post you can see without having joined. Each use writes a
+`thread_persistence_changed` `AuditLog` row carrying the new state, so a GM can
+see what's escaping the wipe on `/gm/audit` and unmark it if it's being abused.
+
+For a private thread the point is largely **membership**: a surviving thread
+keeps its guest list, so a standing secret side-room doesn't need everyone
+re-invited every turn.
+
+The forum tag is added to every public forum channel's `available_tags` at
+creation time (`locationChannelSpec`'s `public.available_tags`) and via a
+one-off backfill (`npm run db:backfill-persistent-tag`) for ones that predate
+it. `/persistent` calls `ensureForumTag` rather than `getForumTagId`, so a
+forum channel provisioned before the tag existed self-heals instead of failing
+silently. The wipe still looks the tag up by name rather than storing an id,
+so it can't drift if the tag is ever recreated.
+
+`db/lib/fullWipe.js` — the Restart Game nuke — deliberately ignores both
+markers. Nothing is spared there, whatever it's marked with.
 
 **Where the code lives**: `db/lib/discordRest.js` (low-level REST helpers —
 paginated message fetch, bulk-delete, thread list/delete, forum tag patch,

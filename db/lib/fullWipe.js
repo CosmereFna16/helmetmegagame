@@ -1,9 +1,9 @@
 // Full Discord channel wipe for a dev-mode game restart (wipeGameData,
 // web/app/(app)/gm/dev/actions.js) — distinct from the routine Dawn message
-// wipe (dawnWipe.js), which archives everything to #archive first and
-// spares "Persistent"-tagged forum posts. This is a hard reset: nothing is
-// archived (clearing #archive itself is part of the point), and no post is
-// spared. Entirely sequential, same rate-limit reasoning as dawnWipe.js.
+// wipe (dawnWipe.js), which spares anything marked Persistent: a ⏰-tagged
+// forum post or a ⏰-prefixed private thread (db/lib/persistence.js). This is
+// a hard reset: nothing is spared, whatever it's marked with. Entirely
+// sequential, same rate-limit reasoning as dawnWipe.js.
 const {
   getGuildChannels,
   fetchAllMessages,
