@@ -162,6 +162,10 @@ export default async function DevPanelPage() {
             <input type="checkbox" name="tupperAutocorrectEnabled" defaultChecked={config.tupperAutocorrectEnabled} />
             Capitalize sentence starts in Tupper messages before proxying
           </label>
+          <label className="flex items-center gap-2 text-sm col-span-full">
+            <input type="checkbox" name="nicknameSyncEnabled" defaultChecked={config.nicknameSyncEnabled} />
+            Sync Discord nicknames to &quot;{"{base}"} | Character Name&quot; on profile/character changes
+          </label>
           <div className="col-span-full">
             <button type="submit" className="btn">Save config</button>
           </div>

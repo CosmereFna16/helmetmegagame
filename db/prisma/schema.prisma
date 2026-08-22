@@ -130,6 +130,11 @@ model GameConfig {
   // purely cosmetic, never touches anything but sentence-start casing.
   tupperAutocorrectEnabled Boolean @default(true)
 
+  // Gates the "{base} | Character Name" Discord nickname sync
+  // (bot/src/lib/nickname.js, web/lib/discordGuild.js#syncCharacterNickname)
+  // — off by default so nobody's nickname is touched until a GM opts in.
+  nicknameSyncEnabled Boolean @default(false)
+
   // The single, always-present "location" channel used for the zone/location
   // travel picker (see bot/src/lib/location.js) — same tracked-message
   // pattern as turnsAnnouncement* above.
