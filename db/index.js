@@ -363,6 +363,7 @@ module.exports = {
   ...require("./lib/concealedIdentity"),
   ...require("./lib/antagonists"),
   ...require("./lib/roleCapacity"),
+  ...require("./lib/partySize"),
   ...require("./lib/production"),
   ...require("./lib/formatTagRequirement"),
   ...require("./lib/turnFormat"),

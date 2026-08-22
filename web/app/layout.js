@@ -4,6 +4,7 @@ import { getOpenTurn } from "@/lib/turn";
 import { resolveTheme } from "@/lib/turnFormat";
 import TagsProvider from "./components/TagsProvider";
 import ProductionRatesProvider from "./components/ProductionRatesProvider";
+import PartySizeProvider from "./components/PartySizeProvider";
 import ConfirmProvider from "./components/ConfirmProvider";
 
 // Body/UI face. Pairs with Source Serif 4 as a designed superfamily.
@@ -65,7 +66,9 @@ export default async function RootLayout({ children }) {
         <div className="vignette" />
         <ConfirmProvider>
           <TagsProvider>
-            <ProductionRatesProvider>{children}</ProductionRatesProvider>
+            <ProductionRatesProvider>
+              <PartySizeProvider>{children}</PartySizeProvider>
+            </ProductionRatesProvider>
           </TagsProvider>
         </ConfirmProvider>
       </body>

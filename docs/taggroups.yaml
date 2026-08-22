@@ -71,9 +71,10 @@ groups:
     category: assets
     color: "#7fa38b"
   # --- Gated groups ------------------------------------------------------
-  # These two carry `requiredTag`, which is what makes their categories
-  # hidden. Every tag in them is gated by the group, so the tags themselves
-  # deliberately do NOT repeat `requiredTag` — the gate is written once here.
+  # These all carry `requiredTag`, which is what makes the Demoness and
+  # Bacchus categories hidden. Every tag in them is gated by the group, so the
+  # tags themselves deliberately do NOT repeat `requiredTag` — the gate is
+  # written once here.
   - slug: demoness
     name: Demoness
     category: demoness
@@ -84,3 +85,27 @@ groups:
     category: bacchus
     color: "#9c6fb8"
     requiredTag: follower-of-bacchus
+  # The Cult tier ladder (Seedling -> Ripening -> Bountiful) plus the Cult
+  # Leader seat. These are Meta tags — 0 points, never purchasable, granted by
+  # a GM — but they live in a gated group rather than groupless like the rest
+  # of Meta, because /api/tags withholds a tag only when its GROUP carries a
+  # requiredTag. Groupless would ship the whole cult ladder to every signed-in
+  # client, which is exactly the leak that route's header comment exists to
+  # close. No `color`, so the chips stay uncoloured like the rest of Meta.
+  - slug: meta-cult
+    name: Cult
+    category: meta
+    requiredTag: follower-of-bacchus
+  # Empty for now: the powers a growing cult unlocks land here, gated by the
+  # ladder rung that opens them. Groups sync upsert-only and are never
+  # deleted, so these slugs are fixed from here on.
+  - slug: bacchus-ripening
+    name: Ripening
+    category: bacchus
+    color: "#9c6fb8"
+    requiredTag: cult-ripening
+  - slug: bacchus-bountiful
+    name: Bountiful
+    category: bacchus
+    color: "#9c6fb8"
+    requiredTag: cult-bountiful
