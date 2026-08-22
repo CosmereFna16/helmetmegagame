@@ -11,7 +11,7 @@ character — brand new to the server, or their last one died — that page
 renders the **creation wizard** instead of a character sheet. There's no
 separate `/character/new` route; one URL, no redirect bounce.
 
-The wizard has five steps:
+The wizard has six steps:
 
 1. **Identity** — an honorific (a free pick from the fixed `HONORIFICS`
    dropdown), a required first name and an optional last name, plus an
@@ -37,7 +37,22 @@ The wizard has five steps:
 4. **Fear** — the character's Worst Fear. **Optional**: `canAdvance` is
    unconditionally true on this step, so a player may walk straight past it and
    name one later from `/character`. See `REQUESTS.md` §5b.
-5. **Confirm** — a summary, then `createCharacter`.
+5. **Antagonists** — twelve checkboxes, all off, naming the antagonist seats a
+   GM hands out in secret (Succubus, Cultist, the Judge…). Pure consent data:
+   nothing in the game reads `Character.antagonistOptIns`, grants from it or
+   gates on it — it exists so a GM choosing who receives one can tell who is
+   willing. Also **optional** — ticking nothing is a real answer, so
+   `canAdvance` is unconditionally true here too.
+
+   Opt-in rather than opt-out deliberately: a player who clicks through without
+   reading has consented to nothing. It is **creation-only** — the list is set
+   here and `updateCharacterProfile` never reads the key, the same lock `title`
+   uses. There is no GM read/edit surface yet; the values just land on the row.
+   The catalog is `db/lib/antagonists.js` (alphabetized, so catalog order *is*
+   display order), and `normalizeAntagonistSlugs` is the server-side allowlist —
+   a server action is a public endpoint, so the checkboxes are UX and that
+   function is the boundary.
+6. **Confirm** — a summary, then `createCharacter`.
 
 ## 2. Roles
 

@@ -448,6 +448,20 @@ model Character {
   // why this is a turn stamp and not a status.
   worstFearLastFulfilledTurn Int?
 
+  // Which secretly GM-assigned antagonist seats this player is open to being
+  // handed (Succubus, Cultist, the Judge...). Consent data only: nothing in
+  // the game reads it, grants from it, or gates on it — it exists so a GM
+  // picking who receives one can tell who is willing.
+  //
+  // Set once, on the Antagonists step of the creation wizard, and never
+  // player-editable afterwards; updateCharacterProfile not reading the key is
+  // the lock, same posture as the GM-granted `title` above.
+  //
+  // A String[] of slugs validated against db/lib/antagonists.js rather than a
+  // relation: eleven fixed values that can never differ per environment, so a
+  // table would only add a join and a way to drift.
+  antagonistOptIns String[] @default([])
+
   tags            CharacterTag[]
   actions         Action[]
   defaultEffort   DefaultEffort?

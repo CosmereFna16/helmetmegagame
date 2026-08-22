@@ -361,6 +361,7 @@ module.exports = {
   ...require("./lib/characterName"),
   ...require("./lib/dynasty"),
   ...require("./lib/concealedIdentity"),
+  ...require("./lib/antagonists"),
   ...require("./lib/roleCapacity"),
   ...require("./lib/production"),
   ...require("./lib/formatTagRequirement"),
