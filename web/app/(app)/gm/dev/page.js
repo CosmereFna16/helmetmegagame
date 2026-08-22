@@ -155,6 +155,10 @@ export default async function DevPanelPage() {
             hasn&apos;t launched; /documents stays readable either way)
           </label>
           <label className="flex items-center gap-2 text-sm col-span-full">
+            <input type="checkbox" name="avatarUploadsEnabled" defaultChecked={config.avatarUploadsEnabled} />
+            Allow players to upload their own profile picture (off means everyone shows their letter plaque)
+          </label>
+          <label className="flex items-center gap-2 text-sm col-span-full">
             <input type="checkbox" name="messageWipeEnabled" defaultChecked={config.messageWipeEnabled} />
             Wipe messages at Dawn (archives everything to #archive first — see docs/systemdocs/CHANNELS.md)
           </label>

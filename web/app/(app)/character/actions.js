@@ -73,7 +73,15 @@ export async function updateCharacterProfile(formData) {
     });
   }
 
-  if (avatar && avatar.size > 0) {
+  // The UI hides the file input while GameConfig.avatarUploadsEnabled is off
+  // (see AvatarField.js), but that's presentation only — a server action is
+  // a public endpoint, so this is the actual gate. Off means everyone falls
+  // through to their letter plaque (see "Character proxying" in CLAUDE.md).
+  const gameConfig = await prisma.gameConfig.findUnique({
+    where: { id: 1 },
+    select: { avatarUploadsEnabled: true },
+  });
+  if (gameConfig?.avatarUploadsEnabled && avatar && avatar.size > 0) {
     if (avatar.size > MAX_UPLOAD_BYTES) {
       throw new Error("Avatar image must be under 5MB.");
     }

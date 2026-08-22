@@ -80,6 +80,7 @@ export default function CharacterSheet({
   healTargets = [],
   healParties = null,
   equipSlots = 6,
+  avatarUploadsEnabled = false,
   lastNameLocked = false,
 }) {
   const isSelf = mode === "self";
@@ -217,6 +218,7 @@ export default function CharacterSheet({
               <AvatarField
                 defaultTurnPingOptIn={character.turnPingOptIn}
                 defaultRomanceOptOut={character.romanceOptOut}
+                uploadsEnabled={avatarUploadsEnabled}
               />
               <AppearanceField defaultValue={character.appearance ?? ""} />
               <button type="submit" className="btn self-start">
