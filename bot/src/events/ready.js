@@ -18,11 +18,13 @@ module.exports = {
       status: "online",
     });
 
-    await prisma.gameConfig.upsert({
-      where: { id: 1 },
-      update: {},
-      create: { id: 1 },
-    });
+    await prisma.gameConfig
+      .upsert({
+        where: { id: 1 },
+        update: {},
+        create: { id: 1 },
+      })
+      .catch((err) => console.error("Failed to upsert GameConfig:", err));
 
     await refreshLocationChannels().catch((err) => console.error("Failed to refresh location channels:", err));
 
@@ -33,6 +35,7 @@ module.exports = {
     }
 
     const runAdvanceTurn = () => {
+      console.log("Turn-advance cron fired.");
       advanceTurn()
         .then((turn) =>
           // Null when a GM's Dev Panel advance won the race — the turn moved,
