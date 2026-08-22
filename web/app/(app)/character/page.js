@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { getGuildMember, isApprovedPlayer, isCursed } from "@/lib/discordGuild";
 import { isRoleSelectable } from "@/lib/characterCreation";
+import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import {
   HEAL_SKILL_SLUG,
@@ -50,9 +51,13 @@ async function loadCreationData(discordUserId) {
   ]);
 
   const cursed = isCursed(member);
+  // Mirrors the bypass in createCharacter so the host sees the wizard rather
+  // than the locked-out screen. The server action re-checks regardless — this
+  // is presentation, that is enforcement.
+  const superadmin = isSuperadmin(discordUserId);
   const gate = {
-    open: config?.openToPlayers === true,
-    approved: isApprovedPlayer(member),
+    open: superadmin || config?.openToPlayers === true,
+    approved: superadmin || isApprovedPlayer(member),
   };
   const playerCount = config?.playerCount ?? 100;
   const takenByRole = new Map(takenRows.map((r) => [r.roleId, r._count]));
