@@ -7,6 +7,7 @@ import { getGuildMember, isApprovedPlayer, isCursed } from "@/lib/discordGuild";
 import { isRoleSelectable } from "@/lib/characterCreation";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
+import { parseSelection } from "@/lib/portrait/catalog";
 import {
   HEAL_SKILL_SLUG,
   buildSkillAncestry,
@@ -215,7 +216,15 @@ export default async function CharacterPage() {
         orderBy: { updatedAt: "desc" },
         select: { endedTurnNumber: true },
       }),
-      prisma.gameConfig.findUnique({ where: { id: 1 }, select: { equipSlots: true, avatarUploadsEnabled: true } }),
+      prisma.gameConfig.findUnique({
+        where: { id: 1 },
+        select: {
+          equipSlots: true,
+          avatarUploadsEnabled: true,
+          portraitMakerEnabled: true,
+          portraitFantasyPartsEnabled: true,
+        },
+      }),
     ]);
 
   // Both ends of a transfer list every Silo and every living player,
@@ -313,6 +322,15 @@ export default async function CharacterPage() {
       canHeal={canHeal}
       equipSlots={gameConfig?.equipSlots ?? 6}
       avatarUploadsEnabled={gameConfig?.avatarUploadsEnabled ?? false}
+      portraitMakerEnabled={gameConfig?.portraitMakerEnabled ?? false}
+      portraitFantasyPartsEnabled={gameConfig?.portraitFantasyPartsEnabled ?? false}
+      // Re-validated here rather than trusted from the column: a stored index
+      // can outlive a catalog change, and a fantasy part can outlive the
+      // switch that allowed it.
+      portraitSelection={parseSelection(character.portrait, {
+        allowFantasy: gameConfig?.portraitFantasyPartsEnabled ?? false,
+      })}
+      hasCustomAvatar={Boolean(character.avatarData)}
       healTargets={healTargets}
       healParties={healParties}
       lastNameLocked={isDynastyMember(character.role?.slug)}

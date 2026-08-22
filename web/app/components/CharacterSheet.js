@@ -81,6 +81,10 @@ export default function CharacterSheet({
   healParties = null,
   equipSlots = 6,
   avatarUploadsEnabled = false,
+  portraitMakerEnabled = false,
+  portraitFantasyPartsEnabled = false,
+  portraitSelection = null,
+  hasCustomAvatar = false,
   lastNameLocked = false,
 }) {
   const isSelf = mode === "self";
@@ -219,6 +223,10 @@ export default function CharacterSheet({
                 defaultTurnPingOptIn={character.turnPingOptIn}
                 defaultRomanceOptOut={character.romanceOptOut}
                 uploadsEnabled={avatarUploadsEnabled}
+                portraitMakerEnabled={portraitMakerEnabled}
+                portraitFantasyPartsEnabled={portraitFantasyPartsEnabled}
+                portraitSelection={portraitSelection}
+                hasCustomAvatar={hasCustomAvatar}
               />
               <AppearanceField defaultValue={character.appearance ?? ""} />
               <button type="submit" className="btn self-start">

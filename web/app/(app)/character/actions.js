@@ -16,6 +16,8 @@ import {
 } from "@/lib/characterName";
 import { syncCharacterNickname, setTurnPingRole, setRomanceOptOutRole, ensureCharacterRole } from "@/lib/discordGuild";
 import { propagateDynastyLastName } from "@/lib/dynasty";
+import { normalizeSelection } from "@/lib/portrait/catalog";
+import { renderPortrait } from "@/lib/portrait/render";
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const AVATAR_SIZE = 256;
@@ -105,6 +107,75 @@ export async function updateCharacterProfile(formData) {
     );
   }
   revalidatePath("/character");
+}
+
+// Builds and stores a portrait from a selection the modal posted. The
+// selection is indices only — the picture is rendered here, from the committed
+// sprite sheets, so nothing the client sends can become arbitrary avatar
+// bytes. See docs/systemdocs/PORTRAITS.md.
+export async function setPortraitAvatar(rawSelection) {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+
+  const character = await prisma.character.findFirst({
+    where: { discordUserId: session.discordUserId, status: "ALIVE" },
+    select: { id: true },
+  });
+  if (!character) redirect("/character");
+
+  // Both switches re-read here rather than trusted from the props the modal
+  // rendered against: the button not existing is presentation, this is the
+  // lock. Same posture as the avatarUploadsEnabled gate above.
+  const gameConfig = await prisma.gameConfig.findUnique({
+    where: { id: 1 },
+    select: { portraitMakerEnabled: true, portraitFantasyPartsEnabled: true },
+  });
+  if (!gameConfig?.portraitMakerEnabled) {
+    return { ok: false, error: "The portrait maker is closed right now." };
+  }
+
+  // Anything invalid, out of range, or fantasy-while-gated silently becomes
+  // the default for that slot, so this cannot throw on a malformed post.
+  const selection = normalizeSelection(rawSelection, {
+    allowFantasy: gameConfig.portraitFantasyPartsEnabled,
+  });
+
+  const avatarData = await renderPortrait(selection);
+
+  await prisma.character.update({
+    where: { id: character.id },
+    data: {
+      avatarData,
+      avatarMimeType: "image/webp",
+      portrait: JSON.stringify(selection),
+    },
+  });
+
+  revalidatePath("/character");
+  return { ok: true };
+}
+
+// Drops whatever picture is set — a built portrait or an uploaded one — and
+// falls back to the letter plaque. Nothing is stored for the default: the
+// avatar route derives it from firstName at read time, so clearing these three
+// columns IS the reset.
+export async function resetAvatarToDefault() {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+
+  const character = await prisma.character.findFirst({
+    where: { discordUserId: session.discordUserId, status: "ALIVE" },
+    select: { id: true },
+  });
+  if (!character) redirect("/character");
+
+  await prisma.character.update({
+    where: { id: character.id },
+    data: { avatarData: null, avatarMimeType: null, portrait: null },
+  });
+
+  revalidatePath("/character");
+  return { ok: true };
 }
 
 export async function setDefaultEffort(characterId, formData) {

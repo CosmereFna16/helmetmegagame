@@ -143,5 +143,6 @@ and `MAP.md`.
 | `PRODUCTION.md` | The four labor commands |
 | `ARCHIVE.md` | The transcript |
 | `DESIGN-SYSTEM.md` | Web styling |
+| `PORTRAITS.md` | The portrait maker and avatar art |
 | `INFOCHANNEL.md` | The `#info` directory |
 | `CRT-TERMINAL.md` | A parked visual direction — read before rebuilding it |
