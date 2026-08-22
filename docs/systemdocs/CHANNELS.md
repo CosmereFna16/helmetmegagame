@@ -26,11 +26,23 @@ them in sync if the rule changes.
 
 Each `Location` (e.g. "Cathedral", nested under Zone "Town") maps to one
 Discord category and three channels underneath it, created once by
-`provisionLocationChannels` — either via the GM Panel's "Provision Discord
-channels" button (`web/app/(app)/gm/dev/actions.js`) or in bulk by
+`provisionLocationChannels` (`db/lib/syncLocations.js`), reached in bulk by
 `npm run db:sync-locations` (`db/prisma/sync-locations.js`, driven by
-`docs/locations.yaml`). Both call sites build the exact same layout; keep
-them in sync if it changes.
+`docs/locations.yaml`). That is the only provisioning implementation — the
+GM Panel's `/gm/dev/zones` page and its own `provisionLocationChannels` twin
+were removed, since locations are never hand-edited mid-game.
+
+The layout itself is described once, by
+`db/lib/syncLocations.js#locationChannelSpec`: the category and all three
+channels as create payloads. `provisionLocationChannels` builds from it and
+`npm run db:reprovision-locations` diffs live channels against it, so a
+verify pass can't disagree with what provisioning would do.
+
+**Provisioning is strictly one-time.** `syncLocationsFromYaml` only
+provisions Locations whose `discordCategoryId` is null, and the single thing
+it re-syncs afterwards is the plain channel's topic — so re-running the sync
+never repairs permissions on an already-provisioned Location. Use
+`npm run db:reprovision-locations` for that (see §7).
 
 **Category name**: `"{Zone} / {Location}"`, e.g. `Town / Cathedral`. Purely
 cosmetic, for grouping in the Discord channel list — categories aren't
@@ -93,6 +105,37 @@ leaves the old category overwrite dangling and the new one missing.
 is a one-off catch-up for characters whose `locationId` was set before these
 call sites existed (mirrors `backfill-roles.js`'s role-creation catch-up).
 
+### Repairing a Location whose permissions are wrong
+
+Because provisioning is one-time (§2), a Location whose category overwrites
+were never applied — a partially-failed provisioning run — or were edited by
+hand in Discord is repaired by **nothing**. Re-running `db:sync-locations`
+skips it, and none of the existing backfills cover the three overwrites that
+matter most here: the category-level `@everyone` `ViewChannel` deny (the
+entire mechanism that makes a Location private), the category-level GM
+`ViewChannel` allow, and the `-private` channel's `@everyone` overwrite.
+Each of those backfills PUTs a single **non-`@everyone`** target.
+
+`npm run db:reprovision-locations` (`db/prisma/reprovision-locations.js`)
+covers that gap, dry-run by default like `prune-orphan-categories.js`:
+
+| Invocation | Effect |
+|---|---|
+| `npm run db:reprovision-locations` | Read-only. Diffs every provisioned Location's live category + 3 channels against `locationChannelSpec` — overwrites, channel type, slowmode, forum tags — and prints `OK`/`DRIFT` per Location. Exits non-zero on drift. |
+| `npm run db:reprovision-locations -- --apply <slug>...` | **Destructive.** Deletes each named Location's category + 3 channels (losing their messages) and recreates them through `provisionLocationChannels`. |
+
+Two details in the apply path are load-bearing. Deleting a category takes
+every per-character `ViewChannel` overwrite with it, so the script records
+the `ALIVE` characters standing in each Location first and re-grants them
+afterwards — skipping that silently locks players out of the room they're
+in. And each Location is rebuilt inside its own `try`/`catch` so one failure
+doesn't skip the rest; the sync's own uncaught provisioning loop is exactly
+what strands orphan categories, which is what
+`npm run db:prune-orphan-categories` is for.
+
+Verify mode reads raw overwrites over REST, so unlike checking by eye in
+Discord it is immune to the guild-owner exemption below.
+
 ## 4. Testing visibility: the guild owner always sees everything
 
 Discord's permission system exempts the **guild owner** from every overwrite
@@ -144,7 +187,7 @@ tradeoff is handled out-of-band by the GM keeping `#archive` itself hidden
 from players until the game ends, not by the code.
 
 **Persistent tag**: added to every public forum channel's `available_tags`
-at creation time (both `provisionLocationChannels` call sites) and via a
+at creation time (`locationChannelSpec`'s `public.available_tags`) and via a
 one-off backfill (`npm run db:backfill-persistent-tag`,
 `db/prisma/backfill-persistent-tag.js`) for ones that predate it. Looked up
 by name at wipe-time (`getForumTagId` in `db/lib/discordRest.js`) rather

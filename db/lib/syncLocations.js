@@ -12,8 +12,11 @@
 //      Zone has no slug, a known fragility) and its Location (matched by
 //      slug, falling back to a name+zone match for legacy pre-slug rows).
 //   2. Discord provisioning + topic sync: any Location still missing
-//      discordCategoryId gets its category + 3 channels created (same layout
-//      as the GM Panel's "Provision Discord channels" button). Every
+//      discordCategoryId gets its category + 3 channels created, from the
+//      layout described by locationChannelSpec below. Note this is the ONLY
+//      time permissions are applied — a Location that already has a category
+//      is never re-permissioned by a re-sync, which is what
+//      db/prisma/reprovision-locations.js exists to check and repair. Every
 //      Location's plain (summary) channel topic is then (re)written to
 //      `{description} | **Sublocations**: {publicSubLocations}` so edits to
 //      those YAML fields keep propagating even for already-provisioned
@@ -78,56 +81,78 @@ function buildSummaryTopic(location) {
   return description ? `${description} | ${suffix}` : suffix;
 }
 
-async function provisionLocationChannels(prisma, location) {
+// The complete intended Discord layout for one Location: the category and its
+// three channels, as create payloads minus `parent_id` (which only exists once
+// the category has been made).
+//
+// This is deliberately the SINGLE description of that layout.
+// provisionLocationChannels below builds from it, and
+// db/prisma/reprovision-locations.js diffs live channels against it — so a
+// verify pass can never disagree with what provisioning would actually do.
+// Read the env vars per call rather than at module load so a script that
+// loads dotenv after requiring this file still sees them.
+function locationChannelSpec(location) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
 
-  const category = await createChannel({
-    name: `${location.zone.name} / ${location.name}`,
-    type: CHANNEL_TYPE_CATEGORY,
-    permission_overwrites: [
-      // ATTACH_FILES deny lives here rather than per-channel because none of
-      // the three channels below set their own overwrite for that bit, so
-      // they all inherit this category-level deny. GMs get an explicit
-      // category-level allow for the same reason: their per-channel
-      // overwrites (GM_PLAIN_PERMS etc.) don't mention ATTACH_FILES either,
-      // so they'd otherwise inherit the deny too.
-      { id: guildId, type: 0, deny: String(PERM_VIEW_CHANNEL + PERM_ATTACH_FILES) },
-      ...(gmRoleId ? [{ id: gmRoleId, type: 0, allow: String(PERM_VIEW_CHANNEL + PERM_ATTACH_FILES) }] : []),
-      // Read-only observer seat; all three channels inherit it from here.
-      ...spectatorOverwrite(),
-    ],
-  });
-  const plainChannel = await createChannel({
-    name: location.name,
-    type: CHANNEL_TYPE_TEXT,
-    parent_id: category.id,
-    rate_limit_per_user: 60,
-    topic: buildSummaryTopic(location) ?? undefined,
-    permission_overwrites: gmChannelOverwrite(gmRoleId, GM_PLAIN_PERMS),
-  });
-  const publicChannel = await createChannel({
-    name: `${location.name}-public`,
-    type: CHANNEL_TYPE_FORUM,
-    parent_id: category.id,
-    default_auto_archive_duration: 1440,
-    available_tags: [{ name: "Persistent", emoji_name: "⏰" }],
-    permission_overwrites: gmChannelOverwrite(gmRoleId, GM_PUBLIC_PERMS),
-  });
-  const privateChannel = await createChannel({
-    name: `${location.name}-private`,
-    type: CHANNEL_TYPE_TEXT,
-    parent_id: category.id,
-    permission_overwrites: [
-      {
-        id: guildId,
-        type: 0,
-        deny: String(PERM_VIEW_CHANNEL + PERM_SEND_MESSAGES + PERM_CREATE_PUBLIC_THREADS),
-        allow: String(PERM_CREATE_PRIVATE_THREADS),
-      },
-      ...gmChannelOverwrite(gmRoleId, GM_PRIVATE_PERMS),
-    ],
-  });
+  return {
+    category: {
+      name: `${location.zone.name} / ${location.name}`,
+      type: CHANNEL_TYPE_CATEGORY,
+      permission_overwrites: [
+        // ATTACH_FILES deny lives here rather than per-channel because none of
+        // the three channels below set their own overwrite for that bit, so
+        // they all inherit this category-level deny. GMs get an explicit
+        // category-level allow for the same reason: their per-channel
+        // overwrites (GM_PLAIN_PERMS etc.) don't mention ATTACH_FILES either,
+        // so they'd otherwise inherit the deny too.
+        //
+        // The VIEW_CHANNEL half of this deny is the entire mechanism that
+        // makes a Location private — every other overwrite in this file is an
+        // allow layered back on top of it.
+        { id: guildId, type: 0, deny: String(PERM_VIEW_CHANNEL + PERM_ATTACH_FILES) },
+        ...(gmRoleId ? [{ id: gmRoleId, type: 0, allow: String(PERM_VIEW_CHANNEL + PERM_ATTACH_FILES) }] : []),
+        // Read-only observer seat; all three channels inherit it from here.
+        ...spectatorOverwrite(),
+      ],
+    },
+    plain: {
+      name: location.name,
+      type: CHANNEL_TYPE_TEXT,
+      rate_limit_per_user: 60,
+      topic: buildSummaryTopic(location) ?? undefined,
+      permission_overwrites: gmChannelOverwrite(gmRoleId, GM_PLAIN_PERMS),
+    },
+    public: {
+      name: `${location.name}-public`,
+      type: CHANNEL_TYPE_FORUM,
+      default_auto_archive_duration: 1440,
+      available_tags: [{ name: "Persistent", emoji_name: "⏰" }],
+      permission_overwrites: gmChannelOverwrite(gmRoleId, GM_PUBLIC_PERMS),
+    },
+    private: {
+      name: `${location.name}-private`,
+      type: CHANNEL_TYPE_TEXT,
+      permission_overwrites: [
+        {
+          id: guildId,
+          type: 0,
+          deny: String(PERM_VIEW_CHANNEL + PERM_SEND_MESSAGES + PERM_CREATE_PUBLIC_THREADS),
+          allow: String(PERM_CREATE_PRIVATE_THREADS),
+        },
+        ...gmChannelOverwrite(gmRoleId, GM_PRIVATE_PERMS),
+      ],
+    },
+  };
+}
+
+async function provisionLocationChannels(prisma, location) {
+  const spec = locationChannelSpec(location);
+
+  const category = await createChannel(spec.category);
+  const plainChannel = await createChannel({ ...spec.plain, parent_id: category.id });
+  const publicChannel = await createChannel({ ...spec.public, parent_id: category.id });
+  const privateChannel = await createChannel({ ...spec.private, parent_id: category.id });
 
   return prisma.location.update({
     where: { id: location.id },
@@ -319,4 +344,16 @@ async function syncLocationsFromYaml(prisma) {
   };
 }
 
-module.exports = { syncLocationsFromYaml };
+// The three provisioning primitives are exported alongside the sync itself so
+// db/prisma/reprovision-locations.js can rebuild a Location's channels through
+// the exact same code path rather than hand-copying the overwrite payloads
+// (which is how db/prisma/backfill-gm-permissions.js ended up with its own
+// duplicate copy of seven permission constants). Deliberately NOT spread into
+// the @lifeweb/db barrel — same posture as db/lib/dm.js; require by path.
+module.exports = {
+  syncLocationsFromYaml,
+  locationChannelSpec,
+  provisionLocationChannels,
+  deprovisionLocationChannels,
+  sortLocationCategories,
+};

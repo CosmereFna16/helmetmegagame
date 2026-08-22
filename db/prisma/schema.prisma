@@ -253,8 +253,11 @@ model Zone {
 // category's permission overwrites (one per resident Character.discordRoleId)
 // are the actual access-control mechanism — see bot/src/lib/location.js.
 // discordCategoryId/discordChannelId/discordPublicChannelId/
-// discordPrivateChannelId are null until a GM provisions the channels from
-// /gm/dev/zones (web/app/(app)/gm/dev/actions.js#provisionLocationChannels).
+// discordPrivateChannelId are null until the channels are provisioned by
+// db/lib/syncLocations.js#provisionLocationChannels (npm run db:sync-locations).
+// Provisioning is one-time — keyed on discordCategoryId being null — so a
+// re-sync never re-applies permissions; npm run db:reprovision-locations
+// verifies them, and rebuilds a named Location's channels with --apply.
 //
 // slug is the stable human-authored key used by docs/locations.yaml + the
 // db:sync-locations script (db/prisma/sync-locations.js) to match rows
