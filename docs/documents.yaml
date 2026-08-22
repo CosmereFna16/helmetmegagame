@@ -75,7 +75,7 @@ documents:
     description: |-
       Everyone can use Routine Moves to produce resources, but only people with the {tag:laborer} set of tags will produce an actually good amount.
 
-      Use the `/hunt`, `/fish`, `/farm` and `/herd` commands and the right amount for your tags is worked out for you — but you have to be somewhere the work is actually possible. **Nothing can be farmed, fished, herded or hunted in the Caves.**
+      Use the `/hunt`, `/fish`, `/farm` and `/herd` commands in #turns to automatically generate a turn (or `/labor <type>`) but you have to be in the right location.
 
       | Activity | Base | Laborer | Specialist | Where |
       |---|---|---|---|---|
@@ -83,8 +83,6 @@ documents:
       | Farming | {resource:farming:base} | {resource:farming:laborer} | {resource:farming:specialist} | Town |
       | Fishing | {resource:fishing:base} | {resource:fishing:laborer} | {resource:fishing:specialist} | Fortress or Town |
       | Hunting | {resource:hunting:base} | {resource:hunting:laborer} | {resource:hunting:specialist} | The Forest |
-
-      Hunting is the gamble of the four: it can come back with nothing at all, or with more than a day's farming. The rest pay the same every time.
 
       Laborer is a general-purpose 2-point tag that makes producing resources more viable than just as a survival method, while the specialist tags (you can buy them for 2 points on top of Laborer) make that specific trade a lot more valuable.
 
@@ -96,7 +94,7 @@ documents:
     description: |-
       The theory and nitty-gritty of combat—like, the realistic physics—is as important as the skill. Even a master fencer won't be able to do much against a random guy in plate armor, and just a few horse archers can take out a whole squad of footpads. Different weapons excel in different circumstances, like: how much space you have, whether you’re alone or in formation, and whether your opponent is armored.
 
-      Melee
+      **Melee**
       - Polearms are ubiquitous. Their reach means you can keep the opponent away and decide when the battle starts. They come in stabby, crushy, and pokey varieties.
       - Blunt weapons are useful even against armored targets, but won’t help find weakspots.
       - Precision weapons, like swords held by the blade (halfswording) or daggers, are useful against armored opponents if you can wrestle them down to the ground.
@@ -104,14 +102,14 @@ documents:
       - Cutting and stabbing weapons really hurt unarmored people.
       - Axes can break shields or drag them out of position.
 
-      Ranged
+      **Ranged**
       - Bows and slingshots are quiet and really hurt unarmored targets. Very big bows can crack or penetrate armor.
       - Crossbows take time to reload but are better against armored opponents.
       - Firearms beat everything.
 
       Shields are very useful. For armor, there’s a few important traits: material, concealability, weight, and donning time. Some items can be worn under regular clothes. Certain items, like plate, will make a long trek through the forest difficult—you’ll get very hot under all that metal—but make you a veritable tank in combat. Seriously, almost nothing can get through plate. However, it also has the downside of being hard to equip, so if you’re, say, at a feast and someone pulls out a dagger, you’d better have a padded jack or brigandine underneath.
 
-      Energy Shields
+      **Energy Shields**
       - Stop projectiles.
       - Reduce, but don't stop, melee damage.
       - Do nothing against needles or syringes.
@@ -266,8 +264,8 @@ documents:
     description: |-
       Fine meals make average people happy, but Nobility have them as a baseline. They need to eat them every once in a while or they'll be unhappy. Lavish meals make everyone happy and are valid objects of a Desire.
 
-      Fine meals: cost 2 ⬢ per meal. You can make up to 4 Fine meals in one Routine move.
-      Lavish meals: cost 3 ⬢ per meal and one hard to get exotic ingredient. You can make up to 3 Lavish meals in one Routine move.
+      **Fine meals:** cost 2 ⬢ per meal. You can make up to 4 Fine meals in one Routine move.
+      **Lavish meals:** cost 3 ⬢ per meal and one hard to get exotic ingredient. You can make up to 3 Lavish meals in one Routine move.
   - name: Alcohol & Drugs
     key: alcoholdrugs
     public: true
@@ -292,7 +290,7 @@ documents:
 
       You can Break souls — see {tag:demoness}. If you have {tag:slavemaster}, they become {tag:broken-enslaved} instead of merely {tag:broken}.
 
-      Desire examples:
+      **Desire examples:**
       - Enslaving the soul of the Heir — the highest high, truly sublime (+5).
       - Causing people to fall in love with you for good (+4).
       - Fulfilling people's Worst Fears, or capturing and torturing them (+3).
