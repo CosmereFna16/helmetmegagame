@@ -1,9 +1,10 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { prisma } from "@lifeweb/db";
+import { prisma, isDynastyMember } from "@lifeweb/db";
 import { getGmSession, getGuildMember, isCursed } from "@/lib/discordGuild";
 import { updateCharacterRaw, grantTag, revokeTag } from "../../actions";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
+import InfoIcon from "@/app/components/InfoIcon";
 import { HONORIFICS, NAME_LIMITS, AGE_MIN, AGE_MAX } from "@/lib/characterName";
 
 export default async function DevCharacterEditPage({ params }) {
@@ -26,6 +27,11 @@ export default async function DevCharacterEditPage({ params }) {
   // read the account's current guild roles rather than the Character row.
   const member = await getGuildMember(character.discordUserId);
   const cursed = isCursed(member);
+
+  // Read off the already-loaded role catalog rather than a second query.
+  const lastNameLocked = isDynastyMember(
+    roles.find((r) => r.id === character.roleId)?.slug,
+  );
 
   const ownedTagIds = new Set(ownedTags.map((ct) => ct.tagId));
   const grantableTags = allTags.filter((t) => !ownedTagIds.has(t.id));
@@ -82,12 +88,23 @@ export default async function DevCharacterEditPage({ params }) {
             />
           </label>
 
+          {/* Locked here too for the Baron's family: the dynasty name is
+              changed by editing the Baron, which propagates to all three
+              (db/lib/dynasty.js). updateCharacterRaw restamps it regardless of
+              what this posts. */}
           <label className="field">
-            <span className="field-label">Last name</span>
+            <span className="field-label flex items-center gap-1.5">
+              Last name
+              {lastNameLocked && (
+                <InfoIcon text="Inherited from the Baron. Change it on his sheet and all three of his family follow." />
+              )}
+            </span>
             <input
               name="lastName"
               defaultValue={character.lastName ?? ""}
               maxLength={NAME_LIMITS.lastName}
+              placeholder={lastNameLocked ? "No dynasty name yet" : undefined}
+              disabled={lastNameLocked}
             />
           </label>
         </div>

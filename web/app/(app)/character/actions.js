@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import sharp from "sharp";
 import { redirect } from "next/navigation";
-import { prisma } from "@lifeweb/db";
+import { prisma, isDynastyHead, isDynastyMember } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
 import {
@@ -15,6 +15,7 @@ import {
   normalizeHonorific,
 } from "@/lib/characterName";
 import { syncCharacterNickname, setTurnPingRole, setRomanceOptOutRole, ensureCharacterRole } from "@/lib/discordGuild";
+import { propagateDynastyLastName } from "@/lib/dynasty";
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const AVATAR_SIZE = 256;
@@ -25,6 +26,9 @@ export async function updateCharacterProfile(formData) {
 
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
+    // The role slug decides whether this player owns their last name at all —
+    // the Baron's family does not (see db/lib/dynasty.js).
+    include: { role: { select: { slug: true } } },
   });
   if (!character) redirect("/character");
 
@@ -35,7 +39,14 @@ export async function updateCharacterProfile(formData) {
   // silently strip a title a GM had granted them.
   const honorific = normalizeHonorific(formData.get("honorific"));
   const firstName = part("firstName", NAME_LIMITS.firstName);
-  const lastName = part("lastName", NAME_LIMITS.lastName);
+  // A Baroness/Heir/Successor wears the Baron's last name, so their own form
+  // is never read for it — their existing value is carried through untouched,
+  // and only propagateDynastyLastName below ever changes it. The greyed input
+  // on the sheet is the hint; this is the lock, same as `title` above.
+  const dynastyMember = isDynastyMember(character.role?.slug);
+  const lastName = dynastyMember
+    ? character.lastName
+    : part("lastName", NAME_LIMITS.lastName);
   const appearance =
     formData.get("appearance")?.toString().trim().slice(0, APPEARANCE_MAX_LENGTH) || null;
   const preferredNickname = formData.get("preferredNickname")?.toString().trim() || null;
@@ -79,6 +90,12 @@ export async function updateCharacterProfile(formData) {
   await setTurnPingRole(session.discordUserId, updated.turnPingOptIn).catch(() => {});
   await setRomanceOptOutRole(session.discordUserId, updated.romanceOptOut).catch(() => {});
   await ensureCharacterRole(updated).catch(() => {});
+  // The Baron renaming himself renames his whole house.
+  if (isDynastyHead(character.role?.slug)) {
+    await propagateDynastyLastName(updated.lastName).catch((err) =>
+      console.error("propagateDynastyLastName failed:", err),
+    );
+  }
   revalidatePath("/character");
 }
 

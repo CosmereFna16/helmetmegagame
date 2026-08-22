@@ -315,12 +315,13 @@ model Character {
   // concatenate columns in orderBy or contains, so dropping it would force
   // search and sort into OR-over-three-columns for correctness nobody sees.
   //
-  // Exactly three writers keep it in sync, and every one of them goes
+  // Exactly four writers keep it in sync, and every one of them goes
   // through formatCharacterName:
   //   web/app/(app)/character/createActions.js      (creation)
   //   web/app/(app)/character/actions.js            (player edit)
   //   web/app/(app)/gm/dev/actions.js               (GM raw edit)
-  // A fourth writer must do the same; `npm run db:backfill-name-parts` is the
+  //   web/lib/dynasty.js                            (the Baron renames his house)
+  // A fifth writer must do the same; `npm run db:backfill-name-parts` is the
   // drift check that catches one that doesn't.
   name String
 

@@ -82,7 +82,16 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
   );
 }
 
-export default function CreateCharacterWizard({ zones, tags, startingTagPoints, playerCount, cursed }) {
+export default function CreateCharacterWizard({
+  zones,
+  tags,
+  startingTagPoints,
+  playerCount,
+  cursed,
+  // The living Baron's surname, or null if nobody holds the seat yet. Only
+  // read for a role whose `lastNameLocked` is set — see db/lib/dynasty.js.
+  dynastyName = null,
+}) {
 
   const [step, setStep] = useState(0);
   const [honorific, setHonorific] = useState("");
@@ -120,9 +129,20 @@ export default function CreateCharacterWizard({ zones, tags, startingTagPoints, 
     setSelectedIds([]);
   }
 
+  // Identity comes before Role, so the last-name input is live on the first
+  // pass through. Picking one of the Baron's family retroactively takes it
+  // away: createCharacter ignores whatever was typed and stamps the dynasty
+  // name instead, so that is what the preview has to show from here on.
+  const lastNameLocked = role?.lastNameLocked === true;
+  const effectiveLastName = lastNameLocked ? (dynastyName ?? "") : lastName;
+
   // The player never sees a `title` here — it is GM-granted — so this is
   // exactly what their name will read as on creation.
-  const displayName = formatCharacterName({ honorific, firstName, lastName });
+  const displayName = formatCharacterName({
+    honorific,
+    firstName,
+    lastName: effectiveLastName,
+  });
 
   const canAdvance =
     (step === 0 && firstName.trim().length > 0) ||
@@ -140,7 +160,9 @@ export default function CreateCharacterWizard({ zones, tags, startingTagPoints, 
     const fd = new FormData();
     fd.set("firstName", firstName.trim());
     if (honorific) fd.set("honorific", honorific);
-    if (lastName.trim()) fd.set("lastName", lastName.trim());
+    // Deliberately not sent for a family seat — createCharacter would discard
+    // it anyway, and posting it would imply otherwise.
+    if (!lastNameLocked && lastName.trim()) fd.set("lastName", lastName.trim());
     if (age.trim()) fd.set("age", age.trim());
     if (preferredNickname.trim()) fd.set("preferredNickname", preferredNickname.trim());
     fd.set("roleId", roleId);
@@ -199,14 +221,27 @@ export default function CreateCharacterWizard({ zones, tags, startingTagPoints, 
               />
             </label>
             <label className="field">
-              <span className="field-label">Last name (optional)</span>
+              <span className="field-label flex items-center gap-1.5">
+                {lastNameLocked ? "Last name" : "Last name (optional)"}
+                {lastNameLocked && (
+                  <InfoIcon text="Your dynasty's name, chosen by the Baron. It updates on its own when he takes or changes it." />
+                )}
+              </span>
               <input
-                value={lastName}
+                value={lastNameLocked ? effectiveLastName : lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 maxLength={NAME_LIMITS.lastName}
+                placeholder={lastNameLocked ? "No dynasty name yet" : undefined}
+                disabled={lastNameLocked}
               />
             </label>
           </div>
+          {lastNameLocked && (
+            <p className="text-sm text-muted">
+              You are of the Baron&apos;s house, so you take his last name rather than one
+              of your own.
+            </p>
+          )}
           {/* The only place a player sees the join rule before submitting. */}
           {displayName && <p className="text-sm text-muted">You will be known as {displayName}.</p>}
           <label className="field">

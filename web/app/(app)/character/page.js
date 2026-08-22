@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
-import { prisma, roleCapacity } from "@lifeweb/db";
+import { prisma, roleCapacity, isDynastyMember } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
+import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
 import { getGuildMember, isApprovedPlayer, isCursed } from "@/lib/discordGuild";
 import { isRoleSelectable } from "@/lib/characterCreation";
@@ -23,7 +24,7 @@ import CreationClosed from "./CreationClosed";
 // the numbers can't be stale-rendered from a cached page; the server action
 // re-counts inside its transaction anyway, since this is only advisory.
 async function loadCreationData(discordUserId) {
-  const [zones, tags, config, member, takenRows] = await Promise.all([
+  const [zones, tags, config, member, takenRows, dynastyName] = await Promise.all([
     prisma.zone.findMany({
       orderBy: { name: "asc" },
       include: {
@@ -48,6 +49,8 @@ async function loadCreationData(discordUserId) {
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     getGuildMember(discordUserId),
     prisma.character.groupBy({ by: ["roleId"], where: { status: "ALIVE" }, _count: true }),
+    // Shown on the (locked) last-name input if a family seat is picked.
+    dynastyLastName(),
   ]);
 
   const cursed = isCursed(member);
@@ -65,6 +68,7 @@ async function loadCreationData(discordUserId) {
   return {
     gate,
     cursed,
+    dynastyName,
     playerCount,
     startingTagPoints: config?.startingTagPoints ?? 0,
     tags: tags.map((t) => ({
@@ -111,6 +115,11 @@ async function loadCreationData(discordUserId) {
                 cap: cap === Infinity ? null : cap,
                 taken: takenByRole.get(role.id) ?? 0,
                 selectable: isRoleSelectable({ role, cursed }),
+                // The Baron's family don't choose a surname (db/lib/dynasty.js).
+                // Resolved here rather than in the wizard so a client component
+                // never imports the barrel and drags PrismaClient into the
+                // browser bundle.
+                lastNameLocked: isDynastyMember(role.slug),
               };
             }),
           }))
@@ -130,6 +139,9 @@ export default async function CharacterPage() {
       faction: true,
       zone: true,
       location: true,
+      // Only the slug, and only so the Bio panel can grey out the last name
+      // for the Baron's family (db/lib/dynasty.js).
+      role: { select: { slug: true } },
       // group comes along so TagChip can tint the chip, same as
       // /gm/turns does it — otherwise every Item renders uncoloured.
       // requirementSkills has to be named explicitly: `include` returns every
@@ -302,6 +314,7 @@ export default async function CharacterPage() {
       equipSlots={gameConfig?.equipSlots ?? 6}
       healTargets={healTargets}
       healParties={healParties}
+      lastNameLocked={isDynastyMember(character.role?.slug)}
     />
   );
 }

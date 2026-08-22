@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { prisma, roleCapacity } from "@lifeweb/db";
+import { prisma, roleCapacity, isDynastyHead, isDynastyMember } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
+import { dynastyLastName, propagateDynastyLastName } from "@/lib/dynasty";
 import { isSuperadmin } from "@/lib/superadmin";
 import {
   syncCharacterNickname,
@@ -57,8 +58,9 @@ export async function createCharacter(formData) {
   // /gm/dev/characters/[characterId]. Not reading it here is the lock.
   const honorific = normalizeHonorific(formData.get("honorific"));
   const firstName = part("firstName", NAME_LIMITS.firstName);
-  const lastName = part("lastName", NAME_LIMITS.lastName);
-  const name = formatCharacterName({ honorific, firstName, title: null, lastName });
+  // Not const: a Baroness/Heir/Successor wears the Baron's last name rather
+  // than one they typed, so this is overwritten once the role is known below.
+  let lastName = part("lastName", NAME_LIMITS.lastName);
   const preferredNickname = formData.get("preferredNickname")?.toString().trim() || null;
   // Optional at creation — a player who skips it sets it later from
   // /character, where it locks on that first save instead.
@@ -110,6 +112,15 @@ export async function createCharacter(formData) {
   if (!isRoleSelectable({ role, cursed })) {
     return { error: `While cursed you may only return as ${CURSED_ROLE_SLUGS.join(" or ")}.` };
   }
+
+  // The Baroness, Heir and Successor are the Baron's family: their last name
+  // is his, never one they typed. The wizard greys the input out once such a
+  // role is picked, but the input is only the hint — not reading what it
+  // posted is the lock, same as `title` above. Null when no Baron is alive
+  // yet, which is the common case at creation; he propagates his name to them
+  // the moment he rolls up (see below).
+  if (isDynastyMember(role.slug)) lastName = await dynastyLastName();
+  const name = formatCharacterName({ honorific, firstName, title: null, lastName });
 
   // Selected tags must actually be buyable — a hand-posted request could
   // otherwise name a 0-cost, non-purchasable tag like Nobility.
@@ -251,6 +262,16 @@ export async function createCharacter(formData) {
   await syncCharacterNickname(discordUserId, formatBareName({ firstName, lastName }), preferredNickname).catch(() => {});
   await syncCharacterNarrowcastAccess(created.id).catch(() => {});
   if (cursed) await removeCursedRole(discordUserId).catch(() => {});
+
+  // A new Baron names the dynasty, so any family member already in play takes
+  // his last name — including one created back when no Baron existed and so
+  // carrying none. Best-effort: it renames other people's characters, and
+  // failing it must not cost this player the character they just made.
+  if (isDynastyHead(role.slug)) {
+    await propagateDynastyLastName(created.lastName).catch((err) =>
+      console.error("propagateDynastyLastName failed:", err),
+    );
+  }
 
   await prisma.auditLog.create({
     data: {

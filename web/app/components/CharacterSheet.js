@@ -80,6 +80,7 @@ export default function CharacterSheet({
   healTargets = [],
   healParties = null,
   equipSlots = 6,
+  lastNameLocked = false,
 }) {
   const isSelf = mode === "self";
 
@@ -159,12 +160,22 @@ export default function CharacterSheet({
                     required
                   />
                 </label>
+                {/* The Baron's family wear his surname rather than choosing
+                    one, so the field is shown but dead — updateCharacterProfile
+                    never reads it for them, which is the actual lock. */}
                 <label className="field">
-                  <span className="field-label">Last name (optional)</span>
+                  <span className="field-label flex items-center gap-1.5">
+                    {lastNameLocked ? "Last name" : "Last name (optional)"}
+                    {lastNameLocked && (
+                      <InfoIcon text="Your dynasty's name, chosen by the Baron. It updates on its own when he takes or changes it." />
+                    )}
+                  </span>
                   <input
                     name="lastName"
                     defaultValue={character.lastName ?? ""}
                     maxLength={NAME_LIMITS.lastName}
+                    placeholder={lastNameLocked ? "No dynasty name yet" : undefined}
+                    disabled={lastNameLocked}
                   />
                 </label>
                 {/* Free to set once, then fixed — same treatment as the

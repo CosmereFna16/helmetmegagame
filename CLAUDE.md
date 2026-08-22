@@ -250,7 +250,7 @@ Sir Jorren "the Blind" Vask
 
 `Character.name` survives as a **denormalized mirror** of that join, same posture as `Character.zoneId`. It is what ~60 readers want — `orderBy`, `select: { name: true }`, the `/gm/audit` `contains` search, the proxy webhook username, the `dawnWipe` map key — and Prisma cannot concatenate columns in `orderBy`/`contains`, so dropping it would force search and sort into `OR`-over-three-columns for correctness nobody can see. Keeping it also means `bot/src/lib/proxy.js` and `db/lib/dawnWipe.js` read the same column and so **cannot** desync, and the never-backfilled name snapshots (`Note.characterName`, `SiloTransaction.actorName`/`toName`, `AuditLog.details`) capture the titled form with no code change — correct, since those are records of who did something *as they were known then*.
 
-Exactly **three writers** keep the mirror honest, and all three go through the formatter: `character/createActions.js`, `character/actions.js#updateCharacterProfile`, and `gm/dev/actions.js#updateCharacterRaw`. A fourth must do the same; `npm run db:backfill-name-parts` is the drift check that catches one that doesn't.
+Exactly **four writers** keep the mirror honest, and every one goes through the formatter: `character/createActions.js`, `character/actions.js#updateCharacterProfile`, `gm/dev/actions.js#updateCharacterRaw`, and `web/lib/dynasty.js#propagateDynastyLastName` (the Baron renaming his house — see below). A fifth must do the same; `npm run db:backfill-name-parts` is the drift check that catches one that doesn't.
 
 `Character.age` (18–90, nullable) sits with the name fields and follows the
 same shown-but-locked posture as `title`, from the other direction: it is the
@@ -262,7 +262,28 @@ optionally, and a GM can always correct it from
 `/gm/dev/characters/[characterId]`. It is read by `db/lib/concealedIdentity.js`
 for the Young/Old half of a concealed alias.
 
-`NAME_LIMITS` (10/24/20/20) is not cosmetic. Discord caps a webhook username at 80 characters and the proxy sends `name` as-is; slicing it there would silently break the `dawnWipe` lookup, so the *inputs* are capped instead and the composed name is ≤79 by construction. All three writers apply the caps and `normalizeHonorific`'s allowlist server-side — every one of those forms is a public endpoint.
+`lastName` is the player's own **except for the Baron's house**. The four Court
+seats — `baron`, `baroness`, `heir`, `successor` — are one family, so the Baron
+chooses the dynasty name and the other three inherit it: their last name is never
+read from a form they posted. `db/lib/dynasty.js` (pure, in the barrel) is the
+slug list and the two predicates; `web/lib/dynasty.js` is the prisma/Discord half
+— `dynastyLastName()` reads the living Baron (the seat is `multiple: false`, so
+`findFirst` is exact) and `propagateDynastyLastName()` restamps the family. The
+lock lives in all three writers of `Character.name`, GM raw edit included, keyed
+on the role being *saved* so moving someone into a family seat renames them in
+the same write; the greyed-out inputs on `/character`, the wizard and
+`/gm/dev/characters/[characterId]` are the hint, not the lock — same posture as
+`title` and `age`. Two consequences worth keeping: a family member created before
+any Baron exists simply has no last name until he rolls up, and propagation runs
+only after a Baron *write*, never on his death, so a widowed house keeps the name
+it was given until a new Baron overwrites it. `propagateDynastyLastName` is a
+fourth writer of the denormalized `name` mirror and so goes through
+`formatCharacterName` like the other three, and it fires `ensureCharacterRole` +
+`syncCharacterNickname` per renamed character since the bare name feeds both. No
+`AuditLog` row: the rename is a consequence of the Baron's own edit, which is
+already logged.
+
+`NAME_LIMITS` (10/24/20/20) is not cosmetic. Discord caps a webhook username at 80 characters and the proxy sends `name` as-is; slicing it there would silently break the `dawnWipe` lookup, so the *inputs* are capped instead and the composed name is ≤79 by construction. All three form-fed writers apply the caps and `normalizeHonorific`'s allowlist server-side — every one of those forms is a public endpoint.
 
 Two surfaces deliberately use the **bare** name (`formatBareName`, first + last) instead: the personal Discord role's name and colour seed, and the nickname — see "Nickname sync" above and "Zones, Locations, and character roles" below. Because a bare name is byte-identical to what `name` held before the split, the migration is a no-op on the Discord side: nothing renames, nothing recolours, no REST call fires on deploy.
 

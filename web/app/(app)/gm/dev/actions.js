@@ -10,6 +10,8 @@ import {
   syncTagsFromYaml,
   syncRolesFromYaml,
   syncDocumentsFromYaml,
+  isDynastyHead,
+  isDynastyMember,
 } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -31,6 +33,7 @@ import {
   removeCursedRole,
   getGmSession,
 } from "@/lib/discordGuild";
+import { dynastyLastName, propagateDynastyLastName } from "@/lib/dynasty";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 import { addToStack } from "@/lib/requestEffects";
 import { expiryFor } from "@/lib/turnFormat";
@@ -380,6 +383,12 @@ export async function updateCharacterRaw(formData) {
     lastName: namePart("lastName", NAME_LIMITS.lastName),
   };
 
+  // The lock on the Baron's family holds here too — a GM changes the dynasty
+  // by editing the Baron, which propagates below, rather than by typing a
+  // surname onto the Baroness. Keyed on the role being SAVED, so moving
+  // someone into a family seat renames them in the same write.
+  if (isDynastyMember(role?.slug)) nameParts.lastName = await dynastyLastName();
+
   // A GM may set or correct an age freely — the once-only lock is a
   // player-side rule, not a database one.
   const rawAge = Number.parseInt(str(formData, "age"), 10);
@@ -420,6 +429,14 @@ export async function updateCharacterRaw(formData) {
     await killCharacter(updated).catch((err) => console.error("killCharacter failed:", err));
   } else if (status === "ALIVE") {
     await ensureCharacterRole(updated).catch(() => {});
+    // Editing the Baron's last name renames his whole house. Skipped for a
+    // corpse along with everything else in this branch: a dead Baron leaves
+    // the family with the name he gave them.
+    if (isDynastyHead(role?.slug)) {
+      await propagateDynastyLastName(updated.lastName).catch((err) =>
+        console.error("propagateDynastyLastName failed:", err),
+      );
+    }
     if (existing?.locationId !== locationId) {
       await syncCharacterLocationAccess(updated.discordRoleId, existing?.locationId ?? null, locationId).catch(() => {});
       await syncCharacterNarrowcastAccess(characterId).catch(() => {});
