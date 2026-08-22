@@ -97,12 +97,20 @@ makes that unreachable — at most one request is ever in flight. Valid requests
 never count toward it, however fast.
 
 `db/lib/discordRest.js#discordRequest` is the central wrapper: bounded retry on
-429 honouring `retry_after`, throws on any other non-2xx unless `allow404`.
+429 honouring `retry_after`, throws on any other non-2xx unless `allow404`. On
+the web side, `dmFetch` in `web/lib/discordGuild.js` does the same for the two
+requests a DM costs — the path a GM broadcast walks.
 
 The one exception is `executeWebhook`, a bare `fetch` — the webhook token in the
 URL *is* the credential, and sending a bot `Authorization` header alongside it
 makes Discord authorize as the bot instead. It has no 429 handling; it is only
 used at low volume.
+
+**Swallowing a Discord failure is not the same as tolerating it.** A
+best-effort side effect still has to leave a trace — a log line, and for
+anything a GM initiated, an `AuditLog` row. `sendGmMessage` is the worked
+example: a `.catch(() => null)` per recipient once made a broadcast report
+success for messages nobody received.
 
 ## 6. Snapshot columns, not foreign keys
 

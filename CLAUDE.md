@@ -407,6 +407,3 @@ CLIs. To make one able to build, run and deploy:
 - The **mid-game tag store isn't routed yet.** `PointBuy.js` already supports it
   (`afterStartOnly`) and `Character.tagPoints` carries the balance; what's
   missing is a route that spends it and the rules for earning points during play.
-- `sendGmMessage` fans out over `sendDm` with an unbounded `Promise.all` and
-  swallows failures with `.catch(() => null)` — a GM broadcast to 100 players
-  fires 200 concurrent requests and loses DMs silently. Not yet fixed.

@@ -210,42 +210,54 @@ export const getGmSession = cache(async () => {
   return { session, isGm: isGm(member) };
 });
 
-export async function createDmChannel(discordUserId) {
+// The two requests every DM costs. Both honour Discord's `retry_after` on a
+// 429, matching db/lib/discordRest.js#discordRequest — the REST twin that has
+// always had it. Without this a rate-limited DM threw and, at the one caller
+// that swallowed its errors, vanished. Opening a DM channel is the tighter of
+// the two limits, since a GM broadcast opens one per recipient.
+const DM_429_RETRIES = 3;
+
+async function dmFetch(url, body, describe) {
   const token = process.env.DISCORD_TOKEN;
   if (!token) throw new Error("DISCORD_TOKEN is not set.");
 
-  const res = await fetch(`${DISCORD_API}/users/@me/channels`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bot ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ recipient_id: discordUserId }),
-  });
+  for (let attempt = 0; attempt <= DM_429_RETRIES; attempt += 1) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bot ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
 
-  if (!res.ok) {
-    throw new Error(`Failed to open DM channel: ${res.status} ${await res.text()}`);
+    if (res.status === 429 && attempt < DM_429_RETRIES) {
+      const retryAfter = Number((await res.json().catch(() => ({}))).retry_after) || 1;
+      await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
+      continue;
+    }
+
+    if (!res.ok) throw new Error(`${describe}: ${res.status} ${await res.text()}`);
+    return res.json();
   }
-  return res.json();
+
+  throw new Error(`${describe}: exhausted retries on 429`);
+}
+
+export async function createDmChannel(discordUserId) {
+  return dmFetch(
+    `${DISCORD_API}/users/@me/channels`,
+    { recipient_id: discordUserId },
+    "Failed to open DM channel",
+  );
 }
 
 export async function postMessage(channelId, content) {
-  const token = process.env.DISCORD_TOKEN;
-  if (!token) throw new Error("DISCORD_TOKEN is not set.");
-
-  const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bot ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ content }),
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to post message: ${res.status} ${await res.text()}`);
-  }
-  return res.json();
+  return dmFetch(
+    `${DISCORD_API}/channels/${channelId}/messages`,
+    { content },
+    "Failed to post message",
+  );
 }
 
 export async function deleteMessage(channelId, messageId) {
