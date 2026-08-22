@@ -166,6 +166,15 @@ model GameConfig {
   // either way, so players can read the rules before launch.
   openToPlayers Boolean @default(false)
 
+  // Master switch for letting a player upload their own profile picture.
+  // Off means AvatarField's file input doesn't render and
+  // updateCharacterProfile ignores a posted `avatar` field even if one
+  // arrives anyway — everyone falls through to their letter plaque (see
+  // "Character proxying" in CLAUDE.md). Existing Character.avatarData is
+  // untouched either way; this only gates new uploads. Deliberately off by
+  // default, same posture as messageWipeEnabled/openToPlayers.
+  avatarUploadsEnabled Boolean @default(false)
+
   // How many tags a character may have equipped at once. Enforced inside the
   // transaction that flips CharacterTag.equipped, so two tabs racing on the
   // last slot cannot both win. Editable live from the Dev Panel, same posture

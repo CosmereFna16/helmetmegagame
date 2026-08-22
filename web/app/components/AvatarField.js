@@ -2,23 +2,29 @@
 
 import { useState } from "react";
 
-export default function AvatarField({ defaultTurnPingOptIn, defaultRomanceOptOut }) {
+export default function AvatarField({ defaultTurnPingOptIn, defaultRomanceOptOut, uploadsEnabled = false }) {
   const [fileName, setFileName] = useState("");
 
   return (
     <div className="field">
       <span className="field-label">Profile picture</span>
       <div className="flex flex-wrap items-center gap-3">
-        <label className="btn" style={{ cursor: "pointer" }}>
-          Browse
-          <input
-            type="file"
-            name="avatar"
-            accept="image/*"
-            style={{ display: "none" }}
-            onChange={(e) => setFileName(e.target.files?.[0]?.name ?? "")}
-          />
-        </label>
+        {uploadsEnabled ? (
+          <label className="btn" style={{ cursor: "pointer" }}>
+            Browse
+            <input
+              type="file"
+              name="avatar"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={(e) => setFileName(e.target.files?.[0]?.name ?? "")}
+            />
+          </label>
+        ) : (
+          // Uploads are off (GameConfig.avatarUploadsEnabled) — no `avatar`
+          // field is posted at all, so everyone shows their letter plaque.
+          <span className="text-sm text-muted">Using your letter plaque</span>
+        )}
         <label className="flex items-center gap-2 text-sm" style={{ cursor: "pointer" }}>
           <input type="checkbox" name="turnPingOptIn" defaultChecked={defaultTurnPingOptIn} />
           <span className="field-label" style={{ marginBottom: 0 }}>

@@ -215,7 +215,7 @@ export default async function CharacterPage() {
         orderBy: { updatedAt: "desc" },
         select: { endedTurnNumber: true },
       }),
-      prisma.gameConfig.findUnique({ where: { id: 1 }, select: { equipSlots: true } }),
+      prisma.gameConfig.findUnique({ where: { id: 1 }, select: { equipSlots: true, avatarUploadsEnabled: true } }),
     ]);
 
   // Both ends of a transfer list every Silo and every living player,
@@ -312,6 +312,7 @@ export default async function CharacterPage() {
       desireCooldownUntilTurn={lastEndedDesire?.endedTurnNumber ?? null}
       canHeal={canHeal}
       equipSlots={gameConfig?.equipSlots ?? 6}
+      avatarUploadsEnabled={gameConfig?.avatarUploadsEnabled ?? false}
       healTargets={healTargets}
       healParties={healParties}
       lastNameLocked={isDynastyMember(character.role?.slug)}
