@@ -79,6 +79,19 @@ export function NotesIcon(props) {
   );
 }
 
+// A lidded box of records, not another sheet of paper — the Archive is the
+// game's kept history, and needs to read as a different kind of thing from
+// Documents (reference prose) sitting next to it on the rail.
+export function ArchiveIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M3.5 7.5h17v11a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1v-11z" strokeLinejoin="round" />
+      <path d="M2.5 4.5h19v3h-19v-3z" strokeLinejoin="round" />
+      <path d="M10 11.5h4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 // A folded map with a marked point on it — the Map panel's pointcrawl in
 // miniature, rather than the pin every other app uses for "location".
 export function MapIcon(props) {

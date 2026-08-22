@@ -35,12 +35,13 @@ const GM_NAV = [
 
 const DEV_NAV_ITEM = { href: "/gm/dev", label: "Dev", icon: "dev" };
 const LIFEWEB_NAV_ITEM = { href: "/lifeweb", label: "Lifeweb", icon: "lifeweb" };
+const ARCHIVE_NAV_ITEM = { href: "/archive", label: "Archive", icon: "archive" };
 
 // Streamed separately from the nav shell (see the Suspense boundary in
 // AppLayout below) — the live Discord role check and the Mortus-tag lookup
 // never block a navigation's paint.
 async function loadNavItems(discordUserId) {
-  const [{ isGm: gm }, hasMortusTag] = await Promise.all([
+  const [{ isGm: gm }, hasMortusTag, config] = await Promise.all([
     getGmSession(),
     // The Lifeweb's Blood level is a secret the Mortii keep — everyone else
     // only gets the vague public omen line in the turn announcement (see
@@ -48,12 +49,18 @@ async function loadNavItems(discordUserId) {
     prisma.characterTag.findFirst({
       where: { character: { discordUserId, status: "ALIVE" }, tag: { slug: MORTUS_SLUG } },
     }),
+    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { archiveVisible: true } }),
   ]);
   const hasMortus = gm || !!hasMortusTag;
 
   const baseNav = gm ? GM_NAV : PLAYER_NAV;
   const withLifeweb = hasMortus ? [...baseNav, LIFEWEB_NAV_ITEM] : baseNav;
-  return isSuperadmin(discordUserId) ? [...withLifeweb, DEV_NAV_ITEM] : withLifeweb;
+  // GMs always have the Archive; players only once it's opened. The page
+  // re-checks — this is presentation, that is enforcement, same posture as
+  // /character's creation gate.
+  const withArchive =
+    gm || config?.archiveVisible ? [...withLifeweb, ARCHIVE_NAV_ITEM] : withLifeweb;
+  return isSuperadmin(discordUserId) ? [...withArchive, DEV_NAV_ITEM] : withArchive;
 }
 
 export default async function AppLayout({ children }) {

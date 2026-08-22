@@ -8,6 +8,7 @@ import {
   computeNarrowcastAccess,
   PLAYER_ROLE_ID,
 } from "@lifeweb/db";
+import { recordArchiveEvent } from "@lifeweb/db/lib/archive";
 
 const DISCORD_API = "https://discord.com/api/v10";
 
@@ -601,6 +602,13 @@ export async function killCharacter(character) {
   await updateGuildNickname(character.discordUserId, null).catch(() => {});
 
   await grantCursedRole(character.discordUserId);
+
+  await recordArchiveEvent(prisma, {
+    kind: "DEATH",
+    character,
+    locationId: character.locationId ?? null,
+    content: `${character.name} died.`,
+  });
 }
 
 const CHANNEL_TYPE_CATEGORY = 4;

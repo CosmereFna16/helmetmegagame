@@ -27,6 +27,7 @@ import {
 } from "@/lib/characterCreation";
 
 import { WORST_FEAR_MAX_LENGTH } from "@/lib/constants";
+import { recordArchiveEvent } from "@/lib/archive";
 import {
   AGE_MIN,
   AGE_MAX,
@@ -288,6 +289,15 @@ export async function createCharacter(formData) {
         worstFear,
       },
     },
+  });
+
+  await recordArchiveEvent({
+    kind: "CHARACTER_CREATED",
+    character: created,
+    locationId: created.locationId ?? null,
+    locationName: role.startingLocation?.name ?? null,
+    turn: openTurn,
+    content: `${created.name} arrived in Ravenheart as ${role.name}.`,
   });
 
   revalidatePath("/", "layout");

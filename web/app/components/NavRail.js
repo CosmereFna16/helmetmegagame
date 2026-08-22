@@ -13,6 +13,7 @@ import {
   MessageIcon,
   NotesIcon,
   DocumentsIcon,
+  ArchiveIcon,
   LifewebIcon,
   MapIcon,
   SignOutIcon,
@@ -30,6 +31,7 @@ const ICONS = {
   messages: MessageIcon,
   notes: NotesIcon,
   documents: DocumentsIcon,
+  archive: ArchiveIcon,
   lifeweb: LifewebIcon,
   map: MapIcon,
 };

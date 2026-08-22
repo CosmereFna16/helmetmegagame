@@ -24,6 +24,7 @@ const { runDefaultMovePass } = require("./lib/defaultMovePass");
 // Required by path, not through the barrel: see the note in db/lib/dm.js about
 // why there are three same-named sendDm exports with three signatures.
 const { sendDm } = require("./lib/dm");
+const { recordArchiveMessage, recordArchiveEvent } = require("./lib/archive");
 const { postAsCharacter } = require("./lib/discordRest");
 const { runFullChannelWipe } = require("./lib/fullWipe");
 const { syncLocationsFromYaml } = require("./lib/syncLocations");
@@ -264,6 +265,18 @@ async function advanceTurn() {
     data: { nextWeather: null, nextTurnNote: null },
   });
 
+  // The transcript's chapter divider. Written here rather than in
+  // runSideEffects because it records a fact about the turn, not a Discord
+  // side effect — a failed announcement post shouldn't leave /archive with no
+  // boundary between two days. Stamped with the turn it opens.
+  await recordArchiveEvent(prisma, {
+    kind: "TURN_START",
+    turn: newTurn,
+    content: [`Day ${Math.ceil(newTurn.number / 2)} — ${newTurn.phase}`, weather, note]
+      .filter(Boolean)
+      .join("\n"),
+  });
+
   // Everything below this line talks to Discord and nothing above it does, so
   // the turn is fully committed by the time the caller gets this back. This is
   // now the ONLY place in the turn-advance path that makes a network call —
@@ -275,9 +288,25 @@ async function advanceTurn() {
     // Default Move summary posts first — they narrate the turn that just
     // closed, so they should land before the announcement opening the next.
     for (const post of defaultMovePosts) {
-      await postAsCharacter(post.channelId, post.character, post.message).catch((err) =>
-        console.error(`Default Move summary post for ${post.character.id} failed:`, err),
-      );
+      const sent = await postAsCharacter(post.channelId, post.character, post.message).catch((err) => {
+        console.error(`Default Move summary post for ${post.character.id} failed:`, err);
+        return null;
+      });
+      // Only archived once Discord accepted it, and stamped with the CLOSING
+      // turn (`previousTurn`) rather than the one just opened — these narrate
+      // the turn that ended, which is also why they're posted before the
+      // announcement below.
+      if (sent) {
+        await recordArchiveMessage(prisma, {
+          discordMessageId: sent.id,
+          content: post.message,
+          character: post.character,
+          locationId: post.locationId,
+          locationName: post.locationName,
+          channelKind: "plain",
+          turn: openTurn,
+        });
+      }
     }
 
     for (const dm of defaultMoveDms) {

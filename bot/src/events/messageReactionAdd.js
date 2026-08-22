@@ -2,6 +2,7 @@ const { WebhookClient, EmbedBuilder } = require("discord.js");
 const { prisma, formatTagRequirement, turnsLeft, formatTurnsLeft, concealedLine } = require("@lifeweb/db");
 const { getSiloAccess } = require("@lifeweb/db/lib/factionPermissions");
 const { inspectVision } = require("@lifeweb/db/lib/inspectVision");
+const { updateArchiveMessage, deleteArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { recentProxies } = require("../lib/proxy");
 const { sendDm } = require("../lib/dm");
 
@@ -104,6 +105,10 @@ module.exports = {
       await webhookClient
         .deleteMessage(reaction.message.id, { threadId: proxy.threadId })
         .catch(() => {});
+      // The transcript honors the deletion, so ❌ means gone everywhere and a
+      // player can trust the button. The accepted cost is that /archive is an
+      // incomplete record — someone can quietly retract what they said.
+      await deleteArchiveMessage(prisma, reaction.message.id);
       await reaction.users.remove(user.id).catch(() => {});
       recentProxies.delete(reaction.message.id);
       return;
@@ -135,6 +140,10 @@ module.exports = {
       const webhookClient = new WebhookClient({ id: proxy.webhookId, token: proxy.webhookToken });
       await webhookClient
         .editMessage(reaction.message.id, { content: reply.content, threadId: proxy.threadId })
+        // Only mirror the edit into the transcript once Discord has accepted
+        // it, or a rejected edit (too old) would leave /archive showing text
+        // that was never actually posted.
+        .then(() => updateArchiveMessage(prisma, reaction.message.id, reply.content))
         .then(() => sendDm(user, "» *Updated.*"))
         .catch(() => sendDm(user, "» *Couldn't update that message — it may be too old.*"));
       await reaction.users.remove(user.id).catch(() => {});

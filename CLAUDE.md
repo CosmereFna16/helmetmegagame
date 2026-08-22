@@ -145,7 +145,7 @@ The nickname is the one surface where a title deliberately does **not** appear. 
 
 There is no more Effort/Move split — every turn submission is a **Move**, which is either **Routine** or **Gambit** (`Action.moveKind`; only Gambit rolls a d6) and may additionally be flagged **Opposed** (`Action.opposed`). A message posted in the channel named exactly `turns` becomes a `PENDING_TYPE` `Action` via `bot/src/lib/actionSubmission.js#handleActionSubmission` — it deletes the original message, records the character's current zone, and DMs the player **one message** carrying a Kind select menu, an Opposed select menu, and a Confirm button (`bot/src/lib/moveComponents.js#buildMoveComponents`/`buildMoveContent`). Changing either dropdown writes straight to the `Action` row and re-renders the same message in place via `interaction.update()` — nothing is ever deleted and resent, unlike the old reaction-based picker. All three components are handled in `bot/src/events/interactionCreate.js` (`move:kind:<actionId>`, `move:opposed:<actionId>`, `move:confirm:<actionId>` custom IDs): `handleMoveConfirm` requires a Kind to already be chosen, rolls 1d6 only if `moveKind === "GAMBIT"`, edits the DM to `» *Waiting on adjudication...*` with components stripped, and flips the action to `CONFIRMED`. DMs no longer carry any reaction-driven flow — `bot/src/events/messageReactionAdd.js` only handles guild-channel reactions (tupper ✏️/❌/🔍/⭐, GM 🌫️), and the bot no longer requests the `DirectMessageReactions` gateway intent. Posting a second Move in `#turns` on the same turn is deleted with a DM (`» *You've already sent a Move this turn...*`) rather than recorded.
 
-Turns advance via `advanceTurn()` in `db/index.js` — it claims the open turn by closing it (see the race guard below), resolves Needs on it (the expiry sweep, the Hunger upkeep pass, and the Lifeweb blood decay — see "Hunger" below), and opens the next with alternated phase. It **composes but does not run** the Discord side effects (REST-only, no gateway needed): the per-player Hunger DMs, the `#turns` announcement (`db/lib/turnAnnouncement.js`), and, if the new phase is `DAWN` and `GameConfig.messageWipeEnabled` is on, the Dawn message wipe (`db/lib/dawnWipe.js` — see `docs/systemdocs/CHANNELS.md` §5). All three come back as one `runSideEffects()` thunk on the return value, so the caller decides when they run — that split is load-bearing, since the wipe walks every Location's channels sequentially and can take minutes, and awaiting it inside a server action holds the action open, which blocks client-side navigation and freezes the whole web app. Each side effect stays individually `.catch()`'d and best-effort, so a Discord failure never blocks the turn.
+Turns advance via `advanceTurn()` in `db/index.js` — it claims the open turn by closing it (see the race guard below), resolves Needs on it (the expiry sweep, the Hunger upkeep pass, and the Lifeweb blood decay — see "Hunger" below), and opens the next with alternated phase. It **composes but does not run** the Discord side effects (REST-only, no gateway needed): the per-player Hunger DMs, the `#turns` announcement (`db/lib/turnAnnouncement.js`), and, if the new phase is `DAWN` and `GameConfig.messageWipeEnabled` is on, the Dawn message wipe (`db/lib/dawnWipe.js` — see `docs/systemdocs/CHANNELS.md` §5). All three come back as one `runSideEffects()` thunk on the return value, so the caller decides when they run — that split is load-bearing, since the wipe walks every Location's channels sequentially, and awaiting it inside a server action holds the action open, which blocks client-side navigation and freezes the whole web app. Each side effect stays individually `.catch()`'d and best-effort, so a Discord failure never blocks the turn.
 
 Called from two places, each of which adds its own `AuditLog` entry and then handles the thunk to suit its process: the bot's twice-daily cron (`bot/src/lib/turnEngine.js`) awaits it inline (background process, nobody waiting), while the superadmin's "End turn" button on `/gm/dev` (`forceAdvanceTurn` in `web/app/(app)/gm/dev/actions.js`) hands it to `next/server`'s `after()` so the response — already carrying the committed new turn — flushes first. Both must check the returned `advanced` flag before logging or dereferencing `newTurn`: the turn is claimed with an `updateMany` conditioned on `status: "OPEN"`, so if a GM clicks just as the cron fires, exactly one caller wins and the loser returns `advanced: false` having done nothing rather than opening a duplicate turn. That claim happens *before* Needs resolve, deliberately — a half-resolved turn is a cheaper failure than a losing racer double-charging everyone's upkeep. Manual turn control lives only in the Dev Panel, not on `/gm/turns`; its "End turn" button is `EndTurnButton.js`, the one client component under `/gm/dev`, carrying the confirm dialog and the pending state. The Current Turn widget can also directly overwrite the open turn's day/phase (`updateCurrentTurn`) without resolving Needs, for raw correction.
 
@@ -248,7 +248,7 @@ Sir Jorren "the Blind" Vask
 
 `honorific` is ungated — any character may pick any of the 21 entries in `HONORIFICS` (Mr./Mrs./Ms./Master, Sir/Dame/Lord/Lady/Baron/Baroness, Father/Mother/Brother/Sister/Bishop, Captain/Sergeant/Marshal/Constable, Doctor/Professor). `title` is the opposite: it is set **only** from `/gm/dev/characters/[characterId]`, and the character sheet shows it as a `disabled` input with a "make your case to a GM" tooltip. The lock is not the greying — a disabled input submits nothing, and `updateCharacterProfile` never reads the key. It does have to feed the row's *existing* `title` back into `formatCharacterName`, though, or a player saving their bio would silently strip a title a GM had granted.
 
-`Character.name` survives as a **denormalized mirror** of that join, same posture as `Character.zoneId`. It is what ~60 readers want — `orderBy`, `select: { name: true }`, the `/gm/audit` `contains` search, the proxy webhook username, the `dawnWipe` map key — and Prisma cannot concatenate columns in `orderBy`/`contains`, so dropping it would force search and sort into `OR`-over-three-columns for correctness nobody can see. Keeping it also means `bot/src/lib/proxy.js` and `db/lib/dawnWipe.js` read the same column and so **cannot** desync, and the never-backfilled name snapshots (`Note.characterName`, `SiloTransaction.actorName`/`toName`, `AuditLog.details`) capture the titled form with no code change — correct, since those are records of who did something *as they were known then*.
+`Character.name` survives as a **denormalized mirror** of that join, same posture as `Character.zoneId`. It is what ~60 readers want — `orderBy`, `select: { name: true }`, the `/gm/audit` `contains` search, the proxy webhook username — and Prisma cannot concatenate columns in `orderBy`/`contains`, so dropping it would force search and sort into `OR`-over-three-columns for correctness nobody can see. Keeping it also means the never-backfilled name snapshots (`Note.characterName`, `SiloTransaction.actorName`/`toName`, `ArchiveEntry.characterName`, `AuditLog.details`) capture the titled form with no code change — correct, since those are records of who did something *as they were known then*.
 
 Exactly **four writers** keep the mirror honest, and every one goes through the formatter: `character/createActions.js`, `character/actions.js#updateCharacterProfile`, `gm/dev/actions.js#updateCharacterRaw`, and `web/lib/dynasty.js#propagateDynastyLastName` (the Baron renaming his house — see below). A fifth must do the same; `npm run db:backfill-name-parts` is the drift check that catches one that doesn't.
 
@@ -283,7 +283,7 @@ fourth writer of the denormalized `name` mirror and so goes through
 `AuditLog` row: the rename is a consequence of the Baron's own edit, which is
 already logged.
 
-`NAME_LIMITS` (10/24/20/20) is not cosmetic. Discord caps a webhook username at 80 characters and the proxy sends `name` as-is; slicing it there would silently break the `dawnWipe` lookup, so the *inputs* are capped instead and the composed name is ≤79 by construction. All three form-fed writers apply the caps and `normalizeHonorific`'s allowlist server-side — every one of those forms is a public endpoint.
+`NAME_LIMITS` (10/24/20/20) is not cosmetic. Discord caps a webhook username at 80 characters and the proxy sends `name` as-is, so the *inputs* are capped instead and the composed name is ≤79 by construction. All three form-fed writers apply the caps and `normalizeHonorific`'s allowlist server-side — every one of those forms is a public endpoint.
 
 Two surfaces deliberately use the **bare** name (`formatBareName`, first + last) instead: the personal Discord role's name and colour seed, and the nickname — see "Nickname sync" above and "Zones, Locations, and character roles" below. Because a bare name is byte-identical to what `name` held before the split, the migration is a no-op on the Discord side: nothing renames, nothing recolours, no REST call fires on deploy.
 
@@ -445,7 +445,10 @@ than the real name; ✏️/❌ are unchanged, since both already gate on
 stores the *display* name ("Status"), so testing it would be a casing trap.
 Because `recentProxies` is in-memory and capped at 500, a bot restart makes an
 old concealed message inert to every reaction, which is the safe direction.
-`db/lib/dawnWipe.js` needs nothing: its name lookup simply misses an alias.
+The archive records both halves — `ArchiveEntry.concealedAlias` alongside the real
+`characterId`/`characterName` — so `/archive` renders `Young Man (Sir Alder)`; that is
+the one surface where concealment is undone, which is why `archiveVisible` is meant to
+stay shut until the game ends.
 
 ## Discord permission model
 
@@ -532,6 +535,75 @@ the full mechanism.
 Reacting ⭐ to a proxied message in any Location channel saves it as a personal `Note` for whoever reacted — `bot/src/events/messageReactionAdd.js#handleStarReaction` upserts a `Note` row keyed on `(discordMessageId, discordUserId)` with the sending character, a zone snapshot, content, and `sentAt`. This only works for messages still in `recentProxies` (bot's in-memory, last-500, resets on restart — see [[proxy.js]] note above), same constraint as ❌/✏️/❓. Universal rule for ⭐ specifically: right after processing, the bot always strips the reaction back off (`reaction.users.remove(user.id)`), for any user, on any message — so Discord never shows an accumulating star count, and the note living on `/notes` is the only lasting record. There's no "react again to unstar" — unstarring only happens from the web UI's delete button (`unstarNote` in `web/app/(app)/notes/actions.js`), which just deletes the row.
 
 `/notes` (`web/app/(app)/notes/page.js`) is strictly personal and identical for both roles: every signed-in user, GM or player, only ever sees `Note` rows matching their own `discordUserId` — there's no shared/all-players view. Notes render as sortable-by-time, filterable-by-zone blocks (`web/app/(app)/notes/NotesList.js`, client-side `useState`/`useMemo` over the full personal set — same pattern as `PlayersTable.js`), not a table.
+
+## Archive
+
+The game's transcript. Every proxied character message is written to
+`ArchiveEntry` **at send time** — `db/lib/archive.js#recordArchiveMessage`,
+called from `bot/src/lib/proxy.js#sendAsCharacter` (gateway) and from
+`advanceTurn`'s `runSideEffects` for Default Move summaries (REST) — and read
+back on the web at `/archive`.
+
+This replaced archiving at *wipe* time, which `db/lib/dawnWipe.js` used to do
+by reading every message out of Discord and re-posting it into a single
+`#archive` channel. That was the most expensive thing the bot did: one channel
+is one ~1 msg/sec rate-limit lane, so a busy turn meant hundreds of sequential
+posts, and it scaled with player count. It was also approximate — the character
+was matched by *current* name (a rename mis-attributed everything they'd ever
+said) and the turn was inferred by comparing timestamps against
+`Turn.gameDate`. Recording at write time makes both exact and reduces the Dawn
+wipe to deletes, which are the cheap half (100 messages per bulk request).
+There is no `#archive` Discord channel any more.
+
+`ArchiveKind` puts system events in the same table as messages so the two
+interleave chronologically and the transcript reads as a diary rather than a
+chat log with no context: `TURN_START` (the chapter divider, written in
+`advanceTurn` where the turn is created rather than in `runSideEffects`, so a
+failed announcement can't leave two days with no boundary), `CHARACTER_CREATED`,
+`DEATH`, `DESIRE_FULFILLED`, `WORST_FEAR_FULFILLED`, `LIFEWEB`, and `TRAVEL`
+— the last gated behind `GameConfig.archiveTravelEvents`, off by default,
+since arrivals are what make a location read like a story and also two rows per
+character per turn before anyone speaks.
+
+Four things about it are load-bearing:
+
+- **The id columns are not foreign keys.** Same posture as `SiloTransaction`
+  and `AuditLog`'s snapshots. `syncLocationsFromYaml` destructively deletes any
+  Location dropped from the YAML and `wipeGameData` clears Characters — a real
+  relation would either take the transcript with it or fail on FK ordering
+  (which Restart Game has been bitten by once already). Plain indexed ids plus
+  `locationName`/`characterName` snapshots survive both, and the snapshot is
+  the more correct record anyway: who someone was known as *then*.
+- **Every write is best-effort and swallows its own failure**, logged not
+  thrown. `recordArchiveMessage` runs inline with the proxy send; a transcript
+  row is never worth breaking a player's message over.
+- **`❌` deletes the row and `✏️` updates it**, keyed on `discordMessageId`
+  (`bot/src/events/messageReactionAdd.js`). Delete means gone, so a player can
+  trust the button — the accepted cost being that the record is incomplete and
+  someone can quietly retract what they said. The edit is only mirrored *after*
+  Discord accepts it, or a rejected edit would leave `/archive` showing text
+  that was never posted.
+- **Attachments are a placeholder** (`[image]`/`[attachment]`) and nothing
+  more. Discord's CDN urls now carry expiry parameters, so storing one would
+  fill the archive with dead images; actually preserving them would mean
+  downloading the bytes the way avatars are stored, a deliberate non-goal. The
+  placeholder at least makes the gap visible rather than silent, which is what
+  the old wipe-time archive did.
+
+`/archive` (`web/app/(app)/archive/`) is **server-side paged over `?page=`**,
+the second such surface after `/gm/audit` and for the same reason — a
+finished game's worth of rows can't be a client-side `useTableState`. Sorted
+oldest-first by default (it's a diary to read forward, not a log to skim), with
+`id` breaking `sentAt` ties so a burst of same-millisecond messages can't put
+one row on two pages. It renders as a reading experience rather than a table:
+turn headers, scene headers per location/thread, avatar + name + prose.
+
+`GameConfig.archiveVisible` gates it — GMs always, players only when it's on,
+enforced in the page and mirrored in the nav. It is **effectively a one-way
+door** and is meant to stay shut until the game ends: the archive shows every
+location regardless of where a character stood, and renders a concealed message
+as `Young Man (Sir Alder)`, so opening it retroactively unmasks every
+`/conceal` ever used.
 
 ## Direct message logging
 

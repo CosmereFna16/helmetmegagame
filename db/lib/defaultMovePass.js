@@ -88,8 +88,9 @@ async function runDefaultMovePass(prisma, turn) {
           zoneId: true,
           updatedAt: true,
           // slug + zone name feed the labor gate (db/lib/laborAccess.js);
-          // discordChannelId is where the summary post goes.
-          location: { select: { discordChannelId: true, slug: true } },
+          // discordChannelId is where the summary post goes; id + name stamp
+          // the archive row for that post.
+          location: { select: { id: true, name: true, discordChannelId: true, slug: true } },
           zone: { select: { name: true } },
         },
       },
@@ -194,7 +195,16 @@ async function runDefaultMovePass(prisma, turn) {
     // fallback for a character with no current location.
     const channelId = def.character.location?.discordChannelId ?? def.summaryChannelId;
     if (!def.shareInSummary || !def.summaryMessage || !channelId) continue;
-    posts.push({ channelId, character: def.character, message: def.summaryMessage });
+    posts.push({
+      channelId,
+      character: def.character,
+      message: def.summaryMessage,
+      // Carried so runSideEffects can stamp the archive row without re-reading
+      // the character. Null when the post is falling back to the stored
+      // summaryChannelId, since that id doesn't tell us which Location it is.
+      locationId: def.character.location?.id ?? null,
+      locationName: def.character.location?.name ?? null,
+    });
   }
 
   // One DM each: the player needs to know a turn passed and something was

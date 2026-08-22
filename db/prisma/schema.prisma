@@ -111,6 +111,21 @@ enum DesireStatus {
   CANCELLED
 }
 
+// What an ArchiveEntry row records. MESSAGE is a proxied character message;
+// everything else is a system event written by game logic, so the two
+// interleave chronologically in /archive and the transcript reads as a diary
+// rather than a chat log with no context.
+enum ArchiveKind {
+  MESSAGE
+  TURN_START
+  CHARACTER_CREATED
+  DEATH
+  DESIRE_FULFILLED
+  WORST_FEAR_FULFILLED
+  LIFEWEB
+  TRAVEL
+}
+
 model GameConfig {
   id                         Int      @id @default(1)
   lifewebBlood               Int      @default(100)
@@ -134,6 +149,20 @@ model GameConfig {
   // (bot/src/lib/nickname.js, web/lib/discordGuild.js#syncCharacterNickname)
   // — off by default so nobody's nickname is touched until a GM opts in.
   nicknameSyncEnabled Boolean @default(false)
+
+  // Whether players can reach /archive. GMs always can. Off by default and
+  // meant to stay off until the game ends: the archive shows every location
+  // regardless of where a character was, and renders a concealed message as
+  // "Alias (Real Name)" — so turning it on mid-game retroactively unmasks
+  // every /conceal ever used and hands everyone the whole map's history.
+  // Effectively a one-way door; the Dev Panel confirms before flipping it.
+  archiveVisible Boolean @default(false)
+
+  // Whether arrivals/departures are recorded as TRAVEL rows in the archive.
+  // Off by default: it's what makes a location read like a story, and also
+  // what drowns the transcript at 100+ players (two rows per character per
+  // turn before anyone says a word).
+  archiveTravelEvents Boolean @default(false)
 
   // The single, always-present "location" channel used for the zone/location
   // travel picker (see bot/src/lib/location.js) — same tracked-message
@@ -969,4 +998,66 @@ model Desire {
   updatedAt DateTime @updatedAt
 
   @@index([characterId, status])
+}
+
+// The game's transcript, and the backing store for /archive.
+//
+// Written at SEND time (db/lib/archive.js, called from the two proxy paths),
+// not reconstructed at Dawn. The old dawnWipe.js archived by reading messages
+// back out of Discord and re-posting them into one #archive channel — ~850
+// sequential posts down a single ~1 msg/sec lane on a busy turn, which was the
+// most expensive thing the bot did and grew with player count. It also had to
+// guess: the character was matched by *current* name (so a rename
+// mis-attributed everything they'd ever said) and the turn was inferred by
+// comparing timestamps against Turn.gameDate. Recording at write time makes
+// both exact and reduces the wipe to deletes.
+//
+// The id columns are deliberately NOT foreign keys, same posture as
+// SiloTransaction and AuditLog's snapshot fields. Two things in this codebase
+// destructively delete the rows they'd point at: syncLocationsFromYaml removes
+// any Location dropped from the YAML, and wipeGameData clears Characters. A
+// real relation would either take the transcript with it or fail on FK
+// ordering (which Restart Game has already been bitten by once). Plain indexed
+// ids plus name snapshots survive both, and the snapshot is the more correct
+// record anyway — who someone was known as *then*.
+model ArchiveEntry {
+  id   String      @id @default(cuid())
+  kind ArchiveKind @default(MESSAGE)
+
+  // Stamped from the open turn as the row is written.
+  turnNumber Int?
+  turnPhase  TurnPhase?
+  sentAt     DateTime   @default(now())
+
+  locationId    String?
+  locationName  String?
+  characterId   String?
+  characterName String?
+
+  // Non-null only for a message sent through /conceal. Both halves are kept:
+  // the panel renders "Young Man (Sir Alder)", so the alias is what was seen
+  // and characterName is who it actually was.
+  concealedAlias String?
+
+  content String
+
+  // How ✏️ and ❌ find this row again to update or remove it. Null for system
+  // events, which have no Discord message behind them.
+  discordMessageId String? @unique
+
+  // plain | public | private | radio | intercom — lets the panel keep a
+  // location's summary channel apart from its forum scenes.
+  channelKind String?
+
+  // Forum post / thread title, so a scene reads as one unit rather than
+  // scattered lines under its location.
+  threadName String?
+
+  createdAt DateTime @default(now())
+
+  @@index([sentAt])
+  @@index([turnNumber])
+  @@index([kind])
+  @@index([locationId, sentAt])
+  @@index([characterId, sentAt])
 }

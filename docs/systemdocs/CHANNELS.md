@@ -143,43 +143,45 @@ a real player) — checking the raw permission overwrites via the REST API
 (as done to diagnose/backfill this) is the reliable way to verify from the
 owner's own account.
 
-## 5. Dawn message wipe + `#archive`
+## 5. Dawn message wipe
 
 Every time a new `Turn` opens with `phase === "DAWN"` (never Dusk), if
 `GameConfig.messageWipeEnabled` is on (a Dev Panel checkbox, default off),
 `db/lib/dawnWipe.js#runDawnWipe` clears every Location's roleplay content,
-plus the guild-wide `#radio`/`#intercom` narrowcast channels (§6) — after
-archiving it first, in order, to a single guild-wide `#archive` text
-channel (exact-name match like `#turns`/`#location` — a GM creates it once,
-no auto-provisioning). This is wired into `db/index.js#advanceTurn()`
-itself (see below), so it fires identically regardless of whether Dawn was
-triggered by the bot's twice-daily cron or a GM's manual "End Turn" button.
+plus the guild-wide `#radio`/`#intercom` narrowcast channels (§6). This is
+wired into `db/index.js#advanceTurn()` itself (see below), so it fires
+identically regardless of whether Dawn was triggered by the bot's
+twice-daily cron or a GM's manual "End Turn" button.
+
+**The wipe only deletes.** It used to archive first, by reading every message
+back out of Discord and re-posting it into a single guild-wide `#archive`
+channel — the most expensive thing the bot did, since one channel is one
+~1 msg/sec lane, and it grew with player count. The transcript is now recorded
+at *send* time instead (`db/lib/archive.js`, read at `/archive` — see
+"Archive" in the root `CLAUDE.md`), so there is no `#archive` channel any more
+and nothing here reads message content. Deleting is the cheap half:
+`bulkDeleteMessages` moves 100 messages per request, and at a 12-hour cadence
+nothing is ever near the 14-day floor where bulk delete stops working.
 
 **Per channel type:**
 
 | Channel | Wipe behavior |
 |---|---|
-| Plain (summary) | Every message archived, then deleted. |
-| Public (forum) | Every post (thread) is archived. Posts **without** the "Persistent" (⏰) forum tag are then deleted entirely — post gone. Posts **with** it survive; only their messages are cleared. |
-| Private | Has no top-level messages, only threads (anyone can spin one up, not just GMs). Every thread — active or already auto-archived — is archived, then deleted entirely. No Persistent exception here. |
-| Narrowcast (`#radio`/`#intercom`) | Same as plain: every message archived, then deleted. Looked up from `GameConfig.radioChannelId`/`intercomChannelId` (§6) rather than a `Location` row, so it runs once after the per-Location loop rather than per Zone/Location. |
+| Plain (summary) | Every message deleted. |
+| Public (forum) | Posts **without** the "Persistent" (⏰) forum tag are deleted entirely — post gone. Posts **with** it survive; only their messages are cleared. |
+| Private | Has no top-level messages, only threads (anyone can spin one up, not just GMs). Every thread — active or already auto-archived — is deleted entirely. No Persistent exception here. |
+| Narrowcast (`#radio`/`#intercom`) | Same as plain: every message deleted. Looked up from `GameConfig.radioChannelId`/`intercomChannelId` (§6) rather than a `Location` row, so it runs once after the per-Location loop rather than per Zone/Location. |
 
-**Archive format**: each line is `` `[label]` **AuthorName**: content `` —
-`label` is `Zone / Location` for Location-derived channels/threads, or a
-bare `"Radio"`/`"Intercom"` for the narrowcast channels. `AuthorName` is
-`message.author.username`, which for tupper-proxied messages is already the
-character's name (the webhook's `username` is set to it, see "Character
-proxying" in the root `CLAUDE.md`) — no DB join needed, and it works
-uniformly for non-proxied messages (e.g. bot-posted adjudication results)
-too. Lines are batched into as few `#archive` messages as possible (≤2000
-chars each) rather than one API call per line. Order is chronological
-within each channel/thread; Locations are processed in the same
-`Zone / Location` alphabetical order as `sortLocationCategories` (§2), not a
-strict cross-channel global merge; `#radio`/`#intercom` are processed last.
+**Order**: Locations are processed in the same `Zone / Location` alphabetical
+order as `sortLocationCategories` (§2); `#radio`/`#intercom` are processed
+last. This only affects the order channels are *cleared* in — the transcript's
+own ordering comes from `ArchiveEntry.sentAt`, recorded when each message was
+sent, so it is a true chronological merge across every channel rather than the
+per-channel grouping the old `#archive` format produced.
 
-Private-channel content **is** archived (not skipped) — the privacy
-tradeoff is handled out-of-band by the GM keeping `#archive` itself hidden
-from players until the game ends, not by the code.
+Private-channel content **is** in the transcript (not skipped) — the privacy
+tradeoff is handled by `GameConfig.archiveVisible` keeping `/archive` shut to
+players until the game ends, not by the code.
 
 **Persistent tag**: added to every public forum channel's `available_tags`
 at creation time (`locationChannelSpec`'s `public.available_tags`) and via a
@@ -195,11 +197,10 @@ per-Location orchestration above), `db/lib/turnAnnouncement.js`
 (`postTurnsAnnouncement`, the `#turns` announcement — also consolidated
 here as part of the same refactor, see below). All entirely sequential (no
 parallel fan-out across locations/channels/threads) to avoid bursting
-Discord's rate-limit buckets, and every channel/thread is archived *before*
-it's touched for deletion, so a mid-run crash leaves content merely
-"not yet wiped," never "wiped without being archived" — an accepted known
-limitation (no checkpoint/resume machinery), same framing as the node-cron
-catch-up gap already documented in `docs/systemdocs/ARCHITECTURE.md`.
+Discord's rate-limit buckets. A mid-run crash now leaves content merely
+"not yet wiped" by construction rather than by careful ordering — the
+transcript was written at send time, so nothing here can lose content it
+hasn't recorded yet.
 
 **Consolidation**: `db/index.js#advanceTurn()` owns the turn announcement,
 the Hunger DMs and the Dawn wipe (all REST-only, no gateway needed) —
@@ -212,13 +213,14 @@ wrapped in `.catch()` — so a Discord-side failure can never block or roll
 back the turn advance itself.
 
 **But it does not *run* them.** All three are returned as one
-`runSideEffects()` thunk, because the wipe is minutes long and awaiting it
-inside the Dev Panel's server action held the request open — and a pending
-server action blocks client-side navigation, so the entire web app appeared
-to freeze until a hard refresh. The bot's cron awaits the thunk inline; the
-web action passes it to `next/server`'s `after()`, so the new turn is on
-screen before the wipe starts. A GM watching `#archive` fill up several
-minutes after the turn flipped is the expected behavior, not a stall.
+`runSideEffects()` thunk, because the wipe walks every Location's channels
+sequentially and awaiting it inside the Dev Panel's server action held the
+request open — and a pending server action blocks client-side navigation, so
+the entire web app appeared to freeze until a hard refresh. The bot's cron
+awaits the thunk inline; the web action passes it to `next/server`'s
+`after()`, so the new turn is on screen before the wipe starts. Channels
+clearing out a little after the turn flipped is expected behavior, not a
+stall.
 
 ## 6. Narrowcast channels (`#radio`, `#intercom`, outside the Location layout)
 

@@ -95,6 +95,8 @@ export async function updateGameConfig(formData) {
       messageWipeEnabled: formData.get("messageWipeEnabled") === "on",
       tupperAutocorrectEnabled: formData.get("tupperAutocorrectEnabled") === "on",
       nicknameSyncEnabled: formData.get("nicknameSyncEnabled") === "on",
+      archiveVisible: formData.get("archiveVisible") === "on",
+      archiveTravelEvents: formData.get("archiveTravelEvents") === "on",
       productionCoefficient: floatOrDefault(formData, "productionCoefficient", 1),
       startingTagPoints: intOrZero(formData, "startingTagPoints"),
       // Guarded at 1 because it's the denominator of every weighted role's
@@ -216,6 +218,8 @@ const DEFAULT_GAME_CONFIG = {
   messageWipeEnabled: false,
   tupperAutocorrectEnabled: true,
   nicknameSyncEnabled: false,
+  archiveVisible: false,
+  archiveTravelEvents: false,
   productionCoefficient: 1,
   startingTagPoints: 12,
   playerCount: 100,

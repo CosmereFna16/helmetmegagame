@@ -1,4 +1,5 @@
 const { isTravelFree } = require("./travelCost");
+const { recordArchiveEvent } = require("./archive");
 
 // The database half of a location change, shared by both faces of the game:
 // bot/src/lib/location.js#performMove (gateway) and
@@ -72,6 +73,25 @@ async function performTravel(prisma, character, targetLocation) {
         resultMessage: `» Traveled to ${targetLocation.name}.`,
         gmNotes: "auto:zone_change",
       },
+    });
+  }
+
+  // Off by default (see GameConfig.archiveTravelEvents): arrivals are what
+  // make a location read like a story, and also two rows per character per
+  // turn before anyone says a word.
+  const config = await prisma.gameConfig.findUnique({
+    where: { id: 1 },
+    select: { archiveTravelEvents: true },
+  });
+  if (config?.archiveTravelEvents) {
+    await recordArchiveEvent(prisma, {
+      kind: "TRAVEL",
+      character,
+      locationId: targetLocation.id,
+      locationName: targetLocation.name,
+      content: currentLocation
+        ? `${character.name} left ${currentLocation.name} for ${targetLocation.name}.`
+        : `${character.name} arrived at ${targetLocation.name}.`,
     });
   }
 

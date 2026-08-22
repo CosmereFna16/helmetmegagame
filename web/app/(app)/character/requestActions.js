@@ -22,6 +22,7 @@ import {
   satisfiedSkillIds,
 } from "@/lib/healRequests";
 import { resolveConsumeGrants, heldSlugsOf } from "@/lib/consumeGrants";
+import { recordArchiveEvent } from "@/lib/archive";
 import { syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
 
 // Every player-initiated change that is applied immediately and reviewed
@@ -741,6 +742,16 @@ async function fulfillDesireRequestImpl({ reason: rawReason }) {
     });
   });
 
+  // Outside the transaction: the transcript row isn't part of the effect being
+  // applied, and db/lib/archive.js swallows its own failures.
+  await recordArchiveEvent({
+    kind: "DESIRE_FULFILLED",
+    character,
+    locationId: character.locationId ?? null,
+    turn: openTurn,
+    content: `${character.name} fulfilled a Desire: ${active.text}`,
+  });
+
   revalidateAll();
   return {};
 }
@@ -882,6 +893,14 @@ async function fulfillWorstFearRequestImpl({ reason: rawReason }) {
       reason,
       details: { fearText: character.worstFear, pointsDeducted: WORST_FEAR_PENALTY },
     });
+  });
+
+  await recordArchiveEvent({
+    kind: "WORST_FEAR_FULFILLED",
+    character,
+    locationId: character.locationId ?? null,
+    turn: openTurn,
+    content: `${character.name}'s Worst Fear came true: ${character.worstFear}`,
   });
 
   revalidateAll();

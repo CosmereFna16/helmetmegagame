@@ -1,6 +1,8 @@
 const { WebhookClient } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
+const { recordArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { capitalizeSentences } = require("./textCorrection");
+const { resolveChannelContext } = require("./channels");
 
 const WEBHOOK_NAME = "Lifeweb Tupper";
 const MAX_RECENT = 500;
@@ -30,6 +32,19 @@ async function fetchOrCreateWebhook(channel) {
   const info = { id: webhook.id, token: webhook.token };
   webhookCache.set(target.id, info);
   return info;
+}
+
+// Attachments are recorded as a placeholder and nothing more. Storing the CDN
+// url would be worse than useless: Discord's links now carry expiry
+// parameters, so the archive would fill with dead images. Actually preserving
+// them would mean downloading and re-hosting the bytes (the way avatars are
+// stored) — a deliberate non-goal for now, but the placeholder at least makes
+// the gap visible in the transcript instead of silent, which is what the old
+// Dawn-wipe archive did.
+function attachmentPlaceholders(message) {
+  return [...(message.attachments?.values() ?? [])].map((a) =>
+    a.contentType?.startsWith("image/") ? "[image]" : "[attachment]",
+  );
 }
 
 function avatarUrlFor(character) {
@@ -80,6 +95,18 @@ async function sendAsCharacter(channel, character, message, { conceal = null, co
     // concealed message inert to every reaction — which is the safe direction.
     concealed: Boolean(conceal),
     alias: conceal?.alias ?? null,
+  });
+
+  // The transcript row, written here rather than reconstructed at Dawn. Both
+  // halves of a concealed send are kept: the alias is what the room saw,
+  // character.name is who it actually was. recordArchiveMessage swallows its
+  // own failures — a transcript row is never worth breaking a message over.
+  await recordArchiveMessage(prisma, {
+    discordMessageId: webhookMessage.id,
+    content: [content, ...attachmentPlaceholders(message)].filter(Boolean).join("\n"),
+    character,
+    concealedAlias: conceal?.alias ?? null,
+    ...resolveChannelContext(channel),
   });
 
   await message.delete().catch(() => {});

@@ -170,6 +170,17 @@ export default async function DevPanelPage() {
             <input type="checkbox" name="nicknameSyncEnabled" defaultChecked={config.nicknameSyncEnabled} />
             Sync Discord nicknames to &quot;{"{base}"} | Character Name&quot; on profile/character changes
           </label>
+          <label className="flex items-center gap-2 text-sm col-span-full">
+            <input type="checkbox" name="archiveVisible" defaultChecked={config.archiveVisible} />
+            Open /archive to players — <strong>effectively one-way</strong>: it shows every location
+            regardless of where a character stood, and names the character behind every /conceal.
+            Meant for after the game ends.
+          </label>
+          <label className="flex items-center gap-2 text-sm col-span-full">
+            <input type="checkbox" name="archiveTravelEvents" defaultChecked={config.archiveTravelEvents} />
+            Record arrivals/departures in the archive (makes a location read like a story; also two
+            rows per character per turn before anyone speaks)
+          </label>
           <div className="col-span-full">
             <button type="submit" className="btn">Save config</button>
           </div>
