@@ -38,13 +38,18 @@ channels as create payloads. `provisionLocationChannels` (first create) and
 `applyLocationPermissions` (every later re-sync, see below) both build from
 it, so the two can never disagree.
 
-**Creation is one-time; two things are reconciled every run.**
+**Creation is one-time; three things are reconciled every run.**
 `syncLocationsFromYaml` only *creates* channels for Locations whose
 `discordCategoryId` is null — names are never touched again. But for every
-Location that already had channels it re-applies both the plain channel's
-topic and the full set of permission overwrites, since both are derived from
-the spec rather than hand-authored. So `npm run db:sync-locations` is the
-repair path for a Location whose permissions drifted (see §3).
+already-provisioned Location it re-applies the plain channel's **topic**, the
+full set of **permission overwrites**, and the **order** of the three channels
+within the category, since all three derive from the spec rather than being
+hand-authored. So `npm run db:sync-locations` is the repair path for a
+Location whose permissions or channel order drifted (see §3).
+
+The run prints what it reconciled — a count, and one line per stray overwrite
+removed. It used to print nothing either way, which made a real permissions
+bug indistinguishable from a clean no-op.
 
 **Category name**: `"{Zone} / {Location}"`, e.g. `Town / Cathedral`. Purely
 cosmetic, for grouping in the Discord channel list — categories aren't
@@ -56,8 +61,16 @@ full name (zone first, then location within it) — it only reassigns
 position values among existing Location category IDs, so any non-Location
 category keeps its position untouched.
 
-**Channels, created in this order** (which is also their display order,
-since Discord assigns position by creation order):
+**Channels, created in this order**, which is also their display order —
+but *only* because `sortLocationChannels` asserts it explicitly every run:
+
+> Creation order is **not** display order. Nothing sent a `position` for a
+> child channel until that pass existed, and freshly created siblings collide
+> on position, leaving Discord to break the tie by snowflake — which is how
+> the forum ended up rendering above the summary channel. The pass sends one
+> guild-wide `PATCH` carrying `{id, position, parent_id}` for every Location's
+> three channels (summary 0, public 1, private 2). `parent_id` rides along, so
+> a channel that drifted out of its category is pulled back in the same call.
 
 | Channel | Type | Purpose | Slowmode |
 |---|---|---|---|
@@ -129,11 +142,25 @@ run, so a category whose permissions were never applied (a partially-failed
 provisioning run) or were edited by hand comes back into line.
 
 One implementation detail there is load-bearing: `applyLocationPermissions`
-issues **one `PUT` per named target**, never a `PATCH` of the whole
+issues **one request per target**, never a `PATCH` of the whole
 `permission_overwrites` array. A category also carries one `ViewChannel`
 overwrite per character currently standing in it, and replacing the array
 wholesale would evict all of them — locking the guild out of the rooms
-they're in. `PUT` touches exactly the target named.
+they're in.
+
+That used to mean the sync could only ever **add**. A `PUT` creates or
+replaces a named target; it can never remove one. The plain and `-public`
+channels name only the GM role in the spec, relying on inheriting the
+category's `@everyone` deny — so a channel-level `@everyone` **allow**
+`ViewChannel`, left behind by a half-finished provisioning run, beat that deny
+and was unreachable by any code in the repo. Caverns, Aberrant Pits and
+Railroad sat world-visible through repeated clean re-syncs on exactly this.
+
+The sync now reads each channel's live overwrites and **deletes** any target
+the spec no longer names — but only from a managed set of three:
+`@everyone`, the GM role, and the spectator role. A per-character role id is
+never in that set, so the invariant above still holds: character grants are
+never touched.
 
 This is also why the older single-concern backfills
 (`db:backfill-gm-permissions`, `db:backfill-spectator-access`,

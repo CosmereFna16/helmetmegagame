@@ -291,6 +291,21 @@ async function putChannelOverwrite(channelId, targetId, { allow = "0", deny = "0
   });
 }
 
+// Removes a single permission overwrite, so the target falls back to whatever
+// it inherits from the category. The counterpart to putChannelOverwrite, and
+// the only way to undo an overwrite that shouldn't be there — a PUT can create
+// or replace a named target but never delete one, which left the location sync
+// structurally unable to repair a channel someone had opened up by hand.
+//
+// allow404 because "there is no overwrite for this target" is the state the
+// caller wanted; a concurrent removal is success, not an error.
+async function deleteChannelOverwrite(channelId, targetId) {
+  return discordRequest(`/channels/${channelId}/permissions/${targetId}`, {
+    method: "DELETE",
+    allow404: true,
+  });
+}
+
 module.exports = {
   getGuildChannels,
   createDmChannel,
@@ -312,6 +327,7 @@ module.exports = {
   ensureForumTag,
   startThread,
   putChannelOverwrite,
+  deleteChannelOverwrite,
   ensureChannelWebhook,
   executeWebhook,
   postAsCharacter,

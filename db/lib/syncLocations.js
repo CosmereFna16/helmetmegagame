@@ -36,8 +36,11 @@ const {
   patchChannel,
   patchGuildChannelPositions,
   putChannelOverwrite,
+  deleteChannelOverwrite,
+  getChannel,
 } = require("./discordRest");
 const { spectatorOverwrite } = require("./spectatorAccess");
+const { SPECTATOR_ROLE_ID } = require("./roleIds");
 const { PERSISTENT_TAG_NAME, PERSISTENT_EMOJI } = require("./persistence");
 
 const CHANNEL_TYPE_TEXT = 0;
@@ -164,36 +167,91 @@ async function provisionLocationChannels(prisma, location) {
   });
 }
 
+// The three overwrite targets this sync owns. Everything else on a Location's
+// channels belongs to somebody else — above all the one ViewChannel overwrite
+// per character currently standing in the category
+// (bot/src/lib/location.js#swapLocationAccess) — and must never be touched
+// here. Membership in this set is what makes the delete pass below safe.
+function managedOverwriteIds() {
+  return new Set(
+    [process.env.DISCORD_GUILD_ID, process.env.DISCORD_GM_ROLE_ID, SPECTATOR_ROLE_ID].filter(Boolean),
+  );
+}
+
+// Reconciles one channel's overwrites against the spec: PUT everything the
+// spec names, then DELETE any *managed* target the spec no longer names.
+//
+// Still one request per target, never a PATCH of the whole
+// permission_overwrites array — a wholesale replace would evict every
+// character's per-location ViewChannel grant and lock the guild out of the
+// rooms they're standing in.
+//
+// The delete half is what makes this a reconcile rather than an append. A PUT
+// can create or replace a named target but can never remove one, so before
+// this the sync was structurally incapable of undoing an overwrite that
+// shouldn't exist. That is exactly how Caverns, Aberrant Pits and Railroad
+// stayed world-visible through repeated clean re-syncs: the plain and -public
+// channels name only the GM role in the spec, so a channel-level @everyone
+// ViewChannel allow left behind by a half-finished provisioning run beat the
+// category's deny — the one overwrite the whole privacy model rests on — and
+// nothing in the codebase could reach it.
+async function reconcileChannelOverwrites(channelId, want) {
+  const wanted = new Map(want.permission_overwrites.map((o) => [o.id, o]));
+  const changes = [];
+
+  for (const overwrite of wanted.values()) {
+    await putChannelOverwrite(channelId, overwrite.id, {
+      allow: overwrite.allow ?? "0",
+      deny: overwrite.deny ?? "0",
+      type: overwrite.type,
+    });
+  }
+
+  // Reading the live channel is the only way to see an overwrite the spec
+  // doesn't mention. allow404 isn't available on getChannel, so a stale
+  // recorded id throws here rather than silently skipping — which is the
+  // right trade: a channel id pointing at nothing is a real problem worth
+  // failing the sync over, and the caller reports which Location it was.
+  const live = await getChannel(channelId);
+  const managed = managedOverwriteIds();
+
+  for (const existing of live?.permission_overwrites ?? []) {
+    if (wanted.has(existing.id)) continue;
+    if (!managed.has(existing.id)) continue;
+    await deleteChannelOverwrite(channelId, existing.id);
+    changes.push(existing.id);
+  }
+
+  return changes;
+}
+
 // Re-applies locationChannelSpec's overwrites to an already-provisioned
 // Location, so a category whose permissions were never applied (a partially
 // failed provisioning run) or were edited by hand in Discord is brought back
 // in line by an ordinary re-sync.
 //
-// One PUT per named target, never a PATCH of the whole permission_overwrites
-// array. A category also carries one ViewChannel overwrite per character
-// currently standing in it (bot/src/lib/location.js#swapLocationAccess), and
-// replacing the array wholesale would evict every one of them — locking the
-// whole guild out of the rooms they're in. PUT touches exactly the target
-// named and leaves every other overwrite alone.
+// Returns a list of human-readable descriptions of anything it had to remove,
+// so the script can say what it repaired. A sync that fixes fifteen Locations
+// and one that fixes none used to print the identical summary, which is most
+// of why this bug looked like "the sync did nothing".
 async function applyLocationPermissions(location) {
   const spec = locationChannelSpec(location);
   const targets = [
-    [location.discordCategoryId, spec.category],
-    [location.discordChannelId, spec.plain],
-    [location.discordPublicChannelId, spec.public],
-    [location.discordPrivateChannelId, spec.private],
+    ["category", location.discordCategoryId, spec.category],
+    [location.name, location.discordChannelId, spec.plain],
+    [`${location.name}-public`, location.discordPublicChannelId, spec.public],
+    [`${location.name}-private`, location.discordPrivateChannelId, spec.private],
   ];
 
-  for (const [channelId, want] of targets) {
+  const repairs = [];
+  for (const [label, channelId, want] of targets) {
     if (!channelId) continue;
-    for (const overwrite of want.permission_overwrites) {
-      await putChannelOverwrite(channelId, overwrite.id, {
-        allow: overwrite.allow ?? "0",
-        deny: overwrite.deny ?? "0",
-        type: overwrite.type,
-      });
+    const removed = await reconcileChannelOverwrites(channelId, want);
+    for (const id of removed) {
+      repairs.push(`${location.name} (${label}): removed stray overwrite for ${id}`);
     }
   }
+  return repairs;
 }
 
 // Deletes a Location's Discord category + all three channels, if it was ever
@@ -232,9 +290,54 @@ async function sortLocationCategories(prisma) {
   const sorted = [...locations].sort((a, b) =>
     `${a.zone.name} / ${a.name}`.localeCompare(`${b.zone.name} / ${b.name}`),
   );
-  const updates = sorted.map((l, i) => ({ id: l.discordCategoryId, position: currentPositions[i] }));
+  // Zip sorted Locations onto the position slots those categories already
+  // held, so non-Location categories keep their places. Guard the pairing:
+  // a category id recorded in the DB but missing from the guild shortens
+  // currentPositions, and a `position: undefined` in the payload is dropped
+  // by JSON.stringify into a malformed PATCH that aborts the whole sync.
+  const updates = sorted
+    .map((l, i) => ({ id: l.discordCategoryId, position: currentPositions[i] }))
+    .filter((u) => Number.isInteger(u.position));
 
+  if (updates.length > 0) await patchGuildChannelPositions(updates);
+}
+
+// Orders each Location's three channels within its category: summary, then
+// -public, then -private.
+//
+// This has to be stated explicitly. Nothing ever sent a `position` for a child
+// channel, and CHANNELS.md's claim that creation order is display order was
+// simply wrong — freshly created siblings collide on position and Discord
+// breaks the tie by snowflake, which is why the forum was surfacing above the
+// summary channel. Positions are also editable by hand in Discord, so this
+// belongs in the every-run pass rather than at creation time.
+//
+// One PATCH for the whole guild: the endpoint takes any mix of channels and
+// interprets each position relative to its siblings under the same parent, so
+// the cost is a single request no matter how many Locations there are.
+// parent_id is asserted alongside, which also pulls back a channel that
+// drifted out of its category.
+async function sortLocationChannels(prisma) {
+  const locations = await prisma.location.findMany({
+    where: { discordCategoryId: { not: null } },
+  });
+
+  const updates = [];
+  for (const location of locations) {
+    const ordered = [
+      location.discordChannelId,
+      location.discordPublicChannelId,
+      location.discordPrivateChannelId,
+    ];
+    ordered.forEach((id, position) => {
+      if (!id) return;
+      updates.push({ id, position, parent_id: location.discordCategoryId });
+    });
+  }
+
+  if (updates.length === 0) return 0;
   await patchGuildChannelPositions(updates);
+  return updates.length;
 }
 
 // Every slug referenced by locationConnections must belong to a Location
@@ -335,7 +438,20 @@ async function syncLocationsFromYaml(prisma) {
 
   const unprovisioned = upserted.filter((l) => !l.discordCategoryId);
   for (const location of unprovisioned) {
-    await provisionLocationChannels(prisma, location);
+    // provisionLocationChannels returns the row carrying the four new Discord
+    // ids. Copy them back onto the in-memory object: `upserted` was read
+    // before provisioning, and the reconciliation pass below keys off these
+    // columns. Discarding the return value meant a freshly provisioned
+    // Location could still look unprovisioned to that pass — or worse, be
+    // reconciled against the stale ids it had beforehand.
+    const provisioned = await provisionLocationChannels(prisma, location);
+    Object.assign(location, {
+      discordCategoryId: provisioned.discordCategoryId,
+      discordChannelId: provisioned.discordChannelId,
+      discordPublicChannelId: provisioned.discordPublicChannelId,
+      discordPrivateChannelId: provisioned.discordPrivateChannelId,
+      justProvisioned: true,
+    });
   }
   if (unprovisioned.length > 0) {
     await sortLocationCategories(prisma);
@@ -354,16 +470,30 @@ async function syncLocationsFromYaml(prisma) {
   //     provisioned during a partially-failed run stays world-visible forever
   //     with nothing in the codebase able to repair it.
   //
-  // Freshly provisioned Locations are excluded — their `upserted` rows still
-  // carry the pre-provisioning nulls, which is what this filter keys on, and
-  // provisionLocationChannels set both the topic and every overwrite at create
-  // time. Re-doing it would be ~8 redundant Discord calls each, on a path
-  // (wipeGameData's Restart Game) that provisions every Location at once.
-  const preexisting = upserted.filter((l) => l.discordChannelId);
+  // Freshly provisioned Locations are excluded — provisionLocationChannels
+  // set both the topic and every overwrite at create time, and re-doing it
+  // would be ~12 redundant Discord calls each on a path (wipeGameData's
+  // Restart Game) that provisions every Location at once. That exclusion is
+  // now an explicit flag rather than an inference from a null column: keying
+  // it off `discordChannelId` while the provisioning filter keyed off
+  // `discordCategoryId` left a gap where a row with a category but no channel
+  // id matched neither filter and was skipped in total silence.
+  const preexisting = upserted.filter((l) => l.discordCategoryId && !l.justProvisioned);
+  const permissionRepairs = [];
   for (const location of preexisting) {
-    await patchChannel(location.discordChannelId, { topic: buildSummaryTopic(location) ?? "" });
-    await applyLocationPermissions(location);
+    // allow404: a recorded channel id pointing at a channel someone deleted by
+    // hand used to throw here and abort the entire run, leaving every later
+    // Location in the YAML untouched — with the failure looking like an
+    // unrelated 404 rather than "your DB and Discord disagree".
+    if (location.discordChannelId) {
+      await patchChannel(location.discordChannelId, { topic: buildSummaryTopic(location) ?? "" });
+    }
+    permissionRepairs.push(...(await applyLocationPermissions(location)));
   }
+
+  // Channel order is reconciled for every Location, provisioned this run or
+  // not — see sortLocationChannels. One PATCH, unconditionally.
+  const channelsOrdered = await sortLocationChannels(prisma);
 
   // Prune: destructively remove any Location no longer listed in the YAML.
   const stale = await prisma.location.findMany({ where: { slug: { notIn: [...entryIds] } } });
@@ -385,6 +515,9 @@ async function syncLocationsFromYaml(prisma) {
     locationsCreated,
     locationsUpdated,
     provisioned: unprovisioned.map((l) => l.name),
+    reconciled: preexisting.length,
+    permissionRepairs,
+    channelsOrdered,
     pruned: stale.map((l) => l.name),
     zonesPruned: staleZones.map((z) => z.name),
   };

@@ -94,6 +94,18 @@ module.exports = {
 async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
   const context = resolveChannelContext(channel);
   const mentioned = await resolveMentionedCharacters(mentionedRoleIds, message.author.id);
+
+  // Every gate on this path used to reject in total silence, and the proxy
+  // suppresses the role ping itself (allowedMentions parse: ["users"]), so a
+  // swallowed mention looked exactly like a delivered one — the chip renders
+  // either way. One line per ping makes the whole thing diagnosable from the
+  // Railway logs. The commonest "bug" report is a player pinging their own
+  // character: resolveMentionedCharacters drops the sender's own characters
+  // deliberately, and that shows up here as resolved=0.
+  console.log(
+    `[mentions] roles=${mentionedRoleIds.join(",")} resolved=${mentioned.length} ` +
+      `zone=${context.zoneId ?? "none"} kind=${context.channelKind ?? "location"}`,
+  );
   if (mentioned.length === 0) return;
 
   const link = messageLink(message.guildId, channel.id, proxied.id);
@@ -106,6 +118,7 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
       // standing in that Location. Telling the pinger why keeps a refusal from
       // reading as a bug; a proxied message has no interaction to reply to.
       if (!canJoinThread(target, context)) {
+        console.log(`[mentions] ${target.name}: not in ${context.locationName ?? "this location"}, no thread add`);
         await sendDm(
           message.author,
           `» *${target.name} isn't in ${context.locationName ?? "this location"} — they can't be brought into this thread.*`,
@@ -119,7 +132,9 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
       continue;
     }
 
-    if (await canHearPing(target, context)) {
+    const heard = await canHearPing(target, context);
+    console.log(`[mentions] ${target.name}: ${heard ? "notified" : "out of earshot, no DM"}`);
+    if (heard) {
       await notifyMentioned(message.client, target, context, link);
     }
   }

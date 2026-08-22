@@ -23,6 +23,18 @@ async function main() {
   } else {
     console.log("no locations needed Discord provisioning");
   }
+  // Say what the reconciliation pass actually did. This used to print nothing
+  // at all, so a run that repaired every Location and a run that repaired none
+  // were indistinguishable — which is most of why a real permissions bug read
+  // as "the sync did nothing".
+  console.log(`reconciled (topic + permissions): ${summary.reconciled}`);
+  if (summary.permissionRepairs.length > 0) {
+    console.log(`permission repairs (${summary.permissionRepairs.length}):`);
+    for (const repair of summary.permissionRepairs) console.log(`  - ${repair}`);
+  } else {
+    console.log("permission repairs: none — every channel already matched the spec");
+  }
+  console.log(`channel order asserted on ${summary.channelsOrdered} channels`);
   if (summary.pruned.length > 0) {
     console.log(`pruned (deleted from DB + Discord): ${summary.pruned.join(", ")}`);
   }

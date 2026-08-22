@@ -182,7 +182,19 @@ needs the *proxied* message's id. So the order is **capture → proxy → relay*
 
 ### The relay DM
 
-Gated so a ping can't carry further than a voice would. Without a gate,
+**A ping never relays back to the person who sent it.**
+`resolveMentionedCharacters` filters out any mentioned character belonging to
+the sender, so pinging your own character produces nothing at all — the first
+thing anyone testing this feature hits, and indistinguishable from a bug
+because the proxy suppresses the ping itself (§2), so the chip renders either
+way. Test from a second account.
+
+Every rejection on this path is a bare return. `handleMentions` logs one
+`[mentions]` line per ping — the role ids, how many resolved, and each
+target's gate outcome — so the Railway logs can tell "out of earshot" from
+"resolved nobody" without a debugger.
+
+Otherwise, gated so a ping can't carry further than a voice would. Without a gate,
 pinging is a free cross-map signalling channel. Two rules, because the two
 kinds of channel mean different things by "in earshot":
 
