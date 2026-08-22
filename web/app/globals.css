@@ -74,6 +74,12 @@
   --map-free: #86bd80;
   --map-cost: #dfa04a;
   --map-idle: #9daca6;
+  /* The photographic grounds are knocked well back — desaturated, flattened
+     and dimmed — so the pointcrawl reads as the subject and the photo as
+     ground. Order matters: contrast() before brightness(), since pulling
+     toward mid-grey lifts the dark areas and brightness has to land after
+     that to put them back down. */
+  --map-ground-filter: saturate(0.4) contrast(0.7) brightness(0.5);
 
   /* Elevation. --e-1 is border-only and intentionally has no shadow. */
   --e-2: 0 2px 6px var(--shadow-color);
@@ -1339,6 +1345,12 @@ h3 {
   object-fit: cover;
   user-select: none;
   -webkit-user-drag: none;
+  filter: var(--map-ground-filter);
+}
+/* The drawn plate carries no pointcrawl at all (see GROUNDS in MapPanel.js),
+   so there is nothing for it to compete with — it stays at full strength. */
+.map-plate[data-ground="plate"] .map-ground {
+  filter: none;
 }
 .map-roads {
   position: absolute;
