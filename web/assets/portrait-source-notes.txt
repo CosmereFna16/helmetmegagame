@@ -1,0 +1,35 @@
+Hello!
+This is a short instructional on how to set up the portraits so they work as intended.
+I originally didn't include these files because of the somewhat complex nature of the construction of the portraits, but since there have been requests here you go. Be warned though!
+A few notes -
+
+1. Colours of the skin and hairs and pupils were made with shaders in the software by doing a manual shader colour replacement. So you will have to do it on your own too, etiher by manually recolouring the assets in a image manipulation software or through a colour exchange shader like I did for the Portrait Maker.
+
+2. The sheets are set up in 128x128px grid, being 6 tiles wide on each sheet. So think of the asset files as a grid of 128x128px tiles.(I have also included non-sheet versions of the files already separated into separate assets, but they might be harder to find the correct corresponding layer version for the 2 part components, although you can just match the corresponding number after the file names) If some of the images are transparent, it means its part of the layered component but for that exact component it was not needed.
+
+3.There are several components of the portrait that are layered, meaning they have 2 parts, so to make a single hair style you have to use 2 assets. For example HairFront and HairBack sheet. The corresponding hair parts for each hair style are in the same position on the 128x128px grid in each file. So you have to put them both together on a sprite for the hairstyle to work. So if you want to make the monk hairstyle, you have to place HairBack and HairFront sprite in position(Row1, Column6) in both files together.
+The same way works for the eyes and the pupils, the EarsFront and the EarsBack and the LayeredAccessories and LayeredAccessoriesBack.
+
+4.The colours used for the skin colours,Hair colours and eye pupils can be extracted from the Colour_Examples.png file.
+
+5. The correct general layering of the layers are from the lowest layer to the highest layer(though there are some exceptions where you will have to tweak the layering order a bit, for example some accessories like horns) 
+
+>Cranium
+>LayeredAccessoryBack
+>EarsBack
+>HairBack
+>Jaw
+>EarsFront
+>Eyes
+>Pupils
+>Mouth
+>AccesssoriesBelowBeard
+>Beard
+>Nose
+>Eyebrows
+>LayeredAccessories
+>HairFront
+
+
+Good luck!
+

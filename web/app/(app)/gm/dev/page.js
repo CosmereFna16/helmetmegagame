@@ -159,6 +159,20 @@ export default async function DevPanelPage() {
             Allow players to upload their own profile picture (off means everyone shows their letter plaque)
           </label>
           <label className="flex items-center gap-2 text-sm col-span-full">
+            <input type="checkbox" name="portraitMakerEnabled" defaultChecked={config.portraitMakerEnabled} />
+            Show the &quot;Customize Appearance&quot; portrait maker on /character (off means everyone falls
+            back to their letter plaque or an uploaded picture)
+          </label>
+          <label className="flex items-center gap-2 text-sm col-span-full">
+            <input
+              type="checkbox"
+              name="portraitFantasyPartsEnabled"
+              defaultChecked={config.portraitFantasyPartsEnabled}
+            />
+            Allow the portrait maker&apos;s fantasy parts — pointed ears, horns, antlers, unnatural hair and
+            eye colours. Off by default; Ravenheart is low fantasy and human-only.
+          </label>
+          <label className="flex items-center gap-2 text-sm col-span-full">
             <input type="checkbox" name="messageWipeEnabled" defaultChecked={config.messageWipeEnabled} />
             Wipe messages at Dawn (archives everything to #archive first — see docs/systemdocs/CHANNELS.md)
           </label>

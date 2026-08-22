@@ -45,6 +45,7 @@ never enough to change code with.
 | [`ARCHIVE.md`](docs/systemdocs/ARCHIVE.md) | You're touching the transcript or `/archive` |
 | [`DOCUMENTS.md`](docs/systemdocs/DOCUMENTS.md) | You're touching `/documents` or `docs/documents.yaml` |
 | [`INFOCHANNEL.md`](docs/systemdocs/INFOCHANNEL.md) | You're changing `#info` or `docs/systemdocs/infochannel.yaml` |
+| [`PORTRAITS.md`](docs/systemdocs/PORTRAITS.md) | You're touching the portrait maker, avatar art, or `Character.avatarData` |
 | [`DESIGN-SYSTEM.md`](docs/systemdocs/DESIGN-SYSTEM.md) | You're writing or restyling **any** web UI |
 | [`CRT-TERMINAL.md`](docs/systemdocs/CRT-TERMINAL.md) | Someone suggests a terminal/CRT look — read before rebuilding it |
 

@@ -843,6 +843,25 @@ h3 {
   border-bottom: 1px solid var(--border);
 }
 
+/* The portrait maker's option grid (PortraitMaker.js). It scrolls inside the
+   modal on a wide screen, which is what keeps the live preview pinned beside
+   it while you flick through 28 hairstyles. On a narrow one the modal panel is
+   already the scroller and the two columns have stacked, so a second nested
+   scroll region there is just a trap for a thumb. The breakpoint matches the
+   `sm:` the component stacks at. */
+.portrait-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (min-width: 640px) {
+  .portrait-options {
+    max-height: 244px;
+    overflow-y: auto;
+  }
+}
+
 .tab-item {
   all: unset;
   cursor: pointer;

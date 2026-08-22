@@ -15,6 +15,12 @@
 // text support, and pango cannot read the .woff2 that next/font/google caches
 // into .next. It is UnifrakturMaguntia, the same face --font-display uses for
 // the login wordmark, so the plaques and the wordmark match.
+//
+// **Check the output before committing it.** On a machine with no fontconfig
+// setup, pango prints `Fontconfig error: Cannot load default config file`,
+// ignores `fontfile`, silently substitutes a default sans face, and the script
+// still exits 0 — leaving 27 plaques that say A in Helvetica. It is a warning,
+// not an error, so nothing here can catch it; open one plaque and look.
 
 const fs = require("node:fs/promises");
 const path = require("node:path");
@@ -24,6 +30,12 @@ const ROOT = path.join(__dirname, "..");
 const BACKGROUND = path.join(ROOT, "public/assets/background.png");
 const FONT_FILE = path.join(ROOT, "assets/fonts/UnifrakturMaguntia.ttf");
 const OUT_DIR = path.join(ROOT, "public/assets/letters");
+// The same tinted stone, frameless, as the backing plate for a built portrait
+// (docs/systemdocs/PORTRAITS.md). It lives here rather than in its own script
+// because it is literally the plaque without its glyph and rule — a second
+// script would mean a second copy of TINT/DARKEN/BLUR, free to drift, and then
+// a portrait and a letter plaque would stop matching in a gallery.
+const PORTRAIT_PLATE = path.join(ROOT, "public/assets/portrait/plate.webp");
 
 // --- Tuning -----------------------------------------------------------------
 const SIZE = 256; // matches AVATAR_SIZE in character/actions.js
@@ -116,6 +128,9 @@ async function main() {
   const plate = await buildPlate();
   const frame = frameSvg();
 
+  await fs.mkdir(path.dirname(PORTRAIT_PLATE), { recursive: true });
+  await sharp(plate).webp({ quality: WEBP_QUALITY }).toFile(PORTRAIT_PLATE);
+
   // The fallback: plaque and frame, no glyph. Served for an initial that is
   // not a plain A-Z — an accented or non-Latin first letter, a digit, or a
   // character whose firstName is somehow empty.
@@ -132,7 +147,10 @@ async function main() {
       .toFile(path.join(OUT_DIR, `${letter}.webp`));
   }
 
-  console.log(`done (${LETTERS.length} letters + _default -> ${path.relative(ROOT, OUT_DIR)})`);
+  console.log(
+    `done (${LETTERS.length} letters + _default -> ${path.relative(ROOT, OUT_DIR)}, ` +
+      `plate -> ${path.relative(ROOT, PORTRAIT_PLATE)})`,
+  );
 }
 
 main().catch((err) => {
