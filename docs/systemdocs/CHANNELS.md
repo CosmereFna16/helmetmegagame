@@ -38,11 +38,13 @@ channels as create payloads. `provisionLocationChannels` builds from it and
 `npm run db:reprovision-locations` diffs live channels against it, so a
 verify pass can't disagree with what provisioning would do.
 
-**Provisioning is strictly one-time.** `syncLocationsFromYaml` only
-provisions Locations whose `discordCategoryId` is null, and the single thing
-it re-syncs afterwards is the plain channel's topic — so re-running the sync
-never repairs permissions on an already-provisioned Location. Use
-`npm run db:reprovision-locations` for that (see §7).
+**Creation is one-time; two things are reconciled every run.**
+`syncLocationsFromYaml` only *creates* channels for Locations whose
+`discordCategoryId` is null — names are never touched again. But for every
+Location that already had channels it re-applies both the plain channel's
+topic and the full set of permission overwrites, since both are derived from
+the spec rather than hand-authored. So `npm run db:sync-locations` is the
+repair path for a Location whose permissions drifted (see §3).
 
 **Category name**: `"{Zone} / {Location}"`, e.g. `Town / Cathedral`. Purely
 cosmetic, for grouping in the Discord channel list — categories aren't
@@ -107,22 +109,32 @@ call sites existed (mirrors `backfill-roles.js`'s role-creation catch-up).
 
 ### Repairing a Location whose permissions are wrong
 
-Because provisioning is one-time (§2), a Location whose category overwrites
-were never applied — a partially-failed provisioning run — or were edited by
-hand in Discord is repaired by **nothing**. Re-running `db:sync-locations`
-skips it, and none of the existing backfills cover the three overwrites that
-matter most here: the category-level `@everyone` `ViewChannel` deny (the
-entire mechanism that makes a Location private), the category-level GM
-`ViewChannel` allow, and the `-private` channel's `@everyone` overwrite.
-Each of those backfills PUTs a single **non-`@everyone`** target.
+**`npm run db:sync-locations` is the fix.** It re-applies every
+already-provisioned Location's overwrites from `locationChannelSpec` on each
+run, so a category whose permissions were never applied (a partially-failed
+provisioning run) or were edited by hand comes back into line.
+
+One implementation detail there is load-bearing: `applyLocationPermissions`
+issues **one `PUT` per named target**, never a `PATCH` of the whole
+`permission_overwrites` array. A category also carries one `ViewChannel`
+overwrite per character currently standing in it, and replacing the array
+wholesale would evict all of them — locking the guild out of the rooms
+they're in. `PUT` touches exactly the target named.
+
+This is also why the older single-concern backfills
+(`db:backfill-gm-permissions`, `db:backfill-spectator-access`,
+`db:backfill-tupper-attachment-restriction`) are now largely redundant: each
+covered one slice of what the sync re-applies wholesale. They're kept because
+they're harmless and occasionally useful in isolation.
 
 `npm run db:reprovision-locations` (`db/prisma/reprovision-locations.js`)
-covers that gap, dry-run by default like `prune-orphan-categories.js`:
+covers what the sync can't, because the sync never re-reads the live
+channels. Dry-run by default, like `prune-orphan-categories.js`:
 
 | Invocation | Effect |
 |---|---|
 | `npm run db:reprovision-locations` | Read-only. Diffs every provisioned Location's live category + 3 channels against `locationChannelSpec` — overwrites, channel type, slowmode, forum tags — and prints `OK`/`DRIFT` per Location. Exits non-zero on drift. |
-| `npm run db:reprovision-locations -- --apply <slug>...` | **Destructive.** Deletes each named Location's category + 3 channels (losing their messages) and recreates them through `provisionLocationChannels`. |
+| `npm run db:reprovision-locations -- --apply <slug>...` | **Destructive.** Deletes each named Location's category + 3 channels (losing their messages) and recreates them through `provisionLocationChannels`. The only way to fix a wrong channel *type*, since that can't be patched. |
 
 Two details in the apply path are load-bearing. Deleting a category takes
 every per-character `ViewChannel` overwrite with it, so the script records

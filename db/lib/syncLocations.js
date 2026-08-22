@@ -11,17 +11,17 @@
 //   1. DB upsert: for each YAML entry, upsert its Zone (matched by name —
 //      Zone has no slug, a known fragility) and its Location (matched by
 //      slug, falling back to a name+zone match for legacy pre-slug rows).
-//   2. Discord provisioning + topic sync: any Location still missing
+//      2. Discord provisioning + reconciliation: any Location still missing
 //      discordCategoryId gets its category + 3 channels created, from the
-//      layout described by locationChannelSpec below. Note this is the ONLY
-//      time permissions are applied — a Location that already has a category
-//      is never re-permissioned by a re-sync, which is what
-//      db/prisma/reprovision-locations.js exists to check and repair. Every
-//      Location's plain (summary) channel topic is then (re)written to
-//      `{description} | **Sublocations**: {publicSubLocations}` so edits to
-//      those YAML fields keep propagating even for already-provisioned
-//      Locations — unlike the category/channel *names*, which are never
-//      touched post-provisioning (see CLAUDE.md).
+//      layout described by locationChannelSpec below. Every Location that
+//      already had channels then has two things reconciled against that same
+//      spec: its plain (summary) channel topic, rewritten to
+//      `{description} | **Sublocations**: {publicSubLocations}`, and its
+//      permission overwrites, re-applied one target at a time. Both are
+//      derived rather than hand-authored, so edits to the YAML (or a
+//      half-applied provisioning run) keep propagating — unlike the
+//      category/channel *names*, which are never touched post-provisioning
+//      (see CLAUDE.md).
 //   3. Prune: any Location whose slug isn't in the current YAML entries has
 //      its Discord category+channels deleted and its DB row removed;
 //      afterwards, any Zone left with zero Locations and whose name isn't in
@@ -35,6 +35,7 @@ const {
   getGuildChannels,
   patchChannel,
   patchGuildChannelPositions,
+  putChannelOverwrite,
 } = require("./discordRest");
 const { spectatorOverwrite } = require("./spectatorAccess");
 
@@ -163,6 +164,38 @@ async function provisionLocationChannels(prisma, location) {
       discordPrivateChannelId: privateChannel.id,
     },
   });
+}
+
+// Re-applies locationChannelSpec's overwrites to an already-provisioned
+// Location, so a category whose permissions were never applied (a partially
+// failed provisioning run) or were edited by hand in Discord is brought back
+// in line by an ordinary re-sync.
+//
+// One PUT per named target, never a PATCH of the whole permission_overwrites
+// array. A category also carries one ViewChannel overwrite per character
+// currently standing in it (bot/src/lib/location.js#swapLocationAccess), and
+// replacing the array wholesale would evict every one of them — locking the
+// whole guild out of the rooms they're in. PUT touches exactly the target
+// named and leaves every other overwrite alone.
+async function applyLocationPermissions(location) {
+  const spec = locationChannelSpec(location);
+  const targets = [
+    [location.discordCategoryId, spec.category],
+    [location.discordChannelId, spec.plain],
+    [location.discordPublicChannelId, spec.public],
+    [location.discordPrivateChannelId, spec.private],
+  ];
+
+  for (const [channelId, want] of targets) {
+    if (!channelId) continue;
+    for (const overwrite of want.permission_overwrites) {
+      await putChannelOverwrite(channelId, overwrite.id, {
+        allow: overwrite.allow ?? "0",
+        deny: overwrite.deny ?? "0",
+        type: overwrite.type,
+      });
+    }
+  }
 }
 
 // Deletes a Location's Discord category + all three channels, if it was ever
@@ -310,13 +343,28 @@ async function syncLocationsFromYaml(prisma) {
     await sortLocationCategories(prisma);
   }
 
-  // Topic sync: keep every already-provisioned Location's summary-channel
-  // topic in step with its (possibly just-edited) description/sublocations —
-  // the one thing this deliberately still touches post-provisioning, since
-  // it's cosmetic content rather than the channel's name/identity.
-  const provisioned = upserted.filter((l) => l.discordChannelId);
-  for (const location of provisioned) {
+  // Reconciliation pass over Locations that already had channels before this
+  // run. Two things deliberately stay in sync post-provisioning, unlike the
+  // category/channel *names*, which are never touched again:
+  //
+  //   - the summary channel's topic, which is cosmetic content edited in the
+  //     YAML rather than the channel's identity;
+  //   - the permission overwrites, which are derived entirely from
+  //     locationChannelSpec and the env — never hand-authored, so there is no
+  //     hand-edit to preserve (/gm/dev/zones was removed precisely because
+  //     Locations aren't edited by hand mid-game). Without this, a Location
+  //     provisioned during a partially-failed run stays world-visible forever
+  //     with nothing in the codebase able to repair it.
+  //
+  // Freshly provisioned Locations are excluded — their `upserted` rows still
+  // carry the pre-provisioning nulls, which is what this filter keys on, and
+  // provisionLocationChannels set both the topic and every overwrite at create
+  // time. Re-doing it would be ~8 redundant Discord calls each, on a path
+  // (wipeGameData's Restart Game) that provisions every Location at once.
+  const preexisting = upserted.filter((l) => l.discordChannelId);
+  for (const location of preexisting) {
     await patchChannel(location.discordChannelId, { topic: buildSummaryTopic(location) ?? "" });
+    await applyLocationPermissions(location);
   }
 
   // Prune: destructively remove any Location no longer listed in the YAML.

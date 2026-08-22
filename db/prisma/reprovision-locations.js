@@ -1,16 +1,15 @@
 // Verifies — and, with --apply, rebuilds — a Location's Discord category and
 // three channels.
 //
-// Why this exists: provisioning is strictly one-time. syncLocationsFromYaml
-// only provisions Locations whose discordCategoryId is null, and the single
-// thing it re-syncs afterwards is the plain channel's topic. So a Location
-// whose category overwrites were never applied (a partially-failed run) or
-// were edited by hand in Discord is never repaired by re-running the sync,
-// and none of the existing backfills touch the three overwrites that matter
-// most: the category-level @everyone VIEW_CHANNEL deny (the entire mechanism
-// that makes a Location private), the category-level GM VIEW_CHANNEL allow,
-// and the -private channel's @everyone overwrite. Each of those backfills
-// PUTs a single non-@everyone target.
+// Why this exists, given `npm run db:sync-locations` now re-applies every
+// Location's permission overwrites on each run: the sync fixes permissions
+// but is blind to everything else, because it never re-reads the live
+// channels. It cannot tell you that a channel is the wrong *type* (a text
+// channel where the forum should be), that the plain channel lost its 60s
+// slowmode, that the forum lost its Persistent tag, or that a Location's
+// recorded channel ids point at something that no longer exists. Verify mode
+// reads the live channels and reports all of that; --apply is the only way to
+// fix the structural half, since a channel's type can't be patched.
 //
 // Both modes read the intended layout from
 // db/lib/syncLocations.js#locationChannelSpec — the same function
@@ -149,7 +148,9 @@ async function verifyAll() {
 
   console.log(`\n${locations.length} location(s) checked, ${drifted} with drift.`);
   if (drifted > 0) {
-    console.log("Rebuild one with: node db/prisma/reprovision-locations.js --apply <slug>");
+    console.log("Permission-only drift is fixed by: npm run db:sync-locations");
+    console.log("Anything structural (channel type, slowmode, forum tags) needs a rebuild:");
+    console.log("  node db/prisma/reprovision-locations.js --apply <slug>");
   }
   return drifted;
 }

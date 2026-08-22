@@ -50,12 +50,15 @@ npm run map:check                    # geometry check over docs/locations.yaml's
 # One-off provisioning for #radio/#intercom — see "Narrowcast channels" below.
 npm run db:sync-narrowcast-channels
 
-# Verifies every provisioned Location's live Discord category + 3 channels
-# against the intended layout (overwrites, type, slowmode, forum tags) and
-# reports drift. Read-only. `-- --apply <slug>...` rebuilds those Locations'
-# channels from scratch — destructive, loses their messages. Needed because
-# provisioning is one-time, so db:sync-locations never re-applies permissions
-# to a Location that already has a category. See docs/systemdocs/CHANNELS.md §3.
+# db:sync-locations above already re-applies every already-provisioned
+# Location's permission overwrites on each run, so drifted/hand-edited
+# permissions are fixed by just re-running it. This script covers what that
+# can't: it reads the LIVE Discord channels and reports drift the sync is
+# blind to (wrong channel type, lost slowmode, lost forum tag, a stale
+# recorded channel id). Read-only by default; `-- --apply <slug>...` deletes
+# and recreates those Locations' channels from scratch — destructive, loses
+# their messages, the only fix for a wrong channel type. See
+# docs/systemdocs/CHANNELS.md §3.
 npm run db:reprovision-locations
 
 # One-off: grant the spectator role read-only view on everything already
