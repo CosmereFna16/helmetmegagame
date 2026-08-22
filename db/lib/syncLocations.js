@@ -86,12 +86,9 @@ function buildSummaryTopic(location) {
 // three channels, as create payloads minus `parent_id` (which only exists once
 // the category has been made).
 //
-// This is deliberately the SINGLE description of that layout.
-// provisionLocationChannels below builds from it, and
-// db/prisma/reprovision-locations.js diffs live channels against it — so a
-// verify pass can never disagree with what provisioning would actually do.
-// Read the env vars per call rather than at module load so a script that
-// loads dotenv after requiring this file still sees them.
+// This is deliberately the SINGLE description of that layout — both
+// provisionLocationChannels (on first create) and applyLocationPermissions
+// (on every later re-sync) build from it, so the two can never disagree.
 function locationChannelSpec(location) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
@@ -392,16 +389,4 @@ async function syncLocationsFromYaml(prisma) {
   };
 }
 
-// The three provisioning primitives are exported alongside the sync itself so
-// db/prisma/reprovision-locations.js can rebuild a Location's channels through
-// the exact same code path rather than hand-copying the overwrite payloads
-// (which is how db/prisma/backfill-gm-permissions.js ended up with its own
-// duplicate copy of seven permission constants). Deliberately NOT spread into
-// the @lifeweb/db barrel — same posture as db/lib/dm.js; require by path.
-module.exports = {
-  syncLocationsFromYaml,
-  locationChannelSpec,
-  provisionLocationChannels,
-  deprovisionLocationChannels,
-  sortLocationCategories,
-};
+module.exports = { syncLocationsFromYaml };

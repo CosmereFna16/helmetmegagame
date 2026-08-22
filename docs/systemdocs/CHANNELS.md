@@ -34,9 +34,9 @@ were removed, since locations are never hand-edited mid-game.
 
 The layout itself is described once, by
 `db/lib/syncLocations.js#locationChannelSpec`: the category and all three
-channels as create payloads. `provisionLocationChannels` builds from it and
-`npm run db:reprovision-locations` diffs live channels against it, so a
-verify pass can't disagree with what provisioning would do.
+channels as create payloads. `provisionLocationChannels` (first create) and
+`applyLocationPermissions` (every later re-sync, see below) both build from
+it, so the two can never disagree.
 
 **Creation is one-time; two things are reconciled every run.**
 `syncLocationsFromYaml` only *creates* channels for Locations whose
@@ -127,26 +127,9 @@ This is also why the older single-concern backfills
 covered one slice of what the sync re-applies wholesale. They're kept because
 they're harmless and occasionally useful in isolation.
 
-`npm run db:reprovision-locations` (`db/prisma/reprovision-locations.js`)
-covers what the sync can't, because the sync never re-reads the live
-channels. Dry-run by default, like `prune-orphan-categories.js`:
-
-| Invocation | Effect |
-|---|---|
-| `npm run db:reprovision-locations` | Read-only. Diffs every provisioned Location's live category + 3 channels against `locationChannelSpec` — overwrites, channel type, slowmode, forum tags — and prints `OK`/`DRIFT` per Location. Exits non-zero on drift. |
-| `npm run db:reprovision-locations -- --apply <slug>...` | **Destructive.** Deletes each named Location's category + 3 channels (losing their messages) and recreates them through `provisionLocationChannels`. The only way to fix a wrong channel *type*, since that can't be patched. |
-
-Two details in the apply path are load-bearing. Deleting a category takes
-every per-character `ViewChannel` overwrite with it, so the script records
-the `ALIVE` characters standing in each Location first and re-grants them
-afterwards — skipping that silently locks players out of the room they're
-in. And each Location is rebuilt inside its own `try`/`catch` so one failure
-doesn't skip the rest; the sync's own uncaught provisioning loop is exactly
-what strands orphan categories, which is what
-`npm run db:prune-orphan-categories` is for.
-
-Verify mode reads raw overwrites over REST, so unlike checking by eye in
-Discord it is immune to the guild-owner exemption below.
+Checking by eye in Discord after a re-sync is unreliable if the account
+you're testing with owns the guild — see the exemption below. Read the raw
+overwrites via the REST API instead to actually confirm the fix landed.
 
 ## 4. Testing visibility: the guild owner always sees everything
 
