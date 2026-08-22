@@ -341,4 +341,5 @@ module.exports = {
   ...require("./lib/moveEffects"),
   ...require("./lib/resourceDelta"),
   ...require("./lib/laborAccess"),
+  ...require("./lib/travelCost"),
 };

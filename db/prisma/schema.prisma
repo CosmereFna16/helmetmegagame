@@ -271,6 +271,14 @@ model Location {
   zoneId              String
   zone                Zone     @relation(fields: [zoneId], references: [id])
 
+  // Where this location's node sits on the web app's Map panel, as
+  // percentages of the plate (0-100, origin top-left). Mastered by `map:` in
+  // docs/locations.yaml and rewritten on every sync, same as description /
+  // publicSubLocations. Null means the location simply isn't drawn on the
+  // plate — it's still reachable from the destination list beside it.
+  mapX Float?
+  mapY Float?
+
   discordCategoryId       String?
   discordChannelId        String?
   discordPublicChannelId  String?

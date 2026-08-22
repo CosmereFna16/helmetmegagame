@@ -8,14 +8,17 @@
 // access the same way Locations do: a permission overwrite on the
 // character's own personal Discord role, added/removed as their tags or
 // location change — never a separate gate role.
+const { DEPTHS_SLUGS } = require("./travelCost");
+
 const NARROWCAST_SLUGS = ["radio", "intercom"];
 
 const NARROWCAST_RULES = {
   // Anyone holding the Radio tag can hear and speak on it, unless they're
-  // currently in the Depths.
+  // currently in the Depths — all three levels of it are dead air, not just
+  // the deepest.
   radio: (ctx) => {
     if (!ctx.tagSlugs.has("radio")) return null;
-    if (ctx.locationSlug === "depths") return null;
+    if (DEPTHS_SLUGS.has(ctx.locationSlug)) return null;
     return { view: true, send: true };
   },
   // Audible anywhere in Fortress or Town; only speakable by an

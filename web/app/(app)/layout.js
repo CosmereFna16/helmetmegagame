@@ -12,6 +12,7 @@ import TurnChipAsync from "../components/TurnChipAsync";
 
 const PLAYER_NAV = [
   { href: "/character", label: "Character", icon: "character" },
+  { href: "/map", label: "Map", icon: "map" },
   { href: "/faction", label: "Faction", icon: "faction" },
   { href: "/notes", label: "Notes", icon: "notes" },
   { href: "/documents", label: "Documents", icon: "documents" },
@@ -25,6 +26,10 @@ const GM_NAV = [
   { href: "/gm/messages", label: "Messages", icon: "messages" },
   { href: "/notes", label: "Notes", icon: "notes" },
   { href: "/documents", label: "Documents", icon: "documents" },
+  // Appended rather than slotted in beside Character: on a GM's rail the
+  // first five are what the mobile bar shows, and Adjudicate/Players earn
+  // those slots ahead of the Map.
+  { href: "/map", label: "Map", icon: "map" },
   { href: "/gm/audit", label: "Audit", icon: "audit" },
 ];
 

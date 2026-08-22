@@ -237,6 +237,10 @@ async function syncLocationsFromYaml(prisma) {
     const description = entry.description ?? "";
     const publicSubLocations = entry.publicSubLocations ?? [];
     const privateSubLocations = entry.privateSubLocations ?? [];
+    // Map panel coordinates. Optional — a location with no `map:` is simply
+    // not drawn on the plate, rather than a sync failure.
+    const mapX = entry.map?.x ?? null;
+    const mapY = entry.map?.y ?? null;
 
     let location = await prisma.location.findUnique({ where: { slug: entry.id } });
     if (!location) {
@@ -246,7 +250,7 @@ async function syncLocationsFromYaml(prisma) {
       location = await prisma.location.findFirst({ where: { name: entry.name, zoneId: zone.id } });
     }
 
-    const data = { slug: entry.id, name: entry.name, zoneId: zone.id, tags, description, publicSubLocations, privateSubLocations };
+    const data = { slug: entry.id, name: entry.name, zoneId: zone.id, tags, description, publicSubLocations, privateSubLocations, mapX, mapY };
 
     if (!location) {
       location = await prisma.location.create({ data });
@@ -259,7 +263,9 @@ async function syncLocationsFromYaml(prisma) {
         location.description !== description ||
         JSON.stringify(location.tags) !== JSON.stringify(tags) ||
         JSON.stringify(location.publicSubLocations) !== JSON.stringify(publicSubLocations) ||
-        JSON.stringify(location.privateSubLocations) !== JSON.stringify(privateSubLocations);
+        JSON.stringify(location.privateSubLocations) !== JSON.stringify(privateSubLocations) ||
+        location.mapX !== mapX ||
+        location.mapY !== mapY;
       if (needsUpdate) {
         location = await prisma.location.update({ where: { id: location.id }, data });
         locationsUpdated += 1;

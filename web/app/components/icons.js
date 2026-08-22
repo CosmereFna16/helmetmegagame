@@ -79,6 +79,18 @@ export function NotesIcon(props) {
   );
 }
 
+// A folded map with a marked point on it — the Map panel's pointcrawl in
+// miniature, rather than the pin every other app uses for "location".
+export function MapIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M3 6.5l6-2.5 6 2.5 6-2.5v13l-6 2.5-6-2.5-6 2.5v-13z" strokeLinejoin="round" />
+      <path d="M9 4v13M15 6.5v13" strokeLinecap="round" />
+      <path d="M12 9l1.6 1.6-1.6 1.6-1.6-1.6L12 9z" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function LifewebIcon(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>

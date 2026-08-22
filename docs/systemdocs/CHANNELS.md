@@ -196,7 +196,8 @@ hardcoded in `db/lib/narrowcastAccess.js`'s `NARROWCAST_RULES` rather than
 authored in a YAML:
 
 - **`#radio`** — viewable and speakable by anyone holding the **Radio** tag,
-  *unless* their current Location is **Depths**.
+  *unless* their current Location is a level of the **Depths** — Caverns,
+  Railroad or Aberrant Pits, i.e. `DEPTHS_SLUGS` in `db/lib/travelCost.js`.
 - **`#intercom`** — viewable by anyone whose current Zone is **Fortress** or
   **Town**; speakable only by a character holding the **Intercom** tag *and*
   currently standing in the **Keep** (a Location inside Fortress).

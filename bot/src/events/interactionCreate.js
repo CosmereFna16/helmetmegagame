@@ -108,10 +108,11 @@ async function handleOpen(interaction) {
   // now location-by-location, not "anywhere in zone, or any connected
   // zone."
   let locations;
+  let currentLocation = null;
   if (!character.locationId) {
     locations = await prisma.location.findMany({ orderBy: { name: "asc" } });
   } else {
-    const currentLocation = await prisma.location.findUnique({
+    currentLocation = await prisma.location.findUnique({
       where: { id: character.locationId },
       include: { connectsTo: true },
     });
@@ -124,7 +125,7 @@ async function handleOpen(interaction) {
 
   await interaction.reply({
     content: "Where would you like to move? Choose a location.",
-    components: [buildLocationSelectRow(locations, character.zoneId)],
+    components: [buildLocationSelectRow(locations, currentLocation)],
     flags: MessageFlags.Ephemeral,
   });
 }

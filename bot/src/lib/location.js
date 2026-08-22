@@ -1,5 +1,7 @@
 const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const { prisma, buildNarrowcastContext, computeNarrowcastAccess } = require("@lifeweb/db");
+const { performTravel } = require("@lifeweb/db/lib/travel");
+const { isTravelFree } = require("@lifeweb/db/lib/travelCost");
 const { isLocationPromptChannel } = require("./channels");
 
 const FLEUR_EMOJI = "⚜️";
@@ -16,11 +18,12 @@ function buildOpenButtonRow() {
 
 // `locations` are the destinations to offer — either the character's
 // current Location's direct neighbors, or (first-ever placement, no
-// Location yet) every Location in the game. Each option's description notes
-// whether picking it will be free or spend the turn, based on whether that
-// Location shares the character's current Zone (see performMove) — skipped
-// when the character has no zone yet, since every choice is free then.
-function buildLocationSelectRow(locations, currentZoneId) {
+// Location yet) every Location in the game. `from` is the character's
+// current Location ({ slug, zoneId }) or null; each option's description
+// notes whether picking it will be free or spend the turn, asking the same
+// isTravelFree the server will ask on confirm — skipped when there's no
+// current Location, since every choice is free then.
+function buildLocationSelectRow(locations, from) {
   const menu = new StringSelectMenuBuilder()
     .setCustomId("loc:place")
     .setPlaceholder("Choose a location...")
@@ -28,7 +31,18 @@ function buildLocationSelectRow(locations, currentZoneId) {
       locations.map((l) => ({
         label: l.name,
         value: l.id,
-        ...(currentZoneId ? { description: l.zoneId === currentZoneId ? "Free" : "Costs your turn" } : {}),
+        ...(from
+          ? {
+              description: isTravelFree({
+                fromSlug: from.slug,
+                fromZoneId: from.zoneId,
+                toSlug: l.slug,
+                toZoneId: l.zoneId,
+              })
+                ? "Free"
+                : "Costs your turn",
+            }
+          : {}),
       })),
     );
   return new ActionRowBuilder().addComponents(menu);
@@ -107,70 +121,19 @@ async function syncCharacterNarrowcastAccess(guild, character) {
   );
 }
 
-// Executes a validated location change: free if staying within the same
-// zone (or the character has no zone yet), otherwise a turn-consuming
-// auto-resolved Move — reuses the existing turn-economy (Action rows scoped
-// to the open Turn) rather than a parallel tracker, and the same check
-// blocks a second Move submission this turn (see actionSubmission.js). A
-// Move is only legal at all if targetLocation is a direct neighbor of the
-// character's current Location (Location.connectsTo, see the picker in
-// bot/src/events/interactionCreate.js) — unrestricted if the character has
-// no Location yet (first-ever placement). Returns { ok: true, free } or
-// { ok: false, reason }.
+// Executes a validated location change. The validation, the free-vs-paid
+// decision and the database writes all live in db/lib/travel.js so the web
+// app's Map panel runs the identical rules; this wrapper only adds the
+// gateway-side Discord work performTravel deliberately leaves to its
+// caller. Returns { ok: true, free } or { ok: false, reason }.
 async function performMove(guild, character, targetLocation) {
-  if (character.locationId) {
-    const currentLocation = await prisma.location.findUnique({
-      where: { id: character.locationId },
-      include: { connectsTo: { where: { id: targetLocation.id } } },
-    });
-    if (!currentLocation || currentLocation.connectsTo.length === 0) {
-      return { ok: false, reason: "You can't get there directly from here." };
-    }
-  }
+  const result = await performTravel(prisma, character, targetLocation);
+  if (!result.ok) return result;
 
-  const isFree = !character.zoneId || targetLocation.zoneId === character.zoneId;
-
-  let openTurn = null;
-  if (!isFree) {
-    openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
-    if (!openTurn) return { ok: false, reason: "No turn is currently open." };
-
-    const existing = await prisma.action.findFirst({
-      where: { characterId: character.id, turnId: openTurn.id },
-    });
-    if (existing) return { ok: false, reason: "You've already acted this turn." };
-  }
-
-  const oldLocation = character.locationId
-    ? await prisma.location.findUnique({ where: { id: character.locationId } })
-    : null;
-
-  await swapLocationAccess(guild, character.discordRoleId, oldLocation, targetLocation);
-
-  await prisma.character.update({
-    where: { id: character.id },
-    data: { locationId: targetLocation.id, zoneId: targetLocation.zoneId },
-  });
-
+  await swapLocationAccess(guild, character.discordRoleId, result.oldLocation, targetLocation);
   await syncCharacterNarrowcastAccess(guild, character);
 
-  if (!isFree) {
-    await prisma.action.create({
-      data: {
-        characterId: character.id,
-        turnId: openTurn.id,
-        type: "MOVE",
-        status: "CONFIRMED",
-        moveReviewStatus: "SOLVED",
-        description: `Traveled to ${targetLocation.name}.`,
-        zoneId: targetLocation.zoneId,
-        resultMessage: `» Traveled to ${targetLocation.name}.`,
-        gmNotes: "auto:zone_change",
-      },
-    });
-  }
-
-  return { ok: true, free: isFree };
+  return { ok: true, free: result.free };
 }
 
 // Locks down the guild's "location" channel (read-only for @everyone — the

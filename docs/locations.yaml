@@ -21,6 +21,14 @@
 #   "town-square"/"town-square-public"/"town-square-private". Not a bug,
 #   just a Discord platform rule.
 # - zone: the Zone this location belongs to, matched/created by name.
+# - map: where this location's node sits on the web app's Map panel, as
+#   { x, y } percentages of the plate (0-100, origin top-left, the plate is
+#   4:3). Synced into Location.mapX/mapY on every run, so retuning the
+#   layout is an edit here and a re-sync — no code change. A location with no
+#   `map:` simply isn't drawn on the plate; it's still reachable from the
+#   destination list beneath it. `npm run map:check` reports crossing roads
+#   and nodes drawn on top of each other, which is the fast loop for moving
+#   these numbers around by hand.
 # - description: a sentence or two of flavor text for the location.
 # - publicSubLocations: ordered list (most important/flavorful first) of the
 #   sub-areas players can spin up forum posts for in the location's `-public`
@@ -59,7 +67,7 @@ locationConnections:
   - [undercroft, keep]
   - [gatehouse, undercroft]
   - [keep, gatehouse]
-  - [gatehouse, depths]
+  - [gatehouse, caverns]
   - [gatehouse, forest]
   - [gatehouse, town]
   - [gatehouse, church]
@@ -71,8 +79,10 @@ locationConnections:
   - [underquarter, sanctuary]
   - [town, customs]
   - [customs, merchants-depot]
-  - [customs, depths]
-  - [depths, warcamp]
+  - [customs, caverns]
+  - [warcamp, railroad]
+  - [caverns, railroad]
+  - [railroad, aberrant-pits]
   - [warcamp, forest]
   - [garrison, gatehouse]
   - [garrison, keep]
@@ -82,6 +92,7 @@ locations:
   - id: keep
     name: Keep
     zone: Fortress
+    map: { x: 30, y: 8 }
     description: Ceramite, the color of terracotta and steel, supports the impregnable fortress.
     publicSubLocations:
       - Throne Room
@@ -99,6 +110,7 @@ locations:
   - id: garrison
     name: Garrison
     zone: Fortress
+    map: { x: 48, y: 10 }
     description: The garrison tower, surrounded by smaller stone buildings.
     publicSubLocations:
       - Captain's Office
@@ -112,6 +124,7 @@ locations:
   - id: gatehouse
     name: Gatehouse
     zone: Fortress
+    map: { x: 38, y: 24 }
     description: Grass rises rebelliously around the manicured paths. Past the portcullis, old stone stairs rise towards the Keep, and further yet, to the Lifeweb.
     publicSubLocations:
       - Gate
@@ -124,6 +137,7 @@ locations:
   - id: undercroft
     name: Undercroft
     zone: Fortress
+    map: { x: 22, y: 20 }
     description: Pillars uphold the keep from collapsing onto the barrels of wine and antiquities. There are deeper passages.
     publicSubLocations:
       - Cistern
@@ -136,6 +150,7 @@ locations:
   - id: town
     name: Square
     zone: Town
+    map: { x: 74, y: 38 }
     description: Vines dress the homes. A crumbling wall, patched with wooden palisade, surrounds the town.
     publicSubLocations:
       - Town Square
@@ -150,6 +165,7 @@ locations:
   - id: church
     name: Cathedral
     zone: Town
+    map: { x: 40, y: 46 }
     description: Stained limestone erected modestly upon a tall wooded hill. The inside is vastly illuminated.
     publicSubLocations:
       - Hall
@@ -165,6 +181,7 @@ locations:
   - id: sanctuary
     name: Sanctuary
     zone: Town
+    map: { x: 44, y: 62 }
     description: A squat and vulnerable place, immaculately clean.
     publicSubLocations:
       - Ward
@@ -178,6 +195,7 @@ locations:
   - id: underquarter
     name: Underquarter
     zone: Town
+    map: { x: 70, y: 56 }
     description: Squat buildings, piled into discomfort.
     publicSubLocations:
       - Shacks
@@ -191,6 +209,7 @@ locations:
   - id: forest
     name: Forest
     zone: Town
+    map: { x: 12, y: 44 }
     description: Streams part mossy boulders under the green shadows of spruce and beech.
     publicSubLocations: []
     privateSubLocations: []
@@ -200,6 +219,7 @@ locations:
   - id: warcamp
     name: Warcamp
     zone: Windlands
+    map: { x: 12, y: 72 }
     description: An arbitrary array of tents, shields, and banners rise against the mountainside.
     publicSubLocations:
       - War Pavilion
@@ -217,6 +237,7 @@ locations:
   - id: customs
     name: Customs
     zone: Caves
+    map: { x: 82, y: 66 }
     description: The sentry beholds migrants and mercenaries as they talk around the fire.
     publicSubLocations:
       - Outpost
@@ -225,6 +246,7 @@ locations:
   - id: merchants-depot
     name: Merchant's Depot
     zone: Caves
+    map: { x: 92, y: 44 }
     description: Inside the caves, crates around a decayed metal frame. There is a small gap in the roof where light comes in.
     publicSubLocations:
       - Ledger Room
@@ -232,10 +254,36 @@ locations:
       - Bunkhouse
     privateSubLocations: []
     tags: []
-  - id: depths
-    name: Depths
+  # The three levels of the Depths. They sit in the Caves zone, but moving
+  # between any two of them costs a Move even so — the one place in the game
+  # where two Locations in one Zone aren't a free walk apart. See
+  # DEPTHS_SLUGS in db/lib/travelCost.js, which is keyed on these three ids.
+  - id: caverns
+    name: Caverns
     zone: Caves
-    description: The start and end of all things.
-    publicSubLocations: []
+    map: { x: 58, y: 78 }
+    description: The first level down. Lamplit stone, worked smooth by centuries of traffic, and everywhere the draught of something deeper.
+    publicSubLocations:
+      - Lantern Gallery
+      - Sump
+    privateSubLocations: []
+    tags: []
+  - id: railroad
+    name: Railroad
+    zone: Caves
+    map: { x: 32, y: 88 }
+    description: The second level down. Rail runs out of the dark and stops here, and everyone who comes to Ravenheart from elsewhere arrives on it.
+    publicSubLocations:
+      - Platform
+      - Sidings
+    privateSubLocations: []
+    tags: []
+  - id: aberrant-pits
+    name: Aberrant Pits
+    zone: Caves
+    map: { x: 14, y: 95 }
+    description: The third level down. The start and end of all things.
+    publicSubLocations:
+      - Shaft Head
     privateSubLocations: []
     tags: []

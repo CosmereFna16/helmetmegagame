@@ -192,7 +192,8 @@ bespoke and depends on the character's current Zone/Location as well as tags,
 not a simple "hold a tag" gate:
 
 - **`#radio`** — viewable/speakable by anyone holding the Radio tag, unless
-  they're currently in **Depths**.
+  they're currently on any level of the **Depths** (Caverns, Railroad,
+  Aberrant Pits — `DEPTHS_SLUGS` in `db/lib/travelCost.js`).
 - **`#intercom`** — viewable by anyone in the **Fortress** or **Town** Zone;
   speakable only by an Intercom-tagged character standing in the **Keep**.
 

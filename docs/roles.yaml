@@ -1213,7 +1213,7 @@ zones:
             multiple: true
             weight: unlimited
             starting_resources: 2
-            starting_location: customs
+            starting_location: railroad
             starting_tags: []
             doc_elements: []
           - name: Mercenary
