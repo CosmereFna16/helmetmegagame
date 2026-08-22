@@ -35,6 +35,9 @@ async function main() {
     console.log("permission repairs: none — every channel already matched the spec");
   }
   console.log(`channel order asserted on ${summary.channelsOrdered} channels`);
+  if (summary.channelsReparented.length > 0) {
+    console.log(`moved back into their category: ${summary.channelsReparented.join(", ")}`);
+  }
   if (summary.pruned.length > 0) {
     console.log(`pruned (deleted from DB + Discord): ${summary.pruned.join(", ")}`);
   }

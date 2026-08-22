@@ -68,9 +68,14 @@ but *only* because `sortLocationChannels` asserts it explicitly every run:
 > child channel until that pass existed, and freshly created siblings collide
 > on position, leaving Discord to break the tie by snowflake — which is how
 > the forum ended up rendering above the summary channel. The pass sends one
-> guild-wide `PATCH` carrying `{id, position, parent_id}` for every Location's
-> three channels (summary 0, public 1, private 2). `parent_id` rides along, so
-> a channel that drifted out of its category is pulled back in the same call.
+> guild-wide `PATCH` carrying `{id, position}` for every Location's three
+> channels (summary 0, public 1, private 2).
+>
+> **`parent_id` must not ride along in that call.** Positions are bulk;
+> reparenting is not — Discord rejects the whole request with `400` code
+> `40009`, *"Only one channel can have a parent_id modified at a time"*. So a
+> channel that drifted out of its category is repaired first, with its own
+> `PATCH` each, and only when the live tree says it is actually misplaced.
 
 | Channel | Type | Purpose | Slowmode |
 |---|---|---|---|

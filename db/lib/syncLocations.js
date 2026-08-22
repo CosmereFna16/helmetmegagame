@@ -315,14 +315,18 @@ async function sortLocationCategories(prisma) {
 // One PATCH for the whole guild: the endpoint takes any mix of channels and
 // interprets each position relative to its siblings under the same parent, so
 // the cost is a single request no matter how many Locations there are.
-// parent_id is asserted alongside, which also pulls back a channel that
-// drifted out of its category.
+//
+// `parent_id` must NOT ride along in that bulk call. Discord rejects the whole
+// request with 400 code 40009, "Only one channel can have a parent_id modified
+// at a time" — the position array is bulk, reparenting is not. A channel that
+// has drifted out of its category is therefore repaired separately below, one
+// PATCH each, and only when it is actually in the wrong place.
 async function sortLocationChannels(prisma) {
   const locations = await prisma.location.findMany({
     where: { discordCategoryId: { not: null } },
   });
 
-  const updates = [];
+  const intended = [];
   for (const location of locations) {
     const ordered = [
       location.discordChannelId,
@@ -331,13 +335,28 @@ async function sortLocationChannels(prisma) {
     ];
     ordered.forEach((id, position) => {
       if (!id) return;
-      updates.push({ id, position, parent_id: location.discordCategoryId });
+      intended.push({ id, position, parentId: location.discordCategoryId });
     });
   }
 
-  if (updates.length === 0) return 0;
-  await patchGuildChannelPositions(updates);
-  return updates.length;
+  if (intended.length === 0) return { ordered: 0, reparented: [] };
+
+  // Reparent first, so the position pass that follows sorts each channel
+  // against the siblings it will actually live beside. Read the live tree once
+  // to find the drifted ones — reparenting every channel unconditionally would
+  // be one request per channel on every sync, for a state that is almost
+  // always already correct.
+  const live = new Map((await getGuildChannels()).map((c) => [c.id, c]));
+  const reparented = [];
+  for (const { id, parentId } of intended) {
+    const current = live.get(id);
+    if (!current || current.parent_id === parentId) continue;
+    await patchChannel(id, { parent_id: parentId });
+    reparented.push(id);
+  }
+
+  await patchGuildChannelPositions(intended.map(({ id, position }) => ({ id, position })));
+  return { ordered: intended.length, reparented };
 }
 
 // Every slug referenced by locationConnections must belong to a Location
@@ -493,7 +512,7 @@ async function syncLocationsFromYaml(prisma) {
 
   // Channel order is reconciled for every Location, provisioned this run or
   // not — see sortLocationChannels. One PATCH, unconditionally.
-  const channelsOrdered = await sortLocationChannels(prisma);
+  const channelOrder = await sortLocationChannels(prisma);
 
   // Prune: destructively remove any Location no longer listed in the YAML.
   const stale = await prisma.location.findMany({ where: { slug: { notIn: [...entryIds] } } });
@@ -517,7 +536,8 @@ async function syncLocationsFromYaml(prisma) {
     provisioned: unprovisioned.map((l) => l.name),
     reconciled: preexisting.length,
     permissionRepairs,
-    channelsOrdered,
+    channelsOrdered: channelOrder.ordered,
+    channelsReparented: channelOrder.reparented,
     pruned: stale.map((l) => l.name),
     zonesPruned: staleZones.map((z) => z.name),
   };
