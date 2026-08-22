@@ -1,8 +1,16 @@
 const { prisma, concealedAlias } = require("@lifeweb/db");
 const { sendAsCharacter } = require("../lib/proxy");
-const { isDesignatedTupperChannel } = require("../lib/channels");
+const { isDesignatedTupperChannel, resolveChannelContext } = require("../lib/channels");
 const { handleActionSubmission } = require("../lib/actionSubmission");
 const { sendDm } = require("../lib/dm");
+const {
+  canHearPing,
+  canJoinThread,
+  isPrivateThread,
+  messageLink,
+  notifyMentioned,
+  resolveMentionedCharacters,
+} = require("../lib/mentions");
 
 // A literal prefix rather than a registered slash command: a slash command
 // replies through an interaction, which would not be a webhook message, so
@@ -54,10 +62,65 @@ module.exports = {
       conceal = { alias: concealedAlias(character) };
     }
 
+    // Captured BEFORE proxying: sendAsCharacter deletes the original message,
+    // and the mention list goes with it.
+    const mentionedRoleIds = [...message.mentions.roles.keys()];
+    const channel = message.channel;
+
+    let proxied;
     try {
-      await sendAsCharacter(message.channel, character, message, { conceal, content });
+      proxied = await sendAsCharacter(channel, character, message, { conceal, content });
     } catch (err) {
       console.error("Failed to proxy message:", err);
+      return;
     }
+
+    // A concealed message deliberately relays nothing: the whole point is that
+    // the room doesn't know who spoke, and a DM naming the location would hand
+    // the target a thread to pull on.
+    if (conceal || mentionedRoleIds.length === 0) return;
+
+    await handleMentions({ message, channel, proxied, mentionedRoleIds }).catch((err) =>
+      console.error("Failed to handle mentions:", err),
+    );
   },
 };
+
+// Two independent things a character-role mention does, both of which the bot
+// has to perform itself once the roles are assigned to nobody (see the
+// identity/access split): notify the player, and — in a private thread — let
+// them in, which Discord used to do for free by auto-adding a mentioned role's
+// members.
+async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
+  const context = resolveChannelContext(channel);
+  const mentioned = await resolveMentionedCharacters(mentionedRoleIds, message.author.id);
+  if (mentioned.length === 0) return;
+
+  const link = messageLink(message.guildId, channel.id, proxied.id);
+  const privateThread = isPrivateThread(channel);
+
+  for (const target of mentioned) {
+    if (privateThread) {
+      // Location-scoped, unlike the Zone gate below — Discord needs the target
+      // to be able to view the parent channel, which only holds while they're
+      // standing in that Location. Telling the pinger why keeps a refusal from
+      // reading as a bug; a proxied message has no interaction to reply to.
+      if (!canJoinThread(target, context)) {
+        await sendDm(
+          message.author,
+          `» *${target.name} isn't in ${context.locationName ?? "this location"} — they can't be brought into this thread.*`,
+        ).catch(() => {});
+        continue;
+      }
+      await channel.members.add(target.discordUserId).catch((err) =>
+        console.error(`Failed to add ${target.discordUserId} to thread ${channel.id}:`, err),
+      );
+      await notifyMentioned(message.client, target, context, link);
+      continue;
+    }
+
+    if (await canHearPing(target, context)) {
+      await notifyMentioned(message.client, target, context, link);
+    }
+  }
+}

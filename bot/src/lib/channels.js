@@ -15,11 +15,13 @@ const { prisma } = require("@lifeweb/db");
 // every message.
 let locationChannelIds = { tupperSummary: new Set(), tupperOnly: new Set() };
 
-// channelId -> { locationId, locationName, channelKind }, the same refresh
-// feeding the Sets above. It exists so the proxy can stamp an archive row with
-// where a message was said without a DB round trip per message; the narrowcast
-// channels are in here too, with a null location, since they aren't tied to a
-// place (see db/lib/narrowcastAccess.js).
+// channelId -> { locationId, locationName, zoneId, channelKind }, the same
+// refresh feeding the Sets above. It exists so the proxy can stamp an archive
+// row with where a message was said, and so the mention relay can gate a ping
+// on the speaker's Zone, both without a DB round trip per message. The
+// narrowcast channels are in here too with a null location AND null zone —
+// they aren't tied to a place, which is exactly what makes the relay fall
+// through to their own access rules (see db/lib/narrowcastAccess.js).
 let channelContexts = new Map();
 
 async function refreshLocationChannels() {
@@ -28,6 +30,7 @@ async function refreshLocationChannels() {
       select: {
         id: true,
         name: true,
+        zoneId: true,
         discordChannelId: true,
         discordPublicChannelId: true,
         discordPrivateChannelId: true,
@@ -38,22 +41,24 @@ async function refreshLocationChannels() {
   const tupperSummary = new Set();
   const tupperOnly = new Set();
   const contexts = new Map();
-  const note = (channelId, locationId, locationName, channelKind) => {
-    if (channelId) contexts.set(channelId, { locationId, locationName, channelKind });
+  const note = (channelId, context) => {
+    if (channelId) contexts.set(channelId, context);
   };
 
   for (const loc of locations) {
     if (loc.discordChannelId) tupperSummary.add(loc.discordChannelId);
     if (loc.discordPublicChannelId) tupperSummary.add(loc.discordPublicChannelId);
     if (loc.discordPrivateChannelId) tupperOnly.add(loc.discordPrivateChannelId);
-    note(loc.discordChannelId, loc.id, loc.name, "plain");
-    note(loc.discordPublicChannelId, loc.id, loc.name, "public");
-    note(loc.discordPrivateChannelId, loc.id, loc.name, "private");
+    const place = { locationId: loc.id, locationName: loc.name, zoneId: loc.zoneId };
+    note(loc.discordChannelId, { ...place, channelKind: "plain" });
+    note(loc.discordPublicChannelId, { ...place, channelKind: "public" });
+    note(loc.discordPrivateChannelId, { ...place, channelKind: "private" });
   }
   if (config?.radioChannelId) tupperOnly.add(config.radioChannelId);
   if (config?.intercomChannelId) tupperOnly.add(config.intercomChannelId);
-  note(config?.radioChannelId, null, null, "radio");
-  note(config?.intercomChannelId, null, null, "intercom");
+  const nowhere = { locationId: null, locationName: null, zoneId: null };
+  note(config?.radioChannelId, { ...nowhere, channelKind: "radio" });
+  note(config?.intercomChannelId, { ...nowhere, channelKind: "intercom" });
 
   locationChannelIds = { tupperSummary, tupperOnly };
   channelContexts = contexts;
@@ -71,6 +76,7 @@ function resolveChannelContext(channel) {
   return {
     locationId: context?.locationId ?? null,
     locationName: context?.locationName ?? null,
+    zoneId: context?.zoneId ?? null,
     channelKind: context?.channelKind ?? null,
     threadName: isThread ? (channel.name ?? null) : null,
   };

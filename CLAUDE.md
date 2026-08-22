@@ -450,6 +450,63 @@ The archive records both halves — `ArchiveEntry.concealedAlias` alongside the 
 the one surface where concealment is undone, which is why `archiveVisible` is meant to
 stay shut until the game ends.
 
+## Character mentions and private threads
+
+A character's personal Discord role is a **mentionable name token**, and
+`Character.discordRoleId` is `@unique`, so a mentioned role id resolves straight
+back to one character. Mentioning a GM/spectator/player role resolves to nothing
+and is silently ignored. `bot/src/lib/mentions.js` owns both things a mention
+does; `bot/src/events/messageCreate.js` calls it after proxying.
+
+**Mentions must be read before the message is proxied** — `sendAsCharacter`
+deletes the original, taking `message.mentions` with it — but the jump link
+needs the *proxied* message's id. So the order is capture → proxy → relay.
+
+**The relay is a DM, gated so a ping can't carry further than a voice would.**
+Without a gate, pinging is a free cross-map signalling channel. Two rules,
+because the two kinds of channel mean different things by "in earshot":
+
+- **Location channels** gate on **Zone**, deliberately looser than the room:
+  someone in the Square can shout for someone at the Cathedral.
+- **`#radio`/`#intercom`** have no Zone at all, so they gate on whether the
+  target currently *hears that channel* — `computeNarrowcastAccess` from
+  `db/lib/narrowcastAccess.js` rather than a second copy of those rules, which
+  keeps the Depths dead air for pings too.
+
+The DM carries **where and a jump link, never the message text**: a ping into a
+private thread the target hasn't joined would otherwise leak the room's content,
+and a `DirectMessage` row outlives the ❌ that deletes the message it quoted. A
+**concealed message relays nothing at all** — the room isn't meant to know who
+spoke, and a DM naming the location would hand the target a thread to pull on.
+
+**The proxy sets `allowedMentions: { parse: ["users"] }`**, so a role mention
+renders as a chip but notifies nobody (`allowed_mentions` governs notification,
+not display) and the relay DM is the single notification path. Without it
+Discord would double-notify today and — once the roles are assigned to nobody —
+notify no one at all.
+
+**In a private thread, a mention also adds that character's player to it.**
+Discord does this for free today by auto-adding a mentioned role's members, but
+that stops working the moment the roles have zero members, so the bot takes it
+over. `/add` and `/remove` are the same operation by command, both taking a
+**role option** rather than a user option on purpose: the picker then names
+characters, never Discord accounts, so inviting someone can't reveal who plays
+them. Anyone already in the thread may add or remove, plus GMs.
+
+Joining is **Location-scoped**, stricter than the relay's Zone gate and not a
+choice: Discord requires the target to be able to view the thread's parent
+channel, and that view comes from the per-character overwrite on the Location
+category, which only exists while they're standing there. A refused
+mention-add DMs the *pinger* the reason, since a proxied message has no
+interaction to reply to and silence would read as a bug.
+
+Two things worth knowing rather than fixing: private threads are deleted
+wholesale every Dawn (`db/lib/dawnWipe.js`), so membership is inherently
+per-turn and nothing needs persisting; and removing a member the bot didn't add
+needs `MANAGE_THREADS`, which comes from the bot's own role and is not granted
+by `locationChannelSpec` — `/remove` reports that failure rather than silently
+timing out.
+
 ## Discord permission model
 
 There is no single unified permission system — a few independent kinds of Discord role drive access, each synced from a different piece of state, plus one env-configured admin role. `Faction` is not one of them — it's a pure Lifeweb game-state concept (see "How the bot populates the database" above) with no Discord role backing it at all.
@@ -625,7 +682,9 @@ Two carve-outs. A `{resource:…}` bubble already renders its own glyph via `web
 
 ## GM slash commands
 
-`/gm` and `/message` are the bot's first slash commands (`bot/src/lib/commands.js`), registered per-guild on `ready` (`registerCommands`, guild-scoped rather than global so they update instantly instead of waiting on Discord's ~1hr global-command propagation) and handled in `bot/src/events/interactionCreate.js` alongside the pre-existing button/select-menu location picker. Both are gated on `DISCORD_GM_ROLE_ID` membership, checked the same way as the location picker and `messageReactionAdd.js`'s fog-reaction handler. `/gm <message> [attachment]` posts to the current channel as the bot itself (the slash-command replacement for the old ":gm"-prefix text shorthand, which deleted+reposted a GM's message). `/message <recipient> <message>` DMs a chosen server member as the bot itself, routed through `bot/src/lib/dm.js#sendDm` for `DirectMessage` logging, with the `»` prefix applied inline since it's a bot-composed DM (see "Bot message style" above).
+`/gm` and `/message` are the bot's GM-gated slash commands (`bot/src/lib/commands.js`), registered per-guild on `ready` (`registerCommands`, guild-scoped rather than global so they update instantly instead of waiting on Discord's ~1hr global-command propagation) and handled in `bot/src/events/interactionCreate.js` alongside the pre-existing button/select-menu location picker. Both are gated on `DISCORD_GM_ROLE_ID` membership, checked the same way as the location picker and `messageReactionAdd.js`'s fog-reaction handler. `/gm <message> [attachment]` posts to the current channel as the bot itself (the slash-command replacement for the old ":gm"-prefix text shorthand, which deleted+reposted a GM's message). `/message <recipient> <message>` DMs a chosen server member as the bot itself, routed through `bot/src/lib/dm.js#sendDm` for `DirectMessage` logging, with the `»` prefix applied inline since it's a bot-composed DM (see "Bot message style" above).
+
+The other registered commands are **not** GM-gated: `/hunt`/`/fish`/`/farm`/`/herd` (see "Food production" above) and `/add`/`/remove` (see "Character mentions and private threads" above) gate on having a living character instead. `registerCommands` uses `guild.commands.set()`, a full replace, so adding or removing a command needs no deregistration step.
 
 ## Git workflow
 
@@ -745,7 +804,7 @@ global CLIs. To make one able to build, run and deploy:
 
 - `web/CLAUDE.md` / `web/AGENTS.md` are generated and maintained by the Next.js tooling itself (regenerated by `next dev`) — they carry version-specific Next.js guidance and are separate from this file.
 - The bot has no ESLint config yet; the web app's linting is scoped to `web/` only.
-- No player-facing slash commands exist in the bot yet (`/effort`, `/move`, `/resource`, `/zone`, `/tag`, etc.) — only `/gm` and `/message` (GM-only, see above), the passive guild/role sync, audit logging, and character-proxying described elsewhere in this file.
+- The player-facing slash commands are `/hunt`/`/fish`/`/farm`/`/herd` and `/add`/`/remove`; `/gm` and `/message` are GM-only. Several once-imagined ones still don't exist (`/effort`, `/move`, `/resource`, `/zone`, `/tag`) — submitting a Move is still a message in `#turns`, and travel is still the ⚜ picker in `#location`.
 - **Waiting for Opponents** is a `MoveReviewStatus` value the Moves table already colours, but nothing ever sets it — a GM parks an Opposed Move by simply not solving it yet. The Opposed tooltip in `MovePanel.js` is the only thing pointing at the workflow.
 - The **Dev Character Panel** is still `/gm/dev/characters/[characterId]`, the plain character editor. `DevCharacterButton.js` (the hammer on both adjudication panels) points there, so replacing it with the comprehensive version — every field editable, plus kill / clear-status shortcuts — needs no change at the call sites.
 - The **mid-game** tag store isn't routed yet. `PointBuy.js` already supports it (`afterStartOnly`) and `Character.tagPoints` already carries the balance; what's missing is a route that spends it and the rules for earning points during play (the old Desire system was ripped out).

@@ -18,6 +18,22 @@ const commandDefinitions = [
     .addUserOption((opt) => opt.setName("recipient").setDescription("Who to message").setRequired(true))
     .addStringOption((opt) => opt.setName("message").setDescription("What to say").setRequired(true))
     .setDMPermission(false),
+  // Private-thread guest list. A ROLE option rather than a user option on
+  // purpose: the picker then names characters, never Discord accounts, so
+  // inviting someone can't reveal who plays them — the same reason the
+  // personal role is the mentionable name token in the first place. The
+  // handler resolves the role back to a Character and ignores anything that
+  // isn't one (GM, spectator, player roles).
+  new SlashCommandBuilder()
+    .setName("add")
+    .setDescription("Bring a character into this private thread.")
+    .addRoleOption((opt) => opt.setName("character").setDescription("Whose role to add").setRequired(true))
+    .setDMPermission(false),
+  new SlashCommandBuilder()
+    .setName("remove")
+    .setDescription("Remove a character from this private thread.")
+    .addRoleOption((opt) => opt.setName("character").setDescription("Whose role to remove").setRequired(true))
+    .setDMPermission(false),
   // One command per field rather than the old `/labor field:hunt`, so the
   // slash command and the "/hunt" text shorthand a Move or a Default Move
   // accepts are spelled identically. Built from LABOR_FIELDS so the two

@@ -11,6 +11,8 @@ const {
   formatGambitModifiers,
 } = require("@lifeweb/db/lib/gambitModifier");
 const { applyMoveEffects, rollDie } = require("@lifeweb/db/lib/moveEffects");
+const { canJoinThread, isPrivateThread } = require("../lib/mentions");
+const { resolveChannelContext } = require("../lib/channels");
 
 function isGmMember(interaction) {
   const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
@@ -84,6 +86,91 @@ async function handleLaborCommand(interaction, field) {
   lines.push("» *Move confirmed — waiting on GM review.*");
 
   await interaction.reply({ content: lines.join("\n"), flags: MessageFlags.Ephemeral });
+}
+
+// /add and /remove: the private-thread guest list. Both take a ROLE option so
+// the picker names characters rather than Discord accounts (see
+// bot/src/lib/commands.js), and both refuse outside a private thread.
+//
+// Anyone already in the thread may add or remove, plus GMs — the same posture
+// as pinging someone in, which any participant can already do. Membership is
+// inherently per-turn: every private thread is deleted wholesale at Dawn
+// (db/lib/dawnWipe.js), so none of this needs persisting.
+async function handleThreadMemberCommand(interaction, action) {
+  const channel = interaction.channel;
+  if (!isPrivateThread(channel)) {
+    await interaction.reply({
+      content: "» *That only works inside a private thread.*",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  const gm = isGmMember(interaction);
+  if (!gm) {
+    const member = await channel.members.fetch(interaction.user.id).catch(() => null);
+    if (!member) {
+      await interaction.reply({
+        content: "» *You're not in this thread.*",
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+  }
+
+  const role = interaction.options.getRole("character");
+  const target = await prisma.character.findFirst({
+    where: { discordRoleId: role.id, status: "ALIVE" },
+  });
+  if (!target) {
+    await interaction.reply({
+      content: "» *That isn't a living character's role.*",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  if (action === "remove") {
+    // Caught rather than left to the outer handler, which only logs — the
+    // likely failure is the bot lacking MANAGE_THREADS on this channel, and
+    // the invoker would otherwise just see "the application did not respond".
+    try {
+      await channel.members.remove(target.discordUserId);
+    } catch (err) {
+      console.error(`Failed to remove ${target.discordUserId} from thread ${channel.id}:`, err);
+      await interaction.reply({
+        content: "» *Couldn't remove them — the bot may be missing Manage Threads here.*",
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+    await interaction.reply({ content: `» *${target.name} was removed.*`, flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  // Location-scoped rather than Zone-scoped, and not a choice: Discord needs
+  // the target to be able to view the thread's parent channel, which only
+  // holds while they're standing in that Location.
+  const context = resolveChannelContext(channel);
+  if (!canJoinThread(target, context)) {
+    await interaction.reply({
+      content: `» *${target.name} isn't in ${context.locationName ?? "this location"} — they can't be brought in.*`,
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  try {
+    await channel.members.add(target.discordUserId);
+  } catch (err) {
+    console.error(`Failed to add ${target.discordUserId} to thread ${channel.id}:`, err);
+    await interaction.reply({
+      content: "» *Couldn't add them — they may not be able to see this location.*",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+  await interaction.reply({ content: `» *${target.name} was added.*`, flags: MessageFlags.Ephemeral });
 }
 
 // All custom IDs below are namespaced "loc:" for the zone/location travel
@@ -335,6 +422,9 @@ module.exports = {
       if (interaction.isChatInputCommand()) {
         if (interaction.commandName === "gm") return void (await handleGmCommand(interaction));
         if (interaction.commandName === "message") return void (await handleMessageCommand(interaction));
+        if (interaction.commandName === "add" || interaction.commandName === "remove") {
+          return void (await handleThreadMemberCommand(interaction, interaction.commandName));
+        }
         if (LABOR_FIELDS.includes(interaction.commandName)) {
           return void (await handleLaborCommand(interaction, interaction.commandName));
         }

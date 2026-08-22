@@ -81,6 +81,13 @@ async function sendAsCharacter(channel, character, message, { conceal = null, co
     avatarURL: conceal ? concealedAvatarUrl() : avatarUrlFor(character),
     files: [...message.attachments.values()].map((a) => a.url),
     threadId,
+    // Role mentions render as a chip but notify nobody — allowed_mentions
+    // governs notification, not display. Character-role pings are relayed as a
+    // DM instead (bot/src/lib/mentions.js), gated on whether the target could
+    // actually hear it; letting Discord also fire the role would double-notify
+    // now and, once the roles are assigned to nobody, notify no one at all.
+    // Matches db/lib/discordRest.js#executeWebhook, which already does this.
+    allowedMentions: { parse: ["users"] },
   });
 
   trackProxy(webhookMessage.id, {
