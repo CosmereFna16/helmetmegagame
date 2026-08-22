@@ -68,7 +68,7 @@ since Discord assigns position by creation order):
 **Renaming**: editing a `Location.name` in the DB or in `locations.yaml`
 after provisioning does **not** rename the live Discord category/channels —
 this is deliberate (see the "never touches an already-provisioned Location"
-guarantee in the root `CLAUDE.md`). Renaming live channels requires a
+guarantee in `SYNC.md`). Renaming live channels requires a
 one-off script against the Discord REST API.
 
 ## 3. Visibility: category is hidden by default, per-character role grants access
@@ -80,9 +80,22 @@ at the **category** level (child channels inherit permissions):
 - On provisioning, the category denies `ViewChannel` to `@everyone` and
   (if `DISCORD_GM_ROLE_ID` is set) explicitly allows it for the GM role, so
   GMs always see every category regardless of where their character is.
-- Every `ALIVE` character has a personal Discord role named after the
-  character (`Character.discordRoleId`, see root `CLAUDE.md` §"Zones,
-  Locations, and character roles"). When a character's location changes,
+- Every `ALIVE` character has a personal Discord role
+  (`Character.discordRoleId`), titled after their **bare** name — first + last
+  via `formatBareName`, never the honorific or the granted title — and coloured
+  deterministically from a curated muted cyan/terracotta/brown/green palette
+  (`db/lib/roleColor.js#hashNameToColor`, seeded from that same bare string, so
+  the same name always yields the same colour). Bare on both counts
+  deliberately: the role is an `@`-mentionable access-control primitive rather
+  than an RP surface, and seeding the colour off the bare name means granting
+  or changing a title never renames or recolours anyone.
+  `web/lib/discordGuild.js#ensureCharacterRole` creates and assigns it the
+  first time a character has a name, and renames/recolours it on every later
+  profile save — called from `updateCharacterProfile` (self-service) and
+  `updateCharacterRaw` (GM raw edit). `npm run db:backfill-roles` is the
+  one-off catch-up for characters that predate it.
+
+  When a character's location changes,
   that role gets a single `ViewChannel` permission overwrite added on the
   *new* category and removed from the *old* one — never a static list of
   every character on every category. At any moment a category only carries
@@ -158,8 +171,8 @@ twice-daily cron or a GM's manual "End Turn" button.
 back out of Discord and re-posting it into a single guild-wide `#archive`
 channel — the most expensive thing the bot did, since one channel is one
 ~1 msg/sec lane, and it grew with player count. The transcript is now recorded
-at *send* time instead (`db/lib/archive.js`, read at `/archive` — see
-"Archive" in the root `CLAUDE.md`), so there is no `#archive` channel any more
+at *send* time instead (`db/lib/archive.js`, read at `/archive` —
+`ARCHIVE.md`), so there is no `#archive` channel any more
 and nothing here reads message content. Deleting is the cheap half:
 `bulkDeleteMessages` moves 100 messages per request, and at a 12-hour cadence
 nothing is ever near the 14-day floor where bulk delete stops working.

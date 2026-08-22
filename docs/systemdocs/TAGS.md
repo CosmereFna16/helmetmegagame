@@ -422,9 +422,8 @@ takes one slot however many units are held.
 
 `concealsIdentity: true` marks gear that hides who the wearer is — a mask, a
 hood, a closed helm. It is currently **inert**: `/conceal` is open to every
-character with nothing equipped (see "Equipment and concealed identity" in
-`CLAUDE.md`), and the field is kept only so that gate can be restored without a
-migration. It is only meaningful
+character with nothing equipped (`PROXYING.md` §5), and the field is kept only
+so that gate can be restored without a migration. It is only meaningful
 alongside `equippable`, and `syncTagsFromYaml` **throws** if it is set without
 it rather than syncing a tag that could never do anything — the kind of quiet
 failure that is miserable to debug from inside the game.
@@ -433,3 +432,27 @@ Neither field interacts with `visible` (`Tag.visibleOnInspect`), which does
 double duty here: a concealed character's 🔍 embed lists only their
 `visibleOnInspect` equipped gear and their `visibleOnInspect` health statuses,
 so a hidden cuirass stays hidden even while worn.
+
+### The equipment panel
+
+`EquipmentPanel.js` on `/character` is **click-to-toggle**, not drag-and-drop —
+drag would need a touch fallback that is exactly this anyway — and is its own
+surface rather than an affordance on `TagChip`, whose click already opens the
+Consume dialog.
+
+Equipping is **instant and writes neither a `Request` nor an `AuditLog` row**,
+unlike everything in `REQUESTS.md`. It costs nothing, the player undoes it in
+one tap, and at 100+ players a row per toggle would drown `/gm/audit`.
+
+`toggleEquip` (`web/app/(app)/character/equipActions.js`) resolves the character
+from the session rather than trusting a posted id, re-checks `tag.equippable`,
+and counts the slots inside a transaction — **but the count alone is not
+sufficient.** Prisma runs at READ COMMITTED, so two tabs both read the same free
+slot and both write. The transaction opens with
+
+```sql
+SELECT id FROM "Character" ... FOR UPDATE
+```
+
+which serializes equips per character. Without it, a burst of 8 concurrent
+equips all land against a cap of 6 (verified).

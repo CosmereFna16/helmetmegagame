@@ -1,8 +1,10 @@
 # Characters: creation, roles, and death
 
 How a player gets a character, what the point-buy economy is, and what
-happens when that character dies. Companion to `TAGS.md` (the tag catalog)
-and `CHANNELS.md` (the Discord channel/permission layout).
+happens when that character dies — plus the four-field name and the two locks
+on creation. Companion to `TAGS.md` (the tag catalog), `CHANNELS.md` (the
+Discord channel/permission layout) and `PROXYING.md` (nicknames and personal
+roles).
 
 ## 1. The shape of it
 
@@ -28,9 +30,8 @@ The wizard has six steps:
    `Sir Jorren "the Blind" Vask`. The fourth, `title`, renders in quotes
    between the names and is **GM-only** — it has no input in the wizard, and
    the character sheet shows it disabled with a "make your case to a GM"
-   tooltip. `Character.name` remains as a denormalized mirror of the join,
-   kept in sync by exactly three writers; see "Character names" in
-   `CLAUDE.md` for why it survives and what `NAME_LIMITS` is protecting.
+   tooltip. `Character.name` remains as a denormalized mirror of the join.
+   See §1b.
 2. **Role** — the role list, grouped Zone → Faction → Role, with live seat
    counts.
 3. **Tags** — the point-buy menu.
@@ -53,6 +54,120 @@ The wizard has six steps:
    a server action is a public endpoint, so the checkboxes are UX and that
    function is the boundary.
 6. **Confirm** — a summary, then `createCharacter`.
+
+## 1b. Names
+
+A displayed name is **four fields**, joined by
+`db/lib/characterName.js#formatCharacterName`:
+
+```
+Sir Jorren "the Blind" Vask
+ |    |         |        |
+ |    |         |        `-- lastName   String?  optional, player-editable
+ |    |         `----------- title      String?  GM-ONLY, renders in quotes
+ |    `--------------------- firstName  String   required, player-editable
+ `-------------------------- honorific  String?  player picks from a fixed dropdown
+```
+
+`honorific` is **ungated** — any character may pick any of the 21 entries in
+`HONORIFICS` (Mr./Mrs./Ms./Master, Sir/Dame/Lord/Lady/Baron/Baroness,
+Father/Mother/Brother/Sister/Bishop, Captain/Sergeant/Marshal/Constable,
+Doctor/Professor).
+
+`title` is the opposite: set **only** from `/gm/dev/characters/[characterId]`.
+The character sheet shows it as a `disabled` input with a "make your case to a
+GM" tooltip — but the greying is not the lock. A disabled input submits nothing,
+and `updateCharacterProfile` never reads the key. It does have to feed the row's
+*existing* `title` back into `formatCharacterName`, or a player saving their bio
+would silently strip a title a GM had granted.
+
+### `Character.name` is a denormalized mirror
+
+Same posture as `Character.zoneId` (`ARCHITECTURE.md` §6). It's what ~60 readers
+want — `orderBy`, `select: { name: true }`, the `/gm/audit` `contains` search,
+the proxy webhook username — and Prisma cannot concatenate columns in
+`orderBy`/`contains`, so dropping it would force search and sort into
+`OR`-over-three-columns for correctness nobody can see.
+
+Keeping it also means the never-backfilled name snapshots
+(`Note.characterName`, `SiloTransaction.actorName`/`toName`,
+`ArchiveEntry.characterName`, `AuditLog.details`) capture the titled form with
+no code change — correct, since those record who did something *as they were
+known then*.
+
+**Exactly four writers** keep it honest, and every one goes through the
+formatter:
+
+| Writer | When |
+|---|---|
+| `character/createActions.js` | Creation |
+| `character/actions.js#updateCharacterProfile` | Self-service edit |
+| `gm/dev/actions.js#updateCharacterRaw` | GM raw edit |
+| `web/lib/dynasty.js#propagateDynastyLastName` | The Baron renaming his house |
+
+A fifth must do the same. `npm run db:backfill-name-parts` is the drift check
+that catches one that doesn't.
+
+### `NAME_LIMITS` (10/24/20/20)
+
+Not cosmetic. Discord caps a webhook username at 80 characters and the proxy
+sends `name` as-is, so the **inputs** are capped instead and the composed name
+is ≤79 by construction. All three form-fed writers apply the caps and
+`normalizeHonorific`'s allowlist server-side — every one of those forms is a
+public endpoint.
+
+### Age
+
+`Character.age` (18–90, nullable) follows the same shown-but-locked posture as
+`title`, from the other direction: it is the player's to set, **but only once**.
+While null the `/character` input is live; the moment a number is saved it
+renders `disabled` with an `InfoIcon`, and `updateCharacterProfile` refuses to
+overwrite a non-null age however the form is posted. The disabled input is the
+hint, not the lock. The wizard takes it optionally, and a GM can always correct
+it. Read by `db/lib/concealedIdentity.js` for the Young/Old half of a concealed
+alias (`PROXYING.md` §5).
+
+### The dynasty last name
+
+`lastName` is the player's own **except for the Baron's house**. The four Court
+seats — `baron`, `baroness`, `heir`, `successor` — are one family, so the Baron
+chooses the dynasty name and the other three inherit it: their last name is
+never read from a form they posted.
+
+- `db/lib/dynasty.js` (pure, in the barrel) — the slug list and two predicates.
+- `web/lib/dynasty.js` — the prisma/Discord half. `dynastyLastName()` reads the
+  living Baron (the seat is `multiple: false`, so `findFirst` is exact);
+  `propagateDynastyLastName()` restamps the family.
+
+The lock lives in all three form-fed writers, GM raw edit included, keyed on
+**the role being saved** — so moving someone into a family seat renames them in
+the same write. The greyed-out inputs are the hint, not the lock.
+
+Two consequences worth keeping: a family member created before any Baron exists
+simply has no last name until he rolls up; and propagation runs only after a
+Baron *write*, never on his death, so a widowed house keeps the name it was
+given until a new Baron overwrites it.
+
+`propagateDynastyLastName` fires `ensureCharacterRole` + `syncCharacterNickname`
+per renamed character, since the bare name feeds both. **No `AuditLog` row** —
+the rename is a consequence of the Baron's own edit, which is already logged.
+
+### Bare names, and sorting
+
+Two surfaces deliberately use the **bare** name (`formatBareName`, first +
+last): the personal Discord role's name and colour seed, and the Discord
+nickname (`PROXYING.md` §8). The role is an `@`-mentionable access-control
+primitive rather than an RP surface, and seeding the colour off the bare name
+means granting or changing a title never renames or recolours anyone.
+
+`orderBy: { name: "asc" }` on a Character would file `Sir Jorren` under S, so
+the seven Character-model sites use
+`[{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }]`. Most
+`orderBy: { name }` in the codebase is on Faction/Zone/Tag/Location and is
+untouched — **check the model before changing one.** The client-side
+`characterName` sort in the GM tables still sorts the titled string, which is
+fine: those tables are searched far more than sorted, and the search matches
+the same string.
 
 ## 2. Roles
 
@@ -177,6 +292,32 @@ app.
 unused leftover, kept only because dropping a Postgres enum value is a risky
 migration.)
 
+## 4b. Launch gating
+
+Character creation is behind **two independent locks**, both of which must be
+open:
+
+1. `GameConfig.openToPlayers` — a Dev Panel toggle, off by default. "The doors
+   are open."
+2. The hardcoded `PLAYER_ROLE_ID` (`db/lib/roleIds.js`). "You are on the list."
+
+The enforcement boundary is `createCharacter`
+(`web/app/(app)/character/createActions.js`), checked **before** any point-buy
+validation. `/character` additionally renders `CreationClosed.js` instead of the
+wizard, so the reason is legible up front rather than arriving as an error after
+four steps.
+
+A **superadmin bypasses both** (`web/lib/superadmin.js#isSuperadmin`, checked in
+`createCharacter` and mirrored in `/character`'s render so the host sees the
+wizard). That's host/developer access, not a game permission — it exists so the
+host can roll a test character without flipping the live toggle for everyone.
+Enforcement still lives in the server action; the page-level check is
+presentation.
+
+**The gate covers character creation only.** Everything else — `/documents`
+especially — stays readable. That's the point: the site goes up before the game
+opens so players can read the rules.
+
 ## 5. Death
 
 Setting a character to `DEAD` used to write a column and nothing else — it
@@ -235,3 +376,7 @@ never deletes.
 | Point-buy menu | `web/app/components/PointBuy.js` |
 | Creation action | `web/app/(app)/character/createActions.js` |
 | Discord access + death | `web/lib/discordGuild.js` |
+| Name formatting | `db/lib/characterName.js` |
+| Dynasty | `db/lib/dynasty.js`, `web/lib/dynasty.js` |
+| Antagonist catalog | `db/lib/antagonists.js` |
+| Launch gating | `db/lib/roleIds.js`, `web/lib/superadmin.js` |
