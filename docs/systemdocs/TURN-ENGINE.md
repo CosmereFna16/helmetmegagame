@@ -1,0 +1,179 @@
+# Turn engine
+
+How a turn closes and the next one opens. One function owns it —
+`advanceTurn()` in `db/index.js` — and everything else on this page is either a
+pass it calls or a side effect it hands back.
+
+Turns advance **twice a day, 04:00 and 16:00 America/Chicago**, strictly
+alternating: a DAWN turn opens at 4am and runs to 4pm, a DUSK turn opens at 4pm
+and runs to 4am. The schedule lives in `bot/src/events/ready.js`'s cron.
+
+## 1. Two callers, one engine
+
+| Caller | Path | How it handles the side effects |
+|---|---|---|
+| The bot's cron | `bot/src/lib/turnEngine.js` (a 39-line wrapper) | Awaits the thunk inline — it's a background process, nobody is waiting. |
+| The Dev Panel's "End turn" | `web/app/(app)/gm/dev/actions.js#forceAdvanceTurn` | Hands it to `next/server`'s `after()`, so the response — already carrying the committed new turn — flushes first. |
+
+Each adds its own `AuditLog` entry. **Both must check the returned `advanced`
+flag** before logging or dereferencing `newTurn`.
+
+Manual turn control lives only in the Dev Panel, not on `/gm/turns`. The
+Current Turn widget can also overwrite the open turn's day/phase directly
+(`updateCurrentTurn`) *without* resolving Needs, for raw correction.
+
+## 2. The order, and why
+
+This sequence is the thing to know. Two steps in it are load-bearing and were
+each arrived at by getting them wrong first.
+
+1. **Claim the open turn by closing it.** An `updateMany` conditioned on
+   `status: "OPEN"`. This happens **before Needs resolve**, deliberately: if a
+   GM clicks just as the cron fires, exactly one caller wins and the loser
+   returns `advanced: false` having done nothing. A half-resolved turn is a
+   cheaper failure than a losing racer double-charging everyone's upkeep.
+2. **Default Move pass** (`db/lib/defaultMovePass.js`) — files a Move for
+   anyone who didn't act. **First**, because a default can *earn* resources and
+   the Hunger pass below spends them; the other order makes a player whose
+   default buys them a meal go hungry anyway.
+3. **Expiry sweep** — delete non-stackable `CharacterTag`s whose `expiresTurn`
+   has come due.
+4. **Stackable sweep** (`sweepExpiredStacks`) — a stack is one row carrying a
+   count, so an expiry sheds a single unit and rerolls the remainder's timer,
+   deleting the row only when the last unit goes.
+5. **Hunger pass** (`db/lib/hungerPass.js`) — **after** the sweep, never
+   before. Last turn's Hunger carries `expiresTurn` equal to the closing turn's
+   number, so the sweep clears it a moment before a fresh one may be granted.
+   The other order collides with `@@unique([characterId, tagId])` and silently
+   drops the re-grant, leaving a tag that expires immediately.
+6. **Lifeweb decay** — a fixed `lifewebDecayPerTurn` off `GameConfig.lifewebBlood`.
+7. **Open the next turn** with the alternated phase, and roll its weather (§4).
+8. **Write the `TURN_START` archive row** — here, where the turn is created,
+   rather than in the side effects, so a failed announcement can't leave two
+   days with no boundary in the transcript.
+9. **Return `runSideEffects`** — see §3. Nothing above this line talks to
+   Discord; nothing below it touches the database.
+
+## 3. The side-effect thunk
+
+`advanceTurn` **composes but does not run** the Discord work. It returns
+`{ advanced, previousTurn, newTurn, note, runSideEffects }`, and the caller
+decides when the thunk runs.
+
+That split is load-bearing. The Dawn wipe walks every Location's channels
+sequentially; awaiting it inside a server action holds the action open, and a
+pending server action blocks client-side navigation — which froze the entire
+web app until a hard refresh.
+
+The thunk performs, in narrative order:
+
+1. Default Move summary posts (via `postAsCharacter`, the REST twin of the
+   bot's webhook proxy), each archived only once Discord accepts it.
+2. Default Move DMs.
+3. Hunger DMs — one per starved player. A quiet −1 ⬢ sends nothing.
+4. The `#turns` announcement (`db/lib/turnAnnouncement.js`).
+5. The Dawn wipe, if the new phase is `DAWN` and `GameConfig.messageWipeEnabled`
+   is on (`db/lib/dawnWipe.js`; see `CHANNELS.md` §5).
+
+Everything is sequential and individually `.catch()`'d, so a Discord failure
+never blocks the turn. **Never `Promise.all` a fan-out here** — sequential
+awaiting is what keeps the bot from emitting the burst of 429s that earns an
+IP-level ban.
+
+The two passes follow the same discipline: `runHungerPass` returns
+`starvedDiscordUserIds` and `runDefaultMovePass` returns `posts`/`dms` rather
+than sending anything themselves, so neither makes a network call and neither
+can hold a turn advance open.
+
+## 4. Weather
+
+`db/weather.js`. Weather rolls every turn as a **Markov transition off the
+previous turn's weather**, with separate DAWN and DUSK tables so the roll also
+depends on which phase is being entered. `WEATHER_WEIGHTS` is the base
+distribution, used only for the very first turn the game plays.
+
+The tuning is deliberate:
+
+- **The diagonal creates streaks.** CLEAR and RAIN are "spell" states that run
+  several turns together — a clear spell, three turns of rain.
+- **STORM has the highest self-transition in either table.** Every other state
+  enters STORM rarely, but once one kicks off it can rage for days. Rare but
+  genuinely possible, rather than diluted away by restarting each turn.
+- **MIGRATION never repeats.** A one-off omen, not a weather regime.
+- **FOG is the phase-dependent one.** The DAWN table both enters and holds fog
+  far more readily; the DUSK table mostly resolves it back to CLEAR. Mornings
+  are foggy and it burns off by evening.
+
+A GM can override the next turn's weather from the Dev Panel
+(`GameConfig.nextWeather`); leaving it unset means "roll randomly".
+
+## 5. Hunger
+
+A `hunger` Status tag in `docs/tags.yaml` (`durationTurns: 1`) worth **−1 to
+the die on all Gambits**, stacking additively with Mood. Nothing
+player-initiated ever grants or removes it — no request type, no picker entry.
+`db/lib/hungerPass.js#runHungerPass` is the only writer.
+
+Per character, at the close of every turn:
+
+| State | Outcome |
+|---|---|
+| Holds `hungerless` | Skipped entirely. |
+| Holds `ate-meal` | **Shielded**, tag consumed, **owes nothing** — the meal was already paid for when it was cooked (2 ⬢ Fine, 3 ⬢ Lavish), so billing upkeep on top made eating strictly worse than the 1 ⬢ it saves. |
+| Has 0 ⬢ | Goes Hungry, owes nothing. |
+| Has 1+ ⬢ | Pays 1 ⬢, stays fed. |
+
+So **1 ⬢ always buys a fed turn**, and `Character.resources` can never go
+negative without a `Math.max`. A Hunger granted while closing turn N carries
+`expiresTurn = N + 1`, so it bites for exactly turn N+1 — which is what makes
+`ate-meal`'s "won't go hungry next turn" literally true.
+
+One summary `hunger_resolved` audit row per turn, not one per character: at
+100+ players the latter would drown `/gm/audit`.
+
+Full writeup: `REQUESTS.md` §4.
+
+## 6. Default Moves
+
+The "Default Move" panel on `/character` (`DefaultEffortPanel.js` →
+`setDefaultEffort`, one `DefaultEffort` row per character) is the fallback for
+a turn a player never files anything on.
+`db/lib/defaultMovePass.js#runDefaultMovePass` finds every `ALIVE` character
+holding one with **no `Action` at all** on the closing turn — an auto-resolved
+zone change counts as acting — and files one.
+
+What it files is always a **Routine**, resolved exactly the way a hand-confirmed
+one is: `CONFIRMED`/`PASSED`, resources pushed via `applyMoveEffects` and
+snapshotted onto `appliedEffects` so a GM can still revert it. **Never a
+Gambit** — a Gambit is a deliberate risk and nobody's there to take it. Marked
+`gmNotes: "auto:default_move"`.
+
+Three details:
+
+- The `+N` / `5-12` / `/hunt` notation is parsed out of `description` **at
+  resolution time** (`db/lib/resourceDelta.js`), not at save time — so no extra
+  columns, the player keeps seeing the text they typed, and a written roll
+  actually re-rolls each turn.
+- A `/hunt`-style shorthand resolves from three bulk reads, not per character.
+  A gated Default Move still files (they did spend the day trying) but pays
+  nothing, and carries a `gateNote` into the player's DM.
+- The summary posts to the character's **current** Location's plain channel,
+  not the `summaryChannelId` snapshotted when they saved the panel — so
+  travelling moves where their default gets narrated.
+
+One summary `default_moves_resolved` audit row per turn. It reports
+`shareable` rather than `shared`, since the posts haven't been attempted when
+it's written and claiming a success count would be a lie.
+
+## 7. Where the code lives
+
+| File | Role |
+|---|---|
+| `db/index.js` | `advanceTurn`, `resolveNeeds`, `sweepExpiredStacks` |
+| `db/weather.js` | The Markov tables and `rollWeather` |
+| `db/lib/defaultMovePass.js` | The Default Move pass |
+| `db/lib/hungerPass.js` | The Hunger pass |
+| `db/lib/turnAnnouncement.js` | The rolling `#turns` announcement |
+| `db/lib/dawnWipe.js` | The Dawn wipe (`CHANNELS.md` §5) |
+| `bot/src/lib/turnEngine.js` | The cron caller |
+| `web/app/(app)/gm/dev/actions.js` | `forceAdvanceTurn`, the GM caller |
