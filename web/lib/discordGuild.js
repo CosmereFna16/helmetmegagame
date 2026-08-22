@@ -307,6 +307,9 @@ export async function updateGuildNickname(discordUserId, nickname) {
 // truncate the result to garbage. This is the one surface where a title
 // deliberately does not appear; bot/src/lib/nickname.js does the same.
 export async function syncCharacterNickname(discordUserId, characterName, preferredNickname) {
+  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+  if (!config?.nicknameSyncEnabled) return;
+
   const member = await getGuildMember(discordUserId);
   if (!member) return;
 

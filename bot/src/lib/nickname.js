@@ -23,6 +23,9 @@ function buildNickname(base, characterName) {
 // Returns "updated" | "skipped" | "failed" so callers can log a summary
 // instead of failures disappearing into a blanket .catch(() => {}).
 async function syncMemberNickname(member) {
+  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+  if (!config?.nicknameSyncEnabled) return "skipped";
+
   const character = await prisma.character.findFirst({
     where: { discordUserId: member.id, status: "ALIVE", firstName: { not: "" } },
   });
