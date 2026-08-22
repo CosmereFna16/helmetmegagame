@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma, roleCapacity } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
+import { isSuperadmin } from "@/lib/superadmin";
 import {
   syncCharacterNickname,
   ensureCharacterRole,
@@ -91,10 +92,17 @@ export async function createCharacter(formData) {
   // has to be open, and this member has to be on the list. This is the real
   // enforcement boundary — the wizard hides itself too, but a server action
   // is a public endpoint, so the check that matters is this one.
-  if (!config?.openToPlayers) {
+  //
+  // A superadmin walks through both halves. This is host/developer access
+  // (one hardcoded Discord ID, see web/lib/superadmin.js), not a game
+  // permission — it exists so the host can roll a test character before the
+  // doors open, which is otherwise impossible without flipping the live
+  // openToPlayers toggle for everyone.
+  const bypass = isSuperadmin(discordUserId);
+  if (!bypass && !config?.openToPlayers) {
     return { error: "Ravenheart isn't open yet. Character creation opens when the game begins." };
   }
-  if (!isApprovedPlayer(member)) {
+  if (!bypass && !isApprovedPlayer(member)) {
     return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong." };
   }
 

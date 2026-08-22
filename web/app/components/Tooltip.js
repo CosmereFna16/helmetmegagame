@@ -1,10 +1,13 @@
+import HoverCard from "./HoverCard";
+
+// Thin wrapper for a flat-text tooltip (InfoIcon's "?" glyph). Shares
+// HoverCard with TagChip so both escape their scrolling ancestors — they used
+// to share only a CSS class, which meant fixing one would have half-broken
+// the other.
 export default function Tooltip({ text, children, className = "" }) {
   return (
-    <span className={`tag-hover ${className}`.trim()} tabIndex={0}>
+    <HoverCard panel={text} className={className}>
       {children}
-      <span className="tag-tooltip" role="tooltip">
-        {text}
-      </span>
-    </span>
+    </HoverCard>
   );
 }

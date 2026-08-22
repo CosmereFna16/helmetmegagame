@@ -33,6 +33,7 @@ import {
 } from "@/lib/discordGuild";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 import { addToStack } from "@/lib/requestEffects";
+import { expiryFor } from "@/lib/turnFormat";
 
 async function requireSuperadmin() {
   const session = await auth();
@@ -451,9 +452,20 @@ export async function grantTag(formData) {
 
   // Create-or-increment: granting a stackable tag a second time adds to the
   // stack rather than colliding with @@unique([characterId, tagId]).
+  //
+  // The expiry stamp is not optional: resolveNeeds()'s sweep matches on
+  // expiresTurn, so a GM-granted timed tag left null never expires at all —
+  // a Paralyzed would sit there permanently while its tooltip advertised
+  // "Lasts 1 turn". expiryFor returns null for an untimed tag, so ordinary
+  // grants are unchanged.
+  const openTurn = await prisma.turn.findFirst({
+    where: { status: "OPEN" },
+    select: { number: true },
+  });
   await addToStack(prisma, characterId, tagId, 1, {
     source: "GM_GRANT",
     stackable: tag.stackable,
+    expiresTurn: expiryFor(tag, openTurn),
   });
 
   // A granted tag may affect narrowcast access (#radio, #intercom).

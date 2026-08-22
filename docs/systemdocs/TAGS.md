@@ -194,6 +194,46 @@ Full writeup of creation, roles, and the wizard: `CHARACTERS.md`.
   the Hunger pass grants, so a still-broke character's Hunger is cleared and
   re-granted rather than colliding with `@@unique([characterId, tagId])`. See
   `REQUESTS.md` §4.
+
+  **Every grant path must stamp `expiresTurn`.** The sweep matches
+  `expiresTurn <= turn.number`, and `null` never matches — so a timed tag
+  granted without a stamp is *permanent*, no matter what `durationTurns` says
+  in the YAML. `web/lib/turnFormat.js#expiryFor(tag, openTurn)` is the one
+  place that arithmetic lives; use it rather than open-coding
+  `turn.number + defaultDurationTurns` again. This was a real bug: `grantTag`
+  on `/gm/dev` and `addTagRequest` both left it null, so a GM-granted
+  Paralyzed sat on the sheet forever while its tooltip advertised "Lasts 1
+  turn".
+
+### How a duration is displayed
+
+`web/lib/turnFormat.js#tagDuration(left, defaultDurationTurns)` is the single
+source for both the chip badge and the tooltip row, so the two can never
+disagree. `left` is `turnsLeft()` for a held `CharacterTag`, and `null` for a
+bare catalog reference (a `{tag:…}` in prose has no `CharacterTag` behind it).
+
+| State | Tooltip row | Chip badge |
+|---|---|---|
+| Held, counting down | `2 turns left` | `· 2t` |
+| Held, final turn | `Expires this turn` | `· last` |
+| Catalog reference | `Lasts 1 turn once granted` | `· 1t` |
+| No duration at all | *(row omitted)* | *(none)* |
+
+Two details are deliberate. **"once granted"** is what separates a catalog fact
+from a live countdown — without it the same tag read two different ways
+depending on how it happened to be granted, which is exactly the confusion this
+replaced. And the final turn reads **`last`, never `0t`**: the tag is still
+active on that turn, so a zero contradicted the tooltip beside it.
+
+`formatTagRequirement` spells its turns out (`1 turn`, not `1t`) for the same
+reason — an unlabelled `1t` meaning *turns of work to cure* sat in the same
+panel as a `1t` meaning *turns remaining*.
+
+Both formatters are hand-duplicated as `db/lib/turnFormat.js` and
+`db/lib/formatTagRequirement.js` for the bot's 🔍 inspect embed, the same
+convention as `buildNickname`. Change both copies together; don't collapse them
+(the web copies must stay dependency-free so client components can import
+them).
 - `removable` — whether a player can strip this tag off themselves mid-game
   without a GM. Live: it is the whole filter behind the Remove Tag menu
   (`removableTags()`, `web/lib/tagRequests.js`) and is re-checked by

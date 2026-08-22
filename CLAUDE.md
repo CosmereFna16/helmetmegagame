@@ -432,6 +432,13 @@ validation; `/character` additionally renders `CreationClosed.js` instead of
 the wizard so the reason is legible up front rather than arriving as an error
 after four steps.
 
+A **superadmin bypasses both locks** (`web/lib/superadmin.js#isSuperadmin`,
+checked in `createCharacter` and mirrored in `/character`'s render so the host
+sees the wizard rather than `CreationClosed.js`). That's host/developer access,
+not a game permission — it exists so the host can roll a test character without
+flipping the live `openToPlayers` toggle for everyone. Enforcement still lives
+in the server action; the page-level check is presentation.
+
 The gate covers character creation **only**. Everything else, `/documents`
 especially, stays readable — that's the point, since the site goes up before
 the game opens so players can read the rules.
