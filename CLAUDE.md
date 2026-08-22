@@ -41,6 +41,7 @@ never enough to change code with.
 | [`PROXYING.md`](docs/systemdocs/PROXYING.md) | You're touching how a player's message becomes a character's — proxying, avatars, reactions, `/conceal`, mentions, nicknames, notes |
 | [`FACTIONS.md`](docs/systemdocs/FACTIONS.md) | You're touching factions, the Silo, or Leader/Treasurer authority |
 | [`PRODUCTION.md`](docs/systemdocs/PRODUCTION.md) | You're touching `/hunt` `/fish` `/farm` `/herd`, payouts, or resource shorthand |
+| [`PARTY-SIZE.md`](docs/systemdocs/PARTY-SIZE.md) | You're touching the Cult of Bacchus's party goals or the `{partysize:N}` token |
 | [`ARCHIVE.md`](docs/systemdocs/ARCHIVE.md) | You're touching the transcript or `/archive` |
 | [`DOCUMENTS.md`](docs/systemdocs/DOCUMENTS.md) | You're touching `/documents` or `docs/documents.yaml` |
 | [`INFOCHANNEL.md`](docs/systemdocs/INFOCHANNEL.md) | You're changing `#info` or `docs/systemdocs/infochannel.yaml` |
@@ -249,7 +250,9 @@ strings, and the web UI alike.
   `<input>` just gets a plain label.
 
 Two carve-outs. A `{resource:…}` bubble already renders its own glyph via
-`ResourceChip.js`, so never write one after it. And literal syntax a player is
+`ResourceChip.js`, so never write one after it — while `PartySizeChip.js`
+carries **no** glyph for the mirror-image reason: a party threshold is a count
+of people, not a currency. And literal syntax a player is
 meant to *type* (`+3`, `5-12`, `/hunt`) is quoted as-is.
 `docs/systemdocs/infochannel.yaml`'s glossary line is deliberately the one place
 the glyph is introduced to players.

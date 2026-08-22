@@ -111,14 +111,58 @@ tags:
     pointCost: 0
     purchasable: false
 
+  # --- Cult ---------------------------------------------------------------
+  # The Cult of Bacchus's own progression, kept out of the hidden `bacchus`
+  # category on purpose: `follower-of-bacchus` (General) is the gate that
+  # OPENS that category, and these track how far the cult has got rather than
+  # being powers it grants. They sit in the `meta-cult` group so /api/tags
+  # withholds them from anyone who isn't already a Cultist — see the note on
+  # that group in docs/taggroups.yaml.
+  #
+  # Seedling -> Ripening -> Bountiful is a replacing tier chain, so a cult
+  # holds exactly one rung at a time. `follower-of-bacchus` is deliberately
+  # NOT part of the chain — a Cultist keeps it while climbing, since it is
+  # what keeps the Bacchus category unlocked.
+  - slug: cult-leader
+    name: Cult Leader
+    category: meta
+    group: meta-cult
+    description: "You understand Bacchus's plan. Every 2 days, you can send a telepathic message to every cultist in Ravenheart to help organize."
+    pointCost: 0
+    purchasable: false
+
+  - slug: cult-seedling
+    name: "Cult: Seedling"
+    category: meta
+    group: meta-cult
+    description: "Your cult is growing."
+    pointCost: 0
+    purchasable: false
+  - slug: cult-ripening
+    name: "Cult: Ripening"
+    category: meta
+    group: meta-cult
+    description: "Your cult is maturing. Unlocks the Ripening tags."
+    pointCost: 0
+    parentTag: cult-seedling
+    purchasable: false
+  - slug: cult-bountiful
+    name: "Cult: Bountiful"
+    category: meta
+    group: meta-cult
+    description: "Your cult is at its prime. Unlocks the Bountiful cultist tags. Fulfill your mission!"
+    pointCost: 0
+    parentTag: cult-ripening
+    purchasable: false
+
   # --- General --------------------------------------------------------------
 
   # Slug kept deliberately: renaming means changing `name`, not `slug` (see
   # this file's header). This is the gate on the hidden Bacchus category.
   - slug: follower-of-bacchus
-    name: Cultist of Bacchus
+    name: Cultist
     category: general
-    description: "Initiated into the Cult of Bacchus. Unlocks the Bacchus tags."
+    description: "We are free, so free! Unlocks the Bacchus tags."
     pointCost: 0
     purchasable: false
 

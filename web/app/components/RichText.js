@@ -2,8 +2,10 @@
 
 import { useTags } from "./TagsProvider";
 import { useProductionRates } from "./ProductionRatesProvider";
+import { usePartySizes } from "./PartySizeProvider";
 import TagChip from "./TagChip";
 import ResourceChip from "./ResourceChip";
+import PartySizeChip from "./PartySizeChip";
 import { splitTokens } from "./richTokens";
 
 function TagToken({ payload, fallback }) {
@@ -24,9 +26,20 @@ function ResourceToken({ payload, fallback }) {
   return <ResourceChip value={rate.display} />;
 }
 
+// Payload is the 1-indexed tier of a Cult of Bacchus party goal, e.g.
+// "3" — see db/lib/partySize.js. The API ships each tier pre-formatted as
+// `display`, already scaled by GameConfig.playerCount.
+function PartySizeToken({ payload, fallback }) {
+  const { sizes } = usePartySizes();
+  const size = sizes[payload.trim()];
+  if (!size) return fallback;
+  return <PartySizeChip value={size.display} />;
+}
+
 const BUBBLE_KINDS = {
   tag: TagToken,
   resource: ResourceToken,
+  partysize: PartySizeToken,
 };
 
 // Renders plain text, except any {kind:payload} token (e.g. {tag:slug} or

@@ -393,8 +393,8 @@ backing `{tag:slug}`/`{tag:id}` references, and the gate from §3a),
 hover-tooltip chip that renders group color), and
 `db/lib/inspectVision.js` (Seductive/Torturer, §5).
 
-**Tag descriptions carry `{tag:…}`/`{resource:…}` tokens too**, not just
-documents — that's how a True Form names the {tag} it inflicts. The three
+**Tag descriptions carry `{tag:…}`/`{resource:…}`/`{partysize:…}` tokens
+too**, not just documents — that's how a True Form names the {tag} it inflicts. The three
 places a description renders all forbid an *interactive* chip, though: a
 `TagChip` nested in a hover tooltip could never be hovered to reach its own
 tooltip, and the point-buy / Add Tag rows are `<button>` elements. So they
@@ -404,6 +404,20 @@ can point at (documents, a character's appearance). Both share the parser in
 `richTokens.js` — which exists in its own file precisely because `RichText`
 renders `TagChip` and `TagChip` renders `ChipText`, so importing one from
 the other would close an import cycle.
+
+There are three token kinds. `{tag:slug|id}` and `{resource:field:tier}` are
+described above; `{partysize:N}` is the Cult of Bacchus's party thresholds
+(`PARTY-SIZE.md`), a 1-indexed
+tier resolving to a headcount scaled live by `GameConfig.playerCount`. The
+parser in `richTokens.js` is kind-agnostic — `{(\w+):([^}]+)}` — so a new kind
+never touches it or `remarkTokens.js`. What a new kind *does* touch is the
+three renderers, which is the whole edit surface: `RichText.js`'s
+`BUBBLE_KINDS` map (the only real dispatch table), and the hardcoded if-chains
+in `ChipText.js` and `DocumentMarkdown.js`'s `RichTokenRenderer`. Miss
+`ChipText` and the token renders literally in a tag tooltip and in the
+`/documents` card preview; miss `DocumentMarkdown` and it renders literally in
+an open document. Every kind falls through to the raw `{…}` text when it can't
+resolve, so a bad reference is visible rather than silently dropped.
 
 `hunger`, `hungerless` and `ate-meal` are the first tags granted and consumed
 by automatic game logic rather than by a player, a GM, or a starting package —
