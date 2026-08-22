@@ -171,11 +171,10 @@ model GameConfig {
   locationPromptMessageId String?
 
   // Multiplier applied to every rate in db/lib/production.js's
-  // PRODUCTION_RATES table (Farming/Fishing/Herding, base/Laborer/specialist
-  // tiers) — read live by /labor (bot/src/lib/labor.js). docs/documents.yaml
-  // is NOT regenerated automatically when this changes; re-run
-  // `npm run db:sync-production-doc` (db/prisma/sync-production-doc.js) by
-  // hand afterward so the doc text stays in sync.
+  // PRODUCTION_RATES table — read live by /hunt, /fish, /farm and /herd
+  // (bot/src/lib/labor.js). docs/documents.yaml renders its numbers through
+  // live {resource:...} bubbles, so nothing needs regenerating when this
+  // changes. See docs/systemdocs/PRODUCTION.md.
   productionCoefficient Float @default(1)
 
   // Base point-buy budget every new character starts with, before the
@@ -532,10 +531,12 @@ model Tag {
   // CharacterTag.equipped; equipping is instant and writes no Request.
   equippable Boolean @default(false)
 
-  // Whether equipping this tag lets the character post with `/conceal` — a
-  // mask, hood or closed helm. Only meaningful together with equippable, and
+  // Marks gear that hides who the wearer is — a mask, hood or closed helm.
+  // Currently INERT: /conceal is open to every character with nothing
+  // equipped, and nothing reads this field. Kept so the gate can be restored
+  // without a migration. Only meaningful together with equippable, and
   // db/lib/syncTags.js throws if it is set without it, since a mask nobody can
-  // equip could never enable anything.
+  // equip could never conceal anything. See docs/systemdocs/TAGS.md.
   concealsIdentity Boolean @default(false)
 
   // Whether a character can hold more than one of this tag at a time —

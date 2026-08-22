@@ -3,6 +3,13 @@
 The GM-assigned seats: Sympathizer, the Demoness, the Cult of Bacchus, the
 Judge, the NPC monsters, the Brigands.
 
+Note this list and the **antagonist opt-in catalog** are separate and have
+drifted: `db/lib/antagonists.js` ships twelve consent entries a player can tick
+at character creation (`CHARACTERS.md` §1), while the briefs below cover fewer
+seats. Neither reads the other — the opt-ins are pure consent data, and these
+are prose for a GM. If you add a seat to one, consider whether it belongs in
+the other.
+
 **Nothing reads this file.** These seats never appear in the player-facing role
 picker and have no rows in the database — a GM hands one out by hand, over
 Discord, and runs it from there. This file exists so that brief is legible in

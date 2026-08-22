@@ -50,7 +50,7 @@ are where the previous implementation died.
 Almost entirely `web/app/globals.css`, because the token discipline holds: there
 is exactly one hardcoded colour left in the app (now none — the old `#9a9a9a`
 avatar placeholder was fixed during the Ravenheart pass) and shared classes
-cover the surface area (`.field`×156, `.btn`×73, `.panel`×68).
+cover the surface area (`.field`, `.btn` and `.panel` are each used across most of the app).
 
 Concretely:
 

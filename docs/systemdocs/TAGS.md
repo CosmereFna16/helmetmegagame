@@ -375,8 +375,7 @@ introduced this system (and were finally removed from `docs/roles.yaml`'s
 (`isLeader`, `isTreasurer`), assigned dynamically by a GM (Leader) or by a
 GM/the faction's own Leader (Treasurer) from `/faction`
 (`web/app/(app)/faction/actions.js`), exactly as before — only the storage
-mechanism changed, not who can assign what. `Courtier` was deleted outright
-(it only ever gated the now-ungated `Manor` tag). `Mortus` survived the
+mechanism changed, not who can assign what. `Courtier` survived too, and still gates `Manor` via that tag's `requiredTag` (§3). `Mortus` survived the
 "Role" category's retirement as an ordinary General tag since it drives real
 logic elsewhere — it gates `/lifeweb` nav visibility. `Hunter` survived
 alongside it for the same reason, but has since been retired: hunting joined

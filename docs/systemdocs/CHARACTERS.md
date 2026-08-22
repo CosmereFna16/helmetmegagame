@@ -190,42 +190,22 @@ Discord role afterward. `web/lib/discordGuild.js#killCharacter`, called from
    and nothing needs walking individually.
 2. Nulls `discordRoleId` — it's `@unique`, and a dangling id would have
    `ensureCharacterRole` PATCHing a deleted role forever.
-3. Clears the Discord nickname.
+3. Clears the Discord nickname. Unconditional — note the asymmetry:
+   *setting* a nickname is gated behind `GameConfig.nicknameSyncEnabled`
+   (off by default), but clearing a dead character's is not.
 4. Grants the Cursed role (§4).
+5. Writes a `DEATH` row to the transcript (`ARCHIVE.md`).
 
 `updateCharacterRaw` skips the role/location sync entirely for a non-`ALIVE`
 character.
 
 ## 6. Narrowcast channels (`#radio`, `#intercom`)
 
-Location access is *place*-based: one `ViewChannel` overwrite per resident
-character on the Location category, swapped on travel. `#radio` and
-`#intercom` sit outside that category structure, but use the exact same
-primitive — a permission overwrite on the character's own personal Discord
-role — rather than a separate gate role, because each channel's condition is
-bespoke and depends on the character's current Zone/Location as well as tags,
-not a simple "hold a tag" gate:
-
-- **`#radio`** — viewable/speakable by anyone holding the Radio tag, unless
-  they're currently on any level of the **Depths** (Caverns, Railroad,
-  Aberrant Pits — `DEPTHS_SLUGS` in `db/lib/travelCost.js`).
-- **`#intercom`** — viewable by anyone in the **Fortress** or **Town** Zone;
-  speakable only by an Intercom-tagged character standing in the **Keep**.
-
-Rules live in `db/lib/narrowcastAccess.js#NARROWCAST_RULES`, hardcoded rather
-than YAML-authored since neither condition is a generic gate. Reconciled by
-`bot/src/lib/location.js#syncCharacterNarrowcastAccess` (gateway, called from
-`performMove` after every Move) and `web/lib/discordGuild.js`'s function of
-the same name (REST, called from character creation, GM raw location edits,
-and `grantTag`/`revokeTag` — tag changes only ever happen through the web
-app). `@everyone` is denied `ViewChannel`+`SendMessages` on both channels by
-default; a qualifying character's personal role gets the matching `allow`
-overwrite, or has it removed if they qualify for neither.
-
-Channel provisioning (`GameConfig.radioChannelId`/`intercomChannelId`) is a
-one-off script, `db/lib/syncNarrowcastChannels.js`
-(`npm run db:sync-narrowcast-channels`) — not part of `wipeGameData`, the ids
-persist across a restart.
+Access to both is granted the same way Location access is — a permission
+overwrite on the character's own personal Discord role — and is reconciled
+after every Move and on character creation. The rules themselves (who hears
+what, the Depths dead zone, the Keep) live in one place:
+**`CHANNELS.md` §6**. They were duplicated here and drifted; don't re-add them.
 
 ## 7. Sync order
 

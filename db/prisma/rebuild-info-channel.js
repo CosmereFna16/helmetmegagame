@@ -1,7 +1,7 @@
 // Manual, terminal-invoked wipe+rebuild of #info from
 // docs/systemdocs/infochannel.yaml. Run with `npm run db:rebuild-info-channel`.
 // Never runs automatically (no cron, no per-turn hook) — same explicit-push
-// convention as sync-locations.js/sync-production-doc.js.
+// convention as sync-locations.js.
 //
 // Unlike those two scripts, this is NOT an upsert: #info carries no
 // player-generated content worth preserving, so every run deletes every

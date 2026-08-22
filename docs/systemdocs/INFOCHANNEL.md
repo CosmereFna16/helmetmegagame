@@ -13,7 +13,7 @@ and the rebuild mechanism.
 page: a directory message (game pitch + rules) followed by a set of topic
 threads a player can jump into. It's looked up by exact name match
 (`c.type === 0 && c.name?.toLowerCase() === "info"`), the same convention
-already used for `#archive`/`#turns`/`#location` — there's no hardcoded
+already used for `#turns`/`#location` — there's no hardcoded
 channel ID anywhere in code, deliberately, so renaming or recreating the
 channel doesn't require a code change. (For reference, the channel's current
 ID is `1539629144801812641`.)
@@ -74,7 +74,7 @@ destructive.
 
 **Message-length batching**: any `body` (or the combined directory message)
 over Discord's 2000-char limit is split into multiple messages posted in
-order, the same batching approach `dawnWipe.js` uses for archive lines — no
+order, the same batching approach used anywhere a long body has to clear Discord's 2000-char cap — no
 content is truncated.
 
 ## 5. Where the code lives

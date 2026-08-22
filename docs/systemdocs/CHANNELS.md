@@ -90,7 +90,7 @@ at the **category** level (child channels inherit permissions):
   in it, which is also why this doesn't run into Discord's ~100-overwrite-
   per-channel ceiling even at 100+ players.
 
-Three call sites keep a character's role overwrite in sync with
+Four call sites keep a character's role overwrite in sync with
 `Character.locationId`, all funneling through the same one-overwrite-per-
 active-Location primitive:
 
@@ -98,10 +98,11 @@ active-Location primitive:
 |---|---|---|
 | Player self-service travel (`⚜` button in the `location` channel) | `bot/src/lib/location.js#performMove` → `swapLocationAccess` | Gateway `Guild`/`Role` objects (bot already has them cached) |
 | GM raw edit (`/gm/dev/characters/[characterId]`) | `web/app/(app)/gm/dev/actions.js#updateCharacterRaw` → `syncCharacterLocationAccess` | REST (`PUT`/`DELETE /channels/{id}/permissions/{roleId}`) — the web app has no gateway connection |
-| New character created with a Location already set | `web/app/(app)/character/createActions.js#createCharacter` → `syncCharacterLocationAccess` | REST. Character creation picks up the role's `starting_location`, so every new character now has a Location from the moment they exist |
+| New character created with a Location already set | `web/app/(app)/character/createActions.js#createCharacter` → `syncCharacterLocationAccess` | REST. Character creation picks up the role's `starting_location`, so every new character has a Location from the moment they exist |
+| Player travel from the web Map panel | `web/app/(app)/map/travelActions.js#travelTo` → `syncCharacterLocationAccess` | REST. The web twin of the ⚜ picker; both go through `db/lib/travel.js#performTravel`, which does no Discord work itself (`MAP.md`) |
 
 If a new call site ever sets `Character.locationId` directly, it needs to
-call one of these two (or a shared equivalent) — a raw Prisma write alone
+call one of these (or a shared equivalent) — a raw Prisma write alone
 leaves the old category overwrite dangling and the new one missing.
 `db/prisma/backfill-location-access.js` (`npm run db:backfill-location-access`)
 is a one-off catch-up for characters whose `locationId` was set before these
@@ -315,7 +316,7 @@ neither channel is tied to a place.
 
 Both channels are also included in the Dawn message wipe (§5) —
 `db/lib/dawnWipe.js#runDawnWipe` reads the same `GameConfig.radioChannelId`/
-`intercomChannelId` fields and archives+clears each channel's messages
-exactly like a Location's plain channel, just without a `Zone`/`Location`
-pairing for the archive label.
+`intercomChannelId` fields and clears each channel's messages exactly like a
+Location's plain channel. Nothing is archived at wipe time any more; the
+transcript is recorded when each message is sent (`ARCHIVE.md`).
 
