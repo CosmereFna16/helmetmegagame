@@ -6,7 +6,7 @@
 // choosing who receives a Succubus can tell who is willing.
 //
 // Kept in code rather than a table for the same reason as db/lib/roleIds.js:
-// eleven fixed values that can never differ per environment, so a row would
+// twelve fixed values that can never differ per environment, so a row would
 // only add a join and a way to drift.
 //
 // Alphabetized by `name` here so catalog order *is* display order and nothing
@@ -23,6 +23,7 @@ const ANTAGONISTS = [
   { slug: "schemer", name: "Schemer" },
   { slug: "special-circumstances", name: "Special Circumstances" },
   { slug: "succubus", name: "Succubus" },
+  { slug: "warlock", name: "Warlock" },
 ];
 
 const ANTAGONIST_SLUGS = new Set(ANTAGONISTS.map((a) => a.slug));

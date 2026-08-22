@@ -37,7 +37,7 @@ The wizard has six steps:
 4. **Fear** — the character's Worst Fear. **Optional**: `canAdvance` is
    unconditionally true on this step, so a player may walk straight past it and
    name one later from `/character`. See `REQUESTS.md` §5b.
-5. **Antagonists** — eleven checkboxes, all off, naming the antagonist seats a
+5. **Antagonists** — twelve checkboxes, all off, naming the antagonist seats a
    GM hands out in secret (Succubus, Cultist, the Judge…). Pure consent data:
    nothing in the game reads `Character.antagonistOptIns`, grants from it or
    gates on it — it exists so a GM choosing who receives one can tell who is

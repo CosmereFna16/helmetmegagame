@@ -294,7 +294,7 @@ Sorting moved with the split. `orderBy: { name: "asc" }` on a Character would no
 A signed-in player with no `ALIVE` character sees the **creation wizard**
 rendered inline at `/character` (there is no `/character/new` route — it was
 removed). Six steps: name → role → point-buy → fear → antagonists → confirm.
-The **Antagonists** step is eleven on/off checkboxes, all off, naming the seats
+The **Antagonists** step is twelve on/off checkboxes, all off, naming the seats
 a GM assigns in secret (`db/lib/antagonists.js` → `Character.antagonistOptIns`).
 It is pure consent data — nothing reads it, grants from it or gates on it — and
 is **creation-only**, so `updateCharacterProfile` never reads the key, the same
