@@ -17,8 +17,13 @@ import Tooltip from "@/app/components/Tooltip";
 import { WORST_FEAR_HELP } from "@/app/components/WorstFearPanel";
 import { WORST_FEAR_PENALTY, WORST_FEAR_MAX_LENGTH } from "@/lib/constants";
 import { HONORIFICS, NAME_LIMITS, AGE_MIN, AGE_MAX, formatCharacterName } from "@/lib/characterName";
+import { ANTAGONISTS, antagonistNames } from "@/lib/antagonists";
 
-const STEPS = ["Identity", "Role", "Tags", "Fear", "Confirm"];
+const STEPS = ["Identity", "Role", "Tags", "Fear", "Antagonists", "Confirm"];
+// Derived rather than written out: the footer's "is this the last step?" test
+// used to be a hardcoded index, which is exactly what goes stale the moment a
+// step is inserted in the middle.
+const LAST_STEP = STEPS.length - 1;
 
 function StepBar({ step }) {
   return (
@@ -102,6 +107,9 @@ export default function CreateCharacterWizard({
   const [roleId, setRoleId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [worstFear, setWorstFear] = useState("");
+  // Opt-in, so the empty array is the honest default — a player who walks past
+  // the step has consented to nothing.
+  const [antagonists, setAntagonists] = useState([]);
   const [error, setError] = useState(null);
   const [pending, setPending] = useState(false);
 
@@ -129,6 +137,12 @@ export default function CreateCharacterWizard({
     setSelectedIds([]);
   }
 
+  function toggleAntagonist(slug) {
+    setAntagonists((prev) =>
+      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug],
+    );
+  }
+
   // Identity comes before Role, so the last-name input is live on the first
   // pass through. Picking one of the Baron's family retroactively takes it
   // away: createCharacter ignores whatever was typed and stamps the dynasty
@@ -151,7 +165,10 @@ export default function CreateCharacterWizard({
     // The Worst Fear step is optional — you may walk straight past it and set
     // one later — so there is nothing to gate on.
     step === 3 ||
-    step === 4;
+    // Antagonists likewise: ticking nothing is a real answer, not an unfinished
+    // one.
+    step === 4 ||
+    step === LAST_STEP;
 
   async function submit() {
     if (pending) return;
@@ -168,6 +185,7 @@ export default function CreateCharacterWizard({
     fd.set("roleId", roleId);
     for (const id of selectedIds) fd.append("tagIds", id);
     if (worstFear.trim()) fd.set("worstFear", worstFear.trim());
+    for (const slug of antagonists) fd.append("antagonistOptIns", slug);
     // A successful create redirects, so anything returned here is an error.
     const result = await createCharacter(fd);
     if (result?.error) {
@@ -349,7 +367,47 @@ export default function CreateCharacterWizard({
         </div>
       )}
 
-      {step === 4 && role && (
+      {step === 4 && (
+        <div className="panel flex flex-col gap-4 p-4">
+          <h2 className="panel-header">Antagonists (optional)</h2>
+          <p className="text-sm text-muted">
+            Some roles are handed out quietly by a GM rather than picked from the list — a
+            Succubus, a Cultist, the Judge. Tick the ones you would be happy to be given.
+            Leaving every box blank is a perfectly good answer, and ticking one is no promise
+            you&apos;ll ever receive it. Nobody but a GM sees this, and it can&apos;t be changed
+            later without asking one.
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {ANTAGONISTS.map((a) => (
+              <label key={a.slug} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={antagonists.includes(a.slug)}
+                  onChange={() => toggleAntagonist(a.slug)}
+                />
+                {a.name}
+              </label>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className="btn-quiet"
+              onClick={() => setAntagonists(ANTAGONISTS.map((a) => a.slug))}
+            >
+              Select all
+            </button>
+            <button type="button" className="btn-quiet" onClick={() => setAntagonists([])}>
+              Clear
+            </button>
+            <span className="text-sm text-muted">
+              {antagonists.length} of {ANTAGONISTS.length} selected
+            </span>
+          </div>
+        </div>
+      )}
+
+      {step === LAST_STEP && role && (
         <div className="panel flex flex-col gap-3 p-4">
           <h2 className="panel-header">{displayName}</h2>
           <dl className="grid gap-2 text-sm sm:grid-cols-2">
@@ -372,6 +430,20 @@ export default function CreateCharacterWizard({
             <div>
               <dt className="text-muted">Worst Fear</dt>
               <dd>{worstFear.trim() || <span className="text-muted">none</span>}</dd>
+            </div>
+            <div>
+              <dt className="text-muted">Open to</dt>
+              <dd className="flex flex-wrap gap-2">
+                {antagonists.length === 0 ? (
+                  <span className="text-muted">no antagonist roles</span>
+                ) : (
+                  antagonistNames(antagonists).map((n) => (
+                    <span key={n} className="chip">
+                      {n}
+                    </span>
+                  ))
+                )}
+              </dd>
             </div>
           </dl>
           <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -408,7 +480,7 @@ export default function CreateCharacterWizard({
         >
           Back
         </button>
-        {step < 4 ? (
+        {step < LAST_STEP ? (
           <button
             type="button"
             className="btn"

@@ -2,7 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { prisma, roleCapacity, isDynastyHead, isDynastyMember } from "@lifeweb/db";
+import {
+  prisma,
+  roleCapacity,
+  isDynastyHead,
+  isDynastyMember,
+  normalizeAntagonistSlugs,
+} from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { dynastyLastName, propagateDynastyLastName } from "@/lib/dynasty";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -74,6 +80,10 @@ export async function createCharacter(formData) {
   // player names one later from /character instead.
   const worstFear =
     formData.get("worstFear")?.toString().trim().slice(0, WORST_FEAR_MAX_LENGTH) || null;
+  // Consent data — which secretly assigned antagonist seats this player is open
+  // to. The checkboxes are UX; the normalizer's allowlist is the boundary that
+  // keeps junk slugs out of the column, same as normalizeHonorific above.
+  const antagonistOptIns = normalizeAntagonistSlugs(formData.getAll("antagonistOptIns"));
 
   if (!firstName) return { error: "Your character needs a first name." };
   if (!roleId) return { error: "Pick a role before confirming." };
@@ -231,6 +241,7 @@ export async function createCharacter(formData) {
           worstFearSetTurnNumber: worstFear ? (openTurn?.number ?? null) : null,
           isLeader: role.grantsLeader,
           isTreasurer: role.grantsTreasurer,
+          antagonistOptIns,
         },
       });
 
@@ -287,6 +298,7 @@ export async function createCharacter(formData) {
         spent,
         purchased: selected.map((t) => t.name),
         worstFear,
+        antagonistOptIns,
       },
     },
   });
