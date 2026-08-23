@@ -36,22 +36,30 @@ each arrived at by getting them wrong first.
    anyone who didn't act. **First**, because a default can *earn* resources and
    the Hunger pass below spends them; the other order makes a player whose
    default buys them a meal go hungry anyway.
-3. **Expiry sweep** — delete non-stackable `CharacterTag`s whose `expiresTurn`
+3. **Tag progression pass** (`db/lib/tagExpiryPass.js`) — **before** the sweep,
+   never after. Any expiring tag carrying `Tag.expiresInto` turns into
+   something else first: Infected festers, Festering goes both Feverish and
+   Necrotic, Necrosis rolls a leg or an arm (`TAGS.md` §5c). The sweep below is
+   a blind `deleteMany`, so once it has run there is nothing left to read. This
+   pass grants and never deletes; the sweep removes exactly the rows it just
+   read. **Nothing here kills anyone** — the terminal chains land on the
+   `dying` tag and stop, and a GM confirms the death by hand.
+4. **Expiry sweep** — delete non-stackable `CharacterTag`s whose `expiresTurn`
    has come due.
-4. **Stackable sweep** (`sweepExpiredStacks`) — a stack is one row carrying a
+5. **Stackable sweep** (`sweepExpiredStacks`) — a stack is one row carrying a
    count, so an expiry sheds a single unit and rerolls the remainder's timer,
    deleting the row only when the last unit goes.
-5. **Hunger pass** (`db/lib/hungerPass.js`) — **after** the sweep, never
+6. **Hunger pass** (`db/lib/hungerPass.js`) — **after** the sweep, never
    before. Last turn's Hunger carries `expiresTurn` equal to the closing turn's
    number, so the sweep clears it a moment before a fresh one may be granted.
    The other order collides with `@@unique([characterId, tagId])` and silently
    drops the re-grant, leaving a tag that expires immediately.
-6. **Lifeweb decay** — a fixed `lifewebDecayPerTurn` off `GameConfig.lifewebBlood`.
-7. **Open the next turn** with the alternated phase, and roll its weather (§4).
-8. **Write the `TURN_START` archive row** — here, where the turn is created,
+7. **Lifeweb decay** — a fixed `lifewebDecayPerTurn` off `GameConfig.lifewebBlood`.
+8. **Open the next turn** with the alternated phase, and roll its weather (§4).
+9. **Write the `TURN_START` archive row** — here, where the turn is created,
    rather than in the side effects, so a failed announcement can't leave two
    days with no boundary in the transcript.
-9. **Return `runSideEffects`** — see §3. Nothing above this line talks to
+10. **Return `runSideEffects`** — see §3. Nothing above this line talks to
    Discord; nothing below it touches the database.
 
 ## 3. The side-effect thunk
@@ -70,9 +78,12 @@ The thunk performs, in narrative order:
 1. Default Move summary posts (via `postAsCharacter`, the REST twin of the
    bot's webhook proxy), each archived only once Discord accepts it.
 2. Default Move DMs.
-3. Hunger DMs — one per starved player. A quiet −1 ⬢ sends nothing.
-4. The `#turns` announcement (`db/lib/turnAnnouncement.js`).
-5. The Dawn wipe, if the new phase is `DAWN` and `GameConfig.messageWipeEnabled`
+3. Tag progression DMs — one per player whose condition worsened, listing each
+   step (`» Festering → Feverish and Necrosis`). Before the Hunger DMs purely
+   so the two arrive in severity order.
+4. Hunger DMs — one per starved player. A quiet −1 ⬢ sends nothing.
+5. The `#turns` announcement (`db/lib/turnAnnouncement.js`).
+6. The Dawn wipe, if the new phase is `DAWN` and `GameConfig.messageWipeEnabled`
    is on (`db/lib/dawnWipe.js`; see `CHANNELS.md` §5).
 
 Everything is sequential and individually `.catch()`'d, so a Discord failure
@@ -80,10 +91,14 @@ never blocks the turn. **Never `Promise.all` a fan-out here** — sequential
 awaiting is what keeps the bot from emitting the burst of 429s that earns an
 IP-level ban.
 
-The two passes follow the same discipline: `runHungerPass` returns
-`starvedDiscordUserIds` and `runDefaultMovePass` returns `posts`/`dms` rather
-than sending anything themselves, so neither makes a network call and neither
-can hold a turn advance open.
+All three passes follow the same discipline: `runHungerPass` returns
+`starvedDiscordUserIds`, `runDefaultMovePass` returns `posts`/`dms`, and
+`runTagExpiryPass` returns `dms`, rather than any of them sending anything
+themselves — so none makes a network call and none can hold a turn advance
+open. Each also writes exactly **one** summary `AuditLog` row
+(`tag_expiry_resolved` for the new one), never one per character: at 100+
+players a per-character row would drown every human-authored line in
+`/gm/audit`.
 
 ## 4. Weather
 
@@ -173,6 +188,7 @@ it's written and claiming a success count would be a lie.
 | `db/weather.js` | The Markov tables and `rollWeather` |
 | `db/lib/defaultMovePass.js` | The Default Move pass |
 | `db/lib/hungerPass.js` | The Hunger pass |
+| `db/lib/tagExpiryPass.js` | The tag progression pass (`Tag.expiresInto`) |
 | `db/lib/turnAnnouncement.js` | The rolling `#turns` announcement |
 | `db/lib/dawnWipe.js` | The Dawn wipe (`CHANNELS.md` §5) |
 | `bot/src/lib/turnEngine.js` | The cron caller |

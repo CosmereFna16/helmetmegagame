@@ -9,14 +9,28 @@
 // direction is narratively relevant" — crafting reads it as the cost to gain a
 // tag, healing as the cost to shed one. This module is the healing reading.
 
+// The skill-tier walk lives in db/lib now, because the bot needs it too: the
+// doctor's eye on 🔍-inspect asks the same "are you qualified for this?"
+// question this module asks. Re-exported so every existing caller here keeps
+// importing from where it always did.
+export {
+  buildSkillAncestry,
+  satisfiedSkillIds,
+  canTreatAsRoutine,
+} from "@lifeweb/db/lib/medicalVision";
+
 export const HEAL_SKILL_SLUG = "medical-basic";
 
-// Tag.category stores the display name, not the YAML slug (see syncTags.js).
-export const HEALABLE_CATEGORY = "Status";
+// Health is its own category now, split out of Status — Status is the
+// mood/needs layer (Hungry, Drained, Tipsy) and afflictions are a system of
+// their own. Tag.category stores the display name, not the YAML slug (see
+// syncTags.js), which is why this is capitalised.
+export const HEALABLE_CATEGORY = "Health";
 
-// A Status tag with no requirement block at all is a plain condition that runs
-// its own course — Hungry, Drained, Unhappy — not something a doctor removes.
-// Priced ones (Arthritis) are the afflictions.
+// A Health tag with no requirement block at all is tier 0 of the cure ladder
+// (docs/systemdocs/TAGS.md §5c): something realistically untreatable that runs
+// its own short course — Vomiting, a Migraine, a Concussion. Priced ones are
+// the afflictions a doctor actually does something about.
 export function hasCureCost(tag) {
   if (!tag) return false;
   return Boolean(
@@ -34,38 +48,6 @@ export function isHealable(tag) {
 // null means free, not "unpriced" — the payer is still recorded either way.
 export function healCost(tag) {
   return tag?.requirementResources ?? 0;
-}
-
-// Tag.parentTagId is the replacing tier chain (Medical (Basic) -> (Skilled) ->
-// (Excellent)). Holding a higher tier has to satisfy a requirement written
-// against a lower one, or a surgeon would be unable to do a nurse's job.
-//
-// `tags` is the flat catalog as [{ id, parentTagId }]; the result maps a tag id
-// to itself plus every ancestor above it. Cycle-guarded, since nothing in the
-// schema stops a chain from looping back on itself.
-export function buildSkillAncestry(tags) {
-  const parentOf = new Map((tags ?? []).map((t) => [t.id, t.parentTagId ?? null]));
-  const ancestry = new Map();
-  for (const id of parentOf.keys()) {
-    const seen = new Set();
-    let cursor = id;
-    while (cursor && !seen.has(cursor)) {
-      seen.add(cursor);
-      cursor = parentOf.get(cursor) ?? null;
-    }
-    ancestry.set(id, seen);
-  }
-  return ancestry;
-}
-
-// Every skill the character counts as having: what they hold, plus everything
-// those tags are an upgrade of.
-export function satisfiedSkillIds(heldTagIds, ancestry) {
-  const satisfied = new Set();
-  for (const id of heldTagIds ?? []) {
-    for (const ancestorId of ancestry.get(id) ?? [id]) satisfied.add(ancestorId);
-  }
-  return satisfied;
 }
 
 // The requirementSkills rows still missing — [] when qualified.

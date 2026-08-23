@@ -5,6 +5,21 @@ import ChipLabel from "./ChipLabel";
 import ChipText from "./ChipText";
 import HoverCard from "./HoverCard";
 
+// Tag.expiresInto as a {tag:…} token string for ChipText to resolve — the
+// same machinery the description below already goes through, which is why
+// this needs no catalog of its own and keeps working wherever TagChip renders.
+// Entries are normalised to { oneOf: [...] } by db/lib/syncTags.js, so a bare
+// slug is just a pick of one; several entries all land at once ("and"), while
+// a multi-slug oneOf is a roll between them ("or").
+function expiresIntoTokens(expiresInto) {
+  const entries = Array.isArray(expiresInto) ? expiresInto : null;
+  if (!entries?.length) return null;
+  return entries
+    .map((entry) => (entry?.oneOf ?? []).map((slug) => `{tag:${slug}}`).join(" or "))
+    .filter(Boolean)
+    .join(" and ");
+}
+
 // One label/value row. Labels are muted and values carry --text, so the panel
 // reads as answers rather than the flat block of grey <p>s it used to be.
 function Meta({ label, children }) {
@@ -40,6 +55,9 @@ export default function TagChip({
   const left = turnsLeft(expiresTurn, currentTurn);
   const duration = tagDuration(left, tag.defaultDurationTurns);
 
+  // What it turns into when that runs out, rather than simply going away.
+  const becomes = expiresIntoTokens(tag.expiresInto);
+
   // The wrapper already carries tabIndex for the tooltip, so once it's
   // clickable it has to answer the keyboard too.
   const clickable = typeof onConsume === "function";
@@ -57,6 +75,13 @@ export default function TagChip({
       {consumeHint && <p className="text-accent">{consumeHint}</p>}
       <dl className="tag-meta">
         {duration && <Meta label="Expires">{duration.label}</Meta>}
+        {/* Reinforcement, not the only warning — every tag that gets worse
+            says so in its own description too. This is the precise version. */}
+        {becomes && (
+          <Meta label="Becomes">
+            <ChipText text={becomes} />
+          </Meta>
+        )}
         {/* "Cure", not a bare string: formatTagRequirement's leading "1t" is
             turns of WORK to remove the tag, which collided with the expiry
             countdown's own "1t" when both sat unlabelled in the same panel. */}

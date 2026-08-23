@@ -60,6 +60,49 @@
 #     resourceCost  - resource cost
 #     skills        - list of skill tag slugs required; multiple accepted
 #     gambit        - whether a Gambit roll is needed
+#   expiresInto     - what this tag turns INTO when its durationTurns runs
+#                     out, instead of simply being swept away. This is the
+#                     untreated-wound chain: Infected festers, Festering goes
+#                     Feverish AND Necrotic, Necrosis costs you a limb.
+#                     A list whose entries are either a bare slug:
+#                         expiresInto: [festering]
+#                     several slugs, all granted at once:
+#                         expiresInto: [feverish, necrosis]
+#                     or an even random pick between slugs:
+#                         expiresInto:
+#                           - oneOf: [missing-leg, missing-arm]
+#                     Three rules, all enforced by db/lib/syncTags.js before
+#                     it writes anything: every slug must exist in this file;
+#                     the tag must have durationTurns (or nothing would ever
+#                     fire it); and a tag may not list ITSELF, since the
+#                     sweep that follows the grant would delete the fresh row
+#                     one statement later. A two-tag loop (migraine <->
+#                     no-migraine) is fine and is how a recurring condition
+#                     is written.
+#                     Distinct from consumesInto above: that one is chosen by
+#                     the player, this one happens on the clock whether they
+#                     wanted it or not.
+#
+# THE CURE LADDER. Every tag in the `health` category is priced off one of
+# eight rungs, and nothing in that category should invent its own numbers —
+# pick the rung and copy the block. Full writeup in
+# docs/systemdocs/TAGS.md §5c.
+#
+#   Tier 0  untreatable            no requirement block at all
+#   Tier 1  very minor, first aid  1 ⬢,  0 turns, medical-basic
+#   Tier 2  minor                  2 ⬢,  0 turns, medical-basic
+#   Tier 3  moderately severe      2 ⬢,  1 turn,  medical-skilled
+#   Tier 4  severe                 4 ⬢,  1 turn,  medical-skilled
+#   Tier 5  dangerous, surgery     6 ⬢,  1 turn,  medical-skilled
+#   Tier 6  extremely complex      8 ⬢,  1 turn,  medical-expert
+#   Tier 7  ridiculous            12 ⬢,  1 turn,  medical-expert, gambit
+#
+# Tier 0 is a real choice, not a gap: something that realistically isn't
+# treatable, runs its course quickly, and does no lasting harm (Vomiting, a
+# Migraine, a Concussion) gets NO requirement block, which is exactly what
+# makes the Heal request refuse to offer it. A player can always attempt a
+# Gambit to treat anything above their tier, or anything with no listed cure
+# — that is what Gambits are for, and the Medical document says so.
 categories:
   - slug: meta
     name: Meta
@@ -69,6 +112,12 @@ categories:
     name: Skills
   - slug: status
     name: Status
+  # Every affliction, injury and condition a medic might treat. Split out of
+  # Status deliberately: Status is the mood/needs layer (Hungry, Drained,
+  # Tipsy, the moods) and health is a system of its own, with its own groups
+  # and its own pricing ladder. See docs/systemdocs/TAGS.md §5c.
+  - slug: health
+    name: Health
   - slug: items
     name: Items
   - slug: assets
@@ -461,10 +510,15 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # The three rungs of the cure ladder (see this file's header and
+  # docs/systemdocs/TAGS.md §5c). Each description names the tiers it clears
+  # AS ROUTINE, because that word is the whole mechanic: anything above your
+  # tier is still attemptable, it is just a Gambit, and a failed Gambit can
+  # make the patient worse.
   - slug: medical-basic
     name: Medical (Basic)
     category: skills
-    description: "Can bandage a wound and treat minor ailments."
+    description: "Allows you to treat very minor and minor injuries as routine — first aid, bandaging, packing a wound, setting a simple break. Anything worse is a Gambit."
     pointCost: 2
     visible: true
     purchasable: true
@@ -472,16 +526,16 @@ tags:
   - slug: medical-skilled
     name: Medical (Skilled)
     category: skills
-    description: "Trained medical care — can treat serious injuries and illness."
+    description: "Allows you to treat moderate, severe and dangerous cases as routine, up to minor surgery. The truly complex work is still a Gambit."
     pointCost: 2
     parentTag: medical-basic
     visible: true
     purchasable: true
     purchasableAfterStart: true
-  - slug: medical-excellent
-    name: Medical (Excellent)
+  - slug: medical-expert
+    name: Medical (Expert)
     category: skills
-    description: "Expert-level medicine, on par with the Sanctuary's own."
+    description: "Allows you to treat the worst cases as routine — complex surgery, on par with the Sanctuary's own. Only genuinely ridiculous work still needs a Gambit."
     pointCost: 2
     parentTag: medical-skilled
     visible: true
@@ -583,38 +637,582 @@ tags:
     name: Tipsy
     category: status
     group: status-debuffs
-    description: "Immune to Unhappy for 4 turns. Slightly worse at combat."
+    description: "Immune to Unhappy while it lasts. Slightly worse at combat."
     pointCost: 0
     purchasable: false
+    durationTurns: 4
 
   - slug: drained
     name: Drained
     category: status
     group: status-debuffs
-    description: "You're weak, you can barely keep food down, and your vision is blurry. You're barely fit to work."
+    description: "You're weak, you can barely keep food down, and your vision is blurry. You're barely fit to work. Time will mend it; blood would mend it faster, if anyone will give you theirs."
     pointCost: 0
     purchasable: false
     durationTurns: 4
 
+  # === Health ===========================================================
+  # Afflictions. Priced off the eight-rung cure ladder in this file's header
+  # — pick a rung and copy its block, don't invent numbers. Two conventions
+  # every entry below follows:
+  #
+  #   * A tag that GETS WORSE says so in its own description, and names what
+  #     it becomes. expiresInto does the mechanics; the sentence is what
+  #     makes a player go find a doctor before the timer runs out.
+  #   * `visible` is realism, not severity. A gaping wound or a missing arm
+  #     is obvious to anyone; appendicitis, cracked ribs and a rotten liver
+  #     are not. Whoever can treat a thing as routine sees it anyway, even
+  #     when it's invisible — that's the doctor's eye
+  #     (db/lib/medicalVision.js), and it's why the internal cases are worth
+  #     hiding rather than just flagging everything visible.
+
+  # --- Infection ---------------------------------------------------------
+  # One chain, five rungs, and the whole thing starts from a scratch nobody
+  # washed. Each rung is dearer than the last, which is the argument for
+  # treating it early.
+  - slug: infected
+    name: Infected
+    category: health
+    group: health-infection
+    description: "The wound is hot, swollen and weeping. It will not settle on its own — left alone it begins to fester, and from there it only goes deeper. Cheap to clean out now. Cutting the limb off still works while the rot is local; it stops working once it's in the blood."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 3
+    expiresInto: [festering]
+    requirement:
+      resourceCost: 2
+      skills: [medical-basic]
+
+  - slug: festering
+    name: Festering
+    category: health
+    group: health-infection
+    description: "The flesh around it has gone soft and sweet-smelling. Untreated, this is where it splits in two: the fever takes hold in your blood, and the flesh itself begins to die. An amputation is still an answer, for a little longer."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 2
+    expiresInto: [feverish, necrosis]
+    requirement:
+      turnsCost: 1
+      resourceCost: 4
+      skills: [medical-skilled]
+
+  - slug: feverish
+    name: Feverish
+    category: health
+    group: health-infection
+    description: "Burning, shivering, wringing wet. The infection is in your blood now, and no amount of cutting reaches it. If it isn't broken it becomes sepsis, and sepsis is the end of the road."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 2
+    expiresInto: [sepsis]
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [medical-skilled]
+
+  - slug: necrosis
+    name: Necrosis
+    category: health
+    group: health-infection
+    description: "The flesh has died and gone black, and dead flesh does not come back. It has to come off — and if nobody takes it off in time, it takes the limb with it anyway, badly. Treating this IS the amputation."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 2
+    expiresInto:
+      - oneOf: [missing-leg, missing-arm]
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [medical-skilled]
+
+  - slug: sepsis
+    name: Sepsis
+    category: health
+    group: health-infection
+    description: "Your whole body has turned on itself. Grey, cold, wandering in and out of sense. Nothing short of the Sanctuary's own can pull someone back from this, and even they would call it a gamble. It ends in dying."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 2
+    expiresInto: [dying]
+    requirement:
+      turnsCost: 1
+      resourceCost: 12
+      skills: [medical-expert]
+      gambit: true
+
+  - slug: dying
+    name: Dying
+    category: health
+    group: health-infection
+    description: "It has gone as far as it goes. You are not dead — but you are going, and nothing about that is on a timer any more. A GM decides how this ends. Someone with the very best medicine and a great deal of luck could still pull you back."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 12
+      skills: [medical-expert]
+      gambit: true
+
+  # --- Wounds ------------------------------------------------------------
+  - slug: bruised
+    name: Bruised
+    category: health
+    group: health-wounds
+    description: "Purple, tender, and thoroughly sorry for itself. Fades on its own; a cold compress and a kind word speed it up."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 2
+    requirement:
+      resourceCost: 1
+      skills: [medical-basic]
+
+  - slug: sprained-ankle
+    name: Sprained Ankle
+    category: health
+    group: health-wounds
+    description: "It takes your weight, but it complains the whole way. Travel is misery until it's strapped or it settles."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 4
+    requirement:
+      resourceCost: 2
+      skills: [medical-basic]
+
+  - slug: burned
+    name: Burned
+    category: health
+    group: health-wounds
+    description: "Red, shining and agonising to touch. Dressed properly it's nothing; left to dry out and crack it stops being nothing."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 3
+    requirement:
+      resourceCost: 2
+      skills: [medical-basic]
+
+  - slug: severe-burns
+    name: Severe Burns
+    category: health
+    group: health-wounds
+    description: "Skin gone to leather and worse underneath. Nothing is keeping the dirt out any more — untreated, it goes infected, and it will leave its mark on you either way."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 3
+    expiresInto: [infected]
+    requirement:
+      turnsCost: 1
+      resourceCost: 4
+      skills: [medical-skilled]
+
+  - slug: minor-bleeding
+    name: Minor Bleeding
+    category: health
+    group: health-wounds
+    description: "Steady, unhurried, and entirely survivable — but it doesn't stop by itself. Bind it, or spend the next few days weak as a kitten from what you lost."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 3
+    expiresInto: [drained]
+    requirement:
+      resourceCost: 1
+      skills: [medical-basic]
+
+  - slug: deep-wound
+    name: Deep Wound
+    category: health
+    group: health-wounds
+    description: "A gaping thing you can see into. It needs cleaning and closing, and it needs it soon — an open wound this size does not stay clean, and what comes next is infection."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 3
+    expiresInto: [infected]
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [medical-skilled]
+
+  - slug: severe-bleeding
+    name: Severe Bleeding
+    category: health
+    group: health-wounds
+    description: "It is coming faster than your body can make it. You have a few days of getting greyer and colder, and then you don't. Get it packed and closed."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 4
+    expiresInto: [dying]
+    requirement:
+      turnsCost: 1
+      resourceCost: 4
+      skills: [medical-skilled]
+
+  - slug: arterial-bleed
+    name: Arterial Bleed
+    category: health
+    group: health-wounds
+    description: "Bright red and coming in time with your heart. This is measured in hours, not days. Someone competent has to get a hand in there almost immediately or you will not be here to complain about it."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 2
+    expiresInto: [dying]
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [medical-skilled]
+
+  - slug: broken-bone
+    name: Broken Bone
+    category: health
+    group: health-wounds
+    description: "Snapped clean, and grinding when you forget and lean on it. It will not knit straight on its own, ever — it wants setting and splinting by someone who knows how, or you keep it crooked for good."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [medical-skilled]
+
+  - slug: cracked-ribs
+    name: Cracked Ribs
+    category: health
+    group: health-wounds
+    description: "Every breath is a decision. Nothing shows from the outside, which is exactly why people walk around on them for weeks — a doctor knows at a glance what everyone else takes for a bad mood."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [medical-skilled]
+
+  - slug: dislocated-shoulder
+    name: Dislocated Shoulder
+    category: health
+    group: health-wounds
+    description: "The arm hangs wrong and won't be argued with. Someone who has done it before can put it back in a moment; nobody who hasn't should try. Left out, it stays out."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    requirement:
+      resourceCost: 1
+      skills: [medical-basic]
+
+  - slug: frostbite
+    name: Frostbite
+    category: health
+    group: health-wounds
+    description: "Waxy white fingers and toes with no feeling left in them. Warmed properly and soon, they come back. Left as they are, they don't — the flesh simply dies where it stands."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 3
+    expiresInto: [necrosis]
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [medical-skilled]
+
+  - slug: punctured-lung
+    name: Punctured Lung
+    category: health
+    group: health-wounds
+    description: "Something went between the ribs, and now half of you won't fill. Every breath is shallower than the last. This is real surgery and it is not optional — a few days of this and you are dying."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 3
+    expiresInto: [dying]
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [medical-skilled]
+
+  - slug: gut-wound
+    name: Gut Wound
+    category: health
+    group: health-wounds
+    description: "Opened through the belly. Whatever was supposed to stay inside your intestines is now everywhere it shouldn't be, and it is already going septic. Needs someone genuinely excellent, opening you up properly, very soon."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 2
+    expiresInto: [sepsis]
+    requirement:
+      turnsCost: 1
+      resourceCost: 8
+      skills: [medical-expert]
+
+  - slug: broken-jaw
+    name: Broken Jaw
+    category: health
+    group: health-wounds
+    description: "Wired shut by the swelling alone. You cannot chew and you can barely make yourself understood. It needs setting by someone who won't leave your face where they found it."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 4
+      skills: [medical-skilled]
+
+  - slug: mangled-hand
+    name: Mangled Hand
+    category: health
+    group: health-wounds
+    description: "Crushed, and the fingers are pointing in directions fingers don't. There is a window in which someone skilled can save most of it. After that window, they save what they can — which is not the fingers."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 3
+    expiresInto: [missing-fingers]
+    requirement:
+      turnsCost: 1
+      resourceCost: 4
+      skills: [medical-skilled]
+
+  # --- Illness -----------------------------------------------------------
+  - slug: appendicitis
+    name: Appendicitis
+    category: health
+    group: health-illness
+    description: "A hot, spiteful pain low on the right that you have been calling indigestion for two days. Nothing shows. Nobody looking at you would guess — but any real doctor prodding your belly would know instantly, and would tell you that it has to come out before it bursts."
+    pointCost: -2
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 3
+    expiresInto: [sepsis]
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [medical-skilled]
+
+  - slug: rot-lung
+    name: Rot Lung
+    category: health
+    group: health-illness
+    description: "Years of breathing whatever it is that hangs in the deep tunnels. You cough black and you cough it forever. It does not get better on its own and it does not get better with kindness — it gets better with somebody very good cutting the worst of it out."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 8
+      skills: [medical-expert]
+
+  - slug: parasites
+    name: Parasites
+    category: health
+    group: health-illness
+    description: "Something is living in you and eating first. You are hungry constantly and thinner weekly, and there is nothing to see from the outside. A doctor knows the look. Purged properly it's a bad week; left alone it simply drains you."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 4
+    expiresInto: [drained]
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [medical-skilled]
+
+  - slug: poisoned
+    name: Poisoned
+    category: health
+    group: health-illness
+    description: "Sweating, shaking, guts in knots and a taste like old coins. You are weak, slow, and no use to anyone for days. It will not kill you — it just makes every hour of it wretched, and everything you try harder."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 4
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [medical-skilled]
+
+  - slug: envenomated
+    name: Envenomated
+    category: health
+    group: health-illness
+    description: "So much pain. Something put venom in you and it is working its way through — the limb is swelling, the flesh around the bite is going bad, and unless your constitution is particularly robust this is the beginning of dying, not the end of it. Needs a surgeon, quickly."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 3
+    expiresInto: [dying]
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [medical-skilled]
+
+  - slug: pox
+    name: Pox
+    category: health
+    group: health-illness
+    description: "It comes up across the face and arms in weeping clusters and everyone can see it coming up. It burns itself out in a week or so on its own — and leaves you looking like it. Treated early and properly, rather less so."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 4
+    expiresInto: [scarred]
+    requirement:
+      turnsCost: 1
+      resourceCost: 4
+      skills: [medical-skilled]
+
   - slug: arthritis
     name: Arthritis
-    category: status
-    group: status-health
-    description: "Stiff, aching joints.."
+    category: health
+    group: health-illness
+    description: "Stiff, aching joints that seize in the cold and never quite let go. It doesn't leave, but a competent doctor can take the worst of it off you for a while."
     pointCost: -2
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [medical-skilled]
+
+  - slug: hypothermia
+    name: Hypothermia
+    category: health
+    group: health-illness
+    description: "Past shivering and into the calm, stupid part where you stop minding the cold. Warmth, dry clothes and someone watching you is the whole treatment — and if nobody does it, this is how people are found in the morning."
+    pointCost: 0
+    visible: true
     purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 3
+    expiresInto: [dying]
+    requirement:
+      turnsCost: 1
+      resourceCost: 4
+      skills: [medical-skilled]
+
+  - slug: heatstroke
+    name: Heatstroke
+    category: health
+    group: health-illness
+    description: "Dry, red, and stopped sweating some time ago. Shade and water fix it. Nothing fixing it means a couple of days of being no use at all afterwards."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 2
+    expiresInto: [drained]
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [medical-skilled]
+
+  # --- Mind --------------------------------------------------------------
+  - slug: concussed
+    name: Concussed
+    category: health
+    group: health-mind
+    description: "The world arrives a half-second late and the light hurts. There is no treatment for this and there never has been — you sit somewhere dark and you wait it out."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 3
+
+  - slug: shell-shocked
+    name: Shell Shocked
+    category: health
+    group: health-mind
+    description: "Something happened and part of you did not come back from it. Loud noises put you somewhere else entirely. No medicine touches this. It does not expire, and no doctor can cut it out of you."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
     removable: false
 
-  # Inflicted, never chosen: a GM grants these (a Demoness true form is the
-  # usual source), and the expiry sweep in resolveNeeds() clears them if left
-  # alone. A medic can cut that short — every requirement block below is the
-  # cure cost, and is GM adjudication reference shown to players, not
-  # automation. See the Medical document in docs/documents.yaml.
+  - slug: amnesiac
+    name: Amnesiac
+    category: health
+    group: health-mind
+    description: "There are holes. Names, faces, whole seasons. You have learned to nod along and work it out from context. Nothing brings it back and nothing makes it worse — this is simply how you are now."
+    pointCost: -2
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
   - slug: paralyzed
     name: Paralyzed
-    category: status
-    group: status-health
-    description: "You can't move or talk."
+    category: health
+    group: health-mind
+    description: "You can't move or talk. It wears off — assuming whatever did it to you is finished with you."
     pointCost: 0
     visible: true
     purchasable: false
@@ -624,34 +1222,233 @@ tags:
 
   - slug: hallucinating
     name: Hallucinating
-    category: status
-    group: status-health
-    description: "Nothing makes sense. What is happening?! Oh my God!"
+    category: health
+    group: health-mind
+    description: "Nothing makes sense. What is happening?! Oh my God! It passes on its own, eventually. Someone with a steady hand and the right draught can bring you down faster."
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
     removable: true
     durationTurns: 2
     requirement:
-      turnsCost: 1
+      resourceCost: 2
       skills: [medical-basic]
-      gambit: false
 
-  - slug: envenomated
-    name: Envenomated
-    category: status
-    group: status-health
-    description: "So much pain. Unless your constitution is particularly robust, you might die…"
+  - slug: blinded
+    name: Blinded
+    category: health
+    group: health-mind
+    description: "Gone. Not dim, not blurred — gone. There is exactly one answer to this and it is the kind of thing only the Sanctuary's best would attempt: a fresh pair of eyes, from somewhere, and hands good enough to fit them. Bring both."
+    pointCost: -3
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 12
+      skills: [medical-expert]
+      gambit: true
+
+  - slug: mute
+    name: Mute
+    category: health
+    group: health-mind
+    description: "No voice. Whether it was taken or never came, it is not coming back, and no surgeon in the world is going to give you one. Write it down."
+    pointCost: -3
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  # --- Maiming -----------------------------------------------------------
+  # All permanent, all untreatable. Medicine's job with these ended at the
+  # amputation; what's left is living with it.
+  - slug: missing-leg
+    name: Missing Leg
+    category: health
+    group: health-maiming
+    description: "Taken off above the knee. You get about on a crutch and a good deal of stubbornness. Nobody is growing it back."
     pointCost: 0
     visible: true
     purchasable: false
     purchasableAfterStart: false
+    removable: false
+
+  - slug: missing-arm
+    name: Missing Arm
+    category: health
+    group: health-maiming
+    description: "Gone at the shoulder. Half of every two-handed task in the world is closed to you now, and you have got very good at the other half."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
+  - slug: missing-fingers
+    name: Missing Fingers
+    category: health
+    group: health-maiming
+    description: "A couple short on one hand. Fiddly work is a trial and a firm grip is a memory, but you manage."
+    pointCost: -1
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  - slug: crippled-leg
+    name: Crippled Leg
+    category: health
+    group: health-maiming
+    description: "It's still attached and it still hurts, which is the worst of both. You are slow, you are loud on stairs, and you are never running anywhere again — unless someone genuinely extraordinary rebuilds the whole thing, which is about as likely as it sounds."
+    pointCost: -3
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
     removable: true
-    durationTurns: 3
     requirement:
       turnsCost: 1
-      resourceCost: 5
-      skills: [medical-skilled]
+      resourceCost: 12
+      skills: [medical-expert]
+      gambit: true
+
+  - slug: deaf
+    name: Deaf
+    category: health
+    group: health-maiming
+    description: "Silence, and has been for a long time. You read faces and lips better than the people watching you realise. Nothing on earth is fixing it, and nothing about you advertises it either."
+    pointCost: -2
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  - slug: missing-eye
+    name: Missing Eye
+    category: health
+    group: health-maiming
+    description: "One socket, empty or covered. Your depth perception is a running joke and your blind side is a genuine liability."
+    pointCost: -2
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  - slug: scarred
+    name: Scarred
+    category: health
+    group: health-maiming
+    description: "Whatever it was, it's healed. It just left the whole story written across you where anyone can read it."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
+  # --- Ailments ----------------------------------------------------------
+  # Tier 0, every one of them: realistically untreatable, quick, harmless.
+  # No requirement block, so the Heal request never offers them — there is
+  # nothing for a doctor to do and pretending otherwise would be silly.
+  - slug: vomiting
+    name: Vomiting
+    category: health
+    group: health-minor
+    description: "Whatever it was, it is coming back up, and everyone within earshot knows. It stops when it stops. No doctor alive can shorten this and it would be undignified of them to charge you for trying."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 1
+
+  - slug: hungover
+    name: Hungover
+    category: health
+    group: health-minor
+    description: "You had a wonderful evening and this is the invoice. Water, quiet, and the passage of time."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 1
+
+  - slug: migraine
+    name: Migraine
+    category: health
+    group: health-minor
+    description: "A spike behind one eye, and the light is unbearable. You get these. Nothing helps and nothing ever has — it passes, you get a few good days, and then it comes back, because it always comes back."
+    pointCost: -2
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 3
+    expiresInto: [no-migraine]
+
+  - slug: no-migraine
+    name: No Migraine
+    category: health
+    group: health-minor
+    description: "Your head is clear and the world is a reasonable place. Enjoy it. It might come back…"
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 4
+    expiresInto: [migraine]
+
+  # --- Recovery ----------------------------------------------------------
+  # What good treatment LEAVES BEHIND, so a cure reads as convalescence
+  # rather than the tag simply blinking out. All tier 0 — there is nothing to
+  # treat about getting better.
+  - slug: splinted
+    name: Splinted
+    category: health
+    group: health-recovery
+    description: "Set, strapped and holding. Keep your weight off it and it knits straight."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 4
+
+  - slug: stitched-up
+    name: Stitched Up
+    category: health
+    group: health-recovery
+    description: "Cleaned, closed and drawn tight. It pulls when you move and it itches like sin, which is how you know it's working. It will leave a mark."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 3
+    expiresInto: [scarred]
+
+  - slug: cauterized
+    name: Cauterized
+    category: health
+    group: health-recovery
+    description: "Hot iron, no anaesthetic, and the bleeding stopped. It was the right call and you will never forget it happened."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 1
+    expiresInto: [scarred]
+
+  - slug: recovering
+    name: Recovering
+    category: health
+    group: health-recovery
+    description: "Out of danger and under orders to do nothing strenuous. Someone competent has already done the hard part; the rest is rest."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 2
 
   # --- assets -------------------------------------------------------
   - slug: windlander-horse

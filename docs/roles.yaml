@@ -507,7 +507,7 @@ zones:
             leader: true
             starting_tags:
               - Ravenhearter
-              - Medical (Excellent)
+              - Medical (Expert)
               - Brewing (Skilled)
             doc_elements:
               - townstarting

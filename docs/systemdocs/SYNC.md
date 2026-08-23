@@ -105,6 +105,7 @@ indexed id columns rather than real relations — see `ARCHIVE.md`.
 | `db:backfill-roles` | Creates the personal Discord role for characters that predate it. Does not assign it — nobody holds these. |
 | `db:backfill-name-parts` | Repair pass for the four-part character name; also the drift check on the denormalized `Character.name`. |
 | `db:backfill-tag-rework` | One-off tag catalog cleanup. No Discord. |
+| `db:backfill-medical-expert` | Retires the old `medical-excellent` Tag row after the slug rename, moving its holders, cure requirements and child tiers onto `medical-expert`. Run **after** `db:sync-tags`, since it needs the new row to exist. No Discord. |
 | `db:prune-orphan-categories` | Dry-run by default (`--apply`): deletes Location categories no `Location` row points at. |
 | `db:sync-narrowcast-channels` | One-off provisioning for `#radio`/`#intercom`. |
 | `db:rebuild-info-channel` | Destructive rebuild of `#info` from `infochannel.yaml` (`INFOCHANNEL.md`). |

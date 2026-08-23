@@ -13,10 +13,12 @@ import { resolveConsumeGrants, heldSlugsOf } from "@/lib/consumeGrants";
 // CharacterSheet.js.
 
 // Fixed display order rather than alphabetical or catalog order — Status
-// (Mood, buffs/debuffs) belongs near the top, ahead of General/Skills.
+// (Mood, buffs/debuffs) and Health (whatever is currently wrong with you)
+// belong near the top, ahead of General/Skills.
 const CATEGORY_ORDER = [
   "Meta",
   "Status",
+  "Health",
   "General",
   "Skills",
   "Items",

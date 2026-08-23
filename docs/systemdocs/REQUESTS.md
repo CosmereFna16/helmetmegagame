@@ -336,33 +336,39 @@ owns rather than the player.
 **Three gates, all re-checked server-side.** The button only renders for a
 character holding `medical-basic`; the patient must share the healer's
 `locationId`; and the affliction's own `requirementSkills` must be satisfied —
-Arthritis names Medical (Skilled), so a character with only the Basic tier
+a Deep Wound names Medical (Skilled), so a character with only the Basic tier
 sees it in the menu, greyed, reading "needs Medical (Skilled)". The menu is
 advisory as always: `healCharacterRequestImpl` re-derives every one of those
 from the database before it writes anything.
 
 **Holding a higher tier satisfies a lower requirement.** Medical tiers
-*replace* each other up `Tag.parentTagId` (Basic → Skilled → Excellent), so a
-surgeon must be able to do a nurse's job. `buildSkillAncestry` in
-`web/lib/healRequests.js` walks that chain once over the flat catalog and
-`satisfiedSkillIds` unions it across everything the character holds — cheaper
-than three nested Prisma includes, cycle-guarded, and pure, so the picker and
-the server action can never disagree.
+*replace* each other up `Tag.parentTagId` (Basic → Skilled → Expert), so a
+surgeon must be able to do a nurse's job. `buildSkillAncestry` walks that chain
+once over the flat catalog and `satisfiedSkillIds` unions it across everything
+the character holds — cheaper than three nested Prisma includes, cycle-guarded,
+and pure, so the picker and the server action can never disagree. Both live in
+`db/lib/medicalVision.js` (re-exported by `web/lib/healRequests.js`, where they
+used to sit) because the bot asks the same question: the doctor's eye on 🔍
+inspect shows a medic the hidden afflictions they are qualified for, and the
+two faces must not drift on who counts as qualified. See `TAGS.md` §5c.
 
 **What counts as treatable** is data, not a slug list: a held tag in the
-`Status` category that carries *any* requirement field. A Status tag with no
-requirement block — Hungry, Drained, Unhappy — is a condition that runs its
-own course, not something a doctor removes. Today Arthritis is the only tag
-that qualifies; adding a `requirement:` block to a Status tag in
-`docs/tags.yaml` is the whole of "make this curable".
+`Health` category that carries *any* requirement field. A Health tag with no
+requirement block is tier 0 of the cure ladder — Vomiting, a Migraine, a
+Concussion: realistically untreatable, quick, harmless, and deliberately not
+something a doctor bills for. Adding a `requirement:` block to a Health tag in
+`docs/tags.yaml` is the whole of "make this curable", and `TAGS.md` §5c has the
+eight rungs to copy rather than invent.
 
 **The cost is `Tag.requirementResources`, and a payer is demanded even at
 zero.** `schema.prisma` documents the requirement block as covering whichever
 direction is narratively relevant — crafting reads it as the price of gaining
-a tag, healing as the price of shedding one. Arthritis carries `turnsCost: 3`
-and no `resourceCost`, so it cures for 0 ⬢ today; the payer is still asked for
-and still recorded, because who was on the hook is the part a GM needs. The
-turns and any Gambit are shown as reference and enforced by nobody.
+a tag, healing as the price of shedding one. A rung with no `resourceCost`
+would cure for 0 ⬢; the payer is still asked for and still recorded, because
+who was on the hook is the part a GM needs. The turns and any Gambit are shown
+as reference and enforced by nobody — which is what makes "you may always
+attempt something above your tier, as a Gambit" a rule a GM adjudicates rather
+than one the button blocks.
 
 **Who pays is anyone.** Every co-located living player including the healer,
 plus every faction Silo regardless of Silo authority — the same reach

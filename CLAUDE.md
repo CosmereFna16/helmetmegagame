@@ -109,6 +109,7 @@ npm run db:backfill-name-parts
 npm run db:backfill-member-access
 npm run db:backfill-persistent-tag
 npm run db:backfill-tag-rework
+npm run db:backfill-medical-expert    # after db:sync-tags; retires medical-excellent
 npm run db:backfill-gm-permissions
 npm run db:backfill-spectator-access
 npm run db:backfill-tupper-attachment-restriction
