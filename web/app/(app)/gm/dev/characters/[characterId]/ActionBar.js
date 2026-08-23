@@ -286,7 +286,7 @@ export default function ActionBar({
           <div className="modal-panel flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
             <h2 className="panel-header">Inflict a wound</h2>
             <p className="text-sm text-muted">
-              Afflictions are Status tags carrying a cure cost — the same set a medic can treat.
+              Afflictions are Health tags carrying a cure cost — the same set a medic can treat.
               Picking one stages it; it lands when you Apply.
             </p>
             <ul className="flex flex-col gap-2">

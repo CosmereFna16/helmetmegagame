@@ -536,7 +536,7 @@ of who is qualified; `healRequests.js` re-exports it.
    `purchasableAfterStart: false`, per §4.
 6. `npm run db:sync-tags`.
 
-## 5c. GM-authored tags
+## 5d. GM-authored tags
 
 A tag can also be written in the UI, at `/gm/dev/tags`, instead of in
 `docs/tags.yaml`. Such a row carries `Tag.custom = true` and lives only in the

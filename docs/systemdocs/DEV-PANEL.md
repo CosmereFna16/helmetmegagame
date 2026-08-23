@@ -33,10 +33,13 @@ from the form and lives only as the Kill and Revive buttons. That is why
 `applyCharacterEdits` never has to reason about "did they also just kill this
 character" — it reads status from the database, never from the payload.
 
-Three staging buttons sit in the action bar despite being edits rather than
+Four staging buttons sit in the action bar despite being edits rather than
 verbs — **Heal all**, **Feed**, **Refund points**, and the **Inflict wound**
 picker. They make no server call: they push ops into the same pending diff the
-Tags tab uses. So they show in the pending count, go through the one tag write
+Tags tab uses. Heal-all and Inflict both read `isHealable` from
+`web/lib/healRequests.js` (a **Health** tag carrying a cure cost) rather than
+re-deriving the predicate, so the picker and the server can't disagree about
+what an affliction is. So they show in the pending count, go through the one tag write
 path, and Cancel undoes them like anything else.
 
 ## 3. Layout
