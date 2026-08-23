@@ -263,13 +263,17 @@ export async function createCharacter(formData) {
     throw err;
   }
 
-  // Discord side effects, best-effort and strictly ordered: the personal role
-  // must exist before it can be granted category access, and narrowcast
-  // access reads the location/tags written above.
+  // Discord side effects, best-effort and strictly ordered: narrowcast access
+  // reads the location/tags written above.
+  //
+  // Access no longer depends on the role existing — it is a per-member
+  // overwrite keyed on discordUserId (db/lib/locationAccess.js), so the gate
+  // here is having somewhere to stand, not having a role. Gating on
+  // discordRoleId as this once did would silently deny a character their own
+  // room whenever role creation failed.
   await ensureCharacterRole(created).catch(() => {});
-  const withRole = await prisma.character.findUnique({ where: { id: created.id } });
-  if (withRole?.discordRoleId && created.locationId) {
-    await syncCharacterLocationAccess(withRole.discordRoleId, null, created.locationId).catch(() => {});
+  if (created.locationId) {
+    await syncCharacterLocationAccess(discordUserId, null, created.locationId).catch(() => {});
   }
   await syncCharacterNickname(discordUserId, formatBareName({ firstName, lastName }), preferredNickname).catch(() => {});
   await syncCharacterNarrowcastAccess(created.id).catch(() => {});

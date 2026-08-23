@@ -307,6 +307,10 @@ async function deleteChannelOverwrite(channelId, targetId) {
 }
 
 module.exports = {
+  // The central wrapper itself, for one-off scripts that need an endpoint
+  // with no named helper here and shouldn't hand-roll a fetch without the
+  // 429 retry.
+  discordRequest,
   getGuildChannels,
   createDmChannel,
   getChannel,

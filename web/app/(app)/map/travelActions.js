@@ -19,7 +19,7 @@ export async function travelTo(locationId) {
   // across the map. Same posture as character/equipActions.js.
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
-    select: { id: true, locationId: true, zoneId: true, discordRoleId: true },
+    select: { id: true, locationId: true, zoneId: true, discordUserId: true },
   });
   if (!character) return { error: "No living character." };
 
@@ -31,7 +31,7 @@ export async function travelTo(locationId) {
   if (!result.ok) return { error: result.reason };
 
   await syncCharacterLocationAccess(
-    character.discordRoleId,
+    character.discordUserId,
     result.oldLocation?.id ?? null,
     target.id,
   ).catch(() => {});

@@ -93,15 +93,13 @@ module.exports = {
 // members.
 async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
   const context = resolveChannelContext(channel);
-  const mentioned = await resolveMentionedCharacters(mentionedRoleIds, message.author.id);
+  const mentioned = await resolveMentionedCharacters(mentionedRoleIds);
 
   // Every gate on this path used to reject in total silence, and the proxy
   // suppresses the role ping itself (allowedMentions parse: ["users"]), so a
-  // swallowed mention looked exactly like a delivered one — the chip renders
+  // swallowed mention looks exactly like a delivered one — the chip renders
   // either way. One line per ping makes the whole thing diagnosable from the
-  // Railway logs. The commonest "bug" report is a player pinging their own
-  // character: resolveMentionedCharacters drops the sender's own characters
-  // deliberately, and that shows up here as resolved=0.
+  // Railway logs.
   console.log(
     `[mentions] roles=${mentionedRoleIds.join(",")} resolved=${mentioned.length} ` +
       `zone=${context.zoneId ?? "none"} kind=${context.channelKind ?? "location"}`,

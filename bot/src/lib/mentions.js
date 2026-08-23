@@ -32,16 +32,23 @@ async function canHearPing(character, context) {
   return character.zoneId === context.zoneId;
 }
 
-// The ALIVE characters behind the roles mentioned in `message`, minus the
-// sender's own. Read BEFORE the message is proxied: sendAsCharacter deletes
-// the original (bot/src/lib/proxy.js), so the caller has to capture mentions
-// first and pass them here.
-async function resolveMentionedCharacters(roleIds, senderDiscordUserId) {
+// The ALIVE characters behind the roles mentioned in `message`. Read BEFORE
+// the message is proxied: sendAsCharacter deletes the original
+// (bot/src/lib/proxy.js), so the caller has to capture mentions first and pass
+// them here.
+//
+// Pinging your own character DOES relay. There used to be a filter dropping
+// the sender's own characters, on the reasoning that nobody needs telling they
+// pinged themselves — but the proxy suppresses the ping itself
+// (allowedMentions parse: ["users"], PROXYING.md §2), so a self-ping was the
+// one case that looked exactly like a broken relay while being working-as-
+// intended, and it is the first thing anyone reaches for to test the feature.
+// A redundant DM to yourself is much cheaper than a feature nobody can verify.
+async function resolveMentionedCharacters(roleIds) {
   if (roleIds.length === 0) return [];
-  const characters = await prisma.character.findMany({
+  return prisma.character.findMany({
     where: { discordRoleId: { in: roleIds }, status: "ALIVE" },
   });
-  return characters.filter((c) => c.discordUserId !== senderDiscordUserId);
 }
 
 function messageLink(guildId, channelId, messageId) {

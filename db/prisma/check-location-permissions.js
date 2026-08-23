@@ -20,11 +20,15 @@ function viewState(overwrite) {
   return "NEUTRAL ❌ VISIBLE (no view bit either way)";
 }
 
-function label(id, guildId, gmRoleId, roleIdToName) {
+function label(id, guildId, gmRoleId, roleIdToName, userIdToName) {
   if (id === guildId) return "@everyone";
   if (id === gmRoleId) return "GM role";
   if (id === SPECTATOR_ROLE_ID) return "spectator";
-  if (roleIdToName.has(id)) return `character role: ${roleIdToName.get(id)}`;
+  // The live model: access is a per-member overwrite keyed on discordUserId.
+  if (userIdToName.has(id)) return `character (member): ${userIdToName.get(id)}`;
+  // Legacy, pre-backfill-member-access. Seeing these means the migration
+  // hasn't run yet (or didn't finish).
+  if (roleIdToName.has(id)) return `character ROLE (stale): ${roleIdToName.get(id)}`;
   return `unknown ${id}`;
 }
 
@@ -42,6 +46,9 @@ async function main() {
   });
   const roleIdToName = new Map(
     characters.filter((c) => c.discordRoleId).map((c) => [c.discordRoleId, c.name]),
+  );
+  const userIdToName = new Map(
+    characters.filter((c) => c.discordUserId).map((c) => [c.discordUserId, c.name]),
   );
 
   const locations = await prisma.location.findMany({ include: { zone: true }, orderBy: { name: "asc" } });
@@ -77,7 +84,7 @@ async function main() {
       const others = ows.filter((o) => o.id !== guildId);
       for (const o of others) {
         console.log(
-          `             · ${label(o.id, guildId, gmRoleId, roleIdToName)} type=${o.type} allow=${o.allow} deny=${o.deny}`,
+          `             · ${label(o.id, guildId, gmRoleId, roleIdToName, userIdToName)} type=${o.type} allow=${o.allow} deny=${o.deny}`,
         );
       }
       if (others.length === 0) console.log("             · (no other overwrites)");

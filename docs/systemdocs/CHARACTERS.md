@@ -353,8 +353,8 @@ character.
 
 ## 6. Narrowcast channels (`#radio`, `#intercom`)
 
-Access to both is granted the same way Location access is — a permission
-overwrite on the character's own personal Discord role — and is reconciled
+Access to both is granted the same way Location access is — a per-member
+permission overwrite keyed on `Character.discordUserId` — and is reconciled
 after every Move and on character creation. The rules themselves (who hears
 what, the Depths dead zone, the Keep) live in one place:
 **`CHANNELS.md` §6**. They were duplicated here and drifted; don't re-add them.
