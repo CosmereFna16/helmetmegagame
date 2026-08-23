@@ -1649,6 +1649,21 @@ tags:
       - old-45-revolver
       - jewelry
 
+  # A unique key, not a purchase: the Baron starts with it (roles.yaml) and
+  # there is exactly one. In Items rather than Assets because the whole point
+  # is that it can change hands — Transfer Tag filters on category, so a key
+  # in Items is a key that can be handed over, bargained for, or taken off a
+  # body. `visible` is left closed: a 🔍-inspect should not tell a stranger
+  # that this man is carrying the way off the planet.
+  - slug: barons-key
+    name: "The Baron's Key"
+    category: items
+    group: items-gear
+    description: "Opens the Charon."
+    pointCost: 0
+    tradeable: true
+    purchasable: false
+
   - slug: old-45-revolver
     name: Old .45 Revolver
     category: items
