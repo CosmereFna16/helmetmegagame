@@ -7,6 +7,9 @@
 # player-generated content in #info worth preserving, so there's no diffing
 # logic; the script always throws away what's live and reposts from here.
 #
+# - banner: optional path (relative to docs/) to an image posted as a bare
+#   attachment, with no text, as the very first thing in #info — before the
+#   threads are even created, so nothing can land above it.
 # - main_message: the directory's intro/pitch/rules copy, posted verbatim
 #   as the first message(s) in #info. Discord markdown (bold, bullets) is
 #   preserved as-is. The category/thread-link listing that follows it in
@@ -28,6 +31,8 @@
 #   faction's roles by name + intro text only (no description/tags/threats)
 #   — edit roles.yaml, rerun `npm run db:rebuild-info-channel`, and the
 #   thread updates itself.
+
+banner: assets/info-banner.png
 
 main_message: |-
   Lifeweb is a large-scale, rules-light story generator, 70% roleplay and 30% strategy. It’s intended to be serious, grim, heroic, and occasionally funny.
