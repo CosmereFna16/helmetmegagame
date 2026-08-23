@@ -325,8 +325,22 @@ model Location {
   id                  String   @id @default(cuid())
   slug                String?  @unique
   name                String
+  // The INTRO string: one or two sentences, rendered into the summary
+  // channel's topic by syncLocations.js#buildSummaryTopic. Short by nature — a
+  // Discord channel topic is a single capped line.
   description         String   @default("")
-  publicSubLocations  String[] @default([])
+  // The LONG-FORM description. Has no topic to fit into: it's rendered, with
+  // the sublocale prose below, into the generated locked+pinned
+  // "{Location}: Description" forum post in the -public channel. See
+  // syncLocations.js#syncDescriptionPost.
+  extendedDescription String   @default("")
+  // [{ name, description }], ordered. `name` alone feeds the topic's
+  // "**Sublocations**: …" list exactly as before; `description` is the
+  // per-sublocale section of the description post. Json rather than String[]
+  // because a sublocale is now a pair, not a label — docs/locations.yaml is
+  // the sole master and still accepts a bare string, which normalizes to
+  // `{ name, description: "" }`.
+  publicSubLocations  Json     @default("[]")
   privateSubLocations String[] @default([])
   tags                String[] @default([])
   zoneId              String
@@ -344,6 +358,14 @@ model Location {
   discordChannelId        String?
   discordPublicChannelId  String?
   discordPrivateChannelId String?
+
+  // The generated "{Location}: Description" forum post in the -public channel:
+  // its thread id (which is also its starter message's id), plus a hash of the
+  // body last written into it. The hash is what keeps a no-op re-sync from
+  // making any Discord call at all — same rate-limit discipline as the rest of
+  // syncLocations.js.
+  discordDescriptionThreadId String?
+  descriptionPostHash        String?
 
   characters       Character[]
   startingForRoles Role[]      @relation("RoleStartingLocation")

@@ -80,8 +80,40 @@ but *only* because `sortLocationChannels` asserts it explicitly every run:
 | Channel | Type | Purpose | Slowmode |
 |---|---|---|---|
 | `cathedral` | text | Summary channel — tupper proxying, turn/adjudication updates post here | 60s |
-| `cathedral-public` | forum | Subrooms — players spin up their own posts ("The Inn's Kitchen!"). Posts auto-archive (hidden from the active list, not deleted) after 24h of inactivity (`default_auto_archive_duration: 1440`) | — |
+| `cathedral-public` | forum | Subrooms — players spin up their own posts ("The Inn's Kitchen!"). Posts auto-archive (hidden from the active list, not deleted) after 24h of inactivity (`default_auto_archive_duration: 1440`). Also carries the one generated **description post**, pinned at the top — see §2b | — |
 | `cathedral-private` | text | Secret conversations — `@everyone` is denied `ViewChannel`/`SendMessages`/`CreatePublicThreads` but allowed `CreatePrivateThreads`, so it's only ever used to spin up a private thread and ping people into it. The `ViewChannel` deny is already inherited from the category (see §3) — it's set explicitly here too so Discord's own permissions UI shows it as an explicit deny on this channel instead of "inherited/neutral", which reads as unrestricted at a glance |
+
+### 2b. The generated description post
+
+Every sync generates exactly one forum post per Location at the top of its
+`-public` channel, titled **`{Location}: Description`**. It is **locked** (no
+replies), **pinned** (`flags: 2` — a forum post is pinned by that thread flag,
+not by the `/pins` endpoint), and tagged 🗺 **Information**.
+
+It exists because a Location's prose outgrew the one place it used to live. The
+summary channel's topic is a single capped line, so `locations.yaml` now carries
+two fields instead of one: `description`, the short **intro** string, still
+rendered into that topic exactly as before; and `extendedDescription`, the
+long-form text, which goes into this post along with a `###` section per public
+sublocation (each sublocation is now a `name` + its own `description`). A
+sublocation with no text still gets its heading — the post is a skeleton the GM
+fills in, and an empty heading is the prompt to fill it.
+
+`syncDescriptionPost` (`db/lib/syncLocations.js`) reconciles it by **content
+hash**, stored on `Location.descriptionPostHash` alongside
+`Location.discordDescriptionThreadId`:
+
+- unchanged body → one read, zero writes (same rate-limit discipline as the
+  rest of that file);
+- changed body → the post is rewritten **in place**: unlock, delete every
+  message except the starter, `PATCH` the starter's content, re-post any
+  overflow chunks, then re-assert name + lock + pin + tag. The starter message's
+  id *is* the thread id, and deleting it would destroy the post, its id, and its
+  pin;
+- missing post (a GM deleted it by hand) → rebuilt from scratch.
+
+Unlike the topic/permissions pass, this runs for freshly provisioned Locations
+too — `provisionLocationChannels` creates channels, never posts.
 
 **Renaming**: editing a `Location.name` in the DB or in `locations.yaml`
 after provisioning does **not** rename the live Discord category/channels —
@@ -251,7 +283,7 @@ players until the game ends, not by the code.
 
 ### Persistence — surviving the wipe
 
-**Two markers, because the two channel types can't share one.** A forum post
+**Two markers for player-set persistence, plus a third the sync owns.** A forum post
 carries the real "Persistent" (⏰) forum tag. A private thread lives under a
 *text* channel, which cannot have forum tags at all, so it is marked by a **⏰
 prefix on the thread's own name** instead. `db/lib/persistence.js` owns both —
@@ -282,8 +314,19 @@ forum channel provisioned before the tag existed self-heals instead of failing
 silently. The wipe still looks the tag up by name rather than storing an id,
 so it can't drift if the tag is ever recreated.
 
-`db/lib/fullWipe.js` — the Restart Game nuke — deliberately ignores both
-markers. Nothing is spared there, whatever it's marked with.
+**🗺 Information is the third marker, and it is stronger.** A ⏰ post *survives
+emptied* — the thread lives, every message in it is deleted. That is right for a
+standing side-room and exactly wrong for a post whose entire value is the text
+inside it, so the wipe **skips** an 🗺-tagged post outright: not deleted, not
+cleared. It is applied only by `db/lib/syncLocations.js`, to the generated
+`{Location}: Description` post (§2b); `/persistent` never sets it, so there is
+no player-facing route to an un-wipeable post. Like ⏰, it is in
+`locationChannelSpec`'s `public.available_tags` for new forums and reached via
+`ensureForumTag` for ones that predate it, and the wipe looks it up by name.
+
+`db/lib/fullWipe.js` — the Restart Game nuke — deliberately ignores all three
+markers. Nothing is spared there, whatever it's marked with; Restart Game
+re-runs `syncLocationsFromYaml`, which regenerates the description posts.
 
 **Where the code lives**: `db/lib/discordRest.js` (low-level REST helpers —
 paginated message fetch, bulk-delete, thread list/delete, forum tag patch,

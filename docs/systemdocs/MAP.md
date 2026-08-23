@@ -10,8 +10,11 @@ Two levels: **`Zone`** (e.g. "Town") and **`Location`** (e.g. "cathedral",
 nested under a Zone via `Location.zoneId`).
 
 `docs/locations.yaml` is the sole master; see `SYNC.md` for the sync's
-destructive semantics. Per entry: `id` (slug), `name`, `zone`, `description`,
-`publicSubLocations`, `privateSubLocations`, free-text `tags`, and `map: {x, y}`.
+destructive semantics. Per entry: `id` (slug), `name`, `zone`, `description`
+(the short intro string, rendered into the summary channel's topic),
+`extendedDescription` (long-form, rendered into the generated description post —
+`CHANNELS.md` §2b), `publicSubLocations` (each a `name` plus its own long-form
+`description`), `privateSubLocations`, free-text `tags`, and `map: {x, y}`.
 
 **`Character.locationId` is authoritative.** `Character.zoneId` is a
 denormalized mirror of `location.zoneId`, written in the same update, kept only

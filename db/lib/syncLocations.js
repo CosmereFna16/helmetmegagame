@@ -38,10 +38,25 @@ const {
   putChannelOverwrite,
   deleteChannelOverwrite,
   getChannel,
+  ensureForumTag,
+  createForumPost,
+  patchThread,
+  editMessage,
+  postMessage,
+  deleteMessage,
+  fetchAllMessages,
+  chunkMessage,
+  THREAD_FLAG_PINNED,
 } = require("./discordRest");
+const crypto = require("node:crypto");
 const { spectatorOverwrite } = require("./spectatorAccess");
 const { SPECTATOR_ROLE_ID } = require("./roleIds");
-const { PERSISTENT_TAG_NAME, PERSISTENT_EMOJI } = require("./persistence");
+const {
+  PERSISTENT_TAG_NAME,
+  PERSISTENT_EMOJI,
+  INFORMATION_TAG_NAME,
+  INFORMATION_EMOJI,
+} = require("./persistence");
 
 const CHANNEL_TYPE_TEXT = 0;
 const CHANNEL_TYPE_CATEGORY = 4;
@@ -78,12 +93,63 @@ const GM_PRIVATE_PERMS =
   PERM_MANAGE_THREADS +
   PERM_MANAGE_MESSAGES;
 
+// A sublocale is `{ name, description }`, but docs/locations.yaml is
+// hand-edited and its older form was a bare string — so both are accepted and
+// a string normalizes to a nameless-description pair. Also the reader for the
+// Json column, which comes back as whatever was last written to it.
+function normalizeSubLocations(entries) {
+  return (entries ?? [])
+    .map((entry) =>
+      typeof entry === "string"
+        ? { name: entry, description: "" }
+        : { name: entry?.name ?? "", description: entry?.description ?? "" },
+    )
+    .filter((entry) => entry.name);
+}
+
+// UNCHANGED in what it produces: the intro string, then the sublocale NAMES
+// comma-joined. Only the source of those names moved, from a bare string to
+// the `name` of a pair.
 function buildSummaryTopic(location) {
   const description = location.description || "";
-  const subLocations = location.publicSubLocations ?? [];
+  const subLocations = normalizeSubLocations(location.publicSubLocations);
   if (subLocations.length === 0) return description || null;
-  const suffix = `**Sublocations**: ${subLocations.join(", ")}`;
+  const suffix = `**Sublocations**: ${subLocations.map((s) => s.name).join(", ")}`;
   return description ? `${description} | ${suffix}` : suffix;
+}
+
+// The body of the generated "{Location}: Description" forum post — the room
+// the channel topic doesn't have. Long-form location text, then one section
+// per public sublocale.
+//
+// A sublocale with no text still gets its heading. The post is a skeleton the
+// GM fills in over time, and a heading that's there but empty is the prompt to
+// fill it; silently omitting it would make an unwritten sublocale
+// indistinguishable from one that doesn't exist.
+//
+// Pure — no Discord, no prisma — so the hash below is a pure function of the
+// YAML.
+function buildDescriptionBody(location) {
+  const parts = [`## ${location.name}`];
+
+  const extended = (location.extendedDescription || "").trim();
+  if (extended) parts.push(extended);
+
+  for (const sub of normalizeSubLocations(location.publicSubLocations)) {
+    const text = (sub.description || "").trim();
+    parts.push(text ? `### ${sub.name}\n${text}` : `### ${sub.name}`);
+  }
+
+  return parts.join("\n\n");
+}
+
+function descriptionPostTitle(location) {
+  // Discord caps a thread name at 100 characters.
+  return `${location.name}: Description`.slice(0, 100);
+}
+
+function hashBody(body) {
+  return crypto.createHash("sha256").update(body).digest("hex").slice(0, 32);
 }
 
 // The complete intended Discord layout for one Location: the category and its
@@ -155,7 +221,10 @@ function locationChannelSpec(location) {
       name: `${location.name}-public`,
       type: CHANNEL_TYPE_FORUM,
       default_auto_archive_duration: 1440,
-      available_tags: [{ name: PERSISTENT_TAG_NAME, emoji_name: PERSISTENT_EMOJI }],
+      available_tags: [
+        { name: PERSISTENT_TAG_NAME, emoji_name: PERSISTENT_EMOJI },
+        { name: INFORMATION_TAG_NAME, emoji_name: INFORMATION_EMOJI },
+      ],
       permission_overwrites: gmChannelOverwrite(gmRoleId, GM_PUBLIC_PERMS).reduce(mergeOverwrite, base),
     },
     private: {
@@ -241,10 +310,10 @@ async function reconcileChannelOverwrites(channelId, want) {
   }
 
   // Reading the live channel is the only way to see an overwrite the spec
-  // doesn't mention. allow404 isn't available on getChannel, so a stale
-  // recorded id throws here rather than silently skipping — which is the
-  // right trade: a channel id pointing at nothing is a real problem worth
-  // failing the sync over, and the caller reports which Location it was.
+  // doesn't mention. allow404 is deliberately NOT passed here, so a stale
+  // recorded id throws rather than silently skipping — which is the right
+  // trade: a channel id pointing at nothing is a real problem worth failing
+  // the sync over, and the caller reports which Location it was.
   const live = await getChannel(channelId);
   const managed = managedOverwriteIds();
 
@@ -285,6 +354,110 @@ async function applyLocationPermissions(location) {
     }
   }
   return repairs;
+}
+
+// The one generated forum post per Location: "{Location}: Description", locked,
+// pinned to the top of the -public forum, and tagged 🗺 Information so the Dawn
+// wipe skips it entirely (db/lib/dawnWipe.js — a ⏰ Persistent post survives but
+// is EMPTIED, which would blank this every dawn).
+//
+// Runs for every provisioned Location including ones provisioned this run,
+// unlike the topic/permissions pass: provisionLocationChannels creates channels,
+// never posts, so a fresh Location has no post yet.
+//
+// Reconciled by content hash. A re-sync that changes nothing costs exactly one
+// GET (the ensureForumTag read) and no writes — the alternative, unconditionally
+// rewriting fifteen posts on every run, is fifteen edits into fifteen separate
+// rate-limit lanes for no change at all.
+//
+// Returns "created" | "updated" | "unchanged" | "skipped".
+async function syncDescriptionPost(prisma, location) {
+  if (!location.discordPublicChannelId) return "skipped";
+
+  // The only route by which an ALREADY-provisioned forum gains the tag:
+  // `available_tags` in locationChannelSpec applies at creation and never
+  // again. Idempotent, so it's also harmless on a forum created this run.
+  const informationTagId = await ensureForumTag(
+    location.discordPublicChannelId,
+    INFORMATION_TAG_NAME,
+    INFORMATION_EMOJI,
+  );
+
+  const body = buildDescriptionBody(location);
+  const hash = hashBody(body);
+  const chunks = chunkMessage(body);
+  const appliedTags = informationTagId ? [informationTagId] : [];
+
+  // A recorded thread id can point at a post a GM deleted by hand, in which
+  // case the hash is meaningless and the post has to be rebuilt.
+  let existing = null;
+  if (location.discordDescriptionThreadId) {
+    existing = await getChannel(location.discordDescriptionThreadId, { allow404: true });
+  }
+
+  if (existing && location.descriptionPostHash === hash) return "unchanged";
+
+  if (!existing) {
+    const thread = await createForumPost(location.discordPublicChannelId, {
+      name: descriptionPostTitle(location),
+      content: chunks[0],
+      appliedTags,
+    });
+    // Lock LAST: the bot has ManageThreads and could post into a locked thread
+    // anyway, but ordering it this way means the post is never briefly
+    // reply-able while the rest of the body is still going in.
+    for (const chunk of chunks.slice(1)) await postMessage(thread.id, chunk);
+    await patchThread(thread.id, {
+      locked: true,
+      archived: false,
+      flags: THREAD_FLAG_PINNED,
+      applied_tags: appliedTags,
+    });
+
+    await prisma.location.update({
+      where: { id: location.id },
+      data: { discordDescriptionThreadId: thread.id, descriptionPostHash: hash },
+    });
+    location.discordDescriptionThreadId = thread.id;
+    location.descriptionPostHash = hash;
+    return "created";
+  }
+
+  const threadId = location.discordDescriptionThreadId;
+
+  // Unlock first — a locked thread rejects message edits and deletes from
+  // everyone, ManageThreads or not — and unarchive, since a PATCH to an
+  // archived thread that doesn't clear `archived` is rejected.
+  await patchThread(threadId, { locked: false, archived: false });
+
+  // Everything except the starter message, whose id IS the thread id: deleting
+  // that one destroys the whole post, thread id and pin along with it.
+  const messages = await fetchAllMessages(threadId);
+  for (const message of messages) {
+    if (message.id === threadId) continue;
+    await deleteMessage(threadId, message.id);
+  }
+
+  await editMessage(threadId, threadId, chunks[0]);
+  for (const chunk of chunks.slice(1)) await postMessage(threadId, chunk);
+
+  // Re-assert the whole intended state, not just the lock: a renamed Location,
+  // a hand-unpinned post or a stripped tag are all repaired by an ordinary
+  // re-sync, the same way the channel topic and overwrites are.
+  await patchThread(threadId, {
+    name: descriptionPostTitle(location),
+    locked: true,
+    archived: false,
+    flags: THREAD_FLAG_PINNED,
+    applied_tags: appliedTags,
+  });
+
+  await prisma.location.update({
+    where: { id: location.id },
+    data: { descriptionPostHash: hash },
+  });
+  location.descriptionPostHash = hash;
+  return "updated";
 }
 
 // Deletes a Location's Discord category + all three channels, if it was ever
@@ -446,7 +619,8 @@ async function syncLocationsFromYaml(prisma) {
     const zone = await resolveZone(entry.zone);
     const tags = entry.tags ?? [];
     const description = entry.description ?? "";
-    const publicSubLocations = entry.publicSubLocations ?? [];
+    const extendedDescription = entry.extendedDescription ?? "";
+    const publicSubLocations = normalizeSubLocations(entry.publicSubLocations);
     const privateSubLocations = entry.privateSubLocations ?? [];
     // Map panel coordinates. Optional — a location with no `map:` is simply
     // not drawn on the plate, rather than a sync failure.
@@ -461,7 +635,7 @@ async function syncLocationsFromYaml(prisma) {
       location = await prisma.location.findFirst({ where: { name: entry.name, zoneId: zone.id } });
     }
 
-    const data = { slug: entry.id, name: entry.name, zoneId: zone.id, tags, description, publicSubLocations, privateSubLocations, mapX, mapY };
+    const data = { slug: entry.id, name: entry.name, zoneId: zone.id, tags, description, extendedDescription, publicSubLocations, privateSubLocations, mapX, mapY };
 
     if (!location) {
       location = await prisma.location.create({ data });
@@ -472,6 +646,7 @@ async function syncLocationsFromYaml(prisma) {
         location.name !== entry.name ||
         location.zoneId !== zone.id ||
         location.description !== description ||
+        location.extendedDescription !== extendedDescription ||
         JSON.stringify(location.tags) !== JSON.stringify(tags) ||
         JSON.stringify(location.publicSubLocations) !== JSON.stringify(publicSubLocations) ||
         JSON.stringify(location.privateSubLocations) !== JSON.stringify(privateSubLocations) ||
@@ -547,6 +722,16 @@ async function syncLocationsFromYaml(prisma) {
   // not — see sortLocationChannels. One PATCH, unconditionally.
   const channelOrder = await sortLocationChannels(prisma);
 
+  // The generated "{Location}: Description" post, for every Location with a
+  // -public forum — freshly provisioned ones included, since provisioning
+  // creates channels but never posts. Hash-gated, so an unchanged Location
+  // costs one read and no writes.
+  const descriptionPosts = { created: 0, updated: 0, unchanged: 0, skipped: 0 };
+  for (const location of upserted) {
+    if (!location.discordPublicChannelId) continue;
+    descriptionPosts[await syncDescriptionPost(prisma, location)] += 1;
+  }
+
   // Prune: destructively remove any Location no longer listed in the YAML.
   const stale = await prisma.location.findMany({ where: { slug: { notIn: [...entryIds] } } });
   for (const location of stale) {
@@ -571,6 +756,7 @@ async function syncLocationsFromYaml(prisma) {
     permissionRepairs,
     channelsOrdered: channelOrder.ordered,
     channelsReparented: channelOrder.reparented,
+    descriptionPosts,
     pruned: stale.map((l) => l.name),
     zonesPruned: staleZones.map((z) => z.name),
   };

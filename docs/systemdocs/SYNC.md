@@ -46,9 +46,16 @@ break by "fixing" the upsert to write all fields uniformly.
 - **One-time:** Discord category and channel *creation*, and their *names*.
   Keyed on `discordCategoryId` being null. Renaming a Location in the YAML
   never renames a live channel.
-- **Every run:** the plain channel's topic, `mapX`/`mapY`, and the full set of
-  permission overwrites. All derived from the spec rather than hand-authored,
-  so a Location whose permissions drifted is repaired by an ordinary re-sync.
+- **Every run:** the plain channel's topic, `mapX`/`mapY`, the full set of
+  permission overwrites, and the generated `{Location}: Description` forum post.
+  All derived from the spec rather than hand-authored, so a Location whose
+  permissions drifted is repaired by an ordinary re-sync.
+
+The description post is the one every-run item that also covers *freshly*
+provisioned Locations — provisioning creates channels, never posts. It is
+gated on a content hash (`Location.descriptionPostHash`), so a re-sync with no
+YAML edits makes no Discord writes for it at all, and it is rewritten in place
+rather than recreated. See `CHANNELS.md` §2b.
 
 See `CHANNELS.md` §2–§3 for the channel layout and the overwrite set.
 
