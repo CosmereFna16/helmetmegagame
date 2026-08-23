@@ -1,5 +1,6 @@
 "use client";
 
+import FormError from "@/app/components/FormError";
 import Modal from "@/app/components/Modal";
 import CheckField from "@/app/components/CheckField";
 import { useState, useTransition } from "react";
@@ -425,11 +426,7 @@ export default function RequestPanel({ request, readOnly = false, onClose }) {
         />
       </label>
 
-      {error && (
-        <p className="mt-3 text-sm text-accent">
-          {error}
-        </p>
-      )}
+      <FormError>{error}</FormError>
 
       <div className="modal-actions flex-wrap">
         <Tooltip text="Leave the request as the player made it and discard your edits">

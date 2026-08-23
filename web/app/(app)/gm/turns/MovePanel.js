@@ -1,5 +1,6 @@
 "use client";
 
+import FormError from "@/app/components/FormError";
 import Modal from "@/app/components/Modal";
 import CheckField from "@/app/components/CheckField";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
@@ -326,11 +327,7 @@ export default function MovePanel({ move, readOnly = false, onClose }) {
           </p>
         )}
 
-        {error && (
-          <p className="mt-3 text-sm text-accent">
-            {error}
-          </p>
-        )}
+        <FormError>{error}</FormError>
 
         <div className="mt-4 flex flex-wrap justify-end gap-3">
           <button type="button" className="btn-quiet" onClick={close} disabled={pending}>

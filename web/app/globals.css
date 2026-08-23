@@ -912,6 +912,15 @@ input[type="radio"]:disabled {
   color: var(--accent-text);
 }
 
+/* Something went wrong: --danger, always. DESIGN-SYSTEM.md §2 says --danger is
+   for this and --accent is a fill, but thirteen error renders reached for
+   --accent and six for --danger, so the same failure looked like two different
+   kinds of event depending on which panel you were in. */
+.form-error {
+  font-size: var(--fs-sm);
+  color: var(--danger);
+}
+
 /* Emptiness is quiet, never an error: --muted at --fs-sm, the same in a table
    cell and in a panel. There were seven shapes for this, differing in whether
    they carried text-sm, whether they sat in a .panel, and by how much padding

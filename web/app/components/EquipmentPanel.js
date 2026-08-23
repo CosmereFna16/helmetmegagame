@@ -1,5 +1,6 @@
 "use client";
 
+import FormError from "@/app/components/FormError";
 import { useState, useTransition } from "react";
 import ChipLabel from "./ChipLabel";
 import { toggleEquip } from "@/app/(app)/character/equipActions";
@@ -102,7 +103,7 @@ export default function EquipmentPanel({ characterTags, slots = 6, isSelf }) {
         </>
       )}
 
-      {error && <p className="mt-2 text-sm" style={{ color: "var(--danger)" }}>{error}</p>}
+      <FormError>{error}</FormError>
     </section>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import FormError from "@/app/components/FormError";
 import Modal from "@/app/components/Modal";
 import { useState, useTransition } from "react";
 import Link from "next/link";
@@ -281,7 +282,7 @@ export default function ActionBar({
           )}
         </div>
 
-        {error && <p className="w-full text-sm text-accent">{error}</p>}
+        <FormError>{error}</FormError>
         {!error && staged && pendingCount > 0 && (
           <p className="w-full text-sm" style={{ color: "var(--accent-text)" }}>
             Staged {staged} — press <strong>Apply</strong> below to commit it.
@@ -312,7 +313,7 @@ export default function ActionBar({
               <span className="field-label">Sent from Lifeweb as a DM</span>
               <textarea rows={4} value={draft} onChange={(e) => setDraft(e.target.value)} />
             </label>
-            {error && <p className="text-sm text-accent">{error}</p>}
+            <FormError>{error}</FormError>
             <div className="modal-actions">
               <button type="button" className="btn-quiet" onClick={() => setDialog(null)}>
                 Cancel
@@ -380,7 +381,7 @@ export default function ActionBar({
               <span className="field-label">Type “{character.name}” to confirm</span>
               <input value={draft} onChange={(e) => setDraft(e.target.value)} />
             </label>
-            {error && <p className="text-sm text-accent">{error}</p>}
+            <FormError>{error}</FormError>
             <div className="modal-actions">
               <button type="button" className="btn-quiet" onClick={() => setDialog(null)}>
                 Cancel

@@ -1,5 +1,6 @@
 "use client";
 
+import FormError from "@/app/components/FormError";
 import CheckField from "@/app/components/CheckField";
 import { useMemo, useState } from "react";
 import { createCharacter } from "./createActions";
@@ -217,11 +218,7 @@ export default function CreateCharacterWizard({
         </p>
       )}
 
-      {error && (
-        <p className="panel p-3 text-sm text-danger" role="alert">
-          {error}
-        </p>
-      )}
+      <FormError>{error}</FormError>
 
       {step === 0 && (
         <div className="panel flex flex-col gap-4 p-4">

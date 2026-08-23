@@ -1,5 +1,6 @@
 "use client";
 
+import FormError from "@/app/components/FormError";
 import { useState, useTransition } from "react";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { forceAdvanceTurn } from "./actions";
@@ -55,11 +56,7 @@ export default function EndTurnButton({ turnLabel, wipesMessages }) {
           {pending ? "Ending turn…" : "End turn"}
         </button>
       </div>
-      {error && (
-        <p className="text-sm text-danger">
-          {error}
-        </p>
-      )}
+      <FormError>{error}</FormError>
     </div>
   );
 }

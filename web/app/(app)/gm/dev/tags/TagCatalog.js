@@ -1,5 +1,6 @@
 "use client";
 
+import FormError from "@/app/components/FormError";
 import Modal from "@/app/components/Modal";
 import CheckField from "@/app/components/CheckField";
 import { useMemo, useState, useTransition } from "react";
@@ -108,7 +109,7 @@ export default function TagCatalog({ tags, groups, categories, canDelete }) {
           <code>npm run db:prune-tags</code> skips it. Tags from the YAML are read-only here: edit
           them in the file, or the next sync reverts you.
         </p>
-        {error && <p className="text-sm text-accent">{error}</p>}
+        <FormError>{error}</FormError>
       </section>
 
       <TableScroll minWidth="860px">
@@ -273,7 +274,7 @@ function TagDialog({ tag, groups, categories, pending, error, onCancel, onSave }
           </p>
         )}
 
-        {error && <p className="text-sm text-accent">{error}</p>}
+        <FormError>{error}</FormError>
 
         <div className="modal-actions">
           <button type="button" className="btn-quiet" onClick={onCancel} disabled={pending}>

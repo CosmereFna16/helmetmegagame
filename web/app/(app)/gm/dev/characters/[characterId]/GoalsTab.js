@@ -1,5 +1,6 @@
 "use client";
 
+import FormError from "@/app/components/FormError";
 import { EnumPill, DESIRE_STATUS } from "@/app/components/StatusPill";
 import { useState, useTransition } from "react";
 import { useConfirm } from "@/app/components/ConfirmProvider";
@@ -186,7 +187,7 @@ export default function GoalsTab({ character, staged, desires, openTurn, onField
         </section>
       )}
 
-      {error && <p className="text-sm text-accent">{error}</p>}
+      <FormError>{error}</FormError>
     </>
   );
 }

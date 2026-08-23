@@ -1,3 +1,4 @@
+import SubmitButton from "@/app/components/SubmitButton";
 import { EmptyRow } from "@/app/components/EmptyState";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { redirect } from "next/navigation";
@@ -362,9 +363,9 @@ export default async function FactionPage({ searchParams }) {
                           <input type="hidden" name="characterId" value={c.id} />
                           <input type="hidden" name="factionId" value={faction.id} />
                           <input type="hidden" name="grant" value={(!treasurer).toString()} />
-                          <button type="submit" className="btn-quiet">
+                          <SubmitButton className="btn-quiet">
                             {treasurer ? "Revoke Treasurer" : "Assign Treasurer"}
-                          </button>
+                          </SubmitButton>
                         </form>
                       </td>
                     )}
@@ -486,9 +487,9 @@ export default async function FactionPage({ searchParams }) {
                       <form action={setFactionLeader}>
                         <input type="hidden" name="characterId" value={c.id} />
                         <input type="hidden" name="factionId" value={faction.id} />
-                        <button type="submit" className="btn-quiet">
+                        <SubmitButton className="btn-quiet">
                           Make Leader
-                        </button>
+                        </SubmitButton>
                       </form>
                     )}
                   </td>
@@ -498,9 +499,9 @@ export default async function FactionPage({ searchParams }) {
                         <input type="hidden" name="characterId" value={c.id} />
                         <input type="hidden" name="factionId" value={faction.id} />
                         <input type="hidden" name="grant" value={(!treasurer).toString()} />
-                        <button type="submit" className="btn-quiet">
+                        <SubmitButton className="btn-quiet">
                           {treasurer ? "Revoke Treasurer" : "Assign Treasurer"}
-                        </button>
+                        </SubmitButton>
                       </form>
                     )}
                   </td>
@@ -508,9 +509,9 @@ export default async function FactionPage({ searchParams }) {
                     {!isUnaffiliated && (
                       <form action={removeCharacterFromFaction}>
                         <input type="hidden" name="characterId" value={c.id} />
-                        <button type="submit" className="btn-quiet">
+                        <SubmitButton className="btn-quiet">
                           Remove
-                        </button>
+                        </SubmitButton>
                       </form>
                     )}
                   </td>
@@ -547,9 +548,7 @@ export default async function FactionPage({ searchParams }) {
               </option>
             ))}
           </select>
-          <button type="submit" className="btn">
-            Add
-          </button>
+          <SubmitButton>Add</SubmitButton>
         </form>
       </section>
     </PageShell>

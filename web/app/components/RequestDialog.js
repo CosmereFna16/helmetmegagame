@@ -1,5 +1,6 @@
 "use client";
 
+import FormError from "@/app/components/FormError";
 import { useState } from "react";
 import { MAX_REASON_LENGTH } from "@/lib/constants";
 
@@ -68,11 +69,7 @@ function RequestDialogBody({
           </div>
         )}
 
-        {error && (
-          <p className="text-sm text-accent">
-            {error}
-          </p>
-        )}
+        <FormError>{error}</FormError>
 
         <div className="modal-actions">
           <button type="button" className="btn-quiet" onClick={() => onCancel?.()} disabled={busy}>

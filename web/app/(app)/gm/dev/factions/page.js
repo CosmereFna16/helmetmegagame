@@ -1,3 +1,4 @@
+import SubmitButton from "@/app/components/SubmitButton";
 import { EmptyRow } from "@/app/components/EmptyState";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -70,6 +71,9 @@ export default async function DevFactionsPage() {
                   />
                 </td>
                 <td>
+                  {/* Outside its <form> (wired by form={...}), so useFormStatus
+                      cannot see it — SubmitButton reads the nearest ENCLOSING
+                      form, and there isn't one. Stays a plain button. */}
                   <button type="submit" form={`faction-${f.id}`} className="btn-quiet">
                     Save
                   </button>
@@ -78,9 +82,9 @@ export default async function DevFactionsPage() {
                   {f.name !== "Unaffiliated" && (
                     <form action={deleteFaction}>
                       <input type="hidden" name="factionId" value={f.id} />
-                      <button type="submit" className="btn-quiet">
+                      <SubmitButton className="btn-quiet" pendingLabel="Deleting…">
                         Delete
-                      </button>
+                      </SubmitButton>
                     </form>
                   )}
                 </td>

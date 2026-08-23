@@ -1,5 +1,6 @@
 "use client";
 
+import FormError from "@/app/components/FormError";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { useMemo, useState, useTransition } from "react";
 import { sendGmMessage, bulkTagCharacters } from "../actions";
@@ -245,7 +246,7 @@ function BulkTagBar({ tags, count, characterIds, onDone }) {
         </button>
       </div>
 
-      {result?.error && <p className="text-sm text-accent">{result.error}</p>}
+      <FormError>{result?.error}</FormError>
       {result?.ok && (
         <p className="text-sm text-muted">
           {result.tagName}: applied to {result.applied}

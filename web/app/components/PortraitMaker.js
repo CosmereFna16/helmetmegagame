@@ -1,5 +1,6 @@
 "use client";
 
+import FormError from "@/app/components/FormError";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CANVAS,
@@ -339,9 +340,9 @@ export default function PortraitMaker({ onClose, initialSelection, allowFantasy 
             </div>
 
             {saveError && (
-              <p className="mt-3 text-sm" style={{ color: "var(--danger)" }}>
+              <FormError className="mt-3">
                 {saveError}
-              </p>
+              </FormError>
             )}
 
             <div className="modal-actions">

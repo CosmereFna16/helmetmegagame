@@ -1,3 +1,4 @@
+import SubmitButton from "@/app/components/SubmitButton";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@lifeweb/db";
@@ -79,7 +80,7 @@ export default async function DevPanelPage() {
               ))}
             </select>
           </label>
-          <button type="submit" className="btn">Save</button>
+          <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
         </form>
 
         <EndTurnButton
@@ -115,7 +116,7 @@ export default async function DevPanelPage() {
             <span className="field-label">Note (optional)</span>
             <textarea name="note" defaultValue={config.nextTurnNote ?? ""} rows={2} />
           </label>
-          <button type="submit" className="btn self-start">Save</button>
+          <SubmitButton className="btn self-start" pendingLabel="Saving…">Save</SubmitButton>
         </form>
         <p className="mt-3 text-xs text-muted">
           Applies the next time the turn advances (via End turn above or the bot&apos;s automatic
@@ -185,7 +186,7 @@ export default async function DevPanelPage() {
             rows per character per turn before anyone speaks)
           </Switch>
           <div className="col-span-full">
-            <button type="submit" className="btn">Save config</button>
+            <SubmitButton pendingLabel="Saving…">Save config</SubmitButton>
           </div>
         </form>
         <p className="mt-3 text-xs text-muted">

@@ -1,5 +1,6 @@
 "use client";
 
+import FormError from "@/app/components/FormError";
 import { useState, useTransition } from "react";
 import { wipeGameData } from "./actions";
 
@@ -50,7 +51,7 @@ export default function WipeGameButton() {
           {pending ? "Wiping…" : "Wipe & restart game"}
         </button>
       </div>
-      {error && <p className="text-sm text-danger">{error}</p>}
+      <FormError>{error}</FormError>
     </form>
   );
 }

@@ -320,7 +320,7 @@ export default function DevPanel({
         <div className="panel dev-apply-bar flex flex-wrap items-center justify-between gap-3 p-3">
           <span className="text-sm">
             {error ? (
-              <span className="text-accent">{error}</span>
+              <span className="form-error" role="alert">{error}</span>
             ) : (
               <>
                 <strong className="mono">{pendingCount}</strong> pending change
