@@ -325,17 +325,28 @@ even left `ensureCharacterRole` renaming and recoloring the dead character's
 Discord role afterward. `web/lib/discordGuild.js#killCharacter`, called from
 `updateCharacterRaw` on the transition **to** `DEAD`, now does the cleanup:
 
-1. Deletes the personal Discord role. This does most of the work: Discord
-   drops every permission overwrite tied to a role the moment the role goes,
-   so Location access *and* narrowcast-channel access (§6) disappear with it
-   and nothing needs walking individually.
-2. Nulls `discordRoleId` — it's `@unique`, and a dangling id would have
+1. **Explicitly revokes every viewing grant** (`revokeAllCharacterAccess`),
+   before the role is deleted — it needs both the role id and the Discord user
+   id to name the overwrites. It sweeps every Location category *and its three
+   channels*, plus `#radio`/`#intercom`, clearing an overwrite under either
+   key.
+
+   This used to be a free side effect of step 2: Discord drops every overwrite
+   tied to a role the moment the role goes. That holds only while access is
+   keyed on the role — a **member** overwrite is not tied to the role and
+   outlives it, which would leave a dead character's player still seeing the
+   room they died in. It also sweeps *every* Location rather than the
+   character's last one, since a half-failed `swapLocationAccess` leaves a
+   grant on the room they left and death is the wrong moment to trust that
+   invariant.
+2. Deletes the personal Discord role.
+3. Nulls `discordRoleId` — it's `@unique`, and a dangling id would have
    `ensureCharacterRole` PATCHing a deleted role forever.
-3. Clears the Discord nickname. Unconditional — note the asymmetry:
+4. Clears the Discord nickname. Unconditional — note the asymmetry:
    *setting* a nickname is gated behind `GameConfig.nicknameSyncEnabled`
    (off by default), but clearing a dead character's is not.
-4. Grants the Cursed role (§4).
-5. Writes a `DEATH` row to the transcript (`ARCHIVE.md`).
+5. Grants the Cursed role (§4).
+6. Writes a `DEATH` row to the transcript (`ARCHIVE.md`).
 
 `updateCharacterRaw` skips the role/location sync entirely for a non-`ALIVE`
 character.

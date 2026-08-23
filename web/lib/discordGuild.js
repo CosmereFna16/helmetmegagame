@@ -591,17 +591,79 @@ export async function syncCharacterNarrowcastAccess(characterId) {
   );
 }
 
+// Removes one permission overwrite. 404 is success — "there is no overwrite
+// for this target" is the state the caller wanted.
+async function deleteOverwrite(channelId, targetId) {
+  const token = process.env.DISCORD_TOKEN;
+  if (!token || !channelId || !targetId) return;
+  await fetch(`${DISCORD_API}/channels/${channelId}/permissions/${targetId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bot ${token}` },
+  }).catch(() => {});
+}
+
+// Strips every channel-viewing grant a character holds, anywhere in the guild.
+//
+// Deleting the personal role used to be enough on its own: Discord drops every
+// overwrite tied to a role the moment the role goes. That is true only while
+// access is keyed on the role. It stops being true the moment any grant is
+// keyed on the *member* instead — a member overwrite is not tied to the role
+// and outlives it, which would leave a dead character's player still seeing
+// the room they died in. So the revoke is explicit here rather than a side
+// effect of role deletion, and it clears BOTH keys: the role id for today's
+// model, the Discord user id for the per-member one. Deleting an overwrite
+// that isn't there is a 404, i.e. free.
+//
+// It sweeps every Location category, not just the character's current one. A
+// grant should only ever exist on the room they are standing in, but a
+// half-failed swapLocationAccess leaves one behind on the room they left, and
+// death is exactly the wrong moment to trust that invariant. Death is rare and
+// the walk is sequential, so the cost is a few dozen requests on an event that
+// happens a handful of times a game.
+export async function revokeAllCharacterAccess(character) {
+  const targetIds = [character.discordRoleId, character.discordUserId].filter(Boolean);
+  if (targetIds.length === 0) return;
+
+  const [locations, config] = await Promise.all([
+    prisma.location.findMany({
+      where: { discordCategoryId: { not: null } },
+      select: { discordCategoryId: true, discordChannelId: true, discordPublicChannelId: true, discordPrivateChannelId: true },
+    }),
+    prisma.gameConfig.findUnique({ where: { id: 1 } }),
+  ]);
+
+  // The category is the access primitive, but a channel that has been
+  // desynced from its category carries its own overwrites — so clear the
+  // children too rather than assuming the category covers them.
+  const channelIds = [];
+  for (const location of locations) {
+    channelIds.push(
+      location.discordCategoryId,
+      location.discordChannelId,
+      location.discordPublicChannelId,
+      location.discordPrivateChannelId,
+    );
+  }
+  channelIds.push(config?.radioChannelId, config?.intercomChannelId);
+
+  for (const channelId of channelIds.filter(Boolean)) {
+    for (const targetId of targetIds) {
+      await deleteOverwrite(channelId, targetId);
+    }
+  }
+}
+
 // Everything that has to happen in Discord when a character dies, plus
 // granting the Cursed role. Called from updateCharacterRaw whenever status
 // transitions TO DEAD.
 //
-// Deleting the personal role is doing most of the work: Discord drops every
-// permission overwrite tied to a role the moment the role goes, so the
-// character's Location category access disappears with it and there's no
-// need to walk categories. The row's discordRoleId is then nulled because
-// it's @unique and a dangling id would make ensureCharacterRole PATCH a
-// deleted role forever.
+// Order matters: revoke before the role is deleted and before discordRoleId is
+// nulled, since both are needed to name the overwrites being removed.
 export async function killCharacter(character) {
+  await revokeAllCharacterAccess(character).catch((err) =>
+    console.error(`Failed to revoke access for dead character ${character.id}:`, err),
+  );
+
   if (character.discordRoleId) {
     await deleteCharacterRole(character.discordRoleId).catch(() => {});
     await prisma.character
@@ -609,8 +671,6 @@ export async function killCharacter(character) {
       .catch(() => {});
   }
 
-  // Narrowcast access (radio/intercom) is granted on the personal role too,
-  // so it disappears along with it — no separate revoke needed.
   await updateGuildNickname(character.discordUserId, null).catch(() => {});
 
   await grantCursedRole(character.discordUserId);
