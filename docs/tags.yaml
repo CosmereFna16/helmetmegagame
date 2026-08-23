@@ -314,6 +314,73 @@ tags:
   # and merely reported an unmatched entry. Nothing automates it: no drink in
   # this file grants it and no pass looks for it. A GM grants it when the
   # roleplay has earned it, which is what the document tells players outright.
+  # Not items — you don't carry a ghost or a spell in a pocket. Both arrive by
+  # consuming something (the Golden Arrow, the Codex Supprimata) and then they
+  # are simply part of you: untradeable, unremovable, and not purchasable at
+  # any price.
+  - slug: holoparasite
+    name: Holoparasite
+    category: general
+    group: general-traits
+    description: "A ghost that reflects your inner character — you decide its name and what it is like. It hits harder than anything a person should, and every wound it takes is written onto your own body instead. Nobody can see it unless you deploy it."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    tradeable: false
+
+  - slug: time-stop
+    name: Time Stop
+    category: general
+    group: general-traits
+    description: "Once a day you may stop time in a small area around you. Everything in it holds still; you do not. What you do with the moment is your own business."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    tradeable: false
+
+  - slug: tracking
+    name: Tracking
+    category: general
+    group: general-traits
+    description: "You have a ranger's eye. A trail that means nothing to anyone else tells you who passed, how many, and how long ago."
+    pointCost: 2
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: literate
+    name: Literate
+    category: general
+    group: general-traits
+    description: "You can read and write. Most people in Ravenheart cannot, which is why a letter is a private thing only if the man carrying it is illiterate too."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: light-sleeper
+    name: Light Sleeper
+    category: general
+    group: general-traits
+    description: "You wake up to noise easily. A footstep in the passage is enough."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: false
+
+  # A drawback, so it GIVES a point back rather than costing one — same
+  # posture as Frail and Old above.
+  - slug: heavy-sleeper
+    name: Heavy Sleeper
+    category: general
+    group: general-traits
+    description: "You sleep like the dead, and down here that is a dangerous thing to be."
+    pointCost: -1
+    purchasable: true
+    purchasableAfterStart: false
+
   - slug: alcoholic
     name: Alcoholic
     category: general
@@ -671,6 +738,33 @@ tags:
   # High for 2 turns, refined Bliss for 3, via the per-grant override in
   # consumesIntoDurations (see this file's header). The 2 here is only the
   # fallback for a grant that doesn't say.
+  # Granted to the TARGET of a Mesmer Glass, not to whoever used it — the
+  # consume path grants to the consumer, so a GM applies this one by hand.
+  - slug: flashed
+    name: Flashed
+    category: status
+    group: status-debuffs
+    description: "You're blind. Whatever that was, it went off in your face, and the dark you're standing in is not helping."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 1
+
+  # A caves tag. Something down there has your scent and is following it.
+  - slug: hunted
+    name: Hunted
+    category: status
+    group: status-debuffs
+    description: "Something's caught your trail! It is behind you, it is not in a hurry, and it knows the passages better than you do."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 2
+
   - slug: high
     name: High
     category: status
@@ -1620,6 +1714,79 @@ tags:
   # Portable things a character owns, carries, hands over, and (where
   # stackable) holds several of. Standing property and companions live in
   # Assets below, not here.
+  # --- Caving kit ---------------------------------------------------------
+  # What people carry down. Mostly found or scavenged rather than bought, so
+  # purchasable stays false and the Skeleton Wedge is the one deliberate
+  # exception — a locksmith will sell you one.
+  - slug: purse
+    name: Purse
+    category: items
+    group: items-gear
+    description: "A cut purse, still heavy. Opening it turns out 10 ⬢ — tell a GM when you do, and they'll put it on your sheet."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+
+  - slug: tin-of-lamp-oil
+    name: Tin of Lamp Oil
+    category: items
+    group: items-gear
+    description: "Enough to keep a lamp burning through a long descent. The one thing nobody down here will lend you."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+
+  - slug: graga-sac
+    name: Graga Sac
+    category: items
+    group: items-gear
+    description: "Cut from a dead Graga, still warm and faintly working. An ingredient in several tonics nobody can brew without one, which is why the Company's merchant will always buy it off you."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  - slug: skeleton-wedge
+    name: Skeleton Wedge
+    category: items
+    group: items-gear
+    description: "Opens a locked door. Single-use — it deforms in the lock and comes out useless."
+    pointCost: 2
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    consumable: true
+
+  - slug: dead-air-coil
+    name: Dead-Air Coil
+    category: items
+    group: items-gear
+    description: "Single use. Jams every radio around Ravenheart for 24 hours — yours included, and you will not be the only one who notices."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+
   - slug: jewelry
     name: Jewelry
     category: items
@@ -1664,11 +1831,14 @@ tags:
     tradeable: true
     purchasable: false
 
+  # Renamed from "Old .45 Revolver". The slug is deliberately unchanged — it is
+  # the stable sync key (docs/systemdocs/SYNC.md), starting-wares grants it by
+  # slug, and two roles grant it by NAME in docs/roles.yaml (updated to match).
   - slug: old-45-revolver
-    name: Old .45 Revolver
+    name: Neoclassic R&W10
     category: items
     group: items-weapons
-    description: "A worn revolver. Devastating, but not much ammunition."
+    description: "A classic revolver, with medium stopping power."
     pointCost: 4
     equippable: true
     tradeable: true
@@ -1680,6 +1850,315 @@ tags:
     requirement:
       turnsCost: 2
       resourceCost: 5
+      skills: [smithing]
+      gambit: false
+
+  # Two weapons that come out of the caves rather than a forge — found on a
+  # body or traded for, never bought at the Armory, so neither is purchasable
+  # and neither names a smithing cost.
+  - slug: cracked-bone-club
+    name: Cracked Bone Club
+    category: items
+    group: items-weapons
+    description: "Somebody's femur, wrapped in cord."
+    pointCost: 0
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  - slug: neoclassic-duelista
+    name: Neoclassic Duelista
+    category: items
+    group: items-weapons
+    description: "The classic revolver, made to shoot one shot only."
+    pointCost: 0
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  # Forge weapons. All purchasable, all gated on {tag:fighting-basic} — a
+  # character who has never held a weapon has no business buying one — and all
+  # priced off the standard crafting ladder documented above the Armor section
+  # below: dead simple 1 Effort / 5 ⬢, simple 1 / 12, moderate 1 / 23, high
+  # quality 2 / 35. The rung is what the thing would actually take to make.
+  - slug: knuckle-duster
+    name: Knuckle Duster
+    category: items
+    group: items-weapons
+    description: "The Underquarter solution."
+    pointCost: 1
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 5
+      skills: [smithing]
+      gambit: false
+
+  - slug: spear
+    name: Spear
+    category: items
+    group: items-weapons
+    description: "A haphazardly-constructed yet still deadly weapon of ancient design."
+    pointCost: 1
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 5
+      skills: [smithing]
+      gambit: false
+
+  - slug: silver-knife
+    name: Silver Knife
+    category: items
+    group: items-weapons
+    description: "For the superstitious."
+    pointCost: 2
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 12
+      skills: [smithing]
+      gambit: false
+
+  - slug: gladius
+    name: Gladius
+    category: items
+    group: items-weapons
+    description: "A short, broad stabbing sword. Murderous in a press where nobody has room to swing."
+    pointCost: 2
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 12
+      skills: [smithing]
+      gambit: false
+
+  - slug: phrygian-spear
+    name: Phrygian Spear
+    category: items
+    group: items-weapons
+    description: "The end is barbed, inflicting cruel wounds. Pulling it back out does more harm than putting it in."
+    pointCost: 2
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 12
+      skills: [smithing]
+      gambit: false
+
+  - slug: bardiche
+    name: Bardiche
+    category: items
+    group: items-weapons
+    description: "A polearm with a heavy blade. Cuts through armor and flesh alike."
+    pointCost: 3
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 23
+      skills: [smithing]
+      gambit: false
+
+  - slug: broadsword
+    name: Broadsword
+    category: items
+    group: items-weapons
+    description: "The most common sword in the barony. Reliable, and it does the job."
+    pointCost: 3
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 23
+      skills: [smithing]
+      gambit: false
+
+  - slug: musketoon
+    name: Musketoon
+    category: items
+    group: items-weapons
+    description: "A short, wide-bored gun. Devastating at the end of a corridor, useless anywhere else."
+    pointCost: 3
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 23
+      skills: [smithing]
+      gambit: false
+
+  - slug: bore-pistol
+    name: Bore Pistol
+    category: items
+    group: items-weapons
+    description: "A heavy single-shot pistol. Slow to load, and it does not matter much what you were wearing."
+    pointCost: 3
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 23
+      skills: [smithing]
+      gambit: false
+
+  - slug: bastard-sword
+    name: Bastard Sword
+    category: items
+    group: items-weapons
+    description: "A large sword. Durable and sharp, and it asks for both hands when the work gets serious."
+    pointCost: 4
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 35
+      skills: [smithing]
+      gambit: false
+
+  - slug: rapier
+    name: Rapier
+    category: items
+    group: items-weapons
+    description: "An elegant steel rapier, for the nobility to stab peasants with."
+    pointCost: 4
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 35
+      skills: [smithing]
+      gambit: false
+
+  - slug: sabre
+    name: Sabre
+    category: items
+    group: items-weapons
+    description: "For the wealthy to slaughter the poor."
+    pointCost: 4
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 35
+      skills: [smithing]
+      gambit: false
+
+  - slug: katana
+    name: Katana
+    category: items
+    group: items-weapons
+    description: "A curved blade folded out of very good steel. Nobody here can tell you where the first one came from."
+    pointCost: 4
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 35
       skills: [smithing]
       gambit: false
 
@@ -1733,6 +2212,164 @@ tags:
       resourceCost: 3
       skills: [cooking-skilled]
       gambit: false
+
+  # --- Special ------------------------------------------------------------
+  # Relics, grafts and machinery. None of it is purchasable at any price and
+  # none of it is craftable — every one of these arrives as loot, a GM grant,
+  # or a trade with somebody who found it first. A single-use device is
+  # `consumable` with no `consumesInto`, which is exactly what that flag is
+  # for: consuming spends one and the effect happens in the fiction.
+  - slug: mesmer-glass
+    name: Mesmer Glass
+    category: items
+    group: items-special
+    description: "Hold it up and break it in someone's face. They will not see anything for a while. Single use — use it on somebody, and a GM puts {tag:flashed} on them."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+
+  - slug: power-fist
+    name: Power Fist
+    category: items
+    group: items-special
+    description: "A gauntlet with an engine in it. What it does to a door, it also does to a man."
+    pointCost: 0
+    equippable: true
+    tradeable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  - slug: emp-grenade
+    name: EMP Grenade
+    category: items
+    group: items-special
+    description: "Single use. Everything electrical within the blast stops working and does not start again."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+
+  - slug: flamethrower
+    name: Flamethrower
+    category: items
+    group: items-special
+    description: "Fuel, pressure, and a lit wick. It clears a passage of whatever is in it, and everyone on both ends will know you used it."
+    pointCost: 0
+    equippable: true
+    tradeable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  - slug: dark-eye-lenses
+    name: Dark-Eye Lenses
+    category: items
+    group: items-special
+    description: "See warm bodies through stone. Blinding in lamplight, so you are choosing between them and the lamp."
+    pointCost: 0
+    equippable: true
+    tradeable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  - slug: stepstone
+    name: Stepstone
+    category: items
+    group: items-special
+    description: "Consume it and you are somewhere else — anywhere you choose. Single use. DM the GMs with where you went."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+
+  # Grafted, not carried: it is in your arm. Hence not equippable, not
+  # tradeable, and not removable — there is no giving this one away.
+  - slug: quickened-nerve-braid
+    name: Quickened Nerve-Braid
+    category: items
+    group: items-special
+    description: "Grafted, not carried. Two turns of impossible speed per day, and your heart pays for every second of it."
+    pointCost: 0
+    tradeable: false
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
+  - slug: motorcycle
+    name: Motorcycle
+    category: items
+    group: items-special
+    description: "Good luck hauling this one out of the caves."
+    pointCost: 0
+    tradeable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  - slug: sawn-off-double-barrel
+    name: Sawn-Off Double Barrel
+    category: items
+    group: items-special
+    description: "Two barrels, both shortened, worn under a coat. Two chances and then a very long reload."
+    pointCost: 0
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  - slug: golden-arrow
+    name: Golden Arrow
+    category: items
+    group: items-special
+    description: "A mastercrafted arrow. Stab yourself with it and something comes to keep you company — you receive a {tag:holoparasite}."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto:
+      - holoparasite
+
+  - slug: codex-supprimata
+    name: Codex Supprimata
+    category: items
+    group: items-special
+    description: "Read it through once and you cannot un-know it. Grants {tag:time-stop}, usable once a day."
+    pointCost: 0
+    tradeable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto:
+      - time-stop
 
   # --- Drink --------------------------------------------------------------
   # Alcohol, drugs and tonics. Brewed as a Move, never bought: purchasable

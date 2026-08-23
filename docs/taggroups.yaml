@@ -69,6 +69,13 @@ groups:
     name: Armor
     category: items
     color: "#7c8794"
+  # The exotic tier: relics, grafts and machinery that don't belong to the
+  # low-fantasy surface of the game. Kept apart from Gear so a player reading
+  # their sheet can tell at a glance which of their possessions are ordinary.
+  - slug: items-special
+    name: Special
+    category: items
+    color: "#7a6f9c"
   - slug: items-weapons
     name: Weapons
     category: items

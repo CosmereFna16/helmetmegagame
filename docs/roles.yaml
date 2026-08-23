@@ -89,6 +89,7 @@ zones:
               - Ravenhearter
               - Nobility
               - The Baron's Key
+              - Literate
             doc_elements:
               - courtstructure
               - lifewebbasic
@@ -113,6 +114,7 @@ zones:
               - Ravenhearter
               - Nobility
               - Jewelry
+              - Literate
             doc_elements:
               - courtstructure
               - lifewebbasic
@@ -131,6 +133,7 @@ zones:
             starting_tags:
               - Ravenhearter
               - Nobility
+              - Literate
             doc_elements:
               - courtstructure
               - lifewebbasic
@@ -148,6 +151,7 @@ zones:
               - Ravenhearter
               - Nobility
               - Jewelry
+              - Literate
             doc_elements:
               - courtstructure
               - lifewebbasic
@@ -210,6 +214,7 @@ zones:
               - Ravenhearter
               - Frail
               - Medical (Skilled)
+              - Literate
             doc_elements:
               - courtstructure
               - lifewebbasic
@@ -239,6 +244,7 @@ zones:
             starting_tags:
               - Ravenhearter
               - Courtier
+              - Literate
             doc_elements:
               - courtier
               - courtstructure
@@ -274,6 +280,7 @@ zones:
             starting_location: keep
             starting_tags:
               - Ravenhearter
+              - Literate
             doc_elements:
               - courtier
               - diplomat
@@ -432,6 +439,7 @@ zones:
               - Ravenhearter
               - Chaplain
               - Pious
+              - Literate
             doc_elements:
               - townstarting
               - postchristianity
@@ -457,6 +465,7 @@ zones:
               - Ravenhearter
               - Chaplain
               - Pious
+              - Literate
             doc_elements:
               - townstarting
               - postchristianity
@@ -478,6 +487,7 @@ zones:
             starting_location: church
             starting_tags:
               - Ravenhearter
+              - Literate
             doc_elements:
               - townstarting
               - postchristianity
@@ -510,6 +520,7 @@ zones:
               - Ravenhearter
               - Medical (Expert)
               - Brewing (Skilled)
+              - Literate
             doc_elements:
               - townstarting
               - medical
@@ -536,6 +547,7 @@ zones:
               - Ravenhearter
               - Medical (Skilled)
               - Brewing (Basic)
+              - Literate
             doc_elements:
               - townstarting
               - medical
@@ -683,7 +695,7 @@ zones:
             starting_tags:
               - Ravenhearter
               - Fighting (Trained)
-              - Old .45 Revolver
+              - Neoclassic R&W10
               - House
             doc_elements:
               - townstarting
@@ -939,6 +951,7 @@ zones:
               - Windlander
               - Sign Language
               - Nobility
+              - Literate
             doc_elements:
               - campstarting
               - charon
@@ -1094,11 +1107,12 @@ zones:
             starting_resources: 2
             starting_location: warcamp
             starting_tags:
-              - Old .45 Revolver
+              - Neoclassic R&W10
               - Windlander (Horse)
               - Windlander
               - Sign Language
               - Fighting (Trained)
+              - Tracking
             doc_elements:
               - campstarting
               - windrider
@@ -1183,7 +1197,8 @@ zones:
             starting_resources: 50
             starting_location: merchants-depot
             leader: true
-            starting_tags: []
+            starting_tags:
+              - Literate
             doc_elements:
               - townstarting
               - merchantlist
