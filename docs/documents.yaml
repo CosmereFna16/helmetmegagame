@@ -56,70 +56,25 @@ documents:
     key: medical
     public: true
     tags:
-      - any of the medical tags
+      - medical-basic
+      - medical-skilled
+      - medical-expert
     description: |-
-      People get hurt here. Most of what happens to a body in Lifeweb is written on the character sheet as a Health tag, and most of it can be taken back off by somebody who knows what they are doing.
+      Health and injuries are simulated through the tag system. Most health tags can be removed, usually for a cost. The cost includes: Resources, number of routine moves (bandaging someone doesn't have a turn cost; surgery does), the skill requirement, and whether or not it requires a Gambit. Anyone can try to heal a wound without the required skill (just DM the Lifeweb bot), but it'll require a Gambit.
 
-      ## The three tiers
+      ## Skills
 
-      {tag:medical-basic} treats **very minor** and **minor** injuries as routine. First aid: bandaging, packing a wound, popping a shoulder back in, splinting a simple break.
+      {tag:medical-basic} handles first aid routinely.
+      {tag:medical-skilled} handles **moderate** and **severe** cases routinely, but rolls Gambits on surgery.
+      {tag:medical-expert} handles almost everything routinely.
 
-      {tag:medical-skilled} treats **moderate**, **severe** and **dangerous** cases as routine, up to minor surgery. This is the Serpents' tier.
+      ## Expiry
 
-      {tag:medical-expert} treats the worst of it as routine — complex surgery, on par with the Sanctuary's own. This is Esculap's tier.
+      Some wounds, like infections, get worse.
 
-      **You may always attempt something above your tier.** It is a Gambit rather than a Routine move, and a failed Gambit can leave the patient worse than you found them — but nobody is ever forbidden from trying. A Serpent can open a belly. They just roll for it, and Esculap does not. The same applies to anything with no listed cure at all: if you have an idea, make it a Gambit and see.
+      ## Tonics
 
-      ## What treatment costs
-
-      Every affliction is priced off one of these rungs. Hover any tag to see which one it sits on.
-
-      | What it takes | ⬢ | Turns | Skill | Move |
-      |---|---|---|---|---|
-      | Untreatable | — | — | — | — |
-      | Very minor — first aid | 1 | — | {tag:medical-basic} | Routine |
-      | Minor | 2 | — | {tag:medical-basic} | Routine |
-      | Moderately severe | 2 | 1 | {tag:medical-skilled} | Routine |
-      | Severe | 4 | 1 | {tag:medical-skilled} | Routine |
-      | Very minor surgery | 6 | 1 | {tag:medical-skilled} | Routine |
-      | Severe surgery | 8 | 1 | {tag:medical-expert} | Routine |
-      | Complex surgery | 8 | 1 | {tag:medical-expert} | Gambit |
-
-      Turns are measured in Routine moves. The ⬢ is paid by whoever the medic names — the patient, a bystander, or a faction Silo — and anyone co-located can stand good for it.
-
-      Note the first row. Some things genuinely cannot be treated, and the game says so plainly rather than selling you a cure: {tag:vomiting}, a {tag:migraine}, a {tag:concussed} head, {tag:shell-shocked}, being {tag:hungover}. They pass on their own. A doctor charging you for them would be a fraud.
-
-      ## Wounds get worse
-
-      This is the part worth reading twice. Many afflictions do not sit still — when their timer runs out they **turn into something worse**, and the price of fixing them climbs with them. A tag's tooltip shows what it becomes.
-
-      The infection chain is the one that will kill most people who ignore it:
-
-      {tag:infected} → {tag:festering} → {tag:feverish} *and* {tag:necrosis} → {tag:sepsis} → {tag:dying}
-
-      Two ⬢ and a competent friend clears {tag:infected}. Eight ⬢ and an Expert rolling a Gambit *might* clear {tag:sepsis}. Amputation is a real answer while the rot is still local — {tag:necrosis} is treated by taking the limb — but it stops being an answer once the fever is in the blood.
-
-      Bleeding runs on its own clock. {tag:minor-bleeding} just leaves you {tag:drained}. {tag:severe-bleeding} and {tag:arterial-bleed} do not — those end at {tag:dying}, and the arterial one gives you about a day.
-
-      A {tag:deep-wound} left open goes {tag:infected}. So do {tag:severe-burns}. {tag:frostbite} goes straight to {tag:necrosis}. A {tag:mangled-hand} becomes {tag:missing-fingers} if nobody saves it in time.
-
-      ## Dying
-
-      {tag:dying} is where every terminal chain stops. It is not death — it is the last place anyone can still reach you, and it does not run on a timer. A GM decides how it ends. Someone with the very best medicine and a great deal of luck can still pull you back.
-
-      ## A doctor sees what a doctor can treat
-
-      Some afflictions are obvious to anyone: a {tag:deep-wound}, a {tag:missing-arm}, somebody {tag:paralyzed}. Others show nothing at all — {tag:appendicitis}, {tag:cracked-ribs}, {tag:parasites}.
-
-      **If you could treat something as routine, you can recognise it on sight.** Inspecting someone with 🔍 shows you the hidden afflictions your own tier covers, marked as your diagnosis. A Serpent prodding a belly knows appendicitis; the man standing next to them sees somebody having a bad day.
-
-      Two things it does not do. Anything needing a Gambit stays hidden even from an Expert — guessing is not diagnosing. And what you learn this way is **yours**, not the room's: the patient is not showing it to anyone, and repeating it aloud is saying something nobody else could know.
-
-      ## Some cures need more than ⬢
-
-      A handful of treatments want materials, and no amount of Resources substitutes. {tag:blinded} is the clearest case: restoring sight needs the Sanctuary's best *and* a fresh pair of eyes, from somewhere. Curing {tag:drained} properly wants blood, and someone willing to give it. Tonics and draughts come into several others — see the Alcohol & Drugs document.
-
-      Bring the materials, then bring the surgeon.
+      Tonics (see the Brewing document) can instantly cure wounds and help recovery, but require unique ingredients. Similarly, a few afflictions—like {tag:blinded}—require unique ingredients.
   - name: Producing Resources
     key: production
     public: true
