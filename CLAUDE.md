@@ -152,24 +152,29 @@ Auth.js (`next-auth@5`, `web/lib/auth.js`) with the Discord provider.
 callbacks. `Character` rows are looked up by `discordUserId`, not by a separate
 user table.
 
-**`AUTH_URL` is required in production and must not be unset.** It lives in
-the Railway `web` service variables, not in this repo, so a repo grep will
-not find it — `web/lib/auth.js` sets `trustHost: true` and looks
-self-sufficient, but it is not. Behind Railway's proxy `trustHost` does
-**not** recover the public host: Auth.js falls back to the container's own
-listener and sends Discord a `redirect_uri` of
-`https://localhost:8080/api/auth/callback/discord`, which Discord rejects —
-taking sign-in down on every domain simultaneously. This was verified by
-unsetting it in production on 2026-08-23; the symptom is total, not
-partial, so it is easy to misread as an outage. Restore with
-`railway variable set AUTH_URL=https://ravenheart.quest --service web`,
-which triggers its own redeploy.
+**The app signs in on any host it is served from — leave `AUTH_URL` unset.**
+Behind Railway's proxy Next.js builds `request.url` from the container's own
+listener (`https://localhost:8080`) and ignores the Host header, while
+`x-forwarded-host` and `host` both carry the real domain. That only breaks
+one path: the `signIn()`/`signOut()` server actions go through `@auth/core`
+`createActionURL`, which already reads `x-forwarded-host`, but the
+`/api/auth/*` route handler derives its origin from the request URL — and
+the OAuth `redirect_uri` is built there. `web/lib/auth.js` therefore wraps
+`handlers` and rebuilds the origin from the forwarded headers before Auth.js
+sees the request.
 
-The consequence: **the app answers on exactly one sign-in host.** Its Railway
-`*.up.railway.app` domain serves pages fine but cannot complete sign-in,
-so it is not a usable fallback when the custom domain is unreachable. A
-redirect URI in the Discord Developer Portal must be the full callback path
-(`<host>/api/auth/callback/discord`), never the site root.
+Hosts are **allowlisted** in that file, not trusted: an origin taken from a
+client-controllable header is an open-redirect vector in an OAuth flow.
+Anything unrecognised falls back to the canonical origin. **Adding a domain
+means adding it to `ALLOWED_HOSTS` *and* registering
+`<host>/api/auth/callback/discord` in the Discord Developer Portal** — the
+full callback path, never the site root, since Discord matches it exactly.
+
+Setting `AUTH_URL` overrides all of this and re-pins every redirect to one
+host, which is the emergency rollback (`railway variable set
+AUTH_URL=https://ravenheart.quest --service web`) and nothing else. Note a
+`railway variable delete` does **not** reliably trigger a redeploy, so the
+env change may need `railway redeploy -s web --from-source -y` to bind.
 
 GM-only pages (`web/app/gm`) check the signed-in user's guild roles via
 `web/lib/discordGuild.js`, which calls the Discord REST API with the bot token
