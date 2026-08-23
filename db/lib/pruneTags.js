@@ -29,6 +29,13 @@ function yamlSlugs() {
 // The Role check compares against tag NAMES, not slugs: Role.startingTagSlugs
 // is misnamed and actually stores names (see the `startingTagNames` mapping in
 // db/lib/syncRoles.js). Document.tagSlugs really does store slugs.
+// expiresInto is a Json array whose entries are either a bare slug or
+// { oneOf: ["slug", "slug"] } for a random pick between them.
+function expiresIntoSlugs(entries) {
+  if (!Array.isArray(entries)) return [];
+  return entries.flatMap((e) => (typeof e === "string" ? [e] : (e?.oneOf ?? [])));
+}
+
 async function collectReferences(prisma) {
   const [held, parents, required, groupGates, skills, roles, documents, consumers] =
     await Promise.all([
@@ -40,8 +47,20 @@ async function collectReferences(prisma) {
       prisma.role.findMany({ select: { startingTagSlugs: true } }),
       prisma.document.findMany({ select: { tagSlugs: true } }),
       prisma.tag.findMany({
-        where: { OR: [{ consumesInto: { isEmpty: false } }, { consumesIntoUnless: { not: null } }] },
-        select: { consumesInto: true, consumesIntoUnless: true },
+        where: {
+          OR: [
+            { consumesInto: { isEmpty: false } },
+            { consumesIntoUnless: { not: null } },
+            { consumesIntoDurations: { not: null } },
+            { expiresInto: { not: null } },
+          ],
+        },
+        select: {
+          consumesInto: true,
+          consumesIntoUnless: true,
+          consumesIntoDurations: true,
+          expiresInto: true,
+        },
       }),
     ]);
 
@@ -53,15 +72,28 @@ async function collectReferences(prisma) {
     skillOf: new Set(skills.flatMap((t) => t.requirementSkills.map((s) => s.id))),
     roleStartingNames: new Set(roles.flatMap((r) => r.startingTagSlugs)),
     documentSlugs: new Set(documents.flatMap((d) => d.tagSlugs)),
-    // Both halves of the consume contract count as references. consumesInto
-    // is the list of targets; consumesIntoUnless is
-    // { "<target slug>": ["<blocking slug>", ...] }, and the BLOCKING slugs
-    // are just as real — pruning one would silently turn a conditional grant
-    // unconditional (drop `nobility` and Fine Meal starts making nobles Happy).
+    // Every slug any tag names, in any of the four ways one tag can point at
+    // another by slug rather than by foreign key:
+    //
+    //   consumesInto          the targets a consumed tag grants
+    //   consumesIntoUnless    { target: [blocking slugs] } — the BLOCKING
+    //                         slugs count too, or pruning one silently turns
+    //                         a conditional grant unconditional (drop
+    //                         `nobility` and Fine Meal makes nobles Happy)
+    //   consumesIntoDurations { target: turns } — a per-grant duration override
+    //   expiresInto           the on-the-clock progression, entries being a
+    //                         bare slug or { oneOf: [slug, slug] }; pruning a
+    //                         link here breaks the untreated-wound chain
+    //
+    // None of these is a real relation, so nothing in the database stops the
+    // delete — this set is the only thing that does.
     consumeTargets: new Set(
       consumers.flatMap((t) => [
         ...t.consumesInto,
+        ...Object.keys(t.consumesIntoUnless ?? {}),
         ...Object.values(t.consumesIntoUnless ?? {}).flat(),
+        ...Object.keys(t.consumesIntoDurations ?? {}),
+        ...expiresIntoSlugs(t.expiresInto),
       ]),
     ),
   };
@@ -77,7 +109,7 @@ function blockersFor(tag, refs) {
   // Deleting one would silently open a whole hidden category to everyone.
   if (refs.gates.has(tag.id)) blockers.push("it gates a TagGroup (hidden category)");
   if (refs.skillOf.has(tag.id)) blockers.push("a tag's cure/craft requirement names it as a skill");
-  if (refs.consumeTargets.has(tag.slug)) blockers.push("a tag's consume contract names it");
+  if (refs.consumeTargets.has(tag.slug)) blockers.push("another tag names it by slug");
   if (refs.roleStartingNames.has(tag.name)) blockers.push("a Role grants it at creation");
   if (refs.documentSlugs.has(tag.slug)) blockers.push("a Document is assigned by it");
   return blockers;
