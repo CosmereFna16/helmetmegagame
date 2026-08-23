@@ -66,8 +66,9 @@ kept in sync by hand:
 | Sort location categories | `db/lib/syncLocations.js` | `web/lib/discordGuild.js` |
 
 **If you change one, change its twin.** Where the *rule* can be shared it
-already is — `computeNarrowcastAccess`, `isTravelFree` and
-`isPersistentThreadName` are single pure functions both twins call. What's
+already is — `computeNarrowcastAccess`, `isTravelFree`,
+`locationAccessChannelIds` and `isPersistentThreadName` are single pure
+functions both twins call. What's
 duplicated is only the Discord plumbing around them.
 
 ## 4. Side effects are returned, not performed

@@ -40,16 +40,13 @@ async function main() {
     }
     const role = await roleRes.json();
 
-    const assignRes = await fetch(
-      `${DISCORD_API}/guilds/${guildId}/members/${character.discordUserId}/roles/${role.id}`,
-      { method: "PUT", headers: { Authorization: `Bot ${token}` } },
-    );
-    if (!assignRes.ok && assignRes.status !== 204) {
-      console.error(`  failed to assign role to ${character.discordUserId}: ${assignRes.status} ${await assignRes.text()}`);
-    }
+    // Deliberately NOT assigned to the player. The role is a mentionable name
+    // token held by nobody — access is a per-member overwrite
+    // (db/lib/locationAccess.js), and putting the player in the role's member
+    // list would deanonymize the game.
 
     await prisma.character.update({ where: { id: character.id }, data: { discordRoleId: role.id } });
-    console.log(`created+assigned role for ${character.name}`);
+    console.log(`created role for ${character.name}`);
   }
 
   console.log(`done (${characters.length} character(s) processed)`);

@@ -7,8 +7,12 @@ import {
   buildNarrowcastContext,
   computeNarrowcastAccess,
   PLAYER_ROLE_ID,
+  OVERWRITE_TYPE_MEMBER,
+  locationAccessChannelIds,
 } from "@lifeweb/db";
 import { recordArchiveEvent } from "@lifeweb/db/lib/archive";
+import { revokeAllCharacterAccess as revokeAllCharacterAccessShared } from "@lifeweb/db/lib/locationAccess";
+import { putChannelOverwrite, deleteChannelOverwrite } from "@lifeweb/db/lib/discordRest";
 
 const DISCORD_API = "https://discord.com/api/v10";
 
@@ -421,8 +425,7 @@ export async function removeCursedRole(discordUserId) {
 
 // Personal Discord role titled after this character's name, colored
 // deterministically by db/lib/roleColor.js#hashNameToColor from that same
-// bare name. Creates+assigns
-// the role the first time a character gets a name; every later call
+// bare name. Creates the role the first time a character gets a name; every later call
 // (idempotent, safe to call on every profile save) renames/recolors it to
 // match the character's current name. Called as a best-effort side effect
 // from updateCharacterProfile and updateCharacterRaw, same convention as
@@ -452,13 +455,11 @@ export async function ensureCharacterRole(character) {
       }
       const role = await res.json();
 
-      const assignRes = await fetch(
-        `${DISCORD_API}/guilds/${guildId}/members/${character.discordUserId}/roles/${role.id}`,
-        { method: "PUT", headers: { Authorization: `Bot ${token}` } },
-      );
-      if (!assignRes.ok && assignRes.status !== 204) {
-        console.error(`Failed to assign role to ${character.discordUserId}: ${assignRes.status} ${await assignRes.text()}`);
-      }
+      // The role is deliberately assigned to NOBODY. It exists to be
+      // @-mentioned — a name token — and holds no permissions of its own;
+      // access is a per-member overwrite (db/lib/locationAccess.js). Giving it
+      // to the player would list their account under the character's name in
+      // the guild's role members, which deanonymizes the entire game.
 
       await prisma.character.update({ where: { id: character.id }, data: { discordRoleId: role.id } });
       return role.id;
@@ -479,13 +480,15 @@ export async function ensureCharacterRole(character) {
   }
 }
 
-// Deletes a character's personal Discord role outright — Discord itself
-// drops any channel permission overwrites tied to the role (Location
-// categories) the moment the role is deleted, so this alone undoes
-// ensureCharacterRole/syncCharacterLocationAccess without needing to touch
-// those channels individually. Used by
-// wipeGameData (web/app/(app)/gm/dev/actions.js) when deleting a character
-// outright, not by any per-character edit flow.
+// Deletes a character's personal Discord role outright.
+//
+// This does NOT revoke the character's channel access. It used to: while
+// access was a role overwrite, Discord dropped every overwrite tied to the
+// role the moment the role went, and that cascade was the only cleanup
+// anything did. Access is now a per-MEMBER overwrite, which is not tied to
+// the role and outlives it — so every caller must pair this with
+// revokeAllCharacterAccess or leave the player still able to see the room.
+// Both callers do (killCharacter here, guildMemberRemove and wipeGameData).
 export async function deleteCharacterRole(discordRoleId) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const token = process.env.DISCORD_TOKEN;
@@ -507,33 +510,34 @@ export async function deleteCharacterRole(discordRoleId) {
 // REST twin of bot/src/lib/location.js#swapLocationAccess, for GM raw edits
 // (updateCharacterRaw, web/app/(app)/gm/dev/actions.js) which change
 // Character.locationId directly in the DB with no gateway Guild object on
-// hand. Same single-overwrite-per-active-Location primitive: grant ViewChannel
-// on the new category, revoke it on the old one.
-export async function syncCharacterLocationAccess(discordRoleId, oldLocationId, newLocationId) {
+// hand. Same primitive as the gateway twin: grant the player's member
+// overwrite ViewChannel on every channel of the new Location, revoke it on
+// every channel of the old.
+export async function syncCharacterLocationAccess(discordUserId, oldLocationId, newLocationId) {
   const token = process.env.DISCORD_TOKEN;
-  if (!token || !discordRoleId || oldLocationId === newLocationId) return;
+  if (!token || !discordUserId || oldLocationId === newLocationId) return;
 
   const [oldLocation, newLocation] = await Promise.all([
     oldLocationId ? prisma.location.findUnique({ where: { id: oldLocationId } }) : null,
     newLocationId ? prisma.location.findUnique({ where: { id: newLocationId } }) : null,
   ]);
 
-  if (oldLocation?.discordCategoryId) {
-    await fetch(`${DISCORD_API}/channels/${oldLocation.discordCategoryId}/permissions/${discordRoleId}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bot ${token}` },
-    }).catch(() => {});
+  // Category AND all three channels, not the category alone — a channel does
+  // not reliably inherit from its category (db/lib/locationAccess.js). Routed
+  // through discordRest so these get the shared 429 retry the hand-rolled
+  // fetches here never had.
+  for (const channelId of locationAccessChannelIds(oldLocation)) {
+    await deleteChannelOverwrite(channelId, discordUserId).catch(() => {});
   }
-  if (newLocation?.discordCategoryId) {
-    await fetch(`${DISCORD_API}/channels/${newLocation.discordCategoryId}/permissions/${discordRoleId}`, {
-      method: "PUT",
-      headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ id: discordRoleId, type: 0, allow: String(PERM_VIEW_CHANNEL) }),
+  for (const channelId of locationAccessChannelIds(newLocation)) {
+    await putChannelOverwrite(channelId, discordUserId, {
+      allow: String(PERM_VIEW_CHANNEL),
+      type: OVERWRITE_TYPE_MEMBER,
     }).catch(() => {});
   }
 }
 
-// Reconciles a character's personal-role permission overwrites on the two
+// Reconciles a character's per-member permission overwrites on the two
 // hardcoded narrowcast channels (#radio, #intercom) against their current
 // tags and Location/Zone — see db/lib/narrowcastAccess.js for the actual
 // rules, and bot/src/lib/location.js's twin of the same name (gateway-based,
@@ -546,9 +550,9 @@ export async function syncCharacterNarrowcastAccess(characterId) {
 
   const character = await prisma.character.findUnique({
     where: { id: characterId },
-    select: { discordRoleId: true },
+    select: { discordUserId: true },
   });
-  if (!character?.discordRoleId) return;
+  if (!character?.discordUserId) return;
 
   const [ctx, config] = await Promise.all([
     buildNarrowcastContext(prisma, characterId),
@@ -567,22 +571,12 @@ export async function syncCharacterNarrowcastAccess(characterId) {
             let allow = 0;
             if (grant.view || grant.send) allow |= PERM_VIEW_CHANNEL;
             if (grant.send) allow |= PERM_SEND_MESSAGES;
-            const res = await fetch(`${DISCORD_API}/channels/${channelId}/permissions/${character.discordRoleId}`, {
-              method: "PUT",
-              headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ id: character.discordRoleId, type: 0, allow: String(allow), deny: "0" }),
+            await putChannelOverwrite(channelId, character.discordUserId, {
+              allow: String(allow),
+              type: OVERWRITE_TYPE_MEMBER,
             });
-            if (!res.ok) {
-              console.error(`Failed to grant narrowcast access on ${slug} for ${characterId}: ${res.status} ${await res.text()}`);
-            }
           } else {
-            const res = await fetch(`${DISCORD_API}/channels/${channelId}/permissions/${character.discordRoleId}`, {
-              method: "DELETE",
-              headers: { Authorization: `Bot ${token}` },
-            });
-            if (!res.ok && res.status !== 404) {
-              console.error(`Failed to revoke narrowcast access on ${slug} for ${characterId}: ${res.status} ${await res.text()}`);
-            }
+            await deleteChannelOverwrite(channelId, character.discordUserId);
           }
         } catch (err) {
           console.error(`Narrowcast sync failed for ${slug}/${characterId}:`, err);
@@ -591,66 +585,12 @@ export async function syncCharacterNarrowcastAccess(characterId) {
   );
 }
 
-// Removes one permission overwrite. 404 is success — "there is no overwrite
-// for this target" is the state the caller wanted.
-async function deleteOverwrite(channelId, targetId) {
-  const token = process.env.DISCORD_TOKEN;
-  if (!token || !channelId || !targetId) return;
-  await fetch(`${DISCORD_API}/channels/${channelId}/permissions/${targetId}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bot ${token}` },
-  }).catch(() => {});
-}
-
-// Strips every channel-viewing grant a character holds, anywhere in the guild.
-//
-// Deleting the personal role used to be enough on its own: Discord drops every
-// overwrite tied to a role the moment the role goes. That is true only while
-// access is keyed on the role. It stops being true the moment any grant is
-// keyed on the *member* instead — a member overwrite is not tied to the role
-// and outlives it, which would leave a dead character's player still seeing
-// the room they died in. So the revoke is explicit here rather than a side
-// effect of role deletion, and it clears BOTH keys: the role id for today's
-// model, the Discord user id for the per-member one. Deleting an overwrite
-// that isn't there is a 404, i.e. free.
-//
-// It sweeps every Location category, not just the character's current one. A
-// grant should only ever exist on the room they are standing in, but a
-// half-failed swapLocationAccess leaves one behind on the room they left, and
-// death is exactly the wrong moment to trust that invariant. Death is rare and
-// the walk is sequential, so the cost is a few dozen requests on an event that
-// happens a handful of times a game.
+// Thin prisma-binding shim over db/lib/locationAccess.js#revokeAllCharacterAccess
+// — same convention as web/lib/factionPermissions.js, so web callers keep the
+// shorter signature while the bot (guildMemberRemove) requires the shared one
+// by path. The logic lives in db/lib because both faces need it.
 export async function revokeAllCharacterAccess(character) {
-  const targetIds = [character.discordRoleId, character.discordUserId].filter(Boolean);
-  if (targetIds.length === 0) return;
-
-  const [locations, config] = await Promise.all([
-    prisma.location.findMany({
-      where: { discordCategoryId: { not: null } },
-      select: { discordCategoryId: true, discordChannelId: true, discordPublicChannelId: true, discordPrivateChannelId: true },
-    }),
-    prisma.gameConfig.findUnique({ where: { id: 1 } }),
-  ]);
-
-  // The category is the access primitive, but a channel that has been
-  // desynced from its category carries its own overwrites — so clear the
-  // children too rather than assuming the category covers them.
-  const channelIds = [];
-  for (const location of locations) {
-    channelIds.push(
-      location.discordCategoryId,
-      location.discordChannelId,
-      location.discordPublicChannelId,
-      location.discordPrivateChannelId,
-    );
-  }
-  channelIds.push(config?.radioChannelId, config?.intercomChannelId);
-
-  for (const channelId of channelIds.filter(Boolean)) {
-    for (const targetId of targetIds) {
-      await deleteOverwrite(channelId, targetId);
-    }
-  }
+  return revokeAllCharacterAccessShared(prisma, character);
 }
 
 // Everything that has to happen in Discord when a character dies, plus

@@ -26,6 +26,7 @@ import {
   ensureCharacterRole,
   syncCharacterLocationAccess,
   deleteCharacterRole,
+  revokeAllCharacterAccess,
   updateGuildNickname,
   syncCharacterNarrowcastAccess,
   killCharacter,
@@ -278,6 +279,19 @@ export async function wipeGameData(formData) {
     // the per-character role/nickname cleanup rather than blocking it. A full
     // restart should not leave anyone still cursed from the last game, so
     // every member currently holding the Cursed role gets it stripped too.
+    // revokeAllCharacterAccess before deleteCharacterRole, and sequentially
+    // rather than in the fan-out below: access is a per-member overwrite now,
+    // so deleting the role no longer carries it away, and the channels survive
+    // a wipe (runFullChannelWipe clears messages, not the channels). Without
+    // this every player from the last game keeps standing access into the next
+    // one. Sequential because each call is itself a walk over every channel —
+    // ARCHITECTURE.md §5.
+    for (const c of characters) {
+      await revokeAllCharacterAccess(c).catch((err) =>
+        console.error(`Failed to revoke access during wipe for ${c.discordUserId}:`, err),
+      );
+    }
+
     await Promise.all([
       ...characters.flatMap((c) => [
         c.discordRoleId ? deleteCharacterRole(c.discordRoleId).catch(() => {}) : null,
@@ -450,7 +464,7 @@ export async function updateCharacterRaw(formData) {
       );
     }
     if (existing?.locationId !== locationId) {
-      await syncCharacterLocationAccess(updated.discordRoleId, existing?.locationId ?? null, locationId).catch(() => {});
+      await syncCharacterLocationAccess(updated.discordUserId, existing?.locationId ?? null, locationId).catch(() => {});
       await syncCharacterNarrowcastAccess(characterId).catch(() => {});
     }
   }

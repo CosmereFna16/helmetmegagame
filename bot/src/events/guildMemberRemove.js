@@ -1,4 +1,5 @@
 const { prisma } = require("@lifeweb/db");
+const { revokeAllCharacterAccess } = require("@lifeweb/db/lib/locationAccess");
 
 const LEAVE_ANNOUNCE_CHANNEL_ID = "1540014692926361651";
 
@@ -40,6 +41,14 @@ module.exports = {
     }
 
     if (!character) return;
+
+    // Before the row goes: access is a per-member overwrite now, so deleting
+    // the role no longer takes it with it. Once the Character row is gone
+    // there is no id left to clean up with, and the overwrite would sit on
+    // every channel forever — so revoke first, delete second.
+    await revokeAllCharacterAccess(prisma, character).catch((err) =>
+      console.error(`Failed to revoke access for departing member ${member.id}:`, err),
+    );
 
     if (character.discordRoleId) {
       await member.guild.roles.delete(character.discordRoleId).catch(() => {});

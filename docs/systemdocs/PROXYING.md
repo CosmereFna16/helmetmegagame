@@ -168,9 +168,9 @@ which is why `archiveVisible` is meant to stay shut until the game ends
 
 ## 6. Mentions and private threads
 
-A character's personal Discord role is a **mentionable name token**, and
-`Character.discordRoleId` is `@unique`, so a mentioned role id resolves straight
-back to one character. Mentioning a GM/spectator/player role resolves to nothing
+A character's personal Discord role is a **mentionable name token and nothing
+else** — held by nobody, granting nothing (`CHANNELS.md` §3). `Character.discordRoleId`
+is `@unique`, so a mentioned role id resolves straight back to one character. Mentioning a GM/spectator/player role resolves to nothing
 and is silently ignored.
 
 `bot/src/lib/mentions.js` owns both things a mention does;
@@ -182,12 +182,12 @@ needs the *proxied* message's id. So the order is **capture → proxy → relay*
 
 ### The relay DM
 
-**A ping never relays back to the person who sent it.**
-`resolveMentionedCharacters` filters out any mentioned character belonging to
-the sender, so pinging your own character produces nothing at all — the first
-thing anyone testing this feature hits, and indistinguishable from a bug
-because the proxy suppresses the ping itself (§2), so the chip renders either
-way. Test from a second account.
+**Pinging your own character does relay.** There used to be a filter dropping
+the sender's own characters — nobody needs telling they pinged themselves —
+but because the proxy suppresses the ping itself (§2), a self-ping was the one
+case that looked exactly like a broken relay while working as intended, and it
+is the first thing anyone reaches for to test the feature. A redundant DM to
+yourself is much cheaper than a feature nobody can verify.
 
 Every rejection on this path is a bare return. `handleMentions` logs one
 `[mentions]` line per ping — the role ids, how many resolved, and each

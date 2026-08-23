@@ -106,7 +106,7 @@ npm run map:check                    # geometry check over locations.yaml's `map
 # Repair / one-off scripts. See SYNC.md §4 for what each is for.
 npm run db:backfill-roles
 npm run db:backfill-name-parts
-npm run db:backfill-location-access
+npm run db:backfill-member-access
 npm run db:backfill-persistent-tag
 npm run db:backfill-tag-rework
 npm run db:backfill-gm-permissions
@@ -164,7 +164,7 @@ env-configured admin role. `Faction` is **not** one of them (`FACTIONS.md` §1).
 
 | Role | Source | What it gates |
 |---|---|---|
-| **Personal character role** | `Character.discordRoleId`, one per `ALIVE` character, titled after the **bare** name | The sole access-control primitive for Location categories and narrowcast channels. Also a mentionable name token (`PROXYING.md` §6). |
+| **Personal character role** | `Character.discordRoleId`, one per `ALIVE` character, titled after the **bare** name | A mentionable **name token only** (`PROXYING.md` §6) — held by nobody and granting nothing. Channel access is a per-member overwrite instead (`CHANNELS.md` §3). |
 | **GM role** | `DISCORD_GM_ROLE_ID` env var | `/gm` pages, the `/gm` and `/message` slash commands. Checked via REST (`isGm`), not stored on any model. |
 | **Spectator role** | `SPECTATOR_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | A standing read-only observer seat, applied at provisioning time. See `CHANNELS.md`. |
 | **Player role** | `PLAYER_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may create a character, paired with `GameConfig.openToPlayers` (`CHARACTERS.md` §4b). |

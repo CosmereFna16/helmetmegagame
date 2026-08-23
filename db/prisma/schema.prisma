@@ -292,8 +292,10 @@ model Zone {
 // location itself, tupper+summary), a "-public" forum (tupper), and a
 // "-private" text channel (tupper within its private threads only — see
 // bot/src/lib/channels.js / web/lib/discordGuild.js isTupperChannel). The
-// category's permission overwrites (one per resident Character.discordRoleId)
-// are the actual access-control mechanism — see bot/src/lib/location.js.
+// Access is a ViewChannel permission overwrite per resident, keyed on
+// Character.discordUserId (type 1, a member overwrite), written to the
+// category AND all three channels — a channel does not reliably inherit its
+// category. See db/lib/locationAccess.js and bot/src/lib/location.js.
 // discordCategoryId/discordChannelId/discordPublicChannelId/
 // discordPrivateChannelId are null until the channels are provisioned by
 // db/lib/syncLocations.js#provisionLocationChannels (npm run db:sync-locations).
@@ -409,10 +411,12 @@ model Character {
   // last, via formatBareName) and seeded to a muted color by
   // db/lib/roleColor.js#hashNameToColor from that same bare string, re-synced
   // whenever it changes (web/lib/discordGuild.js#ensureCharacterRole). Bare,
-  // not the displayed name: the role is an @-mentionable access primitive
-  // rather than an RP surface, and seeding off the bare name means granting
-  // or changing a title never renames or recolours anyone.
-  // Doubles as the access-control primitive for Location categories.
+  // not the displayed name: the role is an @-mentionable name token rather
+  // than an RP surface, and seeding off the bare name means granting or
+  // changing a title never renames or recolours anyone.
+  // It is assigned to NOBODY and grants nothing — holding it would list the
+  // player's account under the character's name. Channel access is a
+  // per-member overwrite instead (db/lib/locationAccess.js).
   discordRoleId String? @unique
 
   isLeader    Boolean         @default(false)
@@ -423,9 +427,9 @@ model Character {
   // Unspent point-buy points. Seeded at creation with whatever the player
   // didn't spend in the wizard (budget minus purchases) and drawn down by
   // the mid-game store.
-  tagPoints         Int     @default(0)
-  avatarData        Bytes?
-  avatarMimeType    String?
+  tagPoints      Int     @default(0)
+  avatarData     Bytes?
+  avatarMimeType String?
 
   // The portrait maker's selection as JSON — part indices and palette indices,
   // never pixels. avatarData holds the render; this holds what it was built
@@ -837,8 +841,8 @@ model Action {
   // A range like "5-12", rolled at ⚜ confirm. @map keeps the original column
   // names: this used to hold dice notation ("1d6*2"), which the labor
   // shorthands and ranges replaced, so the field renamed but the SQL didn't.
-  resourceRollExpression String? @map("resourceDiceExpression")
-  resourceRollValue      Int?    @map("resourceDiceRoll")
+  resourceRollExpression String?     @map("resourceDiceExpression")
+  resourceRollValue      Int?        @map("resourceDiceRoll")
   diceRoll               Int?
 
   // The mood adjustment applied to a Gambit's d6 (+1 Happy / -1 Unhappy, see

@@ -2,6 +2,7 @@ const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } 
 const { prisma, buildNarrowcastContext, computeNarrowcastAccess } = require("@lifeweb/db");
 const { performTravel } = require("@lifeweb/db/lib/travel");
 const { isTravelFree } = require("@lifeweb/db/lib/travelCost");
+const { locationAccessChannelIds } = require("@lifeweb/db/lib/locationAccess");
 const { isLocationPromptChannel } = require("./channels");
 
 const FLEUR_EMOJI = "⚜️";
@@ -62,39 +63,47 @@ async function getChannel(guild, channelId) {
   return guild.channels.cache.get(channelId) ?? (await guild.channels.fetch(channelId).catch(() => null));
 }
 
-async function getRole(guild, roleId) {
-  if (!roleId) return null;
-  return guild.roles.cache.get(roleId) ?? (await guild.roles.fetch(roleId).catch(() => null));
+// The access target is the player's MEMBER, not the character's role. The role
+// is a mentionable name token held by nobody — assigning it would put the
+// player's account in its member list and deanonymize the game. discord.js
+// infers the overwrite type from the class it's handed, so passing a
+// GuildMember here is what makes these type-1 overwrites.
+//
+// A miss means the player has left the guild; no-op, same as the old
+// role-missing branch.
+async function getMember(guild, discordUserId) {
+  if (!discordUserId) return null;
+  return guild.members.cache.get(discordUserId) ?? (await guild.members.fetch(discordUserId).catch(() => null));
 }
 
-// The category-level permission overwrite is the sole access-control
-// primitive for Locations (see the Location model comment in
-// schema.prisma) — child channels inherit ViewChannel from it, so one
-// overwrite per character per active Location is all that's needed.
-async function swapLocationAccess(guild, characterRoleId, oldLocation, newLocation) {
-  const role = await getRole(guild, characterRoleId);
-  if (!role) return;
+// Grants/revokes a character's ViewChannel on a Location — the category AND
+// all three of its channels, never the category alone. Discord copies a
+// category's overwrites onto a channel at creation and the two drift apart
+// after that, so a grant written only to the category can leave a character
+// unable to see the room they are standing in. See db/lib/locationAccess.js.
+async function swapLocationAccess(guild, discordUserId, oldLocation, newLocation) {
+  const member = await getMember(guild, discordUserId);
+  if (!member) return;
 
-  if (oldLocation?.discordCategoryId) {
-    const oldCategory = await getChannel(guild, oldLocation.discordCategoryId);
-    await oldCategory?.permissionOverwrites.delete(role).catch(() => {});
+  for (const channelId of locationAccessChannelIds(oldLocation)) {
+    const channel = await getChannel(guild, channelId);
+    await channel?.permissionOverwrites.delete(member).catch(() => {});
   }
-  if (newLocation?.discordCategoryId) {
-    const newCategory = await getChannel(guild, newLocation.discordCategoryId);
-    await newCategory?.permissionOverwrites.edit(role, { ViewChannel: true }).catch(() => {});
+  for (const channelId of locationAccessChannelIds(newLocation)) {
+    const channel = await getChannel(guild, channelId);
+    await channel?.permissionOverwrites.edit(member, { ViewChannel: true }).catch(() => {});
   }
 }
 
-// Reconciles a character's personal-role overwrites on the narrowcast
+// Reconciles a character's per-member overwrites on the narrowcast
 // channels (#radio, #intercom) against their current tags/Location — see
 // db/lib/narrowcastAccess.js for the actual rules and
 // web/lib/discordGuild.js#syncCharacterNarrowcastAccess for the REST twin
 // (used by GM raw edits and tag grant/revoke, which only ever happen through
 // the web app). Called after every location change (performMove, below).
 async function syncCharacterNarrowcastAccess(guild, character) {
-  if (!character.discordRoleId) return;
-  const role = await getRole(guild, character.discordRoleId);
-  if (!role) return;
+  const member = await getMember(guild, character.discordUserId);
+  if (!member) return;
 
   const [ctx, config] = await Promise.all([
     buildNarrowcastContext(prisma, character.id),
@@ -112,10 +121,10 @@ async function syncCharacterNarrowcastAccess(guild, character) {
         const grant = access[slug];
         if (grant) {
           await channel.permissionOverwrites
-            .edit(role, { ViewChannel: grant.view || grant.send || null, SendMessages: grant.send || null })
+            .edit(member, { ViewChannel: grant.view || grant.send || null, SendMessages: grant.send || null })
             .catch(() => {});
         } else {
-          await channel.permissionOverwrites.delete(role).catch(() => {});
+          await channel.permissionOverwrites.delete(member).catch(() => {});
         }
       }),
   );
@@ -130,7 +139,7 @@ async function performMove(guild, character, targetLocation) {
   const result = await performTravel(prisma, character, targetLocation);
   if (!result.ok) return result;
 
-  await swapLocationAccess(guild, character.discordRoleId, result.oldLocation, targetLocation);
+  await swapLocationAccess(guild, character.discordUserId, result.oldLocation, targetLocation);
   await syncCharacterNarrowcastAccess(guild, character);
 
   return { ok: true, free: result.free };

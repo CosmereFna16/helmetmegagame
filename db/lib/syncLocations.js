@@ -93,57 +93,85 @@ function buildSummaryTopic(location) {
 // This is deliberately the SINGLE description of that layout — both
 // provisionLocationChannels (on first create) and applyLocationPermissions
 // (on every later re-sync) build from it, so the two can never disagree.
+// The overwrites EVERY target carries — the category and all three channels
+// alike. Nothing here is inherited.
+//
+// It used to be inherited: only the category named @everyone, and the three
+// channels were private purely by falling through to it. That is not how
+// Discord behaves. A channel is "synced" to its category by *copying* the
+// category's overwrites at creation; the two drift independently afterwards,
+// and a later change to the category does not reach a channel that has come
+// unsynced. So a re-sync that fixed the category fixed nothing a player could
+// see, and every channel except -private — the only one that named @everyone
+// itself — was world-visible.
+//
+// Hence: each target states its own privacy in full. The category keeps its
+// copy as defense-in-depth, but nothing depends on it.
+//
+// The VIEW_CHANNEL half of the @everyone deny is the entire mechanism that
+// makes a Location private. Every other overwrite in this file is an allow
+// layered back on top of it.
+function baseOverwrites(guildId, gmRoleId) {
+  return [
+    { id: guildId, type: 0, deny: String(PERM_VIEW_CHANNEL + PERM_ATTACH_FILES) },
+    ...(gmRoleId ? [{ id: gmRoleId, type: 0, allow: String(PERM_VIEW_CHANNEL + PERM_ATTACH_FILES) }] : []),
+    // Read-only observer seat.
+    ...spectatorOverwrite(),
+  ];
+}
+
+// Layers a channel's own bits onto the shared base for a target that already
+// appears in it, rather than appending a second entry for the same id —
+// Discord allows exactly one overwrite per target, and a duplicate would
+// silently win or lose depending on ordering.
+function mergeOverwrite(base, extra) {
+  const merged = base.map((o) => ({ ...o }));
+  const existing = merged.find((o) => o.id === extra.id);
+  if (!existing) return [...merged, extra];
+  existing.allow = String(BigInt(existing.allow ?? "0") | BigInt(extra.allow ?? "0"));
+  existing.deny = String(BigInt(existing.deny ?? "0") | BigInt(extra.deny ?? "0"));
+  return merged;
+}
+
 function locationChannelSpec(location) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
+  const base = baseOverwrites(guildId, gmRoleId);
 
   return {
     category: {
       name: `${location.zone.name} / ${location.name}`,
       type: CHANNEL_TYPE_CATEGORY,
-      permission_overwrites: [
-        // ATTACH_FILES deny lives here rather than per-channel because none of
-        // the three channels below set their own overwrite for that bit, so
-        // they all inherit this category-level deny. GMs get an explicit
-        // category-level allow for the same reason: their per-channel
-        // overwrites (GM_PLAIN_PERMS etc.) don't mention ATTACH_FILES either,
-        // so they'd otherwise inherit the deny too.
-        //
-        // The VIEW_CHANNEL half of this deny is the entire mechanism that
-        // makes a Location private — every other overwrite in this file is an
-        // allow layered back on top of it.
-        { id: guildId, type: 0, deny: String(PERM_VIEW_CHANNEL + PERM_ATTACH_FILES) },
-        ...(gmRoleId ? [{ id: gmRoleId, type: 0, allow: String(PERM_VIEW_CHANNEL + PERM_ATTACH_FILES) }] : []),
-        // Read-only observer seat; all three channels inherit it from here.
-        ...spectatorOverwrite(),
-      ],
+      permission_overwrites: base,
     },
     plain: {
       name: location.name,
       type: CHANNEL_TYPE_TEXT,
       rate_limit_per_user: 60,
       topic: buildSummaryTopic(location) ?? undefined,
-      permission_overwrites: gmChannelOverwrite(gmRoleId, GM_PLAIN_PERMS),
+      permission_overwrites: gmChannelOverwrite(gmRoleId, GM_PLAIN_PERMS).reduce(mergeOverwrite, base),
     },
     public: {
       name: `${location.name}-public`,
       type: CHANNEL_TYPE_FORUM,
       default_auto_archive_duration: 1440,
       available_tags: [{ name: PERSISTENT_TAG_NAME, emoji_name: PERSISTENT_EMOJI }],
-      permission_overwrites: gmChannelOverwrite(gmRoleId, GM_PUBLIC_PERMS),
+      permission_overwrites: gmChannelOverwrite(gmRoleId, GM_PUBLIC_PERMS).reduce(mergeOverwrite, base),
     },
     private: {
       name: `${location.name}-private`,
       type: CHANNEL_TYPE_TEXT,
+      // -private denies Send and public threads on top of the shared deny, and
+      // allows private threads. Merged into the one @everyone entry.
       permission_overwrites: [
+        ...gmChannelOverwrite(gmRoleId, GM_PRIVATE_PERMS),
         {
           id: guildId,
           type: 0,
-          deny: String(PERM_VIEW_CHANNEL + PERM_SEND_MESSAGES + PERM_CREATE_PUBLIC_THREADS),
+          deny: String(PERM_SEND_MESSAGES + PERM_CREATE_PUBLIC_THREADS),
           allow: String(PERM_CREATE_PRIVATE_THREADS),
         },
-        ...gmChannelOverwrite(gmRoleId, GM_PRIVATE_PERMS),
-      ],
+      ].reduce(mergeOverwrite, base),
     },
   };
 }
@@ -167,15 +195,20 @@ async function provisionLocationChannels(prisma, location) {
   });
 }
 
-// The three overwrite targets this sync owns. Everything else on a Location's
-// channels belongs to somebody else — above all the one ViewChannel overwrite
-// per character currently standing in the category
+// The overwrite targets this sync may DELETE. Everything else on a Location's
+// channel belongs to somebody else — above all the per-character grants
 // (bot/src/lib/location.js#swapLocationAccess) — and must never be touched
 // here. Membership in this set is what makes the delete pass below safe.
+//
+// @everyone is deliberately NOT in it, even though the spec names it on every
+// target. Its ViewChannel deny is the single overwrite the entire privacy
+// model rests on, and the spec PUTs it on every channel every run, so there is
+// no legitimate reason to ever delete it. Excluding it structurally means no
+// future edit to the spec can turn this pass into the thing that strips a
+// Location's privacy — which is exactly the failure this whole change exists
+// to make unrepeatable.
 function managedOverwriteIds() {
-  return new Set(
-    [process.env.DISCORD_GUILD_ID, process.env.DISCORD_GM_ROLE_ID, SPECTATOR_ROLE_ID].filter(Boolean),
-  );
+  return new Set([process.env.DISCORD_GM_ROLE_ID, SPECTATOR_ROLE_ID].filter(Boolean));
 }
 
 // Reconciles one channel's overwrites against the spec: PUT everything the

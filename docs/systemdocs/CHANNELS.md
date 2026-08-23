@@ -89,55 +89,75 @@ this is deliberate (see the "never touches an already-provisioned Location"
 guarantee in `SYNC.md`). Renaming live channels requires a
 one-off script against the Discord REST API.
 
-## 3. Visibility: category is hidden by default, per-character role grants access
+## 3. Visibility: every channel is hidden by default, a per-member overwrite grants access
 
 The whole point of Locations is that a player only sees the Location their
 character currently occupies — not the whole map. This is enforced entirely
-at the **category** level (child channels inherit permissions):
+on **every channel individually**. Nothing relies on inheritance:
 
-- On provisioning, the category denies `ViewChannel` to `@everyone` and
-  (if `DISCORD_GM_ROLE_ID` is set) explicitly allows it for the GM role, so
-  GMs always see every category regardless of where their character is.
+> **A channel does not reliably inherit its category.** Discord "syncs" a
+> channel to its category by *copying* the overwrites at creation; the two
+> drift apart afterwards, and a later change to the category never reaches a
+> channel that has come unsynced. Relying on inheritance is what left every
+> Location channel except `-private` — the only one that named `@everyone`
+> itself — world-visible after a clean re-sync. Every channel now states its
+> own privacy in full, and the category keeps a copy as defense-in-depth.
+
+- **`@everyone` is denied `ViewChannel` on the category and on all three
+  channels**, from one shared builder in `db/lib/syncLocations.js`
+  (`baseOverwrites`), re-applied every sync. The GM allow and the spectator
+  seat ride along on the same four targets for the same reason.
 - Every `ALIVE` character has a personal Discord role
   (`Character.discordRoleId`), titled after their **bare** name — first + last
   via `formatBareName`, never the honorific or the granted title — and coloured
   deterministically from a curated muted cyan/terracotta/brown/green palette
   (`db/lib/roleColor.js#hashNameToColor`, seeded from that same bare string, so
   the same name always yields the same colour). Bare on both counts
-  deliberately: the role is an `@`-mentionable access-control primitive rather
-  than an RP surface, and seeding the colour off the bare name means granting
-  or changing a title never renames or recolours anyone.
-  `web/lib/discordGuild.js#ensureCharacterRole` creates and assigns it the
-  first time a character has a name, and renames/recolours it on every later
-  profile save — called from `updateCharacterProfile` (self-service) and
-  `updateCharacterRaw` (GM raw edit). `npm run db:backfill-roles` is the
-  one-off catch-up for characters that predate it.
+  deliberately: the role is an `@`-mentionable **name token** rather than an RP
+  surface, and seeding the colour off the bare name means granting or changing
+  a title never renames or recolours anyone.
+  `web/lib/discordGuild.js#ensureCharacterRole` creates it the first time a
+  character has a name, and renames/recolours it on every later profile save.
+  `npm run db:backfill-roles` is the one-off catch-up.
 
-  When a character's location changes,
-  that role gets a single `ViewChannel` permission overwrite added on the
-  *new* category and removed from the *old* one — never a static list of
-  every character on every category. At any moment a category only carries
-  overwrites for the (usually small) set of characters currently standing
-  in it, which is also why this doesn't run into Discord's ~100-overwrite-
-  per-channel ceiling even at 100+ players.
+  **The role is assigned to nobody, and grants nothing.** Putting the player in
+  the role's member list would list their account under the character's name
+  and deanonymize the game. It exists only to be `@`-mentioned
+  (`PROXYING.md` §6).
 
-Four call sites keep a character's role overwrite in sync with
-`Character.locationId`, all funneling through the same one-overwrite-per-
-active-Location primitive:
+- **Access is a per-member overwrite.** When a character's location changes,
+  the *player's* `ViewChannel` overwrite (`type: 1`, keyed on
+  `Character.discordUserId`) is added to every channel of the new Location and
+  removed from every channel of the old — never a static list of every
+  character on every channel. `db/lib/locationAccess.js` is the single
+  description of which four objects that covers, so the gateway and REST twins
+  can't drift.
+
+  At any moment a channel only carries overwrites for the (usually small) set
+  of characters standing in that Location, which is why this doesn't approach
+  Discord's ~100-overwrite-per-channel ceiling even at 100+ players — the
+  count scales with residents of one room, not with the playerbase.
+
+Four call sites keep a character's member overwrite in sync with
+`Character.locationId`, all funnelling through the same
+one-overwrite-per-channel-of-the-active-Location primitive:
 
 | Trigger | Code | Mechanism |
 |---|---|---|
 | Player self-service travel (`⚜` button in the `location` channel) | `bot/src/lib/location.js#performMove` → `swapLocationAccess` | Gateway `Guild`/`Role` objects (bot already has them cached) |
-| GM raw edit (`/gm/dev/characters/[characterId]`) | `web/app/(app)/gm/dev/actions.js#updateCharacterRaw` → `syncCharacterLocationAccess` | REST (`PUT`/`DELETE /channels/{id}/permissions/{roleId}`) — the web app has no gateway connection |
+| GM raw edit (`/gm/dev/characters/[characterId]`) | `web/app/(app)/gm/dev/actions.js#updateCharacterRaw` → `syncCharacterLocationAccess` | REST (`PUT`/`DELETE /channels/{id}/permissions/{discordUserId}`) — the web app has no gateway connection |
 | New character created with a Location already set | `web/app/(app)/character/createActions.js#createCharacter` → `syncCharacterLocationAccess` | REST. Character creation picks up the role's `starting_location`, so every new character has a Location from the moment they exist |
 | Player travel from the web Map panel | `web/app/(app)/map/travelActions.js#travelTo` → `syncCharacterLocationAccess` | REST. The web twin of the ⚜ picker; both go through `db/lib/travel.js#performTravel`, which does no Discord work itself (`MAP.md`) |
 
 If a new call site ever sets `Character.locationId` directly, it needs to
 call one of these (or a shared equivalent) — a raw Prisma write alone
 leaves the old category overwrite dangling and the new one missing.
-`db/prisma/backfill-location-access.js` (`npm run db:backfill-location-access`)
-is a one-off catch-up for characters whose `locationId` was set before these
-call sites existed (mirrors `backfill-roles.js`'s role-creation catch-up).
+`db/prisma/backfill-member-access.js` (`npm run db:backfill-member-access`) is
+the migration onto this model: it grants each living character's player the
+overwrite on every channel of their current Location, sweeps the old
+role-keyed overwrites off every Location, and unassigns the personal role.
+Add-then-delete per character, so an interrupted run leaves people with access
+rather than locked out.
 
 ### Repairing a Location whose permissions are wrong
 
@@ -163,7 +183,7 @@ Railroad sat world-visible through repeated clean re-syncs on exactly this.
 
 The sync now reads each channel's live overwrites and **deletes** any target
 the spec no longer names — but only from a managed set of three:
-`@everyone`, the GM role, and the spectator role. A per-character role id is
+the GM role and the spectator role — never `@everyone`. A per-character member id is
 never in that set, so the invariant above still holds: character grants are
 never touched.
 
@@ -301,10 +321,9 @@ stall.
 
 `#radio` and `#intercom` sit outside the Location category structure
 entirely, and unlike the tag-gate-role mechanism this replaced, they use the
-*exact same* access primitive Locations do: a permission overwrite on the
-character's own personal Discord role (`Character.discordRoleId`), added or
-removed as their tags or Location/Zone change. There's no separate gate role
-for either channel anymore — just the personal role everyone already has.
+*exact same* access primitive Locations do: a per-member permission overwrite
+keyed on `Character.discordUserId`, added or removed as their tags or
+Location/Zone change. There's no gate role for either channel.
 
 Each channel's rule is bespoke, not a symmetric "hold a tag" gate, so they're
 hardcoded in `db/lib/narrowcastAccess.js`'s `NARROWCAST_RULES` rather than
@@ -318,10 +337,10 @@ authored in a YAML:
   currently standing in the **Keep** (a Location inside Fortress).
 
 `@everyone` is denied `ViewChannel` + `SendMessages` on both by default (set
-once at provisioning, see below); a qualifying character's personal role then
+once at provisioning, see below); a qualifying character's **player** then
 gets an `allow` overwrite for whichever of `ViewChannel`/`SendMessages` their
-current context grants, or has its overwrite removed entirely if it
-qualifies for neither.
+current context grants, or has that overwrite removed entirely if they
+qualify for neither.
 
 Two call sites keep this reconciled, mirroring the Location access split:
 `bot/src/lib/location.js`'s `syncCharacterNarrowcastAccess` (gateway, called
@@ -330,9 +349,15 @@ function of the same name (REST, called from character creation, GM raw
 location edits, and `grantTag`/`revokeTag` — tag changes only ever happen
 through the web app). Both load the character's current tags/Location via
 `db/lib/narrowcastAccess.js#buildNarrowcastContext` and run
-`computeNarrowcastAccess` against the rules table. No revoke is needed on
-death: `killCharacter` deletes the personal role outright, which drops every
-permission overwrite tied to it — Location and narrowcast alike — for free.
+`computeNarrowcastAccess` against the rules table.
+
+**Death revokes explicitly.** This used to be free — deleting the personal role
+dropped every overwrite tied to it, Location and narrowcast alike. A member
+overwrite is not tied to the role and outlives it, so
+`db/lib/locationAccess.js#revokeAllCharacterAccess` now sweeps both narrowcast
+channels along with every Location channel. Its three callers are
+`killCharacter`, `guildMemberRemove`, and `wipeGameData`; any new path that
+ends a character must call it too.
 
 Provisioning is a one-off, hand-run script:
 `db/lib/syncNarrowcastChannels.js#syncNarrowcastChannels`
@@ -348,7 +373,7 @@ Known scaling caveat: `#intercom`'s view condition spans a whole Zone
 at once — unlike a single Location, this could approach Discord's
 ~100-permission-overwrite-per-channel ceiling at a large enough roster. This
 was a known, accepted tradeoff when the tag-gate-role mechanism was replaced
-with personal-role overwrites; revisit if it becomes a real problem in
+with per-member overwrites; revisit if it becomes a real problem in
 practice.
 
 Both channels are tupper-only (§1) — `bot/src/lib/channels.js`'s

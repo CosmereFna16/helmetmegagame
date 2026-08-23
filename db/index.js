@@ -375,4 +375,11 @@ module.exports = {
   ...require("./lib/resourceDelta"),
   ...require("./lib/laborAccess"),
   ...require("./lib/travelCost"),
+  // Only the pure helpers. revokeAllCharacterAccess takes prisma as a
+  // parameter (the db/lib/dm.js convention) and is deliberately kept off the
+  // barrel — require it by path.
+  PERM_VIEW_CHANNEL: require("./lib/locationAccess").PERM_VIEW_CHANNEL,
+  OVERWRITE_TYPE_ROLE: require("./lib/locationAccess").OVERWRITE_TYPE_ROLE,
+  OVERWRITE_TYPE_MEMBER: require("./lib/locationAccess").OVERWRITE_TYPE_MEMBER,
+  locationAccessChannelIds: require("./lib/locationAccess").locationAccessChannelIds,
 };

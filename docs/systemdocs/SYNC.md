@@ -97,12 +97,12 @@ indexed id columns rather than real relations — see `ARCHIVE.md`.
 
 | Command | What it does |
 |---|---|
-| `db:backfill-location-access` | Grants each ALIVE character's role the ViewChannel overwrite on their current Location. |
+| `db:backfill-member-access` | Migration to per-member access: grants each ALIVE character's **player** the ViewChannel overwrite on every channel of their current Location, drops the old role-keyed overwrites, and unassigns the personal role. Supersedes `db:backfill-location-access`. |
 | `db:backfill-gm-permissions` | Adds the GM overwrite to already-provisioned Location channels. |
 | `db:backfill-spectator-access` | Grants the spectator role read-only view on everything already provisioned. |
 | `db:backfill-persistent-tag` | Adds the Persistent (⏰) forum tag to existing `-public` channels. |
 | `db:backfill-tupper-attachment-restriction` | Merges the `ATTACH_FILES` deny onto existing categories. |
-| `db:backfill-roles` | Creates the personal Discord role for characters that predate it. |
+| `db:backfill-roles` | Creates the personal Discord role for characters that predate it. Does not assign it — nobody holds these. |
 | `db:backfill-name-parts` | Repair pass for the four-part character name; also the drift check on the denormalized `Character.name`. |
 | `db:backfill-tag-rework` | One-off tag catalog cleanup. No Discord. |
 | `db:prune-orphan-categories` | Dry-run by default (`--apply`): deletes Location categories no `Location` row points at. |
