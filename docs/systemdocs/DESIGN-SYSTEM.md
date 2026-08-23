@@ -57,7 +57,17 @@ Three things about the token set are load-bearing and easy to undo by accident:
   actions**.
 - **Contrast is gated, not vibes.** `npm run audit:contrast --workspace=web`
   parses the theme blocks straight out of `globals.css` and fails on any AA
-  regression. Run it after touching a colour.
+  regression. Run it after touching a colour. It also **scans `web/app` and
+  `web/lib`** for `var(--accent)` used as anything but a fill or a rule — an
+  allowlist, not a denylist, because the worst offender was `costColor()`
+  handing the token to six callers to spend as text, which no denylist could
+  attribute. `--accent` as text measures **2.96** on dusk's `--surface`: under
+  not just AA's 4.5 but the 3.0 large-text floor.
+- **Each theme names its own `color-scheme`.** A handful of controls are drawn
+  by the browser, not by `globals.css` — the unchecked checkbox, the date
+  picker's calendar glyph and popup, the search field's clear button, the
+  `<select>` option list, the scrollbars. They read that property and nothing
+  else, so without it a native `<select>` popup opens white in dusk.
 
 ## 3. Themes
 
@@ -80,8 +90,9 @@ scale rather than Tailwind's stock sizes, and what makes `text-muted`/
 `bg-surface` real utilities.
 
 Prefer those utilities over an inline `style={{ color: "var(--muted)" }}` in new
-code — the app still carries ~160 such objects and they're retired as pages are
-touched.
+code — the app still carries ~80 such objects and they're retired as pages are
+touched. What is left is mostly *computed*: a group colour, `costColor()`, a
+map coordinate. A utility class cannot express those, so they stay.
 
 **When overriding a size token in `@theme`, always pair it with its
 `--text-<size>--line-height`**, or the utility falls back to a ratio computed
@@ -104,9 +115,18 @@ Use these instead of rolling one-off markup.
 | `.chip` | Small tag/pill labels. |
 | `.data-table` | Tabular data. |
 | `.menu-item` | Link-like row actions. |
-| `.modal-overlay` / `.modal-panel` | Modals — normally via `useConfirm()`. |
+| `.control` | The `.field` control surface, without the label column — a `<select>` in a table cell, an input inline in a toolbar. |
+| `.icon-btn` | The one framed icon button — via `IconButton`. |
+| `.tab-item` / `.tab-bar` | A tab strip navigating between panels. Keyed on `data-active`. |
+| `.segmented` | A group of mutually exclusive options as one joined pill. Keyed on `aria-pressed`. |
+| `.select-card` | A `.panel` you pick. Selection is `aria-pressed`. |
+| `.check-row` / `.switch-row` | A boolean and its label — via `CheckField` / `Switch`. |
+| `.status-pill` | A state, coloured by `data-tone`. |
+| `.empty-state` | "Nothing here" text. |
+| `.form-error` | Something went wrong. Always `--danger`. |
+| `.modal-overlay` / `.modal-panel` | Modals — **always** via `Modal`, usually via `useConfirm()`. |
 
-Two of these carry a trap:
+Three of these carry a trap:
 
 - **`.field` is not optional.** It is how *every* form control gets themed
   (background, border, font). A bare `<select>`/`<input>` outside `.field`
@@ -117,9 +137,47 @@ Two of these carry a trap:
   a status band next to its value, a "Tags" heading next to its buttons.
   `.panel-header`'s `border-bottom` would underline just the title text there
   rather than spanning the container, which reads as an underline, not a divider.
+- **`.tab-item` and `.segmented` are not the same idea.** A tab strip navigates
+  between panels and is keyed on `data-active`, a styling hook. A segmented
+  control has a *value*, so its pressed state lives in `aria-pressed`, where a
+  screen reader can reach it. Picking by looks gets the semantics wrong.
 
 Pick a button variant by how important the action is, rather than defaulting to
 `.btn` everywhere.
+
+## 5a. The five that had no rule
+
+These drifted precisely because this document never said anything about them —
+seven wrappers for a checkbox, eight ways to show a status, twelve shapes for
+an error. Each now has one component.
+
+| Concept | Use | Never |
+|---|---|---|
+| A boolean | `CheckField` (a row is selected) or `Switch` (a setting is on) | A bare `<input type="checkbox">` in a hand-rolled `<label>` |
+| A dialog | `Modal`, or `useConfirm()` / `RequestDialog` on top of it | `.modal-overlay` markup of your own |
+| A state | `StatusPill` with a **tone**, or `EnumPill` for a DB enum | A raw enum, or a colour picked at the call site |
+| Nothing here | `EmptyState`, or `EmptyRow` in a table | A bespoke `<p className="text-muted">` |
+| In flight / failed | `SubmitButton` and `FormError` | A `<form action>` with no pending state |
+
+Four things about these are load-bearing:
+
+- **`CheckField` and `Switch` carry no `"use client"`.** Nine of the app's
+  booleans are in `/gm/dev`, a *server* component posting through a form
+  action; the rest are client components passing `onChange`. A directive-free
+  leaf serves both. Adding one would drag every server page rendering a
+  checkbox into the client bundle.
+- **`Switch` keeps a real named `<input type="checkbox">`**, visually hidden
+  rather than replaced, because a server `<form action>` reads its `name` on
+  submit. A `<button role="switch">` looks identical and posts nothing.
+- **`StatusPill` takes a tone, not a colour.** Callers say what a state *means*
+  and the stylesheet decides how that looks, so a status cannot reach for a
+  colour the themes have not solved. Per-domain label maps stay local — a
+  Move's states are not a Request's — but they live in `web/lib/moves.js` and
+  `web/lib/requestLabels.js` so *both* faces can reach them.
+- **`SubmitButton` works because `useFormStatus` reads from a child.** The page
+  keeps its `<form action={...}>` and stays a server component; only the button
+  is a client leaf. It cannot see a button wired by `form={id}` from outside the
+  form — there is no enclosing form to read.
 
 ## 6. Page shell
 
@@ -183,8 +241,12 @@ const confirm = useConfirm();
 if (!(await confirm({ title, message, confirmLabel, cancelLabel }))) return;
 ```
 
-All fields are optional, and it reuses `.modal-overlay`/`.modal-panel` so it
-matches every other modal for free.
+All fields are optional. It renders through `Modal`, which owns the overlay,
+the panel, Escape, `role="dialog"`, the focus trap and returning focus to
+whatever opened the dialog — so every dialog in the app gets those whether it
+asked or not. **Never hand-roll `.modal-overlay` markup**: eleven dialogs once
+did, and between all of them exactly one bound Escape and one set
+`role="dialog"`.
 
 ### Confirm first, transition second — always
 

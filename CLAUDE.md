@@ -319,9 +319,13 @@ before writing any UI. The four rules that apply everywhere:
 - **`--font-mono` is data only** (numbers, IDs, timestamps) via `.mono`.
   Headings get their serif automatically from the tag — never hand-apply a font
   class. `--font-display` (blackletter) is for a handful of thematic moments.
-- **`react-hooks/set-state-in-effect` and `react-hooks/immutability` are errors
-  in this repo.** Reset paging inside the setter, not an effect; read
-  `localStorage` through `useSyncExternalStore`, not an effect.
+- **`react-hooks/set-state-in-effect`, `react-hooks/immutability` and
+  `no-undef` are errors in this repo.** Reset paging inside the setter, not an
+  effect; read `localStorage` through `useSyncExternalStore`, not an effect.
+  `no-undef` is off in the Next preset, which assumes TypeScript is doing that
+  job — this is a JavaScript codebase, so nothing was: a component referenced
+  without its import built clean, linted clean, and threw only when someone
+  opened the page.
 
 ## Git workflow
 
