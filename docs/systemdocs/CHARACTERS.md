@@ -351,6 +351,33 @@ Discord role afterward. `web/lib/discordGuild.js#killCharacter`, called from
 `updateCharacterRaw` skips the role/location sync entirely for a non-`ALIVE`
 character.
 
+## 5b. Killing and reviving from the GM panel
+
+The Dev Character Panel (`DEV-PANEL.md`) is where a GM does this by hand, and
+both directions are **microactions with a confirm**, not a `status` dropdown.
+
+That is deliberate. Death has side effects — the whole §5 list — and a staged
+form field would have to replay them at save time, which is how the old editor
+ended up able to set a corpse back to `ALIVE` while leaving it with no personal
+role, no channel access, and the Cursed role still on the account. Removing
+`status` from the form means the panel's Apply never has to reason about a
+status transition at all: it reads the live value from the database.
+
+**Revive** is the inverse §5 never had: `removeCursedRole`, then
+`ensureCharacterRole`, then the nickname, then
+`syncCharacterLocationAccess(uid, null, locationId)` — the old location is
+`null` because `killCharacter` already stripped every overwrite, so this is a
+pure re-grant with nothing to move away from — then
+`syncCharacterNarrowcastAccess`.
+
+**Deleting** a character is a separate, superadmin-only action, and is not the
+same thing as killing them. It removes the row and everything pointing at it
+through `db/lib/deleteCharacter.js`, which is shared with the
+`guildMemberRemove` handler so both agree on the foreign-key order. Two
+dependents are detached rather than deleted: `AuditLog.targetCharacterId` and
+`Note.characterId` are nulled, because the audit trail must outlive its subject
+and `Note.characterName` is already a snapshot.
+
 ## 6. Narrowcast channels (`#radio`, `#intercom`)
 
 Access to both is granted the same way Location access is — a per-member

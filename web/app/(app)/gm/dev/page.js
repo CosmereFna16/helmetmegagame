@@ -47,6 +47,7 @@ export default async function DevPanelPage() {
           <nav className="flex gap-4 text-sm">
             <Link href="/gm/dev/characters" className="menu-item">Characters</Link>
             <Link href="/gm/dev/factions" className="menu-item">Factions</Link>
+            <Link href="/gm/dev/tags" className="menu-item">Tags</Link>
           </nav>
         }
       />

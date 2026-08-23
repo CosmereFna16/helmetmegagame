@@ -367,6 +367,34 @@ letting the player choose *when* to unpack a crate is strictly better than
 making them wait a turn, and two near-identical "tag becomes other tags"
 mechanisms in one catalog is one too many.
 
+## 5c. GM-authored tags
+
+A tag can also be written in the UI, at `/gm/dev/tags`, instead of in
+`docs/tags.yaml`. Such a row carries `Tag.custom = true` and lives only in the
+database.
+
+The two halves of the catalog behave differently on purpose:
+
+|  | From `docs/tags.yaml` | GM-authored |
+|---|---|---|
+| Editable in the UI | No — the next `db:sync-tags` would revert it | Yes |
+| Touched by `db:sync-tags` | Upserted every run | Never (the sync is keyed by slug and has no entry for it) |
+| Touched by `db:prune-tags` | Deleted if unreferenced and no longer in the YAML | Never — skipped explicitly |
+| Deletable in the UI | No | Superadmin only, and only if nothing references it |
+
+**Slugs are generated, never typed**: `custom-${slugify(name)}`. A GM naming a
+tag "Arthritis" would otherwise collide with the YAML slug, and the next sync
+would upsert straight over their row — silently converting their homebrew into
+a YAML tag and clobbering every field. The prefix also guarantees a custom slug
+can never appear in the prune script's YAML slug set by accident.
+
+What a GM can set is the tag's own behaviour — cost, category, group,
+description, and the `stackable`/`equippable`/`consumable`/`removable`/
+`purchasable`/`visibleOnInspect` flags plus a duration. What they cannot set is
+catalog *structure*: `parentTag`, `requiredTag`, `requirementSkills` and
+`consumesInto` all wire tags to each other, and that belongs in the YAML where
+it can be reviewed alongside the tags it connects.
+
 ## 6. Things that used to be tags and aren't anymore
 
 `Leader` and `Treasurer` were retired as tags in the same rework that

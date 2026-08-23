@@ -27,6 +27,7 @@
     "map:check": "node db/prisma/check-map.js",
     "db:sync-locations": "node db/prisma/sync-locations.js",
     "db:sync-tags": "node db/prisma/sync-tags.js",
+    "db:prune-tags": "node db/prisma/prune-tags.js",
     "db:sync-roles": "node db/prisma/sync-roles.js",
     "db:sync-documents": "node db/prisma/sync-documents.js",
     "db:sync-narrowcast-channels": "node db/prisma/sync-narrowcast-channels.js",

@@ -516,6 +516,13 @@ model Tag {
   category    String
   pointCost   Int     @default(0)
 
+  // Authored by a GM at /gm/dev/tags rather than declared in docs/tags.yaml.
+  // syncTags.js is keyed by slug and upsert-only, so it never sees these
+  // rows; db:prune-tags, which IS destructive, skips them explicitly. Their
+  // slugs are server-generated with a "custom-" prefix so a GM naming one
+  // after an existing YAML tag can't collide with it and get upserted over.
+  custom Boolean @default(false)
+
   // Shown to other players who 🔍-react to this character's proxied
   // messages (see bot/src/events/messageReactionAdd.js), alongside
   // Character.appearance. Defaults closed so identity/status tags (Mortus,

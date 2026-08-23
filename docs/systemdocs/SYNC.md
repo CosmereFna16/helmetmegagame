@@ -13,7 +13,7 @@ running the sync is the only way these rows change.
 | Master | Script | Table(s) | Match key | Removal behaviour |
 |---|---|---|---|---|
 | `docs/locations.yaml` | `db:sync-locations` | `Zone`, `Location` | `slug` (**Zone by `name`**) | **Destructive** — dropped entry loses its DB row *and* its Discord category/channels |
-| `docs/tags.yaml` + `docs/taggroups.yaml` | `db:sync-tags` | `Tag`, `TagGroup` | `slug` | **Upsert-only** — never deletes; a removed entry just stops receiving updates |
+| `docs/tags.yaml` + `docs/taggroups.yaml` | `db:sync-tags` | `Tag`, `TagGroup` | `slug` | **Upsert-only** — never deletes; a removed entry just stops receiving updates. `db:prune-tags` is the opt-in destructive half (§3b) |
 | `docs/roles.yaml` | `db:sync-roles` | `Zone`, `Faction`, `Role` | `slug` | **Prunes only if unreferenced** — a Faction with members, roles, or a non-zero silo is left in place and reported |
 | `docs/documents.yaml` | `db:sync-documents` | `Document` | `key` | **Destructive** — pure reference content, no player state to preserve |
 
@@ -92,6 +92,37 @@ order so a reset always lands on the canonical content.
 here has to come out in dependency order, and it's the main reason new log-ish
 tables (`ArchiveEntry`, `SiloTransaction`, `AuditLog`) deliberately use plain
 indexed id columns rather than real relations — see `ARCHIVE.md`.
+
+## 3b. Pruning tags
+
+`db:sync-tags` never deletes, which is the right default — a tag a character
+holds must not vanish because someone tidied a YAML file — but it means the
+catalog only ever grows. `npm run db:prune-tags` is the separately-invoked
+counterpart, and the only tag operation in this repo that deletes anything.
+
+**It is a dry run by default.** Nothing is removed without `-- --apply`,
+the same posture as `db:prune-orphan-categories`.
+
+A Tag is deleted only when *every* one of these holds. Anything failing even
+one is reported with its reason and skipped — never cascaded, never forced,
+because a prune that skips silently is worse than one that deletes:
+
+- its slug is absent from `docs/tags.yaml`;
+- `Tag.custom` is false (a GM's homebrew is not orphaned just because the
+  YAML never mentioned it — see `DEV-PANEL.md` §8);
+- no `CharacterTag` references it;
+- nothing names it as a `Tag.parentTagId`, a `Tag.requiredTagId`, a
+  `requirementSkills` entry, or a **`TagGroup.requiredTagId`** — that last one
+  is the hidden-category gate, and dropping it would silently open Demoness to
+  everyone;
+- nothing consumes into it (`Tag.consumesInto`);
+- no `Role.startingTagSlugs` grants it and no `Document.tagSlugs` is assigned
+  by it. Note `Role.startingTagSlugs` is misnamed and holds tag **names**,
+  while `Document.tagSlugs` really does hold slugs.
+
+It is deliberately terminal-only and **not** wired into Restart Game: a wipe
+clears every `CharacterTag` first, so a prune running there would find every
+custom tag unheld and delete the lot.
 
 ## 4. Repair and one-off scripts
 

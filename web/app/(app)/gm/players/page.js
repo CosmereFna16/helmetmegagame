@@ -9,6 +9,20 @@ export default async function PlayersPage() {
   if (!session?.discordUserId) redirect("/");
   if (!gm) redirect("/character");
 
+  // The whole catalog, gates and all: bulk tagging is a GM grant, which
+  // deliberately ignores requiredTag and the TagGroup gate (TAGS.md).
+  const tags = await prisma.tag.findMany({
+    orderBy: [{ category: "asc" }, { name: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      category: true,
+      description: true,
+      pointCost: true,
+      group: { select: { name: true } },
+    },
+  });
+
   const characters = await prisma.character.findMany({
     orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
     include: { faction: true, zone: true },
@@ -40,6 +54,7 @@ export default async function PlayersPage() {
           cursed: cursedUserIds.has(c.discordUserId),
           resources: c.resources,
         }))}
+        tags={tags}
       />
     </PageShell>
   );

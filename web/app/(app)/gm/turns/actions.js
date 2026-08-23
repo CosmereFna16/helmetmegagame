@@ -7,6 +7,7 @@ import { getGmSession, killCharacter, listGuildMembers, sendDm } from "@/lib/dis
 import { REQUEST_EFFECTS } from "@/lib/requestEffects";
 import { requireReason } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
+import { deleteActionRestoringTurn } from "@/lib/moveEconomy";
 
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
@@ -358,9 +359,9 @@ async function rejectMoveImpl({ actionId, reason: rawReason }) {
 
   await prisma.$transaction(async (tx) => {
     // A rejected Routine already pushed its resources; take them back, or the
-    // player keeps the ⬢ from a Move that no longer exists.
-    if (action.appliedEffects) await revertMoveEffects(tx, action);
-    await tx.action.delete({ where: { id: actionId } });
+    // player keeps the ⬢ from a Move that no longer exists. Shared with the
+    // Dev Panel's Restore-turn button (web/lib/moveEconomy.js).
+    await deleteActionRestoringTurn(tx, action);
     await tx.auditLog.create({
       data: {
         actorDiscordUserId: session.discordUserId,

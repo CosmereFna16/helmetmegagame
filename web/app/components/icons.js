@@ -160,3 +160,130 @@ export function MoreIcon(props) {
     </svg>
   );
 }
+
+// ── Dev Character Panel action bar (docs/systemdocs/DEV-PANEL.md) ──────────
+// One icon per microaction. Same 24×24 stroked convention as everything
+// above, so they sit at 15px inside .icon-btn without rescaling.
+
+export function SkullIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M12 2.5c-4.7 0-7.5 3.1-7.5 7.2 0 2.4 1 4 2.3 5.1.5.4.7.9.7 1.5v1.2c0 .8.7 1.5 1.5 1.5h6c.8 0 1.5-.7 1.5-1.5v-1.2c0-.6.2-1.1.7-1.5 1.3-1.1 2.3-2.7 2.3-5.1 0-4.1-2.8-7.2-7.5-7.2z" strokeLinejoin="round" />
+      <circle cx="9" cy="10.5" r="1.6" />
+      <circle cx="15" cy="10.5" r="1.6" />
+      <path d="M10.5 19v2.5M13.5 19v2.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Revive. An ankh rather than a plain cross: the cross reads as "add" next to
+// the heal icon, and this button is specifically "bring them back".
+export function AnkhIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M12 2.5c-2 0-3.5 1.6-3.5 3.7 0 1.8 1.2 3.2 2.3 4.3.5.5.7.9.7 1.5v9.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 2.5c2 0 3.5 1.6 3.5 3.7 0 1.8-1.2 3.2-2.3 4.3-.5.5-.7.9-.7 1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M7 13.5h10" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Restore turn — a counter-clockwise arrow, the universal "give it back".
+export function RestoreIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1" strokeLinecap="round" />
+      <path d="M3 4v5h5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// Spend turn — skip to the end, the mirror of RestoreIcon.
+export function SkipIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M5 5.5l8 6.5-8 6.5v-13z" strokeLinejoin="round" />
+      <path d="M18 5v14" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Inflict wound.
+export function WoundIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M12 21s-7.5-4.7-7.5-10a4.3 4.3 0 0 1 7.5-2.8A4.3 4.3 0 0 1 19.5 11c0 5.3-7.5 10-7.5 10z" strokeLinejoin="round" />
+      <path d="M9.5 11.5l2 2 3-3.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// Heal all.
+export function BandageIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <rect x="2.5" y="8.5" width="19" height="7" rx="3.5" transform="rotate(-45 12 12)" />
+      <path d="M10.5 10.5l3 3M13.5 10.5l-3 3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Feed — a bowl, not cutlery: cutlery at 15px is two indistinct strokes.
+export function MealIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M3.5 11h17a8.5 8.5 0 0 1-8.5 8.5A8.5 8.5 0 0 1 3.5 11z" strokeLinejoin="round" />
+      <path d="M8 7.5c0-1 1-1.5 1-2.5M12 7.5c0-1 1-1.5 1-2.5M16 7.5c0-1 1-1.5 1-2.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Re-push this character's Discord state.
+export function SyncIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M3.5 10a8.5 8.5 0 0 1 14.4-4.1L20.5 8.5" strokeLinecap="round" />
+      <path d="M20.5 14a8.5 8.5 0 0 1-14.4 4.1L3.5 15.5" strokeLinecap="round" />
+      <path d="M20.5 3.5v5h-5M3.5 20.5v-5h5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function TrashIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M4 6.5h16" strokeLinecap="round" />
+      <path d="M9 6.5V4.5h6v2" strokeLinejoin="round" />
+      <path d="M6 6.5l1 13a1.5 1.5 0 0 0 1.5 1.4h7a1.5 1.5 0 0 0 1.5-1.4l1-13" strokeLinejoin="round" />
+      <path d="M10.5 10.5v7M13.5 10.5v7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function SearchIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="M15.5 15.5L21 21" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function PlusIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Refund unspent tag points — the ⬡ of the point economy, hollow so it never
+// reads as the filled ⬢ Resources glyph.
+export function PointsIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M12 3l7.5 4.5v9L12 21l-7.5-4.5v-9L12 3z" strokeLinejoin="round" />
+      <path d="M9.5 14.5l5-5M9.5 9.5h.01M14.5 14.5h.01" strokeLinecap="round" />
+    </svg>
+  );
+}

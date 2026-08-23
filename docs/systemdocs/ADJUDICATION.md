@@ -129,7 +129,10 @@ adjudication shouldn't haunt a roll made today.
 Footer: **Cancel** · **Reject** · **Save** (back to Open) · **Solve**. Reject
 deletes the row — the turn-economy checks in `actionSubmission.js` and
 `location.js#performMove` look for *any* Action on the open turn, so only a
-deletion actually frees the player. The description and reason are copied into
+deletion actually frees the player. That revert-then-delete pair lives in
+`web/lib/moveEconomy.js#deleteActionRestoringTurn`, shared with the Dev
+Panel's Restore-turn button (`DEV-PANEL.md` §7): two copies of "how you give a
+turn back" would drift the first time `appliedEffects` grew a key. The description and reason are copied into
 an `AuditLog` row first, any resources a Routine already pushed are clawed
 back, and the player is DM'd, since a freed turn they don't know about is a
 wasted day.
@@ -184,6 +187,7 @@ claims a lock — looking must not block the GM who intends to resolve.
 | Move push/revert, the d6 | `db/lib/moveEffects.js` |
 | Lock release beacon | `web/app/api/move-lock/release/route.js` |
 | Framed icon button, Dev jump | `web/app/components/IconButton.js`, `DevCharacterButton.js` |
+| Turn economy, shared with the Dev Panel | `web/lib/moveEconomy.js` |
 | GM verdict server action | `web/app/(app)/gm/turns/actions.js` |
 | Unsaved-edit guard | `web/app/components/useDirtyGuard.js` |
 | Table / icon-button styling, `--warning` token | `web/app/globals.css` |

@@ -29,6 +29,7 @@ const { postAsCharacter } = require("./lib/discordRest");
 const { runFullChannelWipe } = require("./lib/fullWipe");
 const { syncLocationsFromYaml } = require("./lib/syncLocations");
 const { syncTagsFromYaml } = require("./lib/syncTags");
+const { deleteCharacterRow } = require("./lib/deleteCharacter");
 const { syncRolesFromYaml } = require("./lib/syncRoles");
 const { syncDocumentsFromYaml } = require("./lib/syncDocuments");
 const { NARROWCAST_SLUGS, buildNarrowcastContext, computeNarrowcastAccess } = require("./lib/narrowcastAccess");
@@ -347,6 +348,7 @@ module.exports = {
   runFullChannelWipe,
   syncLocationsFromYaml,
   syncTagsFromYaml,
+  deleteCharacterRow,
   syncRolesFromYaml,
   syncDocumentsFromYaml,
   NARROWCAST_SLUGS,

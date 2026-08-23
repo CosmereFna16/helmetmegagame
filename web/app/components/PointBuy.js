@@ -12,6 +12,7 @@ import {
   effectiveTotalCost,
   chainSiblingsToRemove,
   unlockedTags,
+  filterTagsByQuery,
 } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import ChipText from "./ChipText";
@@ -61,6 +62,12 @@ export default function PointBuy({
     [offered, byId, heldOrSelectedIds, selectedIds],
   );
 
+  const [query, setQuery] = useState("");
+
+  // Search runs AFTER unlockedTags, never instead of it: a gated tag must
+  // stay invisible no matter what someone types. The category tabs are still
+  // derived from `unlocked` rather than the searched set, so narrowing a
+  // search can't make the tab you're standing on disappear underneath you.
   const categories = useMemo(() => menuCategories(unlocked), [unlocked]);
   const [category, setCategory] = useState(null);
   const active = categories.includes(category) ? category : categories[0];
@@ -80,10 +87,23 @@ export default function PointBuy({
     onChange([...selectedIds.filter((id) => !siblings.includes(id)), tag.id]);
   }
 
-  const visible = unlocked.filter((t) => t.category === active);
+  const visible = filterTagsByQuery(
+    unlocked.filter((t) => t.category === active),
+    query,
+  );
 
   return (
     <div className="flex flex-col gap-4">
+      <label className="field">
+        <span className="field-label">Search</span>
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Name, description, or group"
+        />
+      </label>
+
       <div className="panel flex flex-wrap items-center justify-between gap-3 p-3">
         <div className="flex flex-wrap gap-2">
           {categories.map((c) => (
@@ -184,7 +204,9 @@ export default function PointBuy({
 
       {visible.length === 0 && (
         <p className="text-sm text-muted">
-          Nothing available in this category.
+          {query
+            ? `Nothing in ${active} matches "${query}".`
+            : "Nothing available in this category."}
         </p>
       )}
     </div>

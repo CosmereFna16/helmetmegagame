@@ -1,4 +1,4 @@
-const { prisma } = require("@lifeweb/db");
+const { prisma, deleteCharacterRow } = require("@lifeweb/db");
 const { revokeAllCharacterAccess } = require("@lifeweb/db/lib/locationAccess");
 
 const LEAVE_ANNOUNCE_CHANNEL_ID = "1540014692926361651";
@@ -54,12 +54,10 @@ module.exports = {
       await member.guild.roles.delete(character.discordRoleId).catch(() => {});
     }
 
-    await prisma.$transaction([
-      prisma.note.deleteMany({ where: { characterId: character.id } }),
-      prisma.defaultEffort.deleteMany({ where: { characterId: character.id } }),
-      prisma.action.deleteMany({ where: { characterId: character.id } }),
-      prisma.characterTag.deleteMany({ where: { characterId: character.id } }),
-      prisma.character.delete({ where: { id: character.id } }),
-    ]);
+    // Shared with the GM Dev Panel's Delete. The list this replaced missed
+    // AuditLog, Request and Desire, so a departing player who had ever had a
+    // Request adjudicated hit a foreign-key violation here and never got
+    // cleaned up — see db/lib/deleteCharacter.js.
+    await deleteCharacterRow(prisma, character.id);
   },
 };

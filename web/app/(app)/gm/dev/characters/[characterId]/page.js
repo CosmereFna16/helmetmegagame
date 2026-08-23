@@ -1,252 +1,241 @@
 import { redirect, notFound } from "next/navigation";
-import Link from "next/link";
-import { prisma, isDynastyMember } from "@lifeweb/db";
+import { prisma, isDynastyMember, gambitModifierTotal } from "@lifeweb/db";
 import { getGmSession, getGuildMember, isCursed } from "@/lib/discordGuild";
-import { updateCharacterRaw, grantTag, revokeTag } from "../../actions";
-import PageShell, { PageHeader } from "@/app/components/PageShell";
-import InfoIcon from "@/app/components/InfoIcon";
-import { HONORIFICS, NAME_LIMITS, AGE_MIN, AGE_MAX } from "@/lib/characterName";
+import { isSuperadmin } from "@/lib/superadmin";
+import { isHealable } from "@/lib/healRequests";
+import { HUNGER_SLUG, ATE_MEAL_SLUG } from "@lifeweb/db/lib/constants";
+import PageShell from "@/app/components/PageShell";
+import DevPanel from "./DevPanel";
 
-export default async function DevCharacterEditPage({ params }) {
+// The GM's one-stop character editor. Gated on GM membership rather than
+// superadmin, because it is where every CharacterLink in the app points and
+// an in-game GM is meant to use it — only the Delete microaction narrows to
+// superadmin, and it does that in the action itself.
+//
+// Everything the panel could need is loaded here, in one Promise.all, and
+// handed down as plain DTOs. The panel is a client component (it holds the
+// staged-edit state), so nothing Prisma-shaped may cross the boundary: dates
+// become ISO strings and only the columns actually rendered come along.
+export default async function DevCharacterPanelPage({ params }) {
   const { characterId } = await params;
   const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   if (!gm) redirect("/character");
 
-  const [character, factions, zones, ownedTags, allTags, roles] = await Promise.all([
-    prisma.character.findUnique({ where: { id: characterId } }),
-    prisma.faction.findMany({ orderBy: { name: "asc" } }),
-    prisma.zone.findMany({ orderBy: { name: "asc" }, include: { locations: { orderBy: { name: "asc" } } } }),
-    prisma.characterTag.findMany({ where: { characterId }, include: { tag: true } }),
-    prisma.tag.findMany({ orderBy: [{ category: "asc" }, { name: "asc" }] }),
-    prisma.role.findMany({ orderBy: [{ sortOrder: "asc" }], include: { faction: true } }),
-  ]);
+  const character = await prisma.character.findUnique({
+    where: { id: characterId },
+    include: { role: true, faction: true, location: true, zone: true },
+  });
   if (!character) notFound();
 
-  // Cursed is a live Discord role (DISCORD_CURSED_ROLE_ID), not a DB field —
-  // read the account's current guild roles rather than the Character row.
-  const member = await getGuildMember(character.discordUserId);
-  const cursed = isCursed(member);
+  const [
+    factions,
+    zones,
+    roles,
+    allTags,
+    heldTags,
+    config,
+    openTurn,
+    desires,
+    moves,
+    requests,
+    auditLog,
+    messages,
+    defaultEffort,
+    member,
+  ] = await Promise.all([
+    prisma.faction.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.zone.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, locations: { orderBy: { name: "asc" }, select: { id: true, name: true } } },
+    }),
+    prisma.role.findMany({
+      orderBy: [{ sortOrder: "asc" }],
+      select: { id: true, name: true, slug: true, faction: { select: { name: true } } },
+    }),
+    // The whole catalog, gates and all: a GM grant deliberately ignores
+    // requiredTag and the TagGroup gate (TAGS.md), so unlike /api/tags this
+    // withholds nothing — including the hidden Demoness and Bacchus groups.
+    prisma.tag.findMany({
+      orderBy: [{ category: "asc" }, { name: "asc" }],
+      include: { group: { select: { name: true, color: true } }, requirementSkills: { select: { id: true, name: true } } },
+    }),
+    prisma.characterTag.findMany({ where: { characterId }, include: { tag: true } }),
+    prisma.gameConfig.findUnique({ where: { id: 1 } }),
+    prisma.turn.findFirst({ where: { status: "OPEN" } }),
+    prisma.desire.findMany({ where: { characterId }, orderBy: { id: "desc" } }),
+    prisma.action.findMany({
+      where: { characterId },
+      orderBy: { id: "desc" },
+      take: 100,
+      include: { turn: { select: { number: true, phase: true } } },
+    }),
+    prisma.request.findMany({
+      where: { characterId },
+      orderBy: { id: "desc" },
+      take: 100,
+      include: { turn: { select: { number: true, phase: true } } },
+    }),
+    prisma.auditLog.findMany({ where: { targetCharacterId: characterId }, orderBy: { createdAt: "desc" }, take: 100 }),
+    prisma.directMessage.findMany({
+      where: { discordUserId: character.discordUserId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
+    prisma.defaultEffort.findFirst({ where: { characterId } }),
+    // Cursed is a live Discord role, not a DB field — read the account's
+    // current guild roles rather than the Character row.
+    getGuildMember(character.discordUserId).catch(() => null),
+  ]);
 
-  // Read off the already-loaded role catalog rather than a second query.
-  const lastNameLocked = isDynastyMember(
-    roles.find((r) => r.id === character.roleId)?.slug,
-  );
-
-  const ownedTagIds = new Set(ownedTags.map((ct) => ct.tagId));
-  const grantableTags = allTags.filter((t) => !ownedTagIds.has(t.id));
+  const openTurnAction = openTurn ? moves.find((m) => m.turnId === openTurn.id) ?? null : null;
 
   return (
-    <PageShell width="narrow">
-      <Link href="/gm/players" className="btn-quiet">&larr; Back to Players</Link>
-      <PageHeader title={character.name} />
-
-      <form action={updateCharacterRaw} className="panel flex flex-col gap-3 p-4">
-        <input type="hidden" name="characterId" value={character.id} />
-
-        {/* The only place `title` is editable — the player's own form shows it
-            disabled. It renders in quotes between the two names. */}
-        <div className="grid grid-cols-2 gap-3">
-          <label className="field">
-            <span className="field-label">Honorific</span>
-            <select name="honorific" defaultValue={character.honorific ?? ""}>
-              <option value="">(none)</option>
-              {HONORIFICS.map((h) => (
-                <option key={h} value={h}>{h}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="field">
-            <span className="field-label">First name</span>
-            <input
-              name="firstName"
-              defaultValue={character.firstName}
-              maxLength={NAME_LIMITS.firstName}
-              required
-            />
-          </label>
-
-          <label className="field">
-            <span className="field-label">Granted title</span>
-            <input
-              name="title"
-              defaultValue={character.title ?? ""}
-              maxLength={NAME_LIMITS.title}
-              placeholder={'renders as "the Blind"'}
-            />
-          </label>
-
-          <label className="field">
-            <span className="field-label">Age</span>
-            <input
-              type="number"
-              name="age"
-              min={AGE_MIN}
-              max={AGE_MAX}
-              defaultValue={character.age ?? ""}
-            />
-          </label>
-
-          {/* Locked here too for the Baron's family: the dynasty name is
-              changed by editing the Baron, which propagates to all three
-              (db/lib/dynasty.js). updateCharacterRaw restamps it regardless of
-              what this posts. */}
-          <label className="field">
-            <span className="field-label flex items-center gap-1.5">
-              Last name
-              {lastNameLocked && (
-                <InfoIcon text="Inherited from the Baron. Change it on his sheet and all three of his family follow." />
-              )}
-            </span>
-            <input
-              name="lastName"
-              defaultValue={character.lastName ?? ""}
-              maxLength={NAME_LIMITS.lastName}
-              placeholder={lastNameLocked ? "No dynasty name yet" : undefined}
-              disabled={lastNameLocked}
-            />
-          </label>
-        </div>
-
-        <label className="field">
-          <span className="field-label">Role</span>
-          <select name="roleId" defaultValue={character.roleId ?? ""}>
-            <option value="">(none — keeps the free-text title below)</option>
-            {roles.map((r) => (
-              <option key={r.id} value={r.id}>{r.faction.name} / {r.name}</option>
-            ))}
-          </select>
-        </label>
-
-        <label className="field">
-          <span className="field-label">Role title (ignored when a Role is picked above)</span>
-          <input name="roleTitle" defaultValue={character.roleTitle ?? ""} />
-        </label>
-
-        <div className="grid grid-cols-2 gap-3">
-          <label className="field">
-            <span className="field-label">Faction</span>
-            <select name="factionId" defaultValue={character.factionId ?? ""}>
-              <option value="">(none)</option>
-              {factions.map((f) => (
-                <option key={f.id} value={f.id}>{f.name}</option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span className="field-label">Zone (only used when no Location is set)</span>
-            <select name="zoneId" defaultValue={character.zoneId ?? ""}>
-              <option value="">(none)</option>
-              {zones.map((z) => (
-                <option key={z.id} value={z.id}>{z.name}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <label className="field">
-          <span className="field-label">Location</span>
-          <select name="locationId" defaultValue={character.locationId ?? ""}>
-            <option value="">(none — grants no location channel access)</option>
-            {zones.map((z) => (
-              <optgroup key={z.id} label={z.name}>
-                {z.locations.map((loc) => (
-                  <option key={loc.id} value={loc.id}>{loc.name}</option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        </label>
-
-        <div className="grid grid-cols-2 gap-3">
-          <label className="field">
-            <span className="field-label">Status</span>
-            <select name="status" defaultValue={character.status}>
-              <option value="ALIVE">ALIVE</option>
-              <option value="DEAD">DEAD</option>
-            </select>
-          </label>
-          <div className="flex flex-col gap-2 text-sm" style={{ marginTop: "1.6rem" }}>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="isLeader" defaultChecked={character.isLeader} />
-              Faction Leader
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="isTreasurer" defaultChecked={character.isTreasurer} />
-              Faction Treasurer
-            </label>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <label className="field">
-            <span className="field-label">Resources</span>
-            <input type="number" name="resources" defaultValue={character.resources} />
-          </label>
-          <label className="field">
-            <span className="field-label">Unspent tag points</span>
-            <input type="number" name="tagPoints" defaultValue={character.tagPoints} />
-          </label>
-        </div>
-
-        <p className="text-sm">
-          <strong>Cursed:</strong> {cursed ? "Yes" : "No"} — granted automatically when this
-          character dies, removed automatically once the player rolls a new one. To clear it early
-          (body buried / rites read), remove the role directly in Discord.
-        </p>
-
-        <label className="field">
-          <span className="field-label">Appearance / bio</span>
-          <textarea name="appearance" rows={4} defaultValue={character.appearance ?? ""} />
-        </label>
-
-        <button type="submit" className="btn self-start">Save</button>
-      </form>
-
-      <div className="panel flex flex-col gap-3 p-4">
-        <h2 className="panel-header">Tags</h2>
-
-        {ownedTags.length === 0 ? (
-          <p className="text-sm text-muted">No tags owned.</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {ownedTags.map((ct) => (
-              <li key={ct.id} className="flex items-center justify-between gap-2 text-sm">
-                <span>
-                  {ct.tag.name}
-                  {ct.quantity > 1 && <> &times;{ct.quantity}</>}{" "}
-                  <span className="text-muted">({ct.source})</span>
-                </span>
-                <form action={revokeTag}>
-                  <input type="hidden" name="characterTagId" value={ct.id} />
-                  <input type="hidden" name="characterId" value={character.id} />
-                  {/* Takes one off a stack; drops the row when that's the last. */}
-                  <button type="submit" className="btn-quiet">Revoke</button>
-                </form>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {grantableTags.length > 0 && (
-          <form action={grantTag} className="flex items-end gap-2 border-t pt-3" style={{ borderColor: "var(--border)" }}>
-            <input type="hidden" name="characterId" value={character.id} />
-            <label className="field flex-1">
-              <span className="field-label">Grant tag</span>
-              <select name="tagId" required defaultValue="">
-                <option value="" disabled>Choose a tag...</option>
-                {grantableTags.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.category ? `[${t.category}] ` : ""}{t.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button type="submit" className="btn">Grant</button>
-          </form>
-        )}
-      </div>
+    <PageShell width="wide">
+      <DevPanel
+        character={{
+          id: character.id,
+          discordUserId: character.discordUserId,
+          updatedAt: character.updatedAt.toISOString(),
+          name: character.name,
+          honorific: character.honorific,
+          firstName: character.firstName,
+          title: character.title,
+          lastName: character.lastName,
+          age: character.age,
+          preferredNickname: character.preferredNickname,
+          appearance: character.appearance,
+          roleId: character.roleId,
+          roleTitle: character.roleTitle,
+          factionId: character.factionId,
+          factionName: character.faction?.name ?? null,
+          zoneId: character.zoneId,
+          zoneName: character.zone?.name ?? null,
+          locationId: character.locationId,
+          locationName: character.location?.name ?? null,
+          status: character.status,
+          isLeader: character.isLeader,
+          isTreasurer: character.isTreasurer,
+          resources: character.resources,
+          tagPoints: character.tagPoints,
+          turnPingOptIn: character.turnPingOptIn,
+          romanceOptOut: character.romanceOptOut,
+          worstFear: character.worstFear,
+          worstFearSetTurnNumber: character.worstFearSetTurnNumber,
+          worstFearLastFulfilledTurn: character.worstFearLastFulfilledTurn,
+          discordRoleId: character.discordRoleId,
+          avatarMimeType: character.avatarMimeType,
+          hasAvatar: Boolean(character.avatarData),
+        }}
+        discord={{
+          username: member?.user?.username ?? null,
+          nickname: member?.nick ?? null,
+          cursed: isCursed(member),
+          present: Boolean(member),
+        }}
+        // lastNameLocked is read off the already-loaded role rather than a
+        // second query. The dynasty name is changed by editing the Baron,
+        // which propagates to all three of his family.
+        lastNameLocked={isDynastyMember(character.role?.slug)}
+        canDelete={isSuperadmin(session.discordUserId)}
+        factions={factions}
+        zones={zones}
+        roles={roles.map((r) => ({ id: r.id, name: r.name, factionName: r.faction?.name ?? null }))}
+        tags={allTags.map((t) => ({
+          id: t.id,
+          name: t.name,
+          slug: t.slug,
+          category: t.category,
+          description: t.description,
+          pointCost: t.pointCost,
+          stackable: t.stackable,
+          equippable: t.equippable,
+          consumable: t.consumable,
+          removable: t.removable,
+          custom: t.custom,
+          defaultDurationTurns: t.defaultDurationTurns,
+          parentTagId: t.parentTagId,
+          requiredTagId: t.requiredTagId,
+          group: t.group,
+          // Precomputed server-side so the Heal-all and Inflict-wound
+          // staging buttons and the server action agree on what an
+          // affliction is — isHealable is the shared predicate.
+          healable: isHealable(t),
+        }))}
+        held={heldTags.map((ct) => ({
+          tagId: ct.tagId,
+          name: ct.tag.name,
+          quantity: ct.quantity,
+          equipped: ct.equipped,
+          expiresTurn: ct.expiresTurn,
+          source: ct.source,
+        }))}
+        feed={{ dropSlug: HUNGER_SLUG, grantSlug: ATE_MEAL_SLUG }}
+        // computeBudget subtracts CURSED_POINT_PENALTY, so the Refund-points
+        // button needs to know — otherwise a re-rolled cursed character is
+        // handed back 3 points creation never gave them.
+        cursed={isCursed(member)}
+        equipSlots={config?.equipSlots ?? 6}
+        startingTagPoints={config?.startingTagPoints ?? 12}
+        openTurn={openTurn ? { id: openTurn.id, number: openTurn.number, phase: openTurn.phase } : null}
+        gambitModifier={gambitModifierTotal(heldTags)}
+        openTurnAction={
+          openTurnAction
+            ? {
+                id: openTurnAction.id,
+                description: openTurnAction.description,
+                moveKind: openTurnAction.moveKind,
+                opposed: openTurnAction.opposed,
+                moveReviewStatus: openTurnAction.moveReviewStatus,
+                resourceDelta: openTurnAction.resourceDelta,
+                diceRoll: openTurnAction.diceRoll,
+                diceModifier: openTurnAction.diceModifier,
+                gmNotes: openTurnAction.gmNotes,
+              }
+            : null
+        }
+        defaultEffort={
+          defaultEffort
+            ? { description: defaultEffort.description, resourceDelta: defaultEffort.resourceDelta }
+            : null
+        }
+        desires={desires.map((d) => ({
+          id: d.id,
+          text: d.text,
+          points: d.points,
+          status: d.status,
+          setTurnNumber: d.setTurnNumber,
+          endedTurnNumber: d.endedTurnNumber,
+        }))}
+        moves={moves.map((m) => ({
+          id: m.id,
+          turn: m.turn ? `${m.turn.number} ${m.turn.phase}` : "—",
+          description: m.description,
+          moveKind: m.moveKind,
+          status: m.moveReviewStatus,
+          resourceDelta: m.resourceDelta,
+        }))}
+        requests={requests.map((r) => ({
+          id: r.id,
+          turn: r.turn ? `${r.turn.number} ${r.turn.phase}` : "—",
+          type: r.type,
+          status: r.status,
+          reason: r.reason,
+          reviewedAt: r.reviewedAt?.toISOString() ?? null,
+        }))}
+        auditLog={auditLog.map((a) => ({
+          id: a.id,
+          actionType: a.actionType,
+          reason: a.reason,
+          createdAt: a.createdAt.toISOString(),
+        }))}
+        messages={messages.map((m) => ({
+          id: m.id,
+          direction: m.direction,
+          content: m.content,
+          createdAt: m.createdAt.toISOString(),
+        }))}
+      />
     </PageShell>
   );
 }

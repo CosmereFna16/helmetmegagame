@@ -10,50 +10,21 @@ import {
   syncTagsFromYaml,
   syncRolesFromYaml,
   syncDocumentsFromYaml,
-  isDynastyHead,
-  isDynastyMember,
 } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import {
-  AGE_MIN,
-  AGE_MAX,
-  NAME_LIMITS,
-  formatCharacterName,
-  normalizeHonorific,
-} from "@/lib/characterName";
-import {
-  ensureCharacterRole,
-  syncCharacterLocationAccess,
   deleteCharacterRole,
   revokeAllCharacterAccess,
   updateGuildNickname,
-  syncCharacterNarrowcastAccess,
-  killCharacter,
   listGuildMembers,
   removeCursedRole,
-  getGmSession,
 } from "@/lib/discordGuild";
-import { dynastyLastName, propagateDynastyLastName } from "@/lib/dynasty";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
-import { addToStack } from "@/lib/requestEffects";
-import { expiryFor } from "@/lib/turnFormat";
 
 async function requireSuperadmin() {
   const session = await auth();
   if (!session?.discordUserId || !isSuperadmin(session.discordUserId)) {
-    throw new Error("Not authorized.");
-  }
-  return session;
-}
-
-// The character editor at /gm/dev/characters/[characterId] is reachable by
-// any in-game GM (not just superadmins) via character-name links elsewhere
-// in the app — these three actions back that page, so they gate on isGm
-// rather than requireSuperadmin like the rest of this file.
-async function requireGm() {
-  const { session, isGm: gm } = await getGmSession();
-  if (!session?.discordUserId || !gm) {
     throw new Error("Not authorized.");
   }
   return session;
@@ -366,203 +337,6 @@ export async function wipeGameData(formData) {
     console.error("Game wipe failed:", err);
     return { ok: false, error: "Could not wipe the game. Check the server logs." };
   }
-}
-
-export async function updateCharacterRaw(formData) {
-  await requireGm();
-
-  const characterId = str(formData, "characterId");
-  if (!characterId) return;
-
-  const existing = await prisma.character.findUnique({ where: { id: characterId } });
-
-  const factionId = str(formData, "factionId").trim() || null;
-  const locationId = str(formData, "locationId").trim() || null;
-  const appearance = str(formData, "appearance").trim() || null;
-  const roleId = str(formData, "roleId").trim() || null;
-
-  // Picking a Role from the dropdown restamps the display title from the
-  // catalog; roleTitle stays hand-editable for off-catalog cases.
-  const role = roleId ? await prisma.role.findUnique({ where: { id: roleId } }) : null;
-  const roleTitle = role ? role.name : str(formData, "roleTitle").trim() || null;
-
-  // zoneId mirrors location.zoneId whenever a Location is set (see the
-  // Location model comment in schema.prisma) — a raw zoneId field is only
-  // meaningful for a character with no specific Location yet.
-  let zoneId = str(formData, "zoneId").trim() || null;
-  if (locationId) {
-    const location = await prisma.location.findUnique({ where: { id: locationId } });
-    zoneId = location?.zoneId ?? zoneId;
-  }
-
-  const status = str(formData, "status");
-
-  // The only place `title` is writable. Still allowlisted and length-capped
-  // like the player forms — a GM form is a public endpoint too, and the
-  // NAME_LIMITS caps are what keep the composed name inside Discord's 80-char
-  // webhook username limit.
-  const namePart = (key, limit) => str(formData, key).trim().slice(0, limit) || null;
-  const nameParts = {
-    honorific: normalizeHonorific(formData.get("honorific")),
-    firstName: namePart("firstName", NAME_LIMITS.firstName),
-    title: namePart("title", NAME_LIMITS.title),
-    lastName: namePart("lastName", NAME_LIMITS.lastName),
-  };
-
-  // The lock on the Baron's family holds here too — a GM changes the dynasty
-  // by editing the Baron, which propagates below, rather than by typing a
-  // surname onto the Baroness. Keyed on the role being SAVED, so moving
-  // someone into a family seat renames them in the same write.
-  if (isDynastyMember(role?.slug)) nameParts.lastName = await dynastyLastName();
-
-  // A GM may set or correct an age freely — the once-only lock is a
-  // player-side rule, not a database one.
-  const rawAge = Number.parseInt(str(formData, "age"), 10);
-  const age =
-    Number.isInteger(rawAge) && rawAge >= AGE_MIN && rawAge <= AGE_MAX ? rawAge : null;
-
-  const updated = await prisma.character.update({
-    where: { id: characterId },
-    data: {
-      ...nameParts,
-      age,
-      // Keep firstName NOT NULL satisfied even if the field is cleared.
-      firstName: nameParts.firstName ?? existing?.firstName ?? "",
-      name: formatCharacterName({
-        ...nameParts,
-        firstName: nameParts.firstName ?? existing?.firstName ?? "",
-      }),
-      roleTitle,
-      roleId,
-      factionId,
-      zoneId,
-      locationId,
-      isLeader: formData.get("isLeader") === "on",
-      isTreasurer: formData.get("isTreasurer") === "on",
-      status,
-      resources: intOrZero(formData, "resources"),
-      tagPoints: intOrZero(formData, "tagPoints"),
-      appearance,
-    },
-  });
-
-  // Death is the one status change with side effects: killCharacter deletes
-  // the personal Discord role (which takes its Location and narrowcast
-  // overwrites with it), clears the nickname, and grants the Cursed role.
-  // Everything below is skipped for a dead character — re-syncing the role of
-  // a corpse is exactly the bug this replaces.
-  if (status === "DEAD" && existing?.status !== "DEAD") {
-    await killCharacter(updated).catch((err) => console.error("killCharacter failed:", err));
-  } else if (status === "ALIVE") {
-    await ensureCharacterRole(updated).catch(() => {});
-    // Editing the Baron's last name renames his whole house. Skipped for a
-    // corpse along with everything else in this branch: a dead Baron leaves
-    // the family with the name he gave them.
-    if (isDynastyHead(role?.slug)) {
-      await propagateDynastyLastName(updated.lastName).catch((err) =>
-        console.error("propagateDynastyLastName failed:", err),
-      );
-    }
-    if (existing?.locationId !== locationId) {
-      await syncCharacterLocationAccess(updated.discordUserId, existing?.locationId ?? null, locationId).catch(() => {});
-      await syncCharacterNarrowcastAccess(characterId).catch(() => {});
-    }
-  }
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: (await auth()).discordUserId,
-      actionType: "superadmin_character_edit",
-      targetCharacterId: characterId,
-    },
-  });
-
-  revalidatePath("/gm/dev/characters");
-  revalidatePath(`/gm/dev/characters/${characterId}`);
-  revalidatePath("/gm/players");
-  revalidatePath("/character");
-}
-
-export async function grantTag(formData) {
-  const session = await requireGm();
-
-  const characterId = str(formData, "characterId");
-  const tagId = str(formData, "tagId");
-  if (!characterId || !tagId) return;
-
-  const tag = await prisma.tag.findUnique({ where: { id: tagId } });
-  if (!tag) return;
-
-  // Create-or-increment: granting a stackable tag a second time adds to the
-  // stack rather than colliding with @@unique([characterId, tagId]).
-  //
-  // The expiry stamp is not optional: resolveNeeds()'s sweep matches on
-  // expiresTurn, so a GM-granted timed tag left null never expires at all —
-  // a Paralyzed would sit there permanently while its tooltip advertised
-  // "Lasts 1 turn". expiryFor returns null for an untimed tag, so ordinary
-  // grants are unchanged.
-  const openTurn = await prisma.turn.findFirst({
-    where: { status: "OPEN" },
-    select: { number: true },
-  });
-  await addToStack(prisma, characterId, tagId, 1, {
-    source: "GM_GRANT",
-    stackable: tag.stackable,
-    expiresTurn: expiryFor(tag, openTurn),
-  });
-
-  // A granted tag may affect narrowcast access (#radio, #intercom).
-  await syncCharacterNarrowcastAccess(characterId).catch(() => {});
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "superadmin_tag_grant",
-      targetCharacterId: characterId,
-      details: { tagId, tagName: tag.name },
-    },
-  });
-
-  revalidatePath(`/gm/dev/characters/${characterId}`);
-  revalidatePath("/character");
-}
-
-export async function revokeTag(formData) {
-  const session = await requireGm();
-
-  const characterTagId = str(formData, "characterTagId");
-  const characterId = str(formData, "characterId");
-  if (!characterTagId) return;
-
-  // One unit at a time for a stack, the whole row otherwise — so a GM
-  // correcting an over-grant doesn't wipe a player's whole larder.
-  const ct = await prisma.characterTag.findUnique({
-    where: { id: characterTagId },
-    include: { tag: true },
-  });
-  if (!ct) return;
-  if (ct.tag.stackable && ct.quantity > 1) {
-    await prisma.characterTag.update({
-      where: { id: ct.id },
-      data: { quantity: ct.quantity - 1 },
-    });
-  } else {
-    await prisma.characterTag.delete({ where: { id: ct.id } }).catch(() => null);
-  }
-
-  await syncCharacterNarrowcastAccess(ct.characterId).catch(() => {});
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "superadmin_tag_revoke",
-      targetCharacterId: characterId || ct.characterId,
-      details: { tagId: ct.tagId },
-    },
-  });
-
-  revalidatePath(`/gm/dev/characters/${characterId || ct.characterId}`);
-  revalidatePath("/character");
 }
 
 export async function updateFaction(formData) {

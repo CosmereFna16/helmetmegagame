@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { sendGmMessage } from "../actions";
+import { useMemo, useState, useTransition } from "react";
+import { sendGmMessage, bulkTagCharacters } from "../actions";
+import { filterTagsByQuery, sortTagsForMenu } from "@/lib/characterCreation";
 import CharacterLink from "../../../components/CharacterLink";
 import FactionLink from "../../../components/FactionLink";
 import { useTableState, SortHeader, FilterBar, TableScroll } from "@/app/components/DataTable";
@@ -17,11 +18,12 @@ const FILTER_DEFS = [
 
 const SEARCH_FIELDS = [(c) => c.name, (c) => c.roleTitle, (c) => c.factionName];
 
-export default function PlayersTable({ characters }) {
+export default function PlayersTable({ characters, tags = [] }) {
   // Keyed on character id rather than row index, so a selection survives
   // paging, filtering and sorting — the recipient list is what gets sent.
   const [selected, setSelected] = useState(new Set());
   const [composerOpen, setComposerOpen] = useState(false);
+  const [tagBarOpen, setTagBarOpen] = useState(false);
 
   const filterDefs = useMemo(() => FILTER_DEFS, []);
   const searchFields = useMemo(() => SEARCH_FIELDS, []);
@@ -61,7 +63,27 @@ export default function PlayersTable({ characters }) {
         >
           Message selected ({selected.size})
         </button>
+        <button
+          type="button"
+          className="btn"
+          disabled={selected.size === 0}
+          onClick={() => setTagBarOpen((open) => !open)}
+        >
+          Tag selected ({selected.size})
+        </button>
       </FilterBar>
+
+      {tagBarOpen && selected.size > 0 && (
+        <BulkTagBar
+          tags={tags}
+          count={selected.size}
+          characterIds={[...selected]}
+          onDone={() => {
+            setTagBarOpen(false);
+            setSelected(new Set());
+          }}
+        />
+      )}
 
       {composerOpen && selected.size > 0 && (
         <form
@@ -137,6 +159,96 @@ export default function PlayersTable({ characters }) {
       </TableScroll>
 
       <Pager page={page} totalPages={totalPages} total={total} unit="players" onPage={setPage} />
+    </div>
+  );
+}
+
+// Grant or revoke one tag across every selected row. The heavy lifting is
+// bulkTagCharacters, which runs a transaction per character rather than one
+// over the batch and reports partial success — so a single bad character
+// can't roll back the rest.
+function BulkTagBar({ tags, count, characterIds, onDone }) {
+  const [pending, startTransition] = useTransition();
+  const [query, setQuery] = useState("");
+  const [tagId, setTagId] = useState("");
+  const [result, setResult] = useState(null);
+
+  const matches = useMemo(
+    () => filterTagsByQuery(sortTagsForMenu(tags), query).slice(0, 40),
+    [tags, query],
+  );
+
+  // Narrowing the search until the chosen tag drops out of the list would
+  // otherwise leave the <select> rendering blank while tagId still held the
+  // old value — and both buttons enabled, ready to grant a tag nobody can
+  // see. Cleared in the setter rather than an effect
+  // (react-hooks/set-state-in-effect is an error in this repo).
+  function changeQuery(next) {
+    setQuery(next);
+    if (tagId && !filterTagsByQuery(sortTagsForMenu(tags), next).slice(0, 40).some((t) => t.id === tagId)) {
+      setTagId("");
+    }
+  }
+
+  function apply(mode) {
+    setResult(null);
+    startTransition(async () => {
+      const res = await bulkTagCharacters({ characterIds, tagId, mode });
+      if (!res?.ok) {
+        setResult({ error: res?.error ?? "Something went wrong." });
+        return;
+      }
+      setResult(res);
+      if (!res.failed) onDone();
+    });
+  }
+
+  return (
+    <div className="panel flex flex-col gap-3 p-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="field">
+          <span className="field-label">Find a tag</span>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => changeQuery(e.target.value)}
+            placeholder="Name, description, or group"
+          />
+        </label>
+        <label className="field">
+          <span className="field-label">
+            Tag to apply to {count} character{count === 1 ? "" : "s"}
+          </span>
+          <select value={tagId} onChange={(e) => setTagId(e.target.value)}>
+            <option value="">Choose a tag…</option>
+            {matches.map((t) => (
+              <option key={t.id} value={t.id}>
+                [{t.category}] {t.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" className="btn" disabled={pending || !tagId} onClick={() => apply("grant")}>
+          Grant to all
+        </button>
+        <button type="button" className="btn-quiet" disabled={pending || !tagId} onClick={() => apply("revoke")}>
+          Revoke from all
+        </button>
+        <button type="button" className="btn-quiet" onClick={onDone} disabled={pending}>
+          Close
+        </button>
+      </div>
+
+      {result?.error && <p className="text-sm text-accent">{result.error}</p>}
+      {result?.ok && (
+        <p className="text-sm text-muted">
+          {result.tagName}: applied to {result.applied}
+          {result.failed ? `, failed on ${result.failed}` : ""}.
+        </p>
+      )}
     </div>
   );
 }

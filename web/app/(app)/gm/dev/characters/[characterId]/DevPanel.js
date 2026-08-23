@@ -1,0 +1,376 @@
+"use client";
+
+import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { PageHeader } from "@/app/components/PageShell";
+import ActionBar from "./ActionBar";
+import IdentityTab from "./IdentityTab";
+import TagEditor from "./TagEditor";
+import TurnTab from "./TurnTab";
+import GoalsTab from "./GoalsTab";
+import RecordTab from "./RecordTab";
+import { applyCharacterEdits } from "./actions";
+import { useConfirm } from "@/app/components/ConfirmProvider";
+import useDirtyGuard from "@/app/components/useDirtyGuard";
+
+const TABS = ["Identity", "Tags", "Turn", "Goals", "Record"];
+
+// One staged op per tag, because @@unique([characterId, tagId]) means one row
+// per tag — but "what happens to the row" and "how the row is configured" are
+// two different axes, and a GM will touch both.
+//
+//   presence  — add / remove
+//   modifiers — equipped, expiry, quantity (carried by a `patch`)
+//
+// So a patch MERGES into whatever presence op is already staged rather than
+// replacing it, and vice versa. Clobbering either way was a real bug: staging
+// "remove this amulet" and then toggling Unequip used to throw the removal
+// away, and Apply would only unequip it.
+//
+// Returns null when the two cancel out, which the caller deletes.
+function mergeTagOp(existing, incoming) {
+  if (!existing) return incoming;
+
+  // Modifiers land on the existing presence op, keeping its op and quantity.
+  if (incoming.op === "patch" && existing.op !== "patch") {
+    const { op: _drop, tagId: _also, ...modifiers } = incoming;
+    void _drop;
+    void _also;
+    return { ...existing, ...modifiers };
+  }
+  // ...and a presence op inherits modifiers already staged.
+  if (existing.op === "patch" && incoming.op !== "patch") {
+    const { op: _drop, tagId: _also, quantity: _qty, ...modifiers } = existing;
+    void _drop;
+    void _also;
+    void _qty;
+    return { ...modifiers, ...incoming };
+  }
+  // Exact inverses cancel: granted it, then thought better of it.
+  if (
+    (existing.op === "add" && incoming.op === "remove") ||
+    (existing.op === "remove" && incoming.op === "add")
+  ) {
+    return null;
+  }
+  // Same presence op twice on a stackable: accumulate, so clicking "Add one"
+  // three times stages three rather than silently staying at one. A null
+  // quantity means "the whole holding" and swallows any number.
+  if (existing.op === incoming.op) {
+    const both = existing.quantity != null && incoming.quantity != null;
+    return { ...existing, ...incoming, quantity: both ? existing.quantity + incoming.quantity : null };
+  }
+  return incoming;
+}
+
+// The Dev Character Panel's shell: it owns the staged edit state, the tab, and
+// the Apply/Cancel footer. Everything else is a presentational tab.
+//
+// Two kinds of interaction live here, and they are deliberately kept on
+// DISJOINT fields so they can never race each other (docs/systemdocs/DEV-PANEL.md):
+//
+//   - Staged   — every editable value, plus every tag change. Held right here
+//                until Apply sends them as one payload, one audit row.
+//   - Immediate — the verbs in the action bar. Own confirm, own server action,
+//                straight away.
+//
+// `status` is the field that would have straddled both, so it isn't in the
+// form at all: Kill and Revive are microactions, and Apply reads status from
+// the database rather than the payload. That is why Apply never has to reason
+// about "did they also just kill this character".
+export default function DevPanel({
+  character,
+  discord,
+  lastNameLocked,
+  canDelete,
+  factions,
+  zones,
+  roles,
+  tags,
+  held,
+  feed,
+  cursed,
+  equipSlots,
+  startingTagPoints,
+  openTurn,
+  gambitModifier,
+  openTurnAction,
+  defaultEffort,
+  desires,
+  moves,
+  requests,
+  auditLog,
+  messages,
+}) {
+  const router = useRouter();
+  const confirm = useConfirm();
+  const { markDirty, markClean } = useDirtyGuard();
+  const [tab, setTab] = useState("Identity");
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState(null);
+
+  // Staged core fields, keyed the same as the server's EDITABLE_FIELDS. Only
+  // keys actually touched are sent, so an untouched field can never be
+  // overwritten by a stale value read at page load.
+  const [edits, setEdits] = useState({});
+  // Staged tag ops, keyed by tagId — never characterTagId, which can vanish
+  // under us when the expiry sweep runs at a turn close.
+  const [tagOps, setTagOps] = useState(new Map());
+
+  // An empty text input and a null column are the same thing to the server
+  // (every string field goes through trimmedOrNull), so they have to compare
+  // equal here too — otherwise typing into an empty field and deleting it
+  // again leaves a phantom pending change that Apply would write as nothing.
+  function same(a, b) {
+    const norm = (v) => (v === "" || v == null ? null : v);
+    return Object.is(norm(a), norm(b));
+  }
+
+  function setField(key, value) {
+    setEdits((prev) => {
+      const next = { ...prev };
+      // Setting a field back to its stored value un-stages it rather than
+      // sending a no-op, so the pending count stays honest.
+      if (same(character[key], value)) delete next[key];
+      else next[key] = value;
+      return next;
+    });
+    markDirty();
+  }
+
+  function stageTagOps(ops) {
+    setTagOps((prev) => {
+      const next = new Map(prev);
+      for (const op of ops) {
+        if (op == null) continue;
+        if (op.op === "clear") {
+          next.delete(op.tagId);
+          continue;
+        }
+        next.set(op.tagId, mergeTagOp(next.get(op.tagId), op));
+      }
+      // A merge can cancel out entirely (add then remove) — drop those.
+      for (const [tagId, op] of next) if (op == null) next.delete(tagId);
+      return next;
+    });
+    markDirty();
+  }
+
+  const ops = useMemo(() => [...tagOps.values()], [tagOps]);
+  const pendingCount = Object.keys(edits).length + ops.length;
+
+  async function onCancel() {
+    if (!pendingCount) return;
+    const ok = await confirm({
+      title: "Discard your changes?",
+      message: `${pendingCount} pending change${pendingCount === 1 ? "" : "s"} will be reverted.`,
+      confirmLabel: "Discard",
+      cancelLabel: "Keep editing",
+    });
+    if (!ok) return;
+    setEdits({});
+    setTagOps(new Map());
+    setError(null);
+    markClean();
+  }
+
+  function onApply() {
+    setError(null);
+    startTransition(async () => {
+      const res = await applyCharacterEdits({
+        characterId: character.id,
+        expectedUpdatedAt: character.updatedAt,
+        core: edits,
+        tags: ops,
+      });
+      if (!res?.ok) {
+        setError(res?.error ?? "Something went wrong.");
+        return;
+      }
+      setEdits({});
+      setTagOps(new Map());
+      markClean();
+      router.refresh();
+    });
+  }
+
+  // What the sheet WOULD look like if Apply were pressed — every tab renders
+  // this rather than the stored row, so a staged change is visible everywhere
+  // at once.
+  const staged = { ...character, ...edits };
+
+  return (
+    <>
+      <PageHeader
+        title={staged.name || character.name}
+        subtitle={
+          <>
+            Every value on this character, editable. Edits here bypass the game&apos;s rules
+            deliberately — nothing below is gated the way a player&apos;s own sheet is.
+          </>
+        }
+        actions={
+          <Link href="/gm/players" className="btn-quiet">
+            &larr; Players
+          </Link>
+        }
+      />
+
+      <StateStrip
+        character={character}
+        staged={staged}
+        discord={discord}
+        held={held}
+        equipSlots={equipSlots}
+        gambitModifier={gambitModifier}
+        openTurn={openTurn}
+        hasActed={Boolean(openTurnAction)}
+      />
+
+      <ActionBar
+        character={character}
+        canDelete={canDelete}
+        hasActed={Boolean(openTurnAction)}
+        openTurn={openTurn}
+        tags={tags}
+        held={held}
+        feed={feed}
+        cursed={cursed}
+        startingTagPoints={startingTagPoints}
+        onStageTags={stageTagOps}
+        onStageField={setField}
+      />
+
+      <div className="tab-bar" role="tablist">
+        {TABS.map((t) => (
+          <button
+            key={t}
+            type="button"
+            role="tab"
+            aria-selected={t === tab}
+            data-active={t === tab}
+            className="tab-item"
+            onClick={() => setTab(t)}
+          >
+            {t}
+            {t === "Tags" && ops.length > 0 && <> ({ops.length})</>}
+          </button>
+        ))}
+      </div>
+
+      {tab === "Identity" && (
+        <IdentityTab
+          staged={staged}
+          lastNameLocked={lastNameLocked}
+          factions={factions}
+          zones={zones}
+          roles={roles}
+          edits={edits}
+          onField={setField}
+        />
+      )}
+
+      {tab === "Tags" && (
+        <TagEditor
+          tags={tags}
+          held={held}
+          ops={tagOps}
+          openTurn={openTurn}
+          equipSlots={equipSlots}
+          onStage={stageTagOps}
+        />
+      )}
+
+      {tab === "Turn" && (
+        <TurnTab
+          character={character}
+          openTurn={openTurn}
+          action={openTurnAction}
+          defaultEffort={defaultEffort}
+        />
+      )}
+
+      {tab === "Goals" && (
+        <GoalsTab
+          character={character}
+          staged={staged}
+          desires={desires}
+          openTurn={openTurn}
+          onField={setField}
+        />
+      )}
+
+      {tab === "Record" && (
+        <RecordTab
+          moves={moves}
+          requests={requests}
+          auditLog={auditLog}
+          messages={messages}
+          discordUserId={character.discordUserId}
+        />
+      )}
+
+      {/* The footer appears only when there is something to commit, so the
+          panel reads as a viewer until the moment it isn't one. */}
+      {(pendingCount > 0 || error) && (
+        <div className="panel dev-apply-bar flex flex-wrap items-center justify-between gap-3 p-3">
+          <span className="text-sm">
+            {error ? (
+              <span className="text-accent">{error}</span>
+            ) : (
+              <>
+                <strong className="mono">{pendingCount}</strong> pending change
+                {pendingCount === 1 ? "" : "s"}
+              </>
+            )}
+          </span>
+          <span className="flex items-center gap-2">
+            <button type="button" className="btn-quiet" onClick={onCancel} disabled={pending}>
+              Cancel
+            </button>
+            <button type="button" className="btn" onClick={onApply} disabled={pending || !pendingCount}>
+              {pending ? "Applying…" : "Apply"}
+            </button>
+          </span>
+        </div>
+      )}
+    </>
+  );
+}
+
+// The read-only facts a GM wants before touching anything — the live state
+// the panel is about to change, including the derived numbers that exist
+// nowhere as a column (points spent, slots used, the gambit modifier).
+function StateStrip({ character, staged, discord, held, equipSlots, gambitModifier, openTurn, hasActed }) {
+  const equipped = held.filter((h) => h.equipped).length;
+  const facts = [
+    ["Status", character.status],
+    ["Role", staged.roleTitle ?? "—"],
+    ["Faction", character.factionName ?? "—"],
+    ["Location", character.locationName ?? character.zoneName ?? "—"],
+    ["Resources", `${staged.resources} ⬢`],
+    ["Tag points", String(staged.tagPoints)],
+    ["Equipment", `${equipped} / ${equipSlots}`],
+    ["Gambit", gambitModifier > 0 ? `+${gambitModifier}` : String(gambitModifier)],
+    ["Turn", openTurn ? `${openTurn.number} ${openTurn.phase}` : "none open"],
+    ["Acted", hasActed ? "yes" : "no"],
+    ["Discord", discord.username ?? "not in guild"],
+    ["Nickname", discord.nickname ?? "—"],
+    ["Cursed", discord.cursed ? "yes" : "no"],
+    ["Name role", character.discordRoleId ? "provisioned" : "missing"],
+  ];
+
+  return (
+    <section className="panel p-3">
+      <dl className="dev-state-strip">
+        {facts.map(([label, value]) => (
+          <div key={label}>
+            <dt className="field-label">{label}</dt>
+            <dd className="mono text-sm">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}

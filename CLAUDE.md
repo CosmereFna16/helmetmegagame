@@ -37,6 +37,7 @@ never enough to change code with.
 | [`TAGS.md`](docs/systemdocs/TAGS.md) | You're touching the tag catalog, its gates, stacks, consuming, or equipment |
 | [`REQUESTS.md`](docs/systemdocs/REQUESTS.md) | You're adding or changing anything a player does to their own sheet |
 | [`ADJUDICATION.md`](docs/systemdocs/ADJUDICATION.md) | You're working on `/gm/turns` — the Moves or Requests tab |
+| [`DEV-PANEL.md`](docs/systemdocs/DEV-PANEL.md) | You're touching `/gm/dev/characters/[characterId]`, the GM microactions, or `/gm/dev/tags` |
 | [`MAP.md`](docs/systemdocs/MAP.md) | You're touching geography, travel cost, or the `/map` panel |
 | [`PROXYING.md`](docs/systemdocs/PROXYING.md) | You're touching how a player's message becomes a character's — proxying, avatars, reactions, `/conceal`, mentions, nicknames, notes |
 | [`FACTIONS.md`](docs/systemdocs/FACTIONS.md) | You're touching factions, the Silo, or Leader/Treasurer authority |
@@ -96,6 +97,10 @@ npm run db:sync-locations            # docs/locations.yaml  (destructive)
 npm run db:sync-tags                 # docs/tags.yaml       (upsert-only)
 npm run db:sync-roles                # docs/roles.yaml      (prunes unreferenced)
 npm run db:sync-documents            # docs/documents.yaml  (destructive; last)
+npm run db:prune-tags                # deletes tags absent from docs/tags.yaml.
+                                     #   DRY RUN unless given `-- --apply`; never
+                                     #   touches a GM-created tag or one anything
+                                     #   references. See SYNC.md.
 
 npm run db:sync-narrowcast-channels  # one-off provisioning for #radio/#intercom
 npm run db:rebuild-info-channel      # destructive rebuild of #info
@@ -402,9 +407,6 @@ CLIs. To make one able to build, run and deploy:
 - **Waiting for Opponents** is a `MoveReviewStatus` value the Moves table
   already colours, but nothing ever sets it — a GM parks an Opposed Move by
   simply not solving it yet.
-- The **Dev Character Panel** is still `/gm/dev/characters/[characterId]`, the
-  plain character editor. `DevCharacterButton.js` points there, so replacing it
-  with the comprehensive version needs no change at the call sites.
 - The **mid-game tag store isn't routed yet.** `PointBuy.js` already supports it
   (`afterStartOnly`) and `Character.tagPoints` carries the balance; what's
   missing is a route that spends it and the rules for earning points during play.

@@ -235,3 +235,33 @@ export function costColor(pointCost) {
 }
 
 export { roleCapacity };
+
+// The one definition of "this tag matches what I typed", shared by the
+// player's point-buy menu and the GM tag editor so a search behaves the same
+// on both. Pure, like everything else in this file.
+//
+// Matches across name, description and group name, because a GM hunting for
+// "the paralysis one" is as likely to remember the wording as the title.
+// Every whitespace-separated term must match somewhere (AND, not OR), so
+// "cook skill" narrows rather than widens. Diacritics are folded so "neonate"
+// finds "Néonate".
+//
+// Deliberately NOT a gate: callers must run this AFTER unlockedTags(), never
+// instead of it, or a lucky search string would reveal a tag whose
+// requirement isn't met — see the comment in PointBuy.js.
+function fold(value) {
+  return (value ?? "")
+    .toString()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+}
+
+export function filterTagsByQuery(tags, query) {
+  const terms = fold(query).split(/\s+/).filter(Boolean);
+  if (!terms.length) return tags;
+  return tags.filter((tag) => {
+    const haystack = `${fold(tag.name)} ${fold(tag.description)} ${fold(tag.group?.name)}`;
+    return terms.every((term) => haystack.includes(term));
+  });
+}
