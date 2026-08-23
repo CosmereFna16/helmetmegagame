@@ -93,9 +93,16 @@
 #   Tier 2  minor                  2 ⬢,  0 turns, medical-basic
 #   Tier 3  moderately severe      2 ⬢,  1 turn,  medical-skilled
 #   Tier 4  severe                 4 ⬢,  1 turn,  medical-skilled
-#   Tier 5  dangerous, surgery     6 ⬢,  1 turn,  medical-skilled
-#   Tier 6  extremely complex      8 ⬢,  1 turn,  medical-expert
-#   Tier 7  ridiculous            12 ⬢,  1 turn,  medical-expert, gambit
+#   Tier 5  very minor surgery     6 ⬢,  1 turn,  medical-skilled
+#   Tier 6  severe surgery         8 ⬢,  1 turn,  medical-expert
+#   Tier 7  complex surgery        8 ⬢,  1 turn,  medical-expert, gambit
+#
+# The top three rungs are the surgical ones, and they are where the ladder
+# does its real work. A Serpent closes an arterial bleed and cuts away dead
+# flesh without rolling; anything that means opening a chest or a belly is
+# Esculap's, and a Serpent attempting it rolls. The last rung is the one even
+# Esculap rolls for, which is why it shares tier 6's price — what separates
+# them is the Gambit, not the bill.
 #
 # Tier 0 is a real choice, not a gap: something that realistically isn't
 # treatable, runs its course quickly, and does no lasting harm (Vomiting, a
@@ -540,7 +547,7 @@ tags:
   - slug: medical-skilled
     name: Medical (Skilled)
     category: skills
-    description: "Allows you to treat moderate, severe and dangerous cases as routine, up to minor surgery. The truly complex work is still a Gambit."
+    description: "Allows you to treat moderate and severe cases as routine, and the most minor surgery — closing an arterial bleed, cutting away dead flesh. Any surgery past that is a Gambit."
     pointCost: 2
     parentTag: medical-basic
     visible: true
@@ -549,7 +556,7 @@ tags:
   - slug: medical-expert
     name: Medical (Expert)
     category: skills
-    description: "Allows you to treat the worst cases as routine — complex surgery, on par with the Sanctuary's own. Only genuinely ridiculous work still needs a Gambit."
+    description: "Allows you to treat almost everything as routine, severe surgery included — on par with the Sanctuary's own. Only the most complex work still needs a Gambit, and it needs one from you too."
     pointCost: 2
     parentTag: medical-skilled
     visible: true
@@ -804,7 +811,7 @@ tags:
     expiresInto: [dying]
     requirement:
       turnsCost: 1
-      resourceCost: 12
+      resourceCost: 8
       skills: [medical-expert]
       gambit: true
 
@@ -820,7 +827,7 @@ tags:
     removable: true
     requirement:
       turnsCost: 1
-      resourceCost: 12
+      resourceCost: 8
       skills: [medical-expert]
       gambit: true
 
@@ -1028,8 +1035,8 @@ tags:
     expiresInto: [dying]
     requirement:
       turnsCost: 1
-      resourceCost: 6
-      skills: [medical-skilled]
+      resourceCost: 8
+      skills: [medical-expert]
 
   - slug: gut-wound
     name: Gut Wound
@@ -1094,8 +1101,8 @@ tags:
     expiresInto: [sepsis]
     requirement:
       turnsCost: 1
-      resourceCost: 6
-      skills: [medical-skilled]
+      resourceCost: 8
+      skills: [medical-expert]
 
   - slug: rot-lung
     name: Rot Lung
@@ -1158,8 +1165,8 @@ tags:
     expiresInto: [dying]
     requirement:
       turnsCost: 1
-      resourceCost: 6
-      skills: [medical-skilled]
+      resourceCost: 8
+      skills: [medical-expert]
 
   - slug: pox
     name: Pox
@@ -1298,7 +1305,7 @@ tags:
     removable: true
     requirement:
       turnsCost: 1
-      resourceCost: 12
+      resourceCost: 8
       skills: [medical-expert]
       gambit: true
 
@@ -1361,7 +1368,7 @@ tags:
     removable: true
     requirement:
       turnsCost: 1
-      resourceCost: 12
+      resourceCost: 8
       skills: [medical-expert]
       gambit: true
 

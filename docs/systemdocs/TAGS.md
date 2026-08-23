@@ -429,11 +429,20 @@ learns it once and can then read any affliction they meet.
 | 2 | Minor | 2 | 0 | Basic | no |
 | 3 | Moderately severe | 2 | 1 | Skilled | no |
 | 4 | Severe | 4 | 1 | Skilled | no |
-| 5 | Dangerous, surgery | 6 | 1 | Skilled | no |
-| 6 | Extremely complex surgery | 8 | 1 | Expert | no |
-| 7 | Ridiculous | 12 | 1 | Expert | yes |
+| 5 | Very minor surgery | 6 | 1 | Skilled | no |
+| 6 | Severe surgery | 8 | 1 | Expert | no |
+| 7 | Complex surgery | 8 | 1 | Expert | yes |
 
-Three things about it are deliberate.
+Four things about it are deliberate.
+
+**The top three rungs are the surgical ones, and they carry the whole
+balance.** A Serpent closes an arterial bleed and cuts away dead flesh without
+rolling — that is tier 5, and it is all the surgery they get. Anything that
+means opening a chest or a belly is Esculap's work at tier 6; a Serpent may
+still attempt it, but they roll. Tier 7 is the rung even Esculap rolls for,
+which is why it shares tier 6's price: what separates the two is the Gambit,
+not the bill. Only six tags sit above tier 5, and that scarcity is the point —
+Esculap's time should be a thing players negotiate over.
 
 **Realism sets the rung, not severity.** Severity and duration matter, but the
 question that decides a tier is *what would it actually take a person to fix
@@ -456,8 +465,8 @@ stops a player from *trying* — it is a Gambit, and a failed Gambit can leave
 the patient worse than it found them. The requirement names what a character
 does **as routine**, which is why the three Medical descriptions are phrased
 that way and why the Medical document says so outright. A Serpent
-(Medical (Skilled)) can attempt a tier-6 surgery; they just roll for it, while
-Esculap (Medical (Expert)) does not.
+(Medical (Skilled)) can attempt the tier-6 surgery a punctured lung needs;
+they just roll for it, while Esculap (Medical (Expert)) does not.
 
 Only `requirementResources` and `requirementSkills` are enforced — by the Heal
 request, which charges the ⬢ and checks the tier chain. `requirementTurns` and

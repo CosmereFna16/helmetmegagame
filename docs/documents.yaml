@@ -81,9 +81,9 @@ documents:
       | Minor | 2 | — | {tag:medical-basic} | Routine |
       | Moderately severe | 2 | 1 | {tag:medical-skilled} | Routine |
       | Severe | 4 | 1 | {tag:medical-skilled} | Routine |
-      | Dangerous — surgery | 6 | 1 | {tag:medical-skilled} | Routine |
-      | Extremely complex surgery | 8 | 1 | {tag:medical-expert} | Routine |
-      | Ridiculous | 12 | 1 | {tag:medical-expert} | Gambit |
+      | Very minor surgery | 6 | 1 | {tag:medical-skilled} | Routine |
+      | Severe surgery | 8 | 1 | {tag:medical-expert} | Routine |
+      | Complex surgery | 8 | 1 | {tag:medical-expert} | Gambit |
 
       Turns are measured in Routine moves. The ⬢ is paid by whoever the medic names — the patient, a bystander, or a faction Silo — and anyone co-located can stand good for it.
 
@@ -97,7 +97,7 @@ documents:
 
       {tag:infected} → {tag:festering} → {tag:feverish} *and* {tag:necrosis} → {tag:sepsis} → {tag:dying}
 
-      Two ⬢ and a competent friend clears {tag:infected}. Twelve ⬢ and an Expert rolling a Gambit *might* clear {tag:sepsis}. Amputation is a real answer while the rot is still local — {tag:necrosis} is treated by taking the limb — but it stops being an answer once the fever is in the blood.
+      Two ⬢ and a competent friend clears {tag:infected}. Eight ⬢ and an Expert rolling a Gambit *might* clear {tag:sepsis}. Amputation is a real answer while the rot is still local — {tag:necrosis} is treated by taking the limb — but it stops being an answer once the fever is in the blood.
 
       Bleeding runs on its own clock. {tag:minor-bleeding} just leaves you {tag:drained}. {tag:severe-bleeding} and {tag:arterial-bleed} do not — those end at {tag:dying}, and the arterial one gives you about a day.
 
