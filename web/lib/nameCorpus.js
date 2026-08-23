@@ -11,4 +11,10 @@
 // db/lib/concealedIdentity.js, which in turn only requires
 // db/lib/characterName.js. No prisma, no `node:` builtins anywhere in that
 // chain.
-export { NAME_CORPUS, FLAVOUR_CHANCE, CROSS_REGION_CHANCE, randomCharacterName } from "@lifeweb/db/lib/nameCorpus";
+export {
+  NAME_CORPUS,
+  FLAVOUR_CHANCE,
+  CROSS_REGION_CHANCE,
+  WITCHER_SHARE_OF_FLAVOUR,
+  randomCharacterName,
+} from "@lifeweb/db/lib/nameCorpus";
