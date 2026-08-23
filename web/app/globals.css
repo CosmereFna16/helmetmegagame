@@ -912,6 +912,15 @@ input[type="radio"]:disabled {
   color: var(--accent-text);
 }
 
+/* Emptiness is quiet, never an error: --muted at --fs-sm, the same in a table
+   cell and in a panel. There were seven shapes for this, differing in whether
+   they carried text-sm, whether they sat in a .panel, and by how much padding
+   (p-4 in one place, p-6 in another, for the same job). */
+.empty-state {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
 /* A state, wearing what it means rather than a colour a call site picked. The
    tones are the whole vocabulary — a status cannot reach for a colour the
    themes have not solved, which is how "bad" ended up drawn with --accent in

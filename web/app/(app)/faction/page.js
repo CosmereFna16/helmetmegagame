@@ -1,3 +1,4 @@
+import { EmptyRow } from "@/app/components/EmptyState";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -14,6 +15,12 @@ import {
   removeCharacterFromFaction,
 } from "./actions";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
+
+// The Silo history table and the member rosters each have their own shape;
+// naming the counts keeps an added column from silently shortening the empty
+// row underneath it.
+const SILO_COL_COUNT = 5;
+const MEMBER_COL_COUNT = 6;
 
 async function loadFaction(factionId) {
   return prisma.faction.findUnique({
@@ -107,11 +114,7 @@ function FactionTable({ factions, showSilo, isGm = false }) {
             );
           })}
           {factions.length === 0 && (
-            <tr>
-              <td colSpan={showSilo ? 4 : 3} className="text-center text-muted">
-                None.
-              </td>
-            </tr>
+            <EmptyRow cols={showSilo ? 4 : 3}>None.</EmptyRow>
           )}
         </tbody>
       </table>
@@ -223,11 +226,7 @@ function SiloHistoryPanel({ history }) {
             </tr>
           ))}
           {history.length === 0 && (
-            <tr>
-              <td colSpan={5} className="text-center text-muted">
-                No Silo activity yet.
-              </td>
-            </tr>
+            <EmptyRow cols={SILO_COL_COUNT}>No Silo activity yet.</EmptyRow>
           )}
         </tbody>
       </table>
@@ -255,7 +254,7 @@ export default async function FactionPage({ searchParams }) {
     if (!myCharacter?.factionId) {
       return (
         <div className="mx-auto max-w-2xl p-6 sm:p-8">
-          <p className="text-muted">You aren&apos;t assigned to a faction yet.</p>
+          <p className="empty-state">You aren&apos;t assigned to a faction yet.</p>
         </div>
       );
     }
@@ -287,7 +286,7 @@ export default async function FactionPage({ searchParams }) {
     if (faction.name === "Unaffiliated") {
       return (
         <div className="mx-auto max-w-2xl p-6 sm:p-8">
-          <p className="text-muted">You aren&apos;t assigned to a faction yet.</p>
+          <p className="empty-state">You aren&apos;t assigned to a faction yet.</p>
         </div>
       );
     }
@@ -519,11 +518,7 @@ export default async function FactionPage({ searchParams }) {
               );
             })}
             {faction.characters.length === 0 && (
-              <tr>
-                <td colSpan={6} className="text-center text-muted">
-                  No members yet.
-                </td>
-              </tr>
+              <EmptyRow cols={MEMBER_COL_COUNT}>No members yet.</EmptyRow>
             )}
           </tbody>
         </table>

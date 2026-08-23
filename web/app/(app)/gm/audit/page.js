@@ -1,3 +1,4 @@
+import { EmptyRow } from "@/app/components/EmptyState";
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
@@ -5,6 +6,9 @@ import CharacterLink from "../../../components/CharacterLink";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import { TableScroll } from "@/app/components/DataTable";
 import Pager from "@/app/components/Pager";
+
+// The six columns of the audit table below.
+const COL_COUNT = 6;
 
 const PAGE_SIZE = 50;
 const NO_FACTION_LABEL = "No faction";
@@ -195,11 +199,7 @@ export default async function AuditLogPage({ searchParams }) {
             </tr>
           ))}
           {entries.length === 0 && (
-            <tr>
-              <td colSpan={6} className="text-center text-muted">
-                No entries match these filters.
-              </td>
-            </tr>
+            <EmptyRow cols={COL_COUNT}>No entries match these filters.</EmptyRow>
           )}
         </tbody>
       </TableScroll>

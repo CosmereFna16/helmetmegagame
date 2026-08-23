@@ -76,7 +76,7 @@ export default function DocumentsBoard({ publicDocs, assignedDocs, hasCharacter 
       </div>
 
       {docs.length === 0 ? (
-        <p className="panel p-4 text-sm text-muted">
+        <p className="panel p-4 empty-state">
           {tab === "assigned"
             ? "Nothing has been handed to you yet. Your role, your tags and your faction each bring their own papers."
             : "No public documents have been posted yet."}

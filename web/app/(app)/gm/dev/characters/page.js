@@ -1,3 +1,4 @@
+import { EmptyRow } from "@/app/components/EmptyState";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -6,6 +7,9 @@ import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import FactionLink from "@/app/components/FactionLink";
+
+// Name, Faction, Zone, Status, Resources — kept beside the <thead> it counts.
+const COL_COUNT = 5;
 
 export default async function DevCharactersPage() {
   const session = await auth();
@@ -55,11 +59,7 @@ export default async function DevCharactersPage() {
               </tr>
             ))}
             {characters.length === 0 && (
-              <tr>
-                <td colSpan={5} className="text-center text-muted">
-                  No characters yet.
-                </td>
-              </tr>
+              <EmptyRow cols={COL_COUNT}>No characters yet.</EmptyRow>
             )}
           </tbody>
         </table>

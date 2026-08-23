@@ -98,7 +98,7 @@ function MessageEntry({ entry, avatarVersion }) {
 
 export default function ArchiveFeed({ entries, avatarVersions }) {
   if (entries.length === 0) {
-    return <p className="panel p-6 text-sm text-muted">Nothing recorded for these filters.</p>;
+    return <p className="panel p-4 empty-state">Nothing recorded for these filters.</p>;
   }
 
   // Headers are decided in one pass BEFORE rendering rather than by tracking

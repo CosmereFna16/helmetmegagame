@@ -1,3 +1,4 @@
+import { EmptyRow } from "@/app/components/EmptyState";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@lifeweb/db";
@@ -5,6 +6,9 @@ import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { updateFaction, deleteFaction } from "../actions";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
+
+// Name, Parent, Silo, and the two action columns.
+const COL_COUNT = 5;
 
 export default async function DevFactionsPage() {
   const session = await auth();
@@ -83,11 +87,7 @@ export default async function DevFactionsPage() {
               </tr>
             ))}
             {factions.length === 0 && (
-              <tr>
-                <td colSpan={5} className="text-center text-muted">
-                  No factions yet.
-                </td>
-              </tr>
+              <EmptyRow cols={COL_COUNT}>No factions yet.</EmptyRow>
             )}
           </tbody>
         </table>
