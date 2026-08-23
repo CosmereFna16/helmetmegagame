@@ -235,6 +235,11 @@ Inbound DMs are logged directly in `bot/src/events/messageCreate.js`.
 Bot-authored Discord text should feel understated, not like a typical bot
 dashboard: no big colorful emoji, small unicode marks only.
 
+Discord's `-#` subtext is part of the vocabulary too, for a line of guidance
+that shouldn't compete with the message itself — the Move-declaration DM uses
+it to explain Routine/Gambit/Opposed under the dropdowns. Sparingly: it is for
+explaining a control, not for footnoting prose.
+
 Lines that quote or restate player/character content are prefixed with `»` —
 e.g. `» {move description}`. `web/lib/discordGuild.js#sendDm` applies that
 prefix **automatically** to every DM a GM sends a player, so those callers pass

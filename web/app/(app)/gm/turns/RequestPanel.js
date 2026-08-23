@@ -7,6 +7,7 @@ import CharacterLink from "@/app/components/CharacterLink";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
 import Tooltip from "@/app/components/Tooltip";
 import { resolveRequest, killRequestTarget } from "./actions";
+import FactionLink from "@/app/components/FactionLink";
 
 // The Request Adjudication Panel: a universal top half describing the
 // request, then a type-specific bottom half. Adding a RequestType means
@@ -275,7 +276,7 @@ const SECTIONS = {
       <>
         <Line label="Patient">
           {effect.targetCharacterId ? (
-            <CharacterLink id={effect.targetCharacterId} name={effect.targetName ?? "—"} />
+            <CharacterLink characterId={effect.targetCharacterId} name={effect.targetName ?? "—"} isGm />
           ) : (
             (effect.targetName ?? "—")
           )}
@@ -393,7 +394,9 @@ export default function RequestPanel({ request, readOnly = false, onClose }) {
             <CharacterLink characterId={request.characterId} name={request.characterName} isGm />{" "}
             <span className="text-muted">({request.discordUsername})</span>
           </Line>
-          <Line label="Faction">{request.factionName || "—"}</Line>
+          <Line label="Faction">
+            <FactionLink factionId={request.factionId} name={request.factionName || "—"} />
+          </Line>
           <Line label="Turn">{request.turnLabel}</Line>
           <Line label="Type">{request.typeLabel}</Line>
           <Line label="Status">{request.statusLabel}</Line>

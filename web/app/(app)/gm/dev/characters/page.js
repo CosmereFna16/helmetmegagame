@@ -4,6 +4,7 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
+import FactionLink from "@/app/components/FactionLink";
 
 export default async function DevCharactersPage() {
   const session = await auth();
@@ -42,7 +43,9 @@ export default async function DevCharactersPage() {
                     {c.name}
                   </Link>
                 </td>
-                <td>{c.faction?.name ?? "-"}</td>
+                <td>
+                  <FactionLink factionId={c.factionId} name={c.faction?.name ?? "-"} />
+                </td>
                 <td>{c.zone?.name ?? "-"}</td>
                 <td>{c.status}</td>
                 <td>{c.resources} ⬢</td>

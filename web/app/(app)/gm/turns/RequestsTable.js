@@ -8,6 +8,7 @@ import IconButton from "@/app/components/IconButton";
 import CharacterLink from "@/app/components/CharacterLink";
 import ResourceDeltaCell from "./ResourceDeltaCell";
 import { EditIcon, EyeIcon } from "@/app/components/icons";
+import FactionLink from "@/app/components/FactionLink";
 
 const COL_COUNT = 11;
 
@@ -111,7 +112,9 @@ export default function RequestsTable({ requests, onReview, onView }) {
                 <td className="whitespace-nowrap text-muted">
                   {row.discordUsername}
                 </td>
-                <td className="whitespace-nowrap">{row.factionName || "—"}</td>
+                <td className="whitespace-nowrap">
+                  <FactionLink factionId={row.factionId} name={row.factionName || "—"} />
+                </td>
                 <td className="whitespace-nowrap">
                   {awaitingKill(row) ? `☠ ${row.typeLabel}` : row.typeLabel}
                 </td>

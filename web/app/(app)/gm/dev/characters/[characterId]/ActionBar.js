@@ -54,6 +54,7 @@ export default function ActionBar({
   held,
   feed,
   cursed,
+  pendingCount,
   startingTagPoints,
   onStageTags,
   onStageField,
@@ -62,6 +63,10 @@ export default function ActionBar({
   const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(null);
+  // What the last staging button put in the pending diff. These four buttons
+  // sit in a row of verbs that fire immediately, so without a line saying so
+  // they read as having silently done nothing.
+  const [staged, setStaged] = useState(null);
   const [dialog, setDialog] = useState(null); // "restore" | "message" | "delete" | "wound"
   const [draft, setDraft] = useState("");
 
@@ -82,6 +87,21 @@ export default function ActionBar({
     });
   }
 
+  // Confirm FIRST, transition SECOND. Never the other way round.
+  //
+  // useConfirm() resolves on a click, so the setState that mounts the dialog
+  // has to render immediately. Awaited inside startTransition's async scope
+  // that update is deferred behind a transition which is itself waiting on the
+  // promise: the dialog never appears, `pending` never clears, and every
+  // button in the bar sits disabled forever while the server action is never
+  // called at all. Same warning as LifewebRequestButtons.js and
+  // TagRequestButtons.js, which hit this before.
+  async function confirmThenRun(opts, fn) {
+    setError(null);
+    if (!(await confirm(opts))) return;
+    run(fn);
+  }
+
   // ── staging helpers ──────────────────────────────────────────────────────
 
   // Every affliction they currently hold, dropped. `healable` is precomputed
@@ -94,6 +114,12 @@ export default function ActionBar({
       return;
     }
     onStageTags(wounds.map((t) => ({ tagId: t.id, op: "remove", quantity: null })));
+    setError(null);
+    setStaged(
+      wounds.length === 1
+        ? `removing ${wounds[0].name}`
+        : `removing ${wounds.length} afflictions`,
+    );
   }
 
   // Drop Hungry, grant Ate Meal — the same pair db/lib/hungerPass.js works in.
@@ -108,6 +134,8 @@ export default function ActionBar({
       return;
     }
     onStageTags(ops);
+    setError(null);
+    setStaged("a meal");
   }
 
   // Recompute what they should have left: the creation budget, minus what
@@ -119,6 +147,8 @@ export default function ActionBar({
       .filter((t) => heldIds.has(t.id))
       .reduce((sum, t) => sum + (t.pointCost ?? 0), 0);
     onStageField("tagPoints", budget - spent);
+    setError(null);
+    setStaged(`tag points at ${budget - spent}`);
   }
 
   const wounds = tags.filter((t) => t.healable);
@@ -133,16 +163,15 @@ export default function ActionBar({
               label={`Kill ${character.name}`}
               disabled={pending}
               onClick={() =>
-                run(async () => {
-                  const ok = await confirm({
+                confirmThenRun(
+                  {
                     title: `Kill ${character.name}?`,
                     message:
                       "Revokes every channel overwrite, deletes their personal Discord role, clears their nickname, grants Cursed, and writes a death into the archive.",
                     confirmLabel: "Kill them",
-                  });
-                  if (!ok) return { ok: true };
-                  return killCharacterNow({ characterId: character.id });
-                })
+                  },
+                  () => killCharacterNow({ characterId: character.id }),
+                )
               }
             />
           ) : (
@@ -151,16 +180,15 @@ export default function ActionBar({
               label={`Revive ${character.name}`}
               disabled={pending}
               onClick={() =>
-                run(async () => {
-                  const ok = await confirm({
+                confirmThenRun(
+                  {
                     title: `Revive ${character.name}?`,
                     message:
                       "Restores their personal Discord role, nickname and channel access, and removes the Cursed role.",
                     confirmLabel: "Revive",
-                  });
-                  if (!ok) return { ok: true };
-                  return reviveCharacter({ characterId: character.id });
-                })
+                  },
+                  () => reviveCharacter({ characterId: character.id }),
+                )
               }
             />
           )}
@@ -176,15 +204,14 @@ export default function ActionBar({
             label={hasActed ? "They've already acted this turn" : "Spend their turn"}
             disabled={pending || hasActed || !openTurn}
             onClick={() =>
-              run(async () => {
-                const ok = await confirm({
+              confirmThenRun(
+                {
                   title: "Spend their turn?",
                   message: `${character.name} won't be able to act again until the turn advances.`,
                   confirmLabel: "Spend it",
-                });
-                if (!ok) return { ok: true };
-                return spendTurn({ characterId: character.id });
-              })
+                },
+                () => spendTurn({ characterId: character.id }),
+              )
             }
           />
           <IconButton
@@ -197,21 +224,38 @@ export default function ActionBar({
 
         <span className="dev-bar-sep" aria-hidden="true" />
 
-        <div className="flex items-center gap-2">
-          <IconButton
-            icon={WoundIcon}
-            label="Inflict a wound"
-            disabled={pending}
-            onClick={() => setDialog("wound")}
-          />
-          <IconButton icon={BandageIcon} label="Heal every affliction" disabled={pending} onClick={healAll} />
-          <IconButton icon={MealIcon} label="Feed them" disabled={pending} onClick={feedThem} />
-          <IconButton
-            icon={PointsIcon}
-            label="Recompute their unspent tag points"
-            disabled={pending}
-            onClick={refundPoints}
-          />
+        {/* These four don't fire — they push into the pending diff so Cancel
+            can undo them and every tag change goes through one write path.
+            Captioned because they sit beside verbs that DO fire, and an
+            unlabelled icon that silently stages reads as a dead button. */}
+        <div className="dev-bar-group">
+          <span className="dev-bar-caption">stages</span>
+          <div className="flex items-center gap-2">
+            <IconButton
+              icon={WoundIcon}
+              label="Inflict a wound — stages, press Apply"
+              disabled={pending}
+              onClick={() => setDialog("wound")}
+            />
+            <IconButton
+              icon={BandageIcon}
+              label="Heal every affliction — stages, press Apply"
+              disabled={pending}
+              onClick={healAll}
+            />
+            <IconButton
+              icon={MealIcon}
+              label="Feed them — stages, press Apply"
+              disabled={pending}
+              onClick={feedThem}
+            />
+            <IconButton
+              icon={PointsIcon}
+              label="Recompute their unspent tag points — stages, press Apply"
+              disabled={pending}
+              onClick={refundPoints}
+            />
+          </div>
         </div>
 
         <span className="dev-bar-sep" aria-hidden="true" />
@@ -237,6 +281,11 @@ export default function ActionBar({
         </div>
 
         {error && <p className="w-full text-sm text-accent">{error}</p>}
+        {!error && staged && pendingCount > 0 && (
+          <p className="w-full text-sm" style={{ color: "var(--accent-text)" }}>
+            Staged {staged} — press <strong>Apply</strong> below to commit it.
+          </p>
+        )}
       </section>
 
       {/* Restoring a turn DMs the player, so it asks for a reason to send
@@ -298,6 +347,8 @@ export default function ActionBar({
                     disabled={heldIds.has(t.id)}
                     onClick={() => {
                       onStageTags([{ tagId: t.id, op: "add", quantity: 1 }]);
+                      setError(null);
+                      setStaged(t.name);
                       setDialog(null);
                     }}
                   >

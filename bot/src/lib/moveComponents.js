@@ -45,6 +45,15 @@ function moveKindLabel(moveKind) {
   return moveKind === "GAMBIT" ? "Gambit" : moveKind === "ROUTINE" ? "Routine" : "(not chosen)";
 }
 
+// The one place this string is assembled: the initial DM
+// (lib/actionSubmission.js) and both re-renders after a dropdown changes
+// (events/interactionCreate.js) all call it, so a line added here shows up
+// everywhere and can't drift. The terminal states ("can no longer be edited",
+// "confirmed") replace the content wholesale, so the explainer correctly
+// disappears once there is nothing left to choose.
+//
+// `-#` is Discord's subtext markdown — the first use of it in this codebase.
+// It has to start its own line, which the \n join guarantees.
 function buildMoveContent(action) {
   return [
     `» ${action.description}`,
@@ -52,6 +61,7 @@ function buildMoveContent(action) {
     "",
     `Kind: **${moveKindLabel(action.moveKind)}**`,
     `Opposed: **${action.opposed ? "Yes" : "No"}**`,
+    "-# Your move should be Routine if it's easy, Gambit if it could go any way. Opposed means that it affects other players negatively.",
   ].join("\n");
 }
 

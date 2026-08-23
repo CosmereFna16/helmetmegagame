@@ -36,7 +36,11 @@ character" — it reads status from the database, never from the payload.
 Four staging buttons sit in the action bar despite being edits rather than
 verbs — **Heal all**, **Feed**, **Refund points**, and the **Inflict wound**
 picker. They make no server call: they push ops into the same pending diff the
-Tags tab uses. Heal-all and Inflict both read `isHealable` from
+Tags tab uses. Because they sit in a row of verbs that DO fire, they are
+captioned `stages`, their tooltips say so, and staging one prints an inline
+"Staged X — press Apply" line: an unlabelled icon that silently stages reads
+as a dead button, which is exactly how it was first reported.
+Heal-all and Inflict both read `isHealable` from
 `web/lib/healRequests.js` (a **Health** tag carrying a cure cost) rather than
 re-deriving the predicate, so the picker and the server can't disagree about
 what an affliction is. So they show in the pending count, go through the one tag write

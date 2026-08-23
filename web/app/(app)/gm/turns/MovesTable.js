@@ -8,6 +8,7 @@ import IconButton from "@/app/components/IconButton";
 import CharacterLink from "@/app/components/CharacterLink";
 import ResourceDeltaCell from "./ResourceDeltaCell";
 import { ScaleIcon, EyeIcon } from "@/app/components/icons";
+import FactionLink from "@/app/components/FactionLink";
 
 const COL_COUNT = 11;
 
@@ -104,7 +105,9 @@ export default function MovesTable({ moves, onAdjudicate, onView }) {
                 <td className="whitespace-nowrap text-muted">
                   {row.discordUsername}
                 </td>
-                <td className="whitespace-nowrap">{row.factionName || "—"}</td>
+                <td className="whitespace-nowrap">
+                  <FactionLink factionId={row.factionId} name={row.factionName || "—"} />
+                </td>
                 <td>
                   <span className="block">{row.description}</span>
                   <span className="mt-1 block text-xs text-muted">

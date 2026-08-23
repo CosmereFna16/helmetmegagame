@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import FactionLink from "@/app/components/FactionLink";
+import CharacterLink from "@/app/components/CharacterLink";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
@@ -54,7 +56,10 @@ async function getDescendantFactions(rootId) {
     const children = await prisma.faction.findMany({
       where: { parentFactionId: { in: frontier } },
       orderBy: { name: "asc" },
-      include: { characters: { select: { id: true, isLeader: true } } },
+      // `name` is load-bearing: FactionTable renders the leader for every
+      // subject faction, and without it `leader?.name ?? "-"` always fell
+      // through to the dash — the Leader column has never shown anyone.
+      include: { characters: { select: { id: true, name: true, isLeader: true } } },
     });
     frontier = [];
     for (const child of children) {
@@ -67,7 +72,10 @@ async function getDescendantFactions(rootId) {
   return result;
 }
 
-function FactionTable({ factions, showSilo }) {
+// isGm defaults to false because this table renders on the player branch
+// too, and CharacterLink targets /gm/dev/characters/… — a member name must
+// stay plain text for a player.
+function FactionTable({ factions, showSilo, isGm = false }) {
   return (
     <div className="panel overflow-x-auto">
       <table className="data-table">
@@ -77,7 +85,6 @@ function FactionTable({ factions, showSilo }) {
             <th>Members</th>
             <th>Leader</th>
             {showSilo && <th>Silo</th>}
-            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -85,21 +92,22 @@ function FactionTable({ factions, showSilo }) {
             const leader = f.characters.find((c) => c.isLeader);
             return (
               <tr key={f.id}>
-                <td>{f.name}</td>
-                <td>{f.characters.length}</td>
-                <td>{leader?.name ?? "-"}</td>
-                {showSilo && <td>{f.silo} ⬢</td>}
+                {/* The name IS the link — the old trailing "View" column
+                    pointed at exactly this href. */}
                 <td>
-                  <Link href={`/faction?factionId=${f.id}`} className="menu-item">
-                    View
-                  </Link>
+                  <FactionLink factionId={f.id} name={f.name} />
                 </td>
+                <td>{f.characters.length}</td>
+                <td>
+                  <CharacterLink characterId={leader?.id} name={leader?.name ?? "-"} isGm={isGm} />
+                </td>
+                {showSilo && <td>{f.silo} ⬢</td>}
               </tr>
             );
           })}
           {factions.length === 0 && (
             <tr>
-              <td colSpan={showSilo ? 5 : 4} className="text-center text-muted">
+              <td colSpan={showSilo ? 4 : 3} className="text-center text-muted">
                 None.
               </td>
             </tr>
@@ -131,16 +139,13 @@ function FactionRows({ factions, childrenMap, depth, showSilo }) {
       <tr key={f.id}>
         <td style={{ paddingLeft: `calc(10px + ${depth * 1.25}rem)` }}>
           {depth > 0 ? "↳ " : ""}
-          {f.name}
+          <FactionLink factionId={f.id} name={f.name} />
         </td>
         <td>{f.characters.length}</td>
-        <td>{leader?.name ?? "-"}</td>
-        {showSilo && <td>{f.silo} ⬢</td>}
         <td>
-          <Link href={`/faction?factionId=${f.id}`} className="menu-item">
-            View
-          </Link>
+          <CharacterLink characterId={leader?.id} name={leader?.name ?? "-"} isGm />
         </td>
+        {showSilo && <td>{f.silo} ⬢</td>}
       </tr>,
       ...FactionRows({ factions: children, childrenMap, depth: depth + 1, showSilo }),
     ];
@@ -164,7 +169,6 @@ function FactionOverview({ factions }) {
               <th>Members</th>
               <th>Leader</th>
               <th>Silo</th>
-              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -173,15 +177,14 @@ function FactionOverview({ factions }) {
               const leader = f.characters.find((c) => c.isLeader);
               return (
                 <tr key={f.id} style={{ borderTop: "2px solid var(--border)" }}>
-                  <td>{f.name}</td>
-                  <td>{f.characters.length}</td>
-                  <td>{leader?.name ?? "-"}</td>
-                  <td>{f.silo} ⬢</td>
                   <td>
-                    <Link href={`/faction?factionId=${f.id}`} className="menu-item">
-                      View
-                    </Link>
+                    <FactionLink factionId={f.id} name={f.name} />
                   </td>
+                  <td>{f.characters.length}</td>
+                  <td>
+                    <CharacterLink characterId={leader?.id} name={leader?.name ?? "-"} isGm />
+                  </td>
+                  <td>{f.silo} ⬢</td>
                 </tr>
               );
             })}
@@ -317,7 +320,9 @@ export default async function FactionPage({ searchParams }) {
 
         <section className="panel p-4">
           <ul className="flex flex-col gap-1 text-sm">
-            <li>Leader: {leader?.name ?? "None"}</li>
+            <li>
+              Leader: <CharacterLink characterId={leader?.id} name={leader?.name ?? "None"} isGm={gm} />
+            </li>
             <li>Faction Silo: {faction.silo} ⬢</li>
             {!viewingSubject && <li>Your Resources: {myCharacter.resources} ⬢</li>}
           </ul>
@@ -343,7 +348,7 @@ export default async function FactionPage({ searchParams }) {
                 return (
                   <tr key={c.id}>
                     <td>
-                      {c.name}
+                      <CharacterLink characterId={c.id} name={c.name} isGm={gm} />
                       {c.isLeader ? " (Leader)" : ""}
                       {treasurer ? " (Treasurer)" : ""}
                     </td>
@@ -435,7 +440,14 @@ export default async function FactionPage({ searchParams }) {
 
       <section className="panel p-4">
         <ul className="flex flex-col gap-1 text-sm">
-          <li>Leader: {faction.characters.find((c) => c.isLeader)?.name ?? "None"}</li>
+          <li>
+            Leader:{" "}
+            <CharacterLink
+              characterId={faction.characters.find((c) => c.isLeader)?.id}
+              name={faction.characters.find((c) => c.isLeader)?.name ?? "None"}
+              isGm
+            />
+          </li>
           {!isUnaffiliated && <li>Faction Silo: {faction.silo} ⬢</li>}
         </ul>
       </section>
@@ -459,7 +471,7 @@ export default async function FactionPage({ searchParams }) {
               return (
                 <tr key={c.id}>
                   <td>
-                    {c.name}
+                    <CharacterLink characterId={c.id} name={c.name} isGm />
                     {c.isLeader ? " (Leader)" : ""}
                     {treasurer ? " (Treasurer)" : ""}
                   </td>
@@ -517,7 +529,7 @@ export default async function FactionPage({ searchParams }) {
       {subjectFactions.length > 0 && (
         <div>
           <h2 className="panel-header">Subject Factions</h2>
-          <FactionTable factions={subjectFactions} showSilo />
+          <FactionTable factions={subjectFactions} showSilo isGm />
         </div>
       )}
 

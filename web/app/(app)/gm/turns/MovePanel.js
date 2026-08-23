@@ -10,6 +10,7 @@ import Tooltip from "@/app/components/Tooltip";
 import TagChip from "@/app/components/TagChip";
 import RequestDialog from "@/app/components/RequestDialog";
 import { claimMoveLock, refreshMoveLock, releaseMoveLock, resolveMove, rejectMove } from "./actions";
+import FactionLink from "@/app/components/FactionLink";
 
 // The Move Adjudication Panel — the half of /gm/turns that ADJUDICATION.md §5
 // left as Phase 2. Same shell as RequestPanel.js (dirty guard, confirm dialog,
@@ -193,7 +194,9 @@ export default function MovePanel({ move, readOnly = false, onClose }) {
               <span className="text-muted">({move.discordUsername})</span>
             </Line>
             <Line label="Location">{move.locationLabel}</Line>
-            <Line label="Faction">{move.factionName || "—"}</Line>
+            <Line label="Faction">
+            <FactionLink factionId={move.factionId} name={move.factionName || "—"} />
+          </Line>
             <Line label="Resources">{move.resources} ⬢</Line>
             {move.tags?.length ? (
               <div className="flex flex-wrap gap-1.5">

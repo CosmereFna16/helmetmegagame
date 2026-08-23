@@ -38,6 +38,16 @@ export default function GoalsTab({ character, staged, desires, openTurn, onField
     });
   }
 
+  // Confirm FIRST, transition SECOND — awaiting useConfirm() inside an async
+  // transition scope defers the dialog's render behind a transition that is
+  // waiting on the dialog, so it never appears and `pending` never clears.
+  // See the note in ActionBar.js.
+  async function confirmThenRun(opts, fn) {
+    setError(null);
+    if (!(await confirm(opts))) return;
+    run(fn);
+  }
+
   return (
     <>
       <section className="panel flex flex-col gap-3 p-4">
@@ -55,15 +65,14 @@ export default function GoalsTab({ character, staged, desires, openTurn, onField
                 className="btn"
                 disabled={pending}
                 onClick={() =>
-                  run(async () => {
-                    const ok = await confirm({
+                  confirmThenRun(
+                    {
                       title: "Fulfil this desire?",
                       message: `${character.name} gains ${active.points} tag point${active.points === 1 ? "" : "s"}.`,
                       confirmLabel: "Fulfil",
-                    });
-                    if (!ok) return { ok: true };
-                    return endDesireGm({ characterId: character.id, desireId: active.id, mode: "fulfill" });
-                  })
+                    },
+                    () => endDesireGm({ characterId: character.id, desireId: active.id, mode: "fulfill" }),
+                  )
                 }
               >
                 Fulfil (+{active.points})
@@ -73,16 +82,15 @@ export default function GoalsTab({ character, staged, desires, openTurn, onField
                 className="btn-quiet"
                 disabled={pending}
                 onClick={() =>
-                  run(async () => {
-                    const ok = await confirm({
+                  confirmThenRun(
+                    {
                       title: "Cancel this desire?",
                       message: "It ends with no points awarded.",
                       confirmLabel: "Cancel it",
                       cancelLabel: "Keep it",
-                    });
-                    if (!ok) return { ok: true };
-                    return endDesireGm({ characterId: character.id, desireId: active.id, mode: "cancel" });
-                  })
+                    },
+                    () => endDesireGm({ characterId: character.id, desireId: active.id, mode: "cancel" }),
+                  )
                 }
               >
                 Cancel
@@ -146,15 +154,14 @@ export default function GoalsTab({ character, staged, desires, openTurn, onField
           className="btn self-start"
           disabled={pending || !character.worstFear || fearOnCooldown}
           onClick={() =>
-            run(async () => {
-              const ok = await confirm({
+            confirmThenRun(
+              {
                 title: "Fulfil their worst fear?",
                 message: `${character.name} loses ${WORST_FEAR_COST} tag points, and can't have it fulfilled again until next turn.`,
                 confirmLabel: "Fulfil",
-              });
-              if (!ok) return { ok: true };
-              return fulfillWorstFearGm({ characterId: character.id });
-            })
+              },
+              () => fulfillWorstFearGm({ characterId: character.id }),
+            )
           }
         >
           {fearOnCooldown ? "Already fulfilled this turn" : `Fulfil (−${WORST_FEAR_COST})`}

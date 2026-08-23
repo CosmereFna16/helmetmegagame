@@ -1513,12 +1513,31 @@ button.map-node:focus-visible .map-rhomb { transform: rotate(45deg) scale(1.3); 
   background: var(--border);
 }
 
+/* The action bar's staging cluster. Those buttons push into the pending diff
+   instead of firing, so they need to look like a different kind of control
+   from the verbs beside them. */
+.dev-bar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dev-bar-caption {
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 /* The Apply/Cancel bar, pinned to the bottom of the viewport while there are
    pending changes. Sticky rather than fixed so it stays inside the page
-   column and can't cover the nav rail on a narrow screen. */
+   column and can't cover the nav rail on a narrow screen. Accent border
+   because it is the thing a GM must notice: staged edits are lost on a
+   refresh, and the staging buttons above have no other feedback. */
 .dev-apply-bar {
   position: sticky;
   bottom: 1rem;
   z-index: 5;
+  border-color: var(--accent);
   box-shadow: var(--e-3);
 }

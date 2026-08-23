@@ -79,7 +79,7 @@ categories:
           * Moves are **Routine** if they are predictable and have no chance of failure, **Gambit** if it could go any way.
              * **Routine** moves—such as spending the morning farming, brewing alcohol, or laying simple fortifications—are automatically approved.
              * **Gambit** moves—such as engaging in a duel, going to a party to try to be happy, or spying on a house—require a 1d6 roll and a GM adjudication. The GM adjudicates primarily on the Tags and the narrative (Is your character a good fighter? How many people are on your side? Are you sick or healthy?) but also factors in the dice roll as a matter of chance (a roll of 1 means things went way worse than expected; a roll of 6 means they went surprisingly good).
-          * Moves are **Opposed** if they impact another player. If a move is Opposed, the GMs wait to see what other players do.
+          * Moves are **Opposed** if they affect another player negatively. If a move is Opposed, the GMs wait to see what other players do.
           * Moves are optional; you don’t have to play all of the time. You can set a default Routine Move using the /default command, to be executed if you don’t act that day. Leaders can use the /default command on other people too.
           * Group actions are simple. Someone, usually the faction leader, assigns—by pinging or otherwise referencing—several people to one effort. Those people are assumed to participate unless they explicitly do their own thing. For Gambits, only the Leader has to roll.
       - title: Tags

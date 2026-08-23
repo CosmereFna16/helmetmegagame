@@ -76,6 +76,14 @@ export default function TagCatalog({ tags, groups, categories, canDelete }) {
     });
   }
 
+  // Confirm FIRST, transition SECOND — see the note in ActionBar.js. Awaiting
+  // the dialog inside the transition deadlocks it against itself.
+  async function confirmThenRun(opts, fn) {
+    setError(null);
+    if (!(await confirm(opts))) return;
+    run(fn);
+  }
+
   return (
     <>
       <section className="panel flex flex-col gap-3 p-3">
@@ -148,15 +156,14 @@ export default function TagCatalog({ tags, groups, categories, canDelete }) {
                     }
                     disabled={!canDelete || !t.custom || t.held > 0}
                     onClick={() =>
-                      run(async () => {
-                        const ok = await confirm({
+                      confirmThenRun(
+                        {
                           title: `Delete ${t.name}?`,
                           message: "This removes the tag from the catalog permanently.",
                           confirmLabel: "Delete",
-                        });
-                        if (!ok) return { ok: true };
-                        return deleteCustomTag({ tagId: t.id });
-                      })
+                        },
+                        () => deleteCustomTag({ tagId: t.id }),
+                      )
                     }
                   />
                 </td>

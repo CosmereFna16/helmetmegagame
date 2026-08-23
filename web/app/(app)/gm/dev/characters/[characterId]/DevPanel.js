@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/app/components/PageShell";
+import FactionLink from "@/app/components/FactionLink";
 import ActionBar from "./ActionBar";
 import IdentityTab from "./IdentityTab";
 import TagEditor from "./TagEditor";
@@ -237,6 +238,7 @@ export default function DevPanel({
         held={held}
         feed={feed}
         cursed={cursed}
+        pendingCount={pendingCount}
         startingTagPoints={startingTagPoints}
         onStageTags={stageTagOps}
         onStageField={setField}
@@ -347,7 +349,10 @@ function StateStrip({ character, staged, discord, held, equipSlots, gambitModifi
   const facts = [
     ["Status", character.status],
     ["Role", staged.roleTitle ?? "—"],
-    ["Faction", character.factionName ?? "—"],
+    [
+      "Faction",
+      <FactionLink key="f" factionId={character.factionId} name={character.factionName ?? "—"} />,
+    ],
     ["Location", character.locationName ?? character.zoneName ?? "—"],
     ["Resources", `${staged.resources} ⬢`],
     ["Tag points", String(staged.tagPoints)],

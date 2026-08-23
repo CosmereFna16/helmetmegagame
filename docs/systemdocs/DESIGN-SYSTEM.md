@@ -185,3 +185,36 @@ if (!(await confirm({ title, message, confirmLabel, cancelLabel }))) return;
 
 All fields are optional, and it reuses `.modal-overlay`/`.modal-panel` so it
 matches every other modal for free.
+
+### Confirm first, transition second — always
+
+**Never `await confirm()` inside `startTransition(async …)`.** This has now bitten
+three separate components, so it is written down here rather than only in the
+comments of the files that hit it.
+
+`confirm()` resolves on a click, so the state update that mounts the dialog has
+to render *immediately*. Inside an async transition scope React schedules that
+render at transition priority — and the transition cannot commit until the
+promise settles, while the promise cannot settle until someone clicks a dialog
+that was never committed. The result is a deadlock: the dialog never appears,
+`isPending` stays true forever, every control bound to it sits disabled, and the
+server action is never called at all. Only a refresh escapes, which throws away
+any unsaved state.
+
+```js
+// WRONG — deadlocks, and looks like "the button does nothing"
+startTransition(async () => {
+  if (!(await confirm({ ... }))) return;
+  await doTheThing();
+});
+
+// RIGHT — human first, transition second
+if (!(await confirm({ ... }))) return;
+startTransition(async () => {
+  await doTheThing();
+});
+```
+
+The rule of thumb: a transition may wrap the *server call*, never a wait on the
+*user*. If a `run()`-style helper exists, only ever hand it a function that does
+no user interaction.
