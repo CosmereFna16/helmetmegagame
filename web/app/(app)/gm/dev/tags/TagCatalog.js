@@ -1,5 +1,6 @@
 "use client";
 
+import Modal from "@/app/components/Modal";
 import CheckField from "@/app/components/CheckField";
 import { useMemo, useState, useTransition } from "react";
 import {
@@ -207,9 +208,8 @@ function TagDialog({ tag, groups, categories, pending, error, onCancel, onSave }
   const set = (key, value) => setValues((v) => ({ ...v, [key]: value }));
 
   return (
-    <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal-panel flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
-        <h2 className="panel-header">{tag ? `Edit ${tag.name}` : "New tag"}</h2>
+    <Modal title={tag ? `Edit ${tag.name}` : "New tag"} onClose={onCancel}>
+      <div className="flex flex-col gap-3">
 
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="field">
@@ -275,7 +275,7 @@ function TagDialog({ tag, groups, categories, pending, error, onCancel, onSave }
 
         {error && <p className="text-sm text-accent">{error}</p>}
 
-        <div className="flex justify-end gap-2">
+        <div className="modal-actions">
           <button type="button" className="btn-quiet" onClick={onCancel} disabled={pending}>
             Cancel
           </button>
@@ -289,6 +289,6 @@ function TagDialog({ tag, groups, categories, pending, error, onCancel, onSave }
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

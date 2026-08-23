@@ -547,6 +547,27 @@ input[type="radio"]:focus-visible,
   padding: 4px 0;
 }
 
+/* A dialog's footer. .btn-quiet is a flush text link at its other 56 call
+   sites and should stay one, but in a footer it is a button standing beside
+   another button: at `padding: 4px 0` with no border it was ~20px tall next to
+   .btn's ~31px and had no horizontal padding at all, so Cancel and Submit
+   visibly failed to line up on every confirm dialog in the app —
+   ConfirmProvider's own included. Borrowing .btn's vertical metrics here fixes
+   all of them at once without touching a single call site. */
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+}
+
+.modal-actions .btn-quiet {
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  padding: 7px 14px;
+}
+
 .btn-quiet:hover {
   color: var(--accent-text);
 }
@@ -1022,6 +1043,9 @@ input[type="radio"]:disabled {
   padding: 16px;
 }
 
+/* Width is a named size, the same menu PageShell uses for pages. Six values
+   were in play before — this default plus five inline maxWidths between 24 and
+   46rem — for what is one component. */
 .modal-panel {
   width: 100%;
   max-width: 32rem;
@@ -1033,6 +1057,10 @@ input[type="radio"]:disabled {
   box-shadow: var(--e-3);
   padding: var(--sp-4);
 }
+
+.modal-panel[data-width="narrow"] { max-width: 24rem; }
+.modal-panel[data-width="wide"] { max-width: 40rem; }
+.modal-panel[data-width="widest"] { max-width: 46rem; }
 
 .modal-header {
   display: flex;

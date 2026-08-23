@@ -17,6 +17,7 @@ import {
   tileRect,
   randomSelection,
 } from "@/lib/portrait/catalog";
+import Modal from "./Modal";
 import { setPortraitAvatar } from "../(app)/character/actions";
 
 // The portrait maker's own UI — the browser half of the renderer pair
@@ -199,14 +200,6 @@ export default function PortraitMaker({ onClose, initialSelection, allowFantasy 
     };
   }, []);
 
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   const palette = useMemo(() => buildPalette(selection), [selection]);
   const tab = TABS.find((t) => t.key === tabKey) ?? TABS[0];
 
@@ -227,19 +220,17 @@ export default function PortraitMaker({ onClose, initialSelection, allowFantasy 
   }, [selection, onClose]);
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal-panel"
-        style={{ maxWidth: "46rem" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-header">
-          <h2 className="section-title">Customize Appearance</h2>
-          <button type="button" className="btn-quiet" onClick={onClose}>
-            Close
-          </button>
-        </div>
-
+    <Modal
+      title="Customize Appearance"
+      width="widest"
+      onClose={onClose}
+      actions={
+        <button type="button" className="btn-quiet" onClick={onClose}>
+          Close
+        </button>
+      }
+    >
+      <div>
         {loadError ? (
           <p className="mt-4 text-sm text-muted">
             The portrait art didn&apos;t load. Reload the page and try again.
@@ -353,7 +344,7 @@ export default function PortraitMaker({ onClose, initialSelection, allowFantasy 
               </p>
             )}
 
-            <div className="mt-4 flex justify-end gap-3">
+            <div className="modal-actions">
               <button type="button" className="btn-quiet" onClick={onClose}>
                 Cancel
               </button>
@@ -364,6 +355,6 @@ export default function PortraitMaker({ onClose, initialSelection, allowFantasy 
           </>
         )}
       </div>
-    </div>
+    </Modal>
   );
 }

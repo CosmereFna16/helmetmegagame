@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Modal from "@/app/components/Modal";
 import DocumentMarkdown from "../../components/DocumentMarkdown";
 import ChipText from "../../components/ChipText";
 
@@ -26,22 +27,20 @@ function DocumentCard({ doc, onOpen }) {
 
 function DocumentSheet({ doc, onClose }) {
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="doc-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-        <div className="doc-sheet-head">
-          <div>
-            <p className="doc-card-source">{doc.source}</p>
-            <h2 className="section-title">{doc.name}</h2>
-          </div>
-          <button type="button" className="btn-quiet" onClick={onClose} aria-label="Close">
-            ✕
-          </button>
+    <Modal panelClassName="doc-sheet" onClose={onClose}>
+      <div className="doc-sheet-head">
+        <div>
+          <p className="doc-card-source">{doc.source}</p>
+          <h2 className="section-title">{doc.name}</h2>
         </div>
-        <div className="doc-sheet-body">
-          <DocumentMarkdown text={doc.description} />
-        </div>
+        <button type="button" className="btn-quiet" onClick={onClose} aria-label="Close">
+          ✕
+        </button>
       </div>
-    </div>
+      <div className="doc-sheet-body">
+        <DocumentMarkdown text={doc.description} />
+      </div>
+    </Modal>
   );
 }
 

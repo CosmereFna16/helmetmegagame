@@ -1,5 +1,6 @@
 "use client";
 
+import Modal from "@/app/components/Modal";
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -305,15 +306,14 @@ export default function ActionBar({
       </RequestDialog>
 
       {dialog === "message" && (
-        <div className="modal-overlay" onClick={() => setDialog(null)}>
-          <div className="modal-panel flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
-            <h2 className="panel-header">Message {character.name}</h2>
+        <Modal title={`Message ${character.name}`} onClose={() => setDialog(null)}>
+          <div className="flex flex-col gap-3">
             <label className="field">
               <span className="field-label">Sent from Lifeweb as a DM</span>
               <textarea rows={4} value={draft} onChange={(e) => setDraft(e.target.value)} />
             </label>
             {error && <p className="text-sm text-accent">{error}</p>}
-            <div className="flex justify-end gap-2">
+            <div className="modal-actions">
               <button type="button" className="btn-quiet" onClick={() => setDialog(null)}>
                 Cancel
               </button>
@@ -327,13 +327,12 @@ export default function ActionBar({
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {dialog === "wound" && (
-        <div className="modal-overlay" onClick={() => setDialog(null)}>
-          <div className="modal-panel flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
-            <h2 className="panel-header">Inflict a wound</h2>
+        <Modal title="Inflict a wound" onClose={() => setDialog(null)}>
+          <div className="flex flex-col gap-3">
             <p className="text-sm text-muted">
               Afflictions are Health tags carrying a cure cost — the same set a medic can treat.
               Picking one stages it; it lands when you Apply.
@@ -358,21 +357,20 @@ export default function ActionBar({
                 </li>
               ))}
             </ul>
-            <div className="flex justify-end">
+            <div className="modal-actions">
               <button type="button" className="btn-quiet" onClick={() => setDialog(null)}>
                 Close
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Deleting is the one thing here with no undo at all, so it takes a
           typed name rather than a yes/no — the same posture as Restart Game. */}
       {dialog === "delete" && (
-        <div className="modal-overlay" onClick={() => setDialog(null)}>
-          <div className="modal-panel flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
-            <h2 className="panel-header text-accent">Delete {character.name}</h2>
+        <Modal title={`Delete ${character.name}`} onClose={() => setDialog(null)}>
+          <div className="flex flex-col gap-3">
             <p className="text-sm text-muted">
               Removes the character and every Move, Request, Desire, tag and default effort
               attached to them, and cleans up their Discord role, nickname and channel access.
@@ -383,7 +381,7 @@ export default function ActionBar({
               <input value={draft} onChange={(e) => setDraft(e.target.value)} />
             </label>
             {error && <p className="text-sm text-accent">{error}</p>}
-            <div className="flex justify-end gap-2">
+            <div className="modal-actions">
               <button type="button" className="btn-quiet" onClick={() => setDialog(null)}>
                 Cancel
               </button>
@@ -403,7 +401,7 @@ export default function ActionBar({
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </>
   );
