@@ -152,6 +152,25 @@ Auth.js (`next-auth@5`, `web/lib/auth.js`) with the Discord provider.
 callbacks. `Character` rows are looked up by `discordUserId`, not by a separate
 user table.
 
+**`AUTH_URL` is required in production and must not be unset.** It lives in
+the Railway `web` service variables, not in this repo, so a repo grep will
+not find it — `web/lib/auth.js` sets `trustHost: true` and looks
+self-sufficient, but it is not. Behind Railway's proxy `trustHost` does
+**not** recover the public host: Auth.js falls back to the container's own
+listener and sends Discord a `redirect_uri` of
+`https://localhost:8080/api/auth/callback/discord`, which Discord rejects —
+taking sign-in down on every domain simultaneously. This was verified by
+unsetting it in production on 2026-08-23; the symptom is total, not
+partial, so it is easy to misread as an outage. Restore with
+`railway variable set AUTH_URL=https://ravenheart.quest --service web`,
+which triggers its own redeploy.
+
+The consequence: **the app answers on exactly one sign-in host.** Its Railway
+`*.up.railway.app` domain serves pages fine but cannot complete sign-in,
+so it is not a usable fallback when the custom domain is unreachable. A
+redirect URI in the Discord Developer Portal must be the full callback path
+(`<host>/api/auth/callback/discord`), never the site root.
+
 GM-only pages (`web/app/gm`) check the signed-in user's guild roles via
 `web/lib/discordGuild.js`, which calls the Discord REST API with the bot token
 against `DISCORD_GUILD_ID`/`DISCORD_GM_ROLE_ID` — rather than trusting anything
