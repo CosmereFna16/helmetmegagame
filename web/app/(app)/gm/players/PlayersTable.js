@@ -112,7 +112,7 @@ export default function PlayersTable({ characters, tags = [] }) {
       <TableScroll>
         <thead>
           <tr>
-            <th scope="col" style={{ width: "1%" }}>
+            <th scope="col" className="col-fit">
               <span className="sr-only">Select</span>
             </th>
             <SortHeader label="Name" sortKey="name" sort={sort} onSort={toggleSort} />

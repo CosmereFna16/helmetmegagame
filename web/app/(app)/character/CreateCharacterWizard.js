@@ -56,12 +56,7 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
       disabled={disabled}
       onClick={() => onSelect(role.id)}
       aria-pressed={selected}
-      className="panel flex w-full flex-col gap-1 p-3 text-left"
-      style={{
-        outline: selected ? "1px solid var(--accent-text)" : undefined,
-        opacity: disabled ? 0.45 : 1,
-        cursor: disabled ? "not-allowed" : "pointer",
-      }}
+      className="select-card panel flex w-full flex-col gap-1 p-3 text-left"
     >
       <span className="flex flex-wrap items-baseline justify-between gap-2">
         <strong>

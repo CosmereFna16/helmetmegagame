@@ -75,8 +75,7 @@ function MessageEntry({ entry, avatarVersion }) {
         alt=""
         width={36}
         height={36}
-        className="mt-0.5 h-9 w-9 shrink-0 rounded"
-        style={{ objectFit: "cover" }}
+        className="mt-0.5 h-9 w-9 shrink-0 rounded object-cover"
       />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <div className="flex flex-wrap items-baseline gap-2">

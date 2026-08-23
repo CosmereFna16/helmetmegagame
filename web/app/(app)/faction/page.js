@@ -1,5 +1,5 @@
 import SubmitButton from "@/app/components/SubmitButton";
-import { EmptyRow } from "@/app/components/EmptyState";
+import EmptyState, { EmptyRow } from "@/app/components/EmptyState";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -254,9 +254,9 @@ export default async function FactionPage({ searchParams }) {
   if (!gm) {
     if (!myCharacter?.factionId) {
       return (
-        <div className="mx-auto max-w-2xl p-6 sm:p-8">
-          <p className="empty-state">You aren&apos;t assigned to a faction yet.</p>
-        </div>
+        <PageShell width="narrow">
+          <EmptyState>You aren&apos;t assigned to a faction yet.</EmptyState>
+        </PageShell>
       );
     }
 
@@ -286,9 +286,9 @@ export default async function FactionPage({ searchParams }) {
     // all: no title, no member roster, no Silo.
     if (faction.name === "Unaffiliated") {
       return (
-        <div className="mx-auto max-w-2xl p-6 sm:p-8">
-          <p className="empty-state">You aren&apos;t assigned to a faction yet.</p>
-        </div>
+        <PageShell width="narrow">
+          <EmptyState>You aren&apos;t assigned to a faction yet.</EmptyState>
+        </PageShell>
       );
     }
 

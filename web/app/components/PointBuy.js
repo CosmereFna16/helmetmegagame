@@ -156,13 +156,11 @@ export default function PointBuy({
                 type="button"
                 onClick={() => toggle(tag)}
                 aria-pressed={isSelected}
-                className="panel flex w-full items-start gap-3 p-3 text-left"
+                className="select-card panel flex w-full items-start gap-3 p-3 text-left"
+                data-unaffordable={unaffordable || undefined}
                 style={{
                   borderLeftColor: groupColor ?? undefined,
                   borderLeftWidth: groupColor ? 3 : undefined,
-                  outline: isSelected ? "1px solid var(--accent-text)" : undefined,
-                  opacity: unaffordable ? 0.55 : 1,
-                  cursor: "pointer",
                 }}
               >
                 <span

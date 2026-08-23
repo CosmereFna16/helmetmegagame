@@ -75,13 +75,13 @@ export default function RequestsTable({ requests, onReview, onView }) {
       <TableScroll minWidth="1100px">
         <thead>
           <tr>
-            <th scope="col" style={{ width: "1%" }}>
+            <th scope="col" className="col-fit">
               <span className="sr-only">Review</span>
             </th>
-            <th scope="col" style={{ width: "1%" }}>
+            <th scope="col" className="col-fit">
               <span className="sr-only">Message</span>
             </th>
-            <th scope="col" style={{ width: "1%" }}>
+            <th scope="col" className="col-fit">
               <span className="sr-only">View</span>
             </th>
             <SortHeader label="Turn" sortKey="turnNumber" sort={sort} onSort={toggleSort} />
@@ -89,7 +89,7 @@ export default function RequestsTable({ requests, onReview, onView }) {
             <SortHeader label="Discord" sortKey="discordUsername" sort={sort} onSort={toggleSort} />
             <SortHeader label="Faction" sortKey="factionName" sort={sort} onSort={toggleSort} />
             <SortHeader label="Type" sortKey="typeLabel" sort={sort} onSort={toggleSort} />
-            <th scope="col" style={{ minWidth: "22rem" }}>
+            <th scope="col" className="col-prose">
               Reason
             </th>
             <SortHeader label="Status" sortKey="statusLabel" sort={sort} onSort={toggleSort} />

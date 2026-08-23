@@ -115,7 +115,7 @@ export default function MapPanel({ nodes, roads, currentId, hasCharacter, turnOp
                 : "Your character hasn't been placed anywhere yet."}
             </p>
           </div>
-          <div className="map-grounds" role="group" aria-label="Map ground">
+          <div className="segmented" role="group" aria-label="Map ground">
             {GROUNDS.map((g) => (
               <button
                 key={g.key}

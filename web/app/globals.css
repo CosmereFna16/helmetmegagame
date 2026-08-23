@@ -100,7 +100,6 @@
   --bg: #111e1b;
   --surface: #1e352f;
   --surface-raised: #27443e;
-  --panel-bg: var(--surface); /* legacy alias */
   --field-bg: rgba(0, 0, 0, 0.22); /* recessed BELOW the surface, not another panel */
   --border: rgba(168, 198, 194, 0.31);
   --text: #efe7d6;
@@ -122,7 +121,6 @@
   --bg: #1b1512;
   --surface: #362a24;
   --surface-raised: #46372d;
-  --panel-bg: var(--surface);
   --field-bg: rgba(0, 0, 0, 0.2);
   --border: rgba(224, 203, 172, 0.28);
   --text: #f3eada;
@@ -156,7 +154,6 @@
   --bg: #d2ccc0;
   --surface: #fbfaf7;
   --surface-raised: #ffffff;
-  --panel-bg: var(--surface);
   --field-bg: rgba(0, 0, 0, 0.05);
   --border: rgba(74, 66, 56, 0.39);
   --text: #22201c;
@@ -442,7 +439,7 @@ input[type="radio"]:focus-visible,
 .menu-item:focus-visible,
 .rail-item:focus-visible,
 .tab-item:focus-visible,
-.status-link:focus-visible,
+.swatch:focus-visible,
 .th-sort:focus-visible {
   outline: 2px solid var(--accent-text);
   outline-offset: 2px;
@@ -504,6 +501,13 @@ input[type="radio"]:focus-visible,
   cursor: not-allowed;
 }
 
+/* .btn has had this since the redesign; the outline variants never did, so a
+   disabled Reject or Kill still took its hover wash and read as live. */
+.btn-secondary:disabled:hover,
+.btn-danger:disabled:hover {
+  background: none;
+}
+
 /* Destructive actions — Reject, Kill, Restart Game — which until now reused
    --accent and so looked identical to a primary action. */
 .btn-danger {
@@ -521,22 +525,6 @@ input[type="radio"]:focus-visible,
 
 .btn-danger:hover {
   background: color-mix(in srgb, var(--danger) 16%, transparent);
-}
-
-.status-link {
-  all: unset;
-  cursor: pointer;
-  color: var(--accent-text);
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
-  font-size: inherit;
-  font-family: inherit;
-}
-
-.status-link:hover,
-.status-link:focus-visible {
-  opacity: 0.8;
 }
 
 .btn-quiet {
@@ -1073,7 +1061,6 @@ input[type="radio"]:disabled {
   cursor: default;
 }
 
-/* Tag store modal */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -1140,6 +1127,26 @@ input[type="radio"]:disabled {
   border-bottom: 1px solid var(--border);
 }
 
+/* A picked-from-a-grid thumbnail: portrait parts and colour swatches. This was
+   the app's only fully inline-styled button, which meant it re-implemented
+   `all: unset` by hand and could not express :focus-visible at all — so the
+   one control you pick dozens of times in a row had no focus ring. */
+.swatch {
+  all: unset;
+  display: inline-block;
+  cursor: pointer;
+  padding: 3px;
+  border-radius: var(--r-md);
+  border: 2px solid var(--border);
+  background: transparent;
+  line-height: 0;
+}
+
+.swatch[aria-pressed="true"] {
+  border-color: var(--accent-text);
+  background: var(--field-bg);
+}
+
 /* The portrait maker's option grid (PortraitMaker.js). It scrolls inside the
    modal on a wide screen, which is what keeps the live preview pinned beside
    it while you flick through 28 hairstyles. On a narrow one the modal panel is
@@ -1178,31 +1185,6 @@ input[type="radio"]:disabled {
   border-bottom-color: var(--accent-text);
 }
 
-.store-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.store-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 8px 10px;
-}
-
-.store-row-info {
-  min-width: 0;
-}
-
-.store-row-name {
-  font-size: var(--fs-sm);
-  font-weight: 600;
-}
-
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -1238,6 +1220,43 @@ input[type="radio"]:disabled {
 .data-table tbody tr:hover td {
   background: var(--row-hover);
 }
+
+/* A panel you pick. Three call sites had copy-pasted the same
+   `panel flex w-full items-start gap-3 p-3 text-left` plus an inline outline
+   for the selected state, and the third had already drifted to a different
+   flex direction. Selection is aria-pressed, so it is one thing to a screen
+   reader and to the stylesheet at once.
+
+   The left border is a group colour set per call site — that one genuinely
+   varies per row, so it stays inline. */
+.select-card {
+  cursor: pointer;
+}
+
+.select-card[aria-pressed="true"] {
+  outline: 1px solid var(--accent-text);
+}
+
+.select-card:disabled,
+.select-card[data-unaffordable="true"] {
+  opacity: 0.55;
+}
+
+.select-card:disabled {
+  cursor: not-allowed;
+}
+
+/* Column sizing, as intent rather than a number repeated at 20 call sites.
+
+   .col-fit is the `width: 1%` idiom, not a literal 1% — a table lays out to
+   its content, so an absurdly small width means "shrink this column to fit and
+   give the slack to the others". Written as a class because `w-px` is 1px and
+   would be wrong, and because "1%" reads like a mistake until you know the
+   trick. */
+.col-fit { width: 1%; }
+.col-prose { min-width: 22rem; }
+.col-text { min-width: 14rem; }
+.col-meta { min-width: 12rem; }
 
 /* A long table that stays put: fixed tall viewport, both scroll axes inside
    the container, and a header that stays pinned while the body scrolls. The
@@ -1294,7 +1313,7 @@ input[type="radio"]:disabled {
   width: 26px;
   height: 26px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--r-sm);
   color: var(--muted);
   line-height: 1;
 }
@@ -1308,6 +1327,39 @@ input[type="radio"]:disabled {
 .icon-btn:disabled {
   cursor: default;
   opacity: 0.4;
+}
+
+/* A small group of mutually exclusive options, drawn as one joined pill. Used
+   for the map's ground picker; the five places doing
+   className={x === active ? "btn" : "btn-quiet"} are the other candidates —
+   that idiom makes the unselected options 11px lighter and unpadded beside a
+   filled one, so the group changes geometry every time you click it.
+
+   Not to be confused with .tab-bar/.tab-item, which is a different idea: a tab
+   strip navigating between panels, keyed on data-active. This is a control
+   with a value, so pressed state lives in aria-pressed where a screen reader
+   can reach it. */
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.segmented button {
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  padding: var(--sp-2) var(--sp-3);
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-left: 1px solid var(--border);
+  cursor: pointer;
+}
+.segmented button:first-child { border-left: none; }
+.segmented button[aria-pressed="true"] {
+  background: var(--field-bg);
+  color: var(--text);
 }
 
 /* App shell: left rail on desktop, bottom bar on mobile. */
@@ -1621,28 +1673,7 @@ input[type="radio"]:disabled {
    there.
    --------------------------------------------------------------------------- */
 
-.map-grounds {
-  display: inline-flex;
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  overflow: hidden;
-}
-.map-grounds button {
-  font-size: var(--fs-xs);
-  letter-spacing: var(--ls-wide);
-  text-transform: uppercase;
-  padding: var(--sp-2) var(--sp-3);
-  color: var(--muted);
-  background: none;
-  border: none;
-  border-left: 1px solid var(--border);
-  cursor: pointer;
-}
-.map-grounds button:first-child { border-left: none; }
-.map-grounds button[aria-pressed="true"] {
-  background: var(--field-bg);
-  color: var(--text);
-}
+/* The ground picker is a .segmented group — see the button block above. */
 
 .map-plate {
   position: relative;

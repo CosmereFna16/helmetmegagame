@@ -194,7 +194,7 @@ export default async function AuditLogPage({ searchParams }) {
               </td>
               {/* Only Request-backed entries carry a reason (see
                   web/lib/requests.js#logRequest); everything else is blank. */}
-              <td style={{ minWidth: "14rem" }}>{entry.reason ?? ""}</td>
+              <td className="col-text">{entry.reason ?? ""}</td>
               <td className="max-w-xs truncate">{entry.details ? JSON.stringify(entry.details) : ""}</td>
             </tr>
           ))}

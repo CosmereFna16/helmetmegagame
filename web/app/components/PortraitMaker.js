@@ -1,5 +1,6 @@
 "use client";
 
+import Tooltip from "./Tooltip";
 import FormError from "@/app/components/FormError";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -153,25 +154,17 @@ function PortraitCanvas({ size, cssSize, assets, cacheRef, selection, palette, p
 
 function OptionButton({ active, onClick, label, children }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={label}
-      aria-label={label}
-      aria-pressed={active}
-      style={{
-        all: "unset",
-        display: "inline-block",
-        cursor: "pointer",
-        padding: 3,
-        borderRadius: "var(--r-md)",
-        border: `2px solid ${active ? "var(--accent-text)" : "var(--border)"}`,
-        background: active ? "var(--field-bg)" : "transparent",
-        lineHeight: 0,
-      }}
-    >
-      {children}
-    </button>
+    <Tooltip text={label}>
+      <button
+        type="button"
+        className="swatch"
+        onClick={onClick}
+        aria-label={label}
+        aria-pressed={active}
+      >
+        {children}
+      </button>
+    </Tooltip>
   );
 }
 
