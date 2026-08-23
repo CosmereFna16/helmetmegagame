@@ -45,13 +45,20 @@ function DocumentSheet({ doc, onClose }) {
   );
 }
 
-export default function DocumentsBoard({ publicDocs, assignedDocs, hasCharacter }) {
+export default function DocumentsBoard({
+  publicDocs,
+  assignedDocs,
+  gmDocs = [],
+  hasCharacter,
+}) {
   // Without a character there is no ASSIGNED tab at all, so PUBLIC is the
-  // only thing to land on.
+  // only thing to land on. GAMEMASTER only exists when the server sent GM
+  // papers, which it only does for an actual GM — the tab is never a hint
+  // that something is being withheld.
   const [tab, setTab] = useState(hasCharacter ? "assigned" : "public");
   const [open, setOpen] = useState(null);
 
-  const docs = tab === "assigned" ? assignedDocs : publicDocs;
+  const docs = tab === "assigned" ? assignedDocs : tab === "gamemaster" ? gmDocs : publicDocs;
 
   return (
     <div className="flex flex-col gap-4">
@@ -74,13 +81,25 @@ export default function DocumentsBoard({ publicDocs, assignedDocs, hasCharacter 
         >
           Public ({publicDocs.length})
         </button>
+        {gmDocs.length > 0 && (
+          <button
+            type="button"
+            className="tab-item"
+            data-active={tab === "gamemaster"}
+            onClick={() => setTab("gamemaster")}
+          >
+            Gamemaster ({gmDocs.length})
+          </button>
+        )}
       </div>
 
       {docs.length === 0 ? (
         <p className="panel p-4 text-sm text-muted">
           {tab === "assigned"
             ? "Nothing has been handed to you yet. Your role, your tags and your faction each bring their own papers."
-            : "No public documents have been posted yet."}
+            : tab === "gamemaster"
+              ? "No gamemaster papers have been written yet."
+              : "No public documents have been posted yet."}
         </p>
       ) : (
         <div className="doc-board">

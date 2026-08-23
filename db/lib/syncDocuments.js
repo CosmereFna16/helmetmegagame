@@ -19,7 +19,12 @@ const fs = require("node:fs");
 const path = require("node:path");
 const yaml = require("js-yaml");
 
-const FLAGS = ["leader", "treasurer"];
+// "leader" / "treasurer" are read against Character.isLeader/isTreasurer.
+// "gamemaster" is not a property of any Character at all — it resolves
+// against the Discord GM role at request time (web/lib/discordGuild.js#isGm),
+// which is the same check that gates every /gm page. A GM has no character to
+// hang the flag on, so the documents page asks Discord instead.
+const FLAGS = ["leader", "treasurer", "gamemaster"];
 
 function loadDoc() {
   const yamlPath = path.join(__dirname, "..", "..", "docs", "documents.yaml");

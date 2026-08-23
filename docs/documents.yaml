@@ -401,6 +401,37 @@ documents:
       ## Drinking too much of it
 
       None of this is tracked. Nobody counts your bottles. But a character who drinks like that is a character who drinks like that, and a GM may decide {tag:alcoholic} has stopped being a description and started being a fact.
+  # GM-only. The `gamemaster` flag is not a property of any Character — the
+  # documents page resolves it against the Discord GM role at request time,
+  # the same check that gates /gm. Filtered server-side, so a player's browser
+  # never receives this text at all.
+  - name: Caving Monsters
+    key: cavingmonsters
+    public: false
+    tags: []
+    flags:
+      - gamemaster
+    description: |-
+      What lives down there, and what it drops. Adjudicate encounters from this — the players have no document that lists any of it.
+
+      ## Gragas
+
+      Dangerous, strong, hulking cave dwellers. Extremely slow, in part due to their overburdened leg muscles, which barely support them.
+
+      Found on **all three cave levels**. Genuinely dangerous in a fight, but easily escaped — a party that decides to leave should almost always be allowed to.
+
+      Killing one drops a {tag:graga-sac}, which is the ingredient behind {tag:graga-sweat} and the {tag:invisibility-potion}, and the Company's merchant will buy them. This is the main reason a player has to go down at all.
+
+      ## Skinless
+
+      Explorers and citizens of the caves, flayed into immortality. They travel alone or in packs, eventually returning to their communities in the **Aberrant Pits**.
+
+      They were people, and some of them still remember being people. A Skinless is not automatically a fight.
+
+      ## Nekkers
+
+      Small, quick, and they hunt in numbers. Referenced by {tag:nekker-pheromones}, which is wrung out of a dead one and makes the rest of them ignore whoever wears it.
+
   # The Demoness threat's own brief (docs/threats.md). Assigned by the
   # Demoness tag, which is also what unlocks the hidden Demoness tag
   # category — so the paper and the powers arrive together.

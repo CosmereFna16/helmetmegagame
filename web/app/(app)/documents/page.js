@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
-import { auth } from "@/lib/auth";
+import { getGmSession } from "@/lib/discordGuild";
 import PageShell, { PageHeader } from "../../components/PageShell";
 import DocumentsBoard from "./DocumentsBoard";
 import { toDocumentPreviewText } from "@/lib/documentPreview";
@@ -23,7 +23,9 @@ function assignedTo(document, character) {
 }
 
 export default async function DocumentsPage() {
-  const session = await auth();
+  // getGmSession() wraps auth() and is React-cached, so asking Discord whether
+  // this user is a GM costs this page nothing it wasn't already paying.
+  const { session, isGm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
 
   const [documents, characterRow] = await Promise.all([
@@ -57,6 +59,14 @@ export default async function DocumentsPage() {
   });
 
   const publicDocs = written.filter((d) => d.isPublic).map((d) => shape(d, "Public"));
+
+  // GM-only papers. Unlike every other assignment, this one keys off a Discord
+  // role rather than anything on a Character — a GM usually has no character at
+  // all. Resolved here rather than in the client for the same reason the rest
+  // of this file is: a player's browser must never receive the text.
+  const gmDocs = isGm
+    ? written.filter((d) => d.flags.includes("gamemaster")).map((d) => shape(d, "Gamemaster"))
+    : [];
   const assignedDocs = character
     ? written
       .map((d) => [d, assignedTo(d, character)])
@@ -73,6 +83,7 @@ export default async function DocumentsPage() {
       <DocumentsBoard
         publicDocs={publicDocs}
         assignedDocs={assignedDocs}
+        gmDocs={gmDocs}
         hasCharacter={!!character}
       />
     </PageShell>
