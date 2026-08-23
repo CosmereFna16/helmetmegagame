@@ -36,10 +36,15 @@ export default async function DevFactionsPage() {
                   <form action={updateFaction} id={`faction-${f.id}`} className="contents">
                     <input type="hidden" name="factionId" value={f.id} />
                   </form>
-                  <input name="name" defaultValue={f.name} form={`faction-${f.id}`} className="text-input" />
+                  <input name="name" defaultValue={f.name} form={`faction-${f.id}`} className="control" />
                 </td>
                 <td>
-                  <select name="parentFactionId" defaultValue={f.parentFactionId ?? ""} form={`faction-${f.id}`}>
+                  <select
+                    name="parentFactionId"
+                    defaultValue={f.parentFactionId ?? ""}
+                    form={`faction-${f.id}`}
+                    className="control"
+                  >
                     <option value="">None</option>
                     {factions
                       .filter((other) => other.id !== f.id)
@@ -56,7 +61,7 @@ export default async function DevFactionsPage() {
                     name="silo"
                     defaultValue={f.silo}
                     form={`faction-${f.id}`}
-                    className="text-input"
+                    className="control"
                     style={{ width: "6rem" }}
                   />
                 </td>

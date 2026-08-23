@@ -537,7 +537,7 @@ export default async function FactionPage({ searchParams }) {
         <h2 className="panel-header">Add Member</h2>
         <form action={addCharacterToFaction} className="flex gap-2">
           <input type="hidden" name="factionId" value={faction.id} />
-          <select name="characterId" required defaultValue="">
+          <select name="characterId" required defaultValue="" className="control">
             <option value="" disabled>
               Choose a character...
             </option>

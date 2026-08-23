@@ -435,7 +435,7 @@ h3 {
 .field input:focus-visible,
 .field textarea:focus-visible,
 .field select:focus-visible,
-.text-input:focus-visible,
+.control:focus-visible,
 .menu-item:focus-visible,
 .rail-item:focus-visible,
 .tab-item:focus-visible,
@@ -571,12 +571,33 @@ h3 {
   text-transform: uppercase;
 }
 
-.field input[type="text"],
-.field input[type="number"],
-.field input[type="file"],
-.field input:not([type]),
+/* One control surface, selected by exclusion rather than by enumeration. The
+   old list named text/number/file and nothing else, so a correctly
+   .field-wrapped input of any other type silently fell through to native
+   browser chrome — type="search" on three pages and type="date" on /gm/audit
+   were doing exactly that. Listing what is NOT a text-like control cannot go
+   stale the same way: a new input type is styled by default.
+
+   :where() is load-bearing. It contributes zero specificity, so this lands at
+   0,1,1 — LOWER than the 0,2,1 the enumerated version had, and below the
+   0,2,1 of .field input:disabled and :focus-visible, which therefore win
+   outright instead of on source order. A bare :not() would inherit its most
+   specific argument's specificity and start beating the :disabled rule,
+   silently un-greying the read-only GM title on /character.
+
+   The 8px 10px is deliberately off the --sp-* scale: the 1px border eats into
+   it, and 12px reads loose beside .btn's 14px. */
+.field input:not(:where([type="checkbox"], [type="radio"], [type="hidden"],
+                        [type="range"], [type="color"], [type="button"],
+                        [type="submit"], [type="reset"], [type="image"])),
 .field textarea,
-.field select {
+.field select,
+/* .control is the same surface without .field's label column, for a control
+   that cannot have one — a <select> in a table cell, an input inline in a
+   toolbar. .field is still the default. This used to be .text-input, which is
+   why the <select> two lines from one in gm/dev/factions/page.js was bare: the
+   name promised it was for text, so nobody reached for it. */
+.control {
   background: var(--field-bg);
   border: 1px solid var(--border);
   color: var(--text);
@@ -663,16 +684,6 @@ h3 {
 
 .char-counter[data-at-limit="true"] {
   color: var(--accent-text);
-}
-
-.text-input {
-  background: var(--field-bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 8px 10px;
-  border-radius: var(--r-sm);
-  font-family: inherit;
-  font-size: var(--fs-base);
 }
 
 .chip {
