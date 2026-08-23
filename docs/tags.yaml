@@ -738,6 +738,142 @@ tags:
   # High for 2 turns, refined Bliss for 3, via the per-grant override in
   # consumesIntoDurations (see this file's header). The 2 here is only the
   # fallback for a grant that doesn't say.
+  # --- Tonic effects ------------------------------------------------------
+  # What the apothecary in items-drink turns into. None is purchasable and
+  # none is removable by hand: you get these by drinking something, and they
+  # run out on their own clock.
+  - slug: night-vision
+    name: Night Vision
+    category: status
+    group: status-buffs
+    description: "You can see in the dark as though it were a grey afternoon. Bring of it what you can back into the light."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 2
+
+  - slug: opium-high
+    name: Opium High
+    category: status
+    group: status-debuffs
+    description: "The pain is somewhere else now, and so are you. Pleasant, and not the same thing as being useful."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 2
+
+  - slug: pain-immunity
+    name: Pain Immunity
+    category: status
+    group: status-buffs
+    description: "You feel nothing that hurts, and your head is entirely clear. Do remember that pain was telling you something."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 2
+
+  - slug: brutish-strength
+    name: Brutish Strength
+    category: status
+    group: status-buffs
+    description: "Graga strength, in a human frame that was not built for it. Lift what should not lift."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 2
+
+  - slug: increased-accuracy
+    name: Increased Accuracy
+    category: status
+    group: status-buffs
+    description: "Everything holds very still, and the shot goes where you meant it to."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 2
+
+  - slug: increased-recovery
+    name: Increased Recovery
+    category: status
+    group: status-buffs
+    description: "Your body is mending faster than it has any right to. Wounds close, fevers break."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 2
+
+  - slug: stimulant-high
+    name: Stimulant High
+    category: status
+    group: status-buffs
+    description: "Tireless, talkative and certain. You will not sleep and you will not notice that you should."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 2
+
+  - slug: mindreading
+    name: Mindreading
+    category: status
+    group: status-buffs
+    description: "You can read what a person wants and what they are afraid of, the way a Seducer or a Torturer would — except you need neither the charm nor the knives."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 2
+
+  - slug: invisible
+    name: Invisible
+    category: status
+    group: status-buffs
+    description: "Light goes past you rather than off you. Nobody can see you; everything else about you is unchanged."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 2
+
+  - slug: lucky
+    name: Lucky
+    category: status
+    group: status-buffs
+    description: "For three turns, every Gambit you roll is a six. Not improved odds — a six."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 3
+
+  - slug: nekker-masked
+    name: Nekker-Masked
+    category: status
+    group: status-buffs
+    description: "You smell like one of them. Nekkers will not attack you, and will not be pleased when it wears off."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 2
+
   # Granted to the TARGET of a Mesmer Glass, not to whoever used it — the
   # consume path grants to the consumer, so a GM applies this one by hand.
   - slug: flashed
@@ -1512,7 +1648,95 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: false
+    durationTurns: 2
+
+  # --- Pain ---------------------------------------------------------------
+  # Three rungs of hurt, all of which pass on their own. Poppy and its
+  # advanced form are the tonics that answer them (see items-drink); a medic
+  # can shorten the worse two, and nobody can do a thing about an ache.
+  - slug: aching
+    name: Aching
+    category: health
+    group: health-minor
+    description: "Everything hurts a little. You slept on stone, or something hit you and didn't break anything. It passes."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 3
+
+  - slug: severe-pain
+    name: Severe Pain
+    category: health
+    group: health-minor
+    description: "It hurts enough that you are thinking about it instead of what you are doing. Poppy answers this, and so does a competent friend."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 2
+    requirement:
+      resourceCost: 1
+      skills: [medical-basic]
+
+  - slug: pain-shock
+    name: Pain Shock
+    category: health
+    group: health-minor
+    description: "Past what a body will carry. You are grey, shaking, and not answering questions. Somebody needs to bring you out of this."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
     durationTurns: 1
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [medical-skilled]
+
+  # --- The two poisons ----------------------------------------------------
+  # Both end at Dying in a single turn, and both sit on tier 7 of the cure
+  # ladder — Expert plus a Gambit — which is how "hard to cure" is written in
+  # this file. The difference between them is entirely who can tell: Nightshade
+  # is a scene, Phrygian Tears is a mystery.
+  - slug: choking
+    name: Choking
+    category: health
+    group: health-illness
+    description: "You're choking to death — frothing, clawing at your own collar, and everyone in the room can see exactly what is happening. Nightshade does this. Somebody had better be very good and very quick."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 1
+    expiresInto: [dying]
+    requirement:
+      turnsCost: 1
+      resourceCost: 8
+      skills: [medical-expert]
+      gambit: true
+
+  - slug: phrygian-toxin
+    name: Phrygian Toxin
+    category: health
+    group: health-illness
+    description: "Something is shutting you down from the inside, quietly, with no outward sign at all. You will simply stop. Whoever did it did not need to be in the room."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 1
+    expiresInto: [dying]
+    requirement:
+      turnsCost: 1
+      resourceCost: 8
+      skills: [medical-expert]
+      gambit: true
 
   - slug: hungover
     name: Hungover
@@ -2406,11 +2630,16 @@ tags:
     requirement:
       resourceCost: 0
 
+  # Brewed as a Routine Move, like the meals. Deliberately ONE generic drink
+  # rather than a Fine/Lavish split: it cheers everybody, nobles included —
+  # which is the one thing a Fine Meal does not do — and it does not feed you,
+  # so it grants no Ate Meal. Output sits just under the kitchen's (3 a Move
+  # against the cook's 4) because a drink is worth slightly less than a dinner.
   - slug: alcohol
     name: Alcohol
     category: items
     group: items-drink
-    description: "Beer, ale, mead — whatever the barrel held. Cheap, plentiful, and enough to take the edge off a bad day underground."
+    description: "Beer, ale, and other fine drinks. 2 ⬢ each, and you can brew up to 3 in one Routine Move. It will not fill anyone's stomach, but it lifts anyone's mood — a noble's as readily as a peasant's."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -2422,8 +2651,9 @@ tags:
     consumable: true
     consumesInto:
       - tipsy
+      - happy
     requirement:
-      resourceCost: 1
+      resourceCost: 2
       skills: [brewing-basic]
       gambit: false
 
@@ -2467,6 +2697,465 @@ tags:
     consumesInto:
       - tipsy
       - happy
+    requirement:
+      resourceCost: 4
+      skills: [brewing-skilled]
+      gambit: false
+
+  # --- The apothecary -----------------------------------------------------
+  # Every tonic costs ⬢ AND an ingredient named in its own description — a
+  # corpse to bottle beside, a Graga cut open, the heart of a rainbow trout.
+  # The ⬢ are deliberately cheap, between 2 and 4, because the ingredient is
+  # the real price and getting hold of one is meant to be a scene rather than
+  # a purchase. No code enforces the ingredient; a GM does, the same way every
+  # other requirement block in this file works.
+  #
+  # `consumable` is set only where something is genuinely used up BY THE
+  # DRINKER. A poison you administer, a flask you throw and a powder you work
+  # into someone else's wound are all spent by a Move instead, so they carry
+  # no consumesInto and the GM applies the result to whoever it happened to.
+
+  # --- Basic tonics — Brewing (Basic) --------------------------------------
+  - slug: miasma
+    name: Miasma
+    category: items
+    group: items-drink
+    description: "Bottled beside a rotting corpse and stoppered fast. Opened in a closed room it puts everyone in it off their food — a GM hands out {tag:vomiting} to whoever was breathing."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    requirement:
+      resourceCost: 2
+      skills: [brewing-basic]
+      gambit: false
+
+  - slug: feces
+    name: Feces
+    category: items
+    group: items-drink
+    description: "Exactly what it says. Worked onto a blade so that a wound which should have healed goes {tag:infected} instead. Nobody has ever respected a man for using it."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    requirement:
+      resourceCost: 2
+      skills: [brewing-basic]
+      gambit: false
+
+  - slug: cleaning-powder
+    name: Cleaning Powder
+    category: items
+    group: items-drink
+    description: "Cures a minor infection outright and gives a doctor a real chance against {tag:festering}. Slow to make: one turn yields three."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [brewing-basic]
+      gambit: false
+
+  - slug: cat
+    name: Cat
+    category: items
+    group: items-drink
+    description: "Distilled with alcohol until it turns pale. Drink it and the dark opens up — {tag:night-vision} for two turns."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto:
+      - night-vision
+    requirement:
+      resourceCost: 3
+      skills: [brewing-basic]
+      gambit: false
+
+  - slug: poppy
+    name: Poppy
+    category: items
+    group: items-drink
+    description: "The answer to pain, and the beginning of a different problem. A farmer has to spend a turn growing the crop before any of it exists. Leaves you with an {tag:opium-high}."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto:
+      - opium-high
+    requirement:
+      resourceCost: 2
+      skills: [brewing-basic]
+      gambit: false
+
+  - slug: molotov-cocktail
+    name: Molotov Cocktail
+    category: items
+    group: items-drink
+    description: "A bottle of alcohol and a rag. Cheap, loud, and it does not care what you were aiming at."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    requirement:
+      resourceCost: 2
+      skills: [brewing-basic]
+      gambit: false
+
+  # --- Advanced tonics — Brewing (Skilled) ---------------------------------
+  - slug: gunpowder-grenade
+    name: Gunpowder Grenade
+    category: items
+    group: items-drink
+    description: "A bomb, and priced like one. Needs ore or nitrite dug out of the caverns before you can make the first grain of powder."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    requirement:
+      resourceCost: 6
+      skills: [brewing-skilled]
+      gambit: false
+
+  - slug: nightshade
+    name: Nightshade
+    category: items
+    group: items-drink
+    description: "Harvested in the forest and cheap to prepare. Whoever takes it dies frothing where everyone can watch — it inflicts {tag:choking}, and it is very hard to treat in the time you have."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    requirement:
+      resourceCost: 3
+      skills: [brewing-skilled]
+      gambit: false
+
+  - slug: phrygian-tears
+    name: Phrygian Tears
+    category: items
+    group: items-drink
+    description: "Silent, invisible, and extremely effective. Two turns to distil and a Gambit to get right; a failed batch is wasted and dangerous. Inflicts {tag:phrygian-toxin}, which shows nothing at all until it is much too late."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 4
+      skills: [brewing-skilled]
+      gambit: true
+
+  - slug: advanced-poppy
+    name: Advanced Poppy
+    category: items
+    group: items-drink
+    description: "Poppy worked much further, at much greater cost. Grants {tag:pain-immunity} — you feel nothing that hurts, and your head stays entirely your own."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto:
+      - pain-immunity
+    requirement:
+      resourceCost: 4
+      skills: [brewing-skilled]
+      gambit: false
+
+  - slug: graga-sweat
+    name: Graga Sweat
+    category: items
+    group: items-drink
+    description: "Rendered out of a {tag:graga-sac}. Two turns of {tag:brutish-strength} in a frame that was never built to carry it."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto:
+      - brutish-strength
+    requirement:
+      resourceCost: 4
+      skills: [brewing-skilled]
+      gambit: false
+
+  - slug: purifier
+    name: Purifier
+    category: items
+    group: items-drink
+    description: "Clears {tag:infected}, {tag:festering} and {tag:feverish} without a doctor's hands, and gives someone with {tag:sepsis} a chance they did not have. The ingredients are the reason it is rare, not the price."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    requirement:
+      resourceCost: 4
+      skills: [brewing-skilled]
+      gambit: false
+
+  - slug: white-honey
+    name: White Honey
+    category: items
+    group: items-drink
+    description: "Dispels a poisoning of any kind. Made with the heart of a rainbow trout, which somebody has to have caught."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    requirement:
+      resourceCost: 4
+      skills: [brewing-skilled]
+      gambit: false
+
+  - slug: deadeye-drops
+    name: Deadeye Drops
+    category: items
+    group: items-drink
+    description: "Eye drops fermented from horse dung, and worth every unpleasant step. {tag:increased-accuracy} for two turns."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto:
+      - increased-accuracy
+    requirement:
+      resourceCost: 4
+      skills: [brewing-skilled]
+      gambit: false
+
+  - slug: mercy
+    name: Mercy
+    category: items
+    group: items-drink
+    description: "Brewed down from {tag:cave-fungus}. Grants {tag:increased-recovery} — wounds close and fevers break faster than they should."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto:
+      - increased-recovery
+    requirement:
+      resourceCost: 4
+      skills: [brewing-skilled]
+      gambit: false
+
+  - slug: distilled-coca
+    name: Distilled Coca
+    category: items
+    group: items-drink
+    description: "The leaf grows wild in the forest for anyone willing to go and pick it. Consumes into a {tag:stimulant-high}: tireless, certain, and unable to tell that you should have stopped."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto:
+      - stimulant-high
+    requirement:
+      resourceCost: 4
+      skills: [brewing-skilled]
+      gambit: false
+
+  - slug: mindbreaker-toxin
+    name: Mindbreaker Toxin
+    category: items
+    group: items-drink
+    description: "Drawn from forest mushrooms. Injected or swallowed, it leaves the taker {tag:hallucinating} and no use to anybody."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto:
+      - hallucinating
+    requirement:
+      resourceCost: 4
+      skills: [brewing-skilled]
+      gambit: false
+
+  - slug: invisibility-potion
+    name: Invisibility Potion
+    category: items
+    group: items-drink
+    description: "Extracted from a {tag:graga-sac} by somebody who knew where to cut. Two turns {tag:invisible}."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto:
+      - invisible
+    requirement:
+      resourceCost: 4
+      skills: [brewing-skilled]
+      gambit: false
+
+  - slug: nekker-pheromones
+    name: Nekker Pheromones
+    category: items
+    group: items-drink
+    description: "Wrung out of a dead nekker. Wear it and the rest of them leave you alone — {tag:nekker-masked} — for as long as it lasts."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto:
+      - nekker-masked
+    requirement:
+      resourceCost: 4
+      skills: [brewing-skilled]
+      gambit: false
+
+  - slug: succubus-draught
+    name: Succubus Draught
+    category: items
+    group: items-drink
+    description: "Needs the blood of a willing lover, freely given, which is the whole difficulty. Grants {tag:mindreading}: you read what people want and what they fear, the way a Seducer or a Torturer does."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto:
+      - mindreading
+    requirement:
+      resourceCost: 4
+      skills: [brewing-skilled]
+      gambit: false
+
+  - slug: raven-draught
+    name: Raven Draught
+    category: items
+    group: items-drink
+    description: "Made with the eye of a raven. Drink it and you may send one message to any player anywhere — DM the GMs with it."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    requirement:
+      resourceCost: 4
+      skills: [brewing-skilled]
+      gambit: false
+
+  - slug: pure-luck
+    name: Pure Luck
+    category: items
+    group: items-drink
+    description: "Made with the heart of an Aberrant, and nobody sells those. For three turns straight every Gambit you roll comes up a six — {tag:lucky}."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto:
+      - lucky
     requirement:
       resourceCost: 4
       skills: [brewing-skilled]

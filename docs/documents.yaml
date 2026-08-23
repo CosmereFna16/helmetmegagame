@@ -337,40 +337,70 @@ documents:
       - Brewing (Skilled)
       - Alcoholic
     description: |-
-      Nobody down here is sober because they chose to be. Drink and Bliss are how Ravenheart gets through the dark, and the trade in both is one of the few honest ways a poor man makes his money.
+      Nobody down here is sober because they chose to be. Drink and Bliss are how Ravenheart gets through the dark, and the trade in both is one of the few honest ways a poor man makes his money. Past that sits the apothecary — tonics that mend, blind, strengthen and kill.
 
-      Brewing is a Routine Move like cooking — say what you're making, and if you have the skill and the ingredients, you've made it. The exception is the Dreamer's Draught, which is a Gambit.
+      Brewing is a Routine Move like cooking: say what you're making, and if you have the skill and the ingredients, you've made it. Two things are Gambits, and both say so below.
 
-      **Brewing (Basic)** covers {tag:alcohol} and {tag:bliss}.
-      **Brewing (Skilled)** covers those, plus {tag:ravenheart-red} and the three tonics.
+      **Brewing (Basic)** covers {tag:alcohol}, {tag:bliss} and the basic tonics.
+      **Brewing (Skilled)** covers all of that, plus {tag:ravenheart-red} and the advanced tonics.
+
+      ## Tonics need something you have to go and get
+
+      This is the part worth reading twice. **Nearly every tonic costs Resources *and* an ingredient**, and the ingredient is the real price. Miasma has to be bottled beside a rotting corpse. Graga Sweat needs a sac cut out of a dead Graga in the caves. White Honey wants the heart of a rainbow trout, and somebody has to have caught one.
+
+      None of that is counted by the app. There is no ingredient slot on your sheet and no button that checks. It is handled in the fiction, by describing how you got the thing, and by a GM deciding whether you plausibly did. Write the trip into your Move. "I brew Graga Sweat" is not a Move; going down to the Caverns for the sac is.
+
+      That is also why the ⬢ prices are low — mostly 2 to 4. A tonic is cheap in coin and expensive in trouble.
 
       ## The base of it all
 
-      {tag:cave-fungus} grows wherever the lamps don't reach, and costs nothing but the walk to fetch it. Eat it raw and you'll be {tag:high} for two turns with no pleasure in it whatsoever — it tastes like the floor it grew on. Refined, it becomes something else entirely. Almost everything worth brewing starts here.
+      {tag:cave-fungus} grows wherever the lamps don't reach and costs nothing but the walk. Eat it raw and you'll be {tag:high} for two turns with no pleasure in it at all. Refined, it becomes something else entirely — {tag:bliss}, and {tag:mercy} after that.
 
       ## Drink
 
-      **Alcohol** — 1 ⬢. Beer, ale, mead, whatever the barrel held. Leaves you {tag:tipsy}.
+      **{tag:alcohol}** — 2 ⬢, Basic. Beer, ale, and other fine drinks. Up to **3 in one Routine Move**. It won't fill anyone's stomach, but it lifts anyone's mood — a noble's as readily as a peasant's, which is more than a Fine Meal manages. Leaves you {tag:tipsy} and {tag:happy}.
 
-      **Ravenheart Red** — 4 ⬢, Skilled. The one genuinely exquisite thing this barony makes. {tag:tipsy} and {tag:happy}, and a fair object of a Desire — plenty of people here intend to taste it before they die and haven't yet.
+      **{tag:ravenheart-red}** — 4 ⬢, Skilled. The one genuinely exquisite thing this barony makes, and a fair object of a Desire.
 
-      **Bliss** — free but for the fungus, Basic. The best thing at any party in Ravenheart: {tag:happy} and {tag:high} for three turns, and — unlike the drink — no morning after. It costs nothing, which is exactly why it turns up wherever people have no money and something to celebrate.
+      **{tag:bliss}** — free but for the fungus, Basic. The best thing at any party in Ravenheart, and no morning after.
 
       Nothing here hands you a {tag:hungover} automatically. But if you spend the evening the way the evening deserves, expect a GM to write you the invoice.
 
-      ## Tonics
+      ## Basic tonics
 
-      Each of these needs something you cannot buy. That ingredient is the real price, and getting hold of it is meant to be a scene rather than a shopping trip.
+      **{tag:miasma}** — 2 ⬢. Bottled beside a corpse. Opened in a closed room, everyone breathing gets {tag:vomiting}.
+      **{tag:feces}** — 2 ⬢. Worked onto a blade so a wound goes {tag:infected} instead of healing. Nobody has ever been respected for it.
+      **{tag:cleaning-powder}** — 2 ⬢, 1 turn makes **three**. Cures a minor infection outright, and gives a doctor a real chance against {tag:festering}.
+      **{tag:cat}** — 3 ⬢. Distilled with alcohol. {tag:night-vision} for two turns.
+      **{tag:poppy}** — 2 ⬢. The answer to pain and the start of a different problem. A farmer must spend a turn growing the crop first. Leaves an {tag:opium-high}.
+      **{tag:molotov-cocktail}** — 2 ⬢. A bottle and a rag. It does not care what you were aiming at.
 
-      **Dreamer's Draught** — 6 ⬢, Skilled, and a **Gambit**: only a roll of 4 or better yields anything you'd want to drink, and a worse roll wastes the whole batch. Drink it, sleep, and put one question to the world. A GM answers it truthfully.
+      ## Advanced tonics
 
-      **Forgiveness** — 8 ⬢, Skilled. Needs **genuine tears**, freely wept — someone has to have been made to cry, and mean it, and no substitute will do. Whoever drinks it loses the last of what they knew: the argument, the debt, the thing they saw you do. It cannot reach into a player's head, so what it takes is the character's knowledge — a GM rules that they no longer know it, and they may no longer act on it.
+      **{tag:gunpowder-grenade}** — 6 ⬢. A bomb, priced like one. Needs ore or nitrite out of the caverns.
+      **{tag:nightshade}** — 3 ⬢. Forest-picked and cheap. Inflicts {tag:choking}: the victim dies frothing where everyone can watch.
+      **{tag:phrygian-tears}** — 4 ⬢, **2 turns and a Gambit**. Silent and invisible. Inflicts {tag:phrygian-toxin}, which shows nothing until it is far too late.
+      **{tag:advanced-poppy}** — 4 ⬢. Needs Poppy first. {tag:pain-immunity} with your head still your own.
+      **{tag:graga-sweat}** — 4 ⬢. From a {tag:graga-sac}. {tag:brutish-strength}.
+      **{tag:purifier}** — 4 ⬢. Clears {tag:infected}, {tag:festering} and {tag:feverish} without a doctor, and gives {tag:sepsis} a chance it didn't have.
+      **{tag:white-honey}** — 4 ⬢. Dispels a poisoning. Heart of a rainbow trout.
+      **{tag:deadeye-drops}** — 4 ⬢. {tag:increased-accuracy}. Fermented from horse dung; worth the indignity.
+      **{tag:mercy}** — 4 ⬢. From cave fungus. {tag:increased-recovery}.
+      **{tag:distilled-coca}** — 4 ⬢. Wild in the forest. {tag:stimulant-high}.
+      **{tag:mindbreaker-toxin}** — 4 ⬢. Forest mushrooms. Leaves the taker {tag:hallucinating}.
+      **{tag:invisibility-potion}** — 4 ⬢. From a {tag:graga-sac}. Two turns {tag:invisible}.
+      **{tag:nekker-pheromones}** — 4 ⬢. From a dead nekker. They leave you alone while it lasts.
+      **{tag:succubus-draught}** — 4 ⬢. Needs the blood of a willing lover, freely given. Grants {tag:mindreading}.
+      **{tag:raven-draught}** — 4 ⬢. The eye of a raven. Send one message to any player anywhere — DM the GMs.
+      **{tag:pure-luck}** — 4 ⬢. The heart of an Aberrant. Three turns where every Gambit is a six.
 
-      **Flawless Skin** — 8 ⬢, Skilled. Needs **a lock of hair from someone bearing Nobility**, which means either a noble who owes you a favour or a noble who never finds out. Grants {tag:otherworldly-beauty} for three turns: unmarked, luminous, and not quite right.
+      ## A note on medicine
+
+      {tag:purifier}, {tag:cleaning-powder} and {tag:white-honey} do a doctor's work without a doctor, and they are cheaper than the cure ladder in the Medical document. That is deliberate — but somebody still had to go and get the ingredient, and no amount of ⬢ substitutes for that.
 
       ## Drinking too much of it
 
-      None of this is tracked by the game. Nobody counts your bottles and nothing automatically ruins you. But a character who drinks like that is a character who drinks like that, and a GM may decide that {tag:alcoholic} has stopped being a description and started being a fact. If you play it, expect it to arrive.
+      None of this is tracked. Nobody counts your bottles. But a character who drinks like that is a character who drinks like that, and a GM may decide {tag:alcoholic} has stopped being a description and started being a fact.
   # The Demoness threat's own brief (docs/threats.md). Assigned by the
   # Demoness tag, which is also what unlocks the hidden Demoness tag
   # category — so the paper and the powers arrive together.
