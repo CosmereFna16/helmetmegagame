@@ -17,6 +17,7 @@ import Tooltip from "@/app/components/Tooltip";
 import { WORST_FEAR_HELP } from "@/app/components/WorstFearPanel";
 import { WORST_FEAR_PENALTY, WORST_FEAR_MAX_LENGTH } from "@/lib/constants";
 import { HONORIFICS, NAME_LIMITS, AGE_MIN, AGE_MAX, formatCharacterName } from "@/lib/characterName";
+import { randomCharacterName } from "@/lib/nameCorpus";
 import { ANTAGONISTS, antagonistNames } from "@/lib/antagonists";
 
 const STEPS = ["Identity", "Role", "Tags", "Fear", "Antagonists", "Confirm"];
@@ -150,6 +151,15 @@ export default function CreateCharacterWizard({
   const lastNameLocked = role?.lastNameLocked === true;
   const effectiveLastName = lastNameLocked ? (dynastyName ?? "") : lastName;
 
+  // Reads the honorific currently in the dropdown, so switching to Lady and
+  // rolling again gives a woman's name. A locked last name is left untouched
+  // rather than rolled and discarded — see db/lib/nameCorpus.js.
+  function rollName() {
+    const rolled = randomCharacterName({ honorific, lastNameLocked });
+    setFirstName(rolled.firstName);
+    if (!lastNameLocked) setLastName(rolled.lastName ?? "");
+  }
+
   // The player never sees a `title` here — it is GM-granted — so this is
   // exactly what their name will read as on creation.
   const displayName = formatCharacterName({
@@ -260,8 +270,16 @@ export default function CreateCharacterWizard({
               of your own.
             </p>
           )}
-          {/* The only place a player sees the join rule before submitting. */}
-          {displayName && <p className="text-sm text-muted">You will be known as {displayName}.</p>}
+          {/* The only place a player sees the join rule before submitting, and
+              where Randomize sits so a roll and its result read as one line. */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-muted">
+              {displayName ? `You will be known as ${displayName}.` : ""}
+            </p>
+            <button type="button" className="btn-secondary" onClick={rollName}>
+              Randomize
+            </button>
+          </div>
           <label className="field">
             <span className="field-label">Age (optional)</span>
             <input

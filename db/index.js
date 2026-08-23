@@ -359,6 +359,7 @@ module.exports = {
   ...require("./lib/roleIds"),
   ...require("./lib/roleColor"),
   ...require("./lib/characterName"),
+  ...require("./lib/nameCorpus"),
   ...require("./lib/dynasty"),
   ...require("./lib/concealedIdentity"),
   ...require("./lib/antagonists"),
