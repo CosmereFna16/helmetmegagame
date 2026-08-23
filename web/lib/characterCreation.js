@@ -230,7 +230,7 @@ export function formatCost(pointCost) {
 export function costColor(pointCost) {
   const cost = pointCost ?? 0;
   if (cost < 0) return "var(--positive)"; // grants points
-  if (cost > 0) return "var(--accent)"; // spends points
+  if (cost > 0) return "var(--accent-text)"; // spends points — the TEXT ember (see globals.css header rule 2)
   return "var(--muted)";
 }
 

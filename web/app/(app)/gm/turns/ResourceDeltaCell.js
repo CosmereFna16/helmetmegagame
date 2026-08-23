@@ -4,7 +4,7 @@
 export default function ResourceDeltaCell({ value }) {
   if (value == null) return <td className="text-muted">—</td>;
   return (
-    <td className="whitespace-nowrap" style={{ color: value < 0 ? "var(--accent)" : "var(--positive)" }}>
+    <td className="whitespace-nowrap" style={{ color: value < 0 ? "var(--accent-text)" : "var(--positive)" }}>
       {value > 0 ? `+${value}` : value}
     </td>
   );

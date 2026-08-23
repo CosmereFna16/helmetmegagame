@@ -119,7 +119,7 @@ export default function PointBuy({
         </div>
         <div className="text-sm" aria-live="polite">
           <span className="text-muted">Points remaining </span>
-          <strong style={{ color: remaining < 0 ? "var(--accent)" : "var(--text)" }}>
+          <strong style={{ color: remaining < 0 ? "var(--accent-text)" : "var(--text)" }}>
             {remaining}
           </strong>
           <span className="text-muted"> / {budget}</span>
@@ -160,7 +160,7 @@ export default function PointBuy({
                 style={{
                   borderLeftColor: groupColor ?? undefined,
                   borderLeftWidth: groupColor ? 3 : undefined,
-                  outline: isSelected ? "1px solid var(--accent)" : undefined,
+                  outline: isSelected ? "1px solid var(--accent-text)" : undefined,
                   opacity: unaffordable ? 0.55 : 1,
                   cursor: "pointer",
                 }}
@@ -168,7 +168,7 @@ export default function PointBuy({
                 <span
                   aria-hidden="true"
                   className="mt-0.5 shrink-0 text-sm"
-                  style={{ color: isSelected ? "var(--accent)" : "var(--muted)" }}
+                  style={{ color: isSelected ? "var(--accent-text)" : "var(--muted)" }}
                 >
                   {isSelected ? "◆" : "◇"}
                 </span>

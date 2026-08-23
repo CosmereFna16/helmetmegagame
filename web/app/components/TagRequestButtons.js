@@ -85,7 +85,7 @@ function TagPicker({ tags, selectedId, onSelect, byId = null, heldIds = null }) 
               style={{
                 borderLeftColor: tag.group?.color ?? undefined,
                 borderLeftWidth: tag.group?.color ? 3 : undefined,
-                outline: isSelected ? "1px solid var(--accent)" : undefined,
+                outline: isSelected ? "1px solid var(--accent-text)" : undefined,
               }}
             >
               <span aria-hidden="true">{isSelected ? "◆" : "◇"}</span>

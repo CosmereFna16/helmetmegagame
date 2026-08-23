@@ -56,7 +56,7 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
       aria-pressed={selected}
       className="panel flex w-full flex-col gap-1 p-3 text-left"
       style={{
-        outline: selected ? "1px solid var(--accent)" : undefined,
+        outline: selected ? "1px solid var(--accent-text)" : undefined,
         opacity: disabled ? 0.45 : 1,
         cursor: disabled ? "not-allowed" : "pointer",
       }}
@@ -66,7 +66,7 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
           {role.name}
           {role.grantsLeader && <Tooltip text="Leader"> ★</Tooltip>}
         </strong>
-        <span className="text-sm" style={{ color: full ? "var(--accent)" : "var(--muted)" }}>
+        <span className="text-sm" style={{ color: full ? "var(--accent-text)" : "var(--muted)" }}>
           {taken}/{cap === null ? "∞" : cap}
         </span>
       </span>

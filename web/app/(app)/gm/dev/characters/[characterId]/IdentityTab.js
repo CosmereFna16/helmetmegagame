@@ -12,7 +12,7 @@ import { HONORIFICS, NAME_LIMITS, AGE_MIN, AGE_MAX } from "@/lib/characterName";
 // A touched field is outlined so the GM can see at a glance what Apply is
 // about to write; `edits` is the staged diff from DevPanel.
 export default function IdentityTab({ staged, lastNameLocked, factions, zones, roles, edits, onField }) {
-  const touched = (key) => (Object.hasOwn(edits, key) ? { outline: "1px solid var(--accent)" } : undefined);
+  const touched = (key) => (Object.hasOwn(edits, key) ? { outline: "1px solid var(--accent-text)" } : undefined);
 
   return (
     <>

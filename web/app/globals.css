@@ -18,6 +18,14 @@
         token cannot be both a legible text colour and a rich fill. Use
         --accent for fills and rules, --accent-text for text and outlines.
         Collapsing them back into one is what made every button fail AA.
+
+   Each theme also names its own color-scheme. A handful of controls are drawn
+   by the browser rather than by this file — the unchecked checkbox, the date
+   picker's calendar glyph and its popup, the search field's clear button, the
+   <select> option list, the scrollbars — and they read that property and
+   nothing else. No rule here reaches them. Both underground themes are dark,
+   so declaring it costs nothing, and it is what stops a native control from
+   punching a white hole in a panel.
    ========================================================================== */
 
 :root {
@@ -88,6 +96,7 @@
 
 /* Dusk — banked coals. Deep, cool, near-black with a green-teal cast. */
 [data-theme="dusk"] {
+  color-scheme: dark;
   --bg: #111e1b;
   --surface: #1e352f;
   --surface-raised: #27443e;
@@ -109,6 +118,7 @@
 
 /* Dawn — lamps up. Not daylight: a warmer, lifted dark with brighter ember. */
 [data-theme="dawn"] {
+  color-scheme: dark;
   --bg: #1b1512;
   --surface: #362a24;
   --surface-raised: #46372d;
@@ -142,6 +152,7 @@
    a modal off a card. Do not "fix" this by darkening --surface: that turns
    crisp paper into muddy grey and costs the 1.53 ground separation. */
 [data-theme="limestone"] {
+  color-scheme: light;
   --bg: #d2ccc0;
   --surface: #fbfaf7;
   --surface-raised: #ffffff;

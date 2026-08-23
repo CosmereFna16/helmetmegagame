@@ -215,7 +215,7 @@ const SECTIONS = {
             <button
               type="button"
               className="btn self-start"
-              style={{ borderColor: "var(--accent)", color: "var(--accent)" }}
+              style={{ borderColor: "var(--accent)", color: "var(--accent-text)" }}
               onClick={onKill}
               disabled={killing}
             >

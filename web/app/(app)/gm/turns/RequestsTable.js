@@ -16,8 +16,8 @@ const COL_COUNT = 11;
 // because either one means "this didn't stand as the player made it".
 const STATUS_COLORS = {
   Passed: "var(--text)",
-  Edited: "var(--accent)",
-  Undone: "var(--accent)",
+  Edited: "var(--accent-text)",
+  Undone: "var(--accent-text)",
 };
 
 // A Feed Person request tops up the Lifeweb but deliberately leaves its
@@ -93,7 +93,7 @@ export default function RequestsTable({ requests, onReview, onView }) {
         <tbody>
           {pageRows.map((row) => (
             <Fragment key={row.id}>
-              <tr style={awaitingKill(row) ? { color: "var(--accent)" } : undefined}>
+              <tr style={awaitingKill(row) ? { color: "var(--accent-text)" } : undefined}>
                 <td>
                   <IconButton icon={EditIcon} label="Review this request" onClick={() => onReview?.(row)} />
                 </td>

@@ -152,7 +152,7 @@ function TagRow({ tag, holding, op, openTurn, selected, onToggleSelected, onStag
     staged === "add"
       ? "1px solid var(--positive)"
       : staged === "remove"
-        ? "1px solid var(--accent)"
+        ? "1px solid var(--accent-text)"
         : staged
           ? "1px dashed var(--accent-text)"
           : undefined;

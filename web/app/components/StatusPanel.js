@@ -4,7 +4,7 @@ import { turnsLeft, formatTurnsLeft } from "@/lib/turnFormat";
 import SetMoodButton from "./SetMoodButton";
 import TransferResourcesButton from "./TransferResourcesButton";
 
-const MOOD_COLORS = { NEUTRAL: "var(--text)", HAPPY: "var(--positive)", UNHAPPY: "var(--accent)" };
+const MOOD_COLORS = { NEUTRAL: "var(--text)", HAPPY: "var(--positive)", UNHAPPY: "var(--accent-text)" };
 
 // A labelled row, so Location / Resources / Mood line up on one grid instead
 // of each being its own ad-hoc flex line.
@@ -61,7 +61,7 @@ export default function StatusPanel({ character, isSelf, openTurn, parties }) {
 
         <Row label="Gambit">
           {modifiers.length ? (
-            <span style={{ color: total < 0 ? "var(--accent)" : total > 0 ? "var(--positive)" : "var(--text)" }}>
+            <span style={{ color: total < 0 ? "var(--accent-text)" : total > 0 ? "var(--positive)" : "var(--text)" }}>
               {total > 0 ? `+${total}` : total} to the die
             </span>
           ) : (

@@ -142,7 +142,7 @@ export default function PlayersTable({ characters, tags = [] }) {
               </td>
               <td>{c.zoneName || "-"}</td>
               <td>{c.status}</td>
-              <td style={{ color: c.cursed ? "var(--accent)" : "var(--muted)" }}>
+              <td style={{ color: c.cursed ? "var(--accent-text)" : "var(--muted)" }}>
                 {c.cursed ? "Cursed" : "-"}
               </td>
               <td className="mono">{c.resources} ⬢</td>
