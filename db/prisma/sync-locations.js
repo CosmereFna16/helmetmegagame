@@ -38,6 +38,11 @@ async function main() {
   if (summary.channelsReparented.length > 0) {
     console.log(`moved back into their category: ${summary.channelsReparented.join(", ")}`);
   }
+  const posts = summary.descriptionPosts;
+  console.log(
+    `description posts: ${posts.created} created, ${posts.updated} updated, ${posts.unchanged} unchanged` +
+      (posts.skipped > 0 ? `, ${posts.skipped} skipped (no -public forum)` : ""),
+  );
   if (summary.pruned.length > 0) {
     console.log(`pruned (deleted from DB + Discord): ${summary.pruned.join(", ")}`);
   }

@@ -5,7 +5,11 @@
 // channels (GameConfig.radioChannelId/intercomChannelId) — get cleared:
 //   - plain channel / narrowcast channel: every message deleted.
 //   - public forum posts: deleted entirely, UNLESS tagged "Persistent" (⏰)
-//     — those survive but have their messages cleared instead.
+//     — those survive but have their messages cleared instead — or tagged
+//     "Information" (🗺), which is skipped outright: not deleted, not cleared.
+//     🗺 is the generated "{Location}: Description" post, whose entire value is
+//     the text inside it, so ⏰'s "survives but emptied" is exactly wrong for
+//     it. Only db/lib/syncLocations.js ever applies 🗺.
 //   - private channel threads: deleted entirely (no top-level messages exist
 //     there, only threads — anyone can spin one up, not just GMs), UNLESS the
 //     thread's name carries the ⏰ prefix, which is the text-channel
@@ -29,7 +33,7 @@
 //
 // Entirely sequential (no Promise.all fan-out across locations/channels/
 // threads) to avoid bursting Discord's rate-limit buckets.
-const { PERSISTENT_TAG_NAME, isPersistentThreadName } = require("./persistence");
+const { PERSISTENT_TAG_NAME, INFORMATION_TAG_NAME, isPersistentThreadName } = require("./persistence");
 const {
   fetchAllMessages,
   bulkDeleteMessages,
@@ -73,9 +77,14 @@ async function wipePublicForum(location) {
   if (!location.discordPublicChannelId) return;
 
   const persistentTagId = await getForumTagId(location.discordPublicChannelId, PERSISTENT_TAG_NAME);
+  const informationTagId = await getForumTagId(location.discordPublicChannelId, INFORMATION_TAG_NAME);
   const threads = await collectThreads(location.discordPublicChannelId, { public: true, private: false });
 
   for (const thread of threads) {
+    // Untouched, before either branch: 🗺 is not "survives emptied", it's
+    // "the wipe does not reach in here at all".
+    if (informationTagId && thread.applied_tags?.includes(informationTagId)) continue;
+
     const isPersistent = persistentTagId && thread.applied_tags?.includes(persistentTagId);
     if (isPersistent) {
       await clearMessages(thread.id);

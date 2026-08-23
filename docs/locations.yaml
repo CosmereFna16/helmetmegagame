@@ -29,22 +29,52 @@
 #   destination list beneath it. `npm run map:check` reports crossing roads
 #   and nodes drawn on top of each other, which is the fast loop for moving
 #   these numbers around by hand.
-# - description: a sentence or two of flavor text for the location.
+# - description: the INTRO string — a sentence or two of flavor text. Short by
+#   necessity: this is what goes into the summary channel's topic, which is a
+#   single capped line. See the paragraph below.
+# - extendedDescription: the LONG-FORM description, with room to breathe. Goes
+#   into the generated description post (see below), not the topic, so length
+#   is not a concern here. Use a `|` block scalar for anything multi-line.
 # - publicSubLocations: ordered list (most important/flavorful first) of the
 #   sub-areas players can spin up forum posts for in the location's `-public`
 #   channel. Purely descriptive — there's no enforcement tying a forum post
-#   to one of these names.
-# - privateSubLocations: same idea, for secret/GM-facing sub-areas. Not
-#   surfaced anywhere yet beyond this file.
+#   to one of these names. Each entry is a `name` plus its own long-form
+#   `description`, which becomes one section of the description post:
+#
+#     publicSubLocations:
+#       - name: Throne Room
+#         description: |
+#           Whatever you want to say about the throne room.
+#
+#   A bare string (`- Throne Room`) is still accepted and reads as that name
+#   with an empty description, so the file can be converted piecemeal.
+# - privateSubLocations: same idea, for secret/GM-facing sub-areas — still a
+#   plain list of names. Not surfaced anywhere yet beyond this file.
 # - tags: free-text flavor/categorization labels for the location itself —
 #   unrelated to the player-facing Tag system. Empty until you fill them in.
 #
 # `description` + `publicSubLocations` are also pushed to Discord: every
 # sync (re)writes the location's plain/summary channel topic to
-# `{description} | **Sublocations**: {publicSubLocations, comma-joined}` —
+# `{description} | **Sublocations**: {sublocation names, comma-joined}` —
 # unlike the channel name, this keeps syncing on every run, even for
 # already-provisioned locations, so editing these two fields and re-running
 # the sync is enough to update the live channel topic.
+#
+# `extendedDescription` + each sublocation's `description` go somewhere else:
+# every sync generates one **locked, pinned** forum post per location, titled
+# "{name}: Description", at the top of the location's `-public` channel. Its
+# body is the location's extended description followed by a `###` section per
+# public sublocation — a sublocation with no text still gets its heading, so an
+# unwritten one is visibly unwritten rather than missing. The post carries the
+# 🗺 **Information** forum tag, which means the Dawn wipe skips it entirely
+# (⏰ Persistent is not enough: a ⏰ post survives but has its messages
+# deleted, which would blank the description every dawn).
+#
+# That post is reconciled by content hash on every sync: edit the text here,
+# re-run the sync, and the existing post is rewritten in place — same thread,
+# still pinned, still locked, no duplicate. A sync that changes nothing makes
+# no Discord writes at all. Delete the post by hand and the next sync rebuilds
+# it.
 #
 # Locations within a zone are ordered by narrative importance (throne room
 # first, etc.) — purely for readability of this file; it has no effect on
@@ -94,17 +124,28 @@ locations:
     zone: Fortress
     map: { x: 30, y: 8 }
     description: Ceramite, the color of terracotta and steel, supports the impregnable fortress.
+    extendedDescription: ""
     publicSubLocations:
-      - Throne Room
-      - Drawing Room
-      - Ballroom
-      - Council
-      - The Charon
-      - Quarters
-      - Kitchen
-      - Healer's Ward
-      - Library
-      - Reliquary Chapel
+      - name: Throne Room
+        description: ""
+      - name: Drawing Room
+        description: ""
+      - name: Ballroom
+        description: ""
+      - name: Council
+        description: ""
+      - name: The Charon
+        description: ""
+      - name: Quarters
+        description: ""
+      - name: Kitchen
+        description: ""
+      - name: Healer's Ward
+        description: ""
+      - name: Library
+        description: ""
+      - name: Reliquary Chapel
+        description: ""
     privateSubLocations: []
     tags: []
   - id: garrison
@@ -112,13 +153,20 @@ locations:
     zone: Fortress
     map: { x: 48, y: 10 }
     description: The garrison tower, surrounded by smaller stone buildings.
+    extendedDescription: ""
     publicSubLocations:
-      - Captain's Office
-      - Barracks
-      - Armory
-      - Dungeons
-      - Training Yard
-      - Kennels
+      - name: Captain's Office
+        description: ""
+      - name: Barracks
+        description: ""
+      - name: Armory
+        description: ""
+      - name: Dungeons
+        description: ""
+      - name: Training Yard
+        description: ""
+      - name: Kennels
+        description: ""
     privateSubLocations: []
     tags: []
   - id: gatehouse
@@ -126,12 +174,18 @@ locations:
     zone: Fortress
     map: { x: 38, y: 24 }
     description: Grass rises rebelliously around the manicured paths. Past the portcullis, old stone stairs rise towards the Keep, and further yet, to the Lifeweb.
+    extendedDescription: ""
     publicSubLocations:
-      - Gate
-      - Lifeweb
-      - Yard
-      - Stables
-      - Bell Tower
+      - name: Gate
+        description: ""
+      - name: Lifeweb
+        description: ""
+      - name: Yard
+        description: ""
+      - name: Stables
+        description: ""
+      - name: Bell Tower
+        description: ""
     privateSubLocations: []
     tags: []
   - id: undercroft
@@ -139,10 +193,14 @@ locations:
     zone: Fortress
     map: { x: 22, y: 20 }
     description: Pillars uphold the keep from collapsing onto the barrels of wine and antiquities. There are deeper passages.
+    extendedDescription: ""
     publicSubLocations:
-      - Cistern
-      - Tombs
-      - Bricked-up Door
+      - name: Cistern
+        description: ""
+      - name: Tombs
+        description: ""
+      - name: Bricked-up Door
+        description: ""
     privateSubLocations: []
     tags: []
 
@@ -152,14 +210,22 @@ locations:
     zone: Town
     map: { x: 74, y: 38 }
     description: Vines dress the homes. A crumbling wall, patched with wooden palisade, surrounds the town.
+    extendedDescription: ""
     publicSubLocations:
-      - Town Square
-      - Fields
-      - Inn
-      - Market Row
-      - Gallows
-      - Fountain
-      - Smithery
+      - name: Town Square
+        description: ""
+      - name: Fields
+        description: ""
+      - name: Inn
+        description: ""
+      - name: Market Row
+        description: ""
+      - name: Gallows
+        description: ""
+      - name: Fountain
+        description: ""
+      - name: Smithery
+        description: ""
     privateSubLocations: []
     tags: []
   - id: church
@@ -167,15 +233,24 @@ locations:
     zone: Town
     map: { x: 40, y: 46 }
     description: Stained limestone erected modestly upon a tall wooded hill. The inside is vastly illuminated.
+    extendedDescription: ""
     publicSubLocations:
-      - Hall
-      - Vestry
-      - Crypt
-      - Bell Tower
-      - Confessionals
-      - Scriptorium
-      - Courtyard
-      - Houses
+      - name: Hall
+        description: ""
+      - name: Vestry
+        description: ""
+      - name: Crypt
+        description: ""
+      - name: Bell Tower
+        description: ""
+      - name: Confessionals
+        description: ""
+      - name: Scriptorium
+        description: ""
+      - name: Courtyard
+        description: ""
+      - name: Houses
+        description: ""
     privateSubLocations: []
     tags: []
   - id: sanctuary
@@ -183,13 +258,20 @@ locations:
     zone: Town
     map: { x: 44, y: 62 }
     description: A squat and vulnerable place, immaculately clean.
+    extendedDescription: ""
     publicSubLocations:
-      - Ward
-      - Esculap's Office
-      - Theater
-      - Icebox
-      - Morgue
-      - Garden
+      - name: Ward
+        description: ""
+      - name: Esculap's Office
+        description: ""
+      - name: Theater
+        description: ""
+      - name: Icebox
+        description: ""
+      - name: Morgue
+        description: ""
+      - name: Garden
+        description: ""
     privateSubLocations: []
     tags: []
   - id: underquarter
@@ -197,12 +279,18 @@ locations:
     zone: Town
     map: { x: 70, y: 56 }
     description: Squat buildings, piled into discomfort.
+    extendedDescription: ""
     publicSubLocations:
-      - Shacks
-      - Abandoned Theater
-      - Gambling Den
-      - Bathhouse
-      - Old Lots
+      - name: Shacks
+        description: ""
+      - name: Abandoned Theater
+        description: ""
+      - name: Gambling Den
+        description: ""
+      - name: Bathhouse
+        description: ""
+      - name: Old Lots
+        description: ""
     privateSubLocations: []
     tags: []
 
@@ -211,6 +299,7 @@ locations:
     zone: Town
     map: { x: 12, y: 44 }
     description: Streams part mossy boulders under the green shadows of spruce and beech.
+    extendedDescription: ""
     publicSubLocations: []
     privateSubLocations: []
     tags: []
@@ -221,15 +310,24 @@ locations:
     zone: Windlands
     map: { x: 12, y: 72 }
     description: An arbitrary array of tents, shields, and banners rise against the mountainside.
+    extendedDescription: ""
     publicSubLocations:
-      - War Pavilion
-      - Common Grounds
-      - Healer's Tents
-      - Mess Hall
-      - Broken Spears Camp
-      - Lieutenant's Camp
-      - Fields
-      - Mountains
+      - name: War Pavilion
+        description: ""
+      - name: Common Grounds
+        description: ""
+      - name: Healer's Tents
+        description: ""
+      - name: Mess Hall
+        description: ""
+      - name: Broken Spears Camp
+        description: ""
+      - name: Lieutenant's Camp
+        description: ""
+      - name: Fields
+        description: ""
+      - name: Mountains
+        description: ""
     privateSubLocations: []
     tags: []
 
@@ -239,8 +337,10 @@ locations:
     zone: Caves
     map: { x: 82, y: 66 }
     description: The sentry beholds migrants and mercenaries as they talk around the fire.
+    extendedDescription: ""
     publicSubLocations:
-      - Outpost
+      - name: Outpost
+        description: ""
     privateSubLocations: []
     tags: []
   - id: merchants-depot
@@ -248,10 +348,14 @@ locations:
     zone: Caves
     map: { x: 92, y: 44 }
     description: Inside the caves, crates around a decayed metal frame. There is a small gap in the roof where light comes in.
+    extendedDescription: ""
     publicSubLocations:
-      - Ledger Room
-      - Shuttle Pad
-      - Bunkhouse
+      - name: Ledger Room
+        description: ""
+      - name: Shuttle Pad
+        description: ""
+      - name: Bunkhouse
+        description: ""
     privateSubLocations: []
     tags: []
   # The three levels of the Depths. They sit in the Caves zone, but moving
@@ -262,28 +366,26 @@ locations:
     name: Caverns
     zone: Caves
     map: { x: 58, y: 78 }
-    description: The first level down. Lamplit stone, worked smooth by centuries of traffic, and everywhere the draught of something deeper.
-    publicSubLocations:
-      - Lantern Gallery
-      - Sump
+    description: Wet, dimly-lit caves, worked smooth by centuries of traffic.
+    extendedDescription: ""
+    publicSubLocations: []
     privateSubLocations: []
     tags: []
   - id: railroad
     name: Railroad
     zone: Caves
     map: { x: 32, y: 88 }
-    description: The second level down. Rail runs out of the dark and stops here, and everyone who comes to Ravenheart from elsewhere arrives on it.
-    publicSubLocations:
-      - Platform
-      - Sidings
+    description: A powered train station looming over an inscrutable abyss. You could get on, but where would you go?
+    extendedDescription: ""
+    publicSubLocations: []
     privateSubLocations: []
     tags: []
   - id: aberrant-pits
     name: Aberrant Pits
     zone: Caves
     map: { x: 14, y: 95 }
-    description: The third level down. The start and end of all things.
-    publicSubLocations:
-      - Shaft Head
+    description: The start and end of all things. What madness brought you down among the ancient?
+    extendedDescription: ""
+    publicSubLocations: []
     privateSubLocations: []
     tags: []

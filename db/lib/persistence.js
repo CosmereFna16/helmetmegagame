@@ -8,11 +8,28 @@
 // db/lib/dawnWipe.js already fetches the raw thread objects with `name`
 // populated and so needs no extra API call to check it.
 //
+// A THIRD marker lives here too — the "Information" (🗺) forum tag — because
+// the wipe has to agree on it in exactly the same way, even though nothing
+// toggles it by hand. See INFORMATION_TAG_NAME below.
+//
 // Pure: no prisma, no REST, safe to import from either side.
 
 const PERSISTENT_TAG_NAME = "Persistent";
 const PERSISTENT_EMOJI = "⏰";
 const PERSISTENT_PREFIX = `${PERSISTENT_EMOJI} `;
+
+// Stronger than Persistent, and deliberately not the same thing. A ⏰ post
+// SURVIVES the Dawn wipe but has every message inside it deleted — fine for a
+// standing side-room, useless for a post whose entire point is the text in it.
+// A 🗺 post is skipped by the wipe outright: not deleted, not cleared.
+//
+// Applied only by db/lib/syncLocations.js, to the one generated
+// "{Location}: Description" post per -public forum. /persistent never sets it,
+// so there is no player-facing way to make a post un-wipeable — which is the
+// point, since the tag's whole meaning is "this is generated, the sync owns
+// it".
+const INFORMATION_TAG_NAME = "Information";
+const INFORMATION_EMOJI = "🗺";
 
 // Discord caps a thread name at 100 characters. Adding the prefix has to fit
 // inside that, so the tail is trimmed rather than the rename failing.
@@ -45,6 +62,8 @@ function withoutPersistentPrefix(name) {
 
 module.exports = {
   PERSISTENT_TAG_NAME,
+  INFORMATION_TAG_NAME,
+  INFORMATION_EMOJI,
   PERSISTENT_EMOJI,
   PERSISTENT_PREFIX,
   isPersistentThreadName,

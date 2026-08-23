@@ -2,7 +2,10 @@
 // web/app/(app)/gm/dev/actions.js) — distinct from the routine Dawn message
 // wipe (dawnWipe.js), which spares anything marked Persistent: a ⏰-tagged
 // forum post or a ⏰-prefixed private thread (db/lib/persistence.js). This is
-// a hard reset: nothing is spared, whatever it's marked with. Entirely
+// a hard reset: nothing is spared, whatever it's marked with — including the
+// 🗺 Information-tagged "{Location}: Description" posts the Dawn wipe skips
+// outright. That's correct: wipeGameData re-runs syncLocationsFromYaml, which
+// regenerates them from docs/locations.yaml. Entirely
 // sequential, same rate-limit reasoning as dawnWipe.js.
 const {
   getGuildChannels,

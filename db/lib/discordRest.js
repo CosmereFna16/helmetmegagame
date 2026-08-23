@@ -57,8 +57,12 @@ async function patchGuildChannelPositions(updates) {
   return discordRequest(`/guilds/${guildId}/channels`, { method: "PATCH", body: updates });
 }
 
-async function getChannel(channelId) {
-  return discordRequest(`/channels/${channelId}`);
+// allow404 is opt-in: most callers want a stale channel id to fail the run
+// loudly (a recorded id pointing at nothing means the DB and Discord disagree),
+// but a generated forum post a GM deleted by hand is an ordinary state the sync
+// is expected to repair by rebuilding it.
+async function getChannel(channelId, { allow404 = false } = {}) {
+  return discordRequest(`/channels/${channelId}`, { allow404 });
 }
 
 async function deleteChannel(channelId) {
@@ -127,6 +131,49 @@ async function startThread(channelId, name, autoArchiveMinutes = 10080) {
     method: "POST",
     body: { name, type: 11, auto_archive_duration: autoArchiveMinutes },
   });
+}
+
+// Edits a message the bot itself sent. Used to rewrite a generated forum
+// post's STARTER message in place (whose id equals the thread's own id) rather
+// than deleting and recreating the whole post — recreating would lose the
+// thread id, unpin it, and spam the forum with a new entry on every edit.
+async function editMessage(channelId, messageId, content) {
+  return discordRequest(`/channels/${channelId}/messages/${messageId}`, {
+    method: "PATCH",
+    body: { content },
+  });
+}
+
+// Creates a forum POST (a thread with a starter message) on a forum channel.
+// Distinct from startThread above, which makes a bare type-11 thread on a TEXT
+// channel: a forum thread cannot exist without its starter message, and
+// `applied_tags` can only be set here or by a later PATCH.
+//
+// Returns the thread object; `thread.id` doubles as the starter message's id.
+async function createForumPost(
+  forumChannelId,
+  { name, content, appliedTags = [], autoArchiveMinutes = 10080 },
+) {
+  return discordRequest(`/channels/${forumChannelId}/threads`, {
+    method: "POST",
+    body: {
+      name,
+      applied_tags: appliedTags,
+      auto_archive_duration: autoArchiveMinutes,
+      message: { content },
+    },
+  });
+}
+
+// A thread is a channel as far as the API is concerned, so this is patchChannel
+// under a name that says what it's for. The payload keys that matter here:
+// `locked`, `archived`, `applied_tags`, and `flags` — where flags bit 1 (value
+// 2) is PINNED, which is how a forum post gets pinned to the top of its forum.
+// There is no /pins endpoint for forum posts.
+const THREAD_FLAG_PINNED = 2;
+
+async function patchThread(threadId, payload) {
+  return patchChannel(threadId, payload);
 }
 
 async function deleteMessage(channelId, messageId) {
@@ -320,6 +367,11 @@ module.exports = {
   patchChannel,
   postMessage,
   postMessageBatched,
+  chunkMessage,
+  editMessage,
+  createForumPost,
+  patchThread,
+  THREAD_FLAG_PINNED,
   deleteMessage,
   fetchAllMessages,
   bulkDeleteMessages,
