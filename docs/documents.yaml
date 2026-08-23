@@ -81,9 +81,9 @@ documents:
       | Minor | 2 | — | {tag:medical-basic} | Routine |
       | Moderately severe | 2 | 1 | {tag:medical-skilled} | Routine |
       | Severe | 4 | 1 | {tag:medical-skilled} | Routine |
-      | Dangerous — surgery | 6 | 1 | {tag:medical-skilled} | Routine |
-      | Extremely complex surgery | 8 | 1 | {tag:medical-expert} | Routine |
-      | Ridiculous | 12 | 1 | {tag:medical-expert} | Gambit |
+      | Very minor surgery | 6 | 1 | {tag:medical-skilled} | Routine |
+      | Severe surgery | 8 | 1 | {tag:medical-expert} | Routine |
+      | Complex surgery | 8 | 1 | {tag:medical-expert} | Gambit |
 
       Turns are measured in Routine moves. The ⬢ is paid by whoever the medic names — the patient, a bystander, or a faction Silo — and anyone co-located can stand good for it.
 
@@ -97,7 +97,7 @@ documents:
 
       {tag:infected} → {tag:festering} → {tag:feverish} *and* {tag:necrosis} → {tag:sepsis} → {tag:dying}
 
-      Two ⬢ and a competent friend clears {tag:infected}. Twelve ⬢ and an Expert rolling a Gambit *might* clear {tag:sepsis}. Amputation is a real answer while the rot is still local — {tag:necrosis} is treated by taking the limb — but it stops being an answer once the fever is in the blood.
+      Two ⬢ and a competent friend clears {tag:infected}. Eight ⬢ and an Expert rolling a Gambit *might* clear {tag:sepsis}. Amputation is a real answer while the rot is still local — {tag:necrosis} is treated by taking the limb — but it stops being an answer once the fever is in the blood.
 
       Bleeding runs on its own clock. {tag:minor-bleeding} just leaves you {tag:drained}. {tag:severe-bleeding} and {tag:arterial-bleed} do not — those end at {tag:dying}, and the arterial one gives you about a day.
 
@@ -382,7 +382,40 @@ documents:
       - Brewing (Skilled)
       - Alcoholic
     description: |-
-      WIP
+      Nobody down here is sober because they chose to be. Drink and Bliss are how Ravenheart gets through the dark, and the trade in both is one of the few honest ways a poor man makes his money.
+
+      Brewing is a Routine Move like cooking — say what you're making, and if you have the skill and the ingredients, you've made it. The exception is the Dreamer's Draught, which is a Gambit.
+
+      **Brewing (Basic)** covers {tag:alcohol} and {tag:bliss}.
+      **Brewing (Skilled)** covers those, plus {tag:ravenheart-red} and the three tonics.
+
+      ## The base of it all
+
+      {tag:cave-fungus} grows wherever the lamps don't reach, and costs nothing but the walk to fetch it. Eat it raw and you'll be {tag:high} for two turns with no pleasure in it whatsoever — it tastes like the floor it grew on. Refined, it becomes something else entirely. Almost everything worth brewing starts here.
+
+      ## Drink
+
+      **Alcohol** — 1 ⬢. Beer, ale, mead, whatever the barrel held. Leaves you {tag:tipsy}.
+
+      **Ravenheart Red** — 4 ⬢, Skilled. The one genuinely exquisite thing this barony makes. {tag:tipsy} and {tag:happy}, and a fair object of a Desire — plenty of people here intend to taste it before they die and haven't yet.
+
+      **Bliss** — free but for the fungus, Basic. The best thing at any party in Ravenheart: {tag:happy} and {tag:high} for three turns, and — unlike the drink — no morning after. It costs nothing, which is exactly why it turns up wherever people have no money and something to celebrate.
+
+      Nothing here hands you a {tag:hungover} automatically. But if you spend the evening the way the evening deserves, expect a GM to write you the invoice.
+
+      ## Tonics
+
+      Each of these needs something you cannot buy. That ingredient is the real price, and getting hold of it is meant to be a scene rather than a shopping trip.
+
+      **Dreamer's Draught** — 6 ⬢, Skilled, and a **Gambit**: only a roll of 4 or better yields anything you'd want to drink, and a worse roll wastes the whole batch. Drink it, sleep, and put one question to the world. A GM answers it truthfully.
+
+      **Forgiveness** — 8 ⬢, Skilled. Needs **genuine tears**, freely wept — someone has to have been made to cry, and mean it, and no substitute will do. Whoever drinks it loses the last of what they knew: the argument, the debt, the thing they saw you do. It cannot reach into a player's head, so what it takes is the character's knowledge — a GM rules that they no longer know it, and they may no longer act on it.
+
+      **Flawless Skin** — 8 ⬢, Skilled. Needs **a lock of hair from someone bearing Nobility**, which means either a noble who owes you a favour or a noble who never finds out. Grants {tag:otherworldly-beauty} for three turns: unmarked, luminous, and not quite right.
+
+      ## Drinking too much of it
+
+      None of this is tracked by the game. Nobody counts your bottles and nothing automatically ruins you. But a character who drinks like that is a character who drinks like that, and a GM may decide that {tag:alcoholic} has stopped being a description and started being a fact. If you play it, expect it to arrive.
   # The Demoness threat's own brief (docs/threats.md). Assigned by the
   # Demoness tag, which is also what unlocks the hidden Demoness tag
   # category — so the paper and the powers arrive together.

@@ -153,7 +153,7 @@ export async function dropCharacterTag(tx, characterId, tagId, quantity = null) 
 // (expiry included: their existing one is the live truth, and clobbering it
 // would silently extend or cut short something they already had). Undo may
 // only take back what this request really added.
-export async function grantTagSlugs(tx, characterId, slugs, turnNumber) {
+export async function grantTagSlugs(tx, characterId, slugs, turnNumber, durations = null) {
   if (!slugs?.length) return [];
 
   const owed = new Map();
@@ -181,10 +181,14 @@ export async function grantTagSlugs(tx, characterId, slugs, turnNumber) {
       // A granted tag with its own duration starts its clock now, which is
       // what makes a chain work (meal -> Ate Meal that the sweep clears).
       // Same absolute-turn expression as db/lib/hungerPass.js.
+      //
+      // A per-grant override (Tag.consumesIntoDurations, resolved by
+      // web/lib/consumeGrants.js) wins over the tag's own duration, so one
+      // status can outlast itself depending on what produced it — Bliss
+      // leaves you High a turn longer than the raw fungus does.
+      const durationTurns = durations?.[slug] ?? tag.defaultDurationTurns;
       const expiresTurn =
-        turnNumber != null && tag.defaultDurationTurns != null
-          ? turnNumber + tag.defaultDurationTurns
-          : null;
+        turnNumber != null && durationTurns != null ? turnNumber + durationTurns : null;
       await tx.characterTag.create({
         data: {
           characterId,

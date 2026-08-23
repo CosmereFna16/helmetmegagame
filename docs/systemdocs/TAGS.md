@@ -356,6 +356,30 @@ Five rules carry it:
   worse than no preview. Fine Meal is the only conditional entry today:
   it cheers an ordinary person, while Nobility expect one as a matter of
   course.
+- **A grant may override the target's expiry.** The same object form takes an
+  optional `durationTurns`, which replaces the granted tag's own
+  `defaultDurationTurns` for that grant only:
+
+  ```yaml
+  consumesInto:
+    - happy
+    - slug: high
+      durationTurns: 3
+  ```
+
+  This exists because one status can mean different things depending on what
+  produced it. Raw Cave Fungus leaves you High for 2 turns; Bliss, which
+  is Cave Fungus properly worked, leaves you High for 3. The alternative —
+  `high-2` and `high-3` as separate tags — pushes an implementation detail
+  into the player-facing catalog and multiplies with every future drink.
+
+  It is stored in a second sidecar, `Tag.consumesIntoDurations` (`Json`,
+  `{ "<slug>": N }`, null for almost every tag), resolved by the same
+  `resolveConsumeGrants()` and applied by `grantTagSlugs()`, which prefers the
+  override and falls back to the tag's own duration. An override on a target
+  that has no duration of its own is legal and simply gives it one — but never
+  point one at `ate-meal`, which is deliberately never swept because the
+  Hunger pass consumes it explicitly.
 
 Consuming is a **Request** (`CONSUME_TAG`), so it lands immediately, carries
 a reason, and a GM can Undo it — see `REQUESTS.md` §3. The undo snapshot
@@ -405,11 +429,20 @@ learns it once and can then read any affliction they meet.
 | 2 | Minor | 2 | 0 | Basic | no |
 | 3 | Moderately severe | 2 | 1 | Skilled | no |
 | 4 | Severe | 4 | 1 | Skilled | no |
-| 5 | Dangerous, surgery | 6 | 1 | Skilled | no |
-| 6 | Extremely complex surgery | 8 | 1 | Expert | no |
-| 7 | Ridiculous | 12 | 1 | Expert | yes |
+| 5 | Very minor surgery | 6 | 1 | Skilled | no |
+| 6 | Severe surgery | 8 | 1 | Expert | no |
+| 7 | Complex surgery | 8 | 1 | Expert | yes |
 
-Three things about it are deliberate.
+Four things about it are deliberate.
+
+**The top three rungs are the surgical ones, and they carry the whole
+balance.** A Serpent closes an arterial bleed and cuts away dead flesh without
+rolling — that is tier 5, and it is all the surgery they get. Anything that
+means opening a chest or a belly is Esculap's work at tier 6; a Serpent may
+still attempt it, but they roll. Tier 7 is the rung even Esculap rolls for,
+which is why it shares tier 6's price: what separates the two is the Gambit,
+not the bill. Only six tags sit above tier 5, and that scarcity is the point —
+Esculap's time should be a thing players negotiate over.
 
 **Realism sets the rung, not severity.** Severity and duration matter, but the
 question that decides a tier is *what would it actually take a person to fix
@@ -432,8 +465,8 @@ stops a player from *trying* — it is a Gambit, and a failed Gambit can leave
 the patient worse than it found them. The requirement names what a character
 does **as routine**, which is why the three Medical descriptions are phrased
 that way and why the Medical document says so outright. A Serpent
-(Medical (Skilled)) can attempt a tier-6 surgery; they just roll for it, while
-Esculap (Medical (Expert)) does not.
+(Medical (Skilled)) can attempt the tier-6 surgery a punctured lung needs;
+they just roll for it, while Esculap (Medical (Expert)) does not.
 
 Only `requirementResources` and `requirementSkills` are enforced — by the Heal
 request, which charges the ⬢ and checks the tier chain. `requirementTurns` and

@@ -53,6 +53,14 @@ groups:
     name: Food
     category: items
     color: "#cf9f56"
+  # Drink is its own group rather than a corner of Food: the catalog is a
+  # supply chain (fungus -> Bliss, grain -> Alcohol -> the Red) and the
+  # tonics above it are nothing like a meal. See the Alcohol & Drugs
+  # document in docs/documents.yaml.
+  - slug: items-drink
+    name: Drink
+    category: items
+    color: "#8c5566"
   - slug: items-gear
     name: Gear
     category: items
