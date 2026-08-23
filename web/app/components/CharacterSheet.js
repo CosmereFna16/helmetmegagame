@@ -9,8 +9,7 @@ import EquipmentPanel from "./EquipmentPanel";
 import RichText from "./RichText";
 import FactionLink from "./FactionLink";
 import PageShell from "@/app/components/PageShell";
-import { HONORIFICS, NAME_LIMITS, AGE_MIN, AGE_MAX } from "@/lib/characterName";
-import InfoIcon from "./InfoIcon";
+import BioNameFields from "./BioNameFields";
 
 // Raw d6 first, then the summed modifier (Mood ±1, Hunger -1) and the total —
 // a GM reading this has to be able to tell a modified 5 from a natural 5.
@@ -144,81 +143,7 @@ export default function CharacterSheet({
           <section className="panel p-4">
             <h2 className="panel-header">Bio</h2>
             <form action={updateCharacterProfile} encType="multipart/form-data" className="flex flex-col gap-3">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="field">
-                  <span className="field-label">Title</span>
-                  <select name="honorific" defaultValue={character.honorific ?? ""}>
-                    <option value="">(none)</option>
-                    {HONORIFICS.map((h) => (
-                      <option key={h} value={h}>
-                        {h}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  <span className="field-label">First name</span>
-                  <input
-                    name="firstName"
-                    defaultValue={character.firstName}
-                    maxLength={NAME_LIMITS.firstName}
-                    required
-                  />
-                </label>
-                {/* The Baron's family wear his surname rather than choosing
-                    one, so the field is shown but dead — updateCharacterProfile
-                    never reads it for them, which is the actual lock. */}
-                <label className="field">
-                  <span className="field-label flex items-center gap-1.5">
-                    {lastNameLocked ? "Last name" : "Last name (optional)"}
-                    {lastNameLocked && (
-                      <InfoIcon text="Your dynasty's name, chosen by the Baron. It updates on its own when he takes or changes it." />
-                    )}
-                  </span>
-                  <input
-                    name="lastName"
-                    defaultValue={character.lastName ?? ""}
-                    maxLength={NAME_LIMITS.lastName}
-                    placeholder={lastNameLocked ? "No dynasty name yet" : undefined}
-                    disabled={lastNameLocked}
-                  />
-                </label>
-                {/* Free to set once, then fixed — same treatment as the
-                    GM-granted title below. The disabled input submits nothing,
-                    and updateCharacterProfile refuses to overwrite a non-null
-                    age regardless, which is the actual lock. */}
-                <label className="field">
-                  <span className="field-label flex items-center gap-1.5">
-                    Age
-                    {character.age !== null && (
-                      <InfoIcon text="Your age is fixed once you set it. Ask a GM if it needs changing." />
-                    )}
-                  </span>
-                  <input
-                    type="number"
-                    name="age"
-                    min={AGE_MIN}
-                    max={AGE_MAX}
-                    defaultValue={character.age ?? ""}
-                    placeholder={`${AGE_MIN}\u2013${AGE_MAX}`}
-                    disabled={character.age !== null}
-                  />
-                </label>
-                {/* Granted by a GM, so it is shown but not editable. Being
-                    `disabled` it submits nothing, and updateCharacterProfile
-                    never reads it — that, not the greying, is the lock. */}
-                <label className="field">
-                  <span className="field-label flex items-center gap-1.5">
-                    Granted title
-                    <InfoIcon text="Granted by a GM, and rendered in quotes between your names. Make your case to a GM." />
-                  </span>
-                  <input
-                    defaultValue={character.title ?? ""}
-                    placeholder="None granted"
-                    disabled
-                  />
-                </label>
-              </div>
+              <BioNameFields character={character} lastNameLocked={lastNameLocked} />
               <AvatarField
                 defaultTurnPingOptIn={character.turnPingOptIn}
                 defaultRomanceOptOut={character.romanceOptOut}
