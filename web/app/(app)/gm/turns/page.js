@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma, describeMoveEffects } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requests";
+import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel } from "@/lib/moves";
 import { getOpenTurn } from "@/lib/turn";
 import AdjudicateTabs from "./AdjudicateTabs";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
@@ -10,20 +11,6 @@ const HISTORY_LIMIT = 500;
 const DESCRIPTION_LIMIT = 100;
 
 // Player-side submission states, before a Move reaches the GM at all.
-const PIPELINE_LABELS = {
-  PENDING_TYPE: "Setting up Move",
-  PENDING_OPPOSED: "Picking Opposed",
-  PENDING: "Pending confirm",
-};
-
-const REVIEW_LABELS = {
-  OPEN: "Open",
-  PASSED: "Passed",
-  WAITING_FOR_OPPONENTS: "Waiting for Opponents",
-  IN_PROGRESS: "In Progress",
-  SOLVED: "Solved",
-};
-
 function isConfirmed(a) {
   return a.status === "CONFIRMED" || a.status === "ADJUDICATED";
 }
@@ -31,15 +18,13 @@ function isConfirmed(a) {
 // "In Progress" is DERIVED from a live lock rather than stored, so a GM whose
 // browser died can never strand a Move in that state — the lock simply lapses.
 function statusLabel(a, now) {
-  if (!isConfirmed(a)) return PIPELINE_LABELS[a.status] ?? a.status;
+  if (!isConfirmed(a)) return MOVE_PIPELINE_LABELS[a.status] ?? a.status;
   if (a.lockExpiresAt && a.lockExpiresAt > now) return "In Progress";
-  return REVIEW_LABELS[a.moveReviewStatus] ?? "Open";
+  return MOVE_REVIEW_LABELS[a.moveReviewStatus] ?? "Open";
 }
 
 function kindLabel(a) {
-  if (a.moveKind === "GAMBIT") return "Gambit";
-  if (a.moveKind === "ROUTINE") return "Routine";
-  return "Move";
+  return moveKindLabel(a.moveKind);
 }
 
 // Raw roll, then the summed modifier (Mood ±1, Hunger -1) and total — a GM

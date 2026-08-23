@@ -1,5 +1,6 @@
 "use client";
 
+import { EnumPill, DESIRE_STATUS } from "@/app/components/StatusPill";
 import { useState, useTransition } from "react";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { setDesireGm, endDesireGm, fulfillWorstFearGm } from "./actions";
@@ -174,7 +175,7 @@ export default function GoalsTab({ character, staged, desires, openTurn, onField
           <ul className="flex flex-col gap-1 text-sm">
             {past.map((d) => (
               <li key={d.id} className="flex flex-wrap items-baseline gap-2">
-                <span className="mono text-xs text-muted">{d.status}</span>
+                <EnumPill map={DESIRE_STATUS} value={d.status} />
                 <span>{d.text}</span>
                 <span className="mono text-xs text-muted">
                   {d.points} pt · turn {d.endedTurnNumber ?? "—"}

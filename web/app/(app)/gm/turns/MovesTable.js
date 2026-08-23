@@ -1,5 +1,6 @@
 "use client";
 
+import StatusPill from "@/app/components/StatusPill";
 import { Fragment, useMemo, useState } from "react";
 import { useTableState, SortHeader, FilterBar, TableScroll } from "@/app/components/DataTable";
 import Pager from "@/app/components/Pager";
@@ -14,13 +15,16 @@ const COL_COUNT = 11;
 
 // Open is deliberately plain body text, not a colour — it's the default
 // state of every Move and colouring it would make the whole table shout.
-const STATUS_COLORS = {
-  Open: "var(--text)",
+// Tones, not colours: what a Move's status MEANS here. The vocabulary is
+// shared with every other status in the app (see StatusPill); the mapping is
+// local because a Move's states are not a Request's.
+const STATUS_TONES = {
+  Open: "neutral",
   // Where Routines land: already resolved, so it reads as quiet as Open.
-  Passed: "var(--text)",
-  "Waiting for Opponents": "var(--warning)",
-  "In Progress": "var(--warning)",
-  Solved: "var(--positive)",
+  Passed: "neutral",
+  "Waiting for Opponents": "warn",
+  "In Progress": "warn",
+  Solved: "good",
 };
 
 const FILTER_DEFS = [
@@ -116,11 +120,10 @@ export default function MovesTable({ moves, onAdjudicate, onView }) {
                     {row.rollLabel ? ` · ${row.rollLabel}` : ""}
                   </span>
                 </td>
-                <td
-                  className="whitespace-nowrap"
-                  style={{ color: STATUS_COLORS[row.statusLabel] ?? "var(--text)" }}
-                >
-                  {row.statusLabel}
+                <td className="whitespace-nowrap">
+                  <StatusPill tone={STATUS_TONES[row.statusLabel] ?? "neutral"}>
+                    {row.statusLabel}
+                  </StatusPill>
                 </td>
                 <ResourceDeltaCell value={row.resourceDelta} />
                 <td className="text-muted">{row.gmNotes || "—"}</td>

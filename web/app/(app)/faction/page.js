@@ -1,3 +1,4 @@
+import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import FactionLink from "@/app/components/FactionLink";
@@ -352,7 +353,9 @@ export default async function FactionPage({ searchParams }) {
                       {c.isLeader ? " (Leader)" : ""}
                       {treasurer ? " (Treasurer)" : ""}
                     </td>
-                    <td>{c.status}</td>
+                    <td>
+                      <EnumPill map={CHARACTER_STATUS} value={c.status} />
+                    </td>
                     {viewCanManageSilo && <td>{c.resources} ⬢</td>}
                     {canManageMembers && (
                       <td>
@@ -475,7 +478,9 @@ export default async function FactionPage({ searchParams }) {
                     {c.isLeader ? " (Leader)" : ""}
                     {treasurer ? " (Treasurer)" : ""}
                   </td>
-                  <td>{c.status}</td>
+                  <td>
+                      <EnumPill map={CHARACTER_STATUS} value={c.status} />
+                    </td>
                   <td>{c.resources} ⬢</td>
                   <td>
                     {!isUnaffiliated && !c.isLeader && (

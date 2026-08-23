@@ -1,5 +1,6 @@
 "use client";
 
+import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { useMemo, useState, useTransition } from "react";
 import { sendGmMessage, bulkTagCharacters } from "../actions";
 import { filterTagsByQuery, sortTagsForMenu } from "@/lib/characterCreation";
@@ -141,7 +142,9 @@ export default function PlayersTable({ characters, tags = [] }) {
                 <FactionLink factionId={c.factionId} name={c.factionName || "-"} />
               </td>
               <td>{c.zoneName || "-"}</td>
-              <td>{c.status}</td>
+              <td>
+                <EnumPill map={CHARACTER_STATUS} value={c.status} />
+              </td>
               <td style={{ color: c.cursed ? "var(--accent-text)" : "var(--muted)" }}>
                 {c.cursed ? "Cursed" : "-"}
               </td>

@@ -8,28 +8,9 @@ import { UserError } from "@/lib/actionResult";
 
 export { MAX_REASON_LENGTH };
 
-export const REQUEST_TYPE_LABELS = {
-  FULFILL_DESIRE: "Fulfill Desire",
-  ADD_TAG: "Add Tag",
-  REMOVE_TAG: "Remove Tag",
-  CONSUME_TAG: "Consume Tag",
-  TRANSFER_RESOURCES: "Transfer Resources",
-  TRANSFER_TAG: "Transfer Tag",
-  SET_MOOD: "Set Mood",
-  DONATE_BLOOD: "Donate Blood",
-  FEED_PERSON: "Feed Person",
-  CHANGE_WORST_FEAR: "Change Worst Fear",
-  // Not "Fulfill Worst Fear" — that reads like the player achieved
-  // something, and every other label here is a thing they did.
-  FULFILL_WORST_FEAR: "Worst Fear Comes True",
-  HEAL_CHARACTER: "Heal",
-};
-
-export const REQUEST_STATUS_LABELS = {
-  PASSED: "Passed",
-  EDITED: "Edited",
-  UNDONE: "Undone",
-};
+// Defined in requestLabels.js so client components can have them without
+// pulling this module's Prisma import into the browser bundle.
+export { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS, REQUEST_STATUS_TONES } from "@/lib/requestLabels";
 
 // Server actions are public endpoints, so the reason is validated here rather
 // than trusted from the dialog that collected it.

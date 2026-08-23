@@ -1,3 +1,4 @@
+import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@lifeweb/db";
@@ -47,7 +48,9 @@ export default async function DevCharactersPage() {
                   <FactionLink factionId={c.factionId} name={c.faction?.name ?? "-"} />
                 </td>
                 <td>{c.zone?.name ?? "-"}</td>
-                <td>{c.status}</td>
+                <td>
+                  <EnumPill map={CHARACTER_STATUS} value={c.status} />
+                </td>
                 <td>{c.resources} ⬢</td>
               </tr>
             ))}

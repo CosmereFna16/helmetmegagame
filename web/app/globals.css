@@ -912,6 +912,30 @@ input[type="radio"]:disabled {
   color: var(--accent-text);
 }
 
+/* A state, wearing what it means rather than a colour a call site picked. The
+   tones are the whole vocabulary — a status cannot reach for a colour the
+   themes have not solved, which is how "bad" ended up drawn with --accent in
+   some tables and --danger in others.
+
+   Quiet by design: it borrows .chip's shape but not its border, because most
+   rows in a long table are in the ordinary state and a table where every row
+   shouts reads as noise. Only the tones that MEAN something take a colour. */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-tight);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.status-pill[data-tone="muted"] { color: var(--muted); }
+.status-pill[data-tone="good"] { color: var(--positive); }
+.status-pill[data-tone="warn"] { color: var(--warning); }
+.status-pill[data-tone="bad"] { color: var(--danger); }
+.status-pill[data-tone="accent"] { color: var(--accent-text); }
+
 .chip {
   display: inline-flex;
   align-items: center;

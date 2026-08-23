@@ -1,5 +1,6 @@
 "use client";
 
+import StatusPill from "@/app/components/StatusPill";
 import { Fragment, useMemo, useState } from "react";
 import { useTableState, SortHeader, FilterBar, TableScroll } from "@/app/components/DataTable";
 import Pager from "@/app/components/Pager";
@@ -14,10 +15,15 @@ const COL_COUNT = 11;
 
 // Passed is the untouched default and stays plain; both GM verdicts are red,
 // because either one means "this didn't stand as the player made it".
-const STATUS_COLORS = {
-  Passed: "var(--text)",
-  Edited: "var(--accent-text)",
-  Undone: "var(--accent-text)",
+//
+// Tones, not colours -- see MovesTable. The mapping stays local because a
+// Request's states are not a Move's, but the vocabulary is shared. Note the
+// verdicts now actually render red: they were ember (--accent), which this
+// comment has always said they were not.
+const STATUS_TONES = {
+  Passed: "neutral",
+  Edited: "bad",
+  Undone: "bad",
 };
 
 // A Feed Person request tops up the Lifeweb but deliberately leaves its
@@ -125,11 +131,10 @@ export default function RequestsTable({ requests, onReview, onView }) {
                     {row.gmNotes ? ` · ${row.gmNotes}` : ""}
                   </span>
                 </td>
-                <td
-                  className="whitespace-nowrap"
-                  style={{ color: STATUS_COLORS[row.statusLabel] ?? "var(--text)" }}
-                >
-                  {row.statusLabel}
+                <td className="whitespace-nowrap">
+                  <StatusPill tone={STATUS_TONES[row.statusLabel] ?? "neutral"}>
+                    {row.statusLabel}
+                  </StatusPill>
                 </td>
                 <ResourceDeltaCell value={row.resourceDelta} />
               </tr>

@@ -1,5 +1,6 @@
 "use client";
 
+import { CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -347,7 +348,7 @@ export default function DevPanel({
 function StateStrip({ character, staged, discord, held, equipSlots, gambitModifier, openTurn, hasActed }) {
   const equipped = held.filter((h) => h.equipped).length;
   const facts = [
-    ["Status", character.status],
+    ["Status", CHARACTER_STATUS[character.status]?.label ?? character.status],
     ["Role", staged.roleTitle ?? "—"],
     [
       "Faction",
