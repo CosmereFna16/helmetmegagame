@@ -9,6 +9,7 @@ import { updateGameConfig, updateCurrentTurn, updateNextTurn } from "./actions";
 import EndTurnButton from "./EndTurnButton";
 import WipeGameButton from "./WipeGameButton";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
+import Switch from "@/app/components/Switch";
 
 const WEATHER_OPTIONS = [
   { value: "CLEAR", label: "Clear" },
@@ -150,52 +151,39 @@ export default async function DevPanelPage() {
             <span className="field-label">Equip slots</span>
             <input type="number" name="equipSlots" min="1" max="20" defaultValue={config.equipSlots} />
           </label>
-          <label className="flex items-center gap-2 text-sm col-span-full">
-            <input type="checkbox" name="openToPlayers" defaultChecked={config.openToPlayers} />
+          <Switch name="openToPlayers" defaultChecked={config.openToPlayers} className="col-span-full">
             Open to players (lets anyone holding the player role create a character — off means the game
             hasn&apos;t launched; /documents stays readable either way)
-          </label>
-          <label className="flex items-center gap-2 text-sm col-span-full">
-            <input type="checkbox" name="avatarUploadsEnabled" defaultChecked={config.avatarUploadsEnabled} />
+          </Switch>
+          <Switch name="avatarUploadsEnabled" defaultChecked={config.avatarUploadsEnabled} className="col-span-full">
             Allow players to upload their own profile picture (off means everyone shows their letter plaque)
-          </label>
-          <label className="flex items-center gap-2 text-sm col-span-full">
-            <input type="checkbox" name="portraitMakerEnabled" defaultChecked={config.portraitMakerEnabled} />
+          </Switch>
+          <Switch name="portraitMakerEnabled" defaultChecked={config.portraitMakerEnabled} className="col-span-full">
             Show the &quot;Customize Appearance&quot; portrait maker on /character (off means everyone falls
             back to their letter plaque or an uploaded picture)
-          </label>
-          <label className="flex items-center gap-2 text-sm col-span-full">
-            <input
-              type="checkbox"
-              name="portraitFantasyPartsEnabled"
-              defaultChecked={config.portraitFantasyPartsEnabled}
-            />
+          </Switch>
+          <Switch name="portraitFantasyPartsEnabled" defaultChecked={config.portraitFantasyPartsEnabled} className="col-span-full">
             Allow the portrait maker&apos;s fantasy parts — pointed ears, horns, antlers, unnatural hair and
             eye colours. Off by default; Ravenheart is low fantasy and human-only.
-          </label>
-          <label className="flex items-center gap-2 text-sm col-span-full">
-            <input type="checkbox" name="messageWipeEnabled" defaultChecked={config.messageWipeEnabled} />
+          </Switch>
+          <Switch name="messageWipeEnabled" defaultChecked={config.messageWipeEnabled} className="col-span-full">
             Wipe messages at Dawn (archives everything to #archive first — see docs/systemdocs/CHANNELS.md)
-          </label>
-          <label className="flex items-center gap-2 text-sm col-span-full">
-            <input type="checkbox" name="tupperAutocorrectEnabled" defaultChecked={config.tupperAutocorrectEnabled} />
+          </Switch>
+          <Switch name="tupperAutocorrectEnabled" defaultChecked={config.tupperAutocorrectEnabled} className="col-span-full">
             Capitalize sentence starts in Tupper messages before proxying
-          </label>
-          <label className="flex items-center gap-2 text-sm col-span-full">
-            <input type="checkbox" name="nicknameSyncEnabled" defaultChecked={config.nicknameSyncEnabled} />
+          </Switch>
+          <Switch name="nicknameSyncEnabled" defaultChecked={config.nicknameSyncEnabled} className="col-span-full">
             Sync Discord nicknames to &quot;{"{base}"} | Character Name&quot; on profile/character changes
-          </label>
-          <label className="flex items-center gap-2 text-sm col-span-full">
-            <input type="checkbox" name="archiveVisible" defaultChecked={config.archiveVisible} />
+          </Switch>
+          <Switch name="archiveVisible" defaultChecked={config.archiveVisible} className="col-span-full">
             Open /archive to players — <strong>effectively one-way</strong>: it shows every location
             regardless of where a character stood, and names the character behind every /conceal.
             Meant for after the game ends.
-          </label>
-          <label className="flex items-center gap-2 text-sm col-span-full">
-            <input type="checkbox" name="archiveTravelEvents" defaultChecked={config.archiveTravelEvents} />
+          </Switch>
+          <Switch name="archiveTravelEvents" defaultChecked={config.archiveTravelEvents} className="col-span-full">
             Record arrivals/departures in the archive (makes a location read like a story; also two
             rows per character per turn before anyone speaks)
-          </label>
+          </Switch>
           <div className="col-span-full">
             <button type="submit" className="btn">Save config</button>
           </div>

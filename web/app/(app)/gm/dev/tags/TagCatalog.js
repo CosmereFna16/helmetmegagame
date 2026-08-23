@@ -1,5 +1,6 @@
 "use client";
 
+import CheckField from "@/app/components/CheckField";
 import { useMemo, useState, useTransition } from "react";
 import {
   useTableState,
@@ -259,10 +260,9 @@ function TagDialog({ tag, groups, categories, pending, error, onCancel, onSave }
 
         <div className="grid gap-1 sm:grid-cols-2">
           {BOOLEAN_FIELDS.map(([key, label]) => (
-            <label key={key} className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={Boolean(values[key])} onChange={(e) => set(key, e.target.checked)} />
+            <CheckField key={key} checked={Boolean(values[key])} onChange={(e) => set(key, e.target.checked)}>
               {label}
-            </label>
+            </CheckField>
           ))}
         </div>
 

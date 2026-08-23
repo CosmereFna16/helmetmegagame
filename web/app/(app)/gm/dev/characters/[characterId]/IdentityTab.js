@@ -1,5 +1,7 @@
 "use client";
 
+import CheckField from "@/app/components/CheckField";
+import Switch from "@/app/components/Switch";
 import InfoIcon from "@/app/components/InfoIcon";
 import { HONORIFICS, NAME_LIMITS, AGE_MIN, AGE_MAX } from "@/lib/characterName";
 
@@ -144,22 +146,18 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
             {/* Promoting through Apply demotes the faction's existing leader
                 in the same transaction — writing isLeader bare is how a
                 faction ends up with two. */}
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={Boolean(staged.isLeader)}
-                onChange={(e) => onField("isLeader", e.target.checked)}
-              />
+            <CheckField
+              checked={Boolean(staged.isLeader)}
+              onChange={(e) => onField("isLeader", e.target.checked)}
+            >
               Faction Leader
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={Boolean(staged.isTreasurer)}
-                onChange={(e) => onField("isTreasurer", e.target.checked)}
-              />
+            </CheckField>
+            <CheckField
+              checked={Boolean(staged.isTreasurer)}
+              onChange={(e) => onField("isTreasurer", e.target.checked)}
+            >
               Faction Treasurer
-            </label>
+            </CheckField>
           </div>
         </div>
 
@@ -234,22 +232,18 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
             style={touched("appearance")}
           />
         </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={Boolean(staged.turnPingOptIn)}
-            onChange={(e) => onField("turnPingOptIn", e.target.checked)}
-          />
+        <Switch
+          checked={Boolean(staged.turnPingOptIn)}
+          onChange={(e) => onField("turnPingOptIn", e.target.checked)}
+        >
           Wants the turn-advance ping
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={Boolean(staged.romanceOptOut)}
-            onChange={(e) => onField("romanceOptOut", e.target.checked)}
-          />
+        </Switch>
+        <Switch
+          checked={Boolean(staged.romanceOptOut)}
+          onChange={(e) => onField("romanceOptOut", e.target.checked)}
+        >
           Opted out of romance plots
-        </label>
+        </Switch>
       </section>
     </>
   );

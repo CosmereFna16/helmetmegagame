@@ -436,6 +436,9 @@ h3 {
 .field textarea:focus-visible,
 .field select:focus-visible,
 .control:focus-visible,
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible,
+.switch-track:focus-visible,
 .menu-item:focus-visible,
 .rail-item:focus-visible,
 .tab-item:focus-visible,
@@ -674,6 +677,208 @@ h3 {
   color: var(--muted);
   cursor: not-allowed;
   opacity: 1; /* browsers grey this out themselves; --muted already carries it */
+}
+
+/* ── Booleans ───────────────────────────────────────────────────────────────
+
+   A checkbox means "this row is selected". A switch means "this setting is
+   on". Before this the stylesheet had no rule for either, so all 26 boolean
+   controls in the app rendered as native OS chrome on top of two dark themes,
+   and seven different label wrappers had grown up around them.
+
+   The element is styled rather than a class, deliberately: `input[type=...]`
+   is 0,0,1, the lowest-specificity rule there is, so it loses to everything
+   and reached all 26 call sites without opening a single component file. */
+input[type="checkbox"],
+input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  /* flex: none, because the label rows are flex and several of them carry a
+     full sentence that wraps — without this the box is what gives. */
+  flex: none;
+  margin: 0;
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+input[type="radio"] {
+  border-radius: var(--r-full);
+}
+
+/* --accent-text, not --accent-solid: a 16px box is a non-text UI component,
+   which WCAG 1.4.11 floors at 3:1 against its surround. --accent-solid is
+   2.17 in dusk and 2.30 in dawn and would fail; --accent-text is 4.79/6.22. */
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+  background: var(--accent-text);
+  border-color: var(--accent-text);
+}
+
+/* The tick and the dash are drawn, not glyphs: a ✓ character renders in
+   whatever face the label inherited and sits off-centre in a 16px box. */
+input[type="checkbox"]::before {
+  content: "";
+  width: 9px;
+  height: 5px;
+  border-left: 2px solid var(--on-accent);
+  border-bottom: 2px solid var(--on-accent);
+  transform: rotate(-45deg) translate(1px, -1px);
+  opacity: 0;
+}
+
+input[type="checkbox"]:checked::before {
+  opacity: 1;
+}
+
+/* Indeterminate has no call site yet, but PlayersTable's row-select has an
+   obvious select-all in its future, and appearance:none drops the native dash
+   silently — the failure mode is a header box that reads UNCHECKED while half
+   the rows are selected. Cheaper to draw it now than to debug that later. */
+input[type="checkbox"]:indeterminate {
+  background: var(--accent-text);
+  border-color: var(--accent-text);
+}
+
+input[type="checkbox"]:indeterminate::before {
+  opacity: 1;
+  width: 9px;
+  height: 0;
+  border-left: none;
+  border-bottom: 2px solid var(--on-accent);
+  transform: none;
+}
+
+input[type="radio"]::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--on-accent);
+  opacity: 0;
+}
+
+input[type="radio"]:checked::before {
+  opacity: 1;
+}
+
+input[type="checkbox"]:disabled,
+input[type="radio"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* appearance:none opts the control out of the Windows High Contrast palette
+   entirely, which renders it invisible rather than merely unstyled. Forced
+   colours get the native control back; accent-color is ignored there by spec,
+   so nothing else is needed. */
+@media (forced-colors: active) {
+  input[type="checkbox"],
+  input[type="radio"] {
+    appearance: auto;
+    -webkit-appearance: auto;
+  }
+}
+
+/* A boolean and the sentence explaining it, on one line. The <label> is the
+   hit target — that is what cursor: pointer is admitting — and the gap is
+   --sp-2 rather than .field's --sp-1 because a 16px box needs more air than a
+   stacked label does. The text here is a sentence, not a .field-label: a
+   micro-caps TURN PING? beside a box reads as a column heading for a control
+   that has no column. */
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+/* A switch is the same boolean wearing "setting" rather than "selection". The
+   control underneath is a real checkbox, visually hidden rather than replaced,
+   so a server-rendered <form action> still submits its name — MovePanel's
+   local Segmented had the right instinct about affordance but rendered
+   buttons, which post nothing. */
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.switch-row input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.switch-track {
+  flex: none;
+  position: relative;
+  width: 34px;
+  height: 20px;
+  border-radius: var(--r-full);
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  transition: background 0.14s, border-color 0.14s;
+}
+
+.switch-track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--r-full);
+  background: var(--muted);
+  transition: transform 0.14s, background 0.14s;
+}
+
+.switch-row input[type="checkbox"]:checked + .switch-track {
+  background: var(--accent-text);
+  border-color: var(--accent-text);
+}
+
+.switch-row input[type="checkbox"]:checked + .switch-track::after {
+  background: var(--on-accent);
+  transform: translateX(14px);
+}
+
+.switch-row input[type="checkbox"]:disabled + .switch-track {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* The visually-hidden input cannot take a focus ring, so it hands one to the
+   track it controls. */
+.switch-row input[type="checkbox"]:focus-visible + .switch-track {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+  /* Un-hide the real control: the drawn track is invisible in forced colours. */
+  .switch-row input[type="checkbox"] {
+    position: static;
+    opacity: 1;
+    width: 16px;
+    height: 16px;
+    pointer-events: auto;
+  }
+  .switch-track {
+    display: none;
+  }
 }
 
 .char-counter {

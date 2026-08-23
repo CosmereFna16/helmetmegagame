@@ -1,5 +1,6 @@
 "use client";
 
+import CheckField from "@/app/components/CheckField";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { useConfirm } from "@/app/components/ConfirmProvider";
@@ -302,15 +303,13 @@ export default function MovePanel({ move, readOnly = false, onClose }) {
             </label>
 
             {!readOnly && (
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={notifyPlayer}
-                  disabled={disabled}
-                  onChange={(e) => setNotifyPlayer(e.target.checked)}
-                />
+              <CheckField
+                checked={notifyPlayer}
+                disabled={disabled}
+                onChange={(e) => setNotifyPlayer(e.target.checked)}
+              >
                 DM the Result to {move.characterName} when I solve this
-              </label>
+              </CheckField>
             )}
           </div>
 

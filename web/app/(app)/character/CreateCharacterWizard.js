@@ -1,5 +1,6 @@
 "use client";
 
+import CheckField from "@/app/components/CheckField";
 import { useMemo, useState } from "react";
 import { createCharacter } from "./createActions";
 import PointBuy from "../../components/PointBuy";
@@ -397,14 +398,13 @@ export default function CreateCharacterWizard({
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
             {ANTAGONISTS.map((a) => (
-              <label key={a.slug} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={antagonists.includes(a.slug)}
-                  onChange={() => toggleAntagonist(a.slug)}
-                />
+              <CheckField
+                key={a.slug}
+                checked={antagonists.includes(a.slug)}
+                onChange={() => toggleAntagonist(a.slug)}
+              >
                 {a.name}
-              </label>
+              </CheckField>
             ))}
           </div>
           <div className="flex flex-wrap items-center gap-3">

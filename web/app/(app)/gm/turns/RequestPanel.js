@@ -1,5 +1,6 @@
 "use client";
 
+import CheckField from "@/app/components/CheckField";
 import { useState, useTransition } from "react";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { useConfirm } from "@/app/components/ConfirmProvider";
@@ -85,14 +86,12 @@ const SECTIONS = {
       <>
         <Line label="Tag added">{stackLabel(effect)}</Line>
         <SpendField value={edits.resourcesSpent} onChange={(v) => setEdit("resourcesSpent", v)} />
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={Boolean(edits.removeTag)}
-            onChange={(e) => setEdit("removeTag", e.target.checked)}
-          />
+        <CheckField
+          checked={Boolean(edits.removeTag)}
+          onChange={(e) => setEdit("removeTag", e.target.checked)}
+        >
           Remove what this request added, but keep the resource cost
-        </label>
+        </CheckField>
       </>
     ),
   },
@@ -173,14 +172,12 @@ const SECTIONS = {
           {effect.bloodBefore ?? 0} → {effect.bloodAfter ?? 0}
         </Line>
         <BloodField value={edits.bloodDelta} onChange={(v) => setEdit("bloodDelta", v)} />
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={Boolean(edits.removeDrained)}
-            onChange={(e) => setEdit("removeDrained", e.target.checked)}
-          />
+        <CheckField
+          checked={Boolean(edits.removeDrained)}
+          onChange={(e) => setEdit("removeDrained", e.target.checked)}
+        >
           Clear their Drained tag but keep the blood
-        </label>
+        </CheckField>
         <p className="text-xs text-muted">
           The pool caps at 100, so this edits what actually moved, not what was asked for. Undo draws
           the same amount back and clears Drained.
@@ -290,14 +287,12 @@ const SECTIONS = {
           {effect.payer?.name ?? "—"} — <span className="mono">{effect.resourcesSpent ?? 0} ⬢</span>
         </Line>
         <SpendField value={edits.resourcesSpent} onChange={(v) => setEdit("resourcesSpent", v)} />
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={Boolean(edits.restoreHealedTag)}
-            onChange={(e) => setEdit("restoreHealedTag", e.target.checked)}
-          />
+        <CheckField
+          checked={Boolean(edits.restoreHealedTag)}
+          onChange={(e) => setEdit("restoreHealedTag", e.target.checked)}
+        >
           Put the affliction back but keep the payment
-        </label>
+        </CheckField>
         <p className="text-xs text-muted">
           Confirm moves only the difference in cost, charged to whoever actually paid. Undo puts the
           affliction back with its original source and expiry and refunds them in full.
