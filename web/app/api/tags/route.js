@@ -45,6 +45,10 @@ export async function GET() {
         // live expiresTurn — this is the only thing that can tell a reader
         // how long the tag would last. See TagChip.js's expiry line.
         defaultDurationTurns: true,
+        // What this tag turns into when that duration runs out — the
+        // untreated-wound chain. TagChip renders it as a "Becomes" line, so a
+        // player can see the threat before the timer teaches them.
+        expiresInto: true,
         // Drives TagChip's "Visible" line — whether a 🔍 inspect shows this
         // tag to another player.
         visibleOnInspect: true,

@@ -528,7 +528,7 @@ async function healCharacterRequestImpl({
     throw new UserError("You aren't anywhere you could treat someone.");
   }
 
-  // The flat catalog, for the tier chain: holding Medical (Excellent) has to
+  // The flat catalog, for the tier chain: holding Medical (Expert) has to
   // satisfy a requirement written against Medical (Basic).
   const catalog = await prisma.tag.findMany({ select: { id: true, slug: true, parentTagId: true } });
   const ancestry = buildSkillAncestry(catalog);

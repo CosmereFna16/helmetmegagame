@@ -626,6 +626,26 @@ model Tag {
   // lift the grant won't deliver.
   consumesIntoUnless Json?
 
+  // What this tag turns INTO when its timer runs out, rather than simply
+  // being swept away: the untreated-condition chain (Infected -> Festering ->
+  // Feverish + Necrosis -> ...). Distinct from consumesInto above, which is
+  // player-driven and chosen; this one fires on the clock whether or not
+  // anybody wanted it to, which is the entire point of a wound that gets
+  // worse while you ignore it.
+  //
+  // A JSON array whose entries are either a bare slug string, or
+  // { "oneOf": ["<slug>", "<slug>"] } for an even random pick between them
+  // (Necrosis costing you a leg or an arm). Json rather than String[] only
+  // because of that second form. Null means the tag just expires.
+  //
+  // Applied by db/lib/tagExpiryPass.js, which runs inside resolveNeeds()
+  // immediately BEFORE the sweep that deletes the expired row — it has to
+  // read the row before the delete removes it. Validated up front by
+  // db/lib/syncTags.js: every slug must exist, the tag must carry a
+  // defaultDurationTurns (or nothing would ever fire it), and a tag may not
+  // list itself (the grant would be undone by the sweep one statement later).
+  expiresInto Json?
+
   // Whether a player can remove this tag from themselves mid-game without a
   // GM. Catalog data only — no self-removal flow reads this yet (the
   // mid-game tag store isn't routed), same posture as tradeable above.

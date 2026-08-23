@@ -53,6 +53,27 @@ function consumesIntoScalars(entries) {
   };
 }
 
+// An expiresInto entry is either a bare slug ("festering") or an even random
+// pick between several ({ oneOf: ["missing-leg", "missing-arm"] }). Both
+// normalise to { oneOf: [...] } here — a bare slug is simply a pick of one —
+// so validation, the stored Json, and db/lib/tagExpiryPass.js all handle one
+// shape instead of two. Null stays null: most tags don't turn into anything.
+function normalizeExpiresInto(entries) {
+  if (entries == null) return null;
+  if (!Array.isArray(entries)) {
+    throw new Error(`docs/tags.yaml: expiresInto must be a list`);
+  }
+  return entries.map((entry) => {
+    if (typeof entry === "string") return { oneOf: [entry] };
+    if (!Array.isArray(entry?.oneOf) || entry.oneOf.length === 0) {
+      throw new Error(
+        `docs/tags.yaml: an expiresInto entry is neither a slug nor a non-empty { oneOf: [...] }`,
+      );
+    }
+    return { oneOf: [...entry.oneOf] };
+  });
+}
+
 function loadDoc() {
   const yamlPath = path.join(__dirname, "..", "..", "docs", "tags.yaml");
   return yaml.load(fs.readFileSync(yamlPath, "utf8"));
@@ -110,6 +131,32 @@ async function syncTagsFromYaml(prisma) {
         }
       }
     }
+    // expiresInto, same posture and the same reason: every slug is known from
+    // this document, so a typo fails before anything is written. Three rules,
+    // each of which is a silent no-op rather than an error if it slips
+    // through — which is exactly why they're checked here.
+    for (const { oneOf } of normalizeExpiresInto(t.expiresInto) ?? []) {
+      for (const slug of oneOf) {
+        if (!allTagSlugs.has(slug)) {
+          throw new Error(`docs/tags.yaml: tag "${t.slug}" expiresInto references unknown tag "${slug}"`);
+        }
+        // The grant happens one statement before the sweep that deletes the
+        // expired row, and the sweep matches on tag id — so a tag that
+        // expires into itself would be re-granted and then immediately
+        // deleted, doing nothing at all. Recurring conditions are written as
+        // a two-tag loop instead (migraine <-> no-migraine).
+        if (slug === t.slug) {
+          throw new Error(
+            `docs/tags.yaml: tag "${t.slug}" expiresInto itself — the sweep would delete the fresh grant. Use a two-tag loop instead.`,
+          );
+        }
+      }
+    }
+    if (t.expiresInto && !(t.durationTurns > 0)) {
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" sets expiresInto but has no durationTurns — nothing would ever fire it`,
+      );
+    }
   }
 
   let groupsCreated = 0;
@@ -165,6 +212,7 @@ async function syncTagsFromYaml(prisma) {
       removable: entry.removable ?? false,
       craftable: entry.craftable ?? false,
       consumable: entry.consumable ?? false,
+      expiresInto: normalizeExpiresInto(entry.expiresInto),
       requirementTurns: entry.requirement?.turnsCost ?? null,
       requirementResources: entry.requirement?.resourceCost ?? null,
       requirementGambit: entry.requirement?.gambit ?? false,
@@ -182,12 +230,14 @@ async function syncTagsFromYaml(prisma) {
       // order — a repeated slug is meaningful (it's how a bundle grants two
       // of something), so this is a sequence, not a set.
       const needsUpdate = Object.entries(scalars).some(([key, value]) => {
-        if (Array.isArray(value)) {
-          return value.length !== tag[key].length || value.some((v, i) => v !== tag[key][i]);
-        }
-        // consumesIntoUnless is a Json object, so !== compares references and
-        // would report "changed" on every run, exactly like the array above.
-        if (value !== null && typeof value === "object") {
+        // Arrays and Json objects (consumesInto, consumesIntoUnless,
+        // expiresInto) are fresh references every run, so !== would report
+        // "changed" on every single one. Stringify instead, which stays
+        // order-sensitive — a repeated consumesInto slug is meaningful (it's
+        // how a bundle grants two of something), so these are sequences, not
+        // sets — and handles expiresInto's object entries, which an
+        // element-wise !== could not.
+        if (Array.isArray(value) || (value !== null && typeof value === "object")) {
           return JSON.stringify(value) !== JSON.stringify(tag[key]);
         }
         return tag[key] !== value;

@@ -30,6 +30,9 @@ groups:
     name: Social
     category: general
     color: "#9c88c4"
+  # Orphaned: the Health category below took every tag that used to live
+  # here. Groups sync upsert-only and are never deleted, so this row survives
+  # empty — don't reuse the slug, and don't put anything back in it.
   - slug: status-health
     name: Health
     category: status
@@ -62,6 +65,40 @@ groups:
     name: Weapons
     category: items
     color: "#9c6b5a"
+  # --- Health ------------------------------------------------------------
+  # Every affliction a doctor might treat, split by what KIND of medicine it
+  # wants rather than by severity — severity is carried by the tag's own
+  # requirement block (the cure ladder, docs/systemdocs/TAGS.md §5c). Reds
+  # and browns for damage, greens for rot and sickness, greys for what can't
+  # be undone, blues for the head, and one warm tone for convalescence.
+  - slug: health-wounds
+    name: Wounds
+    category: health
+    color: "#b5555f"
+  - slug: health-infection
+    name: Infection
+    category: health
+    color: "#7d8f4e"
+  - slug: health-illness
+    name: Illness
+    category: health
+    color: "#8d7ab5"
+  - slug: health-maiming
+    name: Maiming
+    category: health
+    color: "#82828c"
+  - slug: health-mind
+    name: Mind
+    category: health
+    color: "#5f86a8"
+  - slug: health-minor
+    name: Ailments
+    category: health
+    color: "#c0a06a"
+  - slug: health-recovery
+    name: Recovery
+    category: health
+    color: "#6fa8ab"
   - slug: assets-property
     name: Property
     category: assets

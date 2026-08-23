@@ -89,6 +89,12 @@ async function loadCreationData(discordUserId) {
       requirementResources: t.requirementResources,
       requirementGambit: t.requirementGambit,
       requirementSkills: t.requirementSkills,
+      // Health tags carry a course as well as a price: how long the affliction
+      // runs untreated, and what it turns into afterwards. Both belong in the
+      // point-buy chip — a player picking up Appendicitis as a drawback should
+      // see where it ends before they take the points for it.
+      defaultDurationTurns: t.defaultDurationTurns,
+      expiresInto: t.expiresInto,
     })),
     zones: zones
       .map((zone) => ({
@@ -206,7 +212,7 @@ export default async function CharacterPage() {
           group: { select: { name: true, color: true, requiredTagId: true } },
         },
       }),
-      // id -> parentTagId for the whole catalog, so a held Medical (Excellent)
+      // id -> parentTagId for the whole catalog, so a held Medical (Expert)
       // resolves back down its chain to the Medical (Basic) gate. Four columns
       // over a few hundred rows — cheaper than nesting three parentTag includes.
       prisma.tag.findMany({ select: { id: true, slug: true, parentTagId: true } }),

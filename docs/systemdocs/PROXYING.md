@@ -154,10 +154,22 @@ fingerprint.
   the concealed line, plus only `visibleOnInspect` ailments and
   `visibleOnInspect` equipped gear. No appearance, name, Desire, Worst Fear or
   Resources, even for a viewer whose gates are open. "Ailments" resolves as
-  `tag.group?.slug === "status-health"` alone — `TagGroup` is already
-  category-scoped, and `Tag.category` stores the *display* name ("Status"), so
-  testing it would be a casing trap.
+  `tag.category === "Health"` — Health is its own category now (`TAGS.md` §5c)
+  and so *is* the ailment set, which is what this used to reach for the
+  `status-health` group slug to approximate. Mind the capital: `Tag.category`
+  stores the display name, not the YAML slug. The doctor's eye below does
+  **not** apply here — a concealed subject stays deliberately impoverished, and
+  a surgeon reading a hood is still just reading a hood.
 - **⭐** files the alias in `Note.characterName` rather than the real name.
+
+The unconcealed 🔍 path carries one rule worth knowing here, described in full
+at `TAGS.md` §5c: **an affliction you could treat as routine is one you can
+see**, even when it's `visible: false` to everyone else. A medic inspecting
+someone gets their Appendicitis; the man beside them gets nothing. Those rows
+are marked `· your diagnosis`, because the patient isn't showing it to the room
+— repeating it aloud is saying something nobody else could know.
+`db/lib/medicalVision.js` decides it, and a cure needing a Gambit stays hidden
+even from an Expert, since guessing isn't diagnosing.
 - **✏️/❌** are unchanged; both already gate on `proxy.discordUserId`.
 
 The archive records **both halves** — `ArchiveEntry.concealedAlias` alongside
@@ -303,6 +315,7 @@ title off itself.
 | Concealed alias | `db/lib/concealedIdentity.js` |
 | Mentions, `/add`, `/remove` | `bot/src/lib/mentions.js`, `bot/src/lib/commands.js` |
 | Inspect gates | `db/lib/inspectVision.js` |
+| Doctor's eye on inspect | `db/lib/medicalVision.js` (`TAGS.md` §5c) |
 | Nickname | `bot/src/lib/nickname.js`, `web/lib/discordGuild.js` |
 | Avatar route | `web/app/api/avatar/[characterId]/route.js` |
 | Plaque generator | `web/scripts/generate-letters.js` |

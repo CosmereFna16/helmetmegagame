@@ -2,6 +2,12 @@ const { WebhookClient, EmbedBuilder } = require("discord.js");
 const { prisma, formatTagRequirement, turnsLeft, formatTurnsLeft, concealedLine } = require("@lifeweb/db");
 const { getSiloAccess } = require("@lifeweb/db/lib/factionPermissions");
 const { inspectVision } = require("@lifeweb/db/lib/inspectVision");
+const {
+  HEALTH_CATEGORY,
+  buildSkillAncestry,
+  satisfiedSkillIds,
+  medicallyVisibleTags,
+} = require("@lifeweb/db/lib/medicalVision");
 const { updateArchiveMessage, deleteArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { recentProxies } = require("../lib/proxy");
 const { sendDm } = require("../lib/dm");
@@ -171,7 +177,7 @@ module.exports = {
                   select: {
                     name: true,
                     visibleOnInspect: true,
-                    group: { select: { slug: true } },
+                    category: true,
                   },
                 },
               },
@@ -181,12 +187,13 @@ module.exports = {
         if (!concealedChar) return;
 
         const seen = concealedChar.tags.filter((ct) => ct.tag.visibleOnInspect);
-        // "status-health" alone, not the category: TagGroup is already
-        // category-scoped, and Tag.category stores the display name
-        // ("Status"), so testing that would be a casing trap. Hungry and
-        // Unhappy live in status-debuffs and correctly stay out of this.
+        // Health is its own category now, so it IS the ailment set and the
+        // category is the right thing to test — this used to have to reach for
+        // the status-health group slug to avoid dragging Hungry and Unhappy in
+        // with it. Note the capital: Tag.category stores the display name, not
+        // the YAML slug (syncTags.js).
         const ailments = seen
-          .filter((ct) => ct.tag.group?.slug === "status-health")
+          .filter((ct) => ct.tag.category === HEALTH_CATEGORY)
           .map((ct) => ct.tag.name);
         const worn = seen.filter((ct) => ct.equipped).map((ct) => ct.tag.name);
 
@@ -206,38 +213,55 @@ module.exports = {
         return;
       }
 
-      const [character, viewer, openTurn] = await Promise.all([
+      const [character, viewer, openTurn, skillCatalog] = await Promise.all([
         prisma.character.findUnique({
           where: { id: proxy.characterId },
           include: {
-            tags: { include: { tag: { include: { requirementSkills: { select: { name: true } } } } } },
+            // requirementSkills carries `id` as well as `name` because the
+            // doctor's eye below matches on it, not on the label.
+            tags: { include: { tag: { include: { requirementSkills: { select: { id: true, name: true } } } } } },
             faction: { select: { name: true } },
           },
         }),
         prisma.character.findFirst({
           where: { discordUserId: user.id, status: "ALIVE" },
-          select: { tags: { select: { tag: { select: { slug: true } } } } },
+          select: { tags: { select: { tagId: true, tag: { select: { slug: true } } } } },
         }),
         prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
+        // Just the tier chain, for the same reason healCharacterRequest reads
+        // it: holding Medical (Expert) has to satisfy a requirement written
+        // against Medical (Basic).
+        prisma.tag.findMany({ select: { id: true, parentTagId: true } }),
       ]);
       if (!character) return;
 
       const { canSeeDesire, canSeeFear } = inspectVision(viewer?.tags ?? []);
+
+      // The doctor's eye: an affliction you could treat as ROUTINE is one you
+      // can recognise on sight, even when it's invisible to everyone else —
+      // appendicitis, cracked ribs, a bellyful of parasites. Anything needing
+      // a Gambit stays hidden, because guessing isn't diagnosing.
+      const satisfied = satisfiedSkillIds(
+        (viewer?.tags ?? []).map((ct) => ct.tagId),
+        buildSkillAncestry(skillCatalog),
+      );
 
       // Each entry is the tag name, plus a parenthetical carrying the minified
       // "cost to add/remove" (see formatTagRequirement, @lifeweb/db) and how
       // long it has left, whichever are set. Same `·` separator the web
       // tooltip uses, so both faces of the game read alike — mind Discord's
       // 1024-char embed field cap.
-      const visibleTags = character.tags
-        .filter((ct) => ct.tag.visibleOnInspect)
-        .map((ct) => {
-          const bits = [
-            formatTagRequirement(ct.tag),
-            formatTurnsLeft(turnsLeft(ct.expiresTurn, openTurn?.number)),
-          ].filter(Boolean);
-          return bits.length > 0 ? `${ct.tag.name} (${bits.join(" · ")})` : ct.tag.name;
-        });
+      const visibleTags = medicallyVisibleTags(character.tags, satisfied).map(({ characterTag: ct, viaSkill }) => {
+        const bits = [
+          formatTagRequirement(ct.tag),
+          formatTurnsLeft(turnsLeft(ct.expiresTurn, openTurn?.number)),
+          // Only the reader is seeing this one. Worth saying so plainly: the
+          // patient isn't showing it to the room, and a medic who repeats it
+          // as common knowledge has said something nobody else could know.
+          viaSkill ? "your diagnosis" : null,
+        ].filter(Boolean);
+        return bits.length > 0 ? `${ct.tag.name} (${bits.join(" · ")})` : ct.tag.name;
+      });
 
       const embed = new EmbedBuilder()
         .setTitle(character.name)

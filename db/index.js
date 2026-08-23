@@ -18,6 +18,7 @@ const databaseUrl = normalizedDatabaseUrl();
 const { PrismaClient, Prisma } = require("@prisma/client");
 const { rollWeather, buildTurnAnnouncement } = require("./weather");
 const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
+const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 const { runDawnWipe } = require("./lib/dawnWipe");
 const { runHungerPass, HUNGER_DM } = require("./lib/hungerPass");
 const { runDefaultMovePass } = require("./lib/defaultMovePass");
@@ -99,9 +100,10 @@ async function sweepExpiredStacks(turn) {
 // automated one actually resolving Needs.
 //
 // Returns { lifewebBlood, starvedDiscordUserIds, defaultMovePosts,
-// defaultMoveDms }. Everything after the first is Discord work this function
-// deliberately does NOT perform — the Hunger pass's DM list and the Default
-// Move pass's summary posts and DMs. See advanceTurn() below for why.
+// defaultMoveDms, tagExpiryDms }. Everything after the first is Discord work
+// this function deliberately does NOT perform — the Hunger pass's DM list,
+// the Default Move pass's summary posts and DMs, and the tag progression
+// pass's DMs. See advanceTurn() below for why.
 async function resolveNeeds(turn, config) {
   // Default Moves file FIRST, before anything else here: a Default Move can
   // pay resources in, and the Hunger pass below charges them out, so income
@@ -132,6 +134,28 @@ async function resolveNeeds(turn, config) {
   // Hunger) is deleted outright, but a stackable one only sheds a single
   // unit per expiry and rerolls the remainder's timer — otherwise one
   // ration's clock coming due would wipe the character's whole holding.
+  //
+  // The progression pass goes FIRST, because the deleteMany below is blind:
+  // once it has run there is nothing left to read. It grants what each
+  // expiring tag turns into (Infected -> Festering, Necrosis -> a limb) and
+  // deletes nothing itself, leaving the sweep to remove exactly the rows it
+  // just read. Nothing in it kills anyone — the terminal chains stop at the
+  // Dying tag and wait for a GM. See db/lib/tagExpiryPass.js.
+  const progressed = await runTagExpiryPass(prisma, turn).catch((err) => {
+    console.error("Tag expiry pass failed:", err);
+    return null;
+  });
+  // Same split as the two passes either side: the DMs are routing data for
+  // runSideEffects(), not part of the turn's record.
+  const { dms: tagExpiryDms = [], ...tagExpirySummary } = progressed ?? {};
+  if (progressed) {
+    await prisma.auditLog
+      .create({
+        data: { actorDiscordUserId: "system", actionType: "tag_expiry_resolved", details: tagExpirySummary },
+      })
+      .catch((err) => console.error("Tag expiry audit log failed:", err));
+  }
+
   await prisma.characterTag.deleteMany({
     where: { expiresTurn: { lte: turn.number }, tag: { stackable: false } },
   });
@@ -171,7 +195,7 @@ async function resolveNeeds(turn, config) {
   // web/app/(app)/lifeweb/actions.js for the ways it's topped back up.
   const newBlood = Math.max(0, (config?.lifewebBlood ?? 100) - (config?.lifewebDecayPerTurn ?? 10));
   await prisma.gameConfig.update({ where: { id: 1 }, data: { lifewebBlood: newBlood } });
-  return { lifewebBlood: newBlood, starvedDiscordUserIds, defaultMovePosts, defaultMoveDms };
+  return { lifewebBlood: newBlood, starvedDiscordUserIds, defaultMovePosts, defaultMoveDms, tagExpiryDms };
 }
 
 async function getConfig() {
@@ -208,6 +232,7 @@ async function advanceTurn() {
   let starvedDiscordUserIds = [];
   let defaultMovePosts = [];
   let defaultMoveDms = [];
+  let tagExpiryDms = [];
   if (openTurn) {
     // Close the turn FIRST, conditioned on it still being OPEN. This is the
     // guard against two advances racing — a GM double-clicking End turn, or
@@ -239,10 +264,8 @@ async function advanceTurn() {
       };
     }
 
-    ({ lifewebBlood, starvedDiscordUserIds, defaultMovePosts, defaultMoveDms } = await resolveNeeds(
-      openTurn,
-      config,
-    ));
+    ({ lifewebBlood, starvedDiscordUserIds, defaultMovePosts, defaultMoveDms, tagExpiryDms } =
+      await resolveNeeds(openTurn, config));
   }
 
   const lastTurn = openTurn ?? (await prisma.turn.findFirst({ orderBy: { number: "desc" } }));
@@ -281,10 +304,10 @@ async function advanceTurn() {
   // Everything below this line talks to Discord and nothing above it does, so
   // the turn is fully committed by the time the caller gets this back. This is
   // now the ONLY place in the turn-advance path that makes a network call —
-  // both resolveNeeds() passes hand their posts and DMs back rather than
+  // all three resolveNeeds() passes hand their posts and DMs back rather than
   // sending them. Order matches the narrative: the closing turn's Default Move
-  // summaries and DMs, then the Hunger DMs, then the announcement opening the
-  // next turn, then the Dawn wipe.
+  // summaries and DMs, then the tag progression DMs, then the Hunger DMs, then
+  // the announcement opening the next turn, then the Dawn wipe.
   const runSideEffects = async () => {
     // Default Move summary posts first — they narrate the turn that just
     // closed, so they should land before the announcement opening the next.
@@ -313,6 +336,15 @@ async function advanceTurn() {
     for (const dm of defaultMoveDms) {
       await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
         console.error(`Default Move DM to ${dm.discordUserId} failed:`, err),
+      );
+    }
+
+    // One DM per player whose condition worsened, before the Hunger DMs
+    // below purely so the two arrive in severity order. Sequential and
+    // individually caught, like every other loop here — never Promise.all.
+    for (const dm of tagExpiryDms) {
+      await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
+        console.error(`Tag progression DM to ${dm.discordUserId} failed:`, err),
       );
     }
 

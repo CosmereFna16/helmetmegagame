@@ -27,7 +27,10 @@ Three levels:
   groups). A tag with no group renders uncolored. `TagGroup.color` is a
   freeform hex string (e.g. `"#6fa8ab"`), rendered directly by `TagChip.js`
   — not theme-aware, so pick a value that reads on both the dusk and dawn
-  backgrounds.
+  backgrounds. One group, `status-health`, is deliberately **empty**: the
+  Health category (§5c) took every tag that used to live in it. Groups sync
+  upsert-only and are never deleted, so the row survives; don't reuse the slug
+  and don't put anything back in it.
 - **Tag** — the catalog entry itself.
 
 ## 2. Master sources: `docs/tags.yaml` and `docs/taggroups.yaml`
@@ -244,6 +247,8 @@ them).
   Craftable tags in the Add Tag menu.
 - `consumable` / `consumesInto` — whether a player can use this tag up, and
   what it becomes. Live; see §5b.
+- `expiresInto` — what this tag becomes when its `durationTurns` runs out,
+  instead of simply being swept away. Live; see §5c.
 - `requirementTurns` / `requirementResources` / `requirementGambit` /
   `requirementSkills` (YAML: nested under `requirement:` as `turnsCost` /
   `resourceCost` / `gambit` / `skills`) — what it costs a character to add
@@ -361,11 +366,175 @@ really put there.
 `grantTagSlugs()` in `web/lib/requestEffects.js` is the single writer, a
 fourth sibling to the three stack primitives in §5a.
 
-**This replaces the old `grantsOnExpiry` ("expires into") field**, which did
-the same conversion on a timer instead of on demand. It was removed outright:
-letting the player choose *when* to unpack a crate is strictly better than
-making them wait a turn, and two near-identical "tag becomes other tags"
-mechanisms in one catalog is one too many.
+**This replaced the old `grantsOnExpiry` field**, which did the same
+conversion on a timer instead of on demand: letting a player choose *when* to
+unpack a crate is strictly better than making them wait a turn.
+
+`expiresInto` (§5c) is **not** that field coming back, and the distinction is
+worth holding onto, because "two near-identical tag-becomes-other-tags
+mechanisms" was the exact objection that killed the old one. The difference is
+who decides. `consumesInto` is an action a player takes and is filed as an
+undoable Request; `expiresInto` is what happens *to* them on the clock,
+whether or not anyone wanted it, and is the whole reason an untreated wound is
+frightening. A crate you open is not a wound that opens you. Both exist
+because those are genuinely different things — but a new field that could be
+written either way belongs in `consumesInto`, which is the one a player can
+see coming and a GM can take back.
+
+## 5c. Health, the cure ladder, and `expiresInto`
+
+Health is its own **category**, split out of Status. Status is the mood/needs
+layer — Hungry, Drained, Tipsy, the moods, all of it granted and cleared by
+machinery — while Health is a system with its own pricing, its own
+progression, and its own visibility rule. Seven groups carry it:
+`health-wounds`, `health-infection`, `health-illness`, `health-maiming`,
+`health-mind`, `health-minor`, `health-recovery`. They split by what **kind**
+of medicine an affliction wants, never by how bad it is; severity is carried
+by the requirement block instead.
+
+### The cure ladder
+
+Every Health tag is priced off one of eight rungs. **Pick a rung and copy its
+block. Do not invent numbers.** The whole point of a ladder is that a player
+learns it once and can then read any affliction they meet.
+
+| Tier | Reads as | ⬢ | turns | skill | Gambit |
+|---|---|---|---|---|---|
+| 0 | Untreatable | — | — | — | — |
+| 1 | Very minor — first aid | 1 | 0 | Basic | no |
+| 2 | Minor | 2 | 0 | Basic | no |
+| 3 | Moderately severe | 2 | 1 | Skilled | no |
+| 4 | Severe | 4 | 1 | Skilled | no |
+| 5 | Dangerous, surgery | 6 | 1 | Skilled | no |
+| 6 | Extremely complex surgery | 8 | 1 | Expert | no |
+| 7 | Ridiculous | 12 | 1 | Expert | yes |
+
+Three things about it are deliberate.
+
+**Realism sets the rung, not severity.** Severity and duration matter, but the
+question that decides a tier is *what would it actually take a person to fix
+this*. A dislocated shoulder is agonising and completely disabling, and it is
+tier 1, because someone who has done it before puts it back in a moment. That
+is why the table's left column is written as a description of the *work*
+rather than of the injury.
+
+**Tier 0 is a rung, not an omission.** Something realistically untreatable,
+quick, and harmless — Vomiting, a Migraine, a Concussion, being Hungover —
+gets **no `requirement:` block at all**. `hasCureCost()`
+(`web/lib/healRequests.js`) keys off exactly that, so a tier-0 tag never
+appears in the Heal picker and the action refuses it. This is a design rule
+before it is a mechanic: charging a player 2 ⬢ and a doctor's afternoon to
+shorten a bout of vomiting is silly, and pretending medicine can do it is
+worse.
+
+**Above your tier is still possible.** Nothing about the skill requirement
+stops a player from *trying* — it is a Gambit, and a failed Gambit can leave
+the patient worse than it found them. The requirement names what a character
+does **as routine**, which is why the three Medical descriptions are phrased
+that way and why the Medical document says so outright. A Serpent
+(Medical (Skilled)) can attempt a tier-6 surgery; they just roll for it, while
+Esculap (Medical (Expert)) does not.
+
+Only `requirementResources` and `requirementSkills` are enforced — by the Heal
+request, which charges the ⬢ and checks the tier chain. `requirementTurns` and
+`requirementGambit` stay GM adjudication reference, as everywhere else (§5).
+
+### `expiresInto`
+
+An ordinary timed tag is swept away when its `expiresTurn` comes due. One
+carrying `expiresInto` turns **into** something else on the way out. This is
+the untreated-wound chain, and it is the thing that makes a doctor worth
+finding:
+
+```
+Infected ──3t──▶ Festering ──2t──▶ Feverish ──2t──▶ Sepsis ──2t──▶ Dying
+                     └────2t────▶ Necrosis ──2t──▶ Missing Leg *or* Missing Arm
+```
+
+The YAML takes a bare slug, several slugs granted together, or an even random
+pick:
+
+```yaml
+expiresInto: [festering]                    # one
+expiresInto: [feverish, necrosis]           # both, at once
+expiresInto:
+  - oneOf: [missing-leg, missing-arm]       # a coin flip
+```
+
+`syncTags.js` normalises every entry to `{ oneOf: [...] }` — a bare slug is a
+pick of one — so the stored `Tag.expiresInto` Json, the pass, and `TagChip`'s
+"Becomes" row all handle a single shape. It validates three things **before
+writing anything**:
+
+- every slug exists in `docs/tags.yaml`;
+- the tag has `durationTurns` ≥ 1, or nothing would ever fire it;
+- **a tag may not list itself.** The grant happens one statement before the
+  sweep that deletes the expired row, so a self-loop would be re-granted and
+  immediately deleted, doing nothing. A recurring condition is written as a
+  **two-tag loop** instead: Migraine expires into No Migraine, which expires
+  back into Migraine, forever. That cycle is deliberate and there is no
+  cycle detection beyond the self check.
+
+`db/lib/tagExpiryPass.js` applies it, inside `resolveNeeds()` and **before**
+the sweep — the sweep is a blind `deleteMany`, so afterwards there is nothing
+left to read (`TURN-ENGINE.md` §2). The pass grants and never deletes. Four
+rules match the ones §5b lists for consuming, for the same reasons:
+
+- **A successor a character already holds is left completely alone**, its own
+  clock included (`skipDuplicates`). Re-granting would silently reset a
+  condition they were most of the way through.
+- **A successor starts its own clock**, `turn.number + defaultDurationTurns`,
+  the same absolute-turn expression every other writer uses. A successor with
+  no catalog duration is granted permanent — which is what Dying, Missing Leg
+  and Scarred all want.
+- **Nothing can fire twice in one pass.** Every duration is at least 1 and the
+  sweep matches `expiresTurn <= turn.number`, so a tag granted while closing
+  turn N cannot also expire on turn N.
+- **A dead character's sheet stops moving.** Their rows still get swept; they
+  just don't progress into anything.
+
+**Nothing in the pass kills anyone.** Every terminal chain lands on the
+`dying` tag and stops there. A turn advance that can silently end someone's
+month-long game with no human in the loop is not a trade this game wants —
+`dying` is permanent, visible, and carries a tier-7 cure so a heroic save is
+still on the table. A GM confirms the death by hand through the existing path
+(`web/app/(app)/gm/turns/actions.js`).
+
+### Visibility, and the doctor's eye
+
+`visibleOnInspect` on a Health tag is a question about **realism, not
+severity**: could a bystander tell? A gaping wound, a missing arm, Paralyzed
+and Severe Burns are obvious. Appendicitis, cracked ribs, parasites, chronic
+pain and Shell Shocked are not, and are `visible: false`.
+
+That would make the internal cases invisible to the one person who should
+notice them, so there is a second rule: **if you could treat it as routine,
+you can see it.** `db/lib/medicalVision.js#medicallyVisibleTags` unions the
+subject's `visibleOnInspect` tags with the Health tags the *inspector* is
+qualified for, and the 🔍 embed marks the second kind `· your diagnosis` —
+because the patient isn't showing it to the room, and a medic who repeats it
+as common knowledge has said something nobody else could know.
+
+Routine is doing real work in that sentence. A tag whose cure needs a Gambit
+stays hidden **even from an Expert**, since guessing isn't diagnosing; and a
+tier-0 tag has no `requirementSkills` at all, so it is nobody's professional
+business. The skill-tier walk (`buildSkillAncestry`/`satisfiedSkillIds`) lives
+in `db/lib/medicalVision.js` rather than `web/lib/healRequests.js` precisely
+so the bot's inspect and the web's Heal request cannot drift on the question
+of who is qualified; `healRequests.js` re-exports it.
+
+### Adding a health tag
+
+1. Pick the group by what kind of medicine it wants.
+2. Pick a ladder rung by what the work would really take, and copy its block
+   verbatim. Tier 0 means no `requirement:` at all.
+3. Set `visible` by whether a bystander could tell.
+4. If it worsens, give it `durationTurns` and `expiresInto` — **and say so in
+   the description**, naming what it becomes. The tooltip's "Becomes" row is
+   reinforcement; the sentence is what makes someone act in time.
+5. Negative `pointCost` (a drawback bought at creation) requires
+   `purchasableAfterStart: false`, per §4.
+6. `npm run db:sync-tags`.
 
 ## 5c. GM-authored tags
 
@@ -418,8 +587,11 @@ entry point, `npm run db:sync-tags`), `docs/tags.yaml` /
 `docs/taggroups.yaml` (content), `web/app/api/tags/route.js` (read API
 backing `{tag:slug}`/`{tag:id}` references, and the gate from §3a),
 `web/app/components/RichText.js`/`TagsProvider.js`, `TagChip.js` (the
-hover-tooltip chip that renders group color), and
-`db/lib/inspectVision.js` (Seductive/Torturer, §5).
+hover-tooltip chip that renders group color, and the "Becomes" row from §5c),
+`db/lib/inspectVision.js` (Seductive/Torturer, §5),
+`db/lib/medicalVision.js` (the cure-skill walk and the doctor's eye, §5c),
+`db/lib/tagExpiryPass.js` (the `expiresInto` progression, §5c), and
+`web/lib/healRequests.js` (what a medic may treat, `REQUESTS.md` §5c).
 
 **Tag descriptions carry `{tag:…}`/`{resource:…}`/`{partysize:…}` tokens
 too**, not just documents — that's how a True Form names the {tag} it inflicts. The three
@@ -451,7 +623,10 @@ resolve, so a bad reference is visible rather than silently dropped.
 by automatic game logic rather than by a player, a GM, or a starting package —
 `db/lib/hungerPass.js` is their only writer, and `db/lib/gambitModifier.js`
 their only reader. `db/lib/constants.js` holds the slugs so neither file
-hardcodes a string.
+hardcodes a string. The Health chain (§5c) is the second such system, and it
+deliberately holds **no** slugs in `constants.js`: the whole chain is catalog
+data, so `tagExpiryPass.js` never names a tag and a new chain needs no code
+at all.
 
 ## `equippable` / `concealsIdentity`
 

@@ -20,6 +20,7 @@
     "db:backfill-member-access": "node db/prisma/backfill-member-access.js",
     "db:backfill-persistent-tag": "node db/prisma/backfill-persistent-tag.js",
     "db:backfill-tag-rework": "node db/prisma/backfill-tag-rework.js",
+    "db:backfill-medical-expert": "node db/prisma/backfill-medical-expert.js",
     "db:backfill-gm-permissions": "node db/prisma/backfill-gm-permissions.js",
     "db:backfill-spectator-access": "node db/prisma/backfill-spectator-access.js",
     "db:backfill-tupper-attachment-restriction": "node db/prisma/backfill-tupper-attachment-restriction.js",
