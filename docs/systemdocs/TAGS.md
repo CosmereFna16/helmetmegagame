@@ -356,6 +356,30 @@ Five rules carry it:
   worse than no preview. Fine Meal is the only conditional entry today:
   it cheers an ordinary person, while Nobility expect one as a matter of
   course.
+- **A grant may override the target's expiry.** The same object form takes an
+  optional `durationTurns`, which replaces the granted tag's own
+  `defaultDurationTurns` for that grant only:
+
+  ```yaml
+  consumesInto:
+    - happy
+    - slug: high
+      durationTurns: 3
+  ```
+
+  This exists because one status can mean different things depending on what
+  produced it. Raw Cave Fungus leaves you High for 2 turns; Bliss, which
+  is Cave Fungus properly worked, leaves you High for 3. The alternative —
+  `high-2` and `high-3` as separate tags — pushes an implementation detail
+  into the player-facing catalog and multiplies with every future drink.
+
+  It is stored in a second sidecar, `Tag.consumesIntoDurations` (`Json`,
+  `{ "<slug>": N }`, null for almost every tag), resolved by the same
+  `resolveConsumeGrants()` and applied by `grantTagSlugs()`, which prefers the
+  override and falls back to the tag's own duration. An override on a target
+  that has no duration of its own is legal and simply gives it one — but never
+  point one at `ate-meal`, which is deliberately never swept because the
+  Hunger pass consumes it explicitly.
 
 Consuming is a **Request** (`CONSUME_TAG`), so it lands immediately, carries
 a reason, and a GM can Undo it — see `REQUESTS.md` §3. The undo snapshot

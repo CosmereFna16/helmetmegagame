@@ -397,11 +397,20 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
   // requireCharacter() already eager-loads tags.tag, so the held slugs cost
   // no extra query. Undo needs no matching change: it reads the `granted`
   // snapshot below, never re-deriving from the catalog.
-  const { slugs: grantSlugs } = resolveConsumeGrants(held.tag, heldSlugsOf(character.tags));
+  const { slugs: grantSlugs, durations: grantDurations } = resolveConsumeGrants(
+    held.tag,
+    heldSlugsOf(character.tags),
+  );
 
   await prisma.$transaction(async (tx) => {
     await dropCharacterTag(tx, character.id, tagId, 1);
-    const granted = await grantTagSlugs(tx, character.id, grantSlugs, openTurn?.number ?? null);
+    const granted = await grantTagSlugs(
+      tx,
+      character.id,
+      grantSlugs,
+      openTurn?.number ?? null,
+      grantDurations,
+    );
     await createRequest(tx, {
       characterId: character.id,
       turnId: openTurn?.id ?? null,

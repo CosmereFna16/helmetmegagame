@@ -302,6 +302,20 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
+  # The Alcohol & Drugs document has assigned itself to this tag by name since
+  # before the tag existed — documents.yaml's `tags:` list is deliberately soft
+  # and merely reported an unmatched entry. Nothing automates it: no drink in
+  # this file grants it and no pass looks for it. A GM grants it when the
+  # roleplay has earned it, which is what the document tells players outright.
+  - slug: alcoholic
+    name: Alcoholic
+    category: general
+    group: general-traits
+    description: "You drink, and it is no longer a choice you are making. Going without is its own kind of day."
+    pointCost: -2
+    purchasable: true
+    purchasableAfterStart: false
+
   # Seductive/Torturer are the two tags that grant real read access to another
   # character's sheet: 🔍-reacting to one of their proxied messages adds a
   # Desire or Worst Fear field to the inspect embed. db/lib/inspectVision.js
@@ -641,6 +655,44 @@ tags:
     pointCost: 0
     purchasable: false
     durationTurns: 4
+
+  # Recreational intoxication, and deliberately the one Status tag with NO
+  # mechanical effect at all — unlike Tipsy above, which really does blunt
+  # Unhappy and dull a fight. High is a roleplaying state and something a GM
+  # may weigh when adjudicating, nothing more. Its duration is set by whatever
+  # produced it rather than by the number below: raw Cave Fungus leaves you
+  # High for 2 turns, refined Bliss for 3, via the per-grant override in
+  # consumesIntoDurations (see this file's header). The 2 here is only the
+  # fallback for a grant that doesn't say.
+  - slug: high
+    name: High
+    category: status
+    group: status-debuffs
+    description: "Pleasantly adrift. No effect on any roll — but anyone looking at you can tell, and a GM may take it into account when you attempt something that wants a clear head."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 2
+
+  # The effect half of the Flawless Skin tonic — the tonic is an Item you
+  # drink, this is the state it leaves behind. Split in two because that's how
+  # every consumable in this file works (Fine Meal -> Ate Meal), and because
+  # only the state should ever expire. Named for the effect rather than the
+  # bottle so the two don't collide: docs/documents.yaml matches tags by NAME,
+  # and two rows called Flawless Skin would be a coin toss.
+  - slug: otherworldly-beauty
+    name: Otherworldly Beauty
+    category: status
+    group: status-buffs
+    description: "Unmarked, luminous, and not quite right. People look at you a moment longer than they meant to, and are not sure afterwards why."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 3
 
   - slug: drained
     name: Drained
@@ -1658,6 +1710,169 @@ tags:
     requirement:
       resourceCost: 3
       skills: [cooking-skilled]
+      gambit: false
+
+  # --- Drink --------------------------------------------------------------
+  # Alcohol, drugs and tonics. Brewed as a Move, never bought: purchasable
+  # false keeps them out of both point-buy menus, craftable true is what lets
+  # addTagRequestImpl accept a player brewing one — exactly the posture the
+  # meals above take. Every requirement block below is a RECIPE, and like
+  # every other requirement block in this file it is a GM adjudication
+  # reference rather than anything the code enforces. The prose writeup is
+  # docs/documents.yaml's Alcohol & Drugs document.
+  #
+  # The tiers are the two existing Brewing skills, whose descriptions already
+  # promised all of this: Basic brews alcohol and the simple stuff, Skilled
+  # brews wine and the tonics that need hard-to-find ingredients. Those
+  # ingredients are named in each description — they are the real cost, and
+  # the reason most of these are a negotiation with another player rather than
+  # a shopping trip.
+  - slug: cave-fungus
+    name: Cave Fungus
+    category: items
+    group: items-drink
+    description: "Pale, cold-loving stuff that grows where the lamps don't reach. An important ingredient in a great many recipes, and the base of nearly everything worth brewing down here. Eaten raw it will get you {tag:high} for a couple of turns and taste like the floor it grew on — no pleasure in it at all, which is rather the point of refining it first."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto:
+      - slug: high
+        durationTurns: 2
+    requirement:
+      resourceCost: 0
+
+  - slug: alcohol
+    name: Alcohol
+    category: items
+    group: items-drink
+    description: "Beer, ale, mead — whatever the barrel held. Cheap, plentiful, and enough to take the edge off a bad day underground."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto:
+      - tipsy
+    requirement:
+      resourceCost: 1
+      skills: [brewing-basic]
+      gambit: false
+
+  - slug: bliss
+    name: Bliss
+    category: items
+    group: items-drink
+    description: "Cave Fungus, properly worked, until what's left is clean and sweet and nothing like the raw stuff. The best thing at any party in Ravenheart, and it costs nothing but the fungus and the work — which is why it turns up wherever people have no money and something to celebrate."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto:
+      - happy
+      - slug: high
+        durationTurns: 3
+    requirement:
+      resourceCost: 0
+      skills: [brewing-basic]
+      gambit: false
+
+  - slug: ravenheart-red
+    name: Ravenheart Red
+    category: items
+    group: items-drink
+    description: "The one genuinely exquisite thing this barony makes. Dear, slow to make, and a fair object of a Desire — plenty of people down here have never tasted it and intend to before they die."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto:
+      - tipsy
+      - happy
+    requirement:
+      resourceCost: 4
+      skills: [brewing-skilled]
+      gambit: false
+
+  # The three tonics. Each one needs something the brewer cannot simply buy,
+  # named in its description — that ingredient is the actual gate, and getting
+  # hold of it is meant to be a scene rather than a purchase.
+  - slug: dreamers-draught
+    name: Dreamer's Draught
+    category: items
+    group: items-drink
+    description: "Drink it and sleep, and while you sleep you may ask the world one question and be answered truthfully. Difficult to make and easy to ruin: the brewing is a Gambit, and only a roll of 4 or better yields anything you'd want to drink."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    requirement:
+      resourceCost: 6
+      skills: [brewing-skilled]
+      gambit: true
+
+  - slug: forgiveness
+    name: Forgiveness
+    category: items
+    group: items-drink
+    description: "Whoever drinks it loses the last of what they knew — the argument, the debt, the thing they saw you do. Needs genuine tears, freely wept, and there is no substitute; someone has to have been made to cry, and mean it."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    requirement:
+      resourceCost: 8
+      skills: [brewing-skilled]
+      gambit: false
+
+  - slug: flawless-skin
+    name: Flawless Skin
+    category: items
+    group: items-drink
+    description: "Beauty that isn't yours and doesn't last, worn for three turns like a borrowed coat. Needs a lock of hair from someone bearing {tag:nobility} — which means either a noble who owes you a favour, or a noble who never finds out."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto:
+      - otherworldly-beauty
+    requirement:
+      resourceCost: 8
+      skills: [brewing-skilled]
       gambit: false
 
   # --- Demoness -------------------------------------------------------------

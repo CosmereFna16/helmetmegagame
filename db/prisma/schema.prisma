@@ -626,6 +626,26 @@ model Tag {
   // lift the grant won't deliver.
   consumesIntoUnless Json?
 
+  // Per-target expiry overrides on the same list, as { "<target slug>": N } —
+  // the granted tag's clock is set to N turns instead of its own
+  // defaultDurationTurns. Null when nothing overrides, which is almost every
+  // tag.
+  //
+  // This exists because one status can mean different things depending on
+  // what produced it: raw Cave Fungus leaves you High for 2 turns, while
+  // Bliss — the refined version — leaves you High for 3. Encoding that on the
+  // High tag itself is impossible (it has one defaultDurationTurns), and
+  // splitting it into high-2/high-3 would push an implementation detail into
+  // the player-facing catalog and multiply with every future drink.
+  //
+  // Read by web/lib/consumeGrants.js alongside consumesIntoUnless and applied
+  // by grantTagSlugs, which prefers the override and falls back to the target
+  // tag's own defaultDurationTurns. An override on a target that has no
+  // duration of its own is legal and simply gives it one for this grant — but
+  // don't point one at Ate Meal, which is deliberately never swept because the
+  // Hunger pass consumes it explicitly.
+  consumesIntoDurations Json?
+
   // What this tag turns INTO when its timer runs out, rather than simply
   // being swept away: the untreated-condition chain (Infected -> Festering ->
   // Feverish + Necrosis -> ...). Distinct from consumesInto above, which is

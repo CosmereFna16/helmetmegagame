@@ -23,33 +23,46 @@ const path = require("node:path");
 const yaml = require("js-yaml");
 
 // A consumesInto entry is either a bare slug ("ate-meal") or an object
-// carrying a condition ({ slug: "happy", unlessTags: ["nobility"] }). Both
-// shapes normalise to the same pair here so validation and the write path
+// carrying a condition and/or an expiry override ({ slug: "happy",
+// unlessTags: ["nobility"] }, { slug: "high", durationTurns: 3 }). Every
+// shape normalises to the same triple here so validation and the write path
 // only ever handle one of them.
 function normalizeConsumesInto(entries) {
   return (entries ?? []).map((entry) => {
-    if (typeof entry === "string") return { slug: entry, unlessTags: [] };
+    if (typeof entry === "string") {
+      return { slug: entry, unlessTags: [], durationTurns: null };
+    }
     if (!entry?.slug) {
       throw new Error(`docs/tags.yaml: a consumesInto entry is missing its "slug"`);
     }
-    return { slug: entry.slug, unlessTags: entry.unlessTags ?? [] };
+    const durationTurns = entry.durationTurns ?? null;
+    if (durationTurns != null && !(Number.isInteger(durationTurns) && durationTurns > 0)) {
+      throw new Error(
+        `docs/tags.yaml: consumesInto entry "${entry.slug}" has a durationTurns that is not a positive whole number`,
+      );
+    }
+    return { slug: entry.slug, unlessTags: entry.unlessTags ?? [], durationTurns };
   });
 }
 
-// Splits the normalised list back into the two columns it's stored in.
+// Splits the normalised list back into the three columns it's stored in.
 // consumesInto keeps every target, in order, so a repeated slug still means
 // "grant two" and every existing reader (the previews, the grant path) sees
-// the full list. consumesIntoUnless is null unless something is conditional,
-// which keeps the column empty for all but a handful of tags.
+// the full list. consumesIntoUnless and consumesIntoDurations are null unless
+// something is actually conditional or actually overrides its expiry, which
+// keeps both columns empty for all but a handful of tags.
 function consumesIntoScalars(entries) {
   const normalized = normalizeConsumesInto(entries);
   const unless = {};
-  for (const { slug, unlessTags } of normalized) {
+  const durations = {};
+  for (const { slug, unlessTags, durationTurns } of normalized) {
     if (unlessTags.length) unless[slug] = unlessTags;
+    if (durationTurns != null) durations[slug] = durationTurns;
   }
   return {
     consumesInto: normalized.map((e) => e.slug),
     consumesIntoUnless: Object.keys(unless).length ? unless : null,
+    consumesIntoDurations: Object.keys(durations).length ? durations : null,
   };
 }
 
