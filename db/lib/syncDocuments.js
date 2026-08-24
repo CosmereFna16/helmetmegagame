@@ -24,6 +24,13 @@ const yaml = require("js-yaml");
 // against the Discord GM role at request time (web/lib/discordGuild.js#isGm),
 // which is the same check that gates every /gm page. A GM has no character to
 // hang the flag on, so the documents page asks Discord instead.
+// /documents synthesizes one card that is not a row: the reader's role
+// charter, which carries key "role" so ?doc=role links to it. A real document
+// taking that key would collide with it in the Assigned grid and make the
+// deep link ambiguous, so the sync refuses it rather than letting the clash
+// show up as a duplicate-React-key warning months later.
+const RESERVED_KEYS = new Set(["role"]);
+
 const FLAGS = ["leader", "treasurer", "gamemaster"];
 
 function loadDoc() {
@@ -80,6 +87,9 @@ async function syncDocumentsFromYaml(prisma) {
   for (const e of entries) {
     if (!e.key) throw new Error(`documents.yaml: entry "${e.name ?? "(unnamed)"}" has no key`);
     if (seen.has(e.key)) throw new Error(`documents.yaml: duplicate key "${e.key}"`);
+    if (RESERVED_KEYS.has(e.key)) {
+      throw new Error(`documents.yaml: "${e.key}" is a reserved key (see RESERVED_KEYS)`);
+    }
     seen.add(e.key);
   }
 

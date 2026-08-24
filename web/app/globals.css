@@ -971,6 +971,23 @@ input[type="radio"]:disabled {
   letter-spacing: normal;
 }
 
+/* An inline reference to another document ({document:key}). The ▣ is what
+   distinguishes it from a tag chip at a glance — both are .chip-shaped, and
+   without a mark a reader cannot tell which kind of thing a reference names.
+
+   The locked state is for a document the reader may not open. It stays a chip
+   rather than degrading to plain text, so the reference still reads as one:
+   you can see a paper exists and that it is not yours. */
+.doc-chip {
+  gap: var(--sp-1);
+}
+
+.doc-chip[data-locked] {
+  color: var(--muted);
+  cursor: default;
+  opacity: 0.75;
+}
+
 /* Universal tag hover tooltip — wraps a .chip, shows name/description/value.
    Declared here (not left to inherit) since .tag-hover/InfoIcon often sit
    inside an <h1>/<h2> (or a bold label), which globally switches to the
@@ -1584,6 +1601,21 @@ input[type="radio"]:disabled {
   box-shadow: var(--e-2);
   overflow: hidden;
   transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+/* The role charter, pinned first in Assigned. It is the one paper that is
+   about the reader rather than about the world, so it reads as framed rather
+   than as another card in the stack — but it keeps the board's geometry, so
+   the grid does not break around it.
+
+   color-mix rather than a new token: the tint is this one card's, not a tier
+   of the surface ladder, and inventing a --surface-pinned would imply
+   otherwise. 8% is deliberately weak — it has to lift off --surface-raised in
+   dusk and dawn without turning into a block of colour in limestone, where
+   the surface is nearly white. */
+.doc-card--pinned {
+  border-color: var(--accent-text);
+  background: color-mix(in srgb, var(--accent-text) 8%, var(--surface-raised));
 }
 
 .doc-card:hover,

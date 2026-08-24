@@ -3,9 +3,11 @@
 import { useTags } from "./TagsProvider";
 import { useProductionRates } from "./ProductionRatesProvider";
 import { usePartySizes } from "./PartySizeProvider";
+import { useDocuments } from "./DocumentsProvider";
 import TagChip from "./TagChip";
 import ResourceChip from "./ResourceChip";
 import PartySizeChip from "./PartySizeChip";
+import DocumentChip from "./DocumentChip";
 import { splitTokens } from "./richTokens";
 
 function TagToken({ payload, fallback }) {
@@ -36,10 +38,20 @@ function PartySizeToken({ payload, fallback }) {
   return <PartySizeChip value={size.display} />;
 }
 
+// Payload is Document.key (docs/documents.yaml's `key:`), e.g.
+// "courtstructure". The index carries every written document's name, but a
+// body only for those the reader may open — see /api/documents.
+function DocumentToken({ payload, fallback }) {
+  const { docsByKey } = useDocuments();
+  const doc = docsByKey.get(payload.trim());
+  return doc ? <DocumentChip doc={doc} /> : fallback;
+}
+
 const BUBBLE_KINDS = {
   tag: TagToken,
   resource: ResourceToken,
   partysize: PartySizeToken,
+  document: DocumentToken,
 };
 
 // Renders plain text, except any {kind:payload} token (e.g. {tag:slug} or

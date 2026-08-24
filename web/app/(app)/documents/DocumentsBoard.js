@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Modal from "@/app/components/Modal";
 import DocumentMarkdown from "../../components/DocumentMarkdown";
 import ChipText from "../../components/ChipText";
@@ -11,8 +12,15 @@ import ChipText from "../../components/ChipText";
 // both themes without knowing the surface colour behind it.
 function DocumentCard({ doc, onOpen }) {
   return (
-    <button type="button" className="doc-card" onClick={() => onOpen(doc)}>
-      <span className="doc-card-source">{doc.source}</span>
+    <button
+      type="button"
+      className={doc.pinned ? "doc-card doc-card--pinned" : "doc-card"}
+      onClick={() => onOpen(doc)}
+    >
+      <span className="doc-card-source">
+        {doc.pinned && <span aria-hidden="true">⌗ </span>}
+        {doc.source}
+      </span>
       <span className="doc-card-title">{doc.name}</span>
       {/* ChipText, not DocumentMarkdown: the card is a <button>, so a
           {tag:…} here has to be a plain label rather than a focusable chip,
@@ -54,8 +62,37 @@ export default function DocumentsBoard({
   // only thing to land on. GAMEMASTER only exists when the server sent GM
   // papers, which it only does for an actual GM — the tab is never a hint
   // that something is being withheld.
-  const [tab, setTab] = useState(hasCharacter ? "assigned" : "public");
-  const [open, setOpen] = useState(null);
+  const router = useRouter();
+  const params = useSearchParams();
+
+  // ?doc=<key> opens that sheet on load, so a {document:key} chip elsewhere
+  // in the app has somewhere to point and a document can be linked to
+  // directly. Resolved against the lists the server already sent, so an
+  // unreadable key simply does nothing rather than revealing that it exists.
+  //
+  // Both bits of state are seeded in their useState initialisers rather than
+  // synced from an effect: react-hooks/set-state-in-effect is an error in
+  // this repo, and the effect version would flash the board before the sheet.
+  const requested = params.get("doc");
+  const found =
+    (requested && [
+      ["assigned", assignedDocs],
+      ["public", publicDocs],
+      ["gamemaster", gmDocs],
+    ].map(([name, list]) => [name, list.find((d) => d.key === requested)])
+      .find(([, doc]) => doc)) ||
+    null;
+
+  const [tab, setTab] = useState(found ? found[0] : hasCharacter ? "assigned" : "public");
+  const [open, setOpen] = useState(found ? found[1] : null);
+
+  // Drop the param on close so a refresh lands on the board rather than
+  // reopening what you just dismissed. replace, not push, so Back leaves
+  // /documents instead of stepping through the sheet again.
+  const close = () => {
+    setOpen(null);
+    if (requested) router.replace("/documents");
+  };
 
   const docs = tab === "assigned" ? assignedDocs : tab === "gamemaster" ? gmDocs : publicDocs;
 
@@ -108,7 +145,7 @@ export default function DocumentsBoard({
         </div>
       )}
 
-      {open && <DocumentSheet doc={open} onClose={() => setOpen(null)} />}
+      {open && <DocumentSheet doc={open} onClose={close} />}
     </div>
   );
 }

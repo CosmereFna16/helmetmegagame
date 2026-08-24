@@ -638,10 +638,12 @@ can point at (documents, a character's appearance). Both share the parser in
 renders `TagChip` and `TagChip` renders `ChipText`, so importing one from
 the other would close an import cycle.
 
-There are three token kinds. `{tag:slug|id}` and `{resource:field:tier}` are
+There are four token kinds. `{tag:slug|id}` and `{resource:field:tier}` are
 described above; `{partysize:N}` is the Cult of Bacchus's party thresholds
 (`PARTY-SIZE.md`), a 1-indexed
-tier resolving to a headcount scaled live by `GameConfig.playerCount`. The
+tier resolving to a headcount scaled live by `GameConfig.playerCount`; and
+`{document:key}` names another paper by its `Document.key` (`DOCUMENTS.md`),
+rendering as a chip that links to it. The
 parser in `richTokens.js` is kind-agnostic — `{(\w+):([^}]+)}` — so a new kind
 never touches it or `remarkTokens.js`. What a new kind *does* touch is the
 three renderers, which is the whole edit surface: `RichText.js`'s
@@ -651,6 +653,13 @@ in `ChipText.js` and `DocumentMarkdown.js`'s `RichTokenRenderer`. Miss
 `/documents` card preview; miss `DocumentMarkdown` and it renders literally in
 an open document. Every kind falls through to the raw `{…}` text when it can't
 resolve, so a bad reference is visible rather than silently dropped.
+
+A kind whose data the browser doesn't already hold also needs a read API and a
+provider mounted in `layout.js`, the way `{tag:…}` has `/api/tags` +
+`TagsProvider`. `{document:…}` is the case to copy if the data is
+access-controlled: `/api/documents` ships every document's *name* but a body
+only to a reader who may open it, so a chip for a paper you have not been
+handed renders inert rather than either vanishing or leaking.
 
 `hunger`, `hungerless` and `ate-meal` are the first tags granted and consumed
 by automatic game logic rather than by a player, a GM, or a starting package —

@@ -4,23 +4,15 @@ import { getGmSession } from "@/lib/discordGuild";
 import PageShell, { PageHeader } from "../../components/PageShell";
 import DocumentsBoard from "./DocumentsBoard";
 import { toDocumentPreviewText } from "@/lib/documentPreview";
+import { assignedTo, isWritten, readerFromCharacter } from "@/lib/documentAccess";
 
 export const metadata = { title: "Documents" };
 
-// Which of a character's traits a document can key off. Kept here rather
-// than in the client component so the matching runs once on the server and
-// the client only ever receives the documents that already apply.
-function assignedTo(document, character) {
-  if (!character) return null;
-  if (character.role?.docElements?.includes(document.key)) return character.role.name;
-  const tagHit = document.tagSlugs.find((slug) => character.tagSlugs.has(slug));
-  if (tagHit) return character.tagNameBySlug.get(tagHit) ?? tagHit;
-  if (document.roleSlugs.includes(character.role?.slug)) return character.role.name;
-  if (document.factionSlugs.includes(character.faction?.slug)) return character.faction.name;
-  if (document.flags.includes("leader") && character.isLeader) return "Leader";
-  if (document.flags.includes("treasurer") && character.isTreasurer) return "Treasurer";
-  return null;
-}
+// The matching rules live in web/lib/documentAccess.js so /api/documents --
+// which decides whether a {document:key} chip is a working link or an inert
+// one -- cannot disagree with this page about who may read what. Matching
+// still runs here on the server, so the client only ever receives documents
+// that already apply.
 
 export default async function DocumentsPage() {
   // getGmSession() wraps auth() and is React-cached, so asking Discord whether
@@ -40,15 +32,8 @@ export default async function DocumentsPage() {
     }),
   ]);
 
-  const character = characterRow && {
-    ...characterRow,
-    tagSlugs: new Set(characterRow.tags.map((ct) => ct.tag.slug)),
-    tagNameBySlug: new Map(characterRow.tags.map((ct) => [ct.tag.slug, ct.tag.name])),
-  };
-
-  // A document with no prose yet is a slot waiting to be written (see the
-  // stubs in docs/documents.yaml) — never show a player an empty page.
-  const written = documents.filter((d) => d.description.trim().length > 0);
+  const character = readerFromCharacter(characterRow);
+  const written = documents.filter(isWritten);
 
   const shape = (d, source) => ({
     key: d.key,
@@ -74,6 +59,34 @@ export default async function DocumentsPage() {
       .map(([d, source]) => shape(d, source))
     : [];
 
+  // The role charter, pinned first in Assigned.
+  //
+  // Role.description is a String[] of plain sentences (docs/roles.yaml), not
+  // Markdown like a Document — joining them as a bullet list is the whole
+  // conversion, and it is what lets this reuse the ordinary card and sheet
+  // untouched. It has been written and synced for all 49 roles since the
+  // start and rendered nowhere; the nearest a player got was role.intro in
+  // the creation wizard.
+  //
+  // `role: true` is already in the include above, so this costs no query.
+  //
+  // Not a Document row, so {document:…} can never resolve to it — the index
+  // /api/documents builds only ever lists real rows.
+  const roleCharter =
+    character?.role?.description?.length > 0
+      ? {
+        pinned: true,
+        key: "role",
+        name: character.role.name,
+        source: "Your Role",
+        description: character.role.description.map((line) => `- ${line}`).join("\n"),
+        // Blank lines, not bullets: the card preview is flattened prose.
+        previewText: character.role.description.join("\n\n"),
+      }
+      : null;
+
+  const assigned = roleCharter ? [roleCharter, ...assignedDocs] : assignedDocs;
+
   return (
     <PageShell width="wide">
       <PageHeader
@@ -82,7 +95,7 @@ export default async function DocumentsPage() {
       />
       <DocumentsBoard
         publicDocs={publicDocs}
-        assignedDocs={assignedDocs}
+        assignedDocs={assigned}
         gmDocs={gmDocs}
         hasCharacter={!!character}
       />

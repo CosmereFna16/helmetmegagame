@@ -6,9 +6,11 @@ import remarkTokens from "./remarkTokens";
 import { useTags } from "./TagsProvider";
 import { useProductionRates } from "./ProductionRatesProvider";
 import { usePartySizes } from "./PartySizeProvider";
+import { useDocuments } from "./DocumentsProvider";
 import TagChip from "./TagChip";
 import ResourceChip from "./ResourceChip";
 import PartySizeChip from "./PartySizeChip";
+import DocumentChip from "./DocumentChip";
 
 // Renders a <richtoken> node (see remarkTokens.js) the same way RichText
 // renders a {kind:payload} token outside Markdown: a {tag:...} becomes a
@@ -18,6 +20,7 @@ function RichTokenRenderer({ kind, payload, raw }) {
   const { tagsById, tagsBySlug } = useTags();
   const { rates } = useProductionRates();
   const { sizes } = usePartySizes();
+  const { docsByKey } = useDocuments();
 
   if (kind === "tag") {
     const key = payload.trim();
@@ -36,6 +39,11 @@ function RichTokenRenderer({ kind, payload, raw }) {
     const size = sizes[payload.trim()];
     if (!size) return raw;
     return <PartySizeChip value={size.display} />;
+  }
+
+  if (kind === "document") {
+    const doc = docsByKey.get(payload.trim());
+    return doc ? <DocumentChip doc={doc} /> : raw;
   }
 
   return raw;

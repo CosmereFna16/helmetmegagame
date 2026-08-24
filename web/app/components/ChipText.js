@@ -3,6 +3,7 @@
 import { useTags } from "./TagsProvider";
 import { useProductionRates } from "./ProductionRatesProvider";
 import { usePartySizes } from "./PartySizeProvider";
+import { useDocuments } from "./DocumentsProvider";
 import ChipLabel from "./ChipLabel";
 import ResourceChip from "./ResourceChip";
 import PartySizeChip from "./PartySizeChip";
@@ -20,6 +21,7 @@ export default function ChipText({ text, as: Wrapper = "span", className }) {
   const { tagsById, tagsBySlug } = useTags();
   const { rates } = useProductionRates();
   const { sizes } = usePartySizes();
+  const { docsByKey } = useDocuments();
 
   if (!text) return null;
 
@@ -43,6 +45,21 @@ export default function ChipText({ text, as: Wrapper = "span", className }) {
       const size = sizes[part.payload.trim()];
       if (!size) return part.raw;
       return <PartySizeChip key={`p-${i}`} value={size.display} />;
+    }
+
+    // Always the flat face, never DocumentChip: this renderer exists for text
+    // inside a tooltip or a <button>, and a document chip is a link. A link
+    // inside the /documents card button would be invalid markup and would
+    // swallow the click that opens the card.
+    if (part.kind === "document") {
+      const doc = docsByKey.get(part.payload.trim());
+      if (!doc) return part.raw;
+      return (
+        <span key={`d-${i}`} className="chip doc-chip" data-locked={!doc.accessible || undefined}>
+          <span aria-hidden="true">▣</span>
+          {doc.name}
+        </span>
+      );
     }
 
     return part.raw;

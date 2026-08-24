@@ -175,6 +175,17 @@ the same string.
 (`npm run db:sync-roles`) reads its `zones[].factions[].roles[]` nesting into
 the `Zone`/`Faction`/`Role` tables, matched by `slug`.
 
+**A role's two prose fields go to different places.** `intro` is the one-line
+pitch in the creation picker. `description` is a `String[]` of plain sentences
+that a player reads as their **role charter**, pinned first in `/documents`'s
+Assigned tab (`DOCUMENTS.md` §2) — joined into a Markdown bullet list there,
+one bullet per YAML line. It is plain prose: no Markdown, no `{tag:…}` tokens
+in any of the 49 today, and the charter renderer does not promise either.
+
+Worth knowing because it was written and synced for every role and **rendered
+nowhere at all** until that card existed — an edit to `description` used to
+reach no one.
+
 **Threats are not in `roles.yaml`.** Sympathizer, the Demoness, the Cult of
 Bacchus, the Judge, the NPC monsters, the Brigands — those seats are assigned
 by hand by a GM and must never appear in the player-facing picker, so they are

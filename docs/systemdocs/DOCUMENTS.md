@@ -18,7 +18,7 @@ state to preserve.
 ## 2. The page
 
 `/documents` (`web/app/(app)/documents/`) is a pinned board of expandable
-cards, in two tabs:
+cards, in three tabs:
 
 - **PUBLIC** — every `public: true` document, readable by any signed-in user,
   character or not. This is deliberate: the site goes up before the game opens
@@ -26,14 +26,49 @@ cards, in two tabs:
   only (`CHARACTERS.md`).
 - **ASSIGNED** — **not rendered at all** without an `ALIVE` character, rather
   than rendered empty.
+- **GAMEMASTER** — `flags: [gamemaster]` papers, and the one source that keys
+  off a **Discord role** rather than anything on a Character, since a GM
+  usually has no character. The tab only exists when the server actually sent
+  GM papers, so its absence is never a hint that something is being withheld.
+
+Opening a card is a `Modal` (`DESIGN-SYSTEM.md` §8) over `.doc-sheet` — wider
+and more generously set than an ordinary dialog, because it is a page of prose.
+
+**`?doc=<key>` opens that sheet on load**, selecting whichever tab holds it.
+That is what a `{document:…}` chip links to, and it makes a document
+shareable. It resolves against the lists the server already sent, so a key the
+reader may not open simply does nothing. Closing clears the param, so a
+refresh lands on the board.
+
+### Your role, pinned
+
+The first card in ASSIGNED is the reader's own **role charter** — `Role.name`
+over `Role.description`, which is a `String[]` of plain sentences in
+`docs/roles.yaml`, joined into a Markdown bullet list. It is accent-framed and
+marked `⌗ YOUR ROLE` so it reads as being about the reader rather than about
+the world.
+
+It is **synthesized in the page, not a `Document` row**, so `{document:…}` can
+never resolve to it and the sync never sees it. Skipped entirely for a
+character with no role or an empty description.
+
+Worth knowing if you edit `docs/roles.yaml`: that field was written and synced
+for all 49 roles and **rendered nowhere** until this existed. The nearest a
+player got was the one-line `role.intro` in the creation wizard.
 
 Documents with an empty `description` are filtered out. Several are still
 stubs, and a slot awaiting prose shouldn't reach a player as a blank page.
 
 ## 3. Assignment
 
-Resolves server-side. Each card shows **the reason it's in your folder**, in an
-alt colour — it's metadata about the paper, not part of it.
+Resolves server-side, in `web/lib/documentAccess.js`. That module is shared
+with `/api/documents` **on purpose**: the API decides whether a
+`{document:key}` chip is a working link or an inert one, and two copies of a
+visibility rule drift. The failure it prevents is telling a player they can
+open a Gamemaster brief.
+
+Each card shows **the reason it's in your folder**, in an alt colour — it's
+metadata about the paper, not part of it.
 
 Five things can put a document in front of you:
 
@@ -61,11 +96,38 @@ failing the sync over one would block every other document.
 The explicit `roles:` / `factions:` / `flags:` keys are **strict** and throw on
 a typo. Only `tags:` is soft.
 
-## 5. Where the code lives
+## 5. Referring to a document
+
+`{document:key}` anywhere tokens render — a document body, a tag description —
+becomes a chip that links to the paper it names. The payload is
+`Document.key`, the same identifier `doc_elements` uses; documents have no
+separate slug. See `TAGS.md` §7 for the token system as a whole.
+
+The chip is access-aware, which is the only interesting part. `/api/documents`
+ships every written document's **name**, but its source and excerpt only to a
+reader who may open it:
+
+- **Readable** → a hoverable chip showing name, source and an excerpt, linking
+  to `?doc=<key>`.
+- **Not readable** → the same chip, muted and inert.
+
+Inert rather than plain text so the reference still reads as a reference — you
+can see a paper exists and that it is not yours. The name is not a leak: the
+token sits in prose the reader is already looking at, and it is what lets the
+chip say *which* paper it is.
+
+Inside a tooltip or a card preview the chip is always the flat, inert form —
+those render through `ChipText.js`, where a link would be invalid markup
+inside the `<button>` a card is.
+
+## 6. Where the code lives
 
 | Concern | File |
 |---|---|
 | Master | `docs/documents.yaml` |
 | Sync | `db/lib/syncDocuments.js`, `db/prisma/sync-documents.js` |
 | Page | `web/app/(app)/documents/` |
+| Visibility rule (shared) | `web/lib/documentAccess.js` |
+| Chip index API | `web/app/api/documents/route.js` |
+| Chip | `web/app/components/DocumentChip.js`, `DocumentsProvider.js` |
 | Role document lists | `docs/roles.yaml` (`doc_elements`) |

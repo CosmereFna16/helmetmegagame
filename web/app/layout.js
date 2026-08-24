@@ -5,6 +5,7 @@ import { resolveTheme } from "@/lib/turnFormat";
 import TagsProvider from "./components/TagsProvider";
 import ProductionRatesProvider from "./components/ProductionRatesProvider";
 import PartySizeProvider from "./components/PartySizeProvider";
+import DocumentsProvider from "./components/DocumentsProvider";
 import ConfirmProvider from "./components/ConfirmProvider";
 
 // Body/UI face. Pairs with Source Serif 4 as a designed superfamily.
@@ -67,7 +68,9 @@ export default async function RootLayout({ children }) {
         <ConfirmProvider>
           <TagsProvider>
             <ProductionRatesProvider>
-              <PartySizeProvider>{children}</PartySizeProvider>
+              <PartySizeProvider>
+                <DocumentsProvider>{children}</DocumentsProvider>
+              </PartySizeProvider>
             </ProductionRatesProvider>
           </TagsProvider>
         </ConfirmProvider>
