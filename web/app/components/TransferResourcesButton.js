@@ -2,8 +2,29 @@
 
 import { useState, useTransition } from "react";
 import RequestDialog from "./RequestDialog";
+import InfoIcon from "./InfoIcon";
 import PartySelect from "./PartySelect";
 import { transferResourcesRequest } from "../(app)/character/requestActions";
+
+// Mirrors web/lib/transferReach.js, which is the gate that actually decides.
+// Kept short on purpose — the tooltip is 280px wide — and phrased as what the
+// player must DO rather than as the rule's mechanics.
+const REACH_HINT = (
+  <>
+    <p>Resources don&apos;t travel on their own. You have to be able to reach the other end.</p>
+    <p>
+      <strong>To a person</strong> Be in the same location.
+    </p>
+    <p>
+      <strong>To or from a Silo</strong> Be in the faction&apos;s zone — or in the same zone as one
+      of its Leaders or Treasurers.
+    </p>
+    <p>
+      That second option is why a besieged faction is never cut off: an officer can ride out to
+      meet you.
+    </p>
+  </>
+);
 
 export default function TransferResourcesButton({ selfId, selfName, parties }) {
   const [open, setOpen] = useState(false);
@@ -26,19 +47,22 @@ export default function TransferResourcesButton({ selfId, selfName, parties }) {
 
   return (
     <>
-      <button
-        type="button"
-        className="btn"
-        onClick={() => {
-          setFromKey(`character:${selfId}`);
-          setToKey("");
-          setAmount("1");
-          setError(null);
-          setOpen(true);
-        }}
-      >
-        Transfer Resources
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            setFromKey(`character:${selfId}`);
+            setToKey("");
+            setAmount("1");
+            setError(null);
+            setOpen(true);
+          }}
+        >
+          Transfer Resources
+        </button>
+        <InfoIcon text={REACH_HINT} />
+      </div>
 
       <RequestDialog
         open={open}
@@ -84,7 +108,10 @@ export default function TransferResourcesButton({ selfId, selfName, parties }) {
           </p>
         )}
         <p className="text-xs text-muted">
-          You can move resources out of any Silo or any player — say why in the reason above.
+          {/* Was "out of any Silo or any player", which is exactly what the
+              reach gate stopped being true — see web/lib/transferReach.js. */}
+          Both ends have to be within reach: the same location for a person, the same zone (or an
+          officer&apos;s zone) for a Silo. Say why in the reason above.
           {selfName ? ` You are ${selfName}.` : ""}
         </p>
       </RequestDialog>
