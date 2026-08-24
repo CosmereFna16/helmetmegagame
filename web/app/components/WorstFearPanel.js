@@ -1,5 +1,6 @@
 "use client";
 
+import FormError from "@/app/components/FormError";
 import { useState, useTransition } from "react";
 import { useConfirm } from "./ConfirmProvider";
 import InfoIcon from "./InfoIcon";
@@ -136,7 +137,7 @@ export default function WorstFearPanel({ text, setTurnNumber, lastFulfilledTurn,
         </form>
       )}
 
-      {error && <p className="mt-1 text-sm text-accent">{error}</p>}
+      <FormError>{error}</FormError>
 
       <RequestDialog
         open={fulfilling}

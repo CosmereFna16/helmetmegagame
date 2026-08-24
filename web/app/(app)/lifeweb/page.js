@@ -8,8 +8,8 @@ import LifewebRequestButtons from "../../components/LifewebRequestButtons";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 
 function bloodBand(blood) {
-  if (blood <= 0) return { label: "Dry", color: "var(--accent)" };
-  if (blood <= LIFEWEB_SPUTTER_THRESHOLD) return { label: "Sputtering", color: "var(--accent)" };
+  if (blood <= 0) return { label: "Dry", color: "var(--accent-text)" };
+  if (blood <= LIFEWEB_SPUTTER_THRESHOLD) return { label: "Sputtering", color: "var(--accent-text)" };
   if (blood <= 60) return { label: "Thinning", color: "var(--text)" };
   return { label: "Full", color: "var(--positive)" };
 }

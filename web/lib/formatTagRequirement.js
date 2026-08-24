@@ -1,31 +1,18 @@
-// Minified "cost to add/remove this tag in play" summary, for compact
-// display anywhere a tag's description already renders (web tooltip). Kept
-// as a client-safe duplicate of db/lib/formatTagRequirement.js — that
-// version is re-exported through @lifeweb/db's barrel (db/index.js), which
-// unconditionally requires @prisma/client and leaks node:fs into any
-// "use client" bundle that imports from it. This copy has zero deps so it's
-// safe for client components (PointBuy.js, TagChip.js).
+// Re-export of db/lib/formatTagRequirement.js, in the shape web/lib/characterName.js
+// established.
 //
-// Callers must fetch requirementTurns, requirementResources,
-// requirementGambit, and requirementSkills (at least { name: true }).
-export function formatTagRequirement(tag) {
-  const parts = [];
-  // Spelled out, not "1t": the chip face uses a `Nt` badge for turns
-  // REMAINING, and an unlabelled "1t" here (turns of work to cure) sat in
-  // the same tooltip meaning something unrelated.
-  if (tag.requirementTurns) {
-    parts.push(`${tag.requirementTurns} turn${tag.requirementTurns === 1 ? "" : "s"}`);
-  }
-  if (tag.requirementResources) parts.push(`${tag.requirementResources} ⬢`);
-  if (tag.requirementSkills?.length) {
-    parts.push(tag.requirementSkills.map((t) => t.name).join("/"));
-  }
-  // The Move kind is always stated, so "no Gambit needed" reads differently
-  // from "no data" — but only once there's something to qualify. A tag with no
-  // requirement block at all — most of the catalog, since only Health tags and
-  // a handful of craftables carry one — still renders nothing rather than a
-  // bare "Routine".
-  if (parts.length === 0 && !tag.requirementGambit) return null;
-  parts.push(tag.requirementGambit ? "Gambit" : "Routine");
-  return parts.join(" · ");
-}
+// This was a hand-maintained COPY of that file — identical logic, differing
+// only in `export function` vs `module.exports`. The copy existed for a real
+// reason (the @lifeweb/db barrel unconditionally requires @prisma/client, which
+// leaks node:fs into any "use client" bundle that imports from it, and
+// PointBuy.js and TagChip.js are client components), but nothing kept the two
+// halves in step: the medicine rework had to remember to edit both, and did.
+// The next edit might not have.
+//
+// The deep path resolves because @lifeweb/db declares no `exports` map, so it
+// reaches the module without going through the barrel — no Prisma, no fs. That
+// is the same trick ten other call sites already use.
+//
+// Named rather than `export *`: the target is CommonJS, so a star re-export
+// makes Turbopack emit runtime interop and warn on every build.
+export { formatTagRequirement } from "@lifeweb/db/lib/formatTagRequirement";

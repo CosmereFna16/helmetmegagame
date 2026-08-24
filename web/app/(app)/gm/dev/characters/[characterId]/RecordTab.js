@@ -1,5 +1,9 @@
 "use client";
 
+import StatusPill from "@/app/components/StatusPill";
+import { MOVE_REVIEW_LABELS, MOVE_REVIEW_TONES, moveKindLabel } from "@/lib/moves";
+import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS, REQUEST_STATUS_TONES } from "@/lib/requestLabels";
+
 import { useState } from "react";
 import Link from "next/link";
 import { TableScroll } from "@/app/components/DataTable";
@@ -46,8 +50,13 @@ export default function RecordTab({ moves, requests, auditLog, messages, discord
           head={["Turn", "Kind", "Status", "⬢", "Move"]}
           row={(m) => [
             m.turn,
-            m.moveKind,
-            m.status,
+            moveKindLabel(m.moveKind),
+            <StatusPill
+              key="status"
+              tone={MOVE_REVIEW_TONES[MOVE_REVIEW_LABELS[m.status]] ?? "neutral"}
+            >
+              {MOVE_REVIEW_LABELS[m.status] ?? m.status}
+            </StatusPill>,
             m.resourceDelta ? `${m.resourceDelta > 0 ? "+" : ""}${m.resourceDelta}` : "—",
             m.description,
           ]}
@@ -59,7 +68,14 @@ export default function RecordTab({ moves, requests, auditLog, messages, discord
           empty="No Requests made yet."
           rows={requests}
           head={["Turn", "Type", "Status", "Reason"]}
-          row={(r) => [r.turn, r.type, r.status, r.reason ?? "—"]}
+          row={(r) => [
+            r.turn,
+            REQUEST_TYPE_LABELS[r.type] ?? r.type,
+            <StatusPill key="status" tone={REQUEST_STATUS_TONES[r.status] ?? "neutral"}>
+              {REQUEST_STATUS_LABELS[r.status] ?? r.status}
+            </StatusPill>,
+            r.reason ?? "—",
+          ]}
         />
       )}
 

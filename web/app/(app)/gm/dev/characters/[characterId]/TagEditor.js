@@ -1,5 +1,6 @@
 "use client";
 
+import CheckField from "@/app/components/CheckField";
 import { useMemo, useState } from "react";
 import {
   sortTagsForMenu,
@@ -78,14 +79,9 @@ export default function TagEditor({ tags, held, ops, openTurn, equipSlots, onSta
             />
           </label>
           <div className="flex flex-col justify-end gap-2 text-sm">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={showHeldOnly}
-                onChange={(e) => setShowHeldOnly(e.target.checked)}
-              />
+            <CheckField checked={showHeldOnly} onChange={(e) => setShowHeldOnly(e.target.checked)}>
               Only what they hold ({held.length})
-            </label>
+            </CheckField>
             <span className="text-xs text-muted">
               Equipment {equippedCount} / {equipSlots}. GM grants ignore every requirement gate.
             </span>
@@ -152,7 +148,7 @@ function TagRow({ tag, holding, op, openTurn, selected, onToggleSelected, onStag
     staged === "add"
       ? "1px solid var(--positive)"
       : staged === "remove"
-        ? "1px solid var(--accent)"
+        ? "1px solid var(--accent-text)"
         : staged
           ? "1px dashed var(--accent-text)"
           : undefined;

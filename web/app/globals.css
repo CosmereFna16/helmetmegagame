@@ -18,6 +18,14 @@
         token cannot be both a legible text colour and a rich fill. Use
         --accent for fills and rules, --accent-text for text and outlines.
         Collapsing them back into one is what made every button fail AA.
+
+   Each theme also names its own color-scheme. A handful of controls are drawn
+   by the browser rather than by this file — the unchecked checkbox, the date
+   picker's calendar glyph and its popup, the search field's clear button, the
+   <select> option list, the scrollbars — and they read that property and
+   nothing else. No rule here reaches them. Both underground themes are dark,
+   so declaring it costs nothing, and it is what stops a native control from
+   punching a white hole in a panel.
    ========================================================================== */
 
 :root {
@@ -88,10 +96,10 @@
 
 /* Dusk — banked coals. Deep, cool, near-black with a green-teal cast. */
 [data-theme="dusk"] {
+  color-scheme: dark;
   --bg: #111e1b;
   --surface: #1e352f;
   --surface-raised: #27443e;
-  --panel-bg: var(--surface); /* legacy alias */
   --field-bg: rgba(0, 0, 0, 0.22); /* recessed BELOW the surface, not another panel */
   --border: rgba(168, 198, 194, 0.31);
   --text: #efe7d6;
@@ -109,10 +117,10 @@
 
 /* Dawn — lamps up. Not daylight: a warmer, lifted dark with brighter ember. */
 [data-theme="dawn"] {
+  color-scheme: dark;
   --bg: #1b1512;
   --surface: #362a24;
   --surface-raised: #46372d;
-  --panel-bg: var(--surface);
   --field-bg: rgba(0, 0, 0, 0.2);
   --border: rgba(224, 203, 172, 0.28);
   --text: #f3eada;
@@ -142,10 +150,10 @@
    a modal off a card. Do not "fix" this by darkening --surface: that turns
    crisp paper into muddy grey and costs the 1.53 ground separation. */
 [data-theme="limestone"] {
+  color-scheme: light;
   --bg: #d2ccc0;
   --surface: #fbfaf7;
   --surface-raised: #ffffff;
-  --panel-bg: var(--surface);
   --field-bg: rgba(0, 0, 0, 0.05);
   --border: rgba(74, 66, 56, 0.39);
   --text: #22201c;
@@ -424,11 +432,14 @@ h3 {
 .field input:focus-visible,
 .field textarea:focus-visible,
 .field select:focus-visible,
-.text-input:focus-visible,
+.control:focus-visible,
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible,
+.switch-track:focus-visible,
 .menu-item:focus-visible,
 .rail-item:focus-visible,
 .tab-item:focus-visible,
-.status-link:focus-visible,
+.swatch:focus-visible,
 .th-sort:focus-visible {
   outline: 2px solid var(--accent-text);
   outline-offset: 2px;
@@ -490,6 +501,13 @@ h3 {
   cursor: not-allowed;
 }
 
+/* .btn has had this since the redesign; the outline variants never did, so a
+   disabled Reject or Kill still took its hover wash and read as live. */
+.btn-secondary:disabled:hover,
+.btn-danger:disabled:hover {
+  background: none;
+}
+
 /* Destructive actions — Reject, Kill, Restart Game — which until now reused
    --accent and so looked identical to a primary action. */
 .btn-danger {
@@ -509,28 +527,33 @@ h3 {
   background: color-mix(in srgb, var(--danger) 16%, transparent);
 }
 
-.status-link {
-  all: unset;
-  cursor: pointer;
-  color: var(--accent-text);
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
-  font-size: inherit;
-  font-family: inherit;
-}
-
-.status-link:hover,
-.status-link:focus-visible {
-  opacity: 0.8;
-}
-
 .btn-quiet {
   all: unset;
   cursor: pointer;
   color: var(--muted);
   font-size: var(--fs-xs);
   padding: 4px 0;
+}
+
+/* A dialog's footer. .btn-quiet is a flush text link at its other 56 call
+   sites and should stay one, but in a footer it is a button standing beside
+   another button: at `padding: 4px 0` with no border it was ~20px tall next to
+   .btn's ~31px and had no horizontal padding at all, so Cancel and Submit
+   visibly failed to line up on every confirm dialog in the app —
+   ConfirmProvider's own included. Borrowing .btn's vertical metrics here fixes
+   all of them at once without touching a single call site. */
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+}
+
+.modal-actions .btn-quiet {
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  padding: 7px 14px;
 }
 
 .btn-quiet:hover {
@@ -560,12 +583,33 @@ h3 {
   text-transform: uppercase;
 }
 
-.field input[type="text"],
-.field input[type="number"],
-.field input[type="file"],
-.field input:not([type]),
+/* One control surface, selected by exclusion rather than by enumeration. The
+   old list named text/number/file and nothing else, so a correctly
+   .field-wrapped input of any other type silently fell through to native
+   browser chrome — type="search" on three pages and type="date" on /gm/audit
+   were doing exactly that. Listing what is NOT a text-like control cannot go
+   stale the same way: a new input type is styled by default.
+
+   :where() is load-bearing. It contributes zero specificity, so this lands at
+   0,1,1 — LOWER than the 0,2,1 the enumerated version had, and below the
+   0,2,1 of .field input:disabled and :focus-visible, which therefore win
+   outright instead of on source order. A bare :not() would inherit its most
+   specific argument's specificity and start beating the :disabled rule,
+   silently un-greying the read-only GM title on /character.
+
+   The 8px 10px is deliberately off the --sp-* scale: the 1px border eats into
+   it, and 12px reads loose beside .btn's 14px. */
+.field input:not(:where([type="checkbox"], [type="radio"], [type="hidden"],
+                        [type="range"], [type="color"], [type="button"],
+                        [type="submit"], [type="reset"], [type="image"])),
 .field textarea,
-.field select {
+.field select,
+/* .control is the same surface without .field's label column, for a control
+   that cannot have one — a <select> in a table cell, an input inline in a
+   toolbar. .field is still the default. This used to be .text-input, which is
+   why the <select> two lines from one in gm/dev/factions/page.js was bare: the
+   name promised it was for text, so nobody reached for it. */
+.control {
   background: var(--field-bg);
   border: 1px solid var(--border);
   color: var(--text);
@@ -644,6 +688,208 @@ h3 {
   opacity: 1; /* browsers grey this out themselves; --muted already carries it */
 }
 
+/* ── Booleans ───────────────────────────────────────────────────────────────
+
+   A checkbox means "this row is selected". A switch means "this setting is
+   on". Before this the stylesheet had no rule for either, so all 26 boolean
+   controls in the app rendered as native OS chrome on top of two dark themes,
+   and seven different label wrappers had grown up around them.
+
+   The element is styled rather than a class, deliberately: `input[type=...]`
+   is 0,0,1, the lowest-specificity rule there is, so it loses to everything
+   and reached all 26 call sites without opening a single component file. */
+input[type="checkbox"],
+input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  /* flex: none, because the label rows are flex and several of them carry a
+     full sentence that wraps — without this the box is what gives. */
+  flex: none;
+  margin: 0;
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+input[type="radio"] {
+  border-radius: var(--r-full);
+}
+
+/* --accent-text, not --accent-solid: a 16px box is a non-text UI component,
+   which WCAG 1.4.11 floors at 3:1 against its surround. --accent-solid is
+   2.17 in dusk and 2.30 in dawn and would fail; --accent-text is 4.79/6.22. */
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+  background: var(--accent-text);
+  border-color: var(--accent-text);
+}
+
+/* The tick and the dash are drawn, not glyphs: a ✓ character renders in
+   whatever face the label inherited and sits off-centre in a 16px box. */
+input[type="checkbox"]::before {
+  content: "";
+  width: 9px;
+  height: 5px;
+  border-left: 2px solid var(--on-accent);
+  border-bottom: 2px solid var(--on-accent);
+  transform: rotate(-45deg) translate(1px, -1px);
+  opacity: 0;
+}
+
+input[type="checkbox"]:checked::before {
+  opacity: 1;
+}
+
+/* Indeterminate has no call site yet, but PlayersTable's row-select has an
+   obvious select-all in its future, and appearance:none drops the native dash
+   silently — the failure mode is a header box that reads UNCHECKED while half
+   the rows are selected. Cheaper to draw it now than to debug that later. */
+input[type="checkbox"]:indeterminate {
+  background: var(--accent-text);
+  border-color: var(--accent-text);
+}
+
+input[type="checkbox"]:indeterminate::before {
+  opacity: 1;
+  width: 9px;
+  height: 0;
+  border-left: none;
+  border-bottom: 2px solid var(--on-accent);
+  transform: none;
+}
+
+input[type="radio"]::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--on-accent);
+  opacity: 0;
+}
+
+input[type="radio"]:checked::before {
+  opacity: 1;
+}
+
+input[type="checkbox"]:disabled,
+input[type="radio"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* appearance:none opts the control out of the Windows High Contrast palette
+   entirely, which renders it invisible rather than merely unstyled. Forced
+   colours get the native control back; accent-color is ignored there by spec,
+   so nothing else is needed. */
+@media (forced-colors: active) {
+  input[type="checkbox"],
+  input[type="radio"] {
+    appearance: auto;
+    -webkit-appearance: auto;
+  }
+}
+
+/* A boolean and the sentence explaining it, on one line. The <label> is the
+   hit target — that is what cursor: pointer is admitting — and the gap is
+   --sp-2 rather than .field's --sp-1 because a 16px box needs more air than a
+   stacked label does. The text here is a sentence, not a .field-label: a
+   micro-caps TURN PING? beside a box reads as a column heading for a control
+   that has no column. */
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+/* A switch is the same boolean wearing "setting" rather than "selection". The
+   control underneath is a real checkbox, visually hidden rather than replaced,
+   so a server-rendered <form action> still submits its name — MovePanel's
+   local Segmented had the right instinct about affordance but rendered
+   buttons, which post nothing. */
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.switch-row input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.switch-track {
+  flex: none;
+  position: relative;
+  width: 34px;
+  height: 20px;
+  border-radius: var(--r-full);
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  transition: background 0.14s, border-color 0.14s;
+}
+
+.switch-track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--r-full);
+  background: var(--muted);
+  transition: transform 0.14s, background 0.14s;
+}
+
+.switch-row input[type="checkbox"]:checked + .switch-track {
+  background: var(--accent-text);
+  border-color: var(--accent-text);
+}
+
+.switch-row input[type="checkbox"]:checked + .switch-track::after {
+  background: var(--on-accent);
+  transform: translateX(14px);
+}
+
+.switch-row input[type="checkbox"]:disabled + .switch-track {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* The visually-hidden input cannot take a focus ring, so it hands one to the
+   track it controls. */
+.switch-row input[type="checkbox"]:focus-visible + .switch-track {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+  /* Un-hide the real control: the drawn track is invisible in forced colours. */
+  .switch-row input[type="checkbox"] {
+    position: static;
+    opacity: 1;
+    width: 16px;
+    height: 16px;
+    pointer-events: auto;
+  }
+  .switch-track {
+    display: none;
+  }
+}
+
 .char-counter {
   align-self: flex-end;
   font-size: var(--fs-2xs);
@@ -654,15 +900,47 @@ h3 {
   color: var(--accent-text);
 }
 
-.text-input {
-  background: var(--field-bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 8px 10px;
-  border-radius: var(--r-sm);
-  font-family: inherit;
-  font-size: var(--fs-base);
+/* Something went wrong: --danger, always. DESIGN-SYSTEM.md §2 says --danger is
+   for this and --accent is a fill, but thirteen error renders reached for
+   --accent and six for --danger, so the same failure looked like two different
+   kinds of event depending on which panel you were in. */
+.form-error {
+  font-size: var(--fs-sm);
+  color: var(--danger);
 }
+
+/* Emptiness is quiet, never an error: --muted at --fs-sm, the same in a table
+   cell and in a panel. There were seven shapes for this, differing in whether
+   they carried text-sm, whether they sat in a .panel, and by how much padding
+   (p-4 in one place, p-6 in another, for the same job). */
+.empty-state {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+/* A state, wearing what it means rather than a colour a call site picked. The
+   tones are the whole vocabulary — a status cannot reach for a colour the
+   themes have not solved, which is how "bad" ended up drawn with --accent in
+   some tables and --danger in others.
+
+   Quiet by design: it borrows .chip's shape but not its border, because most
+   rows in a long table are in the ordinary state and a table where every row
+   shouts reads as noise. Only the tones that MEAN something take a colour. */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-tight);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.status-pill[data-tone="muted"] { color: var(--muted); }
+.status-pill[data-tone="good"] { color: var(--positive); }
+.status-pill[data-tone="warn"] { color: var(--warning); }
+.status-pill[data-tone="bad"] { color: var(--danger); }
+.status-pill[data-tone="accent"] { color: var(--accent-text); }
 
 .chip {
   display: inline-flex;
@@ -783,7 +1061,6 @@ h3 {
   cursor: default;
 }
 
-/* Tag store modal */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -795,6 +1072,9 @@ h3 {
   padding: 16px;
 }
 
+/* Width is a named size, the same menu PageShell uses for pages. Six values
+   were in play before — this default plus five inline maxWidths between 24 and
+   46rem — for what is one component. */
 .modal-panel {
   width: 100%;
   max-width: 32rem;
@@ -806,6 +1086,10 @@ h3 {
   box-shadow: var(--e-3);
   padding: var(--sp-4);
 }
+
+.modal-panel[data-width="narrow"] { max-width: 24rem; }
+.modal-panel[data-width="wide"] { max-width: 40rem; }
+.modal-panel[data-width="widest"] { max-width: 46rem; }
 
 .modal-header {
   display: flex;
@@ -841,6 +1125,26 @@ h3 {
   display: flex;
   gap: 4px;
   border-bottom: 1px solid var(--border);
+}
+
+/* A picked-from-a-grid thumbnail: portrait parts and colour swatches. This was
+   the app's only fully inline-styled button, which meant it re-implemented
+   `all: unset` by hand and could not express :focus-visible at all — so the
+   one control you pick dozens of times in a row had no focus ring. */
+.swatch {
+  all: unset;
+  display: inline-block;
+  cursor: pointer;
+  padding: 3px;
+  border-radius: var(--r-md);
+  border: 2px solid var(--border);
+  background: transparent;
+  line-height: 0;
+}
+
+.swatch[aria-pressed="true"] {
+  border-color: var(--accent-text);
+  background: var(--field-bg);
 }
 
 /* The portrait maker's option grid (PortraitMaker.js). It scrolls inside the
@@ -881,31 +1185,6 @@ h3 {
   border-bottom-color: var(--accent-text);
 }
 
-.store-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.store-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 8px 10px;
-}
-
-.store-row-info {
-  min-width: 0;
-}
-
-.store-row-name {
-  font-size: var(--fs-sm);
-  font-weight: 600;
-}
-
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -941,6 +1220,43 @@ h3 {
 .data-table tbody tr:hover td {
   background: var(--row-hover);
 }
+
+/* A panel you pick. Three call sites had copy-pasted the same
+   `panel flex w-full items-start gap-3 p-3 text-left` plus an inline outline
+   for the selected state, and the third had already drifted to a different
+   flex direction. Selection is aria-pressed, so it is one thing to a screen
+   reader and to the stylesheet at once.
+
+   The left border is a group colour set per call site — that one genuinely
+   varies per row, so it stays inline. */
+.select-card {
+  cursor: pointer;
+}
+
+.select-card[aria-pressed="true"] {
+  outline: 1px solid var(--accent-text);
+}
+
+.select-card:disabled,
+.select-card[data-unaffordable="true"] {
+  opacity: 0.55;
+}
+
+.select-card:disabled {
+  cursor: not-allowed;
+}
+
+/* Column sizing, as intent rather than a number repeated at 20 call sites.
+
+   .col-fit is the `width: 1%` idiom, not a literal 1% — a table lays out to
+   its content, so an absurdly small width means "shrink this column to fit and
+   give the slack to the others". Written as a class because `w-px` is 1px and
+   would be wrong, and because "1%" reads like a mistake until you know the
+   trick. */
+.col-fit { width: 1%; }
+.col-prose { min-width: 22rem; }
+.col-text { min-width: 14rem; }
+.col-meta { min-width: 12rem; }
 
 /* A long table that stays put: fixed tall viewport, both scroll axes inside
    the container, and a header that stays pinned while the body scrolls. The
@@ -997,7 +1313,7 @@ h3 {
   width: 26px;
   height: 26px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--r-sm);
   color: var(--muted);
   line-height: 1;
 }
@@ -1011,6 +1327,39 @@ h3 {
 .icon-btn:disabled {
   cursor: default;
   opacity: 0.4;
+}
+
+/* A small group of mutually exclusive options, drawn as one joined pill. Used
+   for the map's ground picker; the five places doing
+   className={x === active ? "btn" : "btn-quiet"} are the other candidates —
+   that idiom makes the unselected options 11px lighter and unpadded beside a
+   filled one, so the group changes geometry every time you click it.
+
+   Not to be confused with .tab-bar/.tab-item, which is a different idea: a tab
+   strip navigating between panels, keyed on data-active. This is a control
+   with a value, so pressed state lives in aria-pressed where a screen reader
+   can reach it. */
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.segmented button {
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  padding: var(--sp-2) var(--sp-3);
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-left: 1px solid var(--border);
+  cursor: pointer;
+}
+.segmented button:first-child { border-left: none; }
+.segmented button[aria-pressed="true"] {
+  background: var(--field-bg);
+  color: var(--text);
 }
 
 /* App shell: left rail on desktop, bottom bar on mobile. */
@@ -1324,28 +1673,7 @@ h3 {
    there.
    --------------------------------------------------------------------------- */
 
-.map-grounds {
-  display: inline-flex;
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  overflow: hidden;
-}
-.map-grounds button {
-  font-size: var(--fs-xs);
-  letter-spacing: var(--ls-wide);
-  text-transform: uppercase;
-  padding: var(--sp-2) var(--sp-3);
-  color: var(--muted);
-  background: none;
-  border: none;
-  border-left: 1px solid var(--border);
-  cursor: pointer;
-}
-.map-grounds button:first-child { border-left: none; }
-.map-grounds button[aria-pressed="true"] {
-  background: var(--field-bg);
-  color: var(--text);
-}
+/* The ground picker is a .segmented group — see the button block above. */
 
 .map-plate {
   position: relative;

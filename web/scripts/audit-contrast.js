@@ -113,11 +113,73 @@ function main() {
     console.log(results.join("\n"));
   }
 
+  // The token gates above can only see globals.css. But --accent's rule is
+  // about how JS *uses* it, and that is exactly where it broke: 14 call sites
+  // were colouring text with --accent (2.96 on dusk's --surface, under even
+  // the 3.0 large-text floor) and no gate here could see any of them. So scan
+  // the source too, and make the header's rule 2 enforceable rather than
+  // aspirational.
+  failures += auditAccentUsage();
+
   if (failures) {
     console.error(`\n${failures} contrast gate(s) failed.`);
     process.exit(1);
   }
   console.log("\nAll contrast gates hold.");
+}
+
+// Walks web/app and web/lib for var(--accent) used as anything other than a
+// fill or a rule (background, borderColor, boxShadow). That is the whole of
+// what the token is for; text and outlines take --accent-text.
+function auditAccentUsage() {
+  const roots = [path.join(__dirname, "..", "app"), path.join(__dirname, "..", "lib")];
+  const offenders = [];
+
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name !== "node_modules") walk(full);
+      } else if (entry.name.endsWith(".js")) {
+        fs.readFileSync(full, "utf8")
+          .split("\n")
+          .forEach((line, i) => {
+            // Allowlist, not denylist. A line can legitimately carry both --
+            // `{ borderColor: "var(--accent)", color: "var(--accent-text)" }` --
+            // so each var(--accent) is attributed to the property it sits
+            // under. But the property is often absent: costColor() used to
+            // `return "var(--accent)"` and let its six callers spend it as a
+            // text colour, which no denylist could see. So anything that is not
+            // demonstrably a fill or a rule is a finding, and a helper that
+            // hands the token out for the caller to decide is exactly the case
+            // worth flagging.
+            let from = 0;
+            for (;;) {
+              const at = line.indexOf("var(--accent)", from);
+              if (at === -1) break;
+              from = at + 1;
+              const keys = [...line.slice(0, at).matchAll(/([-\w]+)\s*:/g)];
+              const prop = keys.length ? keys[keys.length - 1][1] : "";
+              if (!/^(background|backgroundColor|border|borderColor|borderLeftColor|borderTopColor|borderRightColor|borderBottomColor|boxShadow|caretColor|accentColor)$/.test(prop)) {
+                offenders.push(`${path.relative(path.join(__dirname, ".."), full)}:${i + 1}`);
+                break;
+              }
+            }
+          });
+      }
+    }
+  };
+
+  for (const root of roots) if (fs.existsSync(root)) walk(root);
+
+  console.log("\n=== --accent usage ===");
+  if (!offenders.length) {
+    console.log("  PASS  var(--accent) is only ever a fill or a rule");
+    return 0;
+  }
+  console.log(`  FAIL  var(--accent) outside a fill/rule -- use var(--accent-text):`);
+  for (const o of offenders) console.log(`          ${o}`);
+  return offenders.length;
 }
 
 main();

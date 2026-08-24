@@ -22,8 +22,9 @@ ID is `1539629144801812641`.)
 
 `docs/systemdocs/infochannel.yaml` is the hand-authored source of truth —
 see its own top-of-file comment for the full field-by-field schema. In
-short: a `main_message` (the intro/pitch/rules copy, posted verbatim) and
-`categories`, each holding an ordered list of `threads` (`title` + `body`).
+short: an optional `banner` (a path, relative to `docs/`, to an image posted
+as a bare attachment), a `main_message` (the intro/pitch/rules copy, posted
+verbatim) and `categories`, each holding an ordered list of `threads` (`title` + `body`).
 Each `title`/`body` pair becomes one standalone thread on `#info`; each
 category becomes a heading in the directory message grouping its threads'
 links.
@@ -58,10 +59,24 @@ after creation, by the same bot that created it.
    (`fetchAllMessages`/`bulkDeleteMessages`), then delete every thread on it
    — active and archived — one at a time (`deleteThread`, sequential, no
    parallel fan-out, same rate-limit-conscious pacing as `dawnWipe.js`).
-3. **Rebuild**: create each `infochannel.yaml` thread (`startThread`), post
+3. **Banner** (if `banner` is set): post the image as a bare attachment.
+   This happens *before* the threads are created, not merely before the
+   directory message — Discord orders a channel oldest-first, and creating
+   a thread emits its own system message into the timeline, so going first
+   is the only way the banner is guaranteed to sit at the very top.
+4. **Rebuild**: create each `infochannel.yaml` thread (`startThread`), post
    its `body` as the thread's first message, then post `main_message` +
    the generated directory listing as the new top-level message in
    `#info`.
+
+**Attachments need multipart.** Discord accepts a file only as
+`multipart/form-data`, so `discordRequest` — JSON-only by design — cannot
+carry one. `postAttachment` in `db/lib/discordRest.js` builds the body by
+hand: a `payload_json` part with the message object, plus one `files[n]`
+part per file. The `attachments[].id` in `payload_json` is the **part
+index**, not a snowflake, and must match the `files[n]` suffix or Discord
+accepts the request and silently drops the file. The `Content-Type` header
+is deliberately omitted so `fetch` can set its own multipart boundary.
 
 Unlike `sync-locations.js` (upsert by slug, never touches already-
 provisioned state), this script has no notion of "already exists" — every
@@ -79,7 +94,7 @@ content is truncated.
 
 ## 5. Where the code lives
 
-`db/lib/discordRest.js` (`startThread`, alongside the channel/message/thread
+`db/lib/discordRest.js` (`startThread` and `postAttachment`, alongside the channel/message/thread
 REST helpers `dawnWipe.js` already uses), `db/prisma/rebuild-info-channel.js`
 (the script itself), `docs/systemdocs/infochannel.yaml` (content),
 `npm run db:rebuild-info-channel` (entry point). No `prisma`/DB dependency —

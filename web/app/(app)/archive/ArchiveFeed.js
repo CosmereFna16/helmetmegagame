@@ -75,8 +75,7 @@ function MessageEntry({ entry, avatarVersion }) {
         alt=""
         width={36}
         height={36}
-        className="mt-0.5 h-9 w-9 shrink-0 rounded"
-        style={{ objectFit: "cover" }}
+        className="mt-0.5 h-9 w-9 shrink-0 rounded object-cover"
       />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <div className="flex flex-wrap items-baseline gap-2">
@@ -98,7 +97,7 @@ function MessageEntry({ entry, avatarVersion }) {
 
 export default function ArchiveFeed({ entries, avatarVersions }) {
   if (entries.length === 0) {
-    return <p className="panel p-6 text-sm text-muted">Nothing recorded for these filters.</p>;
+    return <p className="panel p-4 empty-state">Nothing recorded for these filters.</p>;
   }
 
   // Headers are decided in one pass BEFORE rendering rather than by tracking

@@ -81,11 +81,10 @@ function TagPicker({ tags, selectedId, onSelect, byId = null, heldIds = null }) 
               type="button"
               aria-pressed={isSelected}
               onClick={() => onSelect(isSelected ? null : tag.id)}
-              className="panel flex w-full items-start gap-3 p-3 text-left"
+              className="select-card panel flex w-full items-start gap-3 p-3 text-left"
               style={{
                 borderLeftColor: tag.group?.color ?? undefined,
                 borderLeftWidth: tag.group?.color ? 3 : undefined,
-                outline: isSelected ? "1px solid var(--accent)" : undefined,
               }}
             >
               <span aria-hidden="true">{isSelected ? "◆" : "◇"}</span>

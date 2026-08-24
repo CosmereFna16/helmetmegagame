@@ -1,5 +1,8 @@
 "use client";
 
+import FormError from "@/app/components/FormError";
+import Modal from "@/app/components/Modal";
+import CheckField from "@/app/components/CheckField";
 import { useState, useTransition } from "react";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { useConfirm } from "@/app/components/ConfirmProvider";
@@ -85,14 +88,12 @@ const SECTIONS = {
       <>
         <Line label="Tag added">{stackLabel(effect)}</Line>
         <SpendField value={edits.resourcesSpent} onChange={(v) => setEdit("resourcesSpent", v)} />
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={Boolean(edits.removeTag)}
-            onChange={(e) => setEdit("removeTag", e.target.checked)}
-          />
+        <CheckField
+          checked={Boolean(edits.removeTag)}
+          onChange={(e) => setEdit("removeTag", e.target.checked)}
+        >
           Remove what this request added, but keep the resource cost
-        </label>
+        </CheckField>
       </>
     ),
   },
@@ -173,14 +174,12 @@ const SECTIONS = {
           {effect.bloodBefore ?? 0} → {effect.bloodAfter ?? 0}
         </Line>
         <BloodField value={edits.bloodDelta} onChange={(v) => setEdit("bloodDelta", v)} />
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={Boolean(edits.removeDrained)}
-            onChange={(e) => setEdit("removeDrained", e.target.checked)}
-          />
+        <CheckField
+          checked={Boolean(edits.removeDrained)}
+          onChange={(e) => setEdit("removeDrained", e.target.checked)}
+        >
           Clear their Drained tag but keep the blood
-        </label>
+        </CheckField>
         <p className="text-xs text-muted">
           The pool caps at 100, so this edits what actually moved, not what was asked for. Undo draws
           the same amount back and clears Drained.
@@ -215,7 +214,7 @@ const SECTIONS = {
             <button
               type="button"
               className="btn self-start"
-              style={{ borderColor: "var(--accent)", color: "var(--accent)" }}
+              style={{ borderColor: "var(--accent)", color: "var(--accent-text)" }}
               onClick={onKill}
               disabled={killing}
             >
@@ -290,14 +289,12 @@ const SECTIONS = {
           {effect.payer?.name ?? "—"} — <span className="mono">{effect.resourcesSpent ?? 0} ⬢</span>
         </Line>
         <SpendField value={edits.resourcesSpent} onChange={(v) => setEdit("resourcesSpent", v)} />
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={Boolean(edits.restoreHealedTag)}
-            onChange={(e) => setEdit("restoreHealedTag", e.target.checked)}
-          />
+        <CheckField
+          checked={Boolean(edits.restoreHealedTag)}
+          onChange={(e) => setEdit("restoreHealedTag", e.target.checked)}
+        >
           Put the affliction back but keep the payment
-        </label>
+        </CheckField>
         <p className="text-xs text-muted">
           Confirm moves only the difference in cost, charged to whoever actually paid. Undo puts the
           affliction back with its original source and expiry and refunds them in full.
@@ -382,87 +379,81 @@ export default function RequestPanel({ request, readOnly = false, onClose }) {
   const close = () => (readOnly ? onClose() : guardedClose(onClose));
 
   return (
-    <div className="modal-overlay" onClick={() => !pending && close()}>
-      <div className="modal-panel" style={{ maxWidth: "36rem" }} onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header flex items-center justify-between gap-3">
-          <h2 className="section-title">{readOnly ? "Request (read only)" : "Request"}</h2>
-          <DevCharacterButton characterId={request.characterId} name={request.characterName} />
-        </div>
-
-        <div className="mt-3 flex flex-col gap-2">
-          <Line label="Character">
-            <CharacterLink characterId={request.characterId} name={request.characterName} isGm />{" "}
-            <span className="text-muted">({request.discordUsername})</span>
-          </Line>
-          <Line label="Faction">
-            <FactionLink factionId={request.factionId} name={request.factionName || "—"} />
-          </Line>
-          <Line label="Turn">{request.turnLabel}</Line>
-          <Line label="Type">{request.typeLabel}</Line>
-          <Line label="Status">{request.statusLabel}</Line>
-          <Line label="Reason">{request.reason}</Line>
-          <p className="text-xs text-muted">
-            To reduce GM load, players can make big changes.
-          </p>
-        </div>
-
-        {section && (
-          <div className="mt-4 flex flex-col gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
-            <h3 className="field-label">{section.heading}</h3>
-            <fieldset disabled={readOnly} style={{ border: 0, margin: 0, padding: 0 }}>
-              <div className="flex flex-col gap-3">
-                {section.render({ effect, edits, setEdit, onKill, killing })}
-              </div>
-            </fieldset>
-          </div>
-        )}
-
-        <label className="field mt-4">
-          <span className="field-label">GM notes</span>
-          <textarea
-            rows={2}
-            value={gmNotes}
-            disabled={readOnly}
-            onChange={(e) => {
-              markDirty();
-              setGmNotes(e.target.value);
-            }}
-          />
-        </label>
-
-        {error && (
-          <p className="mt-3 text-sm text-accent">
-            {error}
-          </p>
-        )}
-
-        <div className="mt-4 flex flex-wrap justify-end gap-3">
-          <Tooltip text="Leave the request as the player made it and discard your edits">
-            <button type="button" className="btn-quiet" onClick={close} disabled={pending}>
-              {readOnly ? "Close" : "Cancel"}
-            </button>
-          </Tooltip>
-          {!readOnly && (
-            <>
-              <Tooltip text="Reverse the change entirely and mark the request Undone">
-                <button
-                  type="button"
-                  className="btn-quiet"
-                  onClick={() => run("undo")}
-                  disabled={pending}
-                >
-                  Undo
-                </button>
-              </Tooltip>
-              <Tooltip text="Apply your edits and mark the request Edited">
-                <button type="button" className="btn" onClick={() => run("confirm")} disabled={pending}>
-                  {pending ? "Working…" : "Confirm"}
-                </button>
-              </Tooltip>
-            </>
-          )}
-        </div>
+    <Modal
+      title={readOnly ? "Request (read only)" : "Request"}
+      width="wide"
+      onClose={() => !pending && close()}
+      actions={<DevCharacterButton characterId={request.characterId} name={request.characterName} />}
+    >
+      <div className="mt-3 flex flex-col gap-2">
+        <Line label="Character">
+          <CharacterLink characterId={request.characterId} name={request.characterName} isGm />{" "}
+          <span className="text-muted">({request.discordUsername})</span>
+        </Line>
+        <Line label="Faction">
+          <FactionLink factionId={request.factionId} name={request.factionName || "—"} />
+        </Line>
+        <Line label="Turn">{request.turnLabel}</Line>
+        <Line label="Type">{request.typeLabel}</Line>
+        <Line label="Status">{request.statusLabel}</Line>
+        <Line label="Reason">{request.reason}</Line>
+        <p className="text-xs text-muted">
+          To reduce GM load, players can make big changes.
+        </p>
       </div>
-    </div>
+
+      {section && (
+        <div className="mt-4 flex flex-col gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
+          <h3 className="field-label">{section.heading}</h3>
+          <fieldset disabled={readOnly} style={{ border: 0, margin: 0, padding: 0 }}>
+            <div className="flex flex-col gap-3">
+              {section.render({ effect, edits, setEdit, onKill, killing })}
+            </div>
+          </fieldset>
+        </div>
+      )}
+
+      <label className="field mt-4">
+        <span className="field-label">GM notes</span>
+        <textarea
+          rows={2}
+          value={gmNotes}
+          disabled={readOnly}
+          onChange={(e) => {
+            markDirty();
+            setGmNotes(e.target.value);
+          }}
+        />
+      </label>
+
+      <FormError>{error}</FormError>
+
+      <div className="modal-actions flex-wrap">
+        <Tooltip text="Leave the request as the player made it and discard your edits">
+          <button type="button" className="btn-quiet" onClick={close} disabled={pending}>
+            {readOnly ? "Close" : "Cancel"}
+          </button>
+        </Tooltip>
+        {!readOnly && (
+          <>
+            <Tooltip text="Reverse the change entirely and mark the request Undone">
+              <button
+                type="button"
+                className="btn-quiet"
+                onClick={() => run("undo")}
+                disabled={pending}
+              >
+                Undo
+              </button>
+            </Tooltip>
+            <Tooltip text="Apply your edits and mark the request Edited">
+              <button type="button" className="btn" onClick={() => run("confirm")} disabled={pending}>
+                {pending ? "Working…" : "Confirm"}
+              </button>
+            </Tooltip>
+          </>
+        )}
+      </div>
+    </Modal>
   );
 }

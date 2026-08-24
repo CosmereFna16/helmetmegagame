@@ -1,5 +1,6 @@
 "use client";
 
+import FormError from "@/app/components/FormError";
 import { useState, useTransition } from "react";
 import { useConfirm } from "./ConfirmProvider";
 import InfoIcon from "./InfoIcon";
@@ -143,11 +144,7 @@ export default function DesirePanel({ desire, cooldownUntilTurn, openTurnNumber 
         </form>
       )}
 
-      {error && (
-        <p className="mt-3 text-sm text-accent">
-          {error}
-        </p>
-      )}
+      <FormError>{error}</FormError>
 
       <RequestDialog
         open={fulfilling}

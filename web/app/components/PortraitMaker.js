@@ -1,5 +1,7 @@
 "use client";
 
+import Tooltip from "./Tooltip";
+import FormError from "@/app/components/FormError";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CANVAS,
@@ -17,6 +19,7 @@ import {
   tileRect,
   randomSelection,
 } from "@/lib/portrait/catalog";
+import Modal from "./Modal";
 import { setPortraitAvatar } from "../(app)/character/actions";
 
 // The portrait maker's own UI — the browser half of the renderer pair
@@ -151,25 +154,17 @@ function PortraitCanvas({ size, cssSize, assets, cacheRef, selection, palette, p
 
 function OptionButton({ active, onClick, label, children }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={label}
-      aria-label={label}
-      aria-pressed={active}
-      style={{
-        all: "unset",
-        display: "inline-block",
-        cursor: "pointer",
-        padding: 3,
-        borderRadius: "var(--r-md)",
-        border: `2px solid ${active ? "var(--accent-text)" : "var(--border)"}`,
-        background: active ? "var(--field-bg)" : "transparent",
-        lineHeight: 0,
-      }}
-    >
-      {children}
-    </button>
+    <Tooltip text={label}>
+      <button
+        type="button"
+        className="swatch"
+        onClick={onClick}
+        aria-label={label}
+        aria-pressed={active}
+      >
+        {children}
+      </button>
+    </Tooltip>
   );
 }
 
@@ -199,14 +194,6 @@ export default function PortraitMaker({ onClose, initialSelection, allowFantasy 
     };
   }, []);
 
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   const palette = useMemo(() => buildPalette(selection), [selection]);
   const tab = TABS.find((t) => t.key === tabKey) ?? TABS[0];
 
@@ -227,19 +214,17 @@ export default function PortraitMaker({ onClose, initialSelection, allowFantasy 
   }, [selection, onClose]);
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal-panel"
-        style={{ maxWidth: "46rem" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-header">
-          <h2 className="section-title">Customize Appearance</h2>
-          <button type="button" className="btn-quiet" onClick={onClose}>
-            Close
-          </button>
-        </div>
-
+    <Modal
+      title="Customize Appearance"
+      width="widest"
+      onClose={onClose}
+      actions={
+        <button type="button" className="btn-quiet" onClick={onClose}>
+          Close
+        </button>
+      }
+    >
+      <div>
         {loadError ? (
           <p className="mt-4 text-sm text-muted">
             The portrait art didn&apos;t load. Reload the page and try again.
@@ -348,12 +333,12 @@ export default function PortraitMaker({ onClose, initialSelection, allowFantasy 
             </div>
 
             {saveError && (
-              <p className="mt-3 text-sm" style={{ color: "var(--danger)" }}>
+              <FormError className="mt-3">
                 {saveError}
-              </p>
+              </FormError>
             )}
 
-            <div className="mt-4 flex justify-end gap-3">
+            <div className="modal-actions">
               <button type="button" className="btn-quiet" onClick={onClose}>
                 Cancel
               </button>
@@ -364,6 +349,6 @@ export default function PortraitMaker({ onClose, initialSelection, allowFantasy 
           </>
         )}
       </div>
-    </div>
+    </Modal>
   );
 }

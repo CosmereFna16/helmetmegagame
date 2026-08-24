@@ -1,3 +1,5 @@
+import SubmitButton from "@/app/components/SubmitButton";
+import { EmptyRow } from "@/app/components/EmptyState";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@lifeweb/db";
@@ -5,6 +7,9 @@ import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { updateFaction, deleteFaction } from "../actions";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
+
+// Name, Parent, Silo, and the two action columns.
+const COL_COUNT = 5;
 
 export default async function DevFactionsPage() {
   const session = await auth();
@@ -36,10 +41,15 @@ export default async function DevFactionsPage() {
                   <form action={updateFaction} id={`faction-${f.id}`} className="contents">
                     <input type="hidden" name="factionId" value={f.id} />
                   </form>
-                  <input name="name" defaultValue={f.name} form={`faction-${f.id}`} className="text-input" />
+                  <input name="name" defaultValue={f.name} form={`faction-${f.id}`} className="control" />
                 </td>
                 <td>
-                  <select name="parentFactionId" defaultValue={f.parentFactionId ?? ""} form={`faction-${f.id}`}>
+                  <select
+                    name="parentFactionId"
+                    defaultValue={f.parentFactionId ?? ""}
+                    form={`faction-${f.id}`}
+                    className="control"
+                  >
                     <option value="">None</option>
                     {factions
                       .filter((other) => other.id !== f.id)
@@ -56,11 +66,14 @@ export default async function DevFactionsPage() {
                     name="silo"
                     defaultValue={f.silo}
                     form={`faction-${f.id}`}
-                    className="text-input"
+                    className="control"
                     style={{ width: "6rem" }}
                   />
                 </td>
                 <td>
+                  {/* Outside its <form> (wired by form={...}), so useFormStatus
+                      cannot see it — SubmitButton reads the nearest ENCLOSING
+                      form, and there isn't one. Stays a plain button. */}
                   <button type="submit" form={`faction-${f.id}`} className="btn-quiet">
                     Save
                   </button>
@@ -69,20 +82,16 @@ export default async function DevFactionsPage() {
                   {f.name !== "Unaffiliated" && (
                     <form action={deleteFaction}>
                       <input type="hidden" name="factionId" value={f.id} />
-                      <button type="submit" className="btn-quiet">
+                      <SubmitButton className="btn-quiet" pendingLabel="Deleting…">
                         Delete
-                      </button>
+                      </SubmitButton>
                     </form>
                   )}
                 </td>
               </tr>
             ))}
             {factions.length === 0 && (
-              <tr>
-                <td colSpan={5} className="text-center text-muted">
-                  No factions yet.
-                </td>
-              </tr>
+              <EmptyRow cols={COL_COUNT}>No factions yet.</EmptyRow>
             )}
           </tbody>
         </table>

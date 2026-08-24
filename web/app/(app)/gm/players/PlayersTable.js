@@ -1,5 +1,7 @@
 "use client";
 
+import FormError from "@/app/components/FormError";
+import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { useMemo, useState, useTransition } from "react";
 import { sendGmMessage, bulkTagCharacters } from "../actions";
 import { filterTagsByQuery, sortTagsForMenu } from "@/lib/characterCreation";
@@ -110,7 +112,7 @@ export default function PlayersTable({ characters, tags = [] }) {
       <TableScroll>
         <thead>
           <tr>
-            <th scope="col" style={{ width: "1%" }}>
+            <th scope="col" className="col-fit">
               <span className="sr-only">Select</span>
             </th>
             <SortHeader label="Name" sortKey="name" sort={sort} onSort={toggleSort} />
@@ -141,8 +143,10 @@ export default function PlayersTable({ characters, tags = [] }) {
                 <FactionLink factionId={c.factionId} name={c.factionName || "-"} />
               </td>
               <td>{c.zoneName || "-"}</td>
-              <td>{c.status}</td>
-              <td style={{ color: c.cursed ? "var(--accent)" : "var(--muted)" }}>
+              <td>
+                <EnumPill map={CHARACTER_STATUS} value={c.status} />
+              </td>
+              <td style={{ color: c.cursed ? "var(--accent-text)" : "var(--muted)" }}>
                 {c.cursed ? "Cursed" : "-"}
               </td>
               <td className="mono">{c.resources} ⬢</td>
@@ -242,7 +246,7 @@ function BulkTagBar({ tags, count, characterIds, onDone }) {
         </button>
       </div>
 
-      {result?.error && <p className="text-sm text-accent">{result.error}</p>}
+      <FormError>{result?.error}</FormError>
       {result?.ok && (
         <p className="text-sm text-muted">
           {result.tagName}: applied to {result.applied}

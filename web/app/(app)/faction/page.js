@@ -1,3 +1,6 @@
+import SubmitButton from "@/app/components/SubmitButton";
+import EmptyState, { EmptyRow } from "@/app/components/EmptyState";
+import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import FactionLink from "@/app/components/FactionLink";
@@ -13,6 +16,12 @@ import {
   removeCharacterFromFaction,
 } from "./actions";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
+
+// The Silo history table and the member rosters each have their own shape;
+// naming the counts keeps an added column from silently shortening the empty
+// row underneath it.
+const SILO_COL_COUNT = 5;
+const MEMBER_COL_COUNT = 6;
 
 async function loadFaction(factionId) {
   return prisma.faction.findUnique({
@@ -106,11 +115,7 @@ function FactionTable({ factions, showSilo, isGm = false }) {
             );
           })}
           {factions.length === 0 && (
-            <tr>
-              <td colSpan={showSilo ? 4 : 3} className="text-center text-muted">
-                None.
-              </td>
-            </tr>
+            <EmptyRow cols={showSilo ? 4 : 3}>None.</EmptyRow>
           )}
         </tbody>
       </table>
@@ -222,11 +227,7 @@ function SiloHistoryPanel({ history }) {
             </tr>
           ))}
           {history.length === 0 && (
-            <tr>
-              <td colSpan={5} className="text-center text-muted">
-                No Silo activity yet.
-              </td>
-            </tr>
+            <EmptyRow cols={SILO_COL_COUNT}>No Silo activity yet.</EmptyRow>
           )}
         </tbody>
       </table>
@@ -253,9 +254,9 @@ export default async function FactionPage({ searchParams }) {
   if (!gm) {
     if (!myCharacter?.factionId) {
       return (
-        <div className="mx-auto max-w-2xl p-6 sm:p-8">
-          <p className="text-muted">You aren&apos;t assigned to a faction yet.</p>
-        </div>
+        <PageShell width="narrow">
+          <EmptyState>You aren&apos;t assigned to a faction yet.</EmptyState>
+        </PageShell>
       );
     }
 
@@ -285,9 +286,9 @@ export default async function FactionPage({ searchParams }) {
     // all: no title, no member roster, no Silo.
     if (faction.name === "Unaffiliated") {
       return (
-        <div className="mx-auto max-w-2xl p-6 sm:p-8">
-          <p className="text-muted">You aren&apos;t assigned to a faction yet.</p>
-        </div>
+        <PageShell width="narrow">
+          <EmptyState>You aren&apos;t assigned to a faction yet.</EmptyState>
+        </PageShell>
       );
     }
 
@@ -352,7 +353,9 @@ export default async function FactionPage({ searchParams }) {
                       {c.isLeader ? " (Leader)" : ""}
                       {treasurer ? " (Treasurer)" : ""}
                     </td>
-                    <td>{c.status}</td>
+                    <td>
+                      <EnumPill map={CHARACTER_STATUS} value={c.status} />
+                    </td>
                     {viewCanManageSilo && <td>{c.resources} ⬢</td>}
                     {canManageMembers && (
                       <td>
@@ -360,9 +363,9 @@ export default async function FactionPage({ searchParams }) {
                           <input type="hidden" name="characterId" value={c.id} />
                           <input type="hidden" name="factionId" value={faction.id} />
                           <input type="hidden" name="grant" value={(!treasurer).toString()} />
-                          <button type="submit" className="btn-quiet">
+                          <SubmitButton className="btn-quiet">
                             {treasurer ? "Revoke Treasurer" : "Assign Treasurer"}
-                          </button>
+                          </SubmitButton>
                         </form>
                       </td>
                     )}
@@ -475,16 +478,18 @@ export default async function FactionPage({ searchParams }) {
                     {c.isLeader ? " (Leader)" : ""}
                     {treasurer ? " (Treasurer)" : ""}
                   </td>
-                  <td>{c.status}</td>
+                  <td>
+                      <EnumPill map={CHARACTER_STATUS} value={c.status} />
+                    </td>
                   <td>{c.resources} ⬢</td>
                   <td>
                     {!isUnaffiliated && !c.isLeader && (
                       <form action={setFactionLeader}>
                         <input type="hidden" name="characterId" value={c.id} />
                         <input type="hidden" name="factionId" value={faction.id} />
-                        <button type="submit" className="btn-quiet">
+                        <SubmitButton className="btn-quiet">
                           Make Leader
-                        </button>
+                        </SubmitButton>
                       </form>
                     )}
                   </td>
@@ -494,9 +499,9 @@ export default async function FactionPage({ searchParams }) {
                         <input type="hidden" name="characterId" value={c.id} />
                         <input type="hidden" name="factionId" value={faction.id} />
                         <input type="hidden" name="grant" value={(!treasurer).toString()} />
-                        <button type="submit" className="btn-quiet">
+                        <SubmitButton className="btn-quiet">
                           {treasurer ? "Revoke Treasurer" : "Assign Treasurer"}
-                        </button>
+                        </SubmitButton>
                       </form>
                     )}
                   </td>
@@ -504,9 +509,9 @@ export default async function FactionPage({ searchParams }) {
                     {!isUnaffiliated && (
                       <form action={removeCharacterFromFaction}>
                         <input type="hidden" name="characterId" value={c.id} />
-                        <button type="submit" className="btn-quiet">
+                        <SubmitButton className="btn-quiet">
                           Remove
-                        </button>
+                        </SubmitButton>
                       </form>
                     )}
                   </td>
@@ -514,11 +519,7 @@ export default async function FactionPage({ searchParams }) {
               );
             })}
             {faction.characters.length === 0 && (
-              <tr>
-                <td colSpan={6} className="text-center text-muted">
-                  No members yet.
-                </td>
-              </tr>
+              <EmptyRow cols={MEMBER_COL_COUNT}>No members yet.</EmptyRow>
             )}
           </tbody>
         </table>
@@ -537,7 +538,7 @@ export default async function FactionPage({ searchParams }) {
         <h2 className="panel-header">Add Member</h2>
         <form action={addCharacterToFaction} className="flex gap-2">
           <input type="hidden" name="factionId" value={faction.id} />
-          <select name="characterId" required defaultValue="">
+          <select name="characterId" required defaultValue="" className="control">
             <option value="" disabled>
               Choose a character...
             </option>
@@ -547,9 +548,7 @@ export default async function FactionPage({ searchParams }) {
               </option>
             ))}
           </select>
-          <button type="submit" className="btn">
-            Add
-          </button>
+          <SubmitButton>Add</SubmitButton>
         </form>
       </section>
     </PageShell>

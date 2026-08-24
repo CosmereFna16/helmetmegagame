@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import FormError from "@/app/components/FormError";
+import { useState } from "react";
 import { MAX_REASON_LENGTH } from "@/lib/constants";
+
+import Modal from "./Modal";
 
 // The universal Requests popup. Every player action that takes effect without
 // GM approval opens one of these: a required reason on top (the thing the GM
@@ -31,70 +34,52 @@ function RequestDialogBody({
 }) {
   const [reason, setReason] = useState("");
 
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === "Escape" && !busy) onCancel?.();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [busy, onCancel]);
-
   const trimmed = reason.trim();
   const ready = !busy && canSubmit && trimmed.length > 0;
 
   return (
-    <div className="modal-overlay" onClick={() => !busy && onCancel?.()}>
-      <div className="modal-panel" style={{ maxWidth: "34rem" }} onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2 className="section-title">{title}</h2>
-        </div>
+    <Modal title={title} onClose={() => !busy && onCancel?.()}>
+      <form
+        className="mt-3 flex flex-col gap-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (ready) onConfirm?.(trimmed);
+        }}
+      >
+        <label className="field">
+          <span className="field-label">What is your reason?</span>
+          <textarea
+            name="reason"
+            rows={3}
+            required
+            autoFocus
+            maxLength={MAX_REASON_LENGTH}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="This goes to the GMs — say what happened."
+          />
+        </label>
+        <p className="text-xs text-muted" style={{ marginTop: "-0.25rem" }}>
+          This takes effect immediately. A GM reviews it afterwards and may undo or edit it.
+        </p>
 
-        <form
-          className="mt-3 flex flex-col gap-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (ready) onConfirm?.(trimmed);
-          }}
-        >
-          <label className="field">
-            <span className="field-label">What is your reason?</span>
-            <textarea
-              name="reason"
-              rows={3}
-              required
-              autoFocus
-              maxLength={MAX_REASON_LENGTH}
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="This goes to the GMs — say what happened."
-            />
-          </label>
-          <p className="text-xs text-muted" style={{ marginTop: "-0.25rem" }}>
-            This takes effect immediately. A GM reviews it afterwards and may undo or edit it.
-          </p>
-
-          {children && (
-            <div className="flex flex-col gap-3 border-t pt-3" style={{ borderColor: "var(--border)" }}>
-              {children}
-            </div>
-          )}
-
-          {error && (
-            <p className="text-sm text-accent">
-              {error}
-            </p>
-          )}
-
-          <div className="mt-1 flex justify-end gap-3">
-            <button type="button" className="btn-quiet" onClick={() => onCancel?.()} disabled={busy}>
-              Cancel
-            </button>
-            <button type="submit" className="btn" disabled={!ready}>
-              {busy ? "Working…" : submitLabel}
-            </button>
+        {children && (
+          <div className="flex flex-col gap-3 border-t pt-3" style={{ borderColor: "var(--border)" }}>
+            {children}
           </div>
-        </form>
-      </div>
-    </div>
+        )}
+
+        <FormError>{error}</FormError>
+
+        <div className="modal-actions">
+          <button type="button" className="btn-quiet" onClick={() => onCancel?.()} disabled={busy}>
+            Cancel
+          </button>
+          <button type="submit" className="btn" disabled={!ready}>
+            {busy ? "Working…" : submitLabel}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }

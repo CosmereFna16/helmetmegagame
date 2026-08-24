@@ -1,5 +1,6 @@
 "use client";
 
+import Switch from "./Switch";
 import { useState, useTransition } from "react";
 import PortraitMaker from "./PortraitMaker";
 import HoverCard from "./HoverCard";
@@ -77,18 +78,12 @@ export default function AvatarField({
             {resetting ? "Resetting…" : "Reset to Default"}
           </button>
         )}
-        <label className="flex items-center gap-2 text-sm" style={{ cursor: "pointer" }}>
-          <input type="checkbox" name="turnPingOptIn" defaultChecked={defaultTurnPingOptIn} />
-          <span className="field-label" style={{ marginBottom: 0 }}>
-            Turn Ping?
-          </span>
-        </label>
-        <label className="flex items-center gap-2 text-sm" style={{ cursor: "pointer" }}>
-          <input type="checkbox" name="romanceOptOut" defaultChecked={defaultRomanceOptOut} />
-          <span className="field-label" style={{ marginBottom: 0 }}>
-            Disable Romance Content?
-          </span>
-        </label>
+        <Switch name="turnPingOptIn" defaultChecked={defaultTurnPingOptIn}>
+          Ping me when the turn advances
+        </Switch>
+        <Switch name="romanceOptOut" defaultChecked={defaultRomanceOptOut}>
+          Disable romance content
+        </Switch>
         {fileName ? (
           <span className="text-sm text-muted">
             {fileName}

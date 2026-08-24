@@ -1,6 +1,14 @@
 // Pure turn-formatting helpers with no database dependency, kept separate
 // from turn.js's getOpenTurn() so client components can import these
 // without dragging the @lifeweb/db (Prisma) barrel into the browser bundle.
+//
+// turnsLeft/formatTurnsLeft/tagDuration used to be hand-maintained copies of
+// the db/lib/turnFormat.js originals — byte-identical apart from the `export`
+// keyword, with nothing keeping them in step. They are re-exported from the
+// deep path instead, which resolves without the barrel (and so without Prisma)
+// because @lifeweb/db declares no `exports` map. Everything below is genuinely
+// web-only: themes, weather labels, the turn label a page renders.
+export { turnsLeft, formatTurnsLeft, tagDuration } from "@lifeweb/db/lib/turnFormat";
 
 const WEATHER_LABELS = {
   CLEAR: "Clear",
@@ -49,19 +57,6 @@ export function formatTurnLabel(turnNumber, phase) {
 // the open turn — see the sweep in db/index.js#resolveNeeds. Null whenever
 // either side is missing, which is the common case: most tags never expire.
 //
-// Shared so the Mood countdown on StatusPanel and the countdown on every tag
-// chip cannot disagree, since they read the same column.
-export function turnsLeft(expiresTurn, currentTurn) {
-  if (expiresTurn == null || currentTurn == null) return null;
-  return Math.max(0, expiresTurn - currentTurn);
-}
-
-// "2 turns left" / "1 turn left" / "expires this turn".
-export function formatTurnsLeft(n) {
-  if (n == null) return null;
-  if (n === 0) return "expires this turn";
-  return `${n} turn${n === 1 ? "" : "s"} left`;
-}
 
 // The single source for "how long does this tag last", covering all four
 // states a chip can be in. `left` is turnsLeft() for a held CharacterTag (null
@@ -74,24 +69,6 @@ export function formatTurnsLeft(n) {
 //   catalog reference    -> { "Lasts 1 turn once granted","1t"  }
 //   neither              -> null
 //
-// "once granted" is load-bearing: it is the entire difference between a live
-// countdown and a catalog fact, and its absence is why the same tag read two
-// different ways depending on how it was granted.
-export function tagDuration(left, defaultDurationTurns) {
-  if (left != null) {
-    return left === 0
-      ? { label: "Expires this turn", badge: "last" }
-      : { label: `${left} turn${left === 1 ? "" : "s"} left`, badge: `${left}t` };
-  }
-  if (defaultDurationTurns) {
-    const n = defaultDurationTurns;
-    return {
-      label: `Lasts ${n} turn${n === 1 ? "" : "s"} once granted`,
-      badge: `${n}t`,
-    };
-  }
-  return null;
-}
 
 // The absolute turn a tag granted right now should expire on, or null when it
 // has no catalog duration (and so never expires). Every grant path must use

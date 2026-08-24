@@ -1,5 +1,7 @@
 "use client";
 
+import Tooltip from "./Tooltip";
+import FormError from "@/app/components/FormError";
 import { useState, useTransition } from "react";
 import ChipLabel from "./ChipLabel";
 import { toggleEquip } from "@/app/(app)/character/equipActions";
@@ -61,17 +63,17 @@ export default function EquipmentPanel({ characterTags, slots = 6, isSelf }) {
             return <div key={`empty-${i}`} className="equip-slot is-empty" aria-hidden="true" />;
           }
           return (
-            <button
-              key={ct.id}
-              type="button"
-              className="equip-slot"
-              onClick={() => isSelf && toggle(ct.id)}
-              disabled={!isSelf || pending}
-              title={isSelf ? `Unequip ${ct.tag.name}` : ct.tag.name}
-              aria-label={isSelf ? `Unequip ${ct.tag.name}` : ct.tag.name}
-            >
-              <ChipLabel tag={ct.tag} quantity={ct.quantity} />
-            </button>
+            <Tooltip key={ct.id} text={isSelf ? `Unequip ${ct.tag.name}` : ct.tag.name}>
+              <button
+                type="button"
+                className="equip-slot"
+                onClick={() => isSelf && toggle(ct.id)}
+                disabled={!isSelf || pending}
+                aria-label={isSelf ? `Unequip ${ct.tag.name}` : ct.tag.name}
+              >
+                <ChipLabel tag={ct.tag} quantity={ct.quantity} />
+              </button>
+            </Tooltip>
           );
         })}
       </div>
@@ -81,17 +83,22 @@ export default function EquipmentPanel({ characterTags, slots = 6, isSelf }) {
           <p className="field-label mt-3">Carrying</p>
           <div className="flex flex-wrap gap-2">
             {available.map((ct) => (
-              <button
-                key={ct.id}
-                type="button"
-                className="equip-add"
-                onClick={() => toggle(ct.id)}
-                disabled={pending || full}
-                title={full ? "No free slots" : `Equip ${ct.tag.name}`}
-                aria-label={`Equip ${ct.tag.name}`}
-              >
-                <ChipLabel tag={ct.tag} quantity={ct.quantity} />
-              </button>
+              /* "No free slots" is the ONLY explanation of why this button is
+                 dead, and a native title= never fires on a disabled element in
+                 several browsers — so the one case that most needed a tooltip
+                 was the one case that never showed one. HoverCard wraps the
+                 button rather than living on it, so it works regardless. */
+              <Tooltip key={ct.id} text={full ? "No free slots" : `Equip ${ct.tag.name}`}>
+                <button
+                  type="button"
+                  className="equip-add"
+                  onClick={() => toggle(ct.id)}
+                  disabled={pending || full}
+                  aria-label={`Equip ${ct.tag.name}`}
+                >
+                  <ChipLabel tag={ct.tag} quantity={ct.quantity} />
+                </button>
+              </Tooltip>
             ))}
           </div>
           {full && (
@@ -102,7 +109,7 @@ export default function EquipmentPanel({ characterTags, slots = 6, isSelf }) {
         </>
       )}
 
-      {error && <p className="mt-2 text-sm" style={{ color: "var(--danger)" }}>{error}</p>}
+      <FormError>{error}</FormError>
     </section>
   );
 }

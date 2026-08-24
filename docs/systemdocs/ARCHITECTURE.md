@@ -49,6 +49,29 @@ at all — the barrel pulls in Prisma and the YAML syncs (`node:fs`), neither of
 which bundles for the browser. `web/lib/characterCreation.js` imports
 `@lifeweb/db/lib/roleCapacity` directly for exactly this reason.
 
+**Reach for the deep path, not a copy.** The escape hatch above is a
+*re-export*, and it is what `web/lib/` shims are for: `characterName.js`,
+`turnFormat.js` and `formatTagRequirement.js` all name
+`@lifeweb/db/lib/<module>` and re-export from it. The deep path resolves
+because `db/package.json` declares **no `exports` map**, so it reaches the
+module without ever loading `db/index.js`.
+
+Two of those used to be hand-maintained *copies* instead, byte-identical to
+their originals apart from `export function` vs `module.exports`. Both were in
+sync when they were replaced, but only because whoever last edited one
+remembered the other existed — and the failure mode is silent: a tag
+requirement reading one way in a web tooltip and another in a Discord inspect
+embed. A copy is never the right answer here; the deep path costs one line.
+
+Use **named** re-exports rather than `export *`. The targets are CommonJS, and
+a star re-export makes Turbopack emit runtime interop and warn on every build.
+
+The same rule applies to plain data. `web/lib/requests.js` imports the barrel,
+so its label maps were unreachable from any client component and the Dev
+Panel's Record tab rendered raw DB enums instead; they now live in
+`web/lib/requestLabels.js`, with `requests.js` re-exporting them for its
+server-side callers. `web/lib/moves.js` is the same idea for Moves.
+
 ## 3. The REST/gateway twin pattern
 
 The bot has a gateway client; the web app only has REST. Where both need the

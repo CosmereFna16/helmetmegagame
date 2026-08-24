@@ -22,8 +22,11 @@ export default function MessageList({ messages }) {
           <div
             className="max-w-md rounded-md px-3 py-2 text-sm"
             style={{
-              background: m.direction === "OUTBOUND" ? "var(--accent)" : "var(--field-bg)",
-              color: m.direction === "OUTBOUND" ? "var(--bg)" : "var(--text)",
+              /* --accent-solid/--on-accent, not --accent/--bg: the latter pair
+                 measures 3.88 in dusk and 3.77 in limestone, under AA. This is
+                 the same primary pair .btn uses, and it clears 4.5 everywhere. */
+              background: m.direction === "OUTBOUND" ? "var(--accent-solid)" : "var(--field-bg)",
+              color: m.direction === "OUTBOUND" ? "var(--on-accent)" : "var(--text)",
               border: m.direction === "OUTBOUND" ? "none" : "1px solid var(--border)",
             }}
           >

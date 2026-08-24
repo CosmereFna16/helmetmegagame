@@ -1,5 +1,6 @@
 "use client";
 
+import StatusPill from "@/app/components/StatusPill";
 import { Fragment, useMemo, useState } from "react";
 import { useTableState, SortHeader, FilterBar, TableScroll } from "@/app/components/DataTable";
 import Pager from "@/app/components/Pager";
@@ -14,10 +15,15 @@ const COL_COUNT = 11;
 
 // Passed is the untouched default and stays plain; both GM verdicts are red,
 // because either one means "this didn't stand as the player made it".
-const STATUS_COLORS = {
-  Passed: "var(--text)",
-  Edited: "var(--accent)",
-  Undone: "var(--accent)",
+//
+// Tones, not colours -- see MovesTable. The mapping stays local because a
+// Request's states are not a Move's, but the vocabulary is shared. Note the
+// verdicts now actually render red: they were ember (--accent), which this
+// comment has always said they were not.
+const STATUS_TONES = {
+  Passed: "neutral",
+  Edited: "bad",
+  Undone: "bad",
 };
 
 // A Feed Person request tops up the Lifeweb but deliberately leaves its
@@ -69,13 +75,13 @@ export default function RequestsTable({ requests, onReview, onView }) {
       <TableScroll minWidth="1100px">
         <thead>
           <tr>
-            <th scope="col" style={{ width: "1%" }}>
+            <th scope="col" className="col-fit">
               <span className="sr-only">Review</span>
             </th>
-            <th scope="col" style={{ width: "1%" }}>
+            <th scope="col" className="col-fit">
               <span className="sr-only">Message</span>
             </th>
-            <th scope="col" style={{ width: "1%" }}>
+            <th scope="col" className="col-fit">
               <span className="sr-only">View</span>
             </th>
             <SortHeader label="Turn" sortKey="turnNumber" sort={sort} onSort={toggleSort} />
@@ -83,7 +89,7 @@ export default function RequestsTable({ requests, onReview, onView }) {
             <SortHeader label="Discord" sortKey="discordUsername" sort={sort} onSort={toggleSort} />
             <SortHeader label="Faction" sortKey="factionName" sort={sort} onSort={toggleSort} />
             <SortHeader label="Type" sortKey="typeLabel" sort={sort} onSort={toggleSort} />
-            <th scope="col" style={{ minWidth: "22rem" }}>
+            <th scope="col" className="col-prose">
               Reason
             </th>
             <SortHeader label="Status" sortKey="statusLabel" sort={sort} onSort={toggleSort} />
@@ -93,7 +99,7 @@ export default function RequestsTable({ requests, onReview, onView }) {
         <tbody>
           {pageRows.map((row) => (
             <Fragment key={row.id}>
-              <tr style={awaitingKill(row) ? { color: "var(--accent)" } : undefined}>
+              <tr style={awaitingKill(row) ? { color: "var(--accent-text)" } : undefined}>
                 <td>
                   <IconButton icon={EditIcon} label="Review this request" onClick={() => onReview?.(row)} />
                 </td>
@@ -125,11 +131,10 @@ export default function RequestsTable({ requests, onReview, onView }) {
                     {row.gmNotes ? ` · ${row.gmNotes}` : ""}
                   </span>
                 </td>
-                <td
-                  className="whitespace-nowrap"
-                  style={{ color: STATUS_COLORS[row.statusLabel] ?? "var(--text)" }}
-                >
-                  {row.statusLabel}
+                <td className="whitespace-nowrap">
+                  <StatusPill tone={STATUS_TONES[row.statusLabel] ?? "neutral"}>
+                    {row.statusLabel}
+                  </StatusPill>
                 </td>
                 <ResourceDeltaCell value={row.resourceDelta} />
               </tr>

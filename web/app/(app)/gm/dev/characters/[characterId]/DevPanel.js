@@ -1,5 +1,6 @@
 "use client";
 
+import { CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -319,7 +320,7 @@ export default function DevPanel({
         <div className="panel dev-apply-bar flex flex-wrap items-center justify-between gap-3 p-3">
           <span className="text-sm">
             {error ? (
-              <span className="text-accent">{error}</span>
+              <span className="form-error" role="alert">{error}</span>
             ) : (
               <>
                 <strong className="mono">{pendingCount}</strong> pending change
@@ -347,7 +348,7 @@ export default function DevPanel({
 function StateStrip({ character, staged, discord, held, equipSlots, gambitModifier, openTurn, hasActed }) {
   const equipped = held.filter((h) => h.equipped).length;
   const facts = [
-    ["Status", character.status],
+    ["Status", CHARACTER_STATUS[character.status]?.label ?? character.status],
     ["Role", staged.roleTitle ?? "—"],
     [
       "Faction",

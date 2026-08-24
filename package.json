@@ -32,7 +32,8 @@
     "db:sync-roles": "node db/prisma/sync-roles.js",
     "db:sync-documents": "node db/prisma/sync-documents.js",
     "db:sync-narrowcast-channels": "node db/prisma/sync-narrowcast-channels.js",
-    "db:rebuild-info-channel": "node db/prisma/rebuild-info-channel.js"
+    "db:rebuild-info-channel": "node db/prisma/rebuild-info-channel.js",
+    "db:set-bot-avatar": "node db/prisma/set-bot-avatar.js"
   },
   "allowScripts": {
     "@prisma/client@6.19.3": true,

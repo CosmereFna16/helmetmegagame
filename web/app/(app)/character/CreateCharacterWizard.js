@@ -1,5 +1,7 @@
 "use client";
 
+import FormError from "@/app/components/FormError";
+import CheckField from "@/app/components/CheckField";
 import { useMemo, useState } from "react";
 import { createCharacter } from "./createActions";
 import PointBuy from "../../components/PointBuy";
@@ -54,19 +56,14 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
       disabled={disabled}
       onClick={() => onSelect(role.id)}
       aria-pressed={selected}
-      className="panel flex w-full flex-col gap-1 p-3 text-left"
-      style={{
-        outline: selected ? "1px solid var(--accent)" : undefined,
-        opacity: disabled ? 0.45 : 1,
-        cursor: disabled ? "not-allowed" : "pointer",
-      }}
+      className="select-card panel flex w-full flex-col gap-1 p-3 text-left"
     >
       <span className="flex flex-wrap items-baseline justify-between gap-2">
         <strong>
           {role.name}
           {role.grantsLeader && <Tooltip text="Leader"> ★</Tooltip>}
         </strong>
-        <span className="text-sm" style={{ color: full ? "var(--accent)" : "var(--muted)" }}>
+        <span className="text-sm" style={{ color: full ? "var(--accent-text)" : "var(--muted)" }}>
           {taken}/{cap === null ? "∞" : cap}
         </span>
       </span>
@@ -216,11 +213,7 @@ export default function CreateCharacterWizard({
         </p>
       )}
 
-      {error && (
-        <p className="panel p-3 text-sm text-danger" role="alert">
-          {error}
-        </p>
-      )}
+      <FormError>{error}</FormError>
 
       {step === 0 && (
         <div className="panel flex flex-col gap-4 p-4">
@@ -397,14 +390,13 @@ export default function CreateCharacterWizard({
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
             {ANTAGONISTS.map((a) => (
-              <label key={a.slug} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={antagonists.includes(a.slug)}
-                  onChange={() => toggleAntagonist(a.slug)}
-                />
+              <CheckField
+                key={a.slug}
+                checked={antagonists.includes(a.slug)}
+                onChange={() => toggleAntagonist(a.slug)}
+              >
                 {a.name}
-              </label>
+              </CheckField>
             ))}
           </div>
           <div className="flex flex-wrap items-center gap-3">

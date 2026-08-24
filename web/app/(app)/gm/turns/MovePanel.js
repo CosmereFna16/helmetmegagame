@@ -1,5 +1,8 @@
 "use client";
 
+import FormError from "@/app/components/FormError";
+import Modal from "@/app/components/Modal";
+import CheckField from "@/app/components/CheckField";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { useConfirm } from "@/app/components/ConfirmProvider";
@@ -180,201 +183,193 @@ export default function MovePanel({ move, readOnly = false, onClose }) {
 
   return (
     <>
-      <div className="modal-overlay" onClick={() => !pending && close()}>
-        <div className="modal-panel" style={{ maxWidth: "40rem" }} onClick={(e) => e.stopPropagation()}>
-          <div className="modal-header flex items-center justify-between gap-3">
-            <h2 className="section-title">{readOnly ? "Move (read only)" : "Adjudicate Move"}</h2>
-            <DevCharacterButton characterId={move.characterId} name={move.characterName} />
-          </div>
-
-          <div className="mt-4 flex flex-col gap-2">
-            <h3 className="field-label">Character</h3>
-            <Line label="Player">
-              <CharacterLink characterId={move.characterId} name={move.characterName} isGm />{" "}
-              <span className="text-muted">({move.discordUsername})</span>
-            </Line>
-            <Line label="Location">{move.locationLabel}</Line>
-            <Line label="Faction">
-            <FactionLink factionId={move.factionId} name={move.factionName || "—"} />
+      <Modal
+        title={readOnly ? "Move (read only)" : "Adjudicate Move"}
+        width="wide"
+        onClose={() => !pending && close()}
+        actions={<DevCharacterButton characterId={move.characterId} name={move.characterName} />}
+      >
+        <div className="mt-4 flex flex-col gap-2">
+          <h3 className="field-label">Character</h3>
+          <Line label="Player">
+            <CharacterLink characterId={move.characterId} name={move.characterName} isGm />{" "}
+            <span className="text-muted">({move.discordUsername})</span>
           </Line>
-            <Line label="Resources">{move.resources} ⬢</Line>
-            {move.tags?.length ? (
-              <div className="flex flex-wrap gap-1.5">
-                {move.tags.map((t) => (
-                  <TagChip
-                    key={t.id}
-                    tag={t}
-                    quantity={t.quantity}
-                    expiresTurn={t.expiresTurn}
-                    currentTurn={move.currentTurnNumber}
-                  />
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted">
-                No tags.
-              </p>
-            )}
-          </div>
-
-          <div className="mt-4 flex flex-col gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
-            <h3 className="field-label">Situation</h3>
-            <Line label="Turn">{move.turnLabel}</Line>
-            <p className="text-sm">{move.description}</p>
-
-            <Switch
-              label="Kind"
-              value={edits.moveKind}
-              disabled={disabled}
-              onChange={(v) => setEdit("moveKind", v)}
-              options={[
-                { value: "ROUTINE", label: "Routine" },
-                { value: "GAMBIT", label: "Gambit" },
-              ]}
-            />
-
-            <Switch
-              label="Opposed"
-              value={edits.opposed}
-              disabled={disabled}
-              onChange={(v) => setEdit("opposed", v)}
-              options={[
-                { value: false, label: "No" },
-                { value: true, label: "Yes" },
-              ]}
-            >
-              <InfoIcon text={OPPOSED_HELP} />
-            </Switch>
-
-            <Line label="Dice">
-              {move.rollLabel || <span className="text-muted">—</span>}
-            </Line>
-            {edits.moveKind !== move.moveKind && (
-              <p className="text-xs text-accent">
-                {edits.moveKind === "GAMBIT"
-                  ? "Saving rolls a fresh d6 and applies their current Mood and Hunger."
-                  : "Saving clears the roll — a Routine never carries one."}
-              </p>
-            )}
-          </div>
-
-          <div className="mt-4 flex flex-col gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
-            <h3 className="field-label">Result</h3>
-
-            <label className="field" style={{ width: "12rem" }}>
-              <span className="field-label">Resources</span>
-              <input
-                type="number"
-                min={-MAX_RESOURCE_DELTA}
-                max={MAX_RESOURCE_DELTA}
-                value={edits.resourceDelta}
-                disabled={disabled}
-                onChange={(e) => setEdit("resourceDelta", e.target.value)}
-              />
-            </label>
-            {move.appliedSummary && (
-              <p className="text-xs text-muted">
-                Already pushed to their sheet: {move.appliedSummary}.
-              </p>
-            )}
-
-            <label className="field">
-              <span className="field-label flex items-center gap-1.5">
-                Result
-                <InfoIcon text={RESULT_HELP} />
-              </span>
-              <textarea
-                rows={4}
-                value={edits.resultMessage}
-                disabled={disabled}
-                onChange={(e) => setEdit("resultMessage", e.target.value)}
-              />
-            </label>
-
-            <label className="field">
-              <span className="field-label">GM notes</span>
-              <textarea
-                rows={2}
-                value={edits.gmNotes}
-                disabled={disabled}
-                onChange={(e) => setEdit("gmNotes", e.target.value)}
-              />
-            </label>
-
-            {!readOnly && (
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={notifyPlayer}
-                  disabled={disabled}
-                  onChange={(e) => setNotifyPlayer(e.target.checked)}
+          <Line label="Location">{move.locationLabel}</Line>
+          <Line label="Faction">
+          <FactionLink factionId={move.factionId} name={move.factionName || "—"} />
+        </Line>
+          <Line label="Resources">{move.resources} ⬢</Line>
+          {move.tags?.length ? (
+            <div className="flex flex-wrap gap-1.5">
+              {move.tags.map((t) => (
+                <TagChip
+                  key={t.id}
+                  tag={t}
+                  quantity={t.quantity}
+                  expiresTurn={t.expiresTurn}
+                  currentTurn={move.currentTurnNumber}
                 />
-                DM the Result to {move.characterName} when I solve this
-              </label>
-            )}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted">
+              No tags.
+            </p>
+          )}
+        </div>
 
-          {move.reviewedByUsername && (
-            <p className="mt-3 text-xs text-muted">
-              Solved by {move.reviewedByUsername}
-              {move.reviewedAtLabel ? ` · ${move.reviewedAtLabel}` : ""}
+        <div className="mt-4 flex flex-col gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
+          <h3 className="field-label">Situation</h3>
+          <Line label="Turn">{move.turnLabel}</Line>
+          <p className="text-sm">{move.description}</p>
+
+          <Switch
+            label="Kind"
+            value={edits.moveKind}
+            disabled={disabled}
+            onChange={(v) => setEdit("moveKind", v)}
+            options={[
+              { value: "ROUTINE", label: "Routine" },
+              { value: "GAMBIT", label: "Gambit" },
+            ]}
+          />
+
+          <Switch
+            label="Opposed"
+            value={edits.opposed}
+            disabled={disabled}
+            onChange={(v) => setEdit("opposed", v)}
+            options={[
+              { value: false, label: "No" },
+              { value: true, label: "Yes" },
+            ]}
+          >
+            <InfoIcon text={OPPOSED_HELP} />
+          </Switch>
+
+          <Line label="Dice">
+            {move.rollLabel || <span className="text-muted">—</span>}
+          </Line>
+          {edits.moveKind !== move.moveKind && (
+            <p className="text-xs text-accent">
+              {edits.moveKind === "GAMBIT"
+                ? "Saving rolls a fresh d6 and applies their current Mood and Hunger."
+                : "Saving clears the roll — a Routine never carries one."}
+            </p>
+          )}
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
+          <h3 className="field-label">Result</h3>
+
+          <label className="field" style={{ width: "12rem" }}>
+            <span className="field-label">Resources</span>
+            <input
+              type="number"
+              min={-MAX_RESOURCE_DELTA}
+              max={MAX_RESOURCE_DELTA}
+              value={edits.resourceDelta}
+              disabled={disabled}
+              onChange={(e) => setEdit("resourceDelta", e.target.value)}
+            />
+          </label>
+          {move.appliedSummary && (
+            <p className="text-xs text-muted">
+              Already pushed to their sheet: {move.appliedSummary}.
             </p>
           )}
 
-          {!readOnly && !locked && !error && (
-            <p className="mt-3 text-xs text-muted">
-              Claiming this Move…
-            </p>
+          <label className="field">
+            <span className="field-label flex items-center gap-1.5">
+              Result
+              <InfoIcon text={RESULT_HELP} />
+            </span>
+            <textarea
+              rows={4}
+              value={edits.resultMessage}
+              disabled={disabled}
+              onChange={(e) => setEdit("resultMessage", e.target.value)}
+            />
+          </label>
+
+          <label className="field">
+            <span className="field-label">GM notes</span>
+            <textarea
+              rows={2}
+              value={edits.gmNotes}
+              disabled={disabled}
+              onChange={(e) => setEdit("gmNotes", e.target.value)}
+            />
+          </label>
+
+          {!readOnly && (
+            <CheckField
+              checked={notifyPlayer}
+              disabled={disabled}
+              onChange={(e) => setNotifyPlayer(e.target.checked)}
+            >
+              DM the Result to {move.characterName} when I solve this
+            </CheckField>
           )}
+        </div>
 
-          {error && (
-            <p className="mt-3 text-sm text-accent">
-              {error}
-            </p>
-          )}
+        {move.reviewedByUsername && (
+          <p className="mt-3 text-xs text-muted">
+            Solved by {move.reviewedByUsername}
+            {move.reviewedAtLabel ? ` · ${move.reviewedAtLabel}` : ""}
+          </p>
+        )}
 
-          <div className="mt-4 flex flex-wrap justify-end gap-3">
-            <button type="button" className="btn-quiet" onClick={close} disabled={pending}>
-              {readOnly ? "Close" : "Cancel"}
-            </button>
+        {!readOnly && !locked && !error && (
+          <p className="mt-3 text-xs text-muted">
+            Claiming this Move…
+          </p>
+        )}
 
-            {!readOnly && (
-              <>
-                <Tooltip text={REJECT_HELP}>
+        <FormError>{error}</FormError>
+
+        <div className="mt-4 flex flex-wrap justify-end gap-3">
+          <button type="button" className="btn-quiet" onClick={close} disabled={pending}>
+            {readOnly ? "Close" : "Cancel"}
+          </button>
+
+          {!readOnly && (
+            <>
+              <Tooltip text={REJECT_HELP}>
+                <button
+                  type="button"
+                  className="btn-danger"
+                  onClick={() => setRejecting(true)}
+                  disabled={disabled || !locked}
+                >
+                  Reject
+                </button>
+              </Tooltip>
+
+              {solved ? (
+                <button type="button" className="btn" onClick={onUnsolve} disabled={disabled || !locked}>
+                  {pending ? "Working…" : "Reopen"}
+                </button>
+              ) : (
+                <>
                   <button
                     type="button"
-                    className="btn-danger"
-                    onClick={() => setRejecting(true)}
+                    className="btn-quiet"
+                    onClick={() => run("save")}
                     disabled={disabled || !locked}
                   >
-                    Reject
+                    Save
                   </button>
-                </Tooltip>
-
-                {solved ? (
-                  <button type="button" className="btn" onClick={onUnsolve} disabled={disabled || !locked}>
-                    {pending ? "Working…" : "Reopen"}
+                  <button type="button" className="btn" onClick={() => run("solve")} disabled={disabled || !locked}>
+                    {pending ? "Working…" : "Solve"}
                   </button>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      className="btn-quiet"
-                      onClick={() => run("save")}
-                      disabled={disabled || !locked}
-                    >
-                      Save
-                    </button>
-                    <button type="button" className="btn" onClick={() => run("solve")} disabled={disabled || !locked}>
-                      {pending ? "Working…" : "Solve"}
-                    </button>
-                  </>
-                )}
-              </>
-            )}
-          </div>
+                </>
+              )}
+            </>
+          )}
         </div>
-      </div>
+      </Modal>
 
       <RequestDialog
         open={rejecting}

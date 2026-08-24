@@ -1,3 +1,4 @@
+import SubmitButton from "@/app/components/SubmitButton";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@lifeweb/db";
@@ -37,9 +38,9 @@ export default async function MessageThreadPage({ params }) {
           <span className="field-label">Reply (from Lifeweb)</span>
           <textarea name="message" rows={3} required />
         </label>
-        <button type="submit" className="btn self-start">
+        <SubmitButton className="btn self-start" pendingLabel="Sending…">
           Send
-        </button>
+        </SubmitButton>
       </form>
     </PageShell>
   );

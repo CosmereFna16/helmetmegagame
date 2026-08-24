@@ -1,5 +1,6 @@
 "use client";
 
+import FormError from "@/app/components/FormError";
 import { useCallback, useState, useSyncExternalStore, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/app/components/ConfirmProvider";
@@ -114,7 +115,7 @@ export default function MapPanel({ nodes, roads, currentId, hasCharacter, turnOp
                 : "Your character hasn't been placed anywhere yet."}
             </p>
           </div>
-          <div className="map-grounds" role="group" aria-label="Map ground">
+          <div className="segmented" role="group" aria-label="Map ground">
             {GROUNDS.map((g) => (
               <button
                 key={g.key}
@@ -247,9 +248,9 @@ export default function MapPanel({ nodes, roads, currentId, hasCharacter, turnOp
           </p>
         )}
         {status?.error && (
-          <p className="mt-3 text-sm" style={{ color: "var(--danger)" }} role="alert">
+          <FormError className="mt-3">
             {status.error}
-          </p>
+          </FormError>
         )}
         {status?.message && !status.error && (
           <p className="mt-3 text-sm" style={{ color: "var(--positive)" }} role="status">

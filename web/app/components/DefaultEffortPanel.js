@@ -1,5 +1,6 @@
 "use client";
 
+import Switch from "./Switch";
 import { useState } from "react";
 import { setDefaultEffort, deleteDefaultEffort } from "../(app)/character/actions";
 import InfoIcon from "./InfoIcon";
@@ -83,14 +84,9 @@ export default function DefaultEffortPanel({ characterId, defaultEffort, locatio
           />
         </label>
 
-        <label className="field flex-row items-center gap-2">
-          <input
-            type="checkbox"
-            checked={shareInSummary}
-            onChange={(e) => setShareInSummary(e.target.checked)}
-          />
-          <span className="field-label">Share in a summary channel?</span>
-        </label>
+        <Switch checked={shareInSummary} onChange={(e) => setShareInSummary(e.target.checked)}>
+          Share in a summary channel?
+        </Switch>
 
         {shareInSummary && (
           <>
