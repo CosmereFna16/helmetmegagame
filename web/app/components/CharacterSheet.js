@@ -10,6 +10,7 @@ import RichText from "./RichText";
 import FactionLink from "./FactionLink";
 import PageShell from "@/app/components/PageShell";
 import BioNameFields from "./BioNameFields";
+import InfoIcon from "./InfoIcon";
 
 // Raw d6 first, then the summed modifier (Mood ±1, Hunger -1) and the total —
 // a GM reading this has to be able to tell a modified 5 from a natural 5.
@@ -84,6 +85,7 @@ export default function CharacterSheet({
   portraitFantasyPartsEnabled = false,
   portraitSelection = null,
   hasCustomAvatar = false,
+  lastNameLocked = false,
 }) {
   const isSelf = mode === "self";
 
@@ -140,9 +142,12 @@ export default function CharacterSheet({
         <div className="flex flex-col gap-6">
         {isSelf && (
           <section className="panel p-4">
-            <h2 className="panel-header">Bio</h2>
+            <h2 className="panel-header panel-header--with-icon">
+              Bio
+              <InfoIcon text="Your name and age are fixed once set. Ask a GM if either needs to change." />
+            </h2>
             <form action={updateCharacterProfile} encType="multipart/form-data" className="flex flex-col gap-3">
-              <BioNameFields character={character} />
+              <BioNameFields character={character} lastNameLocked={lastNameLocked} />
               <AvatarField
                 defaultTurnPingOptIn={character.turnPingOptIn}
                 defaultRomanceOptOut={character.romanceOptOut}

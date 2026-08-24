@@ -24,6 +24,7 @@ export const REQUEST_TYPE_LABELS = {
   // something, and every other label here is a thing they did.
   FULFILL_WORST_FEAR: "Worst Fear Comes True",
   HEAL_CHARACTER: "Heal",
+  CHANGE_NAME: "Change Name",
 };
 
 export const REQUEST_STATUS_LABELS = {

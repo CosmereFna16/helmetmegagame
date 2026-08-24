@@ -555,6 +555,33 @@ export const REQUEST_EFFECTS = {
       return previous?.tagId ? "Restored the previous mood." : "Cleared the mood back to Neutral.";
     },
   },
+
+  // Drinking a Mulligan Potion. Nothing numeric to re-score, so Undo is the
+  // only lever: put the previous honorific/first/last name (and the composed
+  // `name`) back, and restore the one potion this took, same idiom as
+  // CONSUME_TAG. Undo does NOT re-run the Discord role/nickname sync — no
+  // network call may run inside this transaction (ARCHITECTURE.md §5) — so
+  // Discord catches up the next time the player saves their Bio form, which
+  // always re-syncs off the live DB name regardless of what changed.
+  CHANGE_NAME: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { previous, potionTagId, potionRestore } = request.effect;
+      await tx.character.update({
+        where: { id: request.characterId },
+        data: {
+          honorific: previous?.honorific ?? null,
+          firstName: previous?.firstName,
+          lastName: previous?.lastName ?? null,
+          name: previous?.name,
+        },
+      });
+      if (potionTagId) {
+        await restoreCharacterTag(tx, request.characterId, { tagId: potionTagId, ...potionRestore, quantity: 1 });
+      }
+      return `Restored the previous name (${previous?.name ?? "—"}) and gave back the Mulligan Potion.`;
+    },
+  },
 };
 
 // A GM can only ever set a non-negative amount; anything else is a typo, and

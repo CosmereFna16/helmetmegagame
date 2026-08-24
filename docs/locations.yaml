@@ -199,9 +199,9 @@ locations:
     zone: Fortress
     map: { x: 38, y: 24 }
     description: >-
-      Grass rises rebelliously around the manicured paths, illuminated by searchlight. Past the portcullis, old stone stairs rise towards the Keep, and further yet, to the Lifeweb. The Fortress itself has several watchtowers and a murder hole over the gate. A winch system controls the portcullis. There is a back gate behind the fortress leading into the forest, but it's equally guarded.
+      Grass rises rebelliously around the manicured paths, illuminated by searchlight. Past the portcullis, old stone stairs rise towards the Keep, and further yet, to the Lifeweb.
     extendedDescription: >-
-      Grass rises rebelliously around the manicured paths, illuminated by searchlight. Past the portcullis, old stone stairs rise towards the Keep, and further yet, to the Lifeweb. The Fortress itself has several watchtowers and a murder hole over the gate. A winch system controls the portcullis. There is a back gate behind the fortress leading into the forest, but it's equally guarded.
+      Grass rises rebelliously around the manicured paths, illuminated by searchlight. Past the portcullis, old stone stairs rise towards the Keep, and further yet, to the Lifeweb. The Gatehouse itself has several watchtowers and a murder hole over the gate. A winch system controls the portcullis. There is a back gate behind the fortress leading into the forest, but it's equally guarded.
     publicSubLocations:
       - name: Gate
         description: >-

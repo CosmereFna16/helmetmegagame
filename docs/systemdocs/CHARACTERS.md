@@ -93,7 +93,7 @@ Keeping it also means the never-backfilled name snapshots
 no code change — correct, since those record who did something *as they were
 known then*.
 
-**Exactly four writers** keep it honest, and every one goes through the
+**Exactly five writers** keep it honest, and every one goes through the
 formatter:
 
 | Writer | When |
@@ -101,27 +101,32 @@ formatter:
 | `character/createActions.js` | Creation |
 | `web/lib/characterWrite.js` | GM raw edit, from the dev panel |
 | `web/lib/dynasty.js#propagateDynastyLastName` | The Baron renaming his house |
+| `character/requestActions.js#changeNameRequestImpl` | Drinking a Mulligan Potion |
 
-A fourth must do the same. `npm run db:backfill-name-parts` is the drift check
+A sixth must do the same. `npm run db:backfill-name-parts` is the drift check
 that catches one that doesn't.
 
-### A name is immutable
+### A name is immutable — with one sanctioned exception
 
-There is **no player-facing rename.** A name is chosen once, in the creation
-wizard, and after that `character/actions.js#updateCharacterProfile` ignores
-`honorific`, `firstName` and `lastName` outright — the three inputs on
+There is **no ordinary player-facing rename.** A name is chosen once, in the
+creation wizard, and after that `character/actions.js#updateCharacterProfile`
+ignores `honorific`, `firstName` and `lastName` outright — the three inputs on
 `/character` render `disabled`, but as always the disabled input is the hint
-and the server action is the lock. It was the fourth writer in the table above
-until then; the rest of the Bio form (appearance, avatar, opt-ins) is
-untouched.
+and the server action is the lock. The rest of the Bio form (appearance,
+avatar, opt-ins) is untouched.
 
-The sanctioned exception is the **Mulligan Potion** (`docs/tags.yaml`), and it
-is deliberately un-automated: a player consumes it, which leaves a
-`CONSUME_TAG` request in the GM queue, and a GM does the rename from
-`/gm/dev/characters/[characterId]`. That keeps every rename on the
-`characterWrite.js` path — the only one that plans the Discord fan-out (role
-title, role colour, nickname, dynasty propagation) rather than firing pieces of
-it by hand.
+The sanctioned exception is the **Mulligan Potion** (`docs/tags.yaml`),
+consumed by a `CHANGE_NAME` request (`REQUESTS.md` §3): the player picks a new
+honorific/first/last name, it applies immediately in the same transaction
+that spends the potion, and a GM can Undo it from `/gm/turns` like any other
+request. It re-validates the same allowlist/cap/dynasty-lock rules every other
+writer of `Character.name` enforces, and runs the same lightweight Discord
+fan-out `updateCharacterProfile` used to (`ensureCharacterRole`,
+`syncCharacterNickname`, and `propagateDynastyLastName` if the renamer is the
+Baron) right after the transaction commits — best-effort and outside it, same
+posture as every other request that touches Discord. `REQUESTS.md` §3 has the
+one gap worth knowing: Undo reverts the database but not Discord, which
+catches up on the player's next Bio save.
 
 ### `NAME_LIMITS` (10/24/20/20)
 
