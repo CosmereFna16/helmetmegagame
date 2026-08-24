@@ -6,7 +6,7 @@ const { sendDm } = require("../lib/dm");
 const { buildMoveModal } = require("../lib/moveModal");
 const { confirmMove } = require("../lib/moveConfirm");
 const { buildSpeakModal, buildSpeakPicker } = require("../lib/speakModal");
-const { listSpeakTargets, canSpeakIn, NAV_VALUE } = require("../lib/speakTargets");
+const { listSpeakTargets, canSpeakInTarget, canSpeakInChannel, isNavValue } = require("../lib/speakTargets");
 const { resolveActingMember, isGmMember, findAliveCharacter } = require("../lib/interactionGuild");
 const { postAsCharacterTo } = require("../lib/proxy");
 const { parseResourceExpression } = require("../lib/resourceDelta");
@@ -410,7 +410,7 @@ async function handleMoveSubmit(interaction) {
   }
 
   const moveKind = interaction.fields.getRadioGroup("move:kind");
-  const opposed = Boolean(interaction.fields.getCheckbox("move:opposed"));
+  const opposed = optionalCheckbox(interaction, "move:opposed");
 
   const { description, resourceDelta, roll } = parseResourceExpression(raw);
 
@@ -465,6 +465,35 @@ async function handleMoveSubmit(interaction) {
 
 // --- Speak -----------------------------------------------------------
 
+// A modal field that is setRequired(false) may be absent from the submitted
+// payload entirely, and every fields.getX() throws on a component it cannot
+// find. An attachment-only post is legal, so reading the optional fields must
+// never be what breaks it.
+function optionalText(interaction, customId) {
+  try {
+    return interaction.fields.getTextInputValue(customId) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function optionalCheckbox(interaction, customId) {
+  try {
+    return Boolean(interaction.fields.getCheckbox(customId));
+  } catch {
+    return false;
+  }
+}
+
+function optionalFiles(interaction, customId) {
+  try {
+    const uploaded = interaction.fields.getUploadedFiles(customId);
+    return [...(uploaded?.values() ?? [])];
+  } catch {
+    return [];
+  }
+}
+
 // The Speak button, and /message run anywhere the player cannot already
 // speak. Deferred, because enumerating threads costs API calls — which is
 // exactly why the modal cannot be opened straight from this button.
@@ -496,24 +525,21 @@ async function handleSpeakOpen(interaction) {
   });
 }
 
-// Picking a destination opens the modal. Legal on a select interaction, and
-// the reason the picker exists as its own step at all.
+// Picking a destination opens the modal. A modal must be shown within 3
+// seconds and cannot be deferred first, so NOTHING is awaited here — the
+// channel name is read from the cache if it happens to be there, and the
+// permission re-check lives on submit, which is the real security boundary
+// anyway.
 async function handleSpeakPick(interaction) {
-  const channelId = interaction.values[0];
+  const targetId = interaction.values[0];
   // A group header, not a destination — re-render untouched.
-  if (channelId === NAV_VALUE) {
+  if (isNavValue(targetId)) {
     await interaction.deferUpdate();
     return;
   }
 
-  const { guild, member } = await resolveActingMember(interaction);
-  const channel = guild ? await guild.channels.fetch(channelId).catch(() => null) : null;
-  if (!channel || !member || !canSpeakIn(channel, member)) {
-    await interaction.update({ content: "» *You can't speak there any more.*", components: [] });
-    return;
-  }
-
-  await interaction.showModal(buildSpeakModal(channelId, `#${channel.name}`));
+  const cached = interaction.client.channels.cache.get(targetId);
+  await interaction.showModal(buildSpeakModal(targetId, cached ? `#${cached.name}` : null));
 }
 
 async function handleSpeakSubmit(interaction, channelId) {
@@ -524,17 +550,19 @@ async function handleSpeakSubmit(interaction, channelId) {
   }
 
   const { guild, member } = await resolveActingMember(interaction);
-  const channel = guild ? await guild.channels.fetch(channelId).catch(() => null) : null;
+  // client.channels rather than guild.channels: the destination may be a
+  // thread, which never sits in the guild channel cache.
+  const channel = await interaction.client.channels.fetch(channelId).catch(() => null);
   // Re-checked rather than trusted: an ephemeral picker outlives its player
-  // walking out of the room.
-  if (!channel || !member || !canSpeakIn(channel, member)) {
+  // walking out of the room. canSpeakInTarget picks the channel-vs-thread
+  // permission by what it was handed.
+  if (!guild || !channel || !member || !canSpeakInTarget(channel, member)) {
     await interaction.reply({ content: "» *You can't speak there any more.*", flags: MessageFlags.Ephemeral });
     return;
   }
 
-  const body = interaction.fields.getTextInputValue("say:body").trim();
-  const uploads = interaction.fields.getUploadedFiles("say:file");
-  const files = [...(uploads?.values() ?? [])].map((a) => a.url);
+  const body = optionalText(interaction, "say:body").trim();
+  const files = optionalFiles(interaction, "say:file").map((a) => a.url);
   if (!body && files.length === 0) {
     await interaction.reply({ content: "» *Write something, or attach something.*", flags: MessageFlags.Ephemeral });
     return;
@@ -543,7 +571,7 @@ async function handleSpeakSubmit(interaction, channelId) {
   // Open to everyone, with nothing equipped and no tag required — a player
   // decides for themselves when to go unnamed, the same posture the /conceal
   // prefix takes.
-  const conceal = interaction.fields.getCheckbox("say:conceal")
+  const conceal = optionalCheckbox(interaction, "say:conceal")
     ? { alias: concealedAlias(character) }
     : null;
 
@@ -581,13 +609,12 @@ async function handleSpeakSubmit(interaction, channelId) {
 // in the channel) but it does stop the message existing in plain sight before
 // the proxy deletes it. Anywhere else, ask where first.
 async function handleMessageCommand(interaction) {
-  if (interaction.inGuild()) {
-    const { member } = await resolveActingMember(interaction);
-    const channel = interaction.channel;
-    if (member && channel && canSpeakIn(channel, member)) {
-      await interaction.showModal(buildSpeakModal(channel.id, `#${channel.name}`));
-      return;
-    }
+  // interaction.member is already populated in a guild, so this branch reaches
+  // showModal with nothing awaited — see handleSpeakPick for why that matters.
+  const channel = interaction.channel;
+  if (interaction.inGuild() && interaction.member && channel && canSpeakInTarget(channel, interaction.member)) {
+    await interaction.showModal(buildSpeakModal(channel.id, `#${channel.name}`));
+    return;
   }
   await handleSpeakOpen(interaction);
 }
@@ -727,6 +754,26 @@ module.exports = {
       }
     } catch (err) {
       console.error("interactionCreate handler failed:", err);
+      // An unanswered interaction sits on "thinking..." forever, which is how
+      // a rejected payload once read as a hang instead of an error. Always
+      // close the loop, and never let the error path throw on top of the
+      // error it is reporting.
+      await respondToFailure(interaction);
     }
   },
 };
+
+async function respondToFailure(interaction) {
+  if (!interaction.isRepliable?.()) return;
+  const content = "» *Something went wrong — that didn't go through.*";
+  try {
+    if (interaction.deferred || interaction.replied) {
+      await interaction.editReply({ content, components: [] });
+    } else {
+      await interaction.reply({ content, flags: MessageFlags.Ephemeral });
+    }
+  } catch {
+    // The interaction token may already be dead (a modal that timed out, a
+    // 3-second miss). Nothing left to say to the user.
+  }
+}
