@@ -204,11 +204,17 @@ const DEFAULT_GAME_CONFIG = {
 
 // Full game restart for dev/testing: wipes every player- and turn-scoped
 // row (characters, tags-on-characters, Moves, default efforts, notes, DM
-// log, audit log, silo history), resets GameConfig's balance knobs to their
-// schema defaults, clears every Discord channel this game has actually
-// written to (#archive, #turns, and every Location's plain/public/private
-// channel — messages, forum posts, and threads, public or private), and
-// opens a fresh Turn 1/DAWN. Then re-syncs every YAML master, in dependency
+// log, audit log, silo history, and the /archive transcript), resets
+// GameConfig's balance knobs to their schema defaults, clears every Discord
+// channel this game has actually written to (#turns, and every Location's
+// plain/public/private channel — messages, forum posts, and threads, public
+// or private), and opens a fresh Turn 1/DAWN.
+//
+// The transcript is a DATABASE TABLE (ArchiveEntry), not a channel: it is
+// recorded at send time and there has been no #archive channel since
+// (CHANNELS.md §5). It is cleared by the transaction below, never by any
+// Discord pass — this comment used to say otherwise, which read as "archive:
+// handled" and is how the deleteMany came to be missing. Then re-syncs every YAML master, in dependency
 // order, so the game starts from the canonical sets:
 //   locations (docs/locations.yaml) -> tags (docs/tags.yaml) -> roles (docs/roles.yaml)
 // Roles resolve a starting Location and validate starting_tags, so that
@@ -290,6 +296,13 @@ export async function wipeGameData(formData) {
       prisma.turn.deleteMany({}),
       prisma.siloTransaction.deleteMany({}),
       prisma.directMessage.deleteMany({}),
+      // The transcript (/archive). Carries no foreign keys — snapshot columns
+      // only, ARCHITECTURE.md §6 — so the ordering rules above do not apply to
+      // it and it sits with the other log tables. Its absence here is why a
+      // restart used to leave the whole previous game readable at /archive:
+      // it is in nobody's dependency chain, so it never came up while that
+      // ordering was being worked out.
+      prisma.archiveEntry.deleteMany({}),
       prisma.faction.updateMany({ data: { silo: 0 } }),
       prisma.gameConfig.update({
         where: { id: 1 },
