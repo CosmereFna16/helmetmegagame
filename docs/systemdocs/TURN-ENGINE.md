@@ -123,20 +123,32 @@ A GM can override the next turn's weather from the Dev Panel
 
 ### Weather banners
 
-Each turn announcement is preceded in `#turns` by a photo of the weather,
+Each turn announcement carries a photo of the weather,
 one per weather **per phase** — eight images in
 `docs/assets/weather/{weather}-{phase}.jpg`, built by
 `docs/assets/make-weather.py` in the same 2446×1122 frame as the `#info`
 banner so both channels read as one system.
 
-Two things about how it is posted (`db/lib/turnAnnouncement.js`):
+How it is posted (`db/lib/turnAnnouncement.js`): **`#turns` is ONE rolling
+message**, replaced each turn, carrying the announcement, the banner and the
+player console together. Discord renders content, then attachments, then
+components, which is exactly the order wanted:
 
-- **The banner is its own message.** Discord renders an attachment *below*
-  its message content, so an image attached to the announcement would appear
-  under it. Posting it separately, first, is the only way it sits on top.
-- **The rolling replace therefore covers two messages.** `GameConfig` tracks
-  `turnsBannerMessageId` alongside `turnsAnnouncementMessageId`; both are
-  deleted and reposted every turn.
+```
+DAY 4 · DUSK · Rain          <- content
+[ weather banner ]           <- attachment
+Travel   Move   Speak        <- components, always last
+```
+
+It was three messages once — banner, announcement, and a console anchor
+deliberately kept separate so it would not "jump above and below the
+announcement twice a day". The cost of holding it still was worse: the
+announcement reposted *beneath* it every turn, so the buttons sank up the
+channel until players stopped finding them, and a wipe of `#turns` (Restart
+Game) left them gone entirely until the next bot restart. One message has no
+ordering problem to solve. Tracked on `GameConfig.turnsConsoleChannelId` /
+`turnsConsoleMessageId`; `turnsAnnouncementMessageId` and
+`turnsBannerMessageId` are no longer written.
 
 A missing image file is not an error — `weatherBannerPath()` returns null and
 the announcement posts alone. A banner is worth losing; a turn announcement

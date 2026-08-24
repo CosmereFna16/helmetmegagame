@@ -47,7 +47,7 @@ async function discordRequest(path, { method = "GET", body, allow404 = false } =
 // snowflake, and must line up with the `files[n]` suffix or Discord drops the
 // file silently. fetch sets the multipart boundary itself, so the
 // Content-Type header is deliberately left off.
-async function postAttachment(channelId, filePath, content = "") {
+async function postAttachment(channelId, filePath, content = "", components = undefined) {
   const fs = require("node:fs");
   const path = require("node:path");
   const filename = path.basename(filePath);
@@ -55,7 +55,7 @@ async function postAttachment(channelId, filePath, content = "") {
 
   body.append(
     "payload_json",
-    JSON.stringify({ content, attachments: [{ id: 0, filename }] }),
+    JSON.stringify({ content, attachments: [{ id: 0, filename }], ...(components ? { components } : {}) }),
   );
   body.append("files[0]", new Blob([fs.readFileSync(filePath)]), filename);
 
@@ -123,8 +123,11 @@ async function createDmChannel(discordUserId) {
   });
 }
 
-async function postMessage(channelId, content) {
-  return discordRequest(`/channels/${channelId}/messages`, { method: "POST", body: { content } });
+async function postMessage(channelId, content, components = undefined) {
+  return discordRequest(`/channels/${channelId}/messages`, {
+    method: "POST",
+    body: { content, ...(components ? { components } : {}) },
+  });
 }
 
 const DISCORD_MESSAGE_LIMIT = 2000;
