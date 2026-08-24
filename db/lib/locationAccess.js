@@ -17,7 +17,7 @@
 //      put the player's account in the role's member list and quietly
 //      deanonymized the whole game. The role is now held by nobody and access
 //      is keyed on the MEMBER instead.
-const { deleteChannelOverwrite } = require("./discordRest");
+const { deleteChannelOverwrite, getChannel } = require("./discordRest");
 
 const PERM_VIEW_CHANNEL = 1024;
 
@@ -88,10 +88,72 @@ async function revokeAllCharacterAccess(prisma, character) {
   }
 }
 
+// The same revoke for MANY characters at once — Restart Game, where every
+// character is going away.
+//
+// Channel-major rather than character-major, which is the whole point. The
+// singular version above sweeps every channel blindly for one character, and
+// that is right for a single death: ~124 calls, mostly 404s, buying certainty
+// that no overwrite survives on a room they left. Run once per character over
+// a full roster it becomes quadratic — 15 locations is 62 channels, so 100
+// characters is 12,400 sequential requests and the better part of an hour,
+// with ~58 of every 62 deletes hitting nothing.
+//
+// Reading each channel once and deleting only the overwrites actually on it
+// costs `channels + real overwrites` instead: about 460 calls for the same
+// roster. Same read-then-delete shape as
+// db/lib/syncLocations.js#reconcileChannelOverwrites, and exactly as thorough
+// — it still visits every channel, it just stops guessing what is on them.
+//
+// Sequential throughout (ARCHITECTURE.md §5). Returns { channels, removed }
+// so the caller can log what it really did.
+async function revokeAccessForCharacters(prisma, characters) {
+  const targetIds = new Set();
+  for (const character of characters ?? []) {
+    if (character.discordUserId) targetIds.add(character.discordUserId);
+    if (character.discordRoleId) targetIds.add(character.discordRoleId);
+  }
+  if (targetIds.size === 0) return { channels: 0, removed: 0 };
+
+  const [locations, config] = await Promise.all([
+    prisma.location.findMany({
+      where: { discordCategoryId: { not: null } },
+      select: {
+        discordCategoryId: true,
+        discordChannelId: true,
+        discordPublicChannelId: true,
+        discordPrivateChannelId: true,
+      },
+    }),
+    prisma.gameConfig.findUnique({ where: { id: 1 } }),
+  ]);
+
+  const channelIds = locations.flatMap(locationAccessChannelIds);
+  channelIds.push(config?.radioChannelId, config?.intercomChannelId);
+
+  let removed = 0;
+  const visited = channelIds.filter(Boolean);
+  for (const channelId of visited) {
+    // allow404: a channel deleted by hand is an ordinary state here, not a
+    // reason to abandon the sweep half-done.
+    const live = await getChannel(channelId, { allow404: true }).catch(() => null);
+    if (!live) continue;
+
+    for (const overwrite of live.permission_overwrites ?? []) {
+      if (!targetIds.has(overwrite.id)) continue;
+      await deleteChannelOverwrite(channelId, overwrite.id).catch(() => {});
+      removed += 1;
+    }
+  }
+
+  return { channels: visited.length, removed };
+}
+
 module.exports = {
   PERM_VIEW_CHANNEL,
   OVERWRITE_TYPE_ROLE,
   OVERWRITE_TYPE_MEMBER,
   locationAccessChannelIds,
   revokeAllCharacterAccess,
+  revokeAccessForCharacters,
 };

@@ -394,6 +394,16 @@ through the web app). Both load the character's current tags/Location via
 `db/lib/narrowcastAccess.js#buildNarrowcastContext` and run
 `computeNarrowcastAccess` against the rules table.
 
+**Restart Game sweeps in bulk instead.** `revokeAllCharacterAccess` walks
+every channel blindly for one character — right for a single death, quadratic
+across a whole roster: 15 Locations is 62 channels, so 100 characters is 12,400
+sequential requests, with ~58 of every 62 deletes hitting nothing.
+`revokeAccessForCharacters` (same file) inverts it — one read per channel, then
+a delete only for the overwrites actually on it, about 460 calls for the same
+roster. Exactly as thorough; it still visits every channel, it just stops
+guessing what is on them. It also never touches an overwrite outside the set of
+characters it was handed, so the `@everyone`, GM and spectator entries survive.
+
 **Death revokes explicitly.** This used to be free — deleting the personal role
 dropped every overwrite tied to it, Location and narrowcast alike. A member
 overwrite is not tied to the role and outlives it, so

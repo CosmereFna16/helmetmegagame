@@ -4,15 +4,22 @@ import FormError from "@/app/components/FormError";
 import { useState, useTransition } from "react";
 import { wipeGameData } from "./actions";
 
-// Restart Game's confirm/error wrapper — same reasons EndTurnButton.js exists
+// Restart Game's confirm/error/success wrapper — same reasons EndTurnButton.js exists
 // for End Turn: a pending server action blocks client-side navigation, and
 // wipeGameData now returns { ok, error } rather than throwing into a
 // non-existent error.js, so something has to render the error. Typing "WIPE"
 // in the field below is already the confirmation step, so this deliberately
 // doesn't stack a useConfirm() dialog on top of it.
+//
+// The success line matters more than it looks: the action returns as soon as
+// the database work commits and hands every Discord call to after(), so
+// "Wiping…" now flashes past in a second or two while channels keep clearing
+// for minutes afterwards. Without a word about that, a GM reasonably concludes
+// it did nothing.
 export default function WipeGameButton() {
   const [confirmText, setConfirmText] = useState("");
   const [error, setError] = useState(null);
+  const [done, setDone] = useState(false);
   const [pending, startTransition] = useTransition();
 
   function onSubmit(e) {
@@ -20,13 +27,19 @@ export default function WipeGameButton() {
     const formData = new FormData(e.target);
 
     setError(null);
+    setDone(false);
     startTransition(async () => {
       // wipeGameData catches its own failures, but a transport error can
       // reject before that try block even runs — same reasoning as
       // EndTurnButton.js's onClick.
       try {
         const res = await wipeGameData(formData);
-        if (!res?.ok) setError(res?.error ?? "Something went wrong.");
+        if (res?.ok) {
+          setDone(true);
+          setConfirmText("");
+        } else {
+          setError(res?.error ?? "Something went wrong.");
+        }
       } catch {
         setError("Could not reach the server. Nothing was changed.");
       }
@@ -52,6 +65,12 @@ export default function WipeGameButton() {
         </button>
       </div>
       <FormError>{error}</FormError>
+      {done ? (
+        <p className="text-sm">
+          » <em>Game wiped.</em> Channel clearing and the YAML re-syncs are still running in the
+          background — they take a few minutes and do not need this page open.
+        </p>
+      ) : null}
     </form>
   );
 }
