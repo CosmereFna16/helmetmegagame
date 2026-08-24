@@ -26,6 +26,8 @@
     "db:backfill-tupper-attachment-restriction": "node db/prisma/backfill-tupper-attachment-restriction.js",
     "db:prune-orphan-categories": "node db/prisma/prune-orphan-categories.js",
     "map:check": "node db/prisma/check-map.js",
+    "copy:extract": "node scripts/copy/extract.js",
+    "copy:reinject": "node scripts/copy/reinject.js",
     "db:sync-locations": "node db/prisma/sync-locations.js",
     "db:sync-tags": "node db/prisma/sync-tags.js",
     "db:prune-tags": "node db/prisma/prune-tags.js",
