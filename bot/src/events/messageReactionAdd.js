@@ -17,6 +17,9 @@ const EDIT_EMOJIS = ["✏️", "📝"]; // ✏️ pencil, 📝 memo (pencil and 
 const INSPECT_EMOJIS = ["🔍", "🔎"]; // 🔍 left-pointing, 🔎 right-pointing (rotated) magnifying glass
 const STAR_EMOJI = "⭐"; // ⭐
 const FOG_EMOJI = "🌫️"; // :fog:
+const DOSSIER_EMOJI = "⚜️"; // ⚜️ fleur-de-lis, GM only — also the Move button's
+                            // emoji on the #turns console, which is fine:
+                            // buttons and reactions share no namespace.
 
 // Starring a proxied tupper message saves it to the reacting user's personal
 // Notes list (web/app/(app)/notes) — a private note, not a shared archive,
@@ -46,6 +49,101 @@ async function handleStarReaction(reaction, proxy, user) {
     },
     update: {},
   });
+}
+
+// GM-only: everything a GM needs about whoever just spoke, in one DM.
+//
+// Structurally a sibling of the 🔍 inspect branch below, with every vision
+// gate removed — no inspectVision, no medicallyVisibleTags, no Silo check,
+// and concealment ignored (a GM sees through it, though the alias is noted so
+// they know the room did not).
+//
+// There is deliberately NO channel fallback when the DM bounces. Every other
+// embed in this file falls back to posting in the channel; doing that here
+// would hand the room every tag, the Desire and the Worst Fear.
+async function handleDossierReaction(reaction, proxy, user) {
+  const [character, openTurn] = await Promise.all([
+    prisma.character.findUnique({
+      where: { id: proxy.characterId },
+      include: {
+        tags: { include: { tag: true } },
+        faction: { select: { name: true } },
+        location: { select: { name: true } },
+        zone: { select: { name: true } },
+      },
+    }),
+    prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } }),
+  ]);
+  if (!character) return;
+
+  const [action, desire] = await Promise.all([
+    openTurn
+      ? prisma.action.findFirst({ where: { characterId: character.id, turnId: openTurn.id } })
+      : null,
+    prisma.desire.findFirst({
+      where: { characterId: character.id, status: "ACTIVE" },
+      select: { text: true, points: true },
+    }),
+  ]);
+
+  const where = [character.location?.name, character.zone?.name].filter(Boolean).join(" · ") || "nowhere";
+  const embed = new EmbedBuilder()
+    .setTitle(character.name)
+    .setDescription(character.appearance || "No visible appearance.")
+    .addFields({
+      name: "Standing",
+      value: [
+        where,
+        character.faction?.name ?? "Unaffiliated",
+        `${character.resources} ⬢`,
+        proxy.concealed ? `concealed as ${proxy.alias ?? "Unknown"}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    });
+
+  // Mind Discord's 1024-char embed field cap — a long-lived character can
+  // carry a lot of tags, so the list is trimmed rather than rejected whole.
+  if (character.tags.length > 0) {
+    const rendered = character.tags.map((ct) => {
+      const bits = [
+        formatTagRequirement(ct.tag),
+        formatTurnsLeft(turnsLeft(ct.expiresTurn, openTurn?.number)),
+        ct.equipped ? "worn" : null,
+        ct.quantity > 1 ? `x${ct.quantity}` : null,
+      ].filter(Boolean);
+      return bits.length > 0 ? `${ct.tag.name} (${bits.join(" · ")})` : ct.tag.name;
+    });
+    let value = rendered.join(", ");
+    if (value.length > 1024) value = `${value.slice(0, 1010)}… (+more)`;
+    embed.addFields({ name: "Tags", value });
+  }
+
+  embed.addFields({
+    name: "This turn",
+    value: action
+      ? [
+          action.moveKind ? (action.moveKind === "GAMBIT" ? "Gambit" : "Routine") : "Move",
+          action.opposed ? "Opposed" : null,
+          action.moveReviewStatus,
+          action.diceRoll != null
+            ? `🎲 ${action.diceRoll}${action.diceModifier ? ` (${action.diceModifier > 0 ? "+" : ""}${action.diceModifier})` : ""}`
+            : null,
+          action.resourceDelta != null ? `${action.resourceDelta > 0 ? "+" : ""}${action.resourceDelta} ⬢` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : "Has not acted.",
+  });
+
+  if (desire) embed.addFields({ name: "Desire", value: `${desire.text} (+${desire.points})` });
+  if (character.worstFear) embed.addFields({ name: "Worst Fear", value: character.worstFear });
+
+  if (process.env.WEB_BASE_URL) {
+    embed.setThumbnail(`${process.env.WEB_BASE_URL}/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`);
+  }
+
+  await sendDm(user, { embeds: [embed] });
 }
 
 async function isGm(reaction, userId) {
@@ -95,6 +193,15 @@ module.exports = {
 
     const emoji = reaction.emoji.name;
     const isOwner = user.id === proxy.discordUserId;
+
+    if (emoji === DOSSIER_EMOJI) {
+      if (!(await isGm(reaction, user.id))) return;
+      await handleDossierReaction(reaction, proxy, user).catch((err) =>
+        console.error("Dossier reaction failed:", err),
+      );
+      await reaction.users.remove(user.id).catch(() => {});
+      return;
+    }
 
     if (emoji === STAR_EMOJI) {
       await handleStarReaction(reaction, proxy, user).catch(() => {});

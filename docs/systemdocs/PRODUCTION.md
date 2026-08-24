@@ -49,10 +49,19 @@ place never costs the player their turn.
 
 ## 3. Commands
 
-The four are built in `bot/src/lib/commands.js` from `LABOR_FIELDS`, so the
-list can't drift — one command per field rather than a single `/labor
-field:hunt`, which means the slash command and the text shorthand are spelled
-identically.
+**One `/labor <type>` command**, its choices built in
+`bot/src/lib/commands.js` from `LABOR_FIELDS` so the list still can't drift.
+
+This reverses an earlier decision. There used to be four commands — `/hunt`,
+`/fish`, `/farm`, `/herd` — specifically so that the slash command and the
+text shorthand were spelled identically. Four near-identical entries crowded
+the command picker, and the picker got busier still when `/move`, `/location`
+and `/message` joined it, so the four collapsed back into one.
+
+**The text shorthand did not change.** A Move body and a Default Move still
+take `/hunt`, not `/labor hunt` — §4 parses it, and rewriting the grammar
+would break every stored `DefaultEffort` row. So the two are no longer spelled
+identically, and that is the accepted cost.
 
 ## 4. The shorthand parser
 
@@ -94,4 +103,4 @@ original SQL column names. A leftover `"1d4*3"` row returns `null` from
 
 `db/lib/production.js` (rates), `db/lib/laborAccess.js` (the gate),
 `db/lib/resourceDelta.js` (parsing), `bot/src/lib/labor.js` (`performLabor`),
-`bot/src/lib/commands.js` (the four commands).
+`bot/src/lib/commands.js` (the `/labor` command).

@@ -8,7 +8,7 @@
 // costing its own round trip.
 //
 // Called by bot/src/lib/labor.js (the /hunt /fish /farm /herd commands),
-// bot/src/lib/actionSubmission.js (a shorthand typed into #turns) and
+// the Move modal (a shorthand typed into it) and
 // db/lib/defaultMovePass.js (a shorthand standing as a Default Move).
 const { computeRate, rollRate } = require("./production");
 const {

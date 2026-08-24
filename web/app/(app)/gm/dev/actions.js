@@ -183,7 +183,7 @@ export async function forceAdvanceTurn() {
 // surfaced on the "Game Config" form above — deliberately excludes
 // nextWeather/nextTurnNote (handled separately, "Next Turn" section) and the
 // Discord provisioning pointers (turnsAnnouncementChannelId/MessageId,
-// locationPromptChannelId/MessageId): those self-heal on their own.
+// turnsConsoleChannelId/MessageId): those self-heal on their own.
 const DEFAULT_GAME_CONFIG = {
   lifewebBlood: 100,
   lifewebDecayPerTurn: 10,

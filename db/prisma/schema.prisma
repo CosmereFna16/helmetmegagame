@@ -164,11 +164,16 @@ model GameConfig {
   // turn before anyone says a word).
   archiveTravelEvents Boolean @default(false)
 
-  // The single, always-present "location" channel used for the zone/location
-  // travel picker (see bot/src/lib/location.js) — same tracked-message
-  // pattern as turnsAnnouncement* above.
-  locationPromptChannelId String?
-  locationPromptMessageId String?
+  // The anchor message in #turns carrying the Travel / Move / Speak buttons
+  // (see bot/src/lib/turnsConsole.js) — same tracked-message pattern as
+  // turnsAnnouncement* above, but reused across restarts rather than
+  // reposted, since it is a console rather than an announcement.
+  //
+  // These are the old locationPrompt* columns, renamed. The #location channel
+  // and its ⚜ picker were retired; the columns were kept because they hold
+  // exactly the same thing for exactly the same reason.
+  turnsConsoleChannelId String?
+  turnsConsoleMessageId String?
 
   // Multiplier applied to every rate in db/lib/production.js's
   // PRODUCTION_RATES table — read live by /hunt, /fish, /farm and /herd

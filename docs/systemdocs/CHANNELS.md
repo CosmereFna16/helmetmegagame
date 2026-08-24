@@ -176,7 +176,7 @@ one-overwrite-per-channel-of-the-active-Location primitive:
 
 | Trigger | Code | Mechanism |
 |---|---|---|
-| Player self-service travel (`⚜` button in the `location` channel) | `bot/src/lib/location.js#performMove` → `swapLocationAccess` | Gateway `Guild`/`Role` objects (bot already has them cached) |
+| Player self-service travel (🗺 Travel button on the `#turns` console, or `/location`) | `bot/src/lib/location.js#performMove` → `swapLocationAccess` | Gateway `Guild`/`Role` objects (bot already has them cached) |
 | GM raw edit (`/gm/dev/characters/[characterId]`) | `web/app/(app)/gm/dev/actions.js#updateCharacterRaw` → `syncCharacterLocationAccess` | REST (`PUT`/`DELETE /channels/{id}/permissions/{discordUserId}`) — the web app has no gateway connection |
 | New character created with a Location already set | `web/app/(app)/character/createActions.js#createCharacter` → `syncCharacterLocationAccess` | REST. Character creation picks up the role's `starting_location`, so every new character has a Location from the moment they exist |
 | Player travel from the web Map panel | `web/app/(app)/map/travelActions.js#travelTo` → `syncCharacterLocationAccess` | REST. The web twin of the ⚜ picker; both go through `db/lib/travel.js#performTravel`, which does no Discord work itself (`MAP.md`) |
