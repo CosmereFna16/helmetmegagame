@@ -1,0 +1,223 @@
+# Tag design
+
+A **tag** is a single named fact about a character: a skill, a trait, an
+injury, a possession, a status. Everything a character sheet knows beyond a
+name, a location and a Resource count is a tag. The catalog lives in
+`docs/tags.yaml` and is the only source for it.
+
+This document describes how tags are priced and what their fields mean. It is
+a reference for writing catalog entries, not a rules summary for players.
+
+---
+
+## 1. Point cost
+
+Every tag carries a `pointCost`. At character creation a player spends a fixed
+budget on tags; the budget is currently **12 points**, adjusted per role
+(`extraStartingPoints`) and reduced by 3 for a cursed re-roll.
+
+The scale is absolute, not relative to a category. A 3-point item and a
+3-point skill are meant to matter about equally.
+
+| Cost | Meaning |
+|---|---|
+| 1 | Minor. A small edge, a small possession, a narrow competence. |
+| 2 | Moderate. A real capability, one rung of a skill chain. |
+| 3 | Significant. Reliably changes how a scene goes. |
+| 4 | Good. A third of the whole budget. |
+| 5 | Very good. |
+| 6 | Character defining. A revolver; being a giant. |
+
+Negative tags return points, on a mirrored scale:
+
+| Cost | Meaning |
+|---|---|
+| −1 | An inconvenience. |
+| −2 | A real cost, situational. |
+| −3 | A real cost, most of the time. |
+| −4 | Severe. Permanent or near-permanent. |
+| −5 | Removes a whole sense or capability, with no realistic cure. |
+
+There is no limit on how many negative tags one character may take. The limit
+is what a player is willing to live with for a month.
+
+**0 is a valid cost and the most common one.** A tag that cannot be bought —
+an injury, a mood, a meal, something a role grants — still needs the field,
+and 0 is what it should be unless the tag is deliberately offered at creation.
+
+### Cost is not a wound scale
+
+The `health` category prices *cures*, not points. A Health tag's `pointCost`
+answers "what is this worth at character creation", and for almost all of them
+the answer is 0 because they are not purchasable. What that tag costs to treat
+is the `requirement` block, which follows a separate seven-rung ladder
+documented in `docs/systemdocs/TAGS.md` §5c.
+
+---
+
+## 2. `purchasable` and `purchasableAfterStart`
+
+Two independent booleans.
+
+**`purchasable`** — may a player select this during character creation?
+
+- GM-granted tags are `false`. Anything the game applies to a character by
+  itself is `false`.
+- Transient statuses are `false`: Poisoned, Dislocated Shoulder, Hungry,
+  Drunk. These are things that happen to a character, not things a character
+  is.
+- Durable conditions are `true`: Depressed, Chronic Pain, Missing Eye. These
+  are things a character arrives with.
+- Negative tags that are `true` return their points to the budget.
+
+The test is duration and authorship. If a character could plausibly have
+lived with it for years before the game started, it is purchasable; if it is
+something that happened this week, it is not.
+
+**`purchasableAfterStart`** — may a player buy this once the game is running?
+
+- **Items are always `false`.** Objects enter play by being crafted or found,
+  never by being bought with points. An item's route into the game is its
+  `craftable` flag and its `requirement` block.
+- **Negative tags are always `false`.** Selling a limb for points mid-game is
+  not a trade the system offers.
+- Skills and traits may be `true` where it makes sense for a character to
+  develop them in play.
+
+A tag that is not `purchasable` should normally not be
+`purchasableAfterStart` either.
+
+---
+
+## 3. Skill chains
+
+A **chain** is a ladder of tags where each rung names the one below it as its
+`parentTag`. Holding a higher rung replaces the lower one; a character never
+holds two rungs of the same chain at once.
+
+Chains are **cumulative**. The cost shown for a rung is its own `pointCost`,
+but the cost to acquire it is the sum of every rung up to and including it,
+minus whatever the character already holds. Buying Fighting (Skilled) from
+nothing costs 6; buying it while holding Fighting (Trained) costs 2.
+
+The Fighting chain, at 2 points per rung:
+
+| Rung | Own cost | Cumulative |
+|---|---|---|
+| Basic | 2 | 2 |
+| Trained | 2 | 4 |
+| Skilled | 2 | 6 |
+| Expert | 2 | 8 |
+| Legendary | 2 | 10 |
+
+Legendary is 10 of a 12-point budget. That is intended: a character who is the
+best fighter alive is that and almost nothing else.
+
+Medical, Building, Brewing and Cooking use the same flat 2/rung shape with
+shorter ladders.
+
+### Sidegrades
+
+Three Fighting tags sit outside the ladder: **Archer**, **Guerrilla** and
+**Shield Wall**. Each costs 3, each takes `requiredTag: fighting-basic`, and
+none has a `parentTag`.
+
+`requiredTag` is a prerequisite that is **not** replaced and **not** charged
+cumulatively. A sidegrade is bought once at its face value, on top of whatever
+rung the character holds.
+
+Sidegrades are priced above a single rung (2) and below two (4) because they
+are conditional: a sidegrade applies in its own circumstances — at range, from
+cover, in formation — and does nothing outside them. They stack with each
+other and with any rung of the main ladder. A Trained fighter who is also an
+Archer has spent 4 + 3 = 7.
+
+`requiredTag` is satisfied by **any rung of the required tag's chain**, so
+Fighting (Expert) satisfies a `fighting-basic` requirement.
+
+### A third thing that is not a chain
+
+`requirement.skills` lists skills **someone else** must hold to act on this
+tag. It appears on Health tags to say who can treat the condition. It is not a
+prerequisite for holding the tag and has nothing to do with chains.
+
+---
+
+## 4. Descriptions
+
+Every tag has a `description`. It is what a player reads in a tooltip on the
+website and in the tag picker at creation, so it is the whole of what most
+people will ever know about the tag.
+
+Guidance:
+
+- **Short.** One or two sentences. Three is long.
+- **Explanatory where the mechanic is not obvious.** If the tag does something
+  a player could not guess from its name, say what.
+- **Flavourful where it is obvious.** If the name already carries the meaning,
+  spend the sentence on voice instead of restating it.
+- **Second person.** Address the character's player directly: "You're blind."
+- Do not restate the point cost, the category, or the requirement block. Those
+  are rendered separately.
+
+Two worked examples from the catalog:
+
+> **Nekker Musk** — "You smell like one of them. Nekkers will not attack you,
+> and will not be pleased when it wears off."
+
+The name explains nothing on its own, so the description carries the mechanic
+and the sting in the tail.
+
+> **Flashed** — "You're blind. Whatever that was, it went off in your face,
+> and the dark you're standing in is not helping."
+
+The effect is one clause; the rest is voice.
+
+---
+
+## 5. Other fields
+
+Structural fields, briefly. Full detail is in the header comment of
+`docs/tags.yaml`, which is authoritative where this table is not.
+
+| Field | Meaning |
+|---|---|
+| `slug` | Stable identifier. Never changed once in use — everything references it. |
+| `name` | Display name. |
+| `category` | One of Meta, General, Skills, Status, Health, Items, Assets. |
+| `group` | Sub-grouping within a category; drives the picker's tabs and the chip colour. |
+| `visible` | Whether another player who inspects this character can see the tag. Set it by whether a bystander could actually tell. |
+| `removable` | Whether a player can strip the tag off themselves without a GM. |
+| `stackable` | Whether a character can hold more than one. Meals, ammunition, batches. |
+| `consumable` | Whether a player can use it up from their sheet. Consuming takes exactly one unit. |
+| `consumesInto` | What being consumed turns it into. A meal becomes Ate a Meal. |
+| `craftable` | Whether a player can make it, as opposed to only ever receiving it. |
+| `equippable` | Whether it can be worn or carried into an equip slot. |
+| `durationTurns` | Turns until it expires on its own. Omit for anything permanent. |
+| `expiresInto` | What it becomes when the clock runs out, instead of simply vanishing. The untreated-wound chain. Requires `durationTurns`. |
+| `requirement` | What it costs to add or remove in play: `turnsCost`, `resourceCost`, `skills`, `gambit`. Reference for GM adjudication; not enforced by code. |
+
+Two fields exist in the data and currently do nothing:
+
+- **`tradeable`** — reserved for a trade flow that is not built. Nothing reads
+  it. Do not rely on it to mean an item can change hands.
+- **`concealsIdentity`** — reserved for masks and hoods. Set on no tag. It
+  must be paired with `equippable` or the sync refuses to run.
+
+---
+
+## 6. Adding a tag
+
+1. Pick the category and group first. Group determines visibility and colour.
+2. Price it against §1, not against its neighbours.
+3. Set `purchasable` and `purchasableAfterStart` per §2. Items are `false` for
+   the second.
+4. If it is a Health tag, copy a cure-ladder rung verbatim rather than
+   inventing numbers.
+5. Write the description last, once the mechanics are settled.
+
+Every `parentTag`, `requiredTag`, `expiresInto`, `consumesInto` and
+`requirement.skills` slug must resolve to another tag in the same file, and
+every `group` to a group in `docs/taggroups.yaml`. The sync validates all of
+these before writing anything, so a bad reference fails loudly rather than
+silently dropping.
