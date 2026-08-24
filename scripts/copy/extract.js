@@ -14,7 +14,12 @@ const path = require("path");
 const yaml = require("js-yaml");
 
 const { collectAll, ROOT } = require("./collect.js");
-const { GROUP_TITLES, GROUP_ORDER } = require("./sources.js");
+const { GROUP_TITLES, GROUP_ORDER, YAML_SOURCES } = require("./sources.js");
+
+// The docs/*.yaml masters are prose already, in files that are pleasant to
+// edit directly — so they are not worksheeted by default. `--content` brings
+// them back if that ever changes.
+const CONTENT_GROUPS = new Set(YAML_SOURCES.map((s) => s.group));
 
 const OUT_DIR = path.join(ROOT, "worksheets");
 
@@ -99,6 +104,7 @@ function writeWorksheet(group, entries, drafts) {
 function main() {
   const args = process.argv.slice(2);
   const filter = args.filter((a) => !a.startsWith("-"));
+  const withContent = args.includes("--content");
 
   const { entries, errors } = collectAll();
   for (const { file, error } of errors) {
@@ -124,6 +130,7 @@ function main() {
   const results = [];
 
   for (const group of ordered) {
+    if (!withContent && CONTENT_GROUPS.has(group)) continue;
     if (filter.length && !filter.some((f) => group.includes(f))) continue;
     const file = path.join(OUT_DIR, `${group}.yaml`);
     const drafts = readExisting(file);
@@ -149,6 +156,12 @@ function main() {
     `  ${"".padEnd(pad)}  ${String(total).padStart(4)} entries  ${String(totalWords).padStart(6)} words\n`,
   );
   console.log(`  worksheets/  —  write into the 'new:' fields, then: npm run copy:reinject\n`);
+  if (!withContent) {
+    console.log(
+      `  The docs/*.yaml masters are edited directly, not here. 'npm run copy:extract -- --content'\n` +
+        `  worksheets them too, if you ever want that.\n`,
+    );
+  }
 
   if (orphaned.length) {
     console.log(`  ${orphaned.length} draft(s) no longer match anything in source:`);
