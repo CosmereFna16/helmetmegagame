@@ -24,10 +24,12 @@ const {
   deleteThread,
   startThread,
   postMessageBatched,
+  postAttachment,
 } = require("../lib/discordRest");
 
 const YAML_PATH = path.join(__dirname, "..", "..", "docs", "systemdocs", "infochannel.yaml");
 const ROLES_YAML_PATH = path.join(__dirname, "..", "..", "docs", "roles.yaml");
+const DOCS_DIR = path.join(__dirname, "..", "..", "docs");
 
 // Generator for infochannel.yaml's `generated: roles-intro` thread: every
 // faction's roles (name + intro text only — no description/tags/difficulty,
@@ -155,6 +157,15 @@ async function main() {
 
   console.log("Wiping #info...");
   await wipeChannel(channel.id);
+
+  // Posted before the threads are created, not just before the directory
+  // message: Discord orders a channel oldest-first, and thread creation
+  // itself emits system messages into the timeline. Going first is the only
+  // way the banner is guaranteed to sit above everything else in #info.
+  if (doc.banner) {
+    console.log("Posting banner...");
+    await postAttachment(channel.id, path.join(DOCS_DIR, doc.banner));
+  }
 
   console.log("Creating threads...");
   const linksByCategory = await createThreads(channel.id, doc.categories);

@@ -39,6 +39,45 @@ async function discordRequest(path, { method = "GET", body, allow404 = false } =
   throw new Error(`Discord ${method} ${path} failed: exhausted retries on 429`);
 }
 
+// Posts a local file as a message attachment. Discord takes attachments as
+// `multipart/form-data` only — a JSON body can never carry one, which is why
+// discordRequest (JSON-only, by design) can't be reused here. The multipart
+// body is a `payload_json` part holding the normal message object plus one
+// `files[n]` part per file; `attachments[].id` is the *part index*, not a
+// snowflake, and must line up with the `files[n]` suffix or Discord drops the
+// file silently. fetch sets the multipart boundary itself, so the
+// Content-Type header is deliberately left off.
+async function postAttachment(channelId, filePath, content = "") {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const filename = path.basename(filePath);
+  const body = new FormData();
+
+  body.append(
+    "payload_json",
+    JSON.stringify({ content, attachments: [{ id: 0, filename }] }),
+  );
+  body.append("files[0]", new Blob([fs.readFileSync(filePath)]), filename);
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: authHeaders(),
+      body,
+    });
+    if (res.status === 429) {
+      const retryAfter = Number((await res.json().catch(() => ({}))).retry_after) || 1;
+      await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
+      continue;
+    }
+    if (!res.ok) {
+      throw new Error(`Discord POST attachment ${filename} failed: ${res.status} ${await res.text()}`);
+    }
+    return res.json();
+  }
+  throw new Error(`Discord POST attachment ${filename} failed: exhausted retries on 429`);
+}
+
 async function getGuildChannels() {
   const guildId = process.env.DISCORD_GUILD_ID;
   return discordRequest(`/guilds/${guildId}/channels`);
@@ -367,6 +406,7 @@ module.exports = {
   patchChannel,
   postMessage,
   postMessageBatched,
+  postAttachment,
   chunkMessage,
   editMessage,
   createForumPost,
