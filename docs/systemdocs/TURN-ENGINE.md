@@ -114,13 +114,33 @@ The tuning is deliberate:
 - **STORM has the highest self-transition in either table.** Every other state
   enters STORM rarely, but once one kicks off it can rage for days. Rare but
   genuinely possible, rather than diluted away by restarting each turn.
-- **MIGRATION never repeats.** A one-off omen, not a weather regime.
 - **FOG is the phase-dependent one.** The DAWN table both enters and holds fog
   far more readily; the DUSK table mostly resolves it back to CLEAR. Mornings
   are foggy and it burns off by evening.
 
 A GM can override the next turn's weather from the Dev Panel
 (`GameConfig.nextWeather`); leaving it unset means "roll randomly".
+
+### Weather banners
+
+Each turn announcement is preceded in `#turns` by a photo of the weather,
+one per weather **per phase** — eight images in
+`docs/assets/weather/{weather}-{phase}.jpg`, built by
+`docs/assets/make-weather.py` in the same 2446×1122 frame as the `#info`
+banner so both channels read as one system.
+
+Two things about how it is posted (`db/lib/turnAnnouncement.js`):
+
+- **The banner is its own message.** Discord renders an attachment *below*
+  its message content, so an image attached to the announcement would appear
+  under it. Posting it separately, first, is the only way it sits on top.
+- **The rolling replace therefore covers two messages.** `GameConfig` tracks
+  `turnsBannerMessageId` alongside `turnsAnnouncementMessageId`; both are
+  deleted and reposted every turn.
+
+A missing image file is not an error — `weatherBannerPath()` returns null and
+the announcement posts alone. A banner is worth losing; a turn announcement
+is not.
 
 ## 5. Hunger
 

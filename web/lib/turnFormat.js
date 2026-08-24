@@ -15,7 +15,6 @@ const WEATHER_LABELS = {
   FOG: "Fog",
   RAIN: "Rain",
   STORM: "Storm",
-  MIGRATION: "Migration",
 };
 
 export function describeTurn(turn) {

@@ -2,7 +2,7 @@
 // build on (the very first turn the game ever plays) — every turn after
 // that is driven by WEATHER_TRANSITIONS below. Bias toward CLEAR as the
 // game's baseline condition.
-const WEATHER_WEIGHTS = { CLEAR: 47, FOG: 25, RAIN: 17, STORM: 10, MIGRATION: 1 }; // sums to 100
+const WEATHER_WEIGHTS = { CLEAR: 48, FOG: 25, RAIN: 17, STORM: 10 }; // sums to 100
 
 // Weather rolls every turn (twice a day — see advanceTurn() in
 // db/index.js), as a Markov transition off the *previous turn's* weather,
@@ -17,8 +17,7 @@ const WEATHER_WEIGHTS = { CLEAR: 47, FOG: 25, RAIN: 17, STORM: 10, MIGRATION: 1 
 // event rather than the norm), but once one kicks off it can rage for many
 // turns straight, the same in the morning as the evening — so a full
 // multi-day storm is rare but genuinely possible, not diluted away by
-// starting over each turn. MIGRATION never repeats turn-to-turn (a one-off
-// omen, not a weather regime).
+// starting over each turn.
 //
 // FOG is the one state that's genuinely phase-dependent, mirroring real
 // mornings-fog-burns-off-by-evening behavior: the DAWN table both enters
@@ -27,18 +26,16 @@ const WEATHER_WEIGHTS = { CLEAR: 47, FOG: 25, RAIN: 17, STORM: 10, MIGRATION: 1 
 // back to CLEAR instead of persisting.
 const WEATHER_TRANSITIONS = {
   DAWN: {
-    CLEAR: { CLEAR: 49, FOG: 35, RAIN: 13, STORM: 2, MIGRATION: 1 },
-    FOG: { CLEAR: 33, FOG: 45, RAIN: 18, STORM: 3, MIGRATION: 1 },
-    RAIN: { CLEAR: 22, FOG: 22, RAIN: 48, STORM: 7, MIGRATION: 1 },
-    STORM: { CLEAR: 13, FOG: 8, RAIN: 12, STORM: 65, MIGRATION: 2 },
-    MIGRATION: { CLEAR: 36, FOG: 40, RAIN: 20, STORM: 4, MIGRATION: 0 },
+    CLEAR: { CLEAR: 50, FOG: 35, RAIN: 13, STORM: 2 },
+    FOG: { CLEAR: 34, FOG: 45, RAIN: 18, STORM: 3 },
+    RAIN: { CLEAR: 23, FOG: 22, RAIN: 48, STORM: 7 },
+    STORM: { CLEAR: 15, FOG: 8, RAIN: 12, STORM: 65 },
   },
   DUSK: {
-    CLEAR: { CLEAR: 68, FOG: 10, RAIN: 17, STORM: 3, MIGRATION: 2 },
-    FOG: { CLEAR: 59, FOG: 15, RAIN: 22, STORM: 3, MIGRATION: 1 },
-    RAIN: { CLEAR: 27, FOG: 8, RAIN: 55, STORM: 9, MIGRATION: 1 },
-    STORM: { CLEAR: 13, FOG: 4, RAIN: 16, STORM: 65, MIGRATION: 2 },
-    MIGRATION: { CLEAR: 53, FOG: 15, RAIN: 28, STORM: 4, MIGRATION: 0 },
+    CLEAR: { CLEAR: 70, FOG: 10, RAIN: 17, STORM: 3 },
+    FOG: { CLEAR: 60, FOG: 15, RAIN: 22, STORM: 3 },
+    RAIN: { CLEAR: 28, FOG: 8, RAIN: 55, STORM: 9 },
+    STORM: { CLEAR: 15, FOG: 4, RAIN: 16, STORM: 65 },
   },
 };
 
@@ -47,7 +44,6 @@ const WEATHER_MESSAGES = {
   FOG: "It's foggy. Visibility is impaired.",
   RAIN: "It's raining.",
   STORM: "It's storming. Thunder shakes the mountains.",
-  MIGRATION: "An enormous flock of black birds block the sky. Everyone knows this is a bad omen.",
 };
 
 function rollFromWeights(weights) {
