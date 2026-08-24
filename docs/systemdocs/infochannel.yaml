@@ -41,25 +41,24 @@ main_message: |-
 
   Lifeweb simultaneously plays out on several levels. Kings win wars and move big pieces around the map while commoners try to fulfill their day-to-day desires.
 
-  **Rules**:
+  ## Rules
+  ① **Basic** — You must be 18+.
+  - Romance is allowed. You can hint at sexual content, but nothing overt (fade to black!)
+  - There are no children in Ravenheart.
+  - Mild bigotry is fine. SA and similar aren’t.
 
-  1. **Basic**: You must be 18+.
-  * Romance is allowed. You can hint at sexual content, but nothing overt (fade to black!)
-  * There are no children in Ravenheart.
-  * Mild bigotry is fine. SA and similar aren’t.
+  ② **Atmosphere** — Everything serves the atmosphere.
+  - Act somewhat like a Medieval European. Play out fear (unless you have the Brave tag). Ravenheart is your home, your life.
+  - Insulting the Baron would mean death, plus having your family ostracized. Think carefully.
 
-  2. **Atmosphere**: Everything serves the atmosphere.
-  * Act somewhat like a Medieval European. Play out fear (unless you have the Brave tag). Ravenheart is your home, your life.
-  * Insulting the Baron would mean death, plus having your family ostracized. Think carefully.
+  ③ **Information** — To support information asymmetry, everything that happens IC stays IC, and OOC stays OOC.
+  - Don’t discuss the game’s happenings OOC. Vague references are okay.
+  - Don’t say who your character is or who you’re playing. People might figure it out eventually, but protect the mystery.
+  - You are allowed to use vague OOC in roleplay channels when necessary—“(OOC: hey, gtg, see ya)”—instead of DM’ing the player.
 
-  3. **Information**: To support information asymmetry, everything that happens IC stays IC, and OOC stays OOC.
-  * Don’t discuss the game’s happenings OOC. Vague references are okay.
-  * Don’t say who your character is or who you’re playing. People might figure it out eventually, but protect the mystery.
-  * You are allowed to use vague OOC in roleplay channels when necessary—“(OOC: hey, gtg, see ya)”—instead of DM’ing the player.
-
-  4. **Antagonism**: Fulfill your character’s Desires, but not to the point of crossing your faction’s objectives.
-  * High ranks are expected to be relatively fit for duty and willing to collaborate. Peasants can brawl and do mostly whatever they want.
-  * If things naturally progress to where you betray your faction, that’s fine, but come into the game planning to do mostly good.
+  ④ **Antagonism** — Fulfill your character’s Desires, but not to the point of crossing your faction’s objectives.
+  - High ranks are expected to be relatively fit for duty and willing to collaborate. Peasants can brawl and do mostly whatever they want.
+  - If things naturally progress to where you betray your faction, that’s fine, but come into the game planning to do mostly good.
 
 categories:
   - name: Premise
@@ -132,7 +131,7 @@ categories:
           To rejoin as any other role, wait until your body is buried or your name is engraved. It is the Church and Mortii's jobs to do so.
       - title: Roles
         body: |-
-          Choose a role at game start, determining your starting tags, faction, and location. Leader roles (★) are reserved for players who can vouch frequent and long term availability, and some proficiency in roleplay. The <@&1539673757910564864> role can be acquired in <#1539672933268459591>.
+          Choose a role at game start, determining your starting tags, faction, and location. Leader roles (★) are reserved for players who can vouch frequent and long term availability, and some proficiency in roleplay. The Leader Whitelist role can be acquired in <#1539672933268459591>.
 
           Most roles have small limits, but **Bolded** roles have higher caps and are more generalized, allowing for more freedom of play.
         generated: roles-intro

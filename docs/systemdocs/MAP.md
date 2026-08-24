@@ -93,8 +93,8 @@ contain dropdowns and reactions can't open ephemeral UI.
 ## 5. The Map panel
 
 `/map` is a **pointcrawl**: rhombus nodes with the location name on a stem
-above them, over one of three grounds — **Forest** (the default photographic
-plate), **Plate** (the drawn `Map_Basic.png`), and **Bare**.
+above them, over one of two grounds — **Bare** (the default, nothing drawn
+in) and **Plate** (the drawn `Map_Basic.png`).
 
 The Plate carries **no pointcrawl at all** — nodes, labels and roads are hidden
 over it, because a rhombus grid on top of a hand-drawn map fights the drawing.
