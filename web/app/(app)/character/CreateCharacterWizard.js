@@ -101,7 +101,6 @@ export default function CreateCharacterWizard({
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [age, setAge] = useState("");
-  const [preferredNickname, setPreferredNickname] = useState("");
   const [roleId, setRoleId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [worstFear, setWorstFear] = useState("");
@@ -188,7 +187,6 @@ export default function CreateCharacterWizard({
     // it anyway, and posting it would imply otherwise.
     if (!lastNameLocked && lastName.trim()) fd.set("lastName", lastName.trim());
     if (age.trim()) fd.set("age", age.trim());
-    if (preferredNickname.trim()) fd.set("preferredNickname", preferredNickname.trim());
     fd.set("roleId", roleId);
     for (const id of selectedIds) fd.append("tagIds", id);
     if (worstFear.trim()) fd.set("worstFear", worstFear.trim());
@@ -282,15 +280,6 @@ export default function CreateCharacterWizard({
               min={AGE_MIN}
               max={AGE_MAX}
               placeholder={`${AGE_MIN}\u2013${AGE_MAX} \u2014 fixed once set, so you may leave it for later`}
-            />
-          </label>
-          <label className="field">
-            <span className="field-label">Preferred nickname (optional)</span>
-            <input
-              value={preferredNickname}
-              onChange={(e) => setPreferredNickname(e.target.value)}
-              placeholder="Shown before your character name in Discord"
-              maxLength={32}
             />
           </label>
         </div>

@@ -68,7 +68,6 @@ export async function createCharacter(formData) {
   // Not const: a Baroness/Heir/Successor wears the Baron's last name rather
   // than one they typed, so this is overwritten once the role is known below.
   let lastName = part("lastName", NAME_LIMITS.lastName);
-  const preferredNickname = formData.get("preferredNickname")?.toString().trim() || null;
   // Optional at creation — a player who skips it sets it later from
   // /character, where it locks on that first save instead.
   const rawAge = Number.parseInt(formData.get("age")?.toString() ?? "", 10);
@@ -227,7 +226,6 @@ export async function createCharacter(formData) {
           lastName,
           name,
           age,
-          preferredNickname,
           roleId: role.id,
           roleTitle: role.name,
           factionId: role.factionId,
@@ -275,7 +273,7 @@ export async function createCharacter(formData) {
   if (created.locationId) {
     await syncCharacterLocationAccess(discordUserId, null, created.locationId).catch(() => {});
   }
-  await syncCharacterNickname(discordUserId, formatBareName({ firstName, lastName }), preferredNickname).catch(() => {});
+  await syncCharacterNickname(discordUserId, formatBareName({ firstName, lastName })).catch(() => {});
   await syncCharacterNarrowcastAccess(created.id).catch(() => {});
   if (cursed) await removeCursedRole(discordUserId).catch(() => {});
 

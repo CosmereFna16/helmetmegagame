@@ -36,6 +36,14 @@ Four things about it are load-bearing:
   (which Restart Game has been bitten by once already). Plain indexed ids plus
   `locationName`/`characterName` snapshots survive both, and the snapshot is
   the more correct record anyway: who someone was known as *then*.
+- **Restart Game clears the table.** `wipeGameData` deletes every
+  `ArchiveEntry` inside the same transaction as Characters and Turns, so a
+  restart starts on an empty transcript. It is the one thing here that is not
+  keyed off a Discord pass — the rows are the record, and no channel wipe
+  touches them. (This was missed originally, and Restart Game left the whole
+  previous game readable at `/archive`.) The Dawn wipe is the opposite: it
+  deletes Discord messages and never the transcript, which is the entire point
+  of recording at send time.
 - **Every write is best-effort and swallows its own failure**, logged not
   thrown. `recordArchiveMessage` runs inline with the proxy send; a transcript
   row is never worth breaking a player's message over.

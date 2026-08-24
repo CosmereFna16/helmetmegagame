@@ -31,7 +31,7 @@ async function syncMemberNickname(member) {
   });
   if (!character) return "skipped";
 
-  const base = character.preferredNickname?.trim() || member.user.displayName;
+  const base = member.user.displayName;
   // Bare (first + last), not the displayed name. The 32-char cap is shared
   // between the two halves — about 14 each — and `Sir Jorren "the Blind"
   // Vask` is 27 on its own, so titling here would truncate every nickname in

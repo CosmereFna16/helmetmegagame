@@ -6,23 +6,22 @@ import { useRouter } from "next/navigation";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { travelTo } from "./travelActions";
 
-// The three grounds the pointcrawl can be laid over. Plate is the drawn
+// The two grounds the pointcrawl can be laid over. Plate is the drawn
 // Ravenheart map, and it deliberately carries **no** pointcrawl — nodes,
 // labels and roads are all hidden over it, because a rhombus grid on top of a
 // hand-drawn map fights the drawing rather than reading over it. Travel still
 // works from the destination list below, which is why that list is always
 // rendered rather than being a mobile-only fallback.
 const GROUNDS = [
-  { key: "forest", label: "Forest", src: "/assets/forest.jpg", pointcrawl: true },
-  { key: "plate", label: "Plate", src: "/assets/Map_Basic.png", pointcrawl: false },
   { key: "bare", label: "Bare", src: null, pointcrawl: true },
+  { key: "plate", label: "Plate", src: "/assets/Map_Basic.png", pointcrawl: false },
 ];
 
 const STORAGE_KEY = "lifeweb:map-ground";
 
 // The remembered ground is read through useSyncExternalStore rather than an
 // effect: localStorage doesn't exist on the server, so the server snapshot is
-// null (Forest) and React re-renders with the real value after hydration —
+// null (Bare) and React re-renders with the real value after hydration —
 // no mismatch, and no setState inside an effect, which is an error in this
 // repo (see react-hooks/set-state-in-effect). Nothing outside this tab ever
 // writes the key, so there is nothing to subscribe to.

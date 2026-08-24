@@ -11,7 +11,10 @@ import {
   locationAccessChannelIds,
 } from "@lifeweb/db";
 import { recordArchiveEvent } from "@lifeweb/db/lib/archive";
-import { revokeAllCharacterAccess as revokeAllCharacterAccessShared } from "@lifeweb/db/lib/locationAccess";
+import {
+  revokeAllCharacterAccess as revokeAllCharacterAccessShared,
+  revokeAccessForCharacters as revokeAccessForCharactersShared,
+} from "@lifeweb/db/lib/locationAccess";
 import { putChannelOverwrite, deleteChannelOverwrite } from "@lifeweb/db/lib/discordRest";
 
 const DISCORD_API = "https://discord.com/api/v10";
@@ -323,14 +326,14 @@ export async function updateGuildNickname(discordUserId, nickname) {
 // two halves — about 14 each — so an honorific and a quoted title would
 // truncate the result to garbage. This is the one surface where a title
 // deliberately does not appear; bot/src/lib/nickname.js does the same.
-export async function syncCharacterNickname(discordUserId, characterName, preferredNickname) {
+export async function syncCharacterNickname(discordUserId, characterName) {
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
   if (!config?.nicknameSyncEnabled) return;
 
   const member = await getGuildMember(discordUserId);
   if (!member) return;
 
-  const base = preferredNickname?.trim() || member.user.global_name || member.user.username;
+  const base = member.user.global_name || member.user.username;
   await updateGuildNickname(discordUserId, buildNickname(base, characterName));
 }
 
@@ -591,6 +594,12 @@ export async function syncCharacterNarrowcastAccess(characterId) {
 // by path. The logic lives in db/lib because both faces need it.
 export async function revokeAllCharacterAccess(character) {
   return revokeAllCharacterAccessShared(prisma, character);
+}
+
+// The bulk twin, for Restart Game. Channel-major rather than one blind sweep
+// per character — see db/lib/locationAccess.js#revokeAccessForCharacters.
+export async function revokeAccessForCharacters(characters) {
+  return revokeAccessForCharactersShared(prisma, characters);
 }
 
 // Everything that has to happen in Discord when a character dies, plus

@@ -15,7 +15,7 @@ import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import {
   deleteCharacterRole,
-  revokeAllCharacterAccess,
+  revokeAccessForCharacters,
   updateGuildNickname,
   listGuildMembers,
   removeCursedRole,
@@ -208,11 +208,17 @@ const DEFAULT_GAME_CONFIG = {
 
 // Full game restart for dev/testing: wipes every player- and turn-scoped
 // row (characters, tags-on-characters, Moves, default efforts, notes, DM
-// log, audit log, silo history), resets GameConfig's balance knobs to their
-// schema defaults, clears every Discord channel this game has actually
-// written to (#archive, #turns, and every Location's plain/public/private
-// channel — messages, forum posts, and threads, public or private), and
-// opens a fresh Turn 1/DAWN. Then re-syncs every YAML master, in dependency
+// log, audit log, silo history, and the /archive transcript), resets
+// GameConfig's balance knobs to their schema defaults, clears every Discord
+// channel this game has actually written to (#turns, and every Location's
+// plain/public/private channel — messages, forum posts, and threads, public
+// or private), and opens a fresh Turn 1/DAWN.
+//
+// The transcript is a DATABASE TABLE (ArchiveEntry), not a channel: it is
+// recorded at send time and there has been no #archive channel since
+// (CHANNELS.md §5). It is cleared by the transaction below, never by any
+// Discord pass — this comment used to say otherwise, which read as "archive:
+// handled" and is how the deleteMany came to be missing. Then re-syncs every YAML master, in dependency
 // order, so the game starts from the canonical sets:
 //   locations (docs/locations.yaml) -> tags (docs/tags.yaml) -> roles (docs/roles.yaml)
 // Roles resolve a starting Location and validate starting_tags, so that
@@ -241,40 +247,15 @@ export async function wipeGameData(formData) {
   }
 
   try {
+    // Snapshotted BEFORE the deletes, and closed over by the thunk below:
+    // by the time the Discord work runs these rows are gone, and their
+    // discordUserId/discordRoleId are the only handles on what to clean up.
     const [characters, members] = await Promise.all([
       prisma.character.findMany({ select: { discordUserId: true, discordRoleId: true } }),
       listGuildMembers(),
     ]);
     const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
     const cursedMemberIds = cursedRoleId ? members.filter((m) => m.roles.includes(cursedRoleId)).map((m) => m.id) : [];
-
-    // Best-effort Discord cleanup first, while the Character rows (and their
-    // discordRoleId/discordUserId) still exist to look up. Channel wiping is
-    // its own slow, sequential pass (see fullWipe.js) so it runs alongside
-    // the per-character role/nickname cleanup rather than blocking it. A full
-    // restart should not leave anyone still cursed from the last game, so
-    // every member currently holding the Cursed role gets it stripped too.
-    // revokeAllCharacterAccess before deleteCharacterRole, and sequentially
-    // rather than in the fan-out below: access is a per-member overwrite now,
-    // so deleting the role no longer carries it away, and the channels survive
-    // a wipe (runFullChannelWipe clears messages, not the channels). Without
-    // this every player from the last game keeps standing access into the next
-    // one. Sequential because each call is itself a walk over every channel —
-    // ARCHITECTURE.md §5.
-    for (const c of characters) {
-      await revokeAllCharacterAccess(c).catch((err) =>
-        console.error(`Failed to revoke access during wipe for ${c.discordUserId}:`, err),
-      );
-    }
-
-    await Promise.all([
-      ...characters.flatMap((c) => [
-        c.discordRoleId ? deleteCharacterRole(c.discordRoleId).catch(() => {}) : null,
-        updateGuildNickname(c.discordUserId, null).catch(() => {}),
-      ]).filter(Boolean),
-      ...cursedMemberIds.map((id) => removeCursedRole(id)),
-      runFullChannelWipe(prisma).catch((err) => console.error("Full channel wipe failed:", err)),
-    ]);
 
     // Deletes ordered so dependents go before the Character/Turn rows they
     // reference (Prisma doesn't cascade by default here). Request and Desire
@@ -294,6 +275,13 @@ export async function wipeGameData(formData) {
       prisma.turn.deleteMany({}),
       prisma.siloTransaction.deleteMany({}),
       prisma.directMessage.deleteMany({}),
+      // The transcript (/archive). Carries no foreign keys — snapshot columns
+      // only, ARCHITECTURE.md §6 — so the ordering rules above do not apply to
+      // it and it sits with the other log tables. Its absence here is why a
+      // restart used to leave the whole previous game readable at /archive:
+      // it is in nobody's dependency chain, so it never came up while that
+      // ordering was being worked out.
+      prisma.archiveEntry.deleteMany({}),
       prisma.faction.updateMany({ data: { silo: 0 } }),
       prisma.gameConfig.update({
         where: { id: 1 },
@@ -305,34 +293,23 @@ export async function wipeGameData(formData) {
       data: { number: 1, phase: "DAWN", weather: "CLEAR", status: "OPEN", gameDate: new Date() },
     });
 
-    const locationSync = await syncLocationsFromYaml(prisma).catch((err) => {
-      console.error("Location sync failed during game wipe:", err);
-      return null;
-    });
-    const tagSync = await syncTagsFromYaml(prisma).catch((err) => {
-      console.error("Tag sync failed during game wipe:", err);
-      return null;
-    });
-    const roleSync = await syncRolesFromYaml(prisma).catch((err) => {
-      console.error("Role sync failed during game wipe:", err);
-      return null;
-    });
-    // Last of the four: its assignment references are validated against the
-    // Tag/Role/Faction rows the syncs above create.
-    const documentSync = await syncDocumentsFromYaml(prisma).catch((err) => {
-      console.error("Document sync failed during game wipe:", err);
-      return null;
-    });
-
     await prisma.auditLog.create({
       data: {
         actorDiscordUserId: session.discordUserId,
         actionType: "superadmin_game_wipe",
-        details: { locationSync, tagSync, roleSync, documentSync },
+        details: { characters: characters.length, cursedMembers: cursedMemberIds.length },
       },
     });
 
+    revalidatePath("/gm/dev");
     revalidatePath("/", "layout");
+
+    after(() =>
+      finishGameWipe(session.discordUserId, characters, cursedMemberIds).catch((err) =>
+        console.error("Game wipe side effects failed:", err),
+      ),
+    );
+
     return { ok: true };
   } catch (err) {
     // There's no error.js boundary in this app, so an uncaught throw here
@@ -341,6 +318,76 @@ export async function wipeGameData(formData) {
     console.error("Game wipe failed:", err);
     return { ok: false, error: "Could not wipe the game. Check the server logs." };
   }
+}
+
+// Everything the wipe does outside the database, handed to after() rather than
+// awaited — the same split forceAdvanceTurn uses, and for the same reason.
+// This walks every channel in the game twice over and then re-syncs four YAML
+// masters; awaiting it held the server action open for minutes, and a pending
+// server action blocks client-side navigation, so the panel froze.
+//
+// Every step is best-effort: a Discord failure must not stop the ones after
+// it, and the database is already in its final state before any of this runs.
+//
+// If the container dies partway, the catalogs are untouched (the transaction
+// never deletes them) so a GM can re-run the syncs by hand. That is a
+// recoverable state; a fifty-minute hanging request is not.
+async function finishGameWipe(actorDiscordUserId, characters, cursedMemberIds) {
+  // First, while nothing has re-provisioned: strip every character's channel
+  // access. One pass over the channels rather than one pass per character —
+  // see db/lib/locationAccess.js#revokeAccessForCharacters for why that
+  // matters at roster scale.
+  const sweep = await revokeAccessForCharacters(characters).catch((err) => {
+    console.error("Access sweep failed during game wipe:", err);
+    return null;
+  });
+
+  // A full restart should not leave anyone still cursed from the last game.
+  await Promise.all([
+    ...characters
+      .flatMap((c) => [
+        c.discordRoleId ? deleteCharacterRole(c.discordRoleId).catch(() => {}) : null,
+        updateGuildNickname(c.discordUserId, null).catch(() => {}),
+      ])
+      .filter(Boolean),
+    ...cursedMemberIds.map((id) => removeCursedRole(id).catch(() => {})),
+    runFullChannelWipe(prisma).catch((err) => console.error("Full channel wipe failed:", err)),
+  ]);
+
+  // Re-sync every YAML master, in dependency order, so the game starts from
+  // the canonical sets. Roles resolve a starting Location and validate
+  // starting_tags, so that order is load-bearing, not cosmetic.
+  const locationSync = await syncLocationsFromYaml(prisma).catch((err) => {
+    console.error("Location sync failed during game wipe:", err);
+    return null;
+  });
+  const tagSync = await syncTagsFromYaml(prisma).catch((err) => {
+    console.error("Tag sync failed during game wipe:", err);
+    return null;
+  });
+  const roleSync = await syncRolesFromYaml(prisma).catch((err) => {
+    console.error("Role sync failed during game wipe:", err);
+    return null;
+  });
+  // Last of the four: its assignment references are validated against the
+  // Tag/Role/Faction rows the syncs above create.
+  const documentSync = await syncDocumentsFromYaml(prisma).catch((err) => {
+    console.error("Document sync failed during game wipe:", err);
+    return null;
+  });
+
+  // A second row rather than details on the first: none of this is known when
+  // the action returns, and claiming it there would be a lie — the same
+  // reasoning runDefaultMovePass uses for reporting `shareable`, not `shared`.
+  await prisma.auditLog
+    .create({
+      data: {
+        actorDiscordUserId,
+        actionType: "superadmin_game_wipe_finished",
+        details: { sweep, locationSync, tagSync, roleSync, documentSync },
+      },
+    })
+    .catch((err) => console.error("Game wipe completion audit failed:", err));
 }
 
 export async function updateFaction(formData) {

@@ -47,10 +47,6 @@ export async function propagateDynastyLastName(lastName) {
     // the character half of the nickname, so both have to follow a rename —
     // best-effort, same as every other caller of these two.
     await ensureCharacterRole(updated).catch(() => {});
-    await syncCharacterNickname(
-      updated.discordUserId,
-      formatBareName(updated),
-      updated.preferredNickname,
-    ).catch(() => {});
+    await syncCharacterNickname(updated.discordUserId, formatBareName(updated)).catch(() => {});
   }
 }

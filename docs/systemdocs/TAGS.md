@@ -95,13 +95,25 @@ Every caller must select `group.requiredTagId` alongside `requiredTagId`.
 Miss it and a hidden category silently opens for everyone, with nothing to
 show that it has.
 
-## 3a. Hidden categories
+## 3a. Hidden categories, and gated groups
 
-Two categories are secret: **Demoness** (behind the `demoness` tag) and
+Two whole categories are secret: **Demoness** (behind the `demoness` tag) and
 **Bacchus** (behind `follower-of-bacchus`, displayed as "Cultist of
 Bacchus"). Each contains exactly one `TagGroup` carrying the `requiredTag`,
 which is where the whole mechanism lives — the tags inside deliberately do
 **not** repeat `requiredTag`, so the gate is written once.
+
+The same field also gates a group **inside a visible category**, which is how
+body membership is modelled: `general-watch` ("The Watch", behind `watchman`)
+and `general-brigand` ("Brigands", behind `brigand`) sit in `general`, so the
+General tab stays because `general-traits` and `general-social` are ungated —
+only the group vanishes. Same rule about not repeating the gate on the members.
+
+Note where the two keys live: `watchman` and `brigand` are in
+`general-traits`, **outside** the groups they open. A gated group cannot hold
+its own key — nobody would ever be able to see it. Both are
+`purchasable: false` and arrive from `roles.yaml` `starting_tags`, which is
+also why the Add Tag picker has to fold held tags into its `byId` map (below).
 
 Three things make a category actually hidden rather than merely empty:
 
@@ -168,6 +180,18 @@ and never through the menu.
 exist at launch and never afterward. **Every negative-cost tag must be
 `purchasableAfterStart: false`** — a drawback buyable mid-game is a point
 farm.
+
+That invariant has two enforcement points, and for a while only one of them
+existed. `purchasableTags()` honours it via `PointBuy`'s `afterStartOnly`
+prop, but that menu is mounted nowhere yet (`CreateCharacterWizard.js` passes
+`afterStartOnly={false}`), so the **Add Tag request** is the only routed
+mid-game path — and `addableTags()` used to filter on
+`purchasable || craftable` alone, putting every creation-only drawback back on
+the menu. It now requires `purchasableAfterStart` on the **purchasable branch
+only**: most craftables are deliberately `purchasableAfterStart: false` (43 of
+58 — meals, tonics, explosives) because they are made rather than bought, and
+their gate is the `requirement` block instead. No drawback is craftable, so
+nothing slips through that seam.
 
 Full writeup of creation, roles, and the wizard: `CHARACTERS.md`.
 
