@@ -33,6 +33,7 @@ function buildSpeakPicker(options, truncated) {
         label: o.label,
         value: o.value,
         ...(o.description ? { description: o.description } : {}),
+        ...(o.emoji ? { emoji: o.emoji } : {}),
       })),
     );
   const rows = [new ActionRowBuilder().addComponents(menu)];

@@ -130,11 +130,30 @@ rule the `/conceal` prefix follows. Conceal posts under
 `concealedAlias(character)` exactly as the prefix does.
 
 Destinations come from `bot/src/lib/speakTargets.js#listSpeakTargets`, which
-keeps any channel or thread that is **both** a tupper channel and one Discord
-says the member may View + Send in. That second test is the live answer to
-every narrowcast rule without a second copy of them, so a channel added later
-appears automatically. Grouped Room / Threads / Broadcast, capped at Discord's
-25 options with the overflow counted rather than dropped silently.
+keeps anything that is **both** a tupper channel and one Discord says the
+member may actually post in. That second test is the live answer to every
+narrowcast rule without a second copy of them, so a channel added later
+appears automatically.
+
+"May post in" is two different permissions, and conflating them is a bug:
+
+| Target | Needs |
+|---|---|
+| Text / forum channel | `ViewChannel` + `SendMessages` |
+| Thread | `ViewChannel` + `SendMessagesInThreads` |
+
+The two thread containers are **never** offered as destinations themselves —
+you cannot post a message to a forum channel, and `-private` denies
+`SendMessages` for `@everyone` by design (`CHANNELS.md` §2). Both are walked
+for their threads on `ViewChannel` alone. A private thread additionally
+requires the member to be in it.
+
+Grouped Room / Threads / Broadcast, each group prefixed by a header option and
+its entries carrying a group emoji, capped at Discord's 25 options with the
+overflow counted rather than dropped silently. **Every option value must be
+unique** — Discord rejects the whole payload otherwise, and `discord.js` does
+not check this locally, so each group header carries its own `say:nav:{group}`
+value rather than a shared one.
 
 The destination is re-checked on submit: an ephemeral picker outlives its
 player walking out of the room.
