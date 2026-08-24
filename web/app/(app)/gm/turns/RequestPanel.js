@@ -315,6 +315,22 @@ const SECTIONS = {
       </>
     ),
   },
+
+  CHANGE_NAME: {
+    heading: "Change Name",
+    render: ({ effect }) => (
+      <>
+        <Line label="Now">{effect.next?.name ?? "—"}</Line>
+        <Line label="Was">{effect.previous?.name ?? <span className="text-muted">nothing</span>}</Line>
+        <Line label="Spent">1 Mulligan Potion</Line>
+        <p className="text-xs text-muted">
+          Nothing to re-score. Undo restores the previous name and gives back the potion, but does
+          not touch Discord — the personal role and nickname catch up next time the player saves
+          their Bio form.
+        </p>
+      </>
+    ),
+  },
 };
 
 export default function RequestPanel({ request, readOnly = false, onClose }) {

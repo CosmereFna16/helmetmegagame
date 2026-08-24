@@ -14,11 +14,20 @@
 // forced. A prune that silently skips is worse than one that deletes, so the
 // caller prints every refusal.
 const fs = require("node:fs");
-const path = require("node:path");
 const yaml = require("js-yaml");
+const { docsPath } = require("./repoPaths");
+
+// docsPath() is null only when docs/ cannot be found at all, which for a YAML
+// master is fatal — a sync with no master would read as "everything was
+// deleted from the file" and prune the lot. See db/lib/repoPaths.js.
+function requireDocsPath(...segments) {
+  const p = docsPath(...segments);
+  if (!p) throw new Error(`Cannot find docs/${segments.join("/")} — see db/lib/repoPaths.js`);
+  return p;
+}
 
 function yamlSlugs() {
-  const yamlPath = path.join(__dirname, "..", "..", "docs", "tags.yaml");
+  const yamlPath = requireDocsPath("tags.yaml");
   const doc = yaml.load(fs.readFileSync(yamlPath, "utf8"));
   return new Set((doc?.tags ?? []).map((t) => t.slug));
 }

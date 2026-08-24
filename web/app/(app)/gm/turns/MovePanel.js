@@ -24,7 +24,7 @@ const OPPOSED_HELP =
   "Opposed moves affect negatively affect another player. Wait to adjudicate these until all other parties have moved.";
 
 const RESULT_HELP =
-  "Only visible to GMs. Write whatever you'd like. Once you're done, message all affected players (or go to the respective channel and respond as Lifeweb by typing /gm) to communicate the results.";
+  "Only visible to GMs. Write whatever you'd like. Once you're done, message all affected players (or go to the respective channel and respond as Bascinet by typing /gm) to communicate the results.";
 
 const REJECT_HELP = "Deletes the Move and frees up the user's turn. Helpful if the action wasn't notable enough to be a move.";
 

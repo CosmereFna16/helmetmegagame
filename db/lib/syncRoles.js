@@ -28,11 +28,20 @@
 // the YAML can't half-apply and ship characters missing part of their
 // starting package.
 const fs = require("node:fs");
-const path = require("node:path");
 const yaml = require("js-yaml");
+const { docsPath } = require("./repoPaths");
+
+// docsPath() is null only when docs/ cannot be found at all, which for a YAML
+// master is fatal — a sync with no master would read as "everything was
+// deleted from the file" and prune the lot. See db/lib/repoPaths.js.
+function requireDocsPath(...segments) {
+  const p = docsPath(...segments);
+  if (!p) throw new Error(`Cannot find docs/${segments.join("/")} — see db/lib/repoPaths.js`);
+  return p;
+}
 
 function loadDoc() {
-  const yamlPath = path.join(__dirname, "..", "..", "docs", "roles.yaml");
+  const yamlPath = requireDocsPath("roles.yaml");
   return yaml.load(fs.readFileSync(yamlPath, "utf8"));
 }
 

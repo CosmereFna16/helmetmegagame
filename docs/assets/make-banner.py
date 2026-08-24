@@ -2,7 +2,7 @@
 """Regenerates docs/assets/info-banner.png, or builds the same gothic banner
 over any other background image.
 
-    python3 make-banner.py <background.png> [-o out.png] [-t "Lifeweb"]
+    python3 make-banner.py <background.png> [-o out.png] [-t "Bascinet"]
 
 Requires Pillow, which is NOT a repo dependency (this is a Node monorepo) and
 which macOS's system Python refuses to install into. Use a throwaway venv:
@@ -15,6 +15,14 @@ the same numbers reproduce the identical look on a background of any size.
 The one thing that is not size-invariant is the source crop: CROP_BOTTOM was
 chosen for one specific photo (to lift the type off a subject in the lower
 right) and is worth re-tuning per background.
+
+The constants below are those original per-photo defaults, and every one of
+them is overridable from the command line. The banner currently in the repo is
+NOT the bare defaults — docs/assets/info-banner.png was built over
+bascinetbase.png with the treatment turned off and the blur halved:
+
+    make-banner.py bascinetbase.png --crop-bottom 0 --brightness 1.0 \\
+        --saturation 1.0 --blur 0.000615
 """
 
 import argparse
@@ -35,15 +43,20 @@ SHADOW_DROP = 0.02
 SHADOW_ALPHA = 170
 
 
-def build(src_path, out_path, text):
+def build(src_path, out_path, text, crop_bottom=CROP_BOTTOM, brightness=BRIGHTNESS,
+          saturation=SATURATION, blur=BLUR):
     im = Image.open(src_path).convert("RGB")
     w, h = im.size
-    im = im.crop((0, 0, w, int(h * (1 - CROP_BOTTOM))))
-    w, h = im.size
+    if crop_bottom:
+        im = im.crop((0, 0, w, int(h * (1 - crop_bottom))))
+        w, h = im.size
 
-    im = ImageEnhance.Brightness(im).enhance(BRIGHTNESS)
-    im = ImageEnhance.Color(im).enhance(SATURATION)
-    im = im.filter(ImageFilter.GaussianBlur(radius=w * BLUR))
+    if brightness != 1.0:
+        im = ImageEnhance.Brightness(im).enhance(brightness)
+    if saturation != 1.0:
+        im = ImageEnhance.Color(im).enhance(saturation)
+    if blur:
+        im = im.filter(ImageFilter.GaussianBlur(radius=w * blur))
 
     # Solve the font size from the glyphs' INK box rather than the advance
     # width: blackletter carries wide side bearings, so sizing on the advance
@@ -75,6 +88,11 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("background")
     ap.add_argument("-o", "--out", default=os.path.join(HERE, "info-banner.png"))
-    ap.add_argument("-t", "--text", default="Lifeweb")
+    ap.add_argument("-t", "--text", default="Bascinet")
+    ap.add_argument("--crop-bottom", type=float, default=CROP_BOTTOM)
+    ap.add_argument("--brightness", type=float, default=BRIGHTNESS)
+    ap.add_argument("--saturation", type=float, default=SATURATION)
+    ap.add_argument("--blur", type=float, default=BLUR)
     args = ap.parse_args()
-    build(args.background, args.out, args.text)
+    build(args.background, args.out, args.text, args.crop_bottom, args.brightness,
+          args.saturation, args.blur)

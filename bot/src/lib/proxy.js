@@ -4,7 +4,7 @@ const { recordArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { capitalizeSentences } = require("./textCorrection");
 const { resolveChannelContext } = require("./channels");
 
-const WEBHOOK_NAME = "Lifeweb Tupper";
+const WEBHOOK_NAME = "Bascinet Tupper";
 const MAX_RECENT = 500;
 
 const webhookCache = new Map(); // channelId -> { id, token }

@@ -94,6 +94,7 @@ enum RequestType {
   CHANGE_WORST_FEAR
   FULFILL_WORST_FEAR
   HEAL_CHARACTER
+  CHANGE_NAME
 }
 
 // PASSED is the default and means "not yet touched by a GM" — the request

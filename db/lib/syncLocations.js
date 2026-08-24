@@ -27,7 +27,6 @@
 //      afterwards, any Zone left with zero Locations and whose name isn't in
 //      the current YAML zone list is deleted too.
 const fs = require("node:fs");
-const path = require("node:path");
 const yaml = require("js-yaml");
 const {
   createChannel,
@@ -51,6 +50,7 @@ const {
 const crypto = require("node:crypto");
 const { spectatorOverwrite } = require("./spectatorAccess");
 const { SPECTATOR_ROLE_ID } = require("./roleIds");
+const { docsPath } = require("./repoPaths");
 const {
   PERSISTENT_TAG_NAME,
   PERSISTENT_EMOJI,
@@ -276,6 +276,15 @@ async function provisionLocationChannels(prisma, location) {
 // future edit to the spec can turn this pass into the thing that strips a
 // Location's privacy — which is exactly the failure this whole change exists
 // to make unrepeatable.
+// docsPath() is null only when docs/ cannot be found at all, which for a YAML
+// master is fatal — a sync with no master would read as "everything was
+// deleted from the file" and prune the lot. See db/lib/repoPaths.js.
+function requireDocsPath(...segments) {
+  const p = docsPath(...segments);
+  if (!p) throw new Error(`Cannot find docs/${segments.join("/")} — see db/lib/repoPaths.js`);
+  return p;
+}
+
 function managedOverwriteIds() {
   return new Set([process.env.DISCORD_GM_ROLE_ID, SPECTATOR_ROLE_ID].filter(Boolean));
 }
@@ -591,7 +600,7 @@ async function syncLocationConnections(prisma, upserted, connections) {
 }
 
 async function syncLocationsFromYaml(prisma) {
-  const yamlPath = path.join(__dirname, "..", "..", "docs", "locations.yaml");
+  const yamlPath = requireDocsPath("locations.yaml");
   const doc = yaml.load(fs.readFileSync(yamlPath, "utf8"));
   const entries = doc?.locations ?? [];
   const locationConnections = doc?.locationConnections ?? [];

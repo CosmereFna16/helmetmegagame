@@ -19,8 +19,8 @@
 // Each pass only writes when something actually changed, same
 // needsUpdate-style diff check as syncLocationsFromYaml.
 const fs = require("node:fs");
-const path = require("node:path");
 const yaml = require("js-yaml");
+const { docsPath } = require("./repoPaths");
 
 // A consumesInto entry is either a bare slug ("ate-meal") or an object
 // carrying a condition and/or an expiry override ({ slug: "happy",
@@ -87,13 +87,22 @@ function normalizeExpiresInto(entries) {
   });
 }
 
+// docsPath() is null only when docs/ cannot be found at all, which for a YAML
+// master is fatal — a sync with no master would read as "everything was
+// deleted from the file" and prune the lot. See db/lib/repoPaths.js.
+function requireDocsPath(...segments) {
+  const p = docsPath(...segments);
+  if (!p) throw new Error(`Cannot find docs/${segments.join("/")} — see db/lib/repoPaths.js`);
+  return p;
+}
+
 function loadDoc() {
-  const yamlPath = path.join(__dirname, "..", "..", "docs", "tags.yaml");
+  const yamlPath = requireDocsPath("tags.yaml");
   return yaml.load(fs.readFileSync(yamlPath, "utf8"));
 }
 
 function loadGroupsDoc() {
-  const yamlPath = path.join(__dirname, "..", "..", "docs", "taggroups.yaml");
+  const yamlPath = requireDocsPath("taggroups.yaml");
   return yaml.load(fs.readFileSync(yamlPath, "utf8"));
 }
 

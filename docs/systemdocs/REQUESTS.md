@@ -56,10 +56,10 @@ the whole new stack clawed back — only what this request moved. See
 invokes it inside its own `prisma.$transaction` so a request can never exist
 without its effect, or an effect without its request.
 
-## 3. The twelve types
+## 3. The thirteen types
 
-Ten live in `web/app/(app)/character/requestActions.js` and the two Lifeweb
-types in `web/app/(app)/lifeweb/requestActions.js`. Each one
+Eleven live in `web/app/(app)/character/requestActions.js` and the two
+Lifeweb types in `web/app/(app)/lifeweb/requestActions.js`. Each one
 authenticates, **re-validates everything the client sent** (a server action is
 a public endpoint, and the client's filtered menus are only advisory), applies
 the effect, and writes the `Request` plus an `AuditLog` row carrying the same
@@ -79,6 +79,7 @@ reason.
 | `DONATE_BLOOD` | Mortus bleeds someone into the Lifeweb | blood added; clear Drained | Draws the blood back, clears Drained |
 | `FEED_PERSON` | Mortus feeds someone to the Lifeweb | blood added | Draws the blood back (never revives) |
 | `HEAL_CHARACTER` | Treats an affliction on anyone standing in their Location, on whoever's tab they choose | cost; put the affliction back | Restores the tag with its original expiry, refunds the payer |
+| `CHANGE_NAME` | Drinks a Mulligan Potion and takes a new honorific/first/last name | — | Restores the previous name and gives back the potion |
 
 The per-type behaviour lives in `web/lib/requestEffects.js` as one
 `REQUEST_EFFECTS` entry each. **Adding a type means adding one entry
@@ -122,6 +123,17 @@ Three notes on deliberate choices:
   exists and would be more precise, but it is set on exactly one tag in
   `docs/tags.yaml` today, so Items/Assets is the honest signal. Revisit once
   the catalog populates it (`web/lib/tagRequests.js`).
+- **Undo never re-syncs Discord.** `resolveRequest` (`gm/turns/actions.js`)
+  runs a request's `undo()` entirely inside one transaction, and no network
+  call may run inside a `$transaction` (`ARCHITECTURE.md` §5) — so undoing
+  `ADD_TAG`/`REMOVE_TAG`/`CONSUME_TAG` leaves `#radio`/`#intercom` access
+  stale until the next Move reconciles it, and undoing `CHANGE_NAME` leaves
+  the personal Discord role/nickname stale until the player's next Bio save
+  (`ensureCharacterRole` always re-PATCHes off the live DB name, so that save
+  self-heals it). Accepted rather than fixed: the forward path already pays
+  for the Discord call outside the transaction, and a bespoke undo path for
+  each type would be the `killRequestTarget` treatment for something this
+  minor.
 
 ## 4. Mood, Hunger, and the Gambit modifier
 

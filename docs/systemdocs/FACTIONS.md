@@ -5,10 +5,10 @@ that they exist.
 
 ## 1. Faction is game state, not a Discord role
 
-`Faction` has **no Discord role backing it at all**. It's a pure Lifeweb
+`Faction` has **no Discord role backing it at all**. It's a pure Bascinet
 concept, master-sourced from `docs/roles.yaml` (see `SYNC.md`) and editable by
 GMs on `/faction` and `/gm/dev/factions`. Discord's own roles — used for
-faction pings and the like — are independent and unmanaged by Lifeweb.
+faction pings and the like — are independent and unmanaged by Bascinet.
 
 Factions nest: `Faction.parentFactionId` forms a hierarchy, and a parent's
 leadership reaches down into its subjects.

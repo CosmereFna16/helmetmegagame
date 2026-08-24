@@ -1,6 +1,11 @@
 # Sole master for the Tag catalog. TagGroup catalog is a sibling file,
 # docs/taggroups.yaml — see there for group/color fields.
 #
+# PRICING A TAG: the point scale is docs/systemdocs/TAGS.md §4a, and it is
+# canonical. Price against the band, not against whatever the neighbouring
+# entries in this file happen to cost. docs/tag-design.md restates the same
+# scale for players, along with the YAML format and worked examples.
+#
 # This file is hand-edited and is the ONLY thing that writes the catalog.
 # There is deliberately no automated sync from anywhere else — drafted
 # entries get added here by hand, one at a time, so the fields that only
@@ -162,6 +167,7 @@ tags:
     visible: true
 
   - slug: turn-ping
+    description: "You are pinged in Discord when the turn advances. Toggled from /character; carries no weight in play."
     name: Turn Ping
     category: meta
     pointCost: 0
@@ -289,7 +295,31 @@ tags:
     category: general
     group: general-traits
     description: "You read people well and can use a Gambit to discover 1-6 random tags about a person."
-    pointCost: 4
+    pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+
+  # NEW (Claude) --------------------------------------------------------
+  # The 5 and 6 bands were nearly empty, and the design doc names "giant" as
+  # its own 6-point example. Inscrutable is priced at 5 because it blanks two
+  # separate 4-point abilities (Seductive and Torturer) rather than granting
+  # one of its own.
+  - slug: giant
+    name: Giant
+    category: general
+    group: general-traits
+    description: "Head and shoulders above everyone in the room, and built to match. Doors, tunnels and crawlspaces were not made for you, and nobody who sees you forgets it."
+    pointCost: 6
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+
+  - slug: inscrutable
+    name: Inscrutable
+    category: general
+    group: general-social
+    description: "Nothing shows on you. Someone Seductive examining you learns no Desire; someone with a Torturer's eye finds no Worst Fear. They get a blank, and they know it is a blank."
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
@@ -297,6 +327,7 @@ tags:
     name: Old
     category: general
     group: general-traits
+    description: "Long past your prime. Your body is slower and less forgiving than it was, and everyone can see it."
     pointCost: -2
     purchasable: true
     purchasableAfterStart: false
@@ -305,6 +336,7 @@ tags:
     name: Frail
     category: general
     group: general-traits
+    description: "Thin-boned and easily hurt. A blow that would bruise someone else breaks something in you."
     pointCost: -3
     purchasable: true
     purchasableAfterStart: false
@@ -678,6 +710,7 @@ tags:
     purchasableAfterStart: true
 
   - slug: laborer-farming
+    description: "Specialist rates when you /farm. The best yield in Ravenheart comes off worked soil, and you are the one who knows how to work it."
     name: Laborer (Farming)
     category: skills
     pointCost: 2
@@ -686,6 +719,7 @@ tags:
     purchasableAfterStart: true
 
   - slug: laborer-fishing
+    description: "Specialist rates when you /fish. You know the water, the hours, and which stretches are already fished out."
     name: Laborer (Fishing)
     category: skills
     pointCost: 2
@@ -694,6 +728,7 @@ tags:
     purchasableAfterStart: true
 
   - slug: laborer-herding
+    description: "Specialist rates when you /herd. Animals settle around you and fewer of them are lost."
     name: Laborer (Herding)
     category: skills
     pointCost: 2
@@ -702,6 +737,7 @@ tags:
     purchasableAfterStart: true
 
   - slug: laborer-hunting
+    description: "Specialist rates when you /hunt. You read tracks, wind and sign, and you come back with something."
     name: Laborer (Hunting)
     category: skills
     pointCost: 2
@@ -713,6 +749,7 @@ tags:
     name: Intercom
     category: skills
     description: "Can send announcements to all of Ravenheart. You have access to #intercom."
+    pointCost: 0
     purchasable: false
     purchasableAfterStart: false
 
@@ -823,7 +860,7 @@ tags:
     category: skills
     description: "You have drilled the line. Standing within reach of two or more other Watchmen, your fighting skill is one level higher."
     pointCost: 3
-    requiredTag: watchman
+    requiredTag: fighting-basic
     visible: true
     purchasable: true
     purchasableAfterStart: true
@@ -1699,6 +1736,24 @@ tags:
       resourceCost: 2
       skills: [medical-skilled]
 
+  # NEW (Claude) --------------------------------------------------------
+  - slug: consumptive
+    name: Consumptive
+    category: health
+    group: health-illness
+    description: "A wasting cough that has been with you for years and will see you out. Good days and bad days, and the bad ones are getting closer together."
+    pointCost: -4
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 8
+      skills:
+        - medical-expert
+      gambit: true
+
   - slug: hypothermia
     name: Hypothermia
     category: health
@@ -1797,7 +1852,7 @@ tags:
     category: health
     group: health-mind
     description: "Gone. Not dim, not blurred — gone. There is exactly one answer to this and it is the kind of thing only the Sanctuary's best would attempt: a fresh pair of eyes, from somewhere, and hands good enough to fit them. Bring both."
-    pointCost: -3
+    pointCost: -5
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -1825,7 +1880,7 @@ tags:
     category: health
     group: health-mind
     description: "No voice. Whether it was taken or never came, it is not coming back, and no surgeon in the world is going to give you one. Write it down."
-    pointCost: -3
+    pointCost: -4
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -1898,7 +1953,7 @@ tags:
     category: health
     group: health-maiming
     description: "It's still attached and it still hurts, which is the worst of both. You are slow, you are loud on stairs, and you are never running anywhere again — unless someone genuinely extraordinary rebuilds the whole thing, which is about as likely as it sounds."
-    pointCost: -3
+    pointCost: -4
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -1914,7 +1969,7 @@ tags:
     category: health
     group: health-maiming
     description: "Silence, and has been for a long time. You read faces and lips better than the people watching you realise. Nothing on earth is fixing it, and nothing about you advertises it either."
-    pointCost: -2
+    pointCost: -3
     purchasable: true
     purchasableAfterStart: false
     removable: false
@@ -1924,11 +1979,24 @@ tags:
     category: health
     group: health-maiming
     description: "One socket, empty or covered. Your depth perception is a running joke and your blind side is a genuine liability."
-    pointCost: -2
+    pointCost: -3
     visible: true
     purchasable: true
     purchasableAfterStart: false
     removable: false
+
+  # NEW (Claude) --------------------------------------------------------
+  # Two purchasable drawbacks for the widened floor. Night Blind is priced for
+  # this setting specifically -- Ravenheart is underground, so poor sight in
+  # low light costs you more here than it would on the surface.
+  - slug: night-blind
+    name: Night Blind
+    category: health
+    group: health-mind
+    description: "Fine in a lit room. Past the lamps you are guessing, and Ravenheart is mostly past the lamps."
+    pointCost: -3
+    purchasable: true
+    purchasableAfterStart: false
 
   - slug: scarred
     name: Scarred
@@ -2173,6 +2241,29 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # NEW (Claude) --------------------------------------------------------
+  # Assets was the thinnest category at eleven.
+  - slug: workshop
+    name: Workshop
+    category: assets
+    group: assets-property
+    description: "A bench, a vice and somewhere to leave a job half-finished. Work that needs space and quiet happens here instead of on your knees in a corridor."
+    pointCost: 2
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: cart
+    name: Cart
+    category: assets
+    group: assets-property
+    description: "A handcart. Unglamorous, and the reason one person can move what four would otherwise carry."
+    pointCost: 1
+    visible: true
+    tradeable: true
+    purchasable: true
+    purchasableAfterStart: true
+
   - slug: dog
     name: Dog
     category: assets
@@ -2300,7 +2391,7 @@ tags:
     stackable: true
     visible: false
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     removable: true
     craftable: true
     requirement:
@@ -2319,9 +2410,51 @@ tags:
     stackable: true
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     removable: true
     consumable: true
+
+  # NEW (Claude) --------------------------------------------------------
+  # Crafting gates three items where Smithing gates twenty-three. These two
+  # give the skill something to make.
+  - slug: rope-and-harness
+    name: Rope and Harness
+    category: items
+    group: items-gear
+    description: "Forty feet of good rope and a harness that will hold a grown adult. The difference between a climb and a fall."
+    pointCost: 1
+    visible: true
+    stackable: true
+    craftable: true
+    tradeable: true
+    removable: true
+    purchasable: true
+    purchasableAfterStart: false
+    requirement:
+      turnsCost: 1
+      resourceCost: 5
+      skills:
+        - crafting
+      gambit: false
+
+  - slug: stretcher
+    name: Stretcher
+    category: items
+    group: items-gear
+    description: "Two poles and a span of canvas. Somebody who cannot walk can still be moved, which is most of what killing a person in the caves depends on."
+    pointCost: 1
+    visible: true
+    craftable: true
+    tradeable: true
+    removable: true
+    purchasable: true
+    purchasableAfterStart: false
+    requirement:
+      turnsCost: 1
+      resourceCost: 5
+      skills:
+        - crafting
+      gambit: false
 
   - slug: dead-air-coil
     name: Dead-Air Coil
@@ -2347,7 +2480,7 @@ tags:
     tradeable: true
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
 
   # A creation-only bundle rather than a thing you carry: it sits on the sheet
   # until the player unpacks it from their own character sheet (see consumable
@@ -2358,7 +2491,7 @@ tags:
     category: items
     group: items-gear
     description: "Goods you came in with, still crated. Unpack them whenever you like."
-    pointCost: 4
+    pointCost: 6
     purchasable: true
     purchasableAfterStart: false
     consumable: true
@@ -2389,17 +2522,18 @@ tags:
     category: items
     group: items-weapons
     description: "A classic revolver, with medium stopping power."
-    pointCost: 4
+    pointCost: 6
     equippable: true
     tradeable: true
     stackable: true
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     craftable: true
+    requiredTag: fighting-basic
     requirement:
       turnsCost: 2
-      resourceCost: 5
+      resourceCost: 46
       skills: [smithing]
       gambit: false
 
@@ -2451,7 +2585,7 @@ tags:
     stackable: true
     visible: false
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     removable: true
     craftable: true
     requirement:
@@ -2472,7 +2606,7 @@ tags:
     stackable: true
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     removable: true
     craftable: true
     requirement:
@@ -2493,7 +2627,7 @@ tags:
     stackable: true
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     removable: true
     craftable: true
     requirement:
@@ -2514,7 +2648,7 @@ tags:
     stackable: true
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     removable: true
     craftable: true
     requirement:
@@ -2535,7 +2669,7 @@ tags:
     stackable: true
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     removable: true
     craftable: true
     requirement:
@@ -2556,7 +2690,7 @@ tags:
     stackable: true
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     removable: true
     craftable: true
     requirement:
@@ -2577,7 +2711,7 @@ tags:
     stackable: true
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     removable: true
     craftable: true
     requirement:
@@ -2598,7 +2732,7 @@ tags:
     stackable: true
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     removable: true
     craftable: true
     requirement:
@@ -2619,7 +2753,7 @@ tags:
     stackable: true
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     removable: true
     craftable: true
     requirement:
@@ -2640,7 +2774,7 @@ tags:
     stackable: true
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     removable: true
     craftable: true
     requirement:
@@ -2661,7 +2795,7 @@ tags:
     stackable: true
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     removable: true
     craftable: true
     requirement:
@@ -2682,7 +2816,7 @@ tags:
     stackable: true
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     removable: true
     craftable: true
     requirement:
@@ -2703,7 +2837,7 @@ tags:
     stackable: true
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     removable: true
     craftable: true
     requirement:
@@ -3400,7 +3534,7 @@ tags:
     stackable: true
     visible: false
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     removable: true
     consumable: true
 
@@ -3637,7 +3771,7 @@ tags:
     category: items
     group: items-armor
     description: "A shaped steel plate over the chest. Most of the protection of full plate at a fraction of the weight, and one person can put it on alone."
-    pointCost: 4
+    pointCost: 5
     equippable: true
     visible: true
     tradeable: true

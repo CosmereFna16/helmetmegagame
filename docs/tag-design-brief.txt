@@ -1,10 +1,10 @@
-LIFEWEB — TAG DESIGN BRIEF
+BASCINET — TAG DESIGN BRIEF
 A note for anyone writing tags, with no knowledge of the codebase assumed.
 
 
 WHAT THE GAME IS
 
-Lifeweb is a month-long asynchronous megagame for 100+ players, half strategy
+Bascinet is a month-long asynchronous megagame for 100+ players, half strategy
 and half roleplay, set in a cryptic low-fantasy/sci-fi mix. It runs on Discord
 plus a companion website. One in-game day maps to one real-world day, split
 into two turns — dusk and dawn. Everything happens at the pace of people

@@ -61,7 +61,7 @@ Concretely:
   than they do in a two-colour scheme.
 - **`web/lib/turnFormat.js`.** Add `"crt"` to `THEMES`. It should not be
   reachable from `themeForPhase` — like limestone, it is an override theme, set
-  via `LIFEWEB_THEME=crt` (see `web/app/layout.js`).
+  via `BASCINET_THEME=crt` (see `web/app/layout.js`).
 - **The atmosphere layers.** `.grain` and `.vignette` in `globals.css` are the
   seam to work at. A CRT variant swaps grain for scanlines and turns the
   vignette up; both are already single fixed `pointer-events: none` layers at
@@ -98,7 +98,7 @@ branch to experiment with:
 
 1. Add a `[data-theme="crt"]` block to `web/app/globals.css`.
 2. Add `"crt"` to `THEMES` in `web/lib/turnFormat.js`.
-3. Set `LIFEWEB_THEME=crt` in `.env` and run `npm run dev:web`.
+3. Set `BASCINET_THEME=crt` in `.env` and run `npm run dev:web`.
 4. Run `npm run audit:contrast --workspace=web` before deciding you like it.
 
 If it turns out well it can graduate to a real option; if not, deleting the

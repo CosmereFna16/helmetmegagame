@@ -54,11 +54,17 @@ Notes:
 
 ## 3. The `#turns` console
 
-One anchor message in `#turns`, posted and tracked by
-`bot/src/lib/turnsConsole.js#ensureTurnsConsole` on ready. Reused across
-restarts rather than reposted, and kept separate from the rolling turn
-announcement (`db/lib/turnAnnouncement.js`), which deletes and reposts itself
-every turn.
+The buttons ride on the rolling turn announcement — `#turns` is one message,
+reposted each turn by `db/lib/turnAnnouncement.js#postTurnsConsole`, so the
+console is always the last thing in the channel (see `TURN-ENGINE.md` for why
+it stopped being three separate messages).
+
+`bot/src/lib/turnsConsole.js#ensureTurnsConsole` runs on ready and is only the
+cold start: it locks the channel down and posts the message if none exists —
+a fresh guild, or a `#turns` that was wiped and has not seen a turn advance
+since. The buttons themselves are one shared definition in
+`db/lib/turnsConsoleRow.js`, plain component JSON because the REST side (the
+web Dev Panel's End Turn) and the gateway side both post it.
 
 `@everyone` is denied `SendMessages` in `#turns`. Anything typed there is
 deleted and files nothing.

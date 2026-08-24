@@ -35,8 +35,8 @@ const display = UnifrakturMaguntia({
 });
 
 export const metadata = {
-  title: "Lifeweb",
-  description: "Lifeweb — a barony amid the wasteland.",
+  title: "Bascinet",
+  description: "Bascinet — a barony amid the wasteland.",
 };
 
 // Theme/turn state is live game state fetched per-request, not something
@@ -46,10 +46,10 @@ export const dynamic = "force-dynamic";
 
 export default async function RootLayout({ children }) {
   const turn = await getOpenTurn();
-  // LIFEWEB_THEME pins the whole environment to one theme, which is the only
+  // BASCINET_THEME pins the whole environment to one theme, which is the only
   // way to see "limestone" — no turn phase maps to it. Leave it unset in
   // production so the theme keeps tracking dawn/dusk.
-  const theme = resolveTheme(turn?.phase, process.env.LIFEWEB_THEME);
+  const theme = resolveTheme(turn?.phase, process.env.BASCINET_THEME);
 
   return (
     <html

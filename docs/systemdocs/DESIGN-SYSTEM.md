@@ -85,7 +85,7 @@ Three things about the token set are load-bearing and easy to undo by accident:
 lamplight temperature and lift, not by daylight.
 
 `limestone` is a light-theme backup that no phase maps to; reach it with
-`LIFEWEB_THEME=limestone` (`resolveTheme` in `web/lib/turnFormat.js`, applied in
+`BASCINET_THEME=limestone` (`resolveTheme` in `web/lib/turnFormat.js`, applied in
 `layout.js`).
 
 A CRT/terminal look is a parked option, written up in `CRT-TERMINAL.md`. **Read

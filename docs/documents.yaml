@@ -68,7 +68,7 @@ documents:
       - medical-skilled
       - medical-expert
     description: |-
-      Health and injuries are simulated through the tag system. Most health tags can be removed, usually for a cost. The cost includes: Resources, number of routine moves (bandaging someone doesn't have a turn cost; surgery does), the skill requirement, and whether or not it requires a Gambit. Anyone can try to heal a wound without the required skill (just DM the Lifeweb bot), but it'll require a Gambit.
+      Health and injuries are simulated through the tag system. Most health tags can be removed, usually for a cost. The cost includes: Resources, number of routine moves (bandaging someone doesn't have a turn cost; surgery does), the skill requirement, and whether or not it requires a Gambit. Anyone can try to heal a wound without the required skill (just DM the Bascinet bot), but it'll require a Gambit.
 
       ## Skills
 

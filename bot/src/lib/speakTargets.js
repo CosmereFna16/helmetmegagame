@@ -72,17 +72,42 @@ function canSpeakInTarget(target, member) {
   return target.isThread() ? canSpeakInThread(target, member) : canSpeakInChannel(target, member);
 }
 
+// Every active thread in the guild, bucketed by the channel it hangs off.
+//
+// ONE fetch, outside the channel walk, and that is not an optimisation — the
+// per-container version was a live bug. ThreadManager#fetchActive calls
+// guild.channels.rawFetchGuildActiveThreads(), which is guild-wide however it
+// is invoked, so calling it per container fetched the same whole-guild list
+// ~77 times over. Worse, _mapThreads caches every thread it returns into
+// guild.channels.cache — the very Map listSpeakTargets was iterating. A JS
+// Map iterator visits entries appended during iteration, so those threads
+// were then walked as if they were containers, and ThreadChannel extends
+// BaseChannel and has no `.threads` (only BaseGuildTextChannel and
+// ThreadOnlyChannel get one), so the walk threw
+// "Cannot read properties of undefined (reading 'fetchActive')" the moment
+// any location had one live thread. That is the Speak hang.
+async function fetchThreadsByParent(guild) {
+  const byParent = new Map();
+  const fetched = await guild.channels.fetchActiveThreads().catch(() => null);
+  for (const thread of (fetched?.threads ?? new Map()).values()) {
+    if (!thread.parentId) continue;
+    if (!byParent.has(thread.parentId)) byParent.set(thread.parentId, []);
+    byParent.get(thread.parentId).push(thread);
+  }
+  return byParent;
+}
+
 // A thread is only offered if it is live and joinable: an archived or locked
 // thread accepts no messages, and a private thread you are not a member of is
 // not yours to speak in even where the parent is visible.
-async function threadTargets(channel, member) {
+async function threadTargets(threads, member) {
   const out = [];
-  const fetched = await channel.threads.fetchActive().catch(() => null);
-  const threads = fetched?.threads ?? channel.threads.cache;
-
-  for (const thread of threads.values()) {
+  for (const thread of threads) {
     if (thread.archived || thread.locked) continue;
     if (!canSpeakInThread(thread, member)) continue;
+    // Only a private thread needs the membership round trip; a public one is
+    // speakable by anyone who can see the parent. Gating on type keeps a
+    // guild full of public threads at zero extra REST calls.
     if (thread.type === ChannelType.PrivateThread) {
       const inIt = await thread.members.fetch(member.id).then(
         (m) => m,
@@ -100,8 +125,15 @@ async function threadTargets(channel, member) {
 // counting anything that did not fit Discord's 25-option ceiling.
 async function listSpeakTargets(guild, member) {
   const buckets = { room: [], threads: [], broadcast: [] };
+  const threadsByParent = await fetchThreadsByParent(guild);
 
-  for (const channel of guild.channels.cache.values()) {
+  // Snapshot the cache before walking it. guild.channels.cache holds threads
+  // as well as channels (GuildChannelManager#cache is typed
+  // Collection<Snowflake, GuildChannel|ThreadChannel>), and anything that
+  // fetches threads adds more mid-walk. Threads are reached through
+  // threadsByParent, never by iteration.
+  for (const channel of [...guild.channels.cache.values()]) {
+    if (channel.isThread?.()) continue;
     if (!isDesignatedTupperChannel(channel)) continue;
 
     const context = resolveChannelContext(channel);
@@ -111,7 +143,7 @@ async function listSpeakTargets(guild, member) {
     if (kind === "public" || kind === "private") {
       // A thread container, never a destination itself.
       if (!canView(channel, member)) continue;
-      for (const thread of await threadTargets(channel, member)) {
+      for (const thread of await threadTargets(threadsByParent.get(channel.id) ?? [], member)) {
         buckets.threads.push({
           value: thread.id,
           label: thread.name.slice(0, 100),

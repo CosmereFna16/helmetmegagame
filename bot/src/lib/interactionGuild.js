@@ -3,7 +3,7 @@ const { prisma } = require("@lifeweb/db");
 // Every player-facing command is registered globally with a BotDM context
 // (see bot/src/lib/commands.js), so `interaction.guild` and
 // `interaction.member` are null whenever one is run from the bot's DMs.
-// Lifeweb is single-guild, so the guild is recoverable from the environment —
+// Bascinet is single-guild, so the guild is recoverable from the environment —
 // but no handler should reach for interaction.guild directly, or it works in
 // a channel and throws in a DM.
 //

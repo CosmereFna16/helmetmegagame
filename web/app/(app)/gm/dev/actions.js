@@ -182,8 +182,12 @@ export async function forceAdvanceTurn() {
 // Matches GameConfig's schema @default values for the balance-knob fields
 // surfaced on the "Game Config" form above — deliberately excludes
 // nextWeather/nextTurnNote (handled separately, "Next Turn" section) and the
-// Discord provisioning pointers (turnsAnnouncementChannelId/MessageId,
-// turnsConsoleChannelId/MessageId): those self-heal on their own.
+// Discord provisioning pointer (turnsConsoleChannelId/MessageId), which
+// really does self-heal now: #turns is one rolling message that the next turn
+// advance reposts. It did not before — the console was its own message posted
+// only at bot startup, so a Restart Game deleted it (fullWipe clears #turns)
+// and nothing brought it back until someone restarted the bot. This comment
+// asserting otherwise is what made that look like expected behaviour.
 const DEFAULT_GAME_CONFIG = {
   lifewebBlood: 100,
   lifewebDecayPerTurn: 10,

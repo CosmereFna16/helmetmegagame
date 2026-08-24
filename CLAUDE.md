@@ -5,9 +5,9 @@ Guidance for Claude Code (claude.ai/code) when working in this repository.
 This file is the **map and the cross-cutting rules only**. Every game system
 has its own doc under `docs/systemdocs/` — see the table below.
 
-## What Lifeweb is
+## What Bascinet is
 
-Lifeweb is a huge, month-long asynchronous megagame set in a cryptic
+Bascinet is a huge, month-long asynchronous megagame set in a cryptic
 low-fantasy, sci-fi mix.
 
 It's half-strategy, half-roleplay, meant to run smoothly at large scale (100+
@@ -19,6 +19,22 @@ There's two faces to the game: the Discord and the web app. For the web app,
 priority is **functionality, usability, cleanliness, responsiveness, and browser
 performance**. The explicit reference point to avoid is the typical slow, laggy
 Discord bot dashboard — this needs to feel fast and scroll smoothly.
+
+### Bascinet is the project; the Lifeweb is a thing inside it
+
+The Lifeweb is the Tower that keeps Ravenheart alive, fed by its people's blood
+(`docs/lore.md`). The game was *called* Lifeweb until it was retitled, so the
+name now survives on purpose in places that look like an unfinished rename.
+**A `grep -i lifeweb` hit is not evidence of one.** Leave all of these alone:
+
+- The in-fiction Tower: the `/lifeweb` route, `Lifeweb*.js` components,
+  `LifewebIcon`, `db/lib/lifeweb.js`, `LIFEWEB_SPUTTER_THRESHOLD`, and the
+  `lifewebBlood` / `lifewebDecayPerTurn` / `ArchiveKind.LIFEWEB` schema fields.
+- The npm scope, deliberately frozen: `@lifeweb/db` and `@lifeweb/bot`, plus the
+  Railway service name `@lifeweb/bot` in the root `redeploy` script.
+- The repo and directory, also deliberately unchanged: `peace-lock/lifeweb`.
+- The three Prisma migration directories with `lifeweb` in their names — those
+  are checksummed rows in `_prisma_migrations`.
 
 ## Read the system doc first
 
@@ -35,7 +51,7 @@ never enough to change code with.
 | [`SYNC.md`](docs/systemdocs/SYNC.md) | You're editing a YAML master or a sync script, or wondering what a sync deletes |
 | [`CHANNELS.md`](docs/systemdocs/CHANNELS.md) | You're changing Discord channel layout, visibility, or the Dawn wipe |
 | [`CHARACTERS.md`](docs/systemdocs/CHARACTERS.md) | You're touching creation, roles, names, the point economy, death, or launch gating |
-| [`TAGS.md`](docs/systemdocs/TAGS.md) | You're touching the tag catalog, its gates, stacks, consuming, or equipment |
+| [`TAGS.md`](docs/systemdocs/TAGS.md) | You're touching the tag catalog, **pricing or rebalancing a tag** (§4a is the canonical point scale), its gates, stacks, consuming, or equipment |
 | [`REQUESTS.md`](docs/systemdocs/REQUESTS.md) | You're adding or changing anything a player does to their own sheet |
 | [`ADJUDICATION.md`](docs/systemdocs/ADJUDICATION.md) | You're working on `/gm/turns` — the Moves or Requests tab |
 | [`DEV-PANEL.md`](docs/systemdocs/DEV-PANEL.md) | You're touching `/gm/dev/characters/[characterId]`, the GM microactions, or `/gm/dev/tags` |
@@ -54,7 +70,8 @@ never enough to change code with.
 
 Non-systemdoc references: `docs/lore.md` (setting), `docs/threats.md`
 (antagonist seats — briefs 6 while `db/lib/antagonists.js` ships 12 opt-in
-entries).
+entries), `docs/tag-design.md` (the player-facing statement of the tag point
+scale and the YAML format — `TAGS.md` §4a governs; keep the two in step).
 
 ## Repository layout
 
@@ -215,7 +232,7 @@ row in the table above is enforcement; this one is ergonomics. See
 GMs the audit log is a record *of* them rather than a tool *for* them.
 
 **Why two role IDs live in code rather than the environment:** a role ID is not
-a secret (anyone in the guild can read it) and Lifeweb is single-guild, so there
+a secret (anyone in the guild can read it) and Bascinet is single-guild, so there
 is exactly one correct value that can never differ per environment — while a
 missing env var would have meant a deploy where the player gate silently locked
 everyone out, or the spectator overwrite silently did nothing. Same reasoning as
@@ -348,7 +365,7 @@ before writing any UI. The four rules that apply everywhere:
 
 ## Git workflow
 
-**Lifeweb is master-only. There are no branches and no pull requests.** All work
+**Bascinet is master-only. There are no branches and no pull requests.** All work
 is committed straight to `master` and pushed as soon as it's finished, so it can
 be pulled locally the moment it's done — that immediacy is the whole point, and
 a feature branch defeats it. Railway builds from `master` too, so work sitting

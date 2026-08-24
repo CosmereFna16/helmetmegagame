@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Keep every session on master, and take the stale claude/* branches with it.
 #
-# Lifeweb has no branching workflow at all: work is committed to master and
+# Bascinet has no branching workflow at all: work is committed to master and
 # pushed so it can be pulled locally straight away (see CLAUDE.md's "Git
 # workflow"). Claude Code on the web still hands each session its own
 # throwaway claude/<slug> branch, so this hook lands us back on master and
@@ -26,7 +26,7 @@ if [ "$(git rev-parse --abbrev-ref HEAD)" != "master" ]; then
      [ -z "$(git log --oneline origin/master..HEAD 2>/dev/null)" ]; then
     if git switch --quiet master 2>/dev/null; then
       git merge --quiet --ff-only origin/master 2>/dev/null
-      echo "session-start: moved onto master (Lifeweb is master-only)"
+      echo "session-start: moved onto master (Bascinet is master-only)"
     fi
   else
     echo "session-start: staying on $(git rev-parse --abbrev-ref HEAD) -- it has work master doesn't"
