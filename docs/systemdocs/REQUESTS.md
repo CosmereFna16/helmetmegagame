@@ -68,11 +68,11 @@ reason.
 | Type | What the player does | GM can edit | Undo |
 |---|---|---|---|
 | `SET_MOOD` | Picks Neutral / Happy / Unhappy | — | Restores the displaced mood, with its original expiry |
-| `TRANSFER_RESOURCES` | Moves ⬢ between any two parties | — | Reverses the movement |
+| `TRANSFER_RESOURCES` | Moves ⬢ between any two parties in reach | — | Reverses the movement |
 | `ADD_TAG` | Takes a Purchasable or Craftable tag, optionally paying ⬢. Stackable tags take a quantity and stay on the menu once held | cost; remove what this request added | Drops what it added, refunds the cost |
 | `REMOVE_TAG` | Drops one of their own `removable` tags, optionally paying ⬢, in a quantity if it stacks | cost | Restores the tag and its count, refunds the cost |
 | `CONSUME_TAG` | Uses up one of their own `consumable` tags — always exactly one, even from a stack — and gains whatever it `consumesInto` | — | Restores the one unit with its original expiry, takes back what it granted |
-| `TRANSFER_TAG` | Hands an Item or Asset to another player, in a quantity if it stacks | — | Moves that many back |
+| `TRANSFER_TAG` | Hands an Item or Asset to another player in the same Location, in a quantity if it stacks | — | Moves that many back |
 | `FULFILL_DESIRE` | Claims their active Desire | Tag Points awarded | Revokes the points, reopens the Desire |
 | `CHANGE_WORST_FEAR` | Rewords their locked-in Worst Fear | — | Restores the previous wording and its set-turn |
 | `FULFILL_WORST_FEAR` | Declares their Worst Fear came true, for a flat −3 Tag Points | — | Refunds the points and unwinds the cooldown |
@@ -97,14 +97,23 @@ faults keep their stack and `redirect()` keeps working.
 
 Three notes on deliberate choices:
 
-- **Transfer Resources has a source, and the source can be anyone.** The
-  dropdown lists every faction Silo and every living player, on both ends. A
-  player really can pull ⬢ out of another player's pocket and explain
+- **Transfer Resources has a source, and the source can be anyone in reach.**
+  The dropdown lists every faction Silo and every living player, on both ends.
+  A player really can pull ⬢ out of another player's pocket and explain
   themselves afterwards. This is the Requests bet taken to its logical end,
   and it was chosen over the safer factions-only reading.
-- **Transfer Tag is send-only.** There is no "request a tag from someone",
-  because browsing another player's inventory to pick something is the abuse
-  the one-way flow prevents.
+
+  What it is *not* is action at a distance. Every party has to be somewhere the
+  filer can stand: a person in the same Location, a Silo in its own zone or with
+  an officer in the filer's zone (`web/lib/transferReach.js`, `FACTIONS.md` §3b).
+  Picking a pocket is now a mugging rather than a wire transfer. The dropdowns
+  stay unfiltered on purpose — filtering them to who's in range would make the
+  dialog a free scouting tool for who is standing in your zone.
+- **Transfer Tag is send-only, and same-Location.** There is no "request a tag
+  from someone", because browsing another player's inventory to pick something
+  is the abuse the one-way flow prevents. Co-location is folded into the
+  recipient's `WHERE` clause, the same idiom §5 uses — gating ⬢ but not Items
+  would just move the hole to a sack of coin.
 - **Consume has no resource field and no quantity field.** A meal already
   cost ⬢ to make and the Hunger pass charges its own upkeep, so a third
   charge here would be the same meal paid for three times; and taking one
@@ -370,10 +379,12 @@ as reference and enforced by nobody — which is what makes "you may always
 attempt something above your tier, as a Gambit" a rule a GM adjudicates rather
 than one the button blocks.
 
-**Who pays is anyone.** Every co-located living player including the healer,
-plus every faction Silo regardless of Silo authority — the same reach
-`TRANSFER_RESOURCES` has, for the same reason (see "the source can be anyone"
-in §3). Billing someone other than yourself asks twice: the reason dialog,
+**Who pays is anyone in reach.** Every co-located living player including the
+healer, plus every faction Silo in reach regardless of Silo authority — the
+same reach `TRANSFER_RESOURCES` has, for the same reason (see "the source can
+be anyone in reach" in §3). The Silo half used to be "from anywhere", which
+became a laundering hole the moment transfers grew a reach gate: billing a
+distant Silo for a cure moves ⬢ across the map with nobody carrying it. Billing someone other than yourself asks twice: the reason dialog,
 then a `useConfirm()` naming the payer and the amount. Treating another
 character does not, which is the opposite of the Lifeweb rule below and
 deliberate — a cure is not a harm, and being charged for one is.
@@ -434,6 +445,7 @@ of a transfer. Deposits into a Silo previously left no ledger entry at all.
 | Add / Remove / Transfer / Consume Tag / Heal | `web/app/components/TagRequestButtons.js`, `web/lib/tagRequests.js` |
 | Heal gate, tier chain, treatable-tag filter | `web/lib/healRequests.js` |
 | One end of a resource movement (Silo or player) | `web/app/components/PartySelect.js` |
+| Reach gate — same Location / same Silo zone | `web/lib/transferReach.js` |
 | Tags panel + click-a-chip-to-consume | `web/app/components/TagsPanel.js`, `TagChip.js` |
 | Desires and Worst Fears | `web/app/components/GoalsPanel.js` (tab shell), `DesirePanel.js`, `WorstFearPanel.js` |
 | Lifeweb blood tiers + cap, shared bot/web | `db/lib/lifeweb.js` |

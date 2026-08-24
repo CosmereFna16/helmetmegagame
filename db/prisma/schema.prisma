@@ -257,9 +257,18 @@ model Faction {
   name String
   silo Int     @default(0)
 
-  // The Zone this faction belongs to, from its nesting in roles.yaml. Used
-  // to group the character-creation role picker (Zone -> Faction -> Role);
-  // a faction's members are not confined to it.
+  // The Zone this faction belongs to, from its nesting in roles.yaml. Two
+  // jobs, and the second one is game state:
+  //
+  //   1. Groups the character-creation role picker (Zone -> Faction -> Role).
+  //   2. It is where the faction's SILO sits. Resources only move in or out
+  //      of a Silo if the acting character is standing in this zone, or in
+  //      the same zone as one of the faction's Leaders/Treasurers. See
+  //      web/lib/transferReach.js and FACTIONS.md.
+  //
+  // A faction's MEMBERS are still not confined to it — only its Silo is.
+  // One column serving both means a faction cannot be grouped under one zone
+  // and bank in another; split this if that ever needs to differ.
   zoneId String?
   zone   Zone?   @relation(fields: [zoneId], references: [id])
 

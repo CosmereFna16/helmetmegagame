@@ -41,12 +41,24 @@ main_message: |-
 
   Lifeweb simultaneously plays out on several levels. Kings win wars and move big pieces around the map while commoners try to fulfill their day-to-day desires.
 
-  **Rules**:
-  * **Age**: All players must be 18+. Romance is allowed. Sexual content can be hinted at, but nothing more overt; keep it PG-13. You can opt out of any romance-related content in the web interface.
-  * **Content**: Grim or not, this is a game! Sensitive subjects aren’t allowed. There are no children or SA in Lifeweb. Bigotry is fine, but keep it tame, and remember Lifeweb’s people have different beliefs than we do.
-  * **Fear RP**: The game is strategic—you’re encouraged to play to win—but your character should act realistically. Navigating challenges like your character’s fear is part of the strategy.
-  * **No Self-Antagonizing**: The higher your rank, the more expected you are to collaborate with your faction. You can conflict with others to fulfill your desire, but at minimum, you should cooperate towards survival. Antagonist roles are secretly assigned at game start.
-  * **Secrets**: Mystery, in-game communication, and information asymmetry are big parts of the game. Don’t talk about the state of the game. Don’t DM other players. You’re discouraged from even sharing who your character is (there’s a system that replaces your messages with copies by a bot—the Tupperbox system)!
+  ## Rules
+  ① **Basic** — You must be 18+.
+  - Romance is allowed. You can hint at sexual content, but nothing overt (fade to black!)
+  - There are no children in Ravenheart.
+  - Mild bigotry is fine. SA and similar aren’t.
+
+  ② **Atmosphere** — Everything serves the atmosphere.
+  - Act somewhat like a Medieval European. Play out fear (unless you have the Brave tag). Ravenheart is your home, your life.
+  - Insulting the Baron would mean death, plus having your family ostracized. Think carefully.
+
+  ③ **Information** — To support information asymmetry, everything that happens IC stays IC, and OOC stays OOC.
+  - Don’t discuss the game’s happenings OOC. Vague references are okay.
+  - Don’t say who your character is or who you’re playing. People might figure it out eventually, but protect the mystery.
+  - You are allowed to use vague OOC in roleplay channels when necessary—“(OOC: hey, gtg, see ya)”—instead of DM’ing the player.
+
+  ④ **Antagonism** — Fulfill your character’s Desires, but not to the point of crossing your faction’s objectives.
+  - High ranks are expected to be relatively fit for duty and willing to collaborate. Peasants can brawl and do mostly whatever they want.
+  - If things naturally progress to where you betray your faction, that’s fine, but come into the game planning to do mostly good.
 
 categories:
   - name: Premise
@@ -61,7 +73,7 @@ categories:
 
           Who brought this upon us? Who destroyed us? Was it ourselves or someone else, something greater?
 
-          Fortunately, we have the Lifeweb now. It was built a long time ago. Now it's the year of our Lord God, 1210. There are other places on this Earth, or perhaps in space, where people live happily. But we only know Ravenheart. Ravenheart is kept alive by the Lifeweb, which in turn is fed by the blood of Ravenheart's people. The Lifeweb protects Ravenheart from the stormy, windy wastelands outside, making it so people can breathe, farm, and build. Ravenheart is hospitable and enviable, but it's a fragile place, a glimmer of order in a sea of inscrutable darkness.
+          Fortunately, we have the Lifeweb now. ^ | W e live on the surface |. It was built a long time ago. Now it's the year of our Lord God, 1210. There are other places on this Earth, or perhaps in space, where people live happily. But we only know Ravenheart. Ravenheart is kept alive by the Lifeweb, which in turn is fed by the blood of Ravenheart's people. The Lifeweb protects Ravenheart from the stormy, windy wastelands outside, making it so people can breathe, farm, and build. Ravenheart is hospitable and enviable, but it's a fragile place, a glimmer of order in a sea of inscrutable darkness.
 
           **Is there magic?**
           Probably not.
@@ -119,7 +131,7 @@ categories:
           To rejoin as any other role, wait until your body is buried or your name is engraved. It is the Church and Mortii's jobs to do so.
       - title: Roles
         body: |-
-          Choose a role at game start, determining your starting tags, faction, and location. Leader roles (★) are reserved for players who can vouch frequent and long term availability, and some proficiency in roleplay. The <@&1539673757910564864> role can be acquired in <#1539672933268459591>.
+          Choose a role at game start, determining your starting tags, faction, and location. Leader roles (★) are reserved for players who can vouch frequent and long term availability, and some proficiency in roleplay. The Leader Whitelist role can be acquired in <#1539672933268459591>.
 
           Most roles have small limits, but **Bolded** roles have higher caps and are more generalized, allowing for more freedom of play.
         generated: roles-intro
@@ -133,7 +145,8 @@ categories:
           * Summary: Big picture play. Describe what other people would see your character doing throughout that turn. Make announcements.
           * Public: A forum channel for your public, moment-to-moment roleplay. Make a post for a certain location or meeting, have chats, argue.
           * Private: A thread channel for your private meetings. Create a private thread (Thread button on the top right) and ping other characters to plot in secret.
-          * Your messages in roleplay channels are automatically sent as your character.
+          * Your messages in roleplay channels are automatically sent as your character. To conceal your identity further, you can use the `/message` command in the Lifeweb bot’s DMs or press the Speak button in #turns, so it doesn’t show your Discord username when typing.
+          * Type `/conceal` to write as an Unknown Person instead.
       - title: Archive
         body: |-
           **Archive**

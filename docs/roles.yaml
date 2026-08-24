@@ -1,15 +1,33 @@
 # Source of truth for every playable role/faction, synced into
 # Postgres by db/lib/syncRoles.js#syncRolesFromYaml (npm run db:sync-roles).
 #
+# PROSE STYLE — every prose value in this file (`intro`, each `description`
+# bullet, each zone `situation` entry) is a `>-` folded block scalar, one
+# physical line per bullet, no hard wrapping. `>-` never needs quoting, so a
+# `: ` or a leading `-` inside the text is safe, and it folds back to a single
+# line. That last part is load-bearing: `Role.description` is a String[] and
+# each element is rendered as one Markdown bullet on the role charter, so an
+# element carrying a newline breaks the bullet. Never use `|` on `description`
+# — it hands the sync one string where Prisma wants an array, and the sync
+# throws mid-pass with the factions already written.
+# docs/locations.yaml follows the same rule.
+#
 # `slug` is the stable match key across syncs, on both factions and roles —
 # same contract as docs/locations.yaml's `id` and docs/tags.yaml's `slug`.
 # Renaming later means changing `name`, NOT `slug`; a changed slug is treated
 # as a brand-new row (old one pruned) rather than a rename.
 #
-# Threats — Sympathizer, the Demoness, the Cult of Bacchus, the Judge, the
-# Brigands — are NOT in this file. They were never read by any sync (a GM
-# hands those seats out by hand and they never appear in the player-facing
-# picker), so the whole brief lives in docs/threats.md as prose instead.
+# Threats — Sympathizer, the Demoness, the Cult of Bacchus, the Judge — are
+# NOT in this file. They were never read by any sync (a GM hands those seats
+# out by hand and they never appear in the player-facing picker), so the whole
+# brief lives in docs/threats.md as prose instead.
+#
+# The Brigands are the exception, and used to be listed here as a threat too:
+# they ARE in this file, with weights, so they sync like any other faction and
+# do appear in the picker. Nothing in db/, web/ or bot/ special-cases them.
+# They sit in the Town zone — their roles start in the Forest, which is a Town
+# location, and under the Silo reach rules (FACTIONS.md) a faction's zone is
+# where its Silo is. Town robbers bank in Town.
 #
 # `weight` (only present on `multiple: true` roles) is the seat cap,
 # expressed as seats allowed per 100 total players — the picker computes
@@ -46,12 +64,12 @@
 zones:
   - name: Fortress
     situation:
-      - The last tithe didn't arrive, and it shows. The banquets are a little less extravagant than usual.
-        Pressure builds on the Meister—go talk to the Headman. Take whatever they can spare from their stores.
-      - A letter from the Bastard declaring his intents was found on the table. Since the Watchmen didn't
-        see anyone come in, it's clear someone on the inside brought it in. There must be a traitor.
-      - To lift spirits, the Baron has offered the Successor's (or Heir's) hand in marriage. The Courtiers,
-        suspecting each other to be traitors, rival for the betrothal.
+      - >-
+        The last tithe didn't arrive, and it shows. The banquets are a little less extravagant than usual. Pressure builds on the Meister—go talk to the Headman. Take whatever they can spare from their stores.
+      - >-
+        A letter from the Bastard declaring his intents was found on the table. Since the Watchmen didn't see anyone come in, it's clear someone on the inside brought it in. There must be a traitor.
+      - >-
+        To lift spirits, the Baron has offered the Successor's (or Heir's) hand in marriage. The Courtiers, suspecting each other to be traitors, rival for the betrothal.
     factions:
       - name: The Court
         slug: the-court
@@ -59,27 +77,29 @@ zones:
         roles:
           - name: Baron
             slug: baron
-            intro:
-              They will know your glory, O Baron! This land is yours, hope incarnate—for humanity, for
-              peace, for justice. Walk the path of your ancestors.
+            intro: >-
+              They will know your glory, O Baron! This land is yours, hope incarnate—for humanity, for peace, for justice. Walk the path of your ancestors.
             description:
-              - You are the ruler. Your job is not an easy one.
-              - Choose a last name—a Dynasty name. Ensure that if you die, at least your heir will continue on.
-                He is everything!
-              - Whether you understand the gravity of the situation or live in perpetual dissociation, you are
-                charged with the survival of one of Earth's last bastions. This is Ravenheart—a garden, a home.
-                Your ancestors strove to protect it. Some will see you as a dictator, some will see you as a fool—it
-                does not matter! This will outlive you, outlive them!
-              - Stay happy. An unhappy Baron is an unproductive, dangerous baron.
-              - Your offices have a PA system that can be heard in intercoms throughout Ravenheart.
-              - "You have three missions:"
-              - Be organized. Communicate, force your Hand to work, check in on people.
-              - Above all, be proactive. Ravenheart is a dangerous place. If you prepare well, you may keep away
-                the darkness...
-              - Win people's loyalty. If your people trust and follow you, there is no danger you cannot overcome.
-              - Eventually you will be attacked by the Bastard. Besides your personal investment, it's clear that
-                that man cannot be allowed to rule Ravenheart. The visionary that he is—he would lose it all.
-                Ravenheart's survival is a delicate balance, one he cannot possibly hope to ever understand.
+              - >-
+                You are the ruler. Your job is not an easy one.
+              - >-
+                Choose a last name—a Dynasty name. Ensure that if you die, at least your heir will continue on. He is everything!
+              - >-
+                Whether you understand the gravity of the situation or live in perpetual dissociation, you are charged with the survival of one of Earth's last bastions. This is Ravenheart—a garden, a home. Your ancestors strove to protect it. Some will see you as a dictator, some will see you as a fool—it does not matter! This will outlive you, outlive them!
+              - >-
+                Stay happy. An unhappy Baron is an unproductive, dangerous baron.
+              - >-
+                Your offices have a PA system that can be heard in intercoms throughout Ravenheart.
+              - >-
+                You have three missions:
+              - >-
+                Be organized. Communicate, force your Hand to work, check in on people.
+              - >-
+                Above all, be proactive. Ravenheart is a dangerous place. If you prepare well, you may keep away the darkness...
+              - >-
+                Win people's loyalty. If your people trust and follow you, there is no danger you cannot overcome.
+              - >-
+                Eventually you will be attacked by the Bastard. Besides your personal investment, it's clear that that man cannot be allowed to rule Ravenheart. The visionary that he is—he would lose it all. Ravenheart's survival is a delicate balance, one he cannot possibly hope to ever understand.
             difficulty: hard
             multiple: false
             starting_resources: 10
@@ -99,13 +119,11 @@ zones:
               - charon
           - name: Baroness
             slug: baroness
-            intro:
-              Someone must raise and protect the Heir, that invaluable link in the chain of infinity. Be
-              the Lioness—or succumb to anxiety.
+            intro: >-
+              Someone must raise and protect the Heir, that invaluable link in the chain of infinity. Be the Lioness—or succumb to anxiety.
             description:
-              - Your Baron is a stressed, overburdened, and threatened man. You do not understand everything,
-                but he has a project. Ravenheart is one of humanity's last bastions. Do what you can to protect
-                him—and the Heir.
+              - >-
+                Your Baron is a stressed, overburdened, and threatened man. You do not understand everything, but he has a project. Ravenheart is one of humanity's last bastions. Do what you can to protect him—and the Heir.
             difficulty: easy
             multiple: false
             starting_resources: 3
@@ -121,11 +139,13 @@ zones:
               - fortressstarting
           - name: Heir
             slug: heir
-            intro: You are your father’s son. Are you the exact opposite of him, or his closest ally?
+            intro: >-
+              You are your father's son. Are you the exact opposite of him, or his closest ally?
             description:
-              - You are your father’s son. Are you the exact opposite of him, or his closest ally?
-              - Life is good as the Heir—but that make change one day. Will you make effort to reveal the gravity
-                of your situation, or will you dawdle your days away?
+              - >-
+                You are your father's son. Are you the exact opposite of him, or his closest ally?
+              - >-
+                Life is good as the Heir—but that make change one day. Will you make effort to reveal the gravity of your situation, or will you dawdle your days away?
             difficulty: easy
             multiple: false
             starting_resources: 3
@@ -140,9 +160,11 @@ zones:
               - fortressstarting
           - name: Successor
             slug: successor
-            intro: You are the Baron’s daughter. Bring some light to the darkness.
+            intro: >-
+              You are the Baron's daughter. Bring some light to the darkness.
             description:
-              - You are the Baron’s daughter. Bring some light to the darkness.
+              - >-
+                You are the Baron's daughter. Bring some light to the darkness.
             difficulty: easy
             multiple: false
             starting_resources: 3
@@ -158,25 +180,25 @@ zones:
               - fortressstarting
           - name: Hand
             slug: hand
-            intro:
-              You’re the Baron’s best friend and perhaps the only man he can truly trust. If anyone can
-              be said to shape fate, Hand, it is you.
+            intro: >-
+              You're the Baron's best friend and perhaps the only man he can truly trust. If anyone can be said to shape fate, Hand, it is you.
             description:
-              - You’re the Baron’s best friend and perhaps the only man he can truly trust. You are completely
-                loyal to him.
-              - The Baron works best when he’s informed and has a court that’s loyal and organized. You are his
-                spymaster, his executor, his voice. Without you, Ravenheart collapses.
-              - Whether you understand the gravity of the situation or live in perpetual dissociation, you are
-                charged with the survival of one of Earth's last bastions. This is Ravenheart—a garden, a home.
-              - "You have three missions:"
-              - Be organized. Communicate, check in on people, execute the Baron's vision.
-              - Above all, be proactive. Ravenheart is a dangerous place. If you prepare well, you may keep away
-                the darkness...
-              - Win people's loyalty. If your people trust and follow you, there is no danger you cannot overcome.
-              - Eventually you will be attacked by the Bastard. Besides your personal investment, it's clear that
-                that man cannot be allowed to rule Ravenheart. The self-loving "visionary" that he is—he would
-                lose it all. Ravenheart's survival is a delicate balance, one he cannot possibly hope to ever
-                understand.
+              - >-
+                You're the Baron's best friend and perhaps the only man he can truly trust. You are completely loyal to him.
+              - >-
+                The Baron works best when he's informed and has a court that's loyal and organized. You are his spymaster, his executor, his voice. Without you, Ravenheart collapses.
+              - >-
+                Whether you understand the gravity of the situation or live in perpetual dissociation, you are charged with the survival of one of Earth's last bastions. This is Ravenheart—a garden, a home.
+              - >-
+                You have three missions:
+              - >-
+                Be organized. Communicate, check in on people, execute the Baron's vision.
+              - >-
+                Above all, be proactive. Ravenheart is a dangerous place. If you prepare well, you may keep away the darkness...
+              - >-
+                Win people's loyalty. If your people trust and follow you, there is no danger you cannot overcome.
+              - >-
+                Eventually you will be attacked by the Bastard. Besides your personal investment, it's clear that that man cannot be allowed to rule Ravenheart. The self-loving "visionary" that he is—he would lose it all. Ravenheart's survival is a delicate balance, one he cannot possibly hope to ever understand.
             difficulty: normal
             multiple: false
             starting_resources: 2
@@ -194,17 +216,17 @@ zones:
               - charon
           - name: Meister
             slug: meister
-            intro:
-              You are the Keep’s brains, but more importantly, its circulatory system. Feel the weight
-              of the world, Meister, you Atlas!
+            intro: >-
+              You are the Keep's brains, but more importantly, its circulatory system. Feel the weight of the world, Meister, you Atlas!
             description:
-              - You are the Keep’s brains, but more importantly, its circulatory system. Ensure the Town sends
-                its taxes—your main contact there is the Headman—and oversee that no one is taking undue amounts
-                of Resources from the Silo.
-              - Your part in fate is not well-loved nor well-understood, but it is essential. You may not understand
-                yet, Meister, but there are great things at play.
-              - Consider keeping records of what happens every day. They may be useful later.
-              - You have minor medical training and you know how to use the Keep’s messenger ravens.
+              - >-
+                You are the Keep's brains, but more importantly, its circulatory system. Ensure the Town sends its taxes—your main contact there is the Headman—and oversee that no one is taking undue amounts of Resources from the Silo.
+              - >-
+                Your part in fate is not well-loved nor well-understood, but it is essential. You may not understand yet, Meister, but there are great things at play.
+              - >-
+                Consider keeping records of what happens every day. They may be useful later.
+              - >-
+                You have minor medical training and you know how to use the Keep's messenger ravens.
             difficulty: normal
             multiple: false
             starting_resources: 2
@@ -225,17 +247,15 @@ zones:
               - ravenhearteconomy
           - name: Courtier
             slug: courtier
-            intro:
-              Live life indulgently or honorably—there is not much binding you except your own decisions.
-              What freedom!
+            intro: >-
+              Live life indulgently or honorably—there is not much binding you except your own decisions. What freedom!
             description:
-              - For whatever reason, the Baron keeps you around in his court. Convince the Captain to launch an
-                expedition into the caves, host marvelous feasts, and duel your fellow courtiers for the Successor’s
-                affection. It is your day to make of it what you will.
-              - As a Courtier, your gameplay is largely undefined. You are encouraged to set your own goals and
-                desires and work to fulfill them.
-              - Buy the Manor tag once you're established if you want a household of your own to run, alongside
-                your wine and your politics.
+              - >-
+                For whatever reason, the Baron keeps you around in his court. Convince the Captain to launch an expedition into the caves, host marvelous feasts, and duel your fellow courtiers for the Successor's affection. It is your day to make of it what you will.
+              - >-
+                As a Courtier, your gameplay is largely undefined. You are encouraged to set your own goals and desires and work to fulfill them.
+              - >-
+                Buy the Manor tag once you're established if you want a household of your own to run, alongside your wine and your politics.
             difficulty: easy
             multiple: true
             weight: 6
@@ -251,10 +271,11 @@ zones:
               - fortressstarting
           - name: Minstrel
             slug: minstrel
-            intro: Compose ballads, smuggle drugs from the Town, and keep the Baron happy.
+            intro: >-
+              Compose ballads, smuggle drugs from the Town, and keep the Baron happy.
             description:
-              - Compose ballads, smuggle drugs from the Town (and peddle them to the courtiers), keep the Baron
-                happy.
+              - >-
+                Compose ballads, smuggle drugs from the Town (and peddle them to the courtiers), keep the Baron happy.
             difficulty: easy
             multiple: true
             weight: 1
@@ -269,10 +290,11 @@ zones:
               - fortressstarting
           - name: Diplomat
             slug: diplomat
-            intro: Recover ancient artifacts and study Ravenheartian culture.
+            intro: >-
+              Recover ancient artifacts and study Ravenheartian culture.
             description:
-              - Recover ancient artifacts and study Ravenheartian culture. Meddle. Convince the Baron to join
-                your interstellar federation.
+              - >-
+                Recover ancient artifacts and study Ravenheartian culture. Meddle. Convince the Baron to join your interstellar federation.
             difficulty: easy
             multiple: true
             weight: 1
@@ -288,10 +310,13 @@ zones:
               - fortressstarting
           - name: Servant
             slug: servant
-            intro: Keep the fortress running.
+            intro: >-
+              Keep the fortress running.
             description:
-              - Keep the fortress running. Clean, cook, maintain, and serve.
-              - Take Cooking (Skilled) if you want to run the kitchens properly as the Chef.
+              - >-
+                Keep the fortress running. Clean, cook, maintain, and serve.
+              - >-
+                Take Cooking (Skilled) if you want to run the kitchens properly as the Chef.
             difficulty: easy
             multiple: true
             weight: 3
@@ -311,15 +336,21 @@ zones:
         roles:
           - name: Captain
             slug: captain
-            intro: Bravely lead the Watch and hold back the darkness, you goddamn hero.
+            intro: >-
+              Bravely lead the Watch and hold back the darkness, you goddamn hero.
             description:
-              - Ravenheart is an ancient bastion of humanity, a beacon of light. It is your solemn duty—at least
-                on paper—to uphold that. Do you understand the gravity of your situation? Oh, enough waxing, Captain—you
-                will either solve the problem or you won't.
-              - You win through leadership, proactivity, communication, and organization. Think carefully. Always
-                be a step ahead of the Dark. If the Watch loves you, the people inform you—if you have eyes everywhere,
-                plans, if you know and see, nothing can stop you.
-              - You are, unfortunately, a man of the bottle. Can you kick your addiction before people find out?
+              - >-
+                Ravenheart is an ancient bastion of humanity, a beacon of light. It is your solemn duty—at least on paper—to uphold that. Do you understand the gravity of your situation? Oh, enough waxing, Captain—you will either solve the problem or you won't.
+              - >-
+                You win through leadership, proactivity, communication, and organization. Think carefully. Always be a step ahead of the Dark. If the Watch loves you, the people inform you—if you have eyes everywhere, plans, if you know and see, nothing can stop you.
+              - >-
+                You are, unfortunately, a man of the bottle. Can you kick your addiction before people find out? (Get the tag removed, somehow).
+              - >-
+                Or just don't bother.
+              - >-
+                You know, the Watch is a fine group of men. It's ran this way for a few centuries now. Yes, it's corrupt, technically, but really it's just a good group of boys making money.
+              - >-
+                And... quitting? Really? That doesn't sound fun...
             difficulty: hard
             multiple: false
             starting_resources: 3
@@ -338,17 +369,15 @@ zones:
               - combat
           - name: Incarn
             slug: incarn
-            intro: You are a warrior monk, the Warden, the unbound spirit of the Keep.
+            intro: >-
+              You are a warrior monk, the Warden, the unbound spirit of the Keep.
             description:
-              - In your heart, you know it is the nature of the Universe that good will win. It is not important
-                to make a big fuss—God is on your side. Above all, keep yourself, and if you can the Baron, the
-                Captain—but changing people's minds is like wrestling a donkey in the mud, you know—pure, holy,
-                a servant of Goodness. Do not stoop to the madness of passion, Incarn!
-              - Your job is to guard the dungeon, process migrants, and protect the Silver Cross, Ravenheart's
-                only relic. The Silver Cross is an ancient artifact. It terrifies and burns demonic creatures.
-              - Your role is as organizational as it is combat-like—you should assist the Captain in assigning
-                his men, drafting battleplans, and performing espionage. Monitor the outskirts and the caves,
-                hire a messenger—always be a step ahead of the darkness.
+              - >-
+                In your heart, you know it is the nature of the Universe that good will win. It is not important to make a big fuss—God is on your side. Above all, keep yourself, and if you can the Baron, the Captain—but changing people's minds is like wrestling a donkey in the mud, you know—pure, holy, a servant of Goodness. Do not stoop to the madness of passion, Incarn!
+              - >-
+                Your job is to guard the dungeon, process migrants, and protect the Silver Cross, Ravenheart's only relic. The Silver Cross is an ancient artifact. It terrifies and burns demonic creatures.
+              - >-
+                Your role is as organizational as it is combat-like—you should assist the Captain in assigning his men, drafting battleplans, and performing espionage. Monitor the outskirts and the caves, hire a messenger—always be a step ahead of the darkness.
             difficulty: normal
             multiple: false
             starting_resources: 2
@@ -366,10 +395,17 @@ zones:
               - combat
           - name: Watchman
             slug: watchman
-            intro: Serve the Baron and salute your Captain. You are the man of the hour!
+            intro: >-
+              Serve the Baron and salute your Captain. You are the man of the hour!
             description:
-              - Serve the Baron, salute your Captain. Darkness is coming—do you heed the call, or frolick about?
-              - As the
+              - >-
+                Serve the Baron, salute your Captain. Darkness is coming—do you heed the call, or frolick about?
+              - >-
+                Or—alright, we got the optics out of the way. Truth is, being a Watchman
+              - >-
+                Your job is simple. **Live a comfortable life. Drink. Make money. Play cards.** Yes, there are bandits about, but it's nothing the townsfolk can't deal with.
+              - >-
+                Consider taking protection money from the town businesses. That's what usually works the most.
             difficulty: easy
             multiple: true
             weight: 8
@@ -386,9 +422,11 @@ zones:
               - combat
           - name: Squire
             slug: squire
-            intro: Train. One day, you might become a knight.
+            intro: >-
+              Train. One day, you might become a knight.
             description:
-              - Train. One day, you might become a knight.
+              - >-
+                Train. One day, you might become a knight.
             difficulty: easy
             multiple: true
             weight: 2
@@ -405,12 +443,10 @@ zones:
               - combat
   - name: Town
     situation:
-      - The last tithe wagon didn't return from the Fortress. Brigands, probably. The Meister won't be happy
-        about this; repare to have the Silo drained.
-      - "Last week, Thomas Ciobanta—a respectable tradesman—went inexplicably stupid. He wandered around aimlessly,
-        half-naked and starving. When people tried to help him, he just called them idiots. The Inquisitor
-        tested Thomas's reaction by showing him a cross: he snarled like a dog, so the Inquisitor had him
-        hanged."
+      - >-
+        The last tithe wagon didn't return from the Fortress. Brigands, probably. The Meister won't be happy about this; repare to have the Silo drained.
+      - >-
+        Last week, Thomas Ciobanta—a respectable tradesman—went inexplicably stupid. He wandered around aimlessly, half-naked and starving. When people tried to help him, he just called them idiots. The Inquisitor tested Thomas's reaction by showing him a cross: he snarled like a dog, so the Inquisitor had him hanged.
     factions:
       - name: The Church
         slug: the-church
@@ -418,18 +454,17 @@ zones:
         roles:
           - name: Bishop
             slug: bishop
-            intro:
-              In the animal world, who can choose good but Man? Even if Ravenheart falls, O Bishop, do
-              not let the people's souls fall with it!
+            intro: >-
+              In the animal world, who can choose good but Man? Even if Ravenheart falls, O Bishop, do not let the people's souls fall with it!
             description:
-              - "I must ask you, Bishop: do you know the Truth? If not, why do you pose as its Servant? These
-                are questions you must ask before you take office."
-              - It is not the first time dark days have come to Ravenheart, but they are difficult times still.
-                You hope the people will survive—God will ensure it. During this difficult transition, ensure
-                you serve as a shining example of goodness.
-              - At some point, you will have to decide between peacefulness or the Order of the Silver Cross.
-              - Along with the Chaplain, you have the power to dispel negative Tags of the psychological kind—the
-                person must first confess to you, then spend a whole day in prayer (2 Efforts).
+              - >-
+                I must ask you, Bishop: do you know the Truth? If not, why do you pose as its Servant? These are questions you must ask before you take office.
+              - >-
+                It is not the first time dark days have come to Ravenheart, but they are difficult times still. You hope the people will survive—God will ensure it. During this difficult transition, ensure you serve as a shining example of goodness.
+              - >-
+                At some point, you will have to decide between peacefulness or the Order of the Silver Cross.
+              - >-
+                Along with the Chaplain, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts).
             difficulty: normal
             multiple: false
             starting_resources: 3
@@ -447,15 +482,15 @@ zones:
               - ravenhearteconomy
           - name: Chaplain
             slug: chaplain
-            intro: Care for the needy, lend an ear, and kindle goodness in others.
+            intro: >-
+              Care for the needy, lend an ear, and kindle goodness in others.
             description:
-              - It is not the first time dark days have come to Ravenheart. The people will survive—God will ensure
-                it. During this difficult transition, ensure you serve as a shining example of goodness. Evil
-                can only be held back with Truth—do not stoop to violence or zealotry.
-              - Care for the needy, lend an ear, and kindle goodness in others. Pay visits to the Fortress. Practice
-                pacifism or support the Inquisition.
-              - Along with the Bishop, you have the power to dispel negative Tags of the psychological kind—the
-                person must first confess to you, then spend a whole day in prayer (2 Efforts).
+              - >-
+                It is not the first time dark days have come to Ravenheart. The people will survive—God will ensure it. During this difficult transition, ensure you serve as a shining example of goodness. Evil can only be held back with Truth—do not stoop to violence or zealotry.
+              - >-
+                Care for the needy, lend an ear, and kindle goodness in others. Pay visits to the Fortress. Practice pacifism or support the Inquisition.
+              - >-
+                Along with the Bishop, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts).
             difficulty: easy
             multiple: true
             weight: 3
@@ -472,14 +507,11 @@ zones:
               - church
           - name: Scholastic
             slug: scholastic
-            intro:
-              You are a servant of the truth, delving to places no other man would. Contemplate, search
-              for knowledge—occult or otherwise—and write your magnum opus.
+            intro: >-
+              You are a servant of the truth, delving to places no other man would. Contemplate, search for knowledge—occult or otherwise—and write your magnum opus.
             description:
-              - Earth is a speck in the infinite firmament. You have always been humbled—or perhaps energized—by
-                the Truth. Try to understand it. Search for knowledge—occult or otherwise—and write your magnum
-                opus. Be a hermit or preach on the streets. Whether you wake others up or not, ensure you yourself
-                _never_ fall asleep.
+              - >-
+                Earth is a speck in the infinite firmament. You have always been humbled—or perhaps energized—by the Truth. Try to understand it. Search for knowledge—occult or otherwise—and write your magnum opus. Be a hermit or preach on the streets. Whether you wake others up or not, ensure you yourself _never_ fall asleep.
             difficulty: normal
             multiple: true
             weight: 1
@@ -498,19 +530,19 @@ zones:
         roles:
           - name: Esculap
             slug: esculap
-            intro:
-              Lead the Sanctuary, developing medicines and putting bodies back together. Be the Eye in
-              the Storm—or lose yourself to curiosity.
+            intro: >-
+              Lead the Sanctuary, developing medicines and putting bodies back together. Be the Eye in the Storm—or lose yourself to curiosity.
             description:
-              - Sickness and pain leave men terrified and alone. It is a noble task to help another face that
-                pain.
-              - Above all, keep your Serpents in check. Otherwise, further science and treat the wounded.
-              - With science, the sky’s the limit. You can brew medicines and potions, install implants and body-modifications,
-                and even experiment for the good of science.
-              - If there’s no wounded, get creative. Offer clinical trials; go foraging for unique ingredients
-                and try to brew new potions; ask if the Incarn will let you experiment on his prisoners.
-              - You can perform medicine, removing negative medical tags according to their skill, Resource,
-                and action cost.
+              - >-
+                Sickness and pain leave men terrified and alone. It is a noble task to help another face that pain.
+              - >-
+                Prioritize treating the reach and affluent, despite triage. You may be a noble man, but, despite your scholastic training, the Baron approved your appointment for a reason.
+              - >-
+                With science, the sky's the limit. You can brew medicines and potions, install implants and body-modifications, and even experiment for the good of science.
+              - >-
+                If there's no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners.
+              - >-
+                You can perform medicine, removing negative medical tags according to their skill, Resource, and action cost.
             difficulty: normal
             multiple: false
             starting_resources: 2
@@ -526,18 +558,17 @@ zones:
               - medical
           - name: Serpent
             slug: serpent
-            intro:
-              Cure illnesses, perform surgeries, brew potions, and keep people in this world—where they're
-              needed.
+            intro: >-
+              Cure illnesses, perform surgeries, brew potions, and keep people in this world—where they're needed.
             description:
-              - Sickness and pain leave men terrified and alone. It is a noble task to help another face that
-                pain.
-              - With science, the sky’s the limit. You can brew medicines and potions, install implants and body-modifications,
-                and even experiment for the good of science.
-              - If there’s no wounded, get creative. Offer clinical trials; go foraging for unique ingredients
-                and try to brew new potions; ask if the Incarn will let you experiment on his prisoners.
-              - You can perform medicine, removing negative medical tags according to their skill, Resource,
-                and action cost.
+              - >-
+                Sickness and pain leave men terrified and alone. It is a noble task to help another face that pain.
+              - >-
+                With science, the sky's the limit. You can brew medicines and potions, install implants and body-modifications, and even experiment for the good of science.
+              - >-
+                If there's no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners.
+              - >-
+                You can perform medicine, removing negative medical tags according to their skill, Resource, and action cost.
             difficulty: normal
             multiple: true
             weight: 4
@@ -558,22 +589,21 @@ zones:
         roles:
           - name: Inquisitor
             slug: inquisitor
-            intro: It is your everlasting duty to protect your people by expunging the barony’s corruption.
+            intro: >-
+              It is your everlasting duty to protect your people by expunging the barony's corruption.
             description:
-              - Do you know what it means to love God?
-              - Dark days, exactly as preached in the scriptures, are coming to Ravenheart. Look at the people!
-                They frolic, indulging themselves, like sheep before the slaughter! You have seen—_seen_—the blood,
-                the horror. There are things that lurk in the shadows that no man could comprehend. But you have
-                also seen the goodness of God.
-              - You are not thirsty for power. You are just sane. It is your everlasting duty to protect your
-                people by expunging the barony’s corruption. To this end, organize your followers and, above all,
-                work to radicalize the Town, the Church, and possibly even the Court.
-              - If you can get the Bishop on your side, it will be a great boon. He is weak! Force him to bend
-                the knee.
-              - The time for silence has passed. There is no time to waste! Scream, from the top of your lungs,
-                what is coming! Wake them!
-              - "One other thing: the Incarn holds the Silver Cross, an artifact blessed to defeat evil. Secure
-                it from him."
+              - >-
+                Do you know what it means to love God?
+              - >-
+                Dark days, exactly as preached in the scriptures, are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter! You have seen—_seen_—the blood, the horror. There are things that lurk in the shadows that no man could comprehend. But you have also seen the goodness of God.
+              - >-
+                You are not thirsty for power. You are just sane. It is your everlasting duty to protect your people by expunging the barony's corruption. To this end, organize your followers and, above all, work to radicalize the Town, the Church, and possibly even the Court.
+              - >-
+                If you can get the Bishop on your side, it will be a great boon. He is weak! Force him to bend the knee.
+              - >-
+                The time for silence has passed. There is no time to waste! Scream, from the top of your lungs, what is coming! Wake them!
+              - >-
+                One other thing: the Incarn holds the Silver Cross, an artifact blessed to defeat evil. Secure it from him.
             difficulty: hard
             multiple: false
             starting_resources: 3
@@ -588,24 +618,21 @@ zones:
               - church
           - name: Practicus
             slug: practicus
-            intro:
-              Serve the Inquisitor, and work to radicalize the Town, the Church, and possibly even the
-              Court.
+            intro: >-
+              Serve the Inquisitor, and work to radicalize the Town, the Church, and possibly even the Court.
             description:
-              - Do you know what it means to love God?
-              - Dark days, exactly as preached in the scriptures, are coming to Ravenheart. Look at the people!
-                They frolic, indulging themselves, like sheep before the slaughter! You have seen—_seen_—the blood,
-                the horror. There are things that lurk in the shadows that no man could comprehend. But you have
-                also seen the goodness of God.
-              - You are not thirsty for power. You are just sane. It is your everlasting duty to protect your
-                people by expunging the barony’s corruption. Work to radicalize the Town, the Church, and possibly
-                even the Court.
-              - If you can get the Bishop on your side, it will be a great boon. He is weak! Force him to bend
-                the knee.
-              - The time for silence has passed. There is no time to waste! Scream, from the top of your lungs,
-                what is coming! Wake them!
-              - "One other thing: the Incarn holds the Silver Cross, an artifact blessed to defeat evil. Secure
-                it from him."
+              - >-
+                Do you know what it means to love God?
+              - >-
+                Dark days, exactly as preached in the scriptures, are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter! You have seen—_seen_—the blood, the horror. There are things that lurk in the shadows that no man could comprehend. But you have also seen the goodness of God.
+              - >-
+                You are not thirsty for power. You are just sane. It is your everlasting duty to protect your people by expunging the barony's corruption. Work to radicalize the Town, the Church, and possibly even the Court.
+              - >-
+                If you can get the Bishop on your side, it will be a great boon. He is weak! Force him to bend the knee.
+              - >-
+                The time for silence has passed. There is no time to waste! Scream, from the top of your lungs, what is coming! Wake them!
+              - >-
+                One other thing: the Incarn holds the Silver Cross, an artifact blessed to defeat evil. Secure it from him.
             difficulty: easy
             multiple: true
             weight: 3
@@ -620,22 +647,23 @@ zones:
               - church
           - name: Preacher
             slug: preacher
-            intro: You are the Order’s face. Speak in the Town Square for all to hear.
+            intro: >-
+              You are the Order's face. Speak in the Town Square for all to hear.
             description:
-              - You are the Order’s face. Speak in the Town Square for all to hear.
-              - Do you know what it means to love God?
-              - Dark days, exactly as preached in the scriptures, are coming to Ravenheart. Look at the people!
-                They frolic, indulging themselves, like sheep before the slaughter! You have seen—_seen_—the blood,
-                the horror. There are things that lurk in the shadows that no man could comprehend. But you have
-                also seen the goodness of God.
-              - You are not thirsty for power. You are just sane. It is your everlasting duty to protect your
-                people by expunging the barony’s corruption. To this end, organize your followers and, above all,
-                work to radicalize the Town, the Church, and possibly even the Court.
-              - If you can get the Bishop on your side, it will be a great boon.
-              - The time for silence has passed. There is no time to waste! Scream, from the top of your lungs,
-                what is coming! Wake them!
-              - "One other thing: the Incarn holds the Silver Cross, an artifact blessed to defeat evil. Secure
-                it from him."
+              - >-
+                You are the Order's face. Speak in the Town Square for all to hear.
+              - >-
+                Do you know what it means to love God?
+              - >-
+                Dark days, exactly as preached in the scriptures, are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter! You have seen—_seen_—the blood, the horror. There are things that lurk in the shadows that no man could comprehend. But you have also seen the goodness of God.
+              - >-
+                You are not thirsty for power. You are just sane. It is your everlasting duty to protect your people by expunging the barony's corruption. To this end, organize your followers and, above all, work to radicalize the Town, the Church, and possibly even the Court.
+              - >-
+                If you can get the Bishop on your side, it will be a great boon.
+              - >-
+                The time for silence has passed. There is no time to waste! Scream, from the top of your lungs, what is coming! Wake them!
+              - >-
+                One other thing: the Incarn holds the Silver Cross, an artifact blessed to defeat evil. Secure it from him.
             difficulty: easy
             multiple: true
             weight: 1
@@ -654,17 +682,21 @@ zones:
         roles:
           - name: Headman
             slug: headman
-            intro: Lead the Town. Ensure it works and pays its taxes.
+            intro: >-
+              Lead the Town. Ensure it works and pays its taxes.
             description:
-              - On certain days, you hike up the mountain and behold the Town. Those are the people that are beholden
-                to you. You cannot afford to let them down, Headman!
-              - Your main job is to tax people. You are beholden to the Meister, the Baron’s taxman, and things
-                have gotten nasty in the past when the tithe didn’t meet his expectations. If the Silo’s not full
-                next time he comes, it won’t be a pretty day.
-              - You also owe some tax to the Bishop.
-              - The Sheriff is on your payroll.
-              - "You informally lead the Town—everyone knows you and you know everyone. You're Insightful: a
-                lifetime of reading people means you can usually tell what makes someone tick."
+              - >-
+                On certain days, you hike up the mountain and behold the Town. Those are the people that are beholden to you. You cannot afford to let them down, Headman!
+              - >-
+                Your main job is to tax people. You are beholden to the Meister, the Baron's taxman, and things have gotten nasty in the past when the tithe didn't meet his expectations. If the Silo's not full next time he comes, it won't be a pretty day.
+              - >-
+                Laborers produce far more than they need to eat. Take everything they have, and call the Sheriff if they won't budge.
+              - >-
+                You also owe some tax to the Bishop.
+              - >-
+                The Sheriff is on your payroll.
+              - >-
+                If the Watch do a bit of racketeering or take bribes in town, look the other way, as you always have.
             difficulty: hard
             multiple: false
             starting_resources: 3
@@ -682,11 +714,13 @@ zones:
               - ravenhearteconomy
           - name: Sheriff
             slug: sheriff
-            intro: Keep the peace in the Town, six-shooter at your hip.
+            intro: >-
+              Keep the peace in the Town, six-shooter at your hip.
             description:
-              - On certain days, you hike up the mountain and behold the Town. Those are the people that are beholden
-                to you. You cannot afford to let them down, Sheriff!
-              - You have a trusty .45 six-shooter, a reject from the Fortress’s armory.
+              - >-
+                On certain days, you hike up the mountain and behold the Town. Those are the people that are beholden to you. You cannot afford to let them down, Sheriff!
+              - >-
+                You have a trusty .45 six-shooter, a reject from the Fortress's armory.
             difficulty: normal
             multiple: true
             weight: 1
@@ -702,18 +736,19 @@ zones:
               - combat
           - name: Metalsmith
             slug: metalsmith
-            intro: Forge anything from basic tools to siege implements and legendary weapons.
+            intro: >-
+              Forge anything from basic tools to siege implements and legendary weapons.
             description:
-              - With smithing, you are only limited by your Resources and your creativity. You can make weapons,
-                but you can also make armor, tools, siege equipment, sculptures...
-              - You’re not on the Headman’s payroll, so it’s important you find clients so that you can feed yourself.
-              - The theory is important. Axes are good at breaking shields; blunt weapons harm people even in
-                full armor; swords excel in one-to-one combat.
-              - Simple things, like shortswords or basic tools, cost 1 Effort and 2 ⬢. Moderately difficult
-                things, like swords or breastplates, cost 1 Effort and 4 ⬢. High quality objects cost
-                2 Efforts and 6 ⬢.
-              - You can also make Unique Tags—name and describe them—for 2 Efforts, 1 Move, and 12 ⬢.
-                You’ll have to roll to see what the quality ends up being.
+              - >-
+                With smithing, you are only limited by your Resources and your creativity. You can make weapons, but you can also make armor, tools, siege equipment, sculptures...
+              - >-
+                You're not on the Headman's payroll, so it's important you find clients so that you can feed yourself.
+              - >-
+                The theory is important. Axes are good at breaking shields; blunt weapons harm people even in full armor; swords excel in one-to-one combat.
+              - >-
+                Simple things, like shortswords or basic tools, cost 1 Effort and 2 ⬢. Moderately difficult things, like swords or breastplates, cost 1 Effort and 4 ⬢. High quality objects cost 2 Efforts and 6 ⬢.
+              - >-
+                You can also make Unique Tags—name and describe them—for 2 Efforts, 1 Move, and 12 ⬢. You'll have to roll to see what the quality ends up being.
             difficulty: normal
             multiple: true
             weight: 1
@@ -730,17 +765,15 @@ zones:
               - independent
           - name: Peasant
             slug: peasant
-            intro: You’re a peasant. Make a living at day, live your life at night.
+            intro: >-
+              You're a peasant. Make a living at day, live your life at night.
             description:
-              - Peasantry—the unlimitedness of knowing you are not being watched, because you are one of Many.
-                You are free, in a way. You must feed yourself and pay your taxes, but what else? It is time to
-                choose a path. Fulfill your Desires or become honest and authentic—choose a life, build it, and
-                protect it.
-              - Naturally, you must work during the Dawn, but you are encouraged to experiment with what you do
-                at Dusk.
-              - You start as a Laborer, working every trade a little harder than most. Specialize further with
-                Laborer (Farming), Laborer (Fishing) (comes with a Boat), or Laborer (Herding) to produce at a
-                dedicated rate in one of them—or find your own trade.
+              - >-
+                Peasantry—the unlimitedness of knowing you are not being watched, because you are one of Many. You are free, in a way. You must feed yourself and pay your taxes, but what else? It is time to choose a path. Fulfill your Desires or become honest and authentic—choose a life, build it, and protect it.
+              - >-
+                Naturally, you must work during the Dawn, but you are encouraged to experiment with what you do at Dusk.
+              - >-
+                You start as a Laborer, working every trade a little harder than most. Specialize further with Laborer (Farming), Laborer (Fishing) (comes with a Boat), or Laborer (Herding) to produce at a dedicated rate in one of them—or find your own trade.
             difficulty: easy
             multiple: true
             weight: unlimited
@@ -756,15 +789,15 @@ zones:
               - independent
           - name: Herald
             slug: herald
-            intro: Tell the news, take messages, and hope either the Baron or the Headman will pay you.
+            intro: >-
+              Tell the news, take messages, and hope either the Baron or the Headman will pay you.
             description:
-              - Done rightly, your job can be quite profitable—particularly if you're willing to spy and play
-                the information game.
-              - Many people are willing to divulge their secrets. Lend an ear, and you'll be surprised at what
-                you pick up.
-              - Since it takes 1 Turn to travel between Zones—and most people aren't making the trip back and
-                forth anyways—information's not instant. The Baron, the Headman, or even the Hand might like to
-                know what's happening on the other side of Ravenheart.
+              - >-
+                Done rightly, your job can be quite profitable—particularly if you're willing to spy and play the information game.
+              - >-
+                Many people are willing to divulge their secrets. Lend an ear, and you'll be surprised at what you pick up.
+              - >-
+                Since it takes 1 Turn to travel between Zones—and most people aren't making the trip back and forth anyways—information's not instant. The Baron, the Headman, or even the Hand might like to know what's happening on the other side of Ravenheart.
             difficulty: easy
             multiple: true
             weight: 1
@@ -777,14 +810,15 @@ zones:
               - independent
           - name: Outsider
             slug: outsider
-            intro: Nature garbs you. Live on the outskirts, free and independent.
+            intro: >-
+              Nature garbs you. Live on the outskirts, free and independent.
             description:
-              - Live on the outskirts, free and independent.
-              - You are aware of the Goddess of Nature, Sylva. Some still worship her in Ravenheart. It is up
-                to you to follow the Church or stick to the oldways.
-              - 'Forage and heal as a Healer (Medical (Basic), Brewing (Basic)), or track game as a Hunter (Laborer
-                (Hunting))—both still Forester at heart. Hunting pays better than any other honest work and can
-                just as easily pay nothing: use the /hunt command from the Forest, or write /hunt in your Move.'
+              - >-
+                Live on the outskirts, free and independent.
+              - >-
+                You are aware of the Goddess of Nature, Sylva. Some still worship her in Ravenheart. It is up to you to follow the Church or stick to the oldways.
+              - >-
+                Forage and heal as a Healer (Medical (Basic), Brewing (Basic)), or track game as a Hunter (Laborer (Hunting))—both still Forester at heart. Hunting pays better than any other honest work and can just as easily pay nothing: use the /hunt command from the Forest, or write /hunt in your Move.
             difficulty: easy
             multiple: true
             weight: 2
@@ -801,18 +835,19 @@ zones:
               - independent
           - name: Mortus
             slug: mortus
-            intro: Bring spirits to peace and feed the Lifeweb.
+            intro: >-
+              Bring spirits to peace and feed the Lifeweb.
             description:
-              - "You have two jobs, both of them sacred: 1. feed the Lifeweb and 2. bury people, bringing their
-                souls to peace."
-              - The Mortii take a lifelong vow dedicating themselves to powering the Lifeweb. They are often exiles,
-                outcasts, or infirms. Why did you take the vow?
-              - The Lifeweb maintains Ravenheart's environment. Without it, it'll fade into the wastelands. However,
-                it is powered by human blood. People can either voluntarily donate their blood to feed it for
-                a short time—or you can kidnap people and feed them manually.
-              - Any crimes you commit in service of your vow are not crimes.
-              - You are allowed to loot whatever corpses you find. That's how the Mortus traditionally sustain
-                themselves, but if dead people are scarce, you can ask the Headman for some food.
+              - >-
+                You have two jobs, both of them sacred: 1. feed the Lifeweb and 2. bury people, bringing their souls to peace.
+              - >-
+                The Mortii take a lifelong vow dedicating themselves to powering the Lifeweb. They are often exiles, outcasts, or infirms. Why did you take the vow?
+              - >-
+                The Lifeweb maintains Ravenheart's environment. Without it, it'll fade into the wastelands. However, it is powered by human blood. People can either voluntarily donate their blood to feed it for a short time—or you can kidnap people and feed them manually.
+              - >-
+                Any crimes you commit in service of your vow are not crimes.
+              - >-
+                You are allowed to loot whatever corpses you find. That's how the Mortus traditionally sustain themselves, but if dead people are scarce, you can ask the Headman for some food.
             difficulty: easy
             multiple: true
             weight: 3
@@ -827,10 +862,11 @@ zones:
               - respawning
           - name: Bum
             slug: bum
-            intro: You live in a shell and sleep with the dogs, but you understand life (or think you do).
+            intro: >-
+              You live in a shell and sleep with the dogs, but you understand life (or think you do).
             description:
-              - You live in a shell and sleep with the dogs, but you understand life (or think you do). Beg for
-                food and coin.
+              - >-
+                You live in a shell and sleep with the dogs, but you understand life (or think you do). Beg for food and coin.
             difficulty: easy
             multiple: true
             weight: unlimited
@@ -842,10 +878,13 @@ zones:
               - townstarting
           - name: Pusher
             slug: pusher
-            intro: Sell drugs.
+            intro: >-
+              Sell drugs.
             description:
-              - Sell drugs.
-              - You start with an assortment of drugs and can make more.
+              - >-
+                Sell drugs.
+              - >-
+                You start with an assortment of drugs and can make more.
             difficulty: normal
             multiple: false
             starting_resources: 2
@@ -864,15 +903,15 @@ zones:
         roles:
           - name: Innkeeper
             slug: innkeeper
-            intro: "Name and run the inn: set prices, hire and fire staff, and run an actual, living business."
+            intro: >-
+              Name and run the inn: set prices, hire and fire staff, and run an actual, living business.
             description:
-              - The inn is a game of its own. It's up to you to figure out how to make a living out of it. For
-                one thing, you can consider asking the Merchant for a loan.
-              - Cook fine meals, brew alcohol, hire bards and pretty ladies—keep the Customer coming back, yes—but
-                be creative. Running an information network or turning the Inn into a place for people to find
-                jobs are examples of the creative ways you can take advantage of owning Ravenheart's most popular
-                enterprise.
-              - You are responsible for paying your staff. They have to eat.
+              - >-
+                The inn is a game of its own. It's up to you to figure out how to make a living out of it. For one thing, you can consider asking the Merchant for a loan.
+              - >-
+                Cook fine meals, brew alcohol, hire bards and pretty ladies—keep the Customer coming back, yes—but be creative. Running an information network or turning the Inn into a place for people to find jobs are examples of the creative ways you can take advantage of owning Ravenheart's most popular enterprise.
+              - >-
+                You are responsible for paying your staff. They have to eat.
             difficulty: normal
             multiple: false
             starting_resources: 25
@@ -889,11 +928,11 @@ zones:
               - inn
           - name: Inn Staff
             slug: inn-staff
-            intro: Work the floor, the kitchen, or the cellar—whatever the Inn needs.
+            intro: >-
+              Work the floor, the kitchen, or the cellar—whatever the Inn needs.
             description:
-              - Keep the Inn running under the Innkeeper. Cook (Cooking (Skilled)), brew (Brewing (Skilled)),
-                wait tables, or just keep the room talking—pick your corner, or split off and start your own enterprise
-                if you're a brewer with ambition.
+              - >-
+                Keep the Inn running under the Innkeeper. Cook (Cooking (Skilled)), brew (Brewing (Skilled)), wait tables, or just keep the room talking—pick your corner, or split off and start your own enterprise if you're a brewer with ambition.
             difficulty: easy
             multiple: true
             weight: 3
@@ -908,12 +947,50 @@ zones:
               - meals
               - inn
               - independent
+      - name: Brigands
+        slug: brigands
+        starting_resources: 5
+        roles:
+          - name: Brigand Leader
+            slug: brigand-leader
+            intro: >-
+              You raided a shipment on the way to the Fortress—well done!
+            description:
+              - >-
+                You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
+            difficulty: normal
+            multiple: false
+            starting_resources: 3
+            starting_location: forest
+            leader: true
+            starting_tags:
+              - Fighting (Basic)
+            doc_elements:
+              - campstarting
+              - concealing
+          - name: Brigand
+            slug: brigand
+            intro: >-
+              You raided a shipment on the way to the Fortress—well done!
+            description:
+              - >-
+                You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
+            difficulty: easy
+            multiple: true
+            weight: 2
+            starting_resources: 2
+            starting_location: forest
+            starting_tags:
+              - Fighting (Basic)
+            doc_elements:
+              - campstarting
+              - concealing
   - name: Windlands
     situation:
-      - The Bastard has united the clans. The Windriders and the Broken Spears are the two that survived the
-        long march to Ravenheart, and you're ready to fight for a home.
-      - "There was an incident: a man from the Broken Spears killed one of the Windriders during an argument
-        on whether to raid the Town. Food stores are running low, and there's no time to waste on old grudges."
+      - >-
+        The Bastard has united the clans. The Windriders and the Broken Spears are the two that survived the long march to Ravenheart, and you're ready to fight for a home.
+      - >-
+        There was an incident: a man from the Broken Spears killed one of the Windriders during an argument on whether to raid the Town. Food stores are running low, and there's no time to waste on old grudges.
     factions:
       - name: The Bastard's Camp
         slug: the-bastards-camp
@@ -921,26 +998,21 @@ zones:
         roles:
           - name: Bastard
             slug: bastard
-            intro:
-              You have thirty days to take Ravenheart. Unite your Lieutenants, feed your men, and march—it's
-              your people's only hope.
+            intro: >-
+              You have thirty days to take Ravenheart. Unite your Lieutenants, feed your men, and march—it's your people's only hope.
             description:
-              - Your job is very difficult. Your people are naturally inclined to kill each other instead of cooperate,
-                and if you don't act fast enough, you will starve. You must plan, communicate, organize, and lead
-                to be effective. Above all, be proactive.
-              - The way in which you take Ravenheart is important. Do you want to be known as a tyrant or as a
-                liberator?
-              - You have noble blood. It's possible that you are the bastard of someone in the Baron's lineage,
-                and thus you share blood with him.
-              - "There are certain people in your entourage that follow you directly, but the bulk of your force
-                is divided into two groups: the Broken Spears Clan and the Windrider Clan. The Broken Spears clan,
-                known to be warlike, have grown increasingly loyal to you after you defeated their Lieutenant
-                in battle and let him live (he may be a better fighter than you; did you cheat or simply win by
-                luck?) However, they are largely antsy, violent, and hard to manage."
-              - In contrast, the Windrider Clan, a much older clan, are calculating and patient, but have made
-                their independence abundantly clear. They support your plans to take Ravenheart, but you suspect
-                there are conditions to their support.
-              - There is someone sympathetic to your cause within the walls of the Baron's keep.
+              - >-
+                Your job is very difficult. Your people are naturally inclined to kill each other instead of cooperate, and if you don't act fast enough, you will starve. You must plan, communicate, organize, and lead to be effective. Above all, be proactive.
+              - >-
+                The way in which you take Ravenheart is important. Do you want to be known as a tyrant or as a liberator?
+              - >-
+                You have noble blood. It's possible that you are the bastard of someone in the Baron's lineage, and thus you share blood with him.
+              - >-
+                There are certain people in your entourage that follow you directly, but the bulk of your force is divided into two groups: the Broken Spears Clan and the Windrider Clan. The Broken Spears clan, known to be warlike, have grown increasingly loyal to you after you defeated their Lieutenant in battle and let him live (he may be a better fighter than you; did you cheat or simply win by luck?) However, they are largely antsy, violent, and hard to manage.
+              - >-
+                In contrast, the Windrider Clan, a much older clan, are calculating and patient, but have made their independence abundantly clear. They support your plans to take Ravenheart, but you suspect there are conditions to their support.
+              - >-
+                There is someone sympathetic to your cause within the walls of the Baron's keep.
             difficulty: hard
             multiple: false
             starting_resources: 3
@@ -959,12 +1031,11 @@ zones:
               - windrider
           - name: Champion
             slug: champion
-            intro:
-              You taught the Bastard how to fight, how to play the lute, how to survive. You will follow
-              him even into death.
+            intro: >-
+              You taught the Bastard how to fight, how to play the lute, how to survive. You will follow him even into death.
             description:
-              - You taught the Bastard how to fight, how to play the lute, how to survive. You will follow him
-                even into death.
+              - >-
+                You taught the Bastard how to fight, how to play the lute, how to survive. You will follow him even into death.
             difficulty: normal
             multiple: false
             starting_resources: 2
@@ -978,9 +1049,11 @@ zones:
               - campstarting
           - name: Mother
             slug: mother
-            intro: Counsel and support your son.
+            intro: >-
+              Counsel and support your son.
             description:
-              - Counsel and support your son.
+              - >-
+                Counsel and support your son.
             difficulty: normal
             multiple: false
             starting_resources: 2
@@ -992,9 +1065,11 @@ zones:
               - campstarting
           - name: Follower
             slug: follower
-            intro: Clanless, you follow the Bastard, as a warrior, a healer, a herder, or anything else.
+            intro: >-
+              Clanless, you follow the Bastard, as a warrior, a healer, a herder, or anything else.
             description:
-              - Clanless, you follow the Bastard, as a warrior, a healer, a herder, or anything else.
+              - >-
+                Clanless, you follow the Bastard, as a warrior, a healer, a herder, or anything else.
             difficulty: easy
             multiple: true
             weight: 3
@@ -1012,15 +1087,17 @@ zones:
         roles:
           - name: Lieutenant (Broken Spears Clan)
             slug: lieutenant-broken-spears-clan
-            intro: Glory for the Broken Spears!
+            intro: >-
+              Glory for the Broken Spears!
             description:
-              - Glory for the Broken Spears!
-              - Sort out your budding feud with the Windriders, muster your men, and attack Ravenheart.
-              - Follow the Bastard! He will make a good sovereign, the likes of which the Windlands have never
-                seen.
-              - "A tip: the best trick you have is the element of surprise, and food's hard to get. Raiding the
-                town or the fortress may be your best chance. If he falters, or doesn't put the Windriders in
-                their place... it may be in your best interest to take matters into your own hands."
+              - >-
+                Glory for the Broken Spears!
+              - >-
+                Sort out your budding feud with the Windriders, muster your men, and attack Ravenheart.
+              - >-
+                Follow the Bastard! He will make a good sovereign, the likes of which the Windlands have never seen.
+              - >-
+                A tip: the best trick you have is the element of surprise, and food's hard to get. Raiding the town or the fortress may be your best chance. If he falters, or doesn't put the Windriders in their place... it may be in your best interest to take matters into your own hands.
             difficulty: normal
             multiple: false
             starting_resources: 3
@@ -1035,10 +1112,13 @@ zones:
               - brokenspear
           - name: Master of Parties
             slug: master-of-parties
-            intro: Supply the Clan with tonics, sound the drums, and keep the men fighting!
+            intro: >-
+              Supply the Clan with tonics, sound the drums, and keep the men fighting!
             description:
-              - Supply the Clan with tonics, sound the drums, and keep the men fighting!
-              - You are the Lieutenant's right hand man.
+              - >-
+                Supply the Clan with tonics, sound the drums, and keep the men fighting!
+              - >-
+                You are the Lieutenant's right hand man.
             difficulty: normal
             multiple: false
             starting_resources: 2
@@ -1054,12 +1134,11 @@ zones:
               - brokenspear
           - name: Clansman (Broken Spears Clan)
             slug: clansman-broken-spears-clan
-            intro:
-              "A member of the Broken Spears: a warrior, a drug alchemist, a drummer, a healer, a fortune
-              teller, a herder, or simply a camp follower—the spouse or servant of one of the above."
+            intro: >-
+              A member of the Broken Spears: a warrior, a drug alchemist, a drummer, a healer, a fortune teller, a herder, or simply a camp follower—the spouse or servant of one of the above.
             description:
-              - "A member of the Broken Spears: a warrior, a drug alchemist, a drummer, a healer, a fortune teller,
-                a herder, or simply a camp follower—the spouse or servant of one of the above."
+              - >-
+                A member of the Broken Spears: a warrior, a drug alchemist, a drummer, a healer, a fortune teller, a herder, or simply a camp follower—the spouse or servant of one of the above.
             difficulty: easy
             multiple: true
             weight: 6
@@ -1078,13 +1157,15 @@ zones:
         roles:
           - name: Lieutenant (Windrider Clan)
             slug: lieutenant-windrider-clan
-            intro: Your ultimate task is at hand. Fulfill your destiny.
+            intro: >-
+              Your ultimate task is at hand. Fulfill your destiny.
             description:
-              - Your ultimate task is at hand. Fulfill your destiny.
-              - The Broken Spears clan cannot go unpunished for their slight.
-              - Ravenheart will be yours, but not on the Bastard's terms. If you let him gain control over the
-                Windriders, your culture, your leadership, your history will be gone. You, too, will become like
-                farmers—weak, and willing. Still, follow his orders; they're your best chance.
+              - >-
+                Your ultimate task is at hand. Fulfill your destiny.
+              - >-
+                The Broken Spears clan cannot go unpunished for their slight.
+              - >-
+                Ravenheart will be yours, but not on the Bastard's terms. If you let him gain control over the Windriders, your culture, your leadership, your history will be gone. You, too, will become like farmers—weak, and willing. Still, follow his orders; they're your best chance.
             difficulty: normal
             multiple: false
             starting_resources: 3
@@ -1098,10 +1179,13 @@ zones:
               - windrider
           - name: Ranger
             slug: ranger
-            intro: Track the enemy and ensure the plan comes to fruition.
+            intro: >-
+              Track the enemy and ensure the plan comes to fruition.
             description:
-              - Track the enemy and ensure the plan comes to fruition.
-              - You are the Lieutenant's right hand man.
+              - >-
+                Track the enemy and ensure the plan comes to fruition.
+              - >-
+                You are the Lieutenant's right hand man.
             difficulty: normal
             multiple: false
             starting_resources: 2
@@ -1118,12 +1202,11 @@ zones:
               - windrider
           - name: Clansman (Windrider Clan)
             slug: clansman-windrider-clan
-            intro:
-              "You are the essence of the Windlands: a warrior, a healer, a mentat, a scribe, an inventor-engineer,
-              a herder, or simply a camp follower—the spouse or servant of one of the above."
+            intro: >-
+              You are the essence of the Windlands: a warrior, a healer, a mentat, a scribe, an inventor-engineer, a herder, or simply a camp follower—the spouse or servant of one of the above.
             description:
-              - "You are the essence of the Windlands: a warrior, a healer, a mentat, a scribe, an inventor-engineer,
-                a herder, or simply a camp follower—the spouse or servant of one of the above."
+              - >-
+                You are the essence of the Windlands: a warrior, a healer, a mentat, a scribe, an inventor-engineer, a herder, or simply a camp follower—the spouse or servant of one of the above.
             difficulty: easy
             multiple: true
             weight: 6
@@ -1135,43 +1218,10 @@ zones:
             doc_elements:
               - campstarting
               - windrider
-      - name: Brigands
-        slug: brigands
-        starting_resources: 5
-        roles:
-          - name: Brigand Leader
-            slug: brigand-leader
-            intro: You raided a shipment on the way to the Fortress—well done!
-            description:
-              - You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
-            difficulty: normal
-            multiple: false
-            starting_resources: 3
-            starting_location: forest
-            leader: true
-            starting_tags:
-              - Fighting (Basic)
-            doc_elements:
-              - campstarting
-              - concealing
-          - name: Brigand
-            slug: brigand
-            intro: You raided a shipment on the way to the Fortress—well done!
-            description:
-              - You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
-            difficulty: easy
-            multiple: true
-            weight: 2
-            starting_resources: 2
-            starting_location: forest
-            starting_tags:
-              - Fighting (Basic)
-            doc_elements:
-              - campstarting
-              - concealing
   - name: Caves
     situation:
-      - "The Caves: Migrants make it to the Fortress from here."
+      - >-
+        The Caves: Migrants make it to the Fortress from here.
     factions:
       - name: The Company
         slug: the-company
@@ -1179,19 +1229,19 @@ zones:
         roles:
           - name: Merchant
             slug: merchant
-            intro: Make your fortune buying and selling Tags.
+            intro: >-
+              Make your fortune buying and selling Tags.
             description:
-              - Ravenheart is a great source of business and not much else. You wouldn’t dare put your heart here—the
-                place is doomed.
-              - You start with a huge amount of capital, invest it.
-              - "Your goal is to make as many Resources as you can by buying and selling Tags. You have a Supply
-                Depot in the caves: go there to request Tags by shuttle (it’ll cost you), and then sell them.
-                To sell Tags, simply message a GM explaining who’d like the tag and how much you’re selling it
-                for."
-              - Try your hand at usury. Lend loans with interest, and call on your Dockers to enforce them. That's
-                probably the easiest way to make serious bucks.
-              - If things ever get too dour, simply hop on your sponsor’s shuttle… if you can pay for it. Trip’s
-                30 ⬢ flat, pal.
+              - >-
+                Ravenheart is a great source of business and not much else. You wouldn't dare put your heart here—the place is doomed.
+              - >-
+                You start with a huge amount of capital, invest it.
+              - >-
+                Your goal is to make as many Resources as you can by buying and selling Tags. You have a Supply Depot in the caves: go there to request Tags by shuttle (it'll cost you), and then sell them. To sell Tags, simply message a GM explaining who'd like the tag and how much you're selling it for.
+              - >-
+                Try your hand at usury. Lend loans with interest, and call on your Dockers to enforce them. That's probably the easiest way to make serious bucks.
+              - >-
+                If things ever get too dour, simply hop on your sponsor's shuttle… if you can pay for it. Trip's 30 ⬢ flat, pal.
             difficulty: hard
             multiple: false
             starting_resources: 50
@@ -1204,10 +1254,11 @@ zones:
               - merchantlist
           - name: Docker
             slug: docker
-            intro: Serve the Merchant and get drunk during the night.
+            intro: >-
+              Serve the Merchant and get drunk during the night.
             description:
-              - Serve the Merchant and get drunk during the night. Maybe he’ll let you get a ride on his spaceship
-                if things ever get bad around here.
+              - >-
+                Serve the Merchant and get drunk during the night. Maybe he'll let you get a ride on his spaceship if things ever get bad around here.
             difficulty: easy
             multiple: true
             weight: 2
@@ -1222,9 +1273,11 @@ zones:
         roles:
           - name: Migrant
             slug: migrant
-            intro: Make it to the fortress.
+            intro: >-
+              Make it to the fortress.
             description:
-              - Make it to the fortress.
+              - >-
+                Make it to the fortress.
             difficulty: easy
             multiple: true
             weight: unlimited
@@ -1234,9 +1287,11 @@ zones:
             doc_elements: []
           - name: Mercenary
             slug: mercenary
-            intro: Delve into the Caves for pay.
+            intro: >-
+              Delve into the Caves for pay.
             description:
-              - Delve into the Caves for pay.
+              - >-
+                Delve into the Caves for pay.
             difficulty: normal
             multiple: true
             weight: 2

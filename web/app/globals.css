@@ -1699,10 +1699,9 @@ input[type="radio"]:disabled {
 
 
 /* ---------------------------------------------------------------------------
-   Map panel (web/app/(app)/map). A pointcrawl laid over one of three grounds:
-   the forest photograph, the drawn plate, or nothing at all. Colours come from
-   the --map-* tokens above rather than from the theme, for the reason stated
-   there.
+   Map panel (web/app/(app)/map). A pointcrawl laid over one of two grounds:
+   nothing at all (Bare), or the drawn plate. Colours come from the --map-*
+   tokens above rather than from the theme, for the reason stated there.
    --------------------------------------------------------------------------- */
 
 /* The ground picker is a .segmented group — see the button block above. */
