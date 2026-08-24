@@ -10,12 +10,11 @@
 // promise a free hop the server then charges for.
 
 // The three levels of the Depths, deepening in order. They sit in the Caves
-// zone alongside Customs and the Merchant's Depot, so the ordinary
-// same-zone-is-free rule would make the whole descent a single turn's
-// walk. It isn't: each level down is its own Move. This is the one place
-// in the game where two Locations in one Zone cost a turn to move between,
-// and it is deliberate rather than a fallout of how the zones are drawn —
-// going deeper is supposed to hurt.
+// zone alongside Customs, so the ordinary same-zone-is-free rule would make
+// the whole descent a single turn's walk. It isn't: each level down is its
+// own Move. This is the one place in the game where two Locations in one
+// Zone cost a turn to move between, and it is deliberate rather than a
+// fallout of how the zones are drawn — going deeper is supposed to hurt.
 const DEPTHS_SLUGS = new Set(["caverns", "railroad", "aberrant-pits"]);
 
 function isTravelFree({ fromSlug, fromZoneId, toSlug, toZoneId }) {

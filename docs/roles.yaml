@@ -1259,7 +1259,7 @@ zones:
               - >-
                 You start with a huge amount of capital, invest it.
               - >-
-                Your goal is to make as many Resources as you can by buying and selling Tags. You have a Supply Depot in the caves: go there to request Tags by shuttle (it'll cost you), and then sell them. To sell Tags, simply message a GM explaining who'd like the tag and how much you're selling it for.
+                Your goal is to make as many Resources as you can by buying and selling Tags. Your Supply Depot sits in Customs, down in the caves: go there to request Tags by shuttle (it'll cost you), and then sell them. To sell Tags, simply message a GM explaining who'd like the tag and how much you're selling it for.
               - >-
                 Try your hand at usury. Lend loans with interest, and call on your Dockers to enforce them. That's probably the easiest way to make serious bucks.
               - >-
@@ -1267,7 +1267,7 @@ zones:
             difficulty: hard
             multiple: false
             starting_resources: 50
-            starting_location: merchants-depot
+            starting_location: customs
             leader: true
             starting_tags:
               - Literate
@@ -1285,7 +1285,7 @@ zones:
             multiple: true
             weight: 2
             starting_resources: 2
-            starting_location: merchants-depot
+            starting_location: customs
             starting_tags: []
             doc_elements:
               - townstarting
