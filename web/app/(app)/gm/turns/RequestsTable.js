@@ -10,8 +10,12 @@ import CharacterLink from "@/app/components/CharacterLink";
 import ResourceDeltaCell from "./ResourceDeltaCell";
 import { EditIcon, EyeIcon } from "@/app/components/icons";
 import FactionLink from "@/app/components/FactionLink";
+import ZoneChip from "@/app/components/ZoneChip";
+import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
 
-const COL_COUNT = 11;
+// Bumped for Zone and Reviewed by. Spans MessageComposerRow as well as the
+// empty row, so a stale value misaligns the inline composer silently.
+const COL_COUNT = 13;
 
 // Passed is the untouched default and stays plain; both GM verdicts are red,
 // because either one means "this didn't stand as the player made it".
@@ -35,6 +39,9 @@ function awaitingKill(row) {
 
 const FILTER_DEFS = [
   { key: "turn", label: "Turn", value: (r) => r.turnLabel },
+  // Ahead of Faction: a zone contains factions. This is the faction's zone
+  // seat, not where the character is standing.
+  { key: "zone", label: "Zone", value: (r) => r.factionZoneName },
   { key: "faction", label: "Faction", value: (r) => r.factionName },
   { key: "type", label: "Type", value: (r) => r.typeLabel },
   { key: "status", label: "Status", value: (r) => r.statusLabel },
@@ -48,7 +55,7 @@ const SEARCH_FIELDS = [
   (r) => r.gmNotes,
 ];
 
-export default function RequestsTable({ requests, onReview, onView }) {
+export default function RequestsTable({ requests, myZoneName, onReview, onView }) {
   const [messagingId, setMessagingId] = useState(null);
   const filterDefs = useMemo(() => FILTER_DEFS, []);
   const searchFields = useMemo(() => SEARCH_FIELDS, []);
@@ -58,6 +65,9 @@ export default function RequestsTable({ requests, onReview, onView }) {
       filterDefs,
       searchFields,
       initialSort: { key: "createdAtMs", dir: "desc" },
+      // A zone-GM opens on their own zone; the Mine/All toggle and the Zone
+      // select both clear it. Nothing is hidden server-side.
+      initialFilters: myZoneName ? { zone: myZoneName } : undefined,
     });
 
   return (
@@ -70,9 +80,11 @@ export default function RequestsTable({ requests, onReview, onView }) {
         query={query}
         setQuery={setQuery}
         searchLabel="Search requests"
-      />
+      >
+        <ZoneScopeToggle myZoneName={myZoneName} filters={filters} setFilters={setFilters} />
+      </FilterBar>
 
-      <TableScroll minWidth="1100px">
+      <TableScroll minWidth="1300px">
         <thead>
           <tr>
             <th scope="col" className="col-fit">
@@ -87,6 +99,7 @@ export default function RequestsTable({ requests, onReview, onView }) {
             <SortHeader label="Turn" sortKey="turnNumber" sort={sort} onSort={toggleSort} />
             <SortHeader label="Character" sortKey="characterName" sort={sort} onSort={toggleSort} />
             <SortHeader label="Discord" sortKey="discordUsername" sort={sort} onSort={toggleSort} />
+            <SortHeader label="Zone" sortKey="factionZoneName" sort={sort} onSort={toggleSort} />
             <SortHeader label="Faction" sortKey="factionName" sort={sort} onSort={toggleSort} />
             <SortHeader label="Type" sortKey="typeLabel" sort={sort} onSort={toggleSort} />
             <th scope="col" className="col-prose">
@@ -94,6 +107,7 @@ export default function RequestsTable({ requests, onReview, onView }) {
             </th>
             <SortHeader label="Status" sortKey="statusLabel" sort={sort} onSort={toggleSort} />
             <SortHeader label="Resources" sortKey="resourceDelta" sort={sort} onSort={toggleSort} />
+            <SortHeader label="Reviewed by" sortKey="reviewedByUsername" sort={sort} onSort={toggleSort} />
           </tr>
         </thead>
         <tbody>
@@ -119,6 +133,9 @@ export default function RequestsTable({ requests, onReview, onView }) {
                   {row.discordUsername}
                 </td>
                 <td className="whitespace-nowrap">
+                  <ZoneChip zoneName={row.factionZoneName} />
+                </td>
+                <td className="whitespace-nowrap">
                   <FactionLink factionId={row.factionId} name={row.factionName || "—"} />
                 </td>
                 <td className="whitespace-nowrap">
@@ -137,6 +154,7 @@ export default function RequestsTable({ requests, onReview, onView }) {
                   </StatusPill>
                 </td>
                 <ResourceDeltaCell value={row.resourceDelta} />
+                <td className="whitespace-nowrap text-muted">{row.reviewedByUsername || "—"}</td>
               </tr>
               {messagingId === row.characterId && (
                 <MessageComposerRow

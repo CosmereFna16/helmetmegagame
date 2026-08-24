@@ -4,16 +4,20 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { useTableState, SortHeader, FilterBar, TableScroll } from "@/app/components/DataTable";
 import Pager from "@/app/components/Pager";
+import ZoneChip from "@/app/components/ZoneChip";
+import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
 
-const COL_COUNT = 3;
+const COL_COUNT = 4;
 
-// Nothing to filter down to here — a conversation has no zone or faction of
-// its own — so the bar carries search alone.
-const FILTER_DEFS = [];
+// A conversation is keyed on a Discord user rather than a character, so it has
+// no zone of its own — but the player behind it does, through their
+// character's faction. That is resolved in page.js and flattened onto the row,
+// which is what gives this bar its first filter.
+const FILTER_DEFS = [{ key: "zone", label: "Zone", value: (r) => r.factionZoneName }];
 
 const SEARCH_FIELDS = [(r) => r.name, (r) => r.preview];
 
-export default function ConversationsTable({ conversations }) {
+export default function ConversationsTable({ conversations, myZoneName }) {
   const filterDefs = useMemo(() => FILTER_DEFS, []);
   const searchFields = useMemo(() => SEARCH_FIELDS, []);
   const { query, setQuery, filters, setFilters, sort, toggleSort, options, pageRows, page, setPage, total, totalPages } =
@@ -22,6 +26,7 @@ export default function ConversationsTable({ conversations }) {
       filterDefs,
       searchFields,
       initialSort: { key: "lastAtMs", dir: "desc" },
+      initialFilters: myZoneName ? { zone: myZoneName } : undefined,
     });
 
   return (
@@ -34,12 +39,15 @@ export default function ConversationsTable({ conversations }) {
         query={query}
         setQuery={setQuery}
         searchLabel="Search conversations"
-      />
+      >
+        <ZoneScopeToggle myZoneName={myZoneName} filters={filters} setFilters={setFilters} />
+      </FilterBar>
 
       <TableScroll>
         <thead>
           <tr>
             <SortHeader label="Player" sortKey="name" sort={sort} onSort={toggleSort} />
+            <SortHeader label="Zone" sortKey="factionZoneName" sort={sort} onSort={toggleSort} />
             <SortHeader label="Last message" sortKey="lastAtMs" sort={sort} onSort={toggleSort} />
             <SortHeader label="Messages" sortKey="count" sort={sort} onSort={toggleSort} />
           </tr>
@@ -51,6 +59,9 @@ export default function ConversationsTable({ conversations }) {
                 <Link href={`/gm/messages/${row.discordUserId}`} className="menu-item">
                   {row.name}
                 </Link>
+              </td>
+              <td className="whitespace-nowrap">
+                <ZoneChip zoneName={row.factionZoneName} />
               </td>
               <td className="max-w-md truncate">{row.preview}</td>
               <td>

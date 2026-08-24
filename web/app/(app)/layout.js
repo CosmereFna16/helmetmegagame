@@ -30,9 +30,13 @@ const GM_NAV = [
   // first five are what the mobile bar shows, and Adjudicate/Players earn
   // those slots ahead of the Map.
   { href: "/map", label: "Map", icon: "map" },
-  { href: "/gm/audit", label: "Audit", icon: "audit" },
 ];
 
+// Superadmin-only, appended together below. The Audit log used to sit in
+// GM_NAV; with five GMs it is a record of them rather than a tool for them,
+// and Gamemasters — which seats them — is the master's page by definition.
+const GAMEMASTERS_NAV_ITEM = { href: "/gm/gamemasters", label: "GMs", icon: "gamemasters" };
+const AUDIT_NAV_ITEM = { href: "/gm/audit", label: "Audit", icon: "audit" };
 const DEV_NAV_ITEM = { href: "/gm/dev", label: "Dev", icon: "dev" };
 const LIFEWEB_NAV_ITEM = { href: "/lifeweb", label: "Lifeweb", icon: "lifeweb" };
 const ARCHIVE_NAV_ITEM = { href: "/archive", label: "Archive", icon: "archive" };
@@ -60,7 +64,9 @@ async function loadNavItems(discordUserId) {
   // /character's creation gate.
   const withArchive =
     gm || config?.archiveVisible ? [...withLifeweb, ARCHIVE_NAV_ITEM] : withLifeweb;
-  return isSuperadmin(discordUserId) ? [...withArchive, DEV_NAV_ITEM] : withArchive;
+  return isSuperadmin(discordUserId)
+    ? [...withArchive, GAMEMASTERS_NAV_ITEM, AUDIT_NAV_ITEM, DEV_NAV_ITEM]
+    : withArchive;
 }
 
 export default async function AppLayout({ children }) {

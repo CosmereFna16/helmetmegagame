@@ -113,6 +113,24 @@
   --danger: #ee7f6b;
   --row-hover: rgba(255, 255, 255, 0.05);
   --shadow-color: rgba(0, 0, 0, 0.45);
+
+  /* The zone code. Colour-picked from the Plate map
+     (public/assets/Map_Basic.png) so the four zones wear the palette the map
+     already drew them in: the castle's red roofs, the town's thatch, the
+     olive scrub of the Windlands, mountain rock for the Caves.
+
+     These are FILLS ONLY -- the 3px rule on a .zone-chip, never a text
+     colour -- so audit-contrast.js gates them at 3.0 against --surface
+     rather than AA 4.5. None of them would ever clear 4.5; do not spend one
+     on a label.
+
+     Fortress deviates from the map here: the roof terracotta #9c4132
+     measures 2.00 against this surface, so it is lifted in L with hue and
+     saturation held. Do not "fix" it back to the map value. */
+  --zone-fortress: #c7604f;
+  --zone-town: #998d6b;
+  --zone-windlands: #7f8c64;
+  --zone-caves: #939d9e;
 }
 
 /* Dawn — lamps up. Not daylight: a warmer, lifted dark with brighter ember. */
@@ -134,6 +152,14 @@
   --danger: #e87a62;
   --row-hover: rgba(255, 255, 255, 0.05);
   --shadow-color: rgba(0, 0, 0, 0.4);
+
+  /* Zone code -- see the dusk block for what these are and why they are not
+     gated at AA. Fortress is lifted again (#9c4132 measures 2.12 on this
+     surface); the other three ship the map hex untouched. */
+  --zone-fortress: #c45947;
+  --zone-town: #998d6b;
+  --zone-windlands: #7f8c64;
+  --zone-caves: #939d9e;
 }
 
 /* Limestone — the light-theme backup, kept for comparison rather than wired
@@ -167,6 +193,14 @@
   --danger: #9b3324;
   --row-hover: rgba(0, 0, 0, 0.035);
   --shadow-color: rgba(40, 34, 28, 0.18);
+
+  /* Zone code -- see the dusk block. On a near-white surface the deviation
+     inverts: Fortress ships the map hex at full strength (6.26), and it is
+     CAVES that has to darken, its stone grey #939d9e measuring 2.66 here. */
+  --zone-fortress: #9c4132;
+  --zone-town: #998d6b;
+  --zone-windlands: #7f8c64;
+  --zone-caves: #838e90;
 }
 
 /* Bridge the tokens into Tailwind. Without this the app runs two disconnected
@@ -978,6 +1012,28 @@ input[type="radio"]:disabled {
    The locked state is for a document the reader may not open. It stays a chip
    rather than degrading to plain text, so the reference still reads as one:
    you can see a paper exists and that it is not yours. */
+/* The zone chip. Colour rides on a data attribute reading a token, not an
+   inline style: ChipLabel.js sets borderLeftColor inline only because a
+   TagGroup colour is a freeform hex out of the DB with no token to name. The
+   zone set is closed and known at build time, so it belongs in the stylesheet
+   -- which is also the only way audit-contrast.js can see it. */
+.zone-chip {
+  border-left-width: 3px;
+  border-left-color: var(--border);
+}
+
+.zone-chip[data-zone="fortress"] { border-left-color: var(--zone-fortress); }
+.zone-chip[data-zone="town"] { border-left-color: var(--zone-town); }
+.zone-chip[data-zone="windlands"] { border-left-color: var(--zone-windlands); }
+.zone-chip[data-zone="caves"] { border-left-color: var(--zone-caves); }
+
+/* No faction at all -- not a fifth zone. Reads as absent rather than as a
+   colour nobody has learned yet. */
+.zone-chip[data-zone="none"] {
+  color: var(--muted);
+  border-left-style: dashed;
+}
+
 .doc-chip {
   gap: var(--sp-1);
 }

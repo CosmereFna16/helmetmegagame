@@ -42,6 +42,7 @@ never enough to change code with.
 | [`MAP.md`](docs/systemdocs/MAP.md) | You're touching geography, travel cost, or the `/map` panel |
 | [`PROXYING.md`](docs/systemdocs/PROXYING.md) | You're touching how a player's message becomes a character's — proxying, avatars, reactions, `/conceal`, mentions, nicknames, notes |
 | [`FACTIONS.md`](docs/systemdocs/FACTIONS.md) | You're touching factions, the Silo, or Leader/Treasurer authority |
+| [`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) | You're touching the zone colour code, a GM's zone seat, `/gm/gamemasters`, or who can see the audit log |
 | [`PRODUCTION.md`](docs/systemdocs/PRODUCTION.md) | You're touching `/hunt` `/fish` `/farm` `/herd`, payouts, or resource shorthand |
 | [`PARTY-SIZE.md`](docs/systemdocs/PARTY-SIZE.md) | You're touching the Cult of Bacchus's party goals or the `{partysize:N}` token |
 | [`ARCHIVE.md`](docs/systemdocs/ARCHIVE.md) | You're touching the transcript or `/archive` |
@@ -201,6 +202,17 @@ env-configured admin role. `Faction` is **not** one of them (`FACTIONS.md` §1).
 | **Player role** | `PLAYER_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may create a character, paired with `GameConfig.openToPlayers` (`CHARACTERS.md` §4b). |
 | **Cursed role** | `DISCORD_CURSED_ROLE_ID` env var | What a player may re-roll as after a death (`CHARACTERS.md` §4). |
 | **Turn-ping role** | `DISCORD_TURN_PING_ROLE_ID` env var | Plain opt-in notification, toggled from `/character`. |
+
+One more gate exists and is **not** a Discord role — and is the only **soft**
+one in the app. `GmAssignment` (keyed on `discordUserId`, set from
+`/gm/gamemasters`) seats each of the four zone-GMs in a Zone. It decides which
+zone that GM's tables *open* on and nothing else: no query is scoped by it and
+no row is hidden, because an Opposed Move crosses zones by nature. Every other
+row in the table above is enforcement; this one is ergonomics. See
+[`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) before hardening it.
+
+`/gm/audit` and `/gm/gamemasters` are **superadmin-only**, not GM — with five
+GMs the audit log is a record *of* them rather than a tool *for* them.
 
 **Why two role IDs live in code rather than the environment:** a role ID is not
 a secret (anyone in the guild can read it) and Lifeweb is single-guild, so there

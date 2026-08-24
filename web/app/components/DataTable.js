@@ -20,9 +20,22 @@ import { useCallback, useMemo, useState } from "react";
 
 const DEFAULT_PAGE_SIZE = 50;
 
-export function useTableState({ rows, searchFields, filterDefs, initialSort, pageSize = DEFAULT_PAGE_SIZE }) {
+// `initialFilters` seeds the filter state once at mount, exactly as
+// `initialSort` already does — which is the whole reason it is an *initial*
+// value and not a synced prop. The GM tables use it to open on the viewer's
+// own zone; making it re-apply on prop change would drag a GM who chose "All"
+// back to their own zone on every revalidatePath, i.e. after every
+// adjudication.
+export function useTableState({
+  rows,
+  searchFields,
+  filterDefs,
+  initialSort,
+  initialFilters,
+  pageSize = DEFAULT_PAGE_SIZE,
+}) {
   const [query, setQuery] = useState("");
-  const [filters, setFilters] = useState({});
+  const [filters, setFilters] = useState(initialFilters ?? {});
   const [sort, setSort] = useState(initialSort ?? { key: null, dir: "desc" });
   const [page, setPage] = useState(1);
 

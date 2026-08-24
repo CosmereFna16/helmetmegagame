@@ -2,6 +2,7 @@ import { EmptyRow } from "@/app/components/EmptyState";
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
+import { isSuperadmin } from "@/lib/superadmin";
 import CharacterLink from "../../../components/CharacterLink";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import { TableScroll } from "@/app/components/DataTable";
@@ -33,9 +34,14 @@ function groupCharactersByFaction(characters) {
 }
 
 export default async function AuditLogPage({ searchParams }) {
+  // Superadmin, not GM. With five GMs the log stops being a shared work
+  // surface and becomes a record OF them — including what each of them did to
+  // their own zone — so it belongs to the master alone. listGuildMembers()
+  // below is still needed to resolve actor names for the search.
   const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   if (!gm) redirect("/character");
+  if (!isSuperadmin(session.discordUserId)) redirect("/gm/players");
 
   const params = await searchParams;
   const actionType = params?.actionType?.toString().trim() || "";

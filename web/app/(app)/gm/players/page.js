@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
+import { getMyZone } from "@/lib/gmZone";
 import PlayersTable from "./PlayersTable";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 
@@ -25,7 +26,10 @@ export default async function PlayersPage() {
 
   const characters = await prisma.character.findMany({
     orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
-    include: { faction: true, zone: true },
+    // Two different zones, and the difference matters: faction.zone is the
+    // zone seat this character answers to, `zone` is where they are physically
+    // standing. The table shows both, under "Zone" and "Standing in".
+    include: { faction: { include: { zone: true } }, zone: true },
     // Safety net against unbounded growth, not a real limit — far above any
     // realistic roster size for this game (100+ players).
     take: 1000,
@@ -35,6 +39,7 @@ export default async function PlayersPage() {
   // discordUserId from the guild's member list rather than included above.
   const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
   const members = await listGuildMembers();
+  const myZone = await getMyZone();
   const cursedUserIds = new Set(
     cursedRoleId ? members.filter((m) => m.roles.includes(cursedRoleId)).map((m) => m.id) : [],
   );
@@ -49,12 +54,14 @@ export default async function PlayersPage() {
           roleTitle: c.roleTitle,
           factionId: c.factionId,
           factionName: c.faction?.name ?? "",
+          factionZoneName: c.faction?.zone?.name ?? "",
           zoneName: c.zone?.name ?? "",
           status: c.status,
           cursed: cursedUserIds.has(c.discordUserId),
           resources: c.resources,
         }))}
         tags={tags}
+        myZoneName={myZone?.name ?? null}
       />
     </PageShell>
   );

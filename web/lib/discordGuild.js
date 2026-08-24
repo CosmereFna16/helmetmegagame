@@ -141,7 +141,16 @@ async function fetchGuildMembers() {
 
     if (!res.ok) return [];
     const members = await res.json();
-    return members.map((m) => ({ id: m.user.id, username: m.user.username, roles: m.roles ?? [] }));
+    // globalName and avatar are here for /gm/gamemasters, the app's only
+    // surface that shows a Discord identity rather than a character's.
+    // Additive — every existing consumer reads by key.
+    return members.map((m) => ({
+      id: m.user.id,
+      username: m.user.username,
+      globalName: m.user.global_name ?? null,
+      avatar: m.user.avatar ?? null,
+      roles: m.roles ?? [],
+    }));
   } catch {
     return [];
   }
@@ -206,6 +215,15 @@ export function isCursed(member) {
   const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
   if (!member || !cursedRoleId) return false;
   return member.roles?.includes(cursedRoleId) ?? false;
+}
+
+// Everyone holding the GM role, for the Gamemasters roster. Kept here beside
+// isGm so the role check is written once rather than re-derived at the page.
+export async function listGmMembers() {
+  const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
+  if (!gmRoleId) return [];
+  const members = await listGuildMembers();
+  return members.filter((m) => m.roles.includes(gmRoleId));
 }
 
 // Shared auth+role lookup for both pages (which redirect on failure) and

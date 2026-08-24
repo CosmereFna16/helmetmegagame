@@ -4,6 +4,7 @@ import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requests";
 import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel } from "@/lib/moves";
 import { getOpenTurn } from "@/lib/turn";
+import { getMyZone } from "@/lib/gmZone";
 import AdjudicateTabs from "./AdjudicateTabs";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 
@@ -107,14 +108,19 @@ export default async function TurnsPage({ searchParams }) {
 
   const { tab } = (await searchParams) ?? {};
 
-  const [actions, requests, members, openTurn] = await Promise.all([
+  const [actions, requests, members, openTurn, myZone] = await Promise.all([
     prisma.action.findMany({
       orderBy: { createdAt: "desc" },
       take: HISTORY_LIMIT,
       include: {
         character: {
           include: {
-            faction: true,
+            // faction.zone is the ZONE SEAT this row answers to — the zone the
+            // character's faction is keyed to. `zone` on the next line is a
+            // different thing entirely: where they are physically standing,
+            // used only for the panel's location label. A Windlander in Town
+            // is still a Windlands row.
+            faction: { include: { zone: true } },
             zone: true,
             location: true,
             // requirementSkills must be named — see the same include in
@@ -132,24 +138,54 @@ export default async function TurnsPage({ searchParams }) {
     prisma.request.findMany({
       orderBy: { createdAt: "desc" },
       take: HISTORY_LIMIT,
-      include: { character: { include: { faction: true } }, turn: true },
+      include: { character: { include: { faction: { include: { zone: true } } } }, turn: true },
     }),
     listGuildMembers(),
     // Only for the tag-expiry countdown in MovePanel: a row's own turn number
     // is the turn it was filed on, which is not what "2 turns left" is
     // measured against. cache()-deduped, so this costs nothing.
     getOpenTurn(),
+    getMyZone(),
   ]);
 
   const usernameById = new Map(members.map((m) => [m.id, m.username]));
   const nameFor = (c) => usernameById.get(c.discordUserId) ?? c.discordUserId;
   const now = new Date();
 
+  // What is still waiting in the viewer's own zone. Counted over the arrays
+  // already loaded rather than with two more queries — which means it is
+  // "waiting in the last 500 of each", not a true total. That is right while
+  // the game is live and wrong after a long backlog; if it ever matters,
+  // replace it with prisma.action.count/request.count filtered on
+  // character.faction.zoneId.
+  //
+  // A Move that a GM currently holds the lock on reads as "In Progress" and
+  // drops out on its own, which is the behaviour you want: it is being dealt
+  // with. A Request has no lock, so reviewedAt is the only signal there is —
+  // RequestStatus has no "unreviewed" value.
+  const mineInZone = (row) => myZone && row.character.faction?.zone?.name === myZone.name;
+  const awaiting = myZone
+    ? {
+        moves: actions.filter(
+          (a) => mineInZone(a) && ["Open", "Waiting for Opponents"].includes(statusLabel(a, now)),
+        ).length,
+        requests: requests.filter((r) => mineInZone(r) && r.reviewedAt == null).length,
+      }
+    : null;
+
+  const awaitingLine =
+    awaiting && (awaiting.moves || awaiting.requests)
+      ? `${awaiting.moves} Move${awaiting.moves === 1 ? "" : "s"} and ${awaiting.requests} Request${awaiting.requests === 1 ? "" : "s"} open in ${myZone.name}`
+      : awaiting
+        ? `Nothing open in ${myZone.name}`
+        : undefined;
+
   return (
     <PageShell width="wide">
-      <PageHeader title="Adjudicate" />
+      <PageHeader title="Adjudicate" subtitle={awaitingLine} />
       <AdjudicateTabs
         initialTab={tab}
+        myZoneName={myZone?.name ?? null}
         moves={actions.map((a) => ({
           id: a.id,
           characterId: a.characterId,
@@ -157,6 +193,7 @@ export default async function TurnsPage({ searchParams }) {
           discordUsername: nameFor(a.character),
           factionName: a.character.faction?.name ?? "",
           factionId: a.character.factionId ?? null,
+          factionZoneName: a.character.faction?.zone?.name ?? "",
           turnNumber: a.turn?.number ?? null,
           turnLabel: turnLabel(a.turn),
           description: truncate(a.description, DESCRIPTION_LIMIT),
@@ -190,6 +227,7 @@ export default async function TurnsPage({ searchParams }) {
           discordUsername: nameFor(r.character),
           factionName: r.character.faction?.name ?? "",
           factionId: r.character.factionId ?? null,
+          factionZoneName: r.character.faction?.zone?.name ?? "",
           turnNumber: r.turn?.number ?? null,
           turnLabel: turnLabel(r.turn),
           type: r.type,
@@ -201,6 +239,13 @@ export default async function TurnsPage({ searchParams }) {
           effect: r.effect ?? {},
           gmNotes: r.gmNotes ?? "",
           createdAtMs: r.createdAt.getTime(),
+          // Written by resolveRequestImpl since the day Requests landed, and
+          // never shown until now. With five GMs on one queue, "has someone
+          // already picked this up" is the question the table has to answer.
+          reviewedByUsername: r.reviewedByDiscordUserId
+            ? (usernameById.get(r.reviewedByDiscordUserId) ?? r.reviewedByDiscordUserId)
+            : null,
+          reviewedAtLabel: r.reviewedAt ? r.reviewedAt.toISOString().slice(0, 16).replace("T", " ") : null,
         }))}
       />
     </PageShell>

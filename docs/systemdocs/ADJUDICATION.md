@@ -40,8 +40,8 @@ than a round trip. The machinery is `DataTable.js#useTableState`, plus
 Changing a filter, the search or the sort resets you to page 1, done in the
 setters rather than an effect so it lands in the same render.
 
-**Moves tab** — Turn, Character, Discord username, Faction, Move, Status, GM
-Notes. The Move cell wraps and is truncated to 100 characters, with Kind,
+**Moves tab** — Turn, Character, Discord username, **Zone**, Faction, Move,
+Status, Resources, GM Notes, **Solved by**. The Move cell wraps and is truncated to 100 characters, with Kind,
 Opposed and the dice result on a second muted line. Status colours:
 
 | Status | Colour |
@@ -51,7 +51,9 @@ Opposed and the dice result on a second muted line. Status colours:
 | Waiting for Opponents / In Progress | `var(--warning)` |
 | Solved | `var(--positive)` |
 
-**Requests tab** — the same shell with Type and Reason in place of Move.
+**Requests tab** — the same shell with Type and Reason in place of Move, and
+**Reviewed by** in place of Solved by (Review is the Request verb everywhere in
+this UI; Solved is Move vocabulary bound to a `MoveReviewStatus` value).
 `Passed` is plain body text; **both** GM verdicts, `Edited` and `Undone`, are
 `var(--accent)`, because either one means the request did not stand as the
 player made it.
@@ -66,6 +68,26 @@ Every character name is a `CharacterLink` into the GM's character editor, and a
 when it moved none). The composer reuses
 `sendGmMessage` from `web/app/(app)/gm/actions.js` rather than opening a modal
 over a table the GM is mid-scan.
+
+### Zone, and whose queue this is
+
+Both tables carry a **Zone** column and filter, and a **Mine / All** toggle.
+The zone shown is the one the character's **faction** is keyed to
+(`Faction.zoneId`) — a Windlander in Town is a Windlands row — never where they
+are standing. With four zone-GMs sharing one queue, a GM's tables **open**
+pre-filtered to their own seat, and one click clears it. Nothing is scoped
+server-side: an Opposed Move crosses zones by nature. The page header also
+counts what is still waiting in your zone, over the loaded 500 rather than as a
+true total.
+
+A **Solved by** / **Reviewed by** column answers the question the panel could
+not: whether one of the other three has already picked this up. Both columns
+read `reviewedByDiscordUserId`, which has been written since these tables
+existed — the Request one was simply never shown. It complements the Move lock
+below rather than replacing it: the lock says *someone is in this right now*,
+the stamp says *someone already finished it*.
+
+Full detail in [`GAMEMASTERS.md`](GAMEMASTERS.md).
 
 ## 3. The Request panel
 

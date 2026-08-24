@@ -10,8 +10,13 @@ import CharacterLink from "@/app/components/CharacterLink";
 import ResourceDeltaCell from "./ResourceDeltaCell";
 import { ScaleIcon, EyeIcon } from "@/app/components/icons";
 import FactionLink from "@/app/components/FactionLink";
+import ZoneChip from "@/app/components/ZoneChip";
+import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
 
-const COL_COUNT = 11;
+// Bumped for Zone and Solved by. This is load-bearing beyond the empty row:
+// MessageComposerRow spans it, so getting it wrong misaligns the inline
+// composer with no error anywhere.
+const COL_COUNT = 13;
 
 // Open is deliberately plain body text, not a colour — it's the default
 // state of every Move and colouring it would make the whole table shout.
@@ -29,6 +34,9 @@ const STATUS_TONES = {
 
 const FILTER_DEFS = [
   { key: "turn", label: "Turn", value: (r) => r.turnLabel },
+  // Ahead of Faction, because a zone contains factions. This is the faction's
+  // zone seat, not where the character is standing.
+  { key: "zone", label: "Zone", value: (r) => r.factionZoneName },
   { key: "faction", label: "Faction", value: (r) => r.factionName },
   { key: "kind", label: "Kind", value: (r) => r.kindLabel },
   { key: "opposed", label: "Opposed", value: (r) => (r.opposed ? "Yes" : "No") },
@@ -37,7 +45,7 @@ const FILTER_DEFS = [
 
 const SEARCH_FIELDS = [(r) => r.characterName, (r) => r.discordUsername, (r) => r.description, (r) => r.gmNotes];
 
-export default function MovesTable({ moves, onAdjudicate, onView }) {
+export default function MovesTable({ moves, myZoneName, onAdjudicate, onView }) {
   const [messagingId, setMessagingId] = useState(null);
   const filterDefs = useMemo(() => FILTER_DEFS, []);
   const searchFields = useMemo(() => SEARCH_FIELDS, []);
@@ -47,6 +55,9 @@ export default function MovesTable({ moves, onAdjudicate, onView }) {
       filterDefs,
       searchFields,
       initialSort: { key: "turnNumber", dir: "desc" },
+      // A zone-GM opens on their own zone. Soft: the Zone select and the
+      // Mine/All toggle both clear it, and nothing was hidden server-side.
+      initialFilters: myZoneName ? { zone: myZoneName } : undefined,
     });
 
   return (
@@ -59,9 +70,11 @@ export default function MovesTable({ moves, onAdjudicate, onView }) {
         query={query}
         setQuery={setQuery}
         searchLabel="Search moves"
-      />
+      >
+        <ZoneScopeToggle myZoneName={myZoneName} filters={filters} setFilters={setFilters} />
+      </FilterBar>
 
-      <TableScroll minWidth="1100px">
+      <TableScroll minWidth="1300px">
         <thead>
           <tr>
             <th scope="col" className="col-fit">
@@ -76,6 +89,7 @@ export default function MovesTable({ moves, onAdjudicate, onView }) {
             <SortHeader label="Turn" sortKey="turnNumber" sort={sort} onSort={toggleSort} />
             <SortHeader label="Character" sortKey="characterName" sort={sort} onSort={toggleSort} />
             <SortHeader label="Discord" sortKey="discordUsername" sort={sort} onSort={toggleSort} />
+            <SortHeader label="Zone" sortKey="factionZoneName" sort={sort} onSort={toggleSort} />
             <SortHeader label="Faction" sortKey="factionName" sort={sort} onSort={toggleSort} />
             <th scope="col" className="col-prose">
               Move
@@ -85,6 +99,7 @@ export default function MovesTable({ moves, onAdjudicate, onView }) {
             <th scope="col" style={{ minWidth: "12rem" }}>
               GM Notes
             </th>
+            <SortHeader label="Solved by" sortKey="reviewedByUsername" sort={sort} onSort={toggleSort} />
           </tr>
         </thead>
         <tbody>
@@ -110,6 +125,9 @@ export default function MovesTable({ moves, onAdjudicate, onView }) {
                   {row.discordUsername}
                 </td>
                 <td className="whitespace-nowrap">
+                  <ZoneChip zoneName={row.factionZoneName} />
+                </td>
+                <td className="whitespace-nowrap">
                   <FactionLink factionId={row.factionId} name={row.factionName || "—"} />
                 </td>
                 <td>
@@ -127,6 +145,7 @@ export default function MovesTable({ moves, onAdjudicate, onView }) {
                 </td>
                 <ResourceDeltaCell value={row.resourceDelta} />
                 <td className="text-muted">{row.gmNotes || "—"}</td>
+                <td className="whitespace-nowrap text-muted">{row.reviewedByUsername || "—"}</td>
               </tr>
               {messagingId === row.characterId && (
                 <MessageComposerRow

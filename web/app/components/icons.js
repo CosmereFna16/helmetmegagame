@@ -27,6 +27,18 @@ export function AuditIcon(props) {
   );
 }
 
+// The GM roster. A keyed seat -- a person marked with a pin -- rather than
+// another set of faces, so it does not read as PlayersIcon at rail size.
+export function GamemastersIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <circle cx="9.5" cy="8" r="3.25" />
+      <path d="M3.75 19.5c0-3.2 2.58-5.25 5.75-5.25 1.06 0 2.05.23 2.9.64" strokeLinecap="round" />
+      <path d="M17.5 12.5l1.3 2.63 2.9.42-2.1 2.05.5 2.9-2.6-1.37-2.6 1.37.5-2.9-2.1-2.05 2.9-.42z" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function FactionIcon(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>

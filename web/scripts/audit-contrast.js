@@ -15,6 +15,11 @@
 //   * --accent vs --accent-text. Text and outlines must use --accent-text;
 //     --accent is a fill. Collapsing them back into one token is what made
 //     every button in the app fail AA.
+//   * The zone code, --zone-fortress/town/windlands/caves. These are fills
+//     only -- the rule down the side of a .zone-chip -- and are gated at 3.0
+//     against --surface, not AA. Spending one as a text colour ships a 2.x
+//     contrast; that is what the --accent scan below exists to catch for
+//     --accent, and the same discipline applies here.
 
 const fs = require("fs");
 const path = require("path");
@@ -26,6 +31,12 @@ const AA = 4.5; // WCAG AA, normal-size text
 const LADDER_MIN = 1.2; // per-step surface separation
 const BORDER_MIN = 1.9; // hairline vs the surface it sits on
 const NEAR_WHITE = 0.85; // relative luminance above which raised is shadow-carried
+// The zone code (--zone-*) is a 3px chip rule, never text, so it answers to
+// the large-graphic floor rather than AA. None of the four map-picked hues
+// would ever clear 4.5 -- gating them there would just force them off the
+// palette. See the dusk block in globals.css.
+const ZONE_MARK_MIN = 3.0;
+const ZONE_KEYS = ["fortress", "town", "windlands", "caves"];
 
 function parseColor(value) {
   if (value.startsWith("#")) {
@@ -108,6 +119,17 @@ function main() {
       contrast(parseColor(t["--on-accent"]).rgb, parseColor(t["--accent-solid"]).rgb),
       AA,
     );
+
+    // Missing token throws on .rgb rather than silently scoring 0 -- which is
+    // exactly what should happen when someone adds a theme block and forgets
+    // the zone code.
+    for (const key of ZONE_KEYS) {
+      gate(
+        `--zone-${key} on surface`,
+        contrast(parseColor(t[`--zone-${key}`]).rgb, surface),
+        ZONE_MARK_MIN,
+      );
+    }
 
     console.log(`\n=== ${theme} ===`);
     console.log(results.join("\n"));

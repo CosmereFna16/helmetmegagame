@@ -1,0 +1,70 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { prisma } from "@lifeweb/db";
+import { auth } from "@/lib/auth";
+import { isSuperadmin } from "@/lib/superadmin";
+import { getGuildMember, isGm } from "@/lib/discordGuild";
+
+async function requireSuperadmin() {
+  const session = await auth();
+  if (!session?.discordUserId || !isSuperadmin(session.discordUserId)) {
+    throw new Error("Not authorized.");
+  }
+  return session;
+}
+
+// Seat a GM in a zone, or clear their seat with a null/empty zoneId.
+//
+// A server action is a public endpoint, so every gate the UI applied is
+// re-applied here: the caller is the superadmin, the TARGET actually holds the
+// GM role, and the zone is real. Without the target check this endpoint would
+// happily seat any Discord ID a caller invented — the picker being
+// superadmin-only is a hint, not the lock.
+export async function assignGmZone({ discordUserId, zoneId }) {
+  const session = await requireSuperadmin();
+
+  const targetId = String(discordUserId ?? "").trim();
+  if (!/^\d{5,25}$/.test(targetId)) throw new Error("Not a Discord user ID.");
+
+  const member = await getGuildMember(targetId);
+  if (!isGm(member)) throw new Error("That member does not hold the GM role.");
+
+  const wanted = String(zoneId ?? "").trim();
+  if (wanted) {
+    const zone = await prisma.zone.findUnique({ where: { id: wanted }, select: { id: true } });
+    if (!zone) throw new Error("No such zone.");
+  }
+
+  if (wanted) {
+    await prisma.gmAssignment.upsert({
+      where: { discordUserId: targetId },
+      update: { zoneId: wanted, assignedByDiscordUserId: session.discordUserId },
+      create: {
+        discordUserId: targetId,
+        zoneId: wanted,
+        assignedByDiscordUserId: session.discordUserId,
+      },
+    });
+  } else {
+    // Absence of a row IS "no seat", so clearing deletes rather than nulling.
+    // P2025 (nothing to delete) is the already-clear case, not an error.
+    await prisma.gmAssignment.delete({ where: { discordUserId: targetId } }).catch((e) => {
+      if (e?.code !== "P2025") throw e;
+    });
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "superadmin_gm_zone_assigned",
+      details: { targetDiscordUserId: targetId, zoneId: wanted || null },
+    },
+  });
+
+  // The seat picks the default filter on every GM table, so they all go stale
+  // together.
+  for (const path of ["/gm/gamemasters", "/gm/turns", "/gm/players", "/gm/messages"]) {
+    revalidatePath(path);
+  }
+}

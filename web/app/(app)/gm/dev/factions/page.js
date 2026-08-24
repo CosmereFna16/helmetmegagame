@@ -1,4 +1,5 @@
 import SubmitButton from "@/app/components/SubmitButton";
+import ZoneChip from "@/app/components/ZoneChip";
 import { EmptyRow } from "@/app/components/EmptyState";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -9,14 +10,17 @@ import { updateFaction, deleteFaction } from "../actions";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 
 // Name, Parent, Silo, and the two action columns.
-const COL_COUNT = 5;
+const COL_COUNT = 6;
 
 export default async function DevFactionsPage() {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
   if (!isSuperadmin(session.discordUserId)) redirect("/character");
 
-  const factions = await prisma.faction.findMany({ orderBy: { name: "asc" } });
+  const factions = await prisma.faction.findMany({
+    orderBy: { name: "asc" },
+    include: { zone: { select: { name: true } } },
+  });
 
   return (
     <PageShell>
@@ -28,6 +32,7 @@ export default async function DevFactionsPage() {
           <thead>
             <tr>
               <th>Name</th>
+              <th>Zone</th>
               <th>Parent</th>
               <th>Silo</th>
               <th></th>
@@ -42,6 +47,12 @@ export default async function DevFactionsPage() {
                     <input type="hidden" name="factionId" value={f.id} />
                   </form>
                   <input name="name" defaultValue={f.name} form={`faction-${f.id}`} className="control" />
+                </td>
+                {/* Read-only: a faction's zone is owned by docs/roles.yaml and
+                    written by db:sync-roles, so editing it here would be
+                    overwritten on the next sync. */}
+                <td>
+                  <ZoneChip zoneName={f.zone?.name ?? ""} />
                 </td>
                 <td>
                   <select

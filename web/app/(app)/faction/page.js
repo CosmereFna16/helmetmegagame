@@ -1,4 +1,5 @@
 import SubmitButton from "@/app/components/SubmitButton";
+import ZoneChip from "@/app/components/ZoneChip";
 import EmptyState, { EmptyRow } from "@/app/components/EmptyState";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { redirect } from "next/navigation";
@@ -28,6 +29,9 @@ async function loadFaction(factionId) {
     where: { id: factionId },
     include: {
       parentFaction: { select: { id: true, name: true } },
+      // For the zone chip in the header — and the same field the Silo's reach
+      // rules key on (see web/lib/transferReach.js).
+      zone: { select: { name: true } },
       characters: {
         orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
         select: {
@@ -313,9 +317,12 @@ export default async function FactionPage({ searchParams }) {
         <PageHeader
           title={faction.name}
           subtitle={
-            viewingSubject && faction.parentFaction
-              ? `Subject of ${faction.parentFaction.name}`
-              : null
+            <span className="flex items-center gap-2">
+              <ZoneChip zoneName={faction.zone?.name ?? ""} />
+              {viewingSubject && faction.parentFaction ? (
+                <span>Subject of {faction.parentFaction.name}</span>
+              ) : null}
+            </span>
           }
         />
 
@@ -419,7 +426,12 @@ export default async function FactionPage({ searchParams }) {
 
       <PageHeader
         title={faction.name}
-        subtitle={faction.parentFaction ? `Subject of ${faction.parentFaction.name}` : null}
+        subtitle={
+          <span className="flex items-center gap-2">
+            <ZoneChip zoneName={faction.zone?.name ?? ""} />
+            {faction.parentFaction ? <span>Subject of {faction.parentFaction.name}</span> : null}
+          </span>
+        }
         actions={
           <form method="get" className="flex items-end gap-2">
             {/* Wrapped in .field: a bare select falls back to unstyled native

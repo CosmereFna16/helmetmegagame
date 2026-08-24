@@ -302,9 +302,40 @@ model Zone {
   actions        Action[]
   defaultEfforts DefaultEffort[]
   notes          Note[]
+  gmAssignments  GmAssignment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Which zone a GM is the seat for. The game runs with one master (the
+/// superadmin, web/lib/superadmin.js) plus four zone-GMs, one per Zone.
+///
+/// Keyed on discordUserId rather than hung off Character, because a GM may
+/// never roll one -- and should not lose their seat when theirs dies.
+///
+/// The near-miss alternative was a nullable Zone.gmDiscordUserId: one column,
+/// no new table. It was rejected because assignment then becomes
+/// clear-everywhere-then-set, a two-statement write whose partial failure
+/// leaves a GM holding two zones or none. Keying on the user makes that
+/// invariant structural and the write a single idempotent upsert.
+///
+/// This is a SOFT gate and the only one in the app that is: it picks the
+/// default filter on the GM tables, it hides nothing. See CLAUDE.md's Discord
+/// permission model table.
+model GmAssignment {
+  discordUserId String  @id
+  zoneId        String?
+  zone          Zone?   @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+
+  /// Snapshot of the superadmin who set it, per the log-table convention --
+  /// no FK, so it survives the actor leaving the guild.
+  assignedByDiscordUserId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
 }
 
 // A place within a Zone (e.g. "church" within the "Town" zone), backed by a

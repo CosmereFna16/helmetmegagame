@@ -428,6 +428,17 @@ export default function RequestPanel({ request, readOnly = false, onClose }) {
 
       <FormError>{error}</FormError>
 
+      {/* "Reviewed by", not "Solved by": Review is the Request verb
+          everywhere else in this UI, and Solved is Move vocabulary bound to a
+          MoveReviewStatus value. Same shape as MovePanel's stamp, right
+          noun. */}
+      {request.reviewedByUsername && (
+        <p className="mt-3 text-xs text-muted">
+          Reviewed by {request.reviewedByUsername}
+          {request.reviewedAtLabel ? ` · ${request.reviewedAtLabel}` : ""}
+        </p>
+      )}
+
       <div className="modal-actions flex-wrap">
         <Tooltip text="Leave the request as the player made it and discard your edits">
           <button type="button" className="btn-quiet" onClick={close} disabled={pending}>

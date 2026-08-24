@@ -63,6 +63,15 @@ Three things about the token set are load-bearing and easy to undo by accident:
   handing the token to six callers to spend as text, which no denylist could
   attribute. `--accent` as text measures **2.96** on dusk's `--surface`: under
   not just AA's 4.5 but the 3.0 large-text floor.
+- **The zone code is fills only.** `--zone-fortress` / `--zone-town` /
+  `--zone-windlands` / `--zone-caves` are colour-picked from the Plate map and
+  declared **inside each `[data-theme]` block**, not on `:root`, so the audit
+  script sees them. They are the rule down the side of a `.zone-chip` and
+  **never a text colour** — gated at **3.0** against `--surface`, the
+  large-graphic floor, because none of them would clear AA's 4.5 and gating
+  them there would only force them off the map's palette. Three of the twelve
+  values deviate from the map for contrast and say so in a comment; do not
+  restore them. See [`GAMEMASTERS.md`](GAMEMASTERS.md) §3.
 - **Each theme names its own `color-scheme`.** A handful of controls are drawn
   by the browser, not by `globals.css` — the unchecked checkbox, the date
   picker's calendar glyph and popup, the search field's clear button, the
@@ -113,6 +122,7 @@ Use these instead of rolling one-off markup.
 | `.btn-quiet` | Text-only. |
 | `.field` | Wraps a `.field-label` + input/textarea/select. |
 | `.chip` | Small tag/pill labels. |
+| `.zone-chip` | A `.chip` carrying the zone code on `data-zone`. `data-zone="none"` is the dashed neutral for no faction. |
 | `.data-table` | Tabular data. |
 | `.menu-item` | Link-like row actions. |
 | `.control` | The `.field` control surface, without the label column — a `<select>` in a table cell, an input inline in a toolbar. |
@@ -209,7 +219,7 @@ renders no title, because it can't know which page is arriving.
 
 Every long list in the app is the same object.
 `web/app/components/DataTable.js` is the single engine —
-`useTableState({rows, searchFields, filterDefs, initialSort, pageSize})`
+`useTableState({rows, searchFields, filterDefs, initialSort, initialFilters, pageSize})`
 returning `pageRows`/`page`/`setPage`/`total`/`totalPages` alongside the
 filtered `visible`, plus `SortHeader`, `FilterBar` and `TableScroll`.
 `web/app/components/Pager.js` is the one pager.
@@ -224,6 +234,11 @@ Three things about it are load-bearing:
 - **Changing the search, a filter or the sort resets to page 1 inside the
   setters, never in an effect.** `react-hooks/set-state-in-effect` is an error
   in this repo, and the setter version lands in the same render anyway.
+- **`initialFilters` seeds filter state once at mount**, exactly as
+  `initialSort` does — it is an *initial* value, never a synced prop. The GM
+  tables use it to open on the viewer's zone; making it re-apply on prop change
+  would drag a GM who chose "All" back to their own zone after every
+  adjudication.
 - **List height is one token, `--list-h`**, shared by `.table-scroll` (tables),
   `.list-scroll` (the `/notes` card board) and `.message-list` (a DM thread).
 

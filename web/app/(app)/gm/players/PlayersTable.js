@@ -8,19 +8,27 @@ import { filterTagsByQuery, sortTagsForMenu } from "@/lib/characterCreation";
 import CharacterLink from "../../../components/CharacterLink";
 import FactionLink from "../../../components/FactionLink";
 import { useTableState, SortHeader, FilterBar, TableScroll } from "@/app/components/DataTable";
+import ZoneChip from "@/app/components/ZoneChip";
+import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
 import Pager from "@/app/components/Pager";
 
-const COL_COUNT = 8;
+const COL_COUNT = 9;
 
+// The key "zone" used to mean the character's PHYSICAL zone. It now means the
+// zone seat — the zone their faction is keyed to — because that is what every
+// other GM surface means by Zone and what a GM's default filter is keyed on.
+// The physical one is still here, renamed rather than dropped: it is the
+// answer to a real and different question.
 const FILTER_DEFS = [
-  { key: "zone", label: "Zone", value: (c) => c.zoneName },
+  { key: "zone", label: "Zone", value: (c) => c.factionZoneName },
+  { key: "locationZone", label: "Standing in", value: (c) => c.zoneName },
   { key: "faction", label: "Faction", value: (c) => c.factionName },
   { key: "status", label: "Status", value: (c) => c.status },
 ];
 
 const SEARCH_FIELDS = [(c) => c.name, (c) => c.roleTitle, (c) => c.factionName];
 
-export default function PlayersTable({ characters, tags = [] }) {
+export default function PlayersTable({ characters, tags = [], myZoneName }) {
   // Keyed on character id rather than row index, so a selection survives
   // paging, filtering and sorting — the recipient list is what gets sent.
   const [selected, setSelected] = useState(new Set());
@@ -35,6 +43,7 @@ export default function PlayersTable({ characters, tags = [] }) {
       filterDefs,
       searchFields,
       initialSort: { key: "name", dir: "asc" },
+      initialFilters: myZoneName ? { zone: myZoneName } : undefined,
     });
 
   function toggle(id) {
@@ -57,6 +66,7 @@ export default function PlayersTable({ characters, tags = [] }) {
         setQuery={setQuery}
         searchLabel="Search players"
       >
+        <ZoneScopeToggle myZoneName={myZoneName} filters={filters} setFilters={setFilters} />
         <button
           type="button"
           className="btn"
@@ -117,8 +127,9 @@ export default function PlayersTable({ characters, tags = [] }) {
             </th>
             <SortHeader label="Name" sortKey="name" sort={sort} onSort={toggleSort} />
             <SortHeader label="Role" sortKey="roleTitle" sort={sort} onSort={toggleSort} />
+            <SortHeader label="Zone" sortKey="factionZoneName" sort={sort} onSort={toggleSort} />
             <SortHeader label="Faction" sortKey="factionName" sort={sort} onSort={toggleSort} />
-            <SortHeader label="Zone" sortKey="zoneName" sort={sort} onSort={toggleSort} />
+            <SortHeader label="Standing in" sortKey="zoneName" sort={sort} onSort={toggleSort} />
             <SortHeader label="Status" sortKey="status" sort={sort} onSort={toggleSort} />
             <th scope="col">Cursed</th>
             <SortHeader label="Resources" sortKey="resources" sort={sort} onSort={toggleSort} />
@@ -140,9 +151,12 @@ export default function PlayersTable({ characters, tags = [] }) {
               </td>
               <td>{c.roleTitle ?? "-"}</td>
               <td>
+                <ZoneChip zoneName={c.factionZoneName} />
+              </td>
+              <td>
                 <FactionLink factionId={c.factionId} name={c.factionName || "-"} />
               </td>
-              <td>{c.zoneName || "-"}</td>
+              <td className="text-muted">{c.zoneName || "-"}</td>
               <td>
                 <EnumPill map={CHARACTER_STATUS} value={c.status} />
               </td>
