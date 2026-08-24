@@ -318,7 +318,7 @@ async function ensureForumTag(channelId, tagName, emojiName) {
   return updated.available_tags.find((t) => t.name === tagName)?.id ?? null;
 }
 
-const WEBHOOK_NAME = "Lifeweb Tupper";
+const WEBHOOK_NAME = "Bascinet Tupper";
 
 // REST twin of bot/src/lib/proxy.js#fetchOrCreateWebhook — same webhook name
 // and same "reuse the bot's own webhook on this channel, create one only if

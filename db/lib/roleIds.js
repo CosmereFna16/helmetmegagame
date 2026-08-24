@@ -1,7 +1,7 @@
 // Static Discord role IDs, hardcoded rather than env-configured.
 //
 // These are not secrets: a role ID is visible to anyone in the guild, and
-// Lifeweb is a single-guild game, so there is exactly one correct value for
+// Bascinet is a single-guild game, so there is exactly one correct value for
 // each and it will never differ between environments. Keeping them in code
 // means they cannot be half-configured — the failure mode of an env var here
 // was a deploy where the player gate silently locked everyone out or the

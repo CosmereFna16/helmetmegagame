@@ -1,6 +1,6 @@
 # Discord Channel Schematic
 
-How Discord channels get their behavior in Lifeweb, and how visibility is
+How Discord channels get their behavior in Bascinet, and how visibility is
 controlled. Two independent mechanisms are involved — channel *type/name*
 (what the channel is for) and per-character *role permissions* (who can see
 it) — and they're easy to conflate, so this doc keeps them separate.

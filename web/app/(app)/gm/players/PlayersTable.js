@@ -100,7 +100,7 @@ export default function PlayersTable({ characters, tags = [] }) {
             <input key={id} type="hidden" name="characterId" value={id} />
           ))}
           <label className="field">
-            <span className="field-label">Message ({selected.size} recipient{selected.size === 1 ? "" : "s"}, sent from Lifeweb)</span>
+            <span className="field-label">Message ({selected.size} recipient{selected.size === 1 ? "" : "s"}, sent from Bascinet)</span>
             <textarea name="message" rows={3} required />
           </label>
           <button type="submit" className="btn self-start">

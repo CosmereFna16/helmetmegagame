@@ -138,7 +138,7 @@
 
 /* Limestone — the light-theme backup, kept for comparison rather than wired
    in by phase. It is never what themeForPhase() returns; reach it by setting
-   LIFEWEB_THEME=limestone (see web/app/layout.js). Worth keeping around
+   BASCINET_THEME=limestone (see web/app/layout.js). Worth keeping around
    because its ground->surface separation (1.53) beats either dark theme —
    light themes simply have more luminance headroom to spend.
 

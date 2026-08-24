@@ -35,11 +35,11 @@
 banner: assets/info-banner.png
 
 main_message: |-
-  Lifeweb is a large-scale, rules-light story generator, 70% roleplay and 30% strategy. It’s intended to be serious, grim, heroic, and occasionally funny.
+  Bascinet is a large-scale, rules-light story generator, 70% roleplay and 30% strategy. It’s intended to be serious, grim, heroic, and occasionally funny.
 
   The game takes place over a 30 day period both in real life and in game. Twice a day, you declare what your character did, making a Move. Based on dice and your character’s Tags, the GMs adjudicate the resulting consequences. Mechanics are handled on the companion web panel while the roleplay takes place on Discord.
 
-  Lifeweb simultaneously plays out on several levels. Kings win wars and move big pieces around the map while commoners try to fulfill their day-to-day desires.
+  Bascinet simultaneously plays out on several levels. Kings win wars and move big pieces around the map while commoners try to fulfill their day-to-day desires.
 
   ## Rules
   ① **Basic** — You must be 18+.
@@ -145,7 +145,7 @@ categories:
           * Summary: Big picture play. Describe what other people would see your character doing throughout that turn. Make announcements.
           * Public: A forum channel for your public, moment-to-moment roleplay. Make a post for a certain location or meeting, have chats, argue.
           * Private: A thread channel for your private meetings. Create a private thread (Thread button on the top right) and ping other characters to plot in secret.
-          * Your messages in roleplay channels are automatically sent as your character. To conceal your identity further, you can use the `/message` command in the Lifeweb bot’s DMs or press the Speak button in #turns, so it doesn’t show your Discord username when typing.
+          * Your messages in roleplay channels are automatically sent as your character. To conceal your identity further, you can use the `/message` command in the Bascinet bot’s DMs or press the Speak button in #turns, so it doesn’t show your Discord username when typing.
           * Type `/conceal` to write as an Unknown Person instead.
       - title: Archive
         body: |-

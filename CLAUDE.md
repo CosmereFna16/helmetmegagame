@@ -5,9 +5,9 @@ Guidance for Claude Code (claude.ai/code) when working in this repository.
 This file is the **map and the cross-cutting rules only**. Every game system
 has its own doc under `docs/systemdocs/` — see the table below.
 
-## What Lifeweb is
+## What Bascinet is
 
-Lifeweb is a huge, month-long asynchronous megagame set in a cryptic
+Bascinet is a huge, month-long asynchronous megagame set in a cryptic
 low-fantasy, sci-fi mix.
 
 It's half-strategy, half-roleplay, meant to run smoothly at large scale (100+
@@ -19,6 +19,22 @@ There's two faces to the game: the Discord and the web app. For the web app,
 priority is **functionality, usability, cleanliness, responsiveness, and browser
 performance**. The explicit reference point to avoid is the typical slow, laggy
 Discord bot dashboard — this needs to feel fast and scroll smoothly.
+
+### Bascinet is the project; the Lifeweb is a thing inside it
+
+The Lifeweb is the Tower that keeps Ravenheart alive, fed by its people's blood
+(`docs/lore.md`). The game was *called* Lifeweb until it was retitled, so the
+name now survives on purpose in places that look like an unfinished rename.
+**A `grep -i lifeweb` hit is not evidence of one.** Leave all of these alone:
+
+- The in-fiction Tower: the `/lifeweb` route, `Lifeweb*.js` components,
+  `LifewebIcon`, `db/lib/lifeweb.js`, `LIFEWEB_SPUTTER_THRESHOLD`, and the
+  `lifewebBlood` / `lifewebDecayPerTurn` / `ArchiveKind.LIFEWEB` schema fields.
+- The npm scope, deliberately frozen: `@lifeweb/db` and `@lifeweb/bot`, plus the
+  Railway service name `@lifeweb/bot` in the root `redeploy` script.
+- The repo and directory, also deliberately unchanged: `peace-lock/lifeweb`.
+- The three Prisma migration directories with `lifeweb` in their names — those
+  are checksummed rows in `_prisma_migrations`.
 
 ## Read the system doc first
 
@@ -204,7 +220,7 @@ env-configured admin role. `Faction` is **not** one of them (`FACTIONS.md` §1).
 | **Turn-ping role** | `DISCORD_TURN_PING_ROLE_ID` env var | Plain opt-in notification, toggled from `/character`. |
 
 **Why two role IDs live in code rather than the environment:** a role ID is not
-a secret (anyone in the guild can read it) and Lifeweb is single-guild, so there
+a secret (anyone in the guild can read it) and Bascinet is single-guild, so there
 is exactly one correct value that can never differ per environment — while a
 missing env var would have meant a deploy where the player gate silently locked
 everyone out, or the spectator overwrite silently did nothing. Same reasoning as
@@ -337,7 +353,7 @@ before writing any UI. The four rules that apply everywhere:
 
 ## Git workflow
 
-**Lifeweb is master-only. There are no branches and no pull requests.** All work
+**Bascinet is master-only. There are no branches and no pull requests.** All work
 is committed straight to `master` and pushed as soon as it's finished, so it can
 be pulled locally the moment it's done — that immediacy is the whole point, and
 a feature branch defeats it. Railway builds from `master` too, so work sitting

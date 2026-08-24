@@ -35,7 +35,7 @@ export default async function MessageThreadPage({ params }) {
       <form action={sendDmReply} className="panel flex flex-col gap-3 p-4">
         <input type="hidden" name="discordUserId" value={discordUserId} />
         <label className="field">
-          <span className="field-label">Reply (from Lifeweb)</span>
+          <span className="field-label">Reply (from Bascinet)</span>
           <textarea name="message" rows={3} required />
         </label>
         <SubmitButton className="btn self-start" pendingLabel="Sending…">

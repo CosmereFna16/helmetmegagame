@@ -310,7 +310,7 @@ export default function ActionBar({
         <Modal title={`Message ${character.name}`} onClose={() => setDialog(null)}>
           <div className="flex flex-col gap-3">
             <label className="field">
-              <span className="field-label">Sent from Lifeweb as a DM</span>
+              <span className="field-label">Sent from Bascinet as a DM</span>
               <textarea rows={4} value={draft} onChange={(e) => setDraft(e.target.value)} />
             </label>
             <FormError>{error}</FormError>

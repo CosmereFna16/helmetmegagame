@@ -26,7 +26,7 @@ export function describeTurn(turn) {
 
 // The themes globals.css defines. Both phase themes are underground darks;
 // "limestone" is the light-theme backup and is deliberately NOT reachable from
-// a phase — only via the LIFEWEB_THEME override below.
+// a phase — only via the BASCINET_THEME override below.
 export const THEMES = ["dusk", "dawn", "limestone"];
 
 export function themeForPhase(phase) {
