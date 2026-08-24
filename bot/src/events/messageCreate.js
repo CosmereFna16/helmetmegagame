@@ -1,7 +1,6 @@
 const { prisma, concealedAlias } = require("@lifeweb/db");
 const { sendAsCharacter } = require("../lib/proxy");
 const { isDesignatedTupperChannel, resolveChannelContext } = require("../lib/channels");
-const { handleActionSubmission } = require("../lib/actionSubmission");
 const { sendDm } = require("../lib/dm");
 const {
   canHearPing,
@@ -30,9 +29,14 @@ module.exports = {
       return;
     }
 
+    // #turns is the console channel: the Travel/Move/Speak buttons live on an
+    // anchor message there (bot/src/lib/turnsConsole.js) and everything a
+    // player types is simply removed. It no longer files a Move — that is a
+    // modal now, so nothing a player writes ever sits in a channel waiting to
+    // be deleted, and no typing indicator fires under their real account.
     const channelName = message.channel.name?.toLowerCase();
     if (channelName === "turns") {
-      await handleActionSubmission(message).catch((err) => console.error("Failed to submit action:", err));
+      await message.delete().catch(() => {});
       return;
     }
 

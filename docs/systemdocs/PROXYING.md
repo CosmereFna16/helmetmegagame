@@ -45,8 +45,28 @@ at a time, so there is nothing to disambiguate.
 load-bearing for §6: a role mention still *renders* as a chip but notifies
 nobody, so the relay DM is the single notification path.
 
+`bot/src/lib/proxy.js#postAsCharacterTo(channel, character, {content, files,
+discordUserId, conceal})` is the **core send** — webhook, tracking, no source
+message. `sendAsCharacter` is the message-driven wrapper around it, and is the
+only thing that deletes an original. The Speak modal (`COMMANDS.md` §5) has no
+message to delete, only an interaction, which is why the split exists.
+
+Tracking through `trackProxy` is not optional for either caller: every
+reaction below is gated on `recentProxies`, so an untracked message is inert
+to all of them.
+
 `db/lib/discordRest.js#postAsCharacter` is the REST twin, used for Default Move
 summaries posted from `advanceTurn`'s side effects.
+
+**Speaking without being seen to type.** Discord fires the typing indicator
+under the player's *real* account, before the proxy ever runs — so composing
+in a channel announces who you are regardless of what the webhook posts. The
+Speak flow (the 🔊 button on the `#turns` console, or `/message`) composes in
+a modal instead: the text arrives as an interaction, and there is no typing
+indicator and no message to delete. `/message` run inside a channel you can
+already speak in posts straight there; that does not hide the typing
+indicator, since you are already in the channel, but it does stop the message
+existing in plain sight before the proxy removes it.
 
 **`recentProxies`** is the in-memory map tying a proxied message back to its
 player and character — last 500, single bot process, no sharding, wiped on

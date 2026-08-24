@@ -342,7 +342,7 @@ async function resolveMoveImpl({ actionId, mode, edits = {}, notifyPlayer = fals
 }
 
 // Reject deletes the row outright. That's the point: the turn-economy checks
-// in bot/src/lib/actionSubmission.js and location.js#performMove both look for
+// in the bot's Move modal and location.js#performMove both look for
 // ANY Action on the open turn, so only a deletion actually frees the player to
 // act again. The description and reason are copied into the audit row first so
 // nothing is lost with it, and the player is told — a freed turn they don't

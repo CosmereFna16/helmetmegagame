@@ -1,4 +1,5 @@
 import { applyBlood } from "@lifeweb/db";
+import { dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
 
 // The per-type behaviour of a Request: how a GM's Undo reverses it, and which
 // fields (if any) a GM can Edit. Adding a new RequestType means adding one
@@ -125,21 +126,12 @@ export async function restoreCharacterTag(tx, characterId, snapshot) {
 // Removes `quantity` of a tag, deleting the row once nothing is left. Pass
 // null (the default) to drop the whole holding however large the stack —
 // that is what an ordinary, non-stackable tag always wants.
-export async function dropCharacterTag(tx, characterId, tagId, quantity = null) {
-  const existing = await tx.characterTag.findUnique({
-    where: { characterId_tagId: { characterId, tagId } },
-  });
-  if (!existing) return;
-  const take = quantity == null ? existing.quantity : Math.max(1, Math.trunc(quantity));
-  if (take >= existing.quantity) {
-    await tx.characterTag.delete({ where: { id: existing.id } });
-    return;
-  }
-  await tx.characterTag.update({
-    where: { id: existing.id },
-    data: { quantity: existing.quantity - take },
-  });
-}
+//
+// Lives in db/lib now, because the bot needs it too: the GM `/heal` command
+// drops afflictions through the same implementation. Imported and re-exported
+// rather than `export ... from`, which would re-export without binding the
+// name locally — this module calls it seven times itself.
+export { dropCharacterTag };
 
 // Grants a list of tag SLUGS to one character — what a consumed tag turns
 // into (Tag.consumesInto: a meal becoming Ate Meal, a crate unpacking into

@@ -2,7 +2,7 @@
 //
 // There is no `turnsRemaining` column anywhere. "Has this character acted
 // this turn" is entirely "does an Action row exist for (characterId, the open
-// Turn)" — the check bot/src/lib/actionSubmission.js, db/lib/travel.js and
+// Turn)" — the check the bot's Move modal, db/lib/travel.js and
 // bot/src/lib/labor.js each make independently. Everything here follows from
 // that one fact, and it is why giving a turn back means DELETING a row rather
 // than flipping a flag.

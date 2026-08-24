@@ -1,17 +1,20 @@
-const { ChannelType, MessageFlags } = require("discord.js");
-const { prisma, LABOR_FIELDS, FIELD_INFO } = require("@lifeweb/db");
-const { buildLocationSelectRow, buildConfirmRow, performMove } = require("../lib/location");
+const { ChannelType, MessageFlags, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { prisma, LABOR_FIELDS, FIELD_INFO, concealedAlias } = require("@lifeweb/db");
+const { buildLocationSelectRow, buildConfirmRow, performMove, syncCharacterNarrowcastAccess } = require("../lib/location");
 const { performLabor } = require("../lib/labor");
 const { sendDm } = require("../lib/dm");
-const { buildMoveComponents, buildMoveContent, moveKindLabel } = require("../lib/moveComponents");
-const { rollResourceRange, formatRangeExpression } = require("../lib/resourceDelta");
-const {
-  gambitModifiers,
-  gambitModifierTotal,
-  formatGambitModifiers,
-} = require("@lifeweb/db/lib/gambitModifier");
-const { applyMoveEffects, rollDie } = require("@lifeweb/db/lib/moveEffects");
-const { canJoinThread, isPrivateThread } = require("../lib/mentions");
+const { buildMoveModal } = require("../lib/moveModal");
+const { confirmMove } = require("../lib/moveConfirm");
+const { buildSpeakModal, buildSpeakPicker } = require("../lib/speakModal");
+const { listSpeakTargets, canSpeakIn, NAV_VALUE } = require("../lib/speakTargets");
+const { resolveActingMember, isGmMember, findAliveCharacter } = require("../lib/interactionGuild");
+const { postAsCharacterTo } = require("../lib/proxy");
+const { parseResourceExpression } = require("../lib/resourceDelta");
+const { resolveLaborRate } = require("@lifeweb/db");
+const { recordArchiveMessage } = require("@lifeweb/db/lib/archive");
+const { dropCharacterTag } = require("@lifeweb/db/lib/tagWrites");
+const { HEALTH_CATEGORY } = require("@lifeweb/db/lib/medicalVision");
+const { canJoinThread, isPrivateThread, messageLink } = require("../lib/mentions");
 const { ensureForumTag } = require("@lifeweb/db/lib/discordRest");
 const {
   PERSISTENT_TAG_NAME,
@@ -21,12 +24,6 @@ const {
   withoutPersistentPrefix,
 } = require("@lifeweb/db/lib/persistence");
 const { resolveChannelContext } = require("../lib/channels");
-
-function isGmMember(interaction) {
-  const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
-  if (!gmRoleId) return false;
-  return interaction.member?.roles.cache.has(gmRoleId) ?? false;
-}
 
 // /gm: post to the current channel as the bot itself, not the invoker's
 // character — the slash-command replacement for the old ":gm" message
@@ -45,11 +42,12 @@ async function handleGmCommand(interaction) {
   await interaction.reply({ content: "» *Sent.*", flags: MessageFlags.Ephemeral });
 }
 
-// /message: DM a chosen server member as the bot itself. Reuses
-// bot/src/lib/dm.js#sendDm so it's logged to DirectMessage like every
+// /dm: DM a chosen server member as the bot itself. Was /message, renamed
+// when /message became the player-facing "speak as your character" command.
+// Reuses bot/src/lib/dm.js#sendDm so it's logged to DirectMessage like every
 // other bot-sent DM, and carries the "»" prefix inline since this is a
 // bot-composed DM (see the "Bot message style" note in CLAUDE.md).
-async function handleMessageCommand(interaction) {
+async function handleGmDmCommand(interaction) {
   if (!isGmMember(interaction)) {
     await interaction.reply({ content: "» *GMs only.*", flags: MessageFlags.Ephemeral });
     return;
@@ -62,13 +60,13 @@ async function handleMessageCommand(interaction) {
     await sendDm(recipient, `» ${content}`);
     await interaction.reply({ content: `» *Sent to ${recipient}.*`, flags: MessageFlags.Ephemeral });
   } catch (err) {
-    console.error("Failed to send /message DM:", err);
+    console.error("Failed to send /dm DM:", err);
     await interaction.reply({ content: "» *Failed to deliver — they may have DMs closed.*", flags: MessageFlags.Ephemeral });
   }
 }
 
-// /hunt, /fish, /farm, /herd: any player with a living, un-acted character
-// can use these — no GM gate. The command name IS the field. See
+// /labor <type>: any player with a living, un-acted character can use it —
+// no GM gate. `type` is the LABOR_FIELDS key. See
 // bot/src/lib/labor.js#performLabor for the tag-tier lookup, the location
 // gate and the auto-resolved Action creation.
 async function handleLaborCommand(interaction, field) {
@@ -269,15 +267,10 @@ async function togglePrivateThreadPrefix(thread) {
   return persistent;
 }
 
-// All custom IDs below are namespaced "loc:" for the zone/location travel
-// flow triggered from the Move button in the "location" channel (see the
-// "Location picker" section of CLAUDE.md and
-// bot/src/lib/location.js#ensureLocationPrompt) — "move:" IDs further down
-// are the unrelated Move-setup flow (Kind/Opposed/Confirm).
-async function findAliveCharacter(discordUserId) {
-  return prisma.character.findFirst({ where: { discordUserId, status: "ALIVE" } });
-}
-
+// All custom IDs below are namespaced "loc:" for the travel flow triggered
+// from the Travel button on the #turns console
+// (bot/src/lib/turnsConsole.js) — "move:" and "say:" IDs further down are
+// the unrelated Move and Speak modals.
 async function handleOpen(interaction) {
   const character = await findAliveCharacter(interaction.user.id);
   if (!character) {
@@ -342,7 +335,13 @@ async function handleConfirm(interaction, locationId) {
     return;
   }
 
-  const result = await performMove(interaction.guild, character, location);
+  const { guild } = await resolveActingMember(interaction);
+  if (!guild) {
+    await interaction.editReply({ content: "» *Couldn't reach the server.*", components: [] });
+    return;
+  }
+
+  const result = await performMove(guild, character, location);
   if (!result.ok) {
     await interaction.editReply({ content: `» *${result.reason}*`, components: [] });
     return;
@@ -356,159 +355,331 @@ async function handleCancel(interaction) {
   await interaction.update({ content: "» *Cancelled.*", components: [] });
 }
 
-// Move setup: one DM (see bot/src/lib/actionSubmission.js) carrying a Kind
-// select, an Opposed select, and a Confirm button, all namespaced "move:" —
-// picks are written straight to the Action row and the message is re-rendered
-// in place via interaction.update() so nothing is ever deleted/resent.
-async function findMoveAction(actionId) {
-  return prisma.action.findUnique({
-    where: { id: actionId },
-    // Mood and Hunger are ordinary Status tags, so the whole Gambit modifier
-    // is read off the character's tags rather than a column
-    // (db/lib/gambitModifier.js).
-    include: { character: { include: { tags: { include: { tag: true } } } } },
-  });
+// --- Move ------------------------------------------------------------
+//
+// One modal, submitted once. The old flow (a message in #turns became a
+// PENDING_TYPE Action, the bot deleted it and DMed two select menus plus a
+// Confirm button) is gone: it leaked identity twice and cost four round trips.
+// PENDING_TYPE is no longer reachable from Discord — the enum value stays for
+// rows written before this.
+
+// The button and /move both just open the modal. Nothing is read here: a
+// modal must be shown within 3 seconds and cannot be deferred first, so every
+// gate runs on submit instead.
+async function handleMoveOpen(interaction) {
+  await interaction.showModal(buildMoveModal());
 }
 
-function isEditableMove(action, interaction) {
-  return action && action.status === "PENDING_TYPE" && action.character.discordUserId === interaction.user.id;
-}
-
-async function handleMoveKindSelect(interaction, actionId) {
-  const action = await findMoveAction(actionId);
-  if (!isEditableMove(action, interaction)) {
-    await interaction.update({ content: "» *This Move can no longer be edited.*", components: [] });
+// The gates the old handleActionSubmission ran, in the same order and with
+// the same refusal strings — but replying ephemerally rather than deleting a
+// message and DMing.
+async function handleMoveSubmit(interaction) {
+  const character = await findAliveCharacter(interaction.user.id);
+  if (!character) {
+    await interaction.reply({ content: "» *You don't have a living character.*", flags: MessageFlags.Ephemeral });
     return;
   }
 
-  const updated = await prisma.action.update({
-    where: { id: action.id },
-    data: { moveKind: interaction.values[0] },
-  });
-  await interaction.update({ content: buildMoveContent(updated), components: buildMoveComponents(updated) });
-}
-
-async function handleMoveOpposedSelect(interaction, actionId) {
-  const action = await findMoveAction(actionId);
-  if (!isEditableMove(action, interaction)) {
-    await interaction.update({ content: "» *This Move can no longer be edited.*", components: [] });
-    return;
-  }
-
-  const updated = await prisma.action.update({
-    where: { id: action.id },
-    data: { opposed: interaction.values[0] === "true" },
-  });
-  await interaction.update({ content: buildMoveContent(updated), components: buildMoveComponents(updated) });
-}
-
-async function handleMoveConfirm(interaction, actionId) {
-  const action = await findMoveAction(actionId);
-  if (!isEditableMove(action, interaction)) {
-    await interaction.update({ content: "» *This Move can no longer be confirmed.*", components: [] });
-    return;
-  }
-  if (!action.moveKind) {
-    await interaction.reply({ content: "» *Choose Routine or Gambit first.*" });
-    return;
-  }
-
-  const diceRoll = action.moveKind === "GAMBIT" ? rollDie() : null;
-  // Only a Gambit rolls, so only a Gambit can carry a modifier. diceRoll stays
-  // the RAW roll and the SUM of every contributor (Mood ±1, Hunger -1) is
-  // stored beside it — see the Action.diceModifier comment in schema.prisma.
-  // The per-contributor breakdown is display-only, for the DM below.
-  const modifiers = diceRoll != null ? gambitModifiers(action.character.tags) : [];
-  const diceModifier = diceRoll != null ? gambitModifierTotal(action.character.tags) : null;
-  // Null for a row written before ranges existed (a leftover "1d4*3"), which
-  // then confirms on its flat delta alone rather than throwing.
-  const rollResult = action.resourceRollExpression ? rollResourceRange(action.resourceRollExpression) : null;
-
-  const resourceDelta = rollResult
-    ? (action.resourceDelta ?? 0) + rollResult.value
-    : (action.resourceDelta ?? null);
-
-  // A Routine resolves itself: its resources land now and it enters the queue
-  // already PASSED, needing a GM only if one disagrees. A Gambit is the
-  // opposite — nothing is pushed until a GM Solves it, because the whole point
-  // of rolling is that the outcome isn't the player's to declare.
-  const isRoutine = action.moveKind === "ROUTINE";
-
-  const updated = await prisma.$transaction(async (tx) => {
-    const row = await tx.action.update({
-      where: { id: action.id },
-      data: {
-        status: "CONFIRMED",
-        confirmedAt: new Date(),
-        ...(diceRoll != null ? { diceRoll, diceModifier } : {}),
-        ...(rollResult ? { resourceRollValue: rollResult.value, resourceDelta } : {}),
-        ...(isRoutine ? { moveReviewStatus: "PASSED" } : {}),
-      },
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
+  if (!openTurn) {
+    await interaction.reply({
+      content: "» *No turn is currently open — your submission wasn't recorded.*",
+      flags: MessageFlags.Ephemeral,
     });
-    if (!isRoutine) return row;
-    const applied = await applyMoveEffects(tx, row);
-    return tx.action.update({ where: { id: row.id }, data: { appliedEffects: applied } });
-  });
+    return;
+  }
 
-  await prisma.auditLog.create({
+  // Also catches a prior auto-resolved zone-change Move (see
+  // bot/src/lib/location.js#performMove) — changing zones spends the turn
+  // just like a Move submission does.
+  const alreadyActed = await prisma.action.findFirst({
+    where: { characterId: character.id, turnId: openTurn.id },
+  });
+  if (alreadyActed) {
+    await interaction.reply({
+      content: "» *You've already sent a Move this turn — your submission wasn't recorded.*",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  const raw = interaction.fields.getTextInputValue("move:body").trim();
+  if (!raw) {
+    await interaction.reply({ content: "» *Write something first.*", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  const moveKind = interaction.fields.getRadioGroup("move:kind");
+  const opposed = Boolean(interaction.fields.getCheckbox("move:opposed"));
+
+  const { description, resourceDelta, roll } = parseResourceExpression(raw);
+
+  // A "/hunt"-style shorthand is collapsed into a concrete range here rather
+  // than at confirm, for two reasons: the turn is spent by the Action row
+  // existing, so the location gate has to run before we create one (a refusal
+  // must cost nothing); and resolving now means only one grammar — a plain
+  // range — ever reaches the database.
+  let resourceRollExpression = roll?.expression ?? null;
+  if (roll?.kind === "shorthand") {
+    const rate = await resolveLaborRate(prisma, character.id, roll.field);
+    if (!rate.ok) {
+      await interaction.reply({ content: `» *${rate.reason}*`, flags: MessageFlags.Ephemeral });
+      return;
+    }
+    resourceRollExpression = rate.expression;
+  }
+
+  const action = await prisma.action.create({
     data: {
-      actorDiscordUserId: interaction.user.id,
-      actionType: "move_confirmed",
-      targetCharacterId: action.characterId,
-      details: {
-        actionId: action.id,
-        diceRoll,
-        diceModifier,
-        // The only place the breakdown survives — the column stores the sum.
-        diceModifiers: modifiers,
-        resourceRollValue: rollResult?.value ?? null,
-        appliedEffects: updated.appliedEffects ?? null,
-      },
+      characterId: character.id,
+      turnId: openTurn.id,
+      type: "MOVE",
+      status: "PENDING_TYPE",
+      moveKind,
+      opposed,
+      description,
+      resourceDelta,
+      resourceRollExpression,
+      zoneId: character.zoneId ?? null,
     },
   });
 
-  const lines = [
-    `» ${action.description}`,
-    `Kind: **${moveKindLabel(action.moveKind)}**${action.opposed ? " — Opposed" : ""}`,
-  ];
-  if (diceRoll != null) {
-    lines.push(
-      // Keyed on modifiers.length, not diceModifier: a Happy+Hungry wash sums
-      // to 0 but should still show its work rather than pretend nothing applied.
-      modifiers.length
-        ? `🎲 **${diceRoll}** ${formatGambitModifiers(modifiers)} → **${diceRoll + diceModifier}**`
-        : `🎲 **${diceRoll}**`,
-    );
-  }
-  if (rollResult) {
-    lines.push(
-      `**Resource roll (${formatRangeExpression(action.resourceRollExpression)}):** ${rollResult.value > 0 ? "+" : ""}${rollResult.value} ⬢`,
-    );
-  }
-  lines.push("» *Waiting on adjudication...*");
-
-  await interaction.update({ content: lines.join("\n"), components: [] });
-}
-
-async function handleMoveCancel(interaction, actionId) {
-  const action = await findMoveAction(actionId);
-  if (!isEditableMove(action, interaction)) {
-    await interaction.update({ content: "» *This Move can no longer be cancelled.*", components: [] });
-    return;
-  }
-
-  await prisma.action.delete({ where: { id: action.id } });
-
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: interaction.user.id,
-      actionType: "move_cancelled",
-      targetCharacterId: action.characterId,
+      actionType: "move_submitted",
+      targetCharacterId: character.id,
       details: { actionId: action.id },
     },
   });
 
-  await interaction.update({ content: "» *Move cancelled. You may submit a new one in #turns.*", components: [] });
+  // Re-read with the tags confirmMove needs for the Gambit modifier.
+  const loaded = await prisma.action.findUnique({
+    where: { id: action.id },
+    include: { character: { include: { tags: { include: { tag: true } } } } },
+  });
+
+  const { lines } = await confirmMove(loaded, interaction.user.id);
+  await interaction.reply({ content: lines.join("\n"), flags: MessageFlags.Ephemeral });
+}
+
+// --- Speak -----------------------------------------------------------
+
+// The Speak button, and /message run anywhere the player cannot already
+// speak. Deferred, because enumerating threads costs API calls — which is
+// exactly why the modal cannot be opened straight from this button.
+async function handleSpeakOpen(interaction) {
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+  const character = await findAliveCharacter(interaction.user.id);
+  if (!character) {
+    await interaction.editReply({ content: "» *You don't have a living character.*" });
+    return;
+  }
+
+  const { guild, member } = await resolveActingMember(interaction);
+  if (!guild || !member) {
+    await interaction.editReply({ content: "» *Couldn't reach the server.*" });
+    return;
+  }
+
+  const { options, truncated } = await listSpeakTargets(guild, member);
+  if (options.length === 0) {
+    await interaction.editReply({ content: "» *There's nowhere you can speak right now.*" });
+    return;
+  }
+
+  const { rows, note } = buildSpeakPicker(options, truncated);
+  await interaction.editReply({
+    content: ["Where would you like to speak?", note].filter(Boolean).join("\n"),
+    components: rows,
+  });
+}
+
+// Picking a destination opens the modal. Legal on a select interaction, and
+// the reason the picker exists as its own step at all.
+async function handleSpeakPick(interaction) {
+  const channelId = interaction.values[0];
+  // A group header, not a destination — re-render untouched.
+  if (channelId === NAV_VALUE) {
+    await interaction.deferUpdate();
+    return;
+  }
+
+  const { guild, member } = await resolveActingMember(interaction);
+  const channel = guild ? await guild.channels.fetch(channelId).catch(() => null) : null;
+  if (!channel || !member || !canSpeakIn(channel, member)) {
+    await interaction.update({ content: "» *You can't speak there any more.*", components: [] });
+    return;
+  }
+
+  await interaction.showModal(buildSpeakModal(channelId, `#${channel.name}`));
+}
+
+async function handleSpeakSubmit(interaction, channelId) {
+  const character = await findAliveCharacter(interaction.user.id);
+  if (!character) {
+    await interaction.reply({ content: "» *You don't have a living character.*", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  const { guild, member } = await resolveActingMember(interaction);
+  const channel = guild ? await guild.channels.fetch(channelId).catch(() => null) : null;
+  // Re-checked rather than trusted: an ephemeral picker outlives its player
+  // walking out of the room.
+  if (!channel || !member || !canSpeakIn(channel, member)) {
+    await interaction.reply({ content: "» *You can't speak there any more.*", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  const body = interaction.fields.getTextInputValue("say:body").trim();
+  const uploads = interaction.fields.getUploadedFiles("say:file");
+  const files = [...(uploads?.values() ?? [])].map((a) => a.url);
+  if (!body && files.length === 0) {
+    await interaction.reply({ content: "» *Write something, or attach something.*", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  // Open to everyone, with nothing equipped and no tag required — a player
+  // decides for themselves when to go unnamed, the same posture the /conceal
+  // prefix takes.
+  const conceal = interaction.fields.getCheckbox("say:conceal")
+    ? { alias: concealedAlias(character) }
+    : null;
+
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+  let posted;
+  try {
+    posted = await postAsCharacterTo(channel, character, {
+      content: body,
+      files,
+      discordUserId: interaction.user.id,
+      conceal,
+    });
+  } catch (err) {
+    console.error("Failed to post a Speak message:", err);
+    await interaction.editReply({ content: "» *Couldn't post that.*" });
+    return;
+  }
+
+  await recordArchiveMessage(prisma, {
+    discordMessageId: posted.webhookMessage.id,
+    content: [posted.content, ...files.map(() => "[attachment]")].filter(Boolean).join("\n"),
+    character,
+    concealedAlias: conceal?.alias ?? null,
+    ...resolveChannelContext(channel),
+  });
+
+  await interaction.editReply({
+    content: `» *Sent.*\n${messageLink(guild.id, channel.id, posted.webhookMessage.id)}`,
+  });
+}
+
+// /message. Inside a channel the player can already speak in, skip the picker
+// and post there — that does not hide the typing indicator (they are already
+// in the channel) but it does stop the message existing in plain sight before
+// the proxy deletes it. Anywhere else, ask where first.
+async function handleMessageCommand(interaction) {
+  if (interaction.inGuild()) {
+    const { member } = await resolveActingMember(interaction);
+    const channel = interaction.channel;
+    if (member && channel && canSpeakIn(channel, member)) {
+      await interaction.showModal(buildSpeakModal(channel.id, `#${channel.name}`));
+      return;
+    }
+  }
+  await handleSpeakOpen(interaction);
+}
+
+// --- /heal -----------------------------------------------------------
+
+// GM-only, and deliberately NOT the player medic path
+// (web/app/(app)/character/requestActions.js#healCharacterRequest), which
+// charges a payer, requires medical-basic and requires co-location. A GM
+// clearing an affliction needs none of that.
+//
+// It also skips isHealable: that predicate hides tier-0 self-limiting
+// conditions (Vomiting, a Migraine) from the PLAYER picker, and a GM should
+// be able to clear those too. Category is the only filter.
+async function handleHealCommand(interaction) {
+  if (!isGmMember(interaction)) {
+    await interaction.reply({ content: "» *GMs only.*", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  const role = interaction.options.getRole("character", true);
+  const target = await prisma.character.findFirst({
+    where: { discordRoleId: role.id, status: "ALIVE" },
+    include: { tags: { include: { tag: true } } },
+  });
+  if (!target) {
+    await interaction.reply({ content: "» *That isn't a living character's role.*", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  const afflictions = target.tags.filter((ct) => ct.tag.category === HEALTH_CATEGORY);
+  if (afflictions.length === 0) {
+    await interaction.reply({ content: `» *${target.name} has nothing to treat.*`, flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId(`heal:pick:${target.id}`)
+    .setPlaceholder("What to clear...")
+    .setMinValues(1)
+    .setMaxValues(afflictions.length)
+    .addOptions(afflictions.slice(0, 25).map((ct) => ({ label: ct.tag.name, value: ct.tagId })));
+
+  await interaction.reply({
+    content: `Clear what from **${target.name}**?`,
+    components: [new ActionRowBuilder().addComponents(menu)],
+    flags: MessageFlags.Ephemeral,
+  });
+}
+
+async function handleHealPick(interaction, characterId) {
+  if (!isGmMember(interaction)) {
+    await interaction.update({ content: "» *GMs only.*", components: [] });
+    return;
+  }
+  await interaction.deferUpdate();
+
+  const tagIds = interaction.values;
+  const target = await prisma.character.findUnique({
+    where: { id: characterId },
+    include: { tags: { include: { tag: true } } },
+  });
+  if (!target) {
+    await interaction.editReply({ content: "» *That character no longer exists.*", components: [] });
+    return;
+  }
+
+  const cleared = target.tags.filter((ct) => tagIds.includes(ct.tagId)).map((ct) => ct.tag.name);
+
+  await prisma.$transaction(async (tx) => {
+    for (const tagId of tagIds) {
+      await dropCharacterTag(tx, characterId, tagId);
+    }
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: interaction.user.id,
+      actionType: "gm_heal",
+      targetCharacterId: characterId,
+      details: { tagIds, tagNames: cleared },
+    },
+  });
+
+  // A tag moved, and #radio/#intercom access is tag-gated.
+  const { guild } = await resolveActingMember(interaction);
+  if (guild) await syncCharacterNarrowcastAccess(guild, target).catch(() => {});
+
+  await interaction.editReply({
+    content: `» *Cleared ${cleared.join(", ")} from ${target.name}.*`,
+    components: [],
+  });
 }
 
 module.exports = {
@@ -517,15 +688,22 @@ module.exports = {
     try {
       if (interaction.isChatInputCommand()) {
         if (interaction.commandName === "gm") return void (await handleGmCommand(interaction));
-        if (interaction.commandName === "message") return void (await handleMessageCommand(interaction));
+        if (interaction.commandName === "dm") return void (await handleGmDmCommand(interaction));
+        if (interaction.commandName === "heal") return void (await handleHealCommand(interaction));
         if (interaction.commandName === "add" || interaction.commandName === "remove") {
           return void (await handleThreadMemberCommand(interaction, interaction.commandName));
         }
         if (interaction.commandName === "persistent") {
           return void (await handlePersistentCommand(interaction));
         }
-        if (LABOR_FIELDS.includes(interaction.commandName)) {
-          return void (await handleLaborCommand(interaction, interaction.commandName));
+        // The three twins of the #turns console buttons.
+        if (interaction.commandName === "move") return void (await handleMoveOpen(interaction));
+        if (interaction.commandName === "location") return void (await handleOpen(interaction));
+        if (interaction.commandName === "message") return void (await handleMessageCommand(interaction));
+        if (interaction.commandName === "labor") {
+          const field = interaction.options.getString("type", true);
+          if (!LABOR_FIELDS.includes(field)) return;
+          return void (await handleLaborCommand(interaction, field));
         }
       } else if (interaction.isButton()) {
         if (interaction.customId === "loc:open") return void (await handleOpen(interaction));
@@ -533,19 +711,18 @@ module.exports = {
         if (interaction.customId.startsWith("loc:confirm:")) {
           return void (await handleConfirm(interaction, interaction.customId.slice("loc:confirm:".length)));
         }
-        if (interaction.customId.startsWith("move:confirm:")) {
-          return void (await handleMoveConfirm(interaction, interaction.customId.slice("move:confirm:".length)));
-        }
-        if (interaction.customId.startsWith("move:cancel:")) {
-          return void (await handleMoveCancel(interaction, interaction.customId.slice("move:cancel:".length)));
-        }
+        if (interaction.customId === "move:open") return void (await handleMoveOpen(interaction));
+        if (interaction.customId === "say:open") return void (await handleSpeakOpen(interaction));
       } else if (interaction.isStringSelectMenu()) {
         if (interaction.customId === "loc:place") return void (await handlePlaceSelect(interaction));
-        if (interaction.customId.startsWith("move:kind:")) {
-          return void (await handleMoveKindSelect(interaction, interaction.customId.slice("move:kind:".length)));
+        if (interaction.customId === "say:pick") return void (await handleSpeakPick(interaction));
+        if (interaction.customId.startsWith("heal:pick:")) {
+          return void (await handleHealPick(interaction, interaction.customId.slice("heal:pick:".length)));
         }
-        if (interaction.customId.startsWith("move:opposed:")) {
-          return void (await handleMoveOpposedSelect(interaction, interaction.customId.slice("move:opposed:".length)));
+      } else if (interaction.isModalSubmit()) {
+        if (interaction.customId === "move:new") return void (await handleMoveSubmit(interaction));
+        if (interaction.customId.startsWith("say:send:")) {
+          return void (await handleSpeakSubmit(interaction, interaction.customId.slice("say:send:".length)));
         }
       }
     } catch (err) {

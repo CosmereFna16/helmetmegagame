@@ -110,19 +110,11 @@ function getSummaryChannels(guild) {
   return [...guild.channels.cache.values()].filter(isSummaryChannel);
 }
 
-// The single channel the zone/location travel picker lives in (see
-// bot/src/lib/location.js) — same exact-name-match convention as
-// isTurnsChannel, since there's only ever meant to be one.
-function isLocationPromptChannel(channel) {
-  return channel.type === ChannelType.GuildText && channel.name?.toLowerCase() === "location";
-}
-
 module.exports = {
   isSummaryChannel,
   isTupperChannel,
   isDesignatedTupperChannel,
   getSummaryChannels,
-  isLocationPromptChannel,
   refreshLocationChannels,
   resolveChannelContext,
 };

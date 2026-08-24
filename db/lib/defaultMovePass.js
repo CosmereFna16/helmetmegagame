@@ -9,7 +9,7 @@
 // them.
 //
 // What it files is deliberately a **Routine**, resolved the same way
-// bot/src/events/interactionCreate.js#handleMoveConfirm resolves one a player
+// bot/src/lib/moveConfirm.js#confirmMove resolves one a player
 // confirms by hand: status CONFIRMED, moveReviewStatus PASSED, resources
 // pushed immediately and snapshotted onto Action.appliedEffects so a GM can
 // still revert it from the Moves panel. It never rolls a Gambit — a Gambit is

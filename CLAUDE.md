@@ -30,6 +30,7 @@ never enough to change code with.
 | Doc | Read this when… |
 |---|---|
 | [`ARCHITECTURE.md`](docs/systemdocs/ARCHITECTURE.md) | You're deciding where a new module goes, or touching anything that talks to Discord from both faces |
+| [`COMMANDS.md`](docs/systemdocs/COMMANDS.md) | You're adding or changing a slash command, button, modal or reaction |
 | [`TURN-ENGINE.md`](docs/systemdocs/TURN-ENGINE.md) | You're touching how a turn advances — hunger, default moves, weather, the side-effect thunk |
 | [`SYNC.md`](docs/systemdocs/SYNC.md) | You're editing a YAML master or a sync script, or wondering what a sync deletes |
 | [`CHANNELS.md`](docs/systemdocs/CHANNELS.md) | You're changing Discord channel layout, visibility, or the Dawn wipe |
@@ -211,26 +212,27 @@ everyone out, or the spectator overwrite silently did nothing. Same reasoning as
 
 ## Slash commands
 
-Registered per-guild on `ready` (`registerCommands` in `bot/src/lib/commands.js`)
-rather than globally, so they update instantly instead of waiting on Discord's
-~1hr global propagation. It uses `guild.commands.set()`, a **full replace**, so
-adding or removing a command needs no deregistration step.
+Full reference in [`COMMANDS.md`](docs/systemdocs/COMMANDS.md) — read it before
+adding or changing one. The three things that bite:
 
-**GM-gated** (on `DISCORD_GM_ROLE_ID` membership):
+- **Registration is global**, not per-guild (`client.application.commands.set`
+  in `bot/src/events/ready.js`). A guild command can never appear in the bot's
+  DMs, whatever contexts it declares, and `/move` `/location` `/message`
+  `/labor` are meant to work there. The cost is real: a new or renamed command
+  takes **up to an hour** to propagate. `set` is a full replace, so removing
+  one needs no deregistration step.
+- **Contexts, not `setDMPermission`.** Anything needing a channel or thread to
+  act on (`/gm`, `/dm`, `/add`, `/remove`, `/persistent`, `/heal`) declares
+  `Guild` only, so it never appears in a DM picker it could only refuse from.
+- **`interaction.guild` and `interaction.member` are null in a DM.** No player
+  handler may reach for them directly — go through
+  `bot/src/lib/interactionGuild.js#resolveActingMember`, and use `isGmMember`
+  from the same module for the GM gate.
 
-- `/gm <message> [attachment]` — posts to the current channel as the bot itself.
-- `/message <recipient> <message>` — DMs a server member as the bot, routed
-  through `bot/src/lib/dm.js#sendDm` for logging.
-
-**Gated on having a living character** instead:
-
-- `/hunt` `/fish` `/farm` `/herd` — `PRODUCTION.md`.
-- `/add` `/remove` — private-thread membership, `PROXYING.md` §6.
-- `/persistent` — marks the current thread as surviving the Dawn wipe,
-  `CHANNELS.md` §5.
-
-Submitting a Move is still a message in `#turns`, and travel is still the ⚜
-picker in `#location` — neither is a slash command.
+Player-facing work happens in **modals**, not messages typed into a channel:
+Discord shows a typing indicator under the player's *real* account, and a
+modal never does. The three entry points are buttons on one anchor message in
+`#turns` (`bot/src/lib/turnsConsole.js`), each with a slash-command twin.
 
 ## Direct message logging
 

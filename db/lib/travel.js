@@ -47,7 +47,7 @@ async function performTravel(prisma, character, targetLocation) {
     openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
     if (!openTurn) return { ok: false, reason: "No turn is currently open." };
 
-    // The same check actionSubmission.js makes in reverse: acting and
+    // The same check the Move modal makes in reverse: acting and
     // changing zones are mutually exclusive within a turn, in either order.
     const existing = await prisma.action.findFirst({
       where: { characterId: character.id, turnId: openTurn.id },

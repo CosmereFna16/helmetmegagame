@@ -1,23 +1,45 @@
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, InteractionContextType } = require("discord.js");
 const { LABOR_FIELDS, FIELD_INFO, LABOR_RULES } = require("@lifeweb/db");
 
-// Slash command definitions, registered per-guild on ready (see
-// registerCommands below) so they're available instantly rather than
-// waiting on global command propagation. Handlers live in
-// bot/src/events/interactionCreate.js.
+// Slash command definitions, registered GLOBALLY (see registerCommands) so
+// they are usable in the bot's DMs as well as in the guild — a guild command
+// cannot appear in a DM at all, whatever its contexts say. The cost is
+// propagation: a new or renamed global command can take up to an hour to
+// appear. That is a real change from the old per-guild registration, which
+// was instant.
+//
+// Handlers live in bot/src/events/interactionCreate.js.
+
+// Anything that needs a guild channel or thread to act on. Listing BotDM on
+// these would put commands in the DM picker that can only ever refuse.
+const GUILD_ONLY = [InteractionContextType.Guild];
+const ANYWHERE = [InteractionContextType.Guild, InteractionContextType.BotDM];
+
 const commandDefinitions = [
   new SlashCommandBuilder()
     .setName("gm")
     .setDescription("Speak in this channel as the bot itself (GM only).")
     .addStringOption((opt) => opt.setName("message").setDescription("What to say").setRequired(true))
     .addAttachmentOption((opt) => opt.setName("attachment").setDescription("Optional image/file to attach"))
-    .setDMPermission(false),
+    .setContexts(GUILD_ONLY),
+  // Was /message. Renamed when /message became the player-facing "speak as
+  // your character" command — one name could not be both, and /dm says what
+  // this actually does.
   new SlashCommandBuilder()
-    .setName("message")
+    .setName("dm")
     .setDescription("DM a player as the bot itself (GM only).")
     .addUserOption((opt) => opt.setName("recipient").setDescription("Who to message").setRequired(true))
     .addStringOption((opt) => opt.setName("message").setDescription("What to say").setRequired(true))
-    .setDMPermission(false),
+    .setContexts(GUILD_ONLY),
+  // Clears afflictions off a character with no cost, no skill check and no
+  // co-location — deliberately NOT the player medic path (Heal request), which
+  // has all three. A ROLE option for the same reason /add and /remove use one:
+  // the picker names characters, never Discord accounts.
+  new SlashCommandBuilder()
+    .setName("heal")
+    .setDescription("Clear afflictions off a character (GM only).")
+    .addRoleOption((opt) => opt.setName("character").setDescription("Whose role to heal").setRequired(true))
+    .setContexts(GUILD_ONLY),
   // Private-thread guest list. A ROLE option rather than a user option on
   // purpose: the picker then names characters, never Discord accounts, so
   // inviting someone can't reveal who plays them — the same reason the
@@ -28,12 +50,12 @@ const commandDefinitions = [
     .setName("add")
     .setDescription("Bring a character into this private thread.")
     .addRoleOption((opt) => opt.setName("character").setDescription("Whose role to add").setRequired(true))
-    .setDMPermission(false),
+    .setContexts(GUILD_ONLY),
   new SlashCommandBuilder()
     .setName("remove")
     .setDescription("Remove a character from this private thread.")
     .addRoleOption((opt) => opt.setName("character").setDescription("Whose role to remove").setRequired(true))
-    .setDMPermission(false),
+    .setContexts(GUILD_ONLY),
   // Marks the current thread to survive the Dawn wipe — the ⏰ forum tag on a
   // forum post, a ⏰ name prefix on a private thread (text channels can't carry
   // forum tags). Toggles, so the same command unmarks. No options: it always
@@ -41,28 +63,56 @@ const commandDefinitions = [
   new SlashCommandBuilder()
     .setName("persistent")
     .setDescription("Toggle whether this thread survives the Dawn wipe.")
-    .setDMPermission(false),
-  // One command per field rather than the old `/labor field:hunt`, so the
-  // slash command and the "/hunt" text shorthand a Move or a Default Move
-  // accepts are spelled identically. Built from LABOR_FIELDS so the two
-  // can't drift apart. Deregistering /labor needs no cleanup — registerCommands
-  // uses guild.commands.set(), a full replace.
-  ...LABOR_FIELDS.map((field) =>
-    new SlashCommandBuilder()
-      .setName(field)
-      // Discord caps a command description at 100 characters, and the
-      // longest of these ("Fishing ... only in the Fortress or Town") lands
-      // near enough that the builder throws rather than truncating — keep any
-      // rewording short.
-      .setDescription(
-        `${FIELD_INFO[field].noun} for Resources, scaled to your tags — ${LABOR_RULES[field].where}.`,
-      )
-      .setDMPermission(false),
-  ),
+    .setContexts(GUILD_ONLY),
+
+  // --- player commands, usable in a DM ---------------------------------
+
+  // The twins of the three buttons on the #turns console
+  // (bot/src/lib/turnsConsole.js). Each opens the same flow the button does.
+  new SlashCommandBuilder()
+    .setName("move")
+    .setDescription("Declare your Move for this turn.")
+    .setContexts(ANYWHERE),
+  new SlashCommandBuilder()
+    .setName("location")
+    .setDescription("Travel to a connected location.")
+    .setContexts(ANYWHERE),
+  // Run inside a channel you can speak in, this skips the destination picker
+  // and posts there. Run anywhere else — including a DM — it asks where first.
+  new SlashCommandBuilder()
+    .setName("message")
+    .setDescription("Say something as your character, without anyone seeing you type.")
+    .setContexts(ANYWHERE),
+  // One command with a `type` choice, replacing the four separate /hunt
+  // /fish /farm /herd commands. The choices are built from LABOR_FIELDS so
+  // they still cannot drift from the rules table. Note the TEXT shorthand a
+  // Move or Default Move accepts is unchanged and still spelled "/hunt" —
+  // see docs/systemdocs/PRODUCTION.md §3.
+  new SlashCommandBuilder()
+    .setName("labor")
+    .setDescription("Work for Resources, scaled to your tags.")
+    .addStringOption((opt) =>
+      opt
+        .setName("type")
+        .setDescription("What kind of work")
+        .setRequired(true)
+        .addChoices(
+          ...LABOR_FIELDS.map((field) => ({
+            // Discord caps a choice name at 100 characters; these are short.
+            name: `${FIELD_INFO[field].noun} — ${LABOR_RULES[field].where}`.slice(0, 100),
+            value: field,
+          })),
+        ),
+    )
+    .setContexts(ANYWHERE),
 ].map((builder) => builder.toJSON());
 
-async function registerCommands(guild) {
-  await guild.commands.set(commandDefinitions);
+// Global, not per-guild: a guild command is invisible in DMs no matter what
+// contexts it declares. `set` is a full replace, so removing a command from
+// the array above deregisters it with no cleanup step — which is how the four
+// old labor commands go away.
+async function registerCommands(client) {
+  await client.application.commands.set(commandDefinitions);
 }
 
 module.exports = { commandDefinitions, registerCommands };

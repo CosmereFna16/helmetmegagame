@@ -62,24 +62,33 @@ function concealedAvatarUrl() {
   return base ? `${base}/assets/unknown.png` : undefined;
 }
 
-// `conceal` carries { alias } when the message is going out anonymously (see
-// bot/src/events/messageCreate.js). Everything downstream of the send —
-// tracking, the original's deletion, the ✏️/❌/⭐/🔍 reactions — is identical
-// either way; only the username, the avatar and the recorded alias change.
-async function sendAsCharacter(channel, character, message, { conceal = null, content: override = null } = {}) {
+// The core send: post `content` (and any files) into `channel` as
+// `character`, track it, and write the transcript row. Deliberately takes no
+// Message — the Speak modal (bot/src/lib/speakModal.js) has no source message
+// to read or delete, only an interaction. sendAsCharacter below is the
+// message-driven wrapper, and is the only thing that deletes an original.
+//
+// `conceal` carries { alias } when the message is going out anonymously.
+// Everything downstream of the send — tracking, the ✏️/❌/⭐/🔍/⚜️ reactions —
+// is identical either way; only the username, the avatar and the recorded
+// alias change.
+//
+// Tracking through trackProxy is not optional for either caller: every
+// reaction in bot/src/events/messageReactionAdd.js is gated on recentProxies,
+// so an untracked message is inert to all of them.
+async function postAsCharacterTo(channel, character, { content, files = [], discordUserId, conceal = null }) {
   const { id, token } = await fetchOrCreateWebhook(channel);
   const webhookClient = new WebhookClient({ id, token });
   const threadId = channel.isThread() ? channel.id : undefined;
 
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
-  const raw = override ?? message.content;
-  const content = config?.tupperAutocorrectEnabled ? capitalizeSentences(raw) : raw;
+  const text = config?.tupperAutocorrectEnabled ? capitalizeSentences(content ?? "") : (content ?? "");
 
   const webhookMessage = await webhookClient.send({
-    content,
+    content: text,
     username: conceal ? conceal.alias : character.name,
     avatarURL: conceal ? concealedAvatarUrl() : avatarUrlFor(character),
-    files: [...message.attachments.values()].map((a) => a.url),
+    files,
     threadId,
     // Role mentions render as a chip but notify nobody — allowed_mentions
     // governs notification, not display. Character-role pings are relayed as a
@@ -91,7 +100,7 @@ async function sendAsCharacter(channel, character, message, { conceal = null, co
   });
 
   trackProxy(webhookMessage.id, {
-    discordUserId: message.author.id,
+    discordUserId,
     characterId: character.id,
     webhookId: id,
     webhookToken: token,
@@ -102,6 +111,20 @@ async function sendAsCharacter(channel, character, message, { conceal = null, co
     // concealed message inert to every reaction — which is the safe direction.
     concealed: Boolean(conceal),
     alias: conceal?.alias ?? null,
+  });
+
+  return { webhookMessage, content: text };
+}
+
+// The message-driven path: proxy what a player typed in a tupper channel,
+// then delete their original. Everything except the attachment plumbing and
+// that deletion lives in postAsCharacterTo above.
+async function sendAsCharacter(channel, character, message, { conceal = null, content: override = null } = {}) {
+  const { webhookMessage, content } = await postAsCharacterTo(channel, character, {
+    content: override ?? message.content,
+    files: [...message.attachments.values()].map((a) => a.url),
+    discordUserId: message.author.id,
+    conceal,
   });
 
   // The transcript row, written here rather than reconstructed at Dawn. Both
@@ -121,4 +144,4 @@ async function sendAsCharacter(channel, character, message, { conceal = null, co
   return webhookMessage;
 }
 
-module.exports = { recentProxies, sendAsCharacter, fetchOrCreateWebhook };
+module.exports = { recentProxies, sendAsCharacter, postAsCharacterTo, fetchOrCreateWebhook };

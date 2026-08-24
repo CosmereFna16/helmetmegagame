@@ -6,7 +6,7 @@ const { applyMoveEffects } = require("@lifeweb/db/lib/moveEffects");
 // their location to decide whether the activity is possible at all, instead
 // of them having to look either up and type a flat number.
 //
-// Reuses the same turn-economy checks as actionSubmission.js/location.js's
+// Reuses the same turn-economy checks as the Move modal/location.js's
 // performMove (one Action per character per open Turn), and the same
 // auto-resolved-Action shape as performMove's zone-change Move — but leaves
 // moveReviewStatus at its schema default (OPEN) rather than SOLVED, since
@@ -37,7 +37,7 @@ async function performLabor(character, field) {
   const description = `${character.name} ${info.verb} (Auto-generated).`;
 
   // Labor is a Routine, so it follows the Routine rule: resources land now and
-  // the row enters the queue already PASSED. See handleMoveConfirm.
+  // the row enters the queue already PASSED. See bot/src/lib/moveConfirm.js.
   await prisma.$transaction(async (tx) => {
     const row = await tx.action.create({
       data: {

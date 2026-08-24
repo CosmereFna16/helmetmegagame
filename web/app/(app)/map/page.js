@@ -52,7 +52,7 @@ export default async function MapPage() {
   ]);
 
   // A Move already filed this turn blocks a zone change, and vice versa (see
-  // performTravel and actionSubmission.js). Knowing it up here is what lets a
+  // performTravel and the Move modal). Knowing it up here is what lets a
   // costing hop render as already-spent rather than failing on confirm.
   const hasActed =
     !!character &&

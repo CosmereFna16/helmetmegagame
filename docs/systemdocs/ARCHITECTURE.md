@@ -83,7 +83,7 @@ kept in sync by hand:
 | Send a logged DM | `bot/src/lib/dm.js` | `web/lib/discordGuild.js`, `db/lib/dm.js` |
 | Is this a tupper/summary channel | `bot/src/lib/channels.js` | `web/lib/discordGuild.js` |
 | Build a nickname | `bot/src/lib/nickname.js#buildNickname` | `web/lib/discordGuild.js#buildNickname` |
-| Post as a character | `bot/src/lib/proxy.js#sendAsCharacter` | `db/lib/discordRest.js#postAsCharacter` |
+| Post as a character | `bot/src/lib/proxy.js#postAsCharacterTo` (`sendAsCharacter` wraps it) | `db/lib/discordRest.js#postAsCharacter` |
 | Location access | `bot/src/lib/location.js#swapLocationAccess` | `web/lib/discordGuild.js#syncCharacterLocationAccess` |
 | Narrowcast access | `bot/src/lib/location.js` | `web/lib/discordGuild.js` (same name) |
 | Sort location categories | `db/lib/syncLocations.js` | `web/lib/discordGuild.js` |
@@ -164,7 +164,8 @@ and `MAP.md`.
 | `ADJUDICATION.md` | The `/gm/turns` GM surface |
 | `MAP.md` | Geography, travel, the map panel |
 | `FACTIONS.md` | Factions, the Silo, Leader/Treasurer |
-| `PRODUCTION.md` | The four labor commands |
+| `PRODUCTION.md` | `/labor` and the payout table |
+| `COMMANDS.md` | Every slash command, button, modal and reaction |
 | `ARCHIVE.md` | The transcript |
 | `DESIGN-SYSTEM.md` | Web styling |
 | `PORTRAITS.md` | The portrait maker and avatar art |

@@ -3,19 +3,7 @@ const { prisma, buildNarrowcastContext, computeNarrowcastAccess } = require("@li
 const { performTravel } = require("@lifeweb/db/lib/travel");
 const { isTravelFree } = require("@lifeweb/db/lib/travelCost");
 const { locationAccessChannelIds } = require("@lifeweb/db/lib/locationAccess");
-const { isLocationPromptChannel } = require("./channels");
 
-const FLEUR_EMOJI = "⚜️";
-const LOCATION_PROMPT_TEXT = "» Where would you like to move? You can only travel to a directly connected location — changing Zones takes a turn.";
-
-function buildOpenButtonRow() {
-  const button = new ButtonBuilder()
-    .setCustomId("loc:open")
-    .setEmoji(FLEUR_EMOJI)
-    .setLabel("Move")
-    .setStyle(ButtonStyle.Secondary);
-  return new ActionRowBuilder().addComponents(button);
-}
 
 // `locations` are the destinations to offer — either the character's
 // current Location's direct neighbors, or (first-ever placement, no
@@ -145,37 +133,12 @@ async function performMove(guild, character, targetLocation) {
   return { ok: true, free: result.free };
 }
 
-// Locks down the guild's "location" channel (read-only for @everyone — the
-// bot can still post) and makes sure exactly one tracked prompt message with
-// the Move button exists there, reusing it across restarts rather than
-// reposting (unlike postTurnsAnnouncement, which intentionally rolls a new
-// message every turn). Called once on bot ready, same spot as the other
-// per-guild catch-up syncs (factions, nicknames).
-async function ensureLocationPrompt(guild) {
-  const channel = [...guild.channels.cache.values()].find(isLocationPromptChannel);
-  if (!channel) return;
-
-  await channel.permissionOverwrites.edit(guild.roles.everyone, { SendMessages: false }).catch(() => {});
-
-  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
-  if (config?.locationPromptChannelId === channel.id && config.locationPromptMessageId) {
-    const existing = await channel.messages.fetch(config.locationPromptMessageId).catch(() => null);
-    if (existing) return;
-  }
-
-  const sent = await channel.send({ content: LOCATION_PROMPT_TEXT, components: [buildOpenButtonRow()] });
-  await prisma.gameConfig.update({
-    where: { id: 1 },
-    data: { locationPromptChannelId: channel.id, locationPromptMessageId: sent.id },
-  });
-}
-
 module.exports = {
-  FLEUR_EMOJI,
-  buildOpenButtonRow,
   buildLocationSelectRow,
   buildConfirmRow,
   swapLocationAccess,
+  // Exported for the GM /heal command, which moves a tag and so has to
+  // reconcile #radio/#intercom access the same way a Move does.
+  syncCharacterNarrowcastAccess,
   performMove,
-  ensureLocationPrompt,
 };

@@ -3,7 +3,7 @@ const { ActivityType } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const { syncNicknamesForGuild } = require("../lib/nickname");
 const { advanceTurn } = require("../lib/turnEngine");
-const { ensureLocationPrompt } = require("../lib/location");
+const { ensureTurnsConsole } = require("../lib/turnsConsole");
 const { refreshLocationChannels } = require("../lib/channels");
 const { registerCommands } = require("../lib/commands");
 
@@ -30,9 +30,13 @@ module.exports = {
 
     for (const guild of client.guilds.cache.values()) {
       await syncNicknamesForGuild(guild).catch((err) => console.error("Failed to sync nicknames:", err));
-      await ensureLocationPrompt(guild).catch((err) => console.error("Failed to ensure location prompt:", err));
-      await registerCommands(guild).catch((err) => console.error("Failed to register slash commands:", err));
+      await ensureTurnsConsole(guild).catch((err) => console.error("Failed to ensure turns console:", err));
     }
+
+    // Global, not per-guild: a guild command can never appear in the bot's
+    // DMs. The cost is propagation — a new or renamed command can take up to
+    // an hour to show up. See bot/src/lib/commands.js.
+    await registerCommands(client).catch((err) => console.error("Failed to register slash commands:", err));
 
     const runAdvanceTurn = () => {
       console.log("Turn-advance cron fired.");

@@ -192,4 +192,6 @@ it's written and claiming a success count would be a lie.
 | `db/lib/turnAnnouncement.js` | The rolling `#turns` announcement |
 | `db/lib/dawnWipe.js` | The Dawn wipe (`CHANNELS.md` §5) |
 | `bot/src/lib/turnEngine.js` | The cron caller |
+| `bot/src/lib/moveModal.js` | The Move modal a player files a Move through (`COMMANDS.md`) |
+| `bot/src/lib/moveConfirm.js` | Resolving a filed Move |
 | `web/app/(app)/gm/dev/actions.js` | `forceAdvanceTurn`, the GM caller |
