@@ -67,7 +67,6 @@ enum Weather {
   FOG
   RAIN
   STORM
-  MIGRATION
 }
 
 enum TagSource {
@@ -134,6 +133,13 @@ model GameConfig {
   nextTurnNote               String?
   turnsAnnouncementChannelId String?
   turnsAnnouncementMessageId String?
+
+  // The weather banner posted immediately above the announcement each turn
+  // (docs/assets/weather/, built by make-weather.py). Tracked separately
+  // because Discord renders an attachment below its own message content, so
+  // the image cannot ride on the announcement and still appear above it —
+  // it is its own message, and the rolling replace has to delete both.
+  turnsBannerMessageId String?
 
   // Gates the whole Dawn message-wipe system (db/lib/dawnWipe.js) — off by
   // default so nothing gets swept until a GM explicitly opts in from the

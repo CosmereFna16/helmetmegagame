@@ -17,7 +17,6 @@ const WEATHER_OPTIONS = [
   { value: "FOG", label: "Fog" },
   { value: "RAIN", label: "Rain" },
   { value: "STORM", label: "Storm" },
-  { value: "MIGRATION", label: "Migration" },
 ];
 
 export default async function DevPanelPage() {
