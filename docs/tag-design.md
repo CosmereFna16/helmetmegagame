@@ -206,7 +206,179 @@ Two fields exist in the data and currently do nothing:
 
 ---
 
-## 6. Adding a tag
+## 6. File format
+
+`docs/tags.yaml` is one document with two top-level keys, `categories` and
+`tags`. Groups live in the sibling file `docs/taggroups.yaml`.
+
+Tags are a list under `tags:`, each entry indented two spaces with `- slug:`
+and its fields four. Only `slug`, `name`, `category`, `description` and
+`pointCost` are required; every other field defaults to false or absent, and
+is omitted rather than written out as `false`.
+
+```yaml
+tags:
+  - slug: kebab-case-identifier      # required, permanent
+    name: Display Name               # required
+    category: items                  # required
+    group: items-gear                # optional, but nearly always wanted
+    description: "One or two sentences, in double quotes."
+    pointCost: 2                     # required; 0 for anything unpurchasable
+
+    parentTag: lower-rung-slug       # chain: replaces, charged cumulatively
+    requiredTag: prerequisite-slug   # gate: not replaced, not charged
+
+    purchasable: true                # at character creation
+    purchasableAfterStart: false     # once the game is running
+    visible: true                    # can a bystander tell?
+    removable: true                  # can the player shed it unaided?
+    stackable: true                  # more than one at a time
+    equippable: true                 # goes in an equip slot
+    craftable: true                  # a player can make it
+    consumable: true                 # a player can use it up
+
+    durationTurns: 3                 # expires on its own after N turns
+    expiresInto: [what-it-becomes]   # requires durationTurns
+    consumesInto: [what-using-it-gives]
+
+    requirement:                     # cost to add or remove in play
+      turnsCost: 2
+      resourceCost: 35
+      skills: [smithing]
+      gambit: false
+```
+
+Comments survive edits and are used freely — section headers between blocks,
+and a note above an entry whose reasoning is not obvious from its fields.
+
+### Worked examples
+
+A trait. Nothing but the required fields plus the two purchase flags:
+
+```yaml
+  - slug: seductive
+    name: Seductive
+    category: general
+    group: general-social
+    description: "You can see a person's Desire by examining them."
+    pointCost: 4
+    purchasable: true
+    purchasableAfterStart: true
+```
+
+A skill-chain rung. `parentTag` is the whole of what makes it a chain; note it
+carries no `group`, since the Skills category is not subdivided:
+
+```yaml
+  - slug: fighting-trained
+    name: Fighting (Trained)
+    category: skills
+    description: "Formally trained combatant, but not particularly talented."
+    pointCost: 2
+    parentTag: fighting-basic
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+```
+
+An item, which is where most of the fields turn up at once. `requiredTag`
+gates it without charging for the prerequisite, `purchasableAfterStart` is
+false as every item's is, and `requirement` is the craft cost:
+
+```yaml
+  - slug: bastard-sword
+    name: Bastard Sword
+    category: items
+    group: items-weapons
+    description: "A large sword. Durable and sharp, and it asks for both hands when the work gets serious."
+    pointCost: 4
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 35
+      skills: [smithing]
+      gambit: false
+```
+
+A Health tag on the untreated-wound chain. `durationTurns` plus `expiresInto`
+is the clock; `requirement` here is the *cure*, copied from tier 2 of the
+ladder rather than invented:
+
+```yaml
+  - slug: infected
+    name: Infected
+    category: health
+    group: health-infection
+    description: "The wound is hot, swollen and weeping. It will not settle on its own — left alone it begins to fester, and from there it only goes deeper."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 3
+    expiresInto: [festering]
+    requirement:
+      resourceCost: 2
+      skills: [medical-basic]
+```
+
+A consumable, showing the conditional form of `consumesInto` — the second
+grant is withheld from anyone holding a listed tag:
+
+```yaml
+  - slug: fine-meal
+    name: Fine Meal
+    category: items
+    group: items-food
+    description: "An honest, well-made meal. Makes an ordinary person happy; Nobility expect one as a matter of course."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto:
+      - ate-meal
+      # An honest meal cheers an ordinary person; a noble expects one as a
+      # matter of course, so it does nothing for their mood. They still eat.
+      - slug: happy
+        unlessTags: [nobility]
+    requirement:
+      resourceCost: 2
+      skills: [cooking-basic]
+      gambit: false
+```
+
+A negative tag. Purchasable at creation, never after; `removable: false`
+because it is not something a character walks off:
+
+```yaml
+  - slug: missing-eye
+    name: Missing Eye
+    category: health
+    group: health-maiming
+    description: "One socket, empty or covered. Your depth perception is a running joke and your blind side is a genuine liability."
+    pointCost: -3
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+```
+
+---
+
+## 7. Adding a tag
 
 1. Pick the category and group first. Group determines visibility and colour.
 2. Price it against §1, not against its neighbours.
