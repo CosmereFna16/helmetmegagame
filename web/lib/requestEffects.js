@@ -1,4 +1,5 @@
 import { applyBlood } from "@lifeweb/db";
+import { dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
 
 // The per-type behaviour of a Request: how a GM's Undo reverses it, and which
 // fields (if any) a GM can Edit. Adding a new RequestType means adding one
@@ -127,10 +128,10 @@ export async function restoreCharacterTag(tx, characterId, snapshot) {
 // that is what an ordinary, non-stackable tag always wants.
 //
 // Lives in db/lib now, because the bot needs it too: the GM `/heal` command
-// drops afflictions through the same implementation. Re-exported so every
-// existing caller here keeps importing from where it always did — the same
-// posture healRequests.js takes with medicalVision.
-export { dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
+// drops afflictions through the same implementation. Imported and re-exported
+// rather than `export ... from`, which would re-export without binding the
+// name locally — this module calls it seven times itself.
+export { dropCharacterTag };
 
 // Grants a list of tag SLUGS to one character — what a consumed tag turns
 // into (Tag.consumesInto: a meal becoming Ate Meal, a crate unpacking into
