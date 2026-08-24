@@ -36,7 +36,6 @@ export async function updateCharacterProfile(formData) {
   // nickname, dynasty propagation) properly.
   const appearance =
     formData.get("appearance")?.toString().trim().slice(0, APPEARANCE_MAX_LENGTH) || null;
-  const preferredNickname = formData.get("preferredNickname")?.toString().trim() || null;
   const turnPingOptIn = formData.get("turnPingOptIn") === "on";
   const romanceOptOut = formData.get("romanceOptOut") === "on";
   const avatar = formData.get("avatar");
@@ -49,7 +48,7 @@ export async function updateCharacterProfile(formData) {
   const age =
     Number.isInteger(rawAge) && rawAge >= AGE_MIN && rawAge <= AGE_MAX ? rawAge : null;
 
-  const data = { appearance, preferredNickname, turnPingOptIn, romanceOptOut };
+  const data = { appearance, turnPingOptIn, romanceOptOut };
   if (age !== null && character.age === null) data.age = age;
 
   // The UI hides the file input while GameConfig.avatarUploadsEnabled is off
@@ -73,7 +72,7 @@ export async function updateCharacterProfile(formData) {
   }
 
   const updated = await prisma.character.update({ where: { id: character.id }, data });
-  await syncCharacterNickname(session.discordUserId, formatBareName(updated), updated.preferredNickname).catch(() => {});
+  await syncCharacterNickname(session.discordUserId, formatBareName(updated)).catch(() => {});
   await setTurnPingRole(session.discordUserId, updated.turnPingOptIn).catch(() => {});
   await setRomanceOptOutRole(session.discordUserId, updated.romanceOptOut).catch(() => {});
   // Kept as a self-heal, not a rename: the name can no longer change here, so

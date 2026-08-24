@@ -85,17 +85,6 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
               style={touched("age")}
             />
           </label>
-
-          <label className="field">
-            <span className="field-label">Preferred nickname</span>
-            <input
-              value={staged.preferredNickname ?? ""}
-              maxLength={32}
-              placeholder="the {base} in their Discord nickname"
-              onChange={(e) => onField("preferredNickname", e.target.value)}
-              style={touched("preferredNickname")}
-            />
-          </label>
         </div>
       </section>
 

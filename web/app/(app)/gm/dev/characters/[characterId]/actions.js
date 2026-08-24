@@ -194,7 +194,7 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
         try {
           if (step === "role") await ensureCharacterRole(updated);
           if (step === "nickname") {
-            await syncCharacterNickname(updated.discordUserId, formatBareName(updated), updated.preferredNickname);
+            await syncCharacterNickname(updated.discordUserId, formatBareName(updated));
           }
           if (step === "dynasty" && isDynastyHead((role ?? existing.role)?.slug)) {
             await propagateDynastyLastName(updated.lastName);
@@ -272,7 +272,7 @@ async function reviveCharacterImpl({ characterId }) {
     try {
       await removeCursedRole(updated.discordUserId);
       await ensureCharacterRole(updated);
-      await syncCharacterNickname(updated.discordUserId, formatBareName(updated), updated.preferredNickname);
+      await syncCharacterNickname(updated.discordUserId, formatBareName(updated));
       await syncCharacterLocationAccess(updated.discordUserId, null, updated.locationId);
       await syncCharacterNarrowcastAccess(characterId);
     } catch (err) {
@@ -398,7 +398,7 @@ async function resyncDiscordImpl({ characterId }) {
   after(async () => {
     try {
       await ensureCharacterRole(character);
-      await syncCharacterNickname(character.discordUserId, formatBareName(character), character.preferredNickname);
+      await syncCharacterNickname(character.discordUserId, formatBareName(character));
       await syncCharacterLocationAccess(character.discordUserId, null, character.locationId);
       await syncCharacterNarrowcastAccess(characterId);
     } catch (err) {

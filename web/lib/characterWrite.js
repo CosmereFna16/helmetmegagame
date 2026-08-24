@@ -33,7 +33,6 @@ export const EDITABLE_FIELDS = [
   "title",
   "lastName",
   "age",
-  "preferredNickname",
   "appearance",
   "roleId",
   "roleTitle",
@@ -136,9 +135,6 @@ export async function normalizeCoreEdits({ prisma, existing, core }) {
     // A GM may set or correct an age freely — the once-only lock is a
     // player-side rule, not a database one.
     data.age = age;
-  }
-  if ("preferredNickname" in picked) {
-    data.preferredNickname = trimmedOrNull(picked.preferredNickname, 32);
   }
   if ("appearance" in picked) data.appearance = trimmedOrNull(picked.appearance);
   if ("worstFear" in picked) data.worstFear = trimmedOrNull(picked.worstFear);
@@ -342,7 +338,7 @@ export function planDiscordEffects({ existing, diff, finalStatus, role, tagsTouc
     formatBareName(existing) !== formatBareName({ ...existing, ...unwrap(diff) });
 
   if (nameChanged || bareChanged || !existing.discordRoleId) steps.push("role");
-  if (nameChanged || diff.preferredNickname) steps.push("nickname");
+  if (nameChanged) steps.push("nickname");
   if (diff.lastName && role) steps.push("dynasty");
   if (diff.locationId) steps.push("location");
   if (diff.locationId || tagsTouched) steps.push("narrowcast");

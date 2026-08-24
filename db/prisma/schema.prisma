@@ -487,11 +487,10 @@ model Character {
   // plaque. Validated on every read by
   // web/lib/portrait/catalog.js#parseSelection, so a stale index left behind
   // by a catalog change degrades to the default part rather than throwing.
-  portrait          String?
-  appearance        String?
-  preferredNickname String?
-  turnPingOptIn     Boolean @default(true)
-  romanceOptOut     Boolean @default(false)
+  portrait      String?
+  appearance    String?
+  turnPingOptIn Boolean @default(true)
+  romanceOptOut Boolean @default(false)
 
   // 18-90, or null until the player first sets one. Free to edit while null;
   // the moment a number lands it is fixed — the /character input renders

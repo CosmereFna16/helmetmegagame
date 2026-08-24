@@ -16,9 +16,7 @@ separate `/character/new` route; one URL, no redirect bounce.
 The wizard has six steps:
 
 1. **Identity** — an honorific (a free pick from the fixed `HONORIFICS`
-   dropdown), a required first name and an optional last name, plus an
-   optional preferred nickname (the `{base} | {character}` Discord nickname
-   convention, which uses the **bare** first + last).
+   dropdown), a required first name and an optional last name.
 
    Age is optional here (18–90). Left blank, it stays editable on `/character`
    until the player saves a number, and locks at that point — a GM can still
@@ -114,7 +112,7 @@ wizard, and after that `character/actions.js#updateCharacterProfile` ignores
 `honorific`, `firstName` and `lastName` outright — the three inputs on
 `/character` render `disabled`, but as always the disabled input is the hint
 and the server action is the lock. It was the fourth writer in the table above
-until then; the rest of the Bio form (appearance, nickname, avatar, opt-ins) is
+until then; the rest of the Bio form (appearance, avatar, opt-ins) is
 untouched.
 
 The sanctioned exception is the **Mulligan Potion** (`docs/tags.yaml`), and it

@@ -1,0 +1,11 @@
+-- The Discord nickname is `{base} | {characterName}`, and now that character
+-- names are fully separate from Discord names the base is simply the player's
+-- Discord display name. preferredNickname was a hand-typed override for that
+-- base and nothing else, so it was a second source of truth for the same 32
+-- characters. Dropped rather than left dead.
+--
+-- This is a DROP, so it must run AFTER the new code is live, not before it:
+-- Prisma selects every scalar column, so the previous build would 500 on
+-- /character and /gm/dev the moment this lands. See CLAUDE.md "Deploy
+-- workflow" — the usual push -> migrate -> redeploy order is backwards here.
+ALTER TABLE "Character" DROP COLUMN "preferredNickname";
