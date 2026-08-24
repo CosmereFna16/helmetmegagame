@@ -21,6 +21,7 @@ import {
   missingSkillsFor,
   satisfiedSkillIds,
 } from "@/lib/healRequests";
+import { canReachParty, canReachSilo, outOfReachMessage } from "@/lib/transferReach";
 import { resolveConsumeGrants, heldSlugsOf } from "@/lib/consumeGrants";
 import { recordArchiveEvent } from "@/lib/archive";
 import { syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
@@ -123,16 +124,29 @@ async function setMoodRequestImpl({ mood, reason: rawReason }) {
 // SOURCE may be any faction silo or any living player — a player can pull
 // resources to themselves and justify it in the reason, and a GM undoes it if
 // that was a lie. That's the whole bet of the Requests system.
+//
+// What the source may NOT be is somewhere else: see web/lib/transferReach.js.
+// The bet is that you'll explain yourself afterwards, not that you can do it
+// from across the map. Location and zone come back on every party so the
+// caller can ask.
 async function resolveParty(key) {
   const [kind, id] = (key ?? "").split(":");
   if (kind === "character") {
-    const c = await prisma.character.findFirst({ where: { id, status: "ALIVE" }, select: { id: true, name: true, resources: true } });
-    return c ? { kind, id: c.id, name: c.name, balance: c.resources } : null;
+    const c = await prisma.character.findFirst({
+      where: { id, status: "ALIVE" },
+      select: { id: true, name: true, resources: true, locationId: true, zoneId: true },
+    });
+    return c
+      ? { kind, id: c.id, name: c.name, balance: c.resources, locationId: c.locationId, zoneId: c.zoneId }
+      : null;
   }
   if (kind === "faction") {
-    const f = await prisma.faction.findUnique({ where: { id }, select: { id: true, name: true, silo: true } });
+    const f = await prisma.faction.findUnique({
+      where: { id },
+      select: { id: true, name: true, silo: true, zoneId: true, zone: { select: { name: true } } },
+    });
     if (!f || f.name === "Unaffiliated") return null;
-    return { kind, id: f.id, name: f.name, balance: f.silo };
+    return { kind, id: f.id, name: f.name, balance: f.silo, zoneId: f.zoneId, zoneName: f.zone?.name ?? null };
   }
   return null;
 }
@@ -148,6 +162,18 @@ async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount,
   if (!from) throw new UserError("Unknown source.");
   if (!to) throw new UserError("Unknown recipient.");
   if (from.kind === to.kind && from.id === to.id) throw new UserError("Source and recipient are the same.");
+
+  // Both ends have to be somewhere you can stand. Checked here rather than in
+  // resolveParty because heal's payer rules differ slightly, and checked on
+  // submit rather than by filtering the dropdowns: a range-filtered party menu
+  // would be a free "who is standing in my zone" scouting tool, which is a
+  // worse leak than the friction it saves.
+  for (const party of [from, to]) {
+    if (!(await canReachParty(character, party))) {
+      throw new UserError(outOfReachMessage(party, party.zoneName));
+    }
+  }
+
   if (amount > from.balance) throw new UserError(`${from.name} only has ${from.balance} ⬢.`);
 
   const openTurn = await getOpenTurn();
@@ -463,11 +489,17 @@ async function transferTagRequestImpl({
     ? parseCount(rawQuantity, { min: 1, max: held.quantity }) ?? 1
     : held.quantity;
 
+  // Same room, same as ⬢ — handing someone a sword across the map was the
+  // obvious way around the transfer gate. Folded into the WHERE clause rather
+  // than done as a second read (the idiom heal uses, REQUESTS.md §5c), so a
+  // recipient who walks out between page load and submit fails closed and
+  // nothing is written.
+  if (!character.locationId) throw new UserError("You aren't anywhere you could hand that over.");
   const recipient = await prisma.character.findFirst({
-    where: { id: toCharacterId, status: "ALIVE" },
+    where: { id: toCharacterId, status: "ALIVE", locationId: character.locationId },
     select: { id: true, name: true },
   });
-  if (!recipient) throw new UserError("Unknown recipient.");
+  if (!recipient) throw new UserError("They aren't here.");
 
   const openTurn = await getOpenTurn();
   const restore = { source: held.source, expiresTurn: held.expiresTurn, quantity };
@@ -567,12 +599,17 @@ async function healCharacterRequestImpl({
 
   const payer = await resolveParty(payerKey);
   if (!payer) throw new UserError("Unknown payer.");
-  // A Silo can pay from anywhere; a person has to be in the room.
+  // A person has to be in the room; a Silo has to be in reach. A Silo used to
+  // pay from anywhere, which became a laundering hole the moment transfers
+  // grew a reach gate — bill a distant Silo for a cure and the ⬢ has moved
+  // across the map without anyone carrying it.
   if (payer.kind === "character") {
     const present = await prisma.character.count({
       where: { id: payer.id, status: "ALIVE", locationId: character.locationId },
     });
     if (!present) throw new UserError("They aren't here to pay for it.");
+  } else if (!(await canReachSilo(character, payer))) {
+    throw new UserError(outOfReachMessage(payer, payer.zoneName));
   }
 
   // Straight off the tag, never off the client — null prices a cure at

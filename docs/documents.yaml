@@ -52,6 +52,14 @@ documents:
       As Treasurer or Leader, you can control your faction's Silo.
 
       You can see every deposit and withdrawal, in addition to each member's Resource amounts.
+
+      ## Where the Silo is
+
+      A Silo is a warehouse, not a promise. It sits in your faction's home zone, and Resources only move in or out of it if the person moving them is standing in that zone. Nothing is wired anywhere. A tax owed to another faction has to be carried to them, by someone, along a road—and a road is a place where things happen to people.
+
+      You and your Leader are the exception. Wherever either of you stands, anyone sharing your zone can reach your Silo from there. Ride out to meet a debtor and you have spared them the journey; sit behind your walls and every payment to you becomes a trip worth ambushing.
+
+      Handing Resources or an item directly to another person is closer work: you must be in the same location, not merely the same zone.
   - name: Medical
     key: medical
     public: true

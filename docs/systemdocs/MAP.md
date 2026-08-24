@@ -62,6 +62,12 @@ rather than a figure of speech.
 `DEPTHS_SLUGS` is also what `narrowcastAccess.js` reads for the `#radio` dead
 zone, so all three levels are dead air.
 
+Travel cost is now also what a **tax run** costs. Moving ⬢ into or out of a
+faction's Silo requires standing in its zone (or with one of its officers), and
+handing ⬢ or an item to a person requires the same Location — so a payment
+across zones is a journey somebody physically makes, and the road is a place
+things can happen to them. See `FACTIONS.md` §3b.
+
 **Acting and travelling are mutually exclusive within a turn, in either
 order.** `bot/src/lib/actionSubmission.js` checks for any existing `Action` on
 the open turn before accepting a Move, and `performTravel` makes the same check

@@ -6,10 +6,17 @@
 # Renaming later means changing `name`, NOT `slug`; a changed slug is treated
 # as a brand-new row (old one pruned) rather than a rename.
 #
-# Threats — Sympathizer, the Demoness, the Cult of Bacchus, the Judge, the
-# Brigands — are NOT in this file. They were never read by any sync (a GM
-# hands those seats out by hand and they never appear in the player-facing
-# picker), so the whole brief lives in docs/threats.md as prose instead.
+# Threats — Sympathizer, the Demoness, the Cult of Bacchus, the Judge — are
+# NOT in this file. They were never read by any sync (a GM hands those seats
+# out by hand and they never appear in the player-facing picker), so the whole
+# brief lives in docs/threats.md as prose instead.
+#
+# The Brigands are the exception, and used to be listed here as a threat too:
+# they ARE in this file, with weights, so they sync like any other faction and
+# do appear in the picker. Nothing in db/, web/ or bot/ special-cases them.
+# They sit in the Town zone — their roles start in the Forest, which is a Town
+# location, and under the Silo reach rules (FACTIONS.md) a faction's zone is
+# where its Silo is. Town robbers bank in Town.
 #
 # `weight` (only present on `multiple: true` roles) is the seat cap,
 # expressed as seats allowed per 100 total players — the picker computes
@@ -908,6 +915,40 @@ zones:
               - meals
               - inn
               - independent
+      - name: Brigands
+        slug: brigands
+        starting_resources: 5
+        roles:
+          - name: Brigand Leader
+            slug: brigand-leader
+            intro: You raided a shipment on the way to the Fortress—well done!
+            description:
+              - You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
+            difficulty: normal
+            multiple: false
+            starting_resources: 3
+            starting_location: forest
+            leader: true
+            starting_tags:
+              - Fighting (Basic)
+            doc_elements:
+              - campstarting
+              - concealing
+          - name: Brigand
+            slug: brigand
+            intro: You raided a shipment on the way to the Fortress—well done!
+            description:
+              - You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
+            difficulty: easy
+            multiple: true
+            weight: 2
+            starting_resources: 2
+            starting_location: forest
+            starting_tags:
+              - Fighting (Basic)
+            doc_elements:
+              - campstarting
+              - concealing
   - name: Windlands
     situation:
       - The Bastard has united the clans. The Windriders and the Broken Spears are the two that survived the
@@ -1135,40 +1176,6 @@ zones:
             doc_elements:
               - campstarting
               - windrider
-      - name: Brigands
-        slug: brigands
-        starting_resources: 5
-        roles:
-          - name: Brigand Leader
-            slug: brigand-leader
-            intro: You raided a shipment on the way to the Fortress—well done!
-            description:
-              - You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
-            difficulty: normal
-            multiple: false
-            starting_resources: 3
-            starting_location: forest
-            leader: true
-            starting_tags:
-              - Fighting (Basic)
-            doc_elements:
-              - campstarting
-              - concealing
-          - name: Brigand
-            slug: brigand
-            intro: You raided a shipment on the way to the Fortress—well done!
-            description:
-              - You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
-            difficulty: easy
-            multiple: true
-            weight: 2
-            starting_resources: 2
-            starting_location: forest
-            starting_tags:
-              - Fighting (Basic)
-            doc_elements:
-              - campstarting
-              - concealing
   - name: Caves
     situation:
       - "The Caves: Migrants make it to the Fortress from here."
