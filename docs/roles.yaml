@@ -359,6 +359,7 @@ zones:
             treasurer: true
             starting_tags:
               - Ravenhearter
+              - Watchman
               - Fighting (Trained)
               - Dog
             doc_elements:
@@ -413,6 +414,7 @@ zones:
             starting_location: garrison
             starting_tags:
               - Ravenhearter
+              - Watchman
               - Fighting (Trained)
             doc_elements:
               - courtstructure
@@ -957,13 +959,24 @@ zones:
               You raided a shipment on the way to the Fortress—well done!
             description:
               - >-
-                You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
+                Some call you scum. But what do they know of freedom?
+              - >-
+                The Brigand Leader is given the sacred task of organizing his small band of scrappy men. Keep them in line; earn their loyalty, buy them booze, or bully them into submission. Also, find a place to make your base.
+              - >-
+                You successfully raided a tax caravan. You're rich! But they might be looking for you. Put your resources together and plan your next move.
+              - >-
+                As a Brigand, you can do whatever you want. But here are some three goals in order of priority in case you need inspiration: 1. Survive, 2. Make money, 3. Find the airship in the Baron's fortress and hitch a ride off this planet! Ha-ha... just kidding. You, in the Keep? Impossible. But imagine...
+              - >-
+                You are probably afraid of fighting. You do not want to die. Your greatest strength is your creativity: forge papers and play con games; kidnap the metalsmith and build an empire; pay a lady to lure the Heir out and take him hostage; ambush whoever's bringing the tax caravan. Or rob the merchant. Oh, imagine robbing the merchant! If you have to fight, fine, but be careful.
+              - >-
+                A little hint: some of the Watchmen take bribes.
             difficulty: normal
             multiple: false
             starting_resources: 3
             starting_location: forest
             leader: true
             starting_tags:
+              - Brigand
               - Fighting (Basic)
             doc_elements:
               - campstarting
@@ -974,13 +987,22 @@ zones:
               You raided a shipment on the way to the Fortress—well done!
             description:
               - >-
-                You raided a shipment on the way to the Fortress—well done! You have plenty of Food, now.
+                Some call you scum. But what do they know of freedom?
+              - >-
+                You successfully raided a tax caravan. You're rich! But they might be looking for you. Put your resources together and plan your next move.
+              - >-
+                As a Brigand, you can do whatever you want. But here are some three goals in order of priority in case you need inspiration: 1. Survive, 2. Make money, 3. Find the airship in the Baron's fortress and hitch a ride off this planet! Ha-ha... just kidding. You, in the Keep? Impossible. But imagine...
+              - >-
+                You are probably afraid of fighting. You do not want to die. Your greatest strength is your creativity: forge papers and play con games; kidnap the metalsmith and build an empire; pay a lady to lure the Heir out and take him hostage; ambush whoever's bringing the tax caravan. Or rob the merchant. Oh, imagine robbing the merchant! If you have to fight, fine, but be careful.
+              - >-
+                A little hint: some of the Watchmen take bribes.
             difficulty: easy
             multiple: true
             weight: 2
             starting_resources: 2
             starting_location: forest
             starting_tags:
+              - Brigand
               - Fighting (Basic)
             doc_elements:
               - campstarting

@@ -3,19 +3,11 @@
 import { revalidatePath } from "next/cache";
 import sharp from "sharp";
 import { redirect } from "next/navigation";
-import { prisma, isDynastyHead, isDynastyMember } from "@lifeweb/db";
+import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
-import {
-  AGE_MIN,
-  AGE_MAX,
-  NAME_LIMITS,
-  formatCharacterName,
-  formatBareName,
-  normalizeHonorific,
-} from "@/lib/characterName";
+import { AGE_MIN, AGE_MAX, formatBareName } from "@/lib/characterName";
 import { syncCharacterNickname, setTurnPingRole, setRomanceOptOutRole, ensureCharacterRole } from "@/lib/discordGuild";
-import { propagateDynastyLastName } from "@/lib/dynasty";
 import { normalizeSelection } from "@/lib/portrait/catalog";
 import { renderPortrait } from "@/lib/portrait/render";
 
@@ -28,27 +20,20 @@ export async function updateCharacterProfile(formData) {
 
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
-    // The role slug decides whether this player owns their last name at all —
-    // the Baron's family does not (see db/lib/dynasty.js).
-    include: { role: { select: { slug: true } } },
   });
   if (!character) redirect("/character");
 
-  const part = (key, limit) => formData.get(key)?.toString().trim().slice(0, limit) || null;
-  // `title` is GM-granted and never read from this form — the input on the
-  // character sheet is disabled and submits nothing. It still has to be fed
-  // back into formatCharacterName below, or a player saving their bio would
-  // silently strip a title a GM had granted them.
-  const honorific = normalizeHonorific(formData.get("honorific"));
-  const firstName = part("firstName", NAME_LIMITS.firstName);
-  // A Baroness/Heir/Successor wears the Baron's last name, so their own form
-  // is never read for it — their existing value is carried through untouched,
-  // and only propagateDynastyLastName below ever changes it. The greyed input
-  // on the sheet is the hint; this is the lock, same as `title` above.
-  const dynastyMember = isDynastyMember(character.role?.slug);
-  const lastName = dynastyMember
-    ? character.lastName
-    : part("lastName", NAME_LIMITS.lastName);
+  // A character's name is SET AT CREATION and never read from this form
+  // again — honorific, firstName and lastName are all ignored here, however
+  // the form is posted. The greyed inputs on the sheet are the hint; this is
+  // the lock, same posture as `age` below and `title` before it.
+  //
+  // The one exception in the game is the Mulligan Potion (docs/tags.yaml),
+  // and it is deliberately not automated: a player consumes it, and a GM
+  // renames them from /gm/dev/characters/[characterId]. That keeps
+  // web/lib/characterWrite.js the only remaining rename path, which is also
+  // the only one that plans the Discord fan-out (role title, colour,
+  // nickname, dynasty propagation) properly.
   const appearance =
     formData.get("appearance")?.toString().trim().slice(0, APPEARANCE_MAX_LENGTH) || null;
   const preferredNickname = formData.get("preferredNickname")?.toString().trim() || null;
@@ -66,14 +51,6 @@ export async function updateCharacterProfile(formData) {
 
   const data = { appearance, preferredNickname, turnPingOptIn, romanceOptOut };
   if (age !== null && character.age === null) data.age = age;
-  if (firstName) {
-    Object.assign(data, {
-      honorific,
-      firstName,
-      lastName,
-      name: formatCharacterName({ honorific, firstName, title: character.title, lastName }),
-    });
-  }
 
   // The UI hides the file input while GameConfig.avatarUploadsEnabled is off
   // (see AvatarField.js), but that's presentation only — a server action is
@@ -99,13 +76,9 @@ export async function updateCharacterProfile(formData) {
   await syncCharacterNickname(session.discordUserId, formatBareName(updated), updated.preferredNickname).catch(() => {});
   await setTurnPingRole(session.discordUserId, updated.turnPingOptIn).catch(() => {});
   await setRomanceOptOutRole(session.discordUserId, updated.romanceOptOut).catch(() => {});
+  // Kept as a self-heal, not a rename: the name can no longer change here, so
+  // this only ever creates a personal role that went missing.
   await ensureCharacterRole(updated).catch(() => {});
-  // The Baron renaming himself renames his whole house.
-  if (isDynastyHead(character.role?.slug)) {
-    await propagateDynastyLastName(updated.lastName).catch((err) =>
-      console.error("propagateDynastyLastName failed:", err),
-    );
-  }
   revalidatePath("/character");
 }
 

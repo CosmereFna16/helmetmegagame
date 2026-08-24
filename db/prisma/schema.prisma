@@ -418,14 +418,21 @@ model Character {
   // concatenate columns in orderBy or contains, so dropping it would force
   // search and sort into OR-over-three-columns for correctness nobody sees.
   //
-  // Exactly four writers keep it in sync, and every one of them goes
+  // Exactly three writers keep it in sync, and every one of them goes
   // through formatCharacterName:
   //   web/app/(app)/character/createActions.js      (creation)
-  //   web/app/(app)/character/actions.js            (player edit)
-  //   web/app/(app)/gm/dev/actions.js               (GM raw edit)
+  //   web/lib/characterWrite.js                     (GM raw edit, dev panel)
   //   web/lib/dynasty.js                            (the Baron renames his house)
-  // A fifth writer must do the same; `npm run db:backfill-name-parts` is the
+  // A fourth writer must do the same; `npm run db:backfill-name-parts` is the
   // drift check that catches one that doesn't.
+  //
+  // There is deliberately NO player-facing writer. A name is set once, in the
+  // creation wizard, and is immutable afterwards —
+  // web/app/(app)/character/actions.js used to be the fourth writer and now
+  // ignores the name keys entirely. The only sanctioned change is the Mulligan
+  // Potion (docs/tags.yaml), which a GM honours through the dev panel, i.e.
+  // through characterWrite.js — the one path that also plans the Discord
+  // fan-out (role title, role colour, nickname, dynasty propagation).
   name String
 
   // Display-only snapshot of the role's name at creation. `roleId` is the

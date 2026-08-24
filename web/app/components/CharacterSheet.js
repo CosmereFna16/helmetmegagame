@@ -84,7 +84,6 @@ export default function CharacterSheet({
   portraitFantasyPartsEnabled = false,
   portraitSelection = null,
   hasCustomAvatar = false,
-  lastNameLocked = false,
 }) {
   const isSelf = mode === "self";
 
@@ -143,7 +142,7 @@ export default function CharacterSheet({
           <section className="panel p-4">
             <h2 className="panel-header">Bio</h2>
             <form action={updateCharacterProfile} encType="multipart/form-data" className="flex flex-col gap-3">
-              <BioNameFields character={character} lastNameLocked={lastNameLocked} />
+              <BioNameFields character={character} />
               <AvatarField
                 defaultTurnPingOptIn={character.turnPingOptIn}
                 defaultRomanceOptOut={character.romanceOptOut}
