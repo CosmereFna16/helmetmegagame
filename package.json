@@ -25,6 +25,7 @@
     "db:backfill-spectator-access": "node db/prisma/backfill-spectator-access.js",
     "db:backfill-tupper-attachment-restriction": "node db/prisma/backfill-tupper-attachment-restriction.js",
     "db:prune-orphan-categories": "node db/prisma/prune-orphan-categories.js",
+    "db:prune-orphan-roles": "node db/prisma/prune-orphan-roles.js",
     "map:check": "node db/prisma/check-map.js",
     "copy:extract": "node scripts/copy/extract.js",
     "copy:reinject": "node scripts/copy/reinject.js",

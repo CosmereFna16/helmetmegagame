@@ -138,6 +138,13 @@ npm run db:backfill-gm-permissions
 npm run db:backfill-spectator-access
 npm run db:backfill-tupper-attachment-restriction
 npm run db:prune-orphan-categories
+npm run db:prune-orphan-roles          # deletes Discord character roles no living
+                                       #   character claims. DRY RUN unless given
+                                       #   `-- --apply`. Only touches roles carrying
+                                       #   the character-role signature (mentionable
+                                       #   + hashNameToColor colour), so divider and
+                                       #   GM cosmetic roles are never candidates.
+                                       #   Guards the 250-role guild cap.
 
 npm run build --workspace=web        # production build of the web app
 npm run lint --workspace=web         # eslint over the web app

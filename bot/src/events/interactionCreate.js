@@ -429,20 +429,35 @@ async function handleMoveSubmit(interaction) {
     resourceRollExpression = rate.expression;
   }
 
-  const action = await prisma.action.create({
-    data: {
-      characterId: character.id,
-      turnId: openTurn.id,
-      type: "MOVE",
-      status: "PENDING_TYPE",
-      moveKind,
-      opposed,
-      description,
-      resourceDelta,
-      resourceRollExpression,
-      zoneId: character.zoneId ?? null,
-    },
-  });
+  // @@unique([characterId, turnId]) is the real gate; the earlier openTurn/
+  // already-acted check is the friendly one. A retried interaction at rollover
+  // lands here twice, and the second must not become a second Move.
+  let action;
+  try {
+    action = await prisma.action.create({
+      data: {
+        characterId: character.id,
+        turnId: openTurn.id,
+        type: "MOVE",
+        status: "PENDING_TYPE",
+        moveKind,
+        opposed,
+        description,
+        resourceDelta,
+        resourceRollExpression,
+        zoneId: character.zoneId ?? null,
+      },
+    });
+  } catch (err) {
+    if (err.code === "P2002") {
+      await interaction.reply({
+        content: "» *You've already acted this turn.*",
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+    throw err;
+  }
 
   await prisma.auditLog.create({
     data: {

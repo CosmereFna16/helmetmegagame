@@ -7,7 +7,7 @@ import {
   MORTUS_SLUG,
   DRAINED_SLUG,
   bloodValueForTags,
-  applyBlood,
+  bumpBlood,
   FEED_PERSON_AMOUNT,
 } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
@@ -71,22 +71,26 @@ async function donateBloodRequestImpl({ targetCharacterId, reason: rawReason }) 
     throw new UserError(`${target.name} is already Drained.`);
   }
 
-  const [config, openTurn, drainedTag] = await Promise.all([
-    prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
+  const [openTurn, drainedTag] = await Promise.all([
     getOpenTurn(),
     prisma.tag.findUnique({ where: { slug: DRAINED_SLUG } }),
   ]);
   if (!drainedTag) throw new UserError("The Drained tag is missing — run npm run db:sync-tags.");
 
   const { amount, tier } = bloodValueForTags(target.tags);
-  const blood = applyBlood(config.lifewebBlood, amount);
   const expiresTurn =
     openTurn && drainedTag.defaultDurationTurns != null
       ? openTurn.number + drainedTag.defaultDurationTurns
       : null;
 
+  // `blood` is now produced INSIDE the transaction rather than from a read
+  // taken before it. The snapshot written to Request.effect below is what Undo
+  // reverses (REQUESTS.md §2), so it has to describe the move this statement
+  // actually made — not one computed from a pool value another donation has
+  // already changed.
+  let blood;
   await prisma.$transaction(async (tx) => {
-    await tx.gameConfig.update({ where: { id: 1 }, data: { lifewebBlood: blood.after } });
+    blood = await bumpBlood(tx, amount);
     await tx.characterTag.create({
       data: { characterId: target.id, tagId: drainedTag.id, source: "EVENT", expiresTurn },
     });
@@ -133,15 +137,11 @@ async function feedPersonRequestImpl({ targetCharacterId, reason: rawReason }) {
   const reason = requireReason(rawReason);
   const target = await requireLivingTarget(targetCharacterId);
 
-  const [config, openTurn] = await Promise.all([
-    prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
-    getOpenTurn(),
-  ]);
+  const openTurn = await getOpenTurn();
 
-  const blood = applyBlood(config.lifewebBlood, FEED_PERSON_AMOUNT);
-
+  let blood;
   await prisma.$transaction(async (tx) => {
-    await tx.gameConfig.update({ where: { id: 1 }, data: { lifewebBlood: blood.after } });
+    blood = await bumpBlood(tx, FEED_PERSON_AMOUNT);
 
     const effect = {
       targetCharacterId: target.id,

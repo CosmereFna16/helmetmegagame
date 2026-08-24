@@ -5,7 +5,16 @@ const { capitalizeSentences } = require("./textCorrection");
 const { resolveChannelContext } = require("./channels");
 
 const WEBHOOK_NAME = "Bascinet Tupper";
-const MAX_RECENT = 500;
+// One entry per proxied message, and the ✏️/❌/⭐/🔍 reactions only work on
+// messages still in here. At 500 that cap was reachable *within a single
+// turn* at roster scale — 15 locations of active play — so a player scrolling
+// up to edit something they said an hour earlier found the reaction silently
+// inert. PROXYING.md §2 describes the bound as the bot's last restart, which
+// is the behaviour this restores.
+//
+// The entries are small (a few ids and two short strings), so 20k of them is
+// on the order of a few MB — cheap next to losing the feature mid-turn.
+const MAX_RECENT = 20_000;
 
 const webhookCache = new Map(); // channelId -> { id, token }
 const recentProxies = new Map(); // webhookMessageId -> { discordUserId, characterId, webhookId, webhookToken, threadId, concealed, alias }

@@ -124,7 +124,7 @@ export default async function DevCharacterPanelPage({ params }) {
           worstFearLastFulfilledTurn: character.worstFearLastFulfilledTurn,
           discordRoleId: character.discordRoleId,
           avatarMimeType: character.avatarMimeType,
-          hasAvatar: Boolean(character.avatarData),
+          hasAvatar: Boolean(character.avatarMimeType),
         }}
         discord={{
           username: member?.user?.username ?? null,

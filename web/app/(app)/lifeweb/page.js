@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { prisma, MORTUS_SLUG, LIFEWEB_SPUTTER_THRESHOLD } from "@lifeweb/db";
+import { prisma, MORTUS_SLUG, LIFEWEB_SPUTTER_THRESHOLD, DONATE_BLOOD_BY_TAG } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import LifewebDonateBloodPanel from "../../components/LifewebDonateBloodPanel";
@@ -13,6 +13,10 @@ function bloodBand(blood) {
   if (blood <= 60) return { label: "Thinning", color: "var(--text)" };
   return { label: "Full", color: "var(--positive)" };
 }
+
+// The only tags that change what a donation is worth; everything else on a
+// character's sheet is irrelevant to this page.
+const BLOOD_TIER_SLUGS = DONATE_BLOOD_BY_TAG.map((t) => t.slug);
 
 export default async function LifewebPage() {
   const session = await auth();
@@ -29,17 +33,34 @@ export default async function LifewebPage() {
   if (!mortusCharacter && !gm) redirect("/character");
 
   const [config, aliveCharacters] = await Promise.all([
-    prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
+    // findUnique, not upsert: this is a page render, and the row is created by
+    // the bot on ready and by every write path that touches it. Upserting here
+    // made a read-only page take a write lock on the game's hottest row on
+    // every single load.
+    prisma.gameConfig.findUnique({ where: { id: 1 } }),
     // Tags come down with them so the Donate Blood dialog can price a target
     // (Nobility 40 / Courtier 30 / 20) without a round trip per selection.
+    //
+    // Only the two tags that actually set a price, and only their slugs. The
+    // unfiltered version pulled every tag of every living character — about
+    // fifteen joined rows each — to read at most one slug off each.
     prisma.character.findMany({
       where: { status: "ALIVE" },
       orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
-      include: { tags: { include: { tag: { select: { slug: true } } } } },
+      select: {
+        id: true,
+        name: true,
+        firstName: true,
+        lastName: true,
+        tags: {
+          where: { tag: { slug: { in: BLOOD_TIER_SLUGS } } },
+          select: { tag: { select: { slug: true } } },
+        },
+      },
     }),
   ]);
 
-  const blood = config.lifewebBlood ?? 0;
+  const blood = config?.lifewebBlood ?? 0;
   const band = bloodBand(blood);
 
   return (

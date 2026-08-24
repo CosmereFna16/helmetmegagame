@@ -336,7 +336,7 @@ export default async function CharacterPage() {
       portraitSelection={parseSelection(character.portrait, {
         allowFantasy: gameConfig?.portraitFantasyPartsEnabled ?? false,
       })}
-      hasCustomAvatar={Boolean(character.avatarData)}
+      hasCustomAvatar={Boolean(character.avatarMimeType)}
       healTargets={healTargets}
       healParties={healParties}
       lastNameLocked={isDynastyMember(character.role?.slug)}

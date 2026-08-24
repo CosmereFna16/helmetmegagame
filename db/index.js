@@ -27,6 +27,7 @@ const { runDefaultMovePass } = require("./lib/defaultMovePass");
 const { sendDm } = require("./lib/dm");
 const { recordArchiveMessage, recordArchiveEvent } = require("./lib/archive");
 const { postAsCharacter } = require("./lib/discordRest");
+const { bumpBlood } = require("./lib/lifeweb");
 const { runFullChannelWipe } = require("./lib/fullWipe");
 const { syncLocationsFromYaml } = require("./lib/syncLocations");
 const { syncTagsFromYaml } = require("./lib/syncTags");
@@ -58,6 +59,22 @@ const prisma =
   new PrismaClient({
     ...(databaseUrl ? { datasourceUrl: databaseUrl } : {}),
     transactionOptions: { maxWait: 5000, timeout: 15000 },
+    // Character.avatarData is a 10-25 KB WebP blob, and it is served
+    // out-of-band by web/app/api/avatar/[characterId]/route.js — no page ever
+    // needs the bytes inline. But `include` returns every scalar, so
+    // /gm/turns' 500 Actions x full character row was reading ~12 MB of
+    // portraits out of Postgres per page load, and /character was base64ing
+    // one into the RSC payload of every render on top of the <img> that
+    // already fetched it.
+    //
+    // Omitting globally rather than per-query is deliberate: it fixes all four
+    // call sites at once and, more importantly, means a future `include` can't
+    // silently reintroduce the problem. An explicit `select: { avatarData:
+    // true }` still overrides it, which is exactly how the avatar route reads
+    // the bytes. Anything needing only "does this character have a portrait?"
+    // should read avatarMimeType, which is written and nulled in lockstep with
+    // the blob (web/app/(app)/character/actions.js).
+    omit: { character: { avatarData: true } },
   });
 
 globalForPrisma.prisma = prisma;
@@ -122,16 +139,51 @@ async function sweepExpiredStacks(turn) {
 // the Default Move pass's summary posts and DMs, and the tag progression
 // pass's DMs. See advanceTurn() below for why.
 async function resolveNeeds(turn, config) {
+  // Which passes this turn has already had applied. Non-empty only when a
+  // previous advance claimed the turn and then died part-way through it; see
+  // Turn.resolvedPasses in the schema for why re-running the lot is not an
+  // option.
+  const done = new Set(Array.isArray(turn.resolvedPasses) ? turn.resolvedPasses : []);
+
+  async function markDone(name) {
+    done.add(name);
+    await prisma.turn
+      .update({ where: { id: turn.id }, data: { resolvedPasses: [...done] } })
+      .catch((err) => console.error(`Failed to record completed pass "${name}":`, err));
+  }
+
+  // A failed pass leaves the turn advancing anyway — that has always been the
+  // trade, since a stuck turn is worse than a missed upkeep — but it no longer
+  // vanishes into stderr. The row is what makes "everyone ate free on day 12"
+  // answerable after the fact, and the pass stays unrecorded so the next
+  // advance retries it.
+  async function passFailed(name, err) {
+    console.error(`${name} pass failed:`, err);
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "turn_pass_failed",
+          details: { turnNumber: turn.number, pass: name, error: String(err?.message ?? err) },
+        },
+      })
+      .catch(() => {});
+  }
+
   // Default Moves file FIRST, before anything else here: a Default Move can
   // pay resources in, and the Hunger pass below charges them out, so income
   // has to land before upkeep is taken or a player whose default earns them
   // a meal still goes hungry. It also has to happen while the turn is still
   // the one being closed — it files a real Action against it. Same summary-
   // audit-row shape as the Hunger pass, for the same reason.
-  const defaults = await runDefaultMovePass(prisma, turn).catch((err) => {
-    console.error("Default Move pass failed:", err);
-    return null;
-  });
+  let defaults = null;
+  if (!done.has("defaultMoves")) {
+    defaults = await runDefaultMovePass(prisma, turn).catch(async (err) => {
+      await passFailed("Default Move", err);
+      return null;
+    });
+    if (defaults) await markDone("defaultMoves");
+  }
   // Same split as the Hunger pass below: the posts/DMs the pass wants are
   // routing data for runSideEffects(), not part of the turn's record, so they
   // come off before the audit row is written.
@@ -158,10 +210,14 @@ async function resolveNeeds(turn, config) {
   // deletes nothing itself, leaving the sweep to remove exactly the rows it
   // just read. Nothing in it kills anyone — the terminal chains stop at the
   // Dying tag and wait for a GM. See db/lib/tagExpiryPass.js.
-  const progressed = await runTagExpiryPass(prisma, turn).catch((err) => {
-    console.error("Tag expiry pass failed:", err);
-    return null;
-  });
+  let progressed = null;
+  if (!done.has("tagExpiry")) {
+    progressed = await runTagExpiryPass(prisma, turn).catch(async (err) => {
+      await passFailed("Tag expiry", err);
+      return null;
+    });
+    if (progressed) await markDone("tagExpiry");
+  }
   // Same split as the two passes either side: the DMs are routing data for
   // runSideEffects(), not part of the turn's record.
   const { dms: tagExpiryDms = [], ...tagExpirySummary } = progressed ?? {};
@@ -173,10 +229,21 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Tag expiry audit log failed:", err));
   }
 
-  await prisma.characterTag.deleteMany({
-    where: { expiresTurn: { lte: turn.number }, tag: { stackable: false } },
-  });
-  await sweepExpiredStacks(turn);
+  // Paired with the progression pass above and recorded as one unit: the
+  // sweep is what deletes the rows that pass just read, so resuming with one
+  // applied and the other not would either double-progress or strand expired
+  // tags on every sheet.
+  if (!done.has("expirySweep")) {
+    try {
+      await prisma.characterTag.deleteMany({
+        where: { expiresTurn: { lte: turn.number }, tag: { stackable: false } },
+      });
+      await sweepExpiredStacks(turn);
+      await markDone("expirySweep");
+    } catch (err) {
+      await passFailed("Expiry sweep", err);
+    }
+  }
 
   // Hunger upkeep runs AFTER the sweep, deliberately: a Hunger granted while
   // closing turn N-1 carries expiresTurn N, so the sweep is what clears it a
@@ -190,10 +257,14 @@ async function resolveNeeds(turn, config) {
   // every human-authored line. Written here rather than by the two advance
   // callers because the whole point of resolveNeeds being shared is that both
   // paths resolve Needs identically.
-  const hunger = await runHungerPass(prisma, turn).catch((err) => {
-    console.error("Hunger pass failed:", err);
-    return null;
-  });
+  let hunger = null;
+  if (!done.has("hunger")) {
+    hunger = await runHungerPass(prisma, turn).catch(async (err) => {
+      await passFailed("Hunger", err);
+      return null;
+    });
+    if (hunger) await markDone("hunger");
+  }
 
   // The DM list is split off the summary before it's logged: it's routing
   // data for runSideEffects(), not part of the turn's record, so the audit
@@ -210,9 +281,31 @@ async function resolveNeeds(turn, config) {
   // The Lifeweb bleeds out a fixed amount every turn regardless of what fed
   // it last — see donateBlood()/feedLifewebPerson() in
   // web/app/(app)/lifeweb/actions.js for the ways it's topped back up.
-  const newBlood = Math.max(0, (config?.lifewebBlood ?? 100) - (config?.lifewebDecayPerTurn ?? 10));
-  await prisma.gameConfig.update({ where: { id: 1 }, data: { lifewebBlood: newBlood } });
-  return { lifewebBlood: newBlood, starvedDiscordUserIds, defaultMovePosts, defaultMoveDms, tagExpiryDms };
+  //
+  // bumpBlood rather than a computed literal off `config`: that snapshot was
+  // read before the passes above ran, so any blood donated during the advance
+  // was being silently discarded by the write-back.
+  let lifewebBlood = config?.lifewebBlood ?? 100;
+  if (!done.has("lifewebDecay")) {
+    try {
+      const moved = await bumpBlood(prisma, -(config?.lifewebDecayPerTurn ?? 10));
+      lifewebBlood = moved.after;
+      await markDone("lifewebDecay");
+    } catch (err) {
+      await passFailed("Lifeweb decay", err);
+    }
+  } else {
+    const fresh = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+    lifewebBlood = fresh?.lifewebBlood ?? lifewebBlood;
+  }
+
+  // Every pass accounted for. A turn carrying this is one no resume will
+  // reopen.
+  await prisma.turn
+    .update({ where: { id: turn.id }, data: { needsResolvedAt: new Date() } })
+    .catch((err) => console.error("Failed to stamp needsResolvedAt:", err));
+
+  return { lifewebBlood, starvedDiscordUserIds, defaultMovePosts, defaultMoveDms, tagExpiryDms };
 }
 
 async function getConfig() {
@@ -283,6 +376,36 @@ async function advanceTurn() {
 
     ({ lifewebBlood, starvedDiscordUserIds, defaultMovePosts, defaultMoveDms, tagExpiryDms } =
       await resolveNeeds(openTurn, config));
+  } else {
+    // No OPEN turn, which normally means "opening the very first turn". It
+    // also means something else: a previous advance that claimed its turn and
+    // then died before creating the next one. The claim is what removes the
+    // OPEN turn, so that crash landed the game here — and here used to do
+    // nothing but open a fresh turn, silently skipping that day's hunger,
+    // decay and remaining Default Moves with no log of it having happened.
+    //
+    // A RESOLVED turn with no needsResolvedAt is exactly that turn. Finishing
+    // it re-runs only the passes it never recorded.
+    const unfinished = await prisma.turn.findFirst({
+      where: { status: "RESOLVED", needsResolvedAt: null },
+      orderBy: { number: "desc" },
+    });
+    if (unfinished) {
+      console.warn(
+        `Turn #${unfinished.number} was claimed but never finished resolving — resuming its outstanding passes.`,
+      );
+      await prisma.auditLog
+        .create({
+          data: {
+            actorDiscordUserId: "system",
+            actionType: "turn_resume",
+            details: { turnNumber: unfinished.number, alreadyApplied: unfinished.resolvedPasses ?? [] },
+          },
+        })
+        .catch(() => {});
+      ({ lifewebBlood, starvedDiscordUserIds, defaultMovePosts, defaultMoveDms, tagExpiryDms } =
+        await resolveNeeds(unfinished, config));
+    }
   }
 
   const lastTurn = openTurn ?? (await prisma.turn.findFirst({ orderBy: { number: "desc" } }));

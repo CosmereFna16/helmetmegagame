@@ -174,12 +174,27 @@ module.exports = {
   name: "messageReactionAdd",
   async execute(reaction, user) {
     if (user.bot) return;
-    if (reaction.partial) await reaction.fetch().catch(() => null);
-    if (reaction.message.partial) await reaction.message.fetch().catch(() => null);
+
+    // Everything below the fetch used to sit above it, which meant every
+    // reaction on any message in the guild cost two REST calls before the
+    // handler decided it didn't care about it. Partials.Message/Reaction are
+    // enabled, so after every deploy that is *every* reaction in the guild.
+    //
+    // The gateway payload already carries the emoji, the message id and the
+    // guild id, so all three gates below are free — only a reaction that has
+    // actually reached a handler pays for the fetch.
+    const emojiName = reaction.emoji?.name;
 
     // Move DMs are handled entirely by select menus/buttons now (see
     // bot/src/events/interactionCreate.js) — DMs no longer carry any
     // reaction-driven flow, so there's nothing to do for a DM reaction.
+    // guildId rather than guild: a partial message has the former, not always
+    // the latter.
+    if (!reaction.message.guildId) return;
+    if (emojiName !== FOG_EMOJI && !recentProxies.has(reaction.message.id)) return;
+
+    if (reaction.partial) await reaction.fetch().catch(() => null);
+    if (reaction.message.partial) await reaction.message.fetch().catch(() => null);
     if (!reaction.message.guild) return;
 
     if (reaction.emoji.name === FOG_EMOJI) {

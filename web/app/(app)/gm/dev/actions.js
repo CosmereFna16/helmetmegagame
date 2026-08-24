@@ -342,17 +342,46 @@ async function finishGameWipe(actorDiscordUserId, characters, cursedMemberIds) {
     return null;
   });
 
+  // Sequential, not Promise.all. This used to fan out ~2 calls per character
+  // plus every cursed role plus the whole channel wipe at once — 240+
+  // simultaneous requests at roster scale against two per-guild buckets. Same
+  // conversion, and the same reasoning, as deliverGmMessage in
+  // web/app/(app)/gm/actions.js.
+  //
+  // The stakes here are specifically role LEAKAGE: this is the one moment 120
+  // roles are deleted at once, a dropped delete leaves a guild role nothing
+  // ever reaps, and the guild cap is 250. So a failed delete is retried once
+  // and then reported, rather than swallowed into a bare .catch(() => {}).
+  const leakedRoleIds = [];
+  for (const c of characters) {
+    if (c.discordRoleId) {
+      try {
+        await deleteCharacterRole(c.discordRoleId);
+      } catch (err) {
+        try {
+          await deleteCharacterRole(c.discordRoleId);
+        } catch (retryErr) {
+          leakedRoleIds.push(c.discordRoleId);
+          console.error(`Leaked role ${c.discordRoleId} during wipe: ${retryErr.message}`);
+        }
+      }
+    }
+    await updateGuildNickname(c.discordUserId, null).catch(() => {});
+  }
+
   // A full restart should not leave anyone still cursed from the last game.
-  await Promise.all([
-    ...characters
-      .flatMap((c) => [
-        c.discordRoleId ? deleteCharacterRole(c.discordRoleId).catch(() => {}) : null,
-        updateGuildNickname(c.discordUserId, null).catch(() => {}),
-      ])
-      .filter(Boolean),
-    ...cursedMemberIds.map((id) => removeCursedRole(id).catch(() => {})),
-    runFullChannelWipe(prisma).catch((err) => console.error("Full channel wipe failed:", err)),
-  ]);
+  for (const id of cursedMemberIds) {
+    await removeCursedRole(id).catch(() => {});
+  }
+
+  if (leakedRoleIds.length > 0) {
+    console.error(
+      `Game wipe leaked ${leakedRoleIds.length} Discord role(s) against a 250-role guild cap. ` +
+        `Delete them by hand or re-run the wipe: ${leakedRoleIds.join(", ")}`,
+    );
+  }
+
+  await runFullChannelWipe(prisma).catch((err) => console.error("Full channel wipe failed:", err));
 
   // Re-sync every YAML master, in dependency order, so the game starts from
   // the canonical sets. Roles resolve a starting Location and validate

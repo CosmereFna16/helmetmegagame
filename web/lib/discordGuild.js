@@ -15,9 +15,7 @@ import {
   revokeAllCharacterAccess as revokeAllCharacterAccessShared,
   revokeAccessForCharacters as revokeAccessForCharactersShared,
 } from "@lifeweb/db/lib/locationAccess";
-import { putChannelOverwrite, deleteChannelOverwrite } from "@lifeweb/db/lib/discordRest";
-
-const DISCORD_API = "https://discord.com/api/v10";
+import { putChannelOverwrite, deleteChannelOverwrite, discordRequest } from "@lifeweb/db/lib/discordRest";
 
 // Channels opt into summary/tupper behavior by name instead of a manually
 // curated ID list — see bot/src/lib/channels.js for the bot-side twin of
@@ -88,6 +86,15 @@ function ttlCache(ttlMs) {
       if (!entry || entry.expiresAt <= Date.now()) return undefined;
       return entry.value;
     },
+    // Expired-but-remembered. Only for the failure path: when Discord is
+    // rate-limiting or unreachable, serving a slightly stale role list beats
+    // both of the alternatives — inventing `null` (which reads as "not a GM"
+    // and silently demotes a GM mid-game) and throwing (which 500s the app
+    // shell for every player over a transient blip).
+    getStale(key) {
+      const entry = store.get(key);
+      return entry ? entry.value : undefined;
+    },
     set(key, value) {
       store.set(key, { value, expiresAt: Date.now() + ttlMs });
     },
@@ -97,24 +104,36 @@ function ttlCache(ttlMs) {
 const memberCache = ttlCache(5 * 60_000);
 const memberListCache = ttlCache(5 * 60_000);
 
+// In-flight requests, keyed the same way as the TTL cache above.
+//
+// react's cache() dedupes within ONE render; the TTL cache dedupes across
+// renders once a value has landed. Neither covers the gap between: at turn
+// open, ~120 players arrive within seconds with cold, distinct keys, and every
+// one of them starts its own Discord fetch because nothing is stored until the
+// first resolves. Sharing the promise means concurrent misses for the same key
+// collapse into a single call.
+const inFlight = new Map();
+
+function dedupe(key, run) {
+  const pending = inFlight.get(key);
+  if (pending) return pending;
+
+  const promise = run().finally(() => inFlight.delete(key));
+  inFlight.set(key, promise);
+  return promise;
+}
+
+// Deliberately does NOT swallow errors into `null`. It used to, and that made
+// a 429 indistinguishable from "this user isn't in the guild" — so a
+// rate-limited GM was silently handed the player nav and bounced out of /gm.
+// Only a real 404 means "not a member"; everything else throws and is handled
+// by the stale-fallback in getGuildMember below.
 async function fetchGuildMember(discordUserId) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const token = process.env.DISCORD_TOKEN;
   if (!guildId || !token) return null;
 
-  try {
-    const res = await fetch(
-      `${DISCORD_API}/guilds/${guildId}/members/${discordUserId}`,
-      { headers: { Authorization: `Bot ${token}` }, cache: "no-store" },
-    );
-
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    // A misconfigured/invalid DISCORD_TOKEN, or Discord being unreachable,
-    // should degrade to "not a GM" rather than take down the whole app shell.
-    return null;
-  }
+  return discordRequest(`/guilds/${guildId}/members/${discordUserId}`, { allow404: true });
 }
 
 // cache() dedupes calls within one request (the app shell and a page both
@@ -123,9 +142,24 @@ async function fetchGuildMember(discordUserId) {
 export const getGuildMember = cache(async (discordUserId) => {
   const cached = memberCache.get(discordUserId);
   if (cached !== undefined) return cached;
-  const value = await fetchGuildMember(discordUserId);
-  memberCache.set(discordUserId, value);
-  return value;
+
+  try {
+    const value = await dedupe(`member:${discordUserId}`, () => fetchGuildMember(discordUserId));
+    memberCache.set(discordUserId, value);
+    return value;
+  } catch (err) {
+    // Rate-limited or unreachable. Reuse the last known answer for this user
+    // if we have one; only when we have never successfully looked them up does
+    // this degrade to null, and at that point "not a GM" is the honest answer
+    // rather than a guess.
+    const stale = memberCache.getStale(discordUserId);
+    if (stale !== undefined) {
+      console.error(`Guild member lookup failed for ${discordUserId}, serving stale: ${err.message}`);
+      return stale;
+    }
+    console.error(`Guild member lookup failed for ${discordUserId}, no cached value: ${err.message}`);
+    return null;
+  }
 });
 
 async function fetchGuildMembers() {
@@ -133,35 +167,33 @@ async function fetchGuildMembers() {
   const token = process.env.DISCORD_TOKEN;
   if (!guildId || !token) return [];
 
-  try {
-    const res = await fetch(
-      `${DISCORD_API}/guilds/${guildId}/members?limit=1000`,
-      { headers: { Authorization: `Bot ${token}` }, cache: "no-store" },
-    );
-
-    if (!res.ok) return [];
-    const members = await res.json();
-    // globalName and avatar are here for /gm/gamemasters, the app's only
-    // surface that shows a Discord identity rather than a character's.
-    // Additive — every existing consumer reads by key.
-    return members.map((m) => ({
-      id: m.user.id,
-      username: m.user.username,
-      globalName: m.user.global_name ?? null,
-      avatar: m.user.avatar ?? null,
-      roles: m.roles ?? [],
-    }));
-  } catch {
-    return [];
-  }
+  const members = await discordRequest(`/guilds/${guildId}/members?limit=1000`);
+  // globalName and avatar are here for /gm/gamemasters, the app's only
+  // surface that shows a Discord identity rather than a character's.
+  // Additive — every existing consumer reads by key.
+  return members.map((m) => ({
+    id: m.user.id,
+    username: m.user.username,
+    globalName: m.user.global_name ?? null,
+    avatar: m.user.avatar ?? null,
+    roles: m.roles ?? [],
+  }));
 }
 
 export const listGuildMembers = cache(async () => {
   const cached = memberListCache.get("all");
   if (cached !== undefined) return cached;
-  const value = await fetchGuildMembers();
-  memberListCache.set("all", value);
-  return value;
+  try {
+    const value = await dedupe("memberList", fetchGuildMembers);
+    memberListCache.set("all", value);
+    return value;
+  } catch (err) {
+    // Same stale-over-empty reasoning as getGuildMember: an empty roster makes
+    // /gm/players look like the guild emptied out.
+    const stale = memberListCache.getStale("all");
+    console.error(`Guild member list failed${stale ? ", serving stale" : ""}: ${err.message}`);
+    return stale ?? [];
+  }
 });
 
 const channelListCache = ttlCache(30_000);
@@ -171,25 +203,21 @@ async function fetchGuildChannels() {
   const token = process.env.DISCORD_TOKEN;
   if (!guildId || !token) return [];
 
-  try {
-    const res = await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, {
-      headers: { Authorization: `Bot ${token}` },
-      cache: "no-store",
-    });
-
-    if (!res.ok) return [];
-    return res.json();
-  } catch {
-    return [];
-  }
+  return discordRequest(`/guilds/${guildId}/channels`);
 }
 
 export const listGuildChannels = cache(async () => {
   const cached = channelListCache.get("all");
   if (cached !== undefined) return cached;
-  const value = await fetchGuildChannels();
-  channelListCache.set("all", value);
-  return value;
+  try {
+    const value = await dedupe("channelList", fetchGuildChannels);
+    channelListCache.set("all", value);
+    return value;
+  } catch (err) {
+    const stale = channelListCache.getStale("all");
+    console.error(`Guild channel list failed${stale ? ", serving stale" : ""}: ${err.message}`);
+    return stale ?? [];
+  }
 });
 
 export function isGm(member) {
@@ -235,68 +263,34 @@ export const getGmSession = cache(async () => {
   return { session, isGm: isGm(member) };
 });
 
-// The two requests every DM costs. Both honour Discord's `retry_after` on a
-// 429, matching db/lib/discordRest.js#discordRequest — the REST twin that has
-// always had it. Without this a rate-limited DM threw and, at the one caller
-// that swallowed its errors, vanished. Opening a DM channel is the tighter of
-// the two limits, since a GM broadcast opens one per recipient.
-const DM_429_RETRIES = 3;
-
-async function dmFetch(url, body, describe) {
-  const token = process.env.DISCORD_TOKEN;
-  if (!token) throw new Error("DISCORD_TOKEN is not set.");
-
-  for (let attempt = 0; attempt <= DM_429_RETRIES; attempt += 1) {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bot ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (res.status === 429 && attempt < DM_429_RETRIES) {
-      const retryAfter = Number((await res.json().catch(() => ({}))).retry_after) || 1;
-      await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
-      continue;
-    }
-
-    if (!res.ok) throw new Error(`${describe}: ${res.status} ${await res.text()}`);
-    return res.json();
+// The two requests every DM costs. Both go through discordRequest, which
+// carries the 429 retry this pair has always had plus two things it did not:
+// the capped `retry_after` wait, and the Cloudflare invalid-response circuit
+// breaker. That coverage matters most here — opening a DM channel is the
+// tighter of the two limits (a GM broadcast opens one per recipient) and the
+// turn thunk sends one per player at rollover, which is the largest DM burst
+// the game produces.
+async function dmFetch(path, body, describe) {
+  try {
+    return await discordRequest(path, { method: "POST", body });
+  } catch (err) {
+    throw new Error(`${describe}: ${err.message}`);
   }
-
-  throw new Error(`${describe}: exhausted retries on 429`);
 }
 
 export async function createDmChannel(discordUserId) {
-  return dmFetch(
-    `${DISCORD_API}/users/@me/channels`,
-    { recipient_id: discordUserId },
-    "Failed to open DM channel",
-  );
+  return dmFetch("/users/@me/channels", { recipient_id: discordUserId }, "Failed to open DM channel");
 }
 
 export async function postMessage(channelId, content) {
-  return dmFetch(
-    `${DISCORD_API}/channels/${channelId}/messages`,
-    { content },
-    "Failed to post message",
-  );
+  return dmFetch(`/channels/${channelId}/messages`, { content }, "Failed to post message");
 }
 
 export async function deleteMessage(channelId, messageId) {
-  const token = process.env.DISCORD_TOKEN;
-  if (!token) throw new Error("DISCORD_TOKEN is not set.");
-
-  const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages/${messageId}`, {
+  return discordRequest(`/channels/${channelId}/messages/${messageId}`, {
     method: "DELETE",
-    headers: { Authorization: `Bot ${token}` },
+    allow404: true,
   });
-
-  if (!res.ok && res.status !== 404) {
-    throw new Error(`Failed to delete message: ${res.status} ${await res.text()}`);
-  }
 }
 
 const NICK_MAX = 32;
@@ -323,14 +317,11 @@ export async function updateGuildNickname(discordUserId, nickname) {
   if (!guildId || !token) return;
 
   try {
-    const res = await fetch(`${DISCORD_API}/guilds/${guildId}/members/${discordUserId}`, {
+    await discordRequest(`/guilds/${guildId}/members/${discordUserId}`, {
       method: "PATCH",
-      headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ nick: nickname }),
+      body: { nick: nickname },
+      allow404: true,
     });
-    if (!res.ok) {
-      console.error(`Failed to set nickname for ${discordUserId}: ${res.status} ${await res.text()}`);
-    }
   } catch (err) {
     console.error(`Failed to set nickname for ${discordUserId}:`, err);
   }
@@ -367,13 +358,10 @@ export async function setTurnPingRole(discordUserId, optIn) {
 
   const method = optIn ? "PUT" : "DELETE";
   try {
-    const res = await fetch(
-      `${DISCORD_API}/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`,
-      { method, headers: { Authorization: `Bot ${token}` } },
-    );
-    if (!res.ok && res.status !== 204) {
-      console.error(`Failed to ${optIn ? "add" : "remove"} turn-ping role for ${discordUserId}: ${res.status} ${await res.text()}`);
-    }
+    await discordRequest(`/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`, {
+      method,
+      allow404: true,
+    });
   } catch (err) {
     console.error(`Failed to ${optIn ? "add" : "remove"} turn-ping role for ${discordUserId}:`, err);
   }
@@ -390,13 +378,10 @@ export async function setRomanceOptOutRole(discordUserId, optOut) {
 
   const method = optOut ? "PUT" : "DELETE";
   try {
-    const res = await fetch(
-      `${DISCORD_API}/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`,
-      { method, headers: { Authorization: `Bot ${token}` } },
-    );
-    if (!res.ok && res.status !== 204) {
-      console.error(`Failed to ${optOut ? "add" : "remove"} no-romance role for ${discordUserId}: ${res.status} ${await res.text()}`);
-    }
+    await discordRequest(`/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`, {
+      method,
+      allow404: true,
+    });
   } catch (err) {
     console.error(`Failed to ${optOut ? "add" : "remove"} no-romance role for ${discordUserId}:`, err);
   }
@@ -413,13 +398,10 @@ export async function grantCursedRole(discordUserId) {
   if (!guildId || !token || !roleId) return;
 
   try {
-    const res = await fetch(
-      `${DISCORD_API}/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`,
-      { method: "PUT", headers: { Authorization: `Bot ${token}` } },
-    );
-    if (!res.ok && res.status !== 204) {
-      console.error(`Failed to grant cursed role to ${discordUserId}: ${res.status} ${await res.text()}`);
-    }
+    await discordRequest(`/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`, {
+      method: "PUT",
+      allow404: true,
+    });
   } catch (err) {
     console.error(`Failed to grant cursed role to ${discordUserId}:`, err);
   }
@@ -432,13 +414,10 @@ export async function removeCursedRole(discordUserId) {
   if (!guildId || !token || !roleId) return;
 
   try {
-    const res = await fetch(
-      `${DISCORD_API}/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`,
-      { method: "DELETE", headers: { Authorization: `Bot ${token}` } },
-    );
-    if (!res.ok && res.status !== 204) {
-      console.error(`Failed to remove cursed role from ${discordUserId}: ${res.status} ${await res.text()}`);
-    }
+    await discordRequest(`/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`, {
+      method: "DELETE",
+      allow404: true,
+    });
   } catch (err) {
     console.error(`Failed to remove cursed role from ${discordUserId}:`, err);
   }
@@ -465,16 +444,10 @@ export async function ensureCharacterRole(character) {
 
   try {
     if (!character.discordRoleId) {
-      const res = await fetch(`${DISCORD_API}/guilds/${guildId}/roles`, {
+      const role = await discordRequest(`/guilds/${guildId}/roles`, {
         method: "POST",
-        headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ name: bare, color, hoist: false, mentionable: true }),
+        body: { name: bare, color, hoist: false, mentionable: true },
       });
-      if (!res.ok) {
-        console.error(`Failed to create role for character ${character.id}: ${res.status} ${await res.text()}`);
-        return null;
-      }
-      const role = await res.json();
 
       // The role is deliberately assigned to NOBODY. It exists to be
       // @-mentioned — a name token — and holds no permissions of its own;
@@ -486,14 +459,10 @@ export async function ensureCharacterRole(character) {
       return role.id;
     }
 
-    const res = await fetch(`${DISCORD_API}/guilds/${guildId}/roles/${character.discordRoleId}`, {
+    await discordRequest(`/guilds/${guildId}/roles/${character.discordRoleId}`, {
       method: "PATCH",
-      headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ name: bare, color }),
+      body: { name: bare, color },
     });
-    if (!res.ok) {
-      console.error(`Failed to rename/recolor role ${character.discordRoleId}: ${res.status} ${await res.text()}`);
-    }
     return character.discordRoleId;
   } catch (err) {
     console.error("ensureCharacterRole failed:", err);
@@ -515,17 +484,13 @@ export async function deleteCharacterRole(discordRoleId) {
   const token = process.env.DISCORD_TOKEN;
   if (!guildId || !token || !discordRoleId) return;
 
-  try {
-    const res = await fetch(`${DISCORD_API}/guilds/${guildId}/roles/${discordRoleId}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bot ${token}` },
-    });
-    if (!res.ok && res.status !== 404) {
-      console.error(`Failed to delete role ${discordRoleId}: ${res.status} ${await res.text()}`);
-    }
-  } catch (err) {
-    console.error(`Failed to delete role ${discordRoleId}:`, err);
-  }
+  // Deliberately NOT swallowed into a void: a dropped delete leaks a guild
+  // role that nothing reaps, and the guild cap is 250 against ~120 live
+  // characters. The caller decides what to do; wipeGameData retries.
+  await discordRequest(`/guilds/${guildId}/roles/${discordRoleId}`, {
+    method: "DELETE",
+    allow404: true,
+  });
 }
 
 // REST twin of bot/src/lib/location.js#swapLocationAccess, for GM raw edits
@@ -660,15 +625,7 @@ export async function createGuildChannel(payload) {
   const token = process.env.DISCORD_TOKEN;
   if (!guildId || !token) throw new Error("Discord guild is not configured.");
 
-  const res = await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, {
-    method: "POST",
-    headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    throw new Error(`Failed to create channel "${payload.name}": ${res.status} ${await res.text()}`);
-  }
-  return res.json();
+  return discordRequest(`/guilds/${guildId}/channels`, { method: "POST", body: payload });
 }
 
 export { CHANNEL_TYPE_CATEGORY };
@@ -691,11 +648,8 @@ export async function sortLocationCategories() {
   });
   if (locations.length === 0) return;
 
-  const res = await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, {
-    headers: { Authorization: `Bot ${token}` },
-  });
-  if (!res.ok) return;
-  const channels = await res.json();
+  const channels = await discordRequest(`/guilds/${guildId}/channels`).catch(() => null);
+  if (!channels) return;
 
   const locationCategoryIds = new Set(locations.map((l) => l.discordCategoryId));
   const currentPositions = channels
@@ -708,11 +662,7 @@ export async function sortLocationCategories() {
   );
   const updates = sorted.map((l, i) => ({ id: l.discordCategoryId, position: currentPositions[i] }));
 
-  await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, {
-    method: "PATCH",
-    headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(updates),
-  }).catch(() => {});
+  await discordRequest(`/guilds/${guildId}/channels`, { method: "PATCH", body: updates }).catch(() => {});
 }
 
 export async function sendDm(discordUserId, content) {

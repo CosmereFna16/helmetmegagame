@@ -362,9 +362,19 @@ async function bulkDeleteMessages(channelId, messageIds) {
 
 // There's no per-channel "active threads" REST endpoint — only a
 // guild-wide one — so this filters client-side by parent_id.
-async function listActiveThreadsForChannel(channelId) {
+//
+// Which makes the naive call pattern quietly expensive: the Dawn wipe asks
+// once for each Location's forum AND once for its private channel, so 15
+// locations pulled the entire guild's thread list 30 times over. `snapshot`
+// lets a caller fetch it once and pass it down; see db/lib/dawnWipe.js.
+async function fetchActiveThreads() {
   const guildId = process.env.DISCORD_GUILD_ID;
   const { threads } = await discordRequest(`/guilds/${guildId}/threads/active`);
+  return threads;
+}
+
+async function listActiveThreadsForChannel(channelId, snapshot = null) {
+  const threads = snapshot ?? (await fetchActiveThreads());
   return threads.filter((t) => t.parent_id === channelId);
 }
 
@@ -422,10 +432,34 @@ const WEBHOOK_NAME = "Bascinet Tupper";
 
 // REST twin of bot/src/lib/proxy.js#fetchOrCreateWebhook — same webhook name
 // and same "reuse the bot's own webhook on this channel, create one only if
-// there isn't one" rule, so a channel never ends up with two. No cache here:
-// this runs once per turn at most (db/lib/defaultMovePass.js), not per
-// message.
+// there isn't one" rule, so a channel never ends up with two.
+//
+// Cached per channel for the process lifetime, mirroring the gateway twin's
+// webhookCache in bot/src/lib/proxy.js. The comment here used to claim this
+// ran "once per turn at most" and therefore needed no cache; that was wrong.
+// postAsCharacter calls it, and db/index.js calls postAsCharacter in a loop
+// over every Default Move summary — so a turn with ~100 defaults spent ~100
+// redundant GETs on the same handful of location channels, each one a tick
+// against that channel's webhook bucket.
+//
+// A webhook the cache knows about but Discord no longer has is the one stale
+// case; executeWebhook throws on it, so the entry is dropped and rebuilt.
+const webhookCache = new Map();
+
+function forgetChannelWebhook(channelId) {
+  webhookCache.delete(channelId);
+}
+
 async function ensureChannelWebhook(channelId) {
+  const cached = webhookCache.get(channelId);
+  if (cached) return cached;
+
+  const webhook = await fetchOrCreateChannelWebhook(channelId);
+  webhookCache.set(channelId, webhook);
+  return webhook;
+}
+
+async function fetchOrCreateChannelWebhook(channelId) {
   const existing = await discordRequest(`/channels/${channelId}/webhooks`);
   const mine = existing?.find((w) => w.token);
   if (mine) return { id: mine.id, token: mine.token };
@@ -462,6 +496,21 @@ async function executeWebhook({ id, token }, { content, username, avatarUrl }) {
 // REST equivalent of a tupper proxy, for anything composed by the game itself
 // rather than by a player typing in a channel.
 async function postAsCharacter(channelId, character, content) {
+  try {
+    return await postAsCharacterOnce(channelId, content, character);
+  } catch (err) {
+    // The cached webhook may have been deleted in Discord since we stored it.
+    // Forget it and rebuild once before giving up, so one hand-deleted webhook
+    // doesn't silently kill every summary post for that channel until restart.
+    forgetChannelWebhook(channelId);
+    if (String(err.message).includes("webhook")) {
+      return postAsCharacterOnce(channelId, content, character);
+    }
+    throw err;
+  }
+}
+
+async function postAsCharacterOnce(channelId, content, character) {
   const webhook = await ensureChannelWebhook(channelId);
   const base = process.env.WEB_BASE_URL;
   return executeWebhook(webhook, {
@@ -522,6 +571,7 @@ module.exports = {
   fetchAllMessages,
   bulkDeleteMessages,
   listActiveThreadsForChannel,
+  fetchActiveThreads,
   listArchivedPublicThreads,
   listArchivedPrivateThreads,
   deleteThread,

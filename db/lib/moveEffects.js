@@ -16,12 +16,17 @@
 // clamped, matching db/lib/hungerPass.js.
 async function addResources(tx, characterId, amount) {
   if (!amount) return;
-  const character = await tx.character.findUnique({ where: { id: characterId }, select: { resources: true } });
-  if (!character) return;
-  await tx.character.update({
-    where: { id: characterId },
-    data: { resources: Math.max(0, character.resources + amount) },
-  });
+  // One atomic statement, not read-then-write. The old shape (findUnique, add
+  // in JS, write the literal back) lost an update whenever anything else
+  // touched the same character between the two — a /labor confirm racing a
+  // transfer, or the Default Move pass racing a player at rollover. GREATEST
+  // keeps the clamp that db/lib/hungerPass.js also applies; Prisma's
+  // `increment` can't express it, which is why this is raw.
+  await tx.$executeRaw`
+    UPDATE "Character"
+    SET "resources" = GREATEST(0, "resources" + ${amount})
+    WHERE "id" = ${characterId}
+  `;
 }
 
 // One entry per pushable thing. `read` decides what this Move would push right
