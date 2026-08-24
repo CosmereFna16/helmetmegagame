@@ -8,6 +8,9 @@ name, a location and a Resource count is a tag. The catalog lives in
 This document describes how tags are priced and what their fields mean. It is
 a reference for writing catalog entries, not a rules summary for players.
 
+The scale in §1 is restated from `docs/systemdocs/TAGS.md` §4a, which
+governs. If the two ever disagree, that one is right.
+
 ---
 
 ## 1. Point cost

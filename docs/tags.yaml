@@ -1,6 +1,11 @@
 # Sole master for the Tag catalog. TagGroup catalog is a sibling file,
 # docs/taggroups.yaml — see there for group/color fields.
 #
+# PRICING A TAG: the point scale is docs/systemdocs/TAGS.md §4a, and it is
+# canonical. Price against the band, not against whatever the neighbouring
+# entries in this file happen to cost. docs/tag-design.md restates the same
+# scale for players, along with the YAML format and worked examples.
+#
 # This file is hand-edited and is the ONLY thing that writes the catalog.
 # There is deliberately no automated sync from anywhere else — drafted
 # entries get added here by hand, one at a time, so the fields that only

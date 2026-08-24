@@ -35,7 +35,7 @@ never enough to change code with.
 | [`SYNC.md`](docs/systemdocs/SYNC.md) | You're editing a YAML master or a sync script, or wondering what a sync deletes |
 | [`CHANNELS.md`](docs/systemdocs/CHANNELS.md) | You're changing Discord channel layout, visibility, or the Dawn wipe |
 | [`CHARACTERS.md`](docs/systemdocs/CHARACTERS.md) | You're touching creation, roles, names, the point economy, death, or launch gating |
-| [`TAGS.md`](docs/systemdocs/TAGS.md) | You're touching the tag catalog, its gates, stacks, consuming, or equipment |
+| [`TAGS.md`](docs/systemdocs/TAGS.md) | You're touching the tag catalog, **pricing or rebalancing a tag** (§4a is the canonical point scale), its gates, stacks, consuming, or equipment |
 | [`REQUESTS.md`](docs/systemdocs/REQUESTS.md) | You're adding or changing anything a player does to their own sheet |
 | [`ADJUDICATION.md`](docs/systemdocs/ADJUDICATION.md) | You're working on `/gm/turns` — the Moves or Requests tab |
 | [`DEV-PANEL.md`](docs/systemdocs/DEV-PANEL.md) | You're touching `/gm/dev/characters/[characterId]`, the GM microactions, or `/gm/dev/tags` |
@@ -53,7 +53,8 @@ never enough to change code with.
 
 Non-systemdoc references: `docs/lore.md` (setting), `docs/threats.md`
 (antagonist seats — briefs 6 while `db/lib/antagonists.js` ships 12 opt-in
-entries).
+entries), `docs/tag-design.md` (the player-facing statement of the tag point
+scale and the YAML format — `TAGS.md` §4a governs; keep the two in step).
 
 ## Repository layout
 

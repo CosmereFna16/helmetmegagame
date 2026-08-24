@@ -151,7 +151,7 @@ pool*, never whether the tag is a good thing to have:
 | tag | `pointCost` | shown as | colour |
 |---|---|---|---|
 | Frail | `-3` | `+3 pts` | `--positive` (pool grows) |
-| Fighting (Basic) | `3` | `-3 pts` | `--accent` (pool shrinks) |
+| Fighting (Basic) | `2` | `-2 pts` | `--accent` (pool shrinks) |
 | Shack | `0` | `0 pts` | `--muted` |
 
 These two functions are the only place that flip lives — every caller
@@ -194,6 +194,77 @@ their gate is the `requirement` block instead. No drawback is craftable, so
 nothing slips through that seam.
 
 Full writeup of creation, roles, and the wizard: `CHARACTERS.md`.
+
+## 4a. The price scale
+
+**This is the canonical scale. Price a new or repriced tag against it, not
+against whatever its neighbours in the file happen to cost.** The catalog
+drifted for 260 tags precisely because the scale was unwritten, and the
+inconsistencies that turned up on the first pass against it — a revolver at 4
+points, Starting Wares at 4 while consuming into 7 points of goods — were the
+kind that only look wrong once there is something to check them against.
+
+The scale is **absolute across categories**. A 3-point item and a 3-point
+skill are meant to matter about equally, so "expensive for an item" is not a
+reason to price one at 5.
+
+| `pointCost` | Band |
+|---|---|
+| 1 | Minor. A small edge, a small possession, a narrow competence. |
+| 2 | Moderate. A real capability; one rung of a skill chain. |
+| 3 | Significant. Reliably changes how a scene goes. |
+| 4 | Good. A third of the default budget. |
+| 5 | Very good. |
+| 6 | Character defining. The revolver; Giant. |
+| −1 | An inconvenience. |
+| −2 | A real cost, situational. |
+| −3 | A real cost, most of the time. |
+| −4 | Severe. Permanent or near-permanent. |
+| −5 | Removes a whole sense or capability, with no realistic cure. |
+
+6 is the ceiling and −5 the floor; nothing should be priced outside them
+without a deliberate decision recorded here. There is **no cap on how many
+drawbacks** one character may take — the limit is what a player will live
+with for a month.
+
+**0 is a real price, not a missing one**, and it is the most common value in
+the file (142 of 268). Everything unpurchasable — injuries, moods, meals,
+role grants — is 0, and every tag must carry the field explicitly. A tag with
+no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
+
+### Rules that follow from the scale
+
+- **Skill chains are flat 2 per rung and charged cumulatively**
+  (`cumulativeCost`, §3). Fighting (Legendary) is therefore 10 of a 12-point
+  budget, which is intended — the best fighter alive is that and little else.
+  Do not price a rung off-ladder to make a chain cheaper; shorten the chain.
+- **Fighting sidegrades are 3.** Above one rung, below two, because they are
+  conditional: Archer, Guerrilla and Shield Wall each apply in their own
+  circumstances and do nothing outside them. They use `requiredTag`, so they
+  are *not* charged cumulatively and stack with each other and any rung.
+- **Every negative tag is `purchasableAfterStart: false`.** Restated from §4
+  because it is the one invariant the scale can be used to violate: a
+  drawback buyable mid-game is a point farm.
+- **Items are `purchasableAfterStart: false` too**, without exception. An
+  object enters play by being crafted or found; its route in is `craftable`
+  plus a `requirement` block, never points. 18 items violated this before the
+  first pass against the scale.
+- **A consumable is worth what it consumes into.** If `consumesInto` grants
+  7 points of tags, the container is not a 4-point tag.
+- **Health-category `pointCost` is not a wound severity.** It answers "what is
+  this worth at character creation" — 0 for almost all of them, since they are
+  not purchasable. What the condition costs to *treat* is the `requirement`
+  block, priced off the seven-rung cure ladder in §5c, which is a separate
+  scale that must not be conflated with this one.
+- **A skill's price is not adjusted for how much content gates on it.**
+  `crafting` (2) gates 3 items where `smithing` (2) gates 23. Both stay at 2;
+  the fix for that imbalance is content, not price. Noted here so the gap
+  reads as known rather than accidental.
+
+`docs/tag-design.md` is the player-facing statement of this same scale,
+written for whoever is drafting entries. It carries the YAML format and
+worked examples; this section is the one that governs. **If you change a band
+here, change it there too** — they are meant to say the same thing.
 
 ## 5. Other fields
 
