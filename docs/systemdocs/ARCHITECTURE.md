@@ -66,6 +66,29 @@ embed. A copy is never the right answer here; the deep path costs one line.
 Use **named** re-exports rather than `export *`. The targets are CommonJS, and
 a star re-export makes Turbopack emit runtime interop and warn on every build.
 
+**Never use `__dirname` in `db/lib`.** Go through `db/lib/repoPaths.js#docsPath`
+for anything under `docs/`. Turbopack *inlines* `__dirname` as a literal when
+it bundles a module, and `db/lib`'s became `"/ROOT/db/lib"` — `/ROOT` is its
+project-root placeholder and is never remapped — so in the Next server build
+every `path.join(__dirname, "..", "..", "docs", …)` resolved to `/ROOT/docs/…`
+and simply did not exist.
+
+Six call sites had it, and they failed silently in different ways: the `#turns`
+weather banner does `fs.existsSync` and treats absence as "no banner today", so
+the image just stopped appearing; the four YAML re-syncs threw ENOENT into a
+`.catch()`, so **Restart Game reported success having reprovisioned nothing.**
+
+It only ever broke the **web** container. The bot runs unbundled, where
+`__dirname` is real — which is why the same turn advance behaved differently
+depending on whether the cron or the Dev Panel triggered it, and why it looked
+intermittent.
+
+`serverExternalPackages` does not fix this, though it is the documented way to
+stop Next bundling a package: `@lifeweb/db` is a workspace symlink, so Next
+resolves it to a real path outside `node_modules` and treats it as first-party
+source. Verified by setting it, rebuilding, and finding all six literals still
+in the output.
+
 The same rule applies to plain data. `web/lib/requests.js` imports the barrel,
 so its label maps were unreachable from any client component and the Dev
 Panel's Record tab rendered raw DB enums instead; they now live in

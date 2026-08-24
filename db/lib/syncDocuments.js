@@ -16,8 +16,8 @@
 // syncRoles uses for starting_tags — with one carve-out noted at
 // resolveAssignment() below.
 const fs = require("node:fs");
-const path = require("node:path");
 const yaml = require("js-yaml");
+const { docsPath } = require("./repoPaths");
 
 // "leader" / "treasurer" are read against Character.isLeader/isTreasurer.
 // "gamemaster" is not a property of any Character at all — it resolves
@@ -33,8 +33,17 @@ const RESERVED_KEYS = new Set(["role"]);
 
 const FLAGS = ["leader", "treasurer", "gamemaster"];
 
+// docsPath() is null only when docs/ cannot be found at all, which for a YAML
+// master is fatal — a sync with no master would read as "everything was
+// deleted from the file" and prune the lot. See db/lib/repoPaths.js.
+function requireDocsPath(...segments) {
+  const p = docsPath(...segments);
+  if (!p) throw new Error(`Cannot find docs/${segments.join("/")} — see db/lib/repoPaths.js`);
+  return p;
+}
+
 function loadDoc() {
-  const yamlPath = path.join(__dirname, "..", "..", "docs", "documents.yaml");
+  const yamlPath = requireDocsPath("documents.yaml");
   return yaml.load(fs.readFileSync(yamlPath, "utf8"));
 }
 

@@ -12,6 +12,7 @@ const path = require("node:path");
 const { getGuildChannels, postMessage, deleteMessage, postAttachment } = require("./discordRest");
 const { buildTurnAnnouncement } = require("../weather");
 const { TURNS_CONSOLE_ROW, CONSOLE_TEXT } = require("./turnsConsoleRow");
+const { docsPath } = require("./repoPaths");
 
 const CHANNEL_TYPE_TEXT = 0;
 
@@ -19,7 +20,7 @@ const CHANNEL_TYPE_TEXT = 0;
 // the same 2446x1122 frame as the #info banner. Returns null when the file
 // is absent, which is the whole point of resolving it this way: a missing
 // asset must cost the guild its banner, never its turn announcement.
-const WEATHER_BANNER_DIR = path.join(__dirname, "..", "..", "docs", "assets", "weather");
+const WEATHER_BANNER_DIR = docsPath("assets", "weather");
 
 function weatherBannerPath(turn) {
   if (!turn?.weather || !turn?.phase) return null;
