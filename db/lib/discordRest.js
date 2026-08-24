@@ -12,27 +12,127 @@ function authHeaders(extra) {
   return { Authorization: `Bot ${token}`, ...extra };
 }
 
+// --- Cloudflare invalid-response circuit breaker -------------------------
+//
+// Discord fronts its API with Cloudflare, which counts 401/403/429 responses
+// and temporarily IP-bans a token that emits 10,000 of them inside a rolling
+// 10 minutes. The ban lands on the container's egress IP and lasts about an
+// hour. 404 is NOT counted, which is why the deliberately-blind sweeps in
+// db/lib/locationAccess.js (allow404, ~58 of every 62 calls hitting nothing)
+// are free rather than dangerous.
+//
+// Reaching 10,000 needs ~17 invalid responses per second sustained, which no
+// sequential path here can produce. The breaker exists for the case that can:
+// an unattended crash-restart loop replaying the `ready` catch-up burst. It
+// trips at a tenth of Discord's ceiling, because the cost of stopping early is
+// a delayed sync and the cost of stopping late is an hour of total blackout.
+const INVALID_WINDOW_MS = 10 * 60 * 1000;
+const INVALID_LIMIT = 1000;
+const BREAKER_COOLDOWN_MS = 10 * 60 * 1000;
+
+// A 429's retry_after is honored, but not unboundedly: a channel name/topic
+// edit sits in a 2-per-10-minutes bucket and can hand back ~600s, which would
+// wedge an entire sequential run (a Dawn wipe, a location sync) behind one
+// call. Past the cap it is better to fail that call and let the caller's own
+// catch move on.
+const MAX_RETRY_AFTER_MS = 30_000;
+
+const invalidTimestamps = [];
+let breakerOpenUntil = 0;
+
+function pruneInvalid(now) {
+  while (invalidTimestamps.length > 0 && now - invalidTimestamps[0] > INVALID_WINDOW_MS) {
+    invalidTimestamps.shift();
+  }
+}
+
+function recordInvalidResponse(status, path) {
+  const now = Date.now();
+  invalidTimestamps.push(now);
+  pruneInvalid(now);
+
+  if (invalidTimestamps.length >= INVALID_LIMIT && now >= breakerOpenUntil) {
+    breakerOpenUntil = now + BREAKER_COOLDOWN_MS;
+    console.error(
+      `Discord circuit breaker OPEN: ${invalidTimestamps.length} invalid responses ` +
+        `(401/403/429) in the last 10 minutes, most recently ${status} on ${path}. ` +
+        `Pausing all outbound Discord REST from this process for 10 minutes to stay ` +
+        `clear of Cloudflare's 10,000-per-10-minutes IP ban.`,
+    );
+  }
+}
+
+// Observability: the count is meaningless unless someone can see it. Logged at
+// bot startup (bot/src/events/ready.js) so a climbing number is visible before
+// it becomes a ban rather than after.
+function getInvalidResponseStats() {
+  const now = Date.now();
+  pruneInvalid(now);
+  return {
+    invalidInWindow: invalidTimestamps.length,
+    limit: INVALID_LIMIT,
+    breakerOpen: now < breakerOpenUntil,
+    breakerOpenUntil: breakerOpenUntil > now ? new Date(breakerOpenUntil).toISOString() : null,
+  };
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // Central fetch wrapper: bounded retry on 429 honoring Discord's
 // `retry_after`, throws on any other non-2xx (unless allow404).
 async function discordRequest(path, { method = "GET", body, allow404 = false } = {}) {
   const headers = authHeaders(body !== undefined ? { "Content-Type": "application/json" } : undefined);
 
   for (let attempt = 0; attempt < 3; attempt++) {
+    if (Date.now() < breakerOpenUntil) {
+      throw new Error(
+        `Discord ${method} ${path} refused: circuit breaker open until ` +
+          `${new Date(breakerOpenUntil).toISOString()} (too many 401/403/429 responses).`,
+      );
+    }
+
     const res = await fetch(`${DISCORD_API}${path}`, {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
 
+    if (res.status === 401 || res.status === 403 || res.status === 429) {
+      recordInvalidResponse(res.status, path);
+    }
+
     if (res.status === 429) {
-      const retryAfter = Number((await res.json().catch(() => ({}))).retry_after) || 1;
-      await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
+      // A global 429 (or one with no JSON body) is the actual ban-adjacent
+      // signal, distinct from an ordinary per-bucket 429 — surface it loudly
+      // rather than retrying it silently like any other.
+      const payload = await res.json().catch(() => ({}));
+      if (payload.global || res.headers.get("X-RateLimit-Global") === "true") {
+        console.error(`Discord GLOBAL rate limit hit on ${method} ${path}. This is the ban warning shot.`);
+      }
+      const retryAfterMs = (Number(payload.retry_after) || 1) * 1000;
+      if (retryAfterMs > MAX_RETRY_AFTER_MS) {
+        throw new Error(
+          `Discord ${method} ${path} failed: 429 with retry_after ${Math.round(retryAfterMs / 1000)}s, ` +
+            `over the ${MAX_RETRY_AFTER_MS / 1000}s cap — not waiting.`,
+        );
+      }
+      await sleep(retryAfterMs);
       continue;
     }
     if (res.status === 404 && allow404) return null;
     if (!res.ok) {
       throw new Error(`Discord ${method} ${path} failed: ${res.status} ${await res.text()}`);
     }
+
+    // Proactive pre-emption: without this the wrapper only ever learns about a
+    // bucket by exhausting it, so every sequential run pays a guaranteed 429
+    // (and a tick on the ban counter) at each bucket boundary. Spending the
+    // reset window here instead costs the same wall-clock and zero 429s.
+    if (res.headers.get("X-RateLimit-Remaining") === "0") {
+      const resetAfterMs = (Number(res.headers.get("X-RateLimit-Reset-After")) || 0) * 1000;
+      if (resetAfterMs > 0) await sleep(Math.min(resetAfterMs, MAX_RETRY_AFTER_MS));
+    }
+
     if (res.status === 204) return null;
     return res.json();
   }
@@ -400,6 +500,9 @@ module.exports = {
   // with no named helper here and shouldn't hand-roll a fetch without the
   // 429 retry.
   discordRequest,
+  // Rolling 401/403/429 count behind discordRequest's circuit breaker; logged
+  // at bot startup so the number is observable before it becomes a ban.
+  getInvalidResponseStats,
   getGuildChannels,
   createDmChannel,
   getChannel,

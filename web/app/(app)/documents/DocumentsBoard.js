@@ -56,6 +56,7 @@ export default function DocumentsBoard({
   publicDocs,
   assignedDocs,
   gmDocs = [],
+  allDocs = [],
   hasCharacter,
 }) {
   // Without a character there is no ASSIGNED tab at all, so PUBLIC is the
@@ -79,6 +80,7 @@ export default function DocumentsBoard({
       ["assigned", assignedDocs],
       ["public", publicDocs],
       ["gamemaster", gmDocs],
+      ["all", allDocs],
     ].map(([name, list]) => [name, list.find((d) => d.key === requested)])
       .find(([, doc]) => doc)) ||
     null;
@@ -94,7 +96,14 @@ export default function DocumentsBoard({
     if (requested) router.replace("/documents");
   };
 
-  const docs = tab === "assigned" ? assignedDocs : tab === "gamemaster" ? gmDocs : publicDocs;
+  const docs =
+    tab === "assigned"
+      ? assignedDocs
+      : tab === "gamemaster"
+        ? gmDocs
+        : tab === "all"
+          ? allDocs
+          : publicDocs;
 
   return (
     <div className="flex flex-col gap-4">
@@ -127,6 +136,20 @@ export default function DocumentsBoard({
             Gamemaster ({gmDocs.length})
           </button>
         )}
+        {/* All: every written document in the game. The server only sends
+            allDocs to a GM, so like Gamemaster this tab simply doesn't exist
+            for a player. Last, because it's a GM's overview rather than
+            anyone's folder. */}
+        {allDocs.length > 0 && (
+          <button
+            type="button"
+            className="tab-item"
+            data-active={tab === "all"}
+            onClick={() => setTab("all")}
+          >
+            All ({allDocs.length})
+          </button>
+        )}
       </div>
 
       {docs.length === 0 ? (
@@ -135,7 +158,9 @@ export default function DocumentsBoard({
             ? "Nothing has been handed to you yet. Your role, your tags and your faction each bring their own papers."
             : tab === "gamemaster"
               ? "No gamemaster papers have been written yet."
-              : "No public documents have been posted yet."}
+              : tab === "all"
+                ? "No documents have been written yet."
+                : "No public documents have been posted yet."}
         </p>
       ) : (
         <div className="doc-board">

@@ -52,6 +52,34 @@ export default async function DocumentsPage() {
   const gmDocs = isGm
     ? written.filter((d) => d.flags.includes("gamemaster")).map((d) => shape(d, "Gamemaster"))
     : [];
+  // The All tab: every written document in the game, GM-only. Same gate as
+  // gmDocs above — a Discord role, resolved server-side, so a player's browser
+  // never receives the text. Its source line answers a different question from
+  // every other tab's: not "why is this in your folder" (it isn't in anyone's
+  // folder here) but "how does this paper reach a player at all".
+  //
+  // A paper can also be handed out by a role's doc_elements list, which lives
+  // on Role rather than on the document — so answering "unrouted" honestly
+  // costs one extra query, run only for a GM.
+  const docElementKeys = isGm
+    ? new Set(
+      (await prisma.role.findMany({ select: { docElements: true } }))
+        .flatMap((r) => r.docElements),
+    )
+    : new Set();
+  const allSource = (d) => {
+    if (d.isPublic) return "Public";
+    if (d.flags.includes("gamemaster")) return "Gamemaster";
+    const routed =
+      docElementKeys.has(d.key) ||
+      d.tagSlugs.length > 0 ||
+      d.roleSlugs.length > 0 ||
+      d.factionSlugs.length > 0 ||
+      d.flags.length > 0;
+    return routed ? "Assigned" : "Unrouted";
+  };
+  const allDocs = isGm ? written.map((d) => shape(d, allSource(d))) : [];
+
   const assignedDocs = character
     ? written
       .map((d) => [d, assignedTo(d, character)])
@@ -97,6 +125,7 @@ export default async function DocumentsPage() {
         publicDocs={publicDocs}
         assignedDocs={assigned}
         gmDocs={gmDocs}
+        allDocs={allDocs}
         hasCharacter={!!character}
       />
     </PageShell>

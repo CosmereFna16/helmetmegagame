@@ -38,12 +38,29 @@ const { syncNarrowcastChannels } = require("./lib/syncNarrowcastChannels");
 
 const globalForPrisma = globalThis;
 
+// The globalThis cache is deliberately NOT gated on NODE_ENV. The usual
+// `if (NODE_ENV !== "production")` idiom exists to survive dev hot-reload, and
+// gating it here was actively wrong: Turbopack bundles @lifeweb/db as
+// first-party source (same reason __dirname gets inlined — ARCHITECTURE.md
+// §2), so the production web build carries this module in two separate chunks
+// with two separate module registries. Gated, that meant two PrismaClients per
+// web container, each opening its own pool. Caching unconditionally collapses
+// them back to one.
+//
+// transactionOptions raises Prisma's defaults (maxWait 2s, timeout 5s), which
+// are too tight for the per-character interactive transactions in
+// db/lib/defaultMovePass.js: at turn rollover those compete with player writes
+// for both pool slots and row locks, and a 2s maxWait means a player's Default
+// Move gets dropped on the floor with only a console.error (the catch at
+// defaultMovePass.js#run).
 const prisma =
-  globalForPrisma.prisma ?? new PrismaClient(databaseUrl ? { datasourceUrl: databaseUrl } : undefined);
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    ...(databaseUrl ? { datasourceUrl: databaseUrl } : {}),
+    transactionOptions: { maxWait: 5000, timeout: 15000 },
+  });
 
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-}
+globalForPrisma.prisma = prisma;
 
 // Below this, the turn announcement gets a vague public omen line (see
 // advanceTurn() below) without ever naming the actual number — the Blood
