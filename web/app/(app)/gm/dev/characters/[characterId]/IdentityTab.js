@@ -213,7 +213,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
       <section className="panel flex flex-col gap-3 p-4">
         <h2 className="panel-header">Profile</h2>
         <label className="field">
-          <span className="field-label">Appearance / bio</span>
+          <span className="field-label">Appearance</span>
           <textarea
             rows={4}
             value={staged.appearance ?? ""}

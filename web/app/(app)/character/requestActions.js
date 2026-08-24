@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { prisma } from "@lifeweb/db";
+import { prisma, isDynastyHead, isDynastyMember } from "@lifeweb/db";
 import { moodTagSlug, moodLabel, MOOD_SLUGS } from "@lifeweb/db/lib/mood";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
@@ -24,7 +24,12 @@ import {
 import { canReachParty, canReachSilo, outOfReachMessage } from "@/lib/transferReach";
 import { resolveConsumeGrants, heldSlugsOf } from "@/lib/consumeGrants";
 import { recordArchiveEvent } from "@/lib/archive";
-import { syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
+import { syncCharacterNarrowcastAccess, syncCharacterNickname, ensureCharacterRole } from "@/lib/discordGuild";
+import { NAME_LIMITS, formatCharacterName, formatBareName, normalizeHonorific } from "@/lib/characterName";
+import { propagateDynastyLastName } from "@/lib/dynasty";
+
+// The only sanctioned way a name changes after creation (CHARACTERS.md §1b).
+const MULLIGAN_POTION_SLUG = "mulligan-potion";
 
 // Every player-initiated change that is applied immediately and reviewed
 // afterwards. Each action: authenticate, re-validate everything the client
@@ -40,7 +45,9 @@ async function requireCharacter() {
   if (!session?.discordUserId) redirect("/");
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
-    include: { tags: { include: { tag: true } } },
+    // role.slug only, so changeNameRequestImpl can apply the same dynasty
+    // last-name lock every other writer of Character.name already enforces.
+    include: { tags: { include: { tag: true } }, role: { select: { slug: true } } },
   });
   if (!character) redirect("/character");
   return { session, character };
@@ -953,6 +960,95 @@ async function fulfillWorstFearRequestImpl({ reason: rawReason }) {
   return {};
 }
 
+// --- Name ---------------------------------------------------------------
+
+// The one player-facing rename: drinking a Mulligan Potion. Re-validates the
+// potion is actually held (the button that opens this dialog is only
+// advisory), applies the same allowlist/cap/dynasty-lock rules every other
+// writer of Character.name uses, then spends the potion and rewrites the
+// name in one transaction. See docs/systemdocs/CHARACTERS.md §1b.
+async function changeNameRequestImpl({ honorific: rawHonorific, firstName: rawFirstName, lastName: rawLastName, reason: rawReason }) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+
+  const held = character.tags.find((ct) => ct.tag.slug === MULLIGAN_POTION_SLUG);
+  if (!held) throw new UserError("You need a Mulligan Potion to change your name.");
+
+  const honorific = normalizeHonorific(rawHonorific);
+  const firstName = rawFirstName?.toString().trim().slice(0, NAME_LIMITS.firstName) || null;
+  if (!firstName) throw new UserError("A character needs a first name.");
+
+  // A Baroness/Heir/Successor wears the Baron's last name, so their own
+  // posted value is never read for it — same lock characterWrite.js and the
+  // old creation-time writer use.
+  const dynastyMember = isDynastyMember(character.role?.slug);
+  const lastName = dynastyMember
+    ? character.lastName
+    : rawLastName?.toString().trim().slice(0, NAME_LIMITS.lastName) || null;
+
+  const previous = {
+    honorific: character.honorific,
+    firstName: character.firstName,
+    lastName: character.lastName,
+    name: character.name,
+  };
+  const next = {
+    honorific,
+    firstName,
+    lastName,
+    name: formatCharacterName({ honorific, firstName, title: character.title, lastName }),
+  };
+
+  if (next.name === previous.name) throw new UserError("That's already your name.");
+
+  const openTurn = await getOpenTurn();
+  // Snapshot before dropping — Undo restores the original source/expiry of
+  // the one potion this took, same idiom as CONSUME_TAG.
+  const potionRestore = { source: held.source, expiresTurn: held.expiresTurn, quantity: 1 };
+
+  let updated;
+  await prisma.$transaction(async (tx) => {
+    await dropCharacterTag(tx, character.id, held.tagId, 1);
+    updated = await tx.character.update({
+      where: { id: character.id },
+      data: next,
+    });
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn?.id ?? null,
+      type: "CHANGE_NAME",
+      reason,
+      payload: { honorific, firstName, lastName },
+      effect: { previous, next, potionTagId: held.tagId, potionRestore },
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_change_name",
+      targetCharacterId: character.id,
+      reason,
+      details: { previousName: previous.name, name: next.name },
+    });
+  });
+
+  // Discord fan-out, best-effort and outside the transaction — same posture
+  // as updateCharacterProfile and every other tag-consuming request here.
+  // Undo (web/lib/requestEffects.js) does NOT re-run this: it can only touch
+  // Postgres inside resolveRequest's transaction, so a reverted name catches
+  // up with Discord the next time the player saves their Bio form.
+  await ensureCharacterRole(updated).catch(() => {});
+  await syncCharacterNickname(session.discordUserId, formatBareName(updated)).catch(() => {});
+  await syncCharacterNarrowcastAccess(character.id).catch(() => {});
+  // The Baron renaming himself renames his whole house.
+  if (isDynastyHead(character.role?.slug) && next.lastName !== previous.lastName) {
+    await propagateDynastyLastName(next.lastName).catch((err) =>
+      console.error("propagateDynastyLastName failed:", err),
+    );
+  }
+
+  revalidateAll();
+  return { name: next.name };
+}
+
 // --- public surface ---------------------------------------------------
 
 // Each action is wrapped so validation comes back as { ok: false, error }
@@ -1009,4 +1105,8 @@ export async function changeWorstFearRequest(input) {
 
 export async function fulfillWorstFearRequest(input) {
   return guarded(() => fulfillWorstFearRequestImpl(input));
+}
+
+export async function changeNameRequest(input) {
+  return guarded(() => changeNameRequestImpl(input));
 }
