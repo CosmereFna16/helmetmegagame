@@ -14,10 +14,22 @@ export const TRANSFERABLE_CATEGORIES = ["Items", "Assets"];
 // Drained, ...) stay out of reach.
 // A stackable tag stays on offer once held — cooking a fifth meal is the
 // whole point — while an ordinary one drops off the menu as before.
+//
+// `purchasableAfterStart` gates the PURCHASABLE branch only, and that
+// asymmetry is the point. Without it every creation-only drawback (Frail, Fat,
+// Wanted, ...) was addable mid-game, which is the leak TAGS.md §4 forbids
+// outright — this is the only routed mid-game path, since PointBuy's
+// afterStartOnly mode is mounted nowhere yet. Craftables skip the check
+// because most of them are deliberately `purchasableAfterStart: false` (43 of
+// 58: meals, tonics, explosives) — they are not bought at all, they are made,
+// and their gate is the requirement block. No drawback is craftable, so
+// nothing slips through the seam.
 export function addableTags(tags, heldTagIds = []) {
   const held = new Set(heldTagIds);
   return tags.filter(
-    (tag) => (tag.purchasable || tag.craftable) && (tag.stackable || !held.has(tag.id)),
+    (tag) =>
+      ((tag.purchasable && tag.purchasableAfterStart) || tag.craftable) &&
+      (tag.stackable || !held.has(tag.id)),
   );
 }
 

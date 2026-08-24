@@ -339,7 +339,6 @@ export default async function CharacterPage() {
       hasCustomAvatar={Boolean(character.avatarData)}
       healTargets={healTargets}
       healParties={healParties}
-      lastNameLocked={isDynastyMember(character.role?.slug)}
     />
   );
 }

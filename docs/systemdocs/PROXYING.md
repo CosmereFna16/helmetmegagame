@@ -297,9 +297,14 @@ sortable-by-time, filterable-by-zone cards over the shared list shell
 
 Every `ALIVE` named character's Discord server nickname is kept as
 `{base} | {characterName}`, where `characterName` is the **bare** name (first +
-last, via `formatBareName`) and `base` is `Character.preferredNickname` if the
-player set one, else their Discord display name. Truncated to fit Discord's
-32-char cap — **both halves shrink proportionally**, not just one.
+last, via `formatBareName`) and `base` is the player's own Discord display name.
+Truncated to fit Discord's 32-char cap — **both halves shrink proportionally**,
+not just one.
+
+There is deliberately **no override** for either half. The character half is the
+character's name and the base is who the player is on Discord; a hand-typed
+preference for the base (`Character.preferredNickname`, removed) was a second
+source of truth for the same 32 characters and nothing else.
 
 Gated behind `GameConfig.nicknameSyncEnabled` (off by default). Clearing a dead
 character's nickname is **not** gated (`CHARACTERS.md` §5).
@@ -317,7 +322,7 @@ title off itself.
 |---|---|
 | Discord username/display name changes | `bot/src/events/userUpdate.js` |
 | Rejoin | `bot/src/events/guildMemberAdd.js` |
-| Character created, or name/nickname edited on `/character` | `web/lib/discordGuild.js#syncCharacterNickname` (REST) |
+| Character created, saved on `/character`, or renamed by a GM | `web/lib/discordGuild.js#syncCharacterNickname` (REST) |
 | Bot connect/reconnect | `bot/src/events/ready.js` → `syncNicknamesForGuild`, a one-time catch-up bulk pass, not a recurring tick |
 
 `buildNickname()` is hand-duplicated between `bot/src/lib/nickname.js` and

@@ -16,9 +16,7 @@ separate `/character/new` route; one URL, no redirect bounce.
 The wizard has six steps:
 
 1. **Identity** — an honorific (a free pick from the fixed `HONORIFICS`
-   dropdown), a required first name and an optional last name, plus an
-   optional preferred nickname (the `{base} | {character}` Discord nickname
-   convention, which uses the **bare** first + last).
+   dropdown), a required first name and an optional last name.
 
    Age is optional here (18–90). Left blank, it stays editable on `/character`
    until the player saves a number, and locks at that point — a GM can still
@@ -101,20 +99,37 @@ formatter:
 | Writer | When |
 |---|---|
 | `character/createActions.js` | Creation |
-| `character/actions.js#updateCharacterProfile` | Self-service edit |
-| `gm/dev/actions.js#updateCharacterRaw` | GM raw edit |
+| `web/lib/characterWrite.js` | GM raw edit, from the dev panel |
 | `web/lib/dynasty.js#propagateDynastyLastName` | The Baron renaming his house |
 
-A fifth must do the same. `npm run db:backfill-name-parts` is the drift check
+A fourth must do the same. `npm run db:backfill-name-parts` is the drift check
 that catches one that doesn't.
+
+### A name is immutable
+
+There is **no player-facing rename.** A name is chosen once, in the creation
+wizard, and after that `character/actions.js#updateCharacterProfile` ignores
+`honorific`, `firstName` and `lastName` outright — the three inputs on
+`/character` render `disabled`, but as always the disabled input is the hint
+and the server action is the lock. It was the fourth writer in the table above
+until then; the rest of the Bio form (appearance, avatar, opt-ins) is
+untouched.
+
+The sanctioned exception is the **Mulligan Potion** (`docs/tags.yaml`), and it
+is deliberately un-automated: a player consumes it, which leaves a
+`CONSUME_TAG` request in the GM queue, and a GM does the rename from
+`/gm/dev/characters/[characterId]`. That keeps every rename on the
+`characterWrite.js` path — the only one that plans the Discord fan-out (role
+title, role colour, nickname, dynasty propagation) rather than firing pieces of
+it by hand.
 
 ### `NAME_LIMITS` (10/24/20/20)
 
 Not cosmetic. Discord caps a webhook username at 80 characters and the proxy
 sends `name` as-is, so the **inputs** are capped instead and the composed name
-is ≤79 by construction. All three form-fed writers apply the caps and
-`normalizeHonorific`'s allowlist server-side — every one of those forms is a
-public endpoint.
+is ≤79 by construction. Both form-fed writers — creation and the GM dev panel
+— apply the caps and `normalizeHonorific`'s allowlist server-side; both of
+those forms are public endpoints.
 
 ### Age
 
@@ -139,9 +154,11 @@ never read from a form they posted.
   living Baron (the seat is `multiple: false`, so `findFirst` is exact);
   `propagateDynastyLastName()` restamps the family.
 
-The lock lives in all three form-fed writers, GM raw edit included, keyed on
-**the role being saved** — so moving someone into a family seat renames them in
-the same write. The greyed-out inputs are the hint, not the lock.
+The lock lives in both remaining form-fed writers, GM raw edit included, keyed
+on **the role being saved** — so moving someone into a family seat renames them
+in the same write. The greyed-out inputs are the hint, not the lock. (Since the
+self-service edit no longer writes names at all, a player's own form cannot
+reach `lastName` by any route.)
 
 Two consequences worth keeping: a family member created before any Baron exists
 simply has no last name until he rolls up; and propagation runs only after a

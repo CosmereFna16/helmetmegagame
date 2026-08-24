@@ -447,6 +447,210 @@ tags:
     purchasableAfterStart: false
     removable: false
 
+  - slug: spotter
+    name: Spotter
+    category: general
+    group: general-traits
+    description: "You keep your eyes on the approach. Nobody reaches you unannounced."
+    pointCost: 2
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: rough-camp
+    name: Rough Camp
+    category: general
+    group: general-traits
+    description: "A night outdoors costs you nothing. Cold ground, wet ground, no ground — you sleep anyway."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: game-master
+    name: Game Master
+    category: general
+    group: general-traits
+    description: "Nobody beats you at cards or the board. The same head for it makes you a little sharper at tactics, too."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  # A tier chain rather than two separate tags: Beautiful replaces Pretty, so
+  # buying it outright costs the pair (cumulativeCost) and a character can
+  # never hold both. Deliberately named apart from the Otherworldly Beauty
+  # status and the Flawless Skin tonic — documents.yaml matches tags by NAME.
+  - slug: pretty
+    name: Pretty
+    category: general
+    group: general-traits
+    description: "People's eyes rest on you a moment longer than they meant to."
+    pointCost: 1
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: beautiful
+    name: Beautiful
+    category: general
+    group: general-traits
+    description: "The kind of face a room reorganizes itself around. It opens doors, and it makes enemies of people who have never spoken to you."
+    pointCost: 2
+    parentTag: pretty
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Drawbacks, so they GIVE points back — same posture as Frail and Old above,
+  # and all creation-only per TAGS.md §4.
+  - slug: craven
+    name: Craven
+    category: general
+    group: general-traits
+    description: "When it starts, you are already looking for the door. Courage is a thing other people seem to have."
+    pointCost: -2
+    purchasable: true
+    purchasableAfterStart: false
+
+  - slug: dwarf
+    name: Dwarf
+    category: general
+    group: general-traits
+    description: "You are very short. Doorways, horses, reach in a fight — the world was built for someone else."
+    pointCost: -1
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+
+  # General rather than Health on purpose: this is a body you were given and
+  # kept, not a condition anyone is going to treat. No requirement block, so
+  # the Heal request never offers it, and `removable: false` so it doesn't
+  # come off from the sheet either.
+  - slug: fat
+    name: Fat
+    category: general
+    group: general-traits
+    description: "There is a lot of you. Running, climbing, squeezing through anything — all of it is somebody else's idea of easy."
+    pointCost: -2
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  # --- The Watch ------------------------------------------------------------
+  # Watchman is the membership tag and the gate: docs/taggroups.yaml puts
+  # `requiredTag: watchman` on the general-watch group, so every tag below
+  # inherits the gate and none of them repeats it. Watchman itself lives in
+  # general-traits, outside the group it opens — a gated group cannot contain
+  # its own key. Granted by roles.yaml (Captain, Watchman), never bought.
+  - slug: watchman
+    name: Watchman
+    category: general
+    group: general-traits
+    description: "Sworn to the Watch. You hold the garrison keys and the run of its rooms."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  - slug: corrupt
+    name: Corrupt
+    category: general
+    group: general-watch
+    description: "You take money to look the other way, and you will keep taking it. Play it that way — this one is a promise about how you behave, not a licence."
+    pointCost: -2
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+
+  - slug: kennelmaster
+    name: Kennelmaster
+    category: general
+    group: general-watch
+    description: "The dogs answer to you. You know which ones bite and which ones only sound like it."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: sergeant
+    name: Sergeant
+    category: general
+    group: general-watch
+    description: "You have rank. The men listen when you speak, and the Captain hears it when you don't."
+    pointCost: 1
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: drillmaster
+    name: Drillmaster
+    category: general
+    group: general-watch
+    description: "You train the Squires. Whenever one rolls two Gambit 6s in a row, you may raise their Fighting skill a tier."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: green
+    name: Green
+    category: general
+    group: general-watch
+    description: "Sworn in last month. Your Fighting skill counts one tier lower in your first real fight — after that, the tag comes off."
+    pointCost: -1
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+
+  # --- Brigands -------------------------------------------------------------
+  # Same shape as the Watch above: Brigand is the key, gated group holds the
+  # rest. Granted by roles.yaml (Brigand Leader, Brigand).
+  - slug: brigand
+    name: Brigand
+    category: general
+    group: general-traits
+    description: "You live outside the law and outside the walls, and you answer to no lord."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  - slug: forger
+    name: Forger
+    category: general
+    group: general-brigand
+    description: "Papers, seals, a hand that isn't yours. What you make does not look forged, because it isn't — not to anyone who reads it."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: pickpocket
+    name: Pickpocket
+    category: general
+    group: general-brigand
+    description: "A purse, a key, a letter. It leaves their person and arrives on yours, and the walk between the two is unremarkable."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: climber
+    name: Climber
+    category: general
+    group: general-brigand
+    description: "Trees, walls, drainpipes, the outside of a tower. You go up things other people go around."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: wanted
+    name: Wanted
+    category: general
+    group: general-brigand
+    description: "You match some wanted posters. Not perfectly. Close enough that a Watchman with time on his hands might stop and look twice."
+    pointCost: -2
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+
   # --- Skills ---------------------------------------------------------------
 
   - slug: sign-language
@@ -594,6 +798,54 @@ tags:
     description: "When using bows, your fighting skill is two levels higher."
     pointCost: 3
     requiredTag: fighting-basic
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Two more sidegrades on the Archer pattern: `requiredTag`, not `parentTag`,
+  # so they gate on a tier without replacing it or costing the chain.
+  - slug: fighting-guerrilla
+    name: Fighting (Guerrilla)
+    category: skills
+    description: "Ambushes, broken ground and bad odds. When you start a fight on your own terms, your fighting skill is two levels higher; in a straight engagement it is not."
+    pointCost: 3
+    requiredTag: fighting-basic
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Gates on Watchman rather than a Fighting tier — the formation is the point,
+  # not the swordsmanship. Left in Skills (and so groupless, like every Skills
+  # tag) instead of the gated general-watch group, so it files with the rest of
+  # the Fighting family where a player looks for it.
+  - slug: fighting-shield-wall
+    name: Fighting (Shield Wall)
+    category: skills
+    description: "You have drilled the line. Standing within reach of two or more other Watchmen, your fighting skill is one level higher."
+    pointCost: 3
+    requiredTag: watchman
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Construction, which `crafting` gestured at and never really covered. Two
+  # rungs rather than the usual three — there is no Builder (Basic); anyone can
+  # nail two boards together.
+  - slug: builder-skilled
+    name: Builder (Skilled)
+    category: skills
+    description: "You can build simple things that stay built — a shed, a palisade, a cart, a set of stairs."
+    pointCost: 2
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: builder-expert
+    name: Builder (Expert)
+    category: skills
+    description: "An architect and an engineer. You can design and raise almost anything — a bridge, a tower, a winch, a waterworks — and say beforehand whether it will hold."
+    pointCost: 2
+    parentTag: builder-skilled
     visible: true
     purchasable: true
     purchasableAfterStart: true
@@ -1415,6 +1667,23 @@ tags:
       resourceCost: 4
       skills: [medical-skilled]
 
+  # Tier 1 on the cure ladder: food and a fortnight of someone paying
+  # attention. The cheapest thing on the list to undo, and the easiest to let
+  # slide back.
+  - slug: malnourished
+    name: Malnourished
+    category: health
+    group: health-illness
+    description: "Years of not quite enough. You bruise easily, you tire early, and you have never in your life felt strong."
+    pointCost: -2
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    requirement:
+      resourceCost: 1
+      skills: [medical-basic]
+
   - slug: arthritis
     name: Arthritis
     category: health
@@ -1539,6 +1808,18 @@ tags:
       skills: [medical-expert]
       gambit: true
 
+  # The mild end of what Mute is the whole of. Permanent, so no requirement
+  # block — but not `visible`, since it only shows when you speak.
+  - slug: stutter
+    name: Stutter
+    category: health
+    group: health-mind
+    description: "The word is there and your mouth will not release it. Worse when you are watched, which is exactly when you need it least."
+    pointCost: -1
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
   - slug: mute
     name: Mute
     category: health
@@ -1572,6 +1853,32 @@ tags:
     pointCost: 0
     visible: true
     purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
+  # A crutch replaced by something that bears weight. Better off than Missing
+  # Leg, which is why it prices between that and Crippled Leg — and still
+  # permanent, so no requirement block.
+  - slug: peg-leg
+    name: Peg Leg
+    category: health
+    group: health-maiming
+    description: "Turned oak below the knee, strapped on every morning. You walk, you work, you climb stairs slowly, and everyone hears you coming across a flagstone floor."
+    pointCost: -2
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+
+  # The severe, purchasable end of what `scarred` records for free.
+  - slug: disfigured
+    name: Disfigured
+    category: health
+    group: health-maiming
+    description: "Something took the shape of your face and gave back a different one. People decide things about you before you have spoken, and they are seldom kind things."
+    pointCost: -2
+    visible: true
+    purchasable: true
     purchasableAfterStart: false
     removable: false
 
@@ -1982,6 +2289,25 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
+
+  - slug: bear-trap
+    name: Bear Trap
+    category: items
+    group: items-gear
+    description: "Iron jaws on a spring plate, set under leaves and forgotten about until something screams. Does not care what stepped in it."
+    pointCost: 2
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 5
+      skills: [smithing]
+      gambit: false
 
   - slug: skeleton-wedge
     name: Skeleton Wedge
@@ -3057,6 +3383,26 @@ tags:
       resourceCost: 4
       skills: [brewing-skilled]
       gambit: false
+
+  # The one tag that undoes an otherwise permanent decision. A character's name
+  # is set at creation and no player-facing path changes it (see
+  # docs/systemdocs/CHARACTERS.md) — this is the exception, and it is honoured
+  # by a GM rather than automated: `consumable` with no `consumesInto`, so
+  # drinking it simply spends the tag and leaves a CONSUME_TAG request in the
+  # GM's queue to act on.
+  - slug: mulligan-potion
+    name: Mulligan Potion
+    category: items
+    group: items-drink
+    description: "Cloudy, and it tastes of nothing at all. Drink it and you may take a new name, once — ask the GMs."
+    pointCost: 1
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    consumable: true
 
   - slug: invisibility-potion
     name: Invisibility Potion

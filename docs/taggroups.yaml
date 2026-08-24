@@ -30,6 +30,22 @@ groups:
     name: Social
     category: general
     color: "#9c88c4"
+  # Two body-membership groups, gated the same way Demoness and Bacchus are
+  # (see the bottom of this file). Gating here rather than repeating
+  # `requiredTag` on every member is the established idiom, and it means a
+  # player who isn't in the body never sees the group at all. Unlike Demoness
+  # and Bacchus these sit in the `general` category, which stays visible
+  # because general-traits and general-social are ungated.
+  - slug: general-watch
+    name: The Watch
+    category: general
+    color: "#8a9bb5"
+    requiredTag: watchman
+  - slug: general-brigand
+    name: Brigands
+    category: general
+    color: "#a87351"
+    requiredTag: brigand
   # Orphaned: the Health category below took every tag that used to live
   # here. Groups sync upsert-only and are never deleted, so this row survives
   # empty — don't reuse the slug, and don't put anything back in it.
