@@ -18,9 +18,21 @@
 const DEPTHS_SLUGS = new Set(["caverns", "railroad", "aberrant-pits"]);
 
 function isTravelFree({ fromSlug, fromZoneId, toSlug, toZoneId }) {
-  // No zone yet means this is a first-ever placement, which is always free
+  // Nowhere yet means this is a first-ever placement, which is always free
   // (and, in performTravel, unrestricted by adjacency too).
-  if (!fromZoneId) return true;
+  //
+  // Keyed on the LOCATION, not the zone. `!fromZoneId` used to be the
+  // first-placement test, so a character standing somewhere real but carrying
+  // a null zone — which createCharacter produces whenever a role's starting
+  // location has no zone — read as "not placed yet" and travelled the entire
+  // map for free, forever, without ever spending a turn.
+  if (!fromSlug) return true;
+
+  // Standing somewhere with no zone recorded on either end is a broken sheet,
+  // not a free pass. Charging is the safe direction: the alternative is
+  // `fromZoneId === toZoneId` being true because both sides are null.
+  if (!fromZoneId || !toZoneId) return false;
+
   if (DEPTHS_SLUGS.has(fromSlug) && DEPTHS_SLUGS.has(toSlug)) return false;
   return fromZoneId === toZoneId;
 }

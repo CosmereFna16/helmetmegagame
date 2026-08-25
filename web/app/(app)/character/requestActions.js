@@ -138,9 +138,17 @@ async function setMoodRequestImpl({ mood, reason: rawReason }) {
 // caller can ask.
 async function resolveParty(key) {
   const [kind, id] = (key ?? "").split(":");
+  // A server action is a public endpoint, and a posted key of just
+  // "character" -- no colon, no id -- used to leave `id` undefined. Prisma
+  // DELETES an undefined field from a where clause rather than matching
+  // nothing, so "find the character with this id" quietly became "find any
+  // living character", and the transfer or the heal then ran against whoever
+  // came back first. `?? ""` matches nobody, which is the answer a malformed
+  // key deserves.
+  if (!id) return null;
   if (kind === "character") {
     const c = await prisma.character.findFirst({
-      where: { id, status: "ALIVE" },
+      where: { id: id ?? "", status: "ALIVE" },
       select: { id: true, name: true, resources: true, locationId: true, zoneId: true },
     });
     return c
@@ -149,7 +157,7 @@ async function resolveParty(key) {
   }
   if (kind === "faction") {
     const f = await prisma.faction.findUnique({
-      where: { id },
+      where: { id: id ?? "" },
       select: { id: true, name: true, silo: true, zoneId: true, zone: { select: { name: true } } },
     });
     if (!f || f.name === "Unaffiliated") return null;
@@ -504,7 +512,10 @@ async function transferTagRequestImpl({
   // nothing is written.
   if (!character.locationId) throw new UserError("You aren't anywhere you could hand that over.");
   const recipient = await prisma.character.findFirst({
-    where: { id: toCharacterId, status: "ALIVE", locationId: character.locationId },
+    // `?? ""` for the same reason as resolveParty above: an omitted id would
+    // otherwise be stripped from the where clause and hand the item to
+    // whoever happened to be standing in the room.
+    where: { id: toCharacterId ?? "", status: "ALIVE", locationId: character.locationId },
     select: { id: true, name: true },
   });
   if (!recipient) throw new UserError("They aren't here.");

@@ -171,24 +171,44 @@ function lockIsLive(action, now = new Date()) {
   return Boolean(action.lockExpiresAt && action.lockExpiresAt > now);
 }
 
+// The claim is one conditional write, not read-check-write.
+//
+// It used to read the row, decide the lock was free, and write -- so two GMs
+// clicking the same row inside the same second both read "free", both wrote,
+// and the second silently took a lock the first believed it held. Neither was
+// told. The heartbeat and the release below were always conditional; this was
+// the one that wasn't, which is the one that matters.
+//
+// The three OR arms are the whole rule: nobody holds it, I already hold it
+// (re-opening my own panel), or whoever held it let the 90s TTL lapse.
 async function claimMoveLockImpl({ actionId }) {
   const session = await requireGm();
 
-  const action = await prisma.action.findUnique({ where: { id: actionId } });
-  if (!action) throw new UserError("Move not found.");
-
-  if (lockIsLive(action) && action.lockedByDiscordUserId !== session.discordUserId) {
-    const holder = await lockHolderName(action.lockedByDiscordUserId);
-    throw new UserError(`${holder} is adjudicating this Move.`);
-  }
-
-  await prisma.action.update({
-    where: { id: actionId },
+  const { count } = await prisma.action.updateMany({
+    where: {
+      id: actionId ?? "",
+      OR: [
+        { lockedByDiscordUserId: null },
+        { lockedByDiscordUserId: session.discordUserId },
+        { lockExpiresAt: null },
+        { lockExpiresAt: { lte: new Date() } },
+      ],
+    },
     data: {
       lockedByDiscordUserId: session.discordUserId,
       lockExpiresAt: new Date(Date.now() + MOVE_LOCK_TTL_MS),
     },
   });
+
+  if (!count) {
+    // Losing the race and the row being gone are indistinguishable from the
+    // count alone, so read once -- off the hot path -- to say which.
+    const action = await prisma.action.findUnique({ where: { id: actionId ?? "" } });
+    if (!action) throw new UserError("Move not found.");
+    const holder = await lockHolderName(action.lockedByDiscordUserId);
+    throw new UserError(`${holder} is adjudicating this Move.`);
+  }
+
   revalidatePath("/gm/turns");
   return { ttlMs: MOVE_LOCK_TTL_MS };
 }
@@ -204,7 +224,7 @@ async function lockHolderName(discordUserId) {
 async function refreshMoveLockImpl({ actionId }) {
   const session = await requireGm();
   const { count } = await prisma.action.updateMany({
-    where: { id: actionId, lockedByDiscordUserId: session.discordUserId },
+    where: { id: actionId ?? "", lockedByDiscordUserId: session.discordUserId },
     data: { lockExpiresAt: new Date(Date.now() + MOVE_LOCK_TTL_MS) },
   });
   if (!count) throw new UserError("Your hold on this Move expired.");
@@ -214,7 +234,7 @@ async function refreshMoveLockImpl({ actionId }) {
 async function releaseMoveLockImpl({ actionId }) {
   const session = await requireGm();
   await prisma.action.updateMany({
-    where: { id: actionId, lockedByDiscordUserId: session.discordUserId },
+    where: { id: actionId ?? "", lockedByDiscordUserId: session.discordUserId },
     data: { lockedByDiscordUserId: null, lockExpiresAt: null },
   });
   revalidatePath("/gm/turns");
@@ -268,7 +288,7 @@ async function resolveMoveImpl({ actionId, mode, edits = {}, notifyPlayer = fals
   if (!["save", "solve", "unsolve"].includes(mode)) throw new UserError("Unknown mode.");
 
   const action = await prisma.action.findUnique({
-    where: { id: actionId },
+    where: { id: actionId ?? "" },
     include: { character: { include: { tags: { include: { tag: true } } } } },
   });
   if (!action) throw new UserError("Move not found.");
@@ -276,16 +296,35 @@ async function resolveMoveImpl({ actionId, mode, edits = {}, notifyPlayer = fals
     throw new UserError(`${await lockHolderName(action.lockedByDiscordUserId)} is adjudicating this Move.`);
   }
 
+  // Every branch below opens by moving moveReviewStatus with a CONDITIONAL
+  // write, so the check and the transition are one statement.
+  //
+  // The lock above says "someone is in this right now" and expires after 90s;
+  // it was never the thing stopping a Move being solved twice, and nothing
+  // else was either. Solve pushed its resources without ever asking whether
+  // the row was already SOLVED, so two GMs on the same row -- or one GM on a
+  // tab whose row data was rendered before the other finished -- both paid
+  // out. The second push then overwrote appliedEffects with its own half, so a
+  // later Unsolve could only ever hand back one of the two.
   const result = await prisma.$transaction(async (tx) => {
     if (mode === "unsolve") {
+      const claimed = await tx.action.updateMany({
+        where: { id: actionId ?? "", moveReviewStatus: "SOLVED" },
+        data: { moveReviewStatus: "OPEN" },
+      });
+      if (!claimed.count) throw new UserError("That Move isn't solved.");
+
+      // Re-read inside the transaction rather than trusting the row loaded
+      // before it: the snapshot is what the revert reverses, so it has to be
+      // the snapshot as it stands now.
+      const fresh = await tx.action.findUnique({ where: { id: actionId ?? "" } });
       // Reverses exactly what the snapshot says was pushed — never recomputed
       // from the row's current numbers, which a GM may have just edited.
-      const given = await revertMoveEffects(tx, action);
+      const given = await revertMoveEffects(tx, fresh);
       await tx.action.update({
         where: { id: actionId },
         data: {
           appliedEffects: Prisma.DbNull,
-          moveReviewStatus: "OPEN",
           reviewedAt: null,
           reviewedByDiscordUserId: null,
           lockedByDiscordUserId: null,
@@ -298,22 +337,38 @@ async function resolveMoveImpl({ actionId, mode, edits = {}, notifyPlayer = fals
     const data = normalizeEdits(action, edits, action.character.tags);
 
     if (mode === "save") {
+      // Saving a SOLVED row back to Open would strand its appliedEffects: the
+      // resources stay pushed with no snapshot left to hand them back from.
+      // Reopening is the operation that means this, and it reverses properly.
+      const claimed = await tx.action.updateMany({
+        where: { id: actionId ?? "", moveReviewStatus: { not: "SOLVED" } },
+        data: { moveReviewStatus: "OPEN" },
+      });
+      if (!claimed.count) throw new UserError("That Move is solved — reopen it before editing.");
+
       await tx.action.update({
         where: { id: actionId },
-        data: { ...data, moveReviewStatus: "OPEN", lockedByDiscordUserId: null, lockExpiresAt: null },
+        data: { ...data, lockedByDiscordUserId: null, lockExpiresAt: null },
       });
       return { status: "OPEN", note: "Saved." };
     }
 
-    // Solve. Push against the EDITED row, so a GM who changed the delta pushes
-    // their number rather than the player's.
+    // Solve. The claim goes first, so a row that is already SOLVED never
+    // reaches applyMoveEffects and cannot pay out twice.
+    const claimed = await tx.action.updateMany({
+      where: { id: actionId ?? "", moveReviewStatus: { not: "SOLVED" } },
+      data: { moveReviewStatus: "SOLVED" },
+    });
+    if (!claimed.count) throw new UserError("Another GM already solved that Move.");
+
+    // Push against the EDITED row, so a GM who changed the delta pushes their
+    // number rather than the player's.
     const edited = await tx.action.update({ where: { id: actionId }, data });
     const applied = await applyMoveEffects(tx, edited);
     await tx.action.update({
       where: { id: actionId },
       data: {
         appliedEffects: applied,
-        moveReviewStatus: "SOLVED",
         reviewedAt: new Date(),
         reviewedByDiscordUserId: session.discordUserId,
         lockedByDiscordUserId: null,

@@ -14,23 +14,43 @@
 
 // A Move can't drive a character's balance negative; anything that would is
 // clamped, matching db/lib/hungerPass.js.
+//
+// RETURNS THE ACTUAL MOVEMENT, which is the whole point. The clamp means the
+// nominal delta and the applied delta are not the same number: a −5 against a
+// character holding 2 ⬢ moves −2. Snapshotting the nominal −5 and then
+// crediting it back on Unsolve minted 3 ⬢ out of nothing, every time. This is
+// the same trap db/lib/lifeweb.js#bumpBlood documents and solves for the blood
+// pool, in the same shape: clamp and report in one statement, and let the
+// caller record what moved rather than what was asked for.
 async function addResources(tx, characterId, amount) {
-  if (!amount) return;
+  if (!amount) return 0;
   // One atomic statement, not read-then-write. The old shape (findUnique, add
   // in JS, write the literal back) lost an update whenever anything else
   // touched the same character between the two — a /labor confirm racing a
   // transfer, or the Default Move pass racing a player at rollover. GREATEST
   // keeps the clamp that db/lib/hungerPass.js also applies; Prisma's
   // `increment` can't express it, which is why this is raw.
-  await tx.$executeRaw`
-    UPDATE "Character"
-    SET "resources" = GREATEST(0, "resources" + ${amount})
-    WHERE "id" = ${characterId}
+  //
+  // FOR UPDATE on the prior read so a concurrent write can't land between the
+  // `before` this reports and the `after` it wrote.
+  const rows = await tx.$queryRaw`
+    WITH prev AS (
+      SELECT "resources" AS before FROM "Character" WHERE "id" = ${characterId} FOR UPDATE
+    )
+    UPDATE "Character" c
+    SET "resources" = GREATEST(0, prev.before + ${amount})
+    FROM prev
+    WHERE c."id" = ${characterId}
+    RETURNING prev.before AS before, c."resources" AS after
   `;
+  const before = rows[0]?.before ?? 0;
+  const after = rows[0]?.after ?? before;
+  return after - before;
 }
 
 // One entry per pushable thing. `read` decides what this Move would push right
-// now; `apply` pushes it; `revert` takes back exactly what was snapshotted.
+// now; `apply` pushes it and returns WHAT ACTUALLY MOVED; `revert` takes back
+// exactly what was snapshotted.
 const MOVE_EFFECTS = {
   resources: {
     read: (action) => action.resourceDelta ?? 0,
@@ -41,13 +61,18 @@ const MOVE_EFFECTS = {
 
 // Pushes everything this Move is worth and returns the blob to stamp on
 // `Action.appliedEffects`. Callers run this inside their own transaction.
+//
+// The snapshot records what `apply` reports moving, not what `read` asked for.
+// An effect whose apply returns nothing falls back to the asked-for value, so
+// a future entry that can't clamp doesn't have to say so.
 async function applyMoveEffects(tx, action) {
   const applied = {};
   for (const [key, effect] of Object.entries(MOVE_EFFECTS)) {
     const value = effect.read(action);
     if (!value) continue;
-    await effect.apply(tx, action, value);
-    applied[key] = value;
+    const moved = await effect.apply(tx, action, value);
+    const recorded = moved === undefined || moved === null ? value : moved;
+    if (recorded) applied[key] = recorded;
   }
   return applied;
 }

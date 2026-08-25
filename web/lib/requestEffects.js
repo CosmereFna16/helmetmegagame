@@ -318,9 +318,15 @@ export const REQUEST_EFFECTS = {
         effect.resourcesSpent = nextSpend;
       }
 
-      if (edits.removeTag && effect.tagId) {
+      if (edits.removeTag && effect.tagId && !effect.tagRemovedByGm) {
         // Only what this request added comes off — a stack the player built
         // over several requests keeps whatever the others put there.
+        //
+        // The `!effect.tagRemovedByGm` guard is what stops a second Confirm
+        // taking a second unit. The flag was already being written below and
+        // already honoured by undo(); it just wasn't read here, and
+        // resolveRequest allows unlimited confirms. HEAL_CHARACTER.applyEdit
+        // has had this exact guard all along.
         await dropCharacterTag(tx, request.characterId, effect.tagId, effect.quantity ?? 1);
         notes.push(`Removed ${formatStack(effect.tagName, effect.quantity)}.`);
         effect.tagRemovedByGm = true;
@@ -431,7 +437,11 @@ export const REQUEST_EFFECTS = {
         effect.bloodDelta = next;
       }
 
-      if (edits.removeDrained && effect.drainedTagId) {
+      // Same guard as ADD_TAG.applyEdit: without it a second Confirm calls
+      // dropCharacterTag again, and because this one passes no quantity it
+      // deletes the whole row — confiscating a Drained the player picked up
+      // from somewhere else in the meantime, which this request never granted.
+      if (edits.removeDrained && effect.drainedTagId && !effect.drainedRemovedByGm) {
         await dropCharacterTag(tx, effect.targetCharacterId, effect.drainedTagId);
         notes.push(`Cleared Drained from ${effect.targetName ?? "the target"}.`);
         effect.drainedRemovedByGm = true;

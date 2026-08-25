@@ -13,7 +13,10 @@ export async function unstarNote(noteId) {
   const session = await auth();
   if (!session?.discordUserId) return;
 
-  await prisma.note.deleteMany({ where: { id: noteId, discordUserId: session.discordUserId } });
+  // `?? ""` is not cosmetic: Prisma strips an undefined field from a where
+  // clause, so an omitted noteId would turn this into "delete every note this
+  // player has ever written". A server action is a public endpoint.
+  await prisma.note.deleteMany({ where: { id: noteId ?? "", discordUserId: session.discordUserId } });
 
   revalidatePath("/notes");
 }

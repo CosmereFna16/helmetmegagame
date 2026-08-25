@@ -21,7 +21,7 @@ export async function donateBlood(characterId) {
   if (!characterId) return;
 
   const character = await prisma.character.findFirst({
-    where: { id: characterId, status: "ALIVE" },
+    where: { id: characterId ?? "", status: "ALIVE" },
     include: { tags: { include: { tag: true } } },
   });
   if (!character) return;

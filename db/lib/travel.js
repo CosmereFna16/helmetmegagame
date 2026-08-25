@@ -35,9 +35,14 @@ async function performTravel(prisma, character, targetLocation) {
     }
   }
 
+  // The location's own zone, not Character.zoneId. The mirror can be null on a
+  // sheet the location isn't (ARCHITECTURE.md §6), and web/app/(app)/map's
+  // node colouring already asks the question this way — so reading it off the
+  // location is both more correct and the thing that keeps the map and the
+  // server from disagreeing.
   const free = isTravelFree({
     fromSlug: currentLocation?.slug ?? null,
-    fromZoneId: character.zoneId,
+    fromZoneId: currentLocation?.zoneId ?? null,
     toSlug: targetLocation.slug ?? null,
     toZoneId: targetLocation.zoneId,
   });
@@ -46,40 +51,57 @@ async function performTravel(prisma, character, targetLocation) {
   if (!free) {
     openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
     if (!openTurn) return { ok: false, reason: "No turn is currently open." };
-
-    // The same check the Move modal makes in reverse: acting and
-    // changing zones are mutually exclusive within a turn, in either order.
-    const existing = await prisma.action.findFirst({
-      where: { characterId: character.id, turnId: openTurn.id },
-    });
-    if (existing) return { ok: false, reason: "You've already acted this turn." };
   }
 
-  await prisma.character.update({
-    where: { id: character.id },
-    data: { locationId: targetLocation.id, zoneId: targetLocation.zoneId },
-  });
+  // One transaction, and the Action is written BEFORE the character moves.
+  //
+  // These used to be three bare statements on the raw client: check whether
+  // they had acted, move them, then file the Action. Two submissions at once —
+  // the #turns Travel button and the web map, or two map clicks — both passed
+  // the check and both moved, while @@unique([characterId, turnId]) let only
+  // one Action through. The player ended up two hops away having spent one
+  // Move, and the old comment here accepted that as the cost of not having a
+  // transaction.
+  //
+  // Filing first makes the unique constraint the gate rather than an
+  // afterthought: the loser's create raises P2002, which aborts the
+  // transaction, and the move it would have made is rolled back with it.
+  try {
+    await prisma.$transaction(async (tx) => {
+      if (!free) {
+        // The same check the Move modal makes in reverse: acting and
+        // changing zones are mutually exclusive within a turn, in either
+        // order. This one is for the message; P2002 below is the enforcement.
+        const existing = await tx.action.findFirst({
+          where: { characterId: character.id, turnId: openTurn.id },
+        });
+        if (existing) throw Object.assign(new Error("ALREADY_ACTED"), { code: "ALREADY_ACTED" });
 
-  if (!free) {
-    // P2002 here means another submission took this turn's slot between the
-    // findFirst above and now. The character has already been moved, so the
-    // travel itself stands; only the turn-spending Action is dropped, which is
-    // the same outcome as `free`.
-    await prisma.action.create({
-      data: {
-        characterId: character.id,
-        turnId: openTurn.id,
-        type: "MOVE",
-        status: "CONFIRMED",
-        moveReviewStatus: "SOLVED",
-        description: `Traveled to ${targetLocation.name}.`,
-        zoneId: targetLocation.zoneId,
-        resultMessage: `» Traveled to ${targetLocation.name}.`,
-        gmNotes: "auto:zone_change",
-      },
-    }).catch((err) => {
-      if (err.code !== "P2002") throw err;
+        await tx.action.create({
+          data: {
+            characterId: character.id,
+            turnId: openTurn.id,
+            type: "MOVE",
+            status: "CONFIRMED",
+            moveReviewStatus: "SOLVED",
+            description: `Traveled to ${targetLocation.name}.`,
+            zoneId: targetLocation.zoneId,
+            resultMessage: `» Traveled to ${targetLocation.name}.`,
+            gmNotes: "auto:zone_change",
+          },
+        });
+      }
+
+      await tx.character.update({
+        where: { id: character.id },
+        data: { locationId: targetLocation.id, zoneId: targetLocation.zoneId },
+      });
     });
+  } catch (err) {
+    if (err.code === "ALREADY_ACTED" || err.code === "P2002") {
+      return { ok: false, reason: "You've already acted this turn." };
+    }
+    throw err;
   }
 
   // Off by default (see GameConfig.archiveTravelEvents): arrivals are what

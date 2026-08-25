@@ -14,7 +14,7 @@ export async function POST(request) {
 
   await prisma.action
     .updateMany({
-      where: { id: actionId, lockedByDiscordUserId: session.discordUserId },
+      where: { id: actionId ?? "", lockedByDiscordUserId: session.discordUserId },
       data: { lockedByDiscordUserId: null, lockExpiresAt: null },
     })
     .catch(() => null);

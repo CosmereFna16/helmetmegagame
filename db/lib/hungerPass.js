@@ -14,6 +14,14 @@
 //      you pay 1 and stay fed. So 1 ⬢ always buys a fed turn, and resources
 //      can never go negative — the clamp is structural, not a Math.max.
 //
+// "Structural" only holds if the check and the pay are the same statement,
+// which they were not: the balance was read in the bulk query above and the
+// decrement issued some milliseconds later, so anyone who spent their last ⬢
+// in between went to −1. Turn rollover is exactly when players are most
+// active. The `gte: 1` on the decrement's where clause is what makes the
+// sentence above true; a racer who slipped to 0 simply isn't matched and eats
+// free that turn, which is the safe direction to miss in.
+//
 // Shaped for 100+ players: two reads and three bulk writes regardless of
 // headcount, and no network call at all — the per-player "you went hungry" DMs
 // are returned as a list of Discord user IDs for advanceTurn() to send later.
@@ -85,9 +93,9 @@ async function runHungerPass(prisma, turn) {
   // One transaction so a character can never be charged without their Ate
   // Meal being consumed. Empty `in: []` matches nothing and createMany with
   // [] is a no-op, so none of these need a guard.
-  await prisma.$transaction([
+  const [charged] = await prisma.$transaction([
     prisma.character.updateMany({
-      where: { id: { in: toPay } },
+      where: { id: { in: toPay }, resources: { gte: 1 } },
       data: { resources: { decrement: 1 } },
     }),
     prisma.characterTag.deleteMany({
@@ -114,7 +122,11 @@ async function runHungerPass(prisma, turn) {
   // the web action runs after the response is already flushed.
   return {
     turnNumber: turn.number,
-    paid: toPay.length,
+    // What was actually charged, not what was intended. The two differ by
+    // however many players spent their last ⬢ while the pass was running, and
+    // the audit row should say the true number.
+    paid: charged.count,
+    intendedToPay: toPay.length,
     starved: toStarve.length,
     shielded: shieldedIds.length,
     skipped,

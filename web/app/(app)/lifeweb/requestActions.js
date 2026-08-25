@@ -44,7 +44,12 @@ async function requireMortusCharacter() {
 
 async function requireLivingTarget(targetCharacterId) {
   const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId, status: "ALIVE" },
+    // `?? ""` is load-bearing: Prisma strips an undefined field from a where
+    // clause rather than matching nothing, so an omitted id turned "bleed this
+    // person" into "bleed any living character". These two buttons act on
+    // somebody else's sheet, which makes it the worst place in the app for
+    // that.
+    where: { id: targetCharacterId ?? "", status: "ALIVE" },
     include: { tags: { include: { tag: true } } },
   });
   if (!target) throw new UserError("Unknown person.");

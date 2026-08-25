@@ -24,7 +24,7 @@ export async function toggleEquip(characterTagId) {
   if (!character) return { error: "No living character." };
 
   const held = await prisma.characterTag.findFirst({
-    where: { id: characterTagId, characterId: character.id },
+    where: { id: characterTagId ?? "", characterId: character.id },
     select: { id: true, equipped: true, tag: { select: { equippable: true, name: true } } },
   });
   if (!held) return { error: "You aren't holding that." };

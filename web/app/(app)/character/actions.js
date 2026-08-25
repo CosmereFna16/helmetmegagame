@@ -155,7 +155,7 @@ export async function setDefaultEffort(characterId, formData) {
   if (!session?.discordUserId) redirect("/");
 
   const character = await prisma.character.findFirst({
-    where: { id: characterId, discordUserId: session.discordUserId, status: "ALIVE" },
+    where: { id: characterId ?? "", discordUserId: session.discordUserId, status: "ALIVE" },
   });
   if (!character) redirect("/character");
 
@@ -205,7 +205,7 @@ export async function deleteDefaultEffort(characterId) {
   if (!session?.discordUserId) redirect("/");
 
   const character = await prisma.character.findFirst({
-    where: { id: characterId, discordUserId: session.discordUserId, status: "ALIVE" },
+    where: { id: characterId ?? "", discordUserId: session.discordUserId, status: "ALIVE" },
   });
   if (!character) redirect("/character");
 
