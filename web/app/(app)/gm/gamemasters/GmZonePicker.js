@@ -22,11 +22,20 @@ export default function GmZonePicker({ discordUserId, zones, currentZoneId }) {
     // upsert, so waiting for revalidation to repaint the press reads as lag.
     setZoneId(next);
     startTransition(async () => {
+      // Branch on { ok }, not try/catch. The action returns its refusal as
+      // data now — a caught e.message would be React error #441's redacted
+      // text in production, which is what this used to display. The catch
+      // stays for a genuine fault, which still throws.
       try {
-        await assignGmZone({ discordUserId, zoneId: next });
+        const result = await assignGmZone({ discordUserId, zoneId: next });
+        if (!result?.ok) {
+          setZoneId(previous);
+          setError(result?.error ?? "Could not assign that zone.");
+        }
       } catch (e) {
+        console.error("Failed to assign a GM zone:", e);
         setZoneId(previous);
-        setError(e?.message ?? "Could not assign that zone.");
+        setError("Could not assign that zone.");
       }
     });
   };

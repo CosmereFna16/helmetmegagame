@@ -4,6 +4,7 @@ import { useState } from "react";
 import IconButton from "@/app/components/IconButton";
 import { MessageIcon } from "@/app/components/icons";
 import { sendGmMessage } from "../actions";
+import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 
 // The per-row "message this player" affordance, shared by both tables: an
 // icon button that expands one extra <tr> holding a composer, rather than
@@ -38,7 +39,7 @@ export function MessageComposerRow({ characterId, characterName, colSpan, onDone
           <input type="hidden" name="characterId" value={characterId} />
           <label className="field" style={{ flex: "1 1 20rem" }}>
             <span className="field-label">Message to {characterName}</span>
-            <textarea name="message" rows={2} required />
+            <textarea name="message" rows={2} required maxLength={GM_MESSAGE_MAX_LENGTH} />
           </label>
           <button type="submit" className="btn">
             Send

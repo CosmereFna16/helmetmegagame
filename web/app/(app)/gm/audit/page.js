@@ -33,6 +33,16 @@ function groupCharactersByFaction(characters) {
   }));
 }
 
+// A `YYYY-MM-DD` query param as a real Date, or null. Null is the right answer
+// for anything unparseable: an unfiltered page is a reasonable response to a
+// nonsense date, and a thrown Prisma error is not.
+function parseDateParam(raw, timeSuffix) {
+  const text = raw?.toString().trim();
+  if (!text) return null;
+  const parsed = new Date(`${text}${timeSuffix}`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 export default async function AuditLogPage({ searchParams }) {
   // Superadmin, not GM. With five GMs the log stops being a shared work
   // surface and becomes a record OF them — including what each of them did to
@@ -48,8 +58,19 @@ export default async function AuditLogPage({ searchParams }) {
   const actor = params?.actor?.toString().trim() || "";
   const target = params?.target?.toString().trim() || "";
   const q = params?.q?.toString().trim() || "";
-  const from = params?.from?.toString().trim() || "";
-  const to = params?.to?.toString().trim() || "";
+  // Parsed here rather than in the where clause below, and dropped if they
+  // aren't real dates. new Date("banana") is an Invalid Date that Prisma
+  // rejects, which threw inside the page render and — with no error boundary
+  // in the app — took the whole route to a raw digest screen. The `to` branch
+  // concatenated a time onto the string before parsing, so even a plausible
+  // value could come out invalid.
+  const from = parseDateParam(params?.from, "T00:00:00");
+  const to = parseDateParam(params?.to, "T23:59:59");
+  // What the two <input type="date"> fields echo back. Normalized off the
+  // parsed value rather than the raw param, so a rejected date clears the box
+  // instead of sitting there looking like an active filter.
+  const fromValue = from ? from.toISOString().slice(0, 10) : "";
+  const toValue = to ? to.toISOString().slice(0, 10) : "";
   const page = Math.max(1, Number.parseInt(params?.page?.toString() ?? "1", 10) || 1);
 
   const [allCharacters, guildMembers] = await Promise.all([
@@ -84,8 +105,8 @@ export default async function AuditLogPage({ searchParams }) {
     ...(from || to
       ? {
           createdAt: {
-            ...(from ? { gte: new Date(from) } : {}),
-            ...(to ? { lte: new Date(`${to}T23:59:59`) } : {}),
+            ...(from ? { gte: from } : {}),
+            ...(to ? { lte: to } : {}),
           },
         }
       : {}),
@@ -112,7 +133,17 @@ export default async function AuditLogPage({ searchParams }) {
   }
 
   function pageHref(newPage) {
-    const next = new URLSearchParams({ actionType, actor, target, q, from, to, page: String(newPage) });
+    // The normalized strings, not the Date objects — a Date in a
+    // URLSearchParams stringifies to a full RFC date the next parse rejects.
+    const next = new URLSearchParams({
+      actionType,
+      actor,
+      target,
+      q,
+      from: fromValue,
+      to: toValue,
+      page: String(newPage),
+    });
     for (const key of [...next.keys()]) {
       if (!next.get(key)) next.delete(key);
     }
@@ -154,11 +185,11 @@ export default async function AuditLogPage({ searchParams }) {
         </label>
         <label className="field">
           <span className="field-label">From</span>
-          <input type="date" name="from" defaultValue={from} />
+          <input type="date" name="from" defaultValue={fromValue} />
         </label>
         <label className="field">
           <span className="field-label">To</span>
-          <input type="date" name="to" defaultValue={to} />
+          <input type="date" name="to" defaultValue={toValue} />
         </label>
         <button type="submit" className="btn">
           Filter

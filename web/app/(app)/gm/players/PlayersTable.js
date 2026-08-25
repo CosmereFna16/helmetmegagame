@@ -11,6 +11,7 @@ import { useTableState, SortHeader, FilterBar, TableScroll } from "@/app/compone
 import ZoneChip from "@/app/components/ZoneChip";
 import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
 import Pager from "@/app/components/Pager";
+import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 
 const COL_COUNT = 9;
 
@@ -111,7 +112,7 @@ export default function PlayersTable({ characters, tags = [], myZoneName }) {
           ))}
           <label className="field">
             <span className="field-label">Message ({selected.size} recipient{selected.size === 1 ? "" : "s"}, sent from Bascinet)</span>
-            <textarea name="message" rows={3} required />
+            <textarea name="message" rows={3} required maxLength={GM_MESSAGE_MAX_LENGTH} />
           </label>
           <button type="submit" className="btn self-start">
             Send

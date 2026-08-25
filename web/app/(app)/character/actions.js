@@ -14,7 +14,12 @@ import { renderPortrait } from "@/lib/portrait/render";
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const AVATAR_SIZE = 256;
 
-export async function updateCharacterProfile(formData) {
+// Driven by useActionState in web/app/components/BioForm.js, hence the
+// leading `_prevState`. Returning { error } rather than throwing is the rule
+// in web/lib/actionResult.js: Next redacts anything thrown out of a Server
+// Action into React error #441, so the avatar size check below used to reach
+// the player as a digest instead of a sentence.
+export async function updateCharacterProfile(_prevState, formData) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
 
@@ -61,14 +66,22 @@ export async function updateCharacterProfile(formData) {
   });
   if (gameConfig?.avatarUploadsEnabled && avatar && avatar.size > 0) {
     if (avatar.size > MAX_UPLOAD_BYTES) {
-      throw new Error("Avatar image must be under 5MB.");
+      return { error: `That image is ${(avatar.size / 1024 / 1024).toFixed(1)}MB. It has to be under 5MB.` };
     }
-    const buffer = Buffer.from(await avatar.arrayBuffer());
-    data.avatarData = await sharp(buffer)
-      .resize(AVATAR_SIZE, AVATAR_SIZE, { fit: "cover" })
-      .webp({ quality: 85 })
-      .toBuffer();
-    data.avatarMimeType = "image/webp";
+    try {
+      const buffer = Buffer.from(await avatar.arrayBuffer());
+      data.avatarData = await sharp(buffer)
+        .resize(AVATAR_SIZE, AVATAR_SIZE, { fit: "cover" })
+        .webp({ quality: 85 })
+        .toBuffer();
+      data.avatarMimeType = "image/webp";
+    } catch (err) {
+      // sharp throws on anything it can't decode, and the file picker's
+      // accept="image/*" is a hint rather than a guarantee. Nothing has been
+      // written yet, so refusing here leaves the sheet as it was.
+      console.error("Failed to process an uploaded avatar:", err);
+      return { error: "That image couldn't be read. Try a JPEG or a PNG." };
+    }
   }
 
   const updated = await prisma.character.update({ where: { id: character.id }, data });
@@ -79,6 +92,7 @@ export async function updateCharacterProfile(formData) {
   // this only ever creates a personal role that went missing.
   await ensureCharacterRole(updated).catch(() => {});
   revalidatePath("/character");
+  return { ok: true };
 }
 
 // Builds and stores a portrait from a selection the modal posted. The

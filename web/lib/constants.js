@@ -15,3 +15,14 @@ export const FEAR_PENALTY = 3;
 
 // Same cap as Desire.text.
 export const FEAR_MAX_LENGTH = 300;
+
+// Every GM-authored message that ends up in a Discord DM: the Move Result box,
+// the broadcast composer, the per-row composer, the /gm/messages reply, and
+// the Dev Panel's message modal.
+//
+// One Discord message is 2000 characters, and sendDm prepends "» ", so 1990
+// leaves headroom. sendDm chunks anything longer rather than dropping it, but
+// a GM should still know where the edge is — before this, the boxes had no
+// limit at all, the send failed, and .catch(() => null) reported the Move
+// solved with the player never told.
+export const GM_MESSAGE_MAX_LENGTH = 1990;

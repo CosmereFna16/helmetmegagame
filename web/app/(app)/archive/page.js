@@ -33,7 +33,14 @@ export default async function ArchivePage({ searchParams }) {
   if (!gm && !config?.archiveVisible) redirect("/character");
 
   const params = await searchParams;
-  const kind = params?.kind?.toString().trim() || "";
+  // Validated against the option list above, not passed through. `kind` is a
+  // Prisma ENUM, so /archive?kind=anything threw a validation error inside the
+  // page render — and with no error boundary anywhere in the app that took the
+  // whole route to Next's raw digest screen. Anyone could do it with a URL.
+  // `order` two lines down was already allowlisted this way; this just joins
+  // it.
+  const requestedKind = params?.kind?.toString().trim() || "";
+  const kind = KIND_OPTIONS.some(([value]) => value === requestedKind) ? requestedKind : "";
   const locationId = params?.locationId?.toString().trim() || "";
   const characterId = params?.characterId?.toString().trim() || "";
   const day = params?.day?.toString().trim() || "";

@@ -378,8 +378,19 @@ async function resolveMoveImpl({ actionId, mode, edits = {}, notifyPlayer = fals
     return { status: "SOLVED", note: describeMoveEffects(applied) || "Solved." };
   });
 
+  // A failed DM is reported, not swallowed. `.catch(() => null)` here is what
+  // let a GM watch a Move go green while the player was never told — most
+  // often because the result ran past Discord's 2000 characters, which nothing
+  // was checking. The Move itself is already committed, so this can't undo
+  // anything; it just has to say so.
+  let deliveryFailed = false;
   if (mode === "solve" && notifyPlayer && edits.resultMessage?.toString().trim()) {
-    await sendDm(action.character.discordUserId, edits.resultMessage.toString().trim()).catch(() => null);
+    try {
+      await sendDm(action.character.discordUserId, edits.resultMessage.toString().trim());
+    } catch (err) {
+      console.error(`Failed to DM the Move result to ${action.character.discordUserId}:`, err);
+      deliveryFailed = true;
+    }
   }
 
   await prisma.auditLog.create({
@@ -393,7 +404,7 @@ async function resolveMoveImpl({ actionId, mode, edits = {}, notifyPlayer = fals
 
   revalidatePath("/gm/turns");
   revalidatePath("/character");
-  return result;
+  return { ...result, deliveryFailed };
 }
 
 // Reject deletes the row outright. That's the point: the turn-economy checks
@@ -433,14 +444,22 @@ async function rejectMoveImpl({ actionId, reason: rawReason }) {
     });
   });
 
-  await sendDm(
-    action.character.discordUserId,
-    `Your Move was returned to you — you can act again this turn.\n${reason}`,
-  ).catch(() => null);
+  // Same reasoning as the solve path: a freed turn the player doesn't know
+  // about is a wasted day, so a failed DM has to reach the GM.
+  let deliveryFailed = false;
+  try {
+    await sendDm(
+      action.character.discordUserId,
+      `Your Move was returned to you — you can act again this turn.\n${reason}`,
+    );
+  } catch (err) {
+    console.error(`Failed to DM the rejection to ${action.character.discordUserId}:`, err);
+    deliveryFailed = true;
+  }
 
   revalidatePath("/gm/turns");
   revalidatePath("/character");
-  return { description: action.description };
+  return { description: action.description, deliveryFailed };
 }
 
 export async function claimMoveLock(input) {

@@ -299,6 +299,16 @@ before adding or changing a command. Three things cause real problems:
   `bot/src/lib/interactionGuild.js#resolveActingMember`, and use `isGmMember`
   from the same module for the GM gate.
 
+**Acknowledge before you work.** Discord gives the bot three seconds to
+acknowledge an interaction, and every handler that touches the database calls
+`ack()` from `bot/src/lib/respond.js` as its first statement, then answers with
+`respond()` instead of `interaction.reply` — which also clamps the reply to
+2000 characters. Doing the work first means a slow turn-open shows the player
+"The application did not respond" for something that already committed, and
+retrying tells them they have already acted. The exception is a handler that
+opens a modal: `showModal` **is** the acknowledgement, and a deferred
+interaction can no longer open one.
+
 Player-facing work happens in **modals**, not in messages typed into a
 channel. The reason: typing in a channel shows a typing indicator under the
 player's *real* account, and a modal never does. The three entry points are
@@ -528,3 +538,11 @@ global CLIs. To make one able to build, run, and deploy:
   it (`afterStartOnly`) and `Character.tagPoints` carries the balance. What's
   missing is a route that spends it, and the rules for earning points during
   play.
+- **`prisma migrate diff` proposes dropping `ArchiveEntry_content_trgm_idx`.**
+  That index lives only in raw migration SQL, so Prisma's schema doesn't know
+  about it. Decline the drop; it is not drift you introduced.
+- The **Dev Panel doesn't surface the REST breaker yet.** `GameConfig` now
+  carries `restInvalidCount` / `restInvalidWindowStart` /
+  `restBreakerOpenUntil`, and `getInvalidResponseStats()` reads them, but the
+  only reader is the startup line in `bot/src/events/ready.js`. A GM-visible
+  number would be a small addition.

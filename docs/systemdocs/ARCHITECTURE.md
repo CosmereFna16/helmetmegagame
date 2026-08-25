@@ -143,15 +143,32 @@ Everything that talks to Discord in a loop is **sequential**, never
 makes that unreachable — at most one request is ever in flight. Valid requests
 never count toward it, however fast.
 
-`db/lib/discordRest.js#discordRequest` is the central wrapper: bounded retry on
-429 honouring `retry_after`, throws on any other non-2xx unless `allow404`. On
-the web side, `dmFetch` in `web/lib/discordGuild.js` does the same for the two
-requests a DM costs — the path a GM broadcast walks.
+`db/lib/discordRest.js#discordRequest` is the central wrapper, and **everything
+goes through it**: bounded retry on 429 honouring `retry_after`, the capped
+wait, the breaker check, the invalid-response count, and pre-emption on
+`X-RateLimit-Remaining: 0`. It throws on any other non-2xx unless `allow404`,
+and every error it throws carries `status` and `discordCode` so callers can
+tell a dead webhook from a rate limit without reading the message text.
 
-The one exception is `executeWebhook`, a bare `fetch` — the webhook token in the
-URL *is* the credential, and sending a bot `Authorization` header alongside it
-makes Discord authorize as the bot instead. It has no 429 handling; it is only
-used at low volume.
+Two calls need something other than a JSON body with a bot header, and both say
+so with an option rather than by hand-rolling a second, weaker retry loop:
+
+- `executeWebhook` passes `auth: false` — the webhook token in the URL *is* the
+  credential, and sending a bot `Authorization` header alongside it makes
+  Discord authorize as the bot instead.
+- `postAttachment` passes `formData` (a factory, so a retry gets a fresh body)
+  — Discord takes attachments as `multipart/form-data` only.
+
+Both used to be bare fetches on exactly that reasoning, which covered their
+headers and not their retry logic. `executeWebhook` is the one call driven in a
+loop over the whole roster, so a 429 there is the expected steady state on a
+busy turn; `postAttachment` slept on an uncapped `retry_after` and could park a
+turn advance for ten minutes.
+
+The web side has no DM wrapper of its own any more: `web/lib/discordGuild.js#sendDm`
+calls `postDmBatched`, which caches the DM channel and splits anything over
+2000 characters. The old local `dmFetch` re-wrapped `discordRequest` only to
+prefix the error message, and that rebuild dropped the status code.
 
 **Swallowing a Discord failure is not the same as tolerating it.** A
 best-effort side effect still has to leave a trace — a log line, and for

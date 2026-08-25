@@ -56,6 +56,16 @@ the whole new stack clawed back — only what this request moved. See
 invokes it inside its own `prisma.$transaction` so a request can never exist
 without its effect, or an effect without its request.
 
+**Every ⬢ movement goes through `requestEffects.js#moveResources`, and a debit
+the balance no longer covers throws rather than going negative.** The write is
+the check — a conditional `updateMany` matching only while the balance still
+covers the amount. The friendly `amount > from.balance` checks in the request
+actions stay for their better wording, but they are a separate statement from
+the write and two tabs firing at once both passed them: ten sent twice left
+the sender at −10 and the recipient up 20, and it worked on faction Silos too.
+The throw aborts the surrounding transaction, so the tag grant, the `Request`
+row and the audit entry all roll back with it.
+
 ## 3. The thirteen types
 
 Eleven live in `web/app/(app)/character/requestActions.js` and the two
@@ -181,7 +191,11 @@ writer, called from `resolveNeeds()` at the close of every turn:
 
 So 1 ⬢ always buys a fed turn, a meal buys one outright, and
 `Character.resources` can never go negative — the clamp is structural, not a
-`Math.max`, and it lives on step 3, the only branch that still pays.
+`Math.max`, and it lives on step 3, the only branch that still pays. Structural
+means the check and the payment are the *same statement*: the decrement carries
+`resources: { gte: 1 }` in its own `where`. Read the balance in one query and
+decrement in another and a player who spends in between goes to −1, which is
+what used to happen, and turn rollover is exactly when players are most active.
 
 **The expiry arithmetic**, and why the pass runs *after* the sweep:
 

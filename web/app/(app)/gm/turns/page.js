@@ -9,6 +9,29 @@ import AdjudicateTabs from "./AdjudicateTabs";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 
 const HISTORY_LIMIT = 500;
+
+// Exactly the Tag columns TagChip and formatTagRequirement read, and nothing
+// else — same discipline as web/app/api/tags/route.js. The heavy ones an
+// `include` dragged along (consumesInto, consumesIntoUnless,
+// consumesIntoDurations) are rendered nowhere on this page, and `group` is a
+// join TagChip never touches.
+//
+// Deliberately no "might be useful later" columns: that reasoning is how the
+// page got here.
+const TAG_CHIP_FIELDS = {
+  id: true,
+  slug: true,
+  name: true,
+  description: true,
+  pointCost: true,
+  defaultDurationTurns: true,
+  expiresInto: true,
+  visibleOnInspect: true,
+  requirementTurns: true,
+  requirementResources: true,
+  requirementGambit: true,
+  requirementSkills: { select: { name: true } },
+};
 const DESCRIPTION_LIMIT = 100;
 
 // Player-side submission states, before a Move reaches the GM at all.
@@ -123,11 +146,23 @@ export default async function TurnsPage({ searchParams }) {
             faction: { include: { zone: true } },
             zone: true,
             location: true,
+            // A `select`, not an `include`, and only the fields TagChip
+            // renders. An include returns every column of Tag — the full prose
+            // description, consumesInto, consumesIntoUnless,
+            // consumesIntoDurations, expiresInto — for every tag held by every
+            // one of 500 rows' characters, and page.js then spread all of it
+            // into the RSC payload. MovesTable renders none of it; only
+            // MovePanel does, for one Move at a time.
+            //
             // requirementSkills must be named — see the same include in
-            // web/app/(app)/character/page.js for why omitting it fails quietly.
+            // web/app/(app)/character/page.js for why omitting it fails
+            // quietly.
             tags: {
-              include: {
-                tag: { include: { group: true, requirementSkills: { select: { name: true } } } },
+              select: {
+                tagId: true,
+                quantity: true,
+                expiresTurn: true,
+                tag: { select: TAG_CHIP_FIELDS },
               },
             },
           },
@@ -180,11 +215,22 @@ export default async function TurnsPage({ searchParams }) {
         ? `Nothing open in ${myZone.name}`
         : undefined;
 
+  // Every distinct tag across all 500 rows, once. With a ~200-entry catalog
+  // this is bounded by the catalog rather than by the row count, where the
+  // per-row copies were 500 x however many tags each character holds.
+  const tagsById = {};
+  for (const action of actions) {
+    for (const ct of action.character.tags) {
+      if (!tagsById[ct.tagId]) tagsById[ct.tagId] = ct.tag;
+    }
+  }
+
   return (
     <PageShell width="wide">
       <PageHeader title="Adjudicate" subtitle={awaitingLine} />
       <AdjudicateTabs
         initialTab={tab}
+        tagsById={tagsById}
         myZoneName={myZone?.name ?? null}
         moves={actions.map((a) => ({
           id: a.id,
@@ -206,8 +252,13 @@ export default async function TurnsPage({ searchParams }) {
           // Panel-only fields — the Character section and the resolution form.
           locationLabel: [a.character.zone?.name, a.character.location?.name].filter(Boolean).join(" / ") || "Unassigned",
           resources: a.character.resources,
+          // Just the reference. The tag itself is sent ONCE in tagsById below
+          // rather than re-serialized per row: 500 rows carrying ~15 tags each
+          // shipped the same handful of catalog entries thousands of times
+          // over, which is most of what made this page the slow, laggy
+          // dashboard CLAUDE.md says not to build.
           tags: a.character.tags.map((ct) => ({
-            ...ct.tag,
+            tagId: ct.tagId,
             quantity: ct.quantity,
             expiresTurn: ct.expiresTurn,
           })),

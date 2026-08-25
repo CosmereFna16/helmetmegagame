@@ -6,7 +6,7 @@ import RequestsTable from "./RequestsTable";
 import RequestPanel from "./RequestPanel";
 import MovePanel from "./MovePanel";
 
-export default function AdjudicateTabs({ moves, requests, initialTab, myZoneName }) {
+export default function AdjudicateTabs({ moves, requests, initialTab, myZoneName, tagsById }) {
   const [tab, setTab] = useState(initialTab === "requests" ? "requests" : "moves");
   // { row, readOnly } — the eye opens the same panel as the scale/edit icon
   // with every control inert, so there's one panel per type rather than a
@@ -54,7 +54,7 @@ export default function AdjudicateTabs({ moves, requests, initialTab, myZoneName
       )}
 
       {open && tab === "moves" && (
-        <MovePanel move={open.row} readOnly={open.readOnly} onClose={close} />
+        <MovePanel move={open.row} tagsById={tagsById} readOnly={open.readOnly} onClose={close} />
       )}
       {open && tab === "requests" && (
         <RequestPanel request={open.row} readOnly={open.readOnly} onClose={close} />

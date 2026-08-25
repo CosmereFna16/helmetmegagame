@@ -258,8 +258,22 @@ channel — the most expensive thing the bot did, since one channel is one
 at *send* time instead (`db/lib/archive.js`, read at `/archive` —
 `ARCHIVE.md`), so there is no `#archive` channel any more
 and nothing here reads message content. Deleting is the cheap half:
-`bulkDeleteMessages` moves 100 messages per request, and at a 12-hour cadence
-nothing is ever near the 14-day floor where bulk delete stops working.
+`bulkDeleteMessages` moves 100 messages per request.
+
+**It splits by age rather than assuming there is nothing old.** Discord rejects
+an entire 100-message batch if a single member is over 14 days old, and the
+12-hour cadence only guarantees that while the wipe has actually been running —
+`messageWipeEnabled` defaults to false, so a guild that plays for two weeks and
+then turns it on hits the floor on its first run, and the longer it stays
+broken the more certainly it stays broken. Under-14-day ids batch; older ones
+are deleted one at a time up to a bounded count, and whatever is left over is
+logged for the next run.
+
+**Each location is wiped inside its own `try`.** These were three bare awaits,
+so one stale channel id aborted every location after it alphabetically *and*
+the `#radio`/`#intercom` wipes at the end. The forum fetch also allows a 404,
+the same way every other blind sweep in the codebase does — a channel a GM
+deleted by hand is an ordinary state, not a reason to stop.
 
 **Per channel type:**
 

@@ -51,6 +51,34 @@ message. `sendAsCharacter` is the message-driven wrapper around it, and is the
 only thing that deletes an original. The Speak modal (`COMMANDS.md` §5) has no
 message to delete, only an interaction, which is why the split exists.
 
+### The original is deleted on every path, including the failing ones
+
+This is the load-bearing rule of the whole file. The game's premise is that a
+player's account and their character are separate, and a message left sitting
+un-proxied under a real Discord name breaks that premise for everyone reading
+the channel. For `/conceal` it is worse still: the text they wanted anonymous,
+over their real name.
+
+It used to delete only after a successful send, so anything the webhook
+rejected stayed on screen with nobody told — a message over 2000 characters
+(Nitro types 4000; the bot's repost still has to fit 2000), an attachment over
+the guild's upload limit, a sticker-only message, or a webhook a GM had
+deleted. The first three are now refused *before* the send and the rest are
+caught after it; either way the original goes and `handBack` DMs the player
+their words, in pieces if the reason it failed was length.
+
+**Losing a message is recoverable, and handBack recovers it. Losing the mask is
+not.** `sendAsCharacter` returns `null` when it refused, and the delete is
+logged rather than swallowed — a swallowed delete is the same leak by another
+route.
+
+The webhook cache un-learns an entry on Discord's `Unknown Webhook` code and
+rebuilds once, keyed on the error code and never on its message text. The
+`WebhookClient` itself is cached too: a fresh one starts with zero knowledge of
+the rate limits it is about to hit, so building one per message meant N
+simultaneous messages in a busy room fired N blind requests into a ~5-per-5s
+bucket.
+
 Tracking through `trackProxy` is not optional for either caller: every
 reaction below is gated on `recentProxies`, so an untracked message is inert
 to all of them.

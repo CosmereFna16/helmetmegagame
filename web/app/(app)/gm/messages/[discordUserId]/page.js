@@ -6,6 +6,7 @@ import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { sendDmReply } from "../../actions";
 import MessageList from "./MessageList";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
+import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 
 // The whole thread is rarely what a GM wants; the tail always is. Older
 // messages remain in /archive and in the DirectMessage table either way.
@@ -57,7 +58,7 @@ export default async function MessageThreadPage({ params }) {
         <input type="hidden" name="discordUserId" value={discordUserId} />
         <label className="field">
           <span className="field-label">Reply (from Bascinet)</span>
-          <textarea name="message" rows={3} required />
+          <textarea name="message" rows={3} required maxLength={GM_MESSAGE_MAX_LENGTH} />
         </label>
         <SubmitButton className="btn self-start" pendingLabel="Sending…">
           Send

@@ -1,6 +1,4 @@
-import { updateCharacterProfile } from "../(app)/character/actions";
-import AppearanceField from "./AppearanceField";
-import AvatarField from "./AvatarField";
+import BioForm from "./BioForm";
 import DefaultEffortPanel from "./DefaultEffortPanel";
 import GoalsPanel from "./GoalsPanel";
 import StatusPanel from "./StatusPanel";
@@ -9,7 +7,6 @@ import EquipmentPanel from "./EquipmentPanel";
 import RichText from "./RichText";
 import FactionLink from "./FactionLink";
 import PageShell from "@/app/components/PageShell";
-import BioNameFields from "./BioNameFields";
 import InfoIcon from "./InfoIcon";
 
 // Raw d6 first, then the summed modifier (Mood ±1, Hunger -1) and the total —
@@ -146,22 +143,15 @@ export default function CharacterSheet({
               Bio
               <InfoIcon text="Your name and age are fixed once set. Ask a GM if either needs to change." />
             </h2>
-            <form action={updateCharacterProfile} encType="multipart/form-data" className="flex flex-col gap-3">
-              <BioNameFields character={character} lastNameLocked={lastNameLocked} />
-              <AvatarField
-                defaultTurnPingOptIn={character.turnPingOptIn}
-                defaultRomanceOptOut={character.romanceOptOut}
-                uploadsEnabled={avatarUploadsEnabled}
-                portraitMakerEnabled={portraitMakerEnabled}
-                portraitFantasyPartsEnabled={portraitFantasyPartsEnabled}
-                portraitSelection={portraitSelection}
-                hasCustomAvatar={hasCustomAvatar}
-              />
-              <AppearanceField defaultValue={character.appearance ?? ""} />
-              <button type="submit" className="btn self-start">
-                Save
-              </button>
-            </form>
+            <BioForm
+              character={character}
+              lastNameLocked={lastNameLocked}
+              avatarUploadsEnabled={avatarUploadsEnabled}
+              portraitMakerEnabled={portraitMakerEnabled}
+              portraitFantasyPartsEnabled={portraitFantasyPartsEnabled}
+              portraitSelection={portraitSelection}
+              hasCustomAvatar={hasCustomAvatar}
+            />
           </section>
         )}
 

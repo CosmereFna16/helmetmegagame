@@ -195,6 +195,28 @@ closes. The heartbeat only extends a lock this GM still holds, so a lock taken
 over after expiry is not silently stolen back. The eye (read-only) **never**
 claims a lock — looking must not block the GM who intends to resolve.
 
+Claiming it is **one conditional `updateMany`**, matching only a row nobody
+holds, a row this GM already holds, or one whose TTL has lapsed. It used to
+read, decide, and then write, so two GMs clicking inside the same second both
+read "free" and both wrote, and neither was told.
+
+### Solving twice
+
+The lock says *someone is in this right now*; it was never what stopped a Move
+being solved twice, and nothing else was either. So each of Solve, Unsolve and
+Save opens by moving `moveReviewStatus` with a **conditional write** — Solve
+matches only a row that is not already `SOLVED`, Unsolve only one that is — and
+bails if it matched nothing. Two Solves used to push `resourceDelta` twice, and
+the second overwrote `appliedEffects` with its own half, so a later Unsolve
+could only ever hand back one of them. Save refuses a solved row outright:
+setting it back to Open without reverting would strand the snapshot.
+
+`applyMoveEffects` also snapshots **what actually moved**, not what was asked
+for. `addResources` clamps at zero, so a −5 against a character holding 2 ⬢
+moves −2; recording the nominal −5 and crediting it back on Unsolve minted 3 ⬢
+out of nothing. Same rule, and the same shape, as `lifeweb.js#bumpBlood`
+(`REQUESTS.md` §5a).
+
 ## 6. Where the code lives
 
 | Concern | File |

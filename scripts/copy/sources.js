@@ -117,6 +117,11 @@ const COPY_PROPS = new Set([
 const COPY_CALLS = new Set([
   "UserError",
   "sendDm",
+  // The bot's shared responder (bot/src/lib/respond.js). Most handlers now
+  // answer through it rather than through interaction.reply, so without this
+  // their voice would only be caught incidentally by the loose pass below --
+  // which misses anything under LOOSE_MIN_WORDS.
+  "respond",
   "confirm",
   "setDescription",
   "setLabel",

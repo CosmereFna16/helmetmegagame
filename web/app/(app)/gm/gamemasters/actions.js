@@ -5,11 +5,12 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getGuildMember, isGm } from "@/lib/discordGuild";
+import { UserError, guarded } from "@/lib/actionResult";
 
 async function requireSuperadmin() {
   const session = await auth();
   if (!session?.discordUserId || !isSuperadmin(session.discordUserId)) {
-    throw new Error("Not authorized.");
+    throw new UserError("Not authorized.");
   }
   return session;
 }
@@ -21,19 +22,25 @@ async function requireSuperadmin() {
 // GM role, and the zone is real. Without the target check this endpoint would
 // happily seat any Discord ID a caller invented — the picker being
 // superadmin-only is a hint, not the lock.
-export async function assignGmZone({ discordUserId, zoneId }) {
+// Every refusal below is a UserError, and the export is wrapped in guarded(),
+// so the reason reaches the screen as data. They were plain Errors, and Next
+// redacts anything thrown out of a Server Action into React error #441 — so
+// GmZonePicker's catch, which is genuinely written to display e.message,
+// showed a digest where it should have said "That member does not hold the GM
+// role." The check was doing its job; only the explanation was lost.
+async function assignGmZoneImpl({ discordUserId, zoneId }) {
   const session = await requireSuperadmin();
 
   const targetId = String(discordUserId ?? "").trim();
-  if (!/^\d{5,25}$/.test(targetId)) throw new Error("Not a Discord user ID.");
+  if (!/^\d{5,25}$/.test(targetId)) throw new UserError("That isn't a Discord user ID.");
 
   const member = await getGuildMember(targetId);
-  if (!isGm(member)) throw new Error("That member does not hold the GM role.");
+  if (!isGm(member)) throw new UserError("That member does not hold the GM role.");
 
   const wanted = String(zoneId ?? "").trim();
   if (wanted) {
     const zone = await prisma.zone.findUnique({ where: { id: wanted }, select: { id: true } });
-    if (!zone) throw new Error("No such zone.");
+    if (!zone) throw new UserError("No such zone.");
   }
 
   if (wanted) {
@@ -67,4 +74,8 @@ export async function assignGmZone({ discordUserId, zoneId }) {
   for (const path of ["/gm/gamemasters", "/gm/turns", "/gm/players", "/gm/messages"]) {
     revalidatePath(path);
   }
+}
+
+export async function assignGmZone(input) {
+  return guarded(() => assignGmZoneImpl(input));
 }

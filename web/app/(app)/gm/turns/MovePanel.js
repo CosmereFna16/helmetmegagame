@@ -14,6 +14,7 @@ import TagChip from "@/app/components/TagChip";
 import RequestDialog from "@/app/components/RequestDialog";
 import { claimMoveLock, refreshMoveLock, releaseMoveLock, resolveMove, rejectMove } from "./actions";
 import FactionLink from "@/app/components/FactionLink";
+import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 
 // The Move Adjudication Panel — the half of /gm/turns that ADJUDICATION.md §5
 // left as Phase 2. Same shell as RequestPanel.js (dirty guard, confirm dialog,
@@ -69,7 +70,7 @@ function Switch({ label, value, options, onChange, disabled, children }) {
   );
 }
 
-export default function MovePanel({ move, readOnly = false, onClose }) {
+export default function MovePanel({ move, tagsById = {}, readOnly = false, onClose }) {
   const confirm = useConfirm();
   const { markDirty, markClean, guardedClose } = useDirtyGuard({ enabled: !readOnly });
 
@@ -149,6 +150,13 @@ export default function MovePanel({ move, readOnly = false, onClose }) {
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
       lockedRef.current = false;
       markClean();
+      // The Move went through either way — but if the player's DM didn't, the
+      // panel stays open to say so. Closing on a silent failure is what made
+      // an over-length result look delivered.
+      if (res.deliveryFailed) {
+        setError("Solved — but the message didn't reach them. Tell them another way.");
+        return;
+      }
       onClose();
     });
   }
@@ -172,6 +180,11 @@ export default function MovePanel({ move, readOnly = false, onClose }) {
     startTransition(async () => {
       const res = await rejectMove({ actionId, reason });
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
+      if (res.deliveryFailed) {
+        // A freed turn the player doesn't know about is a wasted day.
+        setError("Move rejected — but they weren't told. Let them know they can act again.");
+        return;
+      }
       lockedRef.current = false;
       markClean();
       setRejecting(false);
@@ -202,15 +215,22 @@ export default function MovePanel({ move, readOnly = false, onClose }) {
           <Line label="Resources">{move.resources} ⬢</Line>
           {move.tags?.length ? (
             <div className="flex flex-wrap gap-1.5">
-              {move.tags.map((t) => (
-                <TagChip
-                  key={t.id}
-                  tag={t}
-                  quantity={t.quantity}
-                  expiresTurn={t.expiresTurn}
-                  currentTurn={move.currentTurnNumber}
-                />
-              ))}
+              {/* The row carries tag IDs; the tag itself comes from the
+                  page-level map, which holds one copy of each rather than one
+                  per row. A tag missing from the map means it was deleted
+                  between the render and now — skip it rather than crash the
+                  panel. */}
+              {move.tags.map((t) =>
+                tagsById[t.tagId] ? (
+                  <TagChip
+                    key={t.tagId}
+                    tag={tagsById[t.tagId]}
+                    quantity={t.quantity}
+                    expiresTurn={t.expiresTurn}
+                    currentTurn={move.currentTurnNumber}
+                  />
+                ) : null,
+              )}
             </div>
           ) : (
             <p className="text-sm text-muted">
@@ -289,6 +309,7 @@ export default function MovePanel({ move, readOnly = false, onClose }) {
               rows={4}
               value={edits.resultMessage}
               disabled={disabled}
+              maxLength={GM_MESSAGE_MAX_LENGTH}
               onChange={(e) => setEdit("resultMessage", e.target.value)}
             />
           </label>

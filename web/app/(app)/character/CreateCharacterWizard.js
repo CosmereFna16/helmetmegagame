@@ -191,10 +191,28 @@ export default function CreateCharacterWizard({
     for (const id of selectedIds) fd.append("tagIds", id);
     if (fear.trim()) fd.set("fear", fear.trim());
     for (const slug of antagonists) fd.append("antagonistOptIns", slug);
-    // A successful create redirects, so anything returned here is an error.
-    const result = await createCharacter(fd);
-    if (result?.error) {
-      setError(result.error);
+    // A successful create redirects, so anything RETURNED here is an error —
+    // and anything THROWN here used to be nothing at all. createCharacter
+    // rethrows whatever it doesn't recognise, and there are several throw
+    // sites after the transaction commits (the audit row, the archive event),
+    // plus the pool contention 130 people creating at once will produce on
+    // launch day. The await was bare, so the rejection went nowhere,
+    // setPending(false) never ran, and the button sat on "Creating…" and
+    // disabled forever — with the character quite possibly already made.
+    try {
+      const result = await createCharacter(fd);
+      if (result?.error) setError(result.error);
+    } catch (err) {
+      // Safe to catch: redirect() throws on the SERVER and Next turns it into
+      // a client-side navigation, so a successful create never rejects here.
+      // The digest check is belt and braces — rethrowing a redirect would be
+      // the one way to break the happy path.
+      if (err?.digest?.startsWith?.("NEXT_REDIRECT")) throw err;
+      console.error("Character creation failed:", err);
+      setError("Something went wrong making your character. Try again — and tell a GM if it keeps failing.");
+    } finally {
+      // In a finally so the button always comes back. On the redirect path
+      // this runs against a component that is going away, which is harmless.
       setPending(false);
     }
   }

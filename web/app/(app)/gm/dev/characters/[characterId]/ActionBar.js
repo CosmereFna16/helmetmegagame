@@ -32,6 +32,7 @@ import {
   resyncDiscord,
   deleteCharacter,
 } from "./actions";
+import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 
 // The microaction row. Verbs, not values.
 //
@@ -310,7 +311,12 @@ export default function ActionBar({
           <div className="flex flex-col gap-3">
             <label className="field">
               <span className="field-label">Sent from Bascinet as a DM</span>
-              <textarea rows={4} value={draft} onChange={(e) => setDraft(e.target.value)} />
+              <textarea
+                rows={4}
+                value={draft}
+                maxLength={GM_MESSAGE_MAX_LENGTH}
+                onChange={(e) => setDraft(e.target.value)}
+              />
             </label>
             <FormError>{error}</FormError>
             <div className="modal-actions">

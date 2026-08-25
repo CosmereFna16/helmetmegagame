@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { sendGmMessage } from "../actions";
+import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 
 export default function MessagesToolbar({ characters }) {
   const router = useRouter();
@@ -79,7 +80,7 @@ export default function MessagesToolbar({ characters }) {
           </div>
           <label className="field">
             <span className="field-label">Message ({selected.size} selected)</span>
-            <textarea name="message" rows={3} required />
+            <textarea name="message" rows={3} required maxLength={GM_MESSAGE_MAX_LENGTH} />
           </label>
           <button type="submit" className="btn self-start" disabled={selected.size === 0}>
             Send

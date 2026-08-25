@@ -7,6 +7,7 @@ import { getGmSession, sendDm, syncCharacterNarrowcastAccess } from "@/lib/disco
 import { UserError, guarded } from "@/lib/actionResult";
 import { addToStack, dropCharacterTag } from "@/lib/requestEffects";
 import { expiryFor } from "@/lib/turnFormat";
+import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
@@ -63,6 +64,10 @@ export async function sendGmMessage(formData) {
   const characterIds = formData.getAll("characterId").map(String).filter(Boolean);
   const message = formData.get("message")?.toString().trim();
   if (!message || characterIds.length === 0) return;
+  // The textarea's maxLength is a hint; this is the lock. Over-length used to
+  // mean every recipient's send failed identically inside after(), after the
+  // GM had already been told it went.
+  if (message.length > GM_MESSAGE_MAX_LENGTH) return;
 
   const recipients = await prisma.character.findMany({
     where: { id: { in: characterIds } },
@@ -93,6 +98,7 @@ export async function sendDmReply(formData) {
   const discordUserId = formData.get("discordUserId")?.toString().trim();
   const message = formData.get("message")?.toString().trim();
   if (!discordUserId || !message) return;
+  if (message.length > GM_MESSAGE_MAX_LENGTH) return;
 
   await sendDm(discordUserId, message);
 

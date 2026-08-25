@@ -62,6 +62,27 @@ each arrived at by getting them wrong first.
 10. **Return `runSideEffects`** — see §3. Nothing above this line talks to
    Discord; nothing below it touches the database.
 
+**`needsResolvedAt` is stamped only when every pass in `TURN_PASSES` has been
+recorded.** A pass that throws leaves the turn advancing — a stuck turn is
+worse than a missed upkeep — but the turn stays unstamped, so the next advance
+picks it up and re-runs only what never landed. It used to be stamped
+unconditionally, which meant a hunger pass that failed at 04:00 was written off
+as resolved and nobody ever ate that day's upkeep.
+
+Two things follow from that, and both are load-bearing:
+
+- A pass with **nothing to do returns an object, not `null`**. `null` is
+  reserved for "this pass did not run, retry it" — the value `resolveNeeds`'s
+  own catch returns. `defaultMovePass` and `tagExpiryPass` used to return
+  `null` for both, so a game with no default efforts (or, far more often, a
+  turn with nothing expiring) never recorded the pass at all.
+- The **resume path claims `Turn.needsResumeClaimedAt`** before it does
+  anything, with the same conditional `updateMany` the normal path uses on
+  `status: "OPEN"`, and a 30-minute staleness window so a resume that dies
+  holding the lease can't wedge the turn. `resolvedPasses` is not a lock, and
+  `needsResolvedAt` is the completion stamp rather than a lease, so neither
+  could do this job.
+
 ## 3. The side-effect thunk
 
 `advanceTurn` **composes but does not run** the Discord work. It returns
@@ -87,7 +108,9 @@ The thunk performs, in narrative order:
    is on (`db/lib/dawnWipe.js`; see `CHANNELS.md` §5).
 
 Everything is sequential and individually `.catch()`'d, so a Discord failure
-never blocks the turn. **Never `Promise.all` a fan-out here** — sequential
+never blocks the turn. The Dawn wipe additionally guards **per location**, so
+one channel a GM deleted by hand costs that room rather than every room after
+it alphabetically plus `#radio` and `#intercom`. **Never `Promise.all` a fan-out here** — sequential
 awaiting is what keeps the bot from emitting the burst of 429s that earns an
 IP-level ban.
 
@@ -152,7 +175,10 @@ ordering problem to solve. Tracked on `GameConfig.turnsConsoleChannelId` /
 
 A missing image file is not an error — `weatherBannerPath()` returns null and
 the announcement posts alone. A banner is worth losing; a turn announcement
-is not.
+is not. That also covers `docsPath()` itself coming back null: the guard is at
+the top of `weatherBannerPath`, because `path.join(null, …)` throws, and it
+threw one line above the `existsSync` that was supposed to be the graceful
+exit — taking the announcement, the console text and the button row with it.
 
 ## 5. Hunger
 
@@ -171,7 +197,10 @@ Per character, at the close of every turn:
 | Has 1+ ⬢ | Pays 1 ⬢, stays fed. |
 
 So **1 ⬢ always buys a fed turn**, and `Character.resources` can never go
-negative without a `Math.max`. A Hunger granted while closing turn N carries
+negative without a `Math.max` — the clamp is a `resources: { gte: 1 }` on the
+decrement's own `where`, so the check and the payment are one statement. They
+used to be two, with the whole pass between them, and anyone who spent their
+last ⬢ in that window went to −1. A Hunger granted while closing turn N carries
 `expiresTurn = N + 1`, so it bites for exactly turn N+1 — which is what makes
 `ate-meal`'s "won't go hungry next turn" literally true.
 
