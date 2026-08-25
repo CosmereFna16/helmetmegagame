@@ -1,7 +1,7 @@
 // What 🔍-inspecting another character shows you beyond their appearance.
 //
 // Two tags buy real read access to someone else's sheet: Seductive reveals
-// their active Desire, Torturer their Worst Fear. Each has a discounted
+// their active Desire, Torturer their Fear. Each has a discounted
 // Demoness twin (docs/tags.yaml's hidden `demoness` category) that grants
 // exactly the same sight, so both slugs of a pair count.
 //

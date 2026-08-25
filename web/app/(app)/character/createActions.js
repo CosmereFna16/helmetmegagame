@@ -20,6 +20,7 @@ import {
   getGuildMember,
   isCursed,
   isApprovedPlayer,
+  isLeaderWhitelisted,
   removeCursedRole,
 } from "@/lib/discordGuild";
 import {
@@ -32,7 +33,7 @@ import {
   CURSED_ROLE_SLUGS,
 } from "@/lib/characterCreation";
 
-import { WORST_FEAR_MAX_LENGTH } from "@/lib/constants";
+import { FEAR_MAX_LENGTH } from "@/lib/constants";
 import { recordArchiveEvent } from "@/lib/archive";
 import {
   AGE_MIN,
@@ -77,8 +78,8 @@ export async function createCharacter(formData) {
   const tagIds = formData.getAll("tagIds").map((t) => t.toString()).filter(Boolean);
   // Optional — the wizard's Fear step can be walked straight past, and the
   // player names one later from /character instead.
-  const worstFear =
-    formData.get("worstFear")?.toString().trim().slice(0, WORST_FEAR_MAX_LENGTH) || null;
+  const fear =
+    formData.get("fear")?.toString().trim().slice(0, FEAR_MAX_LENGTH) || null;
   // Consent data — which secretly assigned antagonist seats this player is open
   // to. The checkboxes are UX; the normalizer's allowlist is the boundary that
   // keeps junk slugs out of the column, same as normalizeHonorific above.
@@ -118,8 +119,15 @@ export async function createCharacter(formData) {
     return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong." };
   }
 
+  // Split from the isRoleSelectable call below so each rejection gets its own
+  // message — the shared predicate can only say "no", not why.
+  const leaderWhitelisted = bypass || isLeaderWhitelisted(member);
+  if (role.grantsLeader && !leaderWhitelisted) {
+    return { error: "That role isn't available to you." };
+  }
+
   const cursed = isCursed(member);
-  if (!isRoleSelectable({ role, cursed })) {
+  if (!isRoleSelectable({ role, cursed, leaderWhitelisted })) {
     return { error: `While cursed you may only return as ${CURSED_ROLE_SLUGS.join(" or ")}.` };
   }
 
@@ -233,10 +241,10 @@ export async function createCharacter(formData) {
           zoneId: role.startingLocation?.zoneId ?? null,
           resources: role.startingResources,
           tagPoints: budget - spent,
-          worstFear,
+          fear,
           // Display-only stamp, and null before the game opens — the same
           // shape expiryFor() uses above.
-          worstFearSetTurnNumber: worstFear ? (openTurn?.number ?? null) : null,
+          fearSetTurnNumber: fear ? (openTurn?.number ?? null) : null,
           isLeader: role.grantsLeader,
           isTreasurer: role.grantsTreasurer,
           antagonistOptIns,
@@ -299,7 +307,7 @@ export async function createCharacter(formData) {
         budget,
         spent,
         purchased: selected.map((t) => t.name),
-        worstFear,
+        fear,
         antagonistOptIns,
       },
     },

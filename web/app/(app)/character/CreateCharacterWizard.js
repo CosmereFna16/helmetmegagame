@@ -16,8 +16,8 @@ import {
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import InfoIcon from "@/app/components/InfoIcon";
 import Tooltip from "@/app/components/Tooltip";
-import { WORST_FEAR_HELP } from "@/app/components/WorstFearPanel";
-import { WORST_FEAR_PENALTY, WORST_FEAR_MAX_LENGTH } from "@/lib/constants";
+import { FEAR_HELP } from "@/app/components/FearPanel";
+import { FEAR_PENALTY, FEAR_MAX_LENGTH } from "@/lib/constants";
 import { HONORIFICS, NAME_LIMITS, AGE_MIN, AGE_MAX, formatCharacterName } from "@/lib/characterName";
 import { randomCharacterName } from "@/lib/nameCorpus";
 import { ANTAGONISTS, antagonistNames } from "@/lib/antagonists";
@@ -103,7 +103,7 @@ export default function CreateCharacterWizard({
   const [age, setAge] = useState("");
   const [roleId, setRoleId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
-  const [worstFear, setWorstFear] = useState("");
+  const [fear, setWorstFear] = useState("");
   // Opt-in, so the empty array is the honest default — a player who walks past
   // the step has consented to nothing.
   const [antagonists, setAntagonists] = useState([]);
@@ -168,7 +168,7 @@ export default function CreateCharacterWizard({
     (step === 0 && firstName.trim().length > 0) ||
     (step === 1 && role !== null) ||
     (step === 2 && remaining >= 0) ||
-    // The Worst Fear step is optional — you may walk straight past it and set
+    // The Fear step is optional — you may walk straight past it and set
     // one later — so there is nothing to gate on.
     step === 3 ||
     // Antagonists likewise: ticking nothing is a real answer, not an unfinished
@@ -189,7 +189,7 @@ export default function CreateCharacterWizard({
     if (age.trim()) fd.set("age", age.trim());
     fd.set("roleId", roleId);
     for (const id of selectedIds) fd.append("tagIds", id);
-    if (worstFear.trim()) fd.set("worstFear", worstFear.trim());
+    if (fear.trim()) fd.set("fear", fear.trim());
     for (const slug of antagonists) fd.append("antagonistOptIns", slug);
     // A successful create redirects, so anything returned here is an error.
     const result = await createCharacter(fd);
@@ -345,19 +345,19 @@ export default function CreateCharacterWizard({
       {step === 3 && (
         <div className="panel flex flex-col gap-4 p-4">
           <h2 className="panel-header panel-header--with-icon">
-            Worst Fear (optional)
-            <InfoIcon text={WORST_FEAR_HELP} />
+            Fear (optional)
+            <InfoIcon text={FEAR_HELP} />
           </h2>
           <p className="text-sm text-muted">
-            Choose a Dread. Whenever it comes true, you lose {WORST_FEAR_PENALTY}{" "}
+            Choose a Dread. Whenever it comes true, you lose {FEAR_PENALTY}{" "}
             Tag Points. Your fear stays the same, so it can come true again! You can set it later if you&apos;d prefer.
           </p>
           <label className="field">
             <span className="field-label">What does your character dread?</span>
             <input
-              value={worstFear}
+              value={fear}
               onChange={(e) => setWorstFear(e.target.value)}
-              maxLength={WORST_FEAR_MAX_LENGTH}
+              maxLength={FEAR_MAX_LENGTH}
               placeholder="Dying alone and unremembered…"
             />
           </label>
@@ -420,8 +420,8 @@ export default function CreateCharacterWizard({
               <dd>{role.startingResources} ⬢</dd>
             </div>
             <div>
-              <dt className="text-muted">Worst Fear</dt>
-              <dd>{worstFear.trim() || <span className="text-muted">none</span>}</dd>
+              <dt className="text-muted">Fear</dt>
+              <dd>{fear.trim() || <span className="text-muted">none</span>}</dd>
             </div>
             <div>
               <dt className="text-muted">Open to</dt>

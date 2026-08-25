@@ -14,7 +14,7 @@ const KIND_OPTIONS = [
   ["CHARACTER_CREATED", "Arrivals"],
   ["DEATH", "Deaths"],
   ["DESIRE_FULFILLED", "Desires"],
-  ["WORST_FEAR_FULFILLED", "Worst Fears"],
+  ["FEAR_FULFILLED", "Fears"],
   ["LIFEWEB", "Lifeweb"],
   ["TRAVEL", "Travel"],
 ];

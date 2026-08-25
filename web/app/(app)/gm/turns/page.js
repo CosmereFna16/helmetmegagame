@@ -73,9 +73,9 @@ function summarize(request) {
               .join(", ")}`
           : ""
       }`;
-    case "CHANGE_WORST_FEAR":
-      return `Worst Fear: ${truncate(e.text, 60)}`;
-    case "FULFILL_WORST_FEAR":
+    case "CHANGE_FEAR":
+      return `Fear: ${truncate(e.text, 60)}`;
+    case "FULFILL_FEAR":
       return `\u2212${e.pointsDeducted ?? 0} Tag Points — ${truncate(e.fearText, 60)}`;
     case "DONATE_BLOOD":
       return `+${e.bloodDelta ?? 0} blood — drained ${e.targetName ?? "?"}${e.tier ? ` (${e.tier})` : ""}`;

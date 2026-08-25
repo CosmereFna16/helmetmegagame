@@ -60,7 +60,7 @@ async function handleStarReaction(reaction, proxy, user) {
 //
 // There is deliberately NO channel fallback when the DM bounces. Every other
 // embed in this file falls back to posting in the channel; doing that here
-// would hand the room every tag, the Desire and the Worst Fear.
+// would hand the room every tag, the Desire and the Fear.
 async function handleDossierReaction(reaction, proxy, user) {
   const [character, openTurn] = await Promise.all([
     prisma.character.findUnique({
@@ -137,7 +137,7 @@ async function handleDossierReaction(reaction, proxy, user) {
   });
 
   if (desire) embed.addFields({ name: "Desire", value: `${desire.text} (+${desire.points})` });
-  if (character.worstFear) embed.addFields({ name: "Worst Fear", value: character.worstFear });
+  if (character.fear) embed.addFields({ name: "Fear", value: character.fear });
 
   if (process.env.WEB_BASE_URL) {
     embed.setThumbnail(`${process.env.WEB_BASE_URL}/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`);
@@ -286,7 +286,7 @@ module.exports = {
       // A concealed message answers with a hardcoded, deliberately impoverished
       // embed: what a stranger could see, and nothing else. It returns before
       // any of the normal field logic below, so no appearance, name, Desire,
-      // Worst Fear or Resources can leak through a gate that happens to be
+      // Fear or Resources can leak through a gate that happens to be
       // open for this particular viewer.
       if (proxy.concealed) {
         const concealedChar = await prisma.character.findUnique({
@@ -406,8 +406,8 @@ module.exports = {
         }
       }
 
-      if (canSeeFear && character.worstFear) {
-        embed.addFields({ name: "Worst Fear", value: character.worstFear });
+      if (canSeeFear && character.fear) {
+        embed.addFields({ name: "Fear", value: character.fear });
       }
 
       // Whoever holds Silo authority over this character's faction — its

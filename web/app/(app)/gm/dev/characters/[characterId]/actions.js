@@ -522,31 +522,31 @@ async function endDesireGmImpl({ characterId, desireId, mode }) {
   return { points: fulfilling ? desire.points : 0 };
 }
 
-// Worst Fear is three columns on Character, not a model. Fulfilling costs a
+// Fear is three columns on Character, not a model. Fulfilling costs a
 // flat 3 points and stamps the turn that drives the one-turn cooldown.
-const WORST_FEAR_COST = 3;
+const FEAR_COST = 3;
 
 async function fulfillWorstFearGmImpl({ characterId }) {
   const session = await requireGm();
   const character = await loadCharacter(characterId);
-  if (!character.worstFear) throw new UserError("They haven't set a worst fear.");
+  if (!character.fear) throw new UserError("They haven't set a fear.");
 
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } });
 
   await prisma.character.update({
     where: { id: characterId },
     data: {
-      tagPoints: { decrement: WORST_FEAR_COST },
-      worstFearLastFulfilledTurn: openTurn?.number ?? null,
+      tagPoints: { decrement: FEAR_COST },
+      fearLastFulfilledTurn: openTurn?.number ?? null,
     },
   });
 
   await audit(session, "gm_worst_fear_fulfilled", characterId, {
-    cost: WORST_FEAR_COST,
+    cost: FEAR_COST,
     turn: openTurn?.number ?? null,
   });
   repaint(characterId);
-  return { cost: WORST_FEAR_COST };
+  return { cost: FEAR_COST };
 }
 
 // ── exported wrappers ──────────────────────────────────────────────────────

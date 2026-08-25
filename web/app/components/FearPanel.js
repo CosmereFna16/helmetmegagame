@@ -5,27 +5,27 @@ import { useState, useTransition } from "react";
 import { useConfirm } from "./ConfirmProvider";
 import InfoIcon from "./InfoIcon";
 import RequestDialog from "./RequestDialog";
-import { WORST_FEAR_PENALTY, WORST_FEAR_MAX_LENGTH } from "@/lib/constants";
+import { FEAR_PENALTY, FEAR_MAX_LENGTH } from "@/lib/constants";
 import { setWorstFear, changeWorstFearRequest, fulfillWorstFearRequest } from "../(app)/character/requestActions";
 
-// Exported so the creation wizard's Worst Fear step shows the same copy —
+// Exported so the creation wizard's Fear step shows the same copy —
 // two surfaces explaining one mechanic can't be allowed to drift.
-export const WORST_FEAR_HELP = (
+export const FEAR_HELP = (
   <>
-    <p>Your character has one Worst Fear.</p>
+    <p>Your character has one Fear.</p>
     <p>
-      When it comes true you lose {WORST_FEAR_PENALTY} Tag Points — always exactly that, however bad
+      When it comes true you lose {FEAR_PENALTY} Tag Points — always exactly that, however bad
       it was. It isn&apos;t a goal you complete; it&apos;s a dread you live with.
     </p>
     <p className="text-muted">
-      Unlike Desires, you keep your Worst Fear even after it gets triggered.
+      Unlike Desires, you keep your Fear even after it gets triggered.
     </p>
   </>
 );
 
 // Two-way render, not three like Desire: the fear stays on screen during the
 // cooldown, which only disables the button.
-export default function WorstFearPanel({ text, setTurnNumber, lastFulfilledTurn, openTurnNumber }) {
+export default function FearPanel({ text, setTurnNumber, lastFulfilledTurn, openTurnNumber }) {
   const confirm = useConfirm();
   const [draft, setDraft] = useState("");
   const [changing, setChanging] = useState(false);
@@ -41,10 +41,10 @@ export default function WorstFearPanel({ text, setTurnNumber, lastFulfilledTurn,
     e.preventDefault();
     setError(null);
     const ok = await confirm({
-      title: "Set this as your Worst Fear?",
+      title: "Set this as your Fear?",
       message:
         "You only get one. Changing it later takes a request a GM reviews, so pick something you'll want to live with.",
-      confirmLabel: "Set Worst Fear",
+      confirmLabel: "Set Fear",
     });
     if (!ok) return;
     startTransition(async () => {
@@ -76,15 +76,15 @@ export default function WorstFearPanel({ text, setTurnNumber, lastFulfilledTurn,
   return (
     <div className="flex flex-col gap-3">
       <h3 className="field-label panel-header--with-icon">
-        Worst Fear
-        <InfoIcon text={WORST_FEAR_HELP} />
+        Fear
+        <InfoIcon text={FEAR_HELP} />
       </h3>
 
       {text ? (
         <div className="flex flex-col gap-3">
           <p className="text-sm">{text}</p>
           <p className="text-sm text-muted">
-            Costs {WORST_FEAR_PENALTY} Tag Points if it comes true
+            Costs {FEAR_PENALTY} Tag Points if it comes true
             {setTurnNumber != null ? ` — set on turn ${setTurnNumber}` : ""}
           </p>
           {onCooldown && (
@@ -124,13 +124,13 @@ export default function WorstFearPanel({ text, setTurnNumber, lastFulfilledTurn,
             <input
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              maxLength={WORST_FEAR_MAX_LENGTH}
+              maxLength={FEAR_MAX_LENGTH}
               required
               placeholder="Dying alone! Well, your Tag Points won't matter then."
             />
           </label>
           <button type="submit" className="btn self-start" disabled={pending || !draft.trim()}>
-            Set Worst Fear
+            Set Fear
           </button>
         </form>
       )}
@@ -139,7 +139,7 @@ export default function WorstFearPanel({ text, setTurnNumber, lastFulfilledTurn,
 
       <RequestDialog
         open={fulfilling}
-        title="Your Worst Fear Came True"
+        title="Your Fear Came True"
         submitLabel="It Came True"
         busy={pending}
         onCancel={() => !pending && setFulfilling(false)}
@@ -147,7 +147,7 @@ export default function WorstFearPanel({ text, setTurnNumber, lastFulfilledTurn,
       >
         <p className="text-sm">{text}</p>
         <p className="text-sm text-accent">
-          &minus;{WORST_FEAR_PENALTY} Tag Points, landing immediately.
+          &minus;{FEAR_PENALTY} Tag Points, landing immediately.
         </p>
         <p className="text-xs text-muted">
           Tell the GMs how it happened.
@@ -156,7 +156,7 @@ export default function WorstFearPanel({ text, setTurnNumber, lastFulfilledTurn,
 
       <RequestDialog
         open={changing}
-        title="Change Worst Fear"
+        title="Change Fear"
         submitLabel="Change It"
         busy={pending}
         canSubmit={Boolean(draft.trim()) && draft.trim() !== text}
@@ -164,11 +164,11 @@ export default function WorstFearPanel({ text, setTurnNumber, lastFulfilledTurn,
         onConfirm={submitChange}
       >
         <label className="field">
-          <span className="field-label">Your new Worst Fear</span>
+          <span className="field-label">Your new Fear</span>
           <input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            maxLength={WORST_FEAR_MAX_LENGTH}
+            maxLength={FEAR_MAX_LENGTH}
             required
           />
         </label>

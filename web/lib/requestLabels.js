@@ -19,10 +19,10 @@ export const REQUEST_TYPE_LABELS = {
   SET_MOOD: "Set Mood",
   DONATE_BLOOD: "Donate Blood",
   FEED_PERSON: "Feed Person",
-  CHANGE_WORST_FEAR: "Change Worst Fear",
-  // Not "Fulfill Worst Fear" — that reads like the player achieved
+  CHANGE_FEAR: "Change Fear",
+  // Not "Fulfill Fear" — that reads like the player achieved
   // something, and every other label here is a thing they did.
-  FULFILL_WORST_FEAR: "Worst Fear Comes True",
+  FULFILL_FEAR: "Fear Comes True",
   HEAL_CHARACTER: "Heal",
   CHANGE_NAME: "Change Name",
 };

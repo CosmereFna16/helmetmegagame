@@ -91,8 +91,8 @@ enum RequestType {
   SET_MOOD
   DONATE_BLOOD
   FEED_PERSON
-  CHANGE_WORST_FEAR
-  FULFILL_WORST_FEAR
+  CHANGE_FEAR
+  FULFILL_FEAR
   HEAL_CHARACTER
   CHANGE_NAME
 }
@@ -121,7 +121,7 @@ enum ArchiveKind {
   CHARACTER_CREATED
   DEATH
   DESIRE_FULFILLED
-  WORST_FEAR_FULFILLED
+  FEAR_FULFILLED
   LIFEWEB
   TRAVEL
 }
@@ -541,18 +541,18 @@ model Character {
   //
   // Named (optionally) as the last step of character creation and then locked
   // in: the first set is free, but changing it afterwards is a
-  // CHANGE_WORST_FEAR request. Fulfilling it is a FULFILL_WORST_FEAR request
+  // CHANGE_FEAR request. Fulfilling it is a FULFILL_FEAR request
   // worth a flat -3 Tag Points, never a ladder.
-  worstFear String?
+  fear String?
 
   // Turn the current text was set on — display only.
-  worstFearSetTurnNumber Int?
+  fearSetTurnNumber Int?
 
   // Turn it was last fulfilled on, driving the one-turn cooldown (blocked
   // while openTurn.number <= this). Null means never. The fear itself
   // PERSISTS through a fulfilment — same fear, again next turn — which is
   // why this is a turn stamp and not a status.
-  worstFearLastFulfilledTurn Int?
+  fearLastFulfilledTurn Int?
 
   // Which secretly GM-assigned antagonist seats this player is open to being
   // handed (Succubus, Cultist, the Judge...). Consent data only: nothing in

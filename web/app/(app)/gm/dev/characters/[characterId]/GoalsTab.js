@@ -6,14 +6,14 @@ import { useState, useTransition } from "react";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { setDesireGm, endDesireGm, fulfillWorstFearGm } from "./actions";
 
-// Desires and the Worst Fear — the two halves of the tag-point economy.
+// Desires and the Fear — the two halves of the tag-point economy.
 //
 // These are microactions rather than staged fields, because both move
-// tagPoints: fulfilling a Desire credits its points, fulfilling a Worst Fear
+// tagPoints: fulfilling a Desire credits its points, fulfilling a Fear
 // debits a flat 3. Staging a point movement alongside a hand-edited tagPoints
 // value on the Identity tab would make the arithmetic ambiguous, so they
 // commit on their own and the Identity field always shows the result.
-const WORST_FEAR_COST = 3;
+const FEAR_COST = 3;
 
 export default function GoalsTab({ character, staged, desires, openTurn, onField }) {
   const confirm = useConfirm();
@@ -28,9 +28,9 @@ export default function GoalsTab({ character, staged, desires, openTurn, onField
   // The one-turn cooldown: the stamp is what drives it, so show it plainly
   // rather than making a GM work it out.
   const fearOnCooldown =
-    character.worstFearLastFulfilledTurn != null &&
+    character.fearLastFulfilledTurn != null &&
     openTurn != null &&
-    character.worstFearLastFulfilledTurn >= openTurn.number;
+    character.fearLastFulfilledTurn >= openTurn.number;
 
   function run(fn) {
     setError(null);
@@ -138,35 +138,35 @@ export default function GoalsTab({ character, staged, desires, openTurn, onField
       </section>
 
       <section className="panel flex flex-col gap-3 p-4">
-        <h2 className="panel-header">Worst Fear</h2>
+        <h2 className="panel-header">Fear</h2>
         <label className="field">
-          <span className="field-label">Worst fear (staged — commits with Apply)</span>
+          <span className="field-label">Fear (staged — commits with Apply)</span>
           <textarea
             rows={2}
-            value={staged.worstFear ?? ""}
-            onChange={(e) => onField("worstFear", e.target.value)}
+            value={staged.fear ?? ""}
+            onChange={(e) => onField("fear", e.target.value)}
           />
         </label>
         <p className="text-sm text-muted mono">
-          set turn {character.worstFearSetTurnNumber ?? "—"} · last fulfilled{" "}
-          {character.worstFearLastFulfilledTurn ?? "never"}
+          set turn {character.fearSetTurnNumber ?? "—"} · last fulfilled{" "}
+          {character.fearLastFulfilledTurn ?? "never"}
         </p>
         <button
           type="button"
           className="btn self-start"
-          disabled={pending || !character.worstFear || fearOnCooldown}
+          disabled={pending || !character.fear || fearOnCooldown}
           onClick={() =>
             confirmThenRun(
               {
-                title: "Fulfil their worst fear?",
-                message: `${character.name} loses ${WORST_FEAR_COST} tag points, and can't have it fulfilled again until next turn.`,
+                title: "Fulfil their fear?",
+                message: `${character.name} loses ${FEAR_COST} tag points, and can't have it fulfilled again until next turn.`,
                 confirmLabel: "Fulfil",
               },
               () => fulfillWorstFearGm({ characterId: character.id }),
             )
           }
         >
-          {fearOnCooldown ? "Already fulfilled this turn" : `Fulfil (−${WORST_FEAR_COST})`}
+          {fearOnCooldown ? "Already fulfilled this turn" : `Fulfil (−${FEAR_COST})`}
         </button>
       </section>
 

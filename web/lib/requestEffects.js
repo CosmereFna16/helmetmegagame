@@ -434,7 +434,7 @@ export const REQUEST_EFFECTS = {
     },
   },
 
-  // Changing a locked-in Worst Fear. Nothing numeric moved, so a GM's only
+  // Changing a locked-in Fear. Nothing numeric moved, so a GM's only
   // lever is Undo: put the previous wording and its set-turn back. The first
   // set is NOT a request (see requestActions.js), so every row of this type
   // really is a change and previousText is always populated.
@@ -443,32 +443,32 @@ export const REQUEST_EFFECTS = {
   // clobbers the second one's text. That is the price of "Undo reads only
   // effect, never live state" (REQUESTS.md §2), and re-deriving from the
   // sheet is exactly what that rule forbids.
-  CHANGE_WORST_FEAR: {
+  CHANGE_FEAR: {
     editableFields: [],
     async undo(tx, request) {
       const { previousText, previousSetTurnNumber } = request.effect;
       await tx.character.update({
         where: { id: request.characterId },
         data: {
-          worstFear: previousText ?? null,
-          worstFearSetTurnNumber: previousSetTurnNumber ?? null,
+          fear: previousText ?? null,
+          fearSetTurnNumber: previousSetTurnNumber ?? null,
         },
       });
       return previousText
-        ? "Restored the previous Worst Fear."
-        : "Cleared the Worst Fear — there wasn't one before this.";
+        ? "Restored the previous Fear."
+        : "Cleared the Fear — there wasn't one before this.";
     },
   },
 
   // The fear coming true: a flat penalty, never a ladder, so there is nothing
   // to re-score and editableFields is empty by design. The fear itself
   // PERSISTS — this request only moves Tag Points and stamps the cooldown.
-  FULFILL_WORST_FEAR: {
+  FULFILL_FEAR: {
     editableFields: [],
     async undo(tx, request) {
       const { pointsDeducted, fulfilledTurnNumber, previousLastFulfilledTurn } = request.effect;
 
-      // Read off the snapshot rather than WORST_FEAR_PENALTY, so an old row
+      // Read off the snapshot rather than FEAR_PENALTY, so an old row
       // still reverses by what it actually took if that number is retuned.
       if (pointsDeducted) {
         await tx.character.update({
@@ -485,16 +485,16 @@ export const REQUEST_EFFECTS = {
       // thing REQUESTS.md §2 forbids.
       const live = await tx.character.findUnique({
         where: { id: request.characterId },
-        select: { worstFearLastFulfilledTurn: true },
+        select: { fearLastFulfilledTurn: true },
       });
-      if (live && live.worstFearLastFulfilledTurn === (fulfilledTurnNumber ?? null)) {
+      if (live && live.fearLastFulfilledTurn === (fulfilledTurnNumber ?? null)) {
         await tx.character.update({
           where: { id: request.characterId },
-          data: { worstFearLastFulfilledTurn: previousLastFulfilledTurn ?? null },
+          data: { fearLastFulfilledTurn: previousLastFulfilledTurn ?? null },
         });
       }
 
-      return `Refunded ${pointsDeducted ?? 0} Tag Point(s). The Worst Fear stands, unfulfilled.`;
+      return `Refunded ${pointsDeducted ?? 0} Tag Point(s). The Fear stands, unfulfilled.`;
     },
   },
 

@@ -9,7 +9,7 @@ import { getOpenTurn } from "@/lib/turn";
 import { createRequest, logRequest, requireReason } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { expiryFor } from "@/lib/turnFormat";
-import { WORST_FEAR_PENALTY, WORST_FEAR_MAX_LENGTH } from "@/lib/constants";
+import { FEAR_PENALTY, FEAR_MAX_LENGTH } from "@/lib/constants";
 import { TRANSFERABLE_CATEGORIES } from "@/lib/tagRequests";
 import { tagsById as buildTagsById, requirementSatisfied } from "@/lib/characterCreation";
 import { addToStack, debitResources, dropCharacterTag, grantTagSlugs } from "@/lib/requestEffects";
@@ -820,7 +820,7 @@ async function fulfillDesireRequestImpl({ reason: rawReason }) {
   return {};
 }
 
-// --- Worst Fear -------------------------------------------------------
+// --- Fear -------------------------------------------------------
 
 // One persistent, self-set dread per character. Unlike a Desire it is NOT
 // consumed by being fulfilled and has no ACTIVE/ENDED lifecycle — see the
@@ -833,17 +833,17 @@ async function fulfillDesireRequestImpl({ reason: rawReason }) {
 async function setWorstFearImpl({ text: rawText }) {
   const { session, character } = await requireCharacter();
 
-  const text = rawText?.toString().trim().slice(0, WORST_FEAR_MAX_LENGTH);
-  if (!text) throw new UserError("Describe your Worst Fear.");
-  if (character.worstFear) {
-    throw new UserError("You already have a Worst Fear — changing it takes a request.");
+  const text = rawText?.toString().trim().slice(0, FEAR_MAX_LENGTH);
+  if (!text) throw new UserError("Describe your Fear.");
+  if (character.fear) {
+    throw new UserError("You already have a Fear — changing it takes a request.");
   }
 
   const openTurn = await getOpenTurn();
 
   await prisma.character.update({
     where: { id: character.id },
-    data: { worstFear: text, worstFearSetTurnNumber: openTurn?.number ?? null },
+    data: { fear: text, fearSetTurnNumber: openTurn?.number ?? null },
   });
   await prisma.auditLog.create({
     data: {
@@ -862,27 +862,27 @@ async function changeWorstFearRequestImpl({ text: rawText, reason: rawReason }) 
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
-  const text = rawText?.toString().trim().slice(0, WORST_FEAR_MAX_LENGTH);
-  if (!text) throw new UserError("Describe your Worst Fear.");
-  if (!character.worstFear) throw new UserError("You haven't set a Worst Fear yet.");
-  if (text === character.worstFear) throw new UserError("That's already your Worst Fear.");
+  const text = rawText?.toString().trim().slice(0, FEAR_MAX_LENGTH);
+  if (!text) throw new UserError("Describe your Fear.");
+  if (!character.fear) throw new UserError("You haven't set a Fear yet.");
+  if (text === character.fear) throw new UserError("That's already your Fear.");
 
   const openTurn = await getOpenTurn();
   // Snapshot before overwriting — Undo puts the previous wording back rather
   // than re-deriving anything from the sheet.
-  const previousText = character.worstFear;
-  const previousSetTurnNumber = character.worstFearSetTurnNumber ?? null;
+  const previousText = character.fear;
+  const previousSetTurnNumber = character.fearSetTurnNumber ?? null;
   const setTurnNumber = openTurn?.number ?? null;
 
   await prisma.$transaction(async (tx) => {
     await tx.character.update({
       where: { id: character.id },
-      data: { worstFear: text, worstFearSetTurnNumber: setTurnNumber },
+      data: { fear: text, fearSetTurnNumber: setTurnNumber },
     });
     await createRequest(tx, {
       characterId: character.id,
       turnId: openTurn?.id ?? null,
-      type: "CHANGE_WORST_FEAR",
+      type: "CHANGE_FEAR",
       reason,
       payload: { text },
       effect: { text, setTurnNumber, previousText, previousSetTurnNumber },
@@ -900,7 +900,7 @@ async function changeWorstFearRequestImpl({ text: rawText, reason: rawReason }) 
   return {};
 }
 
-// The fear coming true: a flat WORST_FEAR_PENALTY off the balance, never a
+// The fear coming true: a flat FEAR_PENALTY off the balance, never a
 // ladder. The fear is NOT consumed — the same fear stands and can come true
 // again next turn, which is the whole reason this stamps a turn number
 // instead of flipping a status.
@@ -908,7 +908,7 @@ async function fulfillWorstFearRequestImpl({ reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
-  if (!character.worstFear) throw new UserError("You haven't set a Worst Fear.");
+  if (!character.fear) throw new UserError("You haven't set a Fear.");
 
   // The cooldown is turn-keyed, so there has to be a turn to key it to.
   // Stamping null would silently clear an existing cooldown. Desire tolerates
@@ -917,10 +917,10 @@ async function fulfillWorstFearRequestImpl({ reason: rawReason }) {
   if (!openTurn) throw new UserError("No turn is open.");
 
   // Fulfilled on turn 5: blocked on 5, allowed from 6.
-  const previousLastFulfilledTurn = character.worstFearLastFulfilledTurn ?? null;
+  const previousLastFulfilledTurn = character.fearLastFulfilledTurn ?? null;
   if (previousLastFulfilledTurn != null && openTurn.number <= previousLastFulfilledTurn) {
     throw new UserError(
-      "Your Worst Fear already came true this turn — you can claim it again next turn.",
+      "Your Fear already came true this turn — you can claim it again next turn.",
     );
   }
 
@@ -931,21 +931,21 @@ async function fulfillWorstFearRequestImpl({ reason: rawReason }) {
     await tx.character.update({
       where: { id: character.id },
       data: {
-        tagPoints: { decrement: WORST_FEAR_PENALTY },
-        worstFearLastFulfilledTurn: openTurn.number,
+        tagPoints: { decrement: FEAR_PENALTY },
+        fearLastFulfilledTurn: openTurn.number,
       },
     });
     await createRequest(tx, {
       characterId: character.id,
       turnId: openTurn.id,
-      type: "FULFILL_WORST_FEAR",
+      type: "FULFILL_FEAR",
       reason,
       payload: {},
       // fearText is snapshotted so the GM panel shows what was claimed even
       // if the player rewords the fear before it's reviewed.
       effect: {
-        fearText: character.worstFear,
-        pointsDeducted: WORST_FEAR_PENALTY,
+        fearText: character.fear,
+        pointsDeducted: FEAR_PENALTY,
         fulfilledTurnNumber: openTurn.number,
         previousLastFulfilledTurn,
       },
@@ -955,16 +955,16 @@ async function fulfillWorstFearRequestImpl({ reason: rawReason }) {
       actionType: "request_fulfill_worst_fear",
       targetCharacterId: character.id,
       reason,
-      details: { fearText: character.worstFear, pointsDeducted: WORST_FEAR_PENALTY },
+      details: { fearText: character.fear, pointsDeducted: FEAR_PENALTY },
     });
   });
 
   await recordArchiveEvent({
-    kind: "WORST_FEAR_FULFILLED",
+    kind: "FEAR_FULFILLED",
     character,
     locationId: character.locationId ?? null,
     turn: openTurn,
-    content: `${character.name}'s Worst Fear came true: ${character.worstFear}`,
+    content: `${character.name}'s Fear came true: ${character.fear}`,
   });
 
   revalidateAll();

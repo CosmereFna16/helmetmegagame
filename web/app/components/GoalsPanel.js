@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import DesirePanel from "./DesirePanel";
-import WorstFearPanel from "./WorstFearPanel";
+import FearPanel from "./FearPanel";
 
 // The two self-set goals — what your character wants and what they dread —
 // sharing one panel. Rendered CONDITIONALLY rather than both-mounted-one-
@@ -12,9 +12,9 @@ import WorstFearPanel from "./WorstFearPanel";
 export default function GoalsPanel({
   desire,
   desireCooldownUntilTurn,
-  worstFear,
-  worstFearSetTurnNumber,
-  worstFearLastFulfilledTurn,
+  fear,
+  fearSetTurnNumber,
+  fearLastFulfilledTurn,
   openTurnNumber,
 }) {
   const [tab, setTab] = useState("desire");
@@ -36,7 +36,7 @@ export default function GoalsPanel({
           data-active={tab === "fear"}
           onClick={() => setTab("fear")}
         >
-          Worst Fear
+          Fear
         </button>
       </div>
 
@@ -48,10 +48,10 @@ export default function GoalsPanel({
             openTurnNumber={openTurnNumber}
           />
         ) : (
-          <WorstFearPanel
-            text={worstFear}
-            setTurnNumber={worstFearSetTurnNumber}
-            lastFulfilledTurn={worstFearLastFulfilledTurn}
+          <FearPanel
+            text={fear}
+            setTurnNumber={fearSetTurnNumber}
+            lastFulfilledTurn={fearLastFulfilledTurn}
             openTurnNumber={openTurnNumber}
           />
         )}

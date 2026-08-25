@@ -12,7 +12,7 @@ const KIND_LABELS = {
   CHARACTER_CREATED: "Arrival",
   DEATH: "Death",
   DESIRE_FULFILLED: "Desire",
-  WORST_FEAR_FULFILLED: "Worst Fear",
+  FEAR_FULFILLED: "Fear",
   LIFEWEB: "Lifeweb",
   TRAVEL: "Travel",
 };

@@ -219,8 +219,8 @@ const SECTIONS = {
     ),
   },
 
-  CHANGE_WORST_FEAR: {
-    heading: "Change Worst Fear",
+  CHANGE_FEAR: {
+    heading: "Change Fear",
     render: ({ effect }) => (
       <>
         <Line label="Now">{effect.text ?? "—"}</Line>
@@ -231,8 +231,8 @@ const SECTIONS = {
     ),
   },
 
-  FULFILL_WORST_FEAR: {
-    heading: "Worst Fear Comes True",
+  FULFILL_FEAR: {
+    heading: "Fear Comes True",
     render: ({ effect }) => (
       <>
         <Line label="Fear">{effect.fearText ?? "—"}</Line>

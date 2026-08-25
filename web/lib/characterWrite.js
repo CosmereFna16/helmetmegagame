@@ -45,7 +45,7 @@ export const EDITABLE_FIELDS = [
   "tagPoints",
   "turnPingOptIn",
   "romanceOptOut",
-  "worstFear",
+  "fear",
 ];
 
 // `status` is deliberately NOT editable here. Kill and Revive are their own
@@ -137,7 +137,7 @@ export async function normalizeCoreEdits({ prisma, existing, core }) {
     data.age = age;
   }
   if ("appearance" in picked) data.appearance = trimmedOrNull(picked.appearance);
-  if ("worstFear" in picked) data.worstFear = trimmedOrNull(picked.worstFear);
+  if ("fear" in picked) data.fear = trimmedOrNull(picked.fear);
 
   if ("factionId" in picked) {
     const factionId = trimmedOrNull(picked.factionId);
