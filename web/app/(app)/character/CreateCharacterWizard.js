@@ -119,12 +119,14 @@ export default function CreateCharacterWizard({
   const byId = useMemo(() => buildTagsById(tags), [tags]);
   const budget = computeBudget({ startingTagPoints, role, cursed });
   const selectedTags = tags.filter((t) => selectedIds.includes(t.id));
-  const remaining = budget - effectiveTotalCost(selectedTags, byId);
   const grantedTags = useMemo(
     () => (role ? tags.filter((t) => role.startingTagNames.includes(t.name)) : []),
     [role, tags],
   );
   const grantedIds = useMemo(() => grantedTags.map((t) => t.id), [grantedTags]);
+  // Discounted by role grants, same as createActions' `spent` — the two must
+  // agree or the wizard lets through a build the server rejects.
+  const remaining = budget - effectiveTotalCost(selectedTags, byId, grantedIds);
 
   // Switching roles changes the budget and what's already granted, so a
   // carried-over selection could silently be over budget or duplicate a
@@ -315,21 +317,13 @@ export default function CreateCharacterWizard({
 
       {step === 2 && role && (
         <div className="flex flex-col gap-4">
+          {/* Granted tags now live in PointBuy's build pane, so this header
+              only names the role. */}
           <div className="panel flex flex-col gap-2 p-3 text-sm">
             <span>
               <strong>{role.name}</strong>
               <span className="text-muted"> — {role.factionName}</span>
             </span>
-            {grantedTags.length > 0 && (
-              <span className="flex flex-wrap items-center gap-2">
-                <span className="text-muted">Granted free:</span>
-                {grantedTags.map((t) => (
-                  <span key={t.id} className="chip">
-                    {t.name}
-                  </span>
-                ))}
-              </span>
-            )}
           </div>
           <PointBuy
             tags={tags}

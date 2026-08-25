@@ -56,6 +56,8 @@ function summarize(request) {
       return `+${e.pointsAwarded ?? 0} Tag Points — ${truncate(e.desireText, 60)}`;
     case "ADD_TAG":
       return `+${e.tagName ?? "tag"}${e.resourcesSpent ? ` for ${e.resourcesSpent} ⬢` : ""}`;
+    case "BUY_TAGS":
+      return `${(e.items ?? []).map((i) => i.tagName).join(", ")} for ${e.totalPoints ?? 0} Tag Points`;
     case "REMOVE_TAG":
       return `-${e.tagName ?? "tag"}${e.resourcesSpent ? ` for ${e.resourcesSpent} ⬢` : ""}`;
     case "TRANSFER_RESOURCES":

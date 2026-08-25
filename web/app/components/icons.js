@@ -91,6 +91,20 @@ export function NotesIcon(props) {
   );
 }
 
+// A hanging merchant's scale-pan / coin purse silhouette: the Store is where
+// Tag Points get spent, so it reads as commerce rather than another list.
+export function StoreIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M9.5 8V6.5a2.5 2.5 0 015 0V8" strokeLinecap="round" />
+      <path
+        d="M5.5 8h13l-1 11a1.5 1.5 0 01-1.5 1.4H8a1.5 1.5 0 01-1.5-1.4l-1-11z"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 // A lidded box of records, not another sheet of paper — the Archive is the
 // game's kept history, and needs to read as a different kind of thing from
 // Documents (reference prose) sitting next to it on the rail.

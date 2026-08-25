@@ -8,6 +8,7 @@ import {
   formatCost,
   costColor,
   tagsById as buildTagsById,
+  chainOf,
   effectiveCost,
   effectiveTotalCost,
   chainSiblingsToRemove,
@@ -17,13 +18,86 @@ import {
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import ChipText from "./ChipText";
 
-// The point-buy menu, shared by both stores.
+// The point-buy experience, shared by both stores: a catalog pane on the
+// left, "Your Build" on the right (Project Zomboid's trait screen is the
+// reference). Character creation and the mid-game /store mount the SAME
+// component so the two read as one system.
 //
-// `afterStartOnly` is the single difference between them: character creation
-// passes false and offers every purchasable tag, while the mid-game store
-// passes true and offers only tags still buyable once play is underway — so a
-// pick like "Secretly an Android" can be a launch-day option and never a
-// mid-game one.
+// `afterStartOnly` is the single catalog difference between them: creation
+// passes false and offers every purchasable tag, while the store passes true
+// and offers only tags still buyable once play is underway — so a pick like
+// "Secretly an Android" can be a launch-day option and never a mid-game one.
+//
+// `grantedTags` is what the buyer already owns before this purchase: the
+// role's starting tags at creation, the character's whole sheet in the
+// store. They discount chain upgrades (effectiveCost) and satisfy
+// requirements, and the build pane lists them read-only.
+//
+// `actions` is an optional node rendered at the foot of the build pane —
+// the store puts its checkout button there; the wizard needs nothing.
+
+// Sort order for the grouped view: chains stay adjacent (rooted at their
+// cheapest tier, walked upward), everything else alphabetical. chainOf() is
+// closest-first, so the root is the last entry and depth is just length.
+function chainKey(tag, byId) {
+  const chain = chainOf(tag, byId);
+  return { root: chain[chain.length - 1].name, depth: chain.length };
+}
+
+function sortForMode(tags, mode, byId) {
+  if (mode === "cost") return sortTagsForMenu(tags);
+  if (mode === "name") return [...tags].sort((a, b) => a.name.localeCompare(b.name));
+  return [...tags].sort((a, b) => {
+    const ka = chainKey(a, byId);
+    const kb = chainKey(b, byId);
+    return ka.root.localeCompare(kb.root) || ka.depth - kb.depth || a.name.localeCompare(b.name);
+  });
+}
+
+function TagRow({ tag, isSelected, cost, unaffordable, onToggle }) {
+  const groupColor = tag.group?.color ?? null;
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => onToggle(tag)}
+        aria-pressed={isSelected}
+        className="select-card panel flex w-full items-start gap-3 p-3 text-left"
+        data-unaffordable={unaffordable || undefined}
+        style={{
+          borderLeftColor: groupColor ?? undefined,
+          borderLeftWidth: groupColor ? 3 : undefined,
+        }}
+      >
+        <span
+          aria-hidden="true"
+          className="mt-0.5 shrink-0 text-sm"
+          style={{ color: isSelected ? "var(--accent-text)" : "var(--muted)" }}
+        >
+          {isSelected ? "◆" : "◇"}
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="flex flex-wrap items-baseline gap-2">
+            <strong>{tag.name}</strong>
+            <span className="text-sm" style={{ color: costColor(cost) }}>
+              {formatCost(cost)}
+            </span>
+            {tag.group?.name && <span className="text-xs text-muted">{tag.group.name}</span>}
+          </span>
+          {/* ChipText rather than RichText: the row is a <button>, so a
+              hoverable chip inside it would be a button in a button. */}
+          {tag.description && (
+            <ChipText text={tag.description} as="span" className="text-sm text-muted" />
+          )}
+          {formatTagRequirement(tag) && (
+            <span className="text-sm text-muted">{formatTagRequirement(tag)}</span>
+          )}
+        </span>
+      </button>
+    </li>
+  );
+}
+
 export default function PointBuy({
   tags,
   budget,
@@ -31,21 +105,19 @@ export default function PointBuy({
   afterStartOnly = false,
   selectedIds,
   onChange,
+  actions = null,
 }) {
   // Full catalog by id, not just what's on offer, so a chain walk
   // (parentTagId) never dead-ends on a tag this menu happens to filter out.
   const byId = useMemo(() => buildTagsById(tags), [tags]);
 
   const offered = useMemo(
-    () =>
-      sortTagsForMenu(
-        purchasableTags({ tags, afterStartOnly, grantedNames: grantedTags.map((t) => t.name) }),
-      ),
+    () => purchasableTags({ tags, afterStartOnly, grantedNames: grantedTags.map((t) => t.name) }),
     [tags, afterStartOnly, grantedTags],
   );
 
   // "Held" for cost/requirement purposes = granted-for-free tags plus
-  // whatever's currently selected — a chain tier already granted by the role
+  // whatever's currently selected — a chain tier already granted/owned
   // discounts a purchase the same way an already-selected lower tier does.
   const grantedIds = useMemo(() => grantedTags.map((t) => t.id), [grantedTags]);
   const heldOrSelectedIds = useMemo(
@@ -57,12 +129,28 @@ export default function PointBuy({
   // a category whose every tag is gated (Demoness, Bacchus) must have no tab
   // at all. Selected tags stay in, so unticking one can't make it vanish
   // mid-interaction.
-  const unlocked = useMemo(
+  const gateChecked = useMemo(
     () => unlockedTags(offered, byId, heldOrSelectedIds, selectedIds),
     [offered, byId, heldOrSelectedIds, selectedIds],
   );
 
+  // A tier at or below one already granted/held is not a purchase — its
+  // effective cost is zero or a refund. The store is where this bites
+  // (grantedTags = the whole sheet), and buyTags rejects it server-side too.
+  const unlocked = useMemo(
+    () =>
+      gateChecked.filter(
+        (t) =>
+          selectedIds.includes(t.id) ||
+          chainSiblingsToRemove(t, byId, grantedIds).length === 0 ||
+          effectiveCost(t, byId, grantedIds) > 0,
+      ),
+    [gateChecked, byId, grantedIds, selectedIds],
+  );
+
   const [query, setQuery] = useState("");
+  const [sortMode, setSortMode] = useState("group");
+  const [groupFilter, setGroupFilter] = useState("");
 
   // Search runs AFTER unlockedTags, never instead of it: a gated tag must
   // stay invisible no matter what someone types. The category tabs are still
@@ -72,11 +160,32 @@ export default function PointBuy({
   const [category, setCategory] = useState(null);
   const active = categories.includes(category) ? category : categories[0];
 
+  const inCategory = useMemo(
+    () => unlocked.filter((t) => t.category === active),
+    [unlocked, active],
+  );
+
+  // Group filter options come from the whole active category, not the
+  // searched subset, so the select's options don't churn while typing.
+  const groupOptions = useMemo(() => {
+    const seen = new Map();
+    for (const t of inCategory) {
+      if (t.group?.slug && !seen.has(t.group.slug)) seen.set(t.group.slug, t.group.name);
+    }
+    return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [inCategory]);
+  const activeGroupFilter = groupOptions.some(([slug]) => slug === groupFilter)
+    ? groupFilter
+    : "";
+
   const selected = useMemo(
     () => offered.filter((t) => selectedIds.includes(t.id)),
     [offered, selectedIds],
   );
-  const remaining = budget - effectiveTotalCost(selected, byId);
+  // Discounted by granted/held chain tiers — the same arithmetic the rows
+  // show and the server actions enforce.
+  const spent = effectiveTotalCost(selected, byId, grantedIds);
+  const remaining = budget - spent;
 
   function toggle(tag) {
     if (selectedIds.includes(tag.id)) {
@@ -87,126 +196,231 @@ export default function PointBuy({
     onChange([...selectedIds.filter((id) => !siblings.includes(id)), tag.id]);
   }
 
-  const visible = filterTagsByQuery(
-    unlocked.filter((t) => t.category === active),
-    query,
-  );
+  const visible = useMemo(() => {
+    const groupNarrowed = activeGroupFilter
+      ? inCategory.filter((t) => t.group?.slug === activeGroupFilter)
+      : inCategory;
+    return sortForMode(filterTagsByQuery(groupNarrowed, query), sortMode, byId);
+  }, [inCategory, activeGroupFilter, query, sortMode, byId]);
+
+  // The grouped view renders sticky headers per TagGroup; the flat sorts
+  // (Name, Cost) skip the headers entirely — a header over a cost-sorted
+  // list would repeat itself every other row.
+  const sections = useMemo(() => {
+    if (sortMode !== "group") return [{ key: "flat", name: null, color: null, tags: visible }];
+    const map = new Map();
+    for (const tag of visible) {
+      const key = tag.group?.slug ?? "__other";
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          name: tag.group?.name ?? "Other",
+          color: tag.group?.color ?? null,
+          tags: [],
+        });
+      }
+      map.get(key).tags.push(tag);
+    }
+    return [...map.values()].sort(
+      (a, b) => (a.key === "__other") - (b.key === "__other") || a.name.localeCompare(b.name),
+    );
+  }, [visible, sortMode]);
+
+  const rowFor = (tag) => {
+    const isSelected = selectedIds.includes(tag.id);
+    const cost = effectiveCost(tag, byId, heldOrSelectedIds);
+    // A tag you can't currently afford is still shown, just marked — hiding
+    // it would make the catalog feel like it changes shape. A locked one
+    // (unmet requiredTag, or an unmet group gate) never reaches here at all:
+    // `unlocked` above dropped it, along with its category tab.
+    const unaffordable = !isSelected && cost > remaining;
+    return (
+      <TagRow
+        key={tag.id}
+        tag={tag}
+        isSelected={isSelected}
+        cost={cost}
+        unaffordable={unaffordable}
+        onToggle={toggle}
+      />
+    );
+  };
 
   return (
     <div className="flex flex-col gap-4">
-      <label className="field">
-        <span className="field-label">Search</span>
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Name, description, or group"
-        />
-      </label>
-
-      <div className="panel flex flex-wrap items-center justify-between gap-3 p-3">
-        <div className="flex flex-wrap gap-2">
-          {categories.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setCategory(c)}
-              className={c === active ? "btn" : "btn-quiet"}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-        <div className="text-sm" aria-live="polite">
-          <span className="text-muted">Points remaining </span>
-          <strong style={{ color: remaining < 0 ? "var(--accent-text)" : "var(--text)" }}>
-            {remaining}
-          </strong>
+      {/* Mobile budget bar: the build pane stacks below the catalog on small
+          screens, so the number that gates every decision stays in view. */}
+      <div
+        className="panel sticky top-0 z-10 flex items-center justify-between p-3 text-sm md:hidden"
+        aria-hidden="true"
+      >
+        <span className="text-muted">Points remaining</span>
+        <strong style={{ color: remaining < 0 ? "var(--accent-text)" : "var(--text)" }}>
+          {remaining}
           <span className="text-muted"> / {budget}</span>
-        </div>
+        </strong>
       </div>
 
-      {remaining < 0 && (
-        <p className="text-sm text-accent">
-          You&apos;re over budget by {Math.abs(remaining)}. Drop something to continue.
-        </p>
-      )}
+      <div className="grid items-start gap-4 md:grid-cols-[minmax(0,1fr)_18rem]">
+        {/* ----- Catalog ----- */}
+        <div className="flex min-w-0 flex-col gap-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="field min-w-40 flex-1">
+              <span className="field-label">Search</span>
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Name, description, or group"
+              />
+            </label>
+            <label className="field">
+              <span className="field-label">Sort</span>
+              <select value={sortMode} onChange={(e) => setSortMode(e.target.value)}>
+                <option value="group">Group</option>
+                <option value="name">Name A–Z</option>
+                <option value="cost">Cost</option>
+              </select>
+            </label>
+            {groupOptions.length > 1 && (
+              <label className="field">
+                <span className="field-label">Group</span>
+                <select value={activeGroupFilter} onChange={(e) => setGroupFilter(e.target.value)}>
+                  <option value="">All</option>
+                  {groupOptions.map(([slug, name]) => (
+                    <option key={slug} value={slug}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
 
-      {/* Deliberately a toggle-set, with no quantity anywhere: a bought tag
-          lands on CharacterTag.quantity's default of 1, so a stackable tag
-          can never be point-farmed. Stacks are built in play, through the
-          Add Tag request. */}
-      <ul className="flex flex-col gap-2">
-        {visible.map((tag) => {
-          const isSelected = selectedIds.includes(tag.id);
-          // TagGroup.color is a freeform hex string, used raw — same as
-          // TagChip.js. It was wrapped as var(--tag-<hex>) here, a token that
-          // has never existed, so group colours silently didn't render.
-          const groupColor = tag.group?.color ?? null;
-          const cost = effectiveCost(tag, byId, heldOrSelectedIds);
-          // A tag you can't currently afford is still shown, just marked —
-          // hiding it would make the catalog feel like it changes shape.
-          // A locked one (unmet requiredTag, or an unmet group gate) never
-          // reaches here at all: `unlocked` above dropped it, along with its
-          // category tab.
-          const unaffordable = !isSelected && cost > remaining;
-          return (
-            <li key={tag.id}>
+          <div className="tab-bar">
+            {categories.map((c) => (
               <button
+                key={c}
                 type="button"
-                onClick={() => toggle(tag)}
-                aria-pressed={isSelected}
-                className="select-card panel flex w-full items-start gap-3 p-3 text-left"
-                data-unaffordable={unaffordable || undefined}
-                style={{
-                  borderLeftColor: groupColor ?? undefined,
-                  borderLeftWidth: groupColor ? 3 : undefined,
-                }}
+                className="tab-item"
+                data-active={c === active}
+                onClick={() => setCategory(c)}
               >
-                <span
-                  aria-hidden="true"
-                  className="mt-0.5 shrink-0 text-sm"
-                  style={{ color: isSelected ? "var(--accent-text)" : "var(--muted)" }}
-                >
-                  {isSelected ? "◆" : "◇"}
-                </span>
-                <span className="flex min-w-0 flex-1 flex-col gap-1">
-                  <span className="flex flex-wrap items-baseline gap-2">
-                    <strong>{tag.name}</strong>
-                    <span className="text-sm" style={{ color: costColor(cost) }}>
-                      {formatCost(cost)}
-                    </span>
-                    {tag.group?.name && (
-                      <span className="text-xs text-muted">
-                        {tag.group.name}
-                      </span>
-                    )}
-                  </span>
-                  {/* ChipText rather than RichText: the row is a <button>,
-                      so a hoverable chip inside it would be a button in a
-                      button. */}
-                  {tag.description && (
-                    <ChipText text={tag.description} as="span" className="text-sm text-muted" />
-                  )}
-                  {formatTagRequirement(tag) && (
-                    <span className="text-sm text-muted">
-                      {formatTagRequirement(tag)}
-                    </span>
-                  )}
-                </span>
+                {c}
               </button>
-            </li>
-          );
-        })}
-      </ul>
+            ))}
+          </div>
 
-      {visible.length === 0 && (
-        <p className="text-sm text-muted">
-          {query
-            ? `Nothing in ${active} matches "${query}".`
-            : "Nothing available in this category."}
-        </p>
-      )}
+          {/* The catalog scrolls itself rather than growing the page — the
+              build pane must stay reachable however long Items gets. */}
+          <div className="flex flex-col gap-3 overflow-y-auto pr-1" style={{ maxHeight: "62vh" }}>
+            {sections.map((section) => (
+              <div key={section.key} className="flex flex-col gap-2">
+                {section.name && (
+                  <div
+                    className="sticky top-0 z-[1] flex items-center gap-2 py-1 text-xs font-bold uppercase tracking-wide text-muted"
+                    style={{ background: "var(--bg)" }}
+                  >
+                    {/* TagGroup.color is a freeform hex out of the DB, used
+                        raw — same as TagChip.js. */}
+                    {section.color && (
+                      <span
+                        aria-hidden="true"
+                        className="inline-block h-3 w-1 rounded-sm"
+                        style={{ background: section.color }}
+                      />
+                    )}
+                    {section.name}
+                    <span className="font-normal normal-case">({section.tags.length})</span>
+                  </div>
+                )}
+                {/* Deliberately a toggle-set, with no quantity anywhere: a
+                    bought tag lands on CharacterTag.quantity's default of 1,
+                    so a stackable tag can never be point-farmed. Stacks are
+                    built in play, through the Add Tag request. */}
+                <ul className="flex flex-col gap-2">{section.tags.map(rowFor)}</ul>
+              </div>
+            ))}
+
+            {visible.length === 0 && (
+              <p className="text-sm text-muted">
+                {query
+                  ? `Nothing in ${active} matches "${query}".`
+                  : "Nothing available in this category."}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* ----- Your Build ----- */}
+        <aside className="panel flex flex-col gap-3 p-4 md:sticky md:top-4">
+          <h2 className="panel-header" style={{ margin: 0 }}>
+            Your Build
+          </h2>
+          <div aria-live="polite">
+            <div
+              className="text-2xl font-bold"
+              style={{ color: remaining < 0 ? "var(--accent-text)" : "var(--text)" }}
+            >
+              {remaining}
+            </div>
+            <div className="text-sm text-muted">
+              points remaining · {spent} / {budget} spent
+            </div>
+          </div>
+          {remaining < 0 && (
+            <p className="text-sm text-accent">
+              Over budget by {Math.abs(remaining)}. Drop something to continue.
+            </p>
+          )}
+
+          {grantedTags.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-bold uppercase tracking-wide text-muted">
+                {afterStartOnly ? "Already yours" : "Granted free"}
+              </span>
+              <ul className="flex flex-col">
+                {grantedTags.map((t) => (
+                  <li key={t.id} className="text-sm text-muted">
+                    {t.name}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="flex min-h-0 flex-col gap-1">
+            <span className="text-xs font-bold uppercase tracking-wide text-muted">
+              Picked ({selected.length})
+            </span>
+            {selected.length === 0 ? (
+              <p className="text-sm text-muted">Nothing picked yet.</p>
+            ) : (
+              <ul className="flex flex-col overflow-y-auto" style={{ maxHeight: "18rem" }}>
+                {selected.map((t) => {
+                  const cost = effectiveCost(t, byId, grantedIds);
+                  return (
+                    <li key={t.id} className="flex items-center gap-2 py-1 text-sm">
+                      <span className="min-w-0 flex-1 truncate">{t.name}</span>
+                      <span style={{ color: costColor(cost) }}>{formatCost(cost)}</span>
+                      <button
+                        type="button"
+                        className="btn-quiet"
+                        onClick={() => toggle(t)}
+                        aria-label={`Remove ${t.name}`}
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
+          {actions}
+        </aside>
+      </div>
     </div>
   );
 }

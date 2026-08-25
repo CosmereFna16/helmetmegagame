@@ -279,8 +279,13 @@ async function addTagRequestImpl({
   });
   if (!tag) throw new UserError("Unknown tag.");
   // Mirrors addableTags() in web/lib/tagRequests.js — re-checked here because
-  // the client's filtered list is only advisory.
-  if (!tag.purchasable && !tag.craftable) throw new UserError("That tag can't be added this way.");
+  // the client's filtered list is only advisory. The purchasable branch also
+  // requires purchasableAfterStart (a launch-day-only pick can't arrive as a
+  // request); craftables bypass it deliberately, their gate being the
+  // requirement block.
+  if (!(tag.purchasable && tag.purchasableAfterStart) && !tag.craftable) {
+    throw new UserError("That tag can't be added this way.");
+  }
 
   // Both prerequisites the point-buy menu enforces, enforced here too: the
   // per-tag requiredTag, and the group gate that hides a whole category
