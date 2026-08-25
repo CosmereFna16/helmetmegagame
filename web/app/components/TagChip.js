@@ -1,4 +1,4 @@
-import { formatCost, costColor } from "@/lib/characterCreation";
+import { formatCost, costColor, prerequisiteNames } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { turnsLeft, tagDuration } from "@/lib/turnFormat";
 import ChipLabel from "./ChipLabel";
@@ -90,6 +90,13 @@ export default function TagChip({
             inspect embed. Only the affirmative renders; hidden is the default,
             so a "No" on most of the catalog would be noise. */}
         {tag.visibleOnInspect && <Meta label="Seen by others">Yes</Meta>}
+        {/* The prerequisite gate (requiredTag, or the group's) — what marks
+            role/faction kit as designed-for-you. Reads straight off the tag
+            prop, no hooks, so the chip keeps rendering on the server; a
+            caller that didn't fetch the relation simply gets no row. */}
+        {prerequisiteNames(tag).length > 0 && (
+          <Meta label="Requires">{prerequisiteNames(tag).join(", ")}</Meta>
+        )}
         <Meta label="Cost">
           <span style={{ color: costColor(tag.pointCost) }}>{formatCost(tag.pointCost)} pts</span>
         </Meta>

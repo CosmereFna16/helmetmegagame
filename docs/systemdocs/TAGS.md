@@ -82,14 +82,23 @@ anything held or selected, at any tier of its chain"; `requirementSatisfied`
 calls it for **both** `tag.requiredTagId` and `tag.group.requiredTagId`, and
 is the only place the two are combined. `chainOf`/`cumulativeCost`/
 `effectiveCost` price a `parentTag` chain as the sum of its hops, and
-`chainSiblingsToRemove` collapses a selection down to one member per chain.
+`chainSiblingsToRemove` collapses a selection down to one member per chain
+(the tiers **below** a pick, since `chainOf` only walks upward), and
+`heldHigherTiers` is its downward mirror — the held tiers **above** a tag,
+i.e. "is this a downgrade". A chain replaces upward and never re-opens
+downward: buying or adding a higher tier **deletes the held lower tier in
+the same transaction** (the store's `buyTags` and `addTagRequest` both do
+this), and every purchase path rejects a tier below one already held. The
+removed tier is snapshotted onto the request's `effect.replaced`, so a GM
+Undo restores exactly what came off — see `web/lib/requestEffects.js`.
 
-Enforced in five places, all reading that one function: `PointBuy.js`
-(creation), the Add Tag picker in `TagRequestButtons.js` (mid-game),
-`createActions.js` and `requestActions.js#addTagRequest` (the server-side
-re-checks, since both menus are advisory), and `web/app/api/tags/route.js`
-(§3a). **A GM grant still ignores both, deliberately** — a GM handing out a
-tag is the one path that should never be second-guessed.
+Enforced in five places, all reading those same helpers: `PointBuy.js`
+(creation and `/store`), the Add Tag picker in `TagRequestButtons.js`
+(mid-game), `createActions.js` and `requestActions.js#addTagRequest` (the
+server-side re-checks, since both menus are advisory), and
+`web/lib/referenceData.js#getVisibleTags` (§3a). **A GM grant still ignores
+both, deliberately** — a GM handing out a tag is the one path that should
+never be second-guessed.
 
 Every caller must select `group.requiredTagId` alongside `requiredTagId`.
 Miss it and a hidden category silently opens for everyone, with nothing to
@@ -129,9 +138,11 @@ Three things make a category actually hidden rather than merely empty:
   *open* a gate (both are `purchasable: false`, GM-assigned) aren't in it —
   without the fold, the chain walk dead-ends and the category stays shut for
   the one person meant to see it.
-- **`/api/tags` withholds them.** That route is the app-wide tag catalog
-  `RichText`/`TagChip` read, and it used to be unauthenticated and complete,
-  so the whole Demoness catalog was one DevTools tab away. It now resolves
+- **`getVisibleTags` withholds them.** That loader
+  (`web/lib/referenceData.js`, streamed through `TagsProvider` from
+  `layout.js`) is the app-wide tag catalog `RichText`/`TagChip` read, and
+  its `/api/tags` predecessor used to be unauthenticated and complete,
+  so the whole Demoness catalog was one DevTools tab away. It resolves
   the caller's own character and drops any tag whose group is gated. Gating
   is on the **group** gate only, never a tag's own `requiredTag`: Fighting
   (Archer) isn't a secret, and hiding it would break `{tag:fighting-archer}`
@@ -186,8 +197,10 @@ via `PointBuy`'s `afterStartOnly` prop, which **`/store`** mounts — the
 mid-game store is routed (`web/app/(app)/store/`), spends
 `Character.tagPoints`, and files each cart as one `BUY_TAGS` request
 (`REQUESTS.md`). Its server action `buyTags` re-checks the flag per tag,
-rejects a tier at or below one already held, and refuses any negative
-effective cost — the store never pays the buyer. The **Add Tag request** is
+rejects a tier at or below one already held (`heldHigherTiers` /
+`effectiveCost`), replaces the held lower tier when a higher one is bought
+(§3), and refuses any negative effective cost — the store never pays the
+buyer. The **Add Tag request** is
 the other mid-game path, for crafting and resource-acquisitions:
 `addableTags()` (and `addTagRequestImpl` server-side) require
 `purchasableAfterStart` on the **purchasable branch only**, because most
@@ -721,8 +734,9 @@ remains in `docs/tags.yaml`.
 
 `db/lib/syncTags.js` (the sync itself), `db/prisma/sync-tags.js` (terminal
 entry point, `npm run db:sync-tags`), `docs/tags.yaml` /
-`docs/taggroups.yaml` (content), `web/app/api/tags/route.js` (read API
-backing `{tag:slug}`/`{tag:id}` references, and the gate from §3a),
+`docs/taggroups.yaml` (content), `web/lib/referenceData.js#getVisibleTags`
+(the catalog backing `{tag:slug}`/`{tag:id}` references, and the gate from
+§3a),
 `web/app/components/RichText.js`/`TagsProvider.js`, `TagChip.js` (the
 hover-tooltip chip that renders group color, and the "Becomes" row from §5c),
 `db/lib/inspectVision.js` (Seductive/Torturer, §5),
@@ -759,7 +773,7 @@ an open document. Every kind falls through to the raw `{…}` text when it can't
 resolve, so a bad reference is visible rather than silently dropped.
 
 A kind whose data the browser doesn't already hold also needs a read API and a
-provider mounted in `layout.js`, the way `{tag:…}` has `/api/tags` +
+provider mounted in `layout.js`, the way `{tag:…}` has `getVisibleTags` +
 `TagsProvider`. `{document:…}` is the case to copy if the data is
 access-controlled: `/api/documents` ships every document's *name* but a body
 only to a reader who may open it, so a chip for a paper you have not been

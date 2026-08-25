@@ -115,6 +115,21 @@ export function chainSiblingsToRemove(tag, tagsById, heldOrSelectedIds) {
   return heldOrSelectedIds.filter((id) => chainIds.has(id));
 }
 
+// The downward mirror of chainSiblingsToRemove: held/selected ids that sit
+// ABOVE `tag` in its own chain. chainOf() only walks upward, so this walks
+// up from each held tag instead and asks whether it passes through `tag` —
+// no descendant index needed. Non-empty means acquiring `tag` would be a
+// downgrade (you already hold a higher tier), which every purchase path
+// rejects: a chain replaces upward, it never re-opens downward.
+export function heldHigherTiers(tag, tagsById, heldOrSelectedIds) {
+  return heldOrSelectedIds.filter((id) => {
+    if (id === tag.id) return false;
+    const held = tagsById.get(id);
+    if (!held) return false;
+    return chainOf(held, tagsById).some((member) => member.id === tag.id);
+  });
+}
+
 // True if `requiredTagId` is null, or its id appears in the chain of
 // something already held/selected (any tier of that chain qualifies).
 export function holdsRequirement(requiredTagId, tagsById, heldOrSelectedIds) {
@@ -213,6 +228,47 @@ export function sortTagsForMenu(tags) {
   return [...tags].sort(
     (a, b) => (a.pointCost ?? 0) - (b.pointCost ?? 0) || a.name.localeCompare(b.name),
   );
+}
+
+// Sort key for the grouped view: chains stay adjacent (rooted at their
+// cheapest tier, walked upward), everything else alphabetical. chainOf() is
+// closest-first, so the root is the last entry and depth is just length.
+function chainKey(tag, tagsById) {
+  const chain = chainOf(tag, tagsById);
+  return { root: chain[chain.length - 1].name, depth: chain.length };
+}
+
+// The three menu sorts, shared by PointBuy and the request/GM pickers so a
+// chain reads in rung order everywhere. "group" is the chain-aware default;
+// "cost" and "name" are deliberate flat views. A catalog fetched without
+// parentTagId degrades gracefully: every chain is a singleton, so "group"
+// simply reads alphabetically.
+export function sortForMode(tags, mode, tagsById) {
+  if (mode === "cost") return sortTagsForMenu(tags);
+  if (mode === "name") return [...tags].sort((a, b) => a.name.localeCompare(b.name));
+  return [...tags].sort((a, b) => {
+    const ka = chainKey(a, tagsById);
+    const kb = chainKey(b, tagsById);
+    return ka.root.localeCompare(kb.root) || ka.depth - kb.depth || a.name.localeCompare(b.name);
+  });
+}
+
+// The names behind a tag's prerequisite gates, for a "Requires: …" line —
+// the per-tag requiredTag and the whole-group gate behind a hidden category.
+// Callers must have fetched the requiredTag relations ({ name }) alongside
+// the ids; a catalog projected without them just renders no line. Never
+// shown to someone who doesn't qualify: every surface already filters unmet
+// gates out before rendering.
+export function prerequisiteNames(tag) {
+  const names = [tag.requiredTag?.name, tag.group?.requiredTag?.name];
+  return [...new Set(names.filter(Boolean))];
+}
+
+// Whether the tag has any prerequisite gate at all — the "unlocked by your
+// tags" filter. On an already-gate-checked list this is exactly "tags
+// something I hold unlocked", since anything unmet was filtered out earlier.
+export function hasPrerequisite(tag) {
+  return Boolean(tag.requiredTagId || tag.group?.requiredTagId);
 }
 
 // Distinct categories in menu order, derived from the tags actually on offer

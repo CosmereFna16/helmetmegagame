@@ -29,6 +29,7 @@ import {
   tagsById as buildTagsById,
   effectiveTotalCost,
   chainSiblingsToRemove,
+  heldHigherTiers,
   requirementSatisfied,
   CURSED_ROLE_SLUGS,
 } from "@/lib/characterCreation";
@@ -170,10 +171,15 @@ export async function createCharacter(formData) {
   const grantedIds = startingTags.map((t) => t.id);
 
   // A hand-posted request could submit two tiers of the same chain at once
-  // (the UI never lets that happen — selecting one auto-drops the other).
+  // (the UI never lets that happen — selecting one auto-drops the other),
+  // or buy in below a tier the role already grants (a chain replaces upward,
+  // it never re-opens downward).
   for (const tag of selected) {
     if (chainSiblingsToRemove(tag, byId, tagIds).length > 0) {
       return { error: "You can only hold one tier of the same skill chain." };
+    }
+    if (heldHigherTiers(tag, byId, grantedIds).length > 0) {
+      return { error: "Your role already grants a higher tier of that skill chain." };
     }
   }
 
@@ -216,6 +222,13 @@ export async function createCharacter(formData) {
   for (const tag of selected) {
     if (!tagIdsToGrant.has(tag.id)) {
       tagIdsToGrant.set(tag.id, { source: "POINT_BUY", expiresTurn: expiryFor(tag) });
+    }
+    // A purchased higher tier replaces a role-granted lower tier of the same
+    // chain — the plain union would seat both rungs on the new sheet. The
+    // discount already happened above (effectiveTotalCost over grantedIds),
+    // so the player paid exactly the difference for exactly one rung.
+    for (const lowerId of chainSiblingsToRemove(tag, byId, grantedIds)) {
+      tagIdsToGrant.delete(lowerId);
     }
   }
 

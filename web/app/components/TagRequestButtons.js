@@ -3,14 +3,19 @@
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import {
   sortTagsForMenu,
+  sortForMode,
   menuCategories,
   formatCost,
   costColor,
   tagsById as buildTagsById,
   unlockedTags,
+  heldHigherTiers,
+  prerequisiteNames,
+  hasPrerequisite,
 } from "@/lib/characterCreation";
 import { addableTags, removableTags, transferableTags, consumableTags } from "@/lib/tagRequests";
 import RequestDialog from "./RequestDialog";
+import CheckField from "./CheckField";
 import PartySelect from "./PartySelect";
 import InfoIcon from "./InfoIcon";
 import ChipText from "./ChipText";
@@ -35,7 +40,13 @@ import {
 // list what the character already holds, so they pass nothing and every tag
 // is offered.
 function TagPicker({ tags, selectedId, onSelect, byId = null, heldIds = null }) {
-  const offered = useMemo(() => sortTagsForMenu(tags), [tags]);
+  // The Add menu (the only caller passing byId) sorts chain-aware, so
+  // Fighting's rungs read in tier order instead of scattering
+  // alphabetically; the held-tag menus keep the flat cost-then-name sort.
+  const offered = useMemo(
+    () => (byId ? sortForMode(tags, "group", byId) : sortTagsForMenu(tags)),
+    [tags, byId],
+  );
   // Same rule as PointBuy: gate first, derive the tabs from what survived. A
   // hidden category (Demoness, Bacchus) must have no tab at all rather than
   // an empty one, which would advertise that there's something there.
@@ -43,10 +54,17 @@ function TagPicker({ tags, selectedId, onSelect, byId = null, heldIds = null }) 
     () => (byId ? unlockedTags(offered, byId, heldIds ?? []) : offered),
     [offered, byId, heldIds],
   );
-  const categories = useMemo(() => menuCategories(unlocked), [unlocked]);
+  // "Unlocked by your tags", same as PointBuy's checkbox: everything shown
+  // already passed the gates, so gated-and-shown means gated-and-met.
+  const [requiresOnly, setRequiresOnly] = useState(false);
+  const pool = useMemo(
+    () => (byId && requiresOnly ? unlocked.filter(hasPrerequisite) : unlocked),
+    [unlocked, byId, requiresOnly],
+  );
+  const categories = useMemo(() => menuCategories(pool), [pool]);
   const [category, setCategory] = useState(null);
   const active = categories.includes(category) ? category : categories[0];
-  const visible = unlocked.filter((t) => t.category === active);
+  const visible = pool.filter((t) => t.category === active);
 
   if (!unlocked.length) {
     return (
@@ -58,6 +76,14 @@ function TagPicker({ tags, selectedId, onSelect, byId = null, heldIds = null }) 
 
   return (
     <div className="flex flex-col gap-3">
+      {byId && (
+        <CheckField
+          checked={requiresOnly}
+          onChange={(e) => setRequiresOnly(e.target.checked)}
+        >
+          Unlocked by your tags
+        </CheckField>
+      )}
       {categories.length > 1 && (
         <div className="flex flex-wrap gap-2">
           {categories.map((c) => (
@@ -111,6 +137,14 @@ function TagPicker({ tags, selectedId, onSelect, byId = null, heldIds = null }) 
                     as="span"
                     className="mt-1 block text-xs text-muted"
                   />
+                )}
+                {/* The gate that unlocked this row — role/faction kit would
+                    otherwise be indistinguishable from the open catalog.
+                    Only qualifying viewers ever see the row. */}
+                {prerequisiteNames(tag).length > 0 && (
+                  <span className="mt-1 block text-xs" style={{ color: "var(--accent-text)" }}>
+                    Requires: {prerequisiteNames(tag).join(", ")}
+                  </span>
                 )}
               </span>
             </button>
@@ -197,7 +231,6 @@ export default function TagRequestButtons({
   const confirm = useConfirm();
 
   const heldIds = useMemo(() => characterTags.map((ct) => ct.tagId), [characterTags]);
-  const addable = useMemo(() => addableTags(catalog, heldIds), [catalog, heldIds]);
   // The catalog is purchasable-or-craftable only, so the tags that OPEN a
   // gate — Demoness, Cultist of Bacchus — aren't in it. Fold the character's
   // own held tags in, or a chain walk from a held gate tag dead-ends and the
@@ -205,6 +238,16 @@ export default function TagRequestButtons({
   const gateById = useMemo(
     () => buildTagsById([...catalog, ...characterTags.map((ct) => ct.tag).filter(Boolean)]),
     [catalog, characterTags],
+  );
+  // heldHigherTiers hides the rungs BELOW a held chain tier — a chain
+  // replaces upward and never re-opens downward. addTagRequest rejects the
+  // same thing server-side.
+  const addable = useMemo(
+    () =>
+      addableTags(catalog, heldIds).filter(
+        (t) => heldHigherTiers(t, gateById, heldIds).length === 0,
+      ),
+    [catalog, heldIds, gateById],
   );
   const removable = useMemo(() => removableTags(characterTags), [characterTags]);
   const transferable = useMemo(() => transferableTags(characterTags), [characterTags]);

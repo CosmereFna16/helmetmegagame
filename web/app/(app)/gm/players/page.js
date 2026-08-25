@@ -26,6 +26,9 @@ export default async function PlayersPage({ searchParams }) {
         category: true,
         description: true,
         pointCost: true,
+        // The bulk-tag picker sorts chain-aware; without parentTagId the
+        // chain walk degrades to plain alphabetical.
+        parentTagId: true,
         group: { select: { name: true } },
       },
     }),

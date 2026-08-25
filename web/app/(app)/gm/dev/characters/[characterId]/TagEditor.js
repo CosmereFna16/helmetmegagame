@@ -3,11 +3,12 @@
 import CheckField from "@/app/components/CheckField";
 import { useMemo, useState } from "react";
 import {
-  sortTagsForMenu,
+  sortForMode,
   menuCategories,
   filterTagsByQuery,
   formatCost,
   costColor,
+  tagsById as buildTagsById,
 } from "@/lib/characterCreation";
 import { tagDuration, turnsLeft } from "@/lib/turnFormat";
 import ChipText from "@/app/components/ChipText";
@@ -35,7 +36,10 @@ export default function TagEditor({ tags, held, ops, openTurn, equipSlots, onSta
 
   const heldByTagId = useMemo(() => new Map(held.map((h) => [h.tagId, h])), [held]);
 
-  const sorted = useMemo(() => sortTagsForMenu(tags), [tags]);
+  // Chain-aware ("group") rather than cost-then-name, so Fighting's five
+  // rungs sit together in tier order instead of scattering alphabetically.
+  // Degrades to plain alphabetical if the rows lack parentTagId.
+  const sorted = useMemo(() => sortForMode(tags, "group", buildTagsById(tags)), [tags]);
   const categories = useMemo(() => menuCategories(sorted), [sorted]);
   const active = categories.includes(category) ? category : categories[0];
 

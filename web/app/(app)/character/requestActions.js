@@ -11,7 +11,12 @@ import { UserError, guarded } from "@/lib/actionResult";
 import { expiryFor } from "@/lib/turnFormat";
 import { FEAR_PENALTY, FEAR_MAX_LENGTH } from "@/lib/constants";
 import { TRANSFERABLE_CATEGORIES } from "@/lib/tagRequests";
-import { tagsById as buildTagsById, requirementSatisfied } from "@/lib/characterCreation";
+import {
+  tagsById as buildTagsById,
+  requirementSatisfied,
+  chainSiblingsToRemove,
+  heldHigherTiers,
+} from "@/lib/characterCreation";
 import { addToStack, debitResources, dropCharacterTag, grantTagSlugs, moveResources } from "@/lib/requestEffects";
 import {
   HEAL_SKILL_SLUG,
@@ -300,8 +305,16 @@ async function addTagRequestImpl({
   // never dead-ends on an ancestor the character doesn't hold, same reason
   // createCharacter does it.
   const chainRows = await prisma.tag.findMany({ select: { id: true, parentTagId: true } });
-  if (!requirementSatisfied(tag, buildTagsById(chainRows), character.tags.map((ct) => ct.tagId))) {
+  const chainById = buildTagsById(chainRows);
+  const heldIds = character.tags.map((ct) => ct.tagId);
+  if (!requirementSatisfied(tag, chainById, heldIds)) {
     throw new UserError("You're missing a prerequisite for that tag.");
+  }
+
+  // A chain replaces upward and never re-opens downward — a tier below one
+  // already held is a downgrade, not an addition (same guard as the store).
+  if (heldHigherTiers(tag, chainById, heldIds).length > 0) {
+    throw new UserError(`You already hold a higher tier of ${tag.name}'s chain.`);
   }
 
   // A stackable tag adds to what's already there; anything else is still
@@ -314,7 +327,23 @@ async function addTagRequestImpl({
 
   const openTurn = await getOpenTurn();
 
+  // A chain replaces: adding a higher tier takes the held lower tier off the
+  // sheet in the same transaction (TAGS.md §3). Snapshotted onto the effect
+  // so Undo — and the GM's remove-tag edit — restore exactly what came off.
+  const replaced = character.tags
+    .filter((ct) => chainSiblingsToRemove(tag, chainById, heldIds).includes(ct.tagId))
+    .map((ct) => ({
+      tagId: ct.tagId,
+      tagName: ct.tag?.name ?? null,
+      source: ct.source,
+      expiresTurn: ct.expiresTurn,
+      quantity: ct.quantity,
+    }));
+
   await prisma.$transaction(async (tx) => {
+    for (const snapshot of replaced) {
+      await dropCharacterTag(tx, character.id, snapshot.tagId);
+    }
     await addToStack(tx, character.id, tag.id, quantity, {
       source: "EVENT",
       // A timed tag has to arrive already stamped or it never expires:
@@ -335,7 +364,15 @@ async function addTagRequestImpl({
       type: "ADD_TAG",
       reason,
       payload: { tagId: tag.id, quantity, resourcesSpent },
-      effect: { tagId: tag.id, tagName: tag.name, quantity, resourcesSpent },
+      // `replaced` only when an upgrade displaced something — older effects
+      // keep their exact shape, and the handlers treat absence as [].
+      effect: {
+        tagId: tag.id,
+        tagName: tag.name,
+        quantity,
+        resourcesSpent,
+        ...(replaced.length ? { replaced } : {}),
+      },
     });
     await logRequest(tx, {
       actorDiscordUserId: session.discordUserId,

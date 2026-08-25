@@ -4,7 +4,7 @@ import FormError from "@/app/components/FormError";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { useMemo, useState, useTransition } from "react";
 import { sendGmMessage, bulkTagCharacters } from "../actions";
-import { filterTagsByQuery, sortTagsForMenu } from "@/lib/characterCreation";
+import { filterTagsByQuery, sortForMode, tagsById as buildTagsById } from "@/lib/characterCreation";
 import CharacterLink from "../../../components/CharacterLink";
 import FactionLink from "../../../components/FactionLink";
 import { useTableState, SortHeader, FilterBar, TableScroll } from "@/app/components/DataTable";
@@ -196,10 +196,10 @@ function BulkTagBar({ tags, count, characterIds, onDone }) {
   const [tagId, setTagId] = useState("");
   const [result, setResult] = useState(null);
 
-  const matches = useMemo(
-    () => filterTagsByQuery(sortTagsForMenu(tags), query).slice(0, 40),
-    [tags, query],
-  );
+  // Chain-aware ("group") rather than cost-then-name, so a chain's rungs sit
+  // together in tier order in the picker.
+  const sorted = useMemo(() => sortForMode(tags, "group", buildTagsById(tags)), [tags]);
+  const matches = useMemo(() => filterTagsByQuery(sorted, query).slice(0, 40), [sorted, query]);
 
   // Narrowing the search until the chosen tag drops out of the list would
   // otherwise leave the <select> rendering blank while tagId still held the
@@ -208,7 +208,7 @@ function BulkTagBar({ tags, count, characterIds, onDone }) {
   // (react-hooks/set-state-in-effect is an error in this repo).
   function changeQuery(next) {
     setQuery(next);
-    if (tagId && !filterTagsByQuery(sortTagsForMenu(tags), next).slice(0, 40).some((t) => t.id === tagId)) {
+    if (tagId && !filterTagsByQuery(sorted, next).slice(0, 40).some((t) => t.id === tagId)) {
       setTagId("");
     }
   }
