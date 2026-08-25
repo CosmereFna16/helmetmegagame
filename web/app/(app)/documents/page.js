@@ -67,6 +67,10 @@ export default async function DocumentsPage() {
   // every other tab's: not "why is this in your folder" (it isn't in anyone's
   // folder here) but "how does this paper reach a player at all".
   //
+  // Secret papers are the one exception to "every document": they stay gated to
+  // master GMs here exactly as they are in the Secret tab, so a zone-GM's All
+  // never leaks a threat brief they can't open.
+  //
   // A paper can also be handed out by a role's doc_elements list, which lives
   // on Role rather than on the document — so answering "unrouted" honestly
   // costs one extra query, run only for a GM.
@@ -87,7 +91,9 @@ export default async function DocumentsPage() {
       d.flags.length > 0;
     return routed ? "Assigned" : "Unrouted";
   };
-  const allDocs = isGm ? written.map((d) => shape(d, allSource(d))) : [];
+  const allDocs = isGm
+    ? written.filter((d) => isMasterGm || !d.isSecret).map((d) => shape(d, allSource(d)))
+    : [];
 
   const assignedDocs = character
     ? written

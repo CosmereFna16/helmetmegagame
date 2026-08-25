@@ -353,21 +353,21 @@ documents:
 
       ## Cave Fungus, the base
 
-      {tag:cave-fungus} grows in caves. Eat it raw and you're {tag:high} for two turns, with no pleasure in it. Refined, it becomes {tag:bliss}, {tag:mercy}, {tag:deadeye-drops} and {tag:mindbreaker-toxin}.
+      {tag:cave-fungus} grows in caves (see the Caving document). You can eat it raw for a mildly unpleasant {tag:high}, or you can refine it into {tag:bliss}, {tag:mercy}, {tag:deadeye-drops} and {tag:mindbreaker-toxin}.
 
       ## Recreational — Brewing (Basic)
 
-      - **{tag:alcohol}** — 2 ⬢, up to 3 per Move. Beer, ale, fine drinks. Doesn't feed you, but lifts anyone's mood — a noble's as readily as a peasant's. Leaves {tag:tipsy} and {tag:happy}.
-      - **{tag:bliss}** — 0 ⬢, from {tag:cave-fungus}. The best thing at any party in Ravenheart, and no morning after.
+      - **{tag:alcohol}** — 2 ⬢ per drink, up to 3 per Move. Beer, ale. Makes anyone happy, but not much of a desire.
+      - **{tag:bliss}** — 0 ⬢ and one {tag:cave-fungus}, up to 2 per Move. A valid object of desire.
 
       ## Other — Brewing (Basic)
 
-      - **{tag:miasma}** — 2 ⬢, bottled beside a corpse. Opened in a closed room, everyone breathing gets {tag:vomiting}.
-      - **{tag:feces}** — 2 ⬢. Worked onto a blade so a wound goes {tag:infected} instead of healing.
-      - **{tag:cleaning-powder}** — 2 ⬢, 1 turn makes **two**. Cures a minor infection outright; gives a doctor a real chance against {tag:festering}.
+      - **{tag:miasma}** — 2 ⬢, requires a corpse. You can uncork it to give everyone in a room {tag:vomiting}.
+      - **{tag:feces}** — 0 ⬢, requires feces. Extremely dishonorable. Makes your weapon inflict {tag:infected}.
+      - **{tag:cleaning-powder}** — 2 ⬢ per powder, up to 2 per Move. Cures minor infections instantly, but doesn't help against {tag:festering}.
       - **{tag:cat}** — 3 ⬢, distilled with {tag:alcohol}. {tag:night-vision} for two turns.
-      - **{tag:poppy}** — 2 ⬢, grow the crop a turn first. The answer to pain, and the start of a different problem. Leaves an {tag:opium-high}.
-      - **{tag:molotov-cocktail}** — 2 ⬢. A bottle and a rag. It does not care what you were aiming at.
+      - **{tag:poppy}** — 2 ⬢, but you have to grow opium. Helps with pain but leaves you doped up. Leaves an {tag:opium-high}.
+      - **{tag:molotov-cocktail}** — 2 ⬢ per bottle, up to 2 per Move. Requires alcohol.
 
       ## Recreational — Brewing (Skilled)
 

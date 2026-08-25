@@ -42,6 +42,9 @@ cards, in four tabs:
   a player at all* — `Public`, `Gamemaster`, `Assigned`, or **`Unrouted`** for
   a written paper nothing hands out. Spotting those is the point; answering it
   honestly costs one extra query for `Role.docElements`, run only for a GM.
+  Secret papers are the one exception to *every* document: they stay gated to
+  master GMs here exactly as in SECRET, so a zone-GM's ALL never leaks a threat
+  brief they cannot open.
 
 Opening a card is a `Modal` (`DESIGN-SYSTEM.md` §8) over `.doc-sheet` — wider
 and more generously set than an ordinary dialog, because it is a page of prose.
