@@ -62,6 +62,9 @@ const nextAuth = NextAuth({
     Discord({
       clientId: process.env.DISCORD_CLIENT_ID,
       clientSecret: process.env.DISCORD_CLIENT_SECRET,
+      // `identify` only. Auth.js defaults to `identify email`, and nothing
+      // here ever reads an email — so don't ask players for one.
+      authorization: { params: { scope: "identify" } },
     }),
   ],
   callbacks: {
