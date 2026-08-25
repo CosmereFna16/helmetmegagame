@@ -12,27 +12,127 @@ function authHeaders(extra) {
   return { Authorization: `Bot ${token}`, ...extra };
 }
 
+// --- Cloudflare invalid-response circuit breaker -------------------------
+//
+// Discord fronts its API with Cloudflare, which counts 401/403/429 responses
+// and temporarily IP-bans a token that emits 10,000 of them inside a rolling
+// 10 minutes. The ban lands on the container's egress IP and lasts about an
+// hour. 404 is NOT counted, which is why the deliberately-blind sweeps in
+// db/lib/locationAccess.js (allow404, ~58 of every 62 calls hitting nothing)
+// are free rather than dangerous.
+//
+// Reaching 10,000 needs ~17 invalid responses per second sustained, which no
+// sequential path here can produce. The breaker exists for the case that can:
+// an unattended crash-restart loop replaying the `ready` catch-up burst. It
+// trips at a tenth of Discord's ceiling, because the cost of stopping early is
+// a delayed sync and the cost of stopping late is an hour of total blackout.
+const INVALID_WINDOW_MS = 10 * 60 * 1000;
+const INVALID_LIMIT = 1000;
+const BREAKER_COOLDOWN_MS = 10 * 60 * 1000;
+
+// A 429's retry_after is honored, but not unboundedly: a channel name/topic
+// edit sits in a 2-per-10-minutes bucket and can hand back ~600s, which would
+// wedge an entire sequential run (a Dawn wipe, a location sync) behind one
+// call. Past the cap it is better to fail that call and let the caller's own
+// catch move on.
+const MAX_RETRY_AFTER_MS = 30_000;
+
+const invalidTimestamps = [];
+let breakerOpenUntil = 0;
+
+function pruneInvalid(now) {
+  while (invalidTimestamps.length > 0 && now - invalidTimestamps[0] > INVALID_WINDOW_MS) {
+    invalidTimestamps.shift();
+  }
+}
+
+function recordInvalidResponse(status, path) {
+  const now = Date.now();
+  invalidTimestamps.push(now);
+  pruneInvalid(now);
+
+  if (invalidTimestamps.length >= INVALID_LIMIT && now >= breakerOpenUntil) {
+    breakerOpenUntil = now + BREAKER_COOLDOWN_MS;
+    console.error(
+      `Discord circuit breaker OPEN: ${invalidTimestamps.length} invalid responses ` +
+        `(401/403/429) in the last 10 minutes, most recently ${status} on ${path}. ` +
+        `Pausing all outbound Discord REST from this process for 10 minutes to stay ` +
+        `clear of Cloudflare's 10,000-per-10-minutes IP ban.`,
+    );
+  }
+}
+
+// Observability: the count is meaningless unless someone can see it. Logged at
+// bot startup (bot/src/events/ready.js) so a climbing number is visible before
+// it becomes a ban rather than after.
+function getInvalidResponseStats() {
+  const now = Date.now();
+  pruneInvalid(now);
+  return {
+    invalidInWindow: invalidTimestamps.length,
+    limit: INVALID_LIMIT,
+    breakerOpen: now < breakerOpenUntil,
+    breakerOpenUntil: breakerOpenUntil > now ? new Date(breakerOpenUntil).toISOString() : null,
+  };
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // Central fetch wrapper: bounded retry on 429 honoring Discord's
 // `retry_after`, throws on any other non-2xx (unless allow404).
 async function discordRequest(path, { method = "GET", body, allow404 = false } = {}) {
   const headers = authHeaders(body !== undefined ? { "Content-Type": "application/json" } : undefined);
 
   for (let attempt = 0; attempt < 3; attempt++) {
+    if (Date.now() < breakerOpenUntil) {
+      throw new Error(
+        `Discord ${method} ${path} refused: circuit breaker open until ` +
+          `${new Date(breakerOpenUntil).toISOString()} (too many 401/403/429 responses).`,
+      );
+    }
+
     const res = await fetch(`${DISCORD_API}${path}`, {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
 
+    if (res.status === 401 || res.status === 403 || res.status === 429) {
+      recordInvalidResponse(res.status, path);
+    }
+
     if (res.status === 429) {
-      const retryAfter = Number((await res.json().catch(() => ({}))).retry_after) || 1;
-      await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
+      // A global 429 (or one with no JSON body) is the actual ban-adjacent
+      // signal, distinct from an ordinary per-bucket 429 — surface it loudly
+      // rather than retrying it silently like any other.
+      const payload = await res.json().catch(() => ({}));
+      if (payload.global || res.headers.get("X-RateLimit-Global") === "true") {
+        console.error(`Discord GLOBAL rate limit hit on ${method} ${path}. This is the ban warning shot.`);
+      }
+      const retryAfterMs = (Number(payload.retry_after) || 1) * 1000;
+      if (retryAfterMs > MAX_RETRY_AFTER_MS) {
+        throw new Error(
+          `Discord ${method} ${path} failed: 429 with retry_after ${Math.round(retryAfterMs / 1000)}s, ` +
+            `over the ${MAX_RETRY_AFTER_MS / 1000}s cap — not waiting.`,
+        );
+      }
+      await sleep(retryAfterMs);
       continue;
     }
     if (res.status === 404 && allow404) return null;
     if (!res.ok) {
       throw new Error(`Discord ${method} ${path} failed: ${res.status} ${await res.text()}`);
     }
+
+    // Proactive pre-emption: without this the wrapper only ever learns about a
+    // bucket by exhausting it, so every sequential run pays a guaranteed 429
+    // (and a tick on the ban counter) at each bucket boundary. Spending the
+    // reset window here instead costs the same wall-clock and zero 429s.
+    if (res.headers.get("X-RateLimit-Remaining") === "0") {
+      const resetAfterMs = (Number(res.headers.get("X-RateLimit-Reset-After")) || 0) * 1000;
+      if (resetAfterMs > 0) await sleep(Math.min(resetAfterMs, MAX_RETRY_AFTER_MS));
+    }
+
     if (res.status === 204) return null;
     return res.json();
   }
@@ -262,9 +362,19 @@ async function bulkDeleteMessages(channelId, messageIds) {
 
 // There's no per-channel "active threads" REST endpoint — only a
 // guild-wide one — so this filters client-side by parent_id.
-async function listActiveThreadsForChannel(channelId) {
+//
+// Which makes the naive call pattern quietly expensive: the Dawn wipe asks
+// once for each Location's forum AND once for its private channel, so 15
+// locations pulled the entire guild's thread list 30 times over. `snapshot`
+// lets a caller fetch it once and pass it down; see db/lib/dawnWipe.js.
+async function fetchActiveThreads() {
   const guildId = process.env.DISCORD_GUILD_ID;
   const { threads } = await discordRequest(`/guilds/${guildId}/threads/active`);
+  return threads;
+}
+
+async function listActiveThreadsForChannel(channelId, snapshot = null) {
+  const threads = snapshot ?? (await fetchActiveThreads());
   return threads.filter((t) => t.parent_id === channelId);
 }
 
@@ -322,10 +432,34 @@ const WEBHOOK_NAME = "Bascinet Tupper";
 
 // REST twin of bot/src/lib/proxy.js#fetchOrCreateWebhook — same webhook name
 // and same "reuse the bot's own webhook on this channel, create one only if
-// there isn't one" rule, so a channel never ends up with two. No cache here:
-// this runs once per turn at most (db/lib/defaultMovePass.js), not per
-// message.
+// there isn't one" rule, so a channel never ends up with two.
+//
+// Cached per channel for the process lifetime, mirroring the gateway twin's
+// webhookCache in bot/src/lib/proxy.js. The comment here used to claim this
+// ran "once per turn at most" and therefore needed no cache; that was wrong.
+// postAsCharacter calls it, and db/index.js calls postAsCharacter in a loop
+// over every Default Move summary — so a turn with ~100 defaults spent ~100
+// redundant GETs on the same handful of location channels, each one a tick
+// against that channel's webhook bucket.
+//
+// A webhook the cache knows about but Discord no longer has is the one stale
+// case; executeWebhook throws on it, so the entry is dropped and rebuilt.
+const webhookCache = new Map();
+
+function forgetChannelWebhook(channelId) {
+  webhookCache.delete(channelId);
+}
+
 async function ensureChannelWebhook(channelId) {
+  const cached = webhookCache.get(channelId);
+  if (cached) return cached;
+
+  const webhook = await fetchOrCreateChannelWebhook(channelId);
+  webhookCache.set(channelId, webhook);
+  return webhook;
+}
+
+async function fetchOrCreateChannelWebhook(channelId) {
   const existing = await discordRequest(`/channels/${channelId}/webhooks`);
   const mine = existing?.find((w) => w.token);
   if (mine) return { id: mine.id, token: mine.token };
@@ -362,6 +496,21 @@ async function executeWebhook({ id, token }, { content, username, avatarUrl }) {
 // REST equivalent of a tupper proxy, for anything composed by the game itself
 // rather than by a player typing in a channel.
 async function postAsCharacter(channelId, character, content) {
+  try {
+    return await postAsCharacterOnce(channelId, content, character);
+  } catch (err) {
+    // The cached webhook may have been deleted in Discord since we stored it.
+    // Forget it and rebuild once before giving up, so one hand-deleted webhook
+    // doesn't silently kill every summary post for that channel until restart.
+    forgetChannelWebhook(channelId);
+    if (String(err.message).includes("webhook")) {
+      return postAsCharacterOnce(channelId, content, character);
+    }
+    throw err;
+  }
+}
+
+async function postAsCharacterOnce(channelId, content, character) {
   const webhook = await ensureChannelWebhook(channelId);
   const base = process.env.WEB_BASE_URL;
   return executeWebhook(webhook, {
@@ -400,6 +549,9 @@ module.exports = {
   // with no named helper here and shouldn't hand-roll a fetch without the
   // 429 retry.
   discordRequest,
+  // Rolling 401/403/429 count behind discordRequest's circuit breaker; logged
+  // at bot startup so the number is observable before it becomes a ban.
+  getInvalidResponseStats,
   getGuildChannels,
   createDmChannel,
   getChannel,
@@ -419,6 +571,7 @@ module.exports = {
   fetchAllMessages,
   bulkDeleteMessages,
   listActiveThreadsForChannel,
+  fetchActiveThreads,
   listArchivedPublicThreads,
   listArchivedPrivateThreads,
   deleteThread,

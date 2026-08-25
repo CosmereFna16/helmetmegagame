@@ -57,6 +57,7 @@ export default function DocumentsBoard({
   assignedDocs,
   gmDocs = [],
   secretDocs = [],
+  allDocs = [],
   hasCharacter,
 }) {
   // Without a character there is no ASSIGNED tab at all, so PUBLIC is the
@@ -81,6 +82,7 @@ export default function DocumentsBoard({
       ["public", publicDocs],
       ["gamemaster", gmDocs],
       ["secret", secretDocs],
+      ["all", allDocs],
     ].map(([name, list]) => [name, list.find((d) => d.key === requested)])
       .find(([, doc]) => doc)) ||
     null;
@@ -97,10 +99,15 @@ export default function DocumentsBoard({
   };
 
   const docs =
-    tab === "assigned" ? assignedDocs
-      : tab === "gamemaster" ? gmDocs
-        : tab === "secret" ? secretDocs
-          : publicDocs;
+    tab === "assigned"
+      ? assignedDocs
+      : tab === "gamemaster"
+        ? gmDocs
+        : tab === "secret"
+          ? secretDocs
+          : tab === "all"
+            ? allDocs
+            : publicDocs;
 
   return (
     <div className="flex flex-col gap-4">
@@ -143,6 +150,16 @@ export default function DocumentsBoard({
             Secret ({secretDocs.length})
           </button>
         )}
+        {allDocs.length > 0 && (
+          <button
+            type="button"
+            className="tab-item"
+            data-active={tab === "all"}
+            onClick={() => setTab("all")}
+          >
+            All ({allDocs.length})
+          </button>
+        )}
       </div>
 
       {docs.length === 0 ? (
@@ -153,6 +170,8 @@ export default function DocumentsBoard({
               ? "No gamemaster papers have been written yet."
               : tab === "secret"
                 ? "No secret documents have been written yet."
+                : tab === "all"
+                  ? "No documents have been written yet."
                 : "No public documents have been posted yet."}
         </p>
       ) : (

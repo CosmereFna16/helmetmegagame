@@ -11,6 +11,16 @@ import { prisma, PRODUCTION_RATES, computeRate, formatRate } from "@lifeweb/db";
 // range) so the en dash has one implementation and no client component has
 // to import @lifeweb/db — which would drag PrismaClient into a "use client"
 // bundle.
+// force-dynamic, matching the party-sizes route. productionCoefficient is a
+// live dial on /gm/dev exactly like playerCount is, so a statically cached
+// response would keep serving the build-time rates until the next deploy.
+//
+// This route is dynamic today without the export — everything in the app
+// currently builds as ƒ — but that was an accident of how Next treats a
+// handler that touches Prisma, not a decision. Stating it means a change in
+// that default can't quietly start serving stale numbers.
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
   const coefficient = config?.productionCoefficient ?? 1;

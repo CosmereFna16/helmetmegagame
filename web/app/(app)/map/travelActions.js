@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { performTravel } from "@lifeweb/db/lib/travel";
@@ -30,12 +31,27 @@ export async function travelTo(locationId) {
   const result = await performTravel(prisma, character, target);
   if (!result.ok) return { error: result.reason };
 
-  await syncCharacterLocationAccess(
-    character.discordUserId,
-    result.oldLocation?.id ?? null,
-    target.id,
-  ).catch(() => {});
-  await syncCharacterNarrowcastAccess(character.id).catch(() => {});
+  // Deferred, not awaited in the request. These are up to ten sequential
+  // Discord permission-overwrite calls (category plus three channels for the
+  // old Location and again for the new, plus the two narrowcast channels), and
+  // per-channel overwrite endpoints are among the tighter buckets. Travel is a
+  // turn-open activity, so at roster scale that is dozens of requests each
+  // pinned open for seconds — and a pending server action blocks App Router
+  // client-side navigation, which is the lockup ARCHITECTURE.md §4 exists
+  // about. The database write has already committed; the Discord work only
+  // decides which channels they can see, and arriving a second late is fine.
+  //
+  // Same posture as forceAdvanceTurn in gm/dev/actions.js.
+  after(async () => {
+    await syncCharacterLocationAccess(
+      character.discordUserId,
+      result.oldLocation?.id ?? null,
+      target.id,
+    ).catch((err) => console.error("Travel: location access sync failed:", err));
+    await syncCharacterNarrowcastAccess(character.id).catch((err) =>
+      console.error("Travel: narrowcast access sync failed:", err),
+    );
+  });
 
   revalidatePath("/map");
   revalidatePath("/character");

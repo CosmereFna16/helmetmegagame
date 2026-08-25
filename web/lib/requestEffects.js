@@ -1,4 +1,4 @@
-import { applyBlood } from "@lifeweb/db";
+import { bumpBlood } from "@lifeweb/db";
 import { dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
 
 // The per-type behaviour of a Request: how a GM's Undo reverses it, and which
@@ -61,9 +61,7 @@ export async function debitResources(tx, party, amount, ctx) {
 // already spent the pool down, say).
 async function moveBlood(tx, delta) {
   if (!delta) return;
-  const config = await tx.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
-  const next = applyBlood(config.lifewebBlood, delta);
-  await tx.gameConfig.update({ where: { id: 1 }, data: { lifewebBlood: next.after } });
+  await bumpBlood(tx, delta);
 }
 
 // --- stacks -----------------------------------------------------------

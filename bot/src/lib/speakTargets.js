@@ -97,6 +97,38 @@ async function fetchThreadsByParent(guild) {
   return byParent;
 }
 
+// Private-thread membership, cached briefly per (thread, member).
+//
+// The check below is one REST call per private thread, per press, and private
+// threads are where the scheming happens — a busy game has dozens live at
+// once. The 🔊 button lives on the #turns console anchor, so turn-open
+// produces a synchronized burst of players pressing it, each walking every
+// live thread. A short TTL collapses a player's repeated presses within a
+// turn to a single walk; it is deliberately short because being added to a
+// side-room should show up promptly.
+const THREAD_MEMBER_TTL_MS = 60_000;
+const threadMemberCache = new Map();
+
+async function isThreadMember(thread, member) {
+  const key = `${thread.id}:${member.id}`;
+  const hit = threadMemberCache.get(key);
+  if (hit && hit.expiresAt > Date.now()) return hit.value;
+
+  const value = await thread.members.fetch(member.id).then(
+    () => true,
+    () => false,
+  );
+  threadMemberCache.set(key, { value, expiresAt: Date.now() + THREAD_MEMBER_TTL_MS });
+
+  // Bounded so a month-long process doesn't accumulate an entry per
+  // thread-member pair ever seen. Oldest-first, same shape as
+  // bot/src/lib/proxy.js#trackProxy.
+  if (threadMemberCache.size > 5000) {
+    threadMemberCache.delete(threadMemberCache.keys().next().value);
+  }
+  return value;
+}
+
 // A thread is only offered if it is live and joinable: an archived or locked
 // thread accepts no messages, and a private thread you are not a member of is
 // not yours to speak in even where the parent is visible.
@@ -109,11 +141,7 @@ async function threadTargets(threads, member) {
     // speakable by anyone who can see the parent. Gating on type keeps a
     // guild full of public threads at zero extra REST calls.
     if (thread.type === ChannelType.PrivateThread) {
-      const inIt = await thread.members.fetch(member.id).then(
-        (m) => m,
-        () => null,
-      );
-      if (!inIt) continue;
+      if (!(await isThreadMember(thread, member))) continue;
     }
     out.push(thread);
   }

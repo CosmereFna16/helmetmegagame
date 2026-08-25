@@ -61,6 +61,10 @@ async function performTravel(prisma, character, targetLocation) {
   });
 
   if (!free) {
+    // P2002 here means another submission took this turn's slot between the
+    // findFirst above and now. The character has already been moved, so the
+    // travel itself stands; only the turn-spending Action is dropped, which is
+    // the same outcome as `free`.
     await prisma.action.create({
       data: {
         characterId: character.id,
@@ -73,6 +77,8 @@ async function performTravel(prisma, character, targetLocation) {
         resultMessage: `» Traveled to ${targetLocation.name}.`,
         gmNotes: "auto:zone_change",
       },
+    }).catch((err) => {
+      if (err.code !== "P2002") throw err;
     });
   }
 

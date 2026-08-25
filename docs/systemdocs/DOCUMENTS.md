@@ -18,7 +18,7 @@ state to preserve.
 ## 2. The page
 
 `/documents` (`web/app/(app)/documents/`) is a pinned board of expandable
-cards, in three tabs:
+cards, in four tabs:
 
 - **PUBLIC** — every `public: true` document, readable by any signed-in user,
   character or not. This is deliberate: the site goes up before the game opens
@@ -35,6 +35,13 @@ cards, in three tabs:
   (`getMyZone() === null`). Zone-GMs never see this tab. A secret document can
   also be assigned via tags, so a player with the `Cultist` tag still sees the
   cult briefs in their Assigned tab — the two paths are independent.
+- **ALL** — every written document in the game, on the same Discord-role gate
+  as GAMEMASTER and likewise absent for a player. A GM's overview rather than
+  anyone's folder, so its source line answers a different question from the
+  other tabs': not *why is this in your folder* but *how does this paper reach
+  a player at all* — `Public`, `Gamemaster`, `Assigned`, or **`Unrouted`** for
+  a written paper nothing hands out. Spotting those is the point; answering it
+  honestly costs one extra query for `Role.docElements`, run only for a GM.
 
 Opening a card is a `Modal` (`DESIGN-SYSTEM.md` §8) over `.doc-sheet` — wider
 and more generously set than an ordinary dialog, because it is a page of prose.

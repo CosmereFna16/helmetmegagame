@@ -193,11 +193,22 @@ async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount,
     note: reason,
   };
 
+  // Ordered by (kind, id), not by which side is the sender. Two simultaneous
+  // transfers between the same pair in opposite directions used to take their
+  // row locks in opposite orders — A then B for one, B then A for the other —
+  // which is a textbook Postgres deadlock, resolved by the server killing one
+  // of them and surfacing it to that player as a generic failure. A total
+  // order over the participants means both transactions queue instead.
+  //
+  // The ledger still records the real direction: `delta` is carried with each
+  // party, so sorting only changes the order the two updates are issued in.
+  const legs = [
+    [from, -amount],
+    [to, amount],
+  ].sort(([a], [b]) => (a.kind === b.kind ? a.id.localeCompare(b.id) : a.kind.localeCompare(b.kind)));
+
   await prisma.$transaction(async (tx) => {
-    for (const [party, delta] of [
-      [from, -amount],
-      [to, amount],
-    ]) {
+    for (const [party, delta] of legs) {
       if (party.kind === "character") {
         await tx.character.update({
           where: { id: party.id },

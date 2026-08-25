@@ -38,10 +38,11 @@ const {
   fetchAllMessages,
   bulkDeleteMessages,
   listActiveThreadsForChannel,
+  fetchActiveThreads,
+  getChannel,
   listArchivedPublicThreads,
   listArchivedPrivateThreads,
   deleteThread,
-  getForumTagId,
 } = require("./discordRest");
 
 async function clearMessages(channelOrThreadId) {
@@ -63,8 +64,8 @@ async function wipeNarrowcastChannel(channelId) {
   await clearMessages(channelId);
 }
 
-async function collectThreads(channelId, { public: includePublic, private: includePrivate }) {
-  const active = await listActiveThreadsForChannel(channelId);
+async function collectThreads(channelId, { public: includePublic, private: includePrivate }, activeSnapshot) {
+  const active = await listActiveThreadsForChannel(channelId, activeSnapshot);
   const archivedPublic = includePublic ? await listArchivedPublicThreads(channelId) : [];
   const archivedPrivate = includePrivate ? await listArchivedPrivateThreads(channelId) : [];
 
@@ -73,12 +74,21 @@ async function collectThreads(channelId, { public: includePublic, private: inclu
   return [...byId.values()];
 }
 
-async function wipePublicForum(location) {
+async function wipePublicForum(location, activeSnapshot) {
   if (!location.discordPublicChannelId) return;
 
-  const persistentTagId = await getForumTagId(location.discordPublicChannelId, PERSISTENT_TAG_NAME);
-  const informationTagId = await getForumTagId(location.discordPublicChannelId, INFORMATION_TAG_NAME);
-  const threads = await collectThreads(location.discordPublicChannelId, { public: true, private: false });
+  // One channel fetch for both tag ids rather than one each: getForumTagId
+  // fetches the whole channel to read available_tags off it, so asking twice
+  // was two identical GETs per location.
+  const channel = await getChannel(location.discordPublicChannelId);
+  const tagId = (name) => channel.available_tags?.find((t) => t.name === name)?.id ?? null;
+  const persistentTagId = tagId(PERSISTENT_TAG_NAME);
+  const informationTagId = tagId(INFORMATION_TAG_NAME);
+  const threads = await collectThreads(
+    location.discordPublicChannelId,
+    { public: true, private: false },
+    activeSnapshot,
+  );
 
   for (const thread of threads) {
     // Untouched, before either branch: 🗺 is not "survives emptied", it's
@@ -94,10 +104,14 @@ async function wipePublicForum(location) {
   }
 }
 
-async function wipePrivateChannel(location) {
+async function wipePrivateChannel(location, activeSnapshot) {
   if (!location.discordPrivateChannelId) return;
 
-  const threads = await collectThreads(location.discordPrivateChannelId, { public: false, private: true });
+  const threads = await collectThreads(
+    location.discordPrivateChannelId,
+    { public: false, private: true },
+    activeSnapshot,
+  );
   for (const thread of threads) {
     // A private thread lives under a TEXT channel, which can't carry forum
     // tags — so persistence is marked by a ⏰ prefix on the thread's own name
@@ -124,12 +138,21 @@ async function runDawnWipe(prisma) {
     `${a.zone.name} / ${a.name}`.localeCompare(`${b.zone.name} / ${b.name}`),
   );
 
+  // Fetched ONCE for the whole wipe. The endpoint is guild-wide, and asking
+  // per channel meant 30 identical full-guild fetches per run. A thread
+  // created mid-wipe is missed until the next one, which is the same window
+  // the per-channel version had anyway.
+  const activeThreads = await fetchActiveThreads().catch((err) => {
+    console.error("Dawn wipe: active-thread snapshot failed, falling back to per-channel fetches:", err);
+    return null;
+  });
+
   for (const location of sorted) {
     if (!location.discordCategoryId) continue;
     console.log(`Dawn wipe: ${location.zone.name} / ${location.name}`);
     await wipePlainChannel(location);
-    await wipePublicForum(location);
-    await wipePrivateChannel(location);
+    await wipePublicForum(location, activeThreads);
+    await wipePrivateChannel(location, activeThreads);
   }
 
   console.log("Dawn wipe: Radio");

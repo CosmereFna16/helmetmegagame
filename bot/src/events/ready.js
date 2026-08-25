@@ -1,6 +1,7 @@
 const cron = require("node-cron");
 const { ActivityType } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
+const { getInvalidResponseStats } = require("@lifeweb/db/lib/discordRest");
 const { syncNicknamesForGuild } = require("../lib/nickname");
 const { advanceTurn } = require("../lib/turnEngine");
 const { ensureTurnsConsole } = require("../lib/turnsConsole");
@@ -12,6 +13,16 @@ module.exports = {
   once: true,
   async execute(client) {
     console.log(`Logged in as ${client.user.tag}`);
+
+    // Printed on every connect so a climbing invalid-response count is visible
+    // while it is still a number, not after it has become an hour-long
+    // Cloudflare IP ban. A non-zero value here right after startup means the
+    // previous process died mid-burst — see db/lib/discordRest.js.
+    const restStats = getInvalidResponseStats();
+    console.log(
+      `Discord REST health: ${restStats.invalidInWindow}/${restStats.limit} invalid responses in the last 10m` +
+        (restStats.breakerOpen ? ` — BREAKER OPEN until ${restStats.breakerOpenUntil}` : ""),
+    );
 
     client.user.setPresence({
       activities: [{ name: "status", type: ActivityType.Custom, state: "» Message me to contact the GMs." }],

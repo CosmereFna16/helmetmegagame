@@ -946,6 +946,22 @@ model Document {
 }
 
 model Turn {
+  // Set once every pass in resolveNeeds() has completed for this turn.
+  // A RESOLVED turn with this still null is one whose advance was claimed and
+  // then died mid-flight — the process was killed, or a redeploy landed at
+  // 04:00. advanceTurn() looks for exactly that and finishes the job instead
+  // of silently skipping hunger and decay for the day, which is what it used
+  // to do (the claim leaves no OPEN turn, so the rerun took the
+  // nothing-to-resolve branch).
+  needsResolvedAt DateTime?
+
+  // Which passes have already been applied, as a JSON array of names. The
+  // passes are NOT individually idempotent — re-running hunger charges upkeep
+  // twice — so a resume has to know precisely which ones landed rather than
+  // re-running the lot. A pass that throws is deliberately left unrecorded so
+  // the next advance retries it.
+  resolvedPasses Json?
+
   id         String     @id @default(cuid())
   number     Int        @unique
   phase      TurnPhase
@@ -1024,9 +1040,20 @@ model Action {
   confirmedAt        DateTime?
   createdAt          DateTime  @default(now())
 
+  // One Action per character per turn — the rule every writer already applies
+  // by hand (bot/src/lib/labor.js, db/lib/travel.js, interactionCreate's Move
+  // modal, defaultMovePass's `acted` set, and the Dev Panel's spendTurn), each
+  // via a non-transactional findFirst-then-create. At rollover, when everyone
+  // acts at once and Discord retries interactions, that gap lets a
+  // double-submit file two Actions and pay out twice. The database is the only
+  // place the check can't be raced.
+  @@unique([characterId, turnId])
   @@index([status, createdAt])
   @@index([characterId])
   @@index([turnId])
+  // [status, createdAt] leads with status, so it cannot serve /gm/turns'
+  // unfiltered `orderBy: { createdAt: "desc" }`. This one can.
+  @@index([createdAt])
 }
 
 model DefaultEffort {
@@ -1125,6 +1152,10 @@ model AuditLog {
 
   @@index([actionType])
   @@index([actorDiscordUserId])
+  // /gm/audit's default view sorts the whole table by createdAt with no
+  // filter, and runs a count() beside it. Neither index above can serve that.
+  @@index([createdAt])
+  @@index([targetCharacterId])
 }
 
 // One row per player action that took effect without GM approval. `payload`
@@ -1152,6 +1183,8 @@ model Request {
 
   @@index([status, createdAt])
   @@index([characterId])
+  // Same reason as Action above: /gm/turns sorts unfiltered by createdAt.
+  @@index([createdAt])
 }
 
 // A character's self-set goal, worth 1-5 Tag Points on fulfillment. At most
@@ -1229,7 +1262,17 @@ model ArchiveEntry {
 
   createdAt DateTime @default(now())
 
-  @@index([sentAt])
+  // NOTE: ArchiveEntry also carries a trigram GIN index on `content`
+  // (ArchiveEntry_content_trgm_idx), created by raw SQL in the
+  // 20260825020000_launch_hardening_indexes migration. Prisma's schema
+  // language cannot express an operator-class index, so it is invisible here
+  // and `prisma migrate diff` will not know about it — do not "clean it up"
+  // if a future diff reports it as drift.
+  //
+  // [sentAt, id] not [sentAt]: /archive orders by both, the id being the
+  // tiebreaker that keeps pagination stable across equal millisecond
+  // timestamps. On sentAt alone Postgres still has to sort for the tiebreak.
+  @@index([sentAt, id])
   @@index([turnNumber])
   @@index([kind])
   @@index([locationId, sentAt])

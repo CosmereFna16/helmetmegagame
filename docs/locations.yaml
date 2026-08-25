@@ -119,7 +119,6 @@ locationConnections:
   - [underquarter, town]
   - [underquarter, sanctuary]
   - [town, customs]
-  - [customs, merchants-depot]
   - [customs, caverns]
   - [warcamp, railroad]
   - [caverns, railroad]
@@ -389,22 +388,9 @@ locations:
     publicSubLocations:
       - name: Outpost
         description: ""
-    privateSubLocations: []
-    tags: []
-  - id: merchants-depot
-    name: Merchant's Depot
-    zone: Caves
-    map: { x: 92, y: 44 }
-    description: >-
-      Inside the caves, crates around a decayed metal frame. There is a small gap in the roof where light comes in.
-    extendedDescription: ""
-    publicSubLocations:
-      - name: Ledger Room
-        description: ""
-      - name: Shuttle Pad
-        description: ""
-      - name: Bunkhouse
-        description: ""
+      - name: Merchant's Depot
+        description: >-
+          Inside the caves, crates around a decayed metal frame. There is a small gap in the roof where light comes in. Besides the shuttle pad, there is a ledger room and a bunkhouse.
     privateSubLocations: []
     tags: []
 

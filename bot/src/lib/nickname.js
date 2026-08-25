@@ -23,6 +23,17 @@ function buildNickname(base, characterName) {
 // Returns "updated" | "skipped" | "failed" so callers can log a summary
 // instead of failures disappearing into a blanket .catch(() => {}).
 async function syncMemberNickname(member) {
+  // Checked before any DB work: `manageable` is false for the guild owner and
+  // for anyone whose highest role sits at or above the bot's — precisely the
+  // members setNickname can only ever answer 403 for. That 403 used to be
+  // logged, counted as "failed", and then retried on every single restart
+  // forever, which is both pointless and a standing contribution to the
+  // Cloudflare invalid-response counter (see the breaker in
+  // db/lib/discordRest.js). discord.js computes this from the cached role
+  // hierarchy, so declining here costs zero API calls.
+  if (member.user.bot) return "skipped";
+  if (!member.manageable) return "skipped";
+
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
   if (!config?.nicknameSyncEnabled) return "skipped";
 
@@ -52,6 +63,15 @@ async function syncMemberNickname(member) {
 // One-time bulk catch-up (called on bot connect) for whatever drifted while
 // the bot was offline — not a recurring poll.
 async function syncNicknamesForGuild(guild) {
+  // Gate once for the whole guild rather than once per member: the per-member
+  // path re-reads GameConfig every call, which is a query per guild member
+  // (not per character — spectators and lurkers included) on every startup.
+  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+  if (!config?.nicknameSyncEnabled) {
+    console.log(`Nickname sync for guild ${guild.name}: disabled, skipped.`);
+    return;
+  }
+
   await guild.members.fetch();
   const results = { updated: 0, skipped: 0, failed: 0 };
   for (const member of guild.members.cache.values()) {

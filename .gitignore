@@ -8,3 +8,6 @@ build/
 .DS_Store
 npm-debug.log*
 .claude/settings.local.json
+
+# Copy-rewrite worksheets (scripts/copy) — scratch, regenerate with npm run copy:extract
+worksheets/

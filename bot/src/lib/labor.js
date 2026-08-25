@@ -38,28 +38,39 @@ async function performLabor(character, field) {
 
   // Labor is a Routine, so it follows the Routine rule: resources land now and
   // the row enters the queue already PASSED. See bot/src/lib/moveConfirm.js.
-  await prisma.$transaction(async (tx) => {
-    const row = await tx.action.create({
-      data: {
-        characterId: character.id,
-        turnId: openTurn.id,
-        type: "MOVE",
-        status: "CONFIRMED",
-        moveKind: "ROUTINE",
-        moveReviewStatus: "PASSED",
-        opposed: false,
-        confirmedAt: new Date(),
-        description,
-        resourceDelta,
-        resourceRollExpression,
-        resourceRollValue: resourceDelta,
-        zoneId: character.zoneId ?? null,
-        gmNotes: "auto:labor",
-      },
+  //
+  // The findFirst above is the fast path and the friendly message; this is the
+  // one that actually holds. @@unique([characterId, turnId]) rejects the second
+  // write when two submissions race the gap between that check and this create
+  // — a double-click, or Discord retrying the interaction at rollover — so the
+  // player is told they already acted instead of being paid twice.
+  try {
+    await prisma.$transaction(async (tx) => {
+      const row = await tx.action.create({
+        data: {
+          characterId: character.id,
+          turnId: openTurn.id,
+          type: "MOVE",
+          status: "CONFIRMED",
+          moveKind: "ROUTINE",
+          moveReviewStatus: "PASSED",
+          opposed: false,
+          confirmedAt: new Date(),
+          description,
+          resourceDelta,
+          resourceRollExpression,
+          resourceRollValue: resourceDelta,
+          zoneId: character.zoneId ?? null,
+          gmNotes: "auto:labor",
+        },
+      });
+      const applied = await applyMoveEffects(tx, row);
+      await tx.action.update({ where: { id: row.id }, data: { appliedEffects: applied } });
     });
-    const applied = await applyMoveEffects(tx, row);
-    await tx.action.update({ where: { id: row.id }, data: { appliedEffects: applied } });
-  });
+  } catch (err) {
+    if (err.code === "P2002") return { ok: false, reason: "You've already acted this turn." };
+    throw err;
+  }
 
   await prisma.auditLog.create({
     data: {

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma, DRAINED_SLUG, bloodValueForTags, applyBlood, FEED_PERSON_AMOUNT } from "@lifeweb/db";
+import { prisma, DRAINED_SLUG, bloodValueForTags, bumpBlood, FEED_PERSON_AMOUNT } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 
 async function requireGm() {
@@ -29,14 +29,12 @@ export async function donateBlood(characterId) {
   const alreadyDrained = character.tags.some((ct) => ct.tag.slug === DRAINED_SLUG);
   if (alreadyDrained) return;
 
-  const [config, openTurn] = await Promise.all([
-    prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
-    prisma.turn.findFirst({ where: { status: "OPEN" } }),
-  ]);
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
 
   const { amount, tier } = bloodValueForTags(character.tags);
-  const blood = applyBlood(config.lifewebBlood, amount);
-  await prisma.gameConfig.update({ where: { id: 1 }, data: { lifewebBlood: blood.after } });
+  // Atomic read-and-move in one statement; see db/lib/lifeweb.js#bumpBlood for
+  // why the old read-then-write shape lost concurrent donations.
+  const blood = await bumpBlood(prisma, amount);
 
   if (openTurn) {
     const drainedTag = await prisma.tag.findUnique({ where: { slug: DRAINED_SLUG } });
@@ -67,9 +65,8 @@ export async function donateBlood(characterId) {
 export async function feedLifewebPerson() {
   const session = await requireGm();
 
-  const config = await prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
-  const blood = applyBlood(config.lifewebBlood, FEED_PERSON_AMOUNT);
-  await prisma.gameConfig.update({ where: { id: 1 }, data: { lifewebBlood: blood.after } });
+  // bumpBlood upserts the config row itself, so there is nothing to read first.
+  const blood = await bumpBlood(prisma, FEED_PERSON_AMOUNT);
 
   await prisma.auditLog.create({
     data: {
