@@ -1145,11 +1145,11 @@ tags:
     removable: false
     durationTurns: 2
 
-  - slug: lucky
-    name: Lucky
+  - slug: aberrant-luck
+    name: Aberrant Luck
     category: status
     group: status-buffs
-    description: "For three turns, every Gambit you roll is a six. Not improved odds — a six."
+    description: "Every Gambit you roll is an automatic six."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1157,17 +1157,17 @@ tags:
     removable: false
     durationTurns: 3
 
-  - slug: nekker-masked
-    name: Nekker-Masked
+  - slug: pheromones
+    name: Pheromones
     category: status
     group: status-buffs
-    description: "You smell like one of them. Nekkers will not attack you, and will not be pleased when it wears off."
+    description: "Nekkers ignore you."
     pointCost: 0
     visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: false
-    durationTurns: 2
+    durationTurns: 4
 
   # Granted to the TARGET of a Mesmer Glass, not to whoever used it — the
   # consume path grants to the consumer, so a GM applies this one by hand.
@@ -1195,6 +1195,34 @@ tags:
     purchasableAfterStart: false
     removable: false
     durationTurns: 2
+
+  # The two fear states, granted by a GM — most often by a Demoness in her
+  # True Form (see the Terrifying tag). Afraid is the milder one and lasts
+  # longer; Panic is the one that takes you out of a fight, and burns off in
+  # a single turn.
+  - slug: afraid
+    name: Afraid
+    category: status
+    group: status-debuffs
+    description: "You're really afraid. This is a bad idea..."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 2
+
+  - slug: panic
+    name: Panic
+    category: status
+    group: status-debuffs
+    description: "You can no longer fight. Run for your fucking life!"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 1
 
   - slug: high
     name: High
@@ -2087,19 +2115,18 @@ tags:
     name: Choking
     category: health
     group: health-illness
-    description: "You're choking to death — frothing, clawing at your own collar, and everyone in the room can see exactly what is happening. Nightshade does this. Somebody had better be very good and very quick."
+    description: "You're choking to death — frothing, clawing at your own collar, and everyone in the room can see exactly what is happening. Nightshade does this. Can be cured with charcoal."
     pointCost: 0
     visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    durationTurns: 1
+    durationTurns: 2
     expiresInto: [dying]
     requirement:
       turnsCost: 1
-      resourceCost: 8
-      skills: [medical-expert]
-      gambit: true
+      resourceCost: 2
+      gambit: false
 
   - slug: phrygian-toxin
     name: Phrygian Toxin
@@ -2379,6 +2406,19 @@ tags:
     category: items
     group: items-gear
     description: "Cut from a dead Graga, still warm and faintly working. An ingredient in several tonics nobody can brew without one, which is why the Company's merchant will always buy it off you."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  - slug: saltpeter
+    name: Saltpeter
+    category: items
+    group: items-gear
+    description: "Mined. Can be refined into {tag:gunpowder-grenade}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -3216,7 +3256,7 @@ tags:
     craftable: true
     consumable: true
     requirement:
-      resourceCost: 2
+      resourceCost: 0
       skills: [brewing-basic]
       gambit: false
 
@@ -3224,7 +3264,7 @@ tags:
     name: Cleaning Powder
     category: items
     group: items-drink
-    description: "Cures a minor infection outright and gives a doctor a real chance against {tag:festering}. Slow to make: one turn yields three."
+    description: "Cures a minor infection outright, but does not help against {tag:festering}. Slow to make: one turn yields two."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -3244,7 +3284,7 @@ tags:
     name: Cat
     category: items
     group: items-drink
-    description: "Distilled with alcohol until it turns pale. Drink it and the dark opens up — {tag:night-vision} for two turns."
+    description: "Distilled with alcohol until it turns pale. Drink it and the dark opens up — {tag:night-vision} for one turn."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -3255,7 +3295,8 @@ tags:
     craftable: true
     consumable: true
     consumesInto:
-      - night-vision
+      - slug: night-vision
+        durationTurns: 1
     requirement:
       resourceCost: 3
       skills: [brewing-basic]
@@ -3306,7 +3347,7 @@ tags:
     name: Gunpowder Grenade
     category: items
     group: items-drink
-    description: "A bomb, and priced like one. Needs ore or nitrite dug out of the caverns before you can make the first grain of powder."
+    description: "A bomb, and priced like one. Refined from {tag:saltpeter} mined out of the caverns."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -3325,7 +3366,7 @@ tags:
     name: Nightshade
     category: items
     group: items-drink
-    description: "Harvested in the forest and cheap to prepare. Whoever takes it dies frothing where everyone can watch — it inflicts {tag:choking}, and it is very hard to treat in the time you have."
+    description: "Refined from a common forest herb. Whoever takes it dies frothing where everyone can watch — it inflicts {tag:choking}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -3337,7 +3378,7 @@ tags:
     consumable: true
     requirement:
       resourceCost: 3
-      skills: [brewing-skilled]
+      skills: [brewing-basic]
       gambit: false
 
   - slug: phrygian-tears
@@ -3398,7 +3439,7 @@ tags:
     consumesInto:
       - brutish-strength
     requirement:
-      resourceCost: 4
+      resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
 
@@ -3417,7 +3458,7 @@ tags:
     craftable: true
     consumable: true
     requirement:
-      resourceCost: 4
+      resourceCost: 6
       skills: [brewing-skilled]
       gambit: false
 
@@ -3425,7 +3466,7 @@ tags:
     name: White Honey
     category: items
     group: items-drink
-    description: "Dispels a poisoning of any kind. Made with the heart of a rainbow trout, which somebody has to have caught."
+    description: "Cures a poisoning of any kind. Made with the heart of a rainbow trout, which somebody has to have caught."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -3436,7 +3477,7 @@ tags:
     craftable: true
     consumable: true
     requirement:
-      resourceCost: 4
+      resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
 
@@ -3457,7 +3498,7 @@ tags:
     consumesInto:
       - increased-accuracy
     requirement:
-      resourceCost: 4
+      resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
 
@@ -3478,7 +3519,7 @@ tags:
     consumesInto:
       - increased-recovery
     requirement:
-      resourceCost: 4
+      resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
 
@@ -3520,7 +3561,7 @@ tags:
     consumesInto:
       - hallucinating
     requirement:
-      resourceCost: 4
+      resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
 
@@ -3561,7 +3602,7 @@ tags:
     consumesInto:
       - invisible
     requirement:
-      resourceCost: 4
+      resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
 
@@ -3569,7 +3610,7 @@ tags:
     name: Nekker Pheromones
     category: items
     group: items-drink
-    description: "Wrung out of a dead nekker. Wear it and the rest of them leave you alone — {tag:nekker-masked} — for as long as it lasts."
+    description: "Wrung out of a dead nekker. Wear it and nekkers ignore you — {tag:pheromones} — for as long as it lasts."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -3580,10 +3621,10 @@ tags:
     craftable: true
     consumable: true
     consumesInto:
-      - nekker-masked
+      - pheromones
     requirement:
-      resourceCost: 4
-      skills: [brewing-skilled]
+      resourceCost: 2
+      skills: [brewing-basic]
       gambit: false
 
   - slug: succubus-draught
@@ -3603,7 +3644,7 @@ tags:
     consumesInto:
       - mindreading
     requirement:
-      resourceCost: 4
+      resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
 
@@ -3622,7 +3663,7 @@ tags:
     craftable: true
     consumable: true
     requirement:
-      resourceCost: 4
+      resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
 
@@ -3630,7 +3671,7 @@ tags:
     name: Pure Luck
     category: items
     group: items-drink
-    description: "Made with the heart of an Aberrant, and nobody sells those. For three turns straight every Gambit you roll comes up a six — {tag:lucky}."
+    description: "Made with the heart of an Aberrant, and nobody sells those. For three turns straight every Gambit you roll comes up a six — {tag:aberrant-luck}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -3641,9 +3682,9 @@ tags:
     craftable: true
     consumable: true
     consumesInto:
-      - lucky
+      - aberrant-luck
     requirement:
-      resourceCost: 4
+      resourceCost: 0
       skills: [brewing-skilled]
       gambit: false
 
@@ -3997,5 +4038,120 @@ tags:
     group: demoness
     description: "You can switch into your true form at will — a beautiful, monstrous woman with a scaled face and a long, finned tail. Can swim expertly, and has a call that lures the weak-willed."
     pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Apex Form and Terrifying both want "any one of the three True Forms" as a
+  # prerequisite, and `requiredTag` cannot say that — it takes a single slug,
+  # satisfied by that tag's own chain, and the three forms are alternatives
+  # rather than a chain. So the gate is written into the description and left
+  # to the GM. Do NOT chain the forms to fake it: a chain prices cumulatively
+  # and would let a character "upgrade" Serpent into Spider.
+  - slug: apex-form
+    name: Apex Form
+    category: demoness
+    group: demoness
+    description: "Give in to the carnage. You permanently become a monstrously tall woman with hands like rakes. You hide in the dark, sprint impossibly quickly, and heal from eating people. Fire and silver stop the healing. You can no longer speak. Requires a True Form, and removes almost all of your other tags."
+    pointCost: 4
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+    removable: false
+
+  - slug: terrifying
+    name: Terrifying
+    category: demoness
+    group: demoness
+    description: "Your True Form terrifies people, either making them {tag:afraid} or {tag:panic}. Requires a True Form other than Apex — nobody is frightened of a thing they never see coming."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: love-in-the-air
+    name: Love in the Air
+    category: demoness
+    group: demoness
+    description: "Once per turn you can tell your slaves anything you like, mind to mind, however far away they are."
+    pointCost: 2
+    requiredTag: slavemaster
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: borrowed-face
+    name: Borrowed Face
+    category: demoness
+    group: demoness
+    description: "You can wear the exact appearance of anyone you have ever bitten. Love bites count."
+    pointCost: 4
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: beguiling
+    name: Beguiling
+    category: demoness
+    group: demoness
+    description: "People struggle to raise a hand against you. In your True Form their fighting skill drops by one rung; wearing a human face, by two."
+    pointCost: 4
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: silver-callus
+    name: Silver Callus
+    category: demoness
+    group: demoness
+    description: "The Silver Cross disables your powers for one turn, not the rest of the day. It took decades to grow this scar."
+    pointCost: 5
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: demoness-memory
+    name: Memory
+    category: demoness
+    group: demoness
+    description: "The fuzz clears a little. Once a week, ask a GM one question about the old world or the Caves, and get a true answer."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: demoness-heal
+    name: Heal
+    category: demoness
+    group: demoness
+    description: "Drink a person's blood to clear up to two of your Health tags. They will feel it."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: shriek
+    name: Shriek
+    category: demoness
+    group: demoness
+    description: "Once a day you can let loose a shriek that stuns everyone around you. It is heard well past the room you are standing in."
+    pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: claws
+    name: Claws
+    category: demoness
+    group: demoness
+    description: "You can put out a set of dangerous claws at will, human face and all."
+    pointCost: 2
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Named apart from the Otherworldly Beauty *status* (the Flawless Skin
+  # tonic's effect half) for the same reason the Seductive/Torturer twins are
+  # suffixed: docs/documents.yaml grants documents by tag NAME, and two rows
+  # sharing one would be a coin toss.
+  - slug: otherworldly-beauty-demoness
+    name: Otherworldly Beauty (Demoness)
+    category: demoness
+    group: demoness
+    description: "You are the most beautiful woman in the world."
+    pointCost: 1
+    requiredTag: beautiful
+    visible: true
     purchasable: true
     purchasableAfterStart: true
