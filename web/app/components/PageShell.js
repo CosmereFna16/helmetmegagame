@@ -29,7 +29,10 @@ export default function PageShell({ width = "default", children }) {
 export function PageHeader({ title, subtitle, actions }) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div>
+      {/* min-w-0 on both halves: without it an intrinsically-sized control in
+          `actions` (a <select> as wide as its longest option, say) refuses to
+          shrink and pushes the page sideways instead of wrapping. */}
+      <div className="min-w-0">
         <h1 className="text-2xl font-bold">{title}</h1>
         {subtitle && (
           <p className="mt-1 text-sm text-muted">
@@ -37,7 +40,9 @@ export function PageHeader({ title, subtitle, actions }) {
           </p>
         )}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && (
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">{actions}</div>
+      )}
     </div>
   );
 }

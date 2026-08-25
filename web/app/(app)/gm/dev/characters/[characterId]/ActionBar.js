@@ -228,32 +228,32 @@ export default function ActionBar({
 
         {/* These four don't fire — they push into the pending diff so Cancel
             can undo them and every tag change goes through one write path.
-            Captioned because they sit beside verbs that DO fire, and an
-            unlabelled icon that silently stages reads as a dead button. */}
+            Captioned `stages` because they sit beside verbs that DO fire, and
+            an unlabelled icon that silently stages reads as a dead button. */}
         <div className="dev-bar-group">
           <span className="dev-bar-caption">stages</span>
           <div className="flex items-center gap-2">
             <IconButton
               icon={WoundIcon}
-              label="Inflict a wound — stages, press Apply"
+              label="Inflict a wound"
               disabled={pending}
               onClick={() => setDialog("wound")}
             />
             <IconButton
               icon={BandageIcon}
-              label="Heal every affliction — stages, press Apply"
+              label="Heal every affliction"
               disabled={pending}
               onClick={healAll}
             />
             <IconButton
               icon={MealIcon}
-              label="Feed them — stages, press Apply"
+              label="Feed them"
               disabled={pending}
               onClick={feedThem}
             />
             <IconButton
               icon={PointsIcon}
-              label="Recompute their unspent tag points — stages, press Apply"
+              label="Recompute their unspent tag points"
               disabled={pending}
               onClick={refundPoints}
             />

@@ -8,7 +8,6 @@ import {
   PlayersIcon,
   ScaleIcon,
   AuditIcon,
-  GamemastersIcon,
   FactionIcon,
   DevIcon,
   MessageIcon,
@@ -27,7 +26,6 @@ const ICONS = {
   players: PlayersIcon,
   turns: ScaleIcon,
   audit: AuditIcon,
-  gamemasters: GamemastersIcon,
   faction: FactionIcon,
   dev: DevIcon,
   messages: MessageIcon,
@@ -40,9 +38,9 @@ const ICONS = {
 
 // How many items stay in the mobile bottom bar. The rest go behind "More".
 //
-// A GM carries up to nine nav items (Character, Faction, Players, Adjudicate,
-// Messages, Notes, Audit, Lifeweb, Dev) plus Sign out. Ten targets across a
-// 390px viewport is ~39px each — under the 44px touch minimum, and visually
+// A GM carries up to eight nav items (Character, Players, Adjudicate,
+// Messages, Notes, Map, Audit, Dev) plus Lifeweb/Archive and Sign out. Ten
+// targets across a 390px viewport is ~39px each — under the 44px touch minimum, and visually
 // crammed. Five plus More is ~65px. Players have 3-4 items and are unaffected
 // by the cap; they still get the sheet, because Sign out lives in it on mobile.
 const MOBILE_PRIMARY = 5;

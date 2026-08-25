@@ -119,7 +119,9 @@ export default function PlayersTable({ characters, tags = [], myZoneName }) {
         </form>
       )}
 
-      <TableScroll>
+      {/* Nine columns. Without a minWidth they compress to one word per line
+          at 375px instead of scrolling inside the frame. */}
+      <TableScroll minWidth="900px">
         <thead>
           <tr>
             <th scope="col" className="col-fit">
@@ -138,7 +140,9 @@ export default function PlayersTable({ characters, tags = [], myZoneName }) {
         <tbody>
           {pageRows.map((c) => (
             <tr key={c.id}>
-              <td>
+              {/* The box itself stays 16px; the padding is what makes the
+                  tap target reach the 44px minimum. */}
+              <td style={{ padding: "12px 14px" }}>
                 <input
                   type="checkbox"
                   checked={selected.has(c.id)}

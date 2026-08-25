@@ -18,9 +18,11 @@ const PLAYER_NAV = [
   { href: "/documents", label: "Documents", icon: "documents" },
 ];
 
+// No Faction item: for a GM /faction only ever rendered the all-factions
+// overview, which is now the Factions tab of the Players panel. Players keep
+// theirs in PLAYER_NAV above — that one is their own faction, not a list.
 const GM_NAV = [
   { href: "/character", label: "Character", icon: "character" },
-  { href: "/faction", label: "Faction", icon: "faction" },
   { href: "/gm/players", label: "Players", icon: "players" },
   { href: "/gm/turns", label: "Adjudicate", icon: "turns" },
   { href: "/gm/messages", label: "Messages", icon: "messages" },
@@ -33,9 +35,9 @@ const GM_NAV = [
 ];
 
 // Superadmin-only, appended together below. The Audit log used to sit in
-// GM_NAV; with five GMs it is a record of them rather than a tool for them,
-// and Gamemasters — which seats them — is the master's page by definition.
-const GAMEMASTERS_NAV_ITEM = { href: "/gm/gamemasters", label: "GMs", icon: "gamemasters" };
+// GM_NAV; with five GMs it is a record of them rather than a tool for them.
+// Gamemasters has no rail item at all — it is one more superadmin table, so
+// it hangs off the Dev panel's sub-nav beside Characters/Factions/Tags.
 const AUDIT_NAV_ITEM = { href: "/gm/audit", label: "Audit", icon: "audit" };
 const DEV_NAV_ITEM = { href: "/gm/dev", label: "Dev", icon: "dev" };
 const LIFEWEB_NAV_ITEM = { href: "/lifeweb", label: "Lifeweb", icon: "lifeweb" };
@@ -65,7 +67,7 @@ async function loadNavItems(discordUserId) {
   const withArchive =
     gm || config?.archiveVisible ? [...withLifeweb, ARCHIVE_NAV_ITEM] : withLifeweb;
   return isSuperadmin(discordUserId)
-    ? [...withArchive, GAMEMASTERS_NAV_ITEM, AUDIT_NAV_ITEM, DEV_NAV_ITEM]
+    ? [...withArchive, AUDIT_NAV_ITEM, DEV_NAV_ITEM]
     : withArchive;
 }
 

@@ -442,6 +442,8 @@ h3 {
 .menu-item {
   all: unset;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
   padding: 2px 0;
   color: var(--text);
 }
@@ -495,6 +497,9 @@ input[type="radio"]:focus-visible,
   font-size: var(--fs-xs);
   letter-spacing: var(--ls-wide);
   text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn:hover {
@@ -523,6 +528,9 @@ input[type="radio"]:focus-visible,
   font-size: var(--fs-xs);
   letter-spacing: var(--ls-wide);
   text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-secondary:hover {
@@ -555,6 +563,9 @@ input[type="radio"]:focus-visible,
   font-size: var(--fs-xs);
   letter-spacing: var(--ls-wide);
   text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-danger:hover {
@@ -1194,10 +1205,20 @@ input[type="radio"]:disabled {
   animation: shake 0.4s;
 }
 
+/* Scrolls sideways rather than pushing the page: a flex item's default
+   min-width is auto, so five tabs with counts cannot shrink below their text
+   and the strip drags the whole body with it at 375px. The scrollbar itself is
+   hidden — the tabs are already a visible affordance. */
 .tab-bar {
   display: flex;
   gap: 4px;
   border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tab-bar::-webkit-scrollbar {
+  display: none;
 }
 
 /* A picked-from-a-grid thumbnail: portrait parts and colour swatches. This was
@@ -1242,6 +1263,11 @@ input[type="radio"]:disabled {
 .tab-item {
   all: unset;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  /* Never shrink below the label: the strip scrolls instead (see .tab-bar). */
+  flex-shrink: 0;
+  white-space: nowrap;
   padding: 6px 12px;
   font-size: var(--fs-xs);
   letter-spacing: 0.03em;
@@ -1525,6 +1551,33 @@ input[type="radio"]:disabled {
   display: none;
 }
 
+/* Touch targets. At --fs-xs these controls are ~31px tall (~20px for
+   .menu-item, which carries almost no padding), under the 44px minimum the
+   rail and the nav sheet already hold themselves to. Scoped to the shell's
+   own mobile breakpoint: 44px everywhere would be a visible redesign of all
+   73 .btn call sites rather than a fix. */
+@media (max-width: 720px) {
+  .btn,
+  .btn-secondary,
+  .btn-danger,
+  .tab-item,
+  .menu-item {
+    /* `all: unset` leaves these inline (where min-height does nothing) and
+       resets box-sizing to content-box, which would add padding and border
+       on top of the 44 and make a .btn 60px tall. */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-height: 44px;
+  }
+
+  /* .menu-item is a left-aligned list row, not a centred button. */
+  .menu-item {
+    justify-content: flex-start;
+  }
+}
+
 @media (max-width: 720px) {
   .app-rail {
     position: fixed;
@@ -1535,12 +1588,14 @@ input[type="radio"]:disabled {
     justify-content: space-around;
     border-right: none;
     border-top: 1px solid var(--border);
-    padding: 6px 0;
+    /* The home indicator sits over the bottom ~34px on a modern iPhone, which
+       clipped the rail labels. .nav-sheet already accounts for it. */
+    padding: 6px 0 calc(6px + env(safe-area-inset-bottom, 0px));
     z-index: 30;
   }
 
   .app-main {
-    padding-bottom: 72px;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   }
 
   /* Items past NavRail's MOBILE_PRIMARY cap live in the sheet instead. */

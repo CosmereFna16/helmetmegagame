@@ -155,7 +155,10 @@ export function FilterBar({
 }) {
   return (
     <div className="flex flex-wrap items-end gap-3">
-      <label className="field" style={{ minWidth: "12rem" }}>
+      {/* Grows to fill the row on a wide screen and shrinks below its 12rem
+          preference on a narrow one — a hard min-width here stacked the whole
+          filter row into five lines of chrome above the table at 375px. */}
+      <label className="field min-w-0" style={{ flex: "1 1 12rem" }}>
         <span className="field-label">{searchLabel ?? "Search"}</span>
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, text…" />
       </label>

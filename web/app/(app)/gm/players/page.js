@@ -3,9 +3,11 @@ import { prisma } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getMyZone } from "@/lib/gmZone";
 import PlayersTable from "./PlayersTable";
+import PlayersTabs from "./PlayersTabs";
+import FactionsPanel from "./FactionsPanel";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 
-export default async function PlayersPage() {
+export default async function PlayersPage({ searchParams }) {
   const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   if (!gm) redirect("/character");
@@ -37,6 +39,13 @@ export default async function PlayersPage() {
 
   // Cursed is a live Discord role, not a DB field — joined in by
   // discordUserId from the guild's member list rather than included above.
+  // The Factions tab. Same query the GM overview has always run — it just
+  // lives here now instead of on /faction.
+  const factions = await prisma.faction.findMany({
+    orderBy: { name: "asc" },
+    include: { characters: { select: { id: true, name: true, isLeader: true } } },
+  });
+
   const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
   const members = await listGuildMembers();
   const myZone = await getMyZone();
@@ -44,24 +53,34 @@ export default async function PlayersPage() {
     cursedRoleId ? members.filter((m) => m.roles.includes(cursedRoleId)).map((m) => m.id) : [],
   );
 
+  const params = await searchParams;
+
   return (
     <PageShell>
       <PageHeader title="Players" />
-      <PlayersTable
-        characters={characters.map((c) => ({
-          id: c.id,
-          name: c.name,
-          roleTitle: c.roleTitle,
-          factionId: c.factionId,
-          factionName: c.faction?.name ?? "",
-          factionZoneName: c.faction?.zone?.name ?? "",
-          zoneName: c.zone?.name ?? "",
-          status: c.status,
-          cursed: cursedUserIds.has(c.discordUserId),
-          resources: c.resources,
-        }))}
-        tags={tags}
-        myZoneName={myZone?.name ?? null}
+      <PlayersTabs
+        initialTab={params?.tab?.toString() ?? ""}
+        playerCount={characters.length}
+        factionCount={factions.length}
+        players={
+          <PlayersTable
+            characters={characters.map((c) => ({
+              id: c.id,
+              name: c.name,
+              roleTitle: c.roleTitle,
+              factionId: c.factionId,
+              factionName: c.faction?.name ?? "",
+              factionZoneName: c.faction?.zone?.name ?? "",
+              zoneName: c.zone?.name ?? "",
+              status: c.status,
+              cursed: cursedUserIds.has(c.discordUserId),
+              resources: c.resources,
+            }))}
+            tags={tags}
+            myZoneName={myZone?.name ?? null}
+          />
+        }
+        factions={<FactionsPanel factions={factions} />}
       />
     </PageShell>
   );
