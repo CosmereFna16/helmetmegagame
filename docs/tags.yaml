@@ -3029,6 +3029,27 @@ tags:
     tradeable: true
     purchasable: false
 
+  # The Bastard's signature garment, and the catalog's second unique role grant
+  # after the key above — he starts with it (roles.yaml) and there is exactly
+  # one. Purely cosmetic on purpose: it buys him a silhouette, not a bonus.
+  # Equippable and `visible` both, unlike the key, because being recognised in
+  # it is the entire function — a 🔍-inspect should say this is him. Tradeable
+  # follows from that: a signature coat is worth something to whoever takes it
+  # off him.
+  - slug: bastards-garb
+    name: "Bastard's Garb"
+    category: items
+    group: items-gear
+    description: "Wind goggles, a mended cloak, quilted boots, and a long ivory pendant—the fang of a leviathan. Pure aura."
+    pointCost: 0
+    equippable: true
+    tradeable: true
+    stackable: false
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
   # Renamed from "Old .45 Revolver". The slug is deliberately unchanged — it is
   # the stable sync key (docs/systemdocs/SYNC.md), starting-wares grants it by
   # slug, and two roles grant it by NAME in docs/roles.yaml (updated to match).
