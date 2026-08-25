@@ -47,7 +47,7 @@ _You live for the thrill of enslaving souls and causing pain._
 - Desire examples:
   - Enslaving the soul of the Heir — the highest high, truly sublime (+5).
   - Causing people to fall in love with you for good (+4).
-  - Fulfilling people's Worst Fears, or capturing and torturing them (+3).
+  - Fulfilling people's Fears, or capturing and torturing them (+3).
   - Humiliating someone (+2).
   - Encouraging someone to let loose (+1).
 - You find normal crosses tacky and boring. Fire scares you somewhat — it definitely hurts. The Silver Cross, on the other hand, terrifies you. If you touch it, your powers are disabled for the rest of the day.

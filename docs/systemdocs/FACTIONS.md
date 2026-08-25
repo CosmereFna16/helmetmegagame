@@ -100,7 +100,7 @@ there. A placeholder would advertise that there's something to go after.
 
 Two neighbouring inspect fields follow the same posture but are gated on the
 **inspector's own tags** rather than the subject's Silo: Seductive reveals the
-subject's active Desire, Torturer their Worst Fear, resolved by
+subject's active Desire, Torturer their Fear, resolved by
 `db/lib/inspectVision.js` (which also accepts each tag's discounted Demoness
 twin). That's bot-only — the web has no other-player character sheet.
 

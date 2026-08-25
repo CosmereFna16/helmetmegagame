@@ -172,7 +172,7 @@ fingerprint.
 
 - **🔍** returns a **hardcoded** embed *before* any of the normal field logic:
   the concealed line, plus only `visibleOnInspect` ailments and
-  `visibleOnInspect` equipped gear. No appearance, name, Desire, Worst Fear or
+  `visibleOnInspect` equipped gear. No appearance, name, Desire, Fear or
   Resources, even for a viewer whose gates are open. "Ailments" resolves as
   `tag.category === "Health"` — Health is its own category now (`TAGS.md` §5c)
   and so *is* the ailment set, which is what this used to reach for the

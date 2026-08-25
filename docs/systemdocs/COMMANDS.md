@@ -179,7 +179,7 @@ except 🌫️. Each is stripped back off after being processed.
 | ⚜️ | GM | Full dossier on the speaking character |
 | 🌫️ | GM | Delete and repost as the bot, de-attributing it |
 
-⚜️ applies **no** vision gates — every tag, the Desire, the Worst Fear, this
+⚜️ applies **no** vision gates — every tag, the Desire, the Fear, this
 turn's Action, and the real name even on a concealed message. It has **no
 channel fallback** when the DM bounces, unlike every other embed here:
 posting it in the channel would hand the room everything it hides.

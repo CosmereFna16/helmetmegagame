@@ -273,7 +273,7 @@ here, change it there too** — they are meant to say the same thing.
   Defaults closed. Note it is a property of the tag being *seen*. The two
   tags that widen what an inspect shows are read off the **inspector**
   instead: Seductive reveals the subject's active Desire and Torturer their
-  Worst Fear, resolved by `db/lib/inspectVision.js`, which also accepts the
+  Fear, resolved by `db/lib/inspectVision.js`, which also accepts the
   discounted Demoness twins of each. Like the Silo-gated Resources field, an
   unseen field is absent rather than placeholdered — a placeholder
   advertises that there is something to go after.
