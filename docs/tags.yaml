@@ -4141,12 +4141,14 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # Named apart from the Otherworldly Beauty *status* (the Flawless Skin
-  # tonic's effect half) for the same reason the Seductive/Torturer twins are
-  # suffixed: docs/documents.yaml grants documents by tag NAME, and two rows
-  # sharing one would be a coin toss.
-  - slug: otherworldly-beauty-demoness
-    name: Otherworldly Beauty (Demoness)
+  # This one is `visible`, so a bystander reads its NAME off the sheet — which
+  # rules out the "(Demoness)" suffix the Seductive/Torturer twins carry. It
+  # also cannot simply be called Otherworldly Beauty: that name is taken by the
+  # Flawless Skin tonic's effect half, and docs/documents.yaml grants documents
+  # by tag NAME, so two rows sharing one would be a coin toss. Hence a third
+  # name that gives nothing away.
+  - slug: peerless-beauty
+    name: Peerless Beauty
     category: demoness
     group: demoness
     description: "You are the most beautiful woman in the world."
