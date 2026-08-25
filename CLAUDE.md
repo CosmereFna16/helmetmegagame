@@ -157,6 +157,10 @@ npm run db:backfill-tag-rework
 npm run db:backfill-medical-expert    # after db:sync-tags; retires medical-excellent
 npm run db:backfill-gm-permissions
 npm run db:backfill-spectator-access
+npm run db:backfill-cursed-access      # ghost seat: opens every non-Depths
+                                       #   Location (category + all 3 channels)
+                                       #   and #radio/#intercom to the Cursed
+                                       #   role, and strips it from the Depths.
 npm run db:backfill-tupper-attachment-restriction
 npm run db:prune-orphan-categories
 npm run db:prune-orphan-roles          # deletes Discord character roles no living
@@ -254,7 +258,7 @@ state, plus one env-configured admin role. `Faction` is **not** one of them
 | **Spectator role** | `SPECTATOR_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | A standing read-only observer seat, applied at provisioning time. See `CHANNELS.md`. |
 | **Player role** | `PLAYER_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may create a character, paired with `GameConfig.openToPlayers` (`CHARACTERS.md` §4b). |
 | **Leader Whitelist role** | `LEADER_WHITELIST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may pick a role flagged `leader: true` at character creation (`CHARACTERS.md` §2). |
-| **Cursed role** | `DISCORD_CURSED_ROLE_ID` env var | What a player may re-roll as after a death (`CHARACTERS.md` §4). |
+| **Cursed role** | `DISCORD_CURSED_ROLE_ID` env var | What a player may re-roll as after a death (`CHARACTERS.md` §4), **and** the ghost seat: read-only view of every Location except the Depths, plus the 🌬️ whisper (`CHANNELS.md` §3, `COMMANDS.md` §6). |
 | **Turn-ping role** | `DISCORD_TURN_PING_ROLE_ID` env var | Plain opt-in notification, toggled from `/character`. |
 
 One more gate exists that is **not** a Discord role, and it's the only soft

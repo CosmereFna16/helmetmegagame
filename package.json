@@ -23,6 +23,7 @@
     "db:backfill-medical-expert": "node db/prisma/backfill-medical-expert.js",
     "db:backfill-gm-permissions": "node db/prisma/backfill-gm-permissions.js",
     "db:backfill-spectator-access": "node db/prisma/backfill-spectator-access.js",
+    "db:backfill-cursed-access": "node db/prisma/backfill-cursed-access.js",
     "db:backfill-tupper-attachment-restriction": "node db/prisma/backfill-tupper-attachment-restriction.js",
     "db:prune-orphan-categories": "node db/prisma/prune-orphan-categories.js",
     "db:prune-orphan-roles": "node db/prisma/prune-orphan-roles.js",

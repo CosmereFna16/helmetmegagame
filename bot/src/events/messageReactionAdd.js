@@ -10,6 +10,8 @@ const {
 } = require("@lifeweb/db/lib/medicalVision");
 const { updateArchiveMessage, deleteArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { recentProxies, webhookClientFor } = require("../lib/proxy");
+const { resolveChannelContext } = require("../lib/channels");
+const { GHOST_LINE, claimGhostWhisper } = require("@lifeweb/db/lib/ghostWhisper");
 
 // Discord's embed limits. An embed that breaches either is rejected whole, and
 // on the inspect path that meant no DM, no channel fallback, both errors
@@ -38,6 +40,9 @@ const EDIT_EMOJIS = ["✏️", "📝"]; // ✏️ pencil, 📝 memo (pencil and 
 const INSPECT_EMOJIS = ["🔍", "🔎"]; // 🔍 left-pointing, 🔎 right-pointing (rotated) magnifying glass
 const STAR_EMOJI = "⭐"; // ⭐
 const FOG_EMOJI = "🌫️"; // :fog:
+const WIND_EMOJI = "🌬️"; // :wind_blowing_face: — the ghost whisper. Unlike every
+                         // other emoji here it works on ANY message, not just a
+                         // tracked proxy, and only a Cursed player may press it.
 const DOSSIER_EMOJI = "⚜️"; // ⚜️ fleur-de-lis, GM only — also the Move button's
                             // emoji on the #turns console, which is fine:
                             // buttons and reactions share no namespace.
@@ -189,6 +194,51 @@ async function handleFogReaction(reaction, user) {
   await message.channel.send(payload).catch(() => {});
 }
 
+// The wind emoji reaches us with or without its U+FE0F variation selector
+// depending on the client that sent it, and a bare `=== WIND_EMOJI` misses
+// half of them. FOG_EMOJI has never had this problem in practice, so it is
+// left alone rather than churned.
+function isWindEmoji(name) {
+  return typeof name === "string" && name.replace(/️/g, "") === WIND_EMOJI.replace(/️/g, "");
+}
+
+// Cursed-only: a ghost breathes through the room. Posts one line as the bot
+// itself, in whatever channel or forum post the reaction landed in, at most
+// once every 12 real hours per ghost (db/lib/ghostWhisper.js).
+//
+// Silence is the failure mode throughout. A non-ghost who presses it, or a
+// ghost who presses it somewhere it doesn't work, gets nothing at all beyond
+// their reaction being stripped — a refusal posted in the channel would tell
+// the living that a specific someone is watching, which is precisely what the
+// mechanic is meant to leave ambiguous. Only the cooldown answers, and it
+// answers by DM.
+async function handleWindReaction(reaction, user) {
+  const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
+  if (!cursedRoleId) return;
+
+  const member = await reaction.message.guild.members.fetch(user.id).catch(() => null);
+  if (!member?.roles.cache.has(cursedRoleId)) return;
+
+  // "Any summary channel or forum post" — a message inside a forum post
+  // reports the thread as its channel, and resolveChannelContext walks to the
+  // parent for us. Anything else (a Location's -private channel, #radio,
+  // #intercom, #turns, an unmapped channel) resolves to some other kind or to
+  // null, and is refused.
+  const { channelKind } = resolveChannelContext(reaction.message.channel);
+  if (channelKind !== "plain" && channelKind !== "public") return;
+
+  const claim = await claimGhostWhisper(prisma, user.id);
+  if (!claim.ok) {
+    const readyAt = Math.floor(claim.readyAt.getTime() / 1000);
+    await sendDm(user, {
+      content: `The wind won't answer yet. You can blow through again <t:${readyAt}:R>.`,
+    }).catch(() => {});
+    return;
+  }
+
+  await reaction.message.channel.send(GHOST_LINE).catch(() => {});
+}
+
 module.exports = {
   name: "messageReactionAdd",
   async execute(reaction, user) {
@@ -210,7 +260,10 @@ module.exports = {
     // guildId rather than guild: a partial message has the former, not always
     // the latter.
     if (!reaction.message.guildId) return;
-    if (emojiName !== FOG_EMOJI && !recentProxies.has(reaction.message.id)) return;
+    // 🌬️ joins 🌫️ as an emoji that works on ANY guild message. Every other
+    // reaction below needs a tracked proxy, and a ghost has to be able to
+    // haunt whatever is on screen — including a plain bot post.
+    if (emojiName !== FOG_EMOJI && !isWindEmoji(emojiName) && !recentProxies.has(reaction.message.id)) return;
 
     if (reaction.partial) await reaction.fetch().catch(() => null);
     if (reaction.message.partial) await reaction.message.fetch().catch(() => null);
@@ -219,6 +272,15 @@ module.exports = {
     if (reaction.emoji.name === FOG_EMOJI) {
       await handleFogReaction(reaction, user).catch(() => {});
       recentProxies.delete(reaction.message.id);
+      return;
+    }
+
+    if (isWindEmoji(reaction.emoji.name)) {
+      await handleWindReaction(reaction, user).catch((err) => console.error("Wind reaction failed:", err));
+      // Stripped like every other handled reaction, so no count accumulates —
+      // and so the next ghost's press is a fresh event rather than a no-op on
+      // an existing reaction.
+      await reaction.users.remove(user.id).catch(() => {});
       return;
     }
 

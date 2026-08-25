@@ -167,7 +167,7 @@ player walking out of the room.
 ## 6. Reactions
 
 All in `bot/src/events/messageReactionAdd.js`, all gated on `recentProxies`
-except 🌫️. Each is stripped back off after being processed.
+except 🌫️ and 🌬️. Each is stripped back off after being processed.
 
 | Emoji | Who | Does |
 |---|---|---|
@@ -178,6 +178,18 @@ except 🌫️. Each is stripped back off after being processed.
 | ⭐ | Anyone | Save a personal `Note` |
 | ⚜️ | GM | Full dossier on the speaking character |
 | 🌫️ | GM | Delete and repost as the bot, de-attributing it |
+| 🌬️ | Cursed (a ghost) | Bascinet posts one haunting line in that channel or forum post |
+
+🌬️ is the ghost whisper, and the only thing a dead player can do. It works on
+**any** message — proxied or not, the bot's own posts included — but only in a
+Location's summary channel or a forum post: `-private`, `#radio` and
+`#intercom` refuse it, even though ghosts can *read* all of them
+(`db/lib/cursedAccess.js`). One press per ghost per **12 real hours**, tracked
+in `GhostWhisper` and enforced by `db/lib/ghostWhisper.js#claimGhostWhisper`.
+
+Every refusal except the cooldown is silent, on purpose: a visible "you can't
+do that" would tell the living that someone specific is watching. The cooldown
+answers by DM for the same reason.
 
 ⚜️ applies **no** vision gates — every tag, the Desire, the Fear, this
 turn's Action, and the real name even on a concealed message. It has **no

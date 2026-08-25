@@ -49,6 +49,7 @@ const {
 } = require("./discordRest");
 const crypto = require("node:crypto");
 const { spectatorOverwrite } = require("./spectatorAccess");
+const { cursedOverwrite, ghostsMaySee, cursedRoleId } = require("./cursedAccess");
 const { SPECTATOR_ROLE_ID } = require("./roleIds");
 const { docsPath } = require("./repoPaths");
 const {
@@ -177,12 +178,21 @@ function hashBody(body) {
 // The VIEW_CHANNEL half of the @everyone deny is the entire mechanism that
 // makes a Location private. Every other overwrite in this file is an allow
 // layered back on top of it.
-function baseOverwrites(guildId, gmRoleId) {
+//
+// The cursed seat is conditional where the spectator seat is not: the dead
+// see everywhere EXCEPT the Depths, so a Depths location's base simply omits
+// it. Omitting is enough to make ghosts blind there because @everyone's deny
+// is the fallthrough — and managedOverwriteIds() below now names the cursed
+// role, so a stale cursed overwrite on a Depths channel is actively deleted
+// rather than merely not re-added. See db/lib/cursedAccess.js.
+function baseOverwrites(guildId, gmRoleId, location) {
   return [
     { id: guildId, type: 0, deny: String(PERM_VIEW_CHANNEL + PERM_ATTACH_FILES) },
     ...(gmRoleId ? [{ id: gmRoleId, type: 0, allow: String(PERM_VIEW_CHANNEL + PERM_ATTACH_FILES) }] : []),
     // Read-only observer seat.
     ...spectatorOverwrite(),
+    // The ghost seat — read-only, but able to react.
+    ...(ghostsMaySee(location) ? cursedOverwrite() : []),
   ];
 }
 
@@ -202,7 +212,7 @@ function mergeOverwrite(base, extra) {
 function locationChannelSpec(location) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
-  const base = baseOverwrites(guildId, gmRoleId);
+  const base = baseOverwrites(guildId, gmRoleId, location);
 
   return {
     category: {
@@ -286,7 +296,7 @@ function requireDocsPath(...segments) {
 }
 
 function managedOverwriteIds() {
-  return new Set([process.env.DISCORD_GM_ROLE_ID, SPECTATOR_ROLE_ID].filter(Boolean));
+  return new Set([process.env.DISCORD_GM_ROLE_ID, SPECTATOR_ROLE_ID, cursedRoleId()].filter(Boolean));
 }
 
 // Reconciles one channel's overwrites against the spec: PUT everything the

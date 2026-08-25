@@ -139,6 +139,21 @@ on **every channel individually**. Nothing relies on inheritance:
   channels**, from one shared builder in `db/lib/syncLocations.js`
   (`baseOverwrites`), re-applied every sync. The GM allow and the spectator
   seat ride along on the same four targets for the same reason.
+- **The ghost seat** (`db/lib/cursedAccess.js`) rides along too, but
+  conditionally. The Cursed role — a dead player, not yet buried or engraved —
+  gets `ViewChannel` plus `AddReactions` and a deny on everything else,
+  including `ManageThreads`. Reactions are allowed where the spectator seat
+  denies them, because the 🌬️ whisper (`COMMANDS.md` §6) is a ghost's only
+  voice. Ghosts read `#radio` and `#intercom` as well.
+  **The Depths are the exception**: Caverns, Railroad and Aberrant Pits get no
+  cursed overwrite at all, so `@everyone`'s deny is the last word there. The
+  exclusion list is `DEPTHS_SLUGS` from `db/lib/travelCost.js`, not a second
+  hand-written list, and the cursed role is in `managedOverwriteIds()` — so a
+  cursed overwrite that finds its way onto a Depths channel is **deleted** by
+  an ordinary re-sync rather than merely not re-added.
+  `db:backfill-cursed-access` applies the same thing to Locations that were
+  provisioned before the seat existed, walking the category *and* all three
+  channels rather than trusting inheritance.
 - Every `ALIVE` character has a personal Discord role
   (`Character.discordRoleId`), titled after their **bare** name — first + last
   via `formatBareName`, never the honorific or the granted title — and coloured
@@ -214,8 +229,8 @@ and was unreachable by any code in the repo. Caverns, Aberrant Pits and
 Railroad sat world-visible through repeated clean re-syncs on exactly this.
 
 The sync now reads each channel's live overwrites and **deletes** any target
-the spec no longer names — but only from a managed set of three:
-the GM role and the spectator role — never `@everyone`. A per-character member id is
+the spec no longer names — but only from a managed set: the GM role, the
+spectator role and the cursed role — never `@everyone`. A per-character member id is
 never in that set, so the invariant above still holds: character grants are
 never touched.
 
