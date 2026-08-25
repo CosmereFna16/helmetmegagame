@@ -96,7 +96,11 @@ A tag that is not `purchasable` should normally not be
 
 A **chain** is a ladder of tags where each rung names the one below it as its
 `parentTag`. Holding a higher rung replaces the lower one; a character never
-holds two rungs of the same chain at once.
+holds two rungs of the same chain at once. This is enforced at purchase time:
+buying or adding a higher rung takes the held lower rung off the sheet in the
+same transaction, and a rung below one already held can't be bought at all —
+a chain replaces upward and never re-opens downward. (A GM Undo of the
+purchase restores the replaced rung exactly as it was.)
 
 Chains are **cumulative**. The cost shown for a rung is its own `pointCost`,
 but the cost to acquire it is the sum of every rung up to and including it,

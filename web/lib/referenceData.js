@@ -38,7 +38,20 @@ export async function getVisibleTags() {
         description: true,
         pointCost: true,
         category: true,
-        group: { select: { slug: true, name: true, color: true, requiredTagId: true } },
+        // The prerequisite gates' NAMES drive TagChip's "Requires" line.
+        // Group-gated tags are filtered to gate-holders below, so the name
+        // never reaches someone it would tip off.
+        requiredTagId: true,
+        requiredTag: { select: { name: true } },
+        group: {
+          select: {
+            slug: true,
+            name: true,
+            color: true,
+            requiredTagId: true,
+            requiredTag: { select: { name: true } },
+          },
+        },
         removable: true,
         craftable: true,
         // Minified via formatTagRequirement (@lifeweb/db) wherever a tag's

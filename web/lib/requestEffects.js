@@ -330,14 +330,31 @@ export const REQUEST_EFFECTS = {
         await dropCharacterTag(tx, request.characterId, effect.tagId, effect.quantity ?? 1);
         notes.push(`Removed ${formatStack(effect.tagName, effect.quantity)}.`);
         effect.tagRemovedByGm = true;
+        // If this Add was a chain upgrade, it displaced the held lower tier;
+        // taking the upgrade off the sheet brings that tier back. Flagged on
+        // the effect so a later Undo doesn't restore it a second time.
+        for (const snapshot of effect.replaced ?? []) {
+          await restoreCharacterTag(tx, request.characterId, snapshot);
+        }
+        if (effect.replaced?.length) {
+          notes.push(
+            `Restored ${effect.replaced.map((r) => r.tagName ?? "a replaced tier").join(", ")}.`,
+          );
+          effect.replacedRestored = true;
+        }
       }
 
       return { effect, note: notes.join(" ") || "No changes." };
     },
     async undo(tx, request, ctx) {
-      const { tagId, tagName, resourcesSpent, quantity } = request.effect;
+      const { tagId, tagName, resourcesSpent, quantity, replaced = [] } = request.effect;
       if (tagId && !request.effect.tagRemovedByGm) {
         await dropCharacterTag(tx, request.characterId, tagId, quantity ?? 1);
+      }
+      if (!request.effect.replacedRestored) {
+        for (const snapshot of replaced) {
+          await restoreCharacterTag(tx, request.characterId, snapshot);
+        }
       }
       if (resourcesSpent) {
         await tx.character.update({
@@ -345,7 +362,11 @@ export const REQUEST_EFFECTS = {
           data: { resources: { increment: resourcesSpent } },
         });
       }
-      return `Removed ${formatStack(tagName, quantity)} and refunded ${resourcesSpent ?? 0} ⬢.`;
+      const restoredNote =
+        !request.effect.replacedRestored && replaced.length
+          ? `, restored ${replaced.map((r) => r.tagName ?? "a replaced tier").join(", ")},`
+          : "";
+      return `Removed ${formatStack(tagName, quantity)}${restoredNote} and refunded ${resourcesSpent ?? 0} ⬢.`;
     },
   },
 
@@ -361,9 +382,14 @@ export const REQUEST_EFFECTS = {
       return { effect: { ...request.effect }, note: "No changes." };
     },
     async undo(tx, request) {
-      const { items = [], totalPoints = 0 } = request.effect;
+      const { items = [], totalPoints = 0, replaced = [] } = request.effect;
       for (const item of items) {
         await dropCharacterTag(tx, request.characterId, item.tagId, 1);
+      }
+      // A chain upgrade took the lower tier off the sheet at purchase time;
+      // an exact inverse puts it back with its original source and expiry.
+      for (const snapshot of replaced) {
+        await restoreCharacterTag(tx, request.characterId, snapshot);
       }
       if (totalPoints) {
         await tx.character.update({
@@ -371,7 +397,10 @@ export const REQUEST_EFFECTS = {
           data: { tagPoints: { increment: totalPoints } },
         });
       }
-      return `Returned ${items.length} tag(s) and refunded ${totalPoints} Tag Point(s).`;
+      const restoredNote = replaced.length
+        ? `, restored ${replaced.map((r) => r.tagName ?? "a replaced tier").join(", ")}`
+        : "";
+      return `Returned ${items.length} tag(s)${restoredNote} and refunded ${totalPoints} Tag Point(s).`;
     },
   },
 

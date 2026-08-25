@@ -3,20 +3,23 @@
 import { useMemo, useState } from "react";
 import {
   purchasableTags,
-  sortTagsForMenu,
+  sortForMode,
   menuCategories,
   formatCost,
   costColor,
   tagsById as buildTagsById,
-  chainOf,
   effectiveCost,
   effectiveTotalCost,
   chainSiblingsToRemove,
+  heldHigherTiers,
   unlockedTags,
   filterTagsByQuery,
+  prerequisiteNames,
+  hasPrerequisite,
 } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import ChipText from "./ChipText";
+import CheckField from "./CheckField";
 
 // The point-buy experience, shared by both stores: a catalog pane on the
 // left, "Your Build" on the right (Project Zomboid's trait screen is the
@@ -35,24 +38,6 @@ import ChipText from "./ChipText";
 //
 // `actions` is an optional node rendered at the foot of the build pane —
 // the store puts its checkout button there; the wizard needs nothing.
-
-// Sort order for the grouped view: chains stay adjacent (rooted at their
-// cheapest tier, walked upward), everything else alphabetical. chainOf() is
-// closest-first, so the root is the last entry and depth is just length.
-function chainKey(tag, byId) {
-  const chain = chainOf(tag, byId);
-  return { root: chain[chain.length - 1].name, depth: chain.length };
-}
-
-function sortForMode(tags, mode, byId) {
-  if (mode === "cost") return sortTagsForMenu(tags);
-  if (mode === "name") return [...tags].sort((a, b) => a.name.localeCompare(b.name));
-  return [...tags].sort((a, b) => {
-    const ka = chainKey(a, byId);
-    const kb = chainKey(b, byId);
-    return ka.root.localeCompare(kb.root) || ka.depth - kb.depth || a.name.localeCompare(b.name);
-  });
-}
 
 function TagRow({ tag, isSelected, cost, unaffordable, onToggle }) {
   const groupColor = tag.group?.color ?? null;
@@ -91,6 +76,16 @@ function TagRow({ tag, isSelected, cost, unaffordable, onToggle }) {
           )}
           {formatTagRequirement(tag) && (
             <span className="text-sm text-muted">{formatTagRequirement(tag)}</span>
+          )}
+          {/* The gate that unlocked this row — a Brigand's gear or a Fighting
+              sidegrade would otherwise be indistinguishable from the open
+              catalog. Only qualifying viewers ever see the row, so naming the
+              gate leaks nothing. Distinct from formatTagRequirement above,
+              which is the in-play add/remove cost block. */}
+          {prerequisiteNames(tag).length > 0 && (
+            <span className="text-sm" style={{ color: "var(--accent-text)" }}>
+              Requires: {prerequisiteNames(tag).join(", ")}
+            </span>
           )}
         </span>
       </button>
@@ -134,16 +129,20 @@ export default function PointBuy({
     [offered, byId, heldOrSelectedIds, selectedIds],
   );
 
-  // A tier at or below one already granted/held is not a purchase — its
-  // effective cost is zero or a refund. The store is where this bites
-  // (grantedTags = the whole sheet), and buyTags rejects it server-side too.
+  // A tier at or below one already granted/held is not a purchase: a rung
+  // BELOW a held tier is a downgrade (heldHigherTiers — a chain replaces
+  // upward, it never re-opens downward), and a rung at-or-under one paid
+  // through has an effective cost of zero or a refund. The store is where
+  // this bites (grantedTags = the whole sheet), and buyTags rejects both
+  // server-side too.
   const unlocked = useMemo(
     () =>
       gateChecked.filter(
         (t) =>
           selectedIds.includes(t.id) ||
-          chainSiblingsToRemove(t, byId, grantedIds).length === 0 ||
-          effectiveCost(t, byId, grantedIds) > 0,
+          (heldHigherTiers(t, byId, grantedIds).length === 0 &&
+            (chainSiblingsToRemove(t, byId, grantedIds).length === 0 ||
+              effectiveCost(t, byId, grantedIds) > 0)),
       ),
     [gateChecked, byId, grantedIds, selectedIds],
   );
@@ -151,18 +150,32 @@ export default function PointBuy({
   const [query, setQuery] = useState("");
   const [sortMode, setSortMode] = useState("group");
   const [groupFilter, setGroupFilter] = useState("");
+  // "Unlocked by your tags": only tags sitting behind a prerequisite gate.
+  // Everything on offer already passed unlockedTags, so gated-and-shown
+  // means gated-and-met — the role/faction-specific kit that would
+  // otherwise drown in the open catalog.
+  const [requiresOnly, setRequiresOnly] = useState(false);
 
   // Search runs AFTER unlockedTags, never instead of it: a gated tag must
   // stay invisible no matter what someone types. The category tabs are still
   // derived from `unlocked` rather than the searched set, so narrowing a
   // search can't make the tab you're standing on disappear underneath you.
-  const categories = useMemo(() => menuCategories(unlocked), [unlocked]);
+  // The prerequisite filter narrows BEFORE the tabs are derived, same as the
+  // gates: ticking it collapses the tab bar to just the categories holding
+  // gated tags, instead of leaving empty tabs to click through. `active`
+  // below is derived, so a vanished tab falls back without an effect.
+  const pool = useMemo(
+    () => (requiresOnly ? unlocked.filter(hasPrerequisite) : unlocked),
+    [unlocked, requiresOnly],
+  );
+
+  const categories = useMemo(() => menuCategories(pool), [pool]);
   const [category, setCategory] = useState(null);
   const active = categories.includes(category) ? category : categories[0];
 
   const inCategory = useMemo(
-    () => unlocked.filter((t) => t.category === active),
-    [unlocked, active],
+    () => pool.filter((t) => t.category === active),
+    [pool, active],
   );
 
   // Group filter options come from the whole active category, not the
@@ -192,8 +205,15 @@ export default function PointBuy({
       onChange(selectedIds.filter((id) => id !== tag.id));
       return;
     }
-    const siblings = chainSiblingsToRemove(tag, byId, selectedIds);
-    onChange([...selectedIds.filter((id) => !siblings.includes(id)), tag.id]);
+    // One rung per chain in the cart, whichever direction the click came
+    // from: picking a higher tier drops a selected lower one (ancestors),
+    // and picking a lower tier swaps out a selected higher one (descendants)
+    // rather than double-selecting.
+    const siblings = new Set([
+      ...chainSiblingsToRemove(tag, byId, selectedIds),
+      ...heldHigherTiers(tag, byId, selectedIds),
+    ]);
+    onChange([...selectedIds.filter((id) => !siblings.has(id)), tag.id]);
   }
 
   const visible = useMemo(() => {
@@ -295,6 +315,13 @@ export default function PointBuy({
                 </select>
               </label>
             )}
+            <CheckField
+              checked={requiresOnly}
+              onChange={(e) => setRequiresOnly(e.target.checked)}
+              className="pb-2"
+            >
+              Unlocked by your tags
+            </CheckField>
           </div>
 
           <div className="tab-bar">

@@ -18,7 +18,19 @@ export async function loadPointBuyCatalog(extraTagIds = []) {
       ? { OR: [{ purchasable: true }, { id: { in: extraTagIds } }] }
       : { purchasable: true },
     include: {
-      group: { select: { slug: true, name: true, color: true, requiredTagId: true } },
+      group: {
+        select: {
+          slug: true,
+          name: true,
+          color: true,
+          requiredTagId: true,
+          // The gate's NAME, for the "Requires: …" line on rows and chips.
+          // Safe to ship: gated tags only ever render for viewers who hold
+          // the gate (unlockedTags / getVisibleTags filter the rest out).
+          requiredTag: { select: { name: true } },
+        },
+      },
+      requiredTag: { select: { name: true } },
       requirementSkills: { select: { id: true, slug: true, name: true } },
     },
   });
@@ -32,6 +44,7 @@ export async function loadPointBuyCatalog(extraTagIds = []) {
     purchasableAfterStart: t.purchasableAfterStart,
     parentTagId: t.parentTagId,
     requiredTagId: t.requiredTagId,
+    requiredTag: t.requiredTag,
     group: t.group,
     removable: t.removable,
     craftable: t.craftable,

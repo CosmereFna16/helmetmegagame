@@ -12,10 +12,11 @@ import {
   tagsById as buildTagsById,
   requirementSatisfied,
   chainSiblingsToRemove,
+  heldHigherTiers,
   effectiveCost,
   effectiveTotalCost,
 } from "@/lib/characterCreation";
-import { addToStack } from "@/lib/requestEffects";
+import { addToStack, dropCharacterTag } from "@/lib/requestEffects";
 import { syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
 
 // The /store checkout. One cart, one transaction, ONE batched BUY_TAGS
@@ -31,7 +32,14 @@ async function buyTagsImpl({ tagIds }) {
   if (!session?.discordUserId) redirect("/");
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
-    select: { id: true, name: true, tagPoints: true, tags: { select: { tagId: true } } },
+    select: {
+      id: true,
+      name: true,
+      tagPoints: true,
+      // Full rows, not bare ids: an upgrade replaces the held lower tier, and
+      // the snapshot Undo restores needs source/expiry/quantity as they were.
+      tags: { select: { tagId: true, source: true, expiresTurn: true, quantity: true } },
+    },
   });
   if (!character) redirect("/character");
 
@@ -52,7 +60,9 @@ async function buyTagsImpl({ tagIds }) {
   // an ancestor the cart didn't include — same reason createCharacter loads
   // it.
   const allTags = await prisma.tag.findMany({
-    select: { id: true, pointCost: true, parentTagId: true, requiredTagId: true },
+    // `name` rides along for the replaced-tier snapshots below — the effect
+    // names what came off the sheet so the GM ledger reads without a join.
+    select: { id: true, name: true, pointCost: true, parentTagId: true, requiredTagId: true },
   });
   const byId = buildTagsById(allTags);
   const heldOrSelectedIds = [...heldIds, ...ids];
@@ -69,8 +79,13 @@ async function buyTagsImpl({ tagIds }) {
     if (chainSiblingsToRemove(tag, byId, ids).length > 0) {
       throw new UserError("You can only buy one tier of the same skill chain.");
     }
-    // …and never a tier at or below one already held: its effective cost
-    // would be zero or a refund, which is a point farm, not a purchase.
+    // …never a tier BELOW one already held — a chain replaces upward, it
+    // never re-opens downward, so a downgrade is not a purchase at all…
+    if (heldHigherTiers(tag, byId, heldIds).length > 0) {
+      throw new UserError(`You already hold a higher tier of ${tag.name}'s chain.`);
+    }
+    // …and never a tier at or below one already paid through: its effective
+    // cost would be zero or a refund, which is a point farm, not a purchase.
     if (chainSiblingsToRemove(tag, byId, heldIds).length > 0 && effectiveCost(tag, byId, heldIds) <= 0) {
       throw new UserError(`You already hold that tier of ${tag.name}'s chain or better.`);
     }
@@ -100,8 +115,25 @@ async function buyTagsImpl({ tagIds }) {
     cost: effectiveCost(tag, byId, heldIds),
   }));
 
+  // A chain replaces: buying a higher tier takes the held lower tier off the
+  // sheet in the same transaction (TAGS.md §3). Snapshots go on the effect so
+  // Undo is an exact inverse — return the cart, restore what it displaced.
+  const replaced = [];
+
   await prisma.$transaction(async (tx) => {
     for (const tag of selected) {
+      for (const lowerId of chainSiblingsToRemove(tag, byId, heldIds)) {
+        const row = character.tags.find((ct) => ct.tagId === lowerId);
+        if (!row) continue;
+        replaced.push({
+          tagId: row.tagId,
+          tagName: byId.get(row.tagId)?.name ?? null,
+          source: row.source,
+          expiresTurn: row.expiresTurn,
+          quantity: row.quantity,
+        });
+        await dropCharacterTag(tx, character.id, row.tagId);
+      }
       await addToStack(tx, character.id, tag.id, 1, {
         source: "POINT_BUY",
         // A timed tag has to arrive already stamped or it never expires —
@@ -122,14 +154,20 @@ async function buyTagsImpl({ tagIds }) {
       type: "BUY_TAGS",
       reason: "Point-buy purchase",
       payload: { tagIds: ids },
-      effect: { items, totalPoints },
+      // `replaced` only when an upgrade displaced something — older effects
+      // without the key keep their exact shape, and Undo treats absence as [].
+      effect: replaced.length ? { items, totalPoints, replaced } : { items, totalPoints },
     });
     await logRequest(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_buy_tags",
       targetCharacterId: character.id,
       reason: "Point-buy purchase",
-      details: { tags: items.map((i) => i.tagName), totalPoints },
+      details: {
+        tags: items.map((i) => i.tagName),
+        totalPoints,
+        ...(replaced.length ? { replacedTiers: replaced.map((r) => r.tagName) } : {}),
+      },
     });
   });
 

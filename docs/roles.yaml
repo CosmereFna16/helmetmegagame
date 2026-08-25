@@ -130,6 +130,7 @@ zones:
             starting_location: keep
             starting_tags:
               - Ravenhearter
+              - Courtier
               - Nobility
               - Jewelry
               - Literate
@@ -152,6 +153,7 @@ zones:
             starting_location: keep
             starting_tags:
               - Ravenhearter
+              - Courtier
               - Nobility
               - Literate
             doc_elements:
@@ -171,6 +173,7 @@ zones:
             starting_location: keep
             starting_tags:
               - Ravenhearter
+              - Courtier
               - Nobility
               - Jewelry
               - Literate
@@ -206,6 +209,7 @@ zones:
             treasurer: true
             starting_tags:
               - Ravenhearter
+              - Courtier
             doc_elements:
               - courtstructure
               - lifewebbasic
@@ -234,6 +238,7 @@ zones:
             treasurer: true
             starting_tags:
               - Ravenhearter
+              - Courtier
               - Frail
               - Medical (Skilled)
               - Literate
@@ -1047,6 +1052,7 @@ zones:
               - Sign Language
               - Nobility
               - Literate
+              - Bastard's Garb
             doc_elements:
               - campstarting
               - charon

@@ -190,7 +190,17 @@ export default async function CharacterPage() {
           // along because requirementSatisfied walks the tier chain.
           parentTagId: true,
           requiredTagId: true,
-          group: { select: { name: true, color: true, requiredTagId: true } },
+          // The gates' NAMES, for the picker's "Requires: …" line. Safe:
+          // gated tags only render for viewers who hold the gate.
+          requiredTag: { select: { name: true } },
+          group: {
+            select: {
+              name: true,
+              color: true,
+              requiredTagId: true,
+              requiredTag: { select: { name: true } },
+            },
+          },
         },
       }),
       // id -> parentTagId for the whole catalog, so a held Medical (Expert)

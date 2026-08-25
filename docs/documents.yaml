@@ -34,7 +34,7 @@ documents:
     secret: true
     tags: []
     description: |-
-      You are from the Culture, a post-scarcity interstellar empire of hedonists ruled by benevolent AI. You want the best for the people of Ravenheart—and that would mean convincing the Baron to join the Culture—but Contact (the Culture's diplomatic wing) operates in the scale of centuries, not human generations. They don't think it's the right time, although they haven't told you why. In general, Contact is very non-interventionist. Therefore, do the best you can to quietly help people and further the Culture's mission: help push for a leader likely to cooperate, ensure the Order of the Iron Cross doesn't grow out of control, and above all, do not blow your cover! The *last* thing the Culture wants is for the people of Ravenheart to know you're here...
+      You are from the Culture, a post-scarcity interstellar empire of hedonists ruled by benevolent AI. You want the best for the people of Ravenheart—and that would mean convincing the Baron to join the Culture—but Contact (the Culture's diplomatic wing) operates in the scale of centuries, not human generations. They don't think it's the right time, although they haven't told you why. In general, Contact is very non-interventionist. Therefore, do the best you can to quietly help people and further the Culture's mission: help push for a leader likely to cooperate, ensure the Order of the Silver Cross doesn't grow out of control, and above all, do not blow your cover! The *last* thing the Culture wants is for the people of Ravenheart to know you're here...
 
       They would appreciate it if you collected any interesting gear, took some photos with your drone, and sent logs to the mothership. The caves supposedly have a lot of interesting things going on, but it's probably dangerous.
 
@@ -80,6 +80,11 @@ documents:
       **Tonics**
 
       Tonics (see the Brewing document) can instantly cure wounds and help recovery, but require unique ingredients. Similarly, a few afflictions—like {tag:blinded}—require unique ingredients.
+  - name: Teaching Skills
+    key: teachingskills
+    public: true
+    tags: []
+    description: "You can teach almost any skill. The person learning has to make a Gambit. If they roll a six, they gain the skill."
   - name: Producing Resources
     key: production
     public: true
@@ -170,7 +175,7 @@ documents:
 
       In the meantime, you have a threat close at hand: the scheming, snakelike Windriders. During an argument about whether or not to raid the village for food, one of your men killed one of theirs. They are not happy. Perhaps they are scared of your strength.
 
-      Celebrations of life are as common as honor killings in the Broken Spears clan. Drug use—or "riding the horse"—is common and approved. Methamphetamine is a favorite. Addiction, however, is weakness; what, did you fall off the horse?
+      Celebrations of life are as common as honor killings in the Broken Spears clan. Drug use—or "riding the horse"—is common and approved. Coca is a favorite. Addiction, however, is weakness; what, did you fall off the horse?
   - name: Windrider Clan
     key: windrider
     public: false
@@ -189,6 +194,8 @@ documents:
     tags: []
     description: |-
       The Lifeweb is a profoundly unintelligible piece of machinery within the Fortress's walls—a tower that, at its peak, spews the Life Fire. Although it also produces electricity, it is mainly prized for the Fire, which is said to be what keeps Ravenheart arable, breathable, and livable. One only needs to follow the river a few miles southeast before seeing, far in the distance, the wind-scorched lands of the rest of the world, humid, scarred, and inhospitable.
+
+      The Lifeweb is tended by the Mortii. The Mortii are rejects, outcasts, exiles, hunchbacks, and convicts.
 
       The tower has a door leading downwards.
   - name: Lifeweb (Mortus)
