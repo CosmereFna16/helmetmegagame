@@ -11,7 +11,7 @@ import { transferResourcesRequest } from "../(app)/character/requestActions";
 // player must DO rather than as the rule's mechanics.
 const REACH_HINT = (
   <>
-    <p>Resources don&apos;t travel on their own. You have to be able to reach the other end.</p>
+    <p>The source and the recipient have to be in the same place.</p>
     <p>
       <strong>To a person</strong> Be in the same location.
     </p>
@@ -20,8 +20,7 @@ const REACH_HINT = (
       of its Leaders or Treasurers.
     </p>
     <p>
-      That second option is why a besieged faction is never cut off: an officer can ride out to
-      meet you.
+      That way, someone can trade in the name of a faction, or send a tax tithe.
     </p>
   </>
 );
@@ -110,8 +109,7 @@ export default function TransferResourcesButton({ selfId, selfName, parties }) {
         <p className="text-xs text-muted">
           {/* Was "out of any Silo or any player", which is exactly what the
               reach gate stopped being true — see web/lib/transferReach.js. */}
-          Both ends have to be within reach: the same location for a person, the same zone (or an
-          officer&apos;s zone) for a Silo. Say why in the reason above.
+          Both the source and the recipient have to share: the same location for a person, the same zone (or an officer&apos;s zone) for a Silo. Say why in the reason above.
           {selfName ? ` You are ${selfName}.` : ""}
         </p>
       </RequestDialog>

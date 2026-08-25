@@ -301,8 +301,7 @@ export default function ActionBar({
         onConfirm={(reason) => run(() => restoreTurn({ characterId: character.id, reason }))}
       >
         <p className="text-sm text-muted">
-          Deletes their Move and claws back anything it paid out. They&apos;ll be DM&apos;d with your
-          reason.
+          Deletes their Move and undoes any rewards. They&apos;ll be DM&apos;d with your reason.
         </p>
       </RequestDialog>
 
@@ -335,8 +334,7 @@ export default function ActionBar({
         <Modal title="Inflict a wound" onClose={() => setDialog(null)}>
           <div className="flex flex-col gap-3">
             <p className="text-sm text-muted">
-              Afflictions are Health tags carrying a cure cost — the same set a medic can treat.
-              Picking one stages it; it lands when you Apply.
+              Afflictions can be cured.
             </p>
             <ul className="flex flex-col gap-2">
               {wounds.map((t) => (
@@ -373,9 +371,7 @@ export default function ActionBar({
         <Modal title={`Delete ${character.name}`} onClose={() => setDialog(null)}>
           <div className="flex flex-col gap-3">
             <p className="text-sm text-muted">
-              Removes the character and every Move, Request, Desire, tag and default effort
-              attached to them, and cleans up their Discord role, nickname and channel access.
-              Their notes and the audit trail survive, detached. This cannot be undone.
+              Removes the character and their Moves, Requests, Desires, and tags. This also cleans up their Discord permissions. Their notes and archive posts stay. This is permanent.
             </p>
             <label className="field">
               <span className="field-label">Type “{character.name}” to confirm</span>

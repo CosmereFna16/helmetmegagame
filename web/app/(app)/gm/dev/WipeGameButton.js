@@ -67,8 +67,7 @@ export default function WipeGameButton() {
       <FormError>{error}</FormError>
       {done ? (
         <p className="text-sm">
-          » <em>Game wiped.</em> Channel clearing and the YAML re-syncs are still running in the
-          background — they take a few minutes and do not need this page open.
+          » <em>Game wiped.</em> Channel clearing and the YAML re-syncs are still running in the background — they&apos;ll take a few minutes.
         </p>
       ) : null}
     </form>

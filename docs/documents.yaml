@@ -22,7 +22,7 @@ documents:
     public: true
     tags: []
     description: |-
-      You are welcome to change things, but this is how things have been done for years:
+      You're welcome to change things, but this is how things have been done for years:
 
       The town farms, fishes, and hunts. Most of that is taxed by the Headman, who sends a fraction of his tithe to the Bishop and the bulk to the Baron (through the Meister, his tax-man). What little he has left is paid to those on the town's payroll, mostly the Sheriff.
 
@@ -53,13 +53,9 @@ documents:
 
       You can see every deposit and withdrawal, in addition to each member's Resource amounts.
 
-      ## Where the Silo is
+      ## Transferring Resources
 
-      A Silo is a warehouse, not a promise. It sits in your faction's home zone, and Resources only move in or out of it if the person moving them is standing in that zone. Nothing is wired anywhere. A tax owed to another faction has to be carried to them, by someone, along a road—and a road is a place where things happen to people.
-
-      You and your Leader are the exception. Wherever either of you stands, anyone sharing your zone can reach your Silo from there. Ride out to meet a debtor and you have spared them the journey; sit behind your walls and every payment to you becomes a trip worth ambushing.
-
-      Handing Resources or an item directly to another person is closer work: you must be in the same location, not merely the same zone.
+      You can transfer resources from any source to any recipient, but there's a couple of criteria. For Silos, you only have to share the same Zone, since they're big, abstracted warehouses. For players, you have to share their location. Treasurers and Leaders function as extensions of their Silos.
   - name: Medical
     key: medical
     public: true
@@ -104,9 +100,9 @@ documents:
       | Fishing | {resource:fishing:base} | {resource:fishing:laborer} | {resource:fishing:specialist} | Fortress or Town |
       | Hunting | {resource:hunting:base} | {resource:hunting:laborer} | {resource:hunting:specialist} | The Forest |
 
-      Laborer is a general-purpose 2-point tag that makes producing resources more viable than just as a survival method, while the specialist tags (you can buy them for 2 points on top of Laborer) make that specific trade a lot more valuable.
+      Laborer is a general-purpose 2-point tag that makes producing resources more viable than just as a survival method. Specialist tags (you can buy them for 2 points on top of Laborer) increase the value.
 
-      To automatically add Resources on a Move, type +(resources) anywhere in your message — for example `I sell my wares. +3`. Write a range like `5-12` to roll for it instead, or just write `/hunt` and let your tags decide. All of this works on default moves too.
+      You can automatically add Resources on a Move by typing +(resources) anywhere in your message. Write a range like `5-12` (in the case of hunting) to roll for it instead. Or just write `/hunt`, `/fish`, etc. and it'll auto-calculate with your tags. Works with default moves too..
   - name: Combat
     key: combat
     public: true
@@ -147,7 +143,7 @@ documents:
     public: false
     tags: []
     description: |-
-      The last tithe didn't arrive and it shows. Banquets are paused, and the food is being rationed. The Silos will run dry until the next tax wagon arrives. It is up to the Baron's men to resolve this.
+      The last tithe didn't arrive and it shows. It may be time to pause the banquets. It is up to the Baron's men—particularly the Meister—to resolve this.
 
       To make things worse, a letter from the Bastard declaring his intents was found on the table. Since the Guards didn't see anyone come in to deliver it, it must've been someone on the inside—someone who favored the Bastard—that brought it in. There must be a traitor.
   - name: Camp Starting Packet
@@ -220,7 +216,10 @@ documents:
     public: false
     tags: []
     description: |-
-      The Baron rules. His Hand is his spymaster and voice—loyal, proactive, and the one who actually keeps the court organized. The Meister is the Keep's circulatory system: he collects the Town's taxes through the Headman and watches the Silo so nobody bleeds it dry.
+      The Baron's rule is absolute. He has a small council including the Hand, the Meister (if the Hand is the hand, the Meister's the circulatory system, so to speak), the Captain, and any other courtier he might assign.
+
+      The Hand's the voice, the executor, the
+      The Captain commands the Watch.
 
       The Captain commands the Watch. The Bishop leads the Church and, with the Priests, tends to people's souls. The Esculap runs the Sanctuary and everyone's health. The Inquisitor answers to no one but God, and would very much like the Bishop to remember that.
 

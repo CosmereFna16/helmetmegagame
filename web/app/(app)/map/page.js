@@ -104,7 +104,6 @@ export default async function MapPage() {
     <PageShell width="wide">
       <PageHeader
         title="Map"
-        subtitle="Every road out of where you stand, and what it costs. You can only ever walk to a directly connected location."
       />
       <MapPanel
         nodes={nodes}

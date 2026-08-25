@@ -40,7 +40,7 @@ export default function EquipmentPanel({ characterTags, slots = 6, isSelf }) {
           <h2>Equipment</h2>
           <span className="text-sm text-muted mono">0 / {slots}</span>
         </div>
-        <p className="text-sm text-muted">You are carrying nothing you can equip.</p>
+        <p className="text-sm text-muted">You&apos;re not carrying any equippable items.</p>
       </section>
     );
   }

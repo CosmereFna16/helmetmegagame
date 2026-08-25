@@ -47,7 +47,7 @@ function RequestDialogBody({
         }}
       >
         <label className="field">
-          <span className="field-label">What is your reason?</span>
+          <span className="field-label">What&apos;s your reason?</span>
           <textarea
             name="reason"
             rows={3}
@@ -60,7 +60,7 @@ function RequestDialogBody({
           />
         </label>
         <p className="text-xs text-muted" style={{ marginTop: "-0.25rem" }}>
-          This takes effect immediately. A GM reviews it afterwards and may undo or edit it.
+          This takes effect immediately, but a GM can undo or edit it after.
         </p>
 
         {children && (

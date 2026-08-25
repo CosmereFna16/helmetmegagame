@@ -206,8 +206,7 @@ export default function CreateCharacterWizard({
 
       {cursed && (
         <p className="panel p-3 text-sm text-accent">
-          You&apos;re <strong>Cursed</strong>! You can only be a Bum or a Migrant, and you suffer -3 to
-          starting points. Wait until someone buries your body.
+          You&apos;re <strong>Cursed</strong>! Until someone buries your body or immortalizes your name, you can only be a Bum or a Migrant. You suffer -3 to starting points.
         </p>
       )}
 
@@ -257,8 +256,7 @@ export default function CreateCharacterWizard({
           </div>
           {lastNameLocked && (
             <p className="text-sm text-muted">
-              You are of the Baron&apos;s house, so you take his last name rather than one
-              of your own.
+              You take the Baron&apos;s last name.
             </p>
           )}
           {/* The only place a player sees the join rule before submitting, and
@@ -279,7 +277,7 @@ export default function CreateCharacterWizard({
               onChange={(e) => setAge(e.target.value)}
               min={AGE_MIN}
               max={AGE_MAX}
-              placeholder={`${AGE_MIN}\u2013${AGE_MAX} \u2014 fixed once set, so you may leave it for later`}
+              placeholder={`${AGE_MIN}\u2013${AGE_MAX} \u2014 fixed once set, so leave it for later if you'd like`}
             />
           </label>
         </div>
@@ -351,9 +349,8 @@ export default function CreateCharacterWizard({
             <InfoIcon text={WORST_FEAR_HELP} />
           </h2>
           <p className="text-sm text-muted">
-            One dread your character carries. If it ever comes true you lose {WORST_FEAR_PENALTY}{" "}
-            Tag Points — and you keep the fear, so it can come true again. You can skip this and
-            name one later, but once it&apos;s set, changing it is a request a GM reviews.
+            Choose a Dread. Whenever it comes true, you lose {WORST_FEAR_PENALTY}{" "}
+            Tag Points. Your fear stays the same, so it can come true again! You can set it later if you&apos;d prefer.
           </p>
           <label className="field">
             <span className="field-label">What does your character dread?</span>
@@ -371,11 +368,7 @@ export default function CreateCharacterWizard({
         <div className="panel flex flex-col gap-4 p-4">
           <h2 className="panel-header">Antagonists (optional)</h2>
           <p className="text-sm text-muted">
-            Some roles are handed out quietly by a GM rather than picked from the list — a
-            Succubus, a Cultist, the Judge. Tick the ones you would be happy to be given.
-            Leaving every box blank is a perfectly good answer, and ticking one is no promise
-            you&apos;ll ever receive it. Nobody but a GM sees this, and it can&apos;t be changed
-            later without asking one.
+            Threat roles are assigned after game start. You can select the ones you&apos;d be open to receiving here.
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
             {ANTAGONISTS.map((a) => (

@@ -92,7 +92,7 @@ export default async function LifewebPage() {
           <h2 className="panel-header">Tend the Web</h2>
           <LifewebRequestButtons characters={aliveCharacters} />
           <p className="mt-3 text-xs text-muted">
-            Both take effect at once. A GM reviews them afterwards and may undo or edit them.
+            These actions take effect immediately, but are reviewed by a GM later.
           </p>
         </section>
       )}

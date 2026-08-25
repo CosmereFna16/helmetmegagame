@@ -12,14 +12,13 @@ import { setWorstFear, changeWorstFearRequest, fulfillWorstFearRequest } from ".
 // two surfaces explaining one mechanic can't be allowed to drift.
 export const WORST_FEAR_HELP = (
   <>
-    <p>Your character has one Worst Fear, and they keep it.</p>
+    <p>Your character has one Worst Fear.</p>
     <p>
       When it comes true you lose {WORST_FEAR_PENALTY} Tag Points — always exactly that, however bad
       it was. It isn&apos;t a goal you complete; it&apos;s a dread you live with.
     </p>
     <p className="text-muted">
-      Claiming it doesn&apos;t use it up. You keep the same fear, and it can come true again from
-      next turn onwards.
+      Unlike Desires, you keep your Worst Fear even after it gets triggered.
     </p>
   </>
 );
@@ -118,8 +117,7 @@ export default function WorstFearPanel({ text, setTurnNumber, lastFulfilledTurn,
       ) : (
         <form className="flex flex-col gap-3" onSubmit={submitFirst}>
           <p className="text-sm text-muted">
-            You haven&apos;t named one yet. Setting your first is free; changing it afterwards takes
-            a request.
+            You haven&apos;t named one yet. Setting your first locks it, so ask a GM after if you need to change it.
           </p>
           <label className="field">
             <span className="field-label">What does your character dread?</span>
@@ -128,7 +126,7 @@ export default function WorstFearPanel({ text, setTurnNumber, lastFulfilledTurn,
               onChange={(e) => setDraft(e.target.value)}
               maxLength={WORST_FEAR_MAX_LENGTH}
               required
-              placeholder="Dying alone and unremembered…"
+              placeholder="Dying alone! Well, your Tag Points won't matter then."
             />
           </label>
           <button type="submit" className="btn self-start" disabled={pending || !draft.trim()}>
@@ -152,7 +150,7 @@ export default function WorstFearPanel({ text, setTurnNumber, lastFulfilledTurn,
           &minus;{WORST_FEAR_PENALTY} Tag Points, landing immediately.
         </p>
         <p className="text-xs text-muted">
-          You keep the fear — it can come true again next turn. Tell the GMs how it happened.
+          Tell the GMs how it happened.
         </p>
       </RequestDialog>
 

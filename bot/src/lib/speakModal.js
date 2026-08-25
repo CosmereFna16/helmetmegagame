@@ -5,7 +5,6 @@ const {
   TextInputStyle,
   TextDisplayBuilder,
   CheckboxBuilder,
-  FileUploadBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
 } = require("discord.js");
@@ -57,19 +56,12 @@ function buildSpeakModal(channelId, channelName) {
             .setCustomId("say:body")
             .setStyle(TextInputStyle.Paragraph)
             .setMaxLength(1800)
-            // An attachment on its own is a valid post, matching the rule the
-            // /conceal prefix already follows.
-            .setRequired(false),
+            .setRequired(true),
         ),
       new LabelBuilder()
         .setLabel("Conceal")
         .setDescription("Post under an anonymous alias instead of your name.")
         .setCheckboxComponent(new CheckboxBuilder().setCustomId("say:conceal")),
-      new LabelBuilder()
-        .setLabel("Attachment")
-        .setFileUploadComponent(
-          new FileUploadBuilder().setCustomId("say:file").setRequired(false).setMaxValues(1),
-        ),
     )
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(SPEAK_HELP));
 }

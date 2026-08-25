@@ -273,7 +273,7 @@ module.exports = {
         // that was never actually posted.
         .then(() => updateArchiveMessage(prisma, reaction.message.id, reply.content))
         .then(() => sendDm(user, "» *Updated.*"))
-        .catch(() => sendDm(user, "» *Couldn't update that message — it may be too old.*"));
+        .catch(() => sendDm(user, "» *Couldn't update that message, it may be too old.*"));
       await reaction.users.remove(user.id).catch(() => {});
       return;
     }

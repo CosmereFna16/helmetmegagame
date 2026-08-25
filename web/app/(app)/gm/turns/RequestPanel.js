@@ -74,10 +74,6 @@ const SECTIONS = {
             onChange={(e) => setEdit("pointsAwarded", e.target.value)}
           />
         </label>
-        <p className="text-xs text-muted">
-          Confirm moves only the difference, so re-scoring twice never double-pays. Undo revokes the
-          award even if the balance goes negative, and reopens the Desire.
-        </p>
       </>
     ),
   },
@@ -125,8 +121,7 @@ const SECTIONS = {
             : "—"}
         </Line>
         <p className="text-xs text-muted">
-          Nothing to re-score here. Undo puts back the one unit it took, with its original source
-          and expiry, and takes back what it became.
+          Nothing to re-score here.
         </p>
       </>
     ),
@@ -180,10 +175,6 @@ const SECTIONS = {
         >
           Clear their Drained tag but keep the blood
         </CheckField>
-        <p className="text-xs text-muted">
-          The pool caps at 100, so this edits what actually moved, not what was asked for. Undo draws
-          the same amount back and clears Drained.
-        </p>
       </>
     ),
   },
@@ -208,8 +199,7 @@ const SECTIONS = {
             style={{ borderColor: "var(--accent)" }}
           >
             <p className="text-sm text-accent">
-              ☠ {effect.targetName ?? "This character"} is still alive. Feeding someone to the Lifeweb
-              never kills them automatically — read the reason, then do it here.
+              ☠ {effect.targetName ?? "This character"} is still alive. Feeding someone to the Lifeweb markes them as dying, but a GM has to kill them themselves.
             </p>
             <button
               type="button"
@@ -221,8 +211,7 @@ const SECTIONS = {
               {killing ? "Working…" : `Kill ${effect.targetName ?? "them"}`}
             </button>
             <p className="text-xs text-muted">
-              This deletes their personal Discord role, clears their nickname and marks them Cursed —
-              the same thing the character editor does. Undo does not revive them.
+              This deletes their personal Discord role, clears their nickname and marks them Cursed.
             </p>
           </div>
         )}
@@ -238,10 +227,6 @@ const SECTIONS = {
         <Line label="Was">
           {effect.previousText ?? <span className="text-muted">nothing</span>}
         </Line>
-        <p className="text-xs text-muted">
-          Nothing to re-score — a Worst Fear costs nothing to set. Undo puts the previous wording
-          back.
-        </p>
       </>
     ),
   },
@@ -258,9 +243,7 @@ const SECTIONS = {
           <Line label="On turn">{effect.fulfilledTurnNumber}</Line>
         )}
         <p className="text-xs text-muted">
-          Always exactly &minus;{effect.pointsDeducted ?? 0}, so there is nothing to edit. The fear
-          is not used up — they keep it and can claim it again next turn. Undo refunds the points
-          and unwinds the cooldown.
+          Always exactly &minus;{effect.pointsDeducted ?? 0}.
         </p>
       </>
     ),
@@ -295,10 +278,6 @@ const SECTIONS = {
         >
           Put the affliction back but keep the payment
         </CheckField>
-        <p className="text-xs text-muted">
-          Confirm moves only the difference in cost, charged to whoever actually paid. Undo puts the
-          affliction back with its original source and expiry and refunds them in full.
-        </p>
       </>
     ),
   },
@@ -323,11 +302,6 @@ const SECTIONS = {
         <Line label="Now">{effect.next?.name ?? "—"}</Line>
         <Line label="Was">{effect.previous?.name ?? <span className="text-muted">nothing</span>}</Line>
         <Line label="Spent">1 Mulligan Potion</Line>
-        <p className="text-xs text-muted">
-          Nothing to re-score. Undo restores the previous name and gives back the potion, but does
-          not touch Discord — the personal role and nickname catch up next time the player saves
-          their Bio form.
-        </p>
       </>
     ),
   },

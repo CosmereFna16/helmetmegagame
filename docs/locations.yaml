@@ -414,7 +414,7 @@ locations:
     map: { x: 32, y: 88 }
     description: >-
       A powered train station looming over an inscrutable abyss. You could get on, but where would you go?
-    extendedDescription: ""
+    extendedDescription: "A powered train station looming over an inscrutable abyss. You could get on, but where would you go?"
     publicSubLocations: []
     privateSubLocations: []
     tags: []

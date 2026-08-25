@@ -104,10 +104,10 @@ export default function TagCatalog({ tags, groups, categories, canDelete }) {
           </button>
         </FilterBar>
         <p className="text-xs text-muted">
-          {customCount} GM-created, {tags.length - customCount} from docs/tags.yaml. A GM-created
-          tag lives only in the database — <code>npm run db:sync-tags</code> never touches it, and{" "}
-          <code>npm run db:prune-tags</code> skips it. Tags from the YAML are read-only here: edit
-          them in the file, or the next sync reverts you.
+          {customCount} GM-created, {tags.length - customCount} from docs/tags.yaml. GM-created tags
+          exist only in the database, so <code>npm run db:sync-tags</code> and{" "}
+          <code>npm run db:prune-tags</code> leave them alone. Tags from the YAML are read-only here;
+          edit them in the file, since the next sync overwrites any change made here.
         </p>
         <FormError>{error}</FormError>
       </section>
@@ -162,7 +162,7 @@ export default function TagCatalog({ tags, groups, categories, canDelete }) {
                       confirmThenRun(
                         {
                           title: `Delete ${t.name}?`,
-                          message: "This removes the tag from the catalog permanently.",
+                          message: "Permanently removes this tag from the catalog.",
                           confirmLabel: "Delete",
                         },
                         () => deleteCustomTag({ tagId: t.id }),
@@ -269,8 +269,8 @@ function TagDialog({ tag, groups, categories, pending, error, onCancel, onSave }
 
         {tag && (
           <p className="mono text-xs text-muted">
-            {tag.slug} — the slug is fixed after creation, since slug references elsewhere are
-            plain strings with no key to follow.
+            {tag.slug} — the slug cannot be changed after creation, because other tags refer to it
+            by this exact text.
           </p>
         )}
 

@@ -59,10 +59,7 @@ export default function DefaultEffortPanel({ characterId, defaultEffort, locatio
                 ingredients (-3 ⬢). Write a range like 5-12 to roll for it instead.
               </p>
               <p className="text-muted">
-                Or write /hunt, /fish, /farm or /herd and the right amount for your tags is
-                worked out for you. Those only pay out where the work is possible — hunting in
-                the Forest, fishing in the Fortress or Town, farming in Town, herding anywhere
-                but the Caves.
+                Or include /hunt, /fish, /farm or /herd and the right amount is applied. However, to hunt you must be in the Forest, to fish you must be in the Fortress or Town, and to farm you must be in the town.
               </p>
               <p className="text-muted">
                 Careful: any bare range in the text is read as a roll, so &quot;waits 5-10
@@ -79,7 +76,7 @@ export default function DefaultEffortPanel({ characterId, defaultEffort, locatio
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            placeholder="Tends the garden and keeps to themselves."
+            placeholder="John spends the turn watching his cows. /herd"
             required
           />
         </label>

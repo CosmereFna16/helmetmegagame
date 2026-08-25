@@ -12,9 +12,7 @@ const DESIRE_HELP = (
     <p>Characters earn Tag Points by fulfilling Desires.</p>
     <p>The more difficult and personal the Desire, the more Tag Points you earn.</p>
     <p className="text-muted">
-      Leaders can set Desires aligned with faction goals, like conquering territory. Everyone else is
-      encouraged to find personally relevant ones — from having a nice meal to proving themselves in
-      front of an audience.
+      Leaders can set Desires aligned with faction goals, like conquering territory. Everyone else is encouraged to find personally relevant ones, from having a nice meal to proving themselves in front of an audience.
     </p>
   </>
 );
@@ -158,7 +156,7 @@ export default function DesirePanel({ desire, cooldownUntilTurn, openTurnNumber 
           {desire?.text} — {desire?.points} Tag Point{desire?.points === 1 ? "" : "s"}
         </p>
         <p className="text-xs text-muted">
-          The points land immediately. Tell the GMs how you pulled it off.
+          You get the points immediately, but tell the GMs how you pulled it off.
         </p>
       </RequestDialog>
     </div>
