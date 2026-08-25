@@ -80,7 +80,11 @@ async function wipePublicForum(location, activeSnapshot) {
   // One channel fetch for both tag ids rather than one each: getForumTagId
   // fetches the whole channel to read available_tags off it, so asking twice
   // was two identical GETs per location.
-  const channel = await getChannel(location.discordPublicChannelId);
+  // allow404: a channel someone deleted by hand is an ordinary state for a
+  // blind sweep, not a reason to abandon it. Same reasoning, and the same
+  // idiom, as db/lib/syncLocations.js and db/lib/locationAccess.js.
+  const channel = await getChannel(location.discordPublicChannelId, { allow404: true });
+  if (!channel) return;
   const tagId = (name) => channel.available_tags?.find((t) => t.name === name)?.id ?? null;
   const persistentTagId = tagId(PERSISTENT_TAG_NAME);
   const informationTagId = tagId(INFORMATION_TAG_NAME);
@@ -147,18 +151,45 @@ async function runDawnWipe(prisma) {
     return null;
   });
 
+  // Per-location, so one bad room costs one room.
+  //
+  // These were three bare awaits with no guard, so a single stale channel id —
+  // a forum a GM deleted by hand, most likely — threw and aborted the loop for
+  // every location after it alphabetically, AND the two narrowcast wipes
+  // below. The only evidence was one line on stderr from the caller's catch,
+  // which couldn't even say how far it got.
+  const failures = [];
   for (const location of sorted) {
     if (!location.discordCategoryId) continue;
-    console.log(`Dawn wipe: ${location.zone.name} / ${location.name}`);
-    await wipePlainChannel(location);
-    await wipePublicForum(location, activeThreads);
-    await wipePrivateChannel(location, activeThreads);
+    const label = `${location.zone.name} / ${location.name}`;
+    console.log(`Dawn wipe: ${label}`);
+    try {
+      await wipePlainChannel(location);
+      await wipePublicForum(location, activeThreads);
+      await wipePrivateChannel(location, activeThreads);
+    } catch (err) {
+      failures.push(label);
+      console.error(`Dawn wipe: ${label} failed, continuing with the rest:`, err.message);
+    }
   }
 
-  console.log("Dawn wipe: Radio");
-  await wipeNarrowcastChannel(config?.radioChannelId);
-  console.log("Dawn wipe: Intercom");
-  await wipeNarrowcastChannel(config?.intercomChannelId);
+  for (const [label, channelId] of [
+    ["Radio", config?.radioChannelId],
+    ["Intercom", config?.intercomChannelId],
+  ]) {
+    console.log(`Dawn wipe: ${label}`);
+    try {
+      await wipeNarrowcastChannel(channelId);
+    } catch (err) {
+      failures.push(label);
+      console.error(`Dawn wipe: ${label} failed:`, err.message);
+    }
+  }
+
+  if (failures.length > 0) {
+    console.error(`Dawn wipe finished with ${failures.length} failed: ${failures.join(", ")}.`);
+  }
+  return { failed: failures.length, failures };
 }
 
 module.exports = { runDawnWipe };

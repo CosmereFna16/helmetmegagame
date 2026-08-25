@@ -539,12 +539,52 @@ async function fetchAllMessages(channelId) {
   return messages.reverse();
 }
 
-// Bulk-delete requires 2-100 ids and all <14 days old (always true here —
-// Dawn cycles every ~12h); a 1-element array errors, so that case falls
-// back to a single delete instead.
+// Discord's epoch, for turning a snowflake back into a timestamp. The upper 42
+// bits of a message id are milliseconds since 2015-01-01.
+const DISCORD_EPOCH = 1_420_070_400_000n;
+const BULK_DELETE_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+
+// How many over-age messages a single wipe will delete one at a time before
+// giving up on the rest. Each is its own request, so an unbounded fallback on
+// a channel with months of backlog would be its own rate-limit incident.
+const OLD_MESSAGE_DELETE_CAP = 50;
+
+function messageTimestamp(messageId) {
+  try {
+    return Number((BigInt(messageId) >> 22n) + DISCORD_EPOCH);
+  } catch {
+    return null;
+  }
+}
+
+// Bulk-delete requires 2-100 ids and rejects the WHOLE batch if any one of
+// them is over 14 days old; a 1-element array errors, so that case falls back
+// to a single delete instead.
+//
+// The age rule used to be assumed away — "always true here, Dawn cycles every
+// ~12h". That holds only while the wipe has actually been running, and
+// GameConfig.messageWipeEnabled defaults to false: a guild that plays for two
+// weeks and then turns it on hits the floor on its very first run, and every
+// batch containing one old message is rejected whole. The failure is
+// self-worsening, because the longer it is broken the more certainly it stays
+// broken.
+//
+// So the ids are split by age: the young ones bulk-delete as before, and a
+// bounded number of old ones go one at a time. Anything past the cap is
+// reported rather than silently skipped.
 async function bulkDeleteMessages(channelId, messageIds) {
-  for (let i = 0; i < messageIds.length; i += 100) {
-    const chunk = messageIds.slice(i, i + 100);
+  const cutoff = Date.now() - BULK_DELETE_MAX_AGE_MS;
+  const young = [];
+  const old = [];
+  for (const id of messageIds) {
+    const at = messageTimestamp(id);
+    // An unparseable id is treated as young: bulk delete is the cheaper guess,
+    // and Discord will reject it if that was wrong.
+    (at !== null && at < cutoff ? old : young).push(id);
+  }
+
+  for (let i = 0; i < young.length; i += 100) {
+    const chunk = young.slice(i, i + 100);
     if (chunk.length === 1) {
       await deleteMessage(channelId, chunk[0]);
     } else if (chunk.length > 1) {
@@ -553,6 +593,18 @@ async function bulkDeleteMessages(channelId, messageIds) {
         body: { messages: chunk },
       });
     }
+  }
+
+  if (old.length === 0) return;
+
+  const deleting = old.slice(0, OLD_MESSAGE_DELETE_CAP);
+  console.warn(
+    `Bulk delete: ${old.length} message(s) in ${channelId} are over 14 days old and can't be ` +
+      `batched. Deleting ${deleting.length} one at a time` +
+      (old.length > deleting.length ? `; ${old.length - deleting.length} left for the next run.` : "."),
+  );
+  for (const id of deleting) {
+    await deleteMessage(channelId, id);
   }
 }
 

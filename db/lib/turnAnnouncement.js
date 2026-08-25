@@ -24,6 +24,19 @@ const WEATHER_BANNER_DIR = docsPath("assets", "weather");
 
 function weatherBannerPath(turn) {
   if (!turn?.weather || !turn?.phase) return null;
+  // docsPath returns null when docs/ can't be found at all, and repoPaths.js
+  // says in so many words that the weather banner is to treat that as "no
+  // banner". It didn't: path.join(null, ...) throws one line below, BEFORE the
+  // existsSync that was supposed to be the graceful exit. That TypeError
+  // propagated out of postTurnsConsole and took the whole turn announcement
+  // with it — the DAY/PHASE header, the console text and the Travel/Move/Speak
+  // button row — over a missing image. WEATHER_BANNER_DIR is a top-level const,
+  // so once it was null it stayed null for the life of the process.
+  //
+  // It only ever bit the WEB container, where Turbopack inlines __dirname as a
+  // literal that doesn't exist, which is why the same turn advance behaved
+  // differently depending on whether the cron or the Dev Panel ran it.
+  if (!WEATHER_BANNER_DIR) return null;
   const file = path.join(
     WEATHER_BANNER_DIR,
     `${turn.weather.toLowerCase()}-${turn.phase.toLowerCase()}.jpg`,

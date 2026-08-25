@@ -96,7 +96,19 @@ async function runDefaultMovePass(prisma, turn) {
       },
     },
   });
-  if (defaults.length === 0) return null;
+  // An object, not null. Those are two different answers and the orchestrator
+  // reads them as one: db/index.js gates markDone on truthiness, and its catch
+  // returns null to mean "this pass FAILED, leave it unrecorded so the next
+  // advance retries it". Returning null for "there was nothing to do" meant a
+  // game where nobody has saved a Default Move never recorded the pass at all.
+  //
+  // Harmless while needsResolvedAt was stamped unconditionally. The moment
+  // that stamp became conditional on every pass having landed — which is the
+  // point of the resume machinery — a turn with no default efforts would be
+  // picked up as unfinished forever and re-run on every subsequent advance.
+  if (defaults.length === 0) {
+    return { turnNumber: turn.number, filed: 0, shareable: 0, characterIds: [], posts: [], dms: [] };
+  }
 
   // One query for the whole turn's filings rather than one per character —
   // this is the check that decides who gets skipped, and it has to scale.
@@ -178,7 +190,11 @@ async function runDefaultMovePass(prisma, turn) {
     }
   }
 
-  if (filed.length === 0) return { turnNumber: turn.number, filed: 0, shared: 0, characterIds: [] };
+  // `shareable`, not `shared` — the rename below missed this branch, so
+  // /gm/audit rendered two different shapes for default_moves_resolved.
+  if (filed.length === 0) {
+    return { turnNumber: turn.number, filed: 0, shareable: 0, characterIds: [], posts: [], dms: [] };
+  }
 
   // Neither the summary posts nor the DMs are sent here. Both are per-player
   // Discord round-trips, and awaiting them inside resolveNeeds() is what makes

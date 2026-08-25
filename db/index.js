@@ -164,6 +164,17 @@ async function sweepExpiredStacks(turn) {
 // this function deliberately does NOT perform — the Hunger pass's DM list,
 // the Default Move pass's summary posts and DMs, and the tag progression
 // pass's DMs. See advanceTurn() below for why.
+// Every pass this turn owes, by the name markDone records it under. The
+// needsResolvedAt stamp at the bottom is written only when `done` covers all
+// of them, which is what makes the resume machinery mean anything.
+const TURN_PASSES = ["defaultMoves", "tagExpiry", "expirySweep", "hunger", "lifewebDecay"];
+
+// How long a resume lease is honoured before another advance may take it over.
+// Long enough that a real resume of a 100+ player roster is never stolen
+// mid-flight, short enough that a process killed while holding one doesn't
+// strand the turn until someone notices by hand.
+const RESUME_LEASE_MS = 30 * 60 * 1000;
+
 async function resolveNeeds(turn, config) {
   // Which passes this turn has already had applied. Non-empty only when a
   // previous advance claimed the turn and then died part-way through it; see
@@ -329,10 +340,36 @@ async function resolveNeeds(turn, config) {
   }
 
   // Every pass accounted for. A turn carrying this is one no resume will
-  // reopen.
+  // reopen — WHICH IS WHY IT IS NOW CONDITIONAL.
+  //
+  // This used to be stamped unconditionally, directly under that sentence,
+  // reached identically whether zero passes threw or four did. needsResolvedAt
+  // is the sole selector for the resume query in advanceTurn(), so a hunger
+  // pass that failed at 04:00 was written off as resolved and never retried:
+  // everyone ate free that day, permanently, while passFailed's comment
+  // promised the opposite. The turn_pass_failed audit row was the only trace.
+  //
+  // The turn still advances either way — a stuck turn is worse than a missed
+  // upkeep, and that trade hasn't changed. What changes is that the missed
+  // upkeep now gets picked up by the next advance instead of being forgotten.
+  const outstanding = TURN_PASSES.filter((name) => !done.has(name));
+  if (outstanding.length === 0) {
+    await prisma.turn
+      .update({ where: { id: turn.id }, data: { needsResolvedAt: new Date() } })
+      .catch((err) => console.error("Failed to stamp needsResolvedAt:", err));
+  } else {
+    console.error(
+      `Turn #${turn.number} finished with ${outstanding.length} pass(es) unapplied: ` +
+        `${outstanding.join(", ")}. Leaving needsResolvedAt null so the next advance retries them.`,
+    );
+  }
+
+  // Released whether or not every pass landed: the lease says "someone is
+  // working on this", and nobody is any more. needsResolvedAt above is the
+  // separate question of whether the work is finished.
   await prisma.turn
-    .update({ where: { id: turn.id }, data: { needsResolvedAt: new Date() } })
-    .catch((err) => console.error("Failed to stamp needsResolvedAt:", err));
+    .update({ where: { id: turn.id }, data: { needsResumeClaimedAt: null } })
+    .catch((err) => console.error("Failed to release the resume lease:", err));
 
   return { lifewebBlood, starvedDiscordUserIds, defaultMovePosts, defaultMoveDms, tagExpiryDms };
 }
@@ -420,6 +457,42 @@ async function advanceTurn() {
       orderBy: { number: "desc" },
     });
     if (unfinished) {
+      // The resume needs the same compare-and-swap the normal path does above,
+      // and had none: this was a plain findFirst, so the bot's 04:00 cron and
+      // a GM clicking End turn on a crashed turn both matched the same row,
+      // both read the same resolvedPasses, both cleared every `!done.has(...)`
+      // guard, and both ran every outstanding pass. Hunger charged twice,
+      // Lifeweb decayed twice. resolvedPasses is not a lock — markDone is
+      // last-write-wins and cannot arbitrate — and needsResolvedAt cannot
+      // double as one either, since it is the completion stamp written at the
+      // END. Hence its own column.
+      //
+      // The staleness arm matters as much as the claim: a resume that dies
+      // holding the lease would otherwise wedge the turn forever, and this is
+      // the code path that exists because processes die mid-turn.
+      const staleBefore = new Date(Date.now() - RESUME_LEASE_MS);
+      const claimed = await prisma.turn.updateMany({
+        where: {
+          id: unfinished.id,
+          needsResolvedAt: null,
+          OR: [{ needsResumeClaimedAt: null }, { needsResumeClaimedAt: { lt: staleBefore } }],
+        },
+        data: { needsResumeClaimedAt: new Date() },
+      });
+
+      if (claimed.count === 0) {
+        console.warn(
+          `Turn #${unfinished.number} is already being resumed by another advance — standing down.`,
+        );
+        return {
+          advanced: false,
+          previousTurn: null,
+          newTurn: null,
+          note: null,
+          runSideEffects: async () => {},
+        };
+      }
+
       console.warn(
         `Turn #${unfinished.number} was claimed but never finished resolving — resuming its outstanding passes.`,
       );

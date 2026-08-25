@@ -42,7 +42,14 @@ async function runTagExpiryPass(prisma, turn) {
       tag: { select: { slug: true, name: true, expiresInto: true } },
     },
   });
-  if (expiring.length === 0) return null;
+  // An object, not null: db/index.js reads null as "this pass failed, retry it
+  // next advance" and gates markDone on truthiness. Most turns have nothing
+  // expiring, so returning null here meant the pass was almost never recorded
+  // as done — invisible while needsResolvedAt was stamped unconditionally, and
+  // a permanently unfinished turn once it wasn't. Same fix as
+  // defaultMovePass.js. hungerPass.js keeps its null, because there the pass
+  // genuinely did not run and does need retrying.
+  if (expiring.length === 0) return { turnNumber: turn.number, progressed: 0, dms: [] };
 
   // Only the successors actually named, rather than the whole catalog.
   const successorSlugs = new Set();
