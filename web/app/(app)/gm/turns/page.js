@@ -123,11 +123,29 @@ export default async function TurnsPage({ searchParams }) {
             faction: { include: { zone: true } },
             zone: true,
             location: true,
-            // requirementSkills must be named — see the same include in
-            // web/app/(app)/character/page.js for why omitting it fails quietly.
+            // Exactly the fields TagChip renders, nothing more — these rows
+            // are repeated per character per Move, up to HISTORY_LIMIT times,
+            // so a full tag include (with its group row) was the largest
+            // payload in the app. requirementSkills must be named — see the
+            // same select in web/app/(app)/character/page.js for why omitting
+            // it fails quietly.
             tags: {
               include: {
-                tag: { include: { group: true, requirementSkills: { select: { name: true } } } },
+                tag: {
+                  select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    pointCost: true,
+                    defaultDurationTurns: true,
+                    expiresInto: true,
+                    visibleOnInspect: true,
+                    requirementTurns: true,
+                    requirementResources: true,
+                    requirementGambit: true,
+                    requirementSkills: { select: { name: true } },
+                  },
+                },
               },
             },
           },

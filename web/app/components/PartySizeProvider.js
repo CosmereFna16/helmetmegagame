@@ -8,18 +8,16 @@ export function usePartySizes() {
   return useContext(PartySizeContext);
 }
 
-// Fetches the live-computed Cult party-size thresholds once per page load and
-// makes them available anywhere in the tree via context, so {partysize:N}
-// references (see RichText.js) can resolve without every component threading
-// them through props. Mirrors ProductionRatesProvider.js, which mirrors
-// TagsProvider.js.
-export default function PartySizeProvider({ children }) {
+// Makes the live-computed Cult party-size thresholds available anywhere in
+// the tree via context, so {partysize:N} references (see RichText.js) can
+// resolve without every component threading them through props. Mirrors
+// ProductionRatesProvider.js, which mirrors TagsProvider.js.
+export default function PartySizeProvider({ children, sizesPromise }) {
   const [data, setData] = useState({ playerCount: 100, sizes: {} });
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/party-sizes")
-      .then((res) => (res.ok ? res.json() : null))
+    Promise.resolve(sizesPromise)
       .then((json) => {
         if (!cancelled && json) setData(json);
       })
@@ -27,7 +25,7 @@ export default function PartySizeProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [sizesPromise]);
 
   return <PartySizeContext.Provider value={data}>{children}</PartySizeContext.Provider>;
 }

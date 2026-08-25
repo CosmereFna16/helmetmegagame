@@ -1,7 +1,7 @@
 "use client";
 
 import FormError from "@/app/components/FormError";
-import { useCallback, useState, useSyncExternalStore, useTransition } from "react";
+import { useCallback, useOptimistic, useState, useSyncExternalStore, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { travelTo } from "./travelActions";
@@ -48,6 +48,12 @@ export default function MapPanel({ nodes, roads, currentId, hasCharacter, turnOp
   const confirm = useConfirm();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  // The marker jumps to the destination the moment travel is confirmed,
+  // instead of waiting out the server action + refresh round trip. Reverts on
+  // its own if the action errors (the transition ends without currentId
+  // changing). Road tiers still describe the OLD position until the refresh
+  // lands — that's fine, they're recomputed seconds later.
+  const [optimisticId, setOptimisticId] = useOptimistic(currentId);
   const [status, setStatus] = useState(null);
   const [chosenKey, setChosenKey] = useState(null);
   const storedKey = useSyncExternalStore(noSubscription, readStoredGround, () => null);
@@ -62,9 +68,16 @@ export default function MapPanel({ nodes, roads, currentId, hasCharacter, turnOp
     }
   };
 
+  // Tiers come from the server relative to currentId, so while the optimistic
+  // position differs, the destination reads "here" and the origin reads
+  // "spent" (the walk is in flight — nothing is walkable until the refresh
+  // recomputes the real tiers anyway).
+  const tierOf = (n) =>
+    optimisticId === currentId ? n.tier : n.id === optimisticId ? "here" : n.tier === "here" ? "spent" : n.tier;
+
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const placed = nodes.filter((n) => typeof n.x === "number" && typeof n.y === "number");
-  const here = currentId ? byId.get(currentId) : null;
+  const here = optimisticId ? byId.get(optimisticId) : null;
   const destinations = nodes
     .filter((n) => n.tier === "free" || n.tier === "cost" || n.tier === "spent")
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -86,6 +99,7 @@ export default function MapPanel({ nodes, roads, currentId, hasCharacter, turnOp
       if (!ok) return;
 
       startTransition(async () => {
+        setOptimisticId(node.id);
         const result = await travelTo(node.id);
         if (result?.error) {
           setStatus({ error: result.error });
@@ -99,7 +113,7 @@ export default function MapPanel({ nodes, roads, currentId, hasCharacter, turnOp
         router.refresh();
       });
     },
-    [confirm, here, pending, router],
+    [confirm, here, pending, router, setOptimisticId],
   );
 
   return (
@@ -173,14 +187,15 @@ export default function MapPanel({ nodes, roads, currentId, hasCharacter, turnOp
               </svg>
 
               {placed.map((node) => {
-                const walkable = node.tier === "free" || node.tier === "cost";
+                const tier = tierOf(node);
+                const walkable = tier === "free" || tier === "cost";
                 const Tag = walkable ? "button" : "div";
                 return (
                   <Tag
                     key={node.id}
                     {...(walkable ? { type: "button", onClick: () => travel(node) } : {})}
                     className="map-node"
-                    data-tier={node.tier}
+                    data-tier={tier}
                     style={{ left: `${node.x}%`, top: `${node.y}%` }}
                     title={`${node.name} — ${node.note}`}
                   >

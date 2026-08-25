@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 const DocumentsContext = createContext({ docsByKey: new Map() });
 
@@ -8,33 +8,32 @@ export function useDocuments() {
   return useContext(DocumentsContext);
 }
 
-// Fetches the document index once per page load so {document:key} references
-// (see RichText.js) resolve anywhere in the tree without prop-threading —
-// the same shape as TagsProvider.
+// Makes the document index available anywhere in the tree so {document:key}
+// references (see RichText.js) resolve without prop-threading — the same
+// shape as TagsProvider, promise streamed from the root layout.
 //
 // Global rather than scoped to /documents on purpose: a {document:…} written
 // in a tag's description surfaces inside a TagChip tooltip, which can appear
 // on almost any page.
 //
 // The index carries names for everything but bodies for nothing — see
-// /api/documents for what is withheld and why.
-export default function DocumentsProvider({ children }) {
+// getDocumentIndex in web/lib/referenceData.js for what is withheld and why.
+export default function DocumentsProvider({ children, docsPromise }) {
   const [docs, setDocs] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/documents")
-      .then((res) => (res.ok ? res.json() : []))
+    Promise.resolve(docsPromise)
       .then((data) => {
-        if (!cancelled) setDocs(data);
+        if (!cancelled && data) setDocs(data);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [docsPromise]);
 
-  const docsByKey = new Map(docs.map((d) => [d.key, d]));
+  const value = useMemo(() => ({ docsByKey: new Map(docs.map((d) => [d.key, d])) }), [docs]);
 
-  return <DocumentsContext.Provider value={{ docsByKey }}>{children}</DocumentsContext.Provider>;
+  return <DocumentsContext.Provider value={value}>{children}</DocumentsContext.Provider>;
 }

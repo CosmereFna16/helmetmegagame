@@ -1,7 +1,7 @@
 // Who may read which document, in one place.
 //
 // This used to live inside web/app/(app)/documents/page.js, which was fine
-// while the page was the only thing that needed it. /api/documents needs the
+// while the page was the only thing that needed it. getDocumentIndex (lib/referenceData.js) needs the
 // identical answer — it decides whether a {document:key} chip renders as a
 // working link or an inert one — and two copies of a visibility rule that
 // drift means telling a player they can open a Gamemaster brief. So the rule

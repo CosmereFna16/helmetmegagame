@@ -194,7 +194,7 @@ export default async function CharacterPage() {
         orderBy: { name: "asc" },
         select: { id: true, name: true },
       }),
-      // The Add Tag menu needs purchasable/craftable, which /api/tags doesn't
+      // The Add Tag menu needs purchasable/craftable, which getVisibleTags (lib/referenceData.js) doesn't
       // select (and which that unauthenticated route shouldn't grow just to
       // serve a picker) — so the catalog comes down as props, same as the
       // creation wizard does it.

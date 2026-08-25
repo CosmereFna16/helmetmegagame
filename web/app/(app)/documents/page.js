@@ -9,7 +9,7 @@ import { assignedTo, isWritten, readerFromCharacter } from "@/lib/documentAccess
 
 export const metadata = { title: "Documents" };
 
-// The matching rules live in web/lib/documentAccess.js so /api/documents --
+// The matching rules live in web/lib/documentAccess.js so getDocumentIndex --
 // which decides whether a {document:key} chip is a working link or an inert
 // one -- cannot disagree with this page about who may read what. Matching
 // still runs here on the server, so the client only ever receives documents
@@ -114,7 +114,7 @@ export default async function DocumentsPage() {
   // `role: true` is already in the include above, so this costs no query.
   //
   // Not a Document row, so {document:…} can never resolve to it — the index
-  // /api/documents builds only ever lists real rows.
+  // getDocumentIndex builds only ever lists real rows.
   const roleCharter =
     character?.role?.description?.length > 0
       ? {

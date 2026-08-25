@@ -2,6 +2,12 @@ import { IBM_Plex_Mono, Source_Sans_3, Source_Serif_4, UnifrakturMaguntia } from
 import "./globals.css";
 import { getOpenTurn } from "@/lib/turn";
 import { resolveTheme } from "@/lib/turnFormat";
+import {
+  getVisibleTags,
+  getProductionRates,
+  getPartySizes,
+  getDocumentIndex,
+} from "@/lib/referenceData";
 import TagsProvider from "./components/TagsProvider";
 import ProductionRatesProvider from "./components/ProductionRatesProvider";
 import PartySizeProvider from "./components/PartySizeProvider";
@@ -45,6 +51,17 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function RootLayout({ children }) {
+  // The four reference datasets behind {tag:…}/{resource:…}/{partysize:…}/
+  // {document:…} chips. Created un-awaited so they don't block first paint —
+  // React streams each promise into its provider, which used to cost four
+  // client fetches after hydration. The .catch means a failed query degrades
+  // to empty chips instead of crashing the stream with an unhandled
+  // rejection.
+  const tagsPromise = getVisibleTags().catch(() => []);
+  const ratesPromise = getProductionRates().catch(() => null);
+  const sizesPromise = getPartySizes().catch(() => null);
+  const docsPromise = getDocumentIndex().catch(() => []);
+
   const turn = await getOpenTurn();
   // BASCINET_THEME pins the whole environment to one theme, which is the only
   // way to see "limestone" — no turn phase maps to it. Leave it unset in
@@ -66,10 +83,10 @@ export default async function RootLayout({ children }) {
         <div className="grain" />
         <div className="vignette" />
         <ConfirmProvider>
-          <TagsProvider>
-            <ProductionRatesProvider>
-              <PartySizeProvider>
-                <DocumentsProvider>{children}</DocumentsProvider>
+          <TagsProvider tagsPromise={tagsPromise}>
+            <ProductionRatesProvider ratesPromise={ratesPromise}>
+              <PartySizeProvider sizesPromise={sizesPromise}>
+                <DocumentsProvider docsPromise={docsPromise}>{children}</DocumentsProvider>
               </PartySizeProvider>
             </ProductionRatesProvider>
           </TagsProvider>

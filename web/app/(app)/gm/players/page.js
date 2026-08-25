@@ -12,43 +12,47 @@ export default async function PlayersPage({ searchParams }) {
   if (!session?.discordUserId) redirect("/");
   if (!gm) redirect("/character");
 
-  // The whole catalog, gates and all: bulk tagging is a GM grant, which
-  // deliberately ignores requiredTag and the TagGroup gate (TAGS.md).
-  const tags = await prisma.tag.findMany({
-    orderBy: [{ category: "asc" }, { name: "asc" }],
-    select: {
-      id: true,
-      name: true,
-      category: true,
-      description: true,
-      pointCost: true,
-      group: { select: { name: true } },
-    },
-  });
-
-  const characters = await prisma.character.findMany({
-    orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
-    // Two different zones, and the difference matters: faction.zone is the
-    // zone seat this character answers to, `zone` is where they are physically
-    // standing. The table shows both, under "Zone" and "Standing in".
-    include: { faction: { include: { zone: true } }, zone: true },
-    // Safety net against unbounded growth, not a real limit — far above any
-    // realistic roster size for this game (100+ players).
-    take: 1000,
-  });
-
-  // Cursed is a live Discord role, not a DB field — joined in by
-  // discordUserId from the guild's member list rather than included above.
-  // The Factions tab. Same query the GM overview has always run — it just
-  // lives here now instead of on /faction.
-  const factions = await prisma.faction.findMany({
-    orderBy: { name: "asc" },
-    include: { characters: { select: { id: true, name: true, isLeader: true } } },
-  });
+  // Everything below is independent — four DB queries plus the Discord
+  // member-list HTTP call and the zone seat — so run it all in parallel
+  // rather than paying for each round trip in sequence.
+  const [tags, characters, factions, members, myZone] = await Promise.all([
+    // The whole catalog, gates and all: bulk tagging is a GM grant, which
+    // deliberately ignores requiredTag and the TagGroup gate (TAGS.md).
+    prisma.tag.findMany({
+      orderBy: [{ category: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        description: true,
+        pointCost: true,
+        group: { select: { name: true } },
+      },
+    }),
+    prisma.character.findMany({
+      orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
+      // Two different zones, and the difference matters: faction.zone is the
+      // zone seat this character answers to, `zone` is where they are
+      // physically standing. The table shows both, under "Zone" and
+      // "Standing in".
+      include: { faction: { include: { zone: true } }, zone: true },
+      // Safety net against unbounded growth, not a real limit — far above any
+      // realistic roster size for this game (100+ players).
+      take: 1000,
+    }),
+    // The Factions tab. Same query the GM overview has always run — it just
+    // lives here now instead of on /faction.
+    prisma.faction.findMany({
+      orderBy: { name: "asc" },
+      include: { characters: { select: { id: true, name: true, isLeader: true } } },
+    }),
+    // Cursed is a live Discord role, not a DB field — joined in by
+    // discordUserId from the guild's member list rather than included above.
+    listGuildMembers(),
+    getMyZone(),
+  ]);
 
   const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
-  const members = await listGuildMembers();
-  const myZone = await getMyZone();
   const cursedUserIds = new Set(
     cursedRoleId ? members.filter((m) => m.roles.includes(cursedRoleId)).map((m) => m.id) : [],
   );
