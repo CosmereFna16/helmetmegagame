@@ -124,6 +124,7 @@ async function syncDocumentsFromYaml(prisma) {
       name: e.name ?? e.key,
       description: e.description ?? "",
       isPublic: e.public === true,
+      isSecret: e.secret === true,
       sortOrder: i,
       ...assignment,
     };

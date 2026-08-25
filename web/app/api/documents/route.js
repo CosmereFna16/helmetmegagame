@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
+import { getMyZone } from "@/lib/gmZone";
 import { documentSource, isWritten, readerFromCharacter } from "@/lib/documentAccess";
 import { toDocumentPreviewText } from "@/lib/documentPreview";
 
@@ -56,9 +57,11 @@ export async function GET() {
   ]);
 
   const character = readerFromCharacter(characterRow);
+  const myZone = isGm ? await getMyZone() : null;
+  const isMasterGm = isGm && myZone === null;
 
   const entries = documents.filter(isWritten).map((d) => {
-    const source = documentSource(d, { character, isGm });
+    const source = documentSource(d, { character, isGm, isMasterGm });
     return {
       key: d.key,
       name: d.name,

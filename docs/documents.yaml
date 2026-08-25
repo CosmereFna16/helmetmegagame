@@ -196,7 +196,7 @@ documents:
       The Lifeweb is a profoundly unintelligible piece of machinery within the Fortress's walls—a tower that, at its peak, spews the Life Fire. Although it also produces electricity, it is mainly prized for the Fire, which is said to be what keeps Ravenheart arable, breathable, and livable. One only needs to follow the river a few miles southeast before seeing, far in the distance, the wind-scorched lands of the rest of the world, humid, scarred, and inhospitable.
 
       The tower has a door leading downwards.
-  - name: The Lifeweb
+  - name: Lifeweb (Mortus)
     key: lifeweb
     public: false
     tags: []
@@ -275,6 +275,7 @@ documents:
   - name: Cult Leader
     key: cultistleader
     public: false
+    secret: true
     tags:
       - Cult Leader
     description: |-
@@ -288,6 +289,7 @@ documents:
   - name: Cultist
     key: cultist
     public: false
+    secret: true
     tags:
       - Cultist
     description: |-
@@ -301,6 +303,7 @@ documents:
   - name: Bacchus
     key: bacchuslore
     public: false
+    secret: true
     tags:
       - Cultist
     description: |-
@@ -446,6 +449,7 @@ documents:
   - name: Demoness
     key: demoness
     public: false
+    secret: true
     tags:
       - Demoness
     description: |-

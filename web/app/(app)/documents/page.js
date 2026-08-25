@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
+import { getMyZone } from "@/lib/gmZone";
 import PageShell, { PageHeader } from "../../components/PageShell";
 import DocumentsBoard from "./DocumentsBoard";
 import { toDocumentPreviewText } from "@/lib/documentPreview";
@@ -52,6 +53,13 @@ export default async function DocumentsPage() {
   const gmDocs = isGm
     ? written.filter((d) => d.flags.includes("gamemaster")).map((d) => shape(d, "Gamemaster"))
     : [];
+
+  const myZone = isGm ? await getMyZone() : null;
+  const isMasterGm = isGm && myZone === null;
+
+  const secretDocs = isMasterGm
+    ? written.filter((d) => d.isSecret).map((d) => shape(d, "Secret"))
+    : [];
   const assignedDocs = character
     ? written
       .map((d) => [d, assignedTo(d, character)])
@@ -97,6 +105,7 @@ export default async function DocumentsPage() {
         publicDocs={publicDocs}
         assignedDocs={assigned}
         gmDocs={gmDocs}
+        secretDocs={secretDocs}
         hasCharacter={!!character}
       />
     </PageShell>

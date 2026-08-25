@@ -56,6 +56,7 @@ export default function DocumentsBoard({
   publicDocs,
   assignedDocs,
   gmDocs = [],
+  secretDocs = [],
   hasCharacter,
 }) {
   // Without a character there is no ASSIGNED tab at all, so PUBLIC is the
@@ -79,6 +80,7 @@ export default function DocumentsBoard({
       ["assigned", assignedDocs],
       ["public", publicDocs],
       ["gamemaster", gmDocs],
+      ["secret", secretDocs],
     ].map(([name, list]) => [name, list.find((d) => d.key === requested)])
       .find(([, doc]) => doc)) ||
     null;
@@ -94,7 +96,11 @@ export default function DocumentsBoard({
     if (requested) router.replace("/documents");
   };
 
-  const docs = tab === "assigned" ? assignedDocs : tab === "gamemaster" ? gmDocs : publicDocs;
+  const docs =
+    tab === "assigned" ? assignedDocs
+      : tab === "gamemaster" ? gmDocs
+        : tab === "secret" ? secretDocs
+          : publicDocs;
 
   return (
     <div className="flex flex-col gap-4">
@@ -127,6 +133,16 @@ export default function DocumentsBoard({
             Gamemaster ({gmDocs.length})
           </button>
         )}
+        {secretDocs.length > 0 && (
+          <button
+            type="button"
+            className="tab-item"
+            data-active={tab === "secret"}
+            onClick={() => setTab("secret")}
+          >
+            Secret ({secretDocs.length})
+          </button>
+        )}
       </div>
 
       {docs.length === 0 ? (
@@ -135,7 +151,9 @@ export default function DocumentsBoard({
             ? "Nothing has been handed to you yet. Your role, your tags and your faction each bring their own papers."
             : tab === "gamemaster"
               ? "No gamemaster papers have been written yet."
-              : "No public documents have been posted yet."}
+              : tab === "secret"
+                ? "No secret documents have been written yet."
+                : "No public documents have been posted yet."}
         </p>
       ) : (
         <div className="doc-board">

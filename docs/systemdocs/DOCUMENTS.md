@@ -30,6 +30,11 @@ cards, in three tabs:
   off a **Discord role** rather than anything on a Character, since a GM
   usually has no character. The tab only exists when the server actually sent
   GM papers, so its absence is never a hint that something is being withheld.
+- **SECRET** — `secret: true` papers (threat briefs), visible **only to master
+  GMs** — those who hold the GM role and have **no zone assignment**
+  (`getMyZone() === null`). Zone-GMs never see this tab. A secret document can
+  also be assigned via tags, so a player with the `Cultist` tag still sees the
+  cult briefs in their Assigned tab — the two paths are independent.
 
 Opening a card is a `Modal` (`DESIGN-SYSTEM.md` §8) over `.doc-sheet` — wider
 and more generously set than an ordinary dialog, because it is a page of prose.

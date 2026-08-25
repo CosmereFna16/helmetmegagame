@@ -43,11 +43,12 @@ export function assignedTo(document, character) {
 // The gamemaster flag is the odd one: unlike every other rule it keys off a
 // Discord role rather than anything on a Character, since a GM usually has no
 // character at all.
-export function documentSource(document, { character, isGm }) {
+export function documentSource(document, { character, isGm, isMasterGm }) {
   if (document.isPublic) return "Public";
   const assigned = assignedTo(document, character);
   if (assigned) return assigned;
   if (isGm && document.flags.includes("gamemaster")) return "Gamemaster";
+  if (isMasterGm && document.isSecret) return "Secret";
   return null;
 }
 

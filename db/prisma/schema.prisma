@@ -926,6 +926,11 @@ model Document {
   // game opens.
   isPublic Boolean @default(false)
 
+  // Master-GM-only. The SECRET tab of /documents shows these to GMs with
+  // no zone assignment, so the master can reference threat briefs without
+  // handing every zone-GM the full picture.
+  isSecret Boolean @default(false)
+
   tagSlugs     String[] @default([])
   roleSlugs    String[] @default([])
   factionSlugs String[] @default([])
