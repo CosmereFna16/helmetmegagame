@@ -216,14 +216,13 @@ documents:
     public: false
     tags: []
     description: |-
-      The Baron's rule is absolute. He has a small council including the Hand, the Meister (if the Hand is the hand, the Meister's the circulatory system, so to speak), the Captain, and any other courtier he might assign.
+      The Baron's rule is absolute. He has a small council including the Hand, the Meister, the Captain, and any other courtier he might assign.
 
-      The Hand's the voice, the executor, the
+      The Hand's the voice, the organizer, the executor, the Hand. He outranks everyone except the Baron.
+      The Meister collects taxes, keeps an eye on the Silo, and provides medical attention.
       The Captain commands the Watch.
 
-      The Captain commands the Watch. The Bishop leads the Church and, with the Priests, tends to people's souls. The Esculap runs the Sanctuary and everyone's health. The Inquisitor answers to no one but God, and would very much like the Bishop to remember that.
-
-      Below them all, Courtiers gossip, scheme, and try not to get caught doing either.
+      The rest of the court, the Baron's family included, live their lives.
   - name: Guard Duty
     key: watchman
     public: false
@@ -251,7 +250,7 @@ documents:
     tags:
       - Ravenkeeper
     description: |-
-      Anyone with the Ravenkeeper tag can, assuming they're near their rookery, send a message to up to one person a turn. To do so, simply message the GMs asking.
+      Anyone with the Ravenkeeper tag can, assuming they're near their rookery, send a message to up to one person daily (every 2 turns). To do so, simply message the GMs asking.
   - name: Smithing Price List
     key: smithinglist
     public: false
