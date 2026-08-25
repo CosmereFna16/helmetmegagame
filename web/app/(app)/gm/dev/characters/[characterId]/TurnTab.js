@@ -19,9 +19,7 @@ export default function TurnTab({ character, openTurn, action, defaultEffort }) 
 
         {!action ? (
           <p className="text-sm text-muted">
-            {character.name} hasn&apos;t acted this turn. There is no turn counter anywhere — an
-            unspent turn simply means no Move exists on the open turn, which is why the action bar
-            spends one by filing a stub rather than decrementing anything.
+            {character.name} hasn&apos;t acted this turn
           </p>
         ) : (
           <>
@@ -74,7 +72,7 @@ export default function TurnTab({ character, openTurn, action, defaultEffort }) 
             </p>
           </>
         ) : (
-          <p className="text-sm text-muted">None set — an unused turn simply passes.</p>
+          <p className="text-sm text-muted">None set.</p>
         )}
       </section>
     </>

@@ -125,8 +125,7 @@ const SECTIONS = {
             : "—"}
         </Line>
         <p className="text-xs text-muted">
-          Nothing to re-score here. Undo puts back the one unit it took, with its original source
-          and expiry, and takes back what it became.
+          Nothing to re-score here.
         </p>
       </>
     ),
@@ -208,8 +207,7 @@ const SECTIONS = {
             style={{ borderColor: "var(--accent)" }}
           >
             <p className="text-sm text-accent">
-              ☠ {effect.targetName ?? "This character"} is still alive. Feeding someone to the Lifeweb
-              never kills them automatically — read the reason, then do it here.
+              ☠ {effect.targetName ?? "This character"} is still alive. Feeding someone to the Lifeweb markes them as dying, but a GM has to kill them themselves.
             </p>
             <button
               type="button"
@@ -221,8 +219,7 @@ const SECTIONS = {
               {killing ? "Working…" : `Kill ${effect.targetName ?? "them"}`}
             </button>
             <p className="text-xs text-muted">
-              This deletes their personal Discord role, clears their nickname and marks them Cursed —
-              the same thing the character editor does. Undo does not revive them.
+              This deletes their personal Discord role, clears their nickname and marks them Cursed.
             </p>
           </div>
         )}

@@ -208,8 +208,7 @@ export default function DevPanel({
         title={staged.name || character.name}
         subtitle={
           <>
-            Every value on this character, editable. Edits here bypass the game&apos;s rules
-            deliberately — nothing below is gated the way a player&apos;s own sheet is.
+            All of the character&apos;s values can be edited.
           </>
         }
         actions={

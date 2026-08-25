@@ -123,7 +123,7 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
         console.log(`[mentions] ${target.name}: not in ${context.locationName ?? "this location"}, no thread add`);
         await sendDm(
           message.author,
-          `» *${target.name} isn't in ${context.locationName ?? "this location"} — they can't be brought into this thread.*`,
+          `» *${target.name} isn't in ${context.locationName ?? "this location"}. They can't be brought into this thread.*`,
         ).catch(() => {});
         continue;
       }

@@ -200,7 +200,7 @@ export default function MapPanel({ nodes, roads, currentId, hasCharacter, turnOp
 
         {!hasCharacter && (
           <p className="text-sm text-muted">
-            You have no living character, so the map is read-only.
+            You don&apos;t have a living character, so the map is read only.
           </p>
         )}
         {hasCharacter && !here && (

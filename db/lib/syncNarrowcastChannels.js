@@ -24,7 +24,7 @@ const CHANNELS = [
   },
   {
     name: "intercom",
-    topic: "Ravenheart's PA system. Only certain places are in range, and fewer still can speak on it.",
+    topic: "Ravenheart's PA system. Only the Town and Fortress are in range. Accessed from the Keep.",
     configKey: "intercomChannelId",
   },
 ];

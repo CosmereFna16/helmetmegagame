@@ -147,7 +147,7 @@ async function handleThreadMemberCommand(interaction, action) {
     } catch (err) {
       console.error(`Failed to remove ${target.discordUserId} from thread ${channel.id}:`, err);
       await interaction.reply({
-        content: "» *Couldn't remove them — the bot may be missing Manage Threads here.*",
+        content: "» *Couldn't remove them. The bot may be missing Manage Threads.*",
         flags: MessageFlags.Ephemeral,
       });
       return;

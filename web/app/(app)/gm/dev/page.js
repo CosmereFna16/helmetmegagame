@@ -88,10 +88,7 @@ export default async function DevPanelPage() {
         />
 
         <p className="mt-3 text-xs text-muted">
-          Save overrides the current turn&apos;s day/phase/weather directly, without resolving Needs. End
-          turn resolves Needs on the current turn and opens the next one — same as the automatic
-          dawn/dusk advance. The Discord announcement and the Dawn wipe finish in the background after
-          this page updates, so #turns may lag it by a moment.
+          Save overrides the current turn&apos;s day/phase/weather directly.
         </p>
       </section>
 
@@ -118,8 +115,7 @@ export default async function DevPanelPage() {
           <SubmitButton className="btn self-start" pendingLabel="Saving…">Save</SubmitButton>
         </form>
         <p className="mt-3 text-xs text-muted">
-          Applies the next time the turn advances (via End turn above or the bot&apos;s automatic
-          dawn/dusk cron), then clears itself.
+          Applies on next turn (via End turn above or the bot&apos;s automatic dawn/dusk cron).
         </p>
       </section>
 
@@ -135,7 +131,7 @@ export default async function DevPanelPage() {
             <input type="number" name="lifewebDecayPerTurn" defaultValue={config.lifewebDecayPerTurn} />
           </label>
           <label className="field">
-            <span className="field-label">Production coefficient (Farming/Fishing/Herding)</span>
+            <span className="field-label">Production coefficient</span>
             <input type="number" step="0.05" name="productionCoefficient" defaultValue={config.productionCoefficient} />
           </label>
           <label className="field">
@@ -143,7 +139,7 @@ export default async function DevPanelPage() {
             <input type="number" name="startingTagPoints" min="0" defaultValue={config.startingTagPoints} />
           </label>
           <label className="field">
-            <span className="field-label">Player count (scales role seat caps)</span>
+            <span className="field-label">Player count</span>
             <input type="number" name="playerCount" min="1" defaultValue={config.playerCount} />
           </label>
 
@@ -152,19 +148,16 @@ export default async function DevPanelPage() {
             <input type="number" name="equipSlots" min="1" max="20" defaultValue={config.equipSlots} />
           </label>
           <Switch name="openToPlayers" defaultChecked={config.openToPlayers} className="col-span-full">
-            Open to players (lets anyone holding the player role create a character — off means the game
-            hasn&apos;t launched; /documents stays readable either way)
+            Open to players
           </Switch>
           <Switch name="avatarUploadsEnabled" defaultChecked={config.avatarUploadsEnabled} className="col-span-full">
-            Allow players to upload their own profile picture (off means everyone shows their letter plaque)
+            Allow players to upload their own profile picture
           </Switch>
           <Switch name="portraitMakerEnabled" defaultChecked={config.portraitMakerEnabled} className="col-span-full">
-            Show the &quot;Customize Appearance&quot; portrait maker on /character (off means everyone falls
-            back to their letter plaque or an uploaded picture)
+            Show the &quot;Customize Appearance&quot; portrait maker on /character
           </Switch>
           <Switch name="portraitFantasyPartsEnabled" defaultChecked={config.portraitFantasyPartsEnabled} className="col-span-full">
-            Allow the portrait maker&apos;s fantasy parts — pointed ears, horns, antlers, unnatural hair and
-            eye colours. Off by default; Ravenheart is low fantasy and human-only.
+            Allow the portrait maker&apos;s fantasy parts.
           </Switch>
           <Switch name="messageWipeEnabled" defaultChecked={config.messageWipeEnabled} className="col-span-full">
             Wipe messages at Dawn (archives everything to #archive first — see docs/systemdocs/CHANNELS.md)
@@ -176,13 +169,10 @@ export default async function DevPanelPage() {
             Sync Discord nicknames to &quot;{"{base}"} | Character Name&quot; on profile/character changes
           </Switch>
           <Switch name="archiveVisible" defaultChecked={config.archiveVisible} className="col-span-full">
-            Open /archive to players — <strong>effectively one-way</strong>: it shows every location
-            regardless of where a character stood, and names the character behind every /conceal.
-            Meant for after the game ends.
+            Open /archive to players — <strong>effectively one-way</strong>: shows every location regardless of where a character stood, and names the character behind every /conceal. Meant for after the game ends.
           </Switch>
           <Switch name="archiveTravelEvents" defaultChecked={config.archiveTravelEvents} className="col-span-full">
-            Record arrivals/departures in the archive (makes a location read like a story; also two
-            rows per character per turn before anyone speaks)
+            Record arrivals/departures in the archive
           </Switch>
           <div className="col-span-full">
             <SubmitButton pendingLabel="Saving…">Save config</SubmitButton>
