@@ -568,6 +568,12 @@ tags:
     purchasableAfterStart: false
     removable: false
 
+  - slug: ravenkeeper
+    name: Ravenkeeper
+    category: general
+    group: general-traits
+    description: "Keeps the Fortress ravens, and with them the only messages that outrun a rider."
+
   # --- The Watch ------------------------------------------------------------
   # Watchman is the membership tag and the gate: docs/taggroups.yaml puts
   # `requiredTag: watchman` on the general-watch group, so every tag below
@@ -3438,7 +3444,7 @@ tags:
     name: Deadeye Drops
     category: items
     group: items-drink
-    description: "Eye drops fermented from horse dung, and worth every unpleasant step. {tag:increased-accuracy} for two turns."
+    description: "Eye drops refined from Cave Fungus. {tag:increased-accuracy} for two turns."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -3501,7 +3507,7 @@ tags:
     name: Mindbreaker Toxin
     category: items
     group: items-drink
-    description: "Drawn from forest mushrooms. Injected or swallowed, it leaves the taker {tag:hallucinating} and no use to anybody."
+    description: "Drawn from Cave Fungus. Injected or swallowed, it leaves the taker {tag:hallucinating} and no use to anybody."
     pointCost: 0
     tradeable: true
     stackable: true

@@ -21,4 +21,9 @@ const PLAYER_ROLE_ID = "1539805619903791219";
 // narrowcast channels, can never contribute anything anywhere.
 const SPECTATOR_ROLE_ID = "1540054129752154292";
 
-module.exports = { PLAYER_ROLE_ID, SPECTATOR_ROLE_ID };
+// Who may pick a role flagged `leader: true` in docs/roles.yaml. A leader seat
+// is reserved for players who can vouch for availability and roleplay, so the
+// role is handed out by a GM, not earned in-game.
+const LEADER_WHITELIST_ROLE_ID = "1539673757910564864";
+
+module.exports = { PLAYER_ROLE_ID, SPECTATOR_ROLE_ID, LEADER_WHITELIST_ROLE_ID };

@@ -158,6 +158,8 @@ locations:
         description: ""
       - name: Healer's Ward
         description: ""
+      - name: Rookery
+        description: "The Meister keeps his ravens here."
       - name: Library
         description: ""
       - name: Reliquary Chapel

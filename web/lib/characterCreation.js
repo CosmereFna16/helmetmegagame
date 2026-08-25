@@ -170,10 +170,13 @@ export function effectiveTotalCost(tags, tagsById) {
   return tags.reduce((sum, tag) => sum + cumulativeCost(tag, tagsById), 0);
 }
 
-// A cursed player is restricted to CURSED_ROLE_SLUGS; everyone else may take
-// any synced role. Threats aren't data at all (docs/threats.md), so they
-// can't appear here.
-export function isRoleSelectable({ role, cursed }) {
+// A cursed player is restricted to CURSED_ROLE_SLUGS, and a role that grants a
+// Leader seat needs the Leader Whitelist Discord role
+// (web/lib/discordGuild.js#isLeaderWhitelisted). Everyone else may take any
+// synced role. Threats aren't data at all (docs/threats.md), so they can't
+// appear here.
+export function isRoleSelectable({ role, cursed, leaderWhitelisted }) {
+  if (role.grantsLeader && !leaderWhitelisted) return false;
   if (!cursed) return true;
   return CURSED_ROLE_SLUGS.includes(role.slug);
 }

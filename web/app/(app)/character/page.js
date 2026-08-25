@@ -3,7 +3,12 @@ import { prisma, roleCapacity, isDynastyMember } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
-import { getGuildMember, isApprovedPlayer, isCursed } from "@/lib/discordGuild";
+import {
+  getGuildMember,
+  isApprovedPlayer,
+  isCursed,
+  isLeaderWhitelisted,
+} from "@/lib/discordGuild";
 import { isRoleSelectable } from "@/lib/characterCreation";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
@@ -63,6 +68,7 @@ async function loadCreationData(discordUserId) {
     open: superadmin || config?.openToPlayers === true,
     approved: superadmin || isApprovedPlayer(member),
   };
+  const leaderWhitelisted = superadmin || isLeaderWhitelisted(member);
   const playerCount = config?.playerCount ?? 100;
   const takenByRole = new Map(takenRows.map((r) => [r.roleId, r._count]));
 
@@ -121,7 +127,7 @@ async function loadCreationData(discordUserId) {
                 // uncapped roles cross the boundary as null and render "∞".
                 cap: cap === Infinity ? null : cap,
                 taken: takenByRole.get(role.id) ?? 0,
-                selectable: isRoleSelectable({ role, cursed }),
+                selectable: isRoleSelectable({ role, cursed, leaderWhitelisted }),
                 // The Baron's family don't choose a surname (db/lib/dynasty.js).
                 // Resolved here rather than in the wizard so a client component
                 // never imports the barrel and drags PrismaClient into the

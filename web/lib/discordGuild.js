@@ -7,6 +7,7 @@ import {
   buildNarrowcastContext,
   computeNarrowcastAccess,
   PLAYER_ROLE_ID,
+  LEADER_WHITELIST_ROLE_ID,
   OVERWRITE_TYPE_MEMBER,
   locationAccessChannelIds,
 } from "@lifeweb/db";
@@ -243,6 +244,14 @@ export function isCursed(member) {
   const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
   if (!member || !cursedRoleId) return false;
   return member.roles?.includes(cursedRoleId) ?? false;
+}
+
+// Whether this member may pick a role that grants a faction Leader seat. Same
+// hardcoded-ID reasoning as isApprovedPlayer: this gate also fails closed, and
+// silently, so there is nothing to half-configure.
+export function isLeaderWhitelisted(member) {
+  if (!member) return false;
+  return member.roles?.includes(LEADER_WHITELIST_ROLE_ID) ?? false;
 }
 
 // Everyone holding the GM role, for the Gamemasters roster. Kept here beside

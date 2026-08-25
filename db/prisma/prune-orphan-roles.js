@@ -34,7 +34,11 @@
 require("dotenv").config();
 const { prisma } = require("../index");
 const { discordRequest } = require("../lib/discordRest");
-const { PLAYER_ROLE_ID, SPECTATOR_ROLE_ID } = require("../lib/roleIds");
+const {
+  PLAYER_ROLE_ID,
+  SPECTATOR_ROLE_ID,
+  LEADER_WHITELIST_ROLE_ID,
+} = require("../lib/roleIds");
 const { hashNameToColor } = require("../lib/roleColor");
 
 // See the header: mentionable, and coloured by a hash of its own name.
@@ -47,6 +51,7 @@ function protectedRoleIds() {
     [
       PLAYER_ROLE_ID,
       SPECTATOR_ROLE_ID,
+      LEADER_WHITELIST_ROLE_ID,
       process.env.DISCORD_GM_ROLE_ID,
       process.env.DISCORD_CURSED_ROLE_ID,
       process.env.DISCORD_TURN_PING_ROLE_ID,

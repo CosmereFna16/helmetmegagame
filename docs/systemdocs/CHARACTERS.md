@@ -239,6 +239,17 @@ re-counts **inside the transaction that creates the character**, so when two
 players sit on the last Baron seat and both hit Confirm, the second one gets
 told to pick again.
 
+### The Leader Whitelist
+
+A role with `leader: true` needs the **Leader Whitelist** Discord role
+(`LEADER_WHITELIST_ROLE_ID` in `db/lib/roleIds.js`, checked by
+`web/lib/discordGuild.js#isLeaderWhitelisted`). Without it the card renders
+disabled, exactly like a role at capacity, and with no explanation — the
+reservation is explained once in `#info`, not repeated on every card.
+
+Same shape as every other gate here: the disabled card is presentation, and
+`createCharacter` re-checks before it writes. Superadmins bypass.
+
 ### The starting package
 
 Picking a role decides almost everything:

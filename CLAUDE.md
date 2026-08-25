@@ -253,6 +253,7 @@ state, plus one env-configured admin role. `Faction` is **not** one of them
 | **GM role** | `DISCORD_GM_ROLE_ID` env var | `/gm` pages, the `/gm` and `/message` slash commands. Checked via REST (`isGm`), not stored on any model. |
 | **Spectator role** | `SPECTATOR_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | A standing read-only observer seat, applied at provisioning time. See `CHANNELS.md`. |
 | **Player role** | `PLAYER_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may create a character, paired with `GameConfig.openToPlayers` (`CHARACTERS.md` §4b). |
+| **Leader Whitelist role** | `LEADER_WHITELIST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may pick a role flagged `leader: true` at character creation (`CHARACTERS.md` §2). |
 | **Cursed role** | `DISCORD_CURSED_ROLE_ID` env var | What a player may re-roll as after a death (`CHARACTERS.md` §4). |
 | **Turn-ping role** | `DISCORD_TURN_PING_ROLE_ID` env var | Plain opt-in notification, toggled from `/character`. |
 
