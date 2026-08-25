@@ -500,15 +500,6 @@ function optionalCheckbox(interaction, customId) {
   }
 }
 
-function optionalFiles(interaction, customId) {
-  try {
-    const uploaded = interaction.fields.getUploadedFiles(customId);
-    return [...(uploaded?.values() ?? [])];
-  } catch {
-    return [];
-  }
-}
-
 // The Speak button, and /message run anywhere the player cannot already
 // speak. Deferred, because enumerating threads costs API calls — which is
 // exactly why the modal cannot be opened straight from this button.
@@ -577,9 +568,8 @@ async function handleSpeakSubmit(interaction, channelId) {
   }
 
   const body = optionalText(interaction, "say:body").trim();
-  const files = optionalFiles(interaction, "say:file").map((a) => a.url);
-  if (!body && files.length === 0) {
-    await interaction.reply({ content: "» *Write something, or attach something.*", flags: MessageFlags.Ephemeral });
+  if (!body) {
+    await interaction.reply({ content: "» *Write something.*", flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -596,7 +586,6 @@ async function handleSpeakSubmit(interaction, channelId) {
   try {
     posted = await postAsCharacterTo(channel, character, {
       content: body,
-      files,
       discordUserId: interaction.user.id,
       conceal,
     });
@@ -608,7 +597,7 @@ async function handleSpeakSubmit(interaction, channelId) {
 
   await recordArchiveMessage(prisma, {
     discordMessageId: posted.webhookMessage.id,
-    content: [posted.content, ...files.map(() => "[attachment]")].filter(Boolean).join("\n"),
+    content: posted.content,
     character,
     concealedAlias: conceal?.alias ?? null,
     ...resolveChannelContext(channel),

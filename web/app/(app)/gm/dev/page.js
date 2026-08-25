@@ -178,26 +178,12 @@ export default async function DevPanelPage() {
             <SubmitButton pendingLabel="Saving…">Save config</SubmitButton>
           </div>
         </form>
-        <p className="mt-3 text-xs text-muted">
-          Tupper/summary channels are the plain/public/private channels of a provisioned Location. Moves and Efforts
-          come from channels named exactly &quot;moves&quot; and &quot;effort&quot;. With Dawn wipe enabled, the wipe
-          itself runs in the background after a Dawn advance and can take a few minutes to finish in Discord — the
-          turn is already open before it starts. Production coefficient scales the /hunt, /fish, /farm and /herd payouts
-          and docs/documents.yaml&apos;s printed numbers (via live {"{resource:...}"} bubbles) immediately — nothing
-          to sync by hand.
-        </p>
       </section>
 
       <section className="panel p-4" style={{ borderColor: "var(--accent)" }}>
         <h2 className="panel-header text-accent">Restart Game</h2>
         <p className="mb-3 text-sm text-muted">
-          Wipes every character, Move, default effort, note, DM log, and audit log entry; resets every
-          Faction&apos;s Silo to 0 and the Game Config above to its
-          defaults; deletes each character&apos;s personal Discord role and nickname; clears every
-          message in #archive and #turns; and deletes every message, forum post, and thread (public or
-          private) in every provisioned Location channel. Opens a fresh Turn 1, Dawn. Factions, Zones,
-          Locations, and the channels/categories themselves are left in place, just emptied out; the Tag
-          catalog is re-synced from docs/tags.yaml. This cannot be undone.
+          Wipes all game data and reopens Turn 1. Cannot be undone.
         </p>
         <WipeGameButton />
       </section>
