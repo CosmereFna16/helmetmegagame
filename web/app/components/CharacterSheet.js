@@ -185,6 +185,7 @@ export default function CharacterSheet({
       <TagsPanel
         characterTags={character.tags}
         isSelf={isSelf}
+        tagPoints={character.tagPoints}
         catalog={tagCatalog ?? []}
         resources={character.resources}
         otherCharacters={otherCharacters ?? []}

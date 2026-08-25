@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/app/components/PageShell";
 import FactionLink from "@/app/components/FactionLink";
+import TagPointsValue from "@/app/components/TagPointsValue";
 import ActionBar from "./ActionBar";
 import IdentityTab from "./IdentityTab";
 import TagEditor from "./TagEditor";
@@ -355,7 +356,7 @@ function StateStrip({ character, staged, discord, held, equipSlots, gambitModifi
     ],
     ["Location", character.locationName ?? character.zoneName ?? "—"],
     ["Resources", `${staged.resources} ⬢`],
-    ["Tag points", String(staged.tagPoints)],
+    ["Tag points", <TagPointsValue key="tp" points={staged.tagPoints} />],
     ["Equipment", `${equipped} / ${equipSlots}`],
     ["Gambit", gambitModifier > 0 ? `+${gambitModifier}` : String(gambitModifier)],
     ["Turn", openTurn ? `${openTurn.number} ${openTurn.phase}` : "none open"],

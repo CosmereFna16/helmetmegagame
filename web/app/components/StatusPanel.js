@@ -2,6 +2,7 @@ import { moodFromTags, moodLabel, MOOD_SLUGS } from "@lifeweb/db/lib/mood";
 import { gambitModifiers, formatGambitModifiers } from "@lifeweb/db/lib/gambitModifier";
 import { turnsLeft, formatTurnsLeft } from "@/lib/turnFormat";
 import SetMoodButton from "./SetMoodButton";
+import TagPointsValue from "./TagPointsValue";
 import TransferResourcesButton from "./TransferResourcesButton";
 
 const MOOD_COLORS = { NEUTRAL: "var(--text)", HAPPY: "var(--positive)", UNHAPPY: "var(--accent-text)" };
@@ -74,7 +75,9 @@ export default function StatusPanel({ character, isSelf, openTurn, parties }) {
           )}
         </Row>
 
-        <Row label="Tag Points">{character.tagPoints}</Row>
+        <Row label="Tag Points">
+          <TagPointsValue points={character.tagPoints} />
+        </Row>
       </dl>
 
       {isSelf && (

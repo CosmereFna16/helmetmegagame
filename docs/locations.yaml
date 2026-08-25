@@ -416,7 +416,7 @@ locations:
     map: { x: 32, y: 88 }
     description: >-
       A powered train station looming over an inscrutable abyss. You could get on, but where would you go?
-    extendedDescription: "A powered train station looming over an inscrutable abyss. You could get on, but where would you go?"
+    extendedDescription: "A powered train station looming over an inscrutable abyss. You could get on, but where would you go? There are openings in the subway tunnels leading into ancient, unused maintenance areas. Where the tunnels break into open air, you can indeed see the pits, deformed and warped into unnatural stone. There's reflective metal down there. Chrome? Ceramite?"
     publicSubLocations: []
     privateSubLocations: []
     tags: []
@@ -425,7 +425,7 @@ locations:
     zone: Caves
     map: { x: 14, y: 95 }
     description: >-
-      The start and end of all things. What madness brought you down among the ancient?
+      The start and end of all things. What madness brought you down here? The stone curves into strange, meandering passageways, but ceramite catches your torchlight. Monuments of chrome—cities within the deep.
     extendedDescription: ""
     publicSubLocations: []
     privateSubLocations: []
