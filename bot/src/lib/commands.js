@@ -16,10 +16,17 @@ const GUILD_ONLY = [InteractionContextType.Guild];
 const ANYWHERE = [InteractionContextType.Guild, InteractionContextType.BotDM];
 
 const commandDefinitions = [
+  // setMaxLength on both message options below. A Discord string option
+  // defaults to a 6000-character maximum, and a Discord MESSAGE caps at 2000 —
+  // so a GM could type 6000, have it accepted, and watch the send fail. Doing
+  // it on the option means Discord refuses in the client, before the
+  // interaction is ever dispatched, which is a better place to find out.
   new SlashCommandBuilder()
     .setName("gm")
     .setDescription("Speak in this channel as the bot itself (GM only).")
-    .addStringOption((opt) => opt.setName("message").setDescription("What to say").setRequired(true))
+    .addStringOption((opt) =>
+      opt.setName("message").setDescription("What to say").setRequired(true).setMaxLength(2000),
+    )
     .addAttachmentOption((opt) => opt.setName("attachment").setDescription("Optional image/file to attach"))
     .setContexts(GUILD_ONLY),
   // Was /message. Renamed when /message became the player-facing "speak as
@@ -29,7 +36,11 @@ const commandDefinitions = [
     .setName("dm")
     .setDescription("DM a player as the bot itself (GM only).")
     .addUserOption((opt) => opt.setName("recipient").setDescription("Who to message").setRequired(true))
-    .addStringOption((opt) => opt.setName("message").setDescription("What to say").setRequired(true))
+    // 1990 rather than 2000: sendDm prepends "» ", and the two characters it
+    // adds land past the last place anyone was counting.
+    .addStringOption((opt) =>
+      opt.setName("message").setDescription("What to say").setRequired(true).setMaxLength(1990),
+    )
     .setContexts(GUILD_ONLY),
   // Clears afflictions off a character with no cost, no skill check and no
   // co-location — deliberately NOT the player medic path (Heal request), which

@@ -37,13 +37,30 @@ const client = new Client({
   partials: [Partials.Channel, Partials.Message, Partials.Reaction],
 });
 
+// One guard for every handler, rather than a try/catch inside each of them.
+//
+// messageReactionAdd, guildMemberAdd, guildMemberRemove and messageCreate all
+// had unguarded main paths, so any Prisma hiccup rejected all the way up to
+// the unhandledRejection catch-all below — which keeps the bot alive but says
+// nothing useful and leaves the interaction half-done. The visible symptom was
+// a player's 🔍 sitting on a message doing nothing, with no retry, because
+// `reaction.users.remove` never ran.
+//
+// Naming the event in the log is the point: the catch-all can't, and "which
+// handler was that" is the first question every time.
+function guard(event, args) {
+  return Promise.resolve()
+    .then(() => event.execute(...args))
+    .catch((err) => console.error(`${event.name} handler failed:`, err));
+}
+
 const eventsDir = path.join(__dirname, "events");
 for (const file of fs.readdirSync(eventsDir).filter((f) => f.endsWith(".js"))) {
   const event = require(path.join(eventsDir, file));
   if (event.once) {
-    client.once(event.name, (...args) => event.execute(...args));
+    client.once(event.name, (...args) => guard(event, args));
   } else {
-    client.on(event.name, (...args) => event.execute(...args));
+    client.on(event.name, (...args) => guard(event, args));
   }
 }
 

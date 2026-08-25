@@ -24,6 +24,10 @@ const {
   withoutPersistentPrefix,
 } = require("@lifeweb/db/lib/persistence");
 const { resolveChannelContext } = require("../lib/channels");
+const { ack, respond } = require("../lib/respond");
+
+// Discord's hard cap on select-menu options, and on max_values with them.
+const MENU_OPTION_LIMIT = 25;
 
 // /gm: post to the current channel as the bot itself, not the invoker's
 // character — the slash-command replacement for the old ":gm" message
@@ -34,12 +38,21 @@ async function handleGmCommand(interaction) {
     await interaction.reply({ content: "» *GMs only.*", flags: MessageFlags.Ephemeral });
     return;
   }
+  // Deferred before the send: re-uploading an attachment through Discord can
+  // outlast the three seconds an unacknowledged interaction gets.
+  await ack(interaction);
 
   const content = interaction.options.getString("message", true);
   const attachment = interaction.options.getAttachment("attachment");
 
-  await interaction.channel.send({ content, files: attachment ? [attachment.url] : [] });
-  await interaction.reply({ content: "» *Sent.*", flags: MessageFlags.Ephemeral });
+  try {
+    await interaction.channel.send({ content, files: attachment ? [attachment.url] : [] });
+  } catch (err) {
+    console.error("Failed to send /gm message:", err);
+    await respond(interaction, "» *That didn't send. Check the bot can post here, and try again.*");
+    return;
+  }
+  await respond(interaction, "» *Sent.*");
 }
 
 // /dm: DM a chosen server member as the bot itself. Was /message, renamed
@@ -52,16 +65,28 @@ async function handleGmDmCommand(interaction) {
     await interaction.reply({ content: "» *GMs only.*", flags: MessageFlags.Ephemeral });
     return;
   }
+  // A DM costs two round trips (open the channel, post), which is most of the
+  // three-second budget on its own.
+  await ack(interaction);
 
   const recipient = interaction.options.getUser("recipient", true);
   const content = interaction.options.getString("message", true);
 
   try {
     await sendDm(recipient, `» ${content}`);
-    await interaction.reply({ content: `» *Sent to ${recipient}.*`, flags: MessageFlags.Ephemeral });
+    await respond(interaction, `» *Sent to ${recipient}.*`);
   } catch (err) {
     console.error("Failed to send /dm DM:", err);
-    await interaction.reply({ content: "» *Failed to deliver — they may have DMs closed.*", flags: MessageFlags.Ephemeral });
+    // The catch used to report every failure as "they may have DMs closed",
+    // which sent GMs chasing a problem that wasn't there — an over-length
+    // message reads identically. 50007 is the real closed-DMs code.
+    const closed = err.code === 50007 || err.status === 403;
+    await respond(
+      interaction,
+      closed
+        ? "» *Couldn't deliver that — they have DMs closed.*"
+        : "» *Couldn't deliver that. It wasn't their DM settings; check the logs.*",
+    );
   }
 }
 
@@ -70,15 +95,22 @@ async function handleGmDmCommand(interaction) {
 // bot/src/lib/labor.js#performLabor for the tag-tier lookup, the location
 // gate and the auto-resolved Action creation.
 async function handleLaborCommand(interaction, field) {
+  // FIRST, before any query. performLabor writes an Action, applies the move
+  // effects and files an audit row, all inside a transaction — under
+  // launch-day pool contention that can pass three seconds, and then the
+  // player saw "The application did not respond" for work that had already
+  // committed. Retrying told them they'd already acted.
+  await ack(interaction);
+
   const character = await findAliveCharacter(interaction.user.id);
   if (!character) {
-    await interaction.reply({ content: "» *You don't have a living character.*", flags: MessageFlags.Ephemeral });
+    await respond(interaction, "» *You don't have a living character.*");
     return;
   }
 
   const result = await performLabor(character, field);
   if (!result.ok) {
-    await interaction.reply({ content: `» *${result.reason}*`, flags: MessageFlags.Ephemeral });
+    await respond(interaction, `» *${result.reason}*`);
     return;
   }
 
@@ -91,7 +123,7 @@ async function handleLaborCommand(interaction, field) {
   );
   lines.push("» *Move confirmed — waiting on GM review.*");
 
-  await interaction.reply({ content: lines.join("\n"), flags: MessageFlags.Ephemeral });
+  await respond(interaction, lines.join("\n"));
 }
 
 // /add and /remove: the private-thread guest list. Both take a ROLE option so
@@ -113,15 +145,15 @@ async function handleThreadMemberCommand(interaction, action) {
     });
     return;
   }
+  // Deferred before the member fetch: on a cache miss that is a REST round
+  // trip, and the add/remove below is another.
+  await ack(interaction);
 
   const gm = isGmMember(interaction);
   if (!gm) {
     const member = await channel.members.fetch(interaction.user.id).catch(() => null);
     if (!member) {
-      await interaction.reply({
-        content: "» *You're not in this thread.*",
-        flags: MessageFlags.Ephemeral,
-      });
+      await respond(interaction, "» *You're not in this thread.*");
       return;
     }
   }
@@ -131,10 +163,7 @@ async function handleThreadMemberCommand(interaction, action) {
     where: { discordRoleId: role.id, status: "ALIVE" },
   });
   if (!target) {
-    await interaction.reply({
-      content: "» *That isn't a living character's role.*",
-      flags: MessageFlags.Ephemeral,
-    });
+    await respond(interaction, "» *That isn't a living character's role.*");
     return;
   }
 
@@ -146,13 +175,10 @@ async function handleThreadMemberCommand(interaction, action) {
       await channel.members.remove(target.discordUserId);
     } catch (err) {
       console.error(`Failed to remove ${target.discordUserId} from thread ${channel.id}:`, err);
-      await interaction.reply({
-        content: "» *Couldn't remove them. The bot may be missing Manage Threads.*",
-        flags: MessageFlags.Ephemeral,
-      });
+      await respond(interaction, "» *Couldn't remove them. The bot may be missing Manage Threads.*");
       return;
     }
-    await interaction.reply({ content: `» *${target.name} was removed.*`, flags: MessageFlags.Ephemeral });
+    await respond(interaction, `» *${target.name} was removed.*`);
     return;
   }
 
@@ -161,10 +187,10 @@ async function handleThreadMemberCommand(interaction, action) {
   // holds while they're standing in that Location.
   const context = resolveChannelContext(channel);
   if (!canJoinThread(target, context)) {
-    await interaction.reply({
-      content: `» *${target.name} isn't in ${context.locationName ?? "this location"} — they can't be brought in.*`,
-      flags: MessageFlags.Ephemeral,
-    });
+    await respond(
+      interaction,
+      `» *${target.name} isn't in ${context.locationName ?? "this location"} — they can't be brought in.*`,
+    );
     return;
   }
 
@@ -172,13 +198,10 @@ async function handleThreadMemberCommand(interaction, action) {
     await channel.members.add(target.discordUserId);
   } catch (err) {
     console.error(`Failed to add ${target.discordUserId} to thread ${channel.id}:`, err);
-    await interaction.reply({
-      content: "» *Couldn't add them — they may not be able to see this location.*",
-      flags: MessageFlags.Ephemeral,
-    });
+    await respond(interaction, "» *Couldn't add them — they may not be able to see this location.*");
     return;
   }
-  await interaction.reply({ content: `» *${target.name} was added.*`, flags: MessageFlags.Ephemeral });
+  await respond(interaction, `» *${target.name} was added.*`);
 }
 
 // /persistent: toggle whether the current thread survives the Dawn wipe.
@@ -205,8 +228,21 @@ async function handlePersistentCommand(interaction) {
     return;
   }
 
+  // Deferred before anything else, and this command needs it more than any
+  // other: renaming a thread sits in a Discord bucket of TWO PER TEN MINUTES
+  // per thread, so toggling /persistent twice on the same thread parks the
+  // second rename behind a multi-minute wait inside discord.js's queue. The
+  // three-second window died every time and the player always saw "the
+  // application did not respond", even though the rename eventually landed.
+  // Not load-dependent — reproducible on demand. A deferred token lasts
+  // fifteen minutes, which covers it.
+  //
+  // The forum branch is no better: ensureForumTag is a channel GET and
+  // possibly a PATCH before the tag is even applied.
+  await ack(interaction);
+
   if (!isGmMember(interaction) && !(await findAliveCharacter(interaction.user.id))) {
-    await interaction.reply({ content: "» *You don't have a living character.*", flags: MessageFlags.Ephemeral });
+    await respond(interaction, "» *You don't have a living character.*");
     return;
   }
 
@@ -215,10 +251,7 @@ async function handlePersistentCommand(interaction) {
     persistent = forumPost ? await toggleForumPostTag(channel) : await togglePrivateThreadPrefix(channel);
   } catch (err) {
     console.error(`Failed to toggle persistence on thread ${channel.id}:`, err);
-    await interaction.reply({
-      content: "» *Couldn't change that — the bot may be missing Manage Threads here.*",
-      flags: MessageFlags.Ephemeral,
-    });
+    await respond(interaction, "» *Couldn't change that — the bot may be missing Manage Threads here.*");
     return;
   }
 
@@ -238,12 +271,12 @@ async function handlePersistentCommand(interaction) {
     })
     .catch((err) => console.error("Persistence audit log failed:", err));
 
-  await interaction.reply({
-    content: persistent
+  await respond(
+    interaction,
+    persistent
       ? "» *This thread will now survive the Dawn wipe — its messages still get cleared.*"
       : "» *This thread is no longer persistent, and will be removed at Dawn.*",
-    flags: MessageFlags.Ephemeral,
-  });
+  );
 }
 
 // ensureForumTag rather than getForumTagId: a forum channel provisioned before
@@ -272,9 +305,14 @@ async function togglePrivateThreadPrefix(thread) {
 // (bot/src/lib/turnsConsole.js) — "move:" and "say:" IDs further down are
 // the unrelated Move and Speak modals.
 async function handleOpen(interaction) {
+  // The Travel button on the #turns console, which every player presses within
+  // a minute of turn open. Two queries before the first ack was the whole
+  // three-second budget under that kind of pool contention.
+  await ack(interaction);
+
   const character = await findAliveCharacter(interaction.user.id);
   if (!character) {
-    await interaction.reply({ content: "» *You don't have a living character.*", flags: MessageFlags.Ephemeral });
+    await respond(interaction, "» *You don't have a living character.*");
     return;
   }
 
@@ -295,26 +333,29 @@ async function handleOpen(interaction) {
     locations = [...(currentLocation?.connectsTo ?? [])].sort((a, b) => a.name.localeCompare(b.name));
   }
   if (locations.length === 0) {
-    await interaction.reply({ content: "» *Nowhere to go from here.*", flags: MessageFlags.Ephemeral });
+    await respond(interaction, "» *Nowhere to go from here.*");
     return;
   }
 
-  await interaction.reply({
+  await respond(interaction, {
     content: "Where would you like to move? Choose a location.",
     components: [buildLocationSelectRow(locations, currentLocation)],
-    flags: MessageFlags.Ephemeral,
   });
 }
 
 async function handlePlaceSelect(interaction) {
+  // deferUpdate rather than deferReply: this edits the picker in place, and a
+  // deferReply would post a second "thinking" message above it.
+  await ack(interaction, { update: true });
+
   const locationId = interaction.values[0];
   const location = await prisma.location.findUnique({ where: { id: locationId } });
   if (!location) {
-    await interaction.update({ content: "» *That location no longer exists.*", components: [] });
+    await respond(interaction, { content: "» *That location no longer exists.*", components: [] });
     return;
   }
 
-  await interaction.update({
+  await respond(interaction, {
     content: `Move to **${location.name}**?`,
     components: [buildConfirmRow(locationId)],
   });
@@ -374,18 +415,24 @@ async function handleMoveOpen(interaction) {
 // the same refusal strings — but replying ephemerally rather than deleting a
 // message and DMing.
 async function handleMoveSubmit(interaction) {
+  // FIRST. This is the handler with the most to lose: by the time it replies
+  // it has read the character, the open turn and any prior Action, created the
+  // Action row, written an audit entry, re-read with tags, and run confirmMove
+  // — which is another transaction, another audit row, and the resource push.
+  // At launch-day pool contention that can pass three seconds, and the player
+  // then saw "The application did not respond" for a Move that had gone
+  // through. Trying again told them they'd already acted.
+  await ack(interaction);
+
   const character = await findAliveCharacter(interaction.user.id);
   if (!character) {
-    await interaction.reply({ content: "» *You don't have a living character.*", flags: MessageFlags.Ephemeral });
+    await respond(interaction, "» *You don't have a living character.*");
     return;
   }
 
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
   if (!openTurn) {
-    await interaction.reply({
-      content: "» *No turn is currently open — your submission wasn't recorded.*",
-      flags: MessageFlags.Ephemeral,
-    });
+    await respond(interaction, "» *No turn is currently open — your submission wasn't recorded.*");
     return;
   }
 
@@ -396,16 +443,13 @@ async function handleMoveSubmit(interaction) {
     where: { characterId: character.id, turnId: openTurn.id },
   });
   if (alreadyActed) {
-    await interaction.reply({
-      content: "» *You've already sent a Move this turn — your submission wasn't recorded.*",
-      flags: MessageFlags.Ephemeral,
-    });
+    await respond(interaction, "» *You've already sent a Move this turn — your submission wasn't recorded.*");
     return;
   }
 
   const raw = interaction.fields.getTextInputValue("move:body").trim();
   if (!raw) {
-    await interaction.reply({ content: "» *Write something first.*", flags: MessageFlags.Ephemeral });
+    await respond(interaction, "» *Write something first.*");
     return;
   }
 
@@ -423,7 +467,7 @@ async function handleMoveSubmit(interaction) {
   if (roll?.kind === "shorthand") {
     const rate = await resolveLaborRate(prisma, character.id, roll.field);
     if (!rate.ok) {
-      await interaction.reply({ content: `» *${rate.reason}*`, flags: MessageFlags.Ephemeral });
+      await respond(interaction, `» *${rate.reason}*`);
       return;
     }
     resourceRollExpression = rate.expression;
@@ -450,10 +494,7 @@ async function handleMoveSubmit(interaction) {
     });
   } catch (err) {
     if (err.code === "P2002") {
-      await interaction.reply({
-        content: "» *You've already acted this turn.*",
-        flags: MessageFlags.Ephemeral,
-      });
+      await respond(interaction, "» *You've already acted this turn.*");
       return;
     }
     throw err;
@@ -475,7 +516,11 @@ async function handleMoveSubmit(interaction) {
   });
 
   const { lines } = await confirmMove(loaded, interaction.user.id);
-  await interaction.reply({ content: lines.join("\n"), flags: MessageFlags.Ephemeral });
+  // respond() clamps to 2000. It has to: the first line echoes the player's
+  // description, the modal allows 1800 characters, and the Kind, dice and
+  // resource-roll lines go on top — so the reply could exceed the limit by
+  // typing, and did so AFTER the Move was already committed and paid out.
+  await respond(interaction, lines.join("\n"));
 }
 
 // --- Speak -----------------------------------------------------------
@@ -549,9 +594,14 @@ async function handleSpeakPick(interaction) {
 }
 
 async function handleSpeakSubmit(interaction, channelId) {
+  // Moved to the top. The defer used to sit three awaits down — a character
+  // lookup, a member resolve that can hit REST on a cache miss, and a channel
+  // fetch — any of which can outlast the three-second window on its own.
+  await ack(interaction);
+
   const character = await findAliveCharacter(interaction.user.id);
   if (!character) {
-    await interaction.reply({ content: "» *You don't have a living character.*", flags: MessageFlags.Ephemeral });
+    await respond(interaction, "» *You don't have a living character.*");
     return;
   }
 
@@ -563,13 +613,13 @@ async function handleSpeakSubmit(interaction, channelId) {
   // walking out of the room. canSpeakInTarget picks the channel-vs-thread
   // permission by what it was handed.
   if (!guild || !channel || !member || !canSpeakInTarget(channel, member)) {
-    await interaction.reply({ content: "» *You can't speak there any more.*", flags: MessageFlags.Ephemeral });
+    await respond(interaction, "» *You can't speak there any more.*");
     return;
   }
 
   const body = optionalText(interaction, "say:body").trim();
   if (!body) {
-    await interaction.reply({ content: "» *Write something.*", flags: MessageFlags.Ephemeral });
+    await respond(interaction, "» *Write something.*");
     return;
   }
 
@@ -579,8 +629,6 @@ async function handleSpeakSubmit(interaction, channelId) {
   const conceal = optionalCheckbox(interaction, "say:conceal")
     ? { alias: concealedAlias(character) }
     : null;
-
-  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   let posted;
   try {
@@ -638,6 +686,7 @@ async function handleHealCommand(interaction) {
     await interaction.reply({ content: "» *GMs only.*", flags: MessageFlags.Ephemeral });
     return;
   }
+  await ack(interaction);
 
   const role = interaction.options.getRole("character", true);
   const target = await prisma.character.findFirst({
@@ -645,27 +694,38 @@ async function handleHealCommand(interaction) {
     include: { tags: { include: { tag: true } } },
   });
   if (!target) {
-    await interaction.reply({ content: "» *That isn't a living character's role.*", flags: MessageFlags.Ephemeral });
+    await respond(interaction, "» *That isn't a living character's role.*");
     return;
   }
 
   const afflictions = target.tags.filter((ct) => ct.tag.category === HEALTH_CATEGORY);
   if (afflictions.length === 0) {
-    await interaction.reply({ content: `» *${target.name} has nothing to treat.*`, flags: MessageFlags.Ephemeral });
+    await respond(interaction, `» *${target.name} has nothing to treat.*`);
     return;
   }
 
+  // Discord caps a select menu at 25 options AND caps max_values at the number
+  // of options present. The options were already sliced; setMaxValues wasn't,
+  // so a character carrying 26 afflictions made Discord reject the whole
+  // component and the GM couldn't heal them at all — the failure being total
+  // rather than partial is what made this worth fixing.
+  const shown = afflictions.slice(0, MENU_OPTION_LIMIT);
   const menu = new StringSelectMenuBuilder()
     .setCustomId(`heal:pick:${target.id}`)
     .setPlaceholder("What to clear...")
     .setMinValues(1)
-    .setMaxValues(afflictions.length)
-    .addOptions(afflictions.slice(0, 25).map((ct) => ({ label: ct.tag.name, value: ct.tagId })));
+    .setMaxValues(shown.length)
+    .addOptions(shown.map((ct) => ({ label: ct.tag.name, value: ct.tagId })));
 
-  await interaction.reply({
-    content: `Clear what from **${target.name}**?`,
+  // Said out loud rather than silently dropped, the way the Speak picker does
+  // it: a GM who can't find an affliction should know the list was cut, not
+  // wonder whether they misremembered.
+  const truncated = afflictions.length > shown.length;
+  await respond(interaction, {
+    content:
+      `Clear what from **${target.name}**?` +
+      (truncated ? `\n-# Showing the first ${shown.length} of ${afflictions.length}.` : ""),
     components: [new ActionRowBuilder().addComponents(menu)],
-    flags: MessageFlags.Ephemeral,
   });
 }
 

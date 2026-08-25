@@ -10,6 +10,27 @@ const {
 } = require("@lifeweb/db/lib/medicalVision");
 const { updateArchiveMessage, deleteArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { recentProxies, webhookClientFor } = require("../lib/proxy");
+
+// Discord's embed limits. An embed that breaches either is rejected whole, and
+// on the inspect path that meant no DM, no channel fallback, both errors
+// swallowed, and the 🔍 left sitting on the message doing nothing. A
+// tag-heavy character — the Demoness with a pile of new tags, i.e. exactly who
+// gets inspected — reached the field cap easily.
+//
+// The dossier branch below had this trim inline and the inspect branch had a
+// comment reminding itself to and then didn't; now there is one of them.
+const EMBED_FIELD_LIMIT = 1024;
+const EMBED_DESCRIPTION_LIMIT = 4096;
+
+function fitField(value) {
+  const text = String(value ?? "");
+  return text.length > EMBED_FIELD_LIMIT ? `${text.slice(0, EMBED_FIELD_LIMIT - 14)}… (+more)` : text;
+}
+
+function fitDescription(value) {
+  const text = String(value ?? "");
+  return text.length > EMBED_DESCRIPTION_LIMIT ? `${text.slice(0, EMBED_DESCRIPTION_LIMIT - 1)}…` : text;
+}
 const { sendDm } = require("../lib/dm");
 
 const DELETE_EMOJI = "❌"; // ❌
@@ -89,7 +110,7 @@ async function handleDossierReaction(reaction, proxy, user) {
   const where = [character.location?.name, character.zone?.name].filter(Boolean).join(" · ") || "nowhere";
   const embed = new EmbedBuilder()
     .setTitle(character.name)
-    .setDescription(character.appearance || "No visible appearance.")
+    .setDescription(fitDescription(character.appearance || "No visible appearance."))
     .addFields({
       name: "Standing",
       value: [
@@ -114,9 +135,7 @@ async function handleDossierReaction(reaction, proxy, user) {
       ].filter(Boolean);
       return bits.length > 0 ? `${ct.tag.name} (${bits.join(" · ")})` : ct.tag.name;
     });
-    let value = rendered.join(", ");
-    if (value.length > 1024) value = `${value.slice(0, 1010)}… (+more)`;
-    embed.addFields({ name: "Tags", value });
+    embed.addFields({ name: "Tags", value: fitField(rendered.join(", ")) });
   }
 
   embed.addFields({
@@ -279,163 +298,172 @@ module.exports = {
     }
 
     if (INSPECT_EMOJIS.includes(emoji)) {
-      // The inspected character, and the inspector — what the embed shows
-      // depends on both. Seductive/Torturer (and their Demoness twins) are
-      // read off the REACTOR, not the subject: they're the sight, not the
-      // thing seen.
-      // A concealed message answers with a hardcoded, deliberately impoverished
-      // embed: what a stranger could see, and nothing else. It returns before
-      // any of the normal field logic below, so no appearance, name, Desire,
-      // Fear or Resources can leak through a gate that happens to be
-      // open for this particular viewer.
-      if (proxy.concealed) {
-        const concealedChar = await prisma.character.findUnique({
-          where: { id: proxy.characterId },
-          select: {
-            tags: {
-              select: {
-                equipped: true,
-                tag: {
-                  select: {
-                    name: true,
-                    visibleOnInspect: true,
-                    category: true,
+      // The reaction comes off in a finally, not at the end of the branch.
+      // Anything that throws in here — a rejected embed, a Prisma hiccup —
+      // used to leave the 🔍 sitting on the message: no embed, no error the
+      // player could see, and re-clicking did nothing because the reaction was
+      // still theirs. Clearing it means a retry is always one click away.
+      try {
+        // The inspected character, and the inspector — what the embed shows
+        // depends on both. Seductive/Torturer (and their Demoness twins) are
+        // read off the REACTOR, not the subject: they're the sight, not the
+        // thing seen.
+        // A concealed message answers with a hardcoded, deliberately impoverished
+        // embed: what a stranger could see, and nothing else. It returns before
+        // any of the normal field logic below, so no appearance, name, Desire,
+        // Fear or Resources can leak through a gate that happens to be
+        // open for this particular viewer.
+        if (proxy.concealed) {
+          const concealedChar = await prisma.character.findUnique({
+            where: { id: proxy.characterId },
+            select: {
+              tags: {
+                select: {
+                  equipped: true,
+                  tag: {
+                    select: {
+                      name: true,
+                      visibleOnInspect: true,
+                      category: true,
+                    },
                   },
                 },
               },
             },
-          },
+          });
+          if (!concealedChar) return;
+
+          const seen = concealedChar.tags.filter((ct) => ct.tag.visibleOnInspect);
+          // Health is its own category now, so it IS the ailment set and the
+          // category is the right thing to test — this used to have to reach for
+          // the status-health group slug to avoid dragging Hungry and Unhappy in
+          // with it. Note the capital: Tag.category stores the display name, not
+          // the YAML slug (syncTags.js).
+          const ailments = seen
+            .filter((ct) => ct.tag.category === HEALTH_CATEGORY)
+            .map((ct) => ct.tag.name);
+          const worn = seen.filter((ct) => ct.equipped).map((ct) => ct.tag.name);
+
+          const hidden = new EmbedBuilder().setDescription(concealedLine(proxy.alias));
+          if (ailments.length > 0) hidden.addFields({ name: "Ailments", value: fitField(ailments.join(", ")) });
+          if (worn.length > 0) hidden.addFields({ name: "Equipment", value: fitField(worn.join(", ")) });
+          if (process.env.WEB_BASE_URL) {
+            hidden.setThumbnail(`${process.env.WEB_BASE_URL}/assets/unknown.png`);
+          }
+
+          try {
+            await sendDm(user, { embeds: [hidden] });
+          } catch {
+            await reaction.message.channel.send({ embeds: [hidden] }).catch(() => {});
+          }
+          // The finally below clears the reaction on the way out of this return.
+          return;
+        }
+
+        const [character, viewer, openTurn, skillCatalog] = await Promise.all([
+          prisma.character.findUnique({
+            where: { id: proxy.characterId },
+            include: {
+              // requirementSkills carries `id` as well as `name` because the
+              // doctor's eye below matches on it, not on the label.
+              tags: { include: { tag: { include: { requirementSkills: { select: { id: true, name: true } } } } } },
+              faction: { select: { name: true } },
+            },
+          }),
+          prisma.character.findFirst({
+            where: { discordUserId: user.id, status: "ALIVE" },
+            select: { tags: { select: { tagId: true, tag: { select: { slug: true } } } } },
+          }),
+          prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
+          // Just the tier chain, for the same reason healCharacterRequest reads
+          // it: holding Medical (Expert) has to satisfy a requirement written
+          // against Medical (Basic).
+          prisma.tag.findMany({ select: { id: true, parentTagId: true } }),
+        ]);
+        if (!character) return;
+
+        const { canSeeDesire, canSeeFear } = inspectVision(viewer?.tags ?? []);
+
+        // The doctor's eye: an affliction you could treat as ROUTINE is one you
+        // can recognise on sight, even when it's invisible to everyone else —
+        // appendicitis, cracked ribs, a bellyful of parasites. Anything needing
+        // a Gambit stays hidden, because guessing isn't diagnosing.
+        const satisfied = satisfiedSkillIds(
+          (viewer?.tags ?? []).map((ct) => ct.tagId),
+          buildSkillAncestry(skillCatalog),
+        );
+
+        // Each entry is the tag name, plus a parenthetical carrying the minified
+        // "cost to add/remove" (see formatTagRequirement, @lifeweb/db) and how
+        // long it has left, whichever are set. Same `·` separator the web
+        // tooltip uses, so both faces of the game read alike — mind Discord's
+        // 1024-char embed field cap.
+        const visibleTags = medicallyVisibleTags(character.tags, satisfied).map(({ characterTag: ct, viaSkill }) => {
+          const bits = [
+            formatTagRequirement(ct.tag),
+            formatTurnsLeft(turnsLeft(ct.expiresTurn, openTurn?.number)),
+            // Only the reader is seeing this one. Worth saying so plainly: the
+            // patient isn't showing it to the room, and a medic who repeats it
+            // as common knowledge has said something nobody else could know.
+            viaSkill ? "your diagnosis" : null,
+          ].filter(Boolean);
+          return bits.length > 0 ? `${ct.tag.name} (${bits.join(" · ")})` : ct.tag.name;
         });
-        if (!concealedChar) return;
 
-        const seen = concealedChar.tags.filter((ct) => ct.tag.visibleOnInspect);
-        // Health is its own category now, so it IS the ailment set and the
-        // category is the right thing to test — this used to have to reach for
-        // the status-health group slug to avoid dragging Hungry and Unhappy in
-        // with it. Note the capital: Tag.category stores the display name, not
-        // the YAML slug (syncTags.js).
-        const ailments = seen
-          .filter((ct) => ct.tag.category === HEALTH_CATEGORY)
-          .map((ct) => ct.tag.name);
-        const worn = seen.filter((ct) => ct.equipped).map((ct) => ct.tag.name);
+        const embed = new EmbedBuilder()
+          .setTitle(character.name)
+          .setDescription(fitDescription(character.appearance || "No visible appearance."));
+        if (visibleTags.length > 0) {
+          embed.addFields({ name: "Tags", value: fitField(visibleTags.join(", ")) });
+        }
 
-        const hidden = new EmbedBuilder().setDescription(concealedLine(proxy.alias));
-        if (ailments.length > 0) hidden.addFields({ name: "Ailments", value: ailments.join(", ") });
-        if (worn.length > 0) hidden.addFields({ name: "Equipment", value: worn.join(", ") });
+        // An unseen field is ABSENT, never a "hidden" placeholder — a
+        // placeholder advertises that there's something worth going after.
+        // Same posture as the Resources field below. Nothing tells the subject
+        // they were read, either; every inspect is silent.
+        if (canSeeDesire) {
+          const desire = await prisma.desire.findFirst({
+            where: { characterId: character.id, status: "ACTIVE" },
+            select: { text: true, points: true },
+          });
+          if (desire) {
+            embed.addFields({ name: "Desire", value: fitField(`${desire.text} (+${desire.points})`) });
+          }
+        }
+
+        if (canSeeFear && character.fear) {
+          embed.addFields({ name: "Fear", value: fitField(character.fear) });
+        }
+
+        // Whoever holds Silo authority over this character's faction — its
+        // Leader/Treasurer, or an ancestor faction's — sees what they're
+        // carrying, the same gate /faction's roster column uses. For anyone
+        // else the field is simply absent rather than a "hidden" placeholder,
+        // which would advertise that there's a number to go looking for.
+        // Unaffiliated is the DB's placeholder home for the factionless, so
+        // nobody inherits authority over it.
+        if (character.factionId && character.faction?.name !== "Unaffiliated") {
+          const access = await getSiloAccess(prisma, user.id, character.factionId);
+          if (access.canManageSilo) {
+            embed.addFields({ name: "Resources", value: `${character.resources} ⬢`, inline: true });
+          }
+        }
+
         if (process.env.WEB_BASE_URL) {
-          hidden.setThumbnail(`${process.env.WEB_BASE_URL}/assets/unknown.png`);
+          embed.setThumbnail(
+            `${process.env.WEB_BASE_URL}/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`,
+          );
         }
 
         try {
-          await sendDm(user, { embeds: [hidden] });
+          await sendDm(user, { embeds: [embed] });
         } catch {
-          await reaction.message.channel.send({ embeds: [hidden] }).catch(() => {});
+          await reaction.message.channel.send({ embeds: [embed] }).catch(() => {});
         }
+      } finally {
+        // Runs on the concealed branch's early return too.
         await reaction.users.remove(user.id).catch(() => {});
-        return;
       }
-
-      const [character, viewer, openTurn, skillCatalog] = await Promise.all([
-        prisma.character.findUnique({
-          where: { id: proxy.characterId },
-          include: {
-            // requirementSkills carries `id` as well as `name` because the
-            // doctor's eye below matches on it, not on the label.
-            tags: { include: { tag: { include: { requirementSkills: { select: { id: true, name: true } } } } } },
-            faction: { select: { name: true } },
-          },
-        }),
-        prisma.character.findFirst({
-          where: { discordUserId: user.id, status: "ALIVE" },
-          select: { tags: { select: { tagId: true, tag: { select: { slug: true } } } } },
-        }),
-        prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
-        // Just the tier chain, for the same reason healCharacterRequest reads
-        // it: holding Medical (Expert) has to satisfy a requirement written
-        // against Medical (Basic).
-        prisma.tag.findMany({ select: { id: true, parentTagId: true } }),
-      ]);
-      if (!character) return;
-
-      const { canSeeDesire, canSeeFear } = inspectVision(viewer?.tags ?? []);
-
-      // The doctor's eye: an affliction you could treat as ROUTINE is one you
-      // can recognise on sight, even when it's invisible to everyone else —
-      // appendicitis, cracked ribs, a bellyful of parasites. Anything needing
-      // a Gambit stays hidden, because guessing isn't diagnosing.
-      const satisfied = satisfiedSkillIds(
-        (viewer?.tags ?? []).map((ct) => ct.tagId),
-        buildSkillAncestry(skillCatalog),
-      );
-
-      // Each entry is the tag name, plus a parenthetical carrying the minified
-      // "cost to add/remove" (see formatTagRequirement, @lifeweb/db) and how
-      // long it has left, whichever are set. Same `·` separator the web
-      // tooltip uses, so both faces of the game read alike — mind Discord's
-      // 1024-char embed field cap.
-      const visibleTags = medicallyVisibleTags(character.tags, satisfied).map(({ characterTag: ct, viaSkill }) => {
-        const bits = [
-          formatTagRequirement(ct.tag),
-          formatTurnsLeft(turnsLeft(ct.expiresTurn, openTurn?.number)),
-          // Only the reader is seeing this one. Worth saying so plainly: the
-          // patient isn't showing it to the room, and a medic who repeats it
-          // as common knowledge has said something nobody else could know.
-          viaSkill ? "your diagnosis" : null,
-        ].filter(Boolean);
-        return bits.length > 0 ? `${ct.tag.name} (${bits.join(" · ")})` : ct.tag.name;
-      });
-
-      const embed = new EmbedBuilder()
-        .setTitle(character.name)
-        .setDescription(character.appearance || "No visible appearance.");
-      if (visibleTags.length > 0) {
-        embed.addFields({ name: "Tags", value: visibleTags.join(", ") });
-      }
-
-      // An unseen field is ABSENT, never a "hidden" placeholder — a
-      // placeholder advertises that there's something worth going after.
-      // Same posture as the Resources field below. Nothing tells the subject
-      // they were read, either; every inspect is silent.
-      if (canSeeDesire) {
-        const desire = await prisma.desire.findFirst({
-          where: { characterId: character.id, status: "ACTIVE" },
-          select: { text: true, points: true },
-        });
-        if (desire) {
-          embed.addFields({ name: "Desire", value: `${desire.text} (+${desire.points})` });
-        }
-      }
-
-      if (canSeeFear && character.fear) {
-        embed.addFields({ name: "Fear", value: character.fear });
-      }
-
-      // Whoever holds Silo authority over this character's faction — its
-      // Leader/Treasurer, or an ancestor faction's — sees what they're
-      // carrying, the same gate /faction's roster column uses. For anyone
-      // else the field is simply absent rather than a "hidden" placeholder,
-      // which would advertise that there's a number to go looking for.
-      // Unaffiliated is the DB's placeholder home for the factionless, so
-      // nobody inherits authority over it.
-      if (character.factionId && character.faction?.name !== "Unaffiliated") {
-        const access = await getSiloAccess(prisma, user.id, character.factionId);
-        if (access.canManageSilo) {
-          embed.addFields({ name: "Resources", value: `${character.resources} ⬢`, inline: true });
-        }
-      }
-
-      if (process.env.WEB_BASE_URL) {
-        embed.setThumbnail(
-          `${process.env.WEB_BASE_URL}/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`,
-        );
-      }
-
-      try {
-        await sendDm(user, { embeds: [embed] });
-      } catch {
-        await reaction.message.channel.send({ embeds: [embed] }).catch(() => {});
-      }
-      await reaction.users.remove(user.id).catch(() => {});
     }
   },
 };
