@@ -1,4 +1,4 @@
-const { WebhookClient } = require("discord.js");
+const { WebhookClient, RESTJSONErrorCodes } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const { recordArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { capitalizeSentences } = require("./textCorrection");
@@ -16,7 +16,25 @@ const WEBHOOK_NAME = "Bascinet Tupper";
 // on the order of a few MB — cheap next to losing the feature mid-turn.
 const MAX_RECENT = 20_000;
 
-const webhookCache = new Map(); // channelId -> { id, token }
+// Two caches, both keyed for the process lifetime, mirroring the REST twin in
+// db/lib/discordRest.js.
+//
+//   webhookCache   channelId -> { id, token }
+//   clientCache    webhookId -> WebhookClient
+//
+// The second one exists because a WebhookClient is not free: it carries its
+// own REST manager, and a brand-new one starts with *zero* knowledge of the
+// rate limits it is about to hit. Building one per message meant N
+// simultaneous messages in a busy room fired N rate-limit-blind requests into
+// a ~5-per-5s bucket. Keyed on the webhook rather than the channel so the
+// ❌/✏️ reaction handlers, which only hold an id and a token, share it too.
+const webhookCache = new Map();
+const clientCache = new Map();
+
+// A cold channel hit by two messages in the same tick would otherwise run
+// fetchWebhooks twice and, finding nothing both times, create two webhooks.
+const webhookPending = new Map(); // channelId -> Promise<{ id, token }>
+
 const recentProxies = new Map(); // webhookMessageId -> { discordUserId, characterId, webhookId, webhookToken, threadId, concealed, alias }
 
 function trackProxy(webhookMessageId, data) {
@@ -27,20 +45,58 @@ function trackProxy(webhookMessageId, data) {
   }
 }
 
+// Returns the WebhookClient for a webhook, building it at most once.
+function webhookClientFor({ id, token }) {
+  const cached = clientCache.get(id);
+  if (cached) return cached;
+  const client = new WebhookClient({ id, token });
+  clientCache.set(id, client);
+  return client;
+}
+
+// Un-learn a channel's webhook. Nothing did this before, so a GM deleting the
+// "Bascinet Tupper" webhook broke every proxy in that room until the next
+// restart — and each of those failures left the player's real name on screen.
+function forgetChannelWebhook(channelId) {
+  const info = webhookCache.get(channelId);
+  webhookCache.delete(channelId);
+  webhookPending.delete(channelId);
+  if (info) {
+    clientCache.get(info.id)?.destroy?.();
+    clientCache.delete(info.id);
+  }
+}
+
+function webhookChannelFor(channel) {
+  return channel.isThread() ? channel.parent : channel;
+}
+
 async function fetchOrCreateWebhook(channel) {
-  const target = channel.isThread() ? channel.parent : channel;
+  const target = webhookChannelFor(channel);
   const cached = webhookCache.get(target.id);
   if (cached) return cached;
 
-  const webhooks = await target.fetchWebhooks();
-  let webhook = webhooks.find((w) => w.owner?.id === channel.client.user.id);
-  if (!webhook) {
-    webhook = await target.createWebhook({ name: WEBHOOK_NAME });
-  }
+  const inflight = webhookPending.get(target.id);
+  if (inflight) return inflight;
 
-  const info = { id: webhook.id, token: webhook.token };
-  webhookCache.set(target.id, info);
-  return info;
+  const pending = (async () => {
+    const webhooks = await target.fetchWebhooks();
+    let webhook = webhooks.find((w) => w.owner?.id === channel.client.user.id);
+    if (!webhook) {
+      webhook = await target.createWebhook({ name: WEBHOOK_NAME });
+    }
+
+    const info = { id: webhook.id, token: webhook.token };
+    webhookCache.set(target.id, info);
+    return info;
+  })();
+
+  webhookPending.set(target.id, pending);
+  try {
+    return await pending;
+  } finally {
+    webhookPending.delete(target.id);
+  }
 }
 
 // Attachments are recorded as a placeholder and nothing more. Storing the CDN
@@ -86,14 +142,12 @@ function concealedAvatarUrl() {
 // reaction in bot/src/events/messageReactionAdd.js is gated on recentProxies,
 // so an untracked message is inert to all of them.
 async function postAsCharacterTo(channel, character, { content, files = [], discordUserId, conceal = null }) {
-  const { id, token } = await fetchOrCreateWebhook(channel);
-  const webhookClient = new WebhookClient({ id, token });
   const threadId = channel.isThread() ? channel.id : undefined;
 
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
   const text = config?.tupperAutocorrectEnabled ? capitalizeSentences(content ?? "") : (content ?? "");
 
-  const webhookMessage = await webhookClient.send({
+  const payload = {
     content: text,
     username: conceal ? conceal.alias : character.name,
     avatarURL: conceal ? concealedAvatarUrl() : avatarUrlFor(character),
@@ -106,7 +160,29 @@ async function postAsCharacterTo(channel, character, { content, files = [], disc
     // now and, once the roles are assigned to nobody, notify no one at all.
     // Matches db/lib/discordRest.js#executeWebhook, which already does this.
     allowedMentions: { parse: ["users"] },
-  });
+  };
+
+  const send = async () => {
+    const info = await fetchOrCreateWebhook(channel);
+    const message = await webhookClientFor(info).send(payload);
+    return { info, message };
+  };
+
+  let info;
+  let webhookMessage;
+  try {
+    ({ info, message: webhookMessage } = await send());
+  } catch (err) {
+    // Only a webhook Discord no longer has is worth rebuilding for. Anything
+    // else — a 429, an oversized attachment, a payload it rejected — is not
+    // fixed by a second identical attempt, and retrying a 429 immediately
+    // makes it worse.
+    if (err.code !== RESTJSONErrorCodes.UnknownWebhook) throw err;
+    forgetChannelWebhook(webhookChannelFor(channel).id);
+    ({ info, message: webhookMessage } = await send());
+  }
+
+  const { id, token } = info;
 
   trackProxy(webhookMessage.id, {
     discordUserId,
@@ -153,4 +229,11 @@ async function sendAsCharacter(channel, character, message, { conceal = null, co
   return webhookMessage;
 }
 
-module.exports = { recentProxies, sendAsCharacter, postAsCharacterTo, fetchOrCreateWebhook };
+module.exports = {
+  recentProxies,
+  sendAsCharacter,
+  postAsCharacterTo,
+  fetchOrCreateWebhook,
+  webhookClientFor,
+  forgetChannelWebhook,
+};

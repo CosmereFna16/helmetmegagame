@@ -1,5 +1,6 @@
 import { bumpBlood } from "@lifeweb/db";
 import { dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
+import { UserError } from "@/lib/actionResult";
 
 // The per-type behaviour of a Request: how a GM's Undo reverses it, and which
 // fields (if any) a GM can Edit. Adding a new RequestType means adding one
@@ -13,12 +14,54 @@ import { dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
 
 // --- shared primitives ------------------------------------------------
 
+// Moves a party's balance by a signed delta, and REFUSES rather than going
+// negative.
+//
+// The check and the subtraction used to be separate statements with a whole
+// server action between them: read the balance, compare, and some lines later
+// decrement. Prisma runs READ COMMITTED, so two requests firing at the same
+// moment — two tabs, a double-click, a flaky connection retrying — both read
+// the same balance, both passed, and both subtracted. Ten ⬢ sent twice left
+// the sender at −10 and the recipient up 20, and it worked on faction silos
+// too.
+//
+// So the write IS the check: a conditional updateMany that matches only while
+// the balance still covers the amount, and a count of 0 means it didn't. Every
+// caller runs inside a $transaction, so the throw rolls back the tag grant,
+// the Request row and the audit entry along with it. The friendly pre-checks
+// in the request actions are kept for their better wording; this is the
+// enforcement underneath them.
+export async function moveResources(tx, party, delta) {
+  if (!party || !delta) return;
+  const character = party.kind === "character";
+  if (!character && party.kind !== "faction") return;
+
+  const model = character ? tx.character : tx.faction;
+  const field = character ? "resources" : "silo";
+
+  if (delta > 0) {
+    await model.update({ where: { id: party.id }, data: { [field]: { increment: delta } } });
+    return;
+  }
+
+  const amount = -delta;
+  const { count } = await model.updateMany({
+    where: { id: party.id, [field]: { gte: amount } },
+    data: { [field]: { decrement: amount } },
+  });
+  if (count) return;
+
+  throw new UserError(
+    character
+      ? `${party.name ?? "That character"} no longer has ${amount} ⬢.`
+      : `The ${party.name ?? "faction"} Silo no longer has ${amount} ⬢.`,
+  );
+}
+
 export async function creditResources(tx, party, amount, ctx) {
   if (!party || !amount) return;
-  if (party.kind === "character") {
-    await tx.character.update({ where: { id: party.id }, data: { resources: { increment: amount } } });
-  } else if (party.kind === "faction") {
-    await tx.faction.update({ where: { id: party.id }, data: { silo: { increment: amount } } });
+  await moveResources(tx, party, amount);
+  if (party.kind === "faction") {
     await tx.siloTransaction.create({
       data: {
         factionId: party.id,
@@ -36,10 +79,8 @@ export async function creditResources(tx, party, amount, ctx) {
 
 export async function debitResources(tx, party, amount, ctx) {
   if (!party || !amount) return;
-  if (party.kind === "character") {
-    await tx.character.update({ where: { id: party.id }, data: { resources: { decrement: amount } } });
-  } else if (party.kind === "faction") {
-    await tx.faction.update({ where: { id: party.id }, data: { silo: { decrement: amount } } });
+  await moveResources(tx, party, -amount);
+  if (party.kind === "faction") {
     await tx.siloTransaction.create({
       data: {
         factionId: party.id,
@@ -268,11 +309,11 @@ export const REQUEST_EFFECTS = {
       const nextSpend = clampNonNegative(edits.resourcesSpent, effect.resourcesSpent);
       const delta = nextSpend - (effect.resourcesSpent ?? 0);
       if (delta !== 0) {
-        // Positive delta = the GM decided it should have cost more.
-        await tx.character.update({
-          where: { id: request.characterId },
-          data: { resources: { decrement: delta } },
-        });
+        // Positive delta = the GM decided it should have cost more, so the
+        // sign is flipped for moveResources. Raising a cost past what the
+        // player still holds refuses rather than driving them negative — the
+        // GM sees the shortfall and can pick a number that fits.
+        await moveResources(tx, { kind: "character", id: request.characterId }, -delta);
         notes.push(`Resource cost ${effect.resourcesSpent ?? 0} -> ${nextSpend}.`);
         effect.resourcesSpent = nextSpend;
       }
@@ -309,10 +350,7 @@ export const REQUEST_EFFECTS = {
       const nextSpend = clampNonNegative(edits.resourcesSpent, effect.resourcesSpent);
       const delta = nextSpend - (effect.resourcesSpent ?? 0);
       if (delta === 0) return { effect, note: "No changes." };
-      await tx.character.update({
-        where: { id: request.characterId },
-        data: { resources: { decrement: delta } },
-      });
+      await moveResources(tx, { kind: "character", id: request.characterId }, -delta);
       const note = `Resource cost ${effect.resourcesSpent ?? 0} -> ${nextSpend}.`;
       effect.resourcesSpent = nextSpend;
       return { effect, note };

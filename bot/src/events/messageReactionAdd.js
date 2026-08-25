@@ -1,4 +1,4 @@
-const { WebhookClient, EmbedBuilder } = require("discord.js");
+const { EmbedBuilder } = require("discord.js");
 const { prisma, formatTagRequirement, turnsLeft, formatTurnsLeft, concealedLine } = require("@lifeweb/db");
 const { getSiloAccess } = require("@lifeweb/db/lib/factionPermissions");
 const { inspectVision } = require("@lifeweb/db/lib/inspectVision");
@@ -9,7 +9,7 @@ const {
   medicallyVisibleTags,
 } = require("@lifeweb/db/lib/medicalVision");
 const { updateArchiveMessage, deleteArchiveMessage } = require("@lifeweb/db/lib/archive");
-const { recentProxies } = require("../lib/proxy");
+const { recentProxies, webhookClientFor } = require("../lib/proxy");
 const { sendDm } = require("../lib/dm");
 
 const DELETE_EMOJI = "❌"; // ❌
@@ -229,7 +229,7 @@ module.exports = {
 
     if (emoji === DELETE_EMOJI) {
       if (!isOwner && !(await isGm(reaction, user.id))) return;
-      const webhookClient = new WebhookClient({ id: proxy.webhookId, token: proxy.webhookToken });
+      const webhookClient = webhookClientFor({ id: proxy.webhookId, token: proxy.webhookToken });
       await webhookClient
         .deleteMessage(reaction.message.id, { threadId: proxy.threadId })
         .catch(() => {});
@@ -265,7 +265,7 @@ module.exports = {
         return;
       }
 
-      const webhookClient = new WebhookClient({ id: proxy.webhookId, token: proxy.webhookToken });
+      const webhookClient = webhookClientFor({ id: proxy.webhookId, token: proxy.webhookToken });
       await webhookClient
         .editMessage(reaction.message.id, { content: reply.content, threadId: proxy.threadId })
         // Only mirror the edit into the transcript once Discord has accepted

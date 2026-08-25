@@ -78,14 +78,49 @@ function getInvalidResponseStats() {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Every failure this wrapper throws carries the HTTP status and Discord's own
+// JSON error code, because callers need to tell one failure from another and
+// the message text cannot do it. postAsCharacter below is the worked example:
+// it used to match `err.message.includes("webhook")` to spot a deleted
+// webhook, and every error on that path contains the word — a 429, a 500,
+// even the breaker's own refusal, whose path is `/webhooks/...`. So a
+// rate-limited post was read as a dead webhook and retried instantly into the
+// same exhausted bucket.
+function discordError(message, { status = null, discordCode = null } = {}) {
+  const err = new Error(message);
+  err.status = status;
+  err.discordCode = discordCode;
+  return err;
+}
+
 // Central fetch wrapper: bounded retry on 429 honoring Discord's
 // `retry_after`, throws on any other non-2xx (unless allow404).
-async function discordRequest(path, { method = "GET", body, allow404 = false } = {}) {
-  const headers = authHeaders(body !== undefined ? { "Content-Type": "application/json" } : undefined);
+//
+// Two options exist so that nothing has to hand-roll a second, weaker copy of
+// the retry loop just to change its headers or its body encoding:
+//
+//   auth: false   omit the bot Authorization header. A webhook token in the
+//                 URL *is* the credential, and sending the bot header
+//                 alongside it makes Discord authorize as the bot instead.
+//   formData      a factory returning a FormData, for the multipart uploads a
+//                 JSON body can never carry. It is a factory, not a value,
+//                 because a consumed request body may not re-send on a retry.
+//
+// Both used to be bare fetches, and both were therefore invisible to the
+// circuit breaker while making exactly the calls it exists to count.
+async function discordRequest(
+  path,
+  { method = "GET", body, allow404 = false, auth = true, formData = null } = {},
+) {
+  const jsonBody = formData === null && body !== undefined;
+  const contentType = jsonBody ? { "Content-Type": "application/json" } : undefined;
+  // fetch sets the multipart boundary itself, so a FormData body gets no
+  // Content-Type of ours at all.
+  const headers = auth ? authHeaders(contentType) : contentType;
 
   for (let attempt = 0; attempt < 3; attempt++) {
     if (Date.now() < breakerOpenUntil) {
-      throw new Error(
+      throw discordError(
         `Discord ${method} ${path} refused: circuit breaker open until ` +
           `${new Date(breakerOpenUntil).toISOString()} (too many 401/403/429 responses).`,
       );
@@ -94,7 +129,7 @@ async function discordRequest(path, { method = "GET", body, allow404 = false } =
     const res = await fetch(`${DISCORD_API}${path}`, {
       method,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: formData !== null ? formData() : jsonBody ? JSON.stringify(body) : undefined,
     });
 
     if (res.status === 401 || res.status === 403 || res.status === 429) {
@@ -111,9 +146,10 @@ async function discordRequest(path, { method = "GET", body, allow404 = false } =
       }
       const retryAfterMs = (Number(payload.retry_after) || 1) * 1000;
       if (retryAfterMs > MAX_RETRY_AFTER_MS) {
-        throw new Error(
+        throw discordError(
           `Discord ${method} ${path} failed: 429 with retry_after ${Math.round(retryAfterMs / 1000)}s, ` +
             `over the ${MAX_RETRY_AFTER_MS / 1000}s cap — not waiting.`,
+          { status: 429, discordCode: payload.code ?? null },
         );
       }
       await sleep(retryAfterMs);
@@ -121,7 +157,18 @@ async function discordRequest(path, { method = "GET", body, allow404 = false } =
     }
     if (res.status === 404 && allow404) return null;
     if (!res.ok) {
-      throw new Error(`Discord ${method} ${path} failed: ${res.status} ${await res.text()}`);
+      const text = await res.text();
+      let discordCode = null;
+      try {
+        discordCode = JSON.parse(text)?.code ?? null;
+      } catch {
+        // A non-JSON error body (a Cloudflare HTML page, most often) carries
+        // no code. The status is still the useful half.
+      }
+      throw discordError(`Discord ${method} ${path} failed: ${res.status} ${text}`, {
+        status: res.status,
+        discordCode,
+      });
     }
 
     // Proactive pre-emption: without this the wrapper only ever learns about a
@@ -136,46 +183,40 @@ async function discordRequest(path, { method = "GET", body, allow404 = false } =
     if (res.status === 204) return null;
     return res.json();
   }
-  throw new Error(`Discord ${method} ${path} failed: exhausted retries on 429`);
+  throw discordError(`Discord ${method} ${path} failed: exhausted retries on 429`, { status: 429 });
 }
 
 // Posts a local file as a message attachment. Discord takes attachments as
-// `multipart/form-data` only — a JSON body can never carry one, which is why
-// discordRequest (JSON-only, by design) can't be reused here. The multipart
-// body is a `payload_json` part holding the normal message object plus one
-// `files[n]` part per file; `attachments[].id` is the *part index*, not a
-// snowflake, and must line up with the `files[n]` suffix or Discord drops the
-// file silently. fetch sets the multipart boundary itself, so the
-// Content-Type header is deliberately left off.
+// `multipart/form-data` only, which is why this goes through discordRequest's
+// `formData` option rather than its JSON body. The multipart body is a
+// `payload_json` part holding the normal message object plus one `files[n]`
+// part per file; `attachments[].id` is the *part index*, not a snowflake, and
+// must line up with the `files[n]` suffix or Discord drops the file silently.
+//
+// This used to run its own retry loop, which is how the single largest request
+// the bot makes — the weather banner, once per turn advance — ended up with no
+// breaker check, no invalid-response counting, and an *uncapped* retry_after
+// sleep that could park a turn advance for ten minutes where discordRequest
+// would have failed fast at thirty seconds.
 async function postAttachment(channelId, filePath, content = "", components = undefined) {
   const fs = require("node:fs");
   const path = require("node:path");
   const filename = path.basename(filePath);
-  const body = new FormData();
+  const bytes = fs.readFileSync(filePath);
 
-  body.append(
-    "payload_json",
-    JSON.stringify({ content, attachments: [{ id: 0, filename }], ...(components ? { components } : {}) }),
-  );
-  body.append("files[0]", new Blob([fs.readFileSync(filePath)]), filename);
+  // A factory, not a value: a retry needs a fresh body, since the first
+  // attempt may already have consumed the stream.
+  const buildBody = () => {
+    const body = new FormData();
+    body.append(
+      "payload_json",
+      JSON.stringify({ content, attachments: [{ id: 0, filename }], ...(components ? { components } : {}) }),
+    );
+    body.append("files[0]", new Blob([bytes]), filename);
+    return body;
+  };
 
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
-      method: "POST",
-      headers: authHeaders(),
-      body,
-    });
-    if (res.status === 429) {
-      const retryAfter = Number((await res.json().catch(() => ({}))).retry_after) || 1;
-      await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
-      continue;
-    }
-    if (!res.ok) {
-      throw new Error(`Discord POST attachment ${filename} failed: ${res.status} ${await res.text()}`);
-    }
-    return res.json();
-  }
-  throw new Error(`Discord POST attachment ${filename} failed: exhausted retries on 429`);
+  return discordRequest(`/channels/${channelId}/messages`, { method: "POST", formData: buildBody });
 }
 
 async function getGuildChannels() {
@@ -430,6 +471,11 @@ async function ensureForumTag(channelId, tagName, emojiName) {
 
 const WEBHOOK_NAME = "Bascinet Tupper";
 
+// Discord JSON error code for a webhook that no longer exists. The gateway
+// twin gets it from discord.js's RESTJSONErrorCodes; there is no such enum
+// here, so it is written out.
+const UNKNOWN_WEBHOOK = 10015;
+
 // REST twin of bot/src/lib/proxy.js#fetchOrCreateWebhook — same webhook name
 // and same "reuse the bot's own webhook on this channel, create one only if
 // there isn't one" rule, so a channel never ends up with two.
@@ -471,25 +517,28 @@ async function fetchOrCreateChannelWebhook(channelId) {
   return { id: created.id, token: created.token };
 }
 
-// Deliberately a bare fetch rather than discordRequest: the webhook token in
-// the URL *is* the credential, and sending a bot Authorization header
-// alongside it makes Discord authorize the request as the bot instead, which
-// it may reject outright.
+// `auth: false` because the webhook token in the URL *is* the credential, and
+// sending a bot Authorization header alongside it makes Discord authorize the
+// request as the bot instead, which it may reject outright.
+//
+// That header rule is the only thing special about this call, and it used to
+// be the justification for a bare fetch — which meant the one path driven in a
+// loop over the whole roster had no 429 handling at all. Webhook execution is
+// bucketed at roughly 5 per 5 seconds per channel, so on a busy turn a 429
+// here is the expected steady state, not an exotic case.
 async function executeWebhook({ id, token }, { content, username, avatarUrl }) {
-  const res = await fetch(`${DISCORD_API}/webhooks/${id}/${token}?wait=true`, {
+  return discordRequest(`/webhooks/${id}/${token}?wait=true`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+    auth: false,
+    body: {
       content,
       username,
       avatar_url: avatarUrl,
       // Player-authored text posted under a character's name — never let it
       // ping a role or @everyone just by typing it.
       allowed_mentions: { parse: ["users"] },
-    }),
+    },
   });
-  if (!res.ok) throw new Error(`Discord webhook execute failed: ${res.status} ${await res.text()}`);
-  return res.json();
 }
 
 // Posts `content` into `channelId` under a character's name and avatar — the
@@ -502,8 +551,13 @@ async function postAsCharacter(channelId, character, content) {
     // The cached webhook may have been deleted in Discord since we stored it.
     // Forget it and rebuild once before giving up, so one hand-deleted webhook
     // doesn't silently kill every summary post for that channel until restart.
-    forgetChannelWebhook(channelId);
-    if (String(err.message).includes("webhook")) {
+    //
+    // Keyed on the error CODE, never on its text. Matching the word "webhook"
+    // in the message matched every failure on this path — including a 429,
+    // whose correct answer is to back off, not to immediately spend two more
+    // requests rebuilding a webhook that was never broken.
+    if (err.discordCode === UNKNOWN_WEBHOOK || err.status === 404) {
+      forgetChannelWebhook(channelId);
       return postAsCharacterOnce(channelId, content, character);
     }
     throw err;

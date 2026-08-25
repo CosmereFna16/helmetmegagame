@@ -1,0 +1,74 @@
+// Acknowledging an interaction, and answering one, without either of the two
+// ways that go wrong.
+//
+// 1. Discord gives a bot THREE SECONDS to acknowledge an interaction. Several
+//    handlers here did their whole database write — the Action row, the dice
+//    roll, an audit entry — before the first ack, so under launch-day load the
+//    player got "The application did not respond" while their Move had already
+//    gone through. Retrying then told them they had already acted. Deferring
+//    first buys fifteen minutes and costs nothing but Discord's own thinking
+//    indicator.
+//
+// 2. A reply over 2000 characters is rejected outright, AFTER the work
+//    committed. The Move confirmation echoes an 1800-character description and
+//    then adds a Kind line, a dice line and a resource line on top of it, so
+//    the ceiling was reachable by typing.
+//
+// Every handler that touches the database should call `ack` as its first
+// statement and `respond` in place of `interaction.reply`. The four handlers
+// that open a modal are the exception: showModal IS the acknowledgement and a
+// deferred interaction can no longer open one.
+
+const { MessageFlags } = require("discord.js");
+
+const DISCORD_MESSAGE_LIMIT = 2000;
+const TRUNCATION_NOTE = "\n-# …trimmed to fit Discord's 2000-character limit.";
+
+// Trims to Discord's limit rather than letting the send fail. Truncating a
+// long reply costs the tail of one message; failing loses the whole reply on
+// work that already happened.
+function clampContent(content) {
+  const text = String(content ?? "");
+  if (text.length <= DISCORD_MESSAGE_LIMIT) return text;
+  return text.slice(0, DISCORD_MESSAGE_LIMIT - TRUNCATION_NOTE.length) + TRUNCATION_NOTE;
+}
+
+// Acknowledge before doing any work. `update: true` for a component
+// interaction whose own message is being edited in place, so Discord doesn't
+// post a second "thinking" message above it.
+async function ack(interaction, { update = false, ephemeral = true } = {}) {
+  if (interaction.deferred || interaction.replied) return;
+  try {
+    if (update) {
+      await interaction.deferUpdate();
+    } else {
+      await interaction.deferReply(ephemeral ? { flags: MessageFlags.Ephemeral } : {});
+    }
+  } catch (err) {
+    // A dead token cannot be revived, and a handler that can't ack still has
+    // real work to finish. Log and carry on.
+    console.error("Failed to acknowledge interaction:", err);
+  }
+}
+
+// Answers, picking edit/follow-up/reply from what has already happened to this
+// interaction. Never throws: by the time this runs the database work is done,
+// and a failed reply must not become an unhandled rejection on top of it.
+async function respond(interaction, payload) {
+  const options = typeof payload === "string" ? { content: payload } : { ...payload };
+  if (options.content !== undefined) options.content = clampContent(options.content);
+
+  try {
+    if (interaction.deferred) {
+      await interaction.editReply(options);
+    } else if (interaction.replied) {
+      await interaction.followUp({ ...options, flags: MessageFlags.Ephemeral });
+    } else {
+      await interaction.reply({ ...options, flags: MessageFlags.Ephemeral });
+    }
+  } catch (err) {
+    console.error("Failed to respond to interaction:", err);
+  }
+}
+
+module.exports = { ack, respond, clampContent, DISCORD_MESSAGE_LIMIT };

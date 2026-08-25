@@ -12,7 +12,7 @@ import { expiryFor } from "@/lib/turnFormat";
 import { FEAR_PENALTY, FEAR_MAX_LENGTH } from "@/lib/constants";
 import { TRANSFERABLE_CATEGORIES } from "@/lib/tagRequests";
 import { tagsById as buildTagsById, requirementSatisfied } from "@/lib/characterCreation";
-import { addToStack, debitResources, dropCharacterTag, grantTagSlugs } from "@/lib/requestEffects";
+import { addToStack, debitResources, dropCharacterTag, grantTagSlugs, moveResources } from "@/lib/requestEffects";
 import {
   HEAL_SKILL_SLUG,
   buildSkillAncestry,
@@ -209,16 +209,12 @@ async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount,
 
   await prisma.$transaction(async (tx) => {
     for (const [party, delta] of legs) {
-      if (party.kind === "character") {
-        await tx.character.update({
-          where: { id: party.id },
-          data: { resources: delta < 0 ? { decrement: -delta } : { increment: delta } },
-        });
-      } else {
-        await tx.faction.update({
-          where: { id: party.id },
-          data: { silo: delta < 0 ? { decrement: -delta } : { increment: delta } },
-        });
+      // moveResources refuses a debit the balance no longer covers, which
+      // aborts the whole transaction. The `amount > from.balance` check above
+      // is the friendly message; this is the one that two simultaneous
+      // transfers cannot both pass.
+      await moveResources(tx, party, delta);
+      if (party.kind === "faction") {
         // Both directions get a SiloTransaction now — deposits into a silo
         // previously left no ledger entry at all.
         await tx.siloTransaction.create({
@@ -318,10 +314,7 @@ async function addTagRequestImpl({
       stackable: tag.stackable,
     });
     if (resourcesSpent) {
-      await tx.character.update({
-        where: { id: character.id },
-        data: { resources: { decrement: resourcesSpent } },
-      });
+      await moveResources(tx, { kind: "character", id: character.id, name: character.name }, -resourcesSpent);
     }
     await createRequest(tx, {
       characterId: character.id,
@@ -379,10 +372,7 @@ async function removeTagRequestImpl({
   await prisma.$transaction(async (tx) => {
     await dropCharacterTag(tx, character.id, tagId, quantity);
     if (resourcesSpent) {
-      await tx.character.update({
-        where: { id: character.id },
-        data: { resources: { decrement: resourcesSpent } },
-      });
+      await moveResources(tx, { kind: "character", id: character.id, name: character.name }, -resourcesSpent);
     }
     await createRequest(tx, {
       characterId: character.id,
