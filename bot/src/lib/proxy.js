@@ -1,8 +1,9 @@
-const { WebhookClient, RESTJSONErrorCodes } = require("discord.js");
+const { WebhookClient, RESTJSONErrorCodes, GuildPremiumTier } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const { recordArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { capitalizeSentences } = require("./textCorrection");
 const { resolveChannelContext } = require("./channels");
+const { sendDm } = require("./dm");
 
 const WEBHOOK_NAME = "Bascinet Tupper";
 // One entry per proxied message, and the ✏️/❌/⭐/🔍 reactions only work on
@@ -201,16 +202,127 @@ async function postAsCharacterTo(channel, character, { content, files = [], disc
   return { webhookMessage, content: text };
 }
 
+const DISCORD_MESSAGE_LIMIT = 2000;
+const DM_CHUNK = 1900;
+
+// Discord's per-file upload ceiling for this guild. discord.js exposes
+// maximumBitrate but not this, so it is derived from the boost tier.
+function uploadLimitBytes(guild) {
+  switch (guild?.premiumTier) {
+    case GuildPremiumTier.Tier2:
+      return 50 * 1024 * 1024;
+    case GuildPremiumTier.Tier3:
+      return 100 * 1024 * 1024;
+    default:
+      return 10 * 1024 * 1024;
+  }
+}
+
+// What, if anything, makes this message impossible to repost as a webhook.
+// Checked BEFORE sending, because the failure mode of finding out afterwards
+// is the one this whole file exists to prevent (see sendAsCharacter).
+function proxyRefusal(message, content) {
+  const text = content ?? "";
+
+  if (text.length > DISCORD_MESSAGE_LIMIT) {
+    return (
+      `That was ${text.length} characters, and a reposted message has to fit Discord's 2000. ` +
+      "Nitro's higher limit is yours, not the bot's. Here it is back:"
+    );
+  }
+
+  const limit = uploadLimitBytes(message.guild);
+  const tooBig = [...message.attachments.values()].find((a) => a.size > limit);
+  if (tooBig) {
+    return (
+      `${tooBig.name} is bigger than the ${Math.round(limit / 1024 / 1024)} MB the bot can repost. ` +
+      "Your text is below — send it again without that file."
+    );
+  }
+
+  // A sticker-only message, or one carrying nothing but a Discord effect,
+  // arrives with empty content and no attachments. The webhook would reject
+  // it as an empty message.
+  if (!text.trim() && message.attachments.size === 0) {
+    return "There was nothing in that the bot could repost. Stickers and Discord's own effects don't survive being proxied.";
+  }
+
+  return null;
+}
+
+// Deleting the original is what keeps a player's real account off the screen,
+// so a failure here is a real problem and never a shrug. It used to be a bare
+// .catch(() => {}).
+async function deleteOriginal(message) {
+  try {
+    await message.delete();
+  } catch (err) {
+    console.error(`Failed to delete the original message ${message.id} after proxying:`, err);
+  }
+}
+
+// Gives the player their words back after a refusal, so nothing they typed is
+// lost along with the message. Sent in pieces because the commonest refusal is
+// "this was too long for one message", and the hand-back would hit the same
+// wall.
+async function handBack(message, reason, text) {
+  try {
+    await sendDm(message.author, `» *${reason}*`);
+    const body = (text ?? "").trim();
+    for (let i = 0; i < body.length; i += DM_CHUNK) {
+      await sendDm(message.author, body.slice(i, i + DM_CHUNK));
+    }
+  } catch (err) {
+    // DMs closed. Nothing else to try — but the original is already gone,
+    // which is the half that mattered.
+    console.error(`Couldn't return the unproxied message to ${message.author.id}:`, err);
+  }
+}
+
 // The message-driven path: proxy what a player typed in a tupper channel,
 // then delete their original. Everything except the attachment plumbing and
 // that deletion lives in postAsCharacterTo above.
+//
+// THE ORIGINAL IS DELETED ON EVERY PATH, including the failing ones. That is
+// the whole point of the file: this game's premise is that a player's account
+// and their character are separate, and a message left sitting un-proxied
+// under a real Discord name breaks that premise for everyone reading the
+// channel. It used to delete only after a successful send, so anything the
+// webhook rejected — an over-length message, an oversized attachment, a
+// sticker, a webhook a GM had deleted — stayed on screen under the player's
+// own name with nobody told. For /conceal it was worse still: the text they
+// wanted anonymous, over their real name.
+//
+// Losing a message is recoverable, and handBack recovers it. Losing the mask
+// is not.
+//
+// Returns null when the message could not be proxied; the caller has nothing
+// left to do in that case.
 async function sendAsCharacter(channel, character, message, { conceal = null, content: override = null } = {}) {
-  const { webhookMessage, content } = await postAsCharacterTo(channel, character, {
-    content: override ?? message.content,
-    files: [...message.attachments.values()].map((a) => a.url),
-    discordUserId: message.author.id,
-    conceal,
-  });
+  const text = override ?? message.content;
+
+  const refusal = proxyRefusal(message, text);
+  if (refusal) {
+    await deleteOriginal(message);
+    await handBack(message, refusal, text);
+    return null;
+  }
+
+  let webhookMessage;
+  let content;
+  try {
+    ({ webhookMessage, content } = await postAsCharacterTo(channel, character, {
+      content: text,
+      files: [...message.attachments.values()].map((a) => a.url),
+      discordUserId: message.author.id,
+      conceal,
+    }));
+  } catch (err) {
+    console.error("Failed to proxy message, returning it to its author:", err);
+    await deleteOriginal(message);
+    await handBack(message, "Something went wrong reposting that. Here it is back:", text);
+    return null;
+  }
 
   // The transcript row, written here rather than reconstructed at Dawn. Both
   // halves of a concealed send are kept: the alias is what the room saw,
@@ -224,7 +336,7 @@ async function sendAsCharacter(channel, character, message, { conceal = null, co
     ...resolveChannelContext(channel),
   });
 
-  await message.delete().catch(() => {});
+  await deleteOriginal(message);
 
   return webhookMessage;
 }

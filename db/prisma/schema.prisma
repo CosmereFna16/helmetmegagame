@@ -182,6 +182,31 @@ model GameConfig {
   turnsConsoleChannelId String?
   turnsConsoleMessageId String?
 
+  // --- Discord REST circuit breaker, persisted -------------------------
+  //
+  // Cloudflare counts 401/403/429 responses per egress IP and bans the token
+  // for about an hour at 10,000 in a rolling 10 minutes. db/lib/discordRest.js
+  // trips a breaker at a tenth of that, and its own header names the threat it
+  // exists for: an unattended crash-restart loop replaying the ready burst.
+  //
+  // Which is the one thing an in-memory counter can never catch. The counters
+  // lived in module-level JS, so every restart zeroed them while Cloudflare's
+  // count — keyed on the IP, not the process — carried straight on. The loop
+  // the breaker was written to stop was the loop it was structurally
+  // guaranteed to miss, and the health line printed at bot startup could only
+  // ever read 0/1000.
+  //
+  // Kept here for the same reason turnsConsoleMessageId is: it is Discord
+  // state that has to survive a restart and be shared by the bot and web
+  // containers, which sit behind one egress IP and were each counting their
+  // own fraction of the traffic against a whole-IP ceiling.
+  //
+  // The in-memory array stays the hot path — this is read once per process and
+  // written only on the error path, never per request.
+  restInvalidCount       Int       @default(0)
+  restInvalidWindowStart DateTime?
+  restBreakerOpenUntil   DateTime?
+
   // Multiplier applied to every rate in db/lib/production.js's
   // PRODUCTION_RATES table — read live by /hunt, /fish, /farm and /herd
   // (bot/src/lib/labor.js). docs/documents.yaml renders its numbers through
@@ -961,6 +986,23 @@ model Turn {
   // re-running the lot. A pass that throws is deliberately left unrecorded so
   // the next advance retries it.
   resolvedPasses Json?
+
+  // The resume LEASE, which needsResolvedAt above cannot be: that one is the
+  // completion stamp, written at the end, and a lease has to be taken at the
+  // start.
+  //
+  // The resume branch used to be a plain findFirst, so the bot's 04:00 cron
+  // and a GM clicking End turn on a crashed turn both matched the same row,
+  // both read the same empty resolvedPasses, and both ran every outstanding
+  // pass — hunger charged twice, Lifeweb decayed twice. resolvedPasses is not
+  // a lock; last-write-wins cannot arbitrate. advanceTurn() now claims this
+  // field with a conditional updateMany, the same compare-and-swap the normal
+  // path does on status: "OPEN".
+  //
+  // Stale rather than permanent: a resume that dies holding the lease would
+  // otherwise wedge the turn forever, so a claim older than the timeout can be
+  // taken over.
+  needsResumeClaimedAt DateTime?
 
   id         String     @id @default(cuid())
   number     Int        @unique

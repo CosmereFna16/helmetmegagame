@@ -16,7 +16,12 @@ import {
   revokeAllCharacterAccess as revokeAllCharacterAccessShared,
   revokeAccessForCharacters as revokeAccessForCharactersShared,
 } from "@lifeweb/db/lib/locationAccess";
-import { putChannelOverwrite, deleteChannelOverwrite, discordRequest } from "@lifeweb/db/lib/discordRest";
+import {
+  putChannelOverwrite,
+  deleteChannelOverwrite,
+  discordRequest,
+  postDmBatched,
+} from "@lifeweb/db/lib/discordRest";
 
 // Channels opt into summary/tupper behavior by name instead of a manually
 // curated ID list — see bot/src/lib/channels.js for the bot-side twin of
@@ -272,28 +277,13 @@ export const getGmSession = cache(async () => {
   return { session, isGm: isGm(member) };
 });
 
-// The two requests every DM costs. Both go through discordRequest, which
-// carries the 429 retry this pair has always had plus two things it did not:
-// the capped `retry_after` wait, and the Cloudflare invalid-response circuit
-// breaker. That coverage matters most here — opening a DM channel is the
-// tighter of the two limits (a GM broadcast opens one per recipient) and the
-// turn thunk sends one per player at rollover, which is the largest DM burst
-// the game produces.
-async function dmFetch(path, body, describe) {
-  try {
-    return await discordRequest(path, { method: "POST", body });
-  } catch (err) {
-    throw new Error(`${describe}: ${err.message}`);
-  }
-}
-
-export async function createDmChannel(discordUserId) {
-  return dmFetch("/users/@me/channels", { recipient_id: discordUserId }, "Failed to open DM channel");
-}
-
-export async function postMessage(channelId, content) {
-  return dmFetch(`/channels/${channelId}/messages`, { content }, "Failed to post message");
-}
+// The two requests every DM costs used to be re-wrapped here as a local
+// dmFetch/createDmChannel/postMessage trio. They already delegated to
+// discordRequest, so all the wrapper added was a prefix on the error message —
+// which cost more than it gave: rebuilding the Error dropped the `status` and
+// `discordCode` that postDmBatched needs to tell a stale DM channel from a
+// rate limit. Both are gone; sendDm below goes straight to the shared
+// db/lib/discordRest helper, which also carries the DM-channel cache.
 
 export async function deleteMessage(channelId, messageId) {
   return discordRequest(`/channels/${channelId}/messages/${messageId}`, {
@@ -674,10 +664,21 @@ export async function sortLocationCategories() {
   await discordRequest(`/guilds/${guildId}/channels`, { method: "PATCH", body: updates }).catch(() => {});
 }
 
+// Applies the `»` prefix (CLAUDE.md, "Bot message style") and logs the DM, so
+// /gm/messages keeps the whole conversation.
+//
+// postDmBatched splits anything over Discord's 2000 characters across several
+// messages rather than letting the send fail. Nothing here used to check the
+// length, and every GM path that lands here — a Move result, a rejection
+// reason, a broadcast, a Dev Panel message — is free text a GM types. Over the
+// limit Discord rejected it, the caller's .catch swallowed the error, and the
+// GM watched the Move go green while the player was never told.
+//
+// The prefix goes on before the split, so it lands on the first message and
+// the continuations run on bare.
 export async function sendDm(discordUserId, content) {
-  const channel = await createDmChannel(discordUserId);
   const formatted = `» ${content}`;
-  const message = await postMessage(channel.id, formatted);
+  const message = await postDmBatched(discordUserId, formatted);
   await prisma.directMessage
     .create({ data: { discordUserId, direction: "OUTBOUND", content: formatted } })
     .catch(() => {});

@@ -61,9 +61,17 @@ function locationAccessChannelIds(location) {
 // character's current one. A grant should only exist where they stand, but a
 // half-failed swapLocationAccess leaves one behind on the room they left, and
 // this is exactly the wrong moment to trust that invariant.
+//
+// Returns { attempted, failed, failures } rather than nothing. The bare
+// `.catch(() => {})` this used to carry was justified by "deleting an
+// overwrite that isn't there is a 404, i.e. free" — true of a 404, and true of
+// nothing else it was swallowing. A 429, a 403, or the circuit breaker
+// REFUSING to make the call at all (db/lib/discordRest.js throws when it is
+// open) all came back looking exactly like success, on the one code path that
+// stops a departed player from still reading every room they stood in.
 async function revokeAllCharacterAccess(prisma, character) {
   const targetIds = [character.discordUserId, character.discordRoleId].filter(Boolean);
-  if (targetIds.length === 0) return;
+  if (targetIds.length === 0) return { attempted: 0, failed: 0, failures: [] };
 
   const [locations, config] = await Promise.all([
     prisma.location.findMany({
@@ -81,11 +89,30 @@ async function revokeAllCharacterAccess(prisma, character) {
   const channelIds = locations.flatMap(locationAccessChannelIds);
   channelIds.push(config?.radioChannelId, config?.intercomChannelId);
 
+  let attempted = 0;
+  const failures = [];
   for (const channelId of channelIds.filter(Boolean)) {
     for (const targetId of targetIds) {
-      await deleteChannelOverwrite(channelId, targetId).catch(() => {});
+      attempted += 1;
+      try {
+        // allow404 is already on deleteChannelOverwrite, so "there was no
+        // overwrite" returns null rather than throwing. Anything that reaches
+        // here is a real failure.
+        await deleteChannelOverwrite(channelId, targetId);
+      } catch (err) {
+        failures.push({ channelId, targetId, message: err.message });
+      }
     }
   }
+
+  if (failures.length > 0) {
+    console.error(
+      `Access revoke for ${character.name ?? character.id}: ${failures.length} of ${attempted} ` +
+        `overwrite deletions FAILED. They can still read those rooms. First: ${failures[0].message}`,
+    );
+  }
+
+  return { attempted, failed: failures.length, failures };
 }
 
 // The same revoke for MANY characters at once — Restart Game, where every
@@ -132,21 +159,48 @@ async function revokeAccessForCharacters(prisma, characters) {
   channelIds.push(config?.radioChannelId, config?.intercomChannelId);
 
   let removed = 0;
+  let failed = 0;
+  let unreadable = 0;
   const visited = channelIds.filter(Boolean);
   for (const channelId of visited) {
-    // allow404: a channel deleted by hand is an ordinary state here, not a
-    // reason to abandon the sweep half-done.
-    const live = await getChannel(channelId, { allow404: true }).catch(() => null);
+    // allow404 returns null for a channel deleted by hand, which is an
+    // ordinary state here and not a reason to abandon the sweep half-done. A
+    // THROW is different: it means the read failed, and treating that as
+    // "there is no such channel" quietly skipped every overwrite on it. Now
+    // the two are distinguished and only the first one is silent.
+    let live;
+    try {
+      live = await getChannel(channelId, { allow404: true });
+    } catch (err) {
+      unreadable += 1;
+      console.error(`Access revoke: couldn't read channel ${channelId}, its overwrites are untouched:`, err.message);
+      continue;
+    }
     if (!live) continue;
 
     for (const overwrite of live.permission_overwrites ?? []) {
       if (!targetIds.has(overwrite.id)) continue;
-      await deleteChannelOverwrite(channelId, overwrite.id).catch(() => {});
-      removed += 1;
+      try {
+        await deleteChannelOverwrite(channelId, overwrite.id);
+        // Counted AFTER the delete succeeds. It used to increment regardless,
+        // so the number this function reports "so the caller can log what it
+        // really did" counted deletions that never happened.
+        removed += 1;
+      } catch (err) {
+        failed += 1;
+        console.error(`Access revoke: failed to remove ${overwrite.id} from ${channelId}:`, err.message);
+      }
     }
   }
 
-  return { channels: visited.length, removed };
+  if (failed > 0 || unreadable > 0) {
+    console.error(
+      `Access revoke finished with ${failed} failed deletions and ${unreadable} unreadable channels. ` +
+        `Those overwrites are still live.`,
+    );
+  }
+
+  return { channels: visited.length, removed, failed, unreadable };
 }
 
 module.exports = {

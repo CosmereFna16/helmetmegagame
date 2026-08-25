@@ -46,12 +46,36 @@ module.exports = {
     // the role no longer takes it with it. Once the Character row is gone
     // there is no id left to clean up with, and the overwrite would sit on
     // every channel forever — so revoke first, delete second.
-    await revokeAllCharacterAccess(prisma, character).catch((err) =>
-      console.error(`Failed to revoke access for departing member ${member.id}:`, err),
-    );
+    // The result is checked rather than discarded. A revoke that silently did
+    // nothing — the breaker refusing, a run of 429s — leaves a player who has
+    // LEFT THE GUILD still holding a member overwrite on every room their
+    // character stood in, and there is no second pass that would catch it: the
+    // Character row is deleted a few lines below, taking the ids with it.
+    const revoked = await revokeAllCharacterAccess(prisma, character).catch((err) => {
+      console.error(`Failed to revoke access for departing member ${member.id}:`, err);
+      return null;
+    });
+    if (!revoked || revoked.failed > 0) {
+      await prisma.auditLog
+        .create({
+          data: {
+            actorDiscordUserId: member.id,
+            actorName: character.name,
+            actionType: "access_revoke_incomplete",
+            targetCharacterId: character.id,
+            targetName: character.name,
+            details: { failed: revoked?.failed ?? null, attempted: revoked?.attempted ?? null },
+          },
+        })
+        .catch((err) => console.error("Failed to log an incomplete access revoke:", err));
+    }
 
     if (character.discordRoleId) {
-      await member.guild.roles.delete(character.discordRoleId).catch(() => {});
+      // Logged rather than swallowed: an undeleted character role sits in the
+      // guild forever with nothing to reap it, and the guild role cap is 250.
+      await member.guild.roles
+        .delete(character.discordRoleId)
+        .catch((err) => console.error(`Failed to delete ${character.name}'s role on departure:`, err.message));
     }
 
     // Shared with the GM Dev Panel's Delete. The list this replaced missed

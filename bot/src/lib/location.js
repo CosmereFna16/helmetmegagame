@@ -73,13 +73,26 @@ async function swapLocationAccess(guild, discordUserId, oldLocation, newLocation
   const member = await getMember(guild, discordUserId);
   if (!member) return;
 
+  // A failed REVOKE is the one that matters and the one that used to be
+  // silent: the character has left the room, and an overwrite that outlives
+  // them means they keep reading it. A failed grant announces itself the
+  // moment the player looks for the channel; a failed revoke announces itself
+  // to nobody. Neither should abort the loop, but both get logged.
   for (const channelId of locationAccessChannelIds(oldLocation)) {
     const channel = await getChannel(guild, channelId);
-    await channel?.permissionOverwrites.delete(member).catch(() => {});
+    if (!channel) continue;
+    await channel.permissionOverwrites
+      .delete(member)
+      .catch((err) =>
+        console.error(`Failed to revoke ${member.id}'s access to ${channelId} on leaving:`, err.message),
+      );
   }
   for (const channelId of locationAccessChannelIds(newLocation)) {
     const channel = await getChannel(guild, channelId);
-    await channel?.permissionOverwrites.edit(member, { ViewChannel: true }).catch(() => {});
+    if (!channel) continue;
+    await channel.permissionOverwrites
+      .edit(member, { ViewChannel: true })
+      .catch((err) => console.error(`Failed to grant ${member.id} access to ${channelId}:`, err.message));
   }
 }
 
@@ -110,9 +123,11 @@ async function syncCharacterNarrowcastAccess(guild, character) {
         if (grant) {
           await channel.permissionOverwrites
             .edit(member, { ViewChannel: grant.view || grant.send || null, SendMessages: grant.send || null })
-            .catch(() => {});
+            .catch((err) => console.error(`Failed to sync ${member.id}'s #${slug} access:`, err.message));
         } else {
-          await channel.permissionOverwrites.delete(member).catch(() => {});
+          await channel.permissionOverwrites
+            .delete(member)
+            .catch((err) => console.error(`Failed to revoke ${member.id}'s #${slug} access:`, err.message));
         }
       }),
   );

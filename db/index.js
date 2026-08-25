@@ -26,7 +26,7 @@ const { runDefaultMovePass } = require("./lib/defaultMovePass");
 // why there are three same-named sendDm exports with three signatures.
 const { sendDm } = require("./lib/dm");
 const { recordArchiveMessage, recordArchiveEvent } = require("./lib/archive");
-const { postAsCharacter } = require("./lib/discordRest");
+const { postAsCharacter, attachBreakerStore } = require("./lib/discordRest");
 const { bumpBlood } = require("./lib/lifeweb");
 const { runFullChannelWipe } = require("./lib/fullWipe");
 const { syncLocationsFromYaml } = require("./lib/syncLocations");
@@ -78,6 +78,32 @@ const prisma =
   });
 
 globalForPrisma.prisma = prisma;
+
+// Hands the Discord circuit breaker somewhere durable to keep its counters.
+//
+// It lives here rather than in discordRest.js because that file deliberately
+// has no prisma dependency — db/index.js is the one requiring IT, so requiring
+// back would resolve to a partial exports object (same reason db/lib/dm.js
+// takes prisma as a parameter). Passing two functions instead keeps the
+// direction of the dependency intact.
+//
+// Neither is on the hot path: read runs once per process, write only when an
+// invalid response has already happened.
+attachBreakerStore({
+  read: () =>
+    prisma.gameConfig.findUnique({
+      where: { id: 1 },
+      select: {
+        restInvalidCount: true,
+        restInvalidWindowStart: true,
+        restBreakerOpenUntil: true,
+      },
+    }),
+  // updateMany rather than update: on a brand-new database GameConfig may not
+  // exist yet, and failing to record a rate-limit count is not a reason to
+  // create the game's config row as a side effect.
+  write: (data) => prisma.gameConfig.updateMany({ where: { id: 1 }, data }),
+});
 
 // Below this, the turn announcement gets a vague public omen line (see
 // advanceTurn() below) without ever naming the actual number — the Blood
@@ -167,7 +193,10 @@ async function resolveNeeds(turn, config) {
           details: { turnNumber: turn.number, pass: name, error: String(err?.message ?? err) },
         },
       })
-      .catch(() => {});
+      // Not a bare .catch(() => {}). This row is the ONLY durable trace that a
+      // pass failed; losing it silently means the stderr line above is all
+      // that ever existed, and by then nobody is watching.
+      .catch((logErr) => console.error("Failed to log turn_pass_failed — this failure now has no record:", logErr));
   }
 
   // Default Moves file FIRST, before anything else here: a Default Move can
@@ -402,7 +431,7 @@ async function advanceTurn() {
             details: { turnNumber: unfinished.number, alreadyApplied: unfinished.resolvedPasses ?? [] },
           },
         })
-        .catch(() => {});
+        .catch((logErr) => console.error("Failed to log turn_resume — the resume now has no record:", logErr));
       ({ lifewebBlood, starvedDiscordUserIds, defaultMovePosts, defaultMoveDms, tagExpiryDms } =
         await resolveNeeds(unfinished, config));
     }

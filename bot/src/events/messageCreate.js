@@ -17,6 +17,11 @@ const {
 // ordinary proxy path and every reaction keeps behaving.
 const CONCEAL_PREFIX = "/conceal";
 
+// How many character-role mentions one message may relay. Each one is a user
+// fetch, a DM channel open, a send and a database insert, strictly serial —
+// so an uncapped list is a fan-out anyone can trigger by pasting mentions.
+const MAX_MENTION_RELAYS = 10;
+
 module.exports = {
   name: "messageCreate",
   async execute(message) {
@@ -71,6 +76,10 @@ module.exports = {
     const mentionedRoleIds = [...message.mentions.roles.keys()];
     const channel = message.channel;
 
+    // sendAsCharacter owns the failure path now: it deletes the original on
+    // every route and DMs the player their text back, so a message that can't
+    // be proxied never sits in the channel under their real name. A null means
+    // it refused, and there is no proxied message left to relay mentions for.
     let proxied;
     try {
       proxied = await sendAsCharacter(channel, character, message, { conceal, content });
@@ -78,6 +87,7 @@ module.exports = {
       console.error("Failed to proxy message:", err);
       return;
     }
+    if (!proxied) return;
 
     // A concealed message deliberately relays nothing: the whole point is that
     // the room doesn't know who spoke, and a DM naming the location would hand
@@ -110,10 +120,30 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
   );
   if (mentioned.length === 0) return;
 
+  // One message can name every character role in the game, and each target
+  // costs a user fetch, a DM channel open, a send and a database insert — all
+  // serialized, all after the room has already seen the message. Ten is well
+  // past any legitimate ping and the refusal names who was dropped, so nothing
+  // goes missing silently.
+  const relayed = mentioned.slice(0, MAX_MENTION_RELAYS);
+  const dropped = mentioned.slice(MAX_MENTION_RELAYS);
+  if (dropped.length > 0) {
+    console.log(`[mentions] capped at ${MAX_MENTION_RELAYS}, skipped ${dropped.length}`);
+    await sendDm(
+      message.author,
+      `» *That pinged ${mentioned.length} people at once, so only the first ${MAX_MENTION_RELAYS} were told. ` +
+        `Not notified: ${dropped.map((t) => t.name).join(", ")}.*`,
+    ).catch(() => {});
+  }
+
   const link = messageLink(message.guildId, channel.id, proxied.id);
   const privateThread = isPrivateThread(channel);
 
-  for (const target of mentioned) {
+  // Collected rather than sent one-per-target: a message naming five people
+  // who are all somewhere else used to DM the author five separate times.
+  const notHere = [];
+
+  for (const target of relayed) {
     if (privateThread) {
       // Location-scoped, unlike the Zone gate below — Discord needs the target
       // to be able to view the parent channel, which only holds while they're
@@ -121,10 +151,7 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
       // reading as a bug; a proxied message has no interaction to reply to.
       if (!canJoinThread(target, context)) {
         console.log(`[mentions] ${target.name}: not in ${context.locationName ?? "this location"}, no thread add`);
-        await sendDm(
-          message.author,
-          `» *${target.name} isn't in ${context.locationName ?? "this location"}. They can't be brought into this thread.*`,
-        ).catch(() => {});
+        notHere.push(target.name);
         continue;
       }
       await channel.members.add(target.discordUserId).catch((err) =>
@@ -139,5 +166,15 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
     if (heard) {
       await notifyMentioned(message.client, target, context, link);
     }
+  }
+
+  if (notHere.length > 0) {
+    const where = context.locationName ?? "this location";
+    await sendDm(
+      message.author,
+      notHere.length === 1
+        ? `» *${notHere[0]} isn't in ${where}. They can't be brought into this thread.*`
+        : `» *${notHere.join(", ")} aren't in ${where}. They can't be brought into this thread.*`,
+    ).catch(() => {});
   }
 }

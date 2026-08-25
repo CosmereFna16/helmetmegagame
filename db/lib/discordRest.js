@@ -40,6 +40,74 @@ const MAX_RETRY_AFTER_MS = 30_000;
 const invalidTimestamps = [];
 let breakerOpenUntil = 0;
 
+// --- persistence ---------------------------------------------------------
+//
+// The counters above are module-level JS, and that was the hole: the breaker's
+// stated purpose is to stop a crash-restart loop, and a restart zeroes them.
+// Cloudflare's count is keyed on the egress IP and does not reset, so the one
+// scenario this was written for was the one it could never catch. The health
+// line at bot startup could only ever print 0/1000.
+//
+// So the state is mirrored onto GameConfig. Deliberately NOT read per request:
+// that would put a database round trip in front of every Discord call. Loaded
+// once when the process first touches this module, and written only on the
+// error path.
+//
+// `attach` is called by db/index.js, which owns the prisma singleton — this
+// file is required BY it and cannot require it back (see the header).
+let persist = null;
+let loaded = false;
+let sinceLastWrite = 0;
+const WRITE_EVERY = 25;
+
+function attachBreakerStore(store) {
+  persist = store;
+  loaded = false;
+}
+
+// Pulls the persisted count and open-until into this process. Called on the
+// first invalid response and at bot startup, never on the hot path.
+async function loadBreakerState() {
+  if (loaded || !persist) return;
+  loaded = true;
+  try {
+    const saved = await persist.read();
+    if (!saved) return;
+
+    const now = Date.now();
+    const openUntil = saved.restBreakerOpenUntil ? new Date(saved.restBreakerOpenUntil).getTime() : 0;
+    if (openUntil > now) breakerOpenUntil = openUntil;
+
+    // A window that has already lapsed carries no information; only a live one
+    // is worth restoring, and it is restored as a count rather than as
+    // individual timestamps, which were never stored.
+    const windowStart = saved.restInvalidWindowStart
+      ? new Date(saved.restInvalidWindowStart).getTime()
+      : 0;
+    if (windowStart && now - windowStart < INVALID_WINDOW_MS && saved.restInvalidCount > 0) {
+      for (let i = 0; i < saved.restInvalidCount; i++) invalidTimestamps.push(windowStart);
+      console.warn(
+        `Discord REST: inherited ${saved.restInvalidCount} invalid responses from a previous ` +
+          `process in the current 10-minute window. A non-zero count here means the last one ` +
+          `died mid-burst.`,
+      );
+    }
+  } catch (err) {
+    console.error("Failed to load the persisted Discord breaker state:", err);
+  }
+}
+
+function saveBreakerState() {
+  if (!persist) return;
+  persist
+    .write({
+      restInvalidCount: invalidTimestamps.length,
+      restInvalidWindowStart: invalidTimestamps.length > 0 ? new Date(invalidTimestamps[0]) : null,
+      restBreakerOpenUntil: breakerOpenUntil > Date.now() ? new Date(breakerOpenUntil) : null,
+    })
+    .catch((err) => console.error("Failed to persist the Discord breaker state:", err));
+}
+
 function pruneInvalid(now) {
   while (invalidTimestamps.length > 0 && now - invalidTimestamps[0] > INVALID_WINDOW_MS) {
     invalidTimestamps.shift();
@@ -51,6 +119,11 @@ function recordInvalidResponse(status, path) {
   invalidTimestamps.push(now);
   pruneInvalid(now);
 
+  // Fire-and-forget: the first invalid response of a process pulls in whatever
+  // the last one left behind. Deliberately not awaited — this sits inside
+  // discordRequest and must not add latency to the retry.
+  loadBreakerState();
+
   if (invalidTimestamps.length >= INVALID_LIMIT && now >= breakerOpenUntil) {
     breakerOpenUntil = now + BREAKER_COOLDOWN_MS;
     console.error(
@@ -59,6 +132,23 @@ function recordInvalidResponse(status, path) {
         `Pausing all outbound Discord REST from this process for 10 minutes to stay ` +
         `clear of Cloudflare's 10,000-per-10-minutes IP ban.`,
     );
+    // Clear the window along with the trip. The window and the cooldown are
+    // both ten minutes, so without this every entry that tripped the breaker
+    // is still in the array when it closes, and the very next stray failure
+    // re-trips it for another ten.
+    invalidTimestamps.length = 0;
+    sinceLastWrite = 0;
+    saveBreakerState();
+    return;
+  }
+
+  // Writing on every failure would be a database round trip per 429. Every
+  // 25th is often enough that a process dying mid-burst leaves a number close
+  // to the truth, which is all the next one needs.
+  sinceLastWrite += 1;
+  if (sinceLastWrite >= WRITE_EVERY) {
+    sinceLastWrite = 0;
+    saveBreakerState();
   }
 }
 
@@ -253,15 +343,39 @@ async function patchChannel(channelId, payload) {
   return discordRequest(`/channels/${channelId}`, { method: "PATCH", body: payload });
 }
 
-// Opens (or returns the existing) DM channel with a user. Discord treats this
-// as idempotent — repeated calls return the same channel — so there's nothing
-// to cache. The logged wrapper that actually sends is db/lib/dm.js#sendDm,
-// which lives elsewhere because it needs prisma (see this file's header).
+// Opens (or returns the existing) DM channel with a user, and remembers it.
+//
+// The comment here used to say that Discord treats this as idempotent and so
+// there was nothing to cache — which confuses the response being identical
+// with the request being free. It is a real POST: a round trip, its own
+// rate-limit bucket, and a tick on the Cloudflare counter if it 429s. The
+// channel id, meanwhile, is stable for the lifetime of the guild, which makes
+// it the most cacheable value in this file.
+//
+// It cost roughly 390 redundant calls a turn. advanceTurn's side effects walk
+// three separate DM loops — Default Move summaries, tag progression, hunger —
+// and a player who slept through a turn is usually in all three, so the same
+// channel was opened from scratch three times over. The webhookCache below
+// carries a comment about learning this exact lesson the hard way.
+//
+// The logged wrapper that actually sends is db/lib/dm.js#sendDm, which lives
+// elsewhere because it needs prisma (see this file's header).
+const dmChannelCache = new Map(); // discordUserId -> channelId
+
+function forgetDmChannel(discordUserId) {
+  dmChannelCache.delete(discordUserId);
+}
+
 async function createDmChannel(discordUserId) {
-  return discordRequest("/users/@me/channels", {
+  const cached = dmChannelCache.get(discordUserId);
+  if (cached) return { id: cached };
+
+  const channel = await discordRequest("/users/@me/channels", {
     method: "POST",
     body: { recipient_id: discordUserId },
   });
+  if (channel?.id) dmChannelCache.set(discordUserId, channel.id);
+  return channel;
 }
 
 async function postMessage(channelId, content, components = undefined) {
@@ -304,6 +418,47 @@ async function postMessageBatched(channelId, text) {
   for (const chunk of chunkMessage(text)) {
     await postMessage(channelId, chunk);
   }
+}
+
+// Discord JSON error code for a channel it no longer recognises.
+const UNKNOWN_CHANNEL = 10003;
+
+async function postDmOnce(discordUserId, content) {
+  const channel = await createDmChannel(discordUserId);
+  try {
+    return await postMessage(channel.id, content);
+  } catch (err) {
+    // A cached id Discord has stopped recognising. Forget it and open a fresh
+    // one — once, and only for that specific answer.
+    if (err.discordCode !== UNKNOWN_CHANNEL && err.status !== 404) throw err;
+    forgetDmChannel(discordUserId);
+    const fresh = await createDmChannel(discordUserId);
+    return postMessage(fresh.id, content);
+  }
+}
+
+// The DM equivalent of postMessageBatched: opens the channel (cached) and
+// sends `text` across as many messages as it takes.
+//
+// Both REST sendDm twins go through this, because neither had ANY length
+// handling. A GM's Move result or broadcast over 2000 characters was rejected
+// by Discord, the error was swallowed by the caller's .catch, and the GM saw
+// the Move go green with the player never told. The `» ` prefix made it
+// worse by adding two characters after the last place anyone was counting.
+//
+// The prefix is applied by the caller BEFORE chunking, so it lands on the
+// first chunk and the continuations run on bare — which is what the `»` rule
+// in CLAUDE.md means anyway. Chunking after prefixing also means the chunker
+// needs no special allowance for it.
+async function postDmBatched(discordUserId, text) {
+  const chunks = chunkMessage(text);
+  if (chunks.length === 0) chunks.push(text);
+
+  let sent = null;
+  for (const chunk of chunks) {
+    sent = await postDmOnce(discordUserId, chunk);
+  }
+  return sent;
 }
 
 // Creates a standalone public thread on a text channel with no starter
@@ -544,7 +699,26 @@ async function executeWebhook({ id, token }, { content, username, avatarUrl }) {
 // Posts `content` into `channelId` under a character's name and avatar — the
 // REST equivalent of a tupper proxy, for anything composed by the game itself
 // rather than by a player typing in a channel.
+//
+// Chunked, because the biggest caller is the Default Move summary loop in
+// db/index.js and that text is PLAYER-authored (DefaultEffortPanel's summary
+// message). It went to the webhook whole, so a long one was rejected outright
+// and the narration for that character simply never appeared.
+//
+// Returns the FIRST message, which is what the archive row anchors to.
 async function postAsCharacter(channelId, character, content) {
+  const chunks = chunkMessage(String(content ?? ""));
+  if (chunks.length <= 1) return postAsCharacterChunk(channelId, character, content);
+
+  let first = null;
+  for (const chunk of chunks) {
+    const sent = await postAsCharacterChunk(channelId, character, chunk);
+    if (!first) first = sent;
+  }
+  return first;
+}
+
+async function postAsCharacterChunk(channelId, character, content) {
   try {
     return await postAsCharacterOnce(channelId, content, character);
   } catch (err) {
@@ -606,8 +780,14 @@ module.exports = {
   // Rolling 401/403/429 count behind discordRequest's circuit breaker; logged
   // at bot startup so the number is observable before it becomes a ban.
   getInvalidResponseStats,
+  attachBreakerStore,
+  loadBreakerState,
+  // Exported so the bot can feed discord.js's own REST responses into the
+  // same counter — see bot/src/events/ready.js.
+  recordInvalidResponse,
   getGuildChannels,
   createDmChannel,
+  forgetDmChannel,
   getChannel,
   deleteChannel,
   createChannel,
@@ -615,6 +795,7 @@ module.exports = {
   patchChannel,
   postMessage,
   postMessageBatched,
+  postDmBatched,
   postAttachment,
   chunkMessage,
   editMessage,

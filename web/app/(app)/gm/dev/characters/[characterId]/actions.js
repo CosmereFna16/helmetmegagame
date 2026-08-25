@@ -439,9 +439,19 @@ async function deleteCharacterImpl({ characterId, confirmName }) {
     },
   });
 
-  await revokeAllCharacterAccess(character).catch((err) =>
-    console.error("revokeAllCharacterAccess failed during delete:", err),
-  );
+  // Checked, not discarded: once the Character row goes there is no id left to
+  // clean up with, so a revoke that quietly did nothing leaves overwrites on
+  // every channel forever. See db/lib/locationAccess.js.
+  const revoked = await revokeAllCharacterAccess(character).catch((err) => {
+    console.error("revokeAllCharacterAccess failed during delete:", err);
+    return null;
+  });
+  if (!revoked || revoked.failed > 0) {
+    console.error(
+      `Deleting ${character.name}: ${revoked?.failed ?? "all"} channel overwrites were NOT removed. ` +
+        `They may still be able to read those rooms.`,
+    );
+  }
   if (character.discordRoleId) {
     await deleteCharacterRole(character.discordRoleId).catch(() => {});
   }

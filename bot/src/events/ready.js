@@ -1,7 +1,11 @@
 const cron = require("node-cron");
 const { ActivityType } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
-const { getInvalidResponseStats } = require("@lifeweb/db/lib/discordRest");
+const {
+  getInvalidResponseStats,
+  loadBreakerState,
+  recordInvalidResponse,
+} = require("@lifeweb/db/lib/discordRest");
 const { syncNicknamesForGuild } = require("../lib/nickname");
 const { advanceTurn } = require("../lib/turnEngine");
 const { ensureTurnsConsole } = require("../lib/turnsConsole");
@@ -13,6 +17,32 @@ module.exports = {
   once: true,
   async execute(client) {
     console.log(`Logged in as ${client.user.tag}`);
+
+    // Awaited, and BEFORE the listener below: the fire-and-forget load inside
+    // recordInvalidResponse marks itself done the moment it starts, so a
+    // response arriving first would leave this call returning empty-handed.
+    // The whole point of the health line below is to report what the LAST
+    // process left behind.
+    await loadBreakerState();
+
+    // discord.js runs its own REST manager, so everything the gateway client
+    // does — the ~130 nickname syncs below, every channel permission edit,
+    // every proxy send — was invisible to the breaker, which only ever saw
+    // db/lib/discordRest.js's traffic. Both halves share one egress IP and one
+    // Cloudflare counter, so counting half of it against a whole-IP ceiling
+    // was always going to under-report.
+    //
+    // discord.js clones the Response when anything is listening on this event.
+    // That is a real per-request cost, and it is paid deliberately: only the
+    // status is read, never the body, and knowing the true count is worth more
+    // than the clone. The `rateLimited` event would be free but fires on
+    // pre-emptive waits that never produced a 429, which is the wrong number.
+    client.rest.on("response", (request, response) => {
+      const status = response?.status;
+      if (status === 401 || status === 403 || status === 429) {
+        recordInvalidResponse(status, request?.path ?? request?.route ?? "unknown");
+      }
+    });
 
     // Printed on every connect so a climbing invalid-response count is visible
     // while it is still a number, not after it has become an hour-long
