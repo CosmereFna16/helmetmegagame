@@ -30,6 +30,18 @@ groups:
     name: Social
     category: general
     color: "#9c88c4"
+  # What a character actually believes. Ungated on purpose — a belief is not a
+  # secret the way the Demoness and Bacchus groups below are, and #info already
+  # tells every player that "most people are Post-Christian, but some people
+  # believe in the Old Ways".
+  #
+  # Gold because General had no warm tone: Traits is teal, Social purple, the
+  # Watch blue-grey, Brigands brown. It reads at 5.4:1 on both live theme
+  # backgrounds, mid-pack among the four above.
+  - slug: general-beliefs
+    name: Beliefs
+    category: general
+    color: "#b5943f"
   # Two body-membership groups, gated the same way Demoness and Bacchus are
   # (see the bottom of this file). Gating here rather than repeating
   # `requiredTag` on every member is the established idiom, and it means a

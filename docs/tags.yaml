@@ -17,8 +17,10 @@
 #                     auto-expire (e.g. Drained: 3). Omit for tags that don't
 #                     expire on their own.
 #   removable       - whether a player can strip this tag off themselves
-#                     mid-game without a GM. Catalog data only for now (the
-#                     mid-game tag store isn't routed yet). Default false.
+#                     mid-game without a GM. Live: it fills the Remove Tag
+#                     menu (web/lib/tagRequests.js#removableTags) and is
+#                     re-checked server-side by removeTagRequest. Removing
+#                     refunds resources, never Tag Points. Default false.
 #   craftable       - whether this tag represents something a player can
 #                     craft/make, vs. one that only ever arrives via role, GM
 #                     grant, or automatic game logic. Catalog data only for
@@ -573,6 +575,122 @@ tags:
     category: general
     group: general-traits
     description: "Keeps the Fortress ravens, and with them the only messages that outrun a rider."
+
+  # --- Beliefs --------------------------------------------------------------
+  # What a character actually believes. The setting has said so for a while —
+  # #info's "most people are Post-Christian, but some people believe in the Old
+  # Ways", the Post-Christianity document, the shrine to Thoth in the Caves —
+  # and this is the first time any of it reaches a sheet.
+  #
+  # NOTHING ENFORCES ONE BELIEF PER CHARACTER. A player can hold all four Old
+  # Ways at once and a GM sorts it out. That is a deliberate call, not an
+  # oversight: there is no mutual-exclusivity mechanism in the catalog to lean
+  # on. Mood's happy/unhappy swap looks like one and isn't — it's a deleteMany
+  # over two hardcoded slugs inside the SET_MOOD action — and a parentTag chain
+  # is priced cumulatively and walks in one direction, which is wrong for eight
+  # peers. Building one would mean a new rule enforced at creation, at /store
+  # checkout and in the Add Tag request.
+  #
+  # These are the first tags in the file that are BOTH purchasableAfterStart
+  # and removable. All 157 other removable tags are Items or Health conditions,
+  # every one of them purchasableAfterStart: false, so the pairing is new
+  # rather than copied — a player converts by dropping one and buying another.
+  # It is not a point farm: REMOVE_TAG refunds resources, never Tag Points
+  # (web/lib/requestEffects.js), so each conversion costs its price again and
+  # gives nothing back.
+  #
+  # None is `visible`. You cannot tell an Atheist from a Post-Christian by
+  # looking, and docs/tag-design.md sets that flag by whether a bystander
+  # actually could. A belief is meant to come out in play, not off a inspect.
+  - slug: post-christian
+    name: Post-Christian
+    category: general
+    group: general-beliefs
+    description: "Protected by God. A reasonable decision, and potentially a path to Heaven."
+    pointCost: 0
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  - slug: atheist
+    name: Atheist
+    category: general
+    group: general-beliefs
+    description: "To abstain from choosing is still a choice."
+    pointCost: 0
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  - slug: existentialist
+    name: Existentialist
+    category: general
+    group: general-beliefs
+    description: "You walk on firm ground\u2014if you can be sure of one thing, it's of your responsibility."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  # requiredTag rather than a group gate: the Windlands faith is not a secret,
+  # it just isn't yours to take unless you are of them. Same shape as
+  # windlander-horse, and `windlander` itself is a purchasable Skills tag that
+  # Windlander roles get free from roles.yaml, so the door is open to anyone
+  # willing to pay for the origin first.
+  - slug: the-wind
+    name: The Wind
+    category: general
+    group: general-beliefs
+    description: "Hardship has made you supreme. One day, God will provide you a kingdom."
+    pointCost: 0
+    requiredTag: windlander
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  - slug: old-ways-eusoch
+    name: Old Ways (Eusoch)
+    category: general
+    group: general-beliefs
+    description: "The healer, the compassionate, the prolonger of life."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  - slug: old-ways-sylvia
+    name: Old Ways (Sylvia)
+    category: general
+    group: general-beliefs
+    description: "The forest was here before us. Hear the cicadas, hearkening the storm."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  - slug: old-ways-thoth
+    name: Old Ways (Thoth)
+    category: general
+    group: general-beliefs
+    description: "The boldness of excellence, inspiration, and artistic magnificence."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  # NOT the Cult. `follower-of-bacchus` ("Cultist of Bacchus", in
+  # general-traits) is the gate on the hidden Bacchus category; this is the
+  # distant superstition that gate has nothing to do with. Don't wire them
+  # together — holding one should imply nothing about the other.
+  - slug: old-ways-bacchus
+    name: Old Ways (Bacchus)
+    category: general
+    group: general-beliefs
+    description: "A distant, mostly superstitious regard for Bacchus the Fertile, Bacchus the Shameless."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
 
   # --- The Watch ------------------------------------------------------------
   # Watchman is the membership tag and the gate: docs/taggroups.yaml puts

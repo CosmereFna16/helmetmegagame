@@ -776,8 +776,11 @@ model Tag {
   expiresInto Json?
 
   // Whether a player can remove this tag from themselves mid-game without a
-  // GM. Catalog data only — no self-removal flow reads this yet (the
-  // mid-game tag store isn't routed), same posture as tradeable above.
+  // GM. Live, unlike tradeable above: it fills the Remove Tag menu
+  // (web/lib/tagRequests.js#removableTags) and removeTagRequest re-checks it
+  // server-side before writing the REMOVE_TAG request. Removing refunds
+  // resources, never Tag Points — so a removable, purchasableAfterStart tag
+  // (the Beliefs group) costs its price again on every re-purchase.
   removable Boolean @default(false)
 
   // Whether this tag represents something a player can craft/make, as
