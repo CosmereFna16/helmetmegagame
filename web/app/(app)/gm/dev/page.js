@@ -49,6 +49,7 @@ export default async function DevPanelPage() {
             <Link href="/gm/dev/characters" className="menu-item">Characters</Link>
             <Link href="/gm/dev/factions" className="menu-item">Factions</Link>
             <Link href="/gm/dev/tags" className="menu-item">Tags</Link>
+            <Link href="/gm/gamemasters" className="menu-item">Gamemasters</Link>
           </nav>
         }
       />
@@ -62,7 +63,7 @@ export default async function DevPanelPage() {
         <form action={updateCurrentTurn} className="flex flex-wrap items-end gap-3">
           <label className="field">
             <span className="field-label">Day</span>
-            <input type="number" name="day" min="1" defaultValue={currentDay} style={{ width: "6rem" }} />
+            <input type="number" name="day" min="1" defaultValue={currentDay} style={{ maxWidth: "6rem" }} />
           </label>
           <label className="field">
             <span className="field-label">Phase</span>
@@ -121,7 +122,7 @@ export default async function DevPanelPage() {
 
       <section className="panel p-4">
         <h2 className="panel-header">Game Config</h2>
-        <form action={updateGameConfig} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <form action={updateGameConfig} className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
           <label className="field">
             <span className="field-label">Lifeweb Blood (0-100, raw override)</span>
             <input type="number" name="lifewebBlood" min="0" max="100" defaultValue={config.lifewebBlood} />

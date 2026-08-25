@@ -181,17 +181,26 @@ exist at launch and never afterward. **Every negative-cost tag must be
 `purchasableAfterStart: false`** — a drawback buyable mid-game is a point
 farm.
 
-That invariant has two enforcement points, and for a while only one of them
-existed. `purchasableTags()` honours it via `PointBuy`'s `afterStartOnly`
-prop, but that menu is mounted nowhere yet (`CreateCharacterWizard.js` passes
-`afterStartOnly={false}`), so the **Add Tag request** is the only routed
-mid-game path — and `addableTags()` used to filter on
-`purchasable || craftable` alone, putting every creation-only drawback back on
-the menu. It now requires `purchasableAfterStart` on the **purchasable branch
-only**: most craftables are deliberately `purchasableAfterStart: false` (43 of
-58 — meals, tonics, explosives) because they are made rather than bought, and
-their gate is the `requirement` block instead. No drawback is craftable, so
-nothing slips through that seam.
+That invariant has three enforcement points. `purchasableTags()` honours it
+via `PointBuy`'s `afterStartOnly` prop, which **`/store`** mounts — the
+mid-game store is routed (`web/app/(app)/store/`), spends
+`Character.tagPoints`, and files each cart as one `BUY_TAGS` request
+(`REQUESTS.md`). Its server action `buyTags` re-checks the flag per tag,
+rejects a tier at or below one already held, and refuses any negative
+effective cost — the store never pays the buyer. The **Add Tag request** is
+the other mid-game path, for crafting and resource-acquisitions:
+`addableTags()` (and `addTagRequestImpl` server-side) require
+`purchasableAfterStart` on the **purchasable branch only**, because most
+craftables are deliberately `purchasableAfterStart: false` (43 of 58 — meals,
+tonics, explosives): they are made rather than bought, and their gate is the
+`requirement` block instead. No drawback is craftable, so nothing slips
+through that seam.
+
+The two mid-game paths deal in different currencies and coexist on purpose:
+the store spends Tag Points against catalog prices with no GM in the loop
+until review; Add Tag spends turns, skills and ⬢ against a `requirement`
+block. Armor and weapons showing up under Add Tag is the crafting economy,
+not a store leak.
 
 Full writeup of creation, roles, and the wizard: `CHARACTERS.md`.
 

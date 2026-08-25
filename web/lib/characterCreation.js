@@ -165,9 +165,16 @@ export function unlockedTags(tags, tagsById, heldOrSelectedIds, keepIds = []) {
 // on top of separately-purchased lower tiers. Callers are expected to keep
 // `tags` collapsed to at most one member per chain (chainSiblingsToRemove is
 // how selection UIs enforce that) -- with that invariant, summing
-// cumulativeCost per tag is exactly the "buy this tier outright" cost.
-export function effectiveTotalCost(tags, tagsById) {
-  return tags.reduce((sum, tag) => sum + cumulativeCost(tag, tagsById), 0);
+// effectiveCost per tag is exactly the "buy this tier outright" cost.
+//
+// `heldIds` is what's ALREADY owned before this purchase — role grants at
+// creation, the character's own tags in the mid-game store — so buying a
+// higher tier over a held lower tier charges only the difference. This is
+// what each row already displayed via effectiveCost; totalling any other way
+// made the receipt disagree with the shelf. Omitted, it degrades to the
+// plain cumulative sum.
+export function effectiveTotalCost(tags, tagsById, heldIds = []) {
+  return tags.reduce((sum, tag) => sum + effectiveCost(tag, tagsById, heldIds), 0);
 }
 
 // A cursed player is restricted to CURSED_ROLE_SLUGS, and a role that grants a

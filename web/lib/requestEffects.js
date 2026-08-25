@@ -349,6 +349,32 @@ export const REQUEST_EFFECTS = {
     },
   },
 
+  // The /store checkout — one request for a whole cart. Tags were granted
+  // and tagPoints deducted at purchase time; there's nothing to edit
+  // line-by-line (prices are the catalog's, not the player's claim), so the
+  // only GM verdict is Undo: the whole cart comes back off and the points
+  // are refunded. A partial return is a GM microaction on the Dev Panel,
+  // not a request edit.
+  BUY_TAGS: {
+    editableFields: [],
+    async applyEdit(tx, request) {
+      return { effect: { ...request.effect }, note: "No changes." };
+    },
+    async undo(tx, request) {
+      const { items = [], totalPoints = 0 } = request.effect;
+      for (const item of items) {
+        await dropCharacterTag(tx, request.characterId, item.tagId, 1);
+      }
+      if (totalPoints) {
+        await tx.character.update({
+          where: { id: request.characterId },
+          data: { tagPoints: { increment: totalPoints } },
+        });
+      }
+      return `Returned ${items.length} tag(s) and refunded ${totalPoints} Tag Point(s).`;
+    },
+  },
+
   REMOVE_TAG: {
     editableFields: ["resourcesSpent"],
     async applyEdit(tx, request, edits) {

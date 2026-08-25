@@ -3101,7 +3101,7 @@ tags:
     consumesInto:
       - time-stop
 
-  # --- Drink --------------------------------------------------------------
+  # --- Tonics -------------------------------------------------------------
   # Alcohol, drugs and tonics. Brewed as a Move, never bought: purchasable
   # false keeps them out of both point-buy menus, craftable true is what lets
   # addTagRequestImpl accept a player brewing one — exactly the posture the

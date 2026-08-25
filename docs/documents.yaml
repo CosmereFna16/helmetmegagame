@@ -31,6 +31,7 @@ documents:
   - name: Diplomat
     key: diplomat
     public: false
+    secret: true
     tags: []
     description: |-
       You are from the Culture, a post-scarcity interstellar empire of hedonists ruled by benevolent AI. You want the best for the people of Ravenheart—and that would mean convincing the Baron to join the Culture—but Contact (the Culture's diplomatic wing) operates in the scale of centuries, not human generations. They don't think it's the right time, although they haven't told you why. In general, Contact is very non-interventionist. Therefore, do the best you can to quietly help people and further the Culture's mission: help push for a leader likely to cooperate, ensure the Order of the Iron Cross doesn't grow out of control, and above all, do not blow your cover! The *last* thing the Culture wants is for the people of Ravenheart to know you're here...
@@ -53,7 +54,7 @@ documents:
 
       You can see every deposit and withdrawal, in addition to each member's Resource amounts.
 
-      ## Transferring Resources
+      **Transferring Resources**
 
       You can transfer resources from any source to any recipient, but there's a couple of criteria. For Silos, you only have to share the same Zone, since they're big, abstracted warehouses. For players, you have to share their location. Treasurers and Leaders function as extensions of their Silos.
   - name: Medical
@@ -66,17 +67,17 @@ documents:
     description: |-
       Health and injuries are simulated through the tag system. Most health tags can be removed, usually for a cost. The cost includes: Resources, number of routine moves (bandaging someone doesn't have a turn cost; surgery does), the skill requirement, and whether or not it requires a Gambit. Anyone can try to heal a wound without the required skill (just DM the Bascinet bot), but it'll require a Gambit.
 
-      ## Skills
+      **Skills**
 
       {tag:medical-basic} handles first aid routinely.
       {tag:medical-skilled} handles **moderate** and **severe** cases routinely, but rolls Gambits on surgery.
       {tag:medical-expert} handles almost everything routinely.
 
-      ## Expiry
+      **Expiry**
 
       Some wounds, like infections, get worse.
 
-      ## Tonics
+      **Tonics**
 
       Tonics (see the Brewing document) can instantly cure wounds and help recovery, but require unique ingredients. Similarly, a few afflictions—like {tag:blinded}—require unique ingredients.
   - name: Producing Resources
@@ -143,9 +144,7 @@ documents:
     public: false
     tags: []
     description: |-
-      The last tithe didn't arrive and it shows. It may be time to pause the banquets. It is up to the Baron's men—particularly the Meister—to resolve this.
-
-      To make things worse, a letter from the Bastard declaring his intents was found on the table. Since the Guards didn't see anyone come in to deliver it, it must've been someone on the inside—someone who favored the Bastard—that brought it in. There must be a traitor.
+      The last tithe didn't arrive.
   - name: Camp Starting Packet
     key: campstarting
     public: false
@@ -251,13 +250,13 @@ documents:
       - Ravenkeeper
     description: |-
       Anyone with the Ravenkeeper tag can, assuming they're near their rookery, send a message to up to one person daily (every 2 turns). To do so, simply message the GMs asking.
-  - name: Smithing Price List
-    key: smithinglist
+  - name: Smithing
+    key: smithing
     public: false
     tags: []
     description: ""
-  - name: Merchant Price List
-    key: merchantlist
+  - name: Merchant
+    key: merchant
     public: false
     tags: []
     description: ""
@@ -323,6 +322,7 @@ documents:
   - name: The Charon
     key: charon
     public: false
+    secret: true
     tags: []
     description: |-
       The Charon is a spaceship. It'll take its passengers out into space, where an enormous passenger liner is allegedly waiting for refugees. The Charon's hatch can be accessed through the catacombs.
@@ -346,59 +346,51 @@ documents:
       - Brewing (Skilled)
       - Alcoholic
     description: |-
-      Like cooking or smithing, brewing's mostly a Routine, but some things require Gambits. Brewing usually requires: Resources, a certain of turns, and special ingredients. Except for {tag:cave-fungus}, most special ingredients aren't tracked. You just have to convince the GM you obtained it somehow.
+      Brewing is an excellent way to obtain happiness, cure the wounded, fulfill Desires, and, well, become superhuman. Like cooking or smithing, brewing costs turns (measured in Routine moves), Resources, and sometimes Gambits. It also requires special ingredients. Some special ingredients, like {tag:cave-fungus}, are tracked—but some aren't. If it's just flavor, tell the GMs how you obtained it.
 
       **Brewing (Basic)** covers {tag:alcohol}, {tag:bliss} and the basic tonics.
       **Brewing (Skilled)** adds {tag:ravenheart-red} and the advanced tonics.
 
-      ## Cave Fungus, the base
+      **Cave Fungus, the base**
 
-      {tag:cave-fungus} grows in caves (see the Caving document). You can eat it raw for a mildly unpleasant {tag:high}, or you can refine it into {tag:bliss}, {tag:mercy}, {tag:deadeye-drops} and {tag:mindbreaker-toxin}.
+      Cave fungus grows in caves (see the Caving document). You can eat it raw for a mildly unpleasant {tag:high}, or you can refine it into a bunch of useful things, particularly {tag:bliss}.
 
-      ## Recreational — Brewing (Basic)
+      **Recreational — Brewing (Basic)**
 
-      - **{tag:alcohol}** — 2 ⬢ per drink, up to 3 per Move. Beer, ale. Makes anyone happy, but not much of a desire.
-      - **{tag:bliss}** — 0 ⬢ and one {tag:cave-fungus}, up to 2 per Move. A valid object of desire.
+      - **{tag:alcohol}** — 2 ⬢ per drink, up to 3 per Move. Makes anyone happy, but not Desire-worthy.
+      - **{tag:bliss}** — 0 ⬢ and one cave fungus, up to 2 per Move. A valid object of Desire.
 
-      ## Other — Brewing (Basic)
+      **Other — Brewing (Basic)**
 
       - **{tag:miasma}** — 2 ⬢, requires a corpse. You can uncork it to give everyone in a room {tag:vomiting}.
       - **{tag:feces}** — 0 ⬢, requires feces. Extremely dishonorable. Makes your weapon inflict {tag:infected}.
       - **{tag:cleaning-powder}** — 2 ⬢ per powder, up to 2 per Move. Cures minor infections instantly, but doesn't help against {tag:festering}.
-      - **{tag:cat}** — 3 ⬢, distilled with {tag:alcohol}. {tag:night-vision} for two turns.
-      - **{tag:poppy}** — 2 ⬢, but you have to grow opium. Helps with pain but leaves you doped up. Leaves an {tag:opium-high}.
+      - **{tag:cat}** — 3 ⬢, distilled with {tag:alcohol}. {tag:night-vision} for one turn.
+      - **{tag:poppy}** — 2 ⬢ per vial, up to 2 per Move. Helps with pain but leaves you doped up. Makes you {tag:opium-high}.
       - **{tag:molotov-cocktail}** — 2 ⬢ per bottle, up to 2 per Move. Requires alcohol.
+      - **{tag:nightshade}** — 3 ⬢, refined from the common forest herb. Inflicts {tag:choking}. A visible, messy death.
+      - **{tag:nekker-pheromones}** — 2 ⬢, from a dead nekker. Gives {tag:pheromones}.
 
-      ## Recreational — Brewing (Skilled)
+      **Recreational — Brewing (Skilled)**
 
-      - **{tag:ravenheart-red}** — 4 ⬢. The one genuinely exquisite thing this barony makes.
-      - **{tag:distilled-coca}** — 4 ⬢, wild in the forest. {tag:stimulant-high}.
+      - **{tag:ravenheart-red}** — 4 ⬢. Genuinely exquisite. Worthy of Desire.
+      - **{tag:distilled-coca}** — 4 ⬢, requires coca, foraged in the forest. {tag:stimulant-high}.
 
-      ## Other — Brewing (Skilled)
+      **Other — Brewing (Skilled)**
 
-      - **{tag:gunpowder-grenade}** — 6 ⬢, from ore or nitrite in the caverns. A bomb, priced like one.
-      - **{tag:nightshade}** — 3 ⬢, forest-picked. Inflicts {tag:choking}: the victim dies frothing where everyone can watch.
-      - **{tag:phrygian-tears}** — 4 ⬢, 2 turns, **Gambit**. Silent and invisible. Inflicts {tag:phrygian-toxin}, which shows nothing until it's far too late.
-      - **{tag:advanced-poppy}** — 4 ⬢, needs {tag:poppy} first. {tag:pain-immunity} with your head still your own.
-      - **{tag:graga-sweat}** — 4 ⬢, from a {tag:graga-sac}. {tag:brutish-strength}.
-      - **{tag:purifier}** — 4 ⬢. Clears {tag:infected}, {tag:festering} and {tag:feverish} without a doctor, and gives {tag:sepsis} a chance it didn't have.
-      - **{tag:white-honey}** — 4 ⬢, from the heart of a rainbow trout. Dispels a poisoning.
-      - **{tag:deadeye-drops}** — 4 ⬢, from {tag:cave-fungus}. {tag:increased-accuracy}.
-      - **{tag:mercy}** — 4 ⬢, from {tag:cave-fungus}. {tag:increased-recovery}.
-      - **{tag:mindbreaker-toxin}** — 4 ⬢, from {tag:cave-fungus}. Leaves the taker {tag:hallucinating}.
-      - **{tag:invisibility-potion}** — 4 ⬢, from a {tag:graga-sac}. Two turns {tag:invisible}.
-      - **{tag:nekker-pheromones}** — 4 ⬢, from a dead nekker. They leave you alone while it lasts.
-      - **{tag:succubus-draught}** — 4 ⬢, needs the blood of a willing lover, freely given. Grants {tag:mindreading}.
-      - **{tag:raven-draught}** — 4 ⬢, from the eye of a raven. Send one message to any player anywhere — DM the GMs.
-      - **{tag:pure-luck}** — 4 ⬢, from the heart of an Aberrant. Three turns where every Gambit is a six.
-
-      ## A note on medicine
-
-      {tag:purifier}, {tag:cleaning-powder} and {tag:white-honey} do a doctor's work without a doctor, cheaper than the cure ladder in the Medical document. That's deliberate — but somebody still had to fetch the ingredient, and no amount of ⬢ substitutes for that.
-
-      ## Drinking too much
-
-      None of this is tracked. But a character who drinks like that is a character who drinks like that, and a GM may decide {tag:alcoholic} has stopped being a description and become a fact.
+      - **{tag:gunpowder-grenade}** — 6 ⬢, requires {tag:saltpeter} from the caverns.
+      - **{tag:phrygian-tears}** — 4 ⬢, 2 turns, **Gambit**. Silent and invisible. Inflicts {tag:phrygian-toxin}. A nearly instant, invisible death. The ultimate poison.
+      - **{tag:advanced-poppy}** — 4 ⬢, refined from standard {tag:poppy}. Pain resistance without any mental sluggishness: {tag:pain-immunity}.
+      - **{tag:graga-sweat}** — 2 ⬢, from a {tag:graga-sac}. {tag:brutish-strength}.
+      - **{tag:purifier}** — 6 ⬢. Clears {tag:infected}, {tag:festering} and {tag:feverish} instantly, and helps with {tag:sepsis}.
+      - **{tag:white-honey}** — 2 ⬢, requires the heart of a rainbow trout. Cures all poisons.
+      - **{tag:deadeye-drops}** — 2 ⬢, from cave fungus. {tag:increased-accuracy}.
+      - **{tag:mercy}** — 2 ⬢ and one fungus per vial, up to 2 per Move. Grants {tag:increased-recovery}.
+      - **{tag:mindbreaker-toxin}** — 2 ⬢, from cave fungus. Gives {tag:hallucinating}, making the victim incoherent and incapable.
+      - **{tag:invisibility-potion}** — 2 ⬢, from a graga sac. Makes you {tag:invisible} for two turns.
+      - **{tag:succubus-draught}** — 2 ⬢, requires the blood of a willing lover. Grants {tag:mindreading}.
+      - **{tag:raven-draught}** — 2 ⬢, requires the eye of a raven. Send one message to any player anywhere — DM the GMs.
+      - **{tag:pure-luck}** — 0 ⬢, requires the heart of an Aberrant. Gives you unbelievable luck.
   # GM-only. The `gamemaster` flag is not a property of any Character — the
   # documents page resolves it against the Discord GM role at request time,
   # the same check that gates /gm. Filtered server-side, so a player's browser
@@ -410,25 +402,25 @@ documents:
     flags:
       - gamemaster
     description: |-
-      What lives down there, and what it drops. Adjudicate encounters from this — the players have no document that lists any of it.
+      Some monsters to use in caving.
 
-      ## Gragas
+      **Nekkers**
+
+      Weak, quadrupedal, ape-like scavengers. They eat corpses and can often be seen on the surface after battles, competing with the vultures. Can be used to make {tag:nekker-pheromones}.
+
+      **Gragas**
 
       Dangerous, strong, hulking cave dwellers. Extremely slow, in part due to their overburdened leg muscles, which barely support them.
 
-      Found on **all three cave levels**. Genuinely dangerous in a fight, but easily escaped — a party that decides to leave should almost always be allowed to.
+      Can be easily escaped. Killing them drops a {tag:graga-sac}, which can be used to create {tag:graga-sweat} and the {tag:invisibility-potion}. The Merchant can sell Graga Sacs.
 
-      Killing one drops a {tag:graga-sac}, which is the ingredient behind {tag:graga-sweat} and the {tag:invisibility-potion}, and the Company's merchant will buy them. This is the main reason a player has to go down at all.
+      **Skinless**
 
-      ## Skinless
+      Explorers and citizens of the caves. They travel alone or in packs, eventually returning to their communities in the **Aberrant Pits**. They rarely venture up into the Caverns. They used to be people. They can be talked down.
 
-      Explorers and citizens of the caves, flayed into immortality. They travel alone or in packs, eventually returning to their communities in the **Aberrant Pits**.
+      **Aberrants**
 
-      They were people, and some of them still remember being people. A Skinless is not automatically a fight.
-
-      ## Nekkers
-
-      Small, quick, and they hunt in numbers. Referenced by {tag:nekker-pheromones}, which is wrung out of a dead one and makes the rest of them ignore whoever wears it.
+      Horrors. Drop Aberrant Hearts.
 
   # The Demoness threat's own brief (docs/threats.md). Assigned by the
   # Demoness tag, which is also what unlocks the hidden Demoness tag

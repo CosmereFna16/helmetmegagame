@@ -68,8 +68,9 @@ row and the audit entry all roll back with it.
 
 ## 3. The thirteen types
 
-Eleven live in `web/app/(app)/character/requestActions.js` and the two
-Lifeweb types in `web/app/(app)/lifeweb/requestActions.js`. Each one
+Eleven live in `web/app/(app)/character/requestActions.js`, the two
+Lifeweb types in `web/app/(app)/lifeweb/requestActions.js`, and `BUY_TAGS`
+in `web/app/(app)/store/actions.js`. Each one
 authenticates, **re-validates everything the client sent** (a server action is
 a public endpoint, and the client's filtered menus are only advisory), applies
 the effect, and writes the `Request` plus an `AuditLog` row carrying the same
@@ -80,6 +81,7 @@ reason.
 | `SET_MOOD` | Picks Neutral / Happy / Unhappy | — | Restores the displaced mood, with its original expiry |
 | `TRANSFER_RESOURCES` | Moves ⬢ between any two parties in reach | — | Reverses the movement |
 | `ADD_TAG` | Takes a Purchasable or Craftable tag, optionally paying ⬢. Stackable tags take a quantity and stay on the menu once held | cost; remove what this request added | Drops what it added, refunds the cost |
+| `BUY_TAGS` | Checks out a whole `/store` cart with Tag Points — one request per cart, `effect.items` listing every tag | — | Returns every tag in the cart, refunds the points |
 | `REMOVE_TAG` | Drops one of their own `removable` tags, optionally paying ⬢, in a quantity if it stacks | cost | Restores the tag and its count, refunds the cost |
 | `CONSUME_TAG` | Uses up one of their own `consumable` tags — always exactly one, even from a stack — and gains whatever it `consumesInto` | — | Restores the one unit with its original expiry, takes back what it granted |
 | `TRANSFER_TAG` | Hands an Item or Asset to another player in the same Location, in a quantity if it stacks | — | Moves that many back |

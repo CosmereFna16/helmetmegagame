@@ -534,10 +534,10 @@ global CLIs. To make one able to build, run, and deploy:
 - **Waiting for Opponents** is a `MoveReviewStatus` value the Moves table
   already colours, but nothing ever sets it. A GM parks an Opposed Move by
   simply not solving it yet.
-- The **mid-game tag store isn't routed yet.** `PointBuy.js` already supports
-  it (`afterStartOnly`) and `Character.tagPoints` carries the balance. What's
-  missing is a route that spends it, and the rules for earning points during
-  play.
+- The **mid-game tag store is `/store`**: the shared `PointBuy.js` experience
+  mounted with `afterStartOnly`, spending `Character.tagPoints`, each cart
+  filed as one `BUY_TAGS` request. What's still open is the rules for earning
+  points during play (Desires are currently the only faucet).
 - **`prisma migrate diff` proposes dropping `ArchiveEntry_content_trgm_idx`.**
   That index lives only in raw migration SQL, so Prisma's schema doesn't know
   about it. Decline the drop; it is not drift you introduced.

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 const TagsContext = createContext({ tagsById: new Map(), tagsBySlug: new Map() });
 
@@ -8,28 +8,37 @@ export function useTags() {
   return useContext(TagsContext);
 }
 
-// Fetches the full tag list once per page load and makes it available
-// anywhere in the tree via context, so {tag:id}/{tag:slug} references (see
-// RichText.js) can resolve without every component threading tag data
-// through props.
-export default function TagsProvider({ children }) {
+// Makes the caller-visible tag list available anywhere in the tree via
+// context, so {tag:id}/{tag:slug} references (see RichText.js) can resolve
+// without every component threading tag data through props.
+//
+// `tagsPromise` is created un-awaited in the root layout (see
+// web/lib/referenceData.js) and streams in with the initial response, so
+// there is no client round trip and first paint is not blocked. Resolved in
+// an effect rather than use() on purpose: use() would suspend the whole app
+// at the root, and chips rendering a beat late is the better failure.
+export default function TagsProvider({ children, tagsPromise }) {
   const [tags, setTags] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/tags")
-      .then((res) => (res.ok ? res.json() : []))
+    Promise.resolve(tagsPromise)
       .then((data) => {
-        if (!cancelled) setTags(data);
+        if (!cancelled && data) setTags(data);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [tagsPromise]);
 
-  const tagsById = new Map(tags.map((t) => [t.id, t]));
-  const tagsBySlug = new Map(tags.filter((t) => t.slug).map((t) => [t.slug, t]));
+  const value = useMemo(
+    () => ({
+      tagsById: new Map(tags.map((t) => [t.id, t])),
+      tagsBySlug: new Map(tags.filter((t) => t.slug).map((t) => [t.slug, t])),
+    }),
+    [tags],
+  );
 
-  return <TagsContext.Provider value={{ tagsById, tagsBySlug }}>{children}</TagsContext.Provider>;
+  return <TagsContext.Provider value={value}>{children}</TagsContext.Provider>;
 }

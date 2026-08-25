@@ -295,3 +295,45 @@ startTransition(async () => {
 The rule of thumb: a transition may wrap the *server call*, never a wait on the
 *user*. If a `run()`-style helper exists, only ever hand it a function that does
 no user interaction.
+
+## 9. Mobile
+
+These rules lived only as comments in `globals.css` until a 375px pass found
+five places the page scrolled sideways. Written down here for the same reason
+§6 turned the page shell into a component.
+
+**One breakpoint owns the shell: 720px.** Below it the rail becomes a fixed
+bottom bar and the touch-target rules below switch on. Note that every page's
+Tailwind `sm:` is 640px, so between 640 and 720 a page has desktop padding
+under a mobile nav bar. That gap is known and deliberately left alone —
+unifying it means touching every page.
+
+**The page body never scrolls sideways.** Anything wider than the viewport
+scrolls inside its own container:
+
+- Long tables use `TableScroll`, and **pass `minWidth`** when they have more
+  than about six columns. Without it the columns compress to one word per line
+  instead of scrolling — the frame only scrolls what is wider than it.
+- A short table outside `TableScroll` still needs a frame:
+  `<section className="panel overflow-x-auto p-4">`.
+- `.tab-bar` scrolls itself and `.tab-item` never shrinks, so a strip of five
+  tabs with counts stays reachable at 375px.
+- `PageHeader` gives both halves `min-w-0`, and its `actions` slot goes full
+  width below `sm:`. An intrinsically-sized control there — a `<select>` is as
+  wide as its longest option — must still carry its own `max-width: 100%`.
+
+**44px is the touch minimum.** `.btn`, `.btn-secondary`, `.btn-danger`,
+`.tab-item` and `.menu-item` all get `min-height: 44px` under 720px, in one
+block in `globals.css`. They are not 44px on desktop on purpose: at `--fs-xs`
+they are ~31px there, and raising that everywhere is a redesign, not a fix. A
+small control inside a table row — the row checkbox on `/gm/players`, say —
+gets its hit area from the cell's padding rather than from a bigger box.
+
+**The bottom bar respects `env(safe-area-inset-bottom)`**, and `.app-main`'s
+bottom padding must include the same inset. Otherwise the rail labels sit under
+an iPhone's home indicator.
+
+**The bottom bar does not scroll.** `NavRail`'s `MOBILE_PRIMARY = 5` cap is
+what keeps it reachable: items past the fifth move into the "More" sheet, so
+the length of a nav list is a real design constraint. Adding a rail item means
+deciding which one it displaces.

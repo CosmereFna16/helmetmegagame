@@ -94,6 +94,23 @@ const SECTIONS = {
     ),
   },
 
+  BUY_TAGS: {
+    heading: "Store Purchase",
+    render: ({ effect }) => (
+      <>
+        {(effect.items ?? []).map((item) => (
+          <Line key={item.tagId} label={item.tagName}>
+            {item.cost} pt{item.cost === 1 ? "" : "s"}
+          </Line>
+        ))}
+        <Line label="Total">{effect.totalPoints ?? 0} Tag Points</Line>
+        <p className="text-xs text-muted">
+          Undo returns every tag in the cart and refunds the points.
+        </p>
+      </>
+    ),
+  },
+
   REMOVE_TAG: {
     heading: "Remove Tag",
     render: ({ effect, edits, setEdit }) => (

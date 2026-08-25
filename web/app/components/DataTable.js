@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useMemo, useState } from "react";
 
 // The shared filter/search/sort/paginate engine behind every list surface in
 // the app — the adjudication tables, the player roster, the DM conversation
@@ -39,6 +39,11 @@ export function useTableState({
   const [sort, setSort] = useState(initialSort ?? { key: null, dir: "desc" });
   const [page, setPage] = useState(1);
 
+  // The input echoes each keystroke immediately; the filter pass over the
+  // full row set trails behind at deferred priority, so typing fast into a
+  // 500-row table never stutters the caret.
+  const deferredQuery = useDeferredValue(query);
+
   const options = useMemo(() => {
     const out = {};
     for (const def of filterDefs) {
@@ -48,7 +53,7 @@ export function useTableState({
   }, [rows, filterDefs]);
 
   const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = deferredQuery.trim().toLowerCase();
     const filtered = rows.filter((row) => {
       for (const def of filterDefs) {
         const active = filters[def.key];
@@ -71,7 +76,7 @@ export function useTableState({
       if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
       return String(av).localeCompare(String(bv)) * dir;
     });
-  }, [rows, query, filters, sort, filterDefs, searchFields]);
+  }, [rows, deferredQuery, filters, sort, filterDefs, searchFields]);
 
   const total = visible.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -155,7 +160,10 @@ export function FilterBar({
 }) {
   return (
     <div className="flex flex-wrap items-end gap-3">
-      <label className="field" style={{ minWidth: "12rem" }}>
+      {/* Grows to fill the row on a wide screen and shrinks below its 12rem
+          preference on a narrow one — a hard min-width here stacked the whole
+          filter row into five lines of chrome above the table at 375px. */}
+      <label className="field min-w-0" style={{ flex: "1 1 12rem" }}>
         <span className="field-label">{searchLabel ?? "Search"}</span>
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, text…" />
       </label>

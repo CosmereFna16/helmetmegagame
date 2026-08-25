@@ -15,6 +15,7 @@ import IconButton from "@/app/components/IconButton";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { EditIcon, TrashIcon } from "@/app/components/icons";
 import { formatCost, costColor } from "@/lib/characterCreation";
+import TagDetailSheet from "./TagDetailSheet";
 import { createCustomTag, updateCustomTag, deleteCustomTag } from "./actions";
 
 const FILTER_DEFS = [
@@ -57,6 +58,7 @@ export default function TagCatalog({ tags, groups, categories, canDelete }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(null);
   const [editing, setEditing] = useState(null); // null | {…tag} | "new"
+  const [viewing, setViewing] = useState(null); // null | {…tag} — the detail sheet
 
   const table = useTableState({
     rows: tags,
@@ -129,7 +131,17 @@ export default function TagCatalog({ tags, groups, categories, canDelete }) {
             {table.pageRows.map((t) => (
               <tr key={t.id}>
                 <td>
-                  {t.name}
+                  {/* The name opens the read-only detail sheet — full
+                      description, chain, links. A button rather than a row
+                      onClick so the keyboard reaches it. */}
+                  <button
+                    type="button"
+                    className="text-left font-[inherit]"
+                    style={{ cursor: "pointer" }}
+                    onClick={() => setViewing(t)}
+                  >
+                    {t.name}
+                  </button>
                   <div className="mono text-xs text-muted">{t.slug}</div>
                 </td>
                 <td className="mono text-sm">{t.category}</td>
@@ -182,6 +194,15 @@ export default function TagCatalog({ tags, groups, categories, canDelete }) {
         unit="tags"
         onPage={table.setPage}
       />
+
+      {viewing && (
+        <TagDetailSheet
+          tag={viewing}
+          tags={tags}
+          onOpen={setViewing}
+          onClose={() => setViewing(null)}
+        />
+      )}
 
       {editing && (
         <TagDialog

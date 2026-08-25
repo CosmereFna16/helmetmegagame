@@ -10,6 +10,7 @@ import {
   isLeaderWhitelisted,
 } from "@/lib/discordGuild";
 import { isRoleSelectable } from "@/lib/characterCreation";
+import { loadPointBuyCatalog } from "@/lib/pointBuyCatalog";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { parseSelection } from "@/lib/portrait/catalog";
@@ -42,16 +43,7 @@ async function loadCreationData(discordUserId) {
         },
       },
     }),
-    prisma.tag.findMany({
-      where: { purchasable: true },
-      include: {
-        // requiredTagId comes along because a group carrying one is the
-        // hidden-category gate (docs/systemdocs/TAGS.md §3). Drop it and
-        // every gated category silently opens for everyone.
-        group: { select: { slug: true, name: true, color: true, requiredTagId: true } },
-        requirementSkills: { select: { id: true, slug: true, name: true } },
-      },
-    }),
+    loadPointBuyCatalog(),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     getGuildMember(discordUserId),
     prisma.character.groupBy({ by: ["roleId"], where: { status: "ALIVE" }, _count: true }),
@@ -78,30 +70,9 @@ async function loadCreationData(discordUserId) {
     dynastyName,
     playerCount,
     startingTagPoints: config?.startingTagPoints ?? 0,
-    tags: tags.map((t) => ({
-      id: t.id,
-      name: t.name,
-      description: t.description,
-      category: t.category,
-      pointCost: t.pointCost,
-      purchasable: t.purchasable,
-      purchasableAfterStart: t.purchasableAfterStart,
-      parentTagId: t.parentTagId,
-      requiredTagId: t.requiredTagId,
-      group: t.group,
-      removable: t.removable,
-      craftable: t.craftable,
-      requirementTurns: t.requirementTurns,
-      requirementResources: t.requirementResources,
-      requirementGambit: t.requirementGambit,
-      requirementSkills: t.requirementSkills,
-      // Health tags carry a course as well as a price: how long the affliction
-      // runs untreated, and what it turns into afterwards. Both belong in the
-      // point-buy chip — a player picking up Appendicitis as a drawback should
-      // see where it ends before they take the points for it.
-      defaultDurationTurns: t.defaultDurationTurns,
-      expiresInto: t.expiresInto,
-    })),
+    // Already flattened to PointBuy's shape by loadPointBuyCatalog — shared
+    // with /store so the two menus can never disagree.
+    tags,
     zones: zones
       .map((zone) => ({
         id: zone.id,
@@ -194,7 +165,7 @@ export default async function CharacterPage() {
         orderBy: { name: "asc" },
         select: { id: true, name: true },
       }),
-      // The Add Tag menu needs purchasable/craftable, which /api/tags doesn't
+      // The Add Tag menu needs purchasable/craftable, which getVisibleTags (lib/referenceData.js) doesn't
       // select (and which that unauthenticated route shouldn't grow just to
       // serve a picker) — so the catalog comes down as props, same as the
       // creation wizard does it.
@@ -208,6 +179,10 @@ export default async function CharacterPage() {
           category: true,
           pointCost: true,
           purchasable: true,
+          // addableTags' purchasable branch requires purchasableAfterStart;
+          // without this select it read undefined and silently dropped every
+          // purchasable-only tag from the Add Tag menu.
+          purchasableAfterStart: true,
           craftable: true,
           stackable: true,
           // Both gates the Add Tag menu enforces — the per-tag prerequisite and

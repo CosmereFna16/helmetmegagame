@@ -403,11 +403,12 @@ zones:
               - >-
                 Serve the Baron, salute your Captain. Darkness is coming—do you heed the call, or frolick about?
               - >-
-                Or—alright, we got the optics out of the way. Truth is, being a Watchman
+                Or—alright, we got the optics out of the way. Truth is, being a Watchman is mostly bribes, racketeering, and gambling. Consider taking protection money from the town businesses. That's what usually works the most.
+
               - >-
                 Your job is simple. **Live a comfortable life. Drink. Make money. Play cards.** Yes, there are bandits about, but it's nothing the townsfolk can't deal with.
               - >-
-                Consider taking protection money from the town businesses. That's what usually works the most.
+                Or you can try to be a good man. It's up to you.
             difficulty: easy
             multiple: true
             weight: 8
@@ -416,7 +417,7 @@ zones:
             starting_tags:
               - Ravenhearter
               - Watchman
-              - Fighting (Trained)
+              - Fighting (Basic)
             doc_elements:
               - courtstructure
               - fortressstarting
@@ -437,7 +438,6 @@ zones:
             starting_location: garrison
             starting_tags:
               - Ravenhearter
-              - Fighting (Basic)
             doc_elements:
               - courtstructure
               - fortressstarting
@@ -539,11 +539,11 @@ zones:
               - >-
                 Sickness and pain leave men terrified and alone. It is a noble task to help another face that pain.
               - >-
-                Prioritize treating the reach and affluent, despite triage. You may be a noble man, but, despite your scholastic training, the Baron approved your appointment for a reason.
+                Prioritize treating the rich and affluent, despite triage. You may be a noble man, but, despite your scholastic training, the Baron approved your appointment for a reason.
               - >-
                 With science, the sky's the limit. You can brew medicines and potions, install implants and body-modifications, and even experiment for the good of science.
               - >-
-                If there's no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners.
+                If there's no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners. Brewing potions is especially worthwhile; it can really help it when you get a wave of inmates. Just throw out a few {tag:cleaning-powder}, a few {tag:mercy}, some {tag:poppy}...
               - >-
                 You can perform medicine, removing negative medical tags according to their skill, Resource, and action cost.
             difficulty: normal
@@ -569,7 +569,7 @@ zones:
               - >-
                 With science, the sky's the limit. You can brew medicines and potions, install implants and body-modifications, and even experiment for the good of science.
               - >-
-                If there's no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners.
+                If there's no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners. Brewing potions is especially worthwhile; it can really help it when you get a wave of inmates. Just throw out a few {tag:cleaning-powder}, a few {tag:mercy}, some {tag:poppy}...
               - >-
                 You can perform medicine, removing negative medical tags according to their skill, Resource, and action cost.
             difficulty: normal
@@ -763,7 +763,7 @@ zones:
               - House
             doc_elements:
               - townstarting
-              - smithinglist
+              - smithing
               - combat
               - independent
           - name: Peasant
@@ -1274,7 +1274,7 @@ zones:
               - Literate
             doc_elements:
               - townstarting
-              - merchantlist
+              - merchant
           - name: Docker
             slug: docker
             intro: >-
@@ -1290,7 +1290,7 @@ zones:
             starting_tags: []
             doc_elements:
               - townstarting
-              - merchantlist
+              - merchant
       - name: Unaffiliated
         slug: unaffiliated
         roles:

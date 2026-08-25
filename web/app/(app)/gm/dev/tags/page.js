@@ -19,7 +19,10 @@ export default async function DevTagsPage() {
   const [tags, groups, counts] = await Promise.all([
     prisma.tag.findMany({
       orderBy: [{ category: "asc" }, { name: "asc" }],
-      include: { group: { select: { id: true, name: true } } },
+      include: {
+        group: { select: { id: true, name: true, color: true } },
+        requirementSkills: { select: { name: true } },
+      },
     }),
     prisma.tagGroup.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, category: true } }),
     prisma.characterTag.groupBy({ by: ["tagId"], _count: { tagId: true } }),
@@ -57,9 +60,22 @@ export default async function DevTagsPage() {
           consumable: t.consumable,
           removable: t.removable,
           tradeable: t.tradeable,
+          craftable: t.craftable,
           purchasable: t.purchasable,
           purchasableAfterStart: t.purchasableAfterStart,
           defaultDurationTurns: t.defaultDurationTurns,
+          // Everything below feeds the read-only detail sheet: the tier chain
+          // and prerequisite links (walked client-side over this same list),
+          // the consume/expiry targets, and the requirement block.
+          groupColor: t.group?.color ?? null,
+          parentTagId: t.parentTagId,
+          requiredTagId: t.requiredTagId,
+          consumesInto: t.consumesInto,
+          expiresInto: t.expiresInto,
+          requirementTurns: t.requirementTurns,
+          requirementResources: t.requirementResources,
+          requirementGambit: t.requirementGambit,
+          requirementSkills: t.requirementSkills,
           held: heldCount.get(t.id) ?? 0,
         }))}
         groups={groups}

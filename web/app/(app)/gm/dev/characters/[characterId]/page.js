@@ -54,7 +54,7 @@ export default async function DevCharacterPanelPage({ params }) {
       select: { id: true, name: true, slug: true, faction: { select: { name: true } } },
     }),
     // The whole catalog, gates and all: a GM grant deliberately ignores
-    // requiredTag and the TagGroup gate (TAGS.md), so unlike /api/tags this
+    // requiredTag and the TagGroup gate (TAGS.md), so unlike getVisibleTags (lib/referenceData.js) this
     // withholds nothing — including the hidden Demoness and Bacchus groups.
     prisma.tag.findMany({
       orderBy: [{ category: "asc" }, { name: "asc" }],

@@ -84,6 +84,10 @@ enum TagSource {
 enum RequestType {
   FULFILL_DESIRE
   ADD_TAG
+  // The /store checkout: one row for a whole cart of point-buy purchases,
+  // effect.items carrying every tag granted and effect.totalPoints what was
+  // deducted from Character.tagPoints.
+  BUY_TAGS
   REMOVE_TAG
   CONSUME_TAG
   TRANSFER_RESOURCES

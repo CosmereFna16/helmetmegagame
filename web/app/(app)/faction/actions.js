@@ -41,6 +41,8 @@ export async function setFactionLeader(formData) {
   });
 
   revalidatePath("/faction");
+  // The Factions tab of the Players panel shows the same leaders and counts.
+  revalidatePath("/gm/players");
 }
 
 // Grants or revokes Treasurer for a faction member — callable by the
@@ -74,6 +76,8 @@ export async function setTreasurer(formData) {
   });
 
   revalidatePath("/faction");
+  // The Factions tab of the Players panel shows the same leaders and counts.
+  revalidatePath("/gm/players");
 }
 
 export async function addCharacterToFaction(formData) {
@@ -97,6 +101,8 @@ export async function addCharacterToFaction(formData) {
   });
 
   revalidatePath("/faction");
+  // The Factions tab of the Players panel shows the same leaders and counts.
+  revalidatePath("/gm/players");
 }
 
 export async function removeCharacterFromFaction(formData) {
@@ -121,4 +127,6 @@ export async function removeCharacterFromFaction(formData) {
   });
 
   revalidatePath("/faction");
+  // The Factions tab of the Players panel shows the same leaders and counts.
+  revalidatePath("/gm/players");
 }

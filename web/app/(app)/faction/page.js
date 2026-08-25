@@ -127,86 +127,9 @@ function FactionTable({ factions, showSilo, isGm = false }) {
   );
 }
 
-function buildChildrenMap(factions) {
-  const map = new Map();
-  for (const f of factions) {
-    const key = f.parentFactionId ?? null;
-    if (!map.has(key)) map.set(key, []);
-    map.get(key).push(f);
-  }
-  return map;
-}
-
-// Renders a faction row plus its subject factions indented beneath it,
-// recursively — keeps the hierarchy visible in the flat overview table
-// instead of needing a separate page per level.
-function FactionRows({ factions, childrenMap, depth, showSilo }) {
-  return factions.flatMap((f) => {
-    const leader = f.characters.find((c) => c.isLeader);
-    const children = childrenMap.get(f.id) ?? [];
-    return [
-      <tr key={f.id}>
-        <td style={{ paddingLeft: `calc(10px + ${depth * 1.25}rem)` }}>
-          {depth > 0 ? "↳ " : ""}
-          <FactionLink factionId={f.id} name={f.name} />
-        </td>
-        <td>{f.characters.length}</td>
-        <td>
-          <CharacterLink characterId={leader?.id} name={leader?.name ?? "-"} isGm />
-        </td>
-        {showSilo && <td>{f.silo} ⬢</td>}
-      </tr>,
-      ...FactionRows({ factions: children, childrenMap, depth: depth + 1, showSilo }),
-    ];
-  });
-}
-
-function FactionOverview({ factions }) {
-  const unaffiliated = factions.filter((f) => f.name === "Unaffiliated");
-  const rest = factions.filter((f) => f.name !== "Unaffiliated");
-  const childrenMap = buildChildrenMap(rest);
-  const topLevel = rest.filter((f) => !f.parentFactionId);
-
-  return (
-    <PageShell>
-      <PageHeader title="Factions" />
-      <div className="panel overflow-x-auto">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Members</th>
-              <th>Leader</th>
-              <th>Silo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {FactionRows({ factions: topLevel, childrenMap, depth: 0, showSilo: true })}
-            {unaffiliated.map((f) => {
-              const leader = f.characters.find((c) => c.isLeader);
-              return (
-                <tr key={f.id} style={{ borderTop: "2px solid var(--border)" }}>
-                  <td>
-                    <FactionLink factionId={f.id} name={f.name} />
-                  </td>
-                  <td>{f.characters.length}</td>
-                  <td>
-                    <CharacterLink characterId={leader?.id} name={leader?.name ?? "-"} isGm />
-                  </td>
-                  <td>{f.silo} ⬢</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </PageShell>
-  );
-}
-
 function SiloHistoryPanel({ history }) {
   return (
-    <section className="panel p-4">
+    <section className="panel overflow-x-auto p-4">
       <h2 className="panel-header">Silo History</h2>
       <table className="data-table">
         <thead>
@@ -336,7 +259,7 @@ export default async function FactionPage({ searchParams }) {
           </ul>
         </section>
 
-        <section className="panel p-4">
+        <section className="panel overflow-x-auto p-4">
           <h2 className="panel-header">Members ({faction.characters.length})</h2>
           <table className="data-table">
             <thead>
@@ -395,14 +318,10 @@ export default async function FactionPage({ searchParams }) {
     );
   }
 
-  // GM mode
-  if (!requestedFactionId) {
-    const factions = await prisma.faction.findMany({
-      orderBy: { name: "asc" },
-      include: { characters: { select: { id: true, name: true, isLeader: true } } },
-    });
-    return <FactionOverview factions={factions} />;
-  }
+  // GM mode. The all-factions overview is the Factions tab of the Players
+  // panel now — one table, one place. Only the per-faction detail view below
+  // still lives here, and it is what a faction name links to for either role.
+  if (!requestedFactionId) redirect("/gm/players?tab=factions");
 
   const [faction, unassignedCharacters] = await Promise.all([
     loadFaction(requestedFactionId),
@@ -412,7 +331,7 @@ export default async function FactionPage({ searchParams }) {
       select: { id: true, name: true },
     }),
   ]);
-  if (!faction) redirect("/faction");
+  if (!faction) redirect("/gm/players?tab=factions");
 
   const isUnaffiliated = faction.name === "Unaffiliated";
   const siloHistory = !isUnaffiliated ? await loadSiloHistory(faction.id) : [];
@@ -420,7 +339,7 @@ export default async function FactionPage({ searchParams }) {
 
   return (
     <PageShell width="narrow">
-      <Link href="/faction" className="btn-quiet">
+      <Link href="/gm/players?tab=factions" className="btn-quiet">
         &larr; All Factions
       </Link>
 
@@ -438,7 +357,7 @@ export default async function FactionPage({ searchParams }) {
                 browser chrome and visibly breaks the theme. */}
             <label className="field">
               <span className="field-label">Faction</span>
-              <select name="factionId" defaultValue={faction.id}>
+              <select name="factionId" defaultValue={faction.id} style={{ maxWidth: "100%" }}>
                 {allFactions.map((f) => (
                   <option key={f.id} value={f.id}>
                     {f.name}
@@ -467,7 +386,7 @@ export default async function FactionPage({ searchParams }) {
         </ul>
       </section>
 
-      <section className="panel p-4">
+      <section className="panel overflow-x-auto p-4">
         <h2 className="panel-header">Members ({faction.characters.length})</h2>
         <table className="data-table">
           <thead>
@@ -550,7 +469,7 @@ export default async function FactionPage({ searchParams }) {
         <h2 className="panel-header">Add Member</h2>
         <form action={addCharacterToFaction} className="flex gap-2">
           <input type="hidden" name="factionId" value={faction.id} />
-          <select name="characterId" required defaultValue="" className="control">
+          <select name="characterId" required defaultValue="" className="control min-w-0">
             <option value="" disabled>
               Choose a character...
             </option>

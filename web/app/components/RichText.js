@@ -40,7 +40,7 @@ function PartySizeToken({ payload, fallback }) {
 
 // Payload is Document.key (docs/documents.yaml's `key:`), e.g.
 // "courtstructure". The index carries every written document's name, but a
-// body only for those the reader may open — see /api/documents.
+// body only for those the reader may open — see getDocumentIndex (lib/referenceData.js).
 function DocumentToken({ payload, fallback }) {
   const { docsByKey } = useDocuments();
   const doc = docsByKey.get(payload.trim());

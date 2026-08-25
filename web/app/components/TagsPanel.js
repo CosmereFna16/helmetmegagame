@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import TagChip from "./TagChip";
+import TagPointsValue from "./TagPointsValue";
 import TagRequestButtons from "./TagRequestButtons";
 import { useTags } from "./TagsProvider";
 import { resolveConsumeGrants, heldSlugsOf } from "@/lib/consumeGrants";
@@ -57,6 +58,7 @@ export default function TagsPanel({
   canHeal = false,
   healTargets = [],
   healParties = null,
+  tagPoints = null,
 }) {
   // TagRequestButtons owns the dialog, and hands its opener up through
   // onReady so a chip click can drive it.
@@ -81,7 +83,15 @@ export default function TagsPanel({
   return (
     <section className="panel p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="section-title">Tags</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="section-title">Tags</h2>
+          {tagPoints != null && (
+            <span className="text-sm">
+              <span className="text-muted">Tag points </span>
+              <TagPointsValue points={tagPoints} />
+            </span>
+          )}
+        </div>
         {isSelf && (
           <TagRequestButtons
             catalog={catalog ?? []}

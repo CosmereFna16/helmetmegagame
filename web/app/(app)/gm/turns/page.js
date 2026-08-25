@@ -11,7 +11,7 @@ import PageShell, { PageHeader } from "@/app/components/PageShell";
 const HISTORY_LIMIT = 500;
 
 // Exactly the Tag columns TagChip and formatTagRequirement read, and nothing
-// else — same discipline as web/app/api/tags/route.js. The heavy ones an
+// else — same discipline as web/lib/referenceData.js#loadVisibleTags. The heavy ones an
 // `include` dragged along (consumesInto, consumesIntoUnless,
 // consumesIntoDurations) are rendered nowhere on this page, and `group` is a
 // join TagChip never touches.
@@ -79,6 +79,8 @@ function summarize(request) {
       return `+${e.pointsAwarded ?? 0} Tag Points — ${truncate(e.desireText, 60)}`;
     case "ADD_TAG":
       return `+${e.tagName ?? "tag"}${e.resourcesSpent ? ` for ${e.resourcesSpent} ⬢` : ""}`;
+    case "BUY_TAGS":
+      return `${(e.items ?? []).map((i) => i.tagName).join(", ")} for ${e.totalPoints ?? 0} Tag Points`;
     case "REMOVE_TAG":
       return `-${e.tagName ?? "tag"}${e.resourcesSpent ? ` for ${e.resourcesSpent} ⬢` : ""}`;
     case "TRANSFER_RESOURCES":

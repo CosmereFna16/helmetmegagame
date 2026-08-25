@@ -188,7 +188,9 @@ export async function createCharacter(formData) {
   }
 
   const budget = computeBudget({ startingTagPoints: config?.startingTagPoints ?? 0, role, cursed });
-  const spent = effectiveTotalCost(selected, byId);
+  // Discounted by what the role already grants, matching what every row and
+  // the build pane showed the player.
+  const spent = effectiveTotalCost(selected, byId, grantedIds);
   if (spent > budget) {
     return { error: `That costs ${spent} points and you have ${budget}.` };
   }
