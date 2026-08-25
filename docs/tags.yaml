@@ -254,7 +254,7 @@ tags:
   - slug: mortus
     name: Mortus
     category: general
-    description: "One of the Mortii. Tends to the dead and to the Lifeweb beneath Ravenheart."
+    description: "One of the Mortii. Tends to the dead and the Lifeweb."
     pointCost: 0
     purchasable: false
     visible: true
@@ -263,9 +263,67 @@ tags:
     name: Courtier
     category: general
     group: general-traits
-    description: "A member of the Baron's retinue."
+    description: "A member of the court."
     pointCost: 0
     purchasable: false
+
+  # The Court — general-court is gated behind `courtier` at the group level,
+  # same idiom as general-watch/general-brigand, so none of these need their
+  # own requiredTag.
+  - slug: knighted
+    name: Knighted
+    category: general
+    group: general-court
+    description: "You were knighted, and serve the Baron directly."
+    pointCost: 3
+    purchasable: true
+    purchasableAfterStart: false
+
+  - slug: disgraced
+    name: Disgraced
+    category: general
+    group: general-court
+    description: "Your name brings dishonor."
+    pointCost: -2
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+
+  - slug: old-blood
+    name: Old Blood
+    category: general
+    group: general-court
+    description: "Your family has been around a long time."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: false
+
+  - slug: dancer
+    name: Dancer
+    category: general
+    group: general-court
+    description: "You are a fantastic dancer."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: soft-hands
+    name: Soft Hands
+    category: general
+    group: general-court
+    description: "You've never done a day's labor. It'll be harder to work."
+    pointCost: -1
+    purchasable: true
+    purchasableAfterStart: false
+
+  - slug: vain
+    name: Vain
+    category: general
+    group: general-court
+    description: "You are inwardly inconsolable if anyone outshines you."
+    pointCost: -1
+    purchasable: true
+    purchasableAfterStart: false
 
   - slug: windlander
     name: Windlander
@@ -3182,7 +3240,7 @@ tags:
     category: items
     group: items-weapons
     description: "A short gun with a wide bore. It fires a heavy shot, but you only get one before you have to reload."
-    pointCost: 3
+    pointCost: 6
     requiredTag: fighting-basic
     equippable: true
     tradeable: true
@@ -3203,7 +3261,7 @@ tags:
     category: items
     group: items-weapons
     description: "A single-shot pistol. Slow to reload, but the shot hits hard no matter what your target is wearing."
-    pointCost: 3
+    pointCost: 4
     requiredTag: fighting-basic
     equippable: true
     tradeable: true
@@ -3293,7 +3351,7 @@ tags:
     tradeable: true
     stackable: true
     visible: true
-    purchasable: true
+    purchasable: false
     purchasableAfterStart: false
     removable: true
     craftable: true
@@ -3342,7 +3400,7 @@ tags:
     category: items
     group: items-weapons
     description: "An elegant steel rapier, for the nobility to stab peasants with."
-    pointCost: 4
+    pointCost: 3
     requiredTag: fighting-basic
     equippable: true
     tradeable: true
@@ -3363,7 +3421,7 @@ tags:
     category: items
     group: items-weapons
     description: "For the wealthy to slaughter the poor."
-    pointCost: 4
+    pointCost: 3
     requiredTag: fighting-basic
     equippable: true
     tradeable: true
@@ -3384,7 +3442,7 @@ tags:
     category: items
     group: items-weapons
     description: "A curved blade folded out of very good steel. Nobody here can tell you where the first one came from."
-    pointCost: 4
+    pointCost: 3
     requiredTag: fighting-basic
     equippable: true
     tradeable: true
@@ -3494,6 +3552,33 @@ tags:
     stackable: true
     visible: true
     purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  # Courtier starting picks. Per-tag requiredTag like Manor, since these sit
+  # in items-special rather than the gated general-court group.
+  - slug: heirloom
+    name: Heirloom
+    category: items
+    group: items-special
+    description: "Choose a non-combat heirloom. It's valuable—the Merchant can sell it."
+    pointCost: 2
+    requiredTag: courtier
+    tradeable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+
+  - slug: compromising-letters
+    name: Compromising Letters
+    category: items
+    group: items-special
+    description: "Choose a courtier, servant, the Successor, or the Heir. Not the Hand or the Meister. You have blackmail on them."
+    pointCost: 2
+    requiredTag: courtier
+    tradeable: true
+    purchasable: true
     purchasableAfterStart: false
     removable: true
     consumable: true

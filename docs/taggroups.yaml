@@ -46,6 +46,13 @@ groups:
     category: general
     color: "#a87351"
     requiredTag: brigand
+  # Third body-membership group: the Baron's court, gated behind the free
+  # `courtier` tag every court role starts with.
+  - slug: general-court
+    name: The Court
+    category: general
+    color: "#b89a5e"
+    requiredTag: courtier
   # Orphaned: the Health category below took every tag that used to live
   # here. Groups sync upsert-only and are never deleted, so this row survives
   # empty — don't reuse the slug, and don't put anything back in it.
