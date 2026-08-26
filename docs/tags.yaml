@@ -374,15 +374,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  - slug: inscrutable
-    name: Inscrutable
-    category: general
-    group: general-social
-    description: "Nothing shows on you. Someone Seductive examining you learns no Desire; someone with a Torturer's eye finds no Worst Fear. They get a blank, and they know it is a blank."
-    pointCost: 5
-    purchasable: true
-    purchasableAfterStart: true
-
   - slug: old
     name: Old
     category: general
@@ -414,7 +405,7 @@ tags:
     name: Holoparasite
     category: general
     group: general-traits
-    description: "A ghost that reflects your inner character — you decide its name and what it is like. It hits harder than anything a person should, and every wound it takes is written onto your own body instead. Nobody can see it unless you deploy it."
+    description: "A reflection of your soul, with your choice of name. It can appear and disappear at will, and punch things hard and fast. Beware! Any damage it takes is reflected onto you."
     pointCost: 0
     visible: false
     purchasable: false
@@ -426,7 +417,7 @@ tags:
     name: Time Stop
     category: general
     group: general-traits
-    description: "Once a day you may stop time in a small area around you. Everything in it holds still; you do not. What you do with the moment is your own business."
+    description: "Once a day, you can stop time in a small around you for 10 seconds."
     pointCost: 0
     visible: false
     purchasable: false
@@ -492,7 +483,7 @@ tags:
     name: Seductive
     category: general
     group: general-social
-    description: "You can see a person's Desire by examining them."
+    description: "You can see a person's desire by examining them."
     pointCost: 4
     purchasable: true
     purchasableAfterStart: true
@@ -501,7 +492,7 @@ tags:
     name: Torturer
     category: general
     group: general-social
-    description: "You can see a person's Worst Fear by examining them."
+    description: "You can see a person's worst fear by examining them."
     pointCost: 4
     purchasable: true
     purchasableAfterStart: true
@@ -555,6 +546,15 @@ tags:
     group: general-traits
     description: "The hardest camp wouldn't bother you."
     pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: ascetic
+    name: Ascetic
+    category: general
+    group: general-traits
+    description: "You're imperturbable. However, you don't particularly desire things either—probably for theb etter."
+    pointCost: 0
     purchasable: true
     purchasableAfterStart: true
 
@@ -633,21 +633,12 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  - slug: lucky
-    name: Lucky
-    category: general
-    group: general-traits
-    description: "Once a day, you can ask the GM to reroll your Gambit."
-    pointCost: 4
-    purchasable: true
-    purchasableAfterStart: false
-
   - slug: tunnel-rat
     name: Tunnel Rat
     category: general
     group: general-traits
-    description: "You know the Undercroft and the Underquarter very well."
-    pointCost: 2
+    description: "You know the Undercroft and the Underquarter very well. You're hard to follow there."
+    pointCost: 1
     purchasable: true
     purchasableAfterStart: true
 
@@ -859,7 +850,7 @@ tags:
     category: general
     group: general-traits
     description: "Choose a random person in your faction, and DM the bot. You'll owe that person 10 ⬢."
-    pointCost: -3
+    pointCost: -2
     purchasable: true
     purchasableAfterStart: false
 
@@ -902,7 +893,7 @@ tags:
     name: Ravenkeeper
     category: general
     group: general-traits
-    description: "Keeps the Fortress ravens, and with them the only messages that outrun a rider."
+    description: "Knows how to send ravens."
     pointCost: 0
 
   # --- Beliefs --------------------------------------------------------------
@@ -1220,7 +1211,7 @@ tags:
   - slug: smithing
     name: Smithing
     category: skills
-    description: "Basic smithing. See SMITHING.md."
+    description: "Basic smithing.."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1228,7 +1219,7 @@ tags:
   - slug: smithing-skilled
     name: Smithing (Skilled)
     category: skills
-    description: "Skilled smithing — the Moderate and higher recipes. See SMITHING.md."
+    description: "Skilled smithing — the Moderate and higher recipes."
     pointCost: 2
     parentTag: smithing
     visible: true
@@ -1238,7 +1229,7 @@ tags:
   - slug: crafting
     name: Crafting
     category: skills
-    description: "Lets you tailor, craft, woodwork, and any other miscellaneous production. Also satisfies the skill gate on Dead Simple smithing recipes."
+    description: "Lets you tailor, craft, woodwork, and any other miscellaneous production. Also fulfills requirements on Dead Simple smithing recipes."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1369,7 +1360,7 @@ tags:
   - slug: fighting-firearms
     name: Fighting (Firearms)
     category: skills
-    description: "You're a master with firearms. Your fighting skill counts as two tiers higher."
+    description: "You're a master with firearms and disablers. Your fighting skill counts as two tiers higher."
     pointCost: 3
     requiredTag: fighting-basic
     visible: true
@@ -1416,7 +1407,7 @@ tags:
   - slug: medical-basic
     name: Medical (Basic)
     category: skills
-    description: "Allows you to treat very minor and minor injuries as routine — first aid, bandaging, packing a wound, setting a simple break. Anything worse is a Gambit."
+    description: "Allows you to treat very minor and minor injuries as routine. Basically first aid, bandaging, packing a wound, setting a simple break. Anything harder is a Gambit."
     pointCost: 2
     visible: true
     purchasable: true
@@ -1507,7 +1498,7 @@ tags:
     name: Ate Meal
     category: status
     group: status-food
-    description: "Won't go hungry next turn, and owes no upkeep this turn — ate a proper meal."
+    description: "You don't consume any resoruces today, because you ate a proper meal."
     pointCost: 0
     purchasable: false
 
@@ -1640,7 +1631,7 @@ tags:
     name: Mindreading
     category: status
     group: status-buffs
-    description: "You can read what a person wants and what they are afraid of, the way a Seducer or a Torturer would — except you need neither the charm nor the knives."
+    description: "You can read a person's desire and fears, as if you had the {tag:seductive} or {tag:torturer} tags."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2241,6 +2232,7 @@ tags:
     purchasableAfterStart: false
     removable: true
     durationTurns: 3
+    expiresInto: [drained]
     requirement:
       turnsCost: 1
       resourceCost: 2
@@ -2307,10 +2299,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     removable: false
-    requirement:
-      turnsCost: 1
-      resourceCost: 2
-      skills: [medical-skilled]
 
   # NEW (Claude) --------------------------------------------------------
   - slug: consumptive
@@ -2342,10 +2330,6 @@ tags:
     removable: true
     durationTurns: 2
     expiresInto: [dying]
-    requirement:
-      turnsCost: 1
-      resourceCost: 4
-      skills: [medical-skilled]
 
   - slug: heatstroke
     name: Heatstroke
@@ -2419,9 +2403,6 @@ tags:
     purchasableAfterStart: false
     removable: true
     durationTurns: 2
-    requirement:
-      resourceCost: 2
-      skills: [medical-basic]
 
   - slug: blinded
     name: Blinded
@@ -2512,6 +2493,11 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     removable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 8
+      skills: [medical-expert]
+      gambit: false
 
   - slug: missing-fingers
     name: Missing Fingers
@@ -2782,7 +2768,7 @@ tags:
     name: Windlander (Horse)
     category: assets
     group: assets-companions
-    description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending a turn, but you will be easily visible."
+    description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending a turn, but you'll be easily visible."
     pointCost: 1
     requiredTag: windlander
     purchasable: true
@@ -2925,33 +2911,6 @@ tags:
   # What people carry down. Mostly found or scavenged rather than bought, so
   # purchasable stays false and the Skeleton Wedge is the one deliberate
   # exception — a locksmith will sell you one.
-  - slug: purse
-    name: Purse
-    category: items
-    group: items-gear
-    description: "A cut purse, still heavy. Opening it turns out 10 ⬢ — tell a GM when you do, and they'll put it on your sheet."
-    pointCost: 0
-    tradeable: true
-    stackable: true
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    removable: true
-    consumable: true
-
-  - slug: tin-of-lamp-oil
-    name: Tin of Lamp Oil
-    category: items
-    group: items-gear
-    description: "Enough to keep a lamp burning through a long descent. The one thing nobody down here will lend you."
-    pointCost: 0
-    tradeable: true
-    stackable: true
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    removable: true
-    consumable: true
 
   - slug: graga-sac
     name: Graga Sac
@@ -3037,48 +2996,6 @@ tags:
     removable: true
     consumable: true
 
-  # NEW (Claude) --------------------------------------------------------
-  # Crafting gates three items where Smithing gates twenty-three. These two
-  # give the skill something to make.
-  - slug: rope-and-harness
-    name: Rope and Harness
-    category: items
-    group: items-gear
-    description: "Forty feet of good rope and a harness that will hold a grown adult. The difference between a climb and a fall."
-    pointCost: 1
-    visible: true
-    stackable: true
-    craftable: true
-    tradeable: true
-    removable: true
-    purchasable: true
-    purchasableAfterStart: false
-    requirement:
-      turnsCost: 1
-      resourceCost: 5
-      skills:
-        - crafting
-      gambit: false
-
-  - slug: stretcher
-    name: Stretcher
-    category: items
-    group: items-gear
-    description: "Two poles and a span of canvas. Somebody who cannot walk can still be moved, which is most of what killing a person in the caves depends on."
-    pointCost: 1
-    visible: true
-    craftable: true
-    tradeable: true
-    removable: true
-    purchasable: true
-    purchasableAfterStart: false
-    requirement:
-      turnsCost: 1
-      resourceCost: 5
-      skills:
-        - crafting
-      gambit: false
-
   - slug: jester-outfit
     name: Jester Outfit
     category: items
@@ -3103,7 +3020,7 @@ tags:
     name: Spyglass
     category: items
     group: items-gear
-    description: "You can see the deer on the mountains."
+    description: "You can see the deer on the mountainside."
     pointCost: 2
     tradeable: true
     stackable: true
@@ -3274,11 +3191,11 @@ tags:
   #   Exceptional   6 pt / 35 ⬢ / 2 turns / smithing-skilled     / fighting-basic
   #   Gunpowder     6 pt / 40 ⬢ / 2 turns / smithing-gunpowder   / fighting-basic
   #
-  # Bows keep `crafting` in place of `smithing` at every tier — wood-and-sinew
-  # is still wood-and-sinew even at High Quality. The Crossbow does not: its
-  # steel prod and lock are `smithing-skilled` work.
+  # Bows / crossbows keep `crafting` in place of `smithing` at every tier —
+  # wood-and-sinew is still wood-and-sinew even at High Quality.
   #
   # ─── Dead Simple ───────────────────────────────────────────────────────────
+
   - slug: work-knife
     name: Work Knife
     category: items
@@ -3445,7 +3362,7 @@ tags:
     name: Dagger
     category: items
     group: items-weapons
-    description: "A short blade made for stabbing. Fast in a fist."
+    description: "A short blade made for stabbing."
     pointCost: 2
     requiredTag: fighting-basic
     equippable: true
@@ -3892,7 +3809,7 @@ tags:
     category: items
     group: items-weapons
     description: "A large black sphere, with a menacing fuse."
-    pointCost: 6
+    pointCost: 0
     requiredTag: fighting-basic
     equippable: true
     tradeable: true
@@ -4720,7 +4637,7 @@ tags:
     name: Succubus Draught
     category: items
     group: items-drink
-    description: "Needs the blood of a willing lover, freely given, which is the whole difficulty. Grants {tag:mindreading}: you read what people want and what they fear, the way a Seducer or a Torturer does."
+    description: "Needs the blood of a willing lover. Grants {tag:mindreading}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4868,6 +4785,7 @@ tags:
       resourceCost: 3
       skills: [crafting]
 
+
   - slug: mail-coif
     name: Mail Coif
     category: items
@@ -4971,6 +4889,7 @@ tags:
       turnsCost: 1
       resourceCost: 18
       skills: [smithing-skilled]
+
 
   # ─── High Quality (4 pt / 25 ⬢ / 1 turn, skilled smithing) ───
   - slug: knights-helmet
@@ -5197,7 +5116,7 @@ tags:
     name: Memory
     category: demoness
     group: demoness
-    description: "The fuzz clears a little. Once a week, ask a GM one question about the old world or the Caves, and get a true answer."
+    description: "The fuzz clears a little. Once a week, ask a GM one question about the old world or the Caves."
     pointCost: 1
     purchasable: true
     purchasableAfterStart: true
@@ -5206,7 +5125,7 @@ tags:
     name: Heal
     category: demoness
     group: demoness
-    description: "Drink a person's blood to clear up to two of your Health tags. They will feel it."
+    description: "Drink a person's blood to clear up to two of your Health tags."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -5215,7 +5134,7 @@ tags:
     name: Shriek
     category: demoness
     group: demoness
-    description: "Once a day you can let loose a shriek that stuns everyone around you. It is heard well past the room you are standing in."
+    description: "Once a day you can let loose a shriek that stuns everyone around you."
     pointCost: 3
     purchasable: true
     purchasableAfterStart: true
