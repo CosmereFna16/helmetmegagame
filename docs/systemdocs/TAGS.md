@@ -257,13 +257,17 @@ no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
 ### Rules that follow from the scale
 
 - **Skill chains are flat 2 per rung and charged cumulatively**
-  (`cumulativeCost`, §3). Fighting (Legendary) is therefore 10 of a 12-point
-  budget, which is intended — the best fighter alive is that and little else.
-  Do not price a rung off-ladder to make a chain cheaper; shorten the chain.
-- **Fighting sidegrades are 3.** Above one rung, below two, because they are
-  conditional: Archer, Guerrilla and Shield Wall each apply in their own
-  circumstances and do nothing outside them. They use `requiredTag`, so they
-  are *not* charged cumulatively and stack with each other and any rung.
+  (`cumulativeCost`, §3). Do not price a rung off-ladder to make a chain
+  cheaper; shorten the chain.
+- **Fighting is the one exception — 3 per tag, rungs and sidegrades alike.**
+  The Combat Update raised every Fighting tag to 3. Rungs are still
+  cumulative, so Fighting (Legendary) is 15 — unreachable from a 12-point
+  creation budget by design; you climb into it in play. Sidegrades (Archer,
+  Guerrilla, Shield Wall, Grappler, Firearms, Duelist) use `requiredTag`, so
+  they are *not* cumulative and stack with each other and with any rung.
+- **Combat items ride a fixed six-tier ladder.** Weapons and armor are priced
+  from the tier they sit in, not by feel. See
+  [`SMITHING.md`](SMITHING.md) for the table.
 - **Every negative tag is `purchasableAfterStart: false`.** Restated from §4
   because it is the one invariant the scale can be used to violate: a
   drawback buyable mid-game is a point farm.

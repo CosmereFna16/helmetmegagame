@@ -65,7 +65,9 @@ documents:
       - medical-skilled
       - medical-expert
     description: |-
-      Health and injuries are simulated through the tag system. Most health tags can be removed, usually for a cost. The cost includes: Resources, number of routine moves (bandaging someone doesn't have a turn cost; surgery does), the skill requirement, and whether or not it requires a Gambit. Anyone can try to heal a wound without the required skill (just DM the Bascinet bot), but it'll require a Gambit.
+      Health and injuries are simulated through the tag system. Most health tags can be removed, usually for a cost. The cost includes: Resources, number of routine moves (bandaging someone doesn't have a turn cost; surgery does), the skill requirement, whether or not it requires advanced (modern) technology, and whether or not it requires a Gambit. Anyone can try to heal a wound without the required skill or technology (just DM the Bascinet bot), but it'll require a Gambit.
+
+      Surgery and severe cases require advanced medical equipment. For that, you must be in the Sanctuary or have the {tag:surgical-equipment} tag.
 
       **Skills**
 
@@ -80,6 +82,15 @@ documents:
       **Tonics**
 
       Tonics (see the Brewing document) can instantly cure wounds and help recovery, but require unique ingredients. Similarly, a few afflictions—like {tag:blinded}—require unique ingredients.
+  - name: Sanctuary
+    key: sanctuary
+    public: true
+    description: |-
+      The Sanctuary is perhaps the only part of Ravenheart that hasn't succumbed to feudalism. It's stocked with advanced (roughly modern-day) medical equipment, an absolute treasure of ancient times. As such, all medical procedures in the Sanctuary automatically fulfill the {tag:surgical-equipment} requisites.
+
+      The Sanctuary operates independently from the Baron. Although he could try to gain control over it, it would be unprecedented and pretty pointless. So the Esculap does whatever he wants within his walls.
+
+      Traditionally, in part due to the cost of medical procedures, the Esculap only treats people that can pay or people of noble blood. So try not to get hurt — you should only expect to get medical treatment if you can pay for it, unless the Esculap is feeling generous.
   - name: Teaching Skills
     key: teachingskills
     public: true
@@ -232,11 +243,16 @@ documents:
       The Captain commands the Watch.
 
       The rest of the court, the Baron's family included, live their lives.
-  - name: Guard Duty
+  - name: The Watch
     key: watchman
     public: false
     tags: []
-    description: ""
+    description: |-
+      The Watch is Ravenheart's single line of defense along with its few Knights and Sheriffs. It's led by the Captain.
+
+      Every member of the Watch has a disabler (takes several shots; useful against unarmed people, but not someone who can run up to you and take it out of your hands), but otherwise relies on their armory—which has a good supply of Simple weapons and a decent supply of Moderate weapons (see Smithing document). The Fortress's yard also has an automated turret, which can't tell the difference between hostiles and friendlies. The switch to enable it is in the captain's office.
+
+      Watchmen also have bracelets which connect to the Captain's radio system.
   - name: Post-Christianity
     key: postchristianity
     public: true

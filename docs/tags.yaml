@@ -1146,14 +1146,6 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  - slug: radio
-    name: Radio
-    category: skills
-    description: "Grants access to the #radio channel."
-    pointCost: 2
-    purchasable: true
-    purchasableAfterStart: true
-
   - slug: laborer
     name: Laborer
     category: skills
@@ -1222,18 +1214,31 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # Smithing is split into two rungs, gating the Dead Simple / Simple recipes
+  # against the Moderate / High Quality / Exceptional ones. Full price and
+  # resource table in SMITHING.md.
   - slug: smithing
     name: Smithing
     category: skills
-    description: "See the Smithing document."
+    description: "Basic smithing. See SMITHING.md."
     pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: smithing-skilled
+    name: Smithing (Skilled)
+    category: skills
+    description: "Skilled smithing — the Moderate and higher recipes. See SMITHING.md."
+    pointCost: 2
+    parentTag: smithing
+    visible: true
     purchasable: true
     purchasableAfterStart: true
 
   - slug: crafting
     name: Crafting
     category: skills
-    description: "Lets you tailor, craft, woodwork, and any other miscellaneous production."
+    description: "Lets you tailor, craft, woodwork, and any other miscellaneous production. Also satisfies the skill gate on Dead Simple smithing recipes."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1260,18 +1265,22 @@ tags:
   - slug: smithing-gunpowder
     name: Smithing (Gunpowder)
     category: skills
-    description: "Saltpeter is your best friend."
+    description: "Saltpeter is your best friend. Requires Skilled smithing."
     pointCost: 3
-    requiredTag: smithing
+    requiredTag: smithing-skilled
     visible: true
     purchasable: true
     purchasableAfterStart: true
 
+  # Combat Update: every Fighting tag costs 3, rungs and sidegrades alike.
+  # Rungs are still `parentTag` (cumulative), so Legendary = 15 — impossible
+  # from a 12-point creation budget by design. Sidegrades are still
+  # `requiredTag` and stack. See SMITHING.md for combat-item balancing.
   - slug: fighting-basic
     name: Fighting (Basic)
     category: skills
     description: "Can hold a weapon and defend yourself in a pinch."
-    pointCost: 2
+    pointCost: 3
     visible: true
     purchasable: true
     purchasableAfterStart: true
@@ -1279,7 +1288,7 @@ tags:
     name: Fighting (Trained)
     category: skills
     description: "Formally trained combatant, but not particularly talented."
-    pointCost: 2
+    pointCost: 3
     parentTag: fighting-basic
     visible: true
     purchasable: true
@@ -1288,7 +1297,7 @@ tags:
     name: Fighting (Skilled)
     category: skills
     description: "You've actually fought before. You're a grizzled presence on the battlefield."
-    pointCost: 2
+    pointCost: 3
     parentTag: fighting-trained
     visible: true
     purchasable: true
@@ -1297,7 +1306,7 @@ tags:
     name: Fighting (Expert)
     category: skills
     description: "A master of arms. Almost no one matches you."
-    pointCost: 2
+    pointCost: 3
     parentTag: fighting-skilled
     visible: true
     purchasable: true
@@ -1306,7 +1315,7 @@ tags:
     name: Fighting (Legendary)
     category: skills
     description: "The peak of your generation."
-    pointCost: 2
+    pointCost: 3
     parentTag: fighting-expert
     visible: true
     purchasable: true
@@ -1723,6 +1732,33 @@ tags:
     category: status
     group: status-debuffs
     description: "You can no longer fight. Run for your fucking life!"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 1
+
+  # The two stages of a Disabler hit. Slowed persists until a GM adjudicates
+  # enough further shots to escalate it into Shocked — no durationTurns, since
+  # nothing automatic clears it. Shocked burns off in a single turn, same
+  # shape as Paralyzed.
+  - slug: disabled-slowed
+    name: Disabled (Slowed)
+    category: status
+    group: status-debuffs
+    description: "You took a few disabler shots, but you're still up."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
+  - slug: disabled-shocked
+    name: Disabled (Shocked)
+    category: status
+    group: status-debuffs
+    description: "Your muscles are cramping. You feel weak and dizzy, and you can't move."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2943,6 +2979,31 @@ tags:
     purchasableAfterStart: false
     removable: true
 
+  - slug: radio-system
+    name: Radio System
+    category: items
+    group: items-gear
+    description: "It sends a message to all its paired Systems and Bracelets."
+    pointCost: 6
+    requiredTag: watchman
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: radio-bracelet
+    name: Radio Bracelet
+    category: items
+    group: items-gear
+    description: "A bracelet. It receives only."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
   - slug: bear-trap
     name: Bear Trap
     category: items
@@ -3089,20 +3150,6 @@ tags:
       skills: [crafting]
       gambit: false
 
-  - slug: dead-air-coil
-    name: Dead-Air Coil
-    category: items
-    group: items-gear
-    description: "Single use. Jams every radio around Ravenheart for 24 hours — yours included, and you will not be the only one who notices."
-    pointCost: 0
-    tradeable: true
-    stackable: true
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    removable: true
-    consumable: true
-
   - slug: jewelry
     name: Jewelry
     category: items
@@ -3187,8 +3234,8 @@ tags:
     requiredTag: fighting-basic
     requirement:
       turnsCost: 2
-      resourceCost: 46
-      skills: [smithing]
+      resourceCost: 40
+      skills: [smithing-gunpowder]
       gambit: false
 
   # Two weapons that come out of the caves rather than a forge — found on a
@@ -3222,18 +3269,26 @@ tags:
     purchasableAfterStart: false
     removable: true
 
-  # Forge weapons. All purchasable, all gated on {tag:fighting-basic} — a
-  # character who has never held a weapon has no business buying one — and all
-  # priced off the standard crafting ladder documented above the Armor section
-  # below: dead simple 1 Effort / 5 ⬢, simple 1 / 12, moderate 1 / 23, high
-  # quality 2 / 35. The rung is what the thing would actually take to make.
+  # ─── The Combat Update ────────────────────────────────────────────────────
+  # Weapons are priced on the six-tier ladder from SMITHING.md:
+  #
+  #   Dead Simple   1 pt / 3 ⬢  / 0 turns / crafting OR smithing / no Fighting
+  #   Simple        2 pt / 8 ⬢  / 1 turn  / smithing             / fighting-basic
+  #   Moderate      3 pt / 18 ⬢ / 1 turn  / smithing-skilled     / fighting-basic
+  #   High Quality  4 pt / 25 ⬢ / 1 turn  / smithing-skilled     / fighting-basic
+  #   Exceptional   6 pt / 35 ⬢ / 2 turns / smithing-skilled     / fighting-basic
+  #   Gunpowder     6 pt / 40 ⬢ / 2 turns / smithing-gunpowder   / fighting-basic
+  #
+  # Bows / crossbows keep `crafting` in place of `smithing` at every tier —
+  # wood-and-sinew is still wood-and-sinew even at High Quality.
+  #
+  # ─── Dead Simple ───────────────────────────────────────────────────────────
   - slug: knuckle-duster
     name: Knuckle Duster
     category: items
     group: items-weapons
     description: "The Underquarter solution."
     pointCost: 1
-    requiredTag: fighting-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -3243,17 +3298,138 @@ tags:
     removable: true
     craftable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 5
-      skills: [smithing]
+      turnsCost: 0
+      resourceCost: 3
+      skills: [smithing, crafting]
       gambit: false
 
+  - slug: work-knife
+    name: Work Knife
+    category: items
+    group: items-weapons
+    description: "A good knife, hard to handle in battle."
+    pointCost: 1
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 3
+      skills: [smithing, crafting]
+      gambit: false
+
+  - slug: hatchet
+    name: Hatchet
+    category: items
+    group: items-weapons
+    description: "For cutting wood."
+    pointCost: 1
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 3
+      skills: [smithing, crafting]
+      gambit: false
+
+  - slug: sling
+    name: Sling
+    category: items
+    group: items-weapons
+    description: "It can kill people and animals."
+    pointCost: 1
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 3
+      skills: [crafting, smithing]
+      gambit: false
+
+  - slug: quarterstaff
+    name: Quarterstaff
+    category: items
+    group: items-weapons
+    description: "What are you gonna do with this?"
+    pointCost: 1
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 3
+      skills: [crafting, smithing]
+      gambit: false
+
+  - slug: pitchfork
+    name: Pitchfork
+    category: items
+    group: items-weapons
+    description: "The traditional instrument of the discontented."
+    pointCost: 1
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 3
+      skills: [smithing, crafting]
+      gambit: false
+
+  - slug: shortbow
+    name: Shortbow
+    category: items
+    group: items-weapons
+    description: "A small, quiet bow. It's fast to draw, but it won't do much against someone wearing armor."
+    pointCost: 1
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 3
+      skills: [crafting, smithing]
+      gambit: false
+
+  # ─── Simple ────────────────────────────────────────────────────────────────
   - slug: spear
     name: Spear
     category: items
     group: items-weapons
     description: "A haphazardly-constructed yet still deadly weapon of ancient design."
-    pointCost: 1
+    pointCost: 2
     requiredTag: fighting-basic
     equippable: true
     tradeable: true
@@ -3265,7 +3441,28 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 5
+      resourceCost: 8
+      skills: [smithing]
+      gambit: false
+
+  - slug: dagger
+    name: Dagger
+    category: items
+    group: items-weapons
+    description: "A short blade made for stabbing. Fast in a fist."
+    pointCost: 2
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 8
       skills: [smithing]
       gambit: false
 
@@ -3286,7 +3483,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 12
+      resourceCost: 8
       skills: [smithing]
       gambit: false
 
@@ -3307,7 +3504,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 12
+      resourceCost: 8
       skills: [smithing]
       gambit: false
 
@@ -3328,15 +3525,82 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 12
+      resourceCost: 8
       skills: [smithing]
       gambit: false
 
-  - slug: bardiche
-    name: Bardiche
+  - slug: longbow
+    name: Longbow
     category: items
     group: items-weapons
-    description: "A polearm with a heavy blade. Cuts through armor and flesh alike."
+    description: "A bow as tall as the person drawing it. It takes a strong archer to use well, but at full draw it can crack armor."
+    pointCost: 2
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 8
+      skills: [crafting]
+      gambit: false
+
+  - slug: mace
+    name: Mace
+    category: items
+    group: items-weapons
+    description: "A flanged iron head on a stout haft."
+    pointCost: 2
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 8
+      skills: [smithing]
+      gambit: false
+
+  - slug: battle-axe
+    name: Battle Axe
+    category: items
+    group: items-weapons
+    description: "A sleek metal wedge. It has a spearhead on top."
+    pointCost: 2
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 8
+      skills: [smithing]
+      gambit: false
+
+  # ─── Moderate ──────────────────────────────────────────────────────────────
+  # `bardiche` slug kept for sync stability (see SYNC.md); the item was
+  # renamed Halberd in the Combat Update. Same pattern as `old-45-revolver` /
+  # Neoclassic R&W10.
+  - slug: bardiche
+    name: Halberd
+    category: items
+    group: items-weapons
+    description: "A polearm with a heavy blade and a spike. Cuts through armor and flesh alike."
     pointCost: 3
     requiredTag: fighting-basic
     equippable: true
@@ -3349,8 +3613,8 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 23
-      skills: [smithing]
+      resourceCost: 18
+      skills: [smithing-skilled]
       gambit: false
 
   - slug: broadsword
@@ -3370,57 +3634,15 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 23
-      skills: [smithing]
+      resourceCost: 18
+      skills: [smithing-skilled]
       gambit: false
 
-  - slug: musketoon
-    name: Musketoon
+  - slug: war-hammer
+    name: War Hammer
     category: items
     group: items-weapons
-    description: "A short gun with a wide bore. It fires a heavy shot, but you only get one before you have to reload."
-    pointCost: 6
-    requiredTag: fighting-basic
-    equippable: true
-    tradeable: true
-    stackable: true
-    visible: true
-    purchasable: true
-    purchasableAfterStart: false
-    removable: true
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 23
-      skills: [smithing-gunpowder]
-      gambit: false
-
-  - slug: bore-pistol
-    name: Bore Pistol
-    category: items
-    group: items-weapons
-    description: "A single-shot pistol. Slow to reload, but the shot hits hard no matter what your target is wearing."
-    pointCost: 4
-    requiredTag: fighting-basic
-    equippable: true
-    tradeable: true
-    stackable: true
-    visible: true
-    purchasable: true
-    purchasableAfterStart: false
-    removable: true
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 23
-      skills: [smithing-gunpowder]
-      gambit: false
-
-  - slug: crossbow
-    name: Crossbow
-    category: items
-    group: items-weapons
-    description: "Bruises plate, punctures almost everything else. It's easy to point—anyone using it has their fighting skill increased by one."
+    description: "A small head. It concentrates force better than a mace."
     pointCost: 3
     requiredTag: fighting-basic
     equippable: true
@@ -3433,86 +3655,11 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 30
-      skills: [smithing]
+      resourceCost: 18
+      skills: [smithing-skilled]
       gambit: false
 
-  - slug: shortbow
-    name: Shortbow
-    category: items
-    group: items-weapons
-    description: "A small, quiet bow. It's fast to draw, but it won't do much against someone wearing armor."
-    pointCost: 2
-    requiredTag: fighting-basic
-    equippable: true
-    tradeable: true
-    stackable: true
-    visible: true
-    purchasable: true
-    purchasableAfterStart: false
-    removable: true
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 12
-      skills: [crafting]
-      gambit: false
-
-  - slug: longbow
-    name: Longbow
-    category: items
-    group: items-weapons
-    description: "A bow as tall as the person drawing it. It takes a strong archer to use well, but at full draw it can crack armor."
-    pointCost: 3
-    requiredTag: fighting-basic
-    equippable: true
-    tradeable: true
-    stackable: true
-    visible: true
-    purchasable: true
-    purchasableAfterStart: false
-    removable: true
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 23
-      skills: [crafting]
-      gambit: false
-
-  - slug: bomb
-    name: Bomb
-    category: items
-    group: items-weapons
-    description: "A large black sphere, with a menacing fuse."
-    pointCost: 3
-    requiredTag: fighting-basic
-    equippable: true
-    tradeable: true
-    stackable: true
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    removable: true
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 35
-      skills: [smithing-gunpowder]
-      gambit: false
-
-  - slug: sword-cane
-    name: Sword Cane
-    category: items
-    group: items-weapons
-    description: "A gentleman's cane, filled with three feet of steel."
-    pointCost: 3
-    equippable: true
-    tradeable: true
-    visible: false
-    purchasable: true
-    purchasableAfterStart: false
-    removable: true
-
+  # ─── High Quality ──────────────────────────────────────────────────────────
   - slug: bastard-sword
     name: Bastard Sword
     category: items
@@ -3529,9 +3676,9 @@ tags:
     removable: true
     craftable: true
     requirement:
-      turnsCost: 2
-      resourceCost: 35
-      skills: [smithing]
+      turnsCost: 1
+      resourceCost: 25
+      skills: [smithing-skilled]
       gambit: false
 
   - slug: rapier
@@ -3539,7 +3686,7 @@ tags:
     category: items
     group: items-weapons
     description: "An elegant steel rapier, for the nobility to stab peasants with."
-    pointCost: 3
+    pointCost: 4
     requiredTag: fighting-basic
     equippable: true
     tradeable: true
@@ -3550,9 +3697,9 @@ tags:
     removable: true
     craftable: true
     requirement:
-      turnsCost: 2
-      resourceCost: 35
-      skills: [smithing]
+      turnsCost: 1
+      resourceCost: 25
+      skills: [smithing-skilled]
       gambit: false
 
   - slug: sabre
@@ -3560,7 +3707,7 @@ tags:
     category: items
     group: items-weapons
     description: "For the wealthy to slaughter the poor."
-    pointCost: 3
+    pointCost: 4
     requiredTag: fighting-basic
     equippable: true
     tradeable: true
@@ -3571,9 +3718,9 @@ tags:
     removable: true
     craftable: true
     requirement:
-      turnsCost: 2
-      resourceCost: 35
-      skills: [smithing]
+      turnsCost: 1
+      resourceCost: 25
+      skills: [smithing-skilled]
       gambit: false
 
   - slug: katana
@@ -3581,7 +3728,113 @@ tags:
     category: items
     group: items-weapons
     description: "A curved blade folded out of very good steel. Nobody here can tell you where the first one came from."
-    pointCost: 3
+    pointCost: 4
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 25
+      skills: [smithing-skilled]
+      gambit: false
+
+  - slug: silver-spear
+    name: Silver Spear
+    category: items
+    group: items-weapons
+    description: "It might have its uses. The metal is demanding, hence its cost."
+    pointCost: 4
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 25
+      skills: [smithing-skilled]
+      gambit: false
+
+  - slug: lucerne
+    name: Lucerne
+    category: items
+    group: items-weapons
+    description: "Long and mean. A pick, a hammer, and a spear all in one."
+    pointCost: 4
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 25
+      skills: [smithing-skilled]
+      gambit: false
+
+  - slug: zweihander
+    name: Zweihander
+    category: items
+    group: items-weapons
+    description: "Monstrous, and of questionable use."
+    pointCost: 4
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 25
+      skills: [smithing-skilled]
+      gambit: false
+
+  - slug: crossbow
+    name: Crossbow
+    category: items
+    group: items-weapons
+    description: "Bruises plate, punctures almost everything else. It's easy to point—anyone using it has their fighting skill increased by one."
+    pointCost: 4
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 25
+      skills: [crafting]
+      gambit: false
+
+  # ─── Gunpowder ─────────────────────────────────────────────────────────────
+  - slug: musketoon
+    name: Musketoon
+    category: items
+    group: items-weapons
+    description: "A short gun with a wide bore. It fires a heavy shot, but you only get one before you have to reload."
+    pointCost: 6
     requiredTag: fighting-basic
     equippable: true
     tradeable: true
@@ -3593,9 +3846,85 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 35
-      skills: [smithing]
+      resourceCost: 40
+      skills: [smithing-gunpowder]
       gambit: false
+
+  - slug: bore-pistol
+    name: Bore Pistol
+    category: items
+    group: items-weapons
+    description: "A single-shot pistol. Slow to reload, but the shot hits hard no matter what your target is wearing."
+    pointCost: 6
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 40
+      skills: [smithing-gunpowder]
+      gambit: false
+
+  - slug: bomb
+    name: Bomb
+    category: items
+    group: items-weapons
+    description: "A large black sphere, with a menacing fuse."
+    pointCost: 6
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 40
+      skills: [smithing-gunpowder]
+      gambit: false
+
+  # ─── Special / concealed ───────────────────────────────────────────────────
+  # A gentleman's sidearm, sold complete — no smithing recipe attached.
+  - slug: sword-cane
+    name: Sword Cane
+    category: items
+    group: items-weapons
+    description: "A gentleman's cane, filled with three feet of steel."
+    pointCost: 3
+    equippable: true
+    tradeable: true
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+
+  # A Watch-issued sidearm — the Captain and every Watchman start with one.
+  # Never bought or built: the batteries are shipped in by the Baron, so
+  # there's no smithing cost to write, and no requiredTag either, matching
+  # the other found-not-bought weapons above (Cracked Bone Club, Neoclassic
+  # Duelista).
+  - slug: disabler
+    name: Disabler
+    category: items
+    group: items-weapons
+    description: "A non-lethal energy pistol, only useful against unarmed people. The required number of shots varies, but after enough of them the target's muscles fail and he falls to the floor, cramping and groaning. Powered by disposable batteries imported by the Baron."
+    pointCost: 0
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
 
   # Meals. Cooked as a Routine Move, not bought: purchasable false keeps them
   # out of both point-buy menus, while craftable true is what lets
@@ -3647,6 +3976,18 @@ tags:
       resourceCost: 3
       skills: [cooking-skilled]
       gambit: false
+
+  # --- Medical kit --------------------------------------------------------
+  - slug: surgical-equipment
+    name: Surgical Equipment
+    category: items
+    description: |-
+      A set of advanced medical equipment. It allows for on-the-go surgery and complex procedures, and also generally increases medical outcomes across the board.
+    pointCost: 4
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    requiredTag: medical-basic
 
   # --- Special ------------------------------------------------------------
   # Relics, grafts and machinery. None of it is purchasable at any price and
@@ -4489,17 +4830,17 @@ tags:
   # each tag here, since the group gate is what hides the category and a
   # second copy of the same rule is a second thing to keep in sync.
   # --- Armor -------------------------------------------------------------
-  # Crafting costs follow the standard ladder: dead simple 1 Effort / 5 ⬢,
-  # simple 1 / 12, moderate 1 / 23, high quality 2 / 35, plate 2 / 46.
+  # Armor is priced on the same six-tier ladder as weapons (SMITHING.md).
   # `visible` decides whether the piece shows on a 🔍 inspect while equipped,
   # which is what makes a Brigandine worth its points.
 
+  # ─── Dead Simple (1 pt / 3 ⬢ / 0 turns) ───
   - slug: padded-armor
     name: Padded Armor
     category: items
     group: items-armor
     description: "Quilted linen. It absorbs impact and blunts a cut. A thrust goes through it. Plain enough to wear at court."
-    pointCost: 2
+    pointCost: 1
     equippable: true
     visible: true
     tradeable: true
@@ -4507,79 +4848,9 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 12
+      turnsCost: 0
+      resourceCost: 3
       skills: [crafting]
-
-  - slug: brigandine
-    name: Brigandine
-    category: items
-    group: items-armor
-    description: "Small steel plates riveted inside a fabric coat. Protection close to plate, worn under clothing, and it does not show."
-    pointCost: 4
-    equippable: true
-    visible: false
-    tradeable: true
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 23
-      skills: [smithing]
-
-  - slug: mail-shirt
-    name: Mail Shirt
-    category: items
-    group: items-armor
-    description: "Interlocking rings. It cannot be cut. A blunt blow passes through it, and a heavy thrust bursts the rings."
-    pointCost: 3
-    equippable: true
-    visible: true
-    tradeable: true
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 23
-      skills: [smithing]
-
-  - slug: breastplate
-    name: Breastplate
-    category: items
-    group: items-armor
-    description: "A shaped steel plate over the chest. Most of the protection of full plate at a fraction of the weight, and one person can put it on alone."
-    pointCost: 5
-    equippable: true
-    visible: true
-    tradeable: true
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 23
-      skills: [smithing]
-
-  - slug: plate-armor
-    name: Plate Armor
-    category: items
-    group: items-armor
-    description: "Articulated steel over the whole body. It takes a second pair of hands and several minutes to put on."
-    pointCost: 6
-    equippable: true
-    visible: true
-    tradeable: true
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 2
-      resourceCost: 46
-      skills: [smithing]
-
-  # --- Head --------------------------------------------------------------
 
   - slug: simple-helm
     name: Simple Helm
@@ -4594,25 +4865,8 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 12
-      skills: [smithing]
-
-  - slug: knights-helmet
-    name: Knight's Helmet
-    category: items
-    group: items-armor
-    description: "A closed helmet. It covers the face. You see and hear poorly through it, and it is hot to wear."
-    pointCost: 3
-    equippable: true
-    visible: true
-    tradeable: true
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 23
+      turnsCost: 0
+      resourceCost: 3
       skills: [smithing]
 
   - slug: mail-coif
@@ -4628,11 +4882,9 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 12
+      turnsCost: 0
+      resourceCost: 3
       skills: [smithing]
-
-  # --- Off-hand ----------------------------------------------------------
 
   - slug: buckler
     name: Buckler
@@ -4647,10 +4899,11 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 12
-      skills: [smithing]
+      turnsCost: 0
+      resourceCost: 3
+      skills: [smithing, crafting]
 
+  # ─── Simple (2 pt / 8 ⬢ / 1 turn) ───
   - slug: shield
     name: Shield
     category: items
@@ -4665,7 +4918,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 12
+      resourceCost: 8
       skills: [crafting]
 
   - slug: pavise
@@ -4682,8 +4935,96 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 12
+      resourceCost: 8
       skills: [crafting]
+
+  # ─── Moderate (3 pt / 18 ⬢ / 1 turn, skilled smithing) ───
+  - slug: mail-shirt
+    name: Mail Shirt
+    category: items
+    group: items-armor
+    description: "Interlocking rings. It cannot be cut. A blunt blow passes through it, and a heavy thrust bursts the rings."
+    pointCost: 3
+    equippable: true
+    visible: true
+    tradeable: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 18
+      skills: [smithing-skilled]
+
+  - slug: knights-helmet
+    name: Knight's Helmet
+    category: items
+    group: items-armor
+    description: "A closed helmet. It covers the face. You see and hear poorly through it, and it is hot to wear."
+    pointCost: 3
+    equippable: true
+    visible: true
+    tradeable: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 18
+      skills: [smithing-skilled]
+
+  # ─── High Quality (4 pt / 25 ⬢ / 1 turn, skilled smithing) ───
+  - slug: brigandine
+    name: Brigandine
+    category: items
+    group: items-armor
+    description: "Small steel plates riveted inside a fabric coat. Protection close to plate, worn under clothing, and it does not show."
+    pointCost: 4
+    equippable: true
+    visible: false
+    tradeable: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 25
+      skills: [smithing-skilled]
+
+  - slug: breastplate
+    name: Breastplate
+    category: items
+    group: items-armor
+    description: "A shaped steel plate over the chest. Most of the protection of full plate at a fraction of the weight, and one person can put it on alone."
+    pointCost: 4
+    equippable: true
+    visible: true
+    tradeable: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 25
+      skills: [smithing-skilled]
+
+  # ─── Exceptional (6 pt / 35 ⬢ / 2 turns, skilled smithing) ───
+  - slug: plate-armor
+    name: Plate Armor
+    category: items
+    group: items-armor
+    description: "Articulated steel over the whole body. It takes a second pair of hands and several minutes to put on."
+    pointCost: 6
+    equippable: true
+    visible: true
+    tradeable: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 35
+      skills: [smithing-skilled]
 
   # --- Setting-specific --------------------------------------------------
 

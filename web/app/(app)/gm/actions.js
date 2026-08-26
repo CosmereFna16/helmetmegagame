@@ -176,7 +176,7 @@ export async function bulkTagCharacters({ characterIds, tagId, mode }) {
       },
     });
 
-    // A granted or revoked tag may change narrowcast access (#radio,
+    // A granted or revoked tag may change narrowcast access (#watch,
     // #intercom). Sequential and after the writes, per ARCHITECTURE.md §5 —
     // never a fan-out of REST calls at Discord's rate limiter.
     after(async () => {

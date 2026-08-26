@@ -36,7 +36,7 @@ const PERM_SEND_MESSAGES = 2048;
 // getLocationChannelIds below) — a channel opts in by being one of a
 // Location's plain/public/private channels, provisioned via
 // web/app/(app)/gm/dev/actions.js#provisionLocationChannels — plus the two
-// narrowcast channels (#radio, #intercom), which are tupper-only, never
+// narrowcast channels (#watch, #intercom), which are tupper-only, never
 // summary: they aren't tied to a place, so there's no Location adjudication
 // result to post there.
 export function isSummaryChannel(channel, locationChannelIds) {
@@ -67,7 +67,7 @@ async function fetchLocationChannelIds() {
     if (loc.discordPublicChannelId) tupperSummary.add(loc.discordPublicChannelId);
     if (loc.discordPrivateChannelId) tupperOnly.add(loc.discordPrivateChannelId);
   }
-  if (config?.radioChannelId) tupperOnly.add(config.radioChannelId);
+  if (config?.watchChannelId) tupperOnly.add(config.watchChannelId);
   if (config?.intercomChannelId) tupperOnly.add(config.intercomChannelId);
   return { tupperSummary, tupperOnly };
 }
@@ -523,7 +523,7 @@ export async function syncCharacterLocationAccess(discordUserId, oldLocationId, 
 }
 
 // Reconciles a character's per-member permission overwrites on the two
-// hardcoded narrowcast channels (#radio, #intercom) against their current
+// hardcoded narrowcast channels (#watch, #intercom) against their current
 // tags and Location/Zone — see db/lib/narrowcastAccess.js for the actual
 // rules, and bot/src/lib/location.js's twin of the same name (gateway-based,
 // called after every Move) for the other half. This one is the REST path,
@@ -544,7 +544,7 @@ export async function syncCharacterNarrowcastAccess(characterId) {
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
   ]);
   const access = computeNarrowcastAccess(ctx);
-  const channelIds = { radio: config?.radioChannelId, intercom: config?.intercomChannelId };
+  const channelIds = { watch: config?.watchChannelId, intercom: config?.intercomChannelId };
 
   await Promise.all(
     Object.entries(channelIds)

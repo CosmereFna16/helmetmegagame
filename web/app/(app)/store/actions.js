@@ -171,7 +171,7 @@ async function buyTagsImpl({ tagIds }) {
     });
   });
 
-  // A bought tag can open a narrowcast channel (#radio, #intercom) the same
+  // A bought tag can open a narrowcast channel (#watch, #intercom) the same
   // way a granted one does.
   await syncCharacterNarrowcastAccess(character.id);
   revalidatePath("/store");

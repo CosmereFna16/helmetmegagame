@@ -87,7 +87,7 @@ async function revokeAllCharacterAccess(prisma, character) {
   ]);
 
   const channelIds = locations.flatMap(locationAccessChannelIds);
-  channelIds.push(config?.radioChannelId, config?.intercomChannelId);
+  channelIds.push(config?.watchChannelId, config?.intercomChannelId);
 
   let attempted = 0;
   const failures = [];
@@ -156,7 +156,7 @@ async function revokeAccessForCharacters(prisma, characters) {
   ]);
 
   const channelIds = locations.flatMap(locationAccessChannelIds);
-  channelIds.push(config?.radioChannelId, config?.intercomChannelId);
+  channelIds.push(config?.watchChannelId, config?.intercomChannelId);
 
   let removed = 0;
   let failed = 0;

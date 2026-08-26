@@ -270,10 +270,12 @@ model GameConfig {
   // capped role proportionally without touching the YAML.
   playerCount Int @default(100)
 
-  // The two hardcoded narrowcast channels (#radio, #intercom) — see
-  // db/lib/narrowcastAccess.js. Provisioned once by
-  // npm run db:sync-narrowcast-channels; never touched again after that.
-  radioChannelId    String?
+  // The two hardcoded narrowcast channels (#watch, #intercom) live under a
+  // shared Discord "radio" category — see db/lib/narrowcastAccess.js.
+  // Provisioned once by npm run db:sync-narrowcast-channels; never touched
+  // again after that.
+  radioCategoryId   String?
+  watchChannelId    String?
   intercomChannelId String?
 }
 
@@ -1318,7 +1320,7 @@ model ArchiveEntry {
   // events, which have no Discord message behind them.
   discordMessageId String? @unique
 
-  // plain | public | private | radio | intercom — lets the panel keep a
+  // plain | public | private | watch | intercom — lets the panel keep a
   // location's summary channel apart from its forum scenes.
   channelKind String?
 

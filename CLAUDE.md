@@ -49,7 +49,9 @@ Leave all of these alone:
   `lifewebBlood` / `lifewebDecayPerTurn` / `ArchiveKind.LIFEWEB` schema fields.
 - The npm scope, frozen on purpose: `@lifeweb/db` and `@lifeweb/bot`, plus the
   Railway service name `@lifeweb/bot` in the root `redeploy` script.
-- The repo and directory, also unchanged on purpose: `peace-lock/lifeweb`.
+- The local checkout directory, unchanged on purpose: `lifeweb`. (The
+  GitHub repo itself was renamed to `peace-lock/helmetmegagame` and made
+  private once players found it.)
 - The three Prisma migration directories with `lifeweb` in their names. Those
   names are checksummed rows in `_prisma_migrations`, so renaming them breaks
   Prisma.
@@ -69,6 +71,7 @@ you pick the right doc — they are never enough to change code with.
 | [`CHANNELS.md`](docs/systemdocs/CHANNELS.md) | You're changing Discord channel layout, visibility, or the Dawn wipe |
 | [`CHARACTERS.md`](docs/systemdocs/CHARACTERS.md) | You're touching creation, roles, names, the point economy, death, or launch gating |
 | [`TAGS.md`](docs/systemdocs/TAGS.md) | You're touching the tag catalog, **pricing or rebalancing a tag** (§4a is the canonical point scale), its gates, stacks, consuming, or equipment |
+| [`SMITHING.md`](docs/systemdocs/SMITHING.md) | You're pricing a weapon or armor, changing the crafting ladder, or touching the Smithing / Crafting / Fighting skill families |
 | [`REQUESTS.md`](docs/systemdocs/REQUESTS.md) | You're adding or changing anything a player does to their own sheet |
 | [`ADJUDICATION.md`](docs/systemdocs/ADJUDICATION.md) | You're working on `/gm/turns` — the Moves or Requests tab |
 | [`DEV-PANEL.md`](docs/systemdocs/DEV-PANEL.md) | You're touching `/gm/dev/characters/[characterId]`, the GM microactions, or `/gm/dev/tags` |
@@ -111,7 +114,7 @@ If both faces need something, put it in `db/lib/` — don't write it twice.
 Add the dependency with `npm install @lifeweb/db --workspace=<bot|web>`.
 
 Deployment is on Railway, built straight from this GitHub repo
-(`peace-lock/lifeweb`). `bot` and `web` run as two separate Railway services
+(`peace-lock/helmetmegagame`). `bot` and `web` run as two separate Railway services
 from the same repo, and both point at one Railway Postgres instance.
 
 See `ARCHITECTURE.md` for the barrel rules, the REST/gateway twin convention,
@@ -142,7 +145,8 @@ npm run db:prune-tags                # deletes tags absent from docs/tags.yaml.
                                      #   touches a GM-created tag or one anything
                                      #   references. See SYNC.md.
 
-npm run db:sync-narrowcast-channels  # one-off provisioning for #radio/#intercom
+npm run db:sync-narrowcast-channels  # one-off provisioning for the radio
+                                     #   category and its #watch/#intercom channels
 npm run db:rebuild-info-channel      # destructive rebuild of #info
 
 npm run map:check                    # geometry check over locations.yaml's `map:`
@@ -159,7 +163,7 @@ npm run db:backfill-gm-permissions
 npm run db:backfill-spectator-access
 npm run db:backfill-cursed-access      # ghost seat: opens every non-Depths
                                        #   Location (category + all 3 channels)
-                                       #   and #radio/#intercom to the Cursed
+                                       #   and #watch/#intercom to the Cursed
                                        #   role, and strips it from the Depths.
 npm run db:backfill-tupper-attachment-restriction
 npm run db:prune-orphan-categories

@@ -81,15 +81,15 @@ zones:
               They will know your glory, O Baron! This land is yours, hope incarnate—for humanity, for peace, for justice. Walk the path of your ancestors.
             description:
               - >-
-                You are the ruler. Your job is not an easy one.
+                You are the ruler. Your job isn't an easy one.
               - >-
-                Choose a last name—a Dynasty name. Ensure that if you die, at least your heir will continue on. He is everything!
+                Choose a last name—a Dynasty name. Ensure that if you die, at least your heir will continue on.
               - >-
                 Whether you understand the gravity of the situation or live in perpetual dissociation, you are charged with the survival of one of Earth's last bastions. This is Ravenheart—a garden, a home. Your ancestors strove to protect it. Some will see you as a dictator, some will see you as a fool—it does not matter! This will outlive you, outlive them!
               - >-
                 Stay happy. An unhappy Baron is an unproductive, dangerous baron.
               - >-
-                Your offices have a PA system that can be heard in intercoms throughout Ravenheart.
+                Your offices have a PA system that can be heard in intercoms throughout Ravenheart. The yard also has an automated machine gun turret which can be turned on from the Captain's office. It can't tell hostiles or friendlies apart.
               - >-
                 You have three missions:
               - >-
@@ -114,6 +114,7 @@ zones:
               - courtstructure
               - lifewebbasic
               - fortressstarting
+              - watchman
               - armory
               - ravenhearteconomy
               - charon
@@ -215,6 +216,7 @@ zones:
               - lifewebbasic
               - fortressstarting
               - courtier
+              - watchman
               - armory
               - ravenhearteconomy
               - charon
@@ -368,6 +370,9 @@ zones:
               - Watchman
               - Fighting (Trained)
               - Dog
+              - Disabler
+              - Radio System
+              - Radio Bracelet
             doc_elements:
               - courtstructure
               - fortressstarting
@@ -423,6 +428,8 @@ zones:
               - Ravenhearter
               - Watchman
               - Fighting (Basic)
+              - Disabler
+              - Radio Bracelet
             doc_elements:
               - courtstructure
               - fortressstarting
@@ -539,14 +546,14 @@ zones:
           - name: Esculap
             slug: esculap
             intro: >-
-              Lead the Sanctuary, developing medicines and putting bodies back together. Be the Eye in the Storm—or lose yourself to curiosity.
+              Lead the Sanctuary. Don't accrue debt. Treat only the rich and the noble. Develop medicines, put bodies back together, or pursue the good of science. Be the Eye in the Storm—or lose yourself to curiosity.
             description:
               - >-
                 Sickness and pain leave men terrified and alone. It is a noble task to help another face that pain.
               - >-
-                Prioritize treating the rich and affluent, despite triage. You may be a noble man, but, despite your scholastic training, the Baron approved your appointment for a reason.
+                How you view your task—whether you're a savior or a businessman—is up to you. However, medicine is costly, so consider following tradition and only treating those with coin (or those with noble blood). It wouldn't do for the Sanctuary to rack up generational debt just to save some peasants. The Sanctuary operates independently. It is your sole charge, and no one can give you orders (well, they can, but it would be counterproductive and unprecedented). However, it is protected by the Baren.
               - >-
-                With science, the sky's the limit. You can brew medicines and potions, install implants and body-modifications, and even experiment for the good of science.
+                With science, the sky's the limit. You can brew medicines and potions, install implants and body-modifications, and even experiment.
               - >-
                 If there's no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners. Brewing potions is especially worthwhile; it can really help it when you get a wave of inmates. Just throw out a few {tag:cleaning-powder}, a few {tag:mercy}, some {tag:poppy}...
               - >-
@@ -567,10 +574,12 @@ zones:
           - name: Serpent
             slug: serpent
             intro: >-
-              Cure illnesses, perform surgeries, brew potions, and keep people in this world—where they're needed.
+              Cure illnesses, perform surgeries, and brew potions, and keep people in this world—where they're needed.
             description:
               - >-
                 Sickness and pain leave men terrified and alone. It is a noble task to help another face that pain.
+              - >-
+                How you view your task—whether you're a savior or a businessman—is up to you. However, medicine is costly, so consider following tradition and only treating those with coin (or those with noble blood). It wouldn't do for the Sanctuary to rack up generational debt just to save some peasants. The Sanctuary operates independently. However, it is protected by the Baren.
               - >-
                 With science, the sky's the limit. You can brew medicines and potions, install implants and body-modifications, and even experiment for the good of science.
               - >-
@@ -1326,5 +1335,8 @@ zones:
             weight: 2
             starting_resources: 2
             starting_location: customs
-            starting_tags: []
+            starting_tags:
+              - Fighting (Basic)
+              - Dagger
+              - Mace
             doc_elements: []

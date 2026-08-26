@@ -5,7 +5,7 @@ const { prisma } = require("@lifeweb/db");
 // below) — a channel opts in by being one of a Location's plain/public/
 // private channels, provisioned via
 // web/app/(app)/gm/dev/actions.js#provisionLocationChannels — plus the two
-// narrowcast channels (#radio, #intercom, GameConfig.radioChannelId/
+// narrowcast channels (#watch, #intercom, GameConfig.watchChannelId/
 // intercomChannelId), which are tupper-only, never summary: they aren't tied
 // to a place, so there's no Location adjudication result to post there.
 
@@ -54,10 +54,10 @@ async function refreshLocationChannels() {
     note(loc.discordPublicChannelId, { ...place, channelKind: "public" });
     note(loc.discordPrivateChannelId, { ...place, channelKind: "private" });
   }
-  if (config?.radioChannelId) tupperOnly.add(config.radioChannelId);
+  if (config?.watchChannelId) tupperOnly.add(config.watchChannelId);
   if (config?.intercomChannelId) tupperOnly.add(config.intercomChannelId);
   const nowhere = { locationId: null, locationName: null, zoneId: null };
-  note(config?.radioChannelId, { ...nowhere, channelKind: "radio" });
+  note(config?.watchChannelId, { ...nowhere, channelKind: "watch" });
   note(config?.intercomChannelId, { ...nowhere, channelKind: "intercom" });
 
   locationChannelIds = { tupperSummary, tupperOnly };

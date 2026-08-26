@@ -142,26 +142,24 @@ locations:
     publicSubLocations:
       - name: Throne Room
         description: >-
-          Towards the back, benches form concentric circles around the throne. There's an elevated arcade to the left. A hearth roars.
+          Intimately small, with an ornately carved wooden throne. Benches form concentric circles near the entrance. There's an elevated arcade to the left, and a hearth to the right.
       - name: Great Hall
         description: >-
-          It's a warm room. Windows face the forest.
+          The roof vaults over rows of banqueted tables. There's a balcony; the view plunges downwards into the forest.
       - name: Council Room
         description: >-
-          A wide table. There's a holographic map of Ravenheart, and a button for the intercom.
+          A wide table. There's a holographic map of Ravenheart and a button for the intercom.
       - name: The Charon
         description: >-
           A sealed gate. The Baron's key opens this.
-      - name: Quarters
-        description: ""
-      - name: Kitchen
-        description: ""
+      - name: Swimming Pool
+        description: "An extravagant design. Its novelty has worn off, and now it's a place where the nobility fall in and drown."
+      - name: Servant's Wing
+        description: "The kitchen, the pantry, the latrines."
       - name: Healer's Ward
         description: ""
-      - name: Rookery
-        description: "The Meister keeps his ravens here."
       - name: Library
-        description: ""
+        description: "The library and some branching offices. Also, the Meister's rookery and its caged ravens."
       - name: Reliquary Chapel
         description: >-
           The Silver Cross is locked away here, accessible by the Incarn's key.
@@ -200,9 +198,11 @@ locations:
     zone: Fortress
     map: { x: 38, y: 24 }
     description: >-
-      Grass rises rebelliously around the manicured paths, illuminated by searchlight. Past the portcullis, old stone stairs rise towards the Keep, and further yet, to the Lifeweb.
+      Grass rises rebelliously around the manicured paths, illuminated by searchlight. Past the portcullis, old stone stairs rise towards the Keep, and further yet, to the Lifeweb tower.
     extendedDescription: >-
-      Grass rises rebelliously around the manicured paths, illuminated by searchlight. Past the portcullis, old stone stairs rise towards the Keep, and further yet, to the Lifeweb. The Gatehouse itself has several watchtowers and a murder hole over the gate. A winch system controls the portcullis. There is a back gate behind the fortress leading into the forest, but it's equally guarded.
+      Grass rises rebelliously around the manicured paths, illuminated by searchlight. Past the portcullis, old stone stairs rise towards the Keep, and further yet, to the Lifeweb tower. The Gatehouse itself has several watchtowers and a murder hole over the gate. A winch system controls the portcullis. There is a back gate behind the fortress leading into the forest, but it's equally guarded.
+
+      There is a triple-barreled anti-air autocannon in the center of the yard. It seems to be off.
     publicSubLocations:
       - name: Gate
         description: >-

@@ -105,39 +105,39 @@ purchase restores the replaced rung exactly as it was.)
 Chains are **cumulative**. The cost shown for a rung is its own `pointCost`,
 but the cost to acquire it is the sum of every rung up to and including it,
 minus whatever the character already holds. Buying Fighting (Skilled) from
-nothing costs 6; buying it while holding Fighting (Trained) costs 2.
+nothing costs 9; buying it while holding Fighting (Trained) costs 3.
 
-The Fighting chain, at 2 points per rung:
+The Fighting chain, at **3 points per rung** since the Combat Update:
 
 | Rung | Own cost | Cumulative |
 |---|---|---|
-| Basic | 2 | 2 |
-| Trained | 2 | 4 |
-| Skilled | 2 | 6 |
-| Expert | 2 | 8 |
-| Legendary | 2 | 10 |
+| Basic | 3 | 3 |
+| Trained | 3 | 6 |
+| Skilled | 3 | 9 |
+| Expert | 3 | 12 |
+| Legendary | 3 | 15 |
 
-Legendary is 10 of a 12-point budget. That is intended: a character who is the
-best fighter alive is that and almost nothing else.
+Legendary is 15 of a 12-point budget. That is intended: you climb into it in
+play, not at creation.
 
-Medical, Building, Brewing and Cooking use the same flat 2/rung shape with
-shorter ladders.
+Medical, Building, Brewing and Cooking use the flat **2**/rung shape with
+shorter ladders. Fighting is the exception.
 
 ### Sidegrades
 
-Three Fighting tags sit outside the ladder: **Archer**, **Guerrilla** and
-**Shield Wall**. Each costs 3, each takes `requiredTag: fighting-basic`, and
-none has a `parentTag`.
+Six Fighting tags sit outside the ladder: **Archer**, **Guerrilla**, **Shield
+Wall**, **Grappler**, **Firearms**, **Duelist**. Each costs 3, each takes
+`requiredTag: fighting-basic`, and none has a `parentTag`.
 
 `requiredTag` is a prerequisite that is **not** replaced and **not** charged
 cumulatively. A sidegrade is bought once at its face value, on top of whatever
 rung the character holds.
 
-Sidegrades are priced above a single rung (2) and below two (4) because they
-are conditional: a sidegrade applies in its own circumstances — at range, from
-cover, in formation — and does nothing outside them. They stack with each
-other and with any rung of the main ladder. A Trained fighter who is also an
-Archer has spent 4 + 3 = 7.
+Sidegrades cost the same as one rung of the main ladder — deliberately, since
+they are conditional: a sidegrade applies in its own circumstances (at range,
+from cover, in formation, unarmed, with a firearm, one-on-one) and does
+nothing outside them. They stack with each other and with any rung. A
+Trained fighter who is also an Archer has spent 6 + 3 = 9.
 
 `requiredTag` is satisfied by **any rung of the required tag's chain**, so
 Fighting (Expert) satisfies a `fighting-basic` requirement.

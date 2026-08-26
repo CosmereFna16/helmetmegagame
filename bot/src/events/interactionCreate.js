@@ -763,7 +763,7 @@ async function handleHealPick(interaction, characterId) {
     },
   });
 
-  // A tag moved, and #radio/#intercom access is tag-gated.
+  // A tag moved, and #watch/#intercom access is tag-gated.
   const { guild } = await resolveActingMember(interaction);
   if (guild) await syncCharacterNarrowcastAccess(guild, target).catch(() => {});
 

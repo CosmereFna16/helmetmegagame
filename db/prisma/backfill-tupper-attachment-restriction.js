@@ -1,6 +1,6 @@
 // One-off backfill: denies ATTACH_FILES for @everyone on every Tupper
 // channel (a Location's category, so its plain/public/private channels all
-// inherit it — see db/lib/syncLocations.js) plus #radio/#intercom (which set
+// inherit it — see db/lib/syncLocations.js) plus #watch/#intercom (which set
 // their own channel-level @everyone deny directly, see
 // db/lib/syncNarrowcastChannels.js), and grants GM an explicit allow so
 // moderation posts with attachments still work. Provisioning itself now sets
@@ -13,7 +13,7 @@
 // has to fetch the channel's current overwrite for that target first and
 // merge the ATTACH_FILES bit in, rather than clobbering the deny/allow bits
 // already there (e.g. the category's existing @everyone VIEW_CHANNEL deny,
-// or #radio/#intercom's existing VIEW_CHANNEL+SEND_MESSAGES deny). Safe to
+// or #watch/#intercom's existing VIEW_CHANNEL+SEND_MESSAGES deny). Safe to
 // re-run.
 require("dotenv").config();
 const { prisma } = require("../index");
@@ -56,7 +56,7 @@ async function main() {
   }
 
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
-  const narrowcastChannelIds = [config?.radioChannelId, config?.intercomChannelId].filter(Boolean);
+  const narrowcastChannelIds = [config?.watchChannelId, config?.intercomChannelId].filter(Boolean);
   for (const channelId of narrowcastChannelIds) {
     await addDeny(channelId, guildId);
     if (gmRoleId) await addAllow(channelId, gmRoleId);

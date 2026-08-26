@@ -145,7 +145,7 @@ custom tag unheld and delete the lot.
 | `db:backfill-tag-rework` | One-off tag catalog cleanup. No Discord. |
 | `db:backfill-medical-expert` | Retires the old `medical-excellent` Tag row after the slug rename, moving its holders, cure requirements and child tiers onto `medical-expert`. Run **after** `db:sync-tags`, since it needs the new row to exist. No Discord. |
 | `db:prune-orphan-categories` | Dry-run by default (`--apply`): deletes Location categories no `Location` row points at. |
-| `db:sync-narrowcast-channels` | One-off provisioning for `#radio`/`#intercom`. |
+| `db:sync-narrowcast-channels` | One-off provisioning for the `radio` category and its `#watch`/`#intercom` channels. |
 | `db:rebuild-info-channel` | Destructive rebuild of `#info` from `infochannel.yaml` (`INFOCHANNEL.md`). |
 | `map:check` | Pure geometry over `locations.yaml` — no DB, no Discord (`MAP.md`). |
 

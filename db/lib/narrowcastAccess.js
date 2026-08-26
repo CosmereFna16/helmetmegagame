@@ -1,4 +1,4 @@
-// Shared access rules for the two hardcoded narrowcast channels (#radio,
+// Shared access rules for the two hardcoded narrowcast channels (#watch,
 // #intercom). Unlike a Location, these aren't gated by "is the character
 // standing here" alone — each has its own bespoke Zone/Location/tag
 // condition — so instead of a generic tag-gate table this is just a rules
@@ -8,18 +8,17 @@
 // access the same way Locations do: a permission overwrite on the
 // character's own personal Discord role, added/removed as their tags or
 // location change — never a separate gate role.
-const { DEPTHS_SLUGS } = require("./travelCost");
 
-const NARROWCAST_SLUGS = ["radio", "intercom"];
+const NARROWCAST_SLUGS = ["watch", "intercom"];
 
 const NARROWCAST_RULES = {
-  // Anyone holding the Radio tag can hear and speak on it, unless they're
-  // currently in the Depths — all three levels of it are dead air, not just
-  // the deepest.
-  radio: (ctx) => {
-    if (!ctx.tagSlugs.has("radio")) return null;
-    if (DEPTHS_SLUGS.has(ctx.locationSlug)) return null;
-    return { view: true, send: true };
+  // The Watch's radio net. Radio Bracelet receives; the Captain's Radio
+  // System also sends. Possession is what matters — a bracelet transferred
+  // to a non-Watch character still opens the channel.
+  watch: (ctx) => {
+    if (ctx.tagSlugs.has("radio-system")) return { view: true, send: true };
+    if (ctx.tagSlugs.has("radio-bracelet")) return { view: true, send: false };
+    return null;
   },
   // Audible anywhere in Fortress or Town; only speakable by an
   // Intercom-tagged character actually standing in the Keep.
@@ -54,7 +53,7 @@ async function buildNarrowcastContext(prisma, characterId) {
   };
 }
 
-// Returns { radio: {view,send}|null, intercom: {view,send}|null } — null
+// Returns { watch: {view,send}|null, intercom: {view,send}|null } — null
 // means the character gets no overwrite on that channel (falls back to the
 // channel's @everyone deny).
 function computeNarrowcastAccess(ctx) {

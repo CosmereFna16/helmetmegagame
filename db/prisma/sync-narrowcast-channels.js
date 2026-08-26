@@ -1,4 +1,5 @@
-// Manual, terminal-invoked one-off provisioning for #radio/#intercom. Run
+// Manual, terminal-invoked one-off provisioning for the radio category and
+// its #watch/#intercom channels. Run
 // with `npm run db:sync-narrowcast-channels`. Not called from wipeGameData —
 // provisioning is one-time and the channel ids on GameConfig persist across
 // a game restart, same as turnsAnnouncementChannelId.

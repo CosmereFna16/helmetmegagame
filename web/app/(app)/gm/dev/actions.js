@@ -222,7 +222,7 @@ const DEFAULT_GAME_CONFIG = {
 // order, so the game starts from the canonical sets:
 //   locations (docs/locations.yaml) -> tags (docs/tags.yaml) -> roles (docs/roles.yaml)
 // Roles resolve a starting Location and validate starting_tags, so that
-// order is load-bearing, not cosmetic. The #radio/#intercom channel ids on
+// order is load-bearing, not cosmetic. The #watch/#intercom channel ids on
 // GameConfig are left untouched (same "self-heals, provisioning is one-time"
 // treatment as turnsAnnouncementChannelId) rather than reset here.
 //

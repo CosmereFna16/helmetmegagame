@@ -97,7 +97,7 @@ async function swapLocationAccess(guild, discordUserId, oldLocation, newLocation
 }
 
 // Reconciles a character's per-member overwrites on the narrowcast
-// channels (#radio, #intercom) against their current tags/Location — see
+// channels (#watch, #intercom) against their current tags/Location — see
 // db/lib/narrowcastAccess.js for the actual rules and
 // web/lib/discordGuild.js#syncCharacterNarrowcastAccess for the REST twin
 // (used by GM raw edits and tag grant/revoke, which only ever happen through
@@ -111,7 +111,7 @@ async function syncCharacterNarrowcastAccess(guild, character) {
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
   ]);
   const access = computeNarrowcastAccess(ctx);
-  const channelIds = { radio: config?.radioChannelId, intercom: config?.intercomChannelId };
+  const channelIds = { watch: config?.watchChannelId, intercom: config?.intercomChannelId };
 
   await Promise.all(
     Object.entries(channelIds)
@@ -153,7 +153,7 @@ module.exports = {
   buildConfirmRow,
   swapLocationAccess,
   // Exported for the GM /heal command, which moves a tag and so has to
-  // reconcile #radio/#intercom access the same way a Move does.
+  // reconcile #watch/#intercom access the same way a Move does.
   syncCharacterNarrowcastAccess,
   performMove,
 };

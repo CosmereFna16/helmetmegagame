@@ -182,7 +182,7 @@ except 🌫️ and 🌬️. Each is stripped back off after being processed.
 
 🌬️ is the ghost whisper, and the only thing a dead player can do. It works on
 **any** message — proxied or not, the bot's own posts included — but only in a
-Location's summary channel or a forum post: `-private`, `#radio` and
+Location's summary channel or a forum post: `-private`, `#watch` and
 `#intercom` refuse it, even though ghosts can *read* all of them
 (`db/lib/cursedAccess.js`). One press per ghost per **12 real hours**, tracked
 in `GhostWhisper` and enforced by `db/lib/ghostWhisper.js#claimGhostWhisper`.

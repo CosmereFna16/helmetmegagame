@@ -372,7 +372,7 @@ Discord role afterward. `web/lib/discordGuild.js#killCharacter`, called from
 1. **Explicitly revokes every viewing grant** (`revokeAllCharacterAccess`),
    before the role is deleted — it needs both the role id and the Discord user
    id to name the overwrites. It sweeps every Location category *and its three
-   channels*, plus `#radio`/`#intercom`, clearing an overwrite under either
+   channels*, plus `#watch`/`#intercom`, clearing an overwrite under either
    key.
 
    This used to be a free side effect of step 2: Discord drops every overwrite
@@ -444,13 +444,13 @@ dependents are detached rather than deleted: `AuditLog.targetCharacterId` and
 `Note.characterId` are nulled, because the audit trail must outlive its subject
 and `Note.characterName` is already a snapshot.
 
-## 6. Narrowcast channels (`#radio`, `#intercom`)
+## 6. Narrowcast channels (`#watch`, `#intercom`)
 
 Access to both is granted the same way Location access is — a per-member
 permission overwrite keyed on `Character.discordUserId` — and is reconciled
-after every Move and on character creation. The rules themselves (who hears
-what, the Depths dead zone, the Keep) live in one place:
-**`CHANNELS.md` §6**. They were duplicated here and drifted; don't re-add them.
+after every Move and on character creation. The rules themselves (who holds
+which radio tag, the Keep gate) live in one place: **`CHANNELS.md` §6**.
+They were duplicated here and drifted; don't re-add them.
 
 ## 7. Sync order
 

@@ -19,12 +19,11 @@ const { sendDm } = require("./dm");
 //
 //   - A Location channel is gated on ZONE, deliberately looser than the room
 //     itself: someone in the Square can shout for someone at the Cathedral.
-//   - #radio / #intercom have no Zone at all, so they're gated on whether the
+//   - #watch / #intercom have no Zone at all, so they're gated on whether the
 //     target currently *hears that channel* under its own rules — which reuses
-//     db/lib/narrowcastAccess.js rather than inventing a second copy of them,
-//     and so keeps the Depths dead air for pings too.
+//     db/lib/narrowcastAccess.js rather than inventing a second copy of them.
 async function canHearPing(character, context) {
-  if (context.channelKind === "radio" || context.channelKind === "intercom") {
+  if (context.channelKind === "watch" || context.channelKind === "intercom") {
     const ctx = await buildNarrowcastContext(prisma, character.id);
     return Boolean(computeNarrowcastAccess(ctx)[context.channelKind]?.view);
   }
@@ -62,7 +61,7 @@ function messageLink(guildId, channelId, messageId) {
 async function notifyMentioned(client, character, context, link) {
   const where = context.threadName
     ? `${context.locationName ?? "somewhere"} · ${context.threadName}`
-    : (context.locationName ?? (context.channelKind === "radio" ? "the Radio" : "the Intercom"));
+    : (context.locationName ?? (context.channelKind === "watch" ? "the Watch's radio" : "the Intercom"));
 
   const user = await client.users.fetch(character.discordUserId).catch(() => null);
   if (!user) return;

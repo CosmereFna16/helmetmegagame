@@ -59,9 +59,6 @@ Migrants start on the **Railroad**, the line everyone who comes to Ravenheart
 from elsewhere arrives on, so "make it to the fortress" is two paid Moves
 rather than a figure of speech.
 
-`DEPTHS_SLUGS` is also what `narrowcastAccess.js` reads for the `#radio` dead
-zone, so all three levels are dead air.
-
 Travel cost is now also what a **tax run** costs. Moving ⬢ into or out of a
 faction's Silo requires standing in its zone (or with one of its officers), and
 handing ⬢ or an item to a person requires the same Location — so a payment

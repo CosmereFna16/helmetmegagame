@@ -142,7 +142,7 @@ Three notes on deliberate choices:
 - **Undo never re-syncs Discord.** `resolveRequest` (`gm/turns/actions.js`)
   runs a request's `undo()` entirely inside one transaction, and no network
   call may run inside a `$transaction` (`ARCHITECTURE.md` §5) — so undoing
-  `ADD_TAG`/`REMOVE_TAG`/`CONSUME_TAG` leaves `#radio`/`#intercom` access
+  `ADD_TAG`/`REMOVE_TAG`/`CONSUME_TAG` leaves `#watch`/`#intercom` access
   stale until the next Move reconciles it, and undoing `CHANGE_NAME` leaves
   the personal Discord role/nickname stale until the player's next Bio save
   (`ensureCharacterRole` always re-PATCHes off the live DB name, so that save

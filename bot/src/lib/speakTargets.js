@@ -13,9 +13,10 @@ const { isDesignatedTupperChannel, resolveChannelContext } = require("./channels
 // That second test is the live answer to every narrowcast rule without a
 // second copy of them: syncCharacterNarrowcastAccess already writes exactly
 // the ViewChannel/SendMessages overwrite that computeNarrowcastAccess decided
-// on, so Radio-in-the-Depths and Intercom-outside-the-Keep fall out for free.
-// It also means a narrowcast channel added later shows up here the moment its
-// id lands in refreshLocationChannels' tupperOnly set — nothing to edit.
+// on, so a bracelet-only Watchman quietly loses Send on #watch and
+// Intercom-outside-the-Keep falls out for free. It also means a narrowcast
+// channel added later shows up here the moment its id lands in
+// refreshLocationChannels' tupperOnly set — nothing to edit.
 //
 // "Actually post in it" is two different permissions, and conflating them is
 // what broke this the first time round:
@@ -193,7 +194,7 @@ async function listSpeakTargets(guild, member) {
         description: (where ? `${where} — the main room` : "The main room").slice(0, 100),
       });
     } else {
-      // Anything tupper-and-speakable that is not tied to a place: #radio,
+      // Anything tupper-and-speakable that is not tied to a place: #watch,
       // #intercom, and whatever comes next.
       buckets.broadcast.push({
         value: channel.id,

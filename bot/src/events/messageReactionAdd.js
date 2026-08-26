@@ -221,7 +221,7 @@ async function handleWindReaction(reaction, user) {
 
   // "Any summary channel or forum post" — a message inside a forum post
   // reports the thread as its channel, and resolveChannelContext walks to the
-  // parent for us. Anything else (a Location's -private channel, #radio,
+  // parent for us. Anything else (a Location's -private channel, #watch,
   // #intercom, #turns, an unmapped channel) resolves to some other kind or to
   // null, and is refused.
   const { channelKind } = resolveChannelContext(reaction.message.channel);

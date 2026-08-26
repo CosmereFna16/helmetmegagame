@@ -67,7 +67,7 @@ async function main() {
 
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
   for (const [label, channelId] of [
-    ["#radio", config?.radioChannelId],
+    ["#watch", config?.watchChannelId],
     ["#intercom", config?.intercomChannelId],
   ]) {
     if (!channelId) {

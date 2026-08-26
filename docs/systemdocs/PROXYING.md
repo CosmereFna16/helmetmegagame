@@ -18,9 +18,9 @@ provisioned Location's channels, or one of the two narrowcast channels:
 | Location plain (text) | yes | **yes** |
 | Location `-public` (forum) | yes | no |
 | Location `-private` (text) | yes | no |
-| `#radio` / `#intercom` | yes | no |
+| `#watch` / `#intercom` | yes | no |
 
-`#radio`/`#intercom` aren't tied to a place, so they're never summary.
+`#watch`/`#intercom` aren't tied to a place, so they're never summary.
 
 Two independent implementations of that rule, kept in sync by hand — the
 gateway/REST twin pattern (`ARCHITECTURE.md` §3):
@@ -260,10 +260,9 @@ kinds of channel mean different things by "in earshot":
 
 - **Location channels** gate on **Zone** — deliberately looser than the room:
   someone in the Square can shout for someone at the Cathedral.
-- **`#radio`/`#intercom`** have no Zone at all, so they gate on whether the
+- **`#watch`/`#intercom`** have no Zone at all, so they gate on whether the
   target currently *hears that channel* — `computeNarrowcastAccess` from
-  `db/lib/narrowcastAccess.js`, not a second copy of those rules, which keeps
-  the Depths dead air for pings too.
+  `db/lib/narrowcastAccess.js`, not a second copy of those rules.
 
 The DM carries **where and a jump link, never the message text**. A ping into a
 private thread the target hasn't joined would otherwise leak the room's

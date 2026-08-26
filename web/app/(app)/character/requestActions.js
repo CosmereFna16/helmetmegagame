@@ -415,7 +415,7 @@ async function addTagRequestImpl({
     });
   });
 
-  // Tags gate #radio access, so a grant can change narrowcast visibility.
+  // Tags gate #watch access, so a grant can change narrowcast visibility.
   await syncCharacterNarrowcastAccess(character.id).catch(() => {});
   revalidateAll();
   return {};
@@ -548,7 +548,7 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
     });
   });
 
-  // Both the tag consumed and anything it became can gate #radio/#intercom.
+  // Both the tag consumed and anything it became can gate #watch/#intercom.
   await syncCharacterNarrowcastAccess(character.id).catch(() => {});
   revalidateAll();
   return {};
@@ -847,7 +847,7 @@ async function healCharacterRequestImpl({
     });
   });
 
-  // A tag moved, and #radio/#intercom access is tag-gated.
+  // A tag moved, and #watch/#intercom access is tag-gated.
   await syncCharacterNarrowcastAccess(target.id).catch(() => {});
   revalidateAll();
   return { targetName: target.name, tagName: held.tag.name, cost };

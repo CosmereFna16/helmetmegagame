@@ -1,8 +1,8 @@
 // Dawn message wipe: called from db/index.js#advanceTurn() whenever the
 // newly-opened turn's phase is DAWN and GameConfig.messageWipeEnabled is
 // on. Every Location's plain (summary) channel, public (forum) posts, and
-// private-channel threads — plus the guild-wide #radio/#intercom narrowcast
-// channels (GameConfig.radioChannelId/intercomChannelId) — get cleared:
+// private-channel threads — plus the guild-wide #watch/#intercom narrowcast
+// channels (GameConfig.watchChannelId/intercomChannelId) — get cleared:
 //   - plain channel / narrowcast channel: every message deleted.
 //   - public forum posts: deleted entirely, UNLESS tagged "Persistent" (⏰)
 //     — those survive but have their messages cleared instead — or tagged
@@ -174,7 +174,7 @@ async function runDawnWipe(prisma) {
   }
 
   for (const [label, channelId] of [
-    ["Radio", config?.radioChannelId],
+    ["Watch", config?.watchChannelId],
     ["Intercom", config?.intercomChannelId],
   ]) {
     console.log(`Dawn wipe: ${label}`);

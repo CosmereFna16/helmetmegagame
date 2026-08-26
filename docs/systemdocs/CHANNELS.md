@@ -13,7 +13,7 @@ Location's three channels (see §2), or one of the two narrowcast channels
 channel names are otherwise meaningless to this system. Of a Location's
 three: the plain (text) channel is both tupper (auto-proxying, ❌/✏️/⭐
 reactions) and summary (adjudication results post there); the public (forum)
-and private (text) channels are tupper-only. `#radio`/`#intercom` are
+and private (text) channels are tupper-only. `#watch`/`#intercom` are
 tupper-only as well — never summary, since neither is tied to a place with
 its own adjudication results.
 
@@ -144,7 +144,7 @@ on **every channel individually**. Nothing relies on inheritance:
   gets `ViewChannel` plus `AddReactions` and a deny on everything else,
   including `ManageThreads`. Reactions are allowed where the spectator seat
   denies them, because the 🌬️ whisper (`COMMANDS.md` §6) is a ghost's only
-  voice. Ghosts read `#radio` and `#intercom` as well.
+  voice. Ghosts read `#watch` and `#intercom` as well.
   **The Depths are the exception**: Caverns, Railroad and Aberrant Pits get no
   cursed overwrite at all, so `@everyone`'s deny is the last word there. The
   exclusion list is `DEPTHS_SLUGS` from `db/lib/travelCost.js`, not a second
@@ -261,7 +261,7 @@ owner's own account.
 Every time a new `Turn` opens with `phase === "DAWN"` (never Dusk), if
 `GameConfig.messageWipeEnabled` is on (a Dev Panel checkbox, default off),
 `db/lib/dawnWipe.js#runDawnWipe` clears every Location's roleplay content,
-plus the guild-wide `#radio`/`#intercom` narrowcast channels (§6). This is
+plus the guild-wide `#watch`/`#intercom` narrowcast channels (§6). This is
 wired into `db/index.js#advanceTurn()` itself (see below), so it fires
 identically regardless of whether Dawn was triggered by the bot's
 twice-daily cron or a GM's manual "End Turn" button.
@@ -286,7 +286,7 @@ logged for the next run.
 
 **Each location is wiped inside its own `try`.** These were three bare awaits,
 so one stale channel id aborted every location after it alphabetically *and*
-the `#radio`/`#intercom` wipes at the end. The forum fetch also allows a 404,
+the `#watch`/`#intercom` wipes at the end. The forum fetch also allows a 404,
 the same way every other blind sweep in the codebase does — a channel a GM
 deleted by hand is an ordinary state, not a reason to stop.
 
@@ -297,10 +297,10 @@ deleted by hand is an ordinary state, not a reason to stop.
 | Plain (summary) | Every message deleted. |
 | Public (forum) | Posts **without** the "Persistent" (⏰) forum tag are deleted entirely — post gone. Posts **with** it survive; only their messages are cleared. |
 | Private | Has no top-level messages, only threads (anyone can spin one up, not just GMs). Every thread — active or already auto-archived — is deleted entirely, **unless its name carries the ⏰ prefix**, in which case it survives with its messages cleared, exactly like a tagged forum post. |
-| Narrowcast (`#radio`/`#intercom`) | Same as plain: every message deleted. Looked up from `GameConfig.radioChannelId`/`intercomChannelId` (§6) rather than a `Location` row, so it runs once after the per-Location loop rather than per Zone/Location. |
+| Narrowcast (`#watch`/`#intercom`) | Same as plain: every message deleted. Looked up from `GameConfig.watchChannelId`/`intercomChannelId` (§6) rather than a `Location` row, so it runs once after the per-Location loop rather than per Zone/Location. |
 
 **Order**: Locations are processed in the same `Zone / Location` alphabetical
-order as `sortLocationCategories` (§2); `#radio`/`#intercom` are processed
+order as `sortLocationCategories` (§2); `#watch`/`#intercom` are processed
 last. This only affects the order channels are *cleared* in — the transcript's
 own ordering comes from `ArchiveEntry.sentAt`, recorded when each message was
 sent, so it is a true chronological merge across every channel rather than the
@@ -389,21 +389,25 @@ awaits the thunk inline; the web action passes it to `next/server`'s
 clearing out a little after the turn flipped is expected behavior, not a
 stall.
 
-## 6. Narrowcast channels (`#radio`, `#intercom`, outside the Location layout)
+## 6. Narrowcast channels (`#watch`, `#intercom`, outside the Location layout)
 
-`#radio` and `#intercom` sit outside the Location category structure
-entirely, and unlike the tag-gate-role mechanism this replaced, they use the
-*exact same* access primitive Locations do: a per-member permission overwrite
-keyed on `Character.discordUserId`, added or removed as their tags or
-Location/Zone change. There's no gate role for either channel.
+`#watch` and `#intercom` sit outside the Location category structure entirely.
+Both hang under a single hand-provisioned Discord category called **`radio`**
+(id on `GameConfig.radioCategoryId`) — the category exists purely to group the
+two in the channel list; access is entirely per-channel. Unlike the
+tag-gate-role mechanism this replaced, they use the *exact same* access
+primitive Locations do: a per-member permission overwrite keyed on
+`Character.discordUserId`, added or removed as their tags or Location/Zone
+change. There's no gate role for either channel.
 
 Each channel's rule is bespoke, not a symmetric "hold a tag" gate, so they're
 hardcoded in `db/lib/narrowcastAccess.js`'s `NARROWCAST_RULES` rather than
 authored in a YAML:
 
-- **`#radio`** — viewable and speakable by anyone holding the **Radio** tag,
-  *unless* their current Location is a level of the **Depths** — Caverns,
-  Railroad or Aberrant Pits, i.e. `DEPTHS_SLUGS` in `db/lib/travelCost.js`.
+- **`#watch`** — the Watch's radio net. **Radio Bracelet** holders see it and
+  cannot send; **Radio System** holders see and send. Both tags are
+  transferable, so possession is what matters — a bracelet transferred to a
+  non-Watch character still opens the channel to them. No location gate.
 - **`#intercom`** — viewable by anyone whose current Zone is **Fortress** or
   **Town**; speakable only by a character holding the **Intercom** tag *and*
   currently standing in the **Keep** (a Location inside Fortress).
@@ -443,12 +447,15 @@ ends a character must call it too.
 
 Provisioning is a one-off, hand-run script:
 `db/lib/syncNarrowcastChannels.js#syncNarrowcastChannels`
-(`npm run db:sync-narrowcast-channels`) creates each channel if its id (kept
-on `GameConfig.radioChannelId`/`intercomChannelId`) is unset or missing from
-the guild, sets a static topic, and applies the `@everyone` deny — then never
-touches it again. It is not part of `wipeGameData`'s "Restart Game" flow; the
-channel ids persist across a reset, same treatment as
-`turnsAnnouncementChannelId`.
+(`npm run db:sync-narrowcast-channels`) ensures the `radio` category exists,
+then creates each channel under it if its id (kept on
+`GameConfig.watchChannelId`/`intercomChannelId`) is unset or missing from the
+guild, sets a static topic, and applies the `@everyone` deny — then never
+touches it again. A channel that already exists but is unparented (typically a
+legacy `#intercom` predating the category) is moved under it on the next run
+via a single `PATCH /channels/{id}` with only `parent_id`. It is not part of
+`wipeGameData`'s "Restart Game" flow; the channel ids persist across a reset,
+same treatment as `turnsAnnouncementChannelId`.
 
 Known scaling caveat: `#intercom`'s view condition spans a whole Zone
 (Fortress or Town), which can include many simultaneously-present characters
@@ -460,14 +467,14 @@ practice.
 
 Both channels are tupper-only (§1) — `bot/src/lib/channels.js`'s
 `refreshLocationChannels` and `web/lib/discordGuild.js`'s
-`fetchLocationChannelIds` fold `GameConfig.radioChannelId`/
+`fetchLocationChannelIds` fold `GameConfig.watchChannelId`/
 `intercomChannelId` into the same `tupperOnly` set as a Location's public/
 private channels, so a message posted there is auto-proxied as the sending
 character exactly like any other tupper channel — never summary, since
 neither channel is tied to a place.
 
 Both channels are also included in the Dawn message wipe (§5) —
-`db/lib/dawnWipe.js#runDawnWipe` reads the same `GameConfig.radioChannelId`/
+`db/lib/dawnWipe.js#runDawnWipe` reads the same `GameConfig.watchChannelId`/
 `intercomChannelId` fields and clears each channel's messages exactly like a
 Location's plain channel. Nothing is archived at wipe time any more; the
 transcript is recorded when each message is sent (`ARCHIVE.md`).
