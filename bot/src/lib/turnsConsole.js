@@ -9,11 +9,15 @@ const { buildTurnAnnouncement } = require("@lifeweb/db/weather");
 // replaces every turn. See the comment there for why it stopped being three.
 //
 // This file is now only the COLD START: at ready, make sure that message
-// exists at all. It normally does, and this does nothing. It matters in two
-// cases the turn cycle cannot cover on its own — a fresh guild that has never
-// advanced a turn, and a #turns that was wiped (Restart Game deletes every
-// message in it, db/lib/fullWipe.js) where players would otherwise face an
-// empty channel until the next dawn or dusk.
+// exists at all. It normally does, and this does nothing. It matters for a
+// fresh guild that has never advanced a turn, and as the backstop for a
+// repost that failed.
+//
+// Restart Game used to be the case that made this file load-bearing: it
+// deletes every message in #turns (db/lib/fullWipe.js) and opens Turn 1
+// without advancing a turn, so players faced an empty channel until the next
+// dawn or dusk. It reposts the console itself now — see finishGameWipe in
+// web/app/(app)/gm/dev/actions.js.
 
 // Same exact-name match db/lib/turnAnnouncement.js#isTurnsChannel uses —
 // there is only ever meant to be one, and nothing in the repo creates it.

@@ -169,7 +169,10 @@ announcement twice a day". The cost of holding it still was worse: the
 announcement reposted *beneath* it every turn, so the buttons sank up the
 channel until players stopped finding them, and a wipe of `#turns` (Restart
 Game) left them gone entirely until the next bot restart. One message has no
-ordering problem to solve. Tracked on `GameConfig.turnsConsoleChannelId` /
+ordering problem to solve. (Restart Game no longer leaves the channel empty
+either: `finishGameWipe` calls `postTurnsAnnouncement` for the fresh Turn 1
+right after the channel wipe, since a wipe opens Turn 1 directly and never
+runs the thunk this section describes.) Tracked on `GameConfig.turnsConsoleChannelId` /
 `turnsConsoleMessageId`; `turnsAnnouncementMessageId` and
 `turnsBannerMessageId` are no longer written.
 

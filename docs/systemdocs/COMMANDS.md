@@ -61,8 +61,11 @@ it stopped being three separate messages).
 
 `bot/src/lib/turnsConsole.js#ensureTurnsConsole` runs on ready and is only the
 cold start: it locks the channel down and posts the message if none exists —
-a fresh guild, or a `#turns` that was wiped and has not seen a turn advance
-since. The buttons themselves are one shared definition in
+a fresh guild, or a repost that failed. Restart Game used to be the common
+case: it clears `#turns` and does not advance a turn, so the channel stayed
+empty through Day 1. It now reposts the console itself
+(`web/app/(app)/gm/dev/actions.js#finishGameWipe`), and this is the backstop
+behind it. The buttons themselves are one shared definition in
 `db/lib/turnsConsoleRow.js`, plain component JSON because the REST side (the
 web Dev Panel's End Turn) and the gateway side both post it.
 

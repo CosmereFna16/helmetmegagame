@@ -11,6 +11,9 @@ import {
   syncRolesFromYaml,
   syncDocumentsFromYaml,
 } from "@lifeweb/db";
+// By path, not the barrel: it takes prisma as a parameter, the db/lib/dm.js
+// convention that keeps it off the barrel (ARCHITECTURE.md §2).
+import { postTurnsAnnouncement } from "@lifeweb/db/lib/turnAnnouncement";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import {
@@ -191,11 +194,18 @@ export async function forceAdvanceTurn() {
 // surfaced on the "Game Config" form above — deliberately excludes
 // nextWeather/nextTurnNote (handled separately, "Next Turn" section) and the
 // Discord provisioning pointer (turnsConsoleChannelId/MessageId), which
-// really does self-heal now: #turns is one rolling message that the next turn
-// advance reposts. It did not before — the console was its own message posted
-// only at bot startup, so a Restart Game deleted it (fullWipe clears #turns)
-// and nothing brought it back until someone restarted the bot. This comment
-// asserting otherwise is what made that look like expected behaviour.
+// finishGameWipe overwrites for itself: it reposts the console right after
+// fullWipe clears #turns, so the pointer it writes is the live message.
+//
+// Leaving it set is also the safety net. If that repost fails, the stale id
+// is exactly what makes the bot repost on its next ready — ensureTurnsConsole
+// fetches the tracked message, gets null, and posts a new one. Clearing it
+// here would lose nothing and gain nothing.
+//
+// This comment used to claim the pointer "self-heals" because the next turn
+// advance reposts the message. True, but the next turn advance is half a day
+// away, and that reading is why a Restart Game left players staring at an
+// empty #turns through the whole of Day 1 / Dawn.
 const DEFAULT_GAME_CONFIG = {
   lifewebBlood: 100,
   lifewebDecayPerTurn: 10,
@@ -223,7 +233,8 @@ const DEFAULT_GAME_CONFIG = {
 // GameConfig's balance knobs to their schema defaults, clears every Discord
 // channel this game has actually written to (#turns, and every Location's
 // plain/public/private channel — messages, forum posts, and threads, public
-// or private), and opens a fresh Turn 1/DAWN.
+// or private), and opens a fresh Turn 1/DAWN — then reposts the #turns
+// console for it, which the channel wipe just deleted.
 //
 // The transcript is a DATABASE TABLE (ArchiveEntry), not a channel: it is
 // recorded at send time and there has been no #archive channel since
@@ -300,7 +311,7 @@ export async function wipeGameData(formData) {
       }),
     ]);
 
-    await prisma.turn.create({
+    const firstTurn = await prisma.turn.create({
       data: { number: 1, phase: "DAWN", weather: "CLEAR", status: "OPEN", gameDate: new Date() },
     });
 
@@ -316,7 +327,7 @@ export async function wipeGameData(formData) {
     revalidatePath("/", "layout");
 
     after(() =>
-      finishGameWipe(session.discordUserId, characters, cursedMemberIds).catch((err) =>
+      finishGameWipe(session.discordUserId, characters, cursedMemberIds, firstTurn).catch((err) =>
         console.error("Game wipe side effects failed:", err),
       ),
     );
@@ -343,7 +354,7 @@ export async function wipeGameData(formData) {
 // If the container dies partway, the catalogs are untouched (the transaction
 // never deletes them) so a GM can re-run the syncs by hand. That is a
 // recoverable state; a fifty-minute hanging request is not.
-async function finishGameWipe(actorDiscordUserId, characters, cursedMemberIds) {
+async function finishGameWipe(actorDiscordUserId, characters, cursedMemberIds, firstTurn) {
   // First, while nothing has re-provisioned: strip every character's channel
   // access. One pass over the channels rather than one pass per character —
   // see db/lib/locationAccess.js#revokeAccessForCharacters for why that
@@ -393,6 +404,21 @@ async function finishGameWipe(actorDiscordUserId, characters, cursedMemberIds) {
   }
 
   await runFullChannelWipe(prisma).catch((err) => console.error("Full channel wipe failed:", err));
+
+  // After the wipe, never before it: the line above bulk-deletes every message
+  // in #turns, including this one if it were posted first.
+  //
+  // wipeGameData opens Turn 1 with a plain turn.create rather than through
+  // advanceTurn() — there is no turn to close, and no roster to run default
+  // moves, hunger or DMs against — so runSideEffects() never fires and the
+  // announcement that normally rides it never went out. #turns stayed empty
+  // (no Day 1 header, no banner, no Travel/Move/Speak) until the bot next
+  // restarted or the game reached Dusk. Same call the turn engine makes,
+  // db/index.js#advanceTurn; the note is null because the transaction above
+  // already cleared nextTurnNote.
+  await postTurnsAnnouncement(prisma, firstTurn, null).catch((err) =>
+    console.error("Turns console repost failed during game wipe:", err),
+  );
 
   // Re-sync every YAML master, in dependency order, so the game starts from
   // the canonical sets. Roles resolve a starting Location and validate
