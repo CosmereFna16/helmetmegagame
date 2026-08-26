@@ -28,7 +28,8 @@ A full gunsmith is `smithing` + `smithing-skilled` + `smithing-gunpowder` =
 | Exceptional | 6 | 35 | 2 | `smithing-skilled` | `fighting-basic` | yes |
 | Gunpowder | 6 | 40 | 2 | `smithing-gunpowder` | `fighting-basic` | yes |
 
-Bows and crossbows use `crafting` in place of `smithing` at every tier.
+Bows use `crafting` in place of `smithing` at every tier. The Crossbow does
+not — its steel prod and lock are `smithing-skilled` work.
 
 Every combat item is `purchasable: true, purchasableAfterStart: false` — buy
 at creation or have someone craft one in play. Found-only items
@@ -38,7 +39,6 @@ at creation or have someone craft one in play. Found-only items
 
 | Weapon | Tier | Notes |
 |---|---|---|
-| Knuckle Duster | Dead Simple | `visible: false` |
 | Work Knife | Dead Simple | |
 | Hatchet | Dead Simple | |
 | Sling | Dead Simple | |
@@ -53,6 +53,7 @@ at creation or have someone craft one in play. Found-only items
 | Longbow | Simple | `crafting` |
 | Mace | Simple | |
 | Battle Axe | Simple | |
+| Knuckle Duster | Moderate | `visible: false` |
 | Halberd (slug `bardiche`) | Moderate | Renamed in the Combat Update; slug frozen for sync. |
 | Broadsword | Moderate | |
 | War Hammer | Moderate | |
@@ -63,17 +64,17 @@ at creation or have someone craft one in play. Found-only items
 | Silver Spear | High Quality | |
 | Lucerne | High Quality | |
 | Zweihander | High Quality | |
-| Crossbow | High Quality | `crafting` |
+| Crossbow | High Quality | |
 | Musketoon | Gunpowder | |
 | Bore Pistol | Gunpowder | |
 | Bomb | Gunpowder | `purchasable: false` (craft-only) |
-| Neoclassic R&W10 (slug `old-45-revolver`) | Gunpowder | |
 
 Off the ladder — no recipe, no smithing gate:
 
 | Weapon | pt | Notes |
 |---|---|---|
 | Sword Cane | 3 | Sold complete. `visible: false`. |
+| Neoclassic R&W10 (slug `old-45-revolver`) | 6 | Bought at creation only — not craftable. |
 | Cracked Bone Club | 0 | Found only. |
 | Neoclassic Duelista | 0 | Found only. |
 | Disabler | 0 | Watch-issued. |
@@ -83,13 +84,13 @@ Off the ladder — no recipe, no smithing gate:
 | Armor | Tier | Notes |
 |---|---|---|
 | Padded Armor | Dead Simple | `crafting` |
-| Simple Helm | Dead Simple | |
 | Mail Coif | Dead Simple | |
 | Buckler | Dead Simple | |
+| Simple Helm | Simple | |
 | Shield | Simple | `crafting` |
 | Pavise | Simple | `crafting` |
 | Mail Shirt | Moderate | |
-| Knight's Helmet | Moderate | |
+| Knight's Helmet | High Quality | |
 | Brigandine | High Quality | `visible: false` — concealed. |
 | Breastplate | High Quality | |
 | Plate Armor | Exceptional | |

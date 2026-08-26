@@ -314,7 +314,6 @@ async function syncTagsFromYaml(prisma) {
   // to wait until every Tag row is guaranteed to exist.
   for (const entry of tagEntries) {
     const skillSlugs = entry.requirement?.skills ?? [];
-    if (skillSlugs.length === 0) continue;
     const tagId = tagIdBySlug.get(entry.slug);
     const skillIds = skillSlugs.map((slug) => {
       const id = tagIdBySlug.get(slug);

@@ -3218,6 +3218,7 @@ tags:
   # Renamed from "Old .45 Revolver". The slug is deliberately unchanged — it is
   # the stable sync key (docs/systemdocs/SYNC.md), starting-wares grants it by
   # slug, and two roles grant it by NAME in docs/roles.yaml (updated to match).
+  # Bought at creation only — no smith, gunpowder-skilled or not, can forge one.
   - slug: old-45-revolver
     name: Neoclassic R&W10
     category: items
@@ -3230,13 +3231,7 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    craftable: true
     requiredTag: fighting-basic
-    requirement:
-      turnsCost: 2
-      resourceCost: 40
-      skills: [smithing-gunpowder]
-      gambit: false
 
   # Two weapons that come out of the caves rather than a forge — found on a
   # body or traded for, never bought at the Armory, so neither is purchasable
@@ -3279,30 +3274,11 @@ tags:
   #   Exceptional   6 pt / 35 ⬢ / 2 turns / smithing-skilled     / fighting-basic
   #   Gunpowder     6 pt / 40 ⬢ / 2 turns / smithing-gunpowder   / fighting-basic
   #
-  # Bows / crossbows keep `crafting` in place of `smithing` at every tier —
-  # wood-and-sinew is still wood-and-sinew even at High Quality.
+  # Bows keep `crafting` in place of `smithing` at every tier — wood-and-sinew
+  # is still wood-and-sinew even at High Quality. The Crossbow does not: its
+  # steel prod and lock are `smithing-skilled` work.
   #
   # ─── Dead Simple ───────────────────────────────────────────────────────────
-  - slug: knuckle-duster
-    name: Knuckle Duster
-    category: items
-    group: items-weapons
-    description: "The Underquarter solution."
-    pointCost: 1
-    equippable: true
-    tradeable: true
-    stackable: true
-    visible: false
-    purchasable: true
-    purchasableAfterStart: false
-    removable: true
-    craftable: true
-    requirement:
-      turnsCost: 0
-      resourceCost: 3
-      skills: [smithing, crafting]
-      gambit: false
-
   - slug: work-knife
     name: Work Knife
     category: items
@@ -3593,6 +3569,26 @@ tags:
       gambit: false
 
   # ─── Moderate ──────────────────────────────────────────────────────────────
+  - slug: knuckle-duster
+    name: Knuckle Duster
+    category: items
+    group: items-weapons
+    description: "The Underquarter solution."
+    pointCost: 3
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 18
+      skills: [smithing-skilled]
+      gambit: false
+
   # `bardiche` slug kept for sync stability (see SYNC.md); the item was
   # renamed Halberd in the Combat Update. Same pattern as `old-45-revolver` /
   # Neoclassic R&W10.
@@ -3825,7 +3821,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 25
-      skills: [crafting]
+      skills: [smithing-skilled]
       gambit: false
 
   # ─── Gunpowder ─────────────────────────────────────────────────────────────
@@ -4852,23 +4848,6 @@ tags:
       resourceCost: 3
       skills: [crafting]
 
-  - slug: simple-helm
-    name: Simple Helm
-    category: items
-    group: items-armor
-    description: "An open helmet. You can see and breathe. Your face is exposed."
-    pointCost: 1
-    equippable: true
-    visible: true
-    tradeable: true
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 0
-      resourceCost: 3
-      skills: [smithing]
-
   - slug: mail-coif
     name: Mail Coif
     category: items
@@ -4904,6 +4883,23 @@ tags:
       skills: [smithing, crafting]
 
   # ─── Simple (2 pt / 8 ⬢ / 1 turn) ───
+  - slug: simple-helm
+    name: Simple Helm
+    category: items
+    group: items-armor
+    description: "An open helmet. You can see and breathe. Your face is exposed."
+    pointCost: 2
+    equippable: true
+    visible: true
+    tradeable: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 8
+      skills: [smithing]
+
   - slug: shield
     name: Shield
     category: items
@@ -4956,12 +4952,13 @@ tags:
       resourceCost: 18
       skills: [smithing-skilled]
 
+  # ─── High Quality (4 pt / 25 ⬢ / 1 turn, skilled smithing) ───
   - slug: knights-helmet
     name: Knight's Helmet
     category: items
     group: items-armor
     description: "A closed helmet. It covers the face. You see and hear poorly through it, and it is hot to wear."
-    pointCost: 3
+    pointCost: 4
     equippable: true
     visible: true
     tradeable: true
@@ -4970,10 +4967,9 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 18
+      resourceCost: 25
       skills: [smithing-skilled]
 
-  # ─── High Quality (4 pt / 25 ⬢ / 1 turn, skilled smithing) ───
   - slug: brigandine
     name: Brigandine
     category: items
