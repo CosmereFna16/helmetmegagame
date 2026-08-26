@@ -1,5 +1,6 @@
-const { prisma, deleteCharacterRow } = require("@lifeweb/db");
+const { prisma } = require("@lifeweb/db");
 const { revokeAllCharacterAccess } = require("@lifeweb/db/lib/locationAccess");
+const { recordArchiveEvent } = require("@lifeweb/db/lib/archive");
 
 const LEAVE_ANNOUNCE_CHANNEL_ID = "1540014692926361651";
 
@@ -78,10 +79,31 @@ module.exports = {
         .catch((err) => console.error(`Failed to delete ${character.name}'s role on departure:`, err.message));
     }
 
-    // Shared with the GM Dev Panel's Delete. The list this replaced missed
-    // AuditLog, Request and Desire, so a departing player who had ever had a
-    // Request adjudicated hit a foreign-key violation here and never got
-    // cleaned up — see db/lib/deleteCharacter.js.
-    await deleteCharacterRow(prisma, character.id);
+    // Soft-kill rather than hard-delete: the character's tags and ⬢ stay on
+    // the corpse so anyone standing in their last location can loot them, and
+    // the row itself sticks around as history the way it does after any other
+    // death. Same shape as web/lib/discordGuild.js#killCharacter — the Discord
+    // side (role delete, access revoke) already ran above. Cursed grant is
+    // skipped because the player has left the guild and it would 404.
+    await prisma.character
+      .update({
+        where: { id: character.id },
+        data: { status: "DEAD", discordRoleId: null },
+      })
+      .catch((err) => console.error(`Failed to soft-kill ${character.name} on departure:`, err));
+
+    await prisma.characterTag
+      .updateMany({
+        where: { characterId: character.id, equipped: true },
+        data: { equipped: false },
+      })
+      .catch((err) => console.error(`Failed to unequip ${character.name} on departure:`, err));
+
+    await recordArchiveEvent(prisma, {
+      kind: "DEATH",
+      character,
+      locationId: character.locationId ?? null,
+      content: `${character.name} died — the player left the guild.`,
+    }).catch((err) => console.error(`Failed to log ${character.name}'s death archive:`, err));
   },
 };

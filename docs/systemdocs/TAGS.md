@@ -797,6 +797,12 @@ of holding the tag, so `@@unique([characterId, tagId])` stays and every
 "holds it or doesn't" check in the codebase is unaffected. A `stackable` tag
 takes one slot however many units are held.
 
+`CharacterTag.equipped` is **cleared on death** — `killCharacter` runs an
+`updateMany` over the corpse's held tags. A corpse doesn't wield things, and
+a Revive later shouldn't walk back in with gear locked to slots that may
+have moved. It also keeps the loot panel (`CHARACTERS.md` §5) from rendering
+an item as if it's still worn.
+
 `concealsIdentity: true` marks gear that hides who the wearer is — a mask, a
 hood, a closed helm. It is currently **inert**: `/conceal` is open to every
 character with nothing equipped (`PROXYING.md` §5), and the field is kept only

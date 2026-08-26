@@ -4,6 +4,7 @@ import GoalsPanel from "./GoalsPanel";
 import StatusPanel from "./StatusPanel";
 import TagsPanel from "./TagsPanel";
 import EquipmentPanel from "./EquipmentPanel";
+import CorpseLootPanel from "./CorpseLootPanel";
 import RichText from "./RichText";
 import FactionLink from "./FactionLink";
 import PageShell from "@/app/components/PageShell";
@@ -76,6 +77,7 @@ export default function CharacterSheet({
   canHeal = false,
   healTargets = [],
   healParties = null,
+  corpses = [],
   equipSlots = 6,
   avatarUploadsEnabled = false,
   portraitMakerEnabled = false,
@@ -203,6 +205,10 @@ export default function CharacterSheet({
           defaultEffort={character.defaultEffort ?? null}
           location={character.location ?? null}
         />
+      )}
+
+      {isSelf && (
+        <CorpseLootPanel selfId={character.id} corpses={corpses} />
       )}
     </PageShell>
   );

@@ -13,6 +13,7 @@ import { isRoleSelectable } from "@/lib/characterCreation";
 import { loadPointBuyCatalog } from "@/lib/pointBuyCatalog";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
+import { TRANSFERABLE_CATEGORIES } from "@/lib/tagRequests";
 import { parseSelection } from "@/lib/portrait/catalog";
 import {
   HEAL_SKILL_SLUG,
@@ -303,6 +304,50 @@ export default async function CharacterPage() {
   // the same reach TRANSFER_RESOURCES has, per REQUESTS.md.
   const healParties = { characters: coLocated.map(({ id, name }) => ({ id, name })), factions };
 
+  // Corpses to loot. Only DEAD characters at the same locationId, and only
+  // Items/Assets get lifted off them — the same category gate the transfer
+  // system enforces. Filtered here rather than in the client so nobody else's
+  // full sheet crosses the wire.
+  //
+  // This is the single player-facing surface that reveals a death: every
+  // other list (faction roster, transfer target picker) shows the row as
+  // normal. Someone standing in the room has intentionally looked, so
+  // surfacing the name here is the whole point.
+  const corpses = character.locationId
+    ? (
+        await prisma.character.findMany({
+          where: { status: "DEAD", locationId: character.locationId },
+          orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
+          select: {
+            id: true,
+            name: true,
+            resources: true,
+            tags: {
+              where: { tag: { category: { in: TRANSFERABLE_CATEGORIES } } },
+              select: {
+                tagId: true,
+                quantity: true,
+                tag: { select: { name: true, category: true, stackable: true } },
+              },
+            },
+          },
+        })
+      )
+          .map((c) => ({
+            id: c.id,
+            name: c.name,
+            resources: c.resources,
+            lootableTags: c.tags.map((ct) => ({
+              tagId: ct.tagId,
+              tagName: ct.tag.name,
+              category: ct.tag.category,
+              stackable: ct.tag.stackable,
+              quantity: ct.quantity ?? 1,
+            })),
+          }))
+          .filter((c) => c.lootableTags.length > 0 || c.resources > 0)
+    : [];
+
   const avatarSrc = `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`;
 
   return (
@@ -330,6 +375,7 @@ export default async function CharacterPage() {
       hasCustomAvatar={Boolean(character.avatarMimeType)}
       healTargets={healTargets}
       healParties={healParties}
+      corpses={corpses}
       lastNameLocked={isDynastyMember(character.role?.slug)}
     />
   );

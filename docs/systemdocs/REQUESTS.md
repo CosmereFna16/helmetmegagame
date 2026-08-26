@@ -79,12 +79,12 @@ reason.
 | Type | What the player does | GM can edit | Undo |
 |---|---|---|---|
 | `SET_MOOD` | Picks Neutral / Happy / Unhappy | — | Restores the displaced mood, with its original expiry |
-| `TRANSFER_RESOURCES` | Moves ⬢ between any two parties in reach | — | Reverses the movement |
+| `TRANSFER_RESOURCES` | Moves ⬢ between any two parties in reach. `direction: "LOOT"` pulls ⬢ off a corpse in the same room | — | Reverses the movement |
 | `ADD_TAG` | Takes a Purchasable or Craftable tag, optionally paying ⬢. Stackable tags take a quantity and stay on the menu once held | cost; remove what this request added | Drops what it added, refunds the cost |
 | `BUY_TAGS` | Checks out a whole `/store` cart with Tag Points — one request per cart, `effect.items` listing every tag | — | Returns every tag in the cart, refunds the points |
 | `REMOVE_TAG` | Drops one of their own `removable` tags, optionally paying ⬢, in a quantity if it stacks | cost | Restores the tag and its count, refunds the cost |
 | `CONSUME_TAG` | Uses up one of their own `consumable` tags — always exactly one, even from a stack — and gains whatever it `consumesInto` | — | Restores the one unit with its original expiry, takes back what it granted |
-| `TRANSFER_TAG` | Hands an Item or Asset to another player in the same Location, in a quantity if it stacks | — | Moves that many back |
+| `TRANSFER_TAG` | Hands an Item or Asset to another player in the same Location, in a quantity if it stacks. `direction: "LOOT"` lifts one off a corpse in the same room | — | Moves that many back |
 | `FULFILL_DESIRE` | Claims their active Desire | Tag Points awarded | Revokes the points, reopens the Desire |
 | `CHANGE_FEAR` | Rewords their locked-in Fear | — | Restores the previous wording and its set-turn |
 | `FULFILL_FEAR` | Declares their Fear came true, for a flat −3 Tag Points | — | Refunds the points and unwinds the cooldown |
@@ -122,11 +122,15 @@ Three notes on deliberate choices:
   Picking a pocket is now a mugging rather than a wire transfer. The dropdowns
   stay unfiltered on purpose — filtering them to who's in range would make the
   dialog a free scouting tool for who is standing in your zone.
-- **Transfer Tag is send-only, and same-Location.** There is no "request a tag
-  from someone", because browsing another player's inventory to pick something
-  is the abuse the one-way flow prevents. Co-location is folded into the
-  recipient's `WHERE` clause, the same idiom §5 uses — gating ⬢ but not Items
-  would just move the hole to a sack of coin.
+- **Transfer Tag is send-only for the living, plus a LOOT direction for
+  corpses.** There is no "request a tag from a live someone", because
+  browsing another player's inventory to pick something is the abuse the
+  one-way flow prevents. But a dead character is a lootable pile: filing a
+  `TRANSFER_TAG` with `direction: "LOOT"` names a corpse in the same room as
+  the counterparty and pulls the item OFF it. Co-location is folded into the
+  same `WHERE` clause in both directions. `TRANSFER_RESOURCES` mirrors this:
+  a `LOOT` request pulls ⬢ off a corpse and can only credit the initiator.
+  See `CHARACTERS.md` §5.
 - **Consume has no resource field and no quantity field.** A meal already
   cost ⬢ to make and the Hunger pass charges its own upkeep, so a third
   charge here would be the same meal paid for three times; and taking one

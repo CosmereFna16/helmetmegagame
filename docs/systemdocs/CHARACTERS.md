@@ -391,9 +391,31 @@ Discord role afterward. `web/lib/discordGuild.js#killCharacter`, called from
    (off by default), but clearing a dead character's is not.
 5. Grants the Cursed role (§4).
 6. Writes a `DEATH` row to the transcript (`ARCHIVE.md`).
+7. Clears `CharacterTag.equipped` on every held tag. A corpse doesn't wield
+   things, and a Revive later shouldn't walk back in with gear locked to
+   slots that may have moved. It also keeps the loot panel (below) from
+   rendering an item as if it's still worn.
 
 `updateCharacterRaw` skips the role/location sync entirely for a non-`ALIVE`
 character.
+
+### The corpse is lootable, the row survives
+
+A dead character is not deleted, and their `CharacterTag` and `⬢` stay on the
+row. Anyone standing in the location the character died in can `TRANSFER_TAG`
+or `TRANSFER_RESOURCES` **in the `LOOT` direction** to lift Items/Assets or ⬢
+off the corpse — see `REQUESTS.md` §5. The `/character` page shows a "Bodies
+here" panel to any living character in a location that has a corpse; that
+panel is the **only** player-facing surface that spells out that someone
+died. Every other list (faction roster, transfer target picker) renders a
+DEAD character as a normal row with no status pill, and every GM surface
+still shows the raw `status`.
+
+Guild-leave takes the same soft-kill path: `guildMemberRemove.js` no longer
+calls `deleteCharacterRow`. It writes `status = DEAD`, unequips, and archives
+a `DEATH` entry, so a departing player's gear stays lootable exactly as if
+they had died in-game. The Cursed grant is skipped for that path — the
+account has left the guild and the grant would 404.
 
 ## 5b. Killing and reviving from the GM panel
 

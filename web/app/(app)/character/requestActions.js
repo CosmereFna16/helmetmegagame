@@ -141,7 +141,7 @@ async function setMoodRequestImpl({ mood, reason: rawReason }) {
 // The bet is that you'll explain yourself afterwards, not that you can do it
 // from across the map. Location and zone come back on every party so the
 // caller can ask.
-async function resolveParty(key) {
+async function resolveParty(key, { allowDead = false } = {}) {
   const [kind, id] = (key ?? "").split(":");
   // A server action is a public endpoint, and a posted key of just
   // "character" -- no colon, no id -- used to leave `id` undefined. Prisma
@@ -152,12 +152,17 @@ async function resolveParty(key) {
   // key deserves.
   if (!id) return null;
   if (kind === "character") {
+    // Looting is the one path that walks past the ALIVE filter — a corpse is
+    // still a "party" whose ⬢ someone else can pull. Every other caller (SEND
+    // transfer, healing payer, faction silo authority) leaves the flag off
+    // and gets the original ALIVE-only lookup.
+    const statusFilter = allowDead ? { in: ["ALIVE", "DEAD"] } : "ALIVE";
     const c = await prisma.character.findFirst({
-      where: { id: id ?? "", status: "ALIVE" },
-      select: { id: true, name: true, resources: true, locationId: true, zoneId: true },
+      where: { id: id ?? "", status: statusFilter },
+      select: { id: true, name: true, resources: true, locationId: true, zoneId: true, status: true },
     });
     return c
-      ? { kind, id: c.id, name: c.name, balance: c.resources, locationId: c.locationId, zoneId: c.zoneId }
+      ? { kind, id: c.id, name: c.name, balance: c.resources, locationId: c.locationId, zoneId: c.zoneId, status: c.status }
       : null;
   }
   if (kind === "faction") {
@@ -171,26 +176,52 @@ async function resolveParty(key) {
   return null;
 }
 
-async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount, reason: rawReason }) {
+async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount, direction: rawDirection, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
+  const direction = rawDirection === "LOOT" ? "LOOT" : "SEND";
+  const isLoot = direction === "LOOT";
 
   const amount = parseCount(rawAmount, { min: 1 });
   if (amount == null) throw new UserError("Amount must be a positive whole number.");
 
-  const [from, to] = await Promise.all([resolveParty(fromKey), resolveParty(toKey)]);
+  // Looting a corpse: the source has to be a DEAD character in the same room,
+  // and the recipient is the initiator. Every other constraint (reach,
+  // balance-covers-amount, no-self-transfer) stays.
+  const [from, to] = await Promise.all([
+    resolveParty(fromKey, { allowDead: isLoot }),
+    resolveParty(toKey),
+  ]);
   if (!from) throw new UserError("Unknown source.");
   if (!to) throw new UserError("Unknown recipient.");
   if (from.kind === to.kind && from.id === to.id) throw new UserError("Source and recipient are the same.");
+
+  if (isLoot) {
+    if (from.kind !== "character" || from.status !== "DEAD") {
+      throw new UserError("You can only loot ⬢ from a corpse.");
+    }
+    if (!character.locationId || from.locationId !== character.locationId) {
+      throw new UserError("They aren't here.");
+    }
+    if (to.kind !== "character" || to.id !== character.id) {
+      throw new UserError("You can only loot ⬢ into your own pocket.");
+    }
+  }
 
   // Both ends have to be somewhere you can stand. Checked here rather than in
   // resolveParty because heal's payer rules differ slightly, and checked on
   // submit rather than by filtering the dropdowns: a range-filtered party menu
   // would be a free "who is standing in my zone" scouting tool, which is a
   // worse leak than the friction it saves.
-  for (const party of [from, to]) {
-    if (!(await canReachParty(character, party))) {
-      throw new UserError(outOfReachMessage(party, party.zoneName));
+  //
+  // Loot has its own reach check above (same room as the corpse), so the
+  // general reach gate would only add a false-positive dead-people-fail
+  // branch — skip it for that direction.
+  if (!isLoot) {
+    for (const party of [from, to]) {
+      if (!(await canReachParty(character, party))) {
+        throw new UserError(outOfReachMessage(party, party.zoneName));
+      }
     }
   }
 
@@ -246,19 +277,20 @@ async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount,
       amount,
       from: { kind: from.kind, id: from.id, name: from.name },
       to: { kind: to.kind, id: to.id, name: to.name },
+      direction,
     };
     await createRequest(tx, {
       characterId: character.id,
       turnId: openTurn?.id ?? null,
       type: "TRANSFER_RESOURCES",
       reason,
-      payload: { fromKey, toKey, amount },
+      payload: { fromKey, toKey, amount, direction },
       effect,
     });
     await logRequest(tx, {
       actorDiscordUserId: session.discordUserId,
-      actionType: "request_transfer_resources",
-      targetCharacterId: to.kind === "character" ? to.id : character.id,
+      actionType: isLoot ? "request_loot_resources" : "request_transfer_resources",
+      targetCharacterId: isLoot ? from.id : to.kind === "character" ? to.id : character.id,
       reason,
       details: effect,
     });
@@ -522,83 +554,160 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
   return {};
 }
 
-// Send-only by design: there is no "request a tag from someone", because
-// browsing another player's inventory to pick something is the abuse the
-// one-way flow prevents.
+// SEND is the ordinary path — the initiator hands their own Item/Asset to
+// someone in the room. LOOT is its inverse: the counterparty is a corpse
+// standing in the same location, and the initiator pulls the item off it.
+// There is still no "request a tag from a living someone" — that direction
+// stays send-only, so browsing another live player's inventory is never a
+// menu the game hands you.
 async function transferTagRequestImpl({
   tagId,
   quantity: rawQuantity,
   toCharacterId,
+  direction: rawDirection,
   reason: rawReason,
 }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
+  const direction = rawDirection === "LOOT" ? "LOOT" : "SEND";
+  const isLoot = direction === "LOOT";
 
-  const held = character.tags.find((ct) => ct.tagId === tagId);
-  if (!held) throw new UserError("You don't have that tag.");
-  if (!TRANSFERABLE_CATEGORIES.includes(held.tag.category)) {
-    throw new UserError("Only Items and Assets can be handed over.");
+  if (!character.locationId) {
+    throw new UserError(
+      isLoot ? "You aren't anywhere you could pick that up." : "You aren't anywhere you could hand that over.",
+    );
   }
   if (toCharacterId === character.id) throw new UserError("That's you.");
 
-  // Capped at what the sender actually holds, so a hand-crafted request can't
-  // mint items out of a stack that isn't there.
-  const quantity = held.tag.stackable
-    ? parseCount(rawQuantity, { min: 1, max: held.quantity }) ?? 1
-    : held.quantity;
+  // In SEND the initiator IS the source; in LOOT the counterparty is. Both
+  // roles need the eager-loaded tag row so we can size the stack, look at
+  // expiry, and read the category gate off the catalog side.
+  let source;
+  if (isLoot) {
+    // A corpse in the same room. Folded into the WHERE clause the same way
+    // the recipient check used to be, so a corpse that gets moved (a Revive
+    // between page load and submit) fails closed and nothing is written.
+    const corpse = await prisma.character.findFirst({
+      where: { id: toCharacterId ?? "", status: "DEAD", locationId: character.locationId },
+      select: {
+        id: true,
+        name: true,
+        tags: {
+          where: { tagId },
+          select: {
+            tagId: true,
+            quantity: true,
+            source: true,
+            expiresTurn: true,
+            tag: { select: { name: true, category: true, stackable: true } },
+          },
+        },
+      },
+    });
+    if (!corpse) throw new UserError("Nothing to loot here.");
+    const corpseHeld = corpse.tags[0] ?? null;
+    if (!corpseHeld) throw new UserError("They don't have that.");
+    source = {
+      id: corpse.id,
+      name: corpse.name,
+      tag: corpseHeld.tag,
+      source: corpseHeld.source,
+      expiresTurn: corpseHeld.expiresTurn,
+      quantity: corpseHeld.quantity,
+    };
+  } else {
+    const held = character.tags.find((ct) => ct.tagId === tagId);
+    if (!held) throw new UserError("You don't have that tag.");
+    source = {
+      id: character.id,
+      name: character.name,
+      tag: held.tag,
+      source: held.source,
+      expiresTurn: held.expiresTurn,
+      quantity: held.quantity,
+    };
+  }
 
-  // Same room, same as ⬢ — handing someone a sword across the map was the
-  // obvious way around the transfer gate. Folded into the WHERE clause rather
-  // than done as a second read (the idiom heal uses, REQUESTS.md §5c), so a
-  // recipient who walks out between page load and submit fails closed and
-  // nothing is written.
-  if (!character.locationId) throw new UserError("You aren't anywhere you could hand that over.");
-  const recipient = await prisma.character.findFirst({
-    // `?? ""` for the same reason as resolveParty above: an omitted id would
-    // otherwise be stripped from the where clause and hand the item to
-    // whoever happened to be standing in the room.
-    where: { id: toCharacterId ?? "", status: "ALIVE", locationId: character.locationId },
-    select: { id: true, name: true },
-  });
-  if (!recipient) throw new UserError("They aren't here.");
+  if (!TRANSFERABLE_CATEGORIES.includes(source.tag.category)) {
+    throw new UserError(
+      isLoot ? "Only Items and Assets can be taken." : "Only Items and Assets can be handed over.",
+    );
+  }
+
+  // Capped at what the source actually holds, so a hand-crafted request can't
+  // mint items out of a stack that isn't there.
+  const quantity = source.tag.stackable
+    ? parseCount(rawQuantity, { min: 1, max: source.quantity }) ?? 1
+    : source.quantity;
+
+  // The RECIPIENT side. For SEND: pick a living character in the same room.
+  // For LOOT: the initiator receives.
+  let recipient;
+  if (isLoot) {
+    recipient = { id: character.id, name: character.name };
+  } else {
+    // Same room, same as ⬢ — handing someone a sword across the map was the
+    // obvious way around the transfer gate. Folded into the WHERE clause
+    // rather than done as a second read (the idiom heal uses, REQUESTS.md
+    // §5c), so a recipient who walks out between page load and submit fails
+    // closed and nothing is written.
+    recipient = await prisma.character.findFirst({
+      // `?? ""` for the same reason as resolveParty above: an omitted id
+      // would otherwise be stripped from the where clause and hand the item
+      // to whoever happened to be standing in the room.
+      where: { id: toCharacterId ?? "", status: "ALIVE", locationId: character.locationId },
+      select: { id: true, name: true },
+    });
+    if (!recipient) throw new UserError("They aren't here.");
+  }
 
   const openTurn = await getOpenTurn();
-  const restore = { source: held.source, expiresTurn: held.expiresTurn, quantity };
+  const restore = { source: source.source, expiresTurn: source.expiresTurn, quantity };
 
   await prisma.$transaction(async (tx) => {
-    await dropCharacterTag(tx, character.id, tagId, quantity);
+    await dropCharacterTag(tx, source.id, tagId, quantity);
     await addToStack(tx, recipient.id, tagId, quantity, {
       source: "EVENT",
-      expiresTurn: held.expiresTurn,
-      stackable: held.tag.stackable,
+      expiresTurn: source.expiresTurn,
+      stackable: source.tag.stackable,
     });
     await createRequest(tx, {
       characterId: character.id,
       turnId: openTurn?.id ?? null,
       type: "TRANSFER_TAG",
       reason,
-      payload: { tagId, quantity, toCharacterId: recipient.id },
+      payload: { tagId, quantity, toCharacterId, direction },
+      // fromCharacterId / toCharacterId already carry the actual movement,
+      // so the existing Undo (web/lib/requestEffects.js) reverses either
+      // direction without a change. `direction` is snapshotted for the
+      // adjudication panel and so a later report can tell a hand-over from
+      // a lifted-off-a-corpse.
       effect: {
         tagId,
-        tagName: held.tag.name,
+        tagName: source.tag.name,
         quantity,
-        fromCharacterId: character.id,
+        fromCharacterId: source.id,
+        fromName: source.name,
         toCharacterId: recipient.id,
         toName: recipient.name,
+        direction,
         restore,
       },
     });
     await logRequest(tx, {
       actorDiscordUserId: session.discordUserId,
-      actionType: "request_transfer_tag",
-      targetCharacterId: recipient.id,
+      actionType: isLoot ? "request_loot_tag" : "request_transfer_tag",
+      // For loot the "target" of the audit line is the corpse — that's who
+      // the initiator acted ON, not who received the goods. Matches the
+      // convention HEAL_CHARACTER uses (audit points at the patient).
+      targetCharacterId: isLoot ? source.id : recipient.id,
       reason,
-      details: { tagId, tagName: held.tag.name, quantity, toName: recipient.name },
+      details: { tagId, tagName: source.tag.name, quantity, fromName: source.name, toName: recipient.name, direction },
     });
   });
 
   await Promise.all([
-    syncCharacterNarrowcastAccess(character.id).catch(() => {}),
+    syncCharacterNarrowcastAccess(source.id).catch(() => {}),
     syncCharacterNarrowcastAccess(recipient.id).catch(() => {}),
   ]);
   revalidateAll();

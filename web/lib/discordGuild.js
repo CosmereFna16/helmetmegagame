@@ -604,6 +604,13 @@ export async function killCharacter(character) {
 
   await updateGuildNickname(character.discordUserId, null).catch(() => {});
 
+  // A corpse doesn't wield things. Clearing `equipped` frees the equip slots
+  // so a Revive walks back in without gear locked to slots that may have
+  // moved, and the loot panel doesn't render items as if they're still worn.
+  await prisma.characterTag
+    .updateMany({ where: { characterId: character.id, equipped: true }, data: { equipped: false } })
+    .catch((err) => console.error(`Failed to unequip on death for ${character.id}:`, err));
+
   await grantCursedRole(character.discordUserId);
 
   await recordArchiveEvent(prisma, {

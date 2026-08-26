@@ -265,7 +265,6 @@ export default async function FactionPage({ searchParams }) {
             <thead>
               <tr>
                 <th>Name</th>
-                <th>Fate</th>
                 {/* Silo authority — a faction's Leader/Treasurer, or an
                     ancestor faction's — is exactly who may see what each
                     member is holding, same gate as the Silo panels below. */}
@@ -274,6 +273,13 @@ export default async function FactionPage({ searchParams }) {
               </tr>
             </thead>
             <tbody>
+              {/* Death is deliberately not surfaced on the player roster.
+                  A dead member reads as a normal row here — no Fate pill, no
+                  "Deceased" chip — so someone finding out is a matter of the
+                  fiction (a DEATH archive entry, an in-character message)
+                  rather than a broadcast every faction member reads on
+                  login. GMs still see the Fate column on the GM branch
+                  below, and the corpse's owner already knows. */}
               {faction.characters.map((c) => {
                 const treasurer = c.isTreasurer;
                 return (
@@ -282,9 +288,6 @@ export default async function FactionPage({ searchParams }) {
                       <CharacterLink characterId={c.id} name={c.name} isGm={gm} />
                       {c.isLeader ? " (Leader)" : ""}
                       {treasurer ? " (Treasurer)" : ""}
-                    </td>
-                    <td>
-                      <EnumPill map={CHARACTER_STATUS} value={c.status} />
                     </td>
                     {viewCanManageSilo && <td>{c.resources} ⬢</td>}
                     {canManageMembers && (
