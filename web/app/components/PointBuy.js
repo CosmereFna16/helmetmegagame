@@ -16,6 +16,7 @@ import {
   filterTagsByQuery,
   prerequisiteNames,
   hasPrerequisite,
+  negativeTagCount,
 } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import ChipText from "./ChipText";
@@ -38,6 +39,14 @@ import CheckField from "./CheckField";
 //
 // `actions` is an optional node rendered at the foot of the build pane —
 // the store puts its checkout button there; the wizard needs nothing.
+//
+// `negativeCap` / `negativeHeld` are the drawback limit (TAGS.md §4a): at
+// most `negativeCap` negative-cost tags bought through this menu, with
+// `negativeHeld` already spent elsewhere. Creation passes the cap and 0 held;
+// the store passes the cap and the drawbacks the character bought at
+// creation, and since no drawback is ever purchasableAfterStart its own count
+// can never move — there the line is a readout, not a limit. Pass a null cap
+// to render nothing at all.
 
 function TagRow({ tag, isSelected, cost, unaffordable, onToggle }) {
   const groupColor = tag.group?.color ?? null;
@@ -101,6 +110,8 @@ export default function PointBuy({
   selectedIds,
   onChange,
   actions = null,
+  negativeCap = null,
+  negativeHeld = 0,
 }) {
   // Full catalog by id, not just what's on offer, so a chain walk
   // (parentTagId) never dead-ends on a tag this menu happens to filter out.
@@ -200,6 +211,20 @@ export default function PointBuy({
   const spent = effectiveTotalCost(selected, byId, grantedIds);
   const remaining = budget - spent;
 
+  // Drawbacks are counted, never discounted — see negativeTagCount. The cap
+  // is soft in exactly the same way the budget is: a click still selects, and
+  // the build pane says why the build isn't legal yet. A dimmed row that
+  // swallowed the click would leave the player with no explanation.
+  const negativeSelected = negativeTagCount(selected);
+  const negativeUsed = negativeHeld + negativeSelected;
+  const capped = negativeCap != null;
+  const overCap = capped && negativeUsed > negativeCap;
+  // "Drop one to continue" is only true advice if dropping something in THIS
+  // menu would help. A character grandfathered in over the cap opens /store
+  // already over it with an empty cart and nothing to drop, so there the
+  // count still reads red but the instruction stays quiet.
+  const canFixCap = overCap && negativeSelected > 0;
+
   function toggle(tag) {
     if (selectedIds.includes(tag.id)) {
       onChange(selectedIds.filter((id) => id !== tag.id));
@@ -254,13 +279,18 @@ export default function PointBuy({
     // (unmet requiredTag, or an unmet group gate) never reaches here at all:
     // `unlocked` above dropped it, along with its category tab.
     const unaffordable = !isSelected && cost > remaining;
+    // A drawback past the cap is dimmed the same way an unaffordable tag is:
+    // both are "you can't take this right now", and reusing the one state
+    // means no second visual language for the same idea.
+    const capBlocked =
+      !isSelected && capped && (tag.pointCost ?? 0) < 0 && negativeUsed >= negativeCap;
     return (
       <TagRow
         key={tag.id}
         tag={tag}
         isSelected={isSelected}
         cost={cost}
-        unaffordable={unaffordable}
+        unaffordable={unaffordable || capBlocked}
         onToggle={toggle}
       />
     );
@@ -271,14 +301,23 @@ export default function PointBuy({
       {/* Mobile budget bar: the build pane stacks below the catalog on small
           screens, so the number that gates every decision stays in view. */}
       <div
-        className="panel sticky top-0 z-10 flex items-center justify-between p-3 text-sm md:hidden"
+        className="panel sticky top-0 z-10 flex items-center justify-between gap-3 p-3 text-sm md:hidden"
         aria-hidden="true"
       >
         <span className="text-muted">Points remaining</span>
-        <strong style={{ color: remaining < 0 ? "var(--accent-text)" : "var(--text)" }}>
-          {remaining}
-          <span className="text-muted"> / {budget}</span>
-        </strong>
+        <span className="flex items-center gap-3">
+          {/* The drawback count gates the build the same way the budget does,
+              so on mobile it has to ride the same sticky bar. */}
+          {capped && (
+            <span style={{ color: overCap ? "var(--accent-text)" : "var(--muted)" }}>
+              {negativeUsed} / {negativeCap} drawbacks
+            </span>
+          )}
+          <strong style={{ color: remaining < 0 ? "var(--accent-text)" : "var(--text)" }}>
+            {remaining}
+            <span className="text-muted"> / {budget}</span>
+          </strong>
+        </span>
       </div>
 
       <div className="grid items-start gap-4 md:grid-cols-[minmax(0,1fr)_18rem]">
@@ -394,10 +433,21 @@ export default function PointBuy({
             <div className="text-sm text-muted">
               points remaining · {spent} / {budget} spent
             </div>
+            {capped && (
+              <div className="text-sm" style={{ color: overCap ? "var(--accent-text)" : "var(--muted)" }}>
+                drawbacks {negativeUsed} / {negativeCap}
+              </div>
+            )}
           </div>
           {remaining < 0 && (
             <p className="text-sm text-accent">
               Over budget by {Math.abs(remaining)}. Drop something to continue.
+            </p>
+          )}
+          {canFixCap && (
+            <p className="text-sm text-accent">
+              {negativeUsed} drawbacks; the limit is {negativeCap}. Drop{" "}
+              {negativeUsed - negativeCap === 1 ? "one" : negativeUsed - negativeCap} to continue.
             </p>
           )}
 

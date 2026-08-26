@@ -148,6 +148,16 @@ export default async function DevPanelPage() {
             <span className="field-label">Equip slots</span>
             <input type="number" name="equipSlots" min="1" max="20" defaultValue={config.equipSlots} />
           </label>
+          <label className="field">
+            <span className="field-label">Max drawbacks</span>
+            <input
+              type="number"
+              name="maxNegativeTags"
+              min="0"
+              max="20"
+              defaultValue={config.maxNegativeTags}
+            />
+          </label>
           <Switch name="openToPlayers" defaultChecked={config.openToPlayers} className="col-span-full">
             Open to players
           </Switch>

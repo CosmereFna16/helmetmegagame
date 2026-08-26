@@ -9,7 +9,7 @@ import {
   isCursed,
   isLeaderWhitelisted,
 } from "@/lib/discordGuild";
-import { isRoleSelectable } from "@/lib/characterCreation";
+import { isRoleSelectable, DEFAULT_MAX_NEGATIVE_TAGS } from "@/lib/characterCreation";
 import { loadPointBuyCatalog } from "@/lib/pointBuyCatalog";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
@@ -75,6 +75,7 @@ async function loadCreationData(discordUserId) {
     dynastyName,
     playerCount,
     startingTagPoints: config?.startingTagPoints ?? 0,
+    maxNegativeTags: config?.maxNegativeTags ?? DEFAULT_MAX_NEGATIVE_TAGS,
     // Already flattened to PointBuy's shape by loadPointBuyCatalog — shared
     // with /store so the two menus can never disagree.
     tags,

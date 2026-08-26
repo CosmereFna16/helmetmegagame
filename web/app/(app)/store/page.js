@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { loadPointBuyCatalog } from "@/lib/pointBuyCatalog";
+import { DEFAULT_MAX_NEGATIVE_TAGS } from "@/lib/characterCreation";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import StoreClient from "./StoreClient";
 
@@ -16,14 +17,19 @@ export default async function StorePage() {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
 
-  const character = await prisma.character.findFirst({
-    where: { discordUserId: session.discordUserId, status: "ALIVE" },
-    select: {
-      id: true,
-      tagPoints: true,
-      tags: { select: { tagId: true } },
-    },
-  });
+  const [character, config] = await Promise.all([
+    prisma.character.findFirst({
+      where: { discordUserId: session.discordUserId, status: "ALIVE" },
+      select: {
+        id: true,
+        tagPoints: true,
+        // `source` rides along for the drawback count below: only what was
+        // bought through the point-buy menu counts against the cap.
+        tags: { select: { tagId: true, source: true } },
+      },
+    }),
+    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { maxNegativeTags: true } }),
+  ]);
   // No character, nothing to spend — the wizard (or the sheet) is the page
   // they actually want.
   if (!character) redirect("/character");
@@ -36,13 +42,29 @@ export default async function StorePage() {
   const held = new Set(heldIds);
   const heldTags = tags.filter((t) => held.has(t.id)).map((t) => ({ id: t.id, name: t.name }));
 
+  // Drawbacks already spent, for PointBuy's counter. Every negative tag is
+  // purchasableAfterStart: false, so the store can't sell one and this number
+  // can't move here — it is shown so a player knows where they stand, not to
+  // gate the cart. Only POINT_BUY counts: a GM-inflicted wound is not a
+  // choice the player made with their points.
+  const costById = new Map(tags.map((t) => [t.id, t.pointCost]));
+  const negativeHeld = character.tags.filter(
+    (ct) => ct.source === "POINT_BUY" && (costById.get(ct.tagId) ?? 0) < 0,
+  ).length;
+
   return (
     <PageShell width="wide">
       <PageHeader
         title="Store"
         subtitle="Spend your Tag Points on new tags. Purchases apply immediately; a GM sees each one as a request."
       />
-      <StoreClient tags={tags} budget={character.tagPoints} heldTags={heldTags} />
+      <StoreClient
+        tags={tags}
+        budget={character.tagPoints}
+        heldTags={heldTags}
+        negativeCap={config?.maxNegativeTags ?? DEFAULT_MAX_NEGATIVE_TAGS}
+        negativeHeld={negativeHeld}
+      />
     </PageShell>
   );
 }

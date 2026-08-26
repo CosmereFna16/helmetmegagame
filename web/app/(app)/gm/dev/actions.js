@@ -78,13 +78,19 @@ export async function updateGameConfig(formData) {
       // seat cap — a 0 here would collapse the whole role picker.
       playerCount: Math.max(1, intOrZero(formData, "playerCount")),
       equipSlots: Math.max(1, intOrZero(formData, "equipSlots")),
+      // 0 is a real setting here — "no drawbacks at all" is coherent, only a
+      // negative cap is nonsense.
+      maxNegativeTags: Math.max(0, intOrZero(formData, "maxNegativeTags")),
     },
   });
 
   revalidatePath("/gm/dev");
   revalidatePath("/lifeweb");
-  // Both knobs feed the character-creation wizard's budget and seat caps.
+  // These knobs feed the character-creation wizard's budget, seat caps and
+  // drawback limit…
   revalidatePath("/character");
+  // …and the store shows the same drawback readout.
+  revalidatePath("/store");
 }
 
 // Directly overrides the current turn's day/phase (creating one if none is
@@ -206,6 +212,7 @@ const DEFAULT_GAME_CONFIG = {
   startingTagPoints: 12,
   playerCount: 100,
   equipSlots: 6,
+  maxNegativeTags: 4,
 };
 
 // Full game restart for dev/testing: wipes every player- and turn-scoped

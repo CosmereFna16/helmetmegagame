@@ -18,6 +18,20 @@ import { roleCapacity } from "@lifeweb/db/lib/roleCapacity";
 // Discord once the body is buried / the rites are read.
 export const CURSED_POINT_PENALTY = 3;
 
+// How many negative-cost tags a character may buy through the point-buy menu,
+// when there is no GameConfig row to read it from. The live value is
+// GameConfig.maxNegativeTags (default 4), editable on /gm/dev.
+export const DEFAULT_MAX_NEGATIVE_TAGS = 4;
+
+// A drawback is any tag with a negative pointCost — there is no `negative`
+// flag in the schema and the sign has always been the definition (TAGS.md
+// §4a). Raw pointCost rather than effectiveCost on purpose: a drawback never
+// sits in a tier chain, so there is no discount to apply, and counting the
+// discounted value would let a chain quirk change how many slots a pick eats.
+export function negativeTagCount(tags) {
+  return tags.filter((t) => (t.pointCost ?? 0) < 0).length;
+}
+
 // The only roles a cursed player may take: they come back as nobody in
 // particular until the curse is lifted. Matched by Role.slug.
 export const CURSED_ROLE_SLUGS = ["migrant", "bum"];

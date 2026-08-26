@@ -12,6 +12,7 @@ import {
   tagsById as buildTagsById,
   effectiveTotalCost,
   effectiveCost,
+  negativeTagCount,
 } from "@/lib/characterCreation";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import InfoIcon from "@/app/components/InfoIcon";
@@ -89,6 +90,7 @@ export default function CreateCharacterWizard({
   zones,
   tags,
   startingTagPoints,
+  maxNegativeTags,
   playerCount,
   cursed,
   // The living Baron's surname, or null if nobody holds the seat yet. Only
@@ -127,6 +129,10 @@ export default function CreateCharacterWizard({
   // Discounted by role grants, same as createActions' `spent` — the two must
   // agree or the wizard lets through a build the server rejects.
   const remaining = budget - effectiveTotalCost(selectedTags, byId, grantedIds);
+  // Only what's bought here counts against the cap — a role's free drawback
+  // (the Meister's Frail, the Headman's Old) lands as GM_GRANT and sits in
+  // grantedTags, which this deliberately doesn't look at.
+  const drawbacks = negativeTagCount(selectedTags);
 
   // Switching roles changes the budget and what's already granted, so a
   // carried-over selection could silently be over budget or duplicate a
@@ -169,7 +175,7 @@ export default function CreateCharacterWizard({
   const canAdvance =
     (step === 0 && firstName.trim().length > 0) ||
     (step === 1 && role !== null) ||
-    (step === 2 && remaining >= 0) ||
+    (step === 2 && remaining >= 0 && drawbacks <= maxNegativeTags) ||
     // The Fear step is optional — you may walk straight past it and set
     // one later — so there is nothing to gate on.
     step === 3 ||
@@ -350,6 +356,7 @@ export default function CreateCharacterWizard({
             afterStartOnly={false}
             selectedIds={selectedIds}
             onChange={setSelectedIds}
+            negativeCap={maxNegativeTags}
           />
         </div>
       )}

@@ -28,6 +28,8 @@ import {
   isRoleSelectable,
   tagsById as buildTagsById,
   effectiveTotalCost,
+  negativeTagCount,
+  DEFAULT_MAX_NEGATIVE_TAGS,
   chainSiblingsToRemove,
   heldHigherTiers,
   requirementSatisfied,
@@ -194,6 +196,17 @@ export async function createCharacter(formData) {
     if (!requirementSatisfied(tag, byId, heldOrSelectedIds)) {
       return { error: "One of those tags is missing a prerequisite." };
     }
+  }
+
+  // The drawback cap (TAGS.md §4a). Only what's bought here counts: the role's
+  // own starting tags are granted below as GM_GRANT and never pass through
+  // `selected`, so the Meister's free Frail costs nobody a slot.
+  const maxNegative = config?.maxNegativeTags ?? DEFAULT_MAX_NEGATIVE_TAGS;
+  const drawbacks = negativeTagCount(selected);
+  if (drawbacks > maxNegative) {
+    return {
+      error: `You picked ${drawbacks} drawbacks and can take at most ${maxNegative}.`,
+    };
   }
 
   const budget = computeBudget({ startingTagPoints: config?.startingTagPoints ?? 0, role, cursed });

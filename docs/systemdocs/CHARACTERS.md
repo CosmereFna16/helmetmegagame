@@ -293,6 +293,11 @@ both directions fall out of one subtraction, and `remaining >= 0` is the only
 completion rule. Every negative-cost tag is `purchasableAfterStart: false` —
 a drawback you could buy mid-game would be a point farm.
 
+At most `GameConfig.maxNegativeTags` drawbacks (default 4, live on `/gm/dev`)
+may be **bought**. The role's own starting tags land as `GM_GRANT` and never
+pass through the purchase path, so the Meister's free Frail and the Headman's
+Old cost nobody a slot. `TAGS.md` §4a is the full rule.
+
 Leftover points are kept, not lost: they land on `Character.tagPoints`.
 
 Fulfilling a Desire is the only way points are *earned* in play, and a Worst

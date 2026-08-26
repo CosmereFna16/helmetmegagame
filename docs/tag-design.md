@@ -41,8 +41,10 @@ Negative tags return points, on a mirrored scale:
 | −4 | Severe. Permanent or near-permanent. |
 | −5 | Removes a whole sense or capability, with no realistic cure. |
 
-There is no limit on how many negative tags one character may take. The limit
-is what a player is willing to live with for a month.
+**You can take at most 4 negative tags.** (A GM can change that number, so
+the point-buy menu always shows the live limit next to your points.) Only
+what you buy yourself counts — a drawback your role hands you for free, and
+anything that happens to you in play, does not use up one of the four.
 
 **0 is a valid cost and the most common one.** A tag that cannot be bought —
 an injury, a mood, a meal, something a role grants — still needs the field,

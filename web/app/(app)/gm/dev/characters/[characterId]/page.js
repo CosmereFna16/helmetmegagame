@@ -3,6 +3,7 @@ import { prisma, isDynastyMember, gambitModifierTotal } from "@lifeweb/db";
 import { getGmSession, getGuildMember, isCursed } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import { isHealable } from "@/lib/healRequests";
+import { DEFAULT_MAX_NEGATIVE_TAGS } from "@/lib/characterCreation";
 import { HUNGER_SLUG, ATE_MEAL_SLUG } from "@lifeweb/db/lib/constants";
 import PageShell from "@/app/components/PageShell";
 import DevPanel from "./DevPanel";
@@ -168,6 +169,9 @@ export default async function DevCharacterPanelPage({ params }) {
           equipped: ct.equipped,
           expiresTurn: ct.expiresTurn,
           source: ct.source,
+          // For the state strip's drawback count — a negative pointCost is
+          // what makes a tag a drawback (TAGS.md §4a).
+          pointCost: ct.tag.pointCost,
         }))}
         feed={{ dropSlug: HUNGER_SLUG, grantSlug: ATE_MEAL_SLUG }}
         // computeBudget subtracts CURSED_POINT_PENALTY, so the Refund-points
@@ -175,6 +179,7 @@ export default async function DevCharacterPanelPage({ params }) {
         // handed back 3 points creation never gave them.
         cursed={isCursed(member)}
         equipSlots={config?.equipSlots ?? 6}
+        maxNegativeTags={config?.maxNegativeTags ?? DEFAULT_MAX_NEGATIVE_TAGS}
         startingTagPoints={config?.startingTagPoints ?? 12}
         openTurn={openTurn ? { id: openTurn.id, number: openTurn.number, phase: openTurn.phase } : null}
         gambitModifier={gambitModifierTotal(heldTags)}

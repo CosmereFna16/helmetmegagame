@@ -95,6 +95,7 @@ export default function DevPanel({
   feed,
   cursed,
   equipSlots,
+  maxNegativeTags,
   startingTagPoints,
   openTurn,
   gambitModifier,
@@ -225,6 +226,7 @@ export default function DevPanel({
         discord={discord}
         held={held}
         equipSlots={equipSlots}
+        maxNegativeTags={maxNegativeTags}
         gambitModifier={gambitModifier}
         openTurn={openTurn}
         hasActed={Boolean(openTurnAction)}
@@ -345,8 +347,24 @@ export default function DevPanel({
 // The read-only facts a GM wants before touching anything — the live state
 // the panel is about to change, including the derived numbers that exist
 // nowhere as a column (points spent, slots used, the gambit modifier).
-function StateStrip({ character, staged, discord, held, equipSlots, gambitModifier, openTurn, hasActed }) {
+function StateStrip({
+  character,
+  staged,
+  discord,
+  held,
+  equipSlots,
+  maxNegativeTags,
+  gambitModifier,
+  openTurn,
+  hasActed,
+}) {
   const equipped = held.filter((h) => h.equipped).length;
+  // Point-bought drawbacks only, matching the cap PointBuy enforces — a
+  // GM-inflicted wound is not one of the player's slots. Shown as a fact, not
+  // a limit: a GM grant deliberately ignores every gate, this one included.
+  const drawbacks = held.filter(
+    (h) => h.source === "POINT_BUY" && (h.pointCost ?? 0) < 0,
+  ).length;
   const facts = [
     ["Status", CHARACTER_STATUS[character.status]?.label ?? character.status],
     ["Role", staged.roleTitle ?? "—"],
@@ -358,6 +376,7 @@ function StateStrip({ character, staged, discord, held, equipSlots, gambitModifi
     ["Resources", `${staged.resources} ⬢`],
     ["Tag points", <TagPointsValue key="tp" points={staged.tagPoints} />],
     ["Equipment", `${equipped} / ${equipSlots}`],
+    ["Drawbacks", `${drawbacks} / ${maxNegativeTags}`],
     ["Gambit", gambitModifier > 0 ? `+${gambitModifier}` : String(gambitModifier)],
     ["Turn", openTurn ? `${openTurn.number} ${openTurn.phase}` : "none open"],
     ["Acted", hasActed ? "yes" : "no"],
