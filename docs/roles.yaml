@@ -73,7 +73,7 @@ zones:
     factions:
       - name: The Court
         slug: the-court
-        starting_resources: 20
+        starting_resources: 5
         roles:
           - name: Baron
             slug: baron
@@ -102,7 +102,7 @@ zones:
                 Eventually you will be attacked by the Bastard. Besides your personal investment, it's clear that that man cannot be allowed to rule Ravenheart. The visionary that he is—he would lose it all. Ravenheart's survival is a delicate balance, one he cannot possibly hope to ever understand.
             difficulty: hard
             multiple: false
-            starting_resources: 10
+            starting_resources: 3
             starting_location: keep
             leader: true
             starting_tags:
@@ -110,6 +110,8 @@ zones:
               - Nobility
               - The Baron's Key
               - Literate
+              - Intercom
+              - Courtier
             doc_elements:
               - courtstructure
               - lifewebbasic
@@ -127,7 +129,7 @@ zones:
                 Your Baron is a stressed, overburdened, and threatened man. You do not understand everything, but he has a project. Ravenheart is one of humanity's last bastions. Do what you can to protect him—and the Heir.
             difficulty: easy
             multiple: false
-            starting_resources: 3
+            starting_resources: 1
             starting_location: keep
             starting_tags:
               - Ravenhearter
@@ -150,7 +152,7 @@ zones:
                 Life is good as the Heir—but that make change one day. Will you make effort to reveal the gravity of your situation, or will you dawdle your days away?
             difficulty: easy
             multiple: false
-            starting_resources: 3
+            starting_resources: 1
             starting_location: keep
             starting_tags:
               - Ravenhearter
@@ -170,7 +172,7 @@ zones:
                 You are the Baron's daughter. Bring some light to the darkness.
             difficulty: easy
             multiple: false
-            starting_resources: 3
+            starting_resources: 1
             starting_location: keep
             starting_tags:
               - Ravenhearter
@@ -205,12 +207,13 @@ zones:
                 Eventually you will be attacked by the Bastard. Besides your personal investment, it's clear that that man cannot be allowed to rule Ravenheart. The self-loving "visionary" that he is—he would lose it all. Ravenheart's survival is a delicate balance, one he cannot possibly hope to ever understand.
             difficulty: normal
             multiple: false
-            starting_resources: 2
+            starting_resources: 1
             starting_location: keep
             treasurer: true
             starting_tags:
               - Ravenhearter
               - Courtier
+              - Literate
             doc_elements:
               - courtstructure
               - lifewebbasic
@@ -235,14 +238,14 @@ zones:
                 You have minor medical training and you know how to use the Keep's messenger ravens.
             difficulty: normal
             multiple: false
-            starting_resources: 2
+            starting_resources: 1
             starting_location: keep
             treasurer: true
             starting_tags:
               - Ravenhearter
               - Courtier
               - Frail
-              - Medical (Skilled)
+              - Medical (Basic)
               - Literate
               - Ravenkeeper
             doc_elements:
@@ -267,7 +270,7 @@ zones:
             difficulty: easy
             multiple: true
             weight: 6
-            starting_resources: 3
+            starting_resources: 1
             starting_location: keep
             starting_tags:
               - Ravenhearter
@@ -287,7 +290,7 @@ zones:
             difficulty: easy
             multiple: true
             weight: 1
-            starting_resources: 3
+            starting_resources: 1
             starting_location: keep
             starting_tags:
               - Ravenhearter
@@ -306,7 +309,7 @@ zones:
             difficulty: easy
             multiple: true
             weight: 1
-            starting_resources: 3
+            starting_resources: 1
             starting_location: keep
             starting_tags:
               - Ravenhearter
@@ -328,7 +331,7 @@ zones:
             difficulty: easy
             multiple: true
             weight: 3
-            starting_resources: 2
+            starting_resources: 1
             starting_location: keep
             starting_tags:
               - Ravenhearter
@@ -340,7 +343,7 @@ zones:
       - name: The Watch
         slug: the-watch
         parent: The Court
-        starting_resources: 20
+        starting_resources: 5
         roles:
           - name: Captain
             slug: captain
@@ -361,7 +364,7 @@ zones:
                 And... quitting? Really? That doesn't sound fun...
             difficulty: hard
             multiple: false
-            starting_resources: 3
+            starting_resources: 1
             starting_location: garrison
             leader: true
             treasurer: true
@@ -373,6 +376,8 @@ zones:
               - Disabler
               - Radio System
               - Radio Bracelet
+              - Alcoholic
+              - Broadsword
             doc_elements:
               - courtstructure
               - fortressstarting
@@ -392,12 +397,16 @@ zones:
                 Your role is as organizational as it is combat-like—you should assist the Captain in assigning his men, drafting battleplans, and performing espionage. Monitor the outskirts and the caves, hire a messenger—always be a step ahead of the darkness.
             difficulty: normal
             multiple: false
-            starting_resources: 2
+            starting_resources: 1
             starting_location: garrison
             treasurer: true
             starting_tags:
               - Ravenhearter
-              - Fighting (Skilled)
+              - Fighting (Basic)
+              - Radio Bracelet
+              - Pious
+              - Manacles
+              - Cracked Bone Club
             doc_elements:
               - courtstructure
               - fortressstarting
@@ -422,7 +431,7 @@ zones:
             difficulty: easy
             multiple: true
             weight: 8
-            starting_resources: 2
+            starting_resources: 1
             starting_location: garrison
             starting_tags:
               - Ravenhearter
@@ -430,6 +439,7 @@ zones:
               - Fighting (Basic)
               - Disabler
               - Radio Bracelet
+              - Cracked Bone Club
             doc_elements:
               - courtstructure
               - fortressstarting
@@ -446,10 +456,11 @@ zones:
             difficulty: easy
             multiple: true
             weight: 2
-            starting_resources: 2
+            starting_resources: 1
             starting_location: garrison
             starting_tags:
               - Ravenhearter
+              - Cracked Bone Club
             doc_elements:
               - courtstructure
               - fortressstarting
@@ -465,7 +476,7 @@ zones:
     factions:
       - name: The Church
         slug: the-church
-        starting_resources: 10
+        starting_resources: 5
         roles:
           - name: Bishop
             slug: bishop
@@ -482,7 +493,7 @@ zones:
                 Along with the Chaplain, you have the power to dispel negative Tags of the psychological kind—the person must first confess to you, then spend a whole day in prayer (2 Efforts).
             difficulty: normal
             multiple: false
-            starting_resources: 3
+            starting_resources: 1
             starting_location: church
             leader: true
             starting_tags:
@@ -490,6 +501,7 @@ zones:
               - Chaplain
               - Pious
               - Literate
+              - Post-Christian
             doc_elements:
               - townstarting
               - postchristianity
@@ -509,13 +521,14 @@ zones:
             difficulty: easy
             multiple: true
             weight: 3
-            starting_resources: 2
+            starting_resources: 1
             starting_location: church
             starting_tags:
               - Ravenhearter
               - Chaplain
               - Pious
               - Literate
+              - Post-Christian
             doc_elements:
               - townstarting
               - postchristianity
@@ -530,18 +543,19 @@ zones:
             difficulty: normal
             multiple: true
             weight: 1
-            starting_resources: 2
+            starting_resources: 1
             starting_location: church
             starting_tags:
               - Ravenhearter
               - Literate
+              - Post-Christian
             doc_elements:
               - townstarting
               - postchristianity
               - church
       - name: The Sanctuary
         slug: the-sanctuary
-        starting_resources: 10
+        starting_resources: 5
         roles:
           - name: Esculap
             slug: esculap
@@ -560,7 +574,7 @@ zones:
                 You can perform medicine, removing negative medical tags according to their skill, Resource, and action cost.
             difficulty: normal
             multiple: false
-            starting_resources: 2
+            starting_resources: 1
             starting_location: sanctuary
             leader: true
             starting_tags:
@@ -589,7 +603,7 @@ zones:
             difficulty: normal
             multiple: true
             weight: 4
-            starting_resources: 2
+            starting_resources: 1
             starting_location: sanctuary
             starting_tags:
               - Ravenhearter
@@ -602,7 +616,7 @@ zones:
       - name: Order of the Silver Cross
         slug: order-of-the-silver-cross
         parent: The Church
-        starting_resources: 10
+        starting_resources: 5
         roles:
           - name: Inquisitor
             slug: inquisitor
@@ -623,12 +637,13 @@ zones:
                 One other thing: the Incarn holds the Silver Cross, an artifact blessed to defeat evil. Secure it from him.
             difficulty: hard
             multiple: false
-            starting_resources: 3
+            starting_resources: 1
             starting_location: church
             leader: true
             starting_tags:
               - Ravenhearter
               - Pious
+              - Post-Christian
             doc_elements:
               - townstarting
               - postchristianity
@@ -653,11 +668,12 @@ zones:
             difficulty: easy
             multiple: true
             weight: 3
-            starting_resources: 2
+            starting_resources: 1
             starting_location: church
             starting_tags:
               - Ravenhearter
               - Pious
+              - Post-Christian
             doc_elements:
               - townstarting
               - postchristianity
@@ -684,18 +700,19 @@ zones:
             difficulty: easy
             multiple: true
             weight: 1
-            starting_resources: 2
+            starting_resources: 1
             starting_location: church
             starting_tags:
               - Ravenhearter
               - Pious
+              - Post-Christian
             doc_elements:
               - townstarting
               - postchristianity
               - church
       - name: The Town
         slug: the-town
-        starting_resources: 10
+        starting_resources: 5
         roles:
           - name: Headman
             slug: headman
@@ -716,7 +733,7 @@ zones:
                 If the Watch do a bit of racketeering or take bribes in town, look the other way, as you always have.
             difficulty: hard
             multiple: false
-            starting_resources: 3
+            starting_resources: 1
             starting_location: town
             leader: true
             starting_tags:
@@ -725,6 +742,7 @@ zones:
               - Old
               - Laborer (Farming)
               - House
+              - Literate
             doc_elements:
               - townstarting
               - farming
@@ -741,7 +759,7 @@ zones:
             difficulty: normal
             multiple: true
             weight: 1
-            starting_resources: 2
+            starting_resources: 1
             starting_location: town
             starting_tags:
               - Ravenhearter
@@ -769,7 +787,7 @@ zones:
             difficulty: normal
             multiple: true
             weight: 1
-            starting_resources: 2
+            starting_resources: 1
             starting_location: town
             starting_tags:
               - Ravenhearter
@@ -794,12 +812,13 @@ zones:
             difficulty: easy
             multiple: true
             weight: unlimited
-            starting_resources: 2
+            starting_resources: 1
             starting_location: town
             extra_starting_points: 2
             starting_tags:
               - Ravenhearter
               - Laborer
+              - Shack
             doc_elements:
               - townstarting
               - production
@@ -818,7 +837,7 @@ zones:
             difficulty: easy
             multiple: true
             weight: 1
-            starting_resources: 2
+            starting_resources: 1
             starting_location: town
             starting_tags:
               - Ravenhearter
@@ -839,7 +858,7 @@ zones:
             difficulty: easy
             multiple: true
             weight: 2
-            starting_resources: 2
+            starting_resources: 1
             starting_location: town
             extra_starting_points: 3
             starting_tags:
@@ -868,7 +887,7 @@ zones:
             difficulty: easy
             multiple: true
             weight: 3
-            starting_resources: 2
+            starting_resources: 1
             starting_location: town
             starting_tags:
               - Ravenhearter
@@ -887,7 +906,7 @@ zones:
             difficulty: easy
             multiple: true
             weight: unlimited
-            starting_resources: 2
+            starting_resources: 1
             starting_location: town
             starting_tags:
               - Ravenhearter
@@ -904,11 +923,16 @@ zones:
                 You start with an assortment of drugs and can make more.
             difficulty: normal
             multiple: false
-            starting_resources: 2
+            starting_resources: 1
             starting_location: town
             starting_tags:
               - Ravenhearter
               - Brewing (Skilled)
+              - Bliss
+              - Cat
+              - Poppy
+              - Advanced Poppy
+              - Distilled Coca
             doc_elements:
               - townstarting
               - alcoholdrugs
@@ -916,7 +940,7 @@ zones:
       - name: The Inn
         slug: the-inn
         parent: The Town
-        starting_resources: 10
+        starting_resources: 5
         roles:
           - name: Innkeeper
             slug: innkeeper
@@ -931,7 +955,7 @@ zones:
                 You are responsible for paying your staff. They have to eat.
             difficulty: normal
             multiple: false
-            starting_resources: 25
+            starting_resources: 10
             starting_location: town
             leader: true
             starting_tags:
@@ -953,7 +977,7 @@ zones:
             difficulty: easy
             multiple: true
             weight: 3
-            starting_resources: 2
+            starting_resources: 1
             starting_location: town
             starting_tags:
               - Ravenhearter
@@ -987,7 +1011,7 @@ zones:
                 A little hint: some of the Watchmen take bribes.
             difficulty: normal
             multiple: false
-            starting_resources: 3
+            starting_resources: 1
             starting_location: forest
             leader: true
             starting_tags:
@@ -1014,7 +1038,7 @@ zones:
             difficulty: easy
             multiple: true
             weight: 2
-            starting_resources: 2
+            starting_resources: 1
             starting_location: forest
             starting_tags:
               - Brigand
@@ -1052,13 +1076,14 @@ zones:
                 There is someone sympathetic to your cause within the walls of the Baron's keep.
             difficulty: hard
             multiple: false
-            starting_resources: 3
+            starting_resources: 1
             starting_location: warcamp
             leader: true
             starting_tags:
               - Fighting (Trained)
               - Windlander
               - Sign Language
+              - The Wind
               - Nobility
               - Literate
               - Bastard's Garb
@@ -1076,13 +1101,14 @@ zones:
                 You taught the Bastard how to fight, how to play the lute, how to survive. You will follow him even into death.
             difficulty: normal
             multiple: false
-            starting_resources: 2
+            starting_resources: 1
             starting_location: warcamp
             starting_tags:
               - Musician
               - Fighting (Skilled)
               - Windlander
               - Sign Language
+              - The Wind
             doc_elements:
               - campstarting
           - name: Mother
@@ -1094,11 +1120,12 @@ zones:
                 Counsel and support your son.
             difficulty: normal
             multiple: false
-            starting_resources: 2
+            starting_resources: 1
             starting_location: warcamp
             starting_tags:
               - Windlander
               - Sign Language
+              - The Wind
             doc_elements:
               - campstarting
           - name: Follower
@@ -1111,11 +1138,12 @@ zones:
             difficulty: easy
             multiple: true
             weight: 3
-            starting_resources: 2
+            starting_resources: 1
             starting_location: warcamp
             starting_tags:
               - Windlander
               - Sign Language
+              - The Wind
             doc_elements:
               - campstarting
       - name: Broken Spears Clan
@@ -1138,13 +1166,14 @@ zones:
                 A tip: the best trick you have is the element of surprise, and food's hard to get. Raiding the town or the fortress may be your best chance. If he falters, or doesn't put the Windriders in their place... it may be in your best interest to take matters into your own hands.
             difficulty: normal
             multiple: false
-            starting_resources: 3
+            starting_resources: 1
             starting_location: warcamp
             leader: true
             starting_tags:
               - Fighting (Trained)
               - Windlander
               - Sign Language
+              - The Wind
             doc_elements:
               - campstarting
               - brokenspear
@@ -1159,7 +1188,7 @@ zones:
                 You are the Lieutenant's right hand man.
             difficulty: normal
             multiple: false
-            starting_resources: 2
+            starting_resources: 1
             starting_location: warcamp
             starting_tags:
               - Brewing (Skilled)
@@ -1167,6 +1196,7 @@ zones:
               - Fighting (Trained)
               - Windlander
               - Sign Language
+              - The Wind
             doc_elements:
               - campstarting
               - brokenspear
@@ -1180,11 +1210,12 @@ zones:
             difficulty: easy
             multiple: true
             weight: 6
-            starting_resources: 2
+            starting_resources: 1
             starting_location: warcamp
             starting_tags:
               - Windlander
               - Sign Language
+              - The Wind
             doc_elements:
               - campstarting
               - brokenspear
@@ -1206,12 +1237,13 @@ zones:
                 Ravenheart will be yours, but not on the Bastard's terms. If you let him gain control over the Windriders, your culture, your leadership, your history will be gone. You, too, will become like farmers—weak, and willing. Still, follow his orders; they're your best chance.
             difficulty: normal
             multiple: false
-            starting_resources: 3
+            starting_resources: 1
             starting_location: warcamp
             leader: true
             starting_tags:
               - Windlander
               - Sign Language
+              - The Wind
             doc_elements:
               - campstarting
               - windrider
@@ -1226,13 +1258,14 @@ zones:
                 You are the Lieutenant's right hand man.
             difficulty: normal
             multiple: false
-            starting_resources: 2
+            starting_resources: 1
             starting_location: warcamp
             starting_tags:
               - Neoclassic R&W10
               - Windlander (Horse)
               - Windlander
               - Sign Language
+              - The Wind
               - Fighting (Trained)
               - Tracking
             doc_elements:
@@ -1248,11 +1281,12 @@ zones:
             difficulty: easy
             multiple: true
             weight: 6
-            starting_resources: 2
+            starting_resources: 1
             starting_location: warcamp
             starting_tags:
               - Windlander
               - Sign Language
+              - The Wind
             doc_elements:
               - campstarting
               - windrider
@@ -1282,7 +1316,7 @@ zones:
                 If things ever get too dour, simply hop on your sponsor's shuttle… if you can pay for it. Trip's 30 ⬢ flat, pal.
             difficulty: hard
             multiple: false
-            starting_resources: 50
+            starting_resources: 10
             starting_location: customs
             leader: true
             starting_tags:
@@ -1300,7 +1334,7 @@ zones:
             difficulty: easy
             multiple: true
             weight: 2
-            starting_resources: 2
+            starting_resources: 1
             starting_location: customs
             starting_tags: []
             doc_elements:
@@ -1319,7 +1353,7 @@ zones:
             difficulty: easy
             multiple: true
             weight: unlimited
-            starting_resources: 2
+            starting_resources: 1
             starting_location: railroad
             starting_tags: []
             doc_elements: []
@@ -1333,7 +1367,7 @@ zones:
             difficulty: normal
             multiple: true
             weight: 2
-            starting_resources: 2
+            starting_resources: 1
             starting_location: customs
             starting_tags:
               - Fighting (Basic)
