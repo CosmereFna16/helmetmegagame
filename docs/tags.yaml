@@ -368,7 +368,7 @@ tags:
     name: Giant
     category: general
     group: general-traits
-    description: "Head and shoulders above everyone in the room, and built to match. Doors, tunnels and crawlspaces were not made for you, and nobody who sees you forgets it."
+    description: "You are a behemoth among humanity and struggle to fit into confined spaces. However, you could easily crush anyone."
     pointCost: 6
     visible: true
     purchasable: true
@@ -387,7 +387,7 @@ tags:
     name: Old
     category: general
     group: general-traits
-    description: "Long past your prime. Your body is slower and less forgiving than it was, and everyone can see it."
+    description: "Elderly. You're slower, fight slightly worse, and don't heal as well."
     pointCost: -2
     purchasable: true
     purchasableAfterStart: false
@@ -396,7 +396,7 @@ tags:
     name: Frail
     category: general
     group: general-traits
-    description: "Thin-boned and easily hurt. A blow that would bruise someone else breaks something in you."
+    description: "You are easily hurt. Mustering strength to fight back is almost impossible."
     pointCost: -3
     purchasable: true
     purchasableAfterStart: false
@@ -438,7 +438,7 @@ tags:
     name: Tracking
     category: general
     group: general-traits
-    description: "You have a ranger's eye. A trail that means nothing to anyone else tells you who passed, how many, and how long ago."
+    description: "You're good at following footsteps and other signs, in the wild or in the city."
     pointCost: 2
     visible: true
     purchasable: true
@@ -448,7 +448,7 @@ tags:
     name: Literate
     category: general
     group: general-traits
-    description: "You can read and write. Most people in Ravenheart cannot, which is why a letter is a private thing only if the man carrying it is illiterate too."
+    description: "You can read and write, something most people in Ravenheart cannot do."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -457,7 +457,7 @@ tags:
     name: Light Sleeper
     category: general
     group: general-traits
-    description: "You wake up to noise easily. A footstep in the passage is enough."
+    description: "You can wake up to noise readily, such as footsteps in the night."
     pointCost: 1
     purchasable: true
     purchasableAfterStart: false
@@ -468,7 +468,7 @@ tags:
     name: Heavy Sleeper
     category: general
     group: general-traits
-    description: "You sleep like the dead, and down here that is a dangerous thing to be."
+    description: "Not a good thing to be in Ravenheart."
     pointCost: -1
     purchasable: true
     purchasableAfterStart: false
@@ -477,7 +477,7 @@ tags:
     name: Alcoholic
     category: general
     group: general-traits
-    description: "You drink, and it is no longer a choice you are making. Going without is its own kind of day."
+    description: "A depraved way of life. You've chosen it."
     pointCost: -2
     purchasable: true
     purchasableAfterStart: false
@@ -510,7 +510,7 @@ tags:
     name: Iron Constitution
     category: general
     group: general-traits
-    description: "You are very healthy. Poisons and diseases are less effective on you."
+    description: "Poisons and diseases have less effect on you."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -543,7 +543,7 @@ tags:
     name: Spotter
     category: general
     group: general-traits
-    description: "You keep your eyes on the approach. Nobody reaches you unannounced."
+    description: "You're unusually awake on the watch. Very little gets past you."
     pointCost: 2
     visible: false
     purchasable: true
@@ -553,7 +553,7 @@ tags:
     name: Rough Camp
     category: general
     group: general-traits
-    description: "A night outdoors costs you nothing. Cold ground, wet ground, no ground — you sleep anyway."
+    description: "The hardest camp wouldn't bother you."
     pointCost: 1
     purchasable: true
     purchasableAfterStart: true
@@ -562,7 +562,7 @@ tags:
     name: Game Master
     category: general
     group: general-traits
-    description: "Nobody beats you at cards or the board. The same head for it makes you a little sharper at tactics, too."
+    description: "You are a master at table games, and slightly better at tactics."
     pointCost: 1
     purchasable: true
     purchasableAfterStart: true
@@ -713,7 +713,7 @@ tags:
     name: Pretty
     category: general
     group: general-traits
-    description: "People's eyes rest on you a moment longer than they meant to."
+    description: "You are very pretty."
     pointCost: 1
     visible: true
     purchasable: true
@@ -723,7 +723,7 @@ tags:
     name: Beautiful
     category: general
     group: general-traits
-    description: "The kind of face a room reorganizes itself around. It opens doors, and it makes enemies of people who have never spoken to you."
+    description: "Your face and figure are divine, drawing all attention to you, for better or for worse."
     pointCost: 2
     parentTag: pretty
     visible: true
@@ -736,7 +736,7 @@ tags:
     name: Craven
     category: general
     group: general-traits
-    description: "When it starts, you are already looking for the door. Courage is a thing other people seem to have."
+    description: "Your priority in conflicts is to run away, no matter what goals or people you trample over."
     pointCost: -2
     purchasable: true
     purchasableAfterStart: false
@@ -745,8 +745,8 @@ tags:
     name: Dwarf
     category: general
     group: general-traits
-    description: "You are very short. Doorways, horses, reach in a fight — the world was built for someone else."
-    pointCost: -1
+    description: "You are very short. You fight at a disadvantage and find some places less accessible."
+    pointCost: -2
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -891,7 +891,7 @@ tags:
     name: Fat
     category: general
     group: general-traits
-    description: "There is a lot of you. Running, climbing, squeezing through anything — all of it is somebody else's idea of easy."
+    description: "You are less mobile and more easily tired out by physical activity."
     pointCost: -2
     visible: true
     purchasable: true
@@ -1031,7 +1031,7 @@ tags:
     name: Watchman
     category: general
     group: general-traits
-    description: "Sworn to the Watch. You hold the garrison keys and the run of its rooms."
+    description: "Sworn to the Watch. You guard access to the Fortress and protect order."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1041,7 +1041,7 @@ tags:
     name: Corrupt
     category: general
     group: general-watch
-    description: "You take money to look the other way, and you will keep taking it. Play it that way — this one is a promise about how you behave, not a licence."
+    description: "The good old ways. You prioritize making yourself comfortable over upholding your vows."
     pointCost: -2
     visible: false
     purchasable: true
@@ -1051,7 +1051,7 @@ tags:
     name: Kennelmaster
     category: general
     group: general-watch
-    description: "The dogs answer to you. You know which ones bite and which ones only sound like it."
+    description: "You have access to the Watch's dogs and know how to command them."
     pointCost: 1
     purchasable: true
     purchasableAfterStart: true
@@ -1060,8 +1060,8 @@ tags:
     name: Sergeant
     category: general
     group: general-watch
-    description: "You have rank. The men listen when you speak, and the Captain hears it when you don't."
-    pointCost: 1
+    description: "You have rank, which doesn't necessarily mean much."
+    pointCost: 2
     visible: true
     purchasable: true
     purchasableAfterStart: true
@@ -1079,7 +1079,7 @@ tags:
     name: Green
     category: general
     group: general-watch
-    description: "Sworn in last month. Your Fighting skill counts one tier lower in your first real fight — after that, the tag comes off."
+    description: "Your Fighting skill counts one tier lower in your first real fight. Remove the tag afterwards."
     pointCost: -1
     visible: false
     purchasable: true
@@ -1093,7 +1093,7 @@ tags:
     name: Brigand
     category: general
     group: general-traits
-    description: "You live outside the law and outside the walls, and you answer to no lord."
+    description: "You live outside the law and the walls."
     pointCost: 0
     visible: false
     purchasable: false
@@ -1103,7 +1103,7 @@ tags:
     name: Forger
     category: general
     group: general-brigand
-    description: "Papers, seals, a hand that isn't yours. What you make does not look forged, because it isn't — not to anyone who reads it."
+    description: "You know how to make letters, seals, and writing appear as others you have seen."
     pointCost: 1
     purchasable: true
     purchasableAfterStart: true
@@ -1112,7 +1112,7 @@ tags:
     name: Pickpocket
     category: general
     group: general-brigand
-    description: "A purse, a key, a letter. It leaves their person and arrives on yours, and the walk between the two is unremarkable."
+    description: "Small items are easily lifted off a person by your hand."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1121,7 +1121,7 @@ tags:
     name: Climber
     category: general
     group: general-brigand
-    description: "Trees, walls, drainpipes, the outside of a tower. You go up things other people go around."
+    description: "You are more capable at climbing walls or trees than the average person."
     pointCost: 1
     purchasable: true
     purchasableAfterStart: true
@@ -1130,7 +1130,7 @@ tags:
     name: Wanted
     category: general
     group: general-brigand
-    description: "You match some wanted posters. Not perfectly. Close enough that a Watchman with time on his hands might stop and look twice."
+    description: "The Watch know your face and have a reward for your body."
     pointCost: -2
     visible: true
     purchasable: true
@@ -1149,13 +1149,13 @@ tags:
   - slug: laborer
     name: Laborer
     category: skills
-    description: "You can produce food at an actually productive pace. Further specializations increase your production."
+    description: "You can produce food efficiently. Further specializations increase your production."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
   - slug: laborer-farming
-    description: "Specialist rates when you /farm. The best yield in Ravenheart comes off worked soil, and you are the one who knows how to work it."
+    description: "Specialist rates when you /farm. You know how to make black gold."
     name: Laborer (Farming)
     category: skills
     pointCost: 2
@@ -1164,7 +1164,7 @@ tags:
     purchasableAfterStart: true
 
   - slug: laborer-fishing
-    description: "Specialist rates when you /fish. You know the water, the hours, and which stretches are already fished out."
+    description: "Specialist rates when you /fish. You can read water bodies like a fish."
     name: Laborer (Fishing)
     category: skills
     pointCost: 2
@@ -1173,7 +1173,7 @@ tags:
     purchasableAfterStart: true
 
   - slug: laborer-herding
-    description: "Specialist rates when you /herd. Animals settle around you and fewer of them are lost."
+    description: "Specialist rates when you /herd. You can keep animals safer and increase their weight gain."
     name: Laborer (Herding)
     category: skills
     pointCost: 2
@@ -1182,7 +1182,7 @@ tags:
     purchasableAfterStart: true
 
   - slug: laborer-hunting
-    description: "Specialist rates when you /hunt. You read tracks, wind and sign, and you come back with something."
+    description: "Specialist rates when you /hunt. You are quicker to notice animal signs and to hit their vitals."
     name: Laborer (Hunting)
     category: skills
     pointCost: 2
@@ -1201,7 +1201,7 @@ tags:
   - slug: forester
     name: Forester
     category: skills
-    description: "At home in the woods. You forage, track, and shelter better than others."
+    description: "You are at home in the woods, gaing an advantage at finding rest, food, or tracks."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1209,7 +1209,7 @@ tags:
   - slug: musician
     name: Musician
     category: skills
-    description: "You play well enough to be paid for it."
+    description: "People love your musical talents."
     pointCost: 1
     purchasable: true
     purchasableAfterStart: true
@@ -1279,7 +1279,7 @@ tags:
   - slug: fighting-basic
     name: Fighting (Basic)
     category: skills
-    description: "Can hold a weapon and defend yourself in a pinch."
+    description: "You can hold a weapon and defend yourself in a pinch."
     pointCost: 3
     visible: true
     purchasable: true
@@ -1287,7 +1287,7 @@ tags:
   - slug: fighting-trained
     name: Fighting (Trained)
     category: skills
-    description: "Formally trained combatant, but not particularly talented."
+    description: "You have been trained how to fight."
     pointCost: 3
     parentTag: fighting-basic
     visible: true
@@ -1305,7 +1305,7 @@ tags:
   - slug: fighting-expert
     name: Fighting (Expert)
     category: skills
-    description: "A master of arms. Almost no one matches you."
+    description: "You have survived many fights. Almost no one matches you."
     pointCost: 3
     parentTag: fighting-skilled
     visible: true
@@ -1315,7 +1315,7 @@ tags:
     name: Fighting (Legendary)
     category: skills
     description: "The peak of your generation."
-    pointCost: 3
+    pointCost: 6
     parentTag: fighting-expert
     visible: true
     purchasable: true
@@ -1335,7 +1335,7 @@ tags:
   - slug: fighting-guerrilla
     name: Fighting (Guerrilla)
     category: skills
-    description: "Ambushes, broken ground and bad odds. When you start a fight on your own terms, your fighting skill is two levels higher; in a straight engagement it is not."
+    description: "When you start a fight with a surprise attack in terrain wth obstacles, your fighting skill is two levels higher."
     pointCost: 3
     requiredTag: fighting-basic
     visible: true
@@ -1349,7 +1349,7 @@ tags:
   - slug: fighting-shield-wall
     name: Fighting (Shield Wall)
     category: skills
-    description: "You have drilled the line. Standing within reach of two or more other Watchmen, your fighting skill is one level higher."
+    description: "You have practiced this drill. Standing within reach of two or more other Watchmen, your fighting skill is one level higher."
     pointCost: 3
     requiredTag: fighting-basic
     visible: true
@@ -1392,7 +1392,7 @@ tags:
   - slug: builder-skilled
     name: Builder (Skilled)
     category: skills
-    description: "You can build simple things that stay built — a shed, a palisade, a cart, a set of stairs."
+    description: "You can build more complex things than the average person, like a cart, a palisade, or stairs."
     pointCost: 2
     visible: true
     purchasable: true
@@ -1401,7 +1401,7 @@ tags:
   - slug: builder-expert
     name: Builder (Expert)
     category: skills
-    description: "An architect and an engineer. You can design and raise almost anything — a bridge, a tower, a winch, a waterworks — and say beforehand whether it will hold."
+    description: "You have an architect's mind. You could design a cathedral, a bridge, or a water mill."
     pointCost: 2
     parentTag: builder-skilled
     visible: true
@@ -1424,7 +1424,7 @@ tags:
   - slug: medical-skilled
     name: Medical (Skilled)
     category: skills
-    description: "Allows you to treat moderate and severe cases as routine, and the most minor surgery — closing an arterial bleed, cutting away dead flesh. Any surgery past that is a Gambit."
+    description: "Allows you to treat moderate and severe cases as routine, and the most minor surgery, like closing a large bleed or cutting away dead flesh. Any surgery past that is a Gambit."
     pointCost: 2
     parentTag: medical-basic
     visible: true
@@ -1433,7 +1433,7 @@ tags:
   - slug: medical-expert
     name: Medical (Expert)
     category: skills
-    description: "Allows you to treat almost everything as routine, severe surgery included — on par with the Sanctuary's own. Only the most complex work still needs a Gambit, and it needs one from you too."
+    description: "Allows you to treat almost everything as routine, severe surgery included. Only the most complex work counts a Gambit."
     pointCost: 2
     parentTag: medical-skilled
     visible: true
@@ -1469,7 +1469,7 @@ tags:
   - slug: cooking-skilled
     name: Cooking (Skilled)
     category: skills
-    description: "Can cook Lavish Meals — 3 ⬢ and one exotic ingredient each, up to 3 in one Routine Move. Fine Meals too."
+    description: "Can cook Lavish Meals — 3 ⬢ and one exotic ingredient each, up to 3 in one Routine Move."
     pointCost: 2
     parentTag: cooking-basic
     visible: true
@@ -1535,10 +1535,10 @@ tags:
     name: Tipsy
     category: status
     group: status-debuffs
-    description: "Immune to Unhappy while it lasts. Slightly worse at combat."
+    description: "Immune to Unhappy while it lasts. You count as having one fighting level lower than you would otherwise."
     pointCost: 0
     purchasable: false
-    durationTurns: 4
+    durationTurns: 3
 
   # Recreational intoxication, and deliberately the one Status tag with NO
   # mechanical effect at all — unlike Tipsy above, which really does blunt
@@ -1556,7 +1556,7 @@ tags:
     name: Night Vision
     category: status
     group: status-buffs
-    description: "You can see in the dark as though it were a grey afternoon. Bring of it what you can back into the light."
+    description: "You can see in the dark as though it were an overcast day."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1568,7 +1568,7 @@ tags:
     name: Opium High
     category: status
     group: status-debuffs
-    description: "The pain is somewhere else now, and so are you. Pleasant, and not the same thing as being useful."
+    description: "You can't feel pain but also can't think clearly. Your fighting skill level acts as though it was one lower."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1580,7 +1580,7 @@ tags:
     name: Pain Immunity
     category: status
     group: status-buffs
-    description: "You feel nothing that hurts, and your head is entirely clear. Do remember that pain was telling you something."
+    description: "You can't feel pain, but you're clear headed."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1592,7 +1592,7 @@ tags:
     name: Brutish Strength
     category: status
     group: status-buffs
-    description: "Graga strength, in a human frame that was not built for it. Lift what should not lift."
+    description: "You gain impossible Strength."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1604,7 +1604,7 @@ tags:
     name: Increased Accuracy
     category: status
     group: status-buffs
-    description: "Everything holds very still, and the shot goes where you meant it to."
+    description: "Steady hands, sharper vision. It's easier for you to hit what you aim for."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1616,7 +1616,7 @@ tags:
     name: Increased Recovery
     category: status
     group: status-buffs
-    description: "Your body is mending faster than it has any right to. Wounds close, fevers break."
+    description: "Your body heals faster than it normally should."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1628,7 +1628,7 @@ tags:
     name: Stimulant High
     category: status
     group: status-buffs
-    description: "Tireless, talkative and certain. You will not sleep and you will not notice that you should."
+    description: "This is so fun! Holy shit, you could do anything!"
     pointCost: 0
     visible: true
     purchasable: false
@@ -1652,7 +1652,7 @@ tags:
     name: Invisible
     category: status
     group: status-buffs
-    description: "Light goes past you rather than off you. Nobody can see you; everything else about you is unchanged."
+    description: "Light and eyes go right through you."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1690,7 +1690,7 @@ tags:
     name: Flashed
     category: status
     group: status-debuffs
-    description: "You're blind. Whatever that was, it went off in your face, and the dark you're standing in is not helping."
+    description: "You're blinded."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1703,7 +1703,7 @@ tags:
     name: Hunted
     category: status
     group: status-debuffs
-    description: "Something's caught your trail! It is behind you, it is not in a hurry, and it knows the passages better than you do."
+    description: "Something's caught your trail!"
     pointCost: 0
     visible: true
     purchasable: false
@@ -1770,7 +1770,7 @@ tags:
     name: High
     category: status
     group: status-debuffs
-    description: "Pleasantly adrift. No effect on any roll — but anyone looking at you can tell, and a GM may take it into account when you attempt something that wants a clear head."
+    description: "Pleasantly adrift."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1788,7 +1788,7 @@ tags:
     name: Otherworldly Beauty
     category: status
     group: status-buffs
-    description: "Unmarked, luminous, and not quite right. People look at you a moment longer than they meant to, and are not sure afterwards why."
+    description: "You are peerless in your beauty. Even people of your own gender do a double take."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1800,7 +1800,7 @@ tags:
     name: Drained
     category: status
     group: status-debuffs
-    description: "You're weak, you can barely keep food down, and your vision is blurry. You're barely fit to work. Time will mend it; blood would mend it faster, if anyone will give you theirs."
+    description: "You're weakened, unable to eat enough or push yourself physically."
     pointCost: 0
     purchasable: false
     durationTurns: 4
@@ -1828,7 +1828,7 @@ tags:
     name: Infected
     category: health
     group: health-infection
-    description: "The wound is hot, swollen and weeping. It will not settle on its own — left alone it begins to fester, and from there it only goes deeper. Cheap to clean out now. Cutting the limb off still works while the rot is local; it stops working once it's in the blood."
+    description: "The wound is hot and draining pus. Amputation would work, or {tag:cleaning-powder}."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1844,7 +1844,7 @@ tags:
     name: Festering
     category: health
     group: health-infection
-    description: "The flesh around it has gone soft and sweet-smelling. Untreated, this is where it splits in two: the fever takes hold in your blood, and the flesh itself begins to die. An amputation is still an answer, for a little longer."
+    description: "The flesh around the wound goes soft and gives off an odor. Amputation still would work."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1861,7 +1861,7 @@ tags:
     name: Feverish
     category: health
     group: health-infection
-    description: "Burning, shivering, wringing wet. The infection is in your blood now, and no amount of cutting reaches it. If it isn't broken it becomes sepsis, and sepsis is the end of the road."
+    description: "You're burning up. The infection is in your blood..."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1878,7 +1878,7 @@ tags:
     name: Necrosis
     category: health
     group: health-infection
-    description: "The flesh has died and gone black, and dead flesh does not come back. It has to come off — and if nobody takes it off in time, it takes the limb with it anyway, badly. Treating this IS the amputation."
+    description: "It's gone."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1896,7 +1896,7 @@ tags:
     name: Sepsis
     category: health
     group: health-infection
-    description: "Your whole body has turned on itself. Grey, cold, wandering in and out of sense. Nothing short of the Sanctuary's own can pull someone back from this, and even they would call it a gamble. It ends in dying."
+    description: "Your body is shutting down. You're not lucid."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1914,7 +1914,7 @@ tags:
     name: Dying
     category: health
     group: health-infection
-    description: "It has gone as far as it goes. You are not dead — but you are going, and nothing about that is on a timer any more. A GM decides how this ends. Someone with the very best medicine and a great deal of luck could still pull you back."
+    description: "You're on death's door. A GM decides how this ends. Someone with the very best medicine and a lot of luck could pull you back, but don't count on it."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1931,7 +1931,7 @@ tags:
     name: Bruised
     category: health
     group: health-wounds
-    description: "Purple, tender, and thoroughly sorry for itself. Fades on its own; a cold compress and a kind word speed it up."
+    description: "Tender and purple, it'll heal on its own."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1946,7 +1946,7 @@ tags:
     name: Sprained Ankle
     category: health
     group: health-wounds
-    description: "It takes your weight, but it complains the whole way. Travel is misery until it's strapped or it settles."
+    description: "You can walk, but it's a struggle. Wrapping with a splint would help."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1961,7 +1961,7 @@ tags:
     name: Burned
     category: health
     group: health-wounds
-    description: "Red, shining and agonising to touch. Dressed properly it's nothing; left to dry out and crack it stops being nothing."
+    description: "Bubbling skin from a burn. If you don't treat it, it'll get worse."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1976,7 +1976,7 @@ tags:
     name: Severe Burns
     category: health
     group: health-wounds
-    description: "Skin gone to leather and worse underneath. Nothing is keeping the dirt out any more — untreated, it goes infected, and it will leave its mark on you either way."
+    description: "Your skin is destroyed and will scar if healed. If untreated, you'll get an Infection."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1993,7 +1993,7 @@ tags:
     name: Minor Bleeding
     category: health
     group: health-wounds
-    description: "Steady, unhurried, and entirely survivable — but it doesn't stop by itself. Bind it, or spend the next few days weak as a kitten from what you lost."
+    description: "Nothing a bandage can't stop."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2002,14 +2002,14 @@ tags:
     durationTurns: 3
     expiresInto: [drained]
     requirement:
-      resourceCost: 1
+      resourceCost: 0
       skills: [medical-basic]
 
   - slug: deep-wound
     name: Deep Wound
     category: health
     group: health-wounds
-    description: "A gaping thing you can see into. It needs cleaning and closing, and it needs it soon — an open wound this size does not stay clean, and what comes next is infection."
+    description: "You can see bone or deep tissue. The wound needs medical attention or you will gain an Infection."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2026,7 +2026,7 @@ tags:
     name: Severe Bleeding
     category: health
     group: health-wounds
-    description: "It is coming faster than your body can make it. You have a few days of getting greyer and colder, and then you don't. Get it packed and closed."
+    description: "You're bleeding fast. You need medical attention to stop the bleeding."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2036,14 +2036,14 @@ tags:
     expiresInto: [dying]
     requirement:
       turnsCost: 1
-      resourceCost: 4
+      resourceCost: 3
       skills: [medical-skilled]
 
   - slug: arterial-bleed
     name: Arterial Bleed
     category: health
     group: health-wounds
-    description: "Bright red and coming in time with your heart. This is measured in hours, not days. Someone competent has to get a hand in there almost immediately or you will not be here to complain about it."
+    description: "Your blood is shooting. You need immediate medical attention to survive."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2053,14 +2053,14 @@ tags:
     expiresInto: [dying]
     requirement:
       turnsCost: 1
-      resourceCost: 6
+      resourceCost: 3
       skills: [medical-skilled]
 
   - slug: broken-bone
     name: Broken Bone
     category: health
     group: health-wounds
-    description: "Snapped clean, and grinding when you forget and lean on it. It will not knit straight on its own, ever — it wants setting and splinting by someone who knows how, or you keep it crooked for good."
+    description: "Your bone fractured. You need medical attention or your body will heal crooked."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2075,7 +2075,7 @@ tags:
     name: Cracked Ribs
     category: health
     group: health-wounds
-    description: "Every breath is a decision. Nothing shows from the outside, which is exactly why people walk around on them for weeks — a doctor knows at a glance what everyone else takes for a bad mood."
+    description: "Breathing hurts. Hopefully there's nothing else under the surface."
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -2089,21 +2089,21 @@ tags:
     name: Dislocated Shoulder
     category: health
     group: health-wounds
-    description: "The arm hangs wrong and won't be argued with. Someone who has done it before can put it back in a moment; nobody who hasn't should try. Left out, it stays out."
+    description: "Your arm hangs out. Someone with experience can push it back in."
     pointCost: 0
     visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
     requirement:
-      resourceCost: 1
+      resourceCost: 0
       skills: [medical-basic]
 
   - slug: frostbite
     name: Frostbite
     category: health
     group: health-wounds
-    description: "Waxy white fingers and toes with no feeling left in them. Warmed properly and soon, they come back. Left as they are, they don't — the flesh simply dies where it stands."
+    description: "Fingers and toes turn pale and cold. They'll fall off without proper care."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2112,7 +2112,7 @@ tags:
     durationTurns: 3
     expiresInto: [necrosis]
     requirement:
-      turnsCost: 1
+      turnsCost: 0
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -2120,7 +2120,7 @@ tags:
     name: Punctured Lung
     category: health
     group: health-wounds
-    description: "Something went between the ribs, and now half of you won't fill. Every breath is shallower than the last. This is real surgery and it is not optional — a few days of this and you are dying."
+    description: "Something broke past your ribs. Your breathing is shallow and labored. You will die without expert medical attention."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2137,7 +2137,7 @@ tags:
     name: Gut Wound
     category: health
     group: health-wounds
-    description: "Opened through the belly. Whatever was supposed to stay inside your intestines is now everywhere it shouldn't be, and it is already going septic. Needs someone genuinely excellent, opening you up properly, very soon."
+    description: "Your intestines aren't completely inside you currently. You need expert medical attention or you will get sepsis."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2154,7 +2154,7 @@ tags:
     name: Broken Jaw
     category: health
     group: health-wounds
-    description: "Wired shut by the swelling alone. You cannot chew and you can barely make yourself understood. It needs setting by someone who won't leave your face where they found it."
+    description: "The swelling makes it hard to eat or speak."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2169,7 +2169,7 @@ tags:
     name: Mangled Hand
     category: health
     group: health-wounds
-    description: "Crushed, and the fingers are pointing in directions fingers don't. There is a window in which someone skilled can save most of it. After that window, they save what they can — which is not the fingers."
+    description: "Your fingers are pointing in random directions."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2187,8 +2187,8 @@ tags:
     name: Appendicitis
     category: health
     group: health-illness
-    description: "A hot, spiteful pain low on the right that you have been calling indigestion for two days. Nothing shows. Nobody looking at you would guess — but any real doctor prodding your belly would know instantly, and would tell you that it has to come out before it bursts."
-    pointCost: -2
+    description: "A hot pain on your lower right side since last night. What's going on?"
+    pointCost: -5
     purchasable: true
     purchasableAfterStart: false
     removable: true
@@ -2203,7 +2203,7 @@ tags:
     name: Rot Lung
     category: health
     group: health-illness
-    description: "Years of breathing whatever it is that hangs in the deep tunnels. You cough black and you cough it forever. It does not get better on its own and it does not get better with kindness — it gets better with somebody very good cutting the worst of it out."
+    description: "Caused by long exposure to dust and spores."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2211,14 +2211,14 @@ tags:
     removable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
-      skills: [medical-expert]
+      resourceCost: 4
+      skills: [medical-skilled]
 
   - slug: parasites
     name: Parasites
     category: health
     group: health-illness
-    description: "Something is living in you and eating first. You are hungry constantly and thinner weekly, and there is nothing to see from the outside. A doctor knows the look. Purged properly it's a bad week; left alone it simply drains you."
+    description: "Animals are eating nutrients straight from your gut. It takes someone skilled in medicine to identify the core issue."
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -2227,20 +2227,20 @@ tags:
     expiresInto: [drained]
     requirement:
       turnsCost: 1
-      resourceCost: 2
+      resourceCost: 3
       skills: [medical-skilled]
 
   - slug: poisoned
     name: Poisoned
     category: health
     group: health-illness
-    description: "Sweating, shaking, guts in knots and a taste like old coins. You are weak, slow, and no use to anyone for days. It will not kill you — it just makes every hour of it wretched, and everything you try harder."
+    description: "While not deadly, you'll feel like death for days, unable to concentrate past the sweat and pain."
     pointCost: 0
     visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    durationTurns: 4
+    durationTurns: 3
     requirement:
       turnsCost: 1
       resourceCost: 2
@@ -2250,14 +2250,14 @@ tags:
     name: Envenomated
     category: health
     group: health-illness
-    description: "So much pain. Something put venom in you and it is working its way through — the limb is swelling, the flesh around the bite is going bad, and unless your constitution is particularly robust this is the beginning of dying, not the end of it. Needs a surgeon, quickly."
+    description: "Venom entered your body, causing massive swelling and pain. You need medical help or will die."
     pointCost: 0
     visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
     durationTurns: 3
-    expiresInto: [dying]
+    expiresInto: [sepsis]
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -2267,7 +2267,7 @@ tags:
     name: Pox
     category: health
     group: health-illness
-    description: "It comes up across the face and arms in weeping clusters and everyone can see it coming up. It burns itself out in a week or so on its own — and leaves you looking like it. Treated early and properly, rather less so."
+    description: "Your skin will burn and itch. If untreated, you will scar."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2287,7 +2287,7 @@ tags:
     name: Malnourished
     category: health
     group: health-illness
-    description: "Years of not quite enough. You bruise easily, you tire early, and you have never in your life felt strong."
+    description: "You are weak and tired from years of going without proper nutrition."
     pointCost: -2
     visible: true
     purchasable: true
@@ -2301,12 +2301,12 @@ tags:
     name: Arthritis
     category: health
     group: health-illness
-    description: "Stiff, aching joints that seize in the cold and never quite let go. It doesn't leave, but a competent doctor can take the worst of it off you for a while."
+    description: "Your joints are achy and stiff. It can't be treated."
     pointCost: -2
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
+    removable: false
     requirement:
       turnsCost: 1
       resourceCost: 2
@@ -2317,7 +2317,7 @@ tags:
     name: Consumptive
     category: health
     group: health-illness
-    description: "A wasting cough that has been with you for years and will see you out. Good days and bad days, and the bad ones are getting closer together."
+    description: "Your cough's gotten worse over the years. It will take an expert to cure you."
     pointCost: -4
     visible: true
     purchasable: true
@@ -2334,13 +2334,13 @@ tags:
     name: Hypothermia
     category: health
     group: health-illness
-    description: "Past shivering and into the calm, stupid part where you stop minding the cold. Warmth, dry clothes and someone watching you is the whole treatment — and if nobody does it, this is how people are found in the morning."
+    description: "You've stopped shivering. It's not unpleasant."
     pointCost: 0
     visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    durationTurns: 3
+    durationTurns: 2
     expiresInto: [dying]
     requirement:
       turnsCost: 1
@@ -2351,13 +2351,13 @@ tags:
     name: Heatstroke
     category: health
     group: health-illness
-    description: "Dry, red, and stopped sweating some time ago. Shade and water fix it. Nothing fixing it means a couple of days of being no use at all afterwards."
+    description: "You can't focus. You need water and coolness."
     pointCost: 0
     visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    durationTurns: 2
+    durationTurns: 3
     expiresInto: [drained]
     requirement:
       turnsCost: 1
@@ -2369,7 +2369,7 @@ tags:
     name: Concussed
     category: health
     group: health-mind
-    description: "The world arrives a half-second late and the light hurts. There is no treatment for this and there never has been — you sit somewhere dark and you wait it out."
+    description: "Lights and sound bombard your senses."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2381,7 +2381,7 @@ tags:
     name: Shell Shocked
     category: health
     group: health-mind
-    description: "Something happened and part of you did not come back from it. Loud noises put you somewhere else entirely. No medicine touches this. It does not expire, and no doctor can cut it out of you."
+    description: "The trauma from an event is uncurable. Loud noises or sudden bangs jolt you back to that time."
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -2391,9 +2391,9 @@ tags:
     name: Amnesiac
     category: health
     group: health-mind
-    description: "There are holes. Names, faces, whole seasons. You have learned to nod along and work it out from context. Nothing brings it back and nothing makes it worse — this is simply how you are now."
-    pointCost: -2
-    purchasable: true
+    description: "There are holes in your memory. Names escape you."
+    pointCost: 0
+    purchasable: false
     purchasableAfterStart: false
     removable: false
 
@@ -2401,7 +2401,7 @@ tags:
     name: Paralyzed
     category: health
     group: health-mind
-    description: "You can't move or talk. It wears off — assuming whatever did it to you is finished with you."
+    description: "You can't move or talk."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2413,7 +2413,7 @@ tags:
     name: Hallucinating
     category: health
     group: health-mind
-    description: "Nothing makes sense. What is happening?! Oh my God! It passes on its own, eventually. Someone with a steady hand and the right draught can bring you down faster."
+    description: "Nothing makes sense. What is happening?! Oh my God!"
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -2427,7 +2427,7 @@ tags:
     name: Blinded
     category: health
     group: health-mind
-    description: "Gone. Not dim, not blurred — gone. There is exactly one answer to this and it is the kind of thing only the Sanctuary's best would attempt: a fresh pair of eyes, from somewhere, and hands good enough to fit them. Bring both."
+    description: "You can't see. Good luck fighting. Requires a fresh pair of eyes to treat."
     pointCost: -5
     visible: true
     purchasable: true
@@ -2445,7 +2445,7 @@ tags:
     name: Stutter
     category: health
     group: health-mind
-    description: "The word is there and your mouth will not release it. Worse when you are watched, which is exactly when you need it least."
+    description: "You come off as a mess."
     pointCost: -1
     purchasable: true
     purchasableAfterStart: false
@@ -2455,10 +2455,10 @@ tags:
     name: Mute
     category: health
     group: health-mind
-    description: "No voice. Whether it was taken or never came, it is not coming back, and no surgeon in the world is going to give you one. Write it down."
+    description: "You can't speak."
     pointCost: -4
     visible: true
-    purchasable: true
+    purchasable: false
     purchasableAfterStart: false
     removable: false
 
@@ -2469,7 +2469,7 @@ tags:
     name: Missing Leg
     category: health
     group: health-maiming
-    description: "Taken off above the knee. You get about on a crutch and a good deal of stubbornness. Nobody is growing it back."
+    description: "Taken off above the knee."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2480,7 +2480,7 @@ tags:
     name: Missing Arm
     category: health
     group: health-maiming
-    description: "Gone at the shoulder. Half of every two-handed task in the world is closed to you now, and you have got very good at the other half."
+    description: "Gone at the shoulder."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2494,7 +2494,7 @@ tags:
     name: Peg Leg
     category: health
     group: health-maiming
-    description: "Turned oak below the knee, strapped on every morning. You walk, you work, you climb stairs slowly, and everyone hears you coming across a flagstone floor."
+    description: "You have a wooden leg."
     pointCost: -2
     visible: true
     purchasable: true
@@ -2506,18 +2506,18 @@ tags:
     name: Disfigured
     category: health
     group: health-maiming
-    description: "Something took the shape of your face and gave back a different one. People decide things about you before you have spoken, and they are seldom kind things."
+    description: "Your face scares children."
     pointCost: -2
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: false
+    removable: true
 
   - slug: missing-fingers
     name: Missing Fingers
     category: health
     group: health-maiming
-    description: "A couple short on one hand. Fiddly work is a trial and a firm grip is a memory, but you manage."
+    description: "One hand is missing several fingers."
     pointCost: -1
     visible: true
     purchasable: true
@@ -2528,7 +2528,7 @@ tags:
     name: Crippled Leg
     category: health
     group: health-maiming
-    description: "It's still attached and it still hurts, which is the worst of both. You are slow, you are loud on stairs, and you are never running anywhere again — unless someone genuinely extraordinary rebuilds the whole thing, which is about as likely as it sounds."
+    description: "Your leg hurts and causes you to walk loudly and unevenly. Expert medical attention could fix it. Or they could just put on a wooden leg—a lot easier."
     pointCost: -4
     visible: true
     purchasable: true
@@ -2544,7 +2544,7 @@ tags:
     name: Deaf
     category: health
     group: health-maiming
-    description: "Silence, and has been for a long time. You read faces and lips better than the people watching you realise. Nothing on earth is fixing it, and nothing about you advertises it either."
+    description: "Best paired with sign language."
     pointCost: -3
     purchasable: true
     purchasableAfterStart: false
@@ -2554,8 +2554,8 @@ tags:
     name: Missing Eye
     category: health
     group: health-maiming
-    description: "One socket, empty or covered. Your depth perception is a running joke and your blind side is a genuine liability."
-    pointCost: -3
+    description: "You lost depth perception and gain a larger blindspot."
+    pointCost: -2
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -2569,8 +2569,8 @@ tags:
     name: Night Blind
     category: health
     group: health-mind
-    description: "Fine in a lit room. Past the lamps you are guessing, and Ravenheart is mostly past the lamps."
-    pointCost: -3
+    description: "You can't see in dim or darkness."
+    pointCost: -2
     purchasable: true
     purchasableAfterStart: false
 
@@ -2578,7 +2578,7 @@ tags:
     name: Scarred
     category: health
     group: health-maiming
-    description: "Whatever it was, it's healed. It just left the whole story written across you where anyone can read it."
+    description: "You are badly scarred."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2593,7 +2593,7 @@ tags:
     name: Vomiting
     category: health
     group: health-minor
-    description: "Whatever it was, it is coming back up, and everyone within earshot knows. It stops when it stops. No doctor alive can shorten this and it would be undignified of them to charge you for trying."
+    description: "Not the worst."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2609,7 +2609,7 @@ tags:
     name: Aching
     category: health
     group: health-minor
-    description: "Everything hurts a little. You slept on stone, or something hit you and didn't break anything. It passes."
+    description: "It'll pass."
     pointCost: 0
     visible: false
     purchasable: false
@@ -2621,7 +2621,7 @@ tags:
     name: Severe Pain
     category: health
     group: health-minor
-    description: "It hurts enough that you are thinking about it instead of what you are doing. Poppy answers this, and so does a competent friend."
+    description: "Your mind can't escape the pain. Roll around or take the Poppy."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2636,7 +2636,7 @@ tags:
     name: Pain Shock
     category: health
     group: health-minor
-    description: "Past what a body will carry. You are grey, shaking, and not answering questions. Somebody needs to bring you out of this."
+    description: "... Off in la-la-land."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2657,7 +2657,7 @@ tags:
     name: Choking
     category: health
     group: health-illness
-    description: "You're choking to death — frothing, clawing at your own collar, and everyone in the room can see exactly what is happening. Nightshade does this. Can be cured with charcoal."
+    description: "You're choking to death! Frothing, clawing at your collar. You can't speak!"
     pointCost: 0
     visible: true
     purchasable: false
@@ -2674,7 +2674,7 @@ tags:
     name: Phrygian Toxin
     category: health
     group: health-illness
-    description: "Something is shutting you down from the inside, quietly, with no outward sign at all. You will simply stop. Whoever did it did not need to be in the room."
+    description: "Your body is rapidly shutting down, but you're clear headed. You begin to vomit blood."
     pointCost: 0
     visible: false
     purchasable: false
@@ -2692,7 +2692,7 @@ tags:
     name: Hungover
     category: health
     group: health-minor
-    description: "You had a wonderful evening and this is the invoice. Water, quiet, and the passage of time."
+    description: "Time can make your headache go away."
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -2703,19 +2703,19 @@ tags:
     name: Migraine
     category: health
     group: health-minor
-    description: "A spike behind one eye, and the light is unbearable. You get these. Nothing helps and nothing ever has — it passes, you get a few good days, and then it comes back, because it always comes back."
-    pointCost: -2
+    description: "Pain behind your eye and bright lights that come and go. Incurable."
+    pointCost: -1
     purchasable: true
     purchasableAfterStart: false
     removable: false
-    durationTurns: 3
+    durationTurns: 2
     expiresInto: [no-migraine]
 
   - slug: no-migraine
     name: No Migraine
     category: health
     group: health-minor
-    description: "Your head is clear and the world is a reasonable place. Enjoy it. It might come back…"
+    description: "Your head is clear and pain-free, although who knows for how long?"
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -2731,7 +2731,7 @@ tags:
     name: Splinted
     category: health
     group: health-recovery
-    description: "Set, strapped and holding. Keep your weight off it and it knits straight."
+    description: "Set and strapped."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2743,7 +2743,7 @@ tags:
     name: Stitched Up
     category: health
     group: health-recovery
-    description: "Cleaned, closed and drawn tight. It pulls when you move and it itches like sin, which is how you know it's working. It will leave a mark."
+    description: "Cleaned and sewn up."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2756,7 +2756,7 @@ tags:
     name: Cauterized
     category: health
     group: health-recovery
-    description: "Hot iron, no anaesthetic, and the bleeding stopped. It was the right call and you will never forget it happened."
+    description: "Burned in a scar to heal."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2769,7 +2769,7 @@ tags:
     name: Recovering
     category: health
     group: health-recovery
-    description: "Out of danger and under orders to do nothing strenuous. Someone competent has already done the hard part; the rest is rest."
+    description: "Your body needs time to finish fully healing."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2822,8 +2822,8 @@ tags:
     name: Workshop
     category: assets
     group: assets-property
-    description: "A bench, a vice and somewhere to leave a job half-finished. Work that needs space and quiet happens here instead of on your knees in a corridor."
-    pointCost: 2
+    description: "A workbench and tools to provide a space to create."
+    pointCost: 1
     visible: true
     purchasable: true
     purchasableAfterStart: true
@@ -2832,7 +2832,7 @@ tags:
     name: Cart
     category: assets
     group: assets-property
-    description: "A handcart. Unglamorous, and the reason one person can move what four would otherwise carry."
+    description: "A standard hand-cart to push more than you can carry."
     pointCost: 1
     visible: true
     tradeable: true
@@ -2843,7 +2843,7 @@ tags:
     name: Dog
     category: assets
     group: assets-companions
-    description: "You have a highly-trained dog. It has a good sense of smell."
+    description: "You have a highly-trained dog with good sense of smell."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -2901,7 +2901,7 @@ tags:
     name: House
     category: assets
     group: assets-property
-    description: "You own a small, one-story house in town. +1 point"
+    description: "You own a small, one-story house in town."
     pointCost: 1
     requiredTag: ravenhearter
     purchasable: true
@@ -2957,7 +2957,7 @@ tags:
     name: Graga Sac
     category: items
     group: items-gear
-    description: "Cut from a dead Graga, still warm and faintly working. An ingredient in several tonics nobody can brew without one, which is why the Company's merchant will always buy it off you."
+    description: "Cut from a dead Graga. It's useful in many tonics. The Merhcant is always looking for more."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -3008,8 +3008,8 @@ tags:
     name: Bear Trap
     category: items
     group: items-gear
-    description: "Iron jaws on a spring plate, set under leaves and forgotten about until something screams. Does not care what stepped in it."
-    pointCost: 2
+    description: "Strong spring jaws with a pressure plate."
+    pointCost: 1
     tradeable: true
     stackable: true
     visible: false
@@ -3027,10 +3027,10 @@ tags:
     name: Skeleton Wedge
     category: items
     group: items-gear
-    description: "Opens a locked door. Single-use — it deforms in the lock and comes out useless."
+    description: "Can open a locked door. Afterwards, it's and unusable."
     pointCost: 2
     tradeable: true
-    stackable: true
+    stackable: false
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -3223,7 +3223,7 @@ tags:
     name: Neoclassic R&W10
     category: items
     group: items-weapons
-    description: "A classic revolver, with medium stopping power."
+    description: "A classic revolver with six chambers."
     pointCost: 6
     equippable: true
     tradeable: true
@@ -3240,7 +3240,7 @@ tags:
     name: Cracked Bone Club
     category: items
     group: items-weapons
-    description: "Somebody's femur, wrapped in cord."
+    description: "A femur wrapped in cord."
     pointCost: 0
     equippable: true
     tradeable: true
@@ -3254,7 +3254,7 @@ tags:
     name: Neoclassic Duelista
     category: items
     group: items-weapons
-    description: "The classic revolver, made to shoot one shot only."
+    description: "A one-shot revolver."
     pointCost: 0
     equippable: true
     tradeable: true
@@ -3424,7 +3424,7 @@ tags:
     name: Spear
     category: items
     group: items-weapons
-    description: "A haphazardly-constructed yet still deadly weapon of ancient design."
+    description: "A solid ranged melee weapon."
     pointCost: 2
     requiredTag: fighting-basic
     equippable: true
@@ -3487,7 +3487,7 @@ tags:
     name: Gladius
     category: items
     group: items-weapons
-    description: "A short, broad stabbing sword. Murderous in a press where nobody has room to swing."
+    description: "A short, broad stabbing sword."
     pointCost: 2
     requiredTag: fighting-basic
     equippable: true
@@ -3508,7 +3508,7 @@ tags:
     name: Phrygian Spear
     category: items
     group: items-weapons
-    description: "The end is barbed, inflicting cruel wounds. Pulling it back out does more harm than putting it in."
+    description: "A spear with a barbed end to cause more damage when pulled out."
     pointCost: 2
     requiredTag: fighting-basic
     equippable: true
@@ -3593,7 +3593,7 @@ tags:
     name: Knuckle Duster
     category: items
     group: items-weapons
-    description: "The Underquarter solution."
+    description: "Wrap your fingers with metal."
     pointCost: 3
     equippable: true
     tradeable: true
@@ -3637,7 +3637,7 @@ tags:
     name: Broadsword
     category: items
     group: items-weapons
-    description: "The most common sword in the barony. Reliable, and it does the job."
+    description: "A standard slashing sword."
     pointCost: 3
     requiredTag: fighting-basic
     equippable: true
@@ -3680,7 +3680,7 @@ tags:
     name: Bastard Sword
     category: items
     group: items-weapons
-    description: "A large sword. Durable and sharp, and it asks for both hands when the work gets serious."
+    description: "A large sword that requires two hands to fight effectively."
     pointCost: 4
     requiredTag: fighting-basic
     equippable: true
@@ -3701,7 +3701,7 @@ tags:
     name: Rapier
     category: items
     group: items-weapons
-    description: "An elegant steel rapier, for the nobility to stab peasants with."
+    description: "An elegant steel rapier."
     pointCost: 4
     requiredTag: fighting-basic
     equippable: true
@@ -3722,7 +3722,7 @@ tags:
     name: Sabre
     category: items
     group: items-weapons
-    description: "For the wealthy to slaughter the poor."
+    description: "A refined slashing weapon."
     pointCost: 4
     requiredTag: fighting-basic
     equippable: true
@@ -3743,7 +3743,7 @@ tags:
     name: Katana
     category: items
     group: items-weapons
-    description: "A curved blade folded out of very good steel. Nobody here can tell you where the first one came from."
+    description: "A curved blade folded from steel."
     pointCost: 4
     requiredTag: fighting-basic
     equippable: true
@@ -3850,7 +3850,7 @@ tags:
     category: items
     group: items-weapons
     description: "A short gun with a wide bore. It fires a heavy shot, but you only get one before you have to reload."
-    pointCost: 6
+    pointCost: 8
     requiredTag: fighting-basic
     equippable: true
     tradeable: true
@@ -3870,7 +3870,7 @@ tags:
     name: Bore Pistol
     category: items
     group: items-weapons
-    description: "A single-shot pistol. Slow to reload, but the shot hits hard no matter what your target is wearing."
+    description: "A single-shot pistol. Slow to reload, but the shot hits hard."
     pointCost: 6
     requiredTag: fighting-basic
     equippable: true
@@ -3883,7 +3883,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 40
+      resourceCost: 25
       skills: [smithing-gunpowder]
       gambit: false
 
@@ -3951,7 +3951,7 @@ tags:
     name: Fine Meal
     category: items
     group: items-food
-    description: "An honest, well-made meal. Makes an ordinary person happy; Nobility expect one as a matter of course."
+    description: "An honest, well-made meal. Makes an ordinary person happy; expected by Nobility.."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -3975,7 +3975,7 @@ tags:
     name: Lavish Meal
     category: items
     group: items-food
-    description: "A meal worth the Baron's own table. Makes anyone happy, Nobility included, and is a fair object of a Desire. Needs one hard-to-get exotic ingredient on top of the cost."
+    description: "A meal worthy of the Baron's dining hall. Makes anyone happy, Nobility included, and is a fair object of a Desire. Needs one hard-to-get exotic ingredient on top of the resource cost."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4209,7 +4209,7 @@ tags:
     name: Cave Fungus
     category: items
     group: items-drink
-    description: "Pale, cold-loving stuff that grows where the lamps don't reach. An important ingredient in a great many recipes, and the base of nearly everything worth brewing down here. Eaten raw it will get you {tag:high} for a couple of turns and taste like the floor it grew on — no pleasure in it at all, which is rather the point of refining it first."
+    description: "Pale and tastes like mud. An important ingredient in a great many recipes. Eaten raw it will get you {tag:high} for a couple of turns."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4234,7 +4234,7 @@ tags:
     name: Alcohol
     category: items
     group: items-drink
-    description: "Beer, ale, and other fine drinks. 2 ⬢ each, and you can brew up to 3 in one Routine Move. It will not fill anyone's stomach, but it lifts anyone's mood — a noble's as readily as a peasant's."
+    description: "Beer, ale, and other fine drinks. 2 ⬢ each, and you can brew up to 3 in one Routine Move. It will not fill anyone's stomach, but it can make anyone happy."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4256,7 +4256,7 @@ tags:
     name: Bliss
     category: items
     group: items-drink
-    description: "Cave Fungus, properly worked, until what's left is clean and sweet and nothing like the raw stuff. The best thing at any party in Ravenheart, and it costs nothing but the fungus and the work — which is why it turns up wherever people have no money and something to celebrate."
+    description: "Properly boiled and refined cave fungus that will give you a greater high."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4279,7 +4279,7 @@ tags:
     name: Ravenheart Red
     category: items
     group: items-drink
-    description: "The one genuinely exquisite thing this barony makes. Dear, slow to make, and a fair object of a Desire — plenty of people down here have never tasted it and intend to before they die."
+    description: "The drink made for royalty. Few have tasted it, many wish to. A fair object of desire."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4315,7 +4315,7 @@ tags:
     name: Miasma
     category: items
     group: items-drink
-    description: "Bottled beside a rotting corpse and stoppered fast. Opened in a closed room it puts everyone in it off their food — a GM hands out {tag:vomiting} to whoever was breathing."
+    description: "Bottled with rotting flesh and gives {tag:vomiting} to everyone in a closed room"
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4334,7 +4334,7 @@ tags:
     name: Feces
     category: items
     group: items-drink
-    description: "Exactly what it says. Worked onto a blade so that a wound which should have healed goes {tag:infected} instead. Nobody has ever respected a man for using it."
+    description: "Poop. Cuts with it on a blade will give {tag:infected}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4395,7 +4395,7 @@ tags:
     name: Poppy
     category: items
     group: items-drink
-    description: "The answer to pain, and the beginning of a different problem. A farmer has to spend a turn growing the crop before any of it exists. Leaves you with an {tag:opium-high}."
+    description: "Takes away pain and gives addiction. Grants you {tag:opium-high}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4416,7 +4416,7 @@ tags:
     name: Molotov Cocktail
     category: items
     group: items-drink
-    description: "A bottle of alcohol and a rag. Cheap, loud, and it does not care what you were aiming at."
+    description: "A bottle of alcohol and a rag. Light it and cause fire to spread."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4474,7 +4474,7 @@ tags:
     name: Phrygian Tears
     category: items
     group: items-drink
-    description: "Silent, invisible, and extremely effective. Two turns to distil and a Gambit to get right; a failed batch is wasted and dangerous. Inflicts {tag:phrygian-toxin}, which shows nothing at all until it is much too late."
+    description: "The percet silent killer. Requires two turns and a gambit to make. Failures are dangerous. Inflicts {tag:phrygian-toxin}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4494,7 +4494,7 @@ tags:
     name: Advanced Poppy
     category: items
     group: items-drink
-    description: "Poppy worked much further, at much greater cost. Grants {tag:pain-immunity} — you feel nothing that hurts, and your head stays entirely your own."
+    description: "Poppy refined into something without impurity. Grants {tag:pain-immunity}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4515,7 +4515,7 @@ tags:
     name: Graga Sweat
     category: items
     group: items-drink
-    description: "Rendered out of a {tag:graga-sac}. Two turns of {tag:brutish-strength} in a frame that was never built to carry it."
+    description: "Made with rendered {tag:graga-sac}. Grants wo turns of {tag:brutish-strength}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4536,7 +4536,7 @@ tags:
     name: Purifier
     category: items
     group: items-drink
-    description: "Clears {tag:infected}, {tag:festering} and {tag:feverish} without a doctor's hands, and gives someone with {tag:sepsis} a chance they did not have. The ingredients are the reason it is rare, not the price."
+    description: "Requires a rare ingredient. Clears {tag:infected}, {tag:festering} and {tag:feverish} without medical attention, and greatly improves the conditon of someone with {tag:sepsis}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4595,7 +4595,7 @@ tags:
     name: Mercy
     category: items
     group: items-drink
-    description: "Brewed down from {tag:cave-fungus}. Grants {tag:increased-recovery} — wounds close and fevers break faster than they should."
+    description: "Brewed from {tag:cave-fungus}. Grants {tag:increased-recovery}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4616,7 +4616,7 @@ tags:
     name: Distilled Coca
     category: items
     group: items-drink
-    description: "The leaf grows wild in the forest for anyone willing to go and pick it. Consumes into a {tag:stimulant-high}: tireless, certain, and unable to tell that you should have stopped."
+    description: "Brewed from leaves found in the forest. Consume for {tag:stimulant-high}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4637,7 +4637,7 @@ tags:
     name: Mindbreaker Toxin
     category: items
     group: items-drink
-    description: "Drawn from Cave Fungus. Injected or swallowed, it leaves the taker {tag:hallucinating} and no use to anybody."
+    description: "A vial full of a clear acid drawn from cave fungus. Grants {tag:hallucinating}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4664,7 +4664,7 @@ tags:
     name: Mulligan Potion
     category: items
     group: items-drink
-    description: "Cloudy, and it tastes of nothing at all. Drink it and you may take a new name, once — ask the GMs."
+    description: "Milky but tastes like nothing. Grants a new name and appearance."
     pointCost: 1
     tradeable: true
     stackable: true
@@ -4678,7 +4678,7 @@ tags:
     name: Invisibility Potion
     category: items
     group: items-drink
-    description: "Extracted from a {tag:graga-sac} by somebody who knew where to cut. Two turns {tag:invisible}."
+    description: "Extracted from a {tag:graga-sac}. Grants {tag:invisible} for two turns."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4699,7 +4699,7 @@ tags:
     name: Nekker Pheromones
     category: items
     group: items-drink
-    description: "Wrung out of a dead nekker. Wear it and nekkers ignore you — {tag:pheromones} — for as long as it lasts."
+    description: "Wrung out of a nekker. Grants {tag:pheromones}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4741,7 +4741,7 @@ tags:
     name: Raven Draught
     category: items
     group: items-drink
-    description: "Made with the eye of a raven. Drink it and you may send one message to any player anywhere — DM the GMs with it."
+    description: "Made with the eye of a raven. If consumed, you can send a single message to anyone anywhere. DM the GMs the message."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4760,7 +4760,7 @@ tags:
     name: Pure Luck
     category: items
     group: items-drink
-    description: "Made with the heart of an Aberrant, and nobody sells those. For three turns straight every Gambit you roll comes up a six — {tag:aberrant-luck}."
+    description: "Made with the heart of an Aberrant. For three turns straight all your Gambits are sixes — {tag:aberrant-luck}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4784,7 +4784,7 @@ tags:
     name: Dreamer's Draught
     category: items
     group: items-drink
-    description: "Drink it and sleep, and while you sleep you may ask the world one question and be answered truthfully. Difficult to make and easy to ruin: the brewing is a Gambit, and only a roll of 4 or better yields anything you'd want to drink."
+    description: "When you drink it before sleeping, you can ask the universe anything."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4803,7 +4803,7 @@ tags:
     name: Forgiveness
     category: items
     group: items-drink
-    description: "Whoever drinks it loses the last of what they knew — the argument, the debt, the thing they saw you do. Needs genuine tears, freely wept, and there is no substitute; someone has to have been made to cry, and mean it."
+    description: "Requires someone's tears. Whoever drinks it forgets the last ten days."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4822,7 +4822,7 @@ tags:
     name: Flawless Skin
     category: items
     group: items-drink
-    description: "Beauty that isn't yours and doesn't last, worn for three turns like a borrowed coat. Needs a lock of hair from someone bearing {tag:nobility} — which means either a noble who owes you a favour, or a noble who never finds out."
+    description: "Needs a lock of hair from {tag:nobility}. You are granted supreme beauty for three turns."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4855,7 +4855,7 @@ tags:
     name: Padded Armor
     category: items
     group: items-armor
-    description: "Quilted linen. It absorbs impact and blunts a cut. A thrust goes through it. Plain enough to wear at court."
+    description: "Quilted linen. Absorbs impact and blunts a cut. Can be worn under clothing."
     pointCost: 1
     equippable: true
     visible: true
@@ -4872,7 +4872,7 @@ tags:
     name: Mail Coif
     category: items
     group: items-armor
-    description: "A mail hood covering the head and neck. It is worn under a helmet."
+    description: "A mail hood covering the head and neck, worn under a helmet."
     pointCost: 1
     equippable: true
     visible: true
@@ -4889,7 +4889,7 @@ tags:
     name: Buckler
     category: items
     group: items-armor
-    description: "A small shield held in the fist. It hangs from a belt when not in use. It is used to strike as well as to block, and carrying one draws no comment."
+    description: "A small shield held in the fist, used for blocking attacks or making your own blunt force attack."
     pointCost: 1
     equippable: true
     visible: true
@@ -4907,7 +4907,7 @@ tags:
     name: Simple Helm
     category: items
     group: items-armor
-    description: "An open helmet. You can see and breathe. Your face is exposed."
+    description: "An open helmet."
     pointCost: 2
     equippable: true
     visible: true
@@ -4924,7 +4924,7 @@ tags:
     name: Shield
     category: items
     group: items-armor
-    description: "A shield carried on the arm. Two people fighting shield to shield are worth more than the same two apart."
+    description: "A shield carried on the arm. It becomes more effective when fighting alongside others with shields."
     pointCost: 2
     equippable: true
     visible: true
@@ -4959,7 +4959,7 @@ tags:
     name: Mail Shirt
     category: items
     group: items-armor
-    description: "Interlocking rings. It cannot be cut. A blunt blow passes through it, and a heavy thrust bursts the rings."
+    description: "Interlocking rings. It cannot be cut but blunt force or thrusts can still be deadly."
     pointCost: 3
     equippable: true
     visible: true
@@ -4977,7 +4977,7 @@ tags:
     name: Knight's Helmet
     category: items
     group: items-armor
-    description: "A closed helmet. It covers the face. You see and hear poorly through it, and it is hot to wear."
+    description: "A closed helmet. Vision is obscured."
     pointCost: 4
     equippable: true
     visible: true
@@ -4994,7 +4994,7 @@ tags:
     name: Brigandine
     category: items
     group: items-armor
-    description: "Small steel plates riveted inside a fabric coat. Protection close to plate, worn under clothing, and it does not show."
+    description: "Small steel plates riveted inside a fabric coat. Protection is similar to plate without the visibility of plate."
     pointCost: 4
     equippable: true
     visible: false
@@ -5011,7 +5011,7 @@ tags:
     name: Breastplate
     category: items
     group: items-armor
-    description: "A shaped steel plate over the chest. Most of the protection of full plate at a fraction of the weight, and one person can put it on alone."
+    description: "A splate over the chest. Offers some protection of plate while still granting mobility and easy to don."
     pointCost: 4
     equippable: true
     visible: true
@@ -5029,7 +5029,7 @@ tags:
     name: Plate Armor
     category: items
     group: items-armor
-    description: "Articulated steel over the whole body. It takes a second pair of hands and several minutes to put on."
+    description: "Steel over the whole body. Requires a second person and time to don."
     pointCost: 6
     equippable: true
     visible: true
@@ -5048,7 +5048,7 @@ tags:
     name: Salvage Plate
     category: items
     group: items-armor
-    description: "Scrap metal strapped over the body, none of it matching. It works. It also marks the wearer as a scavenger."
+    description: "Scrap metal strapped over the body."
     pointCost: 1
     equippable: true
     visible: true
