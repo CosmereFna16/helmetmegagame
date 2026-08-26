@@ -235,6 +235,14 @@ model GameConfig {
   // either way, so players can read the rules before launch.
   openToPlayers Boolean @default(false)
 
+  // Whether a role that grants a faction Leader seat still requires the
+  // @Leader Whitelist Discord role (db/lib/roleIds.js). Off means every player
+  // may pick a Leader role - read by character/page.js to decide which cards
+  // render selectable, and re-checked by createCharacter, the same
+  // presentation/lock split as openToPlayers. Deliberately ON by default: this
+  // gate fails closed, and the reservation is the normal state of the game.
+  leaderWhitelistEnabled Boolean @default(true)
+
   // Master switch for letting a player upload their own profile picture.
   // Off means AvatarField's file input doesn't render and
   // updateCharacterProfile ignores a posted `avatar` field even if one

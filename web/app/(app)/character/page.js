@@ -61,7 +61,11 @@ async function loadCreationData(discordUserId) {
     open: superadmin || config?.openToPlayers === true,
     approved: superadmin || isApprovedPlayer(member),
   };
-  const leaderWhitelisted = superadmin || isLeaderWhitelisted(member);
+  // The whitelist gate itself is a Dev Panel switch (GameConfig). `=== false`
+  // rather than a falsy check on purpose: no config row means the gate stays
+  // enforced, matching the fail-closed posture in db/lib/roleIds.js.
+  const leaderWhitelisted =
+    superadmin || config?.leaderWhitelistEnabled === false || isLeaderWhitelisted(member);
   const playerCount = config?.playerCount ?? 100;
   const takenByRole = new Map(takenRows.map((r) => [r.roleId, r._count]));
 

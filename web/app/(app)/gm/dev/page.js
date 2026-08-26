@@ -151,6 +151,9 @@ export default async function DevPanelPage() {
           <Switch name="openToPlayers" defaultChecked={config.openToPlayers} className="col-span-full">
             Open to players
           </Switch>
+          <Switch name="leaderWhitelistEnabled" defaultChecked={config.leaderWhitelistEnabled} className="col-span-full">
+            Require the @Leader Whitelist role to pick a Leader (★) role
+          </Switch>
           <Switch name="avatarUploadsEnabled" defaultChecked={config.avatarUploadsEnabled} className="col-span-full">
             Allow players to upload their own profile picture
           </Switch>

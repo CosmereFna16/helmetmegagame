@@ -122,7 +122,10 @@ export async function createCharacter(formData) {
 
   // Split from the isRoleSelectable call below so each rejection gets its own
   // message — the shared predicate can only say "no", not why.
-  const leaderWhitelisted = bypass || isLeaderWhitelisted(member);
+  // A GM can turn the whitelist requirement off game-wide from /gm/dev.
+  // `=== false` rather than a falsy check: no config row leaves it enforced.
+  const leaderWhitelisted =
+    bypass || config?.leaderWhitelistEnabled === false || isLeaderWhitelisted(member);
   if (role.grantsLeader && !leaderWhitelisted) {
     return { error: "That role isn't available to you." };
   }
