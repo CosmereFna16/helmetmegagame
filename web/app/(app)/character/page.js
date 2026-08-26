@@ -9,7 +9,11 @@ import {
   isCursed,
   isLeaderWhitelisted,
 } from "@/lib/discordGuild";
-import { isRoleSelectable, DEFAULT_MAX_NEGATIVE_TAGS } from "@/lib/characterCreation";
+import {
+  isPlaytestLocked,
+  isRoleSelectable,
+  DEFAULT_MAX_NEGATIVE_TAGS,
+} from "@/lib/characterCreation";
 import { loadPointBuyCatalog } from "@/lib/pointBuyCatalog";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
@@ -66,6 +70,9 @@ async function loadCreationData(discordUserId) {
   // enforced, matching the fail-closed posture in db/lib/roleIds.js.
   const leaderWhitelisted =
     superadmin || config?.leaderWhitelistEnabled === false || isLeaderWhitelisted(member);
+  // No superadmin bypass here, unlike the two gates above: this one holds back
+  // an unfinished role, so the host wants it locked too (characterCreation.js).
+  const playtestMode = config?.playtestModeEnabled === true;
   const playerCount = config?.playerCount ?? 100;
   const takenByRole = new Map(takenRows.map((r) => [r.roleId, r._count]));
 
@@ -89,6 +96,11 @@ async function loadCreationData(discordUserId) {
             name: faction.name,
             roles: faction.roles.map((role) => {
               const cap = roleCapacity(role, playerCount);
+              // Locked roles stay in the tree rather than being filtered out,
+              // so a player can still read the charter of a role that's simply
+              // shut for this run. The card greys itself and says why.
+              const playtestLocked =
+                playtestMode && isPlaytestLocked({ role, zoneName: zone.name });
               return {
                 id: role.id,
                 name: role.name,
@@ -104,7 +116,8 @@ async function loadCreationData(discordUserId) {
                 // uncapped roles cross the boundary as null and render "∞".
                 cap: cap === Infinity ? null : cap,
                 taken: takenByRole.get(role.id) ?? 0,
-                selectable: isRoleSelectable({ role, cursed, leaderWhitelisted }),
+                selectable: isRoleSelectable({ role, cursed, leaderWhitelisted, playtestLocked }),
+                playtestLocked,
                 // The Baron's family don't choose a surname (db/lib/dynasty.js).
                 // Resolved here rather than in the wizard so a client component
                 // never imports the barrel and drags PrismaClient into the

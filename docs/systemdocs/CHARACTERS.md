@@ -257,6 +257,32 @@ both the card and `createCharacter` read the same flag, so a hand-posted request
 gets in too. It is on by default because the gate fails closed; a missing config
 row still enforces it.
 
+### Playtest mode
+
+`GameConfig.playtestModeEnabled` is a second Dev Panel switch, **off** by
+default, that holds part of the roster back for a short test: the **Merchant**
+(unfinished) and **every role in the Windlands**. Their cards still render, just
+disabled, carrying a "closed for this playtest" chip — a locked role is still
+worth reading. Nothing is removed from `docs/roles.yaml`, so flipping the switch
+off restores the roster with no sync.
+
+Which roles it covers lives in `web/lib/characterCreation.js`
+(`PLAYTEST_LOCKED_ROLE_SLUGS`, `PLAYTEST_LOCKED_ZONE_NAMES`), not in the
+database. The Merchant is matched by `Role.slug`; the Windlands are matched by
+**zone name**, because nothing marks a role as a Windlander one — `Role` and
+`Faction` carry no availability column, and the zone holds three separate clan
+factions. `Zone` has no slug, so renaming the zone in `roles.yaml` means moving
+that list with it.
+
+Same presentation/enforcement split as everything else here: the card is a
+hint, `createCharacter` re-checks. One difference — **a superadmin does not
+bypass this one.** The other gates are reservations, so the host walks through
+them to roll a test character; this one hides an unfinished role, and bypassing
+it would only let the host roll the broken thing.
+
+The GM surfaces are untouched: `/gm/dev/characters/[characterId]` will still
+assign a locked role by hand.
+
 ### The starting package
 
 Picking a role decides almost everything:

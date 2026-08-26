@@ -36,6 +36,30 @@ export function negativeTagCount(tags) {
 // particular until the curse is lifted. Matched by Role.slug.
 export const CURSED_ROLE_SLUGS = ["migrant", "bum"];
 
+// The roster held back while GameConfig.playtestModeEnabled is on. The
+// Merchant is unfinished; the Windlands are out of scope for a short test.
+// Nothing is removed from docs/roles.yaml, so switching the flag off restores
+// them with no sync.
+//
+// There is no "windlander" flag to match on — Role has no availability column
+// and Faction has none either. The only structural marker is the nesting in
+// roles.yaml, and the Windlands hold three separate clan factions, so this
+// matches the ZONE rather than a faction: a fourth clan added later is covered
+// for free. Zone carries no slug, so it is a name match — rename the zone in
+// roles.yaml and this list has to move with it.
+export const PLAYTEST_LOCKED_ROLE_SLUGS = ["merchant"];
+export const PLAYTEST_LOCKED_ZONE_NAMES = ["Windlands"];
+
+// Callers must have the role's zone name to hand (character/page.js walks the
+// Zone -> Faction -> Role tree; createCharacter loads role.faction.zone).
+// Passing no zone name only skips the zone half of the match.
+export function isPlaytestLocked({ role, zoneName }) {
+  return (
+    PLAYTEST_LOCKED_ROLE_SLUGS.includes(role.slug) ||
+    PLAYTEST_LOCKED_ZONE_NAMES.includes(zoneName ?? "")
+  );
+}
+
 // budget = config base + the role's own bonus - the curse penalty.
 // Clamped at 0 so a cursed player picking a role with no bonus can still
 // finish the wizard (they just buy nothing) rather than starting underwater.
@@ -211,7 +235,15 @@ export function effectiveTotalCost(tags, tagsById, heldIds = []) {
 // (web/lib/discordGuild.js#isLeaderWhitelisted). Everyone else may take any
 // synced role. Threats aren't data at all (docs/threats.md), so they can't
 // appear here.
-export function isRoleSelectable({ role, cursed, leaderWhitelisted }) {
+//
+// `playtestLocked` is the one reason here a superadmin does NOT walk through.
+// openToPlayers and the Leader Whitelist are permission gates, so the host
+// bypasses them to roll a test character; this is a content lock on an
+// unfinished role, and bypassing it would only let the host roll the broken
+// thing. Callers compute it (isPlaytestLocked above) and default it to false,
+// so a caller that predates the switch is unaffected.
+export function isRoleSelectable({ role, cursed, leaderWhitelisted, playtestLocked = false }) {
+  if (playtestLocked) return false;
   if (role.grantsLeader && !leaderWhitelisted) return false;
   if (!cursed) return true;
   return CURSED_ROLE_SLUGS.includes(role.slug);

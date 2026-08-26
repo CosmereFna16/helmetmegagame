@@ -243,6 +243,15 @@ model GameConfig {
   // gate fails closed, and the reservation is the normal state of the game.
   leaderWhitelistEnabled Boolean @default(true)
 
+  // Playtest lever: locks the Merchant (unfinished) and every role in the
+  // Windlands out of character creation, without removing either from
+  // docs/roles.yaml — flip it back off and the full roster returns. Which
+  // roles it covers lives in web/lib/characterCreation.js
+  // (PLAYTEST_LOCKED_ROLE_SLUGS / PLAYTEST_LOCKED_ZONE_NAMES), not here.
+  // Off by default: this is a temporary content lock, not a permission gate,
+  // so a missing config row means the whole roster is open.
+  playtestModeEnabled Boolean @default(false)
+
   // Master switch for letting a player upload their own profile picture.
   // Off means AvatarField's file input doesn't render and
   // updateCharacterProfile ignores a posted `avatar` field even if one

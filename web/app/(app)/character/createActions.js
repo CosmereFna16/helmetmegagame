@@ -25,6 +25,7 @@ import {
 } from "@/lib/discordGuild";
 import {
   computeBudget,
+  isPlaytestLocked,
   isRoleSelectable,
   tagsById as buildTagsById,
   effectiveTotalCost,
@@ -96,7 +97,12 @@ export async function createCharacter(formData) {
   }
 
   const [role, config, member, openTurn] = await Promise.all([
-    prisma.role.findUnique({ where: { id: roleId }, include: { faction: true, startingLocation: true } }),
+    // The zone comes along for the playtest lock below — it matches the
+    // Windlands by zone, since no column marks a role as a Windlander one.
+    prisma.role.findUnique({
+      where: { id: roleId },
+      include: { faction: { include: { zone: true } }, startingLocation: true },
+    }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     getGuildMember(discordUserId),
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
@@ -120,6 +126,16 @@ export async function createCharacter(formData) {
   }
   if (!bypass && !isApprovedPlayer(member)) {
     return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong." };
+  }
+
+  // Held back for a playtest from /gm/dev. Deliberately outside the `bypass`
+  // above: the host is locked out too, because the point is that the role
+  // isn't finished, not that it's reserved (see characterCreation.js).
+  const playtestLocked =
+    config?.playtestModeEnabled === true &&
+    isPlaytestLocked({ role, zoneName: role.faction?.zone?.name });
+  if (playtestLocked) {
+    return { error: "That role is closed for this playtest." };
   }
 
   // Split from the isRoleSelectable call below so each rejection gets its own
