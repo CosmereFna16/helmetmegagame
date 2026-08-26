@@ -3868,7 +3868,7 @@ tags:
     name: Fine Meal
     category: items
     group: items-food
-    description: "An honest, well-made meal. Makes an ordinary person happy; expected by Nobility.."
+    description: "An honest, well-made meal. Makes an ordinary person happy; expected by Nobility..."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -3892,7 +3892,7 @@ tags:
     name: Lavish Meal
     category: items
     group: items-food
-    description: "A meal worthy of the Baron's dining hall. Makes anyone happy, Nobility included, and is a fair object of a Desire. Needs one hard-to-get exotic ingredient on top of the resource cost."
+    description: "A worthy meal! Makes anyone happy, Nobility included, and can be used as a Desire. Needs one hard-to-get exotic ingredient on top of the resource cost."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -3959,7 +3959,7 @@ tags:
     name: EMP Grenade
     category: items
     group: items-special
-    description: "Single use. Everything electrical within the blast stops working and does not start again."
+    description: "Single use."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -3974,7 +3974,7 @@ tags:
     name: Heirloom
     category: items
     group: items-special
-    description: "Choose a non-combat heirloom. It's valuable—the Merchant can sell it."
+    description: "Choose a non-combat heirloom. The Merchant can sell it if needs be."
     pointCost: 2
     requiredTag: courtier
     tradeable: true
@@ -4151,7 +4151,7 @@ tags:
     name: Alcohol
     category: items
     group: items-drink
-    description: "Beer, ale, and other fine drinks. 2 ⬢ each, and you can brew up to 3 in one Routine Move. It will not fill anyone's stomach, but it can make anyone happy."
+    description: "Beer, ale, and other fine drinks. 2 ⬢ each, and you can brew up to 3 in one Routine Move. It makes anyone, even Nobility, happy."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4196,7 +4196,7 @@ tags:
     name: Ravenheart Red
     category: items
     group: items-drink
-    description: "The drink made for royalty. Few have tasted it, many wish to. A fair object of desire."
+    description: "Ravenheart's only export. A fair object of desire."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4232,7 +4232,7 @@ tags:
     name: Miasma
     category: items
     group: items-drink
-    description: "Bottled with rotting flesh and gives {tag:vomiting} to everyone in a closed room"
+    description: "Bottled with rotting flesh and gives {tag:vomiting} to everyone in a closed room."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4251,7 +4251,7 @@ tags:
     name: Feces
     category: items
     group: items-drink
-    description: "Poop. Cuts with it on a blade will give {tag:infected}."
+    description: "Poop. Cuts with it on a blade will give {tag:infected}. How dishonorable!"
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4785,7 +4785,6 @@ tags:
       resourceCost: 3
       skills: [crafting]
 
-
   - slug: mail-coif
     name: Mail Coif
     category: items
@@ -4889,7 +4888,6 @@ tags:
       turnsCost: 1
       resourceCost: 18
       skills: [smithing-skilled]
-
 
   # ─── High Quality (4 pt / 25 ⬢ / 1 turn, skilled smithing) ───
   - slug: knights-helmet
