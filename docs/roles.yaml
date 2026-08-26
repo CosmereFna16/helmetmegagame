@@ -378,6 +378,10 @@ zones:
               - Radio Bracelet
               - Alcoholic
               - Broadsword
+              - Simple Helm
+              - Buckler
+              - Mail Coif
+              - Mail Shirt
             doc_elements:
               - courtstructure
               - fortressstarting
@@ -406,7 +410,11 @@ zones:
               - Radio Bracelet
               - Pious
               - Manacles
-              - Cracked Bone Club
+              - Cudgel
+              - Simple Helm
+              - Buckler
+              - Mail Coif
+              - Mail Shirt
             doc_elements:
               - courtstructure
               - fortressstarting
@@ -439,7 +447,11 @@ zones:
               - Fighting (Basic)
               - Disabler
               - Radio Bracelet
-              - Cracked Bone Club
+              - Cudgel
+              - Simple Helm
+              - Buckler
+              - Mail Coif
+              - Mail Shirt
             doc_elements:
               - courtstructure
               - fortressstarting
@@ -460,7 +472,11 @@ zones:
             starting_location: garrison
             starting_tags:
               - Ravenhearter
-              - Cracked Bone Club
+              - Cudgel
+              - Simple Helm
+              - Buckler
+              - Mail Coif
+              - Mail Shirt
             doc_elements:
               - courtstructure
               - fortressstarting

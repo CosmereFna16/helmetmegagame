@@ -3359,6 +3359,26 @@ tags:
       skills: [crafting, smithing]
       gambit: false
 
+  - slug: cudgel
+    name: Cudgel
+    category: items
+    group: items-weapons
+    description: "A stick to hit people with."
+    pointCost: 1
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 3
+      skills: [crafting, smithing]
+      gambit: false
+
   - slug: pitchfork
     name: Pitchfork
     category: items

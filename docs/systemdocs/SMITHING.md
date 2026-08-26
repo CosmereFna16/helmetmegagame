@@ -39,6 +39,7 @@ at creation or have someone craft one in play. Found-only items
 
 | Weapon | Tier | Notes |
 |---|---|---|
+| Cudgel | Dead Simple | |
 | Work Knife | Dead Simple | |
 | Hatchet | Dead Simple | |
 | Sling | Dead Simple | |
