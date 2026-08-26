@@ -197,6 +197,12 @@ function payerLabel(parties, key) {
   return kind === "faction" ? `${match.name}'s Silo` : match.name;
 }
 
+const ADD_HELP =
+  "To save the GMs time, you can add or remove tags at will, but you're " +
+  "expected to subtract the appropriate amount of resources / spend the " +
+  "amount of turns. They'll review the action later, but it'll push " +
+  "immediately.";
+
 const HEAL_HELP =
   "Treating an affliction. You can only work on people standing where you " +
   "are — yourself included — and only on things your Medical training " +
@@ -377,9 +383,12 @@ export default function TagRequestButtons({
   return (
     <>
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn-quiet" onClick={() => open("add")}>
-          Add Tag
-        </button>
+        <span className="flex items-center gap-1">
+          <button type="button" className="btn-quiet" onClick={() => open("add")}>
+            Add Tag
+          </button>
+          <InfoIcon text={ADD_HELP} />
+        </span>
         <button type="button" className="btn-quiet" onClick={() => open("remove")} disabled={!removable.length}>
           Remove Tag
         </button>
