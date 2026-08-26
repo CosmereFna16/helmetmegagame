@@ -32,7 +32,6 @@ const TAG_CHIP_FIELDS = {
   requirementGambit: true,
   requirementSkills: { select: { name: true } },
 };
-const DESCRIPTION_LIMIT = 100;
 
 // Player-side submission states, before a Move reaches the GM at all.
 function isConfirmed(a) {
@@ -60,9 +59,8 @@ function rollLabel(a) {
   return `rolled ${a.diceRoll} (${mod > 0 ? `+${mod}` : mod}) = ${a.diceRoll + mod}`;
 }
 
-function truncate(text, limit) {
-  const clean = (text ?? "").trim();
-  return clean.length > limit ? `${clean.slice(0, limit - 1)}…` : clean;
+function clean(text) {
+  return (text ?? "").trim();
 }
 
 function turnLabel(turn) {
@@ -76,7 +74,7 @@ function summarize(request) {
   const e = request.effect ?? {};
   switch (request.type) {
     case "FULFILL_DESIRE":
-      return `+${e.pointsAwarded ?? 0} Tag Points — ${truncate(e.desireText, 60)}`;
+      return `+${e.pointsAwarded ?? 0} Tag Points — ${clean(e.desireText)}`;
     case "ADD_TAG":
       return `+${e.tagName ?? "tag"}${e.resourcesSpent ? ` for ${e.resourcesSpent} ⬢` : ""}`;
     case "BUY_TAGS":
@@ -99,9 +97,9 @@ function summarize(request) {
           : ""
       }`;
     case "CHANGE_FEAR":
-      return `Fear: ${truncate(e.text, 60)}`;
+      return `Fear: ${clean(e.text)}`;
     case "FULFILL_FEAR":
-      return `\u2212${e.pointsDeducted ?? 0} Tag Points — ${truncate(e.fearText, 60)}`;
+      return `\u2212${e.pointsDeducted ?? 0} Tag Points — ${clean(e.fearText)}`;
     case "DONATE_BLOOD":
       return `+${e.bloodDelta ?? 0} blood — drained ${e.targetName ?? "?"}${e.tier ? ` (${e.tier})` : ""}`;
     case "FEED_PERSON":
@@ -244,7 +242,11 @@ export default async function TurnsPage({ searchParams }) {
           factionZoneName: a.character.faction?.zone?.name ?? "",
           turnNumber: a.turn?.number ?? null,
           turnLabel: turnLabel(a.turn),
-          description: truncate(a.description, DESCRIPTION_LIMIT),
+          // Never cut here. A description shortened server-side can't be
+          // restored by anything downstream, and the panel a GM adjudicates
+          // from renders this same field. The table clamps it with CSS
+          // instead — see ExpandableText.
+          description: (a.description ?? "").trim(),
           kindLabel: kindLabel(a),
           moveKind: a.moveKind ?? "ROUTINE",
           opposed: a.opposed,

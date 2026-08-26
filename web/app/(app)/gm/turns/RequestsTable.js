@@ -7,6 +7,7 @@ import Pager from "@/app/components/Pager";
 import MessageCell, { MessageComposerRow } from "./MessageRow";
 import IconButton from "@/app/components/IconButton";
 import CharacterLink from "@/app/components/CharacterLink";
+import ExpandableText from "@/app/components/ExpandableText";
 import ResourceDeltaCell from "./ResourceDeltaCell";
 import { EditIcon, EyeIcon } from "@/app/components/icons";
 import FactionLink from "@/app/components/FactionLink";
@@ -142,10 +143,9 @@ export default function RequestsTable({ requests, myZoneName, onReview, onView }
                   {awaitingKill(row) ? `☠ ${row.typeLabel}` : row.typeLabel}
                 </td>
                 <td>
-                  <span className="block">{row.reason}</span>
+                  <ExpandableText text={row.reason} />
                   <span className="mt-1 block text-xs text-muted">
-                    {row.summary}
-                    {row.gmNotes ? ` · ${row.gmNotes}` : ""}
+                    <ExpandableText text={`${row.summary}${row.gmNotes ? ` · ${row.gmNotes}` : ""}`} lines={2} />
                   </span>
                 </td>
                 <td className="whitespace-nowrap">

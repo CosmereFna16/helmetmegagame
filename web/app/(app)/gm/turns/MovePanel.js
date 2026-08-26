@@ -242,7 +242,9 @@ export default function MovePanel({ move, tagsById = {}, readOnly = false, onClo
         <div className="mt-4 flex flex-col gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
           <h3 className="field-label">Situation</h3>
           <Line label="Turn">{move.turnLabel}</Line>
-          <p className="text-sm">{move.description}</p>
+          {/* The whole description, never clamped — this is the view a GM
+              adjudicates from. pre-wrap keeps the player's own line breaks. */}
+          <p className="text-sm whitespace-pre-wrap">{move.description}</p>
 
           <Switch
             label="Kind"

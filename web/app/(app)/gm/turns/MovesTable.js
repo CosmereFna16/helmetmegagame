@@ -7,6 +7,7 @@ import Pager from "@/app/components/Pager";
 import MessageCell, { MessageComposerRow } from "./MessageRow";
 import IconButton from "@/app/components/IconButton";
 import CharacterLink from "@/app/components/CharacterLink";
+import ExpandableText from "@/app/components/ExpandableText";
 import ResourceDeltaCell from "./ResourceDeltaCell";
 import { ScaleIcon, EyeIcon } from "@/app/components/icons";
 import FactionLink from "@/app/components/FactionLink";
@@ -131,7 +132,7 @@ export default function MovesTable({ moves, myZoneName, onAdjudicate, onView }) 
                   <FactionLink factionId={row.factionId} name={row.factionName || "—"} />
                 </td>
                 <td>
-                  <span className="block">{row.description}</span>
+                  <ExpandableText text={row.description} />
                   <span className="mt-1 block text-xs text-muted">
                     {row.kindLabel}
                     {row.opposed ? " · Opposed" : ""}
@@ -144,7 +145,9 @@ export default function MovesTable({ moves, myZoneName, onAdjudicate, onView }) 
                   </StatusPill>
                 </td>
                 <ResourceDeltaCell value={row.resourceDelta} />
-                <td className="text-muted">{row.gmNotes || "—"}</td>
+                <td className="text-muted">
+                  {row.gmNotes ? <ExpandableText text={row.gmNotes} /> : "—"}
+                </td>
                 <td className="whitespace-nowrap text-muted">{row.reviewedByUsername || "—"}</td>
               </tr>
               {messagingId === row.characterId && (

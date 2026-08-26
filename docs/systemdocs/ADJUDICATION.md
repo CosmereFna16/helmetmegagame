@@ -41,8 +41,19 @@ Changing a filter, the search or the sort resets you to page 1, done in the
 setters rather than an effect so it lands in the same render.
 
 **Moves tab** — Turn, Character, Discord username, **Zone**, Faction, Move,
-Status, Resources, GM Notes, **Solved by**. The Move cell wraps and is truncated to 100 characters, with Kind,
-Opposed and the dice result on a second muted line. Status colours:
+Status, Resources, GM Notes, **Solved by**. The Move cell wraps, with Kind,
+Opposed and the dice result on a second muted line.
+
+The full description is always sent to the browser — it is **never** cut
+server-side, because the panel a GM adjudicates from renders the same field and
+could not undo the cut. The table keeps itself scannable with
+`ExpandableText` (`web/app/components/ExpandableText.js`): a CSS clamp to three
+lines plus a **More / Less** toggle, so the whole string stays in the DOM and
+the tab's own search still matches text that is currently folded. The same
+component clamps GM Notes here, Reason and the summary line on the Requests
+tab, and the Reason and Details cells on `/gm/audit`.
+
+Status colours:
 
 | Status | Colour |
 |---|---|

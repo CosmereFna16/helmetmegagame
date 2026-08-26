@@ -6,6 +6,7 @@ import { isSuperadmin } from "@/lib/superadmin";
 import CharacterLink from "../../../components/CharacterLink";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import { TableScroll } from "@/app/components/DataTable";
+import ExpandableText from "@/app/components/ExpandableText";
 import Pager from "@/app/components/Pager";
 
 // The six columns of the audit table below.
@@ -231,8 +232,21 @@ export default async function AuditLogPage({ searchParams }) {
               </td>
               {/* Only Request-backed entries carry a reason (see
                   web/lib/requests.js#logRequest); everything else is blank. */}
-              <td className="col-text">{entry.reason ?? ""}</td>
-              <td className="max-w-xs truncate">{entry.details ? JSON.stringify(entry.details) : ""}</td>
+              <td className="col-text">
+                <ExpandableText text={entry.reason ?? ""} />
+              </td>
+              {/* Pretty-printed, because the point of expanding a details
+                  blob is to read it. It used to be a one-line `truncate`
+                  cell, which made every entry longer than ~40 characters
+                  unreadable with no way to see the rest. */}
+              <td className="col-text">
+                <ExpandableText
+                  mono
+                  lines={2}
+                  className="text-xs"
+                  text={entry.details ? JSON.stringify(entry.details, null, 2) : ""}
+                />
+              </td>
             </tr>
           ))}
           {entries.length === 0 && (
