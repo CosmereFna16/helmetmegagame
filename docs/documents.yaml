@@ -278,9 +278,80 @@ documents:
       Anyone with the Ravenkeeper tag can, assuming they're near their rookery, send a message to up to one person daily (every 2 turns). To do so, simply message the GMs asking.
   - name: Smithing
     key: smithing
-    public: false
-    tags: []
-    description: ""
+    public: true
+    tags:
+      - Crafting
+      - Smithing
+      - Smithing (Skilled)
+      - Smithing (Gunpowder)
+    description: |-
+      Smithing is how weapons and armor get made. Like brewing or cooking, making
+      something costs Resources (⬢) and usually a turn, and needs the right skill. You
+      can attempt a recipe above your skill, but it takes a Gambit — ask a GM.
+
+      Every item can be bought at character creation or forged in play by someone with
+      the skill. Weapons also need {tag:fighting-basic} to buy at creation; armor does not.
+
+      **Skills**
+
+      {tag:crafting} — tailoring, woodwork and general production. Also covers the
+      simplest metalwork, and every bow, shield and padded item at any tier.
+      {tag:smithing} — basic metalwork.
+      {tag:smithing-skilled} — everything from Moderate upward. Requires Smithing.
+      {tag:smithing-gunpowder} — firearms and bombs. Requires Smithing (Skilled).
+
+      **Tiers**
+
+      | Tier | ⬢ | Turns | Skill |
+      |---|---|---|---|
+      | Dead Simple | 3 | 0 | Crafting or Smithing |
+      | Simple | 8 | 1 | Smithing |
+      | Moderate | 18 | 1 | Smithing (Skilled) |
+      | High Quality | 25 | 1 | Smithing (Skilled) |
+      | Exceptional | 35 | 2 | Smithing (Skilled) |
+      | Gunpowder | 40 | 2 | Smithing (Gunpowder) |
+
+      **Dead Simple — 3 ⬢, no turn**
+
+      - Weapons: {tag:work-knife}, {tag:hatchet}, {tag:pitchfork}, {tag:sling},
+        {tag:quarterstaff}, {tag:shortbow}, {tag:knuckle-duster} (hidden under clothes)
+      - Armor: {tag:buckler}, {tag:simple-helm}, {tag:mail-coif}, {tag:padded-armor}
+      - Padded Armor needs Crafting. Simple Helm and Mail Coif need Smithing. Everything
+        else here takes either skill.
+
+      **Simple — 8 ⬢, 1 turn**
+
+      - Weapons: {tag:spear}, {tag:dagger}, {tag:silver-knife}, {tag:gladius},
+        {tag:phrygian-spear}, {tag:mace}, {tag:battle-axe}
+      - Crafting instead of Smithing: {tag:longbow}, {tag:shield}, {tag:pavise}
+
+      **Moderate — 18 ⬢, 1 turn**
+
+      - Weapons: {tag:bardiche}, {tag:broadsword}, {tag:war-hammer}
+      - Armor: {tag:mail-shirt}, {tag:knights-helmet}
+
+      **High Quality — 25 ⬢, 1 turn**
+
+      - Weapons: {tag:bastard-sword}, {tag:rapier}, {tag:sabre}, {tag:katana},
+        {tag:silver-spear}, {tag:lucerne}, {tag:zweihander}
+      - Armor: {tag:breastplate}, {tag:brigandine} (hidden under clothes)
+      - Crafting instead of Smithing: {tag:crossbow}
+
+      **Exceptional — 35 ⬢, 2 turns**
+
+      - Armor: {tag:plate-armor}. There are no Exceptional weapons.
+
+      **Gunpowder — 40 ⬢, 2 turns**
+
+      - Weapons: {tag:musketoon}, {tag:bore-pistol}, {tag:old-45-revolver}
+      - {tag:bomb} can only be made, never bought at creation.
+
+      **Not on the ladder**
+
+      - {tag:salvage-plate} — 5 ⬢ and a turn. No skill needed.
+      - {tag:sword-cane} — bought complete at creation. Hidden under clothes.
+      - {tag:cracked-bone-club}, {tag:neoclassic-duelista} and {tag:energy-shield} are
+        found or granted, never made. {tag:disabler} is issued by the Watch.
   - name: Merchant
     key: merchant
     public: false

@@ -1265,8 +1265,8 @@ tags:
   - slug: smithing-gunpowder
     name: Smithing (Gunpowder)
     category: skills
-    description: "Saltpeter is your best friend. Requires Skilled smithing."
-    pointCost: 3
+    description: "{tag:saltpeter} is your best friend. Requires Skilled smithing."
+    pointCost: 4
     requiredTag: smithing-skilled
     visible: true
     purchasable: true

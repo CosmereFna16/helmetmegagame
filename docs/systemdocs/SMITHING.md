@@ -12,10 +12,10 @@ and the mention in [`TAGS.md`](TAGS.md) §4a.
 | `crafting` | Crafting | 2 | none |
 | `smithing` | Smithing | 2 | none |
 | `smithing-skilled` | Smithing (Skilled) | 2 | `parentTag: smithing` (cumulative, total 4) |
-| `smithing-gunpowder` | Smithing (Gunpowder) | 3 | `requiredTag: smithing-skilled` |
+| `smithing-gunpowder` | Smithing (Gunpowder) | 4 | `requiredTag: smithing-skilled` |
 
 A full gunsmith is `smithing` + `smithing-skilled` + `smithing-gunpowder` =
-2 + 2 + 3 = **7 pt**.
+2 + 2 + 4 = **8 pt**.
 
 ## 2. Tiers
 
