@@ -43,6 +43,20 @@ export default function Modal({
   const autoId = useId();
   const headingId = labelledBy ?? `modal-title-${autoId}`;
 
+  // `onClose` is read through a ref so it can stay OUT of the effect below.
+  // This is not a micro-optimisation, it is the whole correctness of the
+  // dialog: almost every caller passes an inline arrow
+  // (`onClose={() => !pending && close()}`), so its identity changes on every
+  // render. With `onClose` in the deps, one keystroke in a field re-ran the
+  // effect — cleanup restored focus out of the input, the body then focused
+  // the first focusable in the panel — and a GM could type exactly one
+  // character into the adjudication panel before focus jumped to the header.
+  // If a lint rule ever asks you to add `onClose` back to line 92, don't.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
   useEffect(() => {
     if (!open) return undefined;
 
@@ -55,14 +69,18 @@ export default function Modal({
       'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
     // Focus the first thing worth typing into, falling back to the panel so the
-    // ring is never left behind on the page underneath.
-    const initial = panel?.querySelector(FOCUSABLE);
+    // ring is never left behind on the page underneath. The header is skipped
+    // on purpose: `actions` is a jump link, never what you opened the dialog
+    // to fill in, and Tooltip wraps its content in a `tabIndex={0}` span that
+    // would otherwise win the querySelector and pop its tooltip open.
+    const candidates = [...(panel?.querySelectorAll(FOCUSABLE) ?? [])];
+    const initial = candidates.find((el) => !el.closest(".modal-header")) ?? candidates[0];
     (initial ?? panel)?.focus?.();
 
     const onKey = (e) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose?.();
+        onCloseRef.current?.();
         return;
       }
       if (e.key !== "Tab" || !panel) return;
@@ -89,7 +107,7 @@ export default function Modal({
       window.removeEventListener("keydown", onKey);
       restoreTo.current?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
