@@ -211,27 +211,40 @@ exit — taking the announcement, the console text and the button row with it.
 
 ## 5. Hunger
 
-A `hunger` Status tag in `docs/tags.yaml` (`durationTurns: 1`) worth **−1 to
-the die on all Gambits**, stacking additively with Mood. Nothing
-player-initiated ever grants or removes it — no request type, no picker entry.
-`db/lib/hungerPass.js#runHungerPass` is the only writer.
+A `hunger` Status tag in `docs/tags.yaml` (`durationTurns: 1`), stacking
+additively with Mood. The penalty escalates: **−1 to the die per consecutive
+turn gone hungry**, read off `Character.hungerStreak` and floored at **−6**
+(`HUNGER_STREAK_CAP` in `db/lib/hungerPass.js`) — see `db/lib/gambitModifier.js`
+for how the streak and Mood combine into one number. Reaching the cap grants
+`dying`, permanently; nothing here kills anyone, same as every other terminal
+tag chain (§3). Nothing player-initiated ever grants or removes Hunger, the
+streak, or Dying via this path — no request type, no picker entry.
+`db/lib/hungerPass.js#runHungerPass` is the only writer of all three.
 
 Per character, at the close of every turn:
 
 | State | Outcome |
 |---|---|
-| Holds `hungerless` | Skipped entirely. |
-| Holds `ate-meal` | **Shielded**, tag consumed, **owes nothing** — the meal was already paid for when it was cooked (2 ⬢ Fine, 3 ⬢ Lavish), so billing upkeep on top made eating strictly worse than the 1 ⬢ it saves. |
-| Has 0 ⬢ | Goes Hungry, owes nothing. |
-| Has 1+ ⬢ | Pays 1 ⬢, stays fed. |
+| Holds `hungerless` | Skipped entirely; streak resets to 0. |
+| Holds `ate-meal` | **Shielded**, tag consumed, **owes nothing**, streak resets to 0 — the meal was already paid for when it was cooked (2 ⬢ Fine, 3 ⬢ Lavish), so billing upkeep on top made eating strictly worse than the 1 ⬢ it saves. |
+| Has 0 ⬢ | Goes Hungry, owes nothing, streak **+1**. |
+| Has 1+ ⬢ | Pays 1 ⬢, stays fed, streak resets to 0. |
 
-So **1 ⬢ always buys a fed turn**, and `Character.resources` can never go
-negative without a `Math.max` — the clamp is a `resources: { gte: 1 }` on the
-decrement's own `where`, so the check and the payment are one statement. They
-used to be two, with the whole pass between them, and anyone who spent their
-last ⬢ in that window went to −1. A Hunger granted while closing turn N carries
-`expiresTurn = N + 1`, so it bites for exactly turn N+1 — which is what makes
-`ate-meal`'s "won't go hungry next turn" literally true.
+So **1 ⬢ always buys a fed turn** — and clears the streak — and
+`Character.resources` can never go negative without a `Math.max` — the clamp
+is a `resources: { gte: 1 }` on the decrement's own `where`, so the check and
+the payment are one statement. They used to be two, with the whole pass
+between them, and anyone who spent their last ⬢ in that window went to −1. A
+Hunger granted while closing turn N carries `expiresTurn = N + 1`, so it bites
+for exactly turn N+1 — which is what makes `ate-meal`'s "won't go hungry next
+turn" literally true.
+
+The streak itself has no `expiresTurn` of its own — it's a plain Int column,
+computed in the pass off the value it already read, not off a DB `increment`
+return (which wouldn't hand back the new total in time to decide who crosses
+the cap this turn). It keeps counting past 6 if nobody intervenes; the penalty
+just stays floored there, and re-granting `dying` on a later starved turn is a
+harmless `skipDuplicates` no-op.
 
 One summary `hunger_resolved` audit row per turn, not one per character: at
 100+ players the latter would drown `/gm/audit`.

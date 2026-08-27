@@ -179,29 +179,47 @@ its labels, and the tag slug the Set Mood write path resolves.
 
 ### Hunger
 
-Hunger is the second Needs half, built on exactly the same pattern: a `hunger`
+Hunger is the second Needs half, built on the same pattern as Mood: a `hunger`
 Status tag (`docs/tags.yaml`, `durationTurns: 1`, `purchasable`/`removable`
-false) worth **−1 to the die on all Gambits**. Nothing player-initiated ever
-grants or removes it — there is no request type, no picker entry, no
+false). Unlike Mood, its penalty is not flat — it escalates with
+`Character.hungerStreak`, a plain Int column counting consecutive turns closed
+hungry. Nothing player-initiated ever grants or removes Hunger, the streak, or
+what it leads to — there is no request type, no picker entry, no
 `requestEffects.js` case. `db/lib/hungerPass.js#runHungerPass` is the only
-writer, called from `resolveNeeds()` at the close of every turn:
+writer of all three, called from `resolveNeeds()` at the close of every turn:
 
-1. Holds `hungerless` → **skipped entirely**. No resource taken, no Hunger.
+1. Holds `hungerless` → **skipped entirely**. No resource taken, no Hunger,
+   streak reset to 0.
 2. Holds `ate-meal` → **shielded** from Hunger, the tag is consumed whether or
-   not they were broke, and **no ⬢ is taken**. The meal was already paid for
-   when it was cooked (2 ⬢ a Fine, 3 ⬢ a Lavish), so charging the upkeep on
-   top of that made eating strictly worse than the 1 ⬢ it saves. Eating
-   *settles* the turn's upkeep rather than coming on top of it.
-3. **Check first, then pay**: at `resources === 0` you go Hungry and owe
-   nothing; at 1+ ⬢ you pay 1 and stay fed.
+   not they were broke, **no ⬢ is taken**, and the streak resets to 0. The
+   meal was already paid for when it was cooked (2 ⬢ a Fine, 3 ⬢ a Lavish), so
+   charging the upkeep on top of that made eating strictly worse than the 1 ⬢
+   it saves. Eating *settles* the turn's upkeep and the streak; neither comes
+   on top of it.
+3. **Check first, then pay**: at `resources === 0` you go Hungry, owe nothing,
+   and the streak **increments**; at 1+ ⬢ you pay 1, stay fed, and the streak
+   resets to 0.
 
-So 1 ⬢ always buys a fed turn, a meal buys one outright, and
-`Character.resources` can never go negative — the clamp is structural, not a
-`Math.max`, and it lives on step 3, the only branch that still pays. Structural
-means the check and the payment are the *same statement*: the decrement carries
-`resources: { gte: 1 }` in its own `where`. Read the balance in one query and
-decrement in another and a player who spends in between goes to −1, which is
-what used to happen, and turn rollover is exactly when players are most active.
+So 1 ⬢ always buys a fed turn — and clears the streak — a meal buys one
+outright, and `Character.resources` can never go negative — the clamp is
+structural, not a `Math.max`, and it lives on step 3, the only branch that
+still pays. Structural means the check and the payment are the *same
+statement*: the decrement carries `resources: { gte: 1 }` in its own `where`.
+Read the balance in one query and decrement in another and a player who spends
+in between goes to −1, which is what used to happen, and turn rollover is
+exactly when players are most active.
+
+**The streak and the cap.** Each consecutive hungry turn is worth an
+additional −1 to the die, floored at **−6** (`HUNGER_STREAK_CAP`). Reaching the
+cap grants `dying` — permanently, like every other terminal tag chain (see
+`TURN-ENGINE.md` §3's "NOTHING HERE KILLS ANYONE") — and a GM confirms the
+death by hand from there. The streak is computed in the pass off the value it
+already read for the resource check, not off a database `increment`'s return
+value, because that wouldn't hand back the new total in time to decide who
+just crossed the cap this turn or what to put in their DM. It's allowed to
+keep counting past 6 if nobody intervenes; the penalty simply stays floored,
+and trying to re-grant `dying` on a later starved turn is a harmless
+`skipDuplicates` no-op, not an error.
 
 **The expiry arithmetic**, and why the pass runs *after* the sweep:
 
@@ -218,16 +236,20 @@ Exactly one turn of bite, and it is the *next* turn — which is also what makes
 `@@unique([characterId, tagId])` and is silently dropped, leaving them holding
 a tag that expires immediately.
 
-Going hungry sends one DM (`» You went hungry this turn. −1 to Gambits.`) via
-`db/lib/dm.js#sendDm`, the REST twin that exists so this fires from both the
-bot's cron and the Dev Panel's End-turn button. A quiet −1 ⬢ sends nothing.
+Going hungry sends one DM naming the *actual* penalty in effect
+(`» You went hungry this turn. −3 to Gambits.`) via `db/lib/dm.js#sendDm`, the
+REST twin that exists so this fires from both the bot's cron and the Dev
+Panel's End-turn button. Crossing the streak cap sends a second, distinct DM
+about Dying, right after the Hunger one — so a player who's about to see
+Dying on their sheet already knows why. A quiet −1 ⬢ sends nothing.
 
-`runHungerPass` does not send that DM itself. It returns
-`starvedDiscordUserIds` on its summary and the sending happens in
+`runHungerPass` does not send either DM itself. It returns `starvedNotices`
+on its summary — one entry per starved character, carrying `discordUserId`,
+the already-clamped `streak`, and `justDied` — and the sending happens in
 `advanceTurn()`'s `runSideEffects()` thunk, alongside the turn announcement and
-the Dawn wipe. The pass is therefore two reads and three bulk writes with no
+the Dawn wipe. The pass is therefore two reads and several bulk writes with no
 network call in it at all — which matters because at 100+ players the DMs are
-two sequential Discord round-trips *per starving character*, and awaiting that
+sequential Discord round-trips *per starving character*, and awaiting that
 inside the Dev Panel's server action used to hold the request open long enough
 to freeze the web app's navigation. The list is split back off the summary in
 `resolveNeeds()` before the audit row is written, so the logged details are
@@ -239,13 +261,16 @@ per character — at 100+ players the latter would push 200 entries a day into
 
 ### The summed modifier
 
-Mood's ±1 and Hunger's −1 **stack additively**: Unhappy + Hungry = −2, Happy +
-Hungry = 0. `db/lib/gambitModifier.js` is the single source of that sum, shared
-by the bot and the web app so the number a player is shown and the number
-applied cannot drift — the same posture as `narrowcastAccess.js`. It is a thin
+Mood's ±1 and Hunger's escalating penalty **stack additively**: Unhappy +
+Hungry(streak 1) = −2, Happy + Hungry(streak 3) = −2.
+`db/lib/gambitModifier.js` is the single source of that sum, shared by the
+bot and the web app so the number a player is shown and the number applied
+cannot drift — the same posture as `narrowcastAccess.js`. It is a thin
 composer *over* `mood.js` rather than a generalization of it, because Mood is a
-tri-state with a player-facing write path while Hunger is a boolean the turn
-engine grants.
+tri-state with a player-facing write path while Hunger is a boolean tag whose
+*size* comes from a Character column (`hungerStreak`) the turn engine writes —
+`gambitModifiers`/`gambitModifierTotal` take it as a second argument for
+exactly that reason, since it isn't something the tag list alone carries.
 
 Only a Gambit rolls a die, so only a Gambit can carry the modifier.
 `bot/src/events/interactionCreate.js#handleMoveConfirm` stores the **raw** roll

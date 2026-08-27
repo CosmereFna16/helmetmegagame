@@ -574,6 +574,14 @@ model Character {
   status      CharacterStatus @default(ALIVE)
   resources   Int             @default(0)
 
+  // Consecutive turns this character has closed hungry — written only by
+  // db/lib/hungerPass.js. Any turn they're fed (paid, Ate Meal, or
+  // Hungerless) resets it to 0; each hungry turn increments it, scaling the
+  // Gambit penalty (db/lib/gambitModifier.js). At 6 the pass grants `dying`
+  // and leaves it there — a GM confirms the death by hand, same as every
+  // other terminal chain (tagExpiryPass.js).
+  hungerStreak Int @default(0)
+
   // Unspent point-buy points. Seeded at creation with whatever the player
   // didn't spend in the wizard (budget minus purchases) and drawn down by
   // the mid-game store.

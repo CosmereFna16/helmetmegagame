@@ -197,7 +197,7 @@ export default async function DevCharacterPanelPage({ params }) {
         maxNegativeTags={config?.maxNegativeTags ?? DEFAULT_MAX_NEGATIVE_TAGS}
         startingTagPoints={config?.startingTagPoints ?? 12}
         openTurn={openTurn ? { id: openTurn.id, number: openTurn.number, phase: openTurn.phase } : null}
-        gambitModifier={gambitModifierTotal(heldTags)}
+        gambitModifier={gambitModifierTotal(heldTags, { hungerStreak: character.hungerStreak })}
         stagedForPush={stagedForPush}
         openTurnAction={
           openTurnAction

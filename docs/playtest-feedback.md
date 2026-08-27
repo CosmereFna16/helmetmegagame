@@ -38,7 +38,7 @@ I verified the code behind several of these before tagging (notes inline).
 - [*] Search conversation searches recent text, not the whole text
 - [*] Search in tag add and store work across categories
 - Skills concealed
-- Torturer didn't yield info
+- [x] Torturer didn't yield info
 - Error console
 - Error log, why error for keni_player no submit move?
 - Guy changes location but guy already rolled and made a move saying where he was going to be ]'
@@ -63,6 +63,42 @@ I verified the code behind several of these before tagging (notes inline).
 > Both fallbacks (the concealed and the normal branch) now log and drop instead.
 > A bounced DM means the inspect goes nowhere, which is the only safe outcome —
 > a reaction has no ephemeral reply to fall back to.
+
+> **Note on Torturer/Seductive yielding nothing — FIXED.** Two separate causes.
+> First, a real bug: the `mindreading` tag (granted by the Succubus Draught,
+> and advertised to players in `docs/documents.yaml`) promised the same sight
+> as Seductive/Torturer but was never wired into `db/lib/inspectVision.js`'s
+> slug lists — so drinking it bought nothing. Fixed by adding it to both
+> lists. Second, not a bug: `Character.fear` and an ACTIVE `Desire` are both
+> set through player requests, not at creation, so in a fresh playtest almost
+> nobody has either — the field was correctly absent, but absent looked
+> identical to broken. Fixed by giving a *holder* of the sight an explicit
+> "Nothing you can read." when the target has nothing set, while leaving the
+> field fully absent for anyone without the tag (so the no-advertising rule
+> for non-holders is untouched).
+
+> **Note on auto-dismissing "Sent." confirmations — DONE, partially.** Added a
+> `fleeting` option to `bot/src/lib/respond.js` that self-deletes an ephemeral
+> reply after two minutes. Applied it only to bare acknowledgements that carry
+> no information worth keeping — `/gm`, `/dm`, `/add`, `/remove` — and
+> deliberately did NOT wire it into `respond()` globally or onto the Move/labor
+> dice-roll confirmations, the Speak jump link, or any failure message: those
+> are the only record of something, or tell the player their work didn't
+> happen, and auto-deleting them would reintroduce exactly the silent-failure
+> problem `respond.js` exists to prevent. `/heal`'s "Cleared…" confirmation
+> uses a different, multi-step select-menu flow and was left alone rather than
+> risk deleting the wrong message out of that chain.
+
+> **Note on hunger escalation — DONE** (not from the raw feedback below; a
+> direct ask). Hunger used to be a flat −1 to Gambits for exactly one turn.
+> Added `Character.hungerStreak`, written only by `db/lib/hungerPass.js`:
+> increments each turn a character closes hungry, resets to 0 the moment
+> they're fed (paid, ate a meal, or hold Hungerless). The Gambit penalty now
+> scales with it, floored at −6, via `db/lib/gambitModifier.js`. At the −6
+> cap the pass grants `dying` — permanently, same as every other terminal tag
+> chain — and a GM confirms the death by hand from there; nothing in the turn
+> engine kills anyone outright. Needs `npm run db:migrate:deploy` before the
+> next deploy — see the migration under `db/prisma/migrations/`.
 
 > **Note on the two-locations bug.** The database is fine — `locationId` is a
 > single column and travel is transactional. What duplicates is *Discord channel
@@ -255,7 +291,7 @@ I verified the code behind several of these before tagging (notes inline).
 ## Discord, channels and proxying
 
 - [*] Make turn channel wipe on new turn, other messages too
-- [*] Auto dismiss hidden messages like sent etc
+- [x] Auto dismiss hidden messages like sent etc
 - Pretty up pin channel post
 - Explain channels / summary etc better
 - GM can see all Chanels, QOL, no idea where my location is
