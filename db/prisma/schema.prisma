@@ -111,8 +111,6 @@ enum RequestType {
   SET_MOOD
   DONATE_BLOOD
   FEED_PERSON
-  CHANGE_FEAR
-  FULFILL_FEAR
   HEAL_CHARACTER
   CHANGE_NAME
 }
@@ -141,7 +139,6 @@ enum ArchiveKind {
   CHARACTER_CREATED
   DEATH
   DESIRE_FULFILLED
-  FEAR_FULFILLED
   LIFEWEB
   TRAVEL
 }
@@ -651,28 +648,6 @@ model Character {
   // from /gm/dev/characters/[characterId]. Read by
   // db/lib/concealedIdentity.js for the Young/Old half of a concealed alias.
   age Int?
-
-  // A single, persistent, self-set dread — see docs/systemdocs/REQUESTS.md
-  // §5b. Deliberately three columns rather than a model: there is exactly one
-  // per character, it has no ACTIVE/ENDED lifecycle (fulfilling it does NOT
-  // consume it), and Undo restores the previous text from Request.effect, so
-  // there is no history for a table to hold. Fulfilment history lives in the
-  // Request/AuditLog rows.
-  //
-  // Named (optionally) as the last step of character creation and then locked
-  // in: the first set is free, but changing it afterwards is a
-  // CHANGE_FEAR request. Fulfilling it is a FULFILL_FEAR request
-  // worth a flat -3 Tag Points, never a ladder.
-  fear String?
-
-  // Turn the current text was set on — display only.
-  fearSetTurnNumber Int?
-
-  // Turn it was last fulfilled on, driving the one-turn cooldown (blocked
-  // while openTurn.number <= this). Null means never. The fear itself
-  // PERSISTS through a fulfilment — same fear, again next turn — which is
-  // why this is a turn stamp and not a status.
-  fearLastFulfilledTurn Int?
 
   // Which secretly GM-assigned antagonist seats this player is open to being
   // handed (Succubus, Cultist, the Judge...). Consent data only: nothing in

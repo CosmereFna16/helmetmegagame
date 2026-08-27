@@ -85,7 +85,7 @@ async function handleStarReaction(reaction, proxy, user) {
 // they know the room did not).
 //
 // There is deliberately NO channel fallback when the DM bounces; doing that
-// here would hand the room every tag, the Desire and the Fear. The 🔍 inspect
+// here would hand the room every tag and the Desire. The 🔍 inspect
 // branch below used to have one, and it leaked exactly that into a public
 // channel whenever the reactor had DMs closed. Both now log and drop instead.
 // If a future embed in this file needs a fallback, it is not this kind.
@@ -163,7 +163,6 @@ async function handleDossierReaction(reaction, proxy, user) {
   });
 
   if (desire) embed.addFields({ name: "Desire", value: `${desire.text} (+${desire.points})` });
-  if (character.fear) embed.addFields({ name: "Fear", value: character.fear });
 
   if (process.env.WEB_BASE_URL) {
     embed.setThumbnail(`${process.env.WEB_BASE_URL}/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`);
@@ -369,13 +368,12 @@ module.exports = {
       // still theirs. Clearing it means a retry is always one click away.
       try {
         // The inspected character, and the inspector — what the embed shows
-        // depends on both. Seductive/Torturer (and their Demoness twins) are
-        // read off the REACTOR, not the subject: they're the sight, not the
-        // thing seen.
+        // depends on both. Seductive (and its Demoness twin) is read off the
+        // REACTOR, not the subject: it's the sight, not the thing seen.
         // A concealed message answers with a hardcoded, deliberately impoverished
         // embed: what a stranger could see, and nothing else. It returns before
         // any of the normal field logic below, so no appearance, name, Desire,
-        // Fear or Resources can leak through a gate that happens to be
+        // or Resources can leak through a gate that happens to be
         // open for this particular viewer.
         if (proxy.concealed) {
           const concealedChar = await prisma.character.findUnique({
@@ -449,7 +447,7 @@ module.exports = {
         ]);
         if (!character) return;
 
-        const { canSeeDesire, canSeeFear } = inspectVision(viewer?.tags ?? []);
+        const { canSeeDesire } = inspectVision(viewer?.tags ?? []);
 
         // The doctor's eye: an affliction you could treat as ROUTINE is one you
         // can recognise on sight, even when it's invisible to everyone else —
@@ -467,7 +465,7 @@ module.exports = {
         // 1024-char embed field cap.
         const visibleTags = medicallyVisibleTags(character.tags, satisfied).map(({ characterTag: ct, viaSkill }) => {
           const bits = [
-            formatTagRequirement(ct.tag),
+            formatTagRequirement(ct.tag, { resources: false }),
             formatTurnsLeft(turnsLeft(ct.expiresTurn, openTurn?.number)),
             // Only the reader is seeing this one. Worth saying so plainly: the
             // patient isn't showing it to the room, and a medic who repeats it
@@ -491,7 +489,7 @@ module.exports = {
         //
         // But once the VIEWER holds the sight, an empty result gets an
         // explicit "nothing there" line instead of staying absent — without
-        // it, a Torturer/Seductive holder can't tell "no tag", "tag fired but
+        // it, a Seductive holder can't tell "no tag", "tag fired but
         // the target has none set", and "broken" apart, and it reads as
         // scripted. Absence still means "you can't see this" to everyone
         // without the tag, so the no-advertising rule for non-holders is
@@ -504,13 +502,6 @@ module.exports = {
           embed.addFields({
             name: "Desire",
             value: desire ? fitField(`${desire.text} (+${desire.points})`) : "Nothing you can read.",
-          });
-        }
-
-        if (canSeeFear) {
-          embed.addFields({
-            name: "Fear",
-            value: character.fear ? fitField(character.fear) : "Nothing you can read.",
           });
         }
 
@@ -538,7 +529,7 @@ module.exports = {
           await sendDm(user, { embeds: [embed] });
         } catch (err) {
           // Same as the concealed branch above, and for a stronger reason:
-          // this embed carries the Desire, the Fear and the doctor's-eye tags.
+          // this embed carries the Desire and the doctor's-eye tags.
           console.error("Inspect reaction DM failed:", err);
         }
       } finally {

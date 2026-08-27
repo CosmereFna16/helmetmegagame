@@ -212,7 +212,6 @@ function SheetView({ data, tab, tagsById, currentTurnNumber, characterId, pendin
     ],
     ["Gambit", data.gambitModifier > 0 ? `+${data.gambitModifier}` : String(data.gambitModifier)],
     ["Acted", data.acted ? "yes" : "no"],
-    ["Fear", data.fear ?? "—"],
   ];
   return (
     <dl className="desk-inspector-facts p-3">

@@ -82,8 +82,8 @@ export default function DesirePanel({ desire, cooldownUntilTurn, openTurnNumber 
   }
 
   return (
-    // Body only — the panel chrome and the tab bar live in GoalsPanel.js,
-    // which renders this beside FearPanel.
+    // Body only — the panel chrome lives in GoalsPanel.js, which renders
+    // this.
     <div className="flex flex-col gap-3">
       <h3 className="field-label panel-header--with-icon">
         Desire

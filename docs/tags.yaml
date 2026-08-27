@@ -361,9 +361,7 @@ tags:
 
   # NEW (Claude) --------------------------------------------------------
   # The 5 and 6 bands were nearly empty, and the design doc names "giant" as
-  # its own 6-point example. Inscrutable is priced at 5 because it blanks two
-  # separate 4-point abilities (Seductive and Torturer) rather than granting
-  # one of its own.
+  # its own 6-point example.
   - slug: giant
     name: Giant
     category: general
@@ -473,10 +471,10 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  # Seductive/Torturer are the two tags that grant real read access to another
+  # Seductive is the tag that grants real read access to another
   # character's sheet: 🔍-reacting to one of their proxied messages adds a
-  # Desire or Worst Fear field to the inspect embed. db/lib/inspectVision.js
-  # is the single reader, and it accepts the discounted Demoness twins below
+  # Desire field to the inspect embed. db/lib/inspectVision.js
+  # is the single reader, and it accepts the discounted Demoness twin below
   # as well. Deliberately not `visible` — being able to read people is not
   # something people should be able to read off you.
   - slug: seductive
@@ -484,15 +482,6 @@ tags:
     category: general
     group: general-social
     description: "You can see a person's desire by examining them."
-    pointCost: 4
-    purchasable: true
-    purchasableAfterStart: true
-
-  - slug: torturer
-    name: Torturer
-    category: general
-    group: general-social
-    description: "You can see a person's worst fear by examining them."
     pointCost: 4
     purchasable: true
     purchasableAfterStart: true
@@ -1631,7 +1620,7 @@ tags:
     name: Mindreading
     category: status
     group: status-buffs
-    description: "You can read a person's desire and fears, as if you had the {tag:seductive} or {tag:torturer} tags."
+    description: "You can read a person's desire, as if you had the {tag:seductive} tag."
     pointCost: 0
     visible: true
     purchasable: false
@@ -4995,24 +4984,15 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # Discounted twins of the General Seductive/Torturer. Deliberately separate
-  # tags rather than a parentTag chain: a chain prices cumulatively, so
+  # Discounted twin of the General Seductive. Deliberately a separate
+  # tag rather than a parentTag chain: a chain prices cumulatively, so
   # Seductive (Demoness) would cost 4 + 3 = 7 — the opposite of a discount.
-  # db/lib/inspectVision.js reads both slugs of each pair.
+  # db/lib/inspectVision.js reads both slugs of the pair.
   - slug: seductive-demoness
     name: Seductive (Demoness)
     category: demoness
     group: demoness
     description: "You can see a person's Desire by examining them."
-    pointCost: 3
-    purchasable: true
-    purchasableAfterStart: true
-
-  - slug: torturer-demoness
-    name: Torturer (Demoness)
-    category: demoness
-    group: demoness
-    description: "You can see a person's Worst Fear by examining them."
     pointCost: 3
     purchasable: true
     purchasableAfterStart: true
@@ -5145,7 +5125,7 @@ tags:
     purchasableAfterStart: true
 
   # This one is `visible`, so a bystander reads its NAME off the sheet — which
-  # rules out the "(Demoness)" suffix the Seductive/Torturer twins carry. It
+  # rules out the "(Demoness)" suffix the Seductive twin carries. It
   # also cannot simply be called Otherworldly Beauty: that name is taken by the
   # Flawless Skin tonic's effect half, and docs/documents.yaml grants documents
   # by tag NAME, so two rows sharing one would be a coin toss. Hence a third

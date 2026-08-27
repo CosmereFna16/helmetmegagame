@@ -261,13 +261,7 @@ export default function DevPanel({
       )}
 
       {tab === "Goals" && (
-        <GoalsTab
-          character={character}
-          staged={staged}
-          desires={desires}
-          openTurn={openTurn}
-          onField={setField}
-        />
+        <GoalsTab character={character} desires={desires} />
       )}
 
       {tab === "Record" && (

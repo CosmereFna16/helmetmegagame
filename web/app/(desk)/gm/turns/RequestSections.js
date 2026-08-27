@@ -227,36 +227,6 @@ export const SECTIONS = {
     ),
   },
 
-  CHANGE_FEAR: {
-    heading: "Change Fear",
-    render: ({ effect }) => (
-      <>
-        <Line label="Now">{effect.text ?? "—"}</Line>
-        <Line label="Was">
-          {effect.previousText ?? <span className="text-muted">nothing</span>}
-        </Line>
-      </>
-    ),
-  },
-
-  FULFILL_FEAR: {
-    heading: "Fear Comes True",
-    render: ({ effect }) => (
-      <>
-        <Line label="Fear">{effect.fearText ?? "—"}</Line>
-        <Line label="Cost">
-          <span className="text-accent">&minus;{effect.pointsDeducted ?? 0} Tag Points</span>
-        </Line>
-        {effect.fulfilledTurnNumber != null && (
-          <Line label="On turn">{effect.fulfilledTurnNumber}</Line>
-        )}
-        <p className="text-xs text-muted">
-          Always exactly &minus;{effect.pointsDeducted ?? 0}.
-        </p>
-      </>
-    ),
-  },
-
   // The one type whose subject isn't the character who filed it, so the
   // patient is named explicitly rather than left to the desk's universal
   // half (which shows the requester).

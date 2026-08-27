@@ -22,7 +22,7 @@ interleave chronologically and the transcript reads as a diary rather than a
 chat log with no context: `TURN_START` (the chapter divider, written in
 `advanceTurn` where the turn is created rather than in `runSideEffects`, so a
 failed announcement can't leave two days with no boundary), `CHARACTER_CREATED`,
-`DEATH`, `DESIRE_FULFILLED`, `FEAR_FULFILLED`, `LIFEWEB`, and `TRAVEL`
+`DEATH`, `DESIRE_FULFILLED`, `LIFEWEB`, and `TRAVEL`
 — the last gated behind `GameConfig.archiveTravelEvents`, off by default,
 since arrivals are what make a location read like a story and also two rows per
 character per turn before anyone speaks.

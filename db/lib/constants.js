@@ -17,13 +17,11 @@ const LABORER_FISHING_SLUG = "laborer-fishing";
 const LABORER_HERDING_SLUG = "laborer-herding";
 const LABORER_HUNTING_SLUG = "laborer-hunting";
 
-// The "read someone else's sheet" tags and their discounted Demoness
-// twins — see db/lib/inspectVision.js, the only reader. Mindreading is the
-// Succubus Draught's grant and buys both sights at once.
+// The "read someone else's sheet" tag and its discounted Demoness
+// twin — see db/lib/inspectVision.js, the only reader. Mindreading is the
+// Succubus Draught's grant and buys the same sight.
 const SEDUCTIVE_SLUG = "seductive";
 const SEDUCTIVE_DEMONESS_SLUG = "seductive-demoness";
-const TORTURER_SLUG = "torturer";
-const TORTURER_DEMONESS_SLUG = "torturer-demoness";
 const MINDREADING_SLUG = "mindreading";
 
 // Gates the hidden Demoness tag category (via the `demoness` group's
@@ -51,8 +49,6 @@ module.exports = {
   LABORER_HUNTING_SLUG,
   SEDUCTIVE_SLUG,
   SEDUCTIVE_DEMONESS_SLUG,
-  TORTURER_SLUG,
-  TORTURER_DEMONESS_SLUG,
   MINDREADING_SLUG,
   DEMONESS_SLUG,
 };

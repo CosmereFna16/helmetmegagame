@@ -98,8 +98,6 @@ reason.
 | `CONSUME_TAG` | Uses up one of their own `consumable` tags — always exactly one, even from a stack — and gains whatever it `consumesInto` | — | Restores the one unit with its original expiry, takes back what it granted |
 | `TRANSFER_TAG` | Hands an Item or Asset to another player in the same Location, in a quantity if it stacks. `direction: "LOOT"` lifts one off a corpse in the same room | — | Moves that many back |
 | `FULFILL_DESIRE` | Claims their active Desire | Tag Points awarded | Revokes the points, reopens the Desire |
-| `CHANGE_FEAR` | Rewords their locked-in Fear | — | Restores the previous wording and its set-turn |
-| `FULFILL_FEAR` | Declares their Fear came true, for a flat −3 Tag Points | — | Refunds the points and unwinds the cooldown |
 | `DONATE_BLOOD` | Mortus bleeds someone into the Lifeweb | blood added; clear Drained | Draws the blood back, clears Drained |
 | `FEED_PERSON` | Mortus feeds someone to the Lifeweb | blood added | Draws the blood back (never revives) |
 | `HEAL_CHARACTER` | Treats an affliction on anyone standing in their Location, on whoever's tab they choose | cost; put the affliction back | Restores the tag with its original expiry, refunds the payer |
@@ -328,52 +326,6 @@ The 1–5 ladder is shown in an `InfoIcon` beside the points field:
 5. Win back your lover.                            Extraordinary.
 ```
 
-## 5b. The Fear
-
-The mirror of a Desire, and deliberately not symmetrical with it. A Fear
-is one dread, named once and kept; when it comes true the player loses a flat
-**3 Tag Points** (`FEAR_PENALTY`, `web/lib/constants.js`).
-
-Three differences from a Desire drive the whole design:
-
-- **It is never consumed.** Fulfilling it moves points and stamps a turn; the
-  text stays exactly where it was. There is no `ACTIVE`/`FULFILLED` lifecycle,
-  which is why it is **three columns on `Character`** rather than a model:
-  `fear`, `fearSetTurnNumber`, `fearLastFulfilledTurn`. `Desire`
-  earned a table because "one ACTIVE among many rows" is a real invariant with
-  real history; this has one row's worth of state, forever. It also rides along
-  free on every `Character` read, where the Desire panel costs two extra
-  `findFirst`s.
-- **The cost is flat.** Never the 1–5 ladder, never GM-re-scorable — so both
-  types carry `editableFields: []` and Undo is a GM's only lever.
-- **The cooldown is keyed on the character, not on an ended row**, because
-  there is no ended row. Fulfilled on turn 5 means blocked on 5 and allowed
-  from 6, with the *same* fear.
-
-**Two write paths, not one.** Naming your first fear is **free** — no reason, no
-`Request` — on the same reasoning that keeps `setDesire` out of the Requests
-system: nothing has been granted, so there is nothing to undo. **Changing** a
-fear that is already locked in *is* a request. So every `CHANGE_FEAR` row
-really is a change, and its `previousText` is always populated.
-
-It can also be named as the optional last step of character creation, which
-writes the column directly and is covered by the `character_created` audit row.
-
-**The trap, and the one place a handler reads live state.** `FULFILL_FEAR`
-snapshots `previousLastFulfilledTurn` so Undo can unwind the cooldown. But a
-player who claimed the fear again on a later turn now owns that stamp, and
-restoring the snapshot unconditionally would hand them a free extra claim. So
-the undo restores it **only if the live stamp still equals this request's own
-`fulfilledTurnNumber`**. That reads live state to decide *whether* the restore
-applies — never to recompute *what* to restore, which is the thing §2 forbids
-(the same shape as `restoreCharacterTag`'s upsert).
-
-Points may go **negative**, matching the Desire-undo precedent. Clamping at 0
-would let a broke player dodge the penalty entirely, which is the mechanic.
-
-Fulfilling requires an open turn and refuses without one: the cooldown is
-turn-keyed, and stamping `null` would silently clear it.
-
 ## 5a. The Lifeweb
 
 `/lifeweb` is gated on the `mortus` tag. Its two buttons are Requests like any
@@ -516,7 +468,7 @@ of a transfer. Deposits into a Silo previously left no ledger entry at all.
 | One end of a resource movement (Silo or player) | `web/app/components/PartySelect.js` |
 | Reach gate — same Location / same Silo zone | `web/lib/transferReach.js` |
 | Tags panel + click-a-chip-to-consume | `web/app/components/TagsPanel.js`, `TagChip.js` |
-| Desires and Fears | `web/app/components/GoalsPanel.js` (tab shell), `DesirePanel.js`, `WorstFearPanel.js` |
+| Desires | `web/app/components/GoalsPanel.js` (panel shell), `DesirePanel.js` |
 | Lifeweb blood tiers + cap, shared bot/web | `db/lib/lifeweb.js` |
 | Lifeweb requests, GM bypass panel | `web/app/(app)/lifeweb/requestActions.js`, `actions.js` |
 | Lifeweb player buttons | `web/app/components/LifewebRequestButtons.js` |

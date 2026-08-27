@@ -104,6 +104,9 @@ function ttlCache(ttlMs) {
     set(key, value) {
       store.set(key, { value, expiresAt: Date.now() + ttlMs });
     },
+    delete(key) {
+      store.delete(key);
+    },
   };
 }
 
@@ -401,6 +404,10 @@ export async function grantCursedRole(discordUserId) {
       method: "PUT",
       allow404: true,
     });
+    // Both caches hold the member for five minutes; a player who re-rolls
+    // inside that window would otherwise read as uncursed and keep the role.
+    memberCache.delete(discordUserId);
+    memberListCache.delete("all");
   } catch (err) {
     console.error(`Failed to grant cursed role to ${discordUserId}:`, err);
   }
@@ -417,6 +424,8 @@ export async function removeCursedRole(discordUserId) {
       method: "DELETE",
       allow404: true,
     });
+    memberCache.delete(discordUserId);
+    memberListCache.delete("all");
   } catch (err) {
     console.error(`Failed to remove cursed role from ${discordUserId}:`, err);
   }
