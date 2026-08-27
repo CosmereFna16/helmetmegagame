@@ -465,7 +465,7 @@ module.exports = {
         // 1024-char embed field cap.
         const visibleTags = medicallyVisibleTags(character.tags, satisfied).map(({ characterTag: ct, viaSkill }) => {
           const bits = [
-            formatTagRequirement(ct.tag),
+            formatTagRequirement(ct.tag, { resources: false }),
             formatTurnsLeft(turnsLeft(ct.expiresTurn, openTurn?.number)),
             // Only the reader is seeing this one. Worth saying so plainly: the
             // patient isn't showing it to the room, and a medic who repeats it
