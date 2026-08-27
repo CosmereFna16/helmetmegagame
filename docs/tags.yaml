@@ -2087,7 +2087,7 @@ tags:
     purchasableAfterStart: false
     removable: true
     requirement:
-      resourceCost: 0
+      resourceCost: 1
       skills: [medical-basic]
 
   - slug: frostbite

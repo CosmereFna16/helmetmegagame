@@ -61,27 +61,88 @@ documents:
     key: medical
     public: true
     tags:
-      - medical-basic
-      - medical-skilled
-      - medical-expert
+      - Medical (Basic)
+      - Medical (Skilled)
+      - Medical (Expert)
     description: |-
-      Health and injuries are simulated through the tag system. Most health tags can be removed, usually for a cost. The cost includes: Resources, number of routine moves (bandaging someone doesn't have a turn cost; surgery does), the skill requirement, whether or not it requires advanced (modern) technology, and whether or not it requires a Gambit. Anyone can try to heal a wound without the required skill or technology (just DM the Bascinet bot), but it'll require a Gambit.
+      Health and injuries are tags. Most can be treated, for a price: Resources
+      (⬢), a doctor's turns, and a skill. Anyone may attempt a cure above their
+      skill — it just takes a Gambit, and a failed Gambit can leave the patient
+      worse than it found them. Just DM the Bascinet bot.
 
-      Surgery and severe cases require advanced medical equipment. For that, you must be in the Sanctuary or have the {tag:surgical-equipment} tag.
+      Surgery needs advanced equipment. Be in the Sanctuary, or hold
+      {tag:surgical-equipment}.
 
-      **Skills**
+      {tag:medical-basic} · {tag:medical-skilled} · {tag:medical-expert}
 
-      {tag:medical-basic} handles first aid routinely.
-      {tag:medical-skilled} handles **moderate** and **severe** cases routinely, but rolls Gambits on surgery.
-      {tag:medical-expert} handles almost everything routinely.
+      | Tier | ⬢ | Turns | Skill |
+      |---|---|---|---|
+      | Very minor — first aid | 1 | 0 | Medical (Basic) |
+      | Minor | 2 | 0 | Medical (Basic) |
+      | Moderately severe | 2 | 1 | Medical (Skilled) |
+      | Severe | 4 | 1 | Medical (Skilled) |
+      | Very minor surgery | 6 | 1 | Medical (Skilled) |
+      | Severe surgery | 8 | 1 | Medical (Expert) |
+      | Complex surgery | 8 | 1 | Medical (Expert) + Gambit |
 
-      **Expiry**
+      **Very minor — 1 ⬢, no turn**
 
-      Some wounds, like infections, get worse.
+      - {tag:bruised}, {tag:dislocated-shoulder}, {tag:malnourished},
+        {tag:severe-pain}
 
-      **Tonics**
+      **Minor — 2 ⬢, no turn**
 
-      Tonics (see {document:alcoholdrugs}) can instantly cure wounds and help recovery, but require unique ingredients. Similarly, a few afflictions—like {tag:blinded}—require unique ingredients.
+      - {tag:burned}, {tag:sprained-ankle}, {tag:infected}
+
+      **Moderately severe — 2 ⬢, 1 turn**
+
+      - {tag:deep-wound}, {tag:broken-bone}, {tag:cracked-ribs},
+        {tag:poisoned}, {tag:heatstroke}, {tag:pain-shock}
+
+      **Severe — 4 ⬢, 1 turn**
+
+      - {tag:severe-burns}, {tag:broken-jaw}, {tag:mangled-hand},
+        {tag:festering}, {tag:rot-lung}, {tag:pox}
+
+      **Very minor surgery — 6 ⬢, 1 turn**
+
+      - {tag:feverish}, {tag:necrosis}
+
+      **Severe surgery — 8 ⬢, 1 turn**
+
+      - {tag:punctured-lung}, {tag:gut-wound}, {tag:appendicitis},
+        {tag:envenomated}, {tag:disfigured}
+
+      **Complex surgery — 8 ⬢, 1 turn, Gambit**
+
+      - {tag:sepsis}, {tag:dying}, {tag:consumptive}, {tag:blinded},
+        {tag:crippled-leg}, {tag:phrygian-toxin}
+
+      **Off the ladder**
+
+      - {tag:minor-bleeding} — free, no turn. A bandage.
+      - {tag:choking} — 2 ⬢, 1 turn. No skill: anyone can try.
+      - {tag:frostbite} — 2 ⬢, no turn, Medical (Skilled).
+      - {tag:severe-bleeding}, {tag:arterial-bleed}, {tag:parasites} — 3 ⬢,
+        1 turn, Medical (Skilled).
+
+      **No cure — only time, or never**
+
+      - Permanent: {tag:missing-arm}, {tag:missing-leg}, {tag:missing-eye},
+        {tag:missing-fingers}, {tag:peg-leg}, {tag:deaf}, {tag:scarred}
+      - The mind: {tag:concussed}, {tag:shell-shocked}, {tag:amnesiac},
+        {tag:paralyzed}, {tag:hallucinating}, {tag:stutter}, {tag:mute},
+        {tag:night-blind}
+      - Wears off: {tag:vomiting}, {tag:aching}, {tag:hungover},
+        {tag:migraine}, {tag:no-migraine}, {tag:arthritis}, {tag:hypothermia}
+      - After treatment: {tag:splinted}, {tag:stitched-up}, {tag:cauterized},
+        {tag:recovering}
+
+      Some wounds get worse if nobody treats them — an infection ends at
+      {tag:dying}. Each one names what it becomes.
+
+      Tonics (see {document:alcoholdrugs}) cure some of this outright. A few
+      cures need an ingredient nobody sells — {tag:blinded} is one.
   - name: Sanctuary
     key: sanctuary
     public: true
