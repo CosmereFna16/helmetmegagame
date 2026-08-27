@@ -17,6 +17,17 @@ bot's DMs, whatever contexts it declares. The cost is propagation: a new or
 renamed command can take up to an hour to appear. Registration is a full
 replace, so removing a command from the array deregisters it.
 
+`registerCommands` also **sweeps every guild's own command list empty** on
+each boot. That full replace only ever replaces the *global* list, so when
+registration moved from per-guild to global, everything the old code had
+written into the guild stayed there — and Discord shows both copies in the
+picker. `/gm` `/message` `/add` `/remove` `/persistent` appeared twice, and
+the four retired `/hunt` `/fish` `/farm` `/herd` were still listed with no
+handler left to answer them. Since registration is global, an empty
+guild-scoped list is the correct state, so the sweep enforces it. Don't add a
+per-guild registration back — it would be invisible in DMs *and* duplicate
+whatever the global list already has.
+
 Each command declares its contexts:
 
 - `Guild` only — needs a channel or thread to act on.

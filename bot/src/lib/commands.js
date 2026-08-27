@@ -124,6 +124,18 @@ const commandDefinitions = [
 // old labor commands go away.
 async function registerCommands(client) {
   await client.application.commands.set(commandDefinitions);
+
+  // The `set` above replaces the GLOBAL list only — it never touches a guild's
+  // own list. So when registration moved from per-guild to global, everything
+  // the old code had written into the guild was orphaned there, and Discord
+  // showed both copies in the picker: /gm /message /add /remove /persistent
+  // twice over, plus the four retired /hunt /fish /farm /herd with no handler
+  // left to answer them. Registration is global, so the correct guild-scoped
+  // list is empty — sweep it every boot, at one REST call per guild, and it
+  // cannot come back.
+  for (const guild of client.guilds.cache.values()) {
+    await client.application.commands.set([], guild.id);
+  }
 }
 
 module.exports = { commandDefinitions, registerCommands };
