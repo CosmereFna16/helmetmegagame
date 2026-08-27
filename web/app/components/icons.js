@@ -148,19 +148,14 @@ export function SignOutIcon(props) {
   );
 }
 
-// The Dev-panel jump. Drawn as a claw hammer: a head block PERPENDICULAR to
-// the handle, with the claw's split V on the left. The perpendicular
-// T-junction is the whole point — the previous drawing put a matching square
-// at both ends of a 45° diagonal, which reads as a pipe wrench, not a hammer.
-export function HammerIcon(props) {
+// The Dev-panel jump — a crenellated keep: the panel is where a GM rebuilds
+// someone from the foundations up.
+export function KeepIcon(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
-      {/* head, sitting across the top */}
-      <path d="M6 7.5h12.5a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H6V7.5z" strokeLinejoin="round" />
-      {/* the claw: a V bitten out of the head's left end */}
-      <path d="M6 7.5L3 9.75 6 12" strokeLinecap="round" strokeLinejoin="round" />
-      {/* handle, dropping straight down from under the head */}
-      <path d="M12 12v8.5" strokeLinecap="round" />
+      <path d="M6.5 20V6h2.3v1.8h2.05V6h2.3v1.8h2.05V6h2.3v14" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4.5 20h15" strokeLinecap="round" />
+      <path d="M10.6 20v-3.1a1.4 1.4 0 0 1 2.8 0V20" strokeLinejoin="round" />
     </svg>
   );
 }

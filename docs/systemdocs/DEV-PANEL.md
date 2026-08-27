@@ -209,12 +209,48 @@ toggles for its whole duration, and one bad character would roll back
 ninety-nine good ones. Partial success is reported; one audit row covers the
 batch.
 
-## 10. Where the code lives
+## 10. As a modal over `/gm/turns`
+
+The whole panel — all five tabs and every microaction — also mounts as a
+modal directly over the adjudication desk, so a GM chasing a Move or Request
+can jump into a character's full sheet without leaving the desk or losing
+its state (selected queue row, inspector, pins, staged effects). `DevPanel`
+takes `frame="modal"` and owns the `Modal` itself, because the dirty (staged
+edit) state lives inside it — closing has to go through the same
+`useDirtyGuard` that already guards Apply/Cancel, so an unsaved edit prompts
+before the modal closes.
+
+The data assembly is shared, not duplicated: `web/lib/devPanelData.js`
+exports `loadDevPanelProps(characterId, actingDiscordUserId)`, the exact
+24-prop DTO bundle `<DevPanel/>` needs, and both the standalone page and the
+desk call it. The desk reaches it through its own server action,
+`getDevPanelData` in `web/app/(desk)/gm/turns/devPanelActions.js` — a
+separate file from the desk's `actions.js` because that file is itself
+`"use server"` and can't export a plain loader function, and because its
+`requireGm` isn't importable from another `"use server"` module.
+
+`DevCharacterButton` (`web/app/components/DevCharacterButton.js`) is the
+shared jump button everywhere a `CharacterLink` might want one. Given an
+`onOpen` callback it opens the modal instead of navigating to the standalone
+page — the desk's `Workspace.js` owns the open/closed state and passes
+`onOpenDev` down through `MoveDesk`, `RequestDesk`, and `InspectorColumn`.
+Without `onOpen` it falls back to the plain `Link`, used everywhere else.
+
+A microaction's refresh (Kill, Revive, resync, the staging buttons…) flows
+through an `onMutated` prop rather than a bare `router.refresh()`: in the
+modal it re-fetches `getDevPanelData` (so the open panel repaints) and also
+calls `router.refresh()` (so the desk's own queue rows and staged hints
+repaint too). The standalone page still just calls `router.refresh()`.
+Delete follows the same shape through `onDeleted` — the modal closes itself
+and refreshes the desk, instead of the page's `router.push("/gm/players")`.
+
+## 11. Where the code lives
 
 | Concern | File |
 |---|---|
-| Page shell, DTOs | `web/app/(app)/gm/dev/characters/[characterId]/page.js` |
-| Staged state, tabs, Apply bar | `DevPanel.js` |
+| Page shell | `web/app/(app)/gm/dev/characters/[characterId]/page.js` |
+| Shared DTO assembly (page + desk modal) | `web/lib/devPanelData.js` |
+| Staged state, tabs, Apply bar, the "modal" frame | `DevPanel.js` |
 | Microaction row and its dialogs | `ActionBar.js` |
 | Tabs | `IdentityTab.js`, `TagEditor.js`, `TurnTab.js`, `GoalsTab.js`, `RecordTab.js` |
 | Server actions | `actions.js` (same directory) |
@@ -224,4 +260,5 @@ batch.
 | Custom tag catalog | `web/app/(app)/gm/dev/tags/` |
 | Bulk tagging | `web/app/(app)/gm/actions.js#bulkTagCharacters` |
 | Shared tag search | `web/lib/characterCreation.js#filterTagsByQuery` |
-| Panel styling | `.dev-state-strip`, `.dev-state-group`, `.dev-bar-sep`, `.dev-apply-bar`, `.dev-tag-row`, `.dev-tag-group-head` in `globals.css` |
+| Panel styling | `.dev-state-strip`, `.dev-state-group`, `.dev-bar-sep`, `.dev-apply-bar`, `.dev-tag-row`, `.dev-tag-group-head`, `.dev-modal-panel` in `globals.css` |
+| Desk modal mount, its server action | `web/app/(desk)/gm/turns/DevPanelModal.js`, `devPanelActions.js` |

@@ -336,6 +336,7 @@ export default function InspectorColumn({
   tagsById,
   currentTurnNumber,
   pendingByCharacter,
+  onOpenDev,
 }) {
   const router = useRouter();
   const [tab, setTab] = useState("Sheet");
@@ -382,7 +383,11 @@ export default function InspectorColumn({
               >
                 {isPinned ? "Unpin" : "Pin"}
               </button>
-              <DevCharacterButton characterId={inspected.characterId} name={inspected.name} />
+              <DevCharacterButton
+                characterId={inspected.characterId}
+                name={inspected.name}
+                onOpen={() => onOpenDev?.(inspected.characterId, inspected.name)}
+              />
             </span>
           </div>
 

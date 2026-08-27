@@ -26,7 +26,7 @@ function Line({ label, children }) {
   );
 }
 
-export default function RequestDesk({ request, onInspect, onClose, registerEscape }) {
+export default function RequestDesk({ request, onInspect, onClose, registerEscape, onOpenDev }) {
   const router = useRouter();
   const effect = request?.effect ?? {};
   const [edits, setEdits] = useState({
@@ -111,7 +111,11 @@ export default function RequestDesk({ request, onInspect, onClose, registerEscap
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <DevCharacterButton characterId={request.characterId} name={request.characterName} />
+          <DevCharacterButton
+            characterId={request.characterId}
+            name={request.characterName}
+            onOpen={() => onOpenDev?.(request.characterId, request.characterName)}
+          />
           <button type="button" className="btn-quiet" onClick={() => guardedClose(onClose)} disabled={pending}>
             Close
           </button>

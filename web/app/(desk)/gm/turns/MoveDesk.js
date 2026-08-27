@@ -76,6 +76,7 @@ export default function MoveDesk({
   onInspect,
   onClose,
   registerEscape,
+  onOpenDev,
 }) {
   const router = useRouter();
   const { markDirty, markClean, guardedClose } = useDirtyGuard();
@@ -152,7 +153,11 @@ export default function MoveDesk({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <DevCharacterButton characterId={move.characterId} name={move.characterName} />
+          <DevCharacterButton
+            characterId={move.characterId}
+            name={move.characterName}
+            onOpen={() => onOpenDev?.(move.characterId, move.characterName)}
+          />
           <button type="button" className="btn-quiet" onClick={() => guardedClose(onClose)} disabled={pending}>
             Close
           </button>

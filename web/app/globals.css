@@ -1175,6 +1175,17 @@ input[type="radio"]:disabled {
 .modal-panel[data-width="wide"] { max-width: 40rem; }
 .modal-panel[data-width="widest"] { max-width: 46rem; }
 
+/* The Dev Character Panel, mounted as a modal over /gm/turns
+   (DevPanelModal.js). It carries the whole standalone page's width — five
+   tabs, a state strip, an action bar — so it overrides width/max-width
+   directly instead of taking one of the named sizes above. */
+.dev-modal-panel {
+  width: min(75rem, 94vw);
+  max-width: none;
+  max-height: 92vh;
+  overflow-y: auto;
+}
+
 .modal-header {
   display: flex;
   align-items: center;

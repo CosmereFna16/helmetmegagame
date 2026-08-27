@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { PageHeader } from "@/app/components/PageShell";
 import FactionLink from "@/app/components/FactionLink";
 import TagPointsValue from "@/app/components/TagPointsValue";
+import Modal from "@/app/components/Modal";
 import ActionBar from "./ActionBar";
 import IdentityTab from "./IdentityTab";
 import TagEditor from "./TagEditor";
@@ -62,10 +63,23 @@ export default function DevPanel({
   requests,
   auditLog,
   messages,
+  // "page" is the standalone /gm/dev/characters/[characterId] route (the
+  // default, unchanged). "modal" is the mount over /gm/turns
+  // (DevPanelModal.js) — DevPanel owns the Modal itself rather than the
+  // caller wrapping it, because the dirty state (staged edits) lives here,
+  // and closing has to go through the same guard Apply/Cancel already use.
+  frame = "page",
+  onClose,
+  onMutated,
+  onDeleted,
 }) {
   const router = useRouter();
   const confirm = useConfirm();
-  const { markDirty, markClean } = useDirtyGuard();
+  const { markDirty, markClean, guardedClose } = useDirtyGuard();
+  // In "modal" frame, a microaction's refresh has to repaint the fetched
+  // DTOs (onMutated), not the desk's own RSC — router.refresh() alone would
+  // leave the modal showing stale data.
+  const refresh = onMutated ?? (() => router.refresh());
   const [tab, setTab] = useState("Identity");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(null);
@@ -151,7 +165,7 @@ export default function DevPanel({
       setEdits({});
       setTagOps(new Map());
       markClean();
-      router.refresh();
+      refresh();
     });
   }
 
@@ -160,22 +174,13 @@ export default function DevPanel({
   // at once.
   const staged = { ...character, ...edits };
 
-  return (
-    <>
-      <PageHeader
-        title={staged.name || character.name}
-        subtitle={
-          <>
-            All of the character&apos;s values can be edited.
-          </>
-        }
-        actions={
-          <Link href="/gm/players" className="btn-quiet">
-            &larr; Players
-          </Link>
-        }
-      />
+  // The dirty guard covers both frames: the page's own back-navigation isn't
+  // gated by it (browser beforeunload still is), but the modal's close does
+  // route through it — see the `frame === "modal"` branch below.
+  const closeModal = () => guardedClose(onClose);
 
+  const body = (
+    <>
       <StateStrip
         character={character}
         staged={staged}
@@ -202,6 +207,8 @@ export default function DevPanel({
         startingTagPoints={startingTagPoints}
         onStageTags={stageTagOps}
         onStageField={setField}
+        refresh={refresh}
+        onDeleted={onDeleted}
       />
 
       <div className="tab-bar" role="tablist">
@@ -297,6 +304,37 @@ export default function DevPanel({
           </span>
         </div>
       )}
+    </>
+  );
+
+  if (frame === "modal") {
+    return (
+      <Modal
+        title={staged.name || character.name}
+        onClose={closeModal}
+        panelClassName="modal-panel dev-modal-panel"
+      >
+        {body}
+      </Modal>
+    );
+  }
+
+  return (
+    <>
+      <PageHeader
+        title={staged.name || character.name}
+        subtitle={
+          <>
+            All of the character&apos;s values can be edited.
+          </>
+        }
+        actions={
+          <Link href="/gm/players" className="btn-quiet">
+            &larr; Players
+          </Link>
+        }
+      />
+      {body}
     </>
   );
 }

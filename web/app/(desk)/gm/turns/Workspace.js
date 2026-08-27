@@ -9,6 +9,7 @@ import RequestDesk from "./RequestDesk";
 import InspectorColumn from "./InspectorColumn";
 import StagingTray from "./StagingTray";
 import PushPreview from "./PushPreview";
+import DevPanelModal from "./DevPanelModal";
 
 // The adjudication workspace's client shell — mission control. It owns three
 // pieces of state and nothing else:
@@ -39,6 +40,11 @@ export default function Workspace({
   const [inspected, setInspected] = useState(null); // { characterId, name }
   const [pinned, setPinned] = useState([]); // [{ characterId, name }]
   const [previewOpen, setPreviewOpen] = useState(false);
+  // { characterId, name } of the Dev Panel currently open as a modal over
+  // the desk, or null. Opening it never leaves /gm/turns or resets any of
+  // the state above.
+  const [devPanel, setDevPanel] = useState(null);
+  const onOpenDev = useCallback((characterId, name) => setDevPanel({ characterId, name }), []);
 
   // Escape is layered, topmost-first, and this is the bottom layer:
   //   1. An open Modal (confirm, composer, unlock dialog) — Modal.js handles
@@ -179,6 +185,7 @@ export default function Workspace({
               onInspect={inspect}
               onClose={() => setSelected(null)}
               registerEscape={registerEscape}
+              onOpenDev={onOpenDev}
             />
           ) : selectedRequest ? (
             <RequestDesk
@@ -187,6 +194,7 @@ export default function Workspace({
               onInspect={inspect}
               onClose={() => setSelected(null)}
               registerEscape={registerEscape}
+              onOpenDev={onOpenDev}
             />
           ) : (
             <div className="desk-empty">
@@ -208,6 +216,7 @@ export default function Workspace({
           tagsById={tagsById}
           currentTurnNumber={openTurn?.number ?? null}
           pendingByCharacter={pendingByCharacter}
+          onOpenDev={onOpenDev}
         />
       </div>
 
@@ -229,6 +238,14 @@ export default function Workspace({
           stagedMessages={stagedMessages}
           tagCatalog={tagCatalog}
           onClose={() => setPreviewOpen(false)}
+        />
+      )}
+
+      {devPanel && (
+        <DevPanelModal
+          characterId={devPanel.characterId}
+          name={devPanel.name}
+          onClose={() => setDevPanel(null)}
         />
       )}
     </div>
