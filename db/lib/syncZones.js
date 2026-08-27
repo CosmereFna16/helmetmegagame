@@ -327,12 +327,27 @@ async function syncCreateTopicPost(prisma, zone) {
   if (existing && zone.createTopicHash === hash) return "unchanged";
 
   if (!existing) {
-    const thread = await createForumPost(zone.discordPublicChannelId, {
-      name: "Create a Topic",
-      content: chunks[0],
-      appliedTags,
-      components,
-    });
+    // Discord's forum-post create takes a message object; whether it honors
+    // `components` there has wobbled across API revisions, so a rejection
+    // falls back to create-then-edit — the starter message's id is the
+    // thread's own id, and an edit can always attach the button row.
+    let thread;
+    try {
+      thread = await createForumPost(zone.discordPublicChannelId, {
+        name: "Create a Topic",
+        content: chunks[0],
+        appliedTags,
+        components,
+      });
+    } catch (err) {
+      if (err?.status !== 400) throw err;
+      thread = await createForumPost(zone.discordPublicChannelId, {
+        name: "Create a Topic",
+        content: chunks[0],
+        appliedTags,
+      });
+      await editMessage(thread.id, thread.id, chunks[0], components);
+    }
     for (const chunk of chunks.slice(1)) await postMessage(thread.id, chunk);
     await patchThread(thread.id, {
       locked: true,
