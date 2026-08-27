@@ -1,21 +1,12 @@
 "use client";
 
-import FormError from "@/app/components/FormError";
-import Modal from "@/app/components/Modal";
 import CheckField from "@/app/components/CheckField";
-import { useState, useTransition } from "react";
-import useDirtyGuard from "@/app/components/useDirtyGuard";
-import { useConfirm } from "@/app/components/ConfirmProvider";
 import CharacterLink from "@/app/components/CharacterLink";
-import DevCharacterButton from "@/app/components/DevCharacterButton";
-import Tooltip from "@/app/components/Tooltip";
-import { resolveRequest, killRequestTarget } from "./actions";
-import FactionLink from "@/app/components/FactionLink";
 
-// The Request Adjudication Panel: a universal top half describing the
-// request, then a type-specific bottom half. Adding a RequestType means
-// adding one entry to SECTIONS below and one to REQUEST_EFFECTS in
-// web/lib/requestEffects.js — nothing else here changes.
+// The per-type bottom half of a Request review, extracted verbatim from the
+// old RequestPanel so the desk renders the same controls. Adding a
+// RequestType means adding one entry here and one to REQUEST_EFFECTS in
+// web/lib/requestEffects.js — nothing else changes.
 
 function Line({ label, children }) {
   return (
@@ -50,10 +41,10 @@ function BloodField({ value, onChange }) {
 // `effect`, never off live state — same rule as Undo (REQUESTS.md §2).
 function stackLabel(effect) {
   const name = effect.tagName ?? "—";
-  return (effect.quantity ?? 1) > 1 ? `${name} \u00d7${effect.quantity}` : name;
+  return (effect.quantity ?? 1) > 1 ? `${name} ×${effect.quantity}` : name;
 }
 
-const SECTIONS = {
+export const SECTIONS = {
   FULFILL_DESIRE: {
     heading: "Fulfill Desire",
     render: ({ effect, edits, setEdit }) => (
@@ -133,7 +124,7 @@ const SECTIONS = {
           {(effect.granted ?? []).filter((g) => g.added > 0).length
             ? effect.granted
                 .filter((g) => g.added > 0)
-                .map((g) => (g.added > 1 ? `${g.tagName} \u00d7${g.added}` : g.tagName))
+                .map((g) => (g.added > 1 ? `${g.tagName} ×${g.added}` : g.tagName))
                 .join(", ")
             : "—"}
         </Line>
@@ -216,7 +207,7 @@ const SECTIONS = {
             style={{ borderColor: "var(--accent)" }}
           >
             <p className="text-sm text-accent">
-              ☠ {effect.targetName ?? "This character"} is still alive. Feeding someone to the Lifeweb markes them as dying, but a GM has to kill them themselves.
+              ☠ {effect.targetName ?? "This character"} is still alive. Feeding someone to the Lifeweb marks them as dying, but a GM has to kill them themselves.
             </p>
             <button
               type="button"
@@ -267,7 +258,7 @@ const SECTIONS = {
   },
 
   // The one type whose subject isn't the character who filed it, so the
-  // patient is named explicitly rather than left to the panel's universal
+  // patient is named explicitly rather than left to the desk's universal
   // half (which shows the requester).
   HEAL_CHARACTER: {
     heading: "Heal",
@@ -323,155 +314,3 @@ const SECTIONS = {
     ),
   },
 };
-
-export default function RequestPanel({ request, readOnly = false, onClose }) {
-  const effect = request?.effect ?? {};
-  const [edits, setEdits] = useState({
-    resourcesSpent: String(effect.resourcesSpent ?? 0),
-    pointsAwarded: String(effect.pointsAwarded ?? 0),
-    bloodDelta: String(effect.bloodDelta ?? 0),
-    removeTag: false,
-    removeDrained: false,
-    restoreHealedTag: false,
-  });
-  const [gmNotes, setGmNotes] = useState(request?.gmNotes ?? "");
-  const [error, setError] = useState(null);
-  const [killing, setKilling] = useState(false);
-  const [pending, startTransition] = useTransition();
-  const { markDirty, markClean, guardedClose } = useDirtyGuard({ enabled: !readOnly });
-  const confirm = useConfirm();
-
-  if (!request) return null;
-  const section = SECTIONS[request.type];
-
-  function setEdit(key, value) {
-    markDirty();
-    setEdits((e) => ({ ...e, [key]: value }));
-  }
-
-  function run(mode) {
-    setError(null);
-    startTransition(async () => {
-      const res = await resolveRequest({ requestId: request.id, mode, edits, gmNotes });
-      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
-      markClean();
-      onClose();
-    });
-  }
-
-  // Killing is irreversible and lands on someone else's character, so it sits
-  // behind the shared confirm dialog on top of this panel.
-  async function onKill() {
-    setError(null);
-    const ok = await confirm({
-      title: `Kill ${effect.targetName ?? "this character"}?`,
-      message:
-        "This ends their game: the personal Discord role is deleted, the nickname cleared, and Cursed granted. It cannot be undone from here.",
-      confirmLabel: "Kill them",
-      cancelLabel: "Not yet",
-    });
-    if (!ok) return;
-
-    setKilling(true);
-    try {
-      const res = await killRequestTarget({ requestId: request.id });
-      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
-      markClean();
-      onClose();
-    } finally {
-      setKilling(false);
-    }
-  }
-
-  const close = () => (readOnly ? onClose() : guardedClose(onClose));
-
-  return (
-    <Modal
-      title={readOnly ? "Request (read only)" : "Request"}
-      width="wide"
-      onClose={() => !pending && close()}
-      actions={<DevCharacterButton characterId={request.characterId} name={request.characterName} />}
-    >
-      <div className="mt-3 flex flex-col gap-2">
-        <Line label="Character">
-          <CharacterLink characterId={request.characterId} name={request.characterName} isGm />{" "}
-          <span className="text-muted">({request.discordUsername})</span>
-        </Line>
-        <Line label="Faction">
-          <FactionLink factionId={request.factionId} name={request.factionName || "—"} />
-        </Line>
-        <Line label="Turn">{request.turnLabel}</Line>
-        <Line label="Type">{request.typeLabel}</Line>
-        <Line label="Status">{request.statusLabel}</Line>
-        <Line label="Reason">{request.reason}</Line>
-        <p className="text-xs text-muted">
-          To reduce GM load, players can make big changes.
-        </p>
-      </div>
-
-      {section && (
-        <div className="mt-4 flex flex-col gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
-          <h3 className="field-label">{section.heading}</h3>
-          <fieldset disabled={readOnly} style={{ border: 0, margin: 0, padding: 0 }}>
-            <div className="flex flex-col gap-3">
-              {section.render({ effect, edits, setEdit, onKill, killing })}
-            </div>
-          </fieldset>
-        </div>
-      )}
-
-      <label className="field mt-4">
-        <span className="field-label">GM notes</span>
-        <textarea
-          rows={2}
-          value={gmNotes}
-          disabled={readOnly}
-          onChange={(e) => {
-            markDirty();
-            setGmNotes(e.target.value);
-          }}
-        />
-      </label>
-
-      <FormError>{error}</FormError>
-
-      {/* "Reviewed by", not "Solved by": Review is the Request verb
-          everywhere else in this UI, and Solved is Move vocabulary bound to a
-          MoveReviewStatus value. Same shape as MovePanel's stamp, right
-          noun. */}
-      {request.reviewedByUsername && (
-        <p className="mt-3 text-xs text-muted">
-          Reviewed by {request.reviewedByUsername}
-          {request.reviewedAtLabel ? ` · ${request.reviewedAtLabel}` : ""}
-        </p>
-      )}
-
-      <div className="modal-actions flex-wrap">
-        <Tooltip text="Leave the request as the player made it and discard your edits">
-          <button type="button" className="btn-quiet" onClick={close} disabled={pending}>
-            {readOnly ? "Close" : "Cancel"}
-          </button>
-        </Tooltip>
-        {!readOnly && (
-          <>
-            <Tooltip text="Reverse the change entirely and mark the request Undone">
-              <button
-                type="button"
-                className="btn-quiet"
-                onClick={() => run("undo")}
-                disabled={pending}
-              >
-                Undo
-              </button>
-            </Tooltip>
-            <Tooltip text="Apply your edits and mark the request Edited">
-              <button type="button" className="btn" onClick={() => run("confirm")} disabled={pending}>
-                {pending ? "Working…" : "Confirm"}
-              </button>
-            </Tooltip>
-          </>
-        )}
-      </div>
-    </Modal>
-  );
-}
