@@ -108,4 +108,6 @@ function rollDie(sides = 6) {
   return 1 + Math.floor(Math.random() * sides);
 }
 
-module.exports = { MOVE_EFFECTS, applyMoveEffects, revertMoveEffects, describeMoveEffects, rollDie };
+// addResources is exported for db/lib/stagedPush.js, which pushes GM-staged
+// resource adjustments through the same clamp-and-report statement.
+module.exports = { MOVE_EFFECTS, addResources, applyMoveEffects, revertMoveEffects, describeMoveEffects, rollDie };
