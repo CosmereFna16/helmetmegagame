@@ -53,4 +53,16 @@ function tagDuration(left, defaultDurationTurns) {
   return null;
 }
 
-module.exports = { turnsLeft, formatTurnsLeft, tagDuration };
+// The absolute turn a tag granted right now should expire on, or null when it
+// has no catalog duration (and so never expires). Every grant path must use
+// this: resolveNeeds()'s sweep matches `expiresTurn <= turn.number`, so a row
+// left null is permanent no matter what durationTurns says in the YAML.
+// Before the game opens there is no turn to count from, so nothing expires.
+// Moved down from web/lib/turnFormat.js (which re-exports it) so the
+// staged-push pass can grant timed tags at turn end.
+function expiryFor(tag, openTurn) {
+  if (!tag?.defaultDurationTurns || !openTurn) return null;
+  return openTurn.number + tag.defaultDurationTurns;
+}
+
+module.exports = { turnsLeft, formatTurnsLeft, tagDuration, expiryFor };

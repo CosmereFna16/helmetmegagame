@@ -304,6 +304,16 @@ model GameConfig {
   radioCategoryId   String?
   watchChannelId    String?
   intercomChannelId String?
+
+  // Where PUBLIC staged declarations post at the turn-end push (see
+  // StagedMessage below and db/lib/stagedPush.js). One channel for the whole
+  // game for now; when the per-zone summary channels arrive, delivery moves
+  // to the zoneId already carried on each row and this becomes the fallback.
+  // Named turnSummaryChannelId because DefaultEffort.summaryChannelId already
+  // means something else (where a default move's summary posts).
+  // Null means public declarations are composed but skipped at push, each
+  // recorded on its row's deliveryFailures.
+  turnSummaryChannelId String?
 }
 
 // Master-sourced from docs/roles.yaml's zones[].factions[]
@@ -362,6 +372,7 @@ model Zone {
   defaultEfforts DefaultEffort[]
   notes          Note[]
   gmAssignments  GmAssignment[]
+  stagedMessages StagedMessage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -626,14 +637,16 @@ model Character {
   // table would only add a join and a way to drift.
   antagonistOptIns String[] @default([])
 
-  tags            CharacterTag[]
-  actions         Action[]
-  defaultEffort   DefaultEffort?
-  setDefaultsFor  DefaultEffort[] @relation("DefaultEffortSetBy")
-  auditLogTargets AuditLog[]
-  notes           Note[]
-  requests        Request[]
-  desires         Desire[]
+  tags                    CharacterTag[]
+  actions                 Action[]
+  defaultEffort           DefaultEffort?
+  setDefaultsFor          DefaultEffort[]          @relation("DefaultEffortSetBy")
+  auditLogTargets         AuditLog[]
+  notes                   Note[]
+  requests                Request[]
+  desires                 Desire[]
+  stagedMessageRecipients StagedMessageRecipient[]
+  stagedEffects           StagedEffect[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1049,8 +1062,10 @@ model Turn {
   startedAt  DateTime   @default(now())
   resolvedAt DateTime?
 
-  actions  Action[]
-  requests Request[]
+  actions        Action[]
+  requests       Request[]
+  stagedMessages StagedMessage[]
+  stagedEffects  StagedEffect[]
 }
 
 model Action {
@@ -1114,9 +1129,11 @@ model Action {
   resultMessage      String?
   gmNotes            String?
   forumThreadId      String?
-  confirmDmMessageId String?   @unique
+  confirmDmMessageId String?         @unique
   confirmedAt        DateTime?
-  createdAt          DateTime  @default(now())
+  createdAt          DateTime        @default(now())
+  stagedMessages     StagedMessage[]
+  stagedEffects      StagedEffect[]
 
   // One Action per character per turn — the rule every writer already applies
   // by hand (bot/src/lib/labor.js, db/lib/travel.js, interactionCreate's Move
@@ -1132,6 +1149,117 @@ model Action {
   // [status, createdAt] leads with status, so it cannot serve /gm/turns'
   // unfiltered `orderBy: { createdAt: "desc" }`. This one can.
   @@index([createdAt])
+}
+
+enum StagedMessageKind {
+  PRIVATE
+  PUBLIC
+}
+
+// A message a GM composed during adjudication that has NOT gone out yet.
+// Nothing a GM stages reaches a player until the turn-end push
+// (db/lib/stagedPush.js): PRIVATE rows fan out as DMs to their recipient
+// characters' players, PUBLIC rows post to GameConfig.turnSummaryChannelId.
+// Until then every row is freely editable and deletable from the /gm/turns
+// workspace; sentAt non-null is what freezes one.
+model StagedMessage {
+  id     String @id @default(cuid())
+  turnId String
+  turn   Turn   @relation(fields: [turnId], references: [id])
+
+  // The Move this message narrates, if any. SetNull rather than Cascade so
+  // a Reject (which deletes the Action to give the turn back) detaches the
+  // staged work instead of destroying it — the tray shows it "unattached"
+  // with a delete affordance, and the GM decides.
+  moveId String?
+  move   Action? @relation(fields: [moveId], references: [id], onDelete: SetNull)
+
+  kind    StagedMessageKind
+  content String
+
+  // PUBLIC only, and not yet read by delivery: the per-zone summary channels
+  // are a planned channel rework, so rows carry their zone now and the push
+  // targets the single turnSummaryChannelId until those channels exist.
+  zoneId String?
+  zone   Zone?   @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+
+  // Snapshot, no FK — same log-table convention as AuditLog's actor.
+  createdByDiscordUserId String
+
+  // Stamped by the push thunk after delivery is attempted. deliveryFailures
+  // holds [{characterId, name, error}] for recipients whose DM bounced (or
+  // {reason} for a PUBLIC row with no channel configured) — the audit row
+  // staged_push_delivery_failed carries the same list.
+  sentAt           DateTime?
+  deliveryFailures Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  recipients StagedMessageRecipient[]
+
+  @@index([turnId])
+  @@index([moveId])
+}
+
+// PRIVATE recipients, one row per recipient character. Cascade both ways:
+// deleting the message drops its recipients, and a deleted character simply
+// falls out of every recipient list (a DEAD one deliberately does not — "you
+// died" is exactly what a staged message is for). A PRIVATE message whose
+// recipients have all cascaded away is skipped at push and shown as
+// "no recipients" in the tray.
+model StagedMessageRecipient {
+  id              String        @id @default(cuid())
+  stagedMessageId String
+  stagedMessage   StagedMessage @relation(fields: [stagedMessageId], references: [id], onDelete: Cascade)
+  characterId     String
+  character       Character     @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([stagedMessageId, characterId])
+  @@index([characterId])
+}
+
+// A mechanical adjustment a GM staged during adjudication — resources and/or
+// tag ops against one target character — applied by the turn-end push, never
+// before. payload is what the GM asked for; appliedEffect is what actually
+// moved (the clamped resource delta, the tag ops that validated), the same
+// payload-vs-effect rule Request.payload/effect and Action.appliedEffects
+// follow. appliedAt doubles as the push pass's per-row claim, so a resumed
+// pass can never apply one twice.
+model StagedEffect {
+  id     String @id @default(cuid())
+  turnId String
+  turn   Turn   @relation(fields: [turnId], references: [id])
+
+  // Same SetNull reasoning as StagedMessage.moveId above.
+  moveId String?
+  move   Action? @relation(fields: [moveId], references: [id], onDelete: SetNull)
+
+  targetCharacterId String
+  targetCharacter   Character @relation(fields: [targetCharacterId], references: [id], onDelete: Cascade)
+
+  // Snapshot, no FK — log-table convention.
+  createdByDiscordUserId String
+
+  // A mass-apply ("Explosion Burns to these 4") writes one row per target
+  // under a shared batchId, so the tray can show and delete it as one line.
+  batchId String?
+
+  // { resources?: Int, tagOps?: [op] } — the op shape is the Dev Panel's
+  // (see db/lib/tagOps.js): {tagId, op: add|remove|patch, quantity?, source?,
+  // expiry?, equipped?}.
+  payload Json
+
+  appliedAt     DateTime?
+  appliedEffect Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([turnId])
+  @@index([moveId])
+  @@index([targetCharacterId])
+  @@index([batchId])
 }
 
 model DefaultEffort {

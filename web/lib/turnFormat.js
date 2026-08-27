@@ -8,7 +8,7 @@
 // deep path instead, which resolves without the barrel (and so without Prisma)
 // because @lifeweb/db declares no `exports` map. Everything below is genuinely
 // web-only: themes, weather labels, the turn label a page renders.
-export { turnsLeft, formatTurnsLeft, tagDuration } from "@lifeweb/db/lib/turnFormat";
+export { turnsLeft, formatTurnsLeft, tagDuration, expiryFor } from "@lifeweb/db/lib/turnFormat";
 
 const WEATHER_LABELS = {
   CLEAR: "Clear",
@@ -69,12 +69,5 @@ export function formatTurnLabel(turnNumber, phase) {
 //   neither              -> null
 //
 
-// The absolute turn a tag granted right now should expire on, or null when it
-// has no catalog duration (and so never expires). Every grant path must use
-// this: resolveNeeds()'s sweep matches `expiresTurn <= turn.number`, so a row
-// left null is permanent no matter what durationTurns says in the YAML.
-// Before the game opens there is no turn to count from, so nothing expires.
-export function expiryFor(tag, openTurn) {
-  if (!tag?.defaultDurationTurns || !openTurn) return null;
-  return openTurn.number + tag.defaultDurationTurns;
-}
+// expiryFor moved to db/lib/turnFormat.js (re-exported above) — the
+// staged-push pass grants timed tags at turn end and needs the same rule.

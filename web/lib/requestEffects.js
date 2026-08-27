@@ -1,5 +1,5 @@
 import { bumpBlood } from "@lifeweb/db";
-import { dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
+import { addToStack, dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
 import { UserError } from "@/lib/actionResult";
 
 // The per-type behaviour of a Request: how a GM's Undo reverses it, and which
@@ -114,23 +114,10 @@ async function moveBlood(tx, delta) {
 // Adds `quantity` of a tag, creating the row or incrementing an existing
 // one. Non-stackable tags are pinned at 1 no matter what is asked for, so a
 // caller that forgot to check `tag.stackable` can't mint a phantom stack.
-export async function addToStack(tx, characterId, tagId, quantity, options = {}) {
-  const { source = "GM_GRANT", expiresTurn = null, stackable = false } = options;
-  const n = stackable ? Math.max(1, Math.trunc(quantity ?? 1)) : 1;
-  const existing = await tx.characterTag.findUnique({
-    where: { characterId_tagId: { characterId, tagId } },
-  });
-  if (!existing) {
-    return tx.characterTag.create({
-      data: { characterId, tagId, source, expiresTurn, quantity: n },
-    });
-  }
-  if (!stackable) return existing;
-  return tx.characterTag.update({
-    where: { id: existing.id },
-    data: { quantity: existing.quantity + n },
-  });
-}
+//
+// Lives in db/lib/tagWrites.js now, beside dropCharacterTag and for the same
+// reason: the staged-push pass grants tags at turn end. Re-exported below.
+export { addToStack };
 
 // Restores a CharacterTag from a snapshot taken before it was removed. Uses
 // an upsert because a player may well have re-acquired the tag by other means
