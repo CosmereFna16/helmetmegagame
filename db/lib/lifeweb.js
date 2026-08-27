@@ -4,7 +4,7 @@
 //
 // This module is the single source of both numbers, shared by the GM panel
 // (web/app/(app)/lifeweb/actions.js) and the player-facing Requests
-// (web/app/(app)/lifeweb/requestActions.js), same posture as mood.js — so the
+// (web/app/(app)/lifeweb/requestActions.js), same posture as gambitModifier.js — so the
 // amount a player is shown and the amount applied cannot drift.
 
 const { NOBILITY_SLUG, COURTIER_SLUG } = require("./constants");
@@ -22,7 +22,7 @@ const DONATE_BLOOD_BY_TAG = [
 ];
 
 // Accepts the CharacterTag[] shape used everywhere else (`{ tag: { slug } }`)
-// and tolerates a bare Tag[], same as moodFromTags. Highest tier wins, so
+// and tolerates a bare Tag[], the shape used everywhere else. Highest tier wins, so
 // holding both Nobility and Courtier is worth 40 rather than 30.
 function bloodValueForTags(characterTags = []) {
   const slugs = new Set(characterTags.map((ct) => ct?.tag?.slug ?? ct?.slug).filter(Boolean));

@@ -398,8 +398,8 @@ module.exports = {
           const seen = concealedChar.tags.filter((ct) => ct.tag.visibleOnInspect);
           // Health is its own category now, so it IS the ailment set and the
           // category is the right thing to test — this used to have to reach for
-          // the status-health group slug to avoid dragging Hungry and Unhappy in
-          // with it. Note the capital: Tag.category stores the display name, not
+          // the status-health group slug to avoid dragging Hungry and the other
+          // Status tags in with it. Note the capital: Tag.category stores the display name, not
           // the YAML slug (syncTags.js).
           const ailments = seen
             .filter((ct) => ct.tag.category === HEALTH_CATEGORY)

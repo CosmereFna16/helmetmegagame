@@ -26,9 +26,8 @@ two services from this repo against one Postgres instance.
 
 **Anything both faces need belongs in `db/lib/`**, not duplicated. That's why
 the rules modules (`specialChannels.js`, `laborAccess.js`, `seatZone.js`,
-`mood.js`, `gambitModifier.js`, `persistence.js`, `characterName.js`,
-`zoneChannelSpec.js`) live there as pure functions with no Prisma or Discord
-dependency of their own.
+`gambitModifier.js`, `persistence.js`, `characterName.js`, `zoneChannelSpec.js`)
+live there as pure functions with no Prisma or Discord dependency of their own.
 
 ## 2. The barrel, and when not to use it
 

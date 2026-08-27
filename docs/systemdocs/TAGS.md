@@ -268,7 +268,7 @@ the shared predicate, over raw `pointCost` rather than `effectiveCost` — a
 drawback never sits in a tier chain, so there is nothing to discount.
 
 **0 is a real price, not a missing one**, and it is the most common value in
-the file (142 of 268). Everything unpurchasable — injuries, moods, meals,
+the file (142 of 268). Everything unpurchasable — injuries, statuses, meals,
 role grants — is 0, and every tag must carry the field explicitly. A tag with
 no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
 
@@ -330,7 +330,7 @@ here, change it there too** — they are meant to say the same thing.
   per-instance expiry lives on `CharacterTag.expiresTurn` (an absolute turn
   number, computed from this default at grant time), swept by
   `resolveNeeds()` in `db/index.js` once the closing turn's number reaches
-  it. Live code reads this — Mood (2) and Hunger (1) both compute their
+  it. Live code reads this — Hunger (1) and every tonic effect compute their
   `expiresTurn` as `turn.number + defaultDurationTurns` — so it is no longer
   catalog-only. Note the ordering it implies: `resolveNeeds()` sweeps *before*
   the Hunger pass grants, so a still-broke character's Hunger is cleared and
@@ -418,7 +418,7 @@ true` in `docs/tags.yaml` sets `Tag.stackable`; the count lives on
 **A stack is one row carrying a count, never N rows.**
 `@@unique([characterId, tagId])` stays exactly as it was, which is the whole
 point: every presence check in the codebase — `specialChannels.js`,
-`gambitModifier.js`, `mood.js`, `labor.js`, the Mortus nav gate — keeps
+`gambitModifier.js`, `labor.js`, the Mortus nav gate — keeps
 reading "holds it or doesn't" with no change, and `restoreCharacterTag`'s
 upsert stays valid.
 
@@ -471,9 +471,8 @@ Five rules carry it:
 - **An already-held non-stackable grant is left completely alone**, expiry
   included: the character's existing one is the live truth, and clobbering it
   would silently extend or cut short something they already had. One
-  consequence worth knowing: eating a Lavish Meal while already Happy does
-  *not* extend Happy, unlike `setMoodRequest`, which deletes and re-creates the
-  tag and so refreshes its clock. Undo depends on `added: 0` meaning "this
+  consequence worth knowing: drinking a second Alcohol while already Tipsy
+  does *not* extend Tipsy. Undo depends on `added: 0` meaning "this
   request didn't grant it", so a refresh here would need its own snapshot.
 - **A grant may be conditional.** A `consumesInto` entry can be an object
   rather than a bare slug, and is then granted only to a character holding
@@ -482,8 +481,8 @@ Five rules carry it:
   ```yaml
   consumesInto:
     - ate-meal
-    - slug: happy
-      unlessTags: [nobility]
+    - slug: night-vision
+      unlessTags: [blind]
   ```
 
   `Tag.consumesInto` still stores every target slug in order; the conditions
@@ -491,17 +490,17 @@ Five rules carry it:
   that have none), and `syncTags.js` validates both halves against this file.
   `resolveConsumeGrants()` in `web/lib/consumeGrants.js` applies them, and is
   deliberately pure so the server action and the client "Becomes:" preview
-  share it — a preview that promised a noble the Happy they won't get would be
-  worse than no preview. Fine Meal is the only conditional entry today:
-  it cheers an ordinary person, while Nobility expect one as a matter of
-  course.
+  share it — a preview that promised something the grant then withheld would
+  be worse than no preview. **No tag uses this today.** Fine Meal was the only
+  one, granting `happy` unless `nobility`, and its condition went with the Mood
+  system; the mechanism is kept because it is general.
 - **A grant may override the target's expiry.** The same object form takes an
   optional `durationTurns`, which replaces the granted tag's own
   `defaultDurationTurns` for that grant only:
 
   ```yaml
   consumesInto:
-    - happy
+    - euphoric
     - slug: high
       durationTurns: 3
   ```
@@ -546,9 +545,9 @@ see coming and a GM can take back.
 
 ## 5c. Health, the cure ladder, and `expiresInto`
 
-Health is its own **category**, split out of Status. Status is the mood/needs
-layer — Hungry, Drained, Tipsy, the moods, all of it granted and cleared by
-machinery — while Health is a system with its own pricing, its own
+Health is its own **category**, split out of Status. Status is the
+needs/intoxication layer — Hungry, Drained, Tipsy, High, all of it granted and
+cleared by machinery — while Health is a system with its own pricing, its own
 progression, and its own visibility rule. Seven groups carry it:
 `health-wounds`, `health-infection`, `health-illness`, `health-maiming`,
 `health-mind`, `health-minor`, `health-recovery`. They split by what **kind**

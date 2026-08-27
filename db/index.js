@@ -283,7 +283,7 @@ async function resolveNeeds(turn, config) {
   // Sweep any turn-scoped tags whose expiresTurn has been reached,
   // independent of everything else here. Two passes, because a stack is ONE
   // CharacterTag row carrying a count rather than N rows (see
-  // web/lib/requestEffects.js): an ordinary tag (Mood, Drained, last turn's
+  // web/lib/requestEffects.js): an ordinary tag (Drained, Tipsy, last turn's
   // Hunger) is deleted outright, but a stackable one only sheds a single
   // unit per expiry and rerolls the remainder's timer — otherwise one
   // ration's clock coming due would wipe the character's whole holding.
@@ -808,7 +808,6 @@ module.exports = {
   ...require("./lib/production"),
   ...require("./lib/formatTagRequirement"),
   ...require("./lib/turnFormat"),
-  ...require("./lib/mood"),
   ...require("./lib/lifeweb"),
   ...require("./lib/gambitModifier"),
   ...require("./lib/moveEffects"),

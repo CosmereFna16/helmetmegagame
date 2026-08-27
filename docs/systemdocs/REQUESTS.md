@@ -10,7 +10,7 @@ review surface), `CHARACTERS.md` (creation and the point economy) and
 The game runs one turn per real-world day for a month. Any mechanic that
 needs a GM in the loop before it resolves costs a player a day. Most of what
 players do — handing over resources, dropping an illness a medic just cured,
-declaring a mood, claiming a Desire — is not contentious enough to be worth
+dropping a cured illness, claiming a Desire — is not contentious enough to be worth
 that.
 
 So the approval order is inverted. The player acts, the change lands
@@ -40,7 +40,7 @@ blobs:
 
 **Undo reads only `effect`, and never re-derives anything from live state.**
 That matters because state moves on: a GM may edit the resource cost, the
-player may transact again, a mood may be displaced by another mood. Reversing
+player may transact again, a tag may be displaced by another. Reversing
 a request by recomputing it from the character's current sheet would quietly
 apply the wrong numbers. Snapshotting the applied deltas is what makes Undo an
 exact inverse.
@@ -78,9 +78,9 @@ the sender at −10 and the recipient up 20, and it worked on faction Silos too.
 The throw aborts the surrounding transaction, so the tag grant, the `Request`
 row and the audit entry all roll back with it.
 
-## 3. The thirteen types
+## 3. The twelve types
 
-Eleven live in `web/app/(app)/character/requestActions.js`, the two
+Ten live in `web/app/(app)/character/requestActions.js`, the two
 Lifeweb types in `web/app/(app)/lifeweb/requestActions.js`, and `BUY_TAGS`
 in `web/app/(app)/store/actions.js`. Each one
 authenticates, **re-validates everything the client sent** (a server action is
@@ -90,7 +90,6 @@ reason.
 
 | Type | What the player does | GM can edit | Undo |
 |---|---|---|---|
-| `SET_MOOD` | Picks Neutral / Happy / Unhappy | — | Restores the displaced mood, with its original expiry |
 | `TRANSFER_RESOURCES` | Moves ⬢ between any two parties in reach. `direction: "LOOT"` pulls ⬢ off a corpse in the same room | — | Reverses the movement |
 | `ADD_TAG` | Takes a Purchasable or Craftable tag, optionally paying ⬢. Stackable tags take a quantity and stay on the menu once held | cost; remove what this request added | Drops what it added, refunds the cost |
 | `BUY_TAGS` | Checks out a whole `/store` cart with Tag Points — one request per cart, `effect.items` listing every tag | — | Returns every tag in the cart, refunds the points |
@@ -161,39 +160,31 @@ Three notes on deliberate choices:
   each type would be the `killRequestTarget` treatment for something this
   minor.
 
-## 4. Mood, Hunger, and the Gambit modifier
+## 4. Hunger and the Gambit modifier
 
-Mood is **not a column**. It is two ordinary Status tags, `happy` and
-`unhappy`, mastered in `docs/tags.yaml` with `durationTurns: 2`. Neutral is
-the absence of both, not a third tag.
+Hunger is the Needs layer, and the only thing that modifies a Gambit die.
 
-```
-Happy   -> +1 to the die on all Gambits
-Unhappy -> -1 to the die on all Gambits
-Neutral ->  0
-```
+It is a `hunger` Status tag (`docs/tags.yaml`, `durationTurns: 1`,
+`purchasable`/`removable` false). Its penalty is not flat — it escalates with
+`Character.hungerStreak`, a plain Int column counting consecutive turns closed
+hungry.
 
 Riding the tag system means the per-turn expiry sweep already in
-`db/index.js#resolveNeeds` handles mood expiry for free —
+`db/index.js#resolveNeeds` handles it for free —
 `characterTag.deleteMany({ where: { expiresTurn: { lte: turn.number } } })` —
-with no `moodExpiresTurn` column to keep in step. (An older design in
-`ARCHITECTURE.md` proposed exactly such columns; it was never built and this
-supersedes it.)
+with no bespoke expiry column to keep in step.
 
-Both tags are `purchasable: false`, `purchasableAfterStart: false` and
-`removable: false`, which keeps them out of every player-facing tag picker.
-**The only ways in are the Set Mood button and a GM.**
-
-`db/lib/mood.js` remains the single source of **Mood itself** — the tri-state,
-its labels, and the tag slug the Set Mood write path resolves.
+> **Mood is gone.** `happy` / `unhappy` were two Status tags worth ±1 on the
+> Gambit die, set from a Set Mood button via a `SET_MOOD` request. All of it —
+> the tags, the button, the request type, `db/lib/mood.js` — was removed, along
+> with the `happy` grant on Alcohol, Bliss, Ravenheart Red and the two meals.
+> Drinks now leave `tipsy`, `high` or `euphoric` instead. An older design in
+> `ARCHITECTURE.md` proposed Mood as Character columns; it was never built
+> either.
 
 ### Hunger
 
-Hunger is the second Needs half, built on the same pattern as Mood: a `hunger`
-Status tag (`docs/tags.yaml`, `durationTurns: 1`, `purchasable`/`removable`
-false). Unlike Mood, its penalty is not flat — it escalates with
-`Character.hungerStreak`, a plain Int column counting consecutive turns closed
-hungry. Nothing player-initiated ever grants or removes Hunger, the streak, or
+Nothing player-initiated ever grants or removes Hunger, the streak, or
 what it leads to — there is no request type, no picker entry, no
 `requestEffects.js` case. `db/lib/hungerPass.js#runHungerPass` is the only
 writer of all three, called from `resolveNeeds()` at the close of every turn:
@@ -271,13 +262,13 @@ per character — at 100+ players the latter would push 200 entries a day into
 
 ### The summed modifier
 
-Mood's ±1 and Hunger's escalating penalty **stack additively**: Unhappy +
-Hungry(streak 1) = −2, Happy + Hungry(streak 3) = −2.
-`db/lib/gambitModifier.js` is the single source of that sum, shared by the
+Hunger is currently the only contributor, so the "sum" is one number.
+`db/lib/gambitModifier.js` is still the single source of it, shared by the
 bot and the web app so the number a player is shown and the number applied
-cannot drift — the same posture as `specialChannels.js`. It is a thin
-composer *over* `mood.js` rather than a generalization of it, because Mood is a
-tri-state with a player-facing write path while Hunger is a boolean tag whose
+cannot drift — the same posture as `specialChannels.js`. It still returns a
+*list* of named contributions rather than a bare number, because the confirm
+DM names them and because adding a second contributor should be an append
+there rather than a rewrite of five call sites. Hunger is a boolean tag whose
 *size* comes from a Character column (`hungerStreak`) the turn engine writes —
 `gambitModifiers`/`gambitModifierTotal` take it as a second argument for
 exactly that reason, since it isn't something the tag list alone carries.
@@ -291,10 +282,10 @@ modifier. `Action.diceModifier` is one `Int`, so the per-contributor breakdown
 is display-only — rebuilt for the DM, and mirrored into the `move_confirmed`
 audit entry's `diceModifiers`, which is the only place it survives.
 
-The DM reads `🎲 **4** −1 Unhappy −1 Hungry → **2**`. It is keyed on whether
-*any* contributor applied rather than on the total, so a Happy+Hungry wash
-still shows its work (`🎲 **4** +1 Happy −1 Hungry → **4**`) instead of
-pretending nothing happened. `StatusPanel`'s Gambit row reads the same module.
+The DM reads `🎲 **4** −2 Hungry → **2**`. It is keyed on whether *any*
+contributor applied rather than on the total, so a contributor worth 0 would
+still show its work instead of pretending nothing happened.
+`StatusPanel`'s Gambit row reads the same module.
 
 ## 5. Desires
 
@@ -336,7 +327,7 @@ not the Mortus doing the bleeding: Nobility 40, Courtier 30, anyone else 20;
 holding both pays the higher. Feeding a whole person is a flat 100.
 `db/lib/lifeweb.js` is the single source of those numbers, shared with the GM
 panel on the same page (`web/app/(app)/lifeweb/actions.js`) so the two paths
-can't grant different amounts — the same posture as `mood.js`.
+can't grant different amounts — the same posture as `gambitModifier.js`.
 
 **The pool caps at 100, so the nominal amount is not the applied amount.**
 Donating 40 onto a pool at 90 moves 10. `applyBlood()` returns that delta and
@@ -432,12 +423,12 @@ reason field between openings without an effect syncing state.
 
 The Status panel (`StatusPanel.js`) was pulled out of `CharacterSheet.js`,
 where it had been inline markup at a broken indent level, and now lays
-Zone / Resources / Mood / Tag Points out on one `<dl>` grid instead of
+Zone / Resources / Gambit / Tag Points out on one `<dl>` grid instead of
 four ad-hoc flex lines.
 
 One consequence worth knowing: `CharacterSheet#groupTagsByCategory` now groups
 the **`CharacterTag` rows**, not the bare `Tag`s. The wrapper carries
-`expiresTurn`, which the mood countdown needs; the old version discarded it.
+`expiresTurn`, which the per-tag countdowns need; the old version discarded it.
 
 ## 7. Audit trail
 
@@ -461,7 +452,7 @@ of a transfer. Deposits into a Silo previously left no ledger entry at all.
 | Per-type Undo/Edit behaviour | `web/lib/requestEffects.js` |
 | The player-facing server actions | `web/app/(app)/character/requestActions.js` |
 | Universal popup | `web/app/components/RequestDialog.js` |
-| Status panel, mood readout, Set Mood | `web/app/components/StatusPanel.js`, `SetMoodButton.js` |
+| Status panel | `web/app/components/StatusPanel.js` |
 | Transfer Resources | `web/app/components/TransferResourcesButton.js` |
 | Add / Remove / Transfer / Consume Tag / Heal | `web/app/components/TagRequestButtons.js`, `web/lib/tagRequests.js` |
 | Heal gate, tier chain, treatable-tag filter | `web/lib/healRequests.js` |
@@ -473,7 +464,5 @@ of a transfer. Deposits into a Silo previously left no ledger entry at all.
 | Lifeweb requests, GM bypass panel | `web/app/(app)/lifeweb/requestActions.js`, `actions.js` |
 | Lifeweb player buttons | `web/app/components/LifewebRequestButtons.js` |
 | GM kill-the-target action | `web/app/(app)/gm/turns/actions.js#killRequestTarget` |
-| Mood modifier, shared bot/web | `db/lib/mood.js` |
 | Gambit roll + modifier | `bot/src/events/interactionCreate.js#handleMoveConfirm` |
-| Mood tag catalog entries | `docs/tags.yaml` (`happy`, `unhappy`) |
 | Expiry sweep | `db/index.js#resolveNeeds` |

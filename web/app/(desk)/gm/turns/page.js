@@ -44,7 +44,7 @@ function statusLabel(a, now) {
   return MOVE_REVIEW_LABELS[a.moveReviewStatus] ?? "Open";
 }
 
-// Raw roll, then the summed modifier (Mood ±1, Hunger -1) and total — a GM
+// Raw roll, then the summed modifier (Hunger) and total — a GM
 // has to be able to tell a modified 5 from a natural 5.
 function rollLabel(a) {
   if (a.diceRoll == null) return "";
@@ -80,8 +80,6 @@ function summarize(request) {
       return `${e.amount ?? 0} ⬢: ${e.from?.name ?? "?"} → ${e.to?.name ?? "?"}`;
     case "TRANSFER_TAG":
       return `${e.tagName ?? "tag"} → ${e.toName ?? "?"}`;
-    case "SET_MOOD":
-      return `Mood: ${e.mood ?? "NEUTRAL"}`;
     case "CONSUME_TAG":
       return `Used up ${e.tagName ?? "a tag"}${
         (e.granted ?? []).filter((g) => g.added > 0).length

@@ -576,16 +576,6 @@ export const REQUEST_EFFECTS = {
     },
   },
 
-  SET_MOOD: {
-    editableFields: [],
-    async undo(tx, request) {
-      const { appliedTagId, previous } = request.effect;
-      if (appliedTagId) await dropCharacterTag(tx, request.characterId, appliedTagId);
-      if (previous?.tagId) await restoreCharacterTag(tx, request.characterId, previous);
-      return previous?.tagId ? "Restored the previous mood." : "Cleared the mood back to Neutral.";
-    },
-  },
-
   // Drinking a Mulligan Potion. Nothing numeric to re-score, so Undo is the
   // only lever: put the previous honorific/first/last name (and the composed
   // `name`) back, and restore the one potion this took, same idiom as

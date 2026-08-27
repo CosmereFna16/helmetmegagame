@@ -1,25 +1,21 @@
-// The single source of the summed Gambit die modifier. Mood (db/lib/mood.js)
-// contributes ±1 and Hunger contributes -1 * min(hungerStreak, cap), and they
-// stack additively: Unhappy + Hungry(1) = -2, Happy + Hungry(3) = -2.
+// The single source of the summed Gambit die modifier. Hunger is the only
+// contributor: -1 * min(hungerStreak, cap).
 //
-// Action.diceModifier is one Int, so the SUM is what gets stored — this module
-// is what keeps the number the player is shown, the number written to the row,
-// and the named breakdown in the confirm DM from ever drifting apart.
+// It stays a list-returning module rather than collapsing to one number,
+// because Action.diceModifier is one Int and the confirm DM still wants the
+// contribution NAMED ("−2 Hungry"). Keeping the shape also means a second
+// contributor is an append here rather than a rewrite of five call sites —
+// which is what happened when Mood was removed and this went from two
+// contributors to one.
 //
-// Deliberately a thin composer OVER mood.js rather than a generalization of
-// it: Mood is a tri-state with a player-facing write path (moodTagSlug,
-// moodLabel, the countdown on StatusPanel), Hunger is a boolean the turn
-// engine grants. Folding them together would make mood.js the home of a
-// concept it doesn't own. Same posture as mood.js itself — no prisma import,
-// so both bot/ and web/ import it by subpath.
-const { moodFromTags, moodModifier, moodLabel } = require("./mood");
+// No prisma import, so both bot/ and web/ import it by subpath.
 const { HUNGER_SLUG } = require("./constants");
 const { HUNGER_STREAK_CAP } = require("./hungerPass");
 
 const HUNGER_LABEL = "Hungry";
 
 // Accepts the CharacterTag[] shape used everywhere else in the app
-// (`{ tag: { slug } }`), and tolerates a bare Tag[] — same as moodFromTags.
+// (`{ tag: { slug } }`), and tolerates a bare Tag[].
 function hasHunger(characterTags = []) {
   return characterTags.some((ct) => (ct?.tag?.slug ?? ct?.slug) === HUNGER_SLUG);
 }
@@ -34,18 +30,15 @@ function hungerModifier(hungerStreak = 0) {
   return -Math.min(Math.max(hungerStreak, 1), HUNGER_STREAK_CAP);
 }
 
-// [{ label, value }] in display order — mood first, then hunger — omitting
-// anything worth 0 (Neutral). This is the breakdown the confirm DM renders;
-// gambitModifierTotal() is the number that goes in the column.
+// [{ label, value }] — omitting anything worth 0. This is the breakdown the
+// confirm DM renders; gambitModifierTotal() is the number that goes in the
+// column.
 //
 // `hungerStreak` is a second argument, not read off characterTags, because it
 // lives on Character rather than on the tag: see the comment on
 // Character.hungerStreak in schema.prisma.
 function gambitModifiers(characterTags = [], { hungerStreak = 0 } = {}) {
   const out = [];
-
-  const mood = moodFromTags(characterTags);
-  if (moodModifier(mood)) out.push({ label: moodLabel(mood), value: moodModifier(mood) });
 
   if (hasHunger(characterTags)) out.push({ label: HUNGER_LABEL, value: hungerModifier(hungerStreak) });
 
@@ -56,7 +49,7 @@ function gambitModifierTotal(characterTags = [], opts = {}) {
   return gambitModifiers(characterTags, opts).reduce((sum, m) => sum + m.value, 0);
 }
 
-// "+1 Happy −1 Hungry" — U+2212 minus, matching the bot's roll line. Takes the
+// "−1 Hungry" — U+2212 minus, matching the bot's roll line. Takes the
 // array so a caller that already computed it doesn't recompute.
 function formatGambitModifiers(modifiers = []) {
   return modifiers.map((m) => `${m.value > 0 ? "+" : "−"}${Math.abs(m.value)} ${m.label}`).join(" ");

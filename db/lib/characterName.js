@@ -7,7 +7,7 @@
 // Pure — no prisma, no I/O — so both faces of the game can require it, and so
 // a client component can import it through web/lib/characterName.js without
 // dragging PrismaClient into the browser bundle. Same posture as
-// db/lib/roleColor.js and db/lib/mood.js, and spread into the @lifeweb/db
+// db/lib/roleColor.js and db/lib/gambitModifier.js, and spread into the @lifeweb/db
 // barrel alongside them.
 //
 // The word list itself lives in db/lib/titles.js, along with what earns each

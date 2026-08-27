@@ -260,19 +260,6 @@ export const SECTIONS = {
     ),
   },
 
-  SET_MOOD: {
-    heading: "Set Mood",
-    render: ({ effect }) => (
-      <>
-        <Line label="Mood set to">{effect.mood ?? "NEUTRAL"}</Line>
-        {effect.expiresTurn != null && <Line label="Expires">turn {effect.expiresTurn}</Line>}
-        <p className="text-xs text-muted">
-          Undo restores whatever mood this replaced.
-        </p>
-      </>
-    ),
-  },
-
   CHANGE_NAME: {
     heading: "Change Name",
     render: ({ effect }) => (

@@ -87,8 +87,9 @@ async function collectReferences(prisma) {
     //   consumesInto          the targets a consumed tag grants
     //   consumesIntoUnless    { target: [blocking slugs] } — the BLOCKING
     //                         slugs count too, or pruning one silently turns
-    //                         a conditional grant unconditional (drop
-    //                         `nobility` and Fine Meal makes nobles Happy)
+    //                         a conditional grant unconditional. No tag uses
+    //                         this today, but the guard stays for the next
+    //                         one that does.
     //   consumesIntoDurations { target: turns } — a per-grant duration override
     //   expiresInto           the on-the-clock progression, entries being a
     //                         bare slug or { oneOf: [slug, slug] }; pruning a

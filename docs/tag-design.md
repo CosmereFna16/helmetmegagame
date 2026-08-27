@@ -47,7 +47,7 @@ what you buy yourself counts — a drawback your role hands you for free, and
 anything that happens to you in play, does not use up one of the four.
 
 **0 is a valid cost and the most common one.** A tag that cannot be bought —
-an injury, a mood, a meal, something a role grants — still needs the field,
+an injury, a status, a meal, something a role grants — still needs the field,
 and 0 is what it should be unless the tag is deliberately offered at creation.
 
 ### Cost is not a wound scale
@@ -339,8 +339,7 @@ ladder rather than invented:
       skills: [medical-basic]
 ```
 
-A consumable, showing the conditional form of `consumesInto` — the second
-grant is withheld from anyone holding a listed tag:
+A consumable. `consumesInto` lists what it turns into when used up:
 
 ```yaml
   - slug: fine-meal
@@ -359,14 +358,21 @@ grant is withheld from anyone holding a listed tag:
     consumable: true
     consumesInto:
       - ate-meal
-      # An honest meal cheers an ordinary person; a noble expects one as a
-      # matter of course, so it does nothing for their mood. They still eat.
-      - slug: happy
-        unlessTags: [nobility]
     requirement:
       resourceCost: 2
       skills: [cooking-basic]
       gambit: false
+```
+
+A `consumesInto` entry can also be an **object** rather than a bare slug, to
+withhold that one grant from anyone holding a listed tag. No tag in the catalog
+uses this today, so the shape is shown on its own:
+
+```yaml
+    consumesInto:
+      - ate-meal
+      - slug: night-vision
+        unlessTags: [blind]
 ```
 
 A negative tag. Purchasable at creation, never after; `removable: false`

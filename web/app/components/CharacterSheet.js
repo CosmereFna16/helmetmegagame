@@ -10,7 +10,7 @@ import FactionLink from "./FactionLink";
 import PageShell from "@/app/components/PageShell";
 import InfoIcon from "./InfoIcon";
 
-// Raw d6 first, then the summed modifier (Mood ±1, Hunger -1) and the total —
+// Raw d6 first, then the summed modifier (Hunger) and the total —
 // a GM reading this has to be able to tell a modified 5 from a natural 5.
 function formatRoll(action) {
   if (action.diceRoll == null) return "";
@@ -123,12 +123,7 @@ export default function CharacterSheet({
           avatar/identity header above spans both. */}
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
         <div className="flex flex-col gap-6">
-          <StatusPanel
-            character={character}
-            isSelf={isSelf}
-            openTurn={openTurn}
-            parties={transferParties}
-          />
+          <StatusPanel character={character} isSelf={isSelf} parties={transferParties} />
 
           {!isSelf && currentAction && (
             <section className="panel p-4">

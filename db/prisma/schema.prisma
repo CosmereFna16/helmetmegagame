@@ -134,7 +134,6 @@ enum RequestType {
   CONSUME_TAG
   TRANSFER_RESOURCES
   TRANSFER_TAG
-  SET_MOOD
   DONATE_BLOOD
   FEED_PERSON
   HEAL_CHARACTER
@@ -921,7 +920,7 @@ model Tag {
   // meals, ammunition, anything a crafting Move produces in a batch. A
   // stack is ONE CharacterTag row carrying a count (CharacterTag.quantity),
   // never N rows: @@unique([characterId, tagId]) stays, so every presence
-  // check in the codebase (narrowcastAccess, gambitModifier, mood, labor)
+  // check in the codebase (narrowcastAccess, gambitModifier, labor)
   // keeps reading "holds it or doesn't" unchanged. Safe to combine with
   // defaultDurationTurns: the expiry sweep sheds one unit per expiry and
   // rerolls the remaining stack's timer, rather than deleting the row.
@@ -963,11 +962,12 @@ model Tag {
   // almost all of them. consumesInto still carries every target slug in order,
   // so validation and the "Becomes:" previews keep reading one field.
   //
-  // Fine Meal is the case this exists for: { "happy": ["nobility"] } — an
-  // ordinary person is cheered by a good meal, a noble expects one as a matter
-  // of course. Resolved by web/lib/consumeGrants.js, which both the server
-  // action and the client previews call so a preview can't promise a mood
-  // lift the grant won't deliver.
+  // Nothing in the catalog sets this today — Fine Meal was the only user, via
+  // { "happy": ["nobility"] }, and it went with the Mood system. The field and
+  // its resolver stay because the mechanism is general: it is resolved by
+  // web/lib/consumeGrants.js, which both the server action and the client
+  // previews call so a preview can't promise something the grant won't
+  // deliver.
   consumesIntoUnless Json?
 
   // Per-target expiry overrides on the same list, as { "<target slug>": N } —
@@ -1290,8 +1290,8 @@ model Action {
   resourceRollValue      Int?        @map("resourceDiceRoll")
   diceRoll               Int?
 
-  // The mood adjustment applied to a Gambit's d6 (+1 Happy / -1 Unhappy, see
-  // db/lib/mood.js). Kept SEPARATE from diceRoll, which always stores the raw
+  // The summed adjustment applied to a Gambit's d6 — Hunger only, see
+  // db/lib/gambitModifier.js. Kept SEPARATE from diceRoll, which stores the raw
   // roll — otherwise a GM can't tell a modified 5 from a natural 5, and a
   // re-roll during adjudication would compound the modifier.
   diceModifier Int?
