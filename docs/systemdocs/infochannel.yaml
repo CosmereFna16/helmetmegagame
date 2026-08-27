@@ -19,7 +19,9 @@
 # - categories: ordered list of { name, threads }. `name` is optional — if
 #   omitted, that category's threads are listed with no bold heading line
 #   above them in the directory message. When present, `name` becomes a
-#   bold heading line instead.
+#   bold heading line instead. Today: an unnamed category (Rules, Fates,
+#   Lore) followed by a "Gameplay" category (Gameplay, Moves, Roleplay,
+#   Resources, Tags).
 # - threads: ordered list of { title, body }, { title, generated }, or
 #   { title, body, generated }. Each becomes its own standalone public
 #   thread on #info, titled `title`. `body` (if present) is posted verbatim
@@ -65,70 +67,6 @@ categories:
           ④ **Antagonism** — Fulfill your character’s Desires, but not to the point of crossing your faction’s objectives.
           - High ranks are expected to be relatively fit for duty and willing to collaborate. Peasants can brawl and do mostly whatever they want.
           - If things naturally progress to where you betray your faction, that’s fine, but come into the game planning to do mostly good.
-      - title: Gameplay
-        body: |-
-          # Gameplay
-          Bascinet has two layers: the Move layer (strategic) and the Roleplay layer (narrative). Moves are adjudicated every 12 hours, and are where mechanical effects take place. The Roleplay layer is always going on, and takes the results of the Move layer as its canon.
-
-          ## Moves
-          The game is split into two turns a day: Dawn and Dusk. Every turn, you can optionally plan a Move that’ll take effect the next turn.
-
-          Moves are your abstracted intent of what you planned to do during the next 12 hours. Moves are reserved for lengthy, time-consuming, or difficult activities.
-
-          **Examples**:
-          - robbing someone;
-          - cooking several meals;
-          - collecting taxes around the town;
-          - going to the inn to fulfill a Desire.
-
-          *You don’t have to Move every turn*. If it didn’t take more than an hour or wasn’t difficult, it’s not a Move. Bandaging people, trading, and talking are not Moves.
-
-          Like Mafia, Moves are collectively adjudicated by the Gamemasters at the end of every turn. If the Baron’s move was to stay in his castle, then the Brigand’s move to rob him won’t succeed. If the Baron was wandering in the forest, the Brigand may very well get him.
-
-          Adjudication results are messaged to players at the end of every turn.
-
-          **Routine / Gambit**
-          There are two types of Moves: **Routine** and **Gambit**.
-
-          Routine moves have no chance to fail—their results are usually just accepted and canonized at turn end. Hunting, farming, going out for drinks, or smithing are all Routine.
-
-          Gambit moves are actions that could affect the narrative and could go any way. Fighting, trying to discover a bandit outpost, and stealing from the Inn are all Gambits. Gambits require a 1d6 roll.
-
-
-          ## Roleplay
-          The game’s roleplay layer is where the results of last turn’s Moves come into life. If the Gamemaster declared you were bested in a duel, that’s canon; you can describe how it went down in the roleplay channels. You can also use the roleplay channels at any time to chat, exchange information, or coordinate your Moves with other players.
-
-          **Channels and Locations**
-          There are four zones: the Fortress, the Town, the Windlands, and the Caves. Moving from one zone to another is a Move. However, within a location, your character is assumed to be everywhere and nowhere—you can freely move around within the 12 hours.
-
-          Every zone has:
-          - a summary channel: optionally describe, in broad terms, what other people in your Zone saw you doing
-          - a public channel: roleplay in any of a zone’s sublocations
-          - and a private channel: create private threads and invite people for private moment-to-moment roleplay
-
-          You cannot roleplay in DMs or outside of the server.
-
-          ## Resources
-          The game’s central currency are Resources (⬢), abstracting food, money, and other bulk goods. Resources can be stored either in your character or in your faction’s Silo.
-
-          Players are responsible for producing, taxing, distributing, and trading Resources.
-
-          Characters automatically consume 1 ⬢ a day. If you have 0 ⬢ at the start of a turn, you’ll go Hungry, netting you -1 to all Rolls until the next time you eat. The penalty increases until you die at -6.
-
-          **Laboring**
-          Resources can be produced by anyone as a routine move. Laboring can be roleplayed in any way—hunting, fishing, foraging, herding. The yield is pitiful without supporting tags.
-
-          Farming is the best kind of labor, capable of feeding a massive amount of people. However, it can only be done in the town’s fields, and as such is always taxed by the Baron in order to distribute food through Ravenheart.
-
-          ## Tags
-          Tags represent your character’s health, items, traits, and skills.
-
-          The main way to obtain new Tags is to spend tag points. Everyone starts with tag points but gain more through the game as they fulfill Desires. However, you can also create, inflict, and remove tags throughout the game—such as by smithing a sword, poisoning someone, or treating a wound.
-
-          **Desires**
-          You can fulfill Desires to obtain more tag points.
-
-          Desires must be difficult and personal to receive points. For the Baron, even a whole bottle of gin is hardly satisfactory; for the Peasant, one glass is enough.
       - title: Fates
         body: |-
           Choose a fate at game start, determining your starting tags, faction, and location. Leader roles (★) are reserved for players who can vouch frequent and long term availability, and some proficiency in roleplay. The Leader Whitelist role can be acquired in <#1540617683442208790>.
@@ -158,3 +96,67 @@ categories:
 
           **Species?**
           Everyone's a human (?).
+  - name: Gameplay
+    threads:
+      - title: Gameplay
+        body: |-
+          Bascinet has two layers: the Move layer (strategic) and the Roleplay layer (narrative). Moves are adjudicated every 12 hours, and are where mechanical effects take place. The Roleplay layer is always going on, and takes the results of the Move layer as its canon.
+      - title: Moves
+        body: |-
+          The game is split into two turns a day: Dawn and Dusk. Every turn, you can optionally plan a Move that’ll take effect the next turn.
+
+          Moves are your abstracted intent of what you planned to do during the next 12 hours. Moves are reserved for lengthy, time-consuming, or difficult activities.
+
+          **Examples**:
+          - robbing someone;
+          - cooking several meals;
+          - collecting taxes around the town;
+          - going to the inn to fulfill a Desire.
+
+          *You don’t have to Move every turn*. If it didn’t take more than an hour or wasn’t difficult, it’s not a Move. Bandaging people, trading, and talking are not Moves.
+
+          Like Mafia, Moves are collectively adjudicated by the Gamemasters at the end of every turn. If the Baron’s move was to stay in his castle, then the Brigand’s move to rob him won’t succeed. If the Baron was wandering in the forest, the Brigand may very well get him.
+
+          Adjudication results are messaged to players at the end of every turn.
+
+          **Routine / Gambit**
+          There are two types of Moves: **Routine** and **Gambit**.
+
+          Routine moves have no chance to fail—their results are usually just accepted and canonized at turn end. Hunting, farming, going out for drinks, or smithing are all Routine.
+
+          Gambit moves are actions that could affect the narrative and could go any way. Fighting, trying to discover a bandit outpost, and stealing from the Inn are all Gambits. Gambits require a 1d6 roll.
+      - title: Roleplay
+        body: |-
+          The game’s roleplay layer is where the results of last turn’s Moves come into life. If the Gamemaster declared you were bested in a duel, that’s canon; you can describe how it went down in the roleplay channels. You can also use the roleplay channels at any time to chat, exchange information, or coordinate your Moves with other players.
+
+          **Channels and Locations**
+          There are four zones: the Fortress, the Town, the Windlands, and the Caves. Moving from one zone to another is a Move. However, within a location, your character is assumed to be everywhere and nowhere—you can freely move around within the 12 hours.
+
+          Every zone has:
+          - a summary channel: optionally describe, in broad terms, what other people in your Zone saw you doing
+          - a public channel: roleplay in any of a zone’s sublocations
+          - and a private channel: create private threads and invite people for private moment-to-moment roleplay
+
+          You cannot roleplay in DMs or outside of the server.
+      - title: Resources
+        body: |-
+          The game’s central currency are Resources (⬢), abstracting food, money, and other bulk goods. Resources can be stored either in your character or in your faction’s Silo.
+
+          Players are responsible for producing, taxing, distributing, and trading Resources.
+
+          Characters automatically consume 1 ⬢ a day. If you have 0 ⬢ at the start of a turn, you’ll go Hungry, netting you -1 to all Rolls until the next time you eat. The penalty increases until you die at -6.
+
+          **Laboring**
+          Resources can be produced by anyone as a routine move. Laboring can be roleplayed in any way—hunting, fishing, foraging, herding. The yield is pitiful without supporting tags.
+
+          Farming is the best kind of labor, capable of feeding a massive amount of people. However, it can only be done in the town’s fields, and as such is always taxed by the Baron in order to distribute food through Ravenheart.
+      - title: Tags
+        body: |-
+          Tags represent your character’s health, items, traits, and skills.
+
+          The main way to obtain new Tags is to spend tag points. Everyone starts with tag points but gain more through the game as they fulfill Desires. However, you can also create, inflict, and remove tags throughout the game—such as by smithing a sword, poisoning someone, or treating a wound.
+
+          **Desires**
+          You can fulfill Desires to obtain more tag points.
+
+          Desires must be difficult and personal to receive points. For the Baron, even a whole bottle of gin is hardly satisfactory; for the Peasant, one glass is enough.
