@@ -81,7 +81,7 @@ documents:
 
       **Tonics**
 
-      Tonics (see the Brewing document) can instantly cure wounds and help recovery, but require unique ingredients. Similarly, a few afflictions—like {tag:blinded}—require unique ingredients.
+      Tonics (see {document:alcoholdrugs}) can instantly cure wounds and help recovery, but require unique ingredients. Similarly, a few afflictions—like {tag:blinded}—require unique ingredients.
   - name: Sanctuary
     key: sanctuary
     public: true
@@ -427,51 +427,55 @@ documents:
       - Brewing (Skilled)
       - Alcoholic
     description: |-
-      Brewing is an excellent way to obtain happiness, cure the wounded, fulfill Desires, and, well, become superhuman. Like cooking or smithing, brewing costs turns (measured in Routine moves), Resources, and sometimes Gambits. It also requires special ingredients. Some special ingredients, like {tag:cave-fungus}, are tracked—but some aren't. If it's just flavor, tell the GMs how you obtained it.
+      Like cooking or smithing, brewing costs Resources (⬢), turns, and is gated
+      by a skill. Most brews also need an ingredient you cannot buy. Hover a brew
+      to see what it does.
 
-      **Brewing (Basic)** covers {tag:alcohol}, {tag:bliss} and the basic tonics.
-      **Brewing (Skilled)** adds {tag:ravenheart-red} and the advanced tonics.
+      {tag:brewing-basic} — alcohol and the simple tonics.
+      {tag:brewing-skilled} — wine and everything that needs a hard-to-find
+      ingredient. Requires Brewing (Basic).
 
-      **Cave Fungus, the base**
+      Some ingredients are tracked tags, like {tag:cave-fungus} and
+      {tag:graga-sac}. Some aren't — if it's just flavor, tell the GMs how you
+      got hold of it.
 
-      Cave fungus grows in caves (see the Caving document). You can eat it raw for a mildly unpleasant {tag:high}, or you can refine it into a bunch of useful things, particularly {tag:bliss}.
+      **Brewing (Basic)**
 
-      **Recreational — Brewing (Basic)**
+      | Brew | ⬢ | Turns | Needs |
+      |---|---|---|---|
+      | {tag:bliss} | 0 | — | cave fungus |
+      | {tag:feces} | 0 | — | feces |
+      | {tag:alcohol} | 2 | — | — |
+      | {tag:miasma} | 2 | — | a corpse |
+      | {tag:poppy} | 2 | — | — |
+      | {tag:molotov-cocktail} | 2 | — | alcohol |
+      | {tag:nekker-pheromones} | 2 | — | a dead nekker |
+      | {tag:cleaning-powder} | 2 | 1 | — |
+      | {tag:cat} | 3 | — | alcohol |
+      | {tag:nightshade} | 3 | — | a forest herb |
 
-      - **{tag:alcohol}** — 2 ⬢ per drink, up to 3 per Move. Makes anyone happy, but not Desire-worthy.
-      - **{tag:bliss}** — 0 ⬢ and one cave fungus, up to 2 per Move. A valid object of Desire.
+      **Brewing (Skilled)**
 
-      **Other — Brewing (Basic)**
-
-      - **{tag:miasma}** — 2 ⬢, requires a corpse. You can uncork it to give everyone in a room {tag:vomiting}.
-      - **{tag:feces}** — 0 ⬢, requires feces. Extremely dishonorable. Makes your weapon inflict {tag:infected}.
-      - **{tag:cleaning-powder}** — 2 ⬢ per powder, up to 2 per Move. Cures minor infections instantly, but doesn't help against {tag:festering}.
-      - **{tag:cat}** — 3 ⬢, distilled with {tag:alcohol}. {tag:night-vision} for one turn.
-      - **{tag:poppy}** — 2 ⬢ per vial, up to 2 per Move. Helps with pain but leaves you doped up. Makes you {tag:opium-high}.
-      - **{tag:molotov-cocktail}** — 2 ⬢ per bottle, up to 2 per Move. Requires alcohol.
-      - **{tag:nightshade}** — 3 ⬢, refined from the common forest herb. Inflicts {tag:choking}. A visible, messy death.
-      - **{tag:nekker-pheromones}** — 2 ⬢, from a dead nekker. Gives {tag:pheromones}.
-
-      **Recreational — Brewing (Skilled)**
-
-      - **{tag:ravenheart-red}** — 4 ⬢. Genuinely exquisite. Worthy of Desire.
-      - **{tag:distilled-coca}** — 4 ⬢, requires coca, foraged in the forest. {tag:stimulant-high}.
-
-      **Other — Brewing (Skilled)**
-
-      - **{tag:gunpowder-grenade}** — 6 ⬢, requires {tag:saltpeter} from the caverns.
-      - **{tag:phrygian-tears}** — 4 ⬢, 2 turns, **Gambit**. Silent and invisible. Inflicts {tag:phrygian-toxin}. A nearly instant, invisible death. The ultimate poison.
-      - **{tag:advanced-poppy}** — 4 ⬢, refined from standard {tag:poppy}. Pain resistance without any mental sluggishness: {tag:pain-immunity}.
-      - **{tag:graga-sweat}** — 2 ⬢, from a {tag:graga-sac}. {tag:brutish-strength}.
-      - **{tag:purifier}** — 6 ⬢. Clears {tag:infected}, {tag:festering} and {tag:feverish} instantly, and helps with {tag:sepsis}.
-      - **{tag:white-honey}** — 2 ⬢, requires the heart of a rainbow trout. Cures all poisons.
-      - **{tag:deadeye-drops}** — 2 ⬢, from cave fungus. {tag:increased-accuracy}.
-      - **{tag:mercy}** — 2 ⬢ and one fungus per vial, up to 2 per Move. Grants {tag:increased-recovery}.
-      - **{tag:mindbreaker-toxin}** — 2 ⬢, from cave fungus. Gives {tag:hallucinating}, making the victim incoherent and incapable.
-      - **{tag:invisibility-potion}** — 2 ⬢, from a graga sac. Makes you {tag:invisible} for two turns.
-      - **{tag:succubus-draught}** — 2 ⬢, requires the blood of a willing lover. Grants {tag:mindreading}.
-      - **{tag:raven-draught}** — 2 ⬢, requires the eye of a raven. Send one message to any player anywhere — DM the GMs.
-      - **{tag:pure-luck}** — 0 ⬢, requires the heart of an Aberrant. Gives you unbelievable luck.
+      | Brew | ⬢ | Turns | Needs |
+      |---|---|---|---|
+      | {tag:pure-luck} | 0 | — | an Aberrant's heart |
+      | {tag:graga-sweat} | 2 | — | a graga sac |
+      | {tag:white-honey} | 2 | — | a rainbow trout's heart |
+      | {tag:deadeye-drops} | 2 | — | cave fungus |
+      | {tag:mercy} | 2 | — | cave fungus |
+      | {tag:mindbreaker-toxin} | 2 | — | cave fungus |
+      | {tag:invisibility-potion} | 2 | — | a graga sac |
+      | {tag:succubus-draught} | 2 | — | a willing lover's blood |
+      | {tag:raven-draught} | 2 | — | a raven's eye |
+      | {tag:ravenheart-red} | 4 | — | — |
+      | {tag:distilled-coca} | 4 | — | coca leaves |
+      | {tag:advanced-poppy} | 4 | — | poppy |
+      | {tag:phrygian-tears} | 4 | 2 | Gambit |
+      | {tag:gunpowder-grenade} | 6 | — | saltpeter |
+      | {tag:purifier} | 6 | — | a rare ingredient |
+      | {tag:dreamers-draught} | 6 | — | Gambit |
+      | {tag:forgiveness} | 8 | — | someone's tears |
+      | {tag:flawless-skin} | 8 | — | a lock of Nobility hair |
   # GM-only. The `gamemaster` flag is not a property of any Character — the
   # documents page resolves it against the Discord GM role at request time,
   # the same check that gates /gm. Filtered server-side, so a player's browser

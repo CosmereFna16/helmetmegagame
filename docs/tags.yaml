@@ -4113,7 +4113,8 @@ tags:
   # addTagRequestImpl accept a player brewing one — exactly the posture the
   # meals above take. Every requirement block below is a RECIPE, and like
   # every other requirement block in this file it is a GM adjudication
-  # reference rather than anything the code enforces. The prose writeup is
+  # reference rather than anything the code enforces. The canonical recipe
+  # table is docs/systemdocs/BREWING.md; the player-facing version is
   # docs/documents.yaml's Alcohol & Drugs document.
   #
   # The tiers are the two existing Brewing skills, whose descriptions already
@@ -4173,7 +4174,7 @@ tags:
     name: Bliss
     category: items
     group: items-drink
-    description: "Properly boiled and refined cave fungus that will give you a greater high."
+    description: "Properly boiled and refined cave fungus that will give you a greater high. One fungus per vial, up to 2 in one Routine Move."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4232,7 +4233,7 @@ tags:
     name: Miasma
     category: items
     group: items-drink
-    description: "Bottled with rotting flesh and gives {tag:vomiting} to everyone in a closed room."
+    description: "Bottled beside a corpse. Uncork it in a closed room and everyone in it gets {tag:vomiting}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4312,7 +4313,7 @@ tags:
     name: Poppy
     category: items
     group: items-drink
-    description: "Takes away pain and gives addiction. Grants you {tag:opium-high}."
+    description: "Takes away pain and gives addiction. Grants you {tag:opium-high}. Up to 2 in one Routine Move."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4333,7 +4334,7 @@ tags:
     name: Molotov Cocktail
     category: items
     group: items-drink
-    description: "A bottle of alcohol and a rag. Light it and cause fire to spread."
+    description: "A bottle of alcohol and a rag. Light it and cause fire to spread. Up to 2 in one Routine Move."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4345,6 +4346,25 @@ tags:
     consumable: true
     requirement:
       resourceCost: 2
+      skills: [brewing-basic]
+      gambit: false
+
+  - slug: nightshade
+    name: Nightshade
+    category: items
+    group: items-drink
+    description: "Refined from a common forest herb. Whoever takes it dies frothing where everyone can watch — it inflicts {tag:choking}."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    requirement:
+      resourceCost: 3
       skills: [brewing-basic]
       gambit: false
 
@@ -4368,30 +4388,11 @@ tags:
       skills: [brewing-skilled]
       gambit: false
 
-  - slug: nightshade
-    name: Nightshade
-    category: items
-    group: items-drink
-    description: "Refined from a common forest herb. Whoever takes it dies frothing where everyone can watch — it inflicts {tag:choking}."
-    pointCost: 0
-    tradeable: true
-    stackable: true
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    removable: true
-    craftable: true
-    consumable: true
-    requirement:
-      resourceCost: 3
-      skills: [brewing-basic]
-      gambit: false
-
   - slug: phrygian-tears
     name: Phrygian Tears
     category: items
     group: items-drink
-    description: "The percet silent killer. Requires two turns and a gambit to make. Failures are dangerous. Inflicts {tag:phrygian-toxin}."
+    description: "The perfect silent killer. Requires two turns and a gambit to make. Failures are dangerous. Inflicts {tag:phrygian-toxin}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4432,7 +4433,7 @@ tags:
     name: Graga Sweat
     category: items
     group: items-drink
-    description: "Made with rendered {tag:graga-sac}. Grants wo turns of {tag:brutish-strength}."
+    description: "Made with rendered {tag:graga-sac}. Grants two turns of {tag:brutish-strength}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4453,7 +4454,7 @@ tags:
     name: Purifier
     category: items
     group: items-drink
-    description: "Requires a rare ingredient. Clears {tag:infected}, {tag:festering} and {tag:feverish} without medical attention, and greatly improves the conditon of someone with {tag:sepsis}."
+    description: "Requires a rare ingredient. Clears {tag:infected}, {tag:festering} and {tag:feverish} without medical attention, and greatly improves the condition of someone with {tag:sepsis}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4512,7 +4513,7 @@ tags:
     name: Mercy
     category: items
     group: items-drink
-    description: "Brewed from {tag:cave-fungus}. Grants {tag:increased-recovery}."
+    description: "Brewed from {tag:cave-fungus}, one per vial. Grants {tag:increased-recovery}. Up to 2 in one Routine Move."
     pointCost: 0
     tradeable: true
     stackable: true
