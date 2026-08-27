@@ -880,7 +880,7 @@ zones:
               - >-
                 You are aware of the Goddess of Nature, Sylva. Some still worship her in Ravenheart. It is up to you to follow the Church or stick to the oldways.
               - >-
-                Forage and heal as a Healer (Medical (Basic), Brewing (Basic)), or track game as a Hunter (Laborer (Hunting))—both still Forester at heart. Hunting pays better than any other honest work and can just as easily pay nothing: use the /hunt command from the Forest, or write /hunt in your Move.
+                Forage and heal as a Healer (Medical (Basic), Brewing (Basic)), or track game as a Hunter (Laborer (Hunting))—both still Forester at heart. Hunting pays better than any other honest work and can just as easily pay nothing: use the /hunt command from Town — the Forest is its hunting ground — or write /hunt in your Move.
             difficulty: easy
             multiple: true
             weight: 2

@@ -2,8 +2,8 @@
 
 How the `Tag`/`TagGroup` catalog is structured, master-sourced, and synced.
 Not to be confused with `CharacterTag` (an individual character's *holding*
-of a tag) or `Location.tags` (free-text flavor strings on a Location,
-unrelated to this system).
+of a tag). The old `Location.tags` free-text flavor strings went with
+Locations themselves; nothing like them exists on a Zone.
 
 ## 1. Category -> Group -> Tag
 
@@ -37,14 +37,14 @@ Three levels:
 
 `docs/tags.yaml` holds categories and tags; `docs/taggroups.yaml` holds the
 `TagGroup` catalog (split into its own file so group colors can be freeform
-hex rather than a fixed token set). Same posture as `docs/locations.yaml`:
+hex rather than a fixed token set). Same posture as `docs/zones.yaml`:
 hand-edited, `slug` is the stable match key across syncs, and syncing is
 **upsert-only** — removing an entry from either YAML never deletes its row,
 it just stops receiving updates. `db/lib/syncTags.js#syncTagsFromYaml(prisma)`
 reads both files and does the sync, run by hand via `npm run db:sync-tags`
 (`db/prisma/sync-tags.js`) or automatically at the end of `wipeGameData`'s
 "Restart Game" flow (`web/app/(app)/gm/dev/actions.js`), right after
-`syncLocationsFromYaml`.
+`syncZonesFromYaml` and the special-channels sync.
 
 The sync is five passes, since tags/groups can reference each other by slug
 before every row necessarily exists yet: TagGroup scalars, then Tag scalars
@@ -52,7 +52,7 @@ before every row necessarily exists yet: TagGroup scalars, then Tag scalars
 links, then `requirement.skills`. (`consumesInto` is the exception — it is
 validated up front against the YAML's own slug set, before any write, so a
 typo fails cleanly instead of half-applying.) Each pass only writes a row when something actually changed (a
-diff check, same style as `syncLocationsFromYaml`'s `needsUpdate`).
+diff check, same style as the zone sync's hash gate).
 
 ## 3. Two relations that look similar but aren't
 
@@ -417,7 +417,7 @@ true` in `docs/tags.yaml` sets `Tag.stackable`; the count lives on
 
 **A stack is one row carrying a count, never N rows.**
 `@@unique([characterId, tagId])` stays exactly as it was, which is the whole
-point: every presence check in the codebase — `narrowcastAccess.js`,
+point: every presence check in the codebase — `specialChannels.js`,
 `gambitModifier.js`, `mood.js`, `labor.js`, the Mortus nav gate — keeps
 reading "holds it or doesn't" with no change, and `restoreCharacterTag`'s
 upsert stays valid.

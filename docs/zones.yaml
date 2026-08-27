@@ -1,6 +1,6 @@
 # Source of truth for the game's Zones and their Location topics,
-# hand-edited then pushed with `npm run db:sync-zones` (a script written
-# separately, not yet in this repo). This sync is fully destructive in both
+# hand-edited then pushed with `npm run db:sync-zones`
+# (db/lib/syncZones.js). This sync is fully destructive in both
 # directions: entries here are upserted into the DB and Discord by `id`
 # slug, and any Zone/Topic NOT listed here gets its Discord objects deleted
 # and its DB row removed — for a Zone that means a whole category, its
@@ -28,7 +28,7 @@
 # real paragraph breaks, in which case it takes `|-` instead, with ONE blank
 # line between paragraphs (a folded scalar collapses a blank line to a
 # single newline, not the `\n\n` a paragraph break needs). An unwritten
-# value is literally `""`. Same convention as docs/locations.yaml.
+# value is literally `""`.
 #
 # map: a clickable polygon on the /map plate — `polygon:` is a list of
 # [x, y] pairs as percentages (0-100) of the 4:3 plate, origin top-left,
@@ -323,11 +323,10 @@ zones:
                 description: >-
                   Inside the caves, crates around a decayed metal frame. There is a small gap in the roof where light comes in. Besides the shuttle pad, there is a ledger room and a bunkhouse.
 
-      # The three levels of the Depths. Moving between any two of them still
-      # costs a Move even though they're all "Caves" — the one place in the
-      # game where two same-group zones aren't a free walk apart. See
-      # DEPTHS_SLUGS in db/lib/travelCost.js, which is keyed on these three
-      # ids.
+      # The three levels of the Depths, chained one Move apart like every
+      # other hop — since the zone rework there is no free walking anywhere,
+      # so the levels need no special cost rule, only their place in
+      # zoneConnections below.
       - id: railroad
         name: Railroad
         sort: 2

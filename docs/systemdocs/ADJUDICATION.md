@@ -20,7 +20,7 @@ day of work survives a refresh):
 | What | Model | At the push |
 |---|---|---|
 | **Private messages** | `StagedMessage` (kind `PRIVATE`) + `StagedMessageRecipient` | One DM per recipient character's player, `»`-prefixed, logged to `DirectMessage` like every DM. |
-| **Public declarations** | `StagedMessage` (kind `PUBLIC`, optional `zoneId`) | Posted to `GameConfig.turnSummaryChannelId`. The `zoneId` is carried now so the future per-zone summary channels can deliver by it; today one channel serves the whole game, and an unset id means the post is skipped and recorded on `deliveryFailures` — never lost. |
+| **Public declarations** | `StagedMessage` (kind `PUBLIC`, optional `zoneId`) | Posted to **the row's own zone `#summary`** — the per-zone delivery the `zoneId` was always carried for. `GameConfig.turnSummaryChannelId` is the fallback, used when the row has no zone or its zone has no summary channel (the Caves seat, which is a category only). Neither set means the post is skipped and recorded on `deliveryFailures` — never lost. |
 | **Mechanical adjustments** | `StagedEffect` — `payload` `{ resources?, tagPoints?, tagOps? }` per target character | Resources through `addResources`' clamp, tag ops through `db/lib/tagOps.js` — the same engine the Dev Panel applies with. `tagPoints` is an unclamped increment (a GM may take points back, and negative is legal). `appliedEffect` snapshots what actually moved (the payload-vs-effect rule from `REQUESTS.md` §2). |
 
 A staged message takes a *set* of recipients — you need to tell different

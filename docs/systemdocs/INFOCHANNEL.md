@@ -13,7 +13,7 @@ and the rebuild mechanism.
 page: a directory message (game pitch + rules) followed by a set of topic
 threads a player can jump into. It's looked up by exact name match
 (`c.type === 0 && c.name?.toLowerCase() === "info"`), the same convention
-already used for `#turns`/`#location` — there's no hardcoded
+already used for `#turns` — there's no hardcoded
 channel ID anywhere in code, deliberately, so renaming or recreating the
 channel doesn't require a code change. (For reference, the channel's current
 ID is `1539629144801812641`.)
@@ -32,7 +32,7 @@ category's thread links are listed with no heading above them.
 
 Editing the file has no effect on Discord until
 `npm run db:rebuild-info-channel` is run by hand — same "never auto-synced"
-posture as `docs/locations.yaml`, just without the upsert semantics (see §4).
+posture as `docs/zones.yaml`, just without the reconcile semantics (see §4).
 
 ## 3. Directory + thread structure
 
@@ -80,8 +80,8 @@ index**, not a snowflake, and must match the `files[n]` suffix or Discord
 accepts the request and silently drops the file. The `Content-Type` header
 is deliberately omitted so `fetch` can set its own multipart boundary.
 
-Unlike `sync-locations.js` (upsert by slug, never touches already-
-provisioned state), this script has no notion of "already exists" — every
+Unlike `sync-zones.js` (matched by slug, never re-creates already-
+provisioned channels), this script has no notion of "already exists" — every
 run throws away whatever is currently live in `#info` and reposts from
 scratch. That's a deliberate simplification: `#info` is GM-authored front
 matter, not player state, so there's nothing worth diffing or preserving

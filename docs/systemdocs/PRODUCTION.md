@@ -1,7 +1,7 @@
 # Food production (`/hunt`, `/fish`, `/farm`, `/herd`)
 
 The four ways a character turns a Routine Move into Resources. One payout
-table, one location gate, one parser. The roll happens when the player locks
+table, one zone gate, one parser. The roll happens when the player locks
 in; **the ⬢ land at the turn-end push**, like every Move payout since the
 staged-arbitration rework (`ADJUDICATION.md`) — the reply says so.
 
@@ -29,19 +29,21 @@ silently escaped `GameConfig.productionCoefficient` entirely. One shape means
 **Tier is the same ladder for all four**: `laborer-<field>` → specialist,
 `laborer` → laborer, else base.
 
-## 2. The location gate
+## 2. The zone gate
 
-`db/lib/laborAccess.js`, mirroring `db/lib/narrowcastAccess.js`'s
-pure-rules/async-context split. **Location matched by `slug`, Zone by `name`**,
-for the same reason: the rules are authored against `docs/locations.yaml`'s
-fixed identifiers.
+`db/lib/laborAccess.js`, mirroring `db/lib/specialChannels.js`'s
+pure-rules/async-context split. **Zones matched by `slug`**, for the same
+reason: the rules are authored against `docs/zones.yaml`'s fixed identifiers.
 
 | Field | Requires |
 |---|---|
-| Hunting | The `forest` Location |
-| Fishing | The Fortress or Town Zone |
+| Hunting | The **Town** zone — the Forest is a topic inside it now, not a place you stand |
+| Fishing | Fortress or Town |
 | Farming | Town |
-| Herding | Any zone **but** Caves, and a *known* zone — an off-map character can't herd from nowhere |
+| Herding | Any zone **but** the Caves, and a *known* zone — an off-map character can't herd from nowhere |
+
+Herding tests the **seat** zone (`seatZoneSlug !== "caves"`), which folds all
+three cave levels into one equality instead of listing them.
 
 **Nothing feeds anyone in the Caves.** That's the point of the four rules taken
 together, not a coincidence of how each was written separately.

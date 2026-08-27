@@ -8,10 +8,12 @@ colour vocabulary that tells them at a glance whose row is whose.
 ## 1. The shape of it
 
 Lifeweb runs with **one master** — the superadmin (`web/lib/superadmin.js`) —
-and **four zone-GMs**, each seated in one of the four zones the map already
-has: **Fortress, Town, Windlands, Caves**. Zone-GMs also play, so the point is
-to keep each of them oriented toward their own zone without cutting them off
-from the rest of the game.
+and **four zone-GMs**, each seated in one of the four **seat** zones:
+**Fortress, Town, Windlands, Caves**. (Characters stand in six *presence*
+zones, because the Caves seat covers three cave levels — §2a.)
+
+Zone-GMs also play, so the point is to keep each of them oriented toward their
+own zone without cutting them off from the rest of the game.
 
 **The seat is a soft default and hides nothing.** It picks which zone a GM's
 tables *open* on. No Prisma query is scoped by it, no row is withheld, and one
@@ -28,6 +30,27 @@ ergonomics. Do not "harden" it without re-reading the paragraph above.
 
 ## 2. Which zone a row belongs to
 
+### 2a. Presence zones vs seat zones
+
+Since the zone rework, **presence is six zones and the seats are still four.**
+Characters stand in Town, Fortress, Windlands, Caverns, Railroad or Aberrant
+Pits; the GM seats are Town, Fortress, Windlands and **Caves**, with the whole
+cave system belonging to the Caves seat.
+
+That mapping is denormalized onto **`Zone.seatZoneId`** by `db:sync-zones`
+(`parentZoneId ?? id`), and `db/lib/seatZone.js#seatZoneIdFor` is the single
+reader every writer goes through. **Never stamp a seat-scoped row with
+`zone.id`.** Every `Action`, `Note`, `DefaultEffort` and `StagedMessage`
+`zoneId` is the *seat* zone — a character acting on the Railroad who filed
+against the Railroad row would file work no Caves GM can see.
+
+The seat pickers list `kind != "CAVE_LEVEL"` (`/gm/turns`, `/gm/gamemasters`),
+which is the same four rows from the other direction. The channel doctor checks
+the invariant from a third: no stamped `zoneId` may point at a `CAVE_LEVEL`
+row, and it counts the offenders if any exist (`CHANNELS.md` §6).
+
+### 2b. Seat by faction, not by feet
+
 **The zone a character's *faction* is keyed to — `Faction.zoneId` — never where
 they happen to be standing.** A Windlander in Town is a Windlands row. That
 distinction is the whole feature and the one real bug it invites.
@@ -37,7 +60,7 @@ Two zone fields exist on a character and they mean different things:
 | Field | Meaning | Used by |
 |---|---|---|
 | `Character.faction.zoneId` | The zone seat. Which GM this person is *for*. | Every Zone column and filter; the seat default |
-| `Character.zoneId` | Where they are physically standing (a denormalized mirror of `location.zoneId`) | Travel, the map, `/gm/players`' **Standing in** column |
+| `Character.zoneId` | Where they are physically standing — a presence zone, possibly a cave level | Travel, the map, `/gm/players`' **Standing in** column |
 
 Every GM page flattens the first onto its rows as a plain string,
 **`factionZoneName`** (`""` when the character has no faction at all), because
@@ -80,11 +103,13 @@ floor), not AA 4.5; none of them would ever clear 4.5, and gating them there
 would only force them off the palette. Spending one as `color:` ships a 2.x
 contrast.
 
-`Zone` has **no slug column** — `syncLocations.js` creates and matches zones by
-name, which that file itself calls a known fragility. Rather than touch the
-destructive locations sync for four rows, `web/lib/zones.js#zoneKey()`
-slugifies the name and checks it against the known set. A renamed or fifth zone
-returns `null` and renders the neutral chip rather than throwing.
+`Zone` **does** have a slug now (`db:sync-zones` matches on it), but the colour
+code does not read it: `web/lib/zones.js#zoneKey()` still slugifies the *name*
+and checks it against the known four-key set, because the chip covers seats,
+not presence zones, and the set is closed and known at build time. A renamed or
+fifth zone returns `null` and renders the neutral chip rather than throwing. A
+cave level's name never reaches a chip — its rows are stamped with the Caves
+seat (§2a).
 
 `ZoneChip.js` puts the colour on a `data-zone` attribute reading a token, not
 an inline style. `ChipLabel.js` is the tempting precedent but it goes inline
@@ -163,8 +188,8 @@ partial failure leaves a GM holding two zones or none. Keying on the user makes
 that invariant structural and the write a single idempotent upsert. Absence of
 a row **is** "no seat", so clearing deletes rather than nulls.
 
-The FK is `onDelete: SetNull` and that is load-bearing: `db:sync-locations` is
-destructive and *will* delete a Zone row that has left `docs/locations.yaml`. A
+The FK is `onDelete: SetNull` and that is load-bearing: `db:sync-zones` is
+destructive and *will* delete a Zone row that has left `docs/zones.yaml`. A
 cascade would take the GM's seat with it silently.
 
 `assignGmZone` re-validates everything the picker already applied — a server

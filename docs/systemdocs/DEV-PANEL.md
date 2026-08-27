@@ -58,7 +58,12 @@ path, and Cancel undoes them like anything else.
   separated by `.dev-bar-sep`: life & turn · staging · repair. A destructive
   verb never sits flush against a harmless one.
 - **Tabs** — Identity · Tags · Turn · Goals · Record, on the existing
-  `.tab-bar` / `.tab-item` classes.
+  `.tab-bar` / `.tab-item` classes. Identity's place field is a **Zone**
+  select, listing presence zones only (the Caves group is a container, not a
+  place); Apply swaps the zone's Discord role, and the empty option is a real
+  choice meaning "nowhere, and no zone channel access". The state strip's
+  Identity cluster shows `Zone` for the same reason — there is no Location to
+  show.
 - **Apply bar** — `.dev-apply-bar`, sticky at the bottom, and rendered **only
   when something is pending**, so the panel reads as a viewer until it isn't
   one. Sticky rather than fixed so it stays in the page column and can't cover
@@ -244,7 +249,36 @@ repaint too). The standalone page still just calls `router.refresh()`.
 Delete follows the same shape through `onDeleted` — the modal closes itself
 and refreshes the desk, instead of the page's `router.push("/gm/players")`.
 
-## 11. Where the code lives
+## 11. The other Dev Panel: `/gm/dev`
+
+Superadmin-only, and a different page — the game-level one. Three of its
+sections are new with the zone rework, and this is the only doc that lists
+them. `LAUNCH.md` covers Restart Game itself.
+
+**Three new Game Config knobs**, all defaulting to off/5 and all reset by a
+wipe:
+
+| Knob | Does |
+|---|---|
+| `threadExpiryTurns` (1–60, default 5) | How many turns a player topic or private thread may sit with no messages before it is deleted |
+| `threadExpiryEnabled` | Whether that pass runs at all. Persistent threads are **included**; Location topics and the anchors never expire (`CHANNELS.md` §4) |
+| `autoReconcileEnabled` | Run the channel doctor's cheap reconcile after every turn advance. It always runs on bot restart regardless |
+
+**System Reports** shows the latest run of each operational pass — `WIPE`,
+`DOCTOR`, `DAWN_WIPE`, `BULK_MOVE` — with its summary and its failures. A
+report with no finish time means the container died mid-pass; that is the
+signal, and the reason the row is written *before* the work starts rather than
+after. Two buttons sit above it: **Run channel doctor (dry)** and **Repair**,
+both full scope, both fired into `after()` so the button returns immediately
+and the outcome shows up where every other pass reports (`CHANNELS.md` §6).
+
+**Bulk Move** relocates several living characters to one zone at once. It is a
+raw relocation like `updateCharacterRaw`'s, **not** travel: no Move cost, no
+`Action` filed, no adjacency check. The database write is synchronous; the
+Discord half (role swap, special-channel access, pending thread invites) runs
+sequentially in `after()` and lands on a `BULK_MOVE` report.
+
+## 12. Where the code lives
 
 | Concern | File |
 |---|---|
@@ -262,3 +296,5 @@ and refreshes the desk, instead of the page's `router.push("/gm/players")`.
 | Shared tag search | `web/lib/characterCreation.js#filterTagsByQuery` |
 | Panel styling | `.dev-state-strip`, `.dev-state-group`, `.dev-bar-sep`, `.dev-apply-bar`, `.dev-tag-row`, `.dev-tag-group-head`, `.dev-modal-panel` in `globals.css` |
 | Desk modal mount, its server action | `web/app/(desk)/gm/turns/DevPanelModal.js`, `devPanelActions.js` |
+| The game-level panel (§11) | `web/app/(app)/gm/dev/page.js`, `actions.js` |
+| The channel doctor it runs | `db/lib/channelDoctor.js` |

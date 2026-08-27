@@ -96,11 +96,11 @@ reason.
 | `BUY_TAGS` | Checks out a whole `/store` cart with Tag Points — one request per cart, `effect.items` listing every tag | — | Returns every tag in the cart, refunds the points |
 | `REMOVE_TAG` | Drops one of their own `removable` tags, optionally paying ⬢, in a quantity if it stacks | cost | Restores the tag and its count, refunds the cost |
 | `CONSUME_TAG` | Uses up one of their own `consumable` tags — always exactly one, even from a stack — and gains whatever it `consumesInto` | — | Restores the one unit with its original expiry, takes back what it granted |
-| `TRANSFER_TAG` | Hands an Item or Asset to another player in the same Location, in a quantity if it stacks. `direction: "LOOT"` lifts one off a corpse in the same room | — | Moves that many back |
+| `TRANSFER_TAG` | Hands an Item or Asset to another player in the same zone, in a quantity if it stacks. `direction: "LOOT"` lifts one off a corpse in the same zone | — | Moves that many back |
 | `FULFILL_DESIRE` | Claims their active Desire | Tag Points awarded | Revokes the points, reopens the Desire |
 | `DONATE_BLOOD` | Mortus bleeds someone into the Lifeweb | blood added; clear Drained | Draws the blood back, clears Drained |
 | `FEED_PERSON` | Mortus feeds someone to the Lifeweb | blood added | Draws the blood back (never revives) |
-| `HEAL_CHARACTER` | Treats an affliction on anyone standing in their Location, on whoever's tab they choose | cost; put the affliction back | Restores the tag with its original expiry, refunds the payer |
+| `HEAL_CHARACTER` | Treats an affliction on anyone standing in their zone, on whoever's tab they choose | cost; put the affliction back | Restores the tag with its original expiry, refunds the payer |
 | `CHANGE_NAME` | Drinks a Mulligan Potion and takes a new honorific/first/last name | — | Restores the previous name and gives back the potion |
 
 The per-type behaviour lives in `web/lib/requestEffects.js` as one
@@ -127,7 +127,7 @@ Three notes on deliberate choices:
   and it was chosen over the safer factions-only reading.
 
   What it is *not* is action at a distance. Every party has to be somewhere the
-  filer can stand: a person in the same Location, a Silo in its own zone or with
+  filer can stand: a person in the same zone, a Silo in its own seat zone or with
   an officer in the filer's zone (`web/lib/transferReach.js`, `FACTIONS.md` §3b).
   Picking a pocket is now a mugging rather than a wire transfer. The dropdowns
   stay unfiltered on purpose — filtering them to who's in range would make the
@@ -136,9 +136,9 @@ Three notes on deliberate choices:
   corpses.** There is no "request a tag from a live someone", because
   browsing another player's inventory to pick something is the abuse the
   one-way flow prevents. But a dead character is a lootable pile: filing a
-  `TRANSFER_TAG` with `direction: "LOOT"` names a corpse in the same room as
-  the counterparty and pulls the item OFF it. Co-location is folded into the
-  same `WHERE` clause in both directions. `TRANSFER_RESOURCES` mirrors this:
+  `TRANSFER_TAG` with `direction: "LOOT"` names a corpse in the same zone as
+  the counterparty and pulls the item OFF it. Being in the same place is folded
+  into the same `WHERE` clause in both directions. `TRANSFER_RESOURCES` mirrors this:
   a `LOOT` request pulls ⬢ off a corpse and can only credit the initiator.
   See `CHARACTERS.md` §5.
 - **Consume has no resource field and no quantity field.** A meal already
@@ -275,7 +275,7 @@ Mood's ±1 and Hunger's escalating penalty **stack additively**: Unhappy +
 Hungry(streak 1) = −2, Happy + Hungry(streak 3) = −2.
 `db/lib/gambitModifier.js` is the single source of that sum, shared by the
 bot and the web app so the number a player is shown and the number applied
-cannot drift — the same posture as `narrowcastAccess.js`. It is a thin
+cannot drift — the same posture as `specialChannels.js`. It is a thin
 composer *over* `mood.js` rather than a generalization of it, because Mood is a
 tri-state with a player-facing write path while Hunger is a boolean tag whose
 *size* comes from a Character column (`hungerStreak`) the turn engine writes —
@@ -365,7 +365,7 @@ owns rather than the player.
 
 **Three gates, all re-checked server-side.** The button only renders for a
 character holding `medical-basic`; the patient must share the healer's
-`locationId`; and the affliction's own `requirementSkills` must be satisfied —
+`zoneId`; and the affliction's own `requirementSkills` must be satisfied —
 a Deep Wound names Medical (Skilled), so a character with only the Basic tier
 sees it in the menu, greyed, reading "needs Medical (Skilled)". The menu is
 advisory as always: `healCharacterRequestImpl` re-derives every one of those
@@ -410,8 +410,8 @@ then a `useConfirm()` naming the payer and the amount. Treating another
 character does not, which is the opposite of the Lifeweb rule below and
 deliberate — a cure is not a harm, and being charged for one is.
 
-Co-location is re-validated inside the target's `WHERE` clause rather than by
-a second read, so a patient who walked out between page load and submit fails
+The shared zone is re-validated inside the target's `WHERE` clause rather than
+by a second read, so a patient who walked out between page load and submit fails
 closed with "They aren't here" and nothing is written.
 
 It is also the one type whose subject is a different character from the one
@@ -432,7 +432,7 @@ reason field between openings without an effect syncing state.
 
 The Status panel (`StatusPanel.js`) was pulled out of `CharacterSheet.js`,
 where it had been inline markup at a broken indent level, and now lays
-Location / Resources / Mood / Tag Points out on one `<dl>` grid instead of
+Zone / Resources / Mood / Tag Points out on one `<dl>` grid instead of
 four ad-hoc flex lines.
 
 One consequence worth knowing: `CharacterSheet#groupTagsByCategory` now groups
@@ -466,7 +466,7 @@ of a transfer. Deposits into a Silo previously left no ledger entry at all.
 | Add / Remove / Transfer / Consume Tag / Heal | `web/app/components/TagRequestButtons.js`, `web/lib/tagRequests.js` |
 | Heal gate, tier chain, treatable-tag filter | `web/lib/healRequests.js` |
 | One end of a resource movement (Silo or player) | `web/app/components/PartySelect.js` |
-| Reach gate — same Location / same Silo zone | `web/lib/transferReach.js` |
+| Reach gate — same zone / same Silo seat zone | `web/lib/transferReach.js` |
 | Tags panel + click-a-chip-to-consume | `web/app/components/TagsPanel.js`, `TagChip.js` |
 | Desires | `web/app/components/GoalsPanel.js` (panel shell), `DesirePanel.js` |
 | Lifeweb blood tiers + cap, shared bot/web | `db/lib/lifeweb.js` |

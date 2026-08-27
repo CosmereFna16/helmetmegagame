@@ -252,8 +252,8 @@ const DEFAULT_GAME_CONFIG = {
 // row (characters, tags-on-characters, Moves, default efforts, notes, DM
 // log, audit log, silo history, and the /archive transcript), resets
 // GameConfig's balance knobs to their schema defaults, clears every Discord
-// channel this game has actually written to (#turns, and every Location's
-// plain/public/private channel — messages, forum posts, and threads, public
+// channel this game has actually written to (#turns, and every zone's
+// summary/public/private channel — messages, forum posts, and threads, public
 // or private), and opens a fresh Turn 1/DAWN — then reposts the #turns
 // console for it, which the channel wipe just deleted.
 //
@@ -263,16 +263,17 @@ const DEFAULT_GAME_CONFIG = {
 // Discord pass — this comment used to say otherwise, which read as "archive:
 // handled" and is how the deleteMany came to be missing. Then re-syncs every YAML master, in dependency
 // order, so the game starts from the canonical sets:
-//   locations (docs/locations.yaml) -> tags (docs/tags.yaml) -> roles (docs/roles.yaml)
-// Roles resolve a starting Location and validate starting_tags, so that
+//   zones (docs/zones.yaml) -> special channels -> tags (docs/tags.yaml) ->
+//   roles (docs/roles.yaml)
+// Roles resolve a starting zone and validate starting_tags, so that
 // order is load-bearing, not cosmetic. The #watch/#intercom channel ids on
 // GameConfig are left untouched (same "self-heals, provisioning is one-time"
 // treatment as turnsAnnouncementChannelId) rather than reset here.
 //
 // The four syncs do NOT share one contract, which is worth knowing before
-// relying on any of them: syncLocationsFromYaml is fully destructive (a
-// Location dropped from the YAML has its Discord category+channels deleted
-// and its row removed), syncDocumentsFromYaml is destructive in the same
+// relying on any of them: syncZonesFromYaml is fully destructive (a
+// zone dropped from the YAML loses its Discord category, channels, role and
+// row; a topic loses its forum post), syncDocumentsFromYaml is destructive in the same
 // sense but with nothing to delete in Discord (a Document is pure reference
 // content, so a dropped key just loses its row), syncRolesFromYaml prunes
 // only rows nothing references, and syncTagsFromYaml is a pure upsert that
