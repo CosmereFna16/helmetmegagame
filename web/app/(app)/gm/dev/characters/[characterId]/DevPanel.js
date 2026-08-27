@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { PageHeader } from "@/app/components/PageShell";
 import FactionLink from "@/app/components/FactionLink";
 import TagPointsValue from "@/app/components/TagPointsValue";
+import Modal from "@/app/components/Modal";
 import ActionBar from "./ActionBar";
 import IdentityTab from "./IdentityTab";
 import TagEditor from "./TagEditor";
@@ -16,56 +17,11 @@ import RecordTab from "./RecordTab";
 import { applyCharacterEdits } from "./actions";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
+// The staged-op merge algebra, shared with the adjudication workspace's
+// effect composer — see web/lib/tagOpAlgebra.js for the rules.
+import { mergeTagOp } from "@/lib/tagOpAlgebra";
 
 const TABS = ["Identity", "Tags", "Turn", "Goals", "Record"];
-
-// One staged op per tag, because @@unique([characterId, tagId]) means one row
-// per tag — but "what happens to the row" and "how the row is configured" are
-// two different axes, and a GM will touch both.
-//
-//   presence  — add / remove
-//   modifiers — equipped, expiry, quantity (carried by a `patch`)
-//
-// So a patch MERGES into whatever presence op is already staged rather than
-// replacing it, and vice versa. Clobbering either way was a real bug: staging
-// "remove this amulet" and then toggling Unequip used to throw the removal
-// away, and Apply would only unequip it.
-//
-// Returns null when the two cancel out, which the caller deletes.
-function mergeTagOp(existing, incoming) {
-  if (!existing) return incoming;
-
-  // Modifiers land on the existing presence op, keeping its op and quantity.
-  if (incoming.op === "patch" && existing.op !== "patch") {
-    const { op: _drop, tagId: _also, ...modifiers } = incoming;
-    void _drop;
-    void _also;
-    return { ...existing, ...modifiers };
-  }
-  // ...and a presence op inherits modifiers already staged.
-  if (existing.op === "patch" && incoming.op !== "patch") {
-    const { op: _drop, tagId: _also, quantity: _qty, ...modifiers } = existing;
-    void _drop;
-    void _also;
-    void _qty;
-    return { ...modifiers, ...incoming };
-  }
-  // Exact inverses cancel: granted it, then thought better of it.
-  if (
-    (existing.op === "add" && incoming.op === "remove") ||
-    (existing.op === "remove" && incoming.op === "add")
-  ) {
-    return null;
-  }
-  // Same presence op twice on a stackable: accumulate, so clicking "Add one"
-  // three times stages three rather than silently staying at one. A null
-  // quantity means "the whole holding" and swallows any number.
-  if (existing.op === incoming.op) {
-    const both = existing.quantity != null && incoming.quantity != null;
-    return { ...existing, ...incoming, quantity: both ? existing.quantity + incoming.quantity : null };
-  }
-  return incoming;
-}
 
 // The Dev Character Panel's shell: it owns the staged edit state, the tab, and
 // the Apply/Cancel footer. Everything else is a presentational tab.
@@ -99,6 +55,7 @@ export default function DevPanel({
   startingTagPoints,
   openTurn,
   gambitModifier,
+  stagedForPush,
   openTurnAction,
   defaultEffort,
   desires,
@@ -106,10 +63,23 @@ export default function DevPanel({
   requests,
   auditLog,
   messages,
+  // "page" is the standalone /gm/dev/characters/[characterId] route (the
+  // default, unchanged). "modal" is the mount over /gm/turns
+  // (DevPanelModal.js) — DevPanel owns the Modal itself rather than the
+  // caller wrapping it, because the dirty state (staged edits) lives here,
+  // and closing has to go through the same guard Apply/Cancel already use.
+  frame = "page",
+  onClose,
+  onMutated,
+  onDeleted,
 }) {
   const router = useRouter();
   const confirm = useConfirm();
-  const { markDirty, markClean } = useDirtyGuard();
+  const { markDirty, markClean, guardedClose } = useDirtyGuard();
+  // In "modal" frame, a microaction's refresh has to repaint the fetched
+  // DTOs (onMutated), not the desk's own RSC — router.refresh() alone would
+  // leave the modal showing stale data.
+  const refresh = onMutated ?? (() => router.refresh());
   const [tab, setTab] = useState("Identity");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(null);
@@ -195,7 +165,7 @@ export default function DevPanel({
       setEdits({});
       setTagOps(new Map());
       markClean();
-      router.refresh();
+      refresh();
     });
   }
 
@@ -204,22 +174,13 @@ export default function DevPanel({
   // at once.
   const staged = { ...character, ...edits };
 
-  return (
-    <>
-      <PageHeader
-        title={staged.name || character.name}
-        subtitle={
-          <>
-            All of the character&apos;s values can be edited.
-          </>
-        }
-        actions={
-          <Link href="/gm/players" className="btn-quiet">
-            &larr; Players
-          </Link>
-        }
-      />
+  // The dirty guard covers both frames: the page's own back-navigation isn't
+  // gated by it (browser beforeunload still is), but the modal's close does
+  // route through it — see the `frame === "modal"` branch below.
+  const closeModal = () => guardedClose(onClose);
 
+  const body = (
+    <>
       <StateStrip
         character={character}
         staged={staged}
@@ -230,6 +191,7 @@ export default function DevPanel({
         gambitModifier={gambitModifier}
         openTurn={openTurn}
         hasActed={Boolean(openTurnAction)}
+        stagedForPush={stagedForPush}
       />
 
       <ActionBar
@@ -245,6 +207,8 @@ export default function DevPanel({
         startingTagPoints={startingTagPoints}
         onStageTags={stageTagOps}
         onStageField={setField}
+        refresh={refresh}
+        onDeleted={onDeleted}
       />
 
       <div className="tab-bar" role="tablist">
@@ -342,6 +306,37 @@ export default function DevPanel({
       )}
     </>
   );
+
+  if (frame === "modal") {
+    return (
+      <Modal
+        title={staged.name || character.name}
+        onClose={closeModal}
+        panelClassName="modal-panel dev-modal-panel"
+      >
+        {body}
+      </Modal>
+    );
+  }
+
+  return (
+    <>
+      <PageHeader
+        title={staged.name || character.name}
+        subtitle={
+          <>
+            All of the character&apos;s values can be edited.
+          </>
+        }
+        actions={
+          <Link href="/gm/players" className="btn-quiet">
+            &larr; Players
+          </Link>
+        }
+      />
+      {body}
+    </>
+  );
 }
 
 // The read-only facts a GM wants before touching anything — the live state
@@ -357,6 +352,7 @@ function StateStrip({
   gambitModifier,
   openTurn,
   hasActed,
+  stagedForPush,
 }) {
   const equipped = held.filter((h) => h.equipped).length;
   // Point-bought drawbacks only, matching the cap PointBuy enforces — a
@@ -365,37 +361,87 @@ function StateStrip({
   const drawbacks = held.filter(
     (h) => h.source === "POINT_BUY" && (h.pointCost ?? 0) < 0,
   ).length;
-  const facts = [
-    ["Status", CHARACTER_STATUS[character.status]?.label ?? character.status],
-    ["Role", staged.roleTitle ?? "—"],
+  // Four labeled clusters instead of one undifferentiated 15-fact grid, so a
+  // GM's eye lands on the right group instead of scanning the whole strip.
+  // Purely presentational — every value below is unchanged from before.
+  const groups = [
     [
-      "Faction",
-      <FactionLink key="f" factionId={character.factionId} name={character.factionName ?? "—"} />,
+      "Identity",
+      [
+        ["Status", CHARACTER_STATUS[character.status]?.label ?? character.status],
+        ["Role", staged.roleTitle ?? "—"],
+        [
+          "Faction",
+          <FactionLink key="f" factionId={character.factionId} name={character.factionName ?? "—"} />,
+        ],
+        ["Location", character.locationName ?? character.zoneName ?? "—"],
+      ],
     ],
-    ["Location", character.locationName ?? character.zoneName ?? "—"],
-    ["Resources", `${staged.resources} ⬢`],
-    ["Tag points", <TagPointsValue key="tp" points={staged.tagPoints} />],
-    ["Equipment", `${equipped} / ${equipSlots}`],
-    ["Drawbacks", `${drawbacks} / ${maxNegativeTags}`],
-    ["Gambit", gambitModifier > 0 ? `+${gambitModifier}` : String(gambitModifier)],
-    ["Turn", openTurn ? `${openTurn.number} ${openTurn.phase}` : "none open"],
-    ["Acted", hasActed ? "yes" : "no"],
-    ["Discord", discord.username ?? "not in guild"],
-    ["Nickname", discord.nickname ?? "—"],
-    ["Cursed", discord.cursed ? "yes" : "no"],
-    ["Name role", character.discordRoleId ? "provisioned" : "missing"],
+    [
+      "Economy",
+      [
+        ["Resources", `${staged.resources} ⬢`],
+        ["Tag points", <TagPointsValue key="tp" points={staged.tagPoints} />],
+        ["Equipment", `${equipped} / ${equipSlots}`],
+        ["Drawbacks", `${drawbacks} / ${maxNegativeTags}`],
+        ["Gambit", gambitModifier > 0 ? `+${gambitModifier}` : String(gambitModifier)],
+      ],
+    ],
+    [
+      "Turn",
+      [
+        ["Turn", openTurn ? `${openTurn.number} ${openTurn.phase}` : "none open"],
+        ["Acted", hasActed ? "yes" : "no"],
+      ],
+    ],
+    [
+      "Discord",
+      [
+        ["Discord", discord.username ?? "not in guild"],
+        ["Nickname", discord.nickname ?? "—"],
+        ["Cursed", discord.cursed ? "yes" : "no"],
+        ["Name role", character.discordRoleId ? "provisioned" : "missing"],
+      ],
+    ],
   ];
 
   return (
     <section className="panel p-3">
-      <dl className="dev-state-strip">
-        {facts.map(([label, value]) => (
-          <div key={label}>
-            <dt className="field-label">{label}</dt>
-            <dd className="mono text-sm">{value}</dd>
-          </div>
+      <div className="dev-state-strip">
+        {groups.map(([label, facts]) => (
+          <dl key={label} className="dev-state-group">
+            <span className="dev-state-group-label">{label}</span>
+            {facts.map(([factLabel, value]) => (
+              <div key={factLabel}>
+                <dt className="field-label">{factLabel}</dt>
+                <dd className="mono text-sm">{value}</dd>
+              </div>
+            ))}
+          </dl>
         ))}
-      </dl>
+      </div>
+      {stagedForPush && (
+        /* The adjudication workspace has queued changes against this sheet
+           for the turn-end push. Live edits here are additive with those —
+           nothing corrupts — but a GM who can't see the queue double-grants. */
+        <p className="mt-2 text-xs text-accent">
+          Staged for the push:{" "}
+          {[
+            stagedForPush.resources
+              ? `${stagedForPush.resources > 0 ? "+" : ""}${stagedForPush.resources} ⬢`
+              : null,
+            stagedForPush.tagOps
+              ? `${stagedForPush.tagOps} tag change${stagedForPush.tagOps === 1 ? "" : "s"}`
+              : null,
+            (stagedForPush.tagPoints ?? 0)
+              ? `${stagedForPush.tagPoints > 0 ? "+" : ""}${stagedForPush.tagPoints} tag points`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(", ")}{" "}
+          — queued in /gm/turns, lands at turn end.
+        </p>
+      )}
     </section>
   );
 }

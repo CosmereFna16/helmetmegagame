@@ -24,6 +24,10 @@ const { MessageFlags } = require("discord.js");
 const DISCORD_MESSAGE_LIMIT = 2000;
 const TRUNCATION_NOTE = "\n-# …trimmed to fit Discord's 2000-character limit.";
 
+// How long a `fleeting` reply sits before it self-deletes. Well inside the
+// interaction token's 15-minute life, and long enough to actually read.
+const FLEETING_DELETE_DELAY_MS = 2 * 60_000;
+
 // Trims to Discord's limit rather than letting the send fail. Truncating a
 // long reply costs the tail of one message; failing loses the whole reply on
 // work that already happened.
@@ -54,7 +58,15 @@ async function ack(interaction, { update = false, ephemeral = true } = {}) {
 // Answers, picking edit/follow-up/reply from what has already happened to this
 // interaction. Never throws: by the time this runs the database work is done,
 // and a failed reply must not become an unhandled rejection on top of it.
-async function respond(interaction, payload) {
+//
+// `fleeting: true` self-deletes the reply after FLEETING_DELETE_DELAY_MS —
+// for a bare acknowledgement ("Sent.", "Cleared.") that carries no
+// information the player needs to keep, so it doesn't sit in their client
+// forever the way an ephemeral reply otherwise does. Never set it on a reply
+// that's the only record of something (a dice roll, a jump link) or that
+// tells the player their work did NOT happen — see respond.js's own header on
+// why a silently-lost reply is the failure this module exists to prevent.
+async function respond(interaction, payload, { fleeting = false } = {}) {
   const options = typeof payload === "string" ? { content: payload } : { ...payload };
   if (options.content !== undefined) options.content = clampContent(options.content);
 
@@ -68,7 +80,16 @@ async function respond(interaction, payload) {
     }
   } catch (err) {
     console.error("Failed to respond to interaction:", err);
+    return;
+  }
+
+  if (fleeting) {
+    // The user may dismiss it, restart their client, or the token may have
+    // gone dead in the meantime — any of which makes this a routine no-op.
+    setTimeout(() => {
+      interaction.deleteReply().catch(() => {});
+    }, FLEETING_DELETE_DELAY_MS);
   }
 }
 
-module.exports = { ack, respond, clampContent, DISCORD_MESSAGE_LIMIT };
+module.exports = { ack, respond, clampContent, DISCORD_MESSAGE_LIMIT, FLEETING_DELETE_DELAY_MS };

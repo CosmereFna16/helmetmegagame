@@ -2,17 +2,21 @@
 // cron advance and the Dev Panel's "End turn" button behave identically.
 //
 // At the close of every turn each ALIVE character is checked, in this order:
-//   1. Holds Hungerless -> skipped entirely. No resource taken, no Hunger.
+//   1. Holds Hungerless -> skipped entirely. No resource taken, no Hunger,
+//                          streak reset to 0 (can't go hungry, so a lingering
+//                          streak from before they had this tag is stale).
 //   2. Holds Ate Meal   -> shielded from Hunger, the tag is consumed
-//                          (whether or not they were broke), and NO ⬢ is
-//                          taken. The meal was already paid for when it was
-//                          cooked — 2 ⬢ for a Fine, 3 ⬢ for a Lavish — so
-//                          billing the upkeep on top made eating strictly
-//                          worse than the 1 ⬢ it saves. Eating settles the
-//                          turn's upkeep; it doesn't come on top of it.
-//   3. Check FIRST, then pay: at 0 ⬢ you go Hungry and owe nothing; at 1+ ⬢
-//      you pay 1 and stay fed. So 1 ⬢ always buys a fed turn, and resources
-//      can never go negative — the clamp is structural, not a Math.max.
+//                          (whether or not they were broke), NO ⬢ is
+//                          taken, and the streak resets to 0. The meal was
+//                          already paid for when it was cooked — 2 ⬢ for a
+//                          Fine, 3 ⬢ for a Lavish — so billing the upkeep on
+//                          top made eating strictly worse than the 1 ⬢ it
+//                          saves. Eating settles the turn's upkeep AND the
+//                          streak; neither comes on top of it.
+//   3. Check FIRST, then pay: at 0 ⬢ you go Hungry, owe nothing, and the
+//      streak increments; at 1+ ⬢ you pay 1, stay fed, and the streak resets
+//      to 0. So 1 ⬢ always buys a fed turn, and resources can never go
+//      negative — the clamp is structural, not a Math.max.
 //
 // "Structural" only holds if the check and the pay are the same statement,
 // which they were not: the balance was read in the bulk query above and the
@@ -22,18 +26,36 @@
 // sentence above true; a racer who slipped to 0 simply isn't matched and eats
 // free that turn, which is the safe direction to miss in.
 //
-// Shaped for 100+ players: two reads and three bulk writes regardless of
-// headcount, and no network call at all — the per-player "you went hungry" DMs
-// are returned as a list of Discord user IDs for advanceTurn() to send later.
+// The streak (Character.hungerStreak) is what lets the penalty escalate
+// instead of staying a flat -1: db/lib/gambitModifier.js reads it and clamps
+// at HUNGER_STREAK_CAP. Reaching the cap also grants `dying`, permanently
+// (same as every other terminal tag chain — see tagExpiryPass.js's "NOTHING
+// HERE KILLS ANYONE"). A GM confirms the death by hand from there; this pass
+// only ever grants the tag, and skipDuplicates means re-granting it on a
+// later starved turn is a harmless no-op.
+//
+// Shaped for 100+ players: two reads and four bulk writes regardless of
+// headcount, and no network call at all — the per-player "you went hungry"
+// DMs are returned as a list for advanceTurn() to send later.
 //
 // Takes `prisma` as a parameter — see db/lib/dm.js for why.
-const { HUNGER_SLUG, HUNGERLESS_SLUG, ATE_MEAL_SLUG } = require("./constants");
+const { HUNGER_SLUG, HUNGERLESS_SLUG, ATE_MEAL_SLUG, DYING_SLUG } = require("./constants");
 
-const HUNGER_DM = "You went hungry this turn. −1 to Gambits.";
+const HUNGER_STREAK_CAP = 6;
+
+// `streak` is the count AFTER this turn's increment, already clamped to
+// HUNGER_STREAK_CAP — the same number gambitModifier.js applies, so the DM
+// never names a bigger penalty than the one actually in effect.
+function hungerDm(streak) {
+  return `You went hungry this turn. −${streak} to Gambits.`;
+}
+
+const DYING_DM =
+  "You haven't eaten in six turns straight. Your body is giving out — you're Dying. A GM will decide what happens next.";
 
 async function runHungerPass(prisma, turn) {
   const tags = await prisma.tag.findMany({
-    where: { slug: { in: [HUNGER_SLUG, HUNGERLESS_SLUG, ATE_MEAL_SLUG] } },
+    where: { slug: { in: [HUNGER_SLUG, HUNGERLESS_SLUG, ATE_MEAL_SLUG, DYING_SLUG] } },
     select: { id: true, slug: true, defaultDurationTurns: true },
   });
 
@@ -46,6 +68,10 @@ async function runHungerPass(prisma, turn) {
   }
   const hungerlessId = tags.find((t) => t.slug === HUNGERLESS_SLUG)?.id ?? null;
   const ateMealId = tags.find((t) => t.slug === ATE_MEAL_SLUG)?.id ?? null;
+  const dyingId = tags.find((t) => t.slug === DYING_SLUG)?.id ?? null;
+  if (!dyingId) {
+    console.error(`Hunger pass: no "${DYING_SLUG}" tag — run npm run db:sync-tags. Streak cap won't grant it.`);
+  }
 
   const gateIds = [hungerlessId, ateMealId].filter(Boolean);
   const characters = await prisma.character.findMany({
@@ -54,6 +80,7 @@ async function runHungerPass(prisma, turn) {
       id: true,
       discordUserId: true,
       resources: true,
+      hungerStreak: true,
       // Only the two gating tags come back, not the whole tag set — this is
       // the query that would otherwise scale badly at 100+ characters.
       tags: { where: { tagId: { in: gateIds } }, select: { tagId: true } },
@@ -63,6 +90,7 @@ async function runHungerPass(prisma, turn) {
   const toPay = [];
   const toStarve = [];
   const shieldedIds = [];
+  const toFeedIds = []; // streak -> 0: paid, shielded, or hungerless
   let skipped = 0;
 
   for (const character of characters) {
@@ -70,16 +98,22 @@ async function runHungerPass(prisma, turn) {
 
     if (hungerlessId && held.has(hungerlessId)) {
       skipped += 1;
+      toFeedIds.push(character.id);
       continue;
     }
 
     if (ateMealId && held.has(ateMealId)) {
       shieldedIds.push(character.id);
+      toFeedIds.push(character.id);
       continue;
     }
 
-    if (character.resources >= 1) toPay.push(character.id);
-    else toStarve.push(character);
+    if (character.resources >= 1) {
+      toPay.push(character.id);
+      toFeedIds.push(character.id);
+    } else {
+      toStarve.push(character);
+    }
   }
 
   // A Hunger granted while closing turn N gets expiresTurn N+1 — the same
@@ -90,9 +124,23 @@ async function runHungerPass(prisma, turn) {
   // suppresses the tag that would have bitten during N+1.
   const expiresTurn = turn.number + (hungerTag.defaultDurationTurns ?? 1);
 
+  // Computed in JS off the streak already loaded above, not off a DB return
+  // value — an `increment` in the same transaction wouldn't hand back the
+  // new value, and this pass needs it now to decide who crosses the cap and
+  // what to put in each DM.
+  const starvedNotices = toStarve.map((character) => ({
+    discordUserId: character.discordUserId,
+    streak: Math.min(character.hungerStreak + 1, HUNGER_STREAK_CAP),
+    justDied: dyingId != null && character.hungerStreak + 1 === HUNGER_STREAK_CAP,
+  }));
+  const newlyDyingIds = dyingId
+    ? toStarve.filter((character) => character.hungerStreak + 1 >= HUNGER_STREAK_CAP).map((character) => character.id)
+    : [];
+
   // One transaction so a character can never be charged without their Ate
-  // Meal being consumed. Empty `in: []` matches nothing and createMany with
-  // [] is a no-op, so none of these need a guard.
+  // Meal being consumed, or land at the streak cap without Dying landing with
+  // it. Empty `in: []` matches nothing and createMany with [] is a no-op, so
+  // none of these need a guard.
   const [charged] = await prisma.$transaction([
     prisma.character.updateMany({
       where: { id: { in: toPay }, resources: { gte: 1 } },
@@ -113,6 +161,30 @@ async function runHungerPass(prisma, turn) {
       // last turn's Hunger.
       skipDuplicates: true,
     }),
+    prisma.character.updateMany({
+      where: { id: { in: toFeedIds } },
+      data: { hungerStreak: 0 },
+    }),
+    prisma.character.updateMany({
+      where: { id: { in: toStarve.map((character) => character.id) } },
+      data: { hungerStreak: { increment: 1 } },
+    }),
+    ...(newlyDyingIds.length && dyingId
+      ? [
+          prisma.characterTag.createMany({
+            data: newlyDyingIds.map((characterId) => ({
+              characterId,
+              tagId: dyingId,
+              source: "EVENT",
+              expiresTurn: null, // permanent, like every other terminal chain
+            })),
+            // A character can hit the cap more than one turn running, since
+            // the streak keeps counting past it — this keeps that a no-op
+            // instead of a unique-constraint error.
+            skipDuplicates: true,
+          }),
+        ]
+      : []),
   ]);
 
   // The DMs are deliberately NOT sent here. They're the one per-player,
@@ -131,8 +203,9 @@ async function runHungerPass(prisma, turn) {
     shielded: shieldedIds.length,
     skipped,
     starvedCharacterIds: toStarve.map((character) => character.id),
-    starvedDiscordUserIds: toStarve.map((character) => character.discordUserId),
+    starvedNotices,
+    newlyDyingCharacterIds: newlyDyingIds,
   };
 }
 
-module.exports = { runHungerPass, HUNGER_DM };
+module.exports = { runHungerPass, hungerDm, DYING_DM, HUNGER_STREAK_CAP };

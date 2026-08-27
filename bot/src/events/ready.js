@@ -89,7 +89,9 @@ module.exports = {
         )
         .catch((err) => console.error("Failed to advance turn:", err));
     };
-    cron.schedule("0 4 * * *", runAdvanceTurn, { timezone: "America/Chicago" });
-    cron.schedule("0 16 * * *", runAdvanceTurn, { timezone: "America/Chicago" });
+    // Noon and midnight Chicago time — the staged-arbitration push rides the
+    // turn advance, and these are the hours with the best player overlap.
+    cron.schedule("0 0 * * *", runAdvanceTurn, { timezone: "America/Chicago" });
+    cron.schedule("0 12 * * *", runAdvanceTurn, { timezone: "America/Chicago" });
   },
 };

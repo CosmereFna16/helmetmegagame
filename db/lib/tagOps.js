@@ -1,0 +1,132 @@
+// The tag-op engine: validate and apply the Dev Panel's staged tag-change
+// ops. Moved down from web/lib/characterWrite.js (which re-exports it) when
+// the staged-push pass arrived — db/lib/stagedPush.js applies the same ops at
+// turn end, and db/ cannot import web/.
+//
+// An op is keyed by tagId, never characterTagId. A characterTagId can vanish
+// between page load and Apply — the expiry sweep in resolveNeeds() deletes
+// rows at every turn close — while @@unique([characterId, tagId]) makes tagId
+// a stable address, and it is what every tagWrites.js helper takes.
+//
+// Op shapes (DEV-PANEL.md §5):
+//   { tagId, op: "add",    quantity?, source?, expiry?, equipped? }
+//   { tagId, op: "remove", quantity? }   // null quantity = the whole holding
+//   { tagId, op: "patch",  quantity?, source?, expiry?, equipped? }
+//
+// Every function takes a transaction client (`tx`), the db/lib/dm.js
+// convention, so a caller composes them into its own transaction.
+
+const { addToStack, dropCharacterTag } = require("./tagWrites");
+const { expiryFor } = require("./turnFormat");
+
+// A validation failure a human caused and a human can fix. Web callers map
+// this onto their UserError (web/lib/characterWrite.js) so guarded() renders
+// it; the push pass records it on the row instead of throwing at the turn.
+class TagOpError extends Error {}
+
+function validateTagOps(ops, tagsById, held) {
+  for (const op of ops ?? []) {
+    const tag = tagsById.get(op.tagId);
+    if (!tag) throw new TagOpError("One of those tags no longer exists.");
+    if (op.op === "add" || op.op === "patch") {
+      const qty = op.quantity ?? 1;
+      if (!Number.isInteger(qty) || qty < 1) {
+        throw new TagOpError(`Quantity for ${tag.name} must be a whole number of at least 1.`);
+      }
+      // addToStack silently pins a non-stackable to 1; say so instead of
+      // letting the GM think they granted three.
+      if (qty > 1 && !tag.stackable) {
+        throw new TagOpError(`${tag.name} doesn't stack — grant it once.`);
+      }
+      if (op.equipped && !tag.equippable) {
+        throw new TagOpError(`${tag.name} isn't something that can be equipped.`);
+      }
+    }
+    if (op.op === "patch" && !held.has(op.tagId)) {
+      throw new TagOpError(`${tag.name} isn't on this sheet to adjust.`);
+    }
+  }
+}
+
+function expiresTurnFor(op, tag, openTurn) {
+  const mode = op.expiry?.mode ?? "default";
+  if (mode === "never") return null;
+  // The column is an absolute turn number, never a countdown.
+  if (mode === "at") return op.expiry.turn ?? null;
+  // "default": expiryFor returns null for an untimed tag, and the correct
+  // absolute turn for a timed one. Skipping it is how a GM-granted Paralyzed
+  // becomes permanent — resolveNeeds()'s sweep matches on expiresTurn, so a
+  // null there never expires at all.
+  return expiryFor(tag, openTurn);
+}
+
+// Applies staged tag changes inside a transaction. Order is load-bearing:
+// removes first, so swapping one tier of a chain for another can't trip the
+// equip cap halfway through.
+async function applyTagOpsInTx(tx, { characterId, ops, tagsById, openTurn, equipSlots }) {
+  const applied = [];
+  const removes = ops.filter((o) => o.op === "remove");
+  const adds = ops.filter((o) => o.op === "add");
+  const patches = ops.filter((o) => o.op === "patch");
+
+  for (const op of removes) {
+    const tag = tagsById.get(op.tagId);
+    await dropCharacterTag(tx, characterId, op.tagId, op.quantity ?? null);
+    applied.push({ op: "remove", tagId: op.tagId, name: tag.name, quantity: op.quantity ?? null });
+  }
+
+  for (const op of adds) {
+    const tag = tagsById.get(op.tagId);
+    await addToStack(tx, characterId, op.tagId, op.quantity ?? 1, {
+      source: op.source ?? "GM_GRANT",
+      stackable: tag.stackable,
+      expiresTurn: expiresTurnFor(op, tag, openTurn),
+    });
+    applied.push({ op: "add", tagId: op.tagId, name: tag.name, quantity: op.quantity ?? 1 });
+  }
+
+  for (const op of patches) {
+    const tag = tagsById.get(op.tagId);
+    const row = await tx.characterTag.findUnique({
+      where: { characterId_tagId: { characterId, tagId: op.tagId } },
+    });
+    if (!row) continue;
+    const data = {};
+    if (op.quantity != null) data.quantity = tag.stackable ? op.quantity : 1;
+    if (op.source) data.source = op.source;
+    if (op.expiry) data.expiresTurn = expiresTurnFor(op, tag, openTurn);
+    if (Object.keys(data).length) {
+      await tx.characterTag.update({ where: { id: row.id }, data });
+    }
+    // equipped is written by the batch pass below, not here, but it still
+    // belongs in the audit record of what this patch did.
+    applied.push({
+      op: "patch",
+      tagId: op.tagId,
+      name: tag.name,
+      ...data,
+      ...(op.equipped != null ? { equipped: Boolean(op.equipped) } : {}),
+    });
+  }
+
+  // Equipped last, and counted ONCE for the whole batch rather than per op:
+  // a GM staging "unequip A, equip B" must not be rejected on B just because
+  // A hasn't been written yet.
+  const equipOps = ops.filter((o) => o.equipped != null && o.op !== "remove");
+  if (equipOps.length) {
+    for (const op of equipOps) {
+      await tx.characterTag.updateMany({
+        where: { characterId, tagId: op.tagId },
+        data: { equipped: Boolean(op.equipped) },
+      });
+    }
+    const equipped = await tx.characterTag.count({ where: { characterId, equipped: true } });
+    if (equipped > equipSlots) {
+      throw new TagOpError(`That would fill ${equipped} of ${equipSlots} equipment slots.`);
+    }
+  }
+
+  return applied;
+}
+
+module.exports = { TagOpError, validateTagOps, applyTagOpsInTx, expiresTurnFor };

@@ -1175,6 +1175,17 @@ input[type="radio"]:disabled {
 .modal-panel[data-width="wide"] { max-width: 40rem; }
 .modal-panel[data-width="widest"] { max-width: 46rem; }
 
+/* The Dev Character Panel, mounted as a modal over /gm/turns
+   (DevPanelModal.js). It carries the whole standalone page's width — five
+   tabs, a state strip, an action bar — so it overrides width/max-width
+   directly instead of taking one of the named sizes above. */
+.dev-modal-panel {
+  width: min(75rem, 94vw);
+  max-width: none;
+  max-height: 92vh;
+  overflow-y: auto;
+}
+
 .modal-header {
   display: flex;
   align-items: center;
@@ -1965,13 +1976,14 @@ button.map-node:focus-visible .map-rhomb { transform: rotate(45deg) scale(1.3); 
 
 /* ── Dev Character Panel (docs/systemdocs/DEV-PANEL.md) ─────────────────── */
 
-/* The derived-state readout under the header. A grid rather than a flex row
-   so the columns line up across wrapped rows — a GM scans down one label,
-   not across a ragged run of them. */
+/* The derived-state readout under the header: a row of labeled clusters
+   (Identity/Economy/Turn/Discord — see .dev-state-group below), each of
+   which keeps its own auto-fill grid so its facts line up across wrapped
+   rows — a GM scans down one label, not across a ragged run of them. */
 .dev-state-strip {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-  gap: 0.75rem 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
 }
 
 /* Splits the action bar into its clusters — life/turn, staging, repair — so
@@ -2010,4 +2022,481 @@ button.map-node:focus-visible .map-rhomb { transform: rotate(45deg) scale(1.3); 
   z-index: 5;
   border-color: var(--accent);
   box-shadow: var(--e-3);
+}
+
+/* Each labeled cluster in the state strip (Identity/Economy/Turn/Discord).
+   The strip itself becomes a row of these; each keeps the strip's own
+   auto-fill grid for its own facts. A left rule (not a full box) separates
+   clusters without adding another bordered panel inside a panel. */
+.dev-state-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.75rem 1rem;
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--border);
+}
+
+.dev-state-group:first-child {
+  padding-left: 0;
+  border-left: none;
+}
+
+.dev-state-group-label {
+  grid-column: 1 / -1;
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* One row in the Dev Panel's Held section or catalog browser (TagEditor.js).
+   Compact by design — the old editor rendered every tag as a full panel with
+   its description always open, which is what turned the tab into a mile-long
+   list. The group colour survives as a thin left rule, same trick the old
+   full-panel row used, just thinner now that the row itself is thinner. */
+.dev-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  border-left-width: 3px;
+  border-left-style: solid;
+  border-left-color: transparent;
+}
+
+.dev-tag-row:last-child {
+  border-bottom: none;
+}
+
+/* A TagGroup section header inside the catalog: name plus the group's own
+   colour swatch. The swatch is the one sanctioned inline colour in the app —
+   tag.group.color is freeform, per-row data out of the database, not a theme
+   token this stylesheet could name. */
+.dev-tag-group-head {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0.25rem 0.5rem;
+}
+
+.dev-tag-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--r-sm);
+  flex: none;
+}
+
+/* ── Adjudication workspace (docs/systemdocs/ADJUDICATION.md) ───────────── */
+
+/* The one full-viewport surface in the app — no PageShell, no nav rail
+   (web/app/(desk)/). A fixed shell with three internally-scrolling regions
+   and a collapsible tray, so the page body itself never scrolls: mission
+   control, not a document. Tokens and the shared control classes still
+   apply everywhere inside it. */
+.desk-shell {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  z-index: 10;
+}
+
+.desk-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.desk-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 19rem minmax(0, 1fr) 22rem;
+}
+
+.desk-rail,
+.desk-main,
+.desk-inspector {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.desk-rail {
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+/* The rail is a column flexbox, so this stretches to its full width whatever
+   .segmented's inline-flex says. Let the two lenses split it evenly — hugging
+   left leaves a gap that reads as a missing third tab. */
+.desk-rail-lens {
+  display: flex;
+  margin: 0.75rem;
+}
+.desk-rail-lens button {
+  flex: 1;
+}
+
+.desk-rail-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0 0.75rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/* The queue rows: buttons, not table rows, because selection is the verb. */
+.desk-queue {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.desk-queue-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.desk-queue-row:hover {
+  background: var(--field-bg);
+}
+
+.desk-queue-row[data-active="true"] {
+  background: var(--field-bg);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.desk-queue-row[data-urgent] {
+  box-shadow: inset 2px 0 0 var(--danger);
+}
+
+/* Keyboard-focused queue row (QueueRail's ↑↓/j k nav). */
+.desk-queue-row[data-kbd] {
+  outline: 1px solid var(--accent-text);
+  outline-offset: -1px;
+}
+
+.desk-rail-hint {
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.desk-main {
+  padding: 1rem;
+}
+
+.desk-empty {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: 2rem;
+  text-align: center;
+}
+
+/* The desk card is a .panel-shaped surface without adopting .panel's role as
+   a page-flow card — it fills the column. */
+.desk-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  max-width: 52rem;
+  margin: 0 auto;
+}
+
+.desk-move-text {
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--border);
+  white-space: pre-wrap;
+}
+
+/* Character names double as inspector triggers everywhere in the desk. */
+.desk-name {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--accent-text);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 3px;
+}
+
+.desk-name:hover {
+  text-decoration-color: currentColor;
+}
+
+.desk-staged-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  background: var(--field-bg);
+}
+
+.desk-qty {
+  width: 4rem;
+}
+
+/* The push preview's clickable lines: a plain-text button, not a chip — it
+   sits inline in a <ul> alongside non-interactive lines. */
+.desk-preview-line {
+  display: inline;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.desk-preview-line:hover {
+  color: var(--accent-text);
+}
+
+/* Momentary highlight for a staged row the push preview scrolled to.
+   Outline-based rather than a background wash, so it stays legible over the
+   row's own tone (batch panel, error state) in both themes. */
+.desk-flash {
+  animation: desk-flash 1.2s ease-out;
+}
+
+@keyframes desk-flash {
+  from {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+  }
+  to {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+}
+
+.desk-inspector {
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.desk-inspector-pins {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.desk-inspector-pins .chip[data-active] {
+  border-color: var(--accent);
+}
+
+.desk-inspector-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.desk-inspector-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.desk-inspector-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  gap: 0.75rem 1rem;
+}
+
+/* A transcript row that opens ArchiveContextModal — full-width so the whole
+   line is a click target, styled to disappear back into the row it wraps. */
+.desk-archive-row {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 0.25rem;
+}
+
+.desk-archive-row:hover {
+  background: var(--field-bg);
+}
+
+/* The anchor row inside the "in context" popup — the line the GM clicked. */
+.desk-archive-anchor {
+  outline: 1px solid var(--accent);
+  border-radius: 0.375rem;
+  background: var(--field-bg);
+  padding: 0.375rem 0.5rem;
+}
+
+/* Tiny ✕ riding a TagChip — staging a remove without opening the catalog. */
+.desk-chip-x {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 0.125rem;
+}
+
+.desk-chip-x:hover {
+  color: var(--accent);
+}
+
+.desk-chip-pending {
+  opacity: 0.55;
+}
+
+/* A Sheet fact that stages a delta on click — dotted underline is the only
+   affordance, so it reads as a fact until you're hovering it. */
+.desk-fact-editable {
+  border-bottom: 1px dotted var(--border);
+  cursor: pointer;
+  background: transparent;
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+}
+
+.desk-fact-editable:hover {
+  border-bottom-color: var(--accent);
+}
+
+.desk-fact-pending {
+  color: var(--accent);
+  margin-left: 0.375rem;
+}
+
+/* The tray: a bar that is always visible, a body that expands over the desk's
+   bottom edge. Capped so it never swallows the desk. */
+.desk-tray {
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.desk-tray-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 1rem;
+}
+
+/* The clickable toggle is a sibling of the Expand button now — nested
+   buttons aren't valid HTML — so it carries the bar's old layout itself. */
+.desk-tray-bar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.desk-tray-body {
+  max-height: 40vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem 1rem;
+  border-top: 1px solid var(--border);
+}
+
+/* Expand pushes the tray's cap way up, for combing through a big push. */
+.desk-tray[data-expanded] .desk-tray-body {
+  max-height: calc(100vh - 6.5rem);
+}
+
+/* Marks a Request never reviewed — a quiet nudge, not a warning pill. */
+.desk-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 0.375rem;
+  vertical-align: middle;
+  flex: none;
+}
+
+.desk-tray-batch {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* Under the app's one mobile breakpoint the three columns stack and the
+   shell stops being fixed — a workspace is a desktop surface first, but it
+   must stay usable on a phone. */
+@media (max-width: 720px) {
+  .desk-shell {
+    position: static;
+    min-height: 100vh;
+  }
+
+  .desk-body {
+    grid-template-columns: 1fr;
+  }
+
+  .desk-rail,
+  .desk-inspector {
+    border-right: 0;
+    border-left: 0;
+    border-bottom: 1px solid var(--border);
+    max-height: 45vh;
+  }
+
+  .desk-card {
+    max-width: none;
+  }
 }

@@ -49,9 +49,11 @@ path, and Cancel undoes them like anything else.
 ## 3. Layout
 
 - **State strip** — the derived facts a GM wants before touching anything,
-  including the ones that exist nowhere as a column: points spent, equipment
-  slots used, the gambit modifier, whether they've acted, and the live Discord
-  state (username, nickname, Cursed, whether the personal role exists).
+  grouped into four labeled clusters (Identity, Economy, Turn, Discord)
+  rather than one undifferentiated grid. Economy is where the ones that exist
+  nowhere as a column live: points spent, equipment slots used, the gambit
+  modifier. Discord carries the live guild state (username, nickname,
+  Cursed, whether the personal role exists).
 - **Action bar** — `IconButton`s over `.icon-btn`, in three clusters
   separated by `.dev-bar-sep`: life & turn · staging · repair. A destructive
   verb never sits flush against a harmless one.
@@ -134,6 +136,28 @@ Both menus share `filterTagsByQuery` from `characterCreation.js`, so search
 behaves identically. In `PointBuy` the search runs **after** `unlockedTags`,
 never instead of it — otherwise a lucky search string would reveal a gated tag.
 
+**Layout.** `TagEditor.js` splits into two permanent sections:
+
+- **Holds** — a one-line row per tag the character actually has: name, ×qty
+  when stacked, source, an equipped chip, an expiry badge. Every action that
+  touches an existing holding lives here — Remove/Take one, Add one, Equip
+  toggle, Make permanent, Unstage — so a stage is never pushed from two
+  places for the same tag.
+- **Catalog** — the browser, still tabbed by category. Within a tab, tags are
+  bucketed under a small header per `TagGroup` (name plus the group's own
+  colour as a swatch — the one inline colour in the app, since it's freeform
+  data out of the database, not a theme token), chain order inside the
+  group, ungrouped tags last under no header. Each row is one line — checkbox
+  (mass-grant), name, cost, badges (custom / held / staged) — with the
+  description behind a native `<details>` disclosure so the tab isn't a mile
+  of always-open panels. A held tag still shows up in the catalog (that's how
+  a GM finds a second copy or the next tier of a chain), but only carries the
+  not-yet-held action; anything on an existing holding is Holds' job.
+
+A non-empty search box searches the **whole catalog**, ignoring the active
+category tab, with a chip on each hit naming its category. Clear the box to
+go back to per-category browsing.
+
 ## 7. Turn economy
 
 There is **no `turnsRemaining` column**. "Has this character acted" is
@@ -141,11 +165,15 @@ entirely "does an `Action` row exist for (characterId, the open Turn)".
 Everything follows from that:
 
 - **Restore turn** deletes the row, after `revertMoveEffects` claws back
-  anything a Routine already paid out. Shared with the Moves panel's Reject as
-  `deleteActionRestoringTurn` in `web/lib/moveEconomy.js` — two copies would
-  drift the first time `appliedEffects` grew a key. It refuses while another
-  GM holds a live lock on the Move, and DMs the player, since a freed turn
-  they don't know about is a wasted day.
+  anything already applied. Since the staged-arbitration rework nothing pays
+  before the turn-end push, so pre-push there is nothing to claw back —
+  `appliedEffects` is null and the revert is a no-op — but the call stays,
+  because it is what keeps this correct for any row that *has* been pushed.
+  Shared with the workspace's Unlock as `deleteActionRestoringTurn` in
+  `web/lib/moveEconomy.js` — two copies would drift the first time
+  `appliedEffects` grew a key. It refuses while another GM holds a live lock
+  on the Move, and DMs the player, since a freed turn they don't know about
+  is a wasted day.
 - **Spend turn** files a stub: a `PASSED` Routine worth nothing, marked
   `gmNotes: "auto:gm_spent_turn"` in the same family as
   `defaultMovePass.js`'s `auto:default_move`.
@@ -181,12 +209,48 @@ toggles for its whole duration, and one bad character would roll back
 ninety-nine good ones. Partial success is reported; one audit row covers the
 batch.
 
-## 10. Where the code lives
+## 10. As a modal over `/gm/turns`
+
+The whole panel — all five tabs and every microaction — also mounts as a
+modal directly over the adjudication desk, so a GM chasing a Move or Request
+can jump into a character's full sheet without leaving the desk or losing
+its state (selected queue row, inspector, pins, staged effects). `DevPanel`
+takes `frame="modal"` and owns the `Modal` itself, because the dirty (staged
+edit) state lives inside it — closing has to go through the same
+`useDirtyGuard` that already guards Apply/Cancel, so an unsaved edit prompts
+before the modal closes.
+
+The data assembly is shared, not duplicated: `web/lib/devPanelData.js`
+exports `loadDevPanelProps(characterId, actingDiscordUserId)`, the exact
+24-prop DTO bundle `<DevPanel/>` needs, and both the standalone page and the
+desk call it. The desk reaches it through its own server action,
+`getDevPanelData` in `web/app/(desk)/gm/turns/devPanelActions.js` — a
+separate file from the desk's `actions.js` because that file is itself
+`"use server"` and can't export a plain loader function, and because its
+`requireGm` isn't importable from another `"use server"` module.
+
+`DevCharacterButton` (`web/app/components/DevCharacterButton.js`) is the
+shared jump button everywhere a `CharacterLink` might want one. Given an
+`onOpen` callback it opens the modal instead of navigating to the standalone
+page — the desk's `Workspace.js` owns the open/closed state and passes
+`onOpenDev` down through `MoveDesk`, `RequestDesk`, and `InspectorColumn`.
+Without `onOpen` it falls back to the plain `Link`, used everywhere else.
+
+A microaction's refresh (Kill, Revive, resync, the staging buttons…) flows
+through an `onMutated` prop rather than a bare `router.refresh()`: in the
+modal it re-fetches `getDevPanelData` (so the open panel repaints) and also
+calls `router.refresh()` (so the desk's own queue rows and staged hints
+repaint too). The standalone page still just calls `router.refresh()`.
+Delete follows the same shape through `onDeleted` — the modal closes itself
+and refreshes the desk, instead of the page's `router.push("/gm/players")`.
+
+## 11. Where the code lives
 
 | Concern | File |
 |---|---|
-| Page shell, DTOs | `web/app/(app)/gm/dev/characters/[characterId]/page.js` |
-| Staged state, tabs, Apply bar | `DevPanel.js` |
+| Page shell | `web/app/(app)/gm/dev/characters/[characterId]/page.js` |
+| Shared DTO assembly (page + desk modal) | `web/lib/devPanelData.js` |
+| Staged state, tabs, Apply bar, the "modal" frame | `DevPanel.js` |
 | Microaction row and its dialogs | `ActionBar.js` |
 | Tabs | `IdentityTab.js`, `TagEditor.js`, `TurnTab.js`, `GoalsTab.js`, `RecordTab.js` |
 | Server actions | `actions.js` (same directory) |
@@ -196,4 +260,5 @@ batch.
 | Custom tag catalog | `web/app/(app)/gm/dev/tags/` |
 | Bulk tagging | `web/app/(app)/gm/actions.js#bulkTagCharacters` |
 | Shared tag search | `web/lib/characterCreation.js#filterTagsByQuery` |
-| Panel styling | `.dev-state-strip`, `.dev-bar-sep`, `.dev-apply-bar` in `globals.css` |
+| Panel styling | `.dev-state-strip`, `.dev-state-group`, `.dev-bar-sep`, `.dev-apply-bar`, `.dev-tag-row`, `.dev-tag-group-head`, `.dev-modal-panel` in `globals.css` |
+| Desk modal mount, its server action | `web/app/(desk)/gm/turns/DevPanelModal.js`, `devPanelActions.js` |

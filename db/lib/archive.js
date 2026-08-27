@@ -56,6 +56,7 @@ async function recordArchiveMessage(prisma, entry) {
         discordMessageId: entry.discordMessageId ?? null,
         channelKind: entry.channelKind ?? null,
         threadName: entry.threadName ?? null,
+        discordChannelId: entry.discordChannelId ?? null,
       },
     });
   });

@@ -71,10 +71,11 @@ you pick the right doc — they are never enough to change code with.
 | [`SYNC.md`](docs/systemdocs/SYNC.md) | You're editing a YAML master or a sync script, or wondering what a sync deletes |
 | [`CHANNELS.md`](docs/systemdocs/CHANNELS.md) | You're changing Discord channel layout, visibility, or the Dawn wipe |
 | [`CHARACTERS.md`](docs/systemdocs/CHARACTERS.md) | You're touching creation, roles, names, the point economy, death, or launch gating |
-| [`TAGS.md`](docs/systemdocs/TAGS.md) | You're touching the tag catalog, **pricing or rebalancing a tag** (§4a is the canonical point scale), its gates, stacks, consuming, or equipment |
+| [`TAGS.md`](docs/systemdocs/TAGS.md) | You're touching the tag catalog, **pricing or rebalancing a tag** (§4a is the canonical point scale), **pricing an injury or adding a health tag** (§5c is the canonical cure ladder), its gates, stacks, consuming, or equipment |
 | [`SMITHING.md`](docs/systemdocs/SMITHING.md) | You're pricing a weapon or armor, changing the crafting ladder, or touching the Smithing / Crafting / Fighting skill families |
+| [`BREWING.md`](docs/systemdocs/BREWING.md) | You're pricing a brew, changing a recipe, or touching the Brewing skill family |
 | [`REQUESTS.md`](docs/systemdocs/REQUESTS.md) | You're adding or changing anything a player does to their own sheet |
-| [`ADJUDICATION.md`](docs/systemdocs/ADJUDICATION.md) | You're working on `/gm/turns` — the Moves or Requests tab |
+| [`ADJUDICATION.md`](docs/systemdocs/ADJUDICATION.md) | You're working on `/gm/turns` — the arbitration workspace, staging, or the turn-end push |
 | [`DEV-PANEL.md`](docs/systemdocs/DEV-PANEL.md) | You're touching `/gm/dev/characters/[characterId]`, the GM microactions, or `/gm/dev/tags` |
 | [`MAP.md`](docs/systemdocs/MAP.md) | You're touching geography, travel cost, or the `/map` panel |
 | [`PROXYING.md`](docs/systemdocs/PROXYING.md) | You're touching how a player's message becomes a character's — proxying, avatars, reactions, `/conceal`, mentions, nicknames, notes |
@@ -167,6 +168,8 @@ npm run db:backfill-cursed-access      # ghost seat: opens every non-Depths
                                        #   and #watch/#intercom to the Cursed
                                        #   role, and strips it from the Depths.
 npm run db:backfill-tupper-attachment-restriction
+npm run db:backfill-archive-channel-ids  # DRY RUN unless given `-- --apply`;
+                                       #   thread rows are name-only and stay null
 npm run db:prune-orphan-categories
 npm run db:prune-orphan-roles          # deletes Discord character roles no living
                                        #   character claims. DRY RUN unless given

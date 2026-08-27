@@ -6,6 +6,19 @@
 // so hyphenated words in prose (e.g. "Sector-9") aren't misread as a delta.
 const TOKEN_RE = /(^|\s)([+-]\d+)(?=\s|$)|\b(plus|minus)\s+(\d+)\b/gi;
 
+// The most a single Move may claim in either direction, and the same cap the
+// GM-side effect composer applies (web/app/(desk)/gm/turns). It moved from a
+// GM-only clamp to a parse-time one with the staged-arbitration rework:
+// an untouched Move now silently pays its declared numbers at the turn-end
+// push, so the parse is the last human-free gate a "+99" passes through.
+// Bigger payouts are a GM's to stage, not a player's to declare.
+const MAX_RESOURCE_DELTA = 20;
+
+function clampResourceDelta(value) {
+  if (value == null) return value;
+  return Math.max(-MAX_RESOURCE_DELTA, Math.min(MAX_RESOURCE_DELTA, value));
+}
+
 function parseResourceDelta(text) {
   let delta = 0;
   let matched = false;
@@ -22,7 +35,7 @@ function parseResourceDelta(text) {
 
   return {
     description: stripped.replace(/\s{2,}/g, " ").trim(),
-    resourceDelta: matched ? delta : null,
+    resourceDelta: matched ? clampResourceDelta(delta) : null,
   };
 }
 
@@ -87,8 +100,11 @@ function parseResourceExpression(text) {
   } else {
     const range = RANGE_RE.exec(rest);
     if (range) {
-      const a = Number.parseInt(range[2], 10);
-      const b = Number.parseInt(range[3], 10);
+      // Bounds clamped like the flat delta above — a declared "5-99" rolls
+      // at most the cap. Ranges are always positive payouts (\d+ on both
+      // sides), so only the ceiling needs enforcing.
+      const a = Math.min(Number.parseInt(range[2], 10), MAX_RESOURCE_DELTA);
+      const b = Math.min(Number.parseInt(range[3], 10), MAX_RESOURCE_DELTA);
       const min = Math.min(a, b);
       const max = Math.max(a, b);
       roll = { kind: "range", min, max, expression: `${min}-${max}` };
@@ -133,6 +149,8 @@ function formatResourceLines(resourceDelta, resourceRollExpression) {
 }
 
 module.exports = {
+  MAX_RESOURCE_DELTA,
+  clampResourceDelta,
   parseResourceDelta,
   parseResourceExpression,
   rollResourceRange,

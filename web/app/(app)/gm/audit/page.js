@@ -2,7 +2,9 @@ import { EmptyRow } from "@/app/components/EmptyState";
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
+import { getGmProfiles } from "@/lib/gmProfiles";
 import { isSuperadmin } from "@/lib/superadmin";
+import GmAvatar from "@/app/components/GmAvatar";
 import CharacterLink from "../../../components/CharacterLink";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import { TableScroll } from "@/app/components/DataTable";
@@ -74,11 +76,12 @@ export default async function AuditLogPage({ searchParams }) {
   const toValue = to ? to.toISOString().slice(0, 10) : "";
   const page = Math.max(1, Number.parseInt(params?.page?.toString() ?? "1", 10) || 1);
 
-  const [allCharacters, guildMembers] = await Promise.all([
+  const [allCharacters, guildMembers, gmProfiles] = await Promise.all([
     prisma.character.findMany({
       select: { id: true, name: true, status: true, discordUserId: true, faction: { select: { name: true } } },
     }),
     listGuildMembers(),
+    getGmProfiles(),
   ]);
   const characterGroups = groupCharactersByFaction(allCharacters);
 
@@ -127,6 +130,9 @@ export default async function AuditLogPage({ searchParams }) {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const usernameById = new Map(guildMembers.map((m) => [m.id, m.username]));
+  // Only GMs have a profile here, so a player-actor row simply renders no
+  // avatar — GmAvatar returns null for an unknown id.
+  const gmProfileById = new Map(gmProfiles.map((p) => [p.discordUserId, p]));
   const characterByDiscordUserId = new Map();
   for (const c of allCharacters) {
     const existing = characterByDiscordUserId.get(c.discordUserId);
@@ -216,6 +222,7 @@ export default async function AuditLogPage({ searchParams }) {
               <td className="whitespace-nowrap">{entry.createdAt.toISOString()}</td>
               <td>{entry.actionType}</td>
               <td className="whitespace-nowrap">
+                <GmAvatar profile={gmProfileById.get(entry.actorDiscordUserId)} size={14} />{" "}
                 {usernameById.get(entry.actorDiscordUserId) ?? entry.actorDiscordUserId}
                 {characterByDiscordUserId.has(entry.actorDiscordUserId) ? (
                   <div className="text-xs text-muted">

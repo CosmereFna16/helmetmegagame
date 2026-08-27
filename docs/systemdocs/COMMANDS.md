@@ -17,6 +17,17 @@ bot's DMs, whatever contexts it declares. The cost is propagation: a new or
 renamed command can take up to an hour to appear. Registration is a full
 replace, so removing a command from the array deregisters it.
 
+`registerCommands` also **sweeps every guild's own command list empty** on
+each boot. That full replace only ever replaces the *global* list, so when
+registration moved from per-guild to global, everything the old code had
+written into the guild stayed there — and Discord shows both copies in the
+picker. `/gm` `/message` `/add` `/remove` `/persistent` appeared twice, and
+the four retired `/hunt` `/fish` `/farm` `/herd` were still listed with no
+handler left to answer them. Since registration is global, an empty
+guild-scoped list is the correct state, so the sweep enforces it. Don't add a
+per-guild registration back — it would be invisible in DMs *and* duplicate
+whatever the global list already has.
+
 Each command declares its contexts:
 
 - `Guild` only — needs a channel or thread to act on.
@@ -123,8 +134,11 @@ costs API calls).
 Submitting runs every gate the old `#turns` message flow ran — living
 character, open turn, hasn't already acted, non-empty body, labor shorthand
 resolved **before** any `Action` row exists so a refusal never costs a turn —
-then resolves the Move through `bot/src/lib/moveConfirm.js#confirmMove` and
-replies ephemerally. See `TURN-ENGINE.md`.
+then locks the Move in through `bot/src/lib/moveConfirm.js#confirmMove` and
+replies ephemerally. **Submit = locked**: there is no edit window, the dice
+and resource roll happen now, and the payout — like every Move payout — lands
+at the turn-end push (`ADJUDICATION.md`; player-declared deltas clamp at ±20,
+`db/lib/resourceDelta.js`). See `TURN-ENGINE.md`.
 
 ### Speak — `say:send:{channelId}` (`bot/src/lib/speakModal.js`)
 

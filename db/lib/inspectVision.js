@@ -3,7 +3,9 @@
 // Two tags buy real read access to someone else's sheet: Seductive reveals
 // their active Desire, Torturer their Fear. Each has a discounted
 // Demoness twin (docs/tags.yaml's hidden `demoness` category) that grants
-// exactly the same sight, so both slugs of a pair count.
+// exactly the same sight, so both slugs of a pair count. Mindreading (the
+// Succubus Draught's grant) is a third tag that buys BOTH sights at once —
+// its own description says so, so it belongs in both lists.
 //
 // Same posture as mood.js: no Prisma import, imported by subpath from both
 // bot/ and web/, so the rule can't drift between the two faces of the game.
@@ -15,10 +17,11 @@ const {
   SEDUCTIVE_DEMONESS_SLUG,
   TORTURER_SLUG,
   TORTURER_DEMONESS_SLUG,
+  MINDREADING_SLUG,
 } = require("./constants");
 
-const DESIRE_SIGHT_SLUGS = [SEDUCTIVE_SLUG, SEDUCTIVE_DEMONESS_SLUG];
-const FEAR_SIGHT_SLUGS = [TORTURER_SLUG, TORTURER_DEMONESS_SLUG];
+const DESIRE_SIGHT_SLUGS = [SEDUCTIVE_SLUG, SEDUCTIVE_DEMONESS_SLUG, MINDREADING_SLUG];
+const FEAR_SIGHT_SLUGS = [TORTURER_SLUG, TORTURER_DEMONESS_SLUG, MINDREADING_SLUG];
 
 // Accepts the CharacterTag[] shape used everywhere else in the app
 // (`{ tag: { slug } }`), and tolerates a bare Tag[] as well.

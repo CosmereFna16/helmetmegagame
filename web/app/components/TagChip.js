@@ -82,10 +82,15 @@ export default function TagChip({
             <ChipText text={becomes} />
           </Meta>
         )}
-        {/* "Cure", not a bare string: formatTagRequirement's leading "1t" is
-            turns of WORK to remove the tag, which collided with the expiry
-            countdown's own "1t" when both sat unlabelled in the same panel. */}
-        {requirement && <Meta label="Cure">{requirement}</Meta>}
+        {/* Labelled, not bare: formatTagRequirement's leading "1t" is turns of
+            WORK, which collided with the expiry countdown's own "1t" when both
+            sat unlabelled in the same panel. Which work it is depends on the
+            tag — on a wound the block is the cost to remove it, on a craftable
+            it is the recipe to make one, and "Cure" read wrong over every brew
+            and blade in the catalog. */}
+        {requirement && (
+          <Meta label={tag.craftable ? "Recipe" : "Cure"}>{requirement}</Meta>
+        )}
         {/* Tag.visibleOnInspect — whether another player sees this on the 🔍
             inspect embed. Only the affirmative renders; hidden is the default,
             so a "No" on most of the catalog would be noise. */}

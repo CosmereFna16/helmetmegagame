@@ -88,10 +88,14 @@ function normalizeHonorific(value) {
 // offering it), so re-normalizing on, say, a dynasty rename would silently
 // strip a disgraced knight's "Sir". See web/lib/dynasty.js, which composes
 // through formatCharacterName and never comes through here.
-function normalizeEarnedHonorific(value, { tagSlugs = [], roleSlug = null } = {}) {
+// `gender` is not optional in practice: it selects which form of a title the
+// character has earned, so checking a man's "Lord" against the default
+// NEUTRAL list ("Noble") rejects it and quietly files him untitled. Both
+// callers pass the character's own.
+function normalizeEarnedHonorific(value, { tagSlugs = [], roleSlug = null, gender = "NEUTRAL" } = {}) {
   const v = (value ?? "").toString().trim();
   if (!v) return null;
-  return earnedTitles({ tagSlugs, roleSlug }).includes(v) ? v : null;
+  return earnedTitles({ tagSlugs, roleSlug, gender }).includes(v) ? v : null;
 }
 
 // A character is an adult, and nobody in Ravenheart is spry at 91. Enforced

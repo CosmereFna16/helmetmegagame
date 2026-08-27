@@ -4,31 +4,36 @@ const {
   gambitModifierTotal,
   formatGambitModifiers,
 } = require("@lifeweb/db/lib/gambitModifier");
-const { applyMoveEffects, rollDie } = require("@lifeweb/db/lib/moveEffects");
+const { rollDie } = require("@lifeweb/db/lib/moveEffects");
 const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 
-// Resolving a Move, lifted out of the old DM Confirm button so the modal
+// Locking in a Move, lifted out of the old DM Confirm button so the modal
 // submit path and anything later can share one implementation.
 //
-// A Routine resolves itself: its resources land now and it enters the queue
-// already PASSED, needing a GM only if one disagrees. A Gambit is the
-// opposite — nothing is pushed until a GM Solves it, because the whole point
-// of rolling is that the outcome isn't the player's to declare.
+// Nothing pays here any more. A Routine still enters the queue PASSED —
+// needing a GM only if one disagrees — but its resources, like everything
+// else a Move is worth, land at the turn-end staged push
+// (db/lib/stagedPush.js). The dice and the resource roll still happen NOW,
+// so the player sees their numbers the moment they lock in; only the payout
+// defers.
 //
-// `action` must come in with its character and that character's tags loaded:
-// Mood and Hunger are ordinary Status tags, so the Gambit modifier is read
-// off the tag list rather than a column (db/lib/gambitModifier.js).
+// `action` must come in with its character, that character's tags, AND
+// hungerStreak loaded: Mood is an ordinary Status tag, but Hunger's penalty
+// escalates with the streak (a Character column, not a tag), so the Gambit
+// modifier needs both (db/lib/gambitModifier.js).
 //
 // Returns { updated, lines } — the resolved row, and the summary the player
 // is shown. It writes its own AuditLog row but sends nothing.
 async function confirmMove(action, actorDiscordUserId) {
   const diceRoll = action.moveKind === "GAMBIT" ? rollDie() : null;
   // Only a Gambit rolls, so only a Gambit can carry a modifier. diceRoll stays
-  // the RAW roll and the SUM of every contributor (Mood ±1, Hunger -1) is
-  // stored beside it — see the Action.diceModifier comment in schema.prisma.
-  // The per-contributor breakdown is display-only, for the summary below.
-  const modifiers = diceRoll != null ? gambitModifiers(action.character.tags) : [];
-  const diceModifier = diceRoll != null ? gambitModifierTotal(action.character.tags) : null;
+  // the RAW roll and the SUM of every contributor (Mood ±1, Hunger scaled to
+  // the streak) is stored beside it — see the Action.diceModifier comment in
+  // schema.prisma. The per-contributor breakdown is display-only, below.
+  const modifiers =
+    diceRoll != null ? gambitModifiers(action.character.tags, { hungerStreak: action.character.hungerStreak }) : [];
+  const diceModifier =
+    diceRoll != null ? gambitModifierTotal(action.character.tags, { hungerStreak: action.character.hungerStreak }) : null;
   // Null for a row written before ranges existed (a leftover "1d4*3"), which
   // then confirms on its flat delta alone rather than throwing.
   const rollResult = action.resourceRollExpression ? rollResourceRange(action.resourceRollExpression) : null;
@@ -39,20 +44,17 @@ async function confirmMove(action, actorDiscordUserId) {
 
   const isRoutine = action.moveKind === "ROUTINE";
 
-  const updated = await prisma.$transaction(async (tx) => {
-    const row = await tx.action.update({
-      where: { id: action.id },
-      data: {
-        status: "CONFIRMED",
-        confirmedAt: new Date(),
-        ...(diceRoll != null ? { diceRoll, diceModifier } : {}),
-        ...(rollResult ? { resourceRollValue: rollResult.value, resourceDelta } : {}),
-        ...(isRoutine ? { moveReviewStatus: "PASSED" } : {}),
-      },
-    });
-    if (!isRoutine) return row;
-    const applied = await applyMoveEffects(tx, row);
-    return tx.action.update({ where: { id: row.id }, data: { appliedEffects: applied } });
+  const updated = await prisma.action.update({
+    where: { id: action.id },
+    data: {
+      status: "CONFIRMED",
+      confirmedAt: new Date(),
+      ...(diceRoll != null ? { diceRoll, diceModifier } : {}),
+      ...(rollResult ? { resourceRollValue: rollResult.value, resourceDelta } : {}),
+      // PASSED means "no GM needs to touch this", not "paid" — appliedEffects
+      // stays null until the staged push claims it at rollover.
+      ...(isRoutine ? { moveReviewStatus: "PASSED" } : {}),
+    },
   });
 
   await prisma.auditLog.create({
@@ -67,7 +69,6 @@ async function confirmMove(action, actorDiscordUserId) {
         // The only place the breakdown survives — the column stores the sum.
         diceModifiers: modifiers,
         resourceRollValue: rollResult?.value ?? null,
-        appliedEffects: updated.appliedEffects ?? null,
       },
     },
   });
@@ -90,7 +91,7 @@ async function confirmMove(action, actorDiscordUserId) {
       `**Resource roll (${formatRangeExpression(action.resourceRollExpression)}):** ${rollResult.value > 0 ? "+" : ""}${rollResult.value} ⬢`,
     );
   }
-  lines.push("» *Waiting on adjudication...*");
+  lines.push("» *Locked in. Results land when the turn ends.*");
 
   return { updated, lines };
 }

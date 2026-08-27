@@ -61,9 +61,13 @@ export default function ActionBar({
   startingTagPoints,
   onStageTags,
   onStageField,
+  refresh,
+  onDeleted,
 }) {
   const router = useRouter();
   const confirm = useConfirm();
+  const doRefresh = refresh ?? (() => router.refresh());
+  const doDeleted = onDeleted ?? (() => router.push("/gm/players"));
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(null);
   // What the last staging button put in the pending diff. These four buttons
@@ -86,7 +90,7 @@ export default function ActionBar({
       }
       setDialog(null);
       setDraft("");
-      router.refresh();
+      doRefresh();
     });
   }
 
@@ -395,7 +399,7 @@ export default function ActionBar({
                 onClick={() =>
                   run(async () => {
                     const res = await deleteCharacter({ characterId: character.id, confirmName: draft });
-                    if (res?.ok) router.push("/gm/players");
+                    if (res?.ok) doDeleted();
                     return res;
                   })
                 }

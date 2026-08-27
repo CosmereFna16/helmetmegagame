@@ -29,12 +29,12 @@ const MOVE_MODAL_ID = "move:new";
 // overruns, so it lives in the TextDisplay below instead.
 const MOVE_HELP =
   "-# Write the intent of your Move in here and anything GMs should know. " +
-  "You can describe your actions to other players in your location's #summary channel after.";
+  "Submitting locks it in for the turn; results land when the turn ends.";
 
 function buildMoveModal() {
   return new ModalBuilder()
     .setCustomId(MOVE_MODAL_ID)
-    .setTitle("Declare a Move")
+    .setTitle("Lock In Your Move")
     .addLabelComponents(
       new LabelBuilder()
         .setLabel("Your Move")

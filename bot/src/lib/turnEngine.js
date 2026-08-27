@@ -11,6 +11,12 @@ const { prisma, advanceTurn: advanceTurnInDb } = require("@lifeweb/db");
 // them past the response: this is a background cron with nobody waiting on it,
 // so the straight-line order keeps the logs readable.
 async function advanceTurn() {
+  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+  if (config?.autoTurnAdvanceDisabled) {
+    console.log("Turn-advance cron skipped: autoTurnAdvanceDisabled is on.");
+    return null;
+  }
+
   const { advanced, previousTurn, newTurn, runSideEffects } = await advanceTurnInDb();
 
   // Another caller (a GM on the Dev Panel, most likely) won the race and

@@ -52,7 +52,7 @@ async function handleGmCommand(interaction) {
     await respond(interaction, "» *That didn't send. Check the bot can post here, and try again.*");
     return;
   }
-  await respond(interaction, "» *Sent.*");
+  await respond(interaction, "» *Sent.*", { fleeting: true });
 }
 
 // /dm: DM a chosen server member as the bot itself. Was /message, renamed
@@ -74,7 +74,7 @@ async function handleGmDmCommand(interaction) {
 
   try {
     await sendDm(recipient, `» ${content}`);
-    await respond(interaction, `» *Sent to ${recipient}.*`);
+    await respond(interaction, `» *Sent to ${recipient}.*`, { fleeting: true });
   } catch (err) {
     console.error("Failed to send /dm DM:", err);
     // The catch used to report every failure as "they may have DMs closed",
@@ -95,11 +95,11 @@ async function handleGmDmCommand(interaction) {
 // bot/src/lib/labor.js#performLabor for the tag-tier lookup, the location
 // gate and the auto-resolved Action creation.
 async function handleLaborCommand(interaction, field) {
-  // FIRST, before any query. performLabor writes an Action, applies the move
-  // effects and files an audit row, all inside a transaction — under
-  // launch-day pool contention that can pass three seconds, and then the
-  // player saw "The application did not respond" for work that had already
-  // committed. Retrying told them they'd already acted.
+  // FIRST, before any query. performLabor writes an Action and files an
+  // audit row — under launch-day pool contention that can pass three
+  // seconds, and then the player saw "The application did not respond" for
+  // work that had already committed. Retrying told them they'd already
+  // acted.
   await ack(interaction);
 
   const character = await findAliveCharacter(interaction.user.id);
@@ -121,7 +121,7 @@ async function handleLaborCommand(interaction, field) {
       ? `**Resource change:** +${result.resourceDelta} ⬢`
       : `**Resource roll (${result.min}–${result.max}):** +${result.resourceDelta} ⬢`,
   );
-  lines.push("» *Move confirmed — waiting on GM review.*");
+  lines.push("» *Locked in. The ⬢ land when the turn ends.*");
 
   await respond(interaction, lines.join("\n"));
 }
@@ -178,7 +178,7 @@ async function handleThreadMemberCommand(interaction, action) {
       await respond(interaction, "» *Couldn't remove them. The bot may be missing Manage Threads.*");
       return;
     }
-    await respond(interaction, `» *${target.name} was removed.*`);
+    await respond(interaction, `» *${target.name} was removed.*`, { fleeting: true });
     return;
   }
 
@@ -201,7 +201,7 @@ async function handleThreadMemberCommand(interaction, action) {
     await respond(interaction, "» *Couldn't add them — they may not be able to see this location.*");
     return;
   }
-  await respond(interaction, `» *${target.name} was added.*`);
+  await respond(interaction, `» *${target.name} was added.*`, { fleeting: true });
 }
 
 // /persistent: toggle whether the current thread survives the Dawn wipe.
@@ -418,10 +418,10 @@ async function handleMoveSubmit(interaction) {
   // FIRST. This is the handler with the most to lose: by the time it replies
   // it has read the character, the open turn and any prior Action, created the
   // Action row, written an audit entry, re-read with tags, and run confirmMove
-  // — which is another transaction, another audit row, and the resource push.
-  // At launch-day pool contention that can pass three seconds, and the player
-  // then saw "The application did not respond" for a Move that had gone
-  // through. Trying again told them they'd already acted.
+  // — another write and another audit row. At launch-day pool contention that
+  // can pass three seconds, and the player then saw "The application did not
+  // respond" for a Move that had gone through. Trying again told them they'd
+  // already acted.
   await ack(interaction);
 
   const character = await findAliveCharacter(interaction.user.id);
@@ -443,7 +443,7 @@ async function handleMoveSubmit(interaction) {
     where: { characterId: character.id, turnId: openTurn.id },
   });
   if (alreadyActed) {
-    await respond(interaction, "» *You've already sent a Move this turn — your submission wasn't recorded.*");
+    await respond(interaction, "» *You've already locked in a Move this turn — your submission wasn't recorded.*");
     return;
   }
 

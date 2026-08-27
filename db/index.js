@@ -20,13 +20,14 @@ const { rollWeather, buildTurnAnnouncement } = require("./weather");
 const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 const { runDawnWipe } = require("./lib/dawnWipe");
-const { runHungerPass, HUNGER_DM } = require("./lib/hungerPass");
+const { runHungerPass, hungerDm, DYING_DM } = require("./lib/hungerPass");
 const { runDefaultMovePass } = require("./lib/defaultMovePass");
+const { runStagedPushPass } = require("./lib/stagedPush");
 // Required by path, not through the barrel: see the note in db/lib/dm.js about
 // why there are three same-named sendDm exports with three signatures.
 const { sendDm } = require("./lib/dm");
 const { recordArchiveMessage, recordArchiveEvent } = require("./lib/archive");
-const { postAsCharacter, attachBreakerStore } = require("./lib/discordRest");
+const { postAsCharacter, postMessage, attachBreakerStore } = require("./lib/discordRest");
 const { bumpBlood } = require("./lib/lifeweb");
 const { runFullChannelWipe } = require("./lib/fullWipe");
 const { syncLocationsFromYaml } = require("./lib/syncLocations");
@@ -159,15 +160,16 @@ async function sweepExpiredStacks(turn) {
 // close-turn override, so both paths behave identically instead of only the
 // automated one actually resolving Needs.
 //
-// Returns { lifewebBlood, starvedDiscordUserIds, defaultMovePosts,
+// Returns { lifewebBlood, starvedNotices, defaultMovePosts,
 // defaultMoveDms, tagExpiryDms }. Everything after the first is Discord work
-// this function deliberately does NOT perform — the Hunger pass's DM list,
-// the Default Move pass's summary posts and DMs, and the tag progression
-// pass's DMs. See advanceTurn() below for why.
+// this function deliberately does NOT perform — the Hunger pass's DM list
+// (one notice per starved character: discordUserId, streak, justDied), the
+// Default Move pass's summary posts and DMs, and the tag progression pass's
+// DMs. See advanceTurn() below for why.
 // Every pass this turn owes, by the name markDone records it under. The
 // needsResolvedAt stamp at the bottom is written only when `done` covers all
 // of them, which is what makes the resume machinery mean anything.
-const TURN_PASSES = ["defaultMoves", "tagExpiry", "expirySweep", "hunger", "lifewebDecay"];
+const TURN_PASSES = ["defaultMoves", "stagedPush", "tagExpiry", "expirySweep", "hunger", "lifewebDecay"];
 
 // How long a resume lease is honoured before another advance may take it over.
 // Long enough that a real resume of a 100+ player roster is never stolen
@@ -234,6 +236,47 @@ async function resolveNeeds(turn, config) {
         data: { actorDiscordUserId: "system", actionType: "default_moves_resolved", details: defaultSummary },
       })
       .catch((err) => console.error("Default Move audit log failed:", err));
+  }
+
+  // The staged-arbitration push — everything the GMs queued this turn, plus
+  // every confirmed Move's own declared payout (nothing pays at confirm any
+  // more, see db/lib/stagedPush.js). Its slot here is load-bearing three ways:
+  //   - AFTER defaultMoves: that pass stamps appliedEffects on the Actions it
+  //     files, so this one correctly skips them, and its income is already
+  //     positioned before upkeep.
+  //   - BEFORE tagExpiry/expirySweep: a staged "remove Infected" must beat
+  //     the progression that would turn it into Festering, and a staged fresh
+  //     grant carries expiresTurn > turn.number so the sweep can't eat it.
+  //   - BEFORE hunger: deferred Routine and /labor income has to land before
+  //     upkeep is charged, or every laborer who banked their last ⬢ on paper
+  //     goes hungry — the same income-before-upkeep rule that puts
+  //     defaultMoves first.
+  let stagedPush = null;
+  if (!done.has("stagedPush")) {
+    stagedPush = await runStagedPushPass(prisma, turn, config).catch(async (err) => {
+      await passFailed("Staged push", err);
+      return null;
+    });
+    if (stagedPush) await markDone("stagedPush");
+  }
+  // Same split as every pass here: the deliveries are routing data for
+  // runSideEffects(), not part of the turn's record.
+  const { privateDeliveries = [], publicPosts = [], ...stagedPushSummary } = stagedPush ?? {};
+  if (stagedPush) {
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "staged_push_resolved",
+          details: {
+            turnNumber: turn.number,
+            ...stagedPushSummary,
+            privateMessages: privateDeliveries.length,
+            publicPosts: publicPosts.length,
+          },
+        },
+      })
+      .catch((err) => console.error("Staged push audit log failed:", err));
   }
 
   // Sweep any turn-scoped tags whose expiresTurn has been reached,
@@ -309,7 +352,7 @@ async function resolveNeeds(turn, config) {
   // The DM list is split off the summary before it's logged: it's routing
   // data for runSideEffects(), not part of the turn's record, so the audit
   // details stay exactly the shape they've always been.
-  const { starvedDiscordUserIds = [], ...summary } = hunger ?? {};
+  const { starvedNotices = [], ...summary } = hunger ?? {};
   if (hunger) {
     await prisma.auditLog
       .create({
@@ -371,7 +414,15 @@ async function resolveNeeds(turn, config) {
     .update({ where: { id: turn.id }, data: { needsResumeClaimedAt: null } })
     .catch((err) => console.error("Failed to release the resume lease:", err));
 
-  return { lifewebBlood, starvedDiscordUserIds, defaultMovePosts, defaultMoveDms, tagExpiryDms };
+  return {
+    lifewebBlood,
+    starvedNotices,
+    defaultMovePosts,
+    defaultMoveDms,
+    tagExpiryDms,
+    privateDeliveries,
+    publicPosts,
+  };
 }
 
 async function getConfig() {
@@ -405,10 +456,12 @@ async function advanceTurn() {
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
 
   let lifewebBlood = config.lifewebBlood;
-  let starvedDiscordUserIds = [];
+  let starvedNotices = [];
   let defaultMovePosts = [];
   let defaultMoveDms = [];
   let tagExpiryDms = [];
+  let privateDeliveries = [];
+  let publicPosts = [];
   if (openTurn) {
     // Close the turn FIRST, conditioned on it still being OPEN. This is the
     // guard against two advances racing — a GM double-clicking End turn, or
@@ -440,7 +493,7 @@ async function advanceTurn() {
       };
     }
 
-    ({ lifewebBlood, starvedDiscordUserIds, defaultMovePosts, defaultMoveDms, tagExpiryDms } =
+    ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, privateDeliveries, publicPosts } =
       await resolveNeeds(openTurn, config));
   } else {
     // No OPEN turn, which normally means "opening the very first turn". It
@@ -505,7 +558,7 @@ async function advanceTurn() {
           },
         })
         .catch((logErr) => console.error("Failed to log turn_resume — the resume now has no record:", logErr));
-      ({ lifewebBlood, starvedDiscordUserIds, defaultMovePosts, defaultMoveDms, tagExpiryDms } =
+      ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, privateDeliveries, publicPosts } =
         await resolveNeeds(unfinished, config));
     }
   }
@@ -570,6 +623,7 @@ async function advanceTurn() {
           locationId: post.locationId,
           locationName: post.locationName,
           channelKind: "plain",
+          discordChannelId: post.channelId,
           turn: openTurn,
         });
       }
@@ -590,12 +644,99 @@ async function advanceTurn() {
       );
     }
 
-    // One DM per hungry player, sequential (discordRequest already backs off
-    // on 429) and individually caught. No DM for a quiet -1 ⬢.
-    for (const discordUserId of starvedDiscordUserIds) {
-      await sendDm(prisma, discordUserId, HUNGER_DM).catch((err) =>
-        console.error(`Hunger DM to ${discordUserId} failed:`, err),
+    // One or two DMs per hungry player, sequential (discordRequest already
+    // backs off on 429) and individually caught. No DM for a quiet -1 ⬢ —
+    // hungerDm() always names the actual penalty, escalating with the streak.
+    // The Dying DM (once, on the turn the streak crosses the cap) is sent
+    // second, so a player who's about to see "Dying" on their sheet already
+    // knows why.
+    for (const notice of starvedNotices) {
+      await sendDm(prisma, notice.discordUserId, hungerDm(notice.streak)).catch((err) =>
+        console.error(`Hunger DM to ${notice.discordUserId} failed:`, err),
       );
+      if (notice.justDied) {
+        await sendDm(prisma, notice.discordUserId, DYING_DM).catch((err) =>
+          console.error(`Dying DM to ${notice.discordUserId} failed:`, err),
+        );
+      }
+    }
+
+    // The staged-arbitration deliveries — everything the GMs composed during
+    // the closing turn, released at once (docs/systemdocs/ADJUDICATION.md).
+    // Before the announcement because it narrates the turn that just ended.
+    // Sequential per recipient like every loop here; each message's row is
+    // stamped sentAt only after its sends were attempted, so a crash partway
+    // leaves the remainder visibly unsent (the workspace's missed-push
+    // banner) rather than falsely delivered. Failures are collected per
+    // recipient and land in one staged_push_delivery_failed audit row naming
+    // who — the deliverGmMessage convention.
+    const deliveryFailures = [];
+    for (const delivery of privateDeliveries) {
+      const failed = [];
+      for (const recipient of delivery.recipients) {
+        try {
+          await sendDm(prisma, recipient.discordUserId, delivery.content);
+        } catch (err) {
+          failed.push({
+            characterId: recipient.characterId,
+            name: recipient.name,
+            error: String(err?.message ?? err),
+          });
+        }
+      }
+      await prisma.stagedMessage
+        .update({
+          where: { id: delivery.stagedMessageId },
+          data: { sentAt: new Date(), deliveryFailures: failed.length ? failed : Prisma.DbNull },
+        })
+        .catch((err) => console.error(`Failed to stamp staged message ${delivery.stagedMessageId} sent:`, err));
+      if (failed.length) deliveryFailures.push({ stagedMessageId: delivery.stagedMessageId, failed });
+    }
+
+    for (const post of publicPosts) {
+      if (!config.turnSummaryChannelId) {
+        // Composed but nowhere to go. Left unsent (no sentAt) so it's still
+        // there to release once a GM configures the channel on /gm/dev.
+        console.error(`Public declaration ${post.stagedMessageId} skipped: no turnSummaryChannelId configured.`);
+        await prisma.stagedMessage
+          .update({
+            where: { id: post.stagedMessageId },
+            data: { deliveryFailures: [{ error: "no summary channel configured" }] },
+          })
+          .catch((err) => console.error(`Failed to mark public post ${post.stagedMessageId}:`, err));
+        deliveryFailures.push({ stagedMessageId: post.stagedMessageId, failed: [{ error: "no summary channel configured" }] });
+        continue;
+      }
+      try {
+        await postMessage(config.turnSummaryChannelId, post.content);
+        await prisma.stagedMessage
+          .update({
+            where: { id: post.stagedMessageId },
+            data: { sentAt: new Date(), deliveryFailures: Prisma.DbNull },
+          })
+          .catch((err) => console.error(`Failed to stamp public post ${post.stagedMessageId} sent:`, err));
+      } catch (err) {
+        console.error(`Public declaration ${post.stagedMessageId} failed to post:`, err);
+        await prisma.stagedMessage
+          .update({
+            where: { id: post.stagedMessageId },
+            data: { deliveryFailures: [{ error: String(err?.message ?? err) }] },
+          })
+          .catch((markErr) => console.error(`Failed to mark public post ${post.stagedMessageId}:`, markErr));
+        deliveryFailures.push({ stagedMessageId: post.stagedMessageId, failed: [{ error: String(err?.message ?? err) }] });
+      }
+    }
+
+    if (deliveryFailures.length) {
+      await prisma.auditLog
+        .create({
+          data: {
+            actorDiscordUserId: "system",
+            actionType: "staged_push_delivery_failed",
+            details: { failures: deliveryFailures },
+          },
+        })
+        .catch((err) => console.error("Failed to log staged_push_delivery_failed:", err));
     }
 
     await postTurnsAnnouncement(prisma, newTurn, note).catch((err) =>
