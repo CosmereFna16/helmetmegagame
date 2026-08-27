@@ -314,13 +314,13 @@ here, change it there too** — they are meant to say the same thing.
 
 - `visibleOnInspect` — shown to another player who 🔍-reacts to this
   character's proxied messages (`bot/src/events/messageReactionAdd.js`).
-  Defaults closed. Note it is a property of the tag being *seen*. The two
-  tags that widen what an inspect shows are read off the **inspector**
-  instead: Seductive reveals the subject's active Desire and Torturer their
-  Fear, resolved by `db/lib/inspectVision.js`, which also accepts the
-  discounted Demoness twins of each. Like the Silo-gated Resources field, an
-  unseen field is absent rather than placeholdered — a placeholder
-  advertises that there is something to go after.
+  Defaults closed. Note it is a property of the tag being *seen*. The tag
+  that widens what an inspect shows is read off the **inspector**
+  instead: Seductive reveals the subject's active Desire, resolved by
+  `db/lib/inspectVision.js`, which also accepts the discounted Demoness twin.
+  Like the Silo-gated Resources field, an unseen field is absent rather than
+  placeholdered — a placeholder advertises that there is something to go
+  after.
 - `tradeable` — Items-category flag for a future trade flow; no transfer
   logic exists yet (Transfer Tag filters on `category`, not this).
 - `stackable` — whether a character can hold more than one at a time. Live
@@ -761,7 +761,7 @@ entry point, `npm run db:sync-tags`), `docs/tags.yaml` /
 §3a),
 `web/app/components/RichText.js`/`TagsProvider.js`, `TagChip.js` (the
 hover-tooltip chip that renders group color, and the "Becomes" row from §5c),
-`db/lib/inspectVision.js` (Seductive/Torturer, §5),
+`db/lib/inspectVision.js` (Seductive, §5),
 `db/lib/medicalVision.js` (the cure-skill walk and the doctor's eye, §5c),
 `db/lib/tagExpiryPass.js` (the `expiresInto` progression, §5c), and
 `web/lib/healRequests.js` (what a medic may treat, `REQUESTS.md` §5c).

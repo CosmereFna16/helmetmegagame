@@ -852,7 +852,6 @@ async function getCharacterInspectorImpl({ characterId }) {
     locationLabel: [character.zone?.name, character.location?.name].filter(Boolean).join(" / ") || "Unassigned",
     resources: character.resources,
     tagPoints: character.tagPoints,
-    fear: character.fear ?? null,
     gambitModifier: gambitModifierTotal(character.tags, { hungerStreak: character.hungerStreak }),
     acted,
     currentTurnNumber: openTurn?.number ?? null,

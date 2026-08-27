@@ -37,7 +37,6 @@ import {
   CURSED_ROLE_SLUGS,
 } from "@/lib/characterCreation";
 
-import { FEAR_MAX_LENGTH } from "@/lib/constants";
 import { recordArchiveEvent } from "@/lib/archive";
 import {
   AGE_MIN,
@@ -90,10 +89,6 @@ export async function createCharacter(formData) {
     Number.isInteger(rawAge) && rawAge >= AGE_MIN && rawAge <= AGE_MAX ? rawAge : null;
   const roleId = formData.get("roleId")?.toString();
   const tagIds = formData.getAll("tagIds").map((t) => t.toString()).filter(Boolean);
-  // Optional — the wizard's Fear step can be walked straight past, and the
-  // player names one later from /character instead.
-  const fear =
-    formData.get("fear")?.toString().trim().slice(0, FEAR_MAX_LENGTH) || null;
   // Consent data — which secretly assigned antagonist seats this player is open
   // to. The checkboxes are UX; the normalizer's allowlist is the boundary that
   // keeps junk slugs out of the column, same as normalizeHonorific above.
@@ -316,10 +311,6 @@ export async function createCharacter(formData) {
           zoneId: role.startingLocation?.zoneId ?? null,
           resources: role.startingResources,
           tagPoints: budget - spent,
-          fear,
-          // Display-only stamp, and null before the game opens — the same
-          // shape expiryFor() uses above.
-          fearSetTurnNumber: fear ? (openTurn?.number ?? null) : null,
           isLeader: role.grantsLeader,
           isTreasurer: role.grantsTreasurer,
           antagonistOptIns,
@@ -382,7 +373,6 @@ export async function createCharacter(formData) {
         budget,
         spent,
         purchased: selected.map((t) => t.name),
-        fear,
         antagonistOptIns,
       },
     },

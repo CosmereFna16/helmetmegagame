@@ -208,7 +208,7 @@ Every refusal except the cooldown is silent, on purpose: a visible "you can't
 do that" would tell the living that someone specific is watching. The cooldown
 answers by DM for the same reason.
 
-⚜️ applies **no** vision gates — every tag, the Desire, the Fear, this
+⚜️ applies **no** vision gates — every tag, the Desire, this
 turn's Action, and the real name even on a concealed message. It has **no
 channel fallback** when the DM bounces, unlike every other embed here:
 posting it in the channel would hand the room everything it hides.

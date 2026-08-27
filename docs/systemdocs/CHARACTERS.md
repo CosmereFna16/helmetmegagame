@@ -13,7 +13,7 @@ character — brand new to the server, or their last one died — that page
 renders the **creation wizard** instead of a character sheet. There's no
 separate `/character/new` route; one URL, no redirect bounce.
 
-The wizard has six steps:
+The wizard has five steps:
 
 1. **Role** — the role list, grouped Zone → Faction → Role, with live seat
    counts.
@@ -39,10 +39,7 @@ The wizard has six steps:
    the character sheet shows it disabled with a "make your case to a GM"
    tooltip. `Character.name` remains as a denormalized mirror of the join.
    See §1b.
-4. **Fear** — the character's Worst Fear. **Optional**: `canAdvance` is
-   unconditionally true on this step, so a player may walk straight past it and
-   name one later from `/character`. See `REQUESTS.md` §5b.
-5. **Antagonists** — twelve checkboxes, all off, naming the antagonist seats a
+4. **Antagonists** — twelve checkboxes, all off, naming the antagonist seats a
    GM hands out in secret (Succubus, Cultist, the Judge…). Pure consent data:
    nothing in the game reads `Character.antagonistOptIns`, grants from it or
    gates on it — it exists so a GM choosing who receives one can tell who is
@@ -57,7 +54,7 @@ The wizard has six steps:
    display order), and `normalizeAntagonistSlugs` is the server-side allowlist —
    a server action is a public endpoint, so the checkboxes are UX and that
    function is the boundary.
-6. **Confirm** — a summary, then `createCharacter`.
+5. **Confirm** — a summary, then `createCharacter`.
 
 ## 1b. Names
 
@@ -446,10 +443,10 @@ Old cost nobody a slot. `TAGS.md` §4a is the full rule.
 
 Leftover points are kept, not lost: they land on `Character.tagPoints`.
 
-Fulfilling a Desire is the only way points are *earned* in play, and a Worst
-Fear coming true is the only way they are *spent* — the first and so far only
-sink (`REQUESTS.md` §5b). The balance is allowed to go **negative**: clamping it
-at 0 would let a broke player take the −3 for free, which is the mechanic.
+Fulfilling a Desire is the only way points are *earned* in play. Spending
+happens through the `/store`'s point-buy purchases (`BUY_TAGS`), which check
+the balance up front and refuse a cart that would take it below 0 — so unlike
+`Character.tagPoints` at creation, the in-play balance never goes negative.
 
 ### Two menus, one component
 

@@ -192,9 +192,6 @@ export default function CharacterSheet({
         <GoalsPanel
           desire={desire ?? null}
           desireCooldownUntilTurn={desireCooldownUntilTurn ?? null}
-          fear={character.fear ?? null}
-          fearSetTurnNumber={character.fearSetTurnNumber ?? null}
-          fearLastFulfilledTurn={character.fearLastFulfilledTurn ?? null}
           openTurnNumber={openTurn?.number ?? null}
         />
       )}

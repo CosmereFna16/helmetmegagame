@@ -9,7 +9,6 @@ import { getOpenTurn } from "@/lib/turn";
 import { createRequest, logRequest, requireReason } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { expiryFor } from "@/lib/turnFormat";
-import { FEAR_PENALTY, FEAR_MAX_LENGTH } from "@/lib/constants";
 import { TRANSFERABLE_CATEGORIES } from "@/lib/tagRequests";
 import {
   tagsById as buildTagsById,
@@ -972,157 +971,6 @@ async function fulfillDesireRequestImpl({ reason: rawReason }) {
   return {};
 }
 
-// --- Fear -------------------------------------------------------
-
-// One persistent, self-set dread per character. Unlike a Desire it is NOT
-// consumed by being fulfilled and has no ACTIVE/ENDED lifecycle — see the
-// Character model comment in schema.prisma.
-//
-// Two write paths, deliberately: the FIRST set is free (nothing has been
-// granted, so there is nothing for a GM to undo — the same reasoning that
-// keeps setDesire out of the Requests system), while CHANGING a fear that is
-// already locked in is a request that lands immediately and is reviewed after.
-async function setWorstFearImpl({ text: rawText }) {
-  const { session, character } = await requireCharacter();
-
-  const text = rawText?.toString().trim().slice(0, FEAR_MAX_LENGTH);
-  if (!text) throw new UserError("Describe your Fear.");
-  if (character.fear) {
-    throw new UserError("You already have a Fear — changing it takes a request.");
-  }
-
-  const openTurn = await getOpenTurn();
-
-  await prisma.character.update({
-    where: { id: character.id },
-    data: { fear: text, fearSetTurnNumber: openTurn?.number ?? null },
-  });
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "worst_fear_set",
-      targetCharacterId: character.id,
-      details: { text },
-    },
-  });
-
-  revalidatePath("/character");
-  return {};
-}
-
-async function changeWorstFearRequestImpl({ text: rawText, reason: rawReason }) {
-  const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
-
-  const text = rawText?.toString().trim().slice(0, FEAR_MAX_LENGTH);
-  if (!text) throw new UserError("Describe your Fear.");
-  if (!character.fear) throw new UserError("You haven't set a Fear yet.");
-  if (text === character.fear) throw new UserError("That's already your Fear.");
-
-  const openTurn = await getOpenTurn();
-  // Snapshot before overwriting — Undo puts the previous wording back rather
-  // than re-deriving anything from the sheet.
-  const previousText = character.fear;
-  const previousSetTurnNumber = character.fearSetTurnNumber ?? null;
-  const setTurnNumber = openTurn?.number ?? null;
-
-  await prisma.$transaction(async (tx) => {
-    await tx.character.update({
-      where: { id: character.id },
-      data: { fear: text, fearSetTurnNumber: setTurnNumber },
-    });
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "CHANGE_FEAR",
-      reason,
-      payload: { text },
-      effect: { text, setTurnNumber, previousText, previousSetTurnNumber },
-    });
-    await logRequest(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_change_worst_fear",
-      targetCharacterId: character.id,
-      reason,
-      details: { text, previousText },
-    });
-  });
-
-  revalidateAll();
-  return {};
-}
-
-// The fear coming true: a flat FEAR_PENALTY off the balance, never a
-// ladder. The fear is NOT consumed — the same fear stands and can come true
-// again next turn, which is the whole reason this stamps a turn number
-// instead of flipping a status.
-async function fulfillWorstFearRequestImpl({ reason: rawReason }) {
-  const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
-
-  if (!character.fear) throw new UserError("You haven't set a Fear.");
-
-  // The cooldown is turn-keyed, so there has to be a turn to key it to.
-  // Stamping null would silently clear an existing cooldown. Desire tolerates
-  // a null turn because setting one isn't a request; this is, so it refuses.
-  const openTurn = await getOpenTurn();
-  if (!openTurn) throw new UserError("No turn is open.");
-
-  // Fulfilled on turn 5: blocked on 5, allowed from 6.
-  const previousLastFulfilledTurn = character.fearLastFulfilledTurn ?? null;
-  if (previousLastFulfilledTurn != null && openTurn.number <= previousLastFulfilledTurn) {
-    throw new UserError(
-      "Your Fear already came true this turn — you can claim it again next turn.",
-    );
-  }
-
-  await prisma.$transaction(async (tx) => {
-    // Deliberately allowed to go negative, the mirror of undoing a fulfilled
-    // Desire: the penalty is the point, and clamping at 0 would let a broke
-    // player dodge it entirely.
-    await tx.character.update({
-      where: { id: character.id },
-      data: {
-        tagPoints: { decrement: FEAR_PENALTY },
-        fearLastFulfilledTurn: openTurn.number,
-      },
-    });
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn.id,
-      type: "FULFILL_FEAR",
-      reason,
-      payload: {},
-      // fearText is snapshotted so the GM panel shows what was claimed even
-      // if the player rewords the fear before it's reviewed.
-      effect: {
-        fearText: character.fear,
-        pointsDeducted: FEAR_PENALTY,
-        fulfilledTurnNumber: openTurn.number,
-        previousLastFulfilledTurn,
-      },
-    });
-    await logRequest(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_fulfill_worst_fear",
-      targetCharacterId: character.id,
-      reason,
-      details: { fearText: character.fear, pointsDeducted: FEAR_PENALTY },
-    });
-  });
-
-  await recordArchiveEvent({
-    kind: "FEAR_FULFILLED",
-    character,
-    locationId: character.locationId ?? null,
-    turn: openTurn,
-    content: `${character.name}'s Fear came true: ${character.fear}`,
-  });
-
-  revalidateAll();
-  return {};
-}
-
 // --- Name ---------------------------------------------------------------
 
 // The one player-facing rename: drinking a Mulligan Potion. Re-validates the
@@ -1270,18 +1118,6 @@ export async function cancelDesire() {
 
 export async function fulfillDesireRequest(input) {
   return guarded(() => fulfillDesireRequestImpl(input));
-}
-
-export async function setWorstFear(input) {
-  return guarded(() => setWorstFearImpl(input));
-}
-
-export async function changeWorstFearRequest(input) {
-  return guarded(() => changeWorstFearRequestImpl(input));
-}
-
-export async function fulfillWorstFearRequest(input) {
-  return guarded(() => fulfillWorstFearRequestImpl(input));
 }
 
 export async function changeNameRequest(input) {

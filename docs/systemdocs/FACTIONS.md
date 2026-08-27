@@ -98,11 +98,11 @@ there. A placeholder would advertise that there's something to go after.
    (`bot/src/events/messageReactionAdd.js`).
 3. The subject-faction view itself.
 
-Two neighbouring inspect fields follow the same posture but are gated on the
+A neighbouring inspect field follows the same posture but is gated on the
 **inspector's own tags** rather than the subject's Silo: Seductive reveals the
-subject's active Desire, Torturer their Fear, resolved by
-`db/lib/inspectVision.js` (which also accepts each tag's discounted Demoness
-twin). That's bot-only — the web has no other-player character sheet.
+subject's active Desire, resolved by `db/lib/inspectVision.js` (which also
+accepts the tag's discounted Demoness twin). That's bot-only — the web has no
+other-player character sheet.
 
 ## 5. Moving Resources out of a Silo
 

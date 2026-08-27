@@ -17,8 +17,6 @@ import {
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import InfoIcon from "@/app/components/InfoIcon";
 import Tooltip from "@/app/components/Tooltip";
-import { FEAR_HELP } from "@/app/components/FearPanel";
-import { FEAR_PENALTY, FEAR_MAX_LENGTH } from "@/lib/constants";
 import {
   NAME_LIMITS,
   AGE_MIN,
@@ -36,7 +34,7 @@ import { ANTAGONISTS, antagonistNames } from "@/lib/antagonists";
 // to offer until both are picked. It also fixes the dynasty last name, which
 // is locked by the role and so could never be applied while Identity ran
 // first.
-const STEPS = ["Role", "Tags", "Identity", "Fear", "Antagonists", "Confirm"];
+const STEPS = ["Role", "Tags", "Identity", "Antagonists", "Confirm"];
 // Derived rather than written out: the footer's "is this the last step?" test
 // used to be a hardcoded index, which is exactly what goes stale the moment a
 // step is inserted in the middle.
@@ -125,7 +123,6 @@ export default function CreateCharacterWizard({
   const [age, setAge] = useState("");
   const [roleId, setRoleId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
-  const [fear, setWorstFear] = useState("");
   // Opt-in, so the empty array is the honest default — a player who walks past
   // the step has consented to nothing.
   const [antagonists, setAntagonists] = useState([]);
@@ -237,12 +234,9 @@ export default function CreateCharacterWizard({
     // Gender is required and has no default, so it gates alongside the name.
     // A locked seat supplies it, so those players only have the name to fill.
     (step === 2 && firstName.trim().length > 0 && Boolean(effectiveGender)) ||
-    // The Fear step is optional — you may walk straight past it and set
-    // one later — so there is nothing to gate on.
+    // Antagonists is optional: ticking nothing is a real answer, not an
+    // unfinished one.
     step === 3 ||
-    // Antagonists likewise: ticking nothing is a real answer, not an unfinished
-    // one.
-    step === 4 ||
     step === LAST_STEP;
 
   async function submit() {
@@ -261,7 +255,6 @@ export default function CreateCharacterWizard({
     if (age.trim()) fd.set("age", age.trim());
     fd.set("roleId", roleId);
     for (const id of selectedIds) fd.append("tagIds", id);
-    if (fear.trim()) fd.set("fear", fear.trim());
     for (const slug of antagonists) fd.append("antagonistOptIns", slug);
     // A successful create redirects, so anything RETURNED here is an error —
     // and anything THROWN here used to be nothing at all. createCharacter
@@ -475,28 +468,6 @@ export default function CreateCharacterWizard({
 
       {step === 3 && (
         <div className="panel flex flex-col gap-4 p-4">
-          <h2 className="panel-header panel-header--with-icon">
-            Fear (optional)
-            <InfoIcon text={FEAR_HELP} />
-          </h2>
-          <p className="text-sm text-muted">
-            Choose a Dread. Whenever it comes true, you lose {FEAR_PENALTY}{" "}
-            Tag Points. Your fear stays the same, so it can come true again! You can set it later if you&apos;d prefer.
-          </p>
-          <label className="field">
-            <span className="field-label">What does your character dread?</span>
-            <input
-              value={fear}
-              onChange={(e) => setWorstFear(e.target.value)}
-              maxLength={FEAR_MAX_LENGTH}
-              placeholder="Dying alone and unremembered…"
-            />
-          </label>
-        </div>
-      )}
-
-      {step === 4 && (
-        <div className="panel flex flex-col gap-4 p-4">
           <h2 className="panel-header">Antagonists (optional)</h2>
           <p className="text-sm text-muted">
             Threat roles are assigned after game start. You can select the ones you&apos;d be open to receiving here.
@@ -549,10 +520,6 @@ export default function CreateCharacterWizard({
             <div>
               <dt className="text-muted">Resources</dt>
               <dd>{role.startingResources} ⬢</dd>
-            </div>
-            <div>
-              <dt className="text-muted">Fear</dt>
-              <dd>{fear.trim() || <span className="text-muted">none</span>}</dd>
             </div>
             <div>
               <dt className="text-muted">Open to</dt>
