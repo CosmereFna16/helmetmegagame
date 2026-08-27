@@ -65,12 +65,11 @@ documents:
       - Medical (Skilled)
       - Medical (Expert)
     description: |-
-      Health and injuries are tags. Most can be treated, for a price: Resources
-      (⬢), a doctor's turns, and a skill. Anyone may attempt a cure above their
-      skill — it just takes a Gambit, and a failed Gambit can leave the patient
-      worse than it found them. Just DM the Bascinet bot.
+      Health and injuries are tags. The price to treat them is measured in Resources
+      (⬢), the doctor's turns, and a skill. Anyone can attempt a cure above their
+      skill, but it'll take a gambit
 
-      Surgery needs advanced equipment. Be in the Sanctuary, or hold
+      Surgery needs advanced equipment. Be in the Sanctuary or hold
       {tag:surgical-equipment}.
 
       {tag:medical-basic} · {tag:medical-skilled} · {tag:medical-expert}
@@ -87,8 +86,8 @@ documents:
 
       **Very minor — 1 ⬢, no turn**
 
-      - {tag:bruised}, {tag:dislocated-shoulder}, {tag:malnourished},
-        {tag:severe-pain}
+      - {tag:minor-bleeding}, {tag:bruised}, {tag:dislocated-shoulder},
+        {tag:malnourished}, {tag:severe-pain}
 
       **Minor — 2 ⬢, no turn**
 
@@ -97,11 +96,12 @@ documents:
       **Moderately severe — 2 ⬢, 1 turn**
 
       - {tag:deep-wound}, {tag:broken-bone}, {tag:cracked-ribs},
-        {tag:poisoned}, {tag:heatstroke}, {tag:pain-shock}
+        {tag:poisoned}, {tag:parasites}, {tag:heatstroke}, {tag:pain-shock}
 
       **Severe — 4 ⬢, 1 turn**
 
-      - {tag:severe-burns}, {tag:broken-jaw}, {tag:mangled-hand},
+      - {tag:severe-bleeding}, {tag:arterial-bleed}, {tag:choking},
+        {tag:severe-burns}, {tag:broken-jaw}, {tag:mangled-hand},
         {tag:festering}, {tag:rot-lung}, {tag:pox}
 
       **Very minor surgery — 6 ⬢, 1 turn**
@@ -118,31 +118,7 @@ documents:
       - {tag:sepsis}, {tag:dying}, {tag:consumptive}, {tag:blinded},
         {tag:crippled-leg}, {tag:phrygian-toxin}
 
-      **Off the ladder**
-
-      - {tag:minor-bleeding} — free, no turn. A bandage.
-      - {tag:choking} — 2 ⬢, 1 turn. No skill: anyone can try.
-      - {tag:frostbite} — 2 ⬢, no turn, Medical (Skilled).
-      - {tag:severe-bleeding}, {tag:arterial-bleed}, {tag:parasites} — 3 ⬢,
-        1 turn, Medical (Skilled).
-
-      **No cure — only time, or never**
-
-      - Permanent: {tag:missing-arm}, {tag:missing-leg}, {tag:missing-eye},
-        {tag:missing-fingers}, {tag:peg-leg}, {tag:deaf}, {tag:scarred}
-      - The mind: {tag:concussed}, {tag:shell-shocked}, {tag:amnesiac},
-        {tag:paralyzed}, {tag:hallucinating}, {tag:stutter}, {tag:mute},
-        {tag:night-blind}
-      - Wears off: {tag:vomiting}, {tag:aching}, {tag:hungover},
-        {tag:migraine}, {tag:no-migraine}, {tag:arthritis}, {tag:hypothermia}
-      - After treatment: {tag:splinted}, {tag:stitched-up}, {tag:cauterized},
-        {tag:recovering}
-
-      Some wounds get worse if nobody treats them — an infection ends at
-      {tag:dying}. Each one names what it becomes.
-
-      Tonics (see {document:alcoholdrugs}) cure some of this outright. A few
-      cures need an ingredient nobody sells — {tag:blinded} is one.
+      Tonics (see {document:alcoholdrugs}) cure some tags outright.
   - name: Sanctuary
     key: sanctuary
     public: true
@@ -489,16 +465,14 @@ documents:
       - Alcoholic
     description: |-
       Like cooking or smithing, brewing costs Resources (⬢), turns, and is gated
-      by a skill. Most brews also need an ingredient you cannot buy. Hover a brew
-      to see what it does.
+      by a skill. Many brews also need special ingredients.
 
       {tag:brewing-basic} — alcohol and the simple tonics.
       {tag:brewing-skilled} — wine and everything that needs a hard-to-find
       ingredient. Requires Brewing (Basic).
 
       Some ingredients are tracked tags, like {tag:cave-fungus} and
-      {tag:graga-sac}. Some aren't — if it's just flavor, tell the GMs how you
-      got hold of it.
+      {tag:graga-sac}, but some are just flavor and should be acquired appropriately.
 
       **Brewing (Basic)**
 
