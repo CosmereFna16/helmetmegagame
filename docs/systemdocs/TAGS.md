@@ -580,7 +580,7 @@ rolling — that is tier 5, and it is all the surgery they get. Anything that
 means opening a chest or a belly is Esculap's work at tier 6; a Serpent may
 still attempt it, but they roll. Tier 7 is the rung even Esculap rolls for,
 which is why it shares tier 6's price: what separates the two is the Gambit,
-not the bill. Only six tags sit above tier 5, and that scarcity is the point —
+not the bill. Only eleven tags sit above tier 5, and that scarcity is the point —
 Esculap's time should be a thing players negotiate over.
 
 **Realism sets the rung, not severity.** Severity and duration matter, but the

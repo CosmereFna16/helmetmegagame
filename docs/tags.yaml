@@ -1993,7 +1993,7 @@ tags:
     durationTurns: 3
     expiresInto: [drained]
     requirement:
-      resourceCost: 0
+      resourceCost: 1
       skills: [medical-basic]
 
   - slug: deep-wound
@@ -2027,7 +2027,7 @@ tags:
     expiresInto: [dying]
     requirement:
       turnsCost: 1
-      resourceCost: 3
+      resourceCost: 4
       skills: [medical-skilled]
 
   - slug: arterial-bleed
@@ -2044,7 +2044,7 @@ tags:
     expiresInto: [dying]
     requirement:
       turnsCost: 1
-      resourceCost: 3
+      resourceCost: 4
       skills: [medical-skilled]
 
   - slug: broken-bone
@@ -2094,18 +2094,13 @@ tags:
     name: Frostbite
     category: health
     group: health-wounds
-    description: "Fingers and toes turn pale and cold. They'll fall off without proper care."
+    description: "Fingers and toes turn pale, cold and numb. Get warm and it passes on its own; there is nothing a medic can do for it that a fire cannot."
     pointCost: 0
     visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
     durationTurns: 3
-    expiresInto: [necrosis]
-    requirement:
-      turnsCost: 0
-      resourceCost: 2
-      skills: [medical-skilled]
 
   - slug: punctured-lung
     name: Punctured Lung
@@ -2218,7 +2213,7 @@ tags:
     expiresInto: [drained]
     requirement:
       turnsCost: 1
-      resourceCost: 3
+      resourceCost: 2
       skills: [medical-skilled]
 
   - slug: poisoned
@@ -2653,7 +2648,8 @@ tags:
     expiresInto: [dying]
     requirement:
       turnsCost: 1
-      resourceCost: 2
+      resourceCost: 4
+      skills: [medical-skilled]
       gambit: false
 
   - slug: phrygian-toxin
