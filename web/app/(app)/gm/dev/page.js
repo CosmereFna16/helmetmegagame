@@ -6,7 +6,7 @@ import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getOpenTurn } from "@/lib/turn";
 import { describeTurn } from "@/lib/turnFormat";
-import { updateGameConfig, updateCurrentTurn, updateNextTurn } from "./actions";
+import { updateGameConfig, updateCurrentTurn, updateNextTurn, runDoctorAction, bulkMoveCharacters } from "./actions";
 import EndTurnButton from "./EndTurnButton";
 import WipeGameButton from "./WipeGameButton";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
@@ -24,11 +24,29 @@ export default async function DevPanelPage() {
   if (!session?.discordUserId) redirect("/");
   if (!isSuperadmin(session.discordUserId)) redirect("/character");
 
-  const [config, openTurnRecord, lastTurn] = await Promise.all([
+  const [config, openTurnRecord, lastTurn, reports, zones, livingCharacters] = await Promise.all([
     prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
     getOpenTurn(),
     prisma.turn.findFirst({ orderBy: { number: "desc" } }),
+    // Latest report per kind — the section renders what actually happened,
+    // instead of the fake success the wipe used to claim.
+    prisma.systemReport.findMany({ orderBy: { createdAt: "desc" }, take: 30 }),
+    prisma.zone.findMany({
+      where: { kind: { not: "CAVE_GROUP" } },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: { id: true, name: true },
+    }),
+    prisma.character.findMany({
+      where: { status: "ALIVE" },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, zone: { select: { name: true } } },
+    }),
   ]);
+
+  const latestByKind = new Map();
+  for (const report of reports) {
+    if (!latestByKind.has(report.kind)) latestByKind.set(report.kind, report);
+  }
 
   const currentDay = openTurnRecord ? Math.ceil(openTurnRecord.number / 2) : Math.ceil(((lastTurn?.number ?? 0) + 1) / 2);
   const currentPhase = openTurnRecord?.phase ?? (lastTurn?.phase === "DAWN" ? "DUSK" : "DAWN");
@@ -188,7 +206,23 @@ export default async function DevPanelPage() {
             Allow the portrait maker&apos;s fantasy parts.
           </Switch>
           <Switch name="messageWipeEnabled" defaultChecked={config.messageWipeEnabled} className="col-span-full">
-            Wipe messages at Dawn (archives everything to #archive first — see docs/systemdocs/CHANNELS.md)
+            Wipe messages at Dawn — the transcript is already recorded at send time, this only deletes (see docs/systemdocs/CHANNELS.md)
+          </Switch>
+          <label className="field">
+            <span className="field-label">Idle turns before a player topic/thread expires</span>
+            <input
+              type="number"
+              name="threadExpiryTurns"
+              min="1"
+              max="60"
+              defaultValue={config.threadExpiryTurns}
+            />
+          </label>
+          <Switch name="threadExpiryEnabled" defaultChecked={config.threadExpiryEnabled} className="col-span-full">
+            Delete player-made topics and private threads after that many turns without a message — persistent ones included. Location topics never expire.
+          </Switch>
+          <Switch name="autoReconcileEnabled" defaultChecked={config.autoReconcileEnabled} className="col-span-full">
+            Run the channel doctor&apos;s cheap reconcile (roles vs. the database) automatically after every turn advance — it always runs when the bot restarts.
           </Switch>
           <Switch name="tupperAutocorrectEnabled" defaultChecked={config.tupperAutocorrectEnabled} className="col-span-full">
             Capitalize sentence starts in Tupper messages before proxying
@@ -206,6 +240,90 @@ export default async function DevPanelPage() {
             <SubmitButton pendingLabel="Saving…">Save config</SubmitButton>
           </div>
         </form>
+      </section>
+
+      <section className="panel p-4">
+        <h2 className="panel-header">Bulk Move</h2>
+        <p className="mb-3 text-sm text-muted">
+          Relocate several characters to one zone at once. A raw move — no Move cost, no adjacency
+          check. Their zone roles resync in the background; the report lands under System Reports.
+        </p>
+        <form action={bulkMoveCharacters} className="flex flex-wrap items-end gap-3">
+          <label className="field">
+            <span className="field-label">Characters (ctrl/cmd-click for several)</span>
+            <select name="characterIds" multiple size={8} style={{ minWidth: "18rem" }}>
+              {livingCharacters.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                  {c.zone ? ` — ${c.zone.name}` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span className="field-label">Zone</span>
+            <select name="zoneId">
+              {zones.map((z) => (
+                <option key={z.id} value={z.id}>{z.name}</option>
+              ))}
+            </select>
+          </label>
+          <SubmitButton pendingLabel="Moving…">Move them</SubmitButton>
+        </form>
+      </section>
+
+      <section className="panel p-4">
+        <h2 className="panel-header">System Reports</h2>
+        <p className="mb-3 text-sm text-muted">
+          The last run of each operational pass. A report without a finish time means the container
+          died mid-pass — re-run the pass or the doctor. Failures listed here are live problems,
+          not history.
+        </p>
+        <div className="mb-4 flex flex-wrap gap-2">
+          <form action={runDoctorAction}>
+            <input type="hidden" name="mode" value="check" />
+            <input type="hidden" name="scope" value="full" />
+            <SubmitButton className="btn" pendingLabel="Starting…">Run channel doctor (dry)</SubmitButton>
+          </form>
+          <form action={runDoctorAction}>
+            <input type="hidden" name="mode" value="repair" />
+            <input type="hidden" name="scope" value="full" />
+            <SubmitButton className="btn" pendingLabel="Starting…">Repair</SubmitButton>
+          </form>
+        </div>
+        <div className="flex flex-col gap-3">
+          {[...latestByKind.values()].map((report) => (
+            <div key={report.id} className="rounded border p-3 text-sm">
+              <div className="flex flex-wrap items-baseline gap-2">
+                <strong>{report.kind}</strong>
+                <span className={report.finishedAt ? (report.ok ? "text-muted" : "text-accent") : "text-accent"}>
+                  {report.finishedAt ? (report.ok ? "clean" : "issues") : "unfinished"}
+                </span>
+                <span className="mono text-xs text-muted">
+                  {report.startedAt.toISOString().slice(0, 16).replace("T", " ")}
+                </span>
+              </div>
+              {report.summary && Object.keys(report.summary).length > 0 ? (
+                <p className="mt-1 text-xs text-muted mono">{JSON.stringify(report.summary)}</p>
+              ) : null}
+              {Array.isArray(report.failures) && report.failures.length > 0 ? (
+                <ul className="mt-2 list-disc pl-5 text-xs">
+                  {report.failures.slice(0, 25).map((f, i) => (
+                    <li key={i}>
+                      {[f.check ?? f.step, f.target].filter(Boolean).join(" · ")}: {f.message}
+                    </li>
+                  ))}
+                  {report.failures.length > 25 ? (
+                    <li className="text-muted">…and {report.failures.length - 25} more.</li>
+                  ) : null}
+                </ul>
+              ) : null}
+            </div>
+          ))}
+          {latestByKind.size === 0 ? (
+            <p className="text-sm text-muted">Nothing has reported yet.</p>
+          ) : null}
+        </div>
       </section>
 
       <section className="panel p-4" style={{ borderColor: "var(--accent)" }}>

@@ -19,7 +19,6 @@
     "db:backfill-name-parts": "node db/prisma/backfill-name-parts.js",
     "db:backfill-tag-rework": "node db/prisma/backfill-tag-rework.js",
     "db:backfill-medical-expert": "node db/prisma/backfill-medical-expert.js",
-    "db:backfill-archive-channel-ids": "node db/prisma/backfill-archive-channel-ids.js",
     "db:doctor": "node db/prisma/doctor.js",
     "db:prune-orphan-roles": "node db/prisma/prune-orphan-roles.js",
     "copy:extract": "node scripts/copy/extract.js",

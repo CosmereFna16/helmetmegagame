@@ -26,7 +26,10 @@ import {
   removeCursedRole,
   setTurnPingRole,
   setRomanceOptOutRole,
+  syncCharacterZoneRole,
+  syncCharacterNarrowcastAccess,
 } from "@/lib/discordGuild";
+import { applyPendingInvites } from "@lifeweb/db/lib/threadInvites";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 
 async function requireSuperadmin() {
@@ -81,6 +84,11 @@ export async function updateGameConfig(formData) {
       nicknameSyncEnabled: formData.get("nicknameSyncEnabled") === "on",
       archiveVisible: formData.get("archiveVisible") === "on",
       archiveTravelEvents: formData.get("archiveTravelEvents") === "on",
+      threadExpiryEnabled: formData.get("threadExpiryEnabled") === "on",
+      // Floored at 1: "expire after 0 idle turns" would reap every thread on
+      // every dawn, which is the wipe's job, not this one's.
+      threadExpiryTurns: Math.max(1, intOrNull(formData, "threadExpiryTurns") ?? 5),
+      autoReconcileEnabled: formData.get("autoReconcileEnabled") === "on",
       productionCoefficient: floatOrDefault(formData, "productionCoefficient", 1),
       startingTagPoints: intOrZero(formData, "startingTagPoints"),
       // Guarded at 1 because it's the denominator of every weighted role's
@@ -582,3 +590,93 @@ export async function deleteFaction(formData) {
   revalidatePath("/gm/players");
 }
 
+// --- Channel doctor + system reports ----------------------------------
+
+// Both run in after() and land on a SystemReport row — the section on
+// /gm/dev polls the latest report per kind, so the button returns
+// immediately and the outcome shows up where every other operational pass
+// reports (db/lib/channelDoctor.js).
+export async function runDoctorAction(formData) {
+  const session = await requireSuperadmin();
+  const apply = str(formData, "mode") === "repair";
+  const scope = str(formData, "scope") === "full" ? "full" : "cheap";
+
+  after(() =>
+    runChannelDoctor(prisma, { apply, scope, actorDiscordUserId: session.discordUserId }).catch((err) =>
+      console.error("Channel doctor action failed:", err),
+    ),
+  );
+
+  revalidatePath("/gm/dev");
+  return { ok: true };
+}
+
+// GM bulk move: relocate many characters to one zone at once. A raw
+// relocation like updateCharacterRaw's, not a travel — no Move cost, no
+// Action filed, no adjacency check. The Discord half (role swap, narrowcast,
+// pending invites) runs in after(), sequential, and lands on a
+// SystemReport (kind: BULK_MOVE) like every other long pass.
+export async function bulkMoveCharacters(formData) {
+  const session = await requireSuperadmin();
+
+  const zoneId = str(formData, "zoneId");
+  const characterIds = formData.getAll("characterIds").map(String).filter(Boolean);
+  if (!zoneId || characterIds.length === 0) {
+    return { ok: false, error: "Pick a zone and at least one character." };
+  }
+
+  const zone = await prisma.zone.findUnique({ where: { id: zoneId } });
+  if (!zone || zone.kind === "CAVE_GROUP") {
+    return { ok: false, error: "That isn't a zone a character can stand in." };
+  }
+
+  const characters = await prisma.character.findMany({
+    where: { id: { in: characterIds }, status: "ALIVE" },
+    select: { id: true, name: true, discordUserId: true, zoneId: true },
+  });
+  if (characters.length === 0) return { ok: false, error: "No living characters matched." };
+
+  await prisma.character.updateMany({
+    where: { id: { in: characters.map((c) => c.id) } },
+    data: { zoneId: zone.id },
+  });
+
+  const report = await prisma.systemReport.create({
+    data: {
+      kind: "BULK_MOVE",
+      actorDiscordUserId: session.discordUserId,
+      summary: { zone: zone.name, characters: characters.length },
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "gm_bulk_move",
+      details: { zoneId: zone.id, zoneName: zone.name, characterIds: characters.map((c) => c.id) },
+    },
+  });
+
+  after(async () => {
+    const failures = [];
+    for (const c of characters) {
+      try {
+        await syncCharacterZoneRole(c.discordUserId, c.zoneId, zone.id);
+        await syncCharacterNarrowcastAccess(c.id);
+        await applyPendingInvites(prisma, { ...c, zoneId: zone.id });
+      } catch (err) {
+        failures.push({ step: "move", target: c.name, message: err.message });
+        console.error(`Bulk move: Discord sync failed for ${c.name}:`, err);
+      }
+    }
+    await prisma.systemReport
+      .update({
+        where: { id: report.id },
+        data: { finishedAt: new Date(), ok: failures.length === 0, failures },
+      })
+      .catch((err) => console.error("Bulk move report write failed:", err));
+  });
+
+  revalidatePath("/gm/dev");
+  return { ok: true, moved: characters.length };
+}

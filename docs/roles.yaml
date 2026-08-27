@@ -50,9 +50,11 @@
 # Resources that character starts play with; on a faction, it's how many
 # Resources start in that faction's Silo.
 #
-# `starting_location` (role-level) is a Location **slug** from
-# docs/locations.yaml — it decides where the character starts, and therefore
-# which Discord Location category they get view access to on creation.
+# `starting_zone` (role-level) is a Zone **slug** from docs/zones.yaml — it
+# decides where the character starts, and therefore which zone role (and so
+# which Discord category) they get on creation. Must be a presence zone: the
+# Caves group itself is not standable, but its levels (caverns, railroad,
+# aberrant-pits) are.
 #
 # `starting_tags` are Tag names from docs/tags.yaml, granted free at
 # creation on top of whatever the player buys with points. The sync throws on
@@ -105,7 +107,7 @@ zones:
             difficulty: hard
             multiple: false
             starting_resources: 3
-            starting_location: keep
+            starting_zone: fortress
             leader: true
             starting_tags:
               - Ravenhearter
@@ -134,7 +136,7 @@ zones:
             difficulty: easy
             multiple: false
             starting_resources: 1
-            starting_location: keep
+            starting_zone: fortress
             starting_tags:
               - Ravenhearter
               - Courtier
@@ -159,7 +161,7 @@ zones:
             difficulty: easy
             multiple: false
             starting_resources: 1
-            starting_location: keep
+            starting_zone: fortress
             starting_tags:
               - Ravenhearter
               - Courtier
@@ -181,7 +183,7 @@ zones:
             difficulty: easy
             multiple: false
             starting_resources: 1
-            starting_location: keep
+            starting_zone: fortress
             starting_tags:
               - Ravenhearter
               - Courtier
@@ -216,7 +218,7 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 1
-            starting_location: keep
+            starting_zone: fortress
             treasurer: true
             starting_tags:
               - Ravenhearter
@@ -247,7 +249,7 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 1
-            starting_location: keep
+            starting_zone: fortress
             treasurer: true
             starting_tags:
               - Ravenhearter
@@ -279,7 +281,7 @@ zones:
             multiple: true
             weight: 6
             starting_resources: 1
-            starting_location: keep
+            starting_zone: fortress
             starting_tags:
               - Ravenhearter
               - Courtier
@@ -299,7 +301,7 @@ zones:
             multiple: true
             weight: 1
             starting_resources: 1
-            starting_location: keep
+            starting_zone: fortress
             starting_tags:
               - Ravenhearter
               - Musician
@@ -318,7 +320,7 @@ zones:
             multiple: true
             weight: 1
             starting_resources: 1
-            starting_location: keep
+            starting_zone: fortress
             starting_tags:
               - Ravenhearter
               - Literate
@@ -340,7 +342,7 @@ zones:
             multiple: true
             weight: 3
             starting_resources: 1
-            starting_location: keep
+            starting_zone: fortress
             starting_tags:
               - Ravenhearter
               - Cooking (Basic)
@@ -373,7 +375,7 @@ zones:
             difficulty: hard
             multiple: false
             starting_resources: 1
-            starting_location: garrison
+            starting_zone: fortress
             leader: true
             treasurer: true
             starting_tags:
@@ -410,7 +412,7 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 1
-            starting_location: garrison
+            starting_zone: fortress
             treasurer: true
             starting_tags:
               - Ravenhearter
@@ -448,7 +450,7 @@ zones:
             multiple: true
             weight: 8
             starting_resources: 1
-            starting_location: garrison
+            starting_zone: fortress
             starting_tags:
               - Ravenhearter
               - Watchman
@@ -477,7 +479,7 @@ zones:
             multiple: true
             weight: 2
             starting_resources: 1
-            starting_location: garrison
+            starting_zone: fortress
             starting_tags:
               - Ravenhearter
               - Cudgel
@@ -518,7 +520,7 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 1
-            starting_location: church
+            starting_zone: town
             leader: true
             starting_tags:
               - Ravenhearter
@@ -546,7 +548,7 @@ zones:
             multiple: true
             weight: 3
             starting_resources: 1
-            starting_location: church
+            starting_zone: town
             starting_tags:
               - Ravenhearter
               - Chaplain
@@ -568,7 +570,7 @@ zones:
             multiple: true
             weight: 1
             starting_resources: 1
-            starting_location: church
+            starting_zone: town
             starting_tags:
               - Ravenhearter
               - Literate
@@ -599,7 +601,7 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 1
-            starting_location: sanctuary
+            starting_zone: town
             leader: true
             starting_tags:
               - Ravenhearter
@@ -628,7 +630,7 @@ zones:
             multiple: true
             weight: 4
             starting_resources: 1
-            starting_location: sanctuary
+            starting_zone: town
             starting_tags:
               - Ravenhearter
               - Medical (Skilled)
@@ -662,7 +664,7 @@ zones:
             difficulty: hard
             multiple: false
             starting_resources: 1
-            starting_location: church
+            starting_zone: town
             leader: true
             starting_tags:
               - Ravenhearter
@@ -693,7 +695,7 @@ zones:
             multiple: true
             weight: 3
             starting_resources: 1
-            starting_location: church
+            starting_zone: town
             starting_tags:
               - Ravenhearter
               - Pious
@@ -725,7 +727,7 @@ zones:
             multiple: true
             weight: 1
             starting_resources: 1
-            starting_location: church
+            starting_zone: town
             starting_tags:
               - Ravenhearter
               - Pious
@@ -758,7 +760,7 @@ zones:
             difficulty: hard
             multiple: false
             starting_resources: 1
-            starting_location: town
+            starting_zone: town
             leader: true
             starting_tags:
               - Ravenhearter
@@ -784,7 +786,7 @@ zones:
             multiple: true
             weight: 1
             starting_resources: 1
-            starting_location: town
+            starting_zone: town
             starting_tags:
               - Ravenhearter
               - Fighting (Trained)
@@ -812,7 +814,7 @@ zones:
             multiple: true
             weight: 1
             starting_resources: 1
-            starting_location: town
+            starting_zone: town
             starting_tags:
               - Ravenhearter
               - Smithing
@@ -837,7 +839,7 @@ zones:
             multiple: true
             weight: unlimited
             starting_resources: 1
-            starting_location: town
+            starting_zone: town
             extra_starting_points: 2
             starting_tags:
               - Ravenhearter
@@ -862,7 +864,7 @@ zones:
             multiple: true
             weight: 1
             starting_resources: 1
-            starting_location: town
+            starting_zone: town
             starting_tags:
               - Ravenhearter
             doc_elements:
@@ -883,7 +885,7 @@ zones:
             multiple: true
             weight: 2
             starting_resources: 1
-            starting_location: town
+            starting_zone: town
             extra_starting_points: 3
             starting_tags:
               - Ravenhearter
@@ -912,7 +914,7 @@ zones:
             multiple: true
             weight: 3
             starting_resources: 1
-            starting_location: town
+            starting_zone: town
             starting_tags:
               - Ravenhearter
               - Mortus
@@ -931,7 +933,7 @@ zones:
             multiple: true
             weight: unlimited
             starting_resources: 1
-            starting_location: town
+            starting_zone: town
             starting_tags:
               - Ravenhearter
             doc_elements:
@@ -948,7 +950,7 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 1
-            starting_location: town
+            starting_zone: town
             starting_tags:
               - Ravenhearter
               - Brewing (Skilled)
@@ -980,7 +982,7 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 10
-            starting_location: town
+            starting_zone: town
             leader: true
             starting_tags:
               - Ravenhearter
@@ -1002,7 +1004,7 @@ zones:
             multiple: true
             weight: 3
             starting_resources: 1
-            starting_location: town
+            starting_zone: town
             starting_tags:
               - Ravenhearter
               - Cooking (Basic)
@@ -1036,7 +1038,7 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 1
-            starting_location: forest
+            starting_zone: town
             leader: true
             starting_tags:
               - Brigand
@@ -1063,7 +1065,7 @@ zones:
             multiple: true
             weight: 2
             starting_resources: 1
-            starting_location: forest
+            starting_zone: town
             starting_tags:
               - Brigand
               - Fighting (Basic)
@@ -1101,7 +1103,7 @@ zones:
             difficulty: hard
             multiple: false
             starting_resources: 1
-            starting_location: warcamp
+            starting_zone: windlands
             leader: true
             starting_tags:
               - Fighting (Trained)
@@ -1126,7 +1128,7 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 1
-            starting_location: warcamp
+            starting_zone: windlands
             starting_tags:
               - Musician
               - Fighting (Skilled)
@@ -1145,7 +1147,7 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 1
-            starting_location: warcamp
+            starting_zone: windlands
             starting_tags:
               - Windlander
               - Sign Language
@@ -1163,7 +1165,7 @@ zones:
             multiple: true
             weight: 3
             starting_resources: 1
-            starting_location: warcamp
+            starting_zone: windlands
             starting_tags:
               - Windlander
               - Sign Language
@@ -1191,7 +1193,7 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 1
-            starting_location: warcamp
+            starting_zone: windlands
             leader: true
             starting_tags:
               - Fighting (Trained)
@@ -1213,7 +1215,7 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 1
-            starting_location: warcamp
+            starting_zone: windlands
             starting_tags:
               - Brewing (Skilled)
               - Musician
@@ -1235,7 +1237,7 @@ zones:
             multiple: true
             weight: 6
             starting_resources: 1
-            starting_location: warcamp
+            starting_zone: windlands
             starting_tags:
               - Windlander
               - Sign Language
@@ -1262,7 +1264,7 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 1
-            starting_location: warcamp
+            starting_zone: windlands
             leader: true
             starting_tags:
               - Windlander
@@ -1283,7 +1285,7 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 1
-            starting_location: warcamp
+            starting_zone: windlands
             starting_tags:
               - Neoclassic R&W10
               - Windlander (Horse)
@@ -1306,7 +1308,7 @@ zones:
             multiple: true
             weight: 6
             starting_resources: 1
-            starting_location: warcamp
+            starting_zone: windlands
             starting_tags:
               - Windlander
               - Sign Language
@@ -1341,7 +1343,7 @@ zones:
             difficulty: hard
             multiple: false
             starting_resources: 10
-            starting_location: customs
+            starting_zone: caverns
             leader: true
             starting_tags:
               - Literate
@@ -1359,7 +1361,7 @@ zones:
             multiple: true
             weight: 2
             starting_resources: 1
-            starting_location: customs
+            starting_zone: caverns
             starting_tags: []
             doc_elements:
               - townstarting
@@ -1378,7 +1380,7 @@ zones:
             multiple: true
             weight: unlimited
             starting_resources: 1
-            starting_location: railroad
+            starting_zone: railroad
             starting_tags: []
             doc_elements: []
           - name: Mercenary
@@ -1392,7 +1394,7 @@ zones:
             multiple: true
             weight: 2
             starting_resources: 1
-            starting_location: customs
+            starting_zone: caverns
             starting_tags:
               - Fighting (Basic)
               - Dagger

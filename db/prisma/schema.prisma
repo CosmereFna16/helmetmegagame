@@ -369,13 +369,13 @@ model GameConfig {
   // of its pass at ready. Off by default.
   autoReconcileEnabled Boolean @default(false)
 
-  // Where PUBLIC staged declarations post at the turn-end push (see
-  // StagedMessage below and db/lib/stagedPush.js). One channel for the whole
-  // game for now; when the per-zone summary channels arrive, delivery moves
-  // to the zoneId already carried on each row and this becomes the fallback.
-  // Named turnSummaryChannelId because DefaultEffort.summaryChannelId already
+  // FALLBACK target for PUBLIC staged declarations at the turn-end push (see
+  // StagedMessage below and db/lib/stagedPush.js). Since the zone rework a
+  // PUBLIC row posts to its zone's own #summary; this catches rows whose
+  // zone has none (the Caves seat) or was never set. Named
+  // turnSummaryChannelId because DefaultEffort.summaryChannelId already
   // means something else (where a default move's summary posts).
-  // Null means public declarations are composed but skipped at push, each
+  // Null means such declarations are composed but skipped at push, each
   // recorded on its row's deliveryFailures.
   turnSummaryChannelId String?
 }
