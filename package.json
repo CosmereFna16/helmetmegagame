@@ -7,6 +7,7 @@
     "db"
   ],
   "scripts": {
+    "postinstall": "npm run db:generate",
     "dev:web": "npm run dev --workspace=web",
     "dev:bot": "npm run dev --workspace=bot",
     "push": "bash -c 'git add -A && (git diff --cached --quiet || git commit -m \"${1:-wip}\") && git push -u origin master' --",

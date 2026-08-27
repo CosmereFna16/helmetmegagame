@@ -133,7 +133,15 @@ npm install                          # installs all workspaces (bot, web, db)
 npm run dev:web                      # next dev, in web/
 npm run dev:bot                      # node --watch src/index.js, in bot/
 
-npm run db:generate                  # prisma generate
+npm run db:generate                  # prisma generate. Runs on `npm install`
+                                     #   via a root postinstall, but if you
+                                     #   only pulled a schema change (no new
+                                     #   dependency), run it explicitly — a
+                                     #   stale generated client throws
+                                     #   `PrismaClientValidationError: Unknown
+                                     #   argument` for fields that are right
+                                     #   there in schema.prisma, which reads
+                                     #   like a schema bug but isn't.
 npm run db:migrate                   # prisma migrate dev (needs DATABASE_URL set)
 npm run db:migrate:deploy            # prisma migrate deploy (production)
 
