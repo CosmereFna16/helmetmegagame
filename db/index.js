@@ -20,7 +20,7 @@ const { rollWeather, buildTurnAnnouncement } = require("./weather");
 const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 const { runDawnWipe } = require("./lib/dawnWipe");
-const { runHungerPass, HUNGER_DM } = require("./lib/hungerPass");
+const { runHungerPass, hungerDm, DYING_DM } = require("./lib/hungerPass");
 const { runDefaultMovePass } = require("./lib/defaultMovePass");
 const { runStagedPushPass } = require("./lib/stagedPush");
 // Required by path, not through the barrel: see the note in db/lib/dm.js about
@@ -160,11 +160,12 @@ async function sweepExpiredStacks(turn) {
 // close-turn override, so both paths behave identically instead of only the
 // automated one actually resolving Needs.
 //
-// Returns { lifewebBlood, starvedDiscordUserIds, defaultMovePosts,
+// Returns { lifewebBlood, starvedNotices, defaultMovePosts,
 // defaultMoveDms, tagExpiryDms }. Everything after the first is Discord work
-// this function deliberately does NOT perform — the Hunger pass's DM list,
-// the Default Move pass's summary posts and DMs, and the tag progression
-// pass's DMs. See advanceTurn() below for why.
+// this function deliberately does NOT perform — the Hunger pass's DM list
+// (one notice per starved character: discordUserId, streak, justDied), the
+// Default Move pass's summary posts and DMs, and the tag progression pass's
+// DMs. See advanceTurn() below for why.
 // Every pass this turn owes, by the name markDone records it under. The
 // needsResolvedAt stamp at the bottom is written only when `done` covers all
 // of them, which is what makes the resume machinery mean anything.
@@ -351,7 +352,7 @@ async function resolveNeeds(turn, config) {
   // The DM list is split off the summary before it's logged: it's routing
   // data for runSideEffects(), not part of the turn's record, so the audit
   // details stay exactly the shape they've always been.
-  const { starvedDiscordUserIds = [], ...summary } = hunger ?? {};
+  const { starvedNotices = [], ...summary } = hunger ?? {};
   if (hunger) {
     await prisma.auditLog
       .create({
@@ -415,7 +416,7 @@ async function resolveNeeds(turn, config) {
 
   return {
     lifewebBlood,
-    starvedDiscordUserIds,
+    starvedNotices,
     defaultMovePosts,
     defaultMoveDms,
     tagExpiryDms,
@@ -455,7 +456,7 @@ async function advanceTurn() {
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
 
   let lifewebBlood = config.lifewebBlood;
-  let starvedDiscordUserIds = [];
+  let starvedNotices = [];
   let defaultMovePosts = [];
   let defaultMoveDms = [];
   let tagExpiryDms = [];
@@ -492,7 +493,7 @@ async function advanceTurn() {
       };
     }
 
-    ({ lifewebBlood, starvedDiscordUserIds, defaultMovePosts, defaultMoveDms, tagExpiryDms, privateDeliveries, publicPosts } =
+    ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, privateDeliveries, publicPosts } =
       await resolveNeeds(openTurn, config));
   } else {
     // No OPEN turn, which normally means "opening the very first turn". It
@@ -557,7 +558,7 @@ async function advanceTurn() {
           },
         })
         .catch((logErr) => console.error("Failed to log turn_resume — the resume now has no record:", logErr));
-      ({ lifewebBlood, starvedDiscordUserIds, defaultMovePosts, defaultMoveDms, tagExpiryDms, privateDeliveries, publicPosts } =
+      ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, privateDeliveries, publicPosts } =
         await resolveNeeds(unfinished, config));
     }
   }
@@ -642,12 +643,21 @@ async function advanceTurn() {
       );
     }
 
-    // One DM per hungry player, sequential (discordRequest already backs off
-    // on 429) and individually caught. No DM for a quiet -1 ⬢.
-    for (const discordUserId of starvedDiscordUserIds) {
-      await sendDm(prisma, discordUserId, HUNGER_DM).catch((err) =>
-        console.error(`Hunger DM to ${discordUserId} failed:`, err),
+    // One or two DMs per hungry player, sequential (discordRequest already
+    // backs off on 429) and individually caught. No DM for a quiet -1 ⬢ —
+    // hungerDm() always names the actual penalty, escalating with the streak.
+    // The Dying DM (once, on the turn the streak crosses the cap) is sent
+    // second, so a player who's about to see "Dying" on their sheet already
+    // knows why.
+    for (const notice of starvedNotices) {
+      await sendDm(prisma, notice.discordUserId, hungerDm(notice.streak)).catch((err) =>
+        console.error(`Hunger DM to ${notice.discordUserId} failed:`, err),
       );
+      if (notice.justDied) {
+        await sendDm(prisma, notice.discordUserId, DYING_DM).catch((err) =>
+          console.error(`Dying DM to ${notice.discordUserId} failed:`, err),
+        );
+      }
     }
 
     // The staged-arbitration deliveries — everything the GMs composed during

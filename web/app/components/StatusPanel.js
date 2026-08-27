@@ -23,10 +23,11 @@ function Row({ label, children }) {
 export default function StatusPanel({ character, isSelf, openTurn, parties }) {
   const mood = moodFromTags(character.tags);
 
-  // Mood's ±1 and Hunger's -1 stack additively into one number, and this is
-  // the same module the bot rolls against (db/lib/gambitModifier.js) — so
-  // what a player reads here is exactly what gets applied.
-  const modifiers = gambitModifiers(character.tags);
+  // Mood's ±1 and Hunger's (escalating, streak-scaled) penalty stack
+  // additively into one number, and this is the same module the bot rolls
+  // against (db/lib/gambitModifier.js) — so what a player reads here is
+  // exactly what gets applied.
+  const modifiers = gambitModifiers(character.tags, { hungerStreak: character.hungerStreak });
   const total = modifiers.reduce((sum, m) => sum + m.value, 0);
 
   // Mood rides CharacterTag.expiresTurn (an absolute turn number), so the

@@ -424,7 +424,7 @@ async function releaseMoveLockImpl({ actionId }) {
 // than leaving a stale number behind. The resource-delta editor is gone —
 // under staged arbitration a GM who disagrees with the declared numbers
 // stages a counter-effect instead of rewriting the player's.
-function normalizeEdits(action, edits, characterTags) {
+function normalizeEdits(action, edits, characterTags, hungerStreak) {
   const data = {};
 
   const kind = edits.moveKind === "GAMBIT" || edits.moveKind === "ROUTINE" ? edits.moveKind : action.moveKind;
@@ -435,9 +435,11 @@ function normalizeEdits(action, edits, characterTags) {
       data.diceModifier = null;
     } else {
       // Rolled from the character's CURRENT tags — a Mood that lapsed between
-      // submission and adjudication shouldn't haunt a roll made today.
+      // submission and adjudication shouldn't haunt a roll made today. Same
+      // for hungerStreak: it's read fresh, not off whatever was true when the
+      // player submitted.
       data.diceRoll = rollDie();
-      data.diceModifier = gambitModifierTotal(characterTags);
+      data.diceModifier = gambitModifierTotal(characterTags, { hungerStreak });
     }
   }
 
@@ -483,7 +485,7 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
       return { status: "OPEN", note: "Reopened." };
     }
 
-    const data = normalizeEdits(action, edits, action.character.tags);
+    const data = normalizeEdits(action, edits, action.character.tags, action.character.hungerStreak);
 
     if (mode === "save") {
       const claimed = await tx.action.updateMany({
@@ -760,7 +762,7 @@ async function getCharacterInspectorImpl({ characterId }) {
     resources: character.resources,
     tagPoints: character.tagPoints,
     fear: character.fear ?? null,
-    gambitModifier: gambitModifierTotal(character.tags),
+    gambitModifier: gambitModifierTotal(character.tags, { hungerStreak: character.hungerStreak }),
     acted,
     currentTurnNumber: openTurn?.number ?? null,
     tags: character.tags.map((ct) => ({

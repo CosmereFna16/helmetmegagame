@@ -17,20 +17,23 @@ const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 // so the player sees their numbers the moment they lock in; only the payout
 // defers.
 //
-// `action` must come in with its character and that character's tags loaded:
-// Mood and Hunger are ordinary Status tags, so the Gambit modifier is read
-// off the tag list rather than a column (db/lib/gambitModifier.js).
+// `action` must come in with its character, that character's tags, AND
+// hungerStreak loaded: Mood is an ordinary Status tag, but Hunger's penalty
+// escalates with the streak (a Character column, not a tag), so the Gambit
+// modifier needs both (db/lib/gambitModifier.js).
 //
 // Returns { updated, lines } — the resolved row, and the summary the player
 // is shown. It writes its own AuditLog row but sends nothing.
 async function confirmMove(action, actorDiscordUserId) {
   const diceRoll = action.moveKind === "GAMBIT" ? rollDie() : null;
   // Only a Gambit rolls, so only a Gambit can carry a modifier. diceRoll stays
-  // the RAW roll and the SUM of every contributor (Mood ±1, Hunger -1) is
-  // stored beside it — see the Action.diceModifier comment in schema.prisma.
-  // The per-contributor breakdown is display-only, for the summary below.
-  const modifiers = diceRoll != null ? gambitModifiers(action.character.tags) : [];
-  const diceModifier = diceRoll != null ? gambitModifierTotal(action.character.tags) : null;
+  // the RAW roll and the SUM of every contributor (Mood ±1, Hunger scaled to
+  // the streak) is stored beside it — see the Action.diceModifier comment in
+  // schema.prisma. The per-contributor breakdown is display-only, below.
+  const modifiers =
+    diceRoll != null ? gambitModifiers(action.character.tags, { hungerStreak: action.character.hungerStreak }) : [];
+  const diceModifier =
+    diceRoll != null ? gambitModifierTotal(action.character.tags, { hungerStreak: action.character.hungerStreak }) : null;
   // Null for a row written before ranges existed (a leftover "1d4*3"), which
   // then confirms on its flat delta alone rather than throwing.
   const rollResult = action.resourceRollExpression ? rollResourceRange(action.resourceRollExpression) : null;

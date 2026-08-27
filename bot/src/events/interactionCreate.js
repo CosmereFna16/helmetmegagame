@@ -52,7 +52,7 @@ async function handleGmCommand(interaction) {
     await respond(interaction, "» *That didn't send. Check the bot can post here, and try again.*");
     return;
   }
-  await respond(interaction, "» *Sent.*");
+  await respond(interaction, "» *Sent.*", { fleeting: true });
 }
 
 // /dm: DM a chosen server member as the bot itself. Was /message, renamed
@@ -74,7 +74,7 @@ async function handleGmDmCommand(interaction) {
 
   try {
     await sendDm(recipient, `» ${content}`);
-    await respond(interaction, `» *Sent to ${recipient}.*`);
+    await respond(interaction, `» *Sent to ${recipient}.*`, { fleeting: true });
   } catch (err) {
     console.error("Failed to send /dm DM:", err);
     // The catch used to report every failure as "they may have DMs closed",
@@ -178,7 +178,7 @@ async function handleThreadMemberCommand(interaction, action) {
       await respond(interaction, "» *Couldn't remove them. The bot may be missing Manage Threads.*");
       return;
     }
-    await respond(interaction, `» *${target.name} was removed.*`);
+    await respond(interaction, `» *${target.name} was removed.*`, { fleeting: true });
     return;
   }
 
@@ -201,7 +201,7 @@ async function handleThreadMemberCommand(interaction, action) {
     await respond(interaction, "» *Couldn't add them — they may not be able to see this location.*");
     return;
   }
-  await respond(interaction, `» *${target.name} was added.*`);
+  await respond(interaction, `» *${target.name} was added.*`, { fleeting: true });
 }
 
 // /persistent: toggle whether the current thread survives the Dawn wipe.

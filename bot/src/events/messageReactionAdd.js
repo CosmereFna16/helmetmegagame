@@ -488,18 +488,30 @@ module.exports = {
         // placeholder advertises that there's something worth going after.
         // Same posture as the Resources field below. Nothing tells the subject
         // they were read, either; every inspect is silent.
+        //
+        // But once the VIEWER holds the sight, an empty result gets an
+        // explicit "nothing there" line instead of staying absent — without
+        // it, a Torturer/Seductive holder can't tell "no tag", "tag fired but
+        // the target has none set", and "broken" apart, and it reads as
+        // scripted. Absence still means "you can't see this" to everyone
+        // without the tag, so the no-advertising rule for non-holders is
+        // untouched.
         if (canSeeDesire) {
           const desire = await prisma.desire.findFirst({
             where: { characterId: character.id, status: "ACTIVE" },
             select: { text: true, points: true },
           });
-          if (desire) {
-            embed.addFields({ name: "Desire", value: fitField(`${desire.text} (+${desire.points})`) });
-          }
+          embed.addFields({
+            name: "Desire",
+            value: desire ? fitField(`${desire.text} (+${desire.points})`) : "Nothing you can read.",
+          });
         }
 
-        if (canSeeFear && character.fear) {
-          embed.addFields({ name: "Fear", value: fitField(character.fear) });
+        if (canSeeFear) {
+          embed.addFields({
+            name: "Fear",
+            value: character.fear ? fitField(character.fear) : "Nothing you can read.",
+          });
         }
 
         // Whoever holds Silo authority over this character's faction — its

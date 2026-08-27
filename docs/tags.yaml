@@ -1515,7 +1515,7 @@ tags:
     name: Hungry
     category: status
     group: status-debuffs
-    description: "-1 to the die on all Gambits. You went without food this turn."
+    description: "-1 to the die on all Gambits, worsening by -1 for every consecutive turn you go hungry (down to -6). Six turns straight without eating leaves you Dying."
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
