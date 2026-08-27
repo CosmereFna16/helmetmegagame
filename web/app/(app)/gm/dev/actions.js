@@ -286,7 +286,8 @@ export async function wipeGameData(formData) {
     // Deletes ordered so dependents go before the Character/Turn rows they
     // reference (Prisma doesn't cascade by default here). Request and Desire
     // both carry a required FK to Character (Request also has an optional one
-    // to Turn), so they have to go before character/turn.deleteMany or those
+    // to Turn), and StagedMessage/StagedEffect both carry a required FK to
+    // Turn, so they all have to go before character/turn.deleteMany or those
     // statements throw a Postgres FK violation that rolls back the whole
     // transaction, wiping nothing at all.
     await prisma.$transaction([
@@ -298,6 +299,8 @@ export async function wipeGameData(formData) {
       prisma.characterTag.deleteMany({}),
       prisma.auditLog.deleteMany({}),
       prisma.character.deleteMany({}),
+      prisma.stagedMessage.deleteMany({}),
+      prisma.stagedEffect.deleteMany({}),
       prisma.turn.deleteMany({}),
       prisma.siloTransaction.deleteMany({}),
       prisma.directMessage.deleteMany({}),
