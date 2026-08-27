@@ -82,7 +82,7 @@ const commandDefinitions = [
   // (bot/src/lib/turnsConsole.js). Each opens the same flow the button does.
   new SlashCommandBuilder()
     .setName("move")
-    .setDescription("Declare your Move for this turn.")
+    .setDescription("Lock in your Move for this turn.")
     .setContexts(ANYWHERE),
   new SlashCommandBuilder()
     .setName("location")

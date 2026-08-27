@@ -1,5 +1,4 @@
 const { prisma, FIELD_INFO, resolveLaborRate, rollRate } = require("@lifeweb/db");
-const { applyMoveEffects } = require("@lifeweb/db/lib/moveEffects");
 
 // /hunt, /fish, /farm, /herd: auto-generates a Routine, non-Opposed Move for
 // a player's own production, reading their tags to pick the right tier and
@@ -36,8 +35,10 @@ async function performLabor(character, field) {
   const resourceRollExpression = rate.expression;
   const description = `${character.name} ${info.verb} (Auto-generated).`;
 
-  // Labor is a Routine, so it follows the Routine rule: resources land now and
-  // the row enters the queue already PASSED. See bot/src/lib/moveConfirm.js.
+  // Labor is a Routine, so it follows the Routine rule: the roll happens now,
+  // the row enters the queue already PASSED, and the payout — like every Move
+  // payout since the staged-arbitration rework — lands at the turn-end push
+  // (db/lib/stagedPush.js). See bot/src/lib/moveConfirm.js.
   //
   // The findFirst above is the fast path and the friendly message; this is the
   // one that actually holds. @@unique([characterId, turnId]) rejects the second
@@ -45,27 +46,23 @@ async function performLabor(character, field) {
   // — a double-click, or Discord retrying the interaction at rollover — so the
   // player is told they already acted instead of being paid twice.
   try {
-    await prisma.$transaction(async (tx) => {
-      const row = await tx.action.create({
-        data: {
-          characterId: character.id,
-          turnId: openTurn.id,
-          type: "MOVE",
-          status: "CONFIRMED",
-          moveKind: "ROUTINE",
-          moveReviewStatus: "PASSED",
-          opposed: false,
-          confirmedAt: new Date(),
-          description,
-          resourceDelta,
-          resourceRollExpression,
-          resourceRollValue: resourceDelta,
-          zoneId: character.zoneId ?? null,
-          gmNotes: "auto:labor",
-        },
-      });
-      const applied = await applyMoveEffects(tx, row);
-      await tx.action.update({ where: { id: row.id }, data: { appliedEffects: applied } });
+    await prisma.action.create({
+      data: {
+        characterId: character.id,
+        turnId: openTurn.id,
+        type: "MOVE",
+        status: "CONFIRMED",
+        moveKind: "ROUTINE",
+        moveReviewStatus: "PASSED",
+        opposed: false,
+        confirmedAt: new Date(),
+        description,
+        resourceDelta,
+        resourceRollExpression,
+        resourceRollValue: resourceDelta,
+        zoneId: character.zoneId ?? null,
+        gmNotes: "auto:labor",
+      },
     });
   } catch (err) {
     if (err.code === "P2002") return { ok: false, reason: "You've already acted this turn." };
