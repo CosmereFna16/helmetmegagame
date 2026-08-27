@@ -84,9 +84,11 @@ async function handleStarReaction(reaction, proxy, user) {
 // and concealment ignored (a GM sees through it, though the alias is noted so
 // they know the room did not).
 //
-// There is deliberately NO channel fallback when the DM bounces. Every other
-// embed in this file falls back to posting in the channel; doing that here
-// would hand the room every tag, the Desire and the Fear.
+// There is deliberately NO channel fallback when the DM bounces; doing that
+// here would hand the room every tag, the Desire and the Fear. The 🔍 inspect
+// branch below used to have one, and it leaked exactly that into a public
+// channel whenever the reactor had DMs closed. Both now log and drop instead.
+// If a future embed in this file needs a fallback, it is not this kind.
 async function handleDossierReaction(reaction, proxy, user) {
   const [character, openTurn] = await Promise.all([
     prisma.character.findUnique({
@@ -415,8 +417,11 @@ module.exports = {
 
           try {
             await sendDm(user, { embeds: [hidden] });
-          } catch {
-            await reaction.message.channel.send({ embeds: [hidden] }).catch(() => {});
+          } catch (err) {
+            // No channel fallback: see handleDossierReaction's header. A
+            // bounced DM means this inspect goes nowhere, which is the only
+            // safe outcome — a reaction has no ephemeral reply to fall back to.
+            console.error("Inspect reaction DM failed (concealed):", err);
           }
           // The finally below clears the reaction on the way out of this return.
           return;
@@ -519,8 +524,10 @@ module.exports = {
 
         try {
           await sendDm(user, { embeds: [embed] });
-        } catch {
-          await reaction.message.channel.send({ embeds: [embed] }).catch(() => {});
+        } catch (err) {
+          // Same as the concealed branch above, and for a stronger reason:
+          // this embed carries the Desire, the Fear and the doctor's-eye tags.
+          console.error("Inspect reaction DM failed:", err);
         }
       } finally {
         // Runs on the concealed branch's early return too.

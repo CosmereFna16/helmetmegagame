@@ -11,6 +11,8 @@ than guess at a home for it.
 the change doesn't need a design decision from you first. Items without it need
 your call on a number, a rule, or wording — or I couldn't localise them.
 
+`[x]` marks items that are **fixed and on `master`**, with the commit noted.
+
 I verified the code behind several of these before tagging (notes inline).
 
 ---
@@ -19,9 +21,9 @@ I verified the code behind several of these before tagging (notes inline).
 
 - [*] I had it happen earlier by accident and just reproduced it, where if you swap locations at speed on the site you can be in two locations at once, (rn I'm in both the cathedral and town square)
 - [*] wapping sub locations rapidly
-- [*] Typing result in adjudication  GLITCHES and brings up edit magdalene in dev panel
-- [*] Any interaction with adj panel brings up there
-- [*] GM specific bug, if you try to type in GM notes on a request, it takes you out of the text box and hovers the "Edit character in the Dev Panel" button. This occurs after typing a single character
+- [x] Typing result in adjudication  GLITCHES and brings up edit magdalene in dev panel
+- [x] Any interaction with adj panel brings up there
+- [x] GM specific bug, if you try to type in GM notes on a request, it takes you out of the text box and hovers the "Edit character in the Dev Panel" button. This occurs after typing a single character
 - [*] Radio system completely broken, no watch channel
 - [*] Many commands appear twice
 - [*] Baron dynasty name glitched
@@ -30,9 +32,9 @@ I verified the code behind several of these before tagging (notes inline).
 - [*] Web hook displays letter instead of appearance
 - Neither :x: nor :pencil or examine work in private thread
 - Edit only work if its the only emoji
-- [*] Examination text got publicly put in square channel?
-- [*] Also audit log truncated wtf
-- [*] **move messages cut off by character limit
+- [x] Examination text got publicly put in square channel?
+- [x] Also audit log truncated wtf
+- [x] **move messages cut off by character limit
 - [*] Search conversation searches recent text, not the whole text
 - [*] Search in tag add and store work across categories
 - Skills concealed
@@ -52,12 +54,15 @@ I verified the code behind several of these before tagging (notes inline).
 > card. That's why *any* field in the panel does it. Fixing the dep array fixes
 > every modal in the app at once.
 
-> **Note on the public examine leak.** `messageReactionAdd.js` sends the inspect
-> embed as a DM, but on any DM failure falls back to posting it in the channel
-> the reaction happened in — name, appearance, tags, Desire and Fear, into the
-> room. The dossier handler already refuses to do this and says why in a comment;
-> the inspect path just never got the same treatment. Deleting the fallback is
-> the fix.
+> **Note on the public examine leak — FIXED.** `messageReactionAdd.js` sent the
+> inspect embed as a DM, but on any DM failure fell back to posting it in the
+> channel the reaction happened in — name, appearance, tags, Desire and Fear,
+> into the room. It looked random because it depended on the *reactor's* DM
+> settings, not on the message. The dossier handler already refused to do this
+> and said why in a comment; the inspect path just never got the same treatment.
+> Both fallbacks (the concealed and the normal branch) now log and drop instead.
+> A bounced DM means the inspect goes nowhere, which is the only safe outcome —
+> a reaction has no ephemeral reply to fall back to.
 
 > **Note on the two-locations bug.** The database is fine — `locationId` is a
 > single column and travel is transactional. What duplicates is *Discord channel
