@@ -15,6 +15,64 @@ Apply ASD-STE100 principles to all responses.
 Or... really, what I mean, is just write like a freaking human! Explain things
 simply, just kind of... relax. Don't write these super jargon-y things.
 
+## Delegation and orchestration
+
+For significant multi-step work, the main Claude agent acts as the orchestrator.
+
+The main agent remains responsible for:
+- understanding Bascinet's actual goal
+- architecture and consequential cross-cutting decisions
+- decomposing work
+- choosing appropriate workers
+- resolving conflicts between workers
+- integration
+- final verification and acceptance
+
+For important independent comparisons, obtain worker analyses independently before sharing one worker's conclusions with another when practical, to reduce anchoring.
+
+### Claude subagents
+
+Prefer Haiku subagents, often many in parallel, for strictly bounded batch
+tasks that are fully specified by the dispatching agent and need no judgment:
+- Absorbing verbose tool output (builds, dumps, large search results) and returning only the distilled result
+- Enumeration feeding a higher-level agent's judgment (e.g. per-table writer/reader maps, per-file import lists), keeping the expensive context for synthesis
+- Delegate for context savings when the delegated material is genuinely verbose. Opus/Fable leads should usually read ordinary relevant code directly. Lower-tier leads benefit more from scout delegation.
+- Pattern-matching sweeps where the parent specifies exact patterns, scope, and success criteria
+- Independent replication of single-sourced negative claims during reviews.  The dispatcher supplies the independently worded patterns/methods (never the original agent's), devising them is judgment work that stays with the dispatcher.
+- Scout returns are unverified input, not deliverable content. Never ship scout-derived claims without lead spot-checking.
+- For a disciplined lead, a self-run grep sweep often beats a scout fan-out on both cost and context. Fan out for wall-clock speed or genuinely verbose per-item output, not by default.
+
+Haiku task contract: return verifiable evidence (file:line, matched text, counts), never bare conclusions. Treat a Haiku "found nothing" as a data point, not a verdict — interpretation stays with the dispatching agent. On ambiguity, Haiku reports back rather than deciding. Never use Haiku for cross-cutting tracing, refutation/verification judgment, or anything where choosing what to look for is part of the task — that's Sonnet or above. If a Haiku worker fails or returns ambiguity, respecify or escalate to Sonnet rather than retrying with more Haiku.
+
+Prefer Sonnet subagents for tasks that do not require higher-level reasoning or advanced coding skills, including routine bounded work such as:
+- project-context gathering
+- repository investigation
+- verification (use verifier when what to run must be determined; use haiku-batch when the exact commands are already known)
+- code review, including first-pass branch reviews
+- research into existing implementation
+- bounded, fully specified implementation below the Codex threshold (implementer)
+- straightforward isolated tasks
+
+Prefer Opus subagents for more complex planning tasks, comprehensive code reviews, or situations where Sonnet has failed to arrive at a solution. This includes overriding branch-reviewer or implementer subagents to utilize Opus where warranted: for reviews, generally when the change spans multiple subsystems, touches concurrency, persistence, or security-sensitive paths, or is the final pre-merge review of substantial work.
+
+Fable subagents: only for peer-review of Fable-authored designs at gate time, as one competitor on expensive-to-reverse design problems, or as the escalation terminus when opus-advisor has failed. Never for routine delegation.
+
+No subagent may run on a Fable-class model without explicit approval in the current session. When one seems warranted, say why and ask; if proceeding without a response, substitute Opus and flag the substitution.
+
+Dispatch posture by tier (deliberate gradient):
+- Haiku: unrestricted - see above.
+- Sonnet: the routine default for bounded work needing judgment.
+- Opus: deliberate, for complex planning/review.
+- Fable: approval-gated per the rules above.
+
+Prefer an existing specialized agent when its defined role applies; otherwise create an ad-hoc subagent. Roster agents take precedence over the built-in Explore, Plan, and general-purpose agents when roles overlap; use Explore for broad read-only exploration no roster agent covers, and general-purpose as the base for ad-hoc workers. Pass an explicit model when dispatching ad-hoc workers so they do not silently inherit a Fable-class session model.
+
+For a side task that genuinely requires the full current conversation context, use a fork subagent (subagent_type: fork) rather than restating that context in a dispatch prompt. Do not fork routine exploration or bounded work — fresh context is the point of a normal subagent, and forks inherit the session model (Fable-gate approval applies).
+
+Give each subagent a clear objective, scope, modification authority, and expected output.
+
+File-modifying work goes only to the implementer agent, an ad-hoc subagent explicitly granted write authority, or Codex, every other roster agent is read-only or non-modifying by contract. Never run concurrent writers against the same working tree: parallel implementation shards require per-worker isolation (pass isolation: worktree at dispatch); otherwise serialize writers.
+
 ## What this file is
 
 This file is the map, plus the rules that apply everywhere. Each game system
