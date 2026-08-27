@@ -475,10 +475,10 @@ async function startThread(channelId, name, autoArchiveMinutes = 10080) {
 // post's STARTER message in place (whose id equals the thread's own id) rather
 // than deleting and recreating the whole post — recreating would lose the
 // thread id, unpin it, and spam the forum with a new entry on every edit.
-async function editMessage(channelId, messageId, content) {
+async function editMessage(channelId, messageId, content, components = undefined) {
   return discordRequest(`/channels/${channelId}/messages/${messageId}`, {
     method: "PATCH",
-    body: { content },
+    body: components ? { content, components } : { content },
   });
 }
 
@@ -490,7 +490,7 @@ async function editMessage(channelId, messageId, content) {
 // Returns the thread object; `thread.id` doubles as the starter message's id.
 async function createForumPost(
   forumChannelId,
-  { name, content, appliedTags = [], autoArchiveMinutes = 10080 },
+  { name, content, appliedTags = [], autoArchiveMinutes = 10080, components = undefined },
 ) {
   return discordRequest(`/channels/${forumChannelId}/threads`, {
     method: "POST",
@@ -498,9 +498,46 @@ async function createForumPost(
       name,
       applied_tags: appliedTags,
       auto_archive_duration: autoArchiveMinutes,
-      message: { content },
+      message: components ? { content, components } : { content },
     },
   });
+}
+
+// Creates a standalone PRIVATE thread (type 12) on a text channel. The
+// invitable:false half matters: it means only ManageThreads (the bot, GMs) may
+// add members, so /add stays the single door into a private thread even
+// though members could otherwise @-mention people in.
+async function startPrivateThread(channelId, name, autoArchiveMinutes = 10080) {
+  return discordRequest(`/channels/${channelId}/threads`, {
+    method: "POST",
+    body: { name, type: 12, auto_archive_duration: autoArchiveMinutes, invitable: false },
+  });
+}
+
+// Thread membership — the REST half of /add and /remove, and what
+// applyPendingInvites uses when a character walks into a zone holding
+// invites. Adding via this endpoint sends no DM and no ping (unlike
+// mentioning someone into the thread). allow404 on both: the thread may have
+// been wiped between the invite and the arrival, and removing an absent
+// member is a no-op, not an error.
+async function addThreadMember(threadId, userId) {
+  return discordRequest(`/channels/${threadId}/thread-members/${userId}`, {
+    method: "PUT",
+    allow404: true,
+  });
+}
+
+async function removeThreadMember(threadId, userId) {
+  return discordRequest(`/channels/${threadId}/thread-members/${userId}`, {
+    method: "DELETE",
+    allow404: true,
+  });
+}
+
+async function listThreadMembers(threadId) {
+  return (
+    (await discordRequest(`/channels/${threadId}/thread-members?limit=100`, { allow404: true })) ?? []
+  );
 }
 
 // A thread is a channel as far as the API is concerned, so this is patchChannel
@@ -802,6 +839,69 @@ async function postAsCharacterOnce(channelId, content, character) {
 
 // Replaces a single permission overwrite on a channel. `type` is 0 for a
 // role, 1 for a member; allow/deny are decimal permission bit strings.
+// --- Guild roles and member roles ------------------------------------
+//
+// The zone-access model: one guild role per presence zone, held by every
+// character standing there. These are the primitives the travel twins, the
+// channel doctor and the wipe all share — routed through discordRequest so
+// they sit behind the circuit breaker like everything else.
+
+async function getGuildRoles() {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  return discordRequest(`/guilds/${guildId}/roles`);
+}
+
+async function createGuildRole(payload) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  return discordRequest(`/guilds/${guildId}/roles`, { method: "POST", body: payload });
+}
+
+async function patchGuildRole(roleId, payload) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  return discordRequest(`/guilds/${guildId}/roles/${roleId}`, { method: "PATCH", body: payload });
+}
+
+async function deleteGuildRole(roleId) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  return discordRequest(`/guilds/${guildId}/roles/${roleId}`, { method: "DELETE", allow404: true });
+}
+
+// allow404 on both member-role calls: a player who left the guild between the
+// DB read and this call is a fact to reconcile later, not a reason to abort
+// the loop that was fixing everyone else.
+async function addMemberRole(userId, roleId) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  return discordRequest(`/guilds/${guildId}/members/${userId}/roles/${roleId}`, {
+    method: "PUT",
+    allow404: true,
+  });
+}
+
+async function removeMemberRole(userId, roleId) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  return discordRequest(`/guilds/${guildId}/members/${userId}/roles/${roleId}`, {
+    method: "DELETE",
+    allow404: true,
+  });
+}
+
+// Paginates the full member list (1000 per page — one request for this
+// guild's size, but paged anyway so a bigger game doesn't silently truncate).
+// Each entry carries { user: { id, ... }, roles: [roleId, ...] }, which is
+// exactly what the channel doctor diffs against the DB.
+async function listGuildMembers() {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  const members = [];
+  let after = "0";
+  for (;;) {
+    const page = await discordRequest(`/guilds/${guildId}/members?limit=1000&after=${after}`);
+    members.push(...page);
+    if (page.length < 1000) break;
+    after = page[page.length - 1].user.id;
+  }
+  return members;
+}
+
 async function putChannelOverwrite(channelId, targetId, { allow = "0", deny = "0", type = 0 } = {}) {
   return discordRequest(`/channels/${channelId}/permissions/${targetId}`, {
     method: "PUT",
@@ -865,6 +965,18 @@ module.exports = {
   getForumTagId,
   ensureForumTag,
   startThread,
+  startPrivateThread,
+  addThreadMember,
+  removeThreadMember,
+  listThreadMembers,
+  getGuildRoles,
+  createGuildRole,
+  patchGuildRole,
+  deleteGuildRole,
+  addMemberRole,
+  removeMemberRole,
+  listGuildMembers,
+  messageTimestamp,
   putChannelOverwrite,
   deleteChannelOverwrite,
   ensureChannelWebhook,

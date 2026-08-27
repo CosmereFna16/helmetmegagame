@@ -29,7 +29,7 @@ const path = require("node:path");
 // db/prisma — it is the most direct answer and cannot pick up the wrong tree.
 // process.cwd() is the fallback that survives bundling.
 
-const MARKER = "locations.yaml"; // identifies OUR docs/, not some other one
+const MARKER = "zones.yaml"; // identifies OUR docs/, not some other one
 const MAX_UP = 6;
 
 let cached;

@@ -30,13 +30,13 @@ const { recordArchiveMessage, recordArchiveEvent } = require("./lib/archive");
 const { postAsCharacter, postMessage, attachBreakerStore } = require("./lib/discordRest");
 const { bumpBlood } = require("./lib/lifeweb");
 const { runFullChannelWipe } = require("./lib/fullWipe");
-const { syncLocationsFromYaml } = require("./lib/syncLocations");
+const { syncZonesFromYaml } = require("./lib/syncZones");
 const { syncTagsFromYaml } = require("./lib/syncTags");
 const { deleteCharacterRow } = require("./lib/deleteCharacter");
 const { syncRolesFromYaml } = require("./lib/syncRoles");
 const { syncDocumentsFromYaml } = require("./lib/syncDocuments");
-const { NARROWCAST_SLUGS, buildNarrowcastContext, computeNarrowcastAccess } = require("./lib/narrowcastAccess");
-const { syncNarrowcastChannels } = require("./lib/syncNarrowcastChannels");
+const { NARROWCAST_SLUGS, buildNarrowcastContext, computeNarrowcastAccess } = require("./lib/specialChannels");
+const { syncSpecialChannels } = require("./lib/syncSpecialChannels");
 
 const globalForPrisma = globalThis;
 
@@ -761,7 +761,7 @@ module.exports = {
   resolveNeeds,
   advanceTurn,
   runFullChannelWipe,
-  syncLocationsFromYaml,
+  syncZonesFromYaml,
   syncTagsFromYaml,
   deleteCharacterRow,
   syncRolesFromYaml,
@@ -769,7 +769,8 @@ module.exports = {
   NARROWCAST_SLUGS,
   buildNarrowcastContext,
   computeNarrowcastAccess,
-  syncNarrowcastChannels,
+  syncSpecialChannels,
+  ...require("./lib/seatZone"),
   LIFEWEB_SPUTTER_THRESHOLD,
   ...require("./weather"),
   ...require("./lib/constants"),
