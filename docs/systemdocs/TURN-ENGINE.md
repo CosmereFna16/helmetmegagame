@@ -4,9 +4,13 @@ How a turn closes and the next one opens. One function owns it —
 `advanceTurn()` in `db/index.js` — and everything else on this page is either a
 pass it calls or a side effect it hands back.
 
-Turns advance **twice a day, 04:00 and 16:00 America/Chicago**, strictly
-alternating: a DAWN turn opens at 4am and runs to 4pm, a DUSK turn opens at 4pm
-and runs to 4am. The schedule lives in `bot/src/events/ready.js`'s cron.
+Turns advance **twice a day, 12:00 and 00:00 America/Chicago**, strictly
+alternating: a DAWN turn opens at noon and runs to midnight, a DUSK turn opens
+at midnight and runs to noon. The schedule lives in `bot/src/events/ready.js`'s
+cron. The advance is also **the push**: everything the GMs staged during the
+closing turn — mechanical effects, private messages, public declarations, and
+every Move's own declared payout — applies and delivers here, and nowhere
+else. See `ADJUDICATION.md`.
 
 ## 1. Two callers, one engine
 
@@ -36,7 +40,21 @@ each arrived at by getting them wrong first.
    anyone who didn't act. **First**, because a default can *earn* resources and
    the Hunger pass below spends them; the other order makes a player whose
    default buys them a meal go hungry anyway.
-3. **Tag progression pass** (`db/lib/tagExpiryPass.js`) — **before** the sweep,
+3. **Staged push pass** (`db/lib/stagedPush.js`) — applies every `StagedEffect`
+   the GMs queued this turn, then every confirmed Move's own declared numbers
+   (nothing pays at confirm any more — a Routine, a `/labor` payout and a
+   GM-solved Gambit all sit with `appliedEffects` null until here), and
+   silently closes untouched Moves (`OPEN → PASSED`, `auto:silent_close`, no
+   DM). Its slot is load-bearing three ways: **after** the Default Move pass
+   (whose rows arrive already stamped, so this one skips them), **before**
+   the progression/sweep (a staged "remove Infected" must beat the
+   progression, and a staged fresh grant carries `expiresTurn > N` so the
+   sweep can't eat it), and **before** Hunger (deferred income lands before
+   upkeep — the same income-before-upkeep rule as step 2). Every row is
+   claimed with a conditional write (`appliedAt`, or `appliedEffects` DbNull
+   → `{}`), so the resume path can never apply one twice. The staged DMs and
+   the public post are handed back for the thunk, not sent here.
+4. **Tag progression pass** (`db/lib/tagExpiryPass.js`) — **before** the sweep,
    never after. Any expiring tag carrying `Tag.expiresInto` turns into
    something else first: Infected festers, Festering goes both Feverish and
    Necrotic, Necrosis rolls a leg or an arm (`TAGS.md` §5c). The sweep below is
@@ -44,22 +62,22 @@ each arrived at by getting them wrong first.
    pass grants and never deletes; the sweep removes exactly the rows it just
    read. **Nothing here kills anyone** — the terminal chains land on the
    `dying` tag and stop, and a GM confirms the death by hand.
-4. **Expiry sweep** — delete non-stackable `CharacterTag`s whose `expiresTurn`
+5. **Expiry sweep** — delete non-stackable `CharacterTag`s whose `expiresTurn`
    has come due.
-5. **Stackable sweep** (`sweepExpiredStacks`) — a stack is one row carrying a
+6. **Stackable sweep** (`sweepExpiredStacks`) — a stack is one row carrying a
    count, so an expiry sheds a single unit and rerolls the remainder's timer,
    deleting the row only when the last unit goes.
-6. **Hunger pass** (`db/lib/hungerPass.js`) — **after** the sweep, never
+7. **Hunger pass** (`db/lib/hungerPass.js`) — **after** the sweep, never
    before. Last turn's Hunger carries `expiresTurn` equal to the closing turn's
    number, so the sweep clears it a moment before a fresh one may be granted.
    The other order collides with `@@unique([characterId, tagId])` and silently
    drops the re-grant, leaving a tag that expires immediately.
-7. **Lifeweb decay** — a fixed `lifewebDecayPerTurn` off `GameConfig.lifewebBlood`.
-8. **Open the next turn** with the alternated phase, and roll its weather (§4).
-9. **Write the `TURN_START` archive row** — here, where the turn is created,
+8. **Lifeweb decay** — a fixed `lifewebDecayPerTurn` off `GameConfig.lifewebBlood`.
+9. **Open the next turn** with the alternated phase, and roll its weather (§4).
+10. **Write the `TURN_START` archive row** — here, where the turn is created,
    rather than in the side effects, so a failed announcement can't leave two
    days with no boundary in the transcript.
-10. **Return `runSideEffects`** — see §3. Nothing above this line talks to
+11. **Return `runSideEffects`** — see §3. Nothing above this line talks to
    Discord; nothing below it touches the database.
 
 **`needsResolvedAt` is stamped only when every pass in `TURN_PASSES` has been
@@ -103,8 +121,16 @@ The thunk performs, in narrative order:
    step (`» Festering → Feverish and Necrosis`). Before the Hunger DMs purely
    so the two arrive in severity order.
 4. Hunger DMs — one per starved player. A quiet −1 ⬢ sends nothing.
-5. The `#turns` announcement (`db/lib/turnAnnouncement.js`).
-6. The Dawn wipe, if the new phase is `DAWN` and `GameConfig.messageWipeEnabled`
+5. **The staged deliveries** — every unsent `StagedMessage` for the closing
+   turn. PRIVATE rows fan out one DM per recipient (per-recipient try/catch,
+   failures collected onto the row's `deliveryFailures` and into one
+   `staged_push_delivery_failed` audit row naming who); PUBLIC rows post to
+   `GameConfig.turnSummaryChannelId` (unset → skipped and recorded, never
+   lost). Each row is stamped `sentAt` only after its sends were attempted,
+   so a crash mid-way leaves the remainder visibly unsent — the workspace's
+   missed-push banner — rather than falsely delivered.
+6. The `#turns` announcement (`db/lib/turnAnnouncement.js`).
+7. The Dawn wipe, if the new phase is `DAWN` and `GameConfig.messageWipeEnabled`
    is on (`db/lib/dawnWipe.js`; see `CHANNELS.md` §5).
 
 Everything is sequential and individually `.catch()`'d, so a Discord failure
@@ -221,9 +247,11 @@ a turn a player never files anything on.
 holding one with **no `Action` at all** on the closing turn — an auto-resolved
 zone change counts as acting — and files one.
 
-What it files is always a **Routine**, resolved exactly the way a hand-confirmed
-one is: `CONFIRMED`/`PASSED`, resources pushed via `applyMoveEffects` and
-snapshotted onto `appliedEffects` so a GM can still revert it. **Never a
+What it files is always a **Routine**: `CONFIRMED`/`PASSED`, resources pushed
+via `applyMoveEffects` and snapshotted onto `appliedEffects`. This pass runs
+*at* the push, so applying immediately here lands at the same moment a
+hand-locked Routine's deferred payout does — and the stamped snapshot is what
+tells the staged push pass, one step later, to skip these rows. **Never a
 Gambit** — a Gambit is a deliberate risk and nobody's there to take it. Marked
 `gmNotes: "auto:default_move"`.
 
@@ -250,6 +278,7 @@ it's written and claiming a success count would be a lie.
 |---|---|
 | `db/index.js` | `advanceTurn`, `resolveNeeds`, `sweepExpiredStacks` |
 | `db/weather.js` | The Markov tables and `rollWeather` |
+| `db/lib/stagedPush.js` | The staged push pass (`ADJUDICATION.md`) |
 | `db/lib/defaultMovePass.js` | The Default Move pass |
 | `db/lib/hungerPass.js` | The Hunger pass |
 | `db/lib/tagExpiryPass.js` | The tag progression pass (`Tag.expiresInto`) |

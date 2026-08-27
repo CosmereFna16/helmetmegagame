@@ -209,6 +209,12 @@ slot takes anything belonging beside the title: a sub-nav, a faction switcher.
 was a documented convention for months and drifted anyway, which is why it is
 now a component.
 
+The one sanctioned exception is the `(desk)` route group — today, exactly the
+`/gm/turns` adjudication workspace. A full-viewport workspace owns its whole
+screen (no PageShell, no nav rail; the `.desk-*` layout family in
+`globals.css`), but everything inside it still uses the tokens and the shared
+control classes. See `ADJUDICATION.md` §3 before adding a second page there.
+
 A page's `loading.js` is `<SkeletonPage width title panels />` from the same
 file, so a skeleton physically cannot disagree with its page about width or
 title. `panels` is an array of bar-width percentages roughly tracing what

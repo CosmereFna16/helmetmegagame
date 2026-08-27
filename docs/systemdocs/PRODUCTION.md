@@ -1,7 +1,9 @@
 # Food production (`/hunt`, `/fish`, `/farm`, `/herd`)
 
 The four ways a character turns a Routine Move into Resources. One payout
-table, one location gate, one parser.
+table, one location gate, one parser. The roll happens when the player locks
+in; **the ⬢ land at the turn-end push**, like every Move payout since the
+staged-arbitration rework (`ADJUDICATION.md`) — the reply says so.
 
 ## 1. Payouts
 

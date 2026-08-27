@@ -123,8 +123,11 @@ costs API calls).
 Submitting runs every gate the old `#turns` message flow ran — living
 character, open turn, hasn't already acted, non-empty body, labor shorthand
 resolved **before** any `Action` row exists so a refusal never costs a turn —
-then resolves the Move through `bot/src/lib/moveConfirm.js#confirmMove` and
-replies ephemerally. See `TURN-ENGINE.md`.
+then locks the Move in through `bot/src/lib/moveConfirm.js#confirmMove` and
+replies ephemerally. **Submit = locked**: there is no edit window, the dice
+and resource roll happen now, and the payout — like every Move payout — lands
+at the turn-end push (`ADJUDICATION.md`; player-declared deltas clamp at ±20,
+`db/lib/resourceDelta.js`). See `TURN-ENGINE.md`.
 
 ### Speak — `say:send:{channelId}` (`bot/src/lib/speakModal.js`)
 

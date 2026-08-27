@@ -141,11 +141,15 @@ entirely "does an `Action` row exist for (characterId, the open Turn)".
 Everything follows from that:
 
 - **Restore turn** deletes the row, after `revertMoveEffects` claws back
-  anything a Routine already paid out. Shared with the Moves panel's Reject as
-  `deleteActionRestoringTurn` in `web/lib/moveEconomy.js` — two copies would
-  drift the first time `appliedEffects` grew a key. It refuses while another
-  GM holds a live lock on the Move, and DMs the player, since a freed turn
-  they don't know about is a wasted day.
+  anything already applied. Since the staged-arbitration rework nothing pays
+  before the turn-end push, so pre-push there is nothing to claw back —
+  `appliedEffects` is null and the revert is a no-op — but the call stays,
+  because it is what keeps this correct for any row that *has* been pushed.
+  Shared with the workspace's Unlock as `deleteActionRestoringTurn` in
+  `web/lib/moveEconomy.js` — two copies would drift the first time
+  `appliedEffects` grew a key. It refuses while another GM holds a live lock
+  on the Move, and DMs the player, since a freed turn they don't know about
+  is a wasted day.
 - **Spend turn** files a stub: a `PASSED` Routine worth nothing, marked
   `gmNotes: "auto:gm_spent_turn"` in the same family as
   `defaultMovePass.js`'s `auto:default_move`.

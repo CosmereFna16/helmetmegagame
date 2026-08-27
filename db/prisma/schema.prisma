@@ -1102,10 +1102,6 @@ model Action {
   opposed          Boolean          @default(false)
   moveReviewStatus MoveReviewStatus @default(OPEN)
 
-  // GM-facing only, never auto-sent to players — labeled "Outcome" and
-  // "Other Notes" in the GM UI. GMs message players manually (see
-  // sendPartyMessages/sendGmMessage in web/app/(app)/gm/actions.js) once
-  // they've written these up.
   // Who resolved this Move and when. Request has carried these since the
   // rework; Moves need them too now that several GMs share the queue behind a
   // lock. The ID is stored, the Discord username is rendered.
@@ -1119,14 +1115,23 @@ model Action {
   lockedByDiscordUserId String?
   lockExpiresAt         DateTime?
 
-  // Snapshot of what a Solve actually pushed onto the sheet — `{"resources":5}`
-  // today. Revert-on-unsolve reads ONLY this and never re-derives from live
-  // state, the same payload-vs-effect rule Request.effect follows (see
-  // REQUESTS.md §2). JSON rather than an Int so the push can grow past
-  // resources without a migration. Null means nothing has been pushed yet.
+  // Snapshot of what was actually pushed onto the sheet — `{"resources":5}`
+  // today. Written by the turn-end staged push (db/lib/stagedPush.js), which
+  // also uses the SQL-NULL → `{}` transition as its per-row claim so a
+  // resumed pass can never pay twice; the Default Move pass and travel stubs
+  // stamp theirs at filing time. Reverts (deleteActionRestoringTurn) read
+  // ONLY this and never re-derive from live state, the same
+  // payload-vs-effect rule Request.effect follows (REQUESTS.md §2). JSON
+  // rather than an Int so the push can grow past resources without a
+  // migration. Null means nothing has been pushed yet.
   appliedEffects Json?
 
+  // The Result box — the GM-facing canon of what happened, never auto-sent
+  // (players are told through StagedMessages at the push; ADJUDICATION.md).
   resultMessage      String?
+  // Machine markers only since the staged-arbitration rework — the "auto:*"
+  // family (auto:labor, auto:zone_change, auto:silent_close…). No GM UI
+  // renders or edits it any more.
   gmNotes            String?
   forumThreadId      String?
   confirmDmMessageId String?         @unique
