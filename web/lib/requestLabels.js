@@ -34,10 +34,11 @@ export const REQUEST_STATUS_LABELS = {
   UNDONE: "Undone",
 };
 
-// PASSED is the untouched default; either GM verdict means the request did not
-// stand as the player made it.
+// PASSED is the untouched default. EDITED is routine bookkeeping — a GM
+// tweak, not a problem — so it reads neutral too. Only UNDONE, a reversal,
+// gets the warning tone.
 export const REQUEST_STATUS_TONES = {
   PASSED: "neutral",
-  EDITED: "bad",
+  EDITED: "neutral",
   UNDONE: "bad",
 };

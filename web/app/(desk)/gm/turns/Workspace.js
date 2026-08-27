@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import QueueRail from "./QueueRail";
 import MoveDesk from "./MoveDesk";
 import RequestDesk from "./RequestDesk";
@@ -32,11 +33,50 @@ export default function Workspace({
   stagedEffects,
   stagedMessages,
 }) {
+  const router = useRouter();
   const [lens, setLens] = useState("moves"); // which queue the rail shows
   const [selected, setSelected] = useState(null); // { type: "move"|"request", id }
   const [inspected, setInspected] = useState(null); // { characterId, name }
   const [pinned, setPinned] = useState([]); // [{ characterId, name }]
   const [previewOpen, setPreviewOpen] = useState(false);
+
+  // Escape is layered, topmost-first, and this is the bottom layer:
+  //   1. An open Modal (confirm, composer, unlock dialog) — Modal.js handles
+  //      its own Escape; we just yield when one is on screen.
+  //   2. A focused input/textarea/select — blur it, don't blow away the desk.
+  //   3. A selected Move/Request — deselect through the desk's own dirty
+  //      guard (registerEscape), so unsaved edits still prompt.
+  //   4. Nothing selected — Escape leaves the workspace, same as ← Exit.
+  // One window listener, stable deps, live state read through refs so it
+  // never needs to re-bind.
+  const selectedRef = useRef(null);
+  useEffect(() => {
+    selectedRef.current = selected;
+  }, [selected]);
+
+  const deskEscapeRef = useRef(null);
+  const registerEscape = useCallback((fn) => {
+    deskEscapeRef.current = fn;
+  }, []);
+
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key !== "Escape") return;
+      if (document.querySelector(".modal-overlay")) return;
+      const active = document.activeElement;
+      if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) {
+        active.blur();
+        return;
+      }
+      if (selectedRef.current) {
+        deskEscapeRef.current?.();
+        return;
+      }
+      router.push("/gm/players");
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [router]);
 
   // Inspector fetches are cached for the life of the page view, keyed
   // `${characterId}:${tab}`. State rather than a ref because the entries are
@@ -122,6 +162,7 @@ export default function Workspace({
               currentTurnNumber={openTurn?.number ?? null}
               onInspect={inspect}
               onClose={() => setSelected(null)}
+              registerEscape={registerEscape}
             />
           ) : selectedRequest ? (
             <RequestDesk
@@ -129,6 +170,7 @@ export default function Workspace({
               request={selectedRequest}
               onInspect={inspect}
               onClose={() => setSelected(null)}
+              registerEscape={registerEscape}
             />
           ) : (
             <div className="desk-empty">

@@ -21,10 +21,11 @@ const REQUEST_FILTER_DEFS = [
   { key: "zone", label: "Zone", value: (r) => r.factionZoneName },
   { key: "type", label: "Type", value: (r) => r.typeLabel },
   { key: "status", label: "Status", value: (r) => r.statusLabel },
+  { key: "reviewed", label: "Reviewed", value: (r) => (r.reviewedByUsername ? "Reviewed" : "Unreviewed") },
 ];
 const REQUEST_SEARCH_FIELDS = [(r) => r.characterName, (r) => r.discordUsername, (r) => r.reason, (r) => r.summary];
 
-const REQUEST_TONES = { Passed: "neutral", Edited: "bad", Undone: "bad" };
+const REQUEST_TONES = { Passed: "neutral", Edited: "neutral", Undone: "bad" };
 
 function RailFilters({ table, filterDefs, myZoneName }) {
   return (
@@ -105,11 +106,10 @@ function RequestRows({ table, selected, onSelect }) {
         <span className="flex items-center justify-between gap-2">
           <span className="truncate font-medium">
             {killPending ? "☠ " : ""}
+            {!row.reviewedByUsername && <span className="desk-dot" aria-label="Not yet reviewed" />}
             {row.characterName}
           </span>
-          <StatusPill tone={row.reviewedByUsername ? (REQUEST_TONES[row.statusLabel] ?? "neutral") : "warn"}>
-            {row.reviewedByUsername ? row.statusLabel : "Unreviewed"}
-          </StatusPill>
+          <StatusPill tone={REQUEST_TONES[row.statusLabel] ?? "neutral"}>{row.statusLabel}</StatusPill>
         </span>
         <span className="block truncate text-xs text-muted">
           {row.typeLabel} · {row.turnLabel}
@@ -162,7 +162,7 @@ export default function QueueRail({
           Moves ({moveTable.total})
         </button>
         <button type="button" aria-pressed={lens === "requests"} onClick={() => onLens?.("requests")}>
-          Requests ({requestTable.total})
+          Requests
         </button>
       </div>
 

@@ -105,6 +105,13 @@ tokens and the shared control classes still apply; the `.desk-*` family in
   (a crash, a validation skip, the turn-boundary race) stay visible here
   with one verb: carry them onto the current turn for the next push.
 
+Escape is layered, topmost-first: an open `Modal` handles its own Escape and
+the workspace yields to it; otherwise a focused field just blurs, a selected
+Move/Request deselects through its own dirty guard, and only with nothing
+selected does Escape leave for `/gm/players` (`Workspace.js`). The tray also
+grew a search box, an All/Effects/Messages/Public filter, and an Expand
+toggle for combing through a big push (`StagingTray.js`).
+
 ## 4. The push, from this page's side
 
 The mechanics live in `db/lib/stagedPush.js` (ordering and crash-resume
@@ -123,13 +130,31 @@ guarantees: `TURN-ENGINE.md` §2–3). What a GM needs to know:
 
 ## 5. Requests
 
-Unchanged in substance, relocated onto the desk. Requests are **apply-first**:
-the effect landed when the player filed it, and the GM's verdict — Confirm
-with edits, or Undo — executes immediately, not at the push
-(`REQUESTS.md`). The per-type sections live in `RequestSections.js`; the
-Feed-Person kill keeps its confirm-gated immediate path. `RequestStatus`
-tones, `payload` vs `effect`, and Undo-reads-only-`effect` are all as
-documented in `REQUESTS.md`.
+Relocated onto the desk, and rebuilt as a quiet feed. Requests are
+**apply-first**: the effect landed when the player filed it, and the GM's
+verdict — Mark reviewed, Save edits, or Undo — executes immediately, not at
+the push (`REQUESTS.md`). The per-type sections live in `RequestSections.js`;
+the Feed-Person kill keeps its confirm-gated immediate path.
+
+Most requests need nothing more than a glance, so the desk stopped treating
+every one as a problem to solve:
+
+- The primary button reads **Mark reviewed** until the GM actually edits a
+  field, at which point it becomes **Save edits** (`RequestDesk.js` tracks
+  this as `touched`). Confirming with no edit stamps `reviewedAt` and leaves
+  the status alone — it does not force `EDITED`.
+- The rail no longer flags a never-reviewed row with a loud "Unreviewed"
+  warn pill. It shows the row's real status (`Passed`/`Edited`/`Undone`) and
+  a small quiet dot before the name for anything not yet reviewed
+  (`QueueRail.js`'s `.desk-dot`). `Edited` reads neutral now too — a GM
+  tweak is routine bookkeeping, not a warning.
+- The tray/rail lens label is just "Requests" — the count badge that used to
+  read like a to-do queue is gone.
+
+`RequestStatus` tones, `payload` vs `effect`, and Undo-reads-only-`effect`
+are otherwise as documented in `REQUESTS.md`, including the `changed`
+field `applyEdit` now returns and how it drives `EDITED` vs. a plain
+`request_reviewed` audit row.
 
 ## 6. Where the code lives
 

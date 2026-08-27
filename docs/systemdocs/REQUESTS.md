@@ -21,8 +21,9 @@ immediately, and the GM reviews it later:
    fields underneath.
 3. The player confirms.
 4. The effect is applied and a `Request` row is written, in one transaction.
-5. A GM sees it in the Requests tab of `/gm/turns` and can **Edit** or
-   **Undo** it.
+5. A GM sees it in the Requests tab of `/gm/turns` and can **Mark reviewed**
+   (stamp it seen, no change), **Save edits** (a real change, stamps the
+   status `EDITED`) or **Undo** it.
 
 The panel says this out loud, in small type: *"To reduce GM load, players can
 make big changes."* The reason field is the whole anti-abuse mechanism — a
@@ -55,6 +56,17 @@ the whole new stack clawed back — only what this request moved. See
 `web/lib/requests.js#createRequest` is the one writer, and every caller
 invokes it inside its own `prisma.$transaction` so a request can never exist
 without its effect, or an effect without its request.
+
+**Status semantics.** `PASSED` means the request stands exactly as the player
+made it, whether or not a GM has looked at it — `reviewedAt`/
+`reviewedByDiscordUserId` are the "seen" stamp, tracked separately from
+status. `EDITED` means a GM made a real change to the numbers. A Confirm that
+adds only `gmNotes`, or that re-confirms with no change, stays `PASSED` (or
+whatever real status it already had) and audits `request_reviewed`, not
+`request_edited`. Each handler's `applyEdit` returns `{ effect, note, changed
+}` (`web/lib/requestEffects.js`); `resolveRequestImpl`
+(`web/app/(desk)/gm/turns/actions.js`) reads `changed` to decide the status
+and the audit `actionType`.
 
 **Every ⬢ movement goes through `requestEffects.js#moveResources`, and a debit
 the balance no longer covers throws rather than going negative.** The write is

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import FormError from "@/app/components/FormError";
 import Tooltip from "@/app/components/Tooltip";
@@ -26,7 +26,7 @@ function Line({ label, children }) {
   );
 }
 
-export default function RequestDesk({ request, onInspect, onClose }) {
+export default function RequestDesk({ request, onInspect, onClose, registerEscape }) {
   const router = useRouter();
   const effect = request?.effect ?? {};
   const [edits, setEdits] = useState({
@@ -40,14 +40,23 @@ export default function RequestDesk({ request, onInspect, onClose }) {
   const [gmNotes, setGmNotes] = useState(request?.gmNotes ?? "");
   const [error, setError] = useState(null);
   const [killing, setKilling] = useState(false);
+  const [touched, setTouched] = useState(false); // any real edit, not just gmNotes
   const [pending, startTransition] = useTransition();
   const { markDirty, markClean, guardedClose } = useDirtyGuard();
   const confirm = useConfirm();
+
+  // The workspace's layered Escape deselects through the same dirty guard
+  // as the Close button.
+  useEffect(() => {
+    registerEscape?.(() => guardedClose(onClose));
+    return () => registerEscape?.(null);
+  }, [registerEscape, guardedClose, onClose]);
 
   const section = SECTIONS[request.type];
 
   function setEdit(key, value) {
     markDirty();
+    setTouched(true);
     setEdits((e) => ({ ...e, [key]: value }));
   }
 
@@ -113,6 +122,7 @@ export default function RequestDesk({ request, onInspect, onClose }) {
         <Line label="Reason">{request.reason}</Line>
         <p className="text-xs text-muted">
           Requests are apply-first: this already happened. Your verdict lands now, not at the push.
+          Most requests just need a glance — Mark reviewed and move on.
         </p>
       </div>
 
@@ -152,9 +162,15 @@ export default function RequestDesk({ request, onInspect, onClose }) {
             Undo
           </button>
         </Tooltip>
-        <Tooltip text="Apply your edits and mark the request Edited">
+        <Tooltip
+          text={
+            touched
+              ? "Apply your edits — a real change marks the request Edited"
+              : "Stamp it reviewed. With no edits it stays Passed."
+          }
+        >
           <button type="button" className="btn" onClick={() => run("confirm")} disabled={pending}>
-            {pending ? "Working…" : "Confirm"}
+            {pending ? "Working…" : touched ? "Save edits" : "Mark reviewed"}
           </button>
         </Tooltip>
       </div>

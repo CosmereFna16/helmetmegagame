@@ -11,6 +11,12 @@ import { UserError } from "@/lib/actionResult";
 // `request.effect` — the snapshot of what was actually applied. It must never
 // re-derive from live state, or a GM edit (or any later transaction by the
 // player) silently corrupts the reversal.
+//
+// `applyEdit` returns `{ effect, note, changed }`. `changed` is whether this
+// call actually moved something — a real edit — as opposed to a Confirm that
+// only stamped gmNotes/reviewedAt. The caller (resolveRequestImpl in
+// actions.js) uses it to decide EDITED vs. leaving the player's own status
+// alone.
 
 // --- shared primitives ------------------------------------------------
 
@@ -250,7 +256,7 @@ export const REQUEST_EFFECTS = {
       const effect = { ...request.effect };
       const previous = effect.pointsAwarded ?? 0;
       const next = clampNonNegative(edits.pointsAwarded, previous);
-      if (next === previous) return { effect, note: "No changes." };
+      if (next === previous) return { effect, note: "No changes.", changed: false };
 
       // Stamped once, on the first edit: `pointsAwarded` is about to stop
       // being the player's number, and the panel still needs to show what they
@@ -267,7 +273,7 @@ export const REQUEST_EFFECTS = {
         await tx.desire.updateMany({ where: { id: effect.desireId }, data: { points: next } });
       }
       effect.pointsAwarded = next;
-      return { effect, note: `Tag Points ${previous} -> ${next}.` };
+      return { effect, note: `Tag Points ${previous} -> ${next}.`, changed: true };
     },
     async undo(tx, request, ctx) {
       const { desireId, pointsAwarded } = request.effect;
@@ -331,7 +337,7 @@ export const REQUEST_EFFECTS = {
         }
       }
 
-      return { effect, note: notes.join(" ") || "No changes." };
+      return { effect, note: notes.join(" ") || "No changes.", changed: notes.length > 0 };
     },
     async undo(tx, request, ctx) {
       const { tagId, tagName, resourcesSpent, quantity, replaced = [] } = request.effect;
@@ -366,7 +372,7 @@ export const REQUEST_EFFECTS = {
   BUY_TAGS: {
     editableFields: [],
     async applyEdit(tx, request) {
-      return { effect: { ...request.effect }, note: "No changes." };
+      return { effect: { ...request.effect }, note: "No changes.", changed: false };
     },
     async undo(tx, request) {
       const { items = [], totalPoints = 0, replaced = [] } = request.effect;
@@ -397,11 +403,11 @@ export const REQUEST_EFFECTS = {
       const effect = { ...request.effect };
       const nextSpend = clampNonNegative(edits.resourcesSpent, effect.resourcesSpent);
       const delta = nextSpend - (effect.resourcesSpent ?? 0);
-      if (delta === 0) return { effect, note: "No changes." };
+      if (delta === 0) return { effect, note: "No changes.", changed: false };
       await moveResources(tx, { kind: "character", id: request.characterId }, -delta);
       const note = `Resource cost ${effect.resourcesSpent ?? 0} -> ${nextSpend}.`;
       effect.resourcesSpent = nextSpend;
-      return { effect, note };
+      return { effect, note, changed: true };
     },
     async undo(tx, request) {
       const { restore, tagName, resourcesSpent } = request.effect;
@@ -489,7 +495,7 @@ export const REQUEST_EFFECTS = {
         effect.drainedRemovedByGm = true;
       }
 
-      return { effect, note: notes.join(" ") || "No changes." };
+      return { effect, note: notes.join(" ") || "No changes.", changed: notes.length > 0 };
     },
     async undo(tx, request) {
       const { bloodDelta, targetCharacterId, targetName, drainedTagId, drainedRemovedByGm } = request.effect;
@@ -510,10 +516,10 @@ export const REQUEST_EFFECTS = {
       const effect = { ...request.effect };
       const previous = effect.bloodDelta ?? 0;
       const next = clampNonNegative(edits.bloodDelta, previous);
-      if (next === previous) return { effect, note: "No changes." };
+      if (next === previous) return { effect, note: "No changes.", changed: false };
       await moveBlood(tx, next - previous);
       effect.bloodDelta = next;
-      return { effect, note: `Blood ${previous} -> ${next}.` };
+      return { effect, note: `Blood ${previous} -> ${next}.`, changed: true };
     },
     async undo(tx, request) {
       const { bloodDelta, targetName, killed } = request.effect;
@@ -619,7 +625,7 @@ export const REQUEST_EFFECTS = {
         effect.tagRestoredByGm = true;
       }
 
-      return { effect, note: notes.join(" ") || "No changes." };
+      return { effect, note: notes.join(" ") || "No changes.", changed: notes.length > 0 };
     },
     async undo(tx, request, ctx) {
       const { resourcesSpent, payer, restore, targetCharacterId, targetName, tagName, tagRestoredByGm } =

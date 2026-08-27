@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import FormError from "@/app/components/FormError";
 import TagChip from "@/app/components/TagChip";
@@ -75,10 +75,18 @@ export default function MoveDesk({
   currentTurnNumber,
   onInspect,
   onClose,
+  registerEscape,
 }) {
   const router = useRouter();
   const { markDirty, markClean, guardedClose } = useDirtyGuard();
   const { locked, error: lockError } = useMoveLock(move.id);
+
+  // The workspace's layered Escape deselects through the same dirty guard
+  // as the Close button.
+  useEffect(() => {
+    registerEscape?.(() => guardedClose(onClose));
+    return () => registerEscape?.(null);
+  }, [registerEscape, guardedClose, onClose]);
 
   const [edits, setEdits] = useState({
     moveKind: move.moveKind,

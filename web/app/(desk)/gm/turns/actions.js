@@ -634,6 +634,7 @@ async function resolveRequestImpl({ requestId, mode, edits = {}, gmNotes }) {
     let note = "";
     let effect = request.effect;
     let status = request.status;
+    let changed = false;
 
     if (mode === "undo") {
       // Idempotent on status: undoing an already-undone request must not
@@ -650,10 +651,14 @@ async function resolveRequestImpl({ requestId, mode, edits = {}, gmNotes }) {
         const out = await handler.applyEdit(tx, request, edits, ctx);
         effect = out.effect ?? request.effect;
         note = out.note ?? "";
+        changed = Boolean(out.changed);
       } else {
-        note = "No editable fields — marked reviewed.";
+        note = "Marked reviewed.";
       }
-      status = "EDITED";
+      // gmNotes alone is not an edit — a clean Confirm keeps the status the
+      // player earned (PASSED, or a prior real EDITED) and just stamps
+      // reviewedAt/reviewedByDiscordUserId below.
+      status = changed ? "EDITED" : request.status;
     }
 
     const updated = await tx.request.update({
@@ -670,14 +675,14 @@ async function resolveRequestImpl({ requestId, mode, edits = {}, gmNotes }) {
     await tx.auditLog.create({
       data: {
         actorDiscordUserId: session.discordUserId,
-        actionType: mode === "undo" ? "request_undone" : "request_edited",
+        actionType: mode === "undo" ? "request_undone" : changed ? "request_edited" : "request_reviewed",
         targetCharacterId: request.characterId,
         reason: request.reason,
         details: { requestId, type: request.type, note },
       },
     });
 
-    return { status: updated.status, note };
+    return { status: updated.status, note, changed };
   });
 
   revalidatePath("/gm/turns");

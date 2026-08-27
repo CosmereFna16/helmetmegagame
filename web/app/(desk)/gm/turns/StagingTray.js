@@ -15,6 +15,35 @@ import { tagNameLookup } from "./stagedFormat";
 // missed-push banner for rows a resolved turn's push never carried. The
 // unattached composers live here too: not every message narrates a Move.
 
+const KIND_FILTERS = [
+  { value: "all", label: "All" },
+  { value: "effects", label: "Effects" },
+  { value: "messages", label: "Messages" },
+  { value: "public", label: "Public" },
+];
+
+function matchesQuery(needle, ...haystacks) {
+  if (!needle) return true;
+  return haystacks.some((h) => h && String(h).toLowerCase().includes(needle));
+}
+
+// An effect row matches on target, staging GM, or any of its staged tags.
+function effectMatches(effect, query, tagNames) {
+  const tagLabels = (effect.tagOps ?? []).map((t) => tagNames.get(t.tagId) ?? "");
+  return matchesQuery(query, effect.targetName, effect.createdByUsername, ...tagLabels);
+}
+
+// A message matches on any recipient, its content, the staging GM, or a
+// public post's zone.
+function messageMatches(message, query) {
+  const recipientNames = (message.recipients ?? []).map((r) => r.name);
+  return matchesQuery(query, message.content, message.createdByUsername, message.zoneName, ...recipientNames);
+}
+
+function batchMatches(group, query, tagNames) {
+  return group.some((e) => effectMatches(e, query, tagNames));
+}
+
 export default function StagingTray({
   stagedEffects,
   stagedMessages,
@@ -28,10 +57,22 @@ export default function StagingTray({
   const router = useRouter();
   const confirm = useConfirm();
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [composer, setComposer] = useState(null);
+  const [query, setQuery] = useState("");
+  const [kindFilter, setKindFilter] = useState("all"); // "all" | "effects" | "messages" | "public"
   const [pending, startTransition] = useTransition();
 
   const tagNames = useMemo(() => tagNameLookup(tagCatalog), [tagCatalog]);
+  const normalizedQuery = query.trim().toLowerCase();
+
+  function toggleExpand() {
+    setExpanded((e) => {
+      const next = !e;
+      if (next) setOpen(true);
+      return next;
+    });
+  }
 
   const pendingEffects = stagedEffects.filter((e) => !e.applied && !e.missed);
   const pendingPrivate = stagedMessages.filter((m) => !m.sent && !m.missed && m.kind === "PRIVATE");
@@ -58,6 +99,25 @@ export default function StagingTray({
     return { batches: [...byBatch.values()], singles };
   }, [stagedEffects]);
 
+  const showEffects = kindFilter === "all" || kindFilter === "effects";
+  const showPrivate = kindFilter === "all" || kindFilter === "messages";
+  const showPublic = kindFilter === "all" || kindFilter === "public";
+
+  const filteredBatches = showEffects
+    ? effectGroups.batches.filter((group) => batchMatches(group, normalizedQuery, tagNames))
+    : [];
+  const filteredSingles = showEffects
+    ? effectGroups.singles.filter((e) => effectMatches(e, normalizedQuery, tagNames))
+    : [];
+  const filteredMessages = stagedMessages.filter((m) => {
+    if (m.kind === "PUBLIC" ? !showPublic : !showPrivate) return false;
+    return messageMatches(m, normalizedQuery);
+  });
+
+  const totalRows = effectGroups.batches.length + effectGroups.singles.length + stagedMessages.length;
+  const shownRows = filteredBatches.length + filteredSingles.length + filteredMessages.length;
+  const filtering = Boolean(normalizedQuery) || kindFilter !== "all";
+
   async function retargetAll() {
     const ok = await confirm({
       title: "Carry the missed staging forward?",
@@ -76,24 +136,29 @@ export default function StagingTray({
   }
 
   return (
-    <section className="desk-tray" data-open={open || undefined}>
-      <button type="button" className="desk-tray-bar" onClick={() => setOpen((o) => !o)}>
-        <span className="flex flex-wrap items-center gap-3 text-sm">
-          <strong>Push tray</strong>
-          <span className="mono">{pendingPrivate.length} ✉</span>
-          <span className="mono">{pendingEffects.length} effects</span>
-          <span className="mono">{pendingPublic.length} public</span>
-          <span className="text-muted">
-            {solvedCount} solved · {openCount} open{openCount ? " (will close silently)" : ""}
-          </span>
-          {missedEffects.length + missedMessages.length > 0 && (
-            <span className="form-error">
-              {missedEffects.length + missedMessages.length} missed last push
+    <section className="desk-tray" data-open={open || undefined} data-expanded={expanded || undefined}>
+      <div className="desk-tray-bar">
+        <button type="button" className="desk-tray-bar-toggle" onClick={() => setOpen((o) => !o)}>
+          <span className="flex flex-wrap items-center gap-3 text-sm">
+            <strong>Push tray</strong>
+            <span className="mono">{pendingPrivate.length} ✉</span>
+            <span className="mono">{pendingEffects.length} effects</span>
+            <span className="mono">{pendingPublic.length} public</span>
+            <span className="text-muted">
+              {solvedCount} solved · {openCount} open{openCount ? " (will close silently)" : ""}
             </span>
-          )}
-        </span>
-        <span className="text-xs text-muted">{open ? "▾ collapse" : "▴ expand"}</span>
-      </button>
+            {missedEffects.length + missedMessages.length > 0 && (
+              <span className="form-error">
+                {missedEffects.length + missedMessages.length} missed last push
+              </span>
+            )}
+          </span>
+          <span className="text-xs text-muted">{open ? "▾ collapse" : "▴ expand"}</span>
+        </button>
+        <button type="button" className="btn-quiet" onClick={toggleExpand}>
+          {expanded ? "⤡ Shrink" : "⤢ Expand"}
+        </button>
+      </div>
 
       {open && (
         <div className="desk-tray-body">
@@ -117,7 +182,35 @@ export default function StagingTray({
             )}
           </div>
 
-          {effectGroups.batches.map((group) => (
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="field" style={{ width: "14rem" }}>
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Filter staged rows…"
+              />
+            </label>
+            <div className="segmented">
+              {KIND_FILTERS.map((f) => (
+                <button
+                  key={f.value}
+                  type="button"
+                  aria-pressed={kindFilter === f.value}
+                  onClick={() => setKindFilter(f.value)}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            {filtering && (
+              <span className="text-xs text-muted">
+                {shownRows} of {totalRows} shown
+              </span>
+            )}
+          </div>
+
+          {filteredBatches.map((group) => (
             <div key={group[0].batchId} className="desk-tray-batch">
               <p className="text-xs text-muted">
                 Mass apply · {group.length} targets · {group.map((g) => g.targetName).join(", ")}
@@ -132,7 +225,7 @@ export default function StagingTray({
               />
             </div>
           ))}
-          {effectGroups.singles.map((e) => (
+          {filteredSingles.map((e) => (
             <StagedEffectRow
               key={e.id}
               effect={e}
@@ -142,11 +235,14 @@ export default function StagingTray({
               onInspect={onInspect}
             />
           ))}
-          {stagedMessages.map((m) => (
+          {filteredMessages.map((m) => (
             <StagedMessageRow key={m.id} message={m} roster={roster} zones={zones} onInspect={onInspect} />
           ))}
           {stagedEffects.length + stagedMessages.length === 0 && (
             <p className="text-sm text-muted">Nothing staged for this turn yet.</p>
+          )}
+          {stagedEffects.length + stagedMessages.length > 0 && shownRows === 0 && (
+            <p className="text-sm text-muted">Nothing matches that filter.</p>
           )}
         </div>
       )}

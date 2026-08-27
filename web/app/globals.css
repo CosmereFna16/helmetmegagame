@@ -2288,14 +2288,26 @@ button.map-node:focus-visible .map-rhomb { transform: rotate(45deg) scale(1.3); 
 .desk-tray-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.5rem;
   width: 100%;
   padding: 0.5rem 1rem;
+}
+
+/* The clickable toggle is a sibling of the Expand button now — nested
+   buttons aren't valid HTML — so it carries the bar's old layout itself. */
+.desk-tray-bar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
   border: 0;
   background: transparent;
   color: var(--text);
   cursor: pointer;
+  text-align: left;
 }
 
 .desk-tray-body {
@@ -2306,6 +2318,23 @@ button.map-node:focus-visible .map-rhomb { transform: rotate(45deg) scale(1.3); 
   gap: 0.5rem;
   padding: 0.75rem 1rem 1rem;
   border-top: 1px solid var(--border);
+}
+
+/* Expand pushes the tray's cap way up, for combing through a big push. */
+.desk-tray[data-expanded] .desk-tray-body {
+  max-height: calc(100vh - 6.5rem);
+}
+
+/* Marks a Request never reviewed — a quiet nudge, not a warning pill. */
+.desk-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 0.375rem;
+  vertical-align: middle;
+  flex: none;
 }
 
 .desk-tray-batch {

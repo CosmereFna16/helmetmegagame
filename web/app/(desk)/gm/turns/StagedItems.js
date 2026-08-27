@@ -3,7 +3,6 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import StatusPill from "@/app/components/StatusPill";
-import { useConfirm } from "@/app/components/ConfirmProvider";
 import EffectComposer from "./EffectComposer";
 import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
@@ -16,24 +15,14 @@ import { effectSummary, effectState, messageState, tagNameLookup, truncate } fro
 
 export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, onInspect, showBatch }) {
   const router = useRouter();
-  const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const state = effectState(effect);
   const frozen = effect.applied || Boolean(effect.appliedError);
 
-  async function onDelete() {
+  function onDelete() {
     const batch = showBatch && effect.batchId;
-    const ok = await confirm({
-      title: batch ? "Delete this whole batch?" : "Delete this staged effect?",
-      message: batch
-        ? "Every target's copy of this mass-apply is removed."
-        : `${effect.targetName} keeps their sheet as-is.`,
-      confirmLabel: "Delete",
-      cancelLabel: "Keep it",
-    });
-    if (!ok) return;
     startTransition(async () => {
       await deleteStagedEffect(batch ? { batchId: effect.batchId } : { stagedEffectId: effect.id });
       router.refresh();
@@ -91,21 +80,13 @@ export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, onInspec
 
 export function StagedMessageRow({ message, roster, zones, onInspect }) {
   const router = useRouter();
-  const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const state = messageState(message);
   const frozen = message.sent;
 
-  async function onDelete() {
-    const ok = await confirm({
-      title: "Delete this staged message?",
-      message: "It will never be sent.",
-      confirmLabel: "Delete",
-      cancelLabel: "Keep it",
-    });
-    if (!ok) return;
+  function onDelete() {
     startTransition(async () => {
       await deleteStagedMessage({ stagedMessageId: message.id });
       router.refresh();

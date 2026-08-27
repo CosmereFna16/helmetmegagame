@@ -28,6 +28,12 @@ import { useEffect, useId, useRef } from "react";
 // a caller that must not close mid-flight (a pending server action) simply
 // passes a no-op or guards inside it — the same shape RequestDialog already
 // used for its `busy` check.
+// Mount order is nesting order; DOM order is NOT — ConfirmProvider mounts
+// once in the root layout, so its overlay can sit anywhere in the tree
+// relative to whatever dialog it's confirming over. A module-level stack of
+// mount tokens is the only reliable way to know which open Modal is topmost.
+const openModals = [];
+
 export default function Modal({
   open = true,
   title,
@@ -64,6 +70,9 @@ export default function Modal({
     // dialog opened from a table row dumps focus at the top of the document.
     restoreTo.current = document.activeElement;
 
+    const token = {};
+    openModals.push(token);
+
     const panel = panelRef.current;
     const FOCUSABLE =
       'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -79,6 +88,10 @@ export default function Modal({
 
     const onKey = (e) => {
       if (e.key === "Escape") {
+        // Only the topmost modal (by mount order, not DOM order) reacts —
+        // otherwise one Escape closes a confirm dialog AND the panel it's
+        // confirming over.
+        if (openModals[openModals.length - 1] !== token) return;
         e.stopPropagation();
         onCloseRef.current?.();
         return;
@@ -105,6 +118,8 @@ export default function Modal({
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
+      const i = openModals.indexOf(token);
+      if (i !== -1) openModals.splice(i, 1);
       restoreTo.current?.focus?.();
     };
   }, [open]);
