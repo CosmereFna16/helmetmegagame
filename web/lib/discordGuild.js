@@ -536,7 +536,7 @@ export async function syncCharacterZoneRole(discordUserId, oldZoneId, newZoneId)
 
 // Reconciles a character's per-member permission overwrites on the two
 // hardcoded narrowcast channels (#watch, #intercom) against their current
-// tags and Zone — see db/lib/narrowcastAccess.js for the actual rules, and
+// tags and Zone — see db/lib/specialChannels.js for the actual rules, and
 // bot/src/lib/zoneTravel.js's twin of the same name (gateway-based, called
 // after every Move) for the other half. This one is the REST path, called
 // from the web map's travel action, GM raw zone/tag edits and character
