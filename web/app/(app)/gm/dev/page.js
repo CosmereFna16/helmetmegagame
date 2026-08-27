@@ -175,6 +175,9 @@ export default async function DevPanelPage() {
           <Switch name="playtestModeEnabled" defaultChecked={config.playtestModeEnabled} className="col-span-full">
             Playtest mode — lock the Merchant and every Windlands role out of character creation. Their cards still show, greyed, so the charters stay readable. Not bypassed for superadmins.
           </Switch>
+          <Switch name="autoTurnAdvanceDisabled" defaultChecked={config.autoTurnAdvanceDisabled} className="col-span-full">
+            Pause automatic turn advance — the twice-daily cron skips its advance while this is on. &ldquo;Advance turn now&rdquo; below still works.
+          </Switch>
           <Switch name="avatarUploadsEnabled" defaultChecked={config.avatarUploadsEnabled} className="col-span-full">
             Allow players to upload their own profile picture
           </Switch>

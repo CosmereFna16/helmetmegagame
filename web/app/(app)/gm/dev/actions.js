@@ -22,6 +22,8 @@ import {
   updateGuildNickname,
   listGuildMembers,
   removeCursedRole,
+  setTurnPingRole,
+  setRomanceOptOutRole,
 } from "@/lib/discordGuild";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 
@@ -68,6 +70,7 @@ export async function updateGameConfig(formData) {
       openToPlayers: formData.get("openToPlayers") === "on",
       leaderWhitelistEnabled: formData.get("leaderWhitelistEnabled") === "on",
       playtestModeEnabled: formData.get("playtestModeEnabled") === "on",
+      autoTurnAdvanceDisabled: formData.get("autoTurnAdvanceDisabled") === "on",
       avatarUploadsEnabled: formData.get("avatarUploadsEnabled") === "on",
       portraitMakerEnabled: formData.get("portraitMakerEnabled") === "on",
       portraitFantasyPartsEnabled: formData.get("portraitFantasyPartsEnabled") === "on",
@@ -216,6 +219,7 @@ const DEFAULT_GAME_CONFIG = {
   openToPlayers: false,
   leaderWhitelistEnabled: true,
   playtestModeEnabled: false,
+  autoTurnAdvanceDisabled: false,
   avatarUploadsEnabled: false,
   portraitMakerEnabled: false,
   portraitFantasyPartsEnabled: false,
@@ -277,7 +281,9 @@ export async function wipeGameData(formData) {
     // by the time the Discord work runs these rows are gone, and their
     // discordUserId/discordRoleId are the only handles on what to clean up.
     const [characters, members] = await Promise.all([
-      prisma.character.findMany({ select: { discordUserId: true, discordRoleId: true } }),
+      prisma.character.findMany({
+        select: { discordUserId: true, discordRoleId: true, turnPingOptIn: true, romanceOptOut: true },
+      }),
       listGuildMembers(),
     ]);
     const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
@@ -396,6 +402,16 @@ async function finishGameWipe(actorDiscordUserId, characters, cursedMemberIds, f
       }
     }
     await updateGuildNickname(c.discordUserId, null).catch(() => {});
+
+    // A restart should not leave anyone still holding last game's turn-ping
+    // or no-romance guild role — those are Discord role state, not touched
+    // by the DB wipe above.
+    if (c.turnPingOptIn) {
+      await setTurnPingRole(c.discordUserId, false).catch(() => {});
+    }
+    if (c.romanceOptOut) {
+      await setRomanceOptOutRole(c.discordUserId, false).catch(() => {});
+    }
   }
 
   // A full restart should not leave anyone still cursed from the last game.

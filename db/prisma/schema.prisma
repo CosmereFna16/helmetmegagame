@@ -252,6 +252,16 @@ model GameConfig {
   // so a missing config row means the whole roster is open.
   playtestModeEnabled Boolean @default(false)
 
+  // When true, the twice-daily turn-advance cron (bot/src/events/ready.js)
+  // skips its automatic advance — bot/src/lib/turnEngine.js#advanceTurn
+  // checks this before calling into the shared engine. A GM's "Advance turn
+  // now" in the Dev Panel calls the shared engine directly and is not gated
+  // by this flag, so a paused game can still be force-advanced by hand. Off
+  // by default: the cron runs normally unless a GM deliberately pauses it,
+  // and a wipe resets this back to false along with every other operational
+  // toggle here.
+  autoTurnAdvanceDisabled Boolean @default(false)
+
   // Master switch for letting a player upload their own profile picture.
   // Off means AvatarField's file input doesn't render and
   // updateCharacterProfile ignores a posted `avatar` field even if one
