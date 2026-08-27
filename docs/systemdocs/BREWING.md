@@ -26,9 +26,9 @@ ingredient. `addTagRequestImpl` accepts a brew because the tag is
 
 | Brew | ⬢ | Turns | Ingredient | Consumes into |
 |---|---|---|---|---|
-| `bliss` | 0 | 0 | cave fungus | `happy`, `high` (3t) |
+| `bliss` | 0 | 0 | cave fungus | `euphoric`, `high` (3t) |
 | `feces` | 0 | 0 | feces | — |
-| `alcohol` | 2 | 0 | — | `tipsy`, `happy` |
+| `alcohol` | 2 | 0 | — | `tipsy` |
 | `miasma` | 2 | 0 | a corpse | — |
 | `poppy` | 2 | 0 | — | `opium-high` |
 | `molotov-cocktail` | 2 | 0 | alcohol | — |
@@ -50,7 +50,7 @@ ingredient. `addTagRequestImpl` accepts a brew because the tag is
 | `invisibility-potion` | 2 | 0 | a graga sac | `invisible` |
 | `succubus-draught` | 2 | 0 | a willing lover's blood | `mindreading` |
 | `raven-draught` | 2 | 0 | a raven's eye | — |
-| `ravenheart-red` | 4 | 0 | — | `tipsy`, `happy` |
+| `ravenheart-red` | 4 | 0 | — | `tipsy` |
 | `distilled-coca` | 4 | 0 | coca leaves | `stimulant-high` |
 | `advanced-poppy` | 4 | 0 | poppy | `pain-immunity` |
 | `phrygian-tears` | 4 | 2 | **Gambit** | — |

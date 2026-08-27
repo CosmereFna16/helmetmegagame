@@ -6,7 +6,7 @@
 // count. Mindreading (the Succubus Draught's grant) is a third tag that
 // grants the same sight.
 //
-// Same posture as mood.js: no Prisma import, imported by subpath from both
+// Same posture as gambitModifier.js: no Prisma import, imported by subpath from both
 // bot/ and web/, so the rule can't drift between the two faces of the game.
 // Today the only caller is the bot's inspect handler
 // (bot/src/events/messageReactionAdd.js) — the web has no other-player

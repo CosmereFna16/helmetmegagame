@@ -225,7 +225,7 @@ export default function MoveDesk({
         {edits.moveKind !== move.moveKind && (
           <p className="text-xs text-accent">
             {edits.moveKind === "GAMBIT"
-              ? "Saving rolls a fresh d6 and applies their current Mood and Hunger."
+              ? "Saving rolls a fresh d6 and applies their current Hunger."
               : "Saving clears the roll — a Routine never carries one."}
           </p>
         )}

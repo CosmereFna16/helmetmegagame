@@ -18,7 +18,7 @@ const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 // defers.
 //
 // `action` must come in with its character, that character's tags, AND
-// hungerStreak loaded: Mood is an ordinary Status tag, but Hunger's penalty
+// hungerStreak loaded: Hunger is an ordinary Status tag, but its penalty
 // escalates with the streak (a Character column, not a tag), so the Gambit
 // modifier needs both (db/lib/gambitModifier.js).
 //
@@ -27,8 +27,8 @@ const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 async function confirmMove(action, actorDiscordUserId) {
   const diceRoll = action.moveKind === "GAMBIT" ? rollDie() : null;
   // Only a Gambit rolls, so only a Gambit can carry a modifier. diceRoll stays
-  // the RAW roll and the SUM of every contributor (Mood ±1, Hunger scaled to
-  // the streak) is stored beside it — see the Action.diceModifier comment in
+  // the RAW roll and the SUM of every contributor (today just Hunger, scaled
+  // to the streak) is stored beside it — see the Action.diceModifier comment in
   // schema.prisma. The per-contributor breakdown is display-only, below.
   const modifiers =
     diceRoll != null ? gambitModifiers(action.character.tags, { hungerStreak: action.character.hungerStreak }) : [];
@@ -79,8 +79,8 @@ async function confirmMove(action, actorDiscordUserId) {
   ];
   if (diceRoll != null) {
     lines.push(
-      // Keyed on modifiers.length, not diceModifier: a Happy+Hungry wash sums
-      // to 0 but should still show its work rather than pretend nothing applied.
+      // Keyed on modifiers.length, not diceModifier, so a contributor worth 0
+      // would still show its work rather than pretend nothing applied.
       modifiers.length
         ? `🎲 **${diceRoll}** ${formatGambitModifiers(modifiers)} → **${diceRoll + diceModifier}**`
         : `🎲 **${diceRoll}**`,

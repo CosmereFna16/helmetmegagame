@@ -116,8 +116,8 @@ async function runHungerPass(prisma, turn) {
     }
   }
 
-  // A Hunger granted while closing turn N gets expiresTurn N+1 — the same
-  // `turn.number + defaultDurationTurns` arithmetic setMoodRequest uses. It's
+  // A Hunger granted while closing turn N gets expiresTurn N+1 — the usual
+  // `turn.number + defaultDurationTurns` arithmetic. It's
   // live for the whole of turn N+1 and deleted by resolveNeeds()' sweep when
   // N+1 closes. That's also what makes Ate Meal's "won't go hungry next turn"
   // copy literally true: eaten during turn N, consumed at N's close, it

@@ -14,7 +14,7 @@ import { resolveConsumeGrants, heldSlugsOf } from "@/lib/consumeGrants";
 // CharacterSheet.js.
 
 // Fixed display order rather than alphabetical or catalog order — Status
-// (Mood, buffs/debuffs) and Health (whatever is currently wrong with you)
+// (needs, buffs/debuffs) and Health (whatever is currently wrong with you)
 // belong near the top, ahead of General/Skills.
 const CATEGORY_ORDER = [
   "Meta",
@@ -34,7 +34,7 @@ function categoryRank(category) {
 }
 
 // Groups the CharacterTag rows, not the bare Tags — the wrapper carries
-// expiresTurn and quantity, which the chip and the mood countdown need.
+// expiresTurn and quantity, which the chip and its countdown need.
 function groupTagsByCategory(characterTags) {
   const groups = new Map();
   for (const ct of characterTags) {

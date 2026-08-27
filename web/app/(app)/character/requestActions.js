@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma, isDynastyHead, isDynastyMember } from "@lifeweb/db";
-import { moodTagSlug, moodLabel, MOOD_SLUGS } from "@lifeweb/db/lib/mood";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { createRequest, logRequest, requireReason } from "@/lib/requests";
@@ -68,65 +67,6 @@ function parseCount(raw, { min = 0, max = Number.MAX_SAFE_INTEGER } = {}) {
   const n = Number.parseInt(raw ?? "", 10);
   if (!Number.isFinite(n) || n < min || n > max) return null;
   return n;
-}
-
-// --- Mood -------------------------------------------------------------
-
-async function setMoodRequestImpl({ mood, reason: rawReason }) {
-  const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
-  if (!["NEUTRAL", "HAPPY", "UNHAPPY"].includes(mood)) throw new UserError("Unknown mood.");
-
-  const openTurn = await getOpenTurn();
-  const moodTags = await prisma.tag.findMany({
-    where: { slug: { in: [MOOD_SLUGS.HAPPY, MOOD_SLUGS.UNHAPPY] } },
-  });
-  const moodTagIds = moodTags.map((t) => t.id);
-
-  // Snapshot whatever mood is being displaced, so Undo can put it back with
-  // its original remaining duration rather than a fresh 2 turns.
-  const existing = character.tags.find((ct) => moodTagIds.includes(ct.tagId));
-  const previous = existing
-    ? { tagId: existing.tagId, source: existing.source, expiresTurn: existing.expiresTurn }
-    : null;
-
-  const slug = moodTagSlug(mood);
-  const target = slug ? moodTags.find((t) => t.slug === slug) : null;
-  if (slug && !target) throw new UserError("Mood tags are missing — run npm run db:sync-tags.");
-
-  const expiresTurn =
-    target && openTurn && target.defaultDurationTurns != null
-      ? openTurn.number + target.defaultDurationTurns
-      : null;
-
-  await prisma.$transaction(async (tx) => {
-    // Neutral is the absence of both tags, so every path clears first.
-    await tx.characterTag.deleteMany({ where: { characterId: character.id, tagId: { in: moodTagIds } } });
-    if (target) {
-      await tx.characterTag.create({
-        data: { characterId: character.id, tagId: target.id, source: "EVENT", expiresTurn },
-      });
-    }
-
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "SET_MOOD",
-      reason,
-      payload: { mood },
-      effect: { mood, appliedTagId: target?.id ?? null, expiresTurn, previous },
-    });
-    await logRequest(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_set_mood",
-      targetCharacterId: character.id,
-      reason,
-      details: { mood },
-    });
-  });
-
-  revalidateAll();
-  return { mood: moodLabel(mood) };
 }
 
 // --- Resources --------------------------------------------------------
@@ -1079,10 +1019,6 @@ async function changeNameRequestImpl({ honorific: rawHonorific, firstName: rawFi
 // Each action is wrapped so validation comes back as { ok: false, error }
 // instead of being thrown — see web/lib/actionResult.js for why throwing is
 // invisible to the player in a production build.
-
-export async function setMoodRequest(input) {
-  return guarded(() => setMoodRequestImpl(input));
-}
 
 export async function transferResourcesRequest(input) {
   return guarded(() => transferResourcesRequestImpl(input));

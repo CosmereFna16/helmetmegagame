@@ -48,11 +48,12 @@
 #                     is left alone. Omit it for a consumable that simply
 #                     gets used up.
 #                     An entry may also be conditional, granted only to a
-#                     character holding NONE of the listed tags:
+#                     character holding NONE of the listed tags. Nothing in
+#                     the catalog uses this today; the shape is:
 #                         consumesInto:
 #                           - ate-meal
-#                           - slug: happy
-#                             unlessTags: [nobility]
+#                           - slug: night-vision
+#                             unlessTags: [blind]
 #                     Both halves are validated against this file, and the
 #                     condition is applied identically by the grant itself and
 #                     by the "Becomes:" preview a player sees first.
@@ -127,8 +128,8 @@ categories:
   - slug: status
     name: Status
   # Every affliction, injury and condition a medic might treat. Split out of
-  # Status deliberately: Status is the mood/needs layer (Hungry, Drained,
-  # Tipsy, the moods) and health is a system of its own, with its own groups
+  # Status deliberately: Status is the needs/intoxication layer (Hungry,
+  # Drained, Tipsy) and health is a system of its own, with its own groups
   # and its own pricing ladder. See docs/systemdocs/TAGS.md §5c.
   - slug: health
     name: Health
@@ -894,11 +895,9 @@ tags:
   # NOTHING ENFORCES ONE BELIEF PER CHARACTER. A player can hold all four Old
   # Ways at once and a GM sorts it out. That is a deliberate call, not an
   # oversight: there is no mutual-exclusivity mechanism in the catalog to lean
-  # on. Mood's happy/unhappy swap looks like one and isn't — it's a deleteMany
-  # over two hardcoded slugs inside the SET_MOOD action — and a parentTag chain
-  # is priced cumulatively and walks in one direction, which is wrong for eight
-  # peers. Building one would mean a new rule enforced at creation, at /store
-  # checkout and in the Add Tag request.
+  # on. A parentTag chain is priced cumulatively and walks in one direction,
+  # which is wrong for eight peers. Building one would mean a new rule
+  # enforced at creation, at /store checkout and in the Add Tag request.
   #
   # These are the first tags in the file that are BOTH purchasableAfterStart
   # and removable. All 157 other removable tags are Items or Health conditions,
@@ -1457,32 +1456,6 @@ tags:
     purchasableAfterStart: true
 
   # --- Status -----------------------------------------------------------
-  # Happy/Unhappy are the Mood system (docs/systemdocs/REQUESTS.md §4).
-  # Deliberately purchasable: false / removable: false so they never appear in
-  # any player-facing tag picker — the only ways in are the Set Mood button on
-  # the character sheet and a GM. "Neutral" is the absence of both, not a tag.
-  - slug: happy
-    name: Happy
-    category: status
-    group: status-buffs
-    description: "+1 to the die on all Gambits. Wears off after 2 turns."
-    pointCost: 0
-    purchasable: false
-    purchasableAfterStart: false
-    removable: false
-    durationTurns: 2
-
-  - slug: unhappy
-    name: Unhappy
-    category: status
-    group: status-debuffs
-    description: "-1 to the die on all Gambits. Wears off after 2 turns."
-    pointCost: 0
-    purchasable: false
-    purchasableAfterStart: false
-    removable: false
-    durationTurns: 2
-
   - slug: ate-meal
     name: Ate Meal
     category: status
@@ -1493,7 +1466,7 @@ tags:
 
   # Granted automatically by the per-turn upkeep pass (db/lib/hungerPass.js,
   # called from resolveNeeds) — never by a player or a picker, hence
-  # purchasable/removable false, same as Happy/Unhappy. Deliberately no
+  # purchasable/removable false. Deliberately no
   # durationTurns on Ate Meal above: it must NOT be swept, because the pass
   # consumes it explicitly.
   #
@@ -1515,14 +1488,14 @@ tags:
     name: Tipsy
     category: status
     group: status-debuffs
-    description: "Immune to Unhappy while it lasts. You count as having one fighting level lower than you would otherwise."
+    description: "You count as having one fighting level lower than you would otherwise."
     pointCost: 0
     purchasable: false
     durationTurns: 3
 
-  # Recreational intoxication, and deliberately the one Status tag with NO
-  # mechanical effect at all — unlike Tipsy above, which really does blunt
-  # Unhappy and dull a fight. High is a roleplaying state and something a GM
+  # Recreational intoxication, and deliberately a Status tag with NO
+  # mechanical effect at all — unlike Tipsy above, which really does dull a
+  # fight. High is a roleplaying state and something a GM
   # may weigh when adjudicating, nothing more. Its duration is set by whatever
   # produced it rather than by the number below: raw Cave Fungus leaves you
   # High for 2 turns, refined Bliss for 3, via the per-grant override in
@@ -1757,6 +1730,21 @@ tags:
     purchasableAfterStart: false
     removable: false
     durationTurns: 2
+
+  # What refined Bliss leaves behind, on top of the High the raw fungus gives.
+  # Like High it carries no mechanical effect — it is a roleplaying state and a
+  # thing a GM may weigh, nothing more.
+  - slug: euphoric
+    name: Euphoric
+    category: status
+    group: status-debuffs
+    description: "You could do this for the rest of your life."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 3
 
   # The effect half of the Flawless Skin tonic — the tonic is an Item you
   # drink, this is the state it leaves behind. Split in two because that's how
@@ -3865,10 +3853,6 @@ tags:
     consumable: true
     consumesInto:
       - ate-meal
-      # An honest meal cheers an ordinary person; a noble expects one as a
-      # matter of course, so it does nothing for their mood. They still eat.
-      - slug: happy
-        unlessTags: [nobility]
     requirement:
       resourceCost: 2
       skills: [cooking-basic]
@@ -3889,7 +3873,6 @@ tags:
     consumable: true
     consumesInto:
       - ate-meal
-      - happy
     requirement:
       resourceCost: 3
       skills: [cooking-skilled]
@@ -4149,7 +4132,6 @@ tags:
     consumable: true
     consumesInto:
       - tipsy
-      - happy
     requirement:
       resourceCost: 2
       skills: [brewing-basic]
@@ -4170,7 +4152,7 @@ tags:
     craftable: true
     consumable: true
     consumesInto:
-      - happy
+      - euphoric
       - slug: high
         durationTurns: 3
     requirement:
@@ -4194,7 +4176,6 @@ tags:
     consumable: true
     consumesInto:
       - tipsy
-      - happy
     requirement:
       resourceCost: 4
       skills: [brewing-skilled]

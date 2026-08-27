@@ -10,8 +10,8 @@
 export const TRANSFERABLE_CATEGORIES = ["Items", "Assets"];
 
 // Per the brief, Add Tag offers Purchasable or Craftable tags only — the
-// point-buy drawbacks and the GM/system-only statuses (Happy, Unhappy,
-// Drained, ...) stay out of reach.
+// point-buy drawbacks and the GM/system-only statuses (Drained, Hungry,
+// Tipsy, ...) stay out of reach.
 // A stackable tag stays on offer once held — cooking a fifth meal is the
 // whole point — while an ordinary one drops off the menu as before.
 //

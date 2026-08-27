@@ -2,9 +2,9 @@
 //
 // Tag.consumesInto lists every possible target; Tag.consumesIntoUnless carries
 // the conditions, as { "<target slug>": ["<blocking slug>", ...] } — a target
-// is granted only if the character holds none of its blocking tags. Fine Meal
-// is the case this exists for: it cheers an ordinary person, while a noble
-// expects one as a matter of course and gets only the Ate Meal.
+// is granted only if the character holds none of its blocking tags. No tag
+// sets this today (Fine Meal was the only one, and its condition went with the
+// Mood system), but the mechanism is general and the resolver still honours it.
 //
 // Tag.consumesIntoDurations is the other sidecar, { "<target slug>": N }: the
 // granted tag expires in N turns instead of its own defaultDurationTurns. Raw
@@ -12,9 +12,9 @@
 // respectively — one status, two lifetimes, decided by what you took.
 //
 // Deliberately pure — no Prisma, no server imports — because the server action
-// and the client-side "Becomes:" previews must agree. A preview that promises
-// Happy to a Nobility character would be a lie the player only discovers after
-// spending the meal.
+// and the client-side "Becomes:" previews must agree. A preview that promised
+// something the grant then withheld would be a lie the player only discovers
+// after spending the item.
 //
 // A repeated slug still means "grant two" (for a stackable target), so this
 // filters the list rather than de-duplicating it.

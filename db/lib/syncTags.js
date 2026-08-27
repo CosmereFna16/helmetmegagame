@@ -23,8 +23,8 @@ const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
 
 // A consumesInto entry is either a bare slug ("ate-meal") or an object
-// carrying a condition and/or an expiry override ({ slug: "happy",
-// unlessTags: ["nobility"] }, { slug: "high", durationTurns: 3 }). Every
+// carrying a condition and/or an expiry override ({ slug: "night-vision",
+// unlessTags: ["blind"] }, { slug: "high", durationTurns: 3 }). Every
 // shape normalises to the same triple here so validation and the write path
 // only ever handle one of them.
 function normalizeConsumesInto(entries) {

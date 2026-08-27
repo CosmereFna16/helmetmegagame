@@ -266,7 +266,7 @@ export async function createCharacter(formData) {
   // A tag with a catalog duration has to arrive already stamped, or it sits
   // on the sheet forever: resolveNeeds()' sweep only ever looks at
   // expiresTurn, and nothing else backfills it. This is what makes a timed
-  // starting pick (a Mood, a Wound) actually run out. Both tag sets are
+  // starting pick (a Tipsy, a Wound) actually run out. Both tag sets are
   // fetched without a `select`, so defaultDurationTurns is already on them.
   // Before the game opens there is no turn to count from, so nothing
   // expires.

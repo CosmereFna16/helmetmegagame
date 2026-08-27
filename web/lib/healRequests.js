@@ -22,7 +22,7 @@ export {
 export const HEAL_SKILL_SLUG = "medical-basic";
 
 // Health is its own category now, split out of Status — Status is the
-// mood/needs layer (Hungry, Drained, Tipsy) and afflictions are a system of
+// needs/intoxication layer (Hungry, Drained, Tipsy) and afflictions are a system of
 // their own. Tag.category stores the display name, not the YAML slug (see
 // syncTags.js), which is why this is capitalised.
 export const HEALABLE_CATEGORY = "Health";

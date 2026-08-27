@@ -520,7 +520,7 @@ function normalizeEdits(action, edits, characterTags, hungerStreak) {
       data.diceRoll = null;
       data.diceModifier = null;
     } else {
-      // Rolled from the character's CURRENT tags — a Mood that lapsed between
+      // Rolled from the character's CURRENT tags — a status that lapsed between
       // submission and adjudication shouldn't haunt a roll made today. Same
       // for hungerStreak: it's read fresh, not off whatever was true when the
       // player submitted.
