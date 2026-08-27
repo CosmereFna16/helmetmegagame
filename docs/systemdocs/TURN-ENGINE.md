@@ -54,6 +54,11 @@ each arrived at by getting them wrong first.
    claimed with a conditional write (`appliedAt`, or `appliedEffects` DbNull
    → `{}`), so the resume path can never apply one twice. The staged DMs and
    the public post are handed back for the thunk, not sent here.
+   A payload is `{ resources?, tagPoints?, tagOps? }`. Resources go through
+   `addResources`' clamp and tag ops through `db/lib/tagOps.js`, but
+   `tagPoints` is a plain `increment` with no clamp — a GM may take points
+   back off a sheet, and negative is a legal balance. `appliedEffect`
+   snapshots each of the three that actually moved.
 4. **Tag progression pass** (`db/lib/tagExpiryPass.js`) — **before** the sweep,
    never after. Any expiring tag carrying `Tag.expiresInto` turns into
    something else first: Infected festers, Festering goes both Feverish and

@@ -1,5 +1,6 @@
 import { prisma } from "@lifeweb/db";
 import { listGuildMembers } from "@/lib/discordGuild";
+import { getGmProfiles } from "@/lib/gmProfiles";
 import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requests";
 import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel } from "@/lib/moves";
 import { getOpenTurn } from "@/lib/turn";
@@ -112,7 +113,7 @@ function summarize(request) {
 export default async function TurnsWorkspacePage() {
   const openTurn = await getOpenTurn();
 
-  const [actions, requests, stagedEffects, stagedMessages, roster, zones, tagCatalog, members, myZone] =
+  const [actions, requests, stagedEffects, stagedMessages, roster, zones, tagCatalog, members, myZone, gmProfiles] =
     await Promise.all([
       openTurn
         ? prisma.action.findMany({
@@ -186,11 +187,13 @@ export default async function TurnsWorkspacePage() {
       }),
       listGuildMembers(),
       getMyZone(),
+      getGmProfiles(),
     ]);
 
   const usernameById = new Map(members.map((m) => [m.id, m.username]));
   const nameFor = (c) => usernameById.get(c.discordUserId) ?? c.discordUserId;
   const now = new Date();
+  const gmProfilesById = Object.fromEntries(gmProfiles.map((p) => [p.discordUserId, { username: p.username, avatarUrl: p.avatarUrl }]));
 
   // One copy of each distinct held tag, for TagChip rendering — bounded by
   // the catalog, not the row count.
@@ -229,7 +232,9 @@ export default async function TurnsWorkspacePage() {
     reviewedByUsername: a.reviewedByDiscordUserId
       ? (usernameById.get(a.reviewedByDiscordUserId) ?? a.reviewedByDiscordUserId)
       : null,
+    reviewedByDiscordUserId: a.reviewedByDiscordUserId ?? null,
     reviewedAtLabel: a.reviewedAt ? a.reviewedAt.toISOString().slice(0, 16).replace("T", " ") : null,
+    lockedByDiscordUserId: a.lockExpiresAt && a.lockExpiresAt > now ? (a.lockedByDiscordUserId ?? null) : null,
     createdAtMs: a.createdAt.getTime(),
   }));
 
@@ -253,6 +258,7 @@ export default async function TurnsWorkspacePage() {
     reviewedByUsername: r.reviewedByDiscordUserId
       ? (usernameById.get(r.reviewedByDiscordUserId) ?? r.reviewedByDiscordUserId)
       : null,
+    reviewedByDiscordUserId: r.reviewedByDiscordUserId ?? null,
     reviewedAtLabel: r.reviewedAt ? r.reviewedAt.toISOString().slice(0, 16).replace("T", " ") : null,
   }));
 
@@ -268,6 +274,7 @@ export default async function TurnsWorkspacePage() {
     applied: Boolean(e.appliedAt),
     appliedError: e.appliedEffect?.error ?? null,
     createdByUsername: usernameById.get(e.createdByDiscordUserId) ?? e.createdByDiscordUserId,
+    createdByDiscordUserId: e.createdByDiscordUserId ?? null,
     turnNumber: e.turn?.number ?? null,
     missed: openTurn ? e.turnId !== openTurn.id && !e.appliedAt : !e.appliedAt,
   }));
@@ -283,6 +290,7 @@ export default async function TurnsWorkspacePage() {
     sent: Boolean(m.sentAt),
     deliveryFailures: m.deliveryFailures ?? null,
     createdByUsername: usernameById.get(m.createdByDiscordUserId) ?? m.createdByDiscordUserId,
+    createdByDiscordUserId: m.createdByDiscordUserId ?? null,
     turnNumber: m.turn?.number ?? null,
     missed: openTurn ? m.turnId !== openTurn.id && !m.sentAt : !m.sentAt,
   }));
@@ -299,6 +307,7 @@ export default async function TurnsWorkspacePage() {
       requests={requestRows}
       stagedEffects={effects}
       stagedMessages={messages}
+      gmProfiles={gmProfilesById}
     />
   );
 }

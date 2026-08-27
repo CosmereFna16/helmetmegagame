@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import FormError from "@/app/components/FormError";
 import TagChip from "@/app/components/TagChip";
 import Tooltip from "@/app/components/Tooltip";
+import GmAvatar from "@/app/components/GmAvatar";
 import RequestDialog from "@/app/components/RequestDialog";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
@@ -77,6 +78,7 @@ export default function MoveDesk({
   onClose,
   registerEscape,
   onOpenDev,
+  gmProfiles,
 }) {
   const router = useRouter();
   const { markDirty, markClean, guardedClose } = useDirtyGuard();
@@ -95,6 +97,10 @@ export default function MoveDesk({
     resultMessage: move.resultMessage ?? "",
   });
   const [composer, setComposer] = useState(null); // "effect" | "message" | "public" | null
+  // Set only by "Stage as message" below, to prefill the composer with the
+  // LOCAL (possibly unsaved) Result text. The plain "+ Message" button
+  // leaves this null, so the composer opens blank as before.
+  const [messagePrefill, setMessagePrefill] = useState(null);
   const [unlocking, setUnlocking] = useState(false);
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
@@ -243,6 +249,17 @@ export default function MoveDesk({
             placeholder="What actually happened here. GM-facing — tell the players with staged messages below."
           />
         </label>
+        <button
+          type="button"
+          className="btn-quiet self-start"
+          disabled={!edits.resultMessage.trim()}
+          onClick={() => {
+            setMessagePrefill(edits.resultMessage);
+            setComposer("message");
+          }}
+        >
+          Stage as message
+        </button>
       </div>
 
       <div className="mt-4 flex flex-col gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
@@ -252,7 +269,14 @@ export default function MoveDesk({
             <button type="button" className="btn-quiet" onClick={() => setComposer("effect")}>
               + Effect
             </button>
-            <button type="button" className="btn-quiet" onClick={() => setComposer("message")}>
+            <button
+              type="button"
+              className="btn-quiet"
+              onClick={() => {
+                setMessagePrefill(null);
+                setComposer("message");
+              }}
+            >
               + Message
             </button>
             <button type="button" className="btn-quiet" onClick={() => setComposer("public")}>
@@ -268,6 +292,7 @@ export default function MoveDesk({
           roster={roster}
           zones={zones}
           onInspect={onInspect}
+          gmProfiles={gmProfiles}
           empty="Nothing staged yet. Effects change sheets; messages land as DMs; public posts hit the summary channel — all at the push."
         />
       </div>
@@ -290,12 +315,18 @@ export default function MoveDesk({
         <MessageComposer
           moveId={move.id}
           defaultRecipients={[{ characterId: move.characterId, name: move.characterName }]}
+          initialContent={messagePrefill ?? undefined}
+          initialRecipients={messagePrefill != null ? [{ characterId: move.characterId, name: move.characterName }] : undefined}
           roster={roster}
           onDone={() => {
             setComposer(null);
+            setMessagePrefill(null);
             router.refresh();
           }}
-          onCancel={() => setComposer(null)}
+          onCancel={() => {
+            setComposer(null);
+            setMessagePrefill(null);
+          }}
         />
       )}
       {composer === "public" && (
@@ -311,7 +342,8 @@ export default function MoveDesk({
       )}
 
       {move.reviewedByUsername && (
-        <p className="mt-3 text-xs text-muted">
+        <p className="mt-3 flex items-center gap-1 text-xs text-muted">
+          <GmAvatar profile={gmProfiles?.[move.reviewedByDiscordUserId]} size={13} />
           Solved by {move.reviewedByUsername}
           {move.reviewedAtLabel ? ` · ${move.reviewedAtLabel}` : ""}
         </p>

@@ -168,6 +168,8 @@ npm run db:backfill-cursed-access      # ghost seat: opens every non-Depths
                                        #   and #watch/#intercom to the Cursed
                                        #   role, and strips it from the Depths.
 npm run db:backfill-tupper-attachment-restriction
+npm run db:backfill-archive-channel-ids  # DRY RUN unless given `-- --apply`;
+                                       #   thread rows are name-only and stay null
 npm run db:prune-orphan-categories
 npm run db:prune-orphan-roles          # deletes Discord character roles no living
                                        #   character claims. DRY RUN unless given

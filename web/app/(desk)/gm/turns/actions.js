@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma, rollDie } from "@lifeweb/db";
+import { prisma, rollDie, Prisma } from "@lifeweb/db";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { TagOpError, validateTagOps } from "@lifeweb/db/lib/tagOps";
+import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { getGmSession, killCharacter, listGuildMembers, sendDm } from "@/lib/discordGuild";
 import { REQUEST_EFFECTS } from "@/lib/requestEffects";
 import { requireReason } from "@/lib/requests";
@@ -163,6 +164,67 @@ async function deleteStagedMessageImpl({ stagedMessageId }) {
 
   revalidatePath("/gm/turns");
   return {};
+}
+
+// Retries a sent-but-partially-failed staged message. PRIVATE re-sends only
+// the recipients db/lib/stagedPush.js recorded as failed (same shape it
+// wrote: [{ characterId, name, error }]); PUBLIC re-posts to the summary
+// channel (its failure record is [{ error }], no per-recipient list). Clears
+// deliveryFailures on a clean resend, matching the push's own "no failures"
+// convention (Prisma.DbNull, not JS null — see db/index.js's runSideEffects).
+async function resendStagedMessageImpl({ stagedMessageId }) {
+  const session = await requireGm();
+  const existing = await prisma.stagedMessage.findUnique({
+    where: { id: stagedMessageId ?? "" },
+    include: { recipients: { include: { character: { select: { id: true, name: true, discordUserId: true } } } } },
+  });
+  if (!existing) throw new UserError("That staged message is gone.");
+  if (!existing.sentAt) throw new UserError("That message hasn't gone out yet.");
+  const priorFailures = Array.isArray(existing.deliveryFailures) ? existing.deliveryFailures : [];
+  if (!priorFailures.length) throw new UserError("Nothing failed on that message.");
+
+  let stillFailing = [];
+  let resent = 0;
+
+  if (existing.kind === "PRIVATE") {
+    const failedIds = new Set(priorFailures.map((f) => f.characterId).filter(Boolean));
+    const targets = existing.recipients
+      .map((r) => r.character)
+      .filter((c) => failedIds.has(c.id));
+    for (const target of targets) {
+      try {
+        await sendDm(target.discordUserId, existing.content);
+        resent += 1;
+      } catch (err) {
+        stillFailing.push({ characterId: target.id, name: target.name, error: String(err?.message ?? err) });
+      }
+    }
+  } else {
+    const config = await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { turnSummaryChannelId: true } });
+    if (!config?.turnSummaryChannelId) throw new UserError("No summary channel is configured.");
+    try {
+      await postMessage(config.turnSummaryChannelId, existing.content);
+      resent += 1;
+    } catch (err) {
+      stillFailing = [{ error: String(err?.message ?? err) }];
+    }
+  }
+
+  await prisma.stagedMessage.update({
+    where: { id: existing.id },
+    data: { deliveryFailures: stillFailing.length ? stillFailing : Prisma.DbNull },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "staged_message_resent",
+      details: { stagedMessageId: existing.id, resent, stillFailing: stillFailing.length },
+    },
+  });
+
+  revalidatePath("/gm/turns");
+  return { resent, stillFailing };
 }
 
 // ---------------------------------------------------------------------------
@@ -983,6 +1045,9 @@ export async function updateStagedMessage(input) {
 }
 export async function deleteStagedMessage(input) {
   return guarded(() => deleteStagedMessageImpl(input));
+}
+export async function resendStagedMessage(input) {
+  return guarded(() => resendStagedMessageImpl(input));
 }
 export async function createStagedEffects(input) {
   return guarded(() => createStagedEffectsImpl(input));

@@ -21,7 +21,7 @@ day of work survives a refresh):
 |---|---|---|
 | **Private messages** | `StagedMessage` (kind `PRIVATE`) + `StagedMessageRecipient` | One DM per recipient character's player, `»`-prefixed, logged to `DirectMessage` like every DM. |
 | **Public declarations** | `StagedMessage` (kind `PUBLIC`, optional `zoneId`) | Posted to `GameConfig.turnSummaryChannelId`. The `zoneId` is carried now so the future per-zone summary channels can deliver by it; today one channel serves the whole game, and an unset id means the post is skipped and recorded on `deliveryFailures` — never lost. |
-| **Mechanical adjustments** | `StagedEffect` — `payload` `{ resources?, tagOps? }` per target character | Resources through `addResources`' clamp, tag ops through `db/lib/tagOps.js` — the same engine the Dev Panel applies with. `appliedEffect` snapshots what actually moved (the payload-vs-effect rule from `REQUESTS.md` §2). |
+| **Mechanical adjustments** | `StagedEffect` — `payload` `{ resources?, tagPoints?, tagOps? }` per target character | Resources through `addResources`' clamp, tag ops through `db/lib/tagOps.js` — the same engine the Dev Panel applies with. `tagPoints` is an unclamped increment (a GM may take points back, and negative is legal). `appliedEffect` snapshots what actually moved (the payload-vs-effect rule from `REQUESTS.md` §2). |
 
 A staged message takes a *set* of recipients — you need to tell different
 people different things, so a Move carries as many messages as the truth
@@ -113,6 +113,33 @@ tokens and the shared control classes still apply; the `.desk-*` family in
   (a crash, a validation skip, the turn-boundary race) stay visible here
   with one verb: carry them onto the current turn for the next push.
 
+**Responsiveness.** Five GMs share this page for a day at a time, so it
+keeps itself current and stays reachable from the keyboard:
+
+- The queue **refreshes itself** every 45s (`router.refresh()`), paused while
+  a modal is open, while any panel holds unsaved edits
+  (`useDirtyGuard.js#isAnyDirty`), or while the tab is hidden — a GM
+  mid-sentence never gets the page yanked out from under them. The header
+  carries an "updated HH:MM" stamp, a **countdown** to the next noon/midnight
+  CT push, and an `N/M solved` progress chip.
+- **Keyboard**: `↑↓` / `j k` walk the rail, `⏎` opens the focused row, `m`/`r`
+  flip the lens, Escape peels the layers below. All of it stands down while a
+  field has focus or a modal is open.
+- **GM identity** shows as a small avatar (`GmAvatar.js`, roster from
+  `web/lib/gmProfiles.js`) wherever a GM is named: the lock holder on an
+  In Progress row, a staged row's author, a Move's solver, and the actor
+  column on `/gm/audit`. `/gm/messages` gets none — `DirectMessage` records
+  the player, not which GM typed the reply.
+- The **push preview is a way in**, not just a readout: a character name
+  swaps the inspector to them, and a staged line closes the preview, opens
+  and expands the tray, and scrolls to that row with a brief flash.
+- **Pins survive a reload** (`localStorage`, read through
+  `useSyncExternalStore`). A message whose push left `deliveryFailures` grows
+  a **Resend** button that retries only the recipients that failed
+  (`resendStagedMessage`). The Result box has a **Stage as message** button
+  that opens the message composer prefilled with the result text and the
+  Move's own character.
+
 Escape is layered, topmost-first: an open `Modal` handles its own Escape and
 the workspace yields to it; otherwise a focused field just blurs, a selected
 Move/Request deselects through its own dirty guard, and only with nothing
@@ -176,6 +203,7 @@ field `applyEdit` now returns and how it drives `EDITED` vs. a plain
 | `.../EffectComposer.js` / `MessageComposer.js` / `PublicComposer.js` | The staging composers (create + edit) |
 | `.../StagedItems.js` / `StagingTray.js` / `PushPreview.js` | Staged-row lists, the tray, the per-recipient preview |
 | `.../InspectorColumn.js` | Sheet / Tags / Archive / DMs + pins |
+| `web/app/components/GmAvatar.js` | The small GM pfp, fed by `web/lib/gmProfiles.js` |
 | `.../useMoveLock.js` | The lock's client half |
 | `.../actions.js` | Every server action: staging CRUD, solve/save/unsolve, unlock, locks, request review, inspector fetchers, retarget |
 | `db/lib/stagedPush.js` | The push pass |

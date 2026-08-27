@@ -13,10 +13,21 @@ import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 
 const SEARCH_LIMIT = 12;
 
-export default function MessageComposer({ moveId = null, existing = null, defaultRecipients = [], roster, onDone, onCancel }) {
-  const [content, setContent] = useState(existing?.content ?? "");
+export default function MessageComposer({
+  moveId = null,
+  existing = null,
+  defaultRecipients = [],
+  initialContent = undefined,
+  initialRecipients = undefined,
+  roster,
+  onDone,
+  onCancel,
+}) {
+  const [content, setContent] = useState(existing?.content ?? initialContent ?? "");
   const [recipients, setRecipients] = useState(() =>
-    existing ? existing.recipients.map((r) => ({ characterId: r.characterId, name: r.name })) : defaultRecipients,
+    existing
+      ? existing.recipients.map((r) => ({ characterId: r.characterId, name: r.name }))
+      : (initialRecipients ?? defaultRecipients),
   );
   const [search, setSearch] = useState("");
   const [error, setError] = useState(null);

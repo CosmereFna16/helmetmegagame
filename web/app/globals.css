@@ -2140,8 +2140,15 @@ button.map-node:focus-visible .map-rhomb { transform: rotate(45deg) scale(1.3); 
   flex-direction: column;
 }
 
+/* The rail is a column flexbox, so this stretches to its full width whatever
+   .segmented's inline-flex says. Let the two lenses split it evenly — hugging
+   left leaves a gap that reads as a missing third tab. */
 .desk-rail-lens {
+  display: flex;
   margin: 0.75rem;
+}
+.desk-rail-lens button {
+  flex: 1;
 }
 
 .desk-rail-filters {
@@ -2182,6 +2189,17 @@ button.map-node:focus-visible .map-rhomb { transform: rotate(45deg) scale(1.3); 
 
 .desk-queue-row[data-urgent] {
   box-shadow: inset 2px 0 0 var(--danger);
+}
+
+/* Keyboard-focused queue row (QueueRail's ↑↓/j k nav). */
+.desk-queue-row[data-kbd] {
+  outline: 1px solid var(--accent-text);
+  outline-offset: -1px;
+}
+
+.desk-rail-hint {
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--border);
 }
 
 .desk-main {
@@ -2246,6 +2264,41 @@ button.map-node:focus-visible .map-rhomb { transform: rotate(45deg) scale(1.3); 
 
 .desk-qty {
   width: 4rem;
+}
+
+/* The push preview's clickable lines: a plain-text button, not a chip — it
+   sits inline in a <ul> alongside non-interactive lines. */
+.desk-preview-line {
+  display: inline;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.desk-preview-line:hover {
+  color: var(--accent-text);
+}
+
+/* Momentary highlight for a staged row the push preview scrolled to.
+   Outline-based rather than a background wash, so it stays legible over the
+   row's own tone (batch panel, error state) in both themes. */
+.desk-flash {
+  animation: desk-flash 1.2s ease-out;
+}
+
+@keyframes desk-flash {
+  from {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+  }
+  to {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
 }
 
 .desk-inspector {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { StagedEffectRow, StagedMessageRow } from "./StagedItems";
@@ -53,11 +53,15 @@ export default function StagingTray({
   tagCatalog,
   onInspect,
   onOpenPreview,
+  open,
+  setOpen,
+  expanded,
+  setExpanded,
+  revealSignal,
+  gmProfiles,
 }) {
   const router = useRouter();
   const confirm = useConfirm();
-  const [open, setOpen] = useState(false);
-  const [expanded, setExpanded] = useState(false);
   const [composer, setComposer] = useState(null);
   const [query, setQuery] = useState("");
   const [kindFilter, setKindFilter] = useState("all"); // "all" | "effects" | "messages" | "public"
@@ -73,6 +77,21 @@ export default function StagingTray({
       return next;
     });
   }
+
+  // The interactive push preview's click-through: Workspace flips open+
+  // expanded and bumps revealSignal in one go, so by the time this effect
+  // runs the row is in the DOM. Pure DOM work (scroll + a class toggled off
+  // by its own timeout) — no state, so it's safe past the mount that just
+  // opened the tray.
+  useEffect(() => {
+    if (!revealSignal?.id) return undefined;
+    const el = document.querySelector(`[data-row-id="${revealSignal.id}"]`);
+    if (!el) return undefined;
+    el.scrollIntoView({ block: "center" });
+    el.classList.add("desk-flash");
+    const timeout = setTimeout(() => el.classList.remove("desk-flash"), 1200);
+    return () => clearTimeout(timeout);
+  }, [revealSignal]);
 
   const pendingEffects = stagedEffects.filter((e) => !e.applied && !e.missed);
   const pendingPrivate = stagedMessages.filter((m) => !m.sent && !m.missed && m.kind === "PRIVATE");
@@ -153,7 +172,9 @@ export default function StagingTray({
               </span>
             )}
           </span>
-          <span className="text-xs text-muted">{open ? "▾ collapse" : "▴ expand"}</span>
+          {/* "show/hide" rather than "expand", so it doesn't read as a second
+              copy of the full-screen Expand button sitting right beside it. */}
+          <span className="text-xs text-muted">{open ? "▾ hide" : "▴ show"}</span>
         </button>
         <button type="button" className="btn-quiet" onClick={toggleExpand}>
           {expanded ? "⤡ Shrink" : "⤢ Expand"}
@@ -221,6 +242,7 @@ export default function StagingTray({
                 tagCatalog={tagCatalog}
                 roster={roster}
                 onInspect={onInspect}
+                gmProfiles={gmProfiles}
                 showBatch
               />
             </div>
@@ -233,10 +255,18 @@ export default function StagingTray({
               tagCatalog={tagCatalog}
               roster={roster}
               onInspect={onInspect}
+              gmProfiles={gmProfiles}
             />
           ))}
           {filteredMessages.map((m) => (
-            <StagedMessageRow key={m.id} message={m} roster={roster} zones={zones} onInspect={onInspect} />
+            <StagedMessageRow
+              key={m.id}
+              message={m}
+              roster={roster}
+              zones={zones}
+              onInspect={onInspect}
+              gmProfiles={gmProfiles}
+            />
           ))}
           {stagedEffects.length + stagedMessages.length === 0 && (
             <p className="text-sm text-muted">Nothing staged for this turn yet.</p>

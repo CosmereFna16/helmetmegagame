@@ -3,17 +3,20 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import StatusPill from "@/app/components/StatusPill";
+import GmAvatar from "@/app/components/GmAvatar";
 import EffectComposer from "./EffectComposer";
 import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
-import { deleteStagedEffect, deleteStagedMessage } from "./actions";
+import { deleteStagedEffect, deleteStagedMessage, resendStagedMessage } from "./actions";
 import { effectSummary, effectState, messageState, tagNameLookup, truncate } from "./stagedFormat";
 
 // The staged-row lists the desk and the tray share: every row shows what it
 // will do at the push, who queued it, and edit/delete — which stay live right
-// up until the push freezes the row (sentAt / appliedAt).
+// up until the push freezes the row (sentAt / appliedAt). `data-row-id` is
+// how the interactive push preview scrolls a row into view and flashes it
+// (Workspace#revealStagedRow).
 
-export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, onInspect, showBatch }) {
+export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, onInspect, showBatch, gmProfiles }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -30,7 +33,7 @@ export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, onInspec
   }
 
   return (
-    <div className="desk-staged-row" data-kind="effect">
+    <div className="desk-staged-row" data-kind="effect" data-row-id={effect.id}>
       <div className="min-w-0 flex-1">
         <p className="text-sm">
           <button
@@ -42,8 +45,9 @@ export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, onInspec
           </button>{" "}
           <span className="mono">{effectSummary(effect, tagNames)}</span>
         </p>
-        <p className="text-xs text-muted">
+        <p className="text-xs text-muted flex items-center gap-1">
           {showBatch && effect.batchId ? "Mass apply · " : ""}
+          <GmAvatar profile={gmProfiles?.[effect.createdByDiscordUserId]} size={13} />
           by {effect.createdByUsername}
           {effect.turnNumber != null ? ` · turn ${effect.turnNumber}` : ""}
           {effect.appliedError ? ` · ${effect.appliedError}` : ""}
@@ -78,13 +82,18 @@ export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, onInspec
   );
 }
 
-export function StagedMessageRow({ message, roster, zones, onInspect }) {
+export function StagedMessageRow({ message, roster, zones, onInspect, gmProfiles }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [resendError, setResendError] = useState(null);
 
   const state = messageState(message);
   const frozen = message.sent;
+  // The push writes DbNull on a clean send, but an empty array would be
+  // truthy — check for actual entries rather than presence.
+  const failureCount = Array.isArray(message.deliveryFailures) ? message.deliveryFailures.length : 0;
+  const canResend = message.sent && failureCount > 0;
 
   function onDelete() {
     startTransition(async () => {
@@ -93,8 +102,17 @@ export function StagedMessageRow({ message, roster, zones, onInspect }) {
     });
   }
 
+  function onResend() {
+    setResendError(null);
+    startTransition(async () => {
+      const res = await resendStagedMessage({ stagedMessageId: message.id });
+      if (!res?.ok) return setResendError(res?.error ?? "Something went wrong.");
+      router.refresh();
+    });
+  }
+
   return (
-    <div className="desk-staged-row" data-kind={message.kind.toLowerCase()}>
+    <div className="desk-staged-row" data-kind={message.kind.toLowerCase()} data-row-id={message.id}>
       <div className="min-w-0 flex-1">
         <p className="text-sm">
           {message.kind === "PUBLIC" ? (
@@ -119,7 +137,8 @@ export function StagedMessageRow({ message, roster, zones, onInspect }) {
           )}
         </p>
         <p className="mt-1 text-sm">» {truncate(message.content)}</p>
-        <p className="text-xs text-muted">
+        <p className="text-xs text-muted flex items-center gap-1">
+          <GmAvatar profile={gmProfiles?.[message.createdByDiscordUserId]} size={13} />
           by {message.createdByUsername}
           {message.turnNumber != null ? ` · turn ${message.turnNumber}` : ""}
           {message.deliveryFailures
@@ -128,9 +147,15 @@ export function StagedMessageRow({ message, roster, zones, onInspect }) {
                 .join(", ")}`
             : ""}
         </p>
+        {resendError && <p className="form-error">{resendError}</p>}
       </div>
       <div className="flex items-center gap-2">
         <StatusPill tone={state.tone}>{state.label}</StatusPill>
+        {canResend && (
+          <button type="button" className="btn-quiet" onClick={onResend} disabled={pending}>
+            {pending ? "Resending…" : "Resend"}
+          </button>
+        )}
         {!frozen && (
           <>
             <button type="button" className="btn-quiet" onClick={() => setEditing(true)} disabled={pending}>
@@ -168,7 +193,7 @@ export function StagedMessageRow({ message, roster, zones, onInspect }) {
   );
 }
 
-export default function StagedItems({ effects, messages, tagCatalog, roster, zones, onInspect, empty }) {
+export default function StagedItems({ effects, messages, tagCatalog, roster, zones, onInspect, empty, gmProfiles }) {
   const tagNames = useMemo(() => tagNameLookup(tagCatalog), [tagCatalog]);
 
   if (!effects.length && !messages.length) {
@@ -185,10 +210,18 @@ export default function StagedItems({ effects, messages, tagCatalog, roster, zon
           tagCatalog={tagCatalog}
           roster={roster}
           onInspect={onInspect}
+          gmProfiles={gmProfiles}
         />
       ))}
       {messages.map((m) => (
-        <StagedMessageRow key={m.id} message={m} roster={roster} zones={zones} onInspect={onInspect} />
+        <StagedMessageRow
+          key={m.id}
+          message={m}
+          roster={roster}
+          zones={zones}
+          onInspect={onInspect}
+          gmProfiles={gmProfiles}
+        />
       ))}
     </div>
   );

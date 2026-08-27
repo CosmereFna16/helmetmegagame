@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import QueueRail from "./QueueRail";
@@ -10,6 +10,7 @@ import InspectorColumn from "./InspectorColumn";
 import StagingTray from "./StagingTray";
 import PushPreview from "./PushPreview";
 import DevPanelModal from "./DevPanelModal";
+import { isAnyDirty } from "@/app/components/useDirtyGuard";
 
 // The adjudication workspace's client shell — mission control. It owns three
 // pieces of state and nothing else:
@@ -22,6 +23,79 @@ import DevPanelModal from "./DevPanelModal";
 // child that calls a server action and router.refresh()es. The full-viewport
 // .desk-* layout is this page's own (DESIGN-SYSTEM.md's sanctioned
 // deviation) — tokens and shared control classes still apply.
+
+const REFRESH_MS = 45_000;
+const PINS_STORAGE_KEY = "desk-pins";
+
+// Same pattern as web/app/(app)/map/MapPanel.js's ground preference: read
+// through useSyncExternalStore so there's no setState-in-effect and no
+// server/client hydration mismatch. Subscribed to the `storage` event so a
+// pin change in another tab is picked up here too.
+function subscribePins(callback) {
+  window.addEventListener("storage", callback);
+  return () => window.removeEventListener("storage", callback);
+}
+// getSnapshot must return the SAME reference until the value actually
+// changes — a fresh array every call is an infinite render loop. So the
+// parse is memoized against the raw string it came from.
+const NO_PINS = [];
+let pinsCache = { raw: null, value: NO_PINS };
+function readStoredPins() {
+  try {
+    const raw = window.localStorage.getItem(PINS_STORAGE_KEY);
+    if (raw === pinsCache.raw) return pinsCache.value;
+    let parsed = null;
+    try {
+      parsed = raw ? JSON.parse(raw) : null;
+    } catch {
+      parsed = null;
+    }
+    pinsCache = { raw, value: Array.isArray(parsed) ? parsed : NO_PINS };
+    return pinsCache.value;
+  } catch {
+    return pinsCache.value;
+  }
+}
+function serverPins() {
+  return NO_PINS;
+}
+function writeStoredPins(pins) {
+  try {
+    window.localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(pins));
+  } catch {
+    /* private window / blocked site data */
+  }
+}
+
+const CT_PARTS = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Chicago",
+  hour12: false,
+  hour: "numeric",
+  minute: "numeric",
+});
+
+// Minutes until the next 12:00 or 00:00 America/Chicago, computed off the
+// wall-clock parts rather than any DST math — Intl already resolved the
+// offset for us. Chicago's "24:00" formatToParts quirk (midnight can render
+// as hour 24) is normalized to 0.
+function minutesUntilNextPush() {
+  const parts = CT_PARTS.formatToParts(new Date());
+  const h = Number(parts.find((p) => p.type === "hour")?.value ?? 0) % 24;
+  const m = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
+  const sinceMidnight = h * 60 + m;
+  const sinceLastBoundary = sinceMidnight % (12 * 60);
+  const untilNext = 12 * 60 - sinceLastBoundary;
+  return untilNext === 12 * 60 ? 0 : untilNext;
+}
+
+function formatCountdown(minutes) {
+  if (minutes <= 0) return "Push imminent";
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h <= 0) return `Push in ${m}m`;
+  return `Push in ${h}h ${m}m`;
+}
+
 export default function Workspace({
   openTurn,
   myZoneName,
@@ -33,18 +107,35 @@ export default function Workspace({
   requests,
   stagedEffects,
   stagedMessages,
+  gmProfiles,
 }) {
   const router = useRouter();
   const [lens, setLens] = useState("moves"); // which queue the rail shows
   const [selected, setSelected] = useState(null); // { type: "move"|"request", id }
   const [inspected, setInspected] = useState(null); // { characterId, name }
-  const [pinned, setPinned] = useState([]); // [{ characterId, name }]
+  const storedPins = useSyncExternalStore(subscribePins, readStoredPins, serverPins);
+  const [localPins, setLocalPins] = useState(null); // null until the user first touches a pin this session
+  const pinned = localPins ?? storedPins;
   const [previewOpen, setPreviewOpen] = useState(false);
   // { characterId, name } of the Dev Panel currently open as a modal over
   // the desk, or null. Opening it never leaves /gm/turns or resets any of
   // the state above.
   const [devPanel, setDevPanel] = useState(null);
   const onOpenDev = useCallback((characterId, name) => setDevPanel({ characterId, name }), []);
+
+  // The push tray's open/expanded state is lifted here (rather than local to
+  // StagingTray) so the interactive push preview can force it open and
+  // scroll to a row (revealStagedRow below).
+  const [trayOpen, setTrayOpen] = useState(false);
+  const [trayExpanded, setTrayExpanded] = useState(false);
+  const [revealSignal, setRevealSignal] = useState(null); // { id, token }
+
+  const revealStagedRow = useCallback((id) => {
+    setPreviewOpen(false);
+    setTrayOpen(true);
+    setTrayExpanded(true);
+    setRevealSignal({ id, token: Date.now() });
+  }, []);
 
   // Escape is layered, topmost-first, and this is the bottom layer:
   //   1. An open Modal (confirm, composer, unlock dialog) — Modal.js handles
@@ -126,18 +217,48 @@ export default function Workspace({
     return map;
   }, [stagedEffects, stagedMessages]);
 
+  const solvedCount = moves.filter((m) => m.statusLabel === "Solved").length;
+
   function inspect(characterId, name) {
     if (!characterId) return;
     setInspected({ characterId, name });
   }
 
   function togglePin(character) {
-    setPinned((prev) => {
-      const exists = prev.some((p) => p.characterId === character.characterId);
-      if (exists) return prev.filter((p) => p.characterId !== character.characterId);
-      return [...prev, character];
+    setLocalPins((prev) => {
+      const base = prev ?? storedPins;
+      const exists = base.some((p) => p.characterId === character.characterId);
+      const next = exists
+        ? base.filter((p) => p.characterId !== character.characterId)
+        : [...base, character];
+      writeStoredPins(next);
+      return next;
     });
   }
+
+  // Live queue refresh: paused while a modal is open (an in-flight
+  // composer/dialog shouldn't be yanked from under a GM) or while any panel
+  // has unsaved edits (isAnyDirty), and skipped entirely while the tab isn't
+  // visible. Conditions are read at fire time, not tracked as deps, so the
+  // interval never needs to be torn down and rebuilt.
+  const [lastRefreshedAt, setLastRefreshedAt] = useState(null);
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      if (document.querySelector(".modal-overlay")) return;
+      if (isAnyDirty()) return;
+      router.refresh();
+      setLastRefreshedAt(new Date());
+    }, REFRESH_MS);
+    return () => clearInterval(id);
+  }, [router]);
+
+  // Countdown to the next noon/midnight CT push, ticking every 30s.
+  const [pushMinutes, setPushMinutes] = useState(() => minutesUntilNextPush());
+  useEffect(() => {
+    const id = setInterval(() => setPushMinutes(minutesUntilNextPush()), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <div className="desk-shell">
@@ -147,7 +268,15 @@ export default function Workspace({
           <span className="chip">
             {openTurn ? `Turn ${openTurn.number} · ${openTurn.phase === "DAWN" ? "Dawn" : "Dusk"}` : "No turn open"}
           </span>
-          <span className="text-xs text-muted">Push fires at noon &amp; midnight CT</span>
+          <span className="text-xs text-muted" title="Push fires at noon & midnight CT">
+            {formatCountdown(pushMinutes)}
+          </span>
+          <span className="chip text-xs text-muted">{solvedCount}/{moves.length} solved</span>
+          {lastRefreshedAt && (
+            <span className="text-xs text-muted">
+              updated {lastRefreshedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <button type="button" className="btn-quiet" onClick={() => setPreviewOpen(true)}>
@@ -169,6 +298,7 @@ export default function Workspace({
           onSelect={setSelected}
           lens={lens}
           onLens={setLens}
+          gmProfiles={gmProfiles}
         />
 
         <main className="desk-main">
@@ -186,6 +316,7 @@ export default function Workspace({
               onClose={() => setSelected(null)}
               registerEscape={registerEscape}
               onOpenDev={onOpenDev}
+              gmProfiles={gmProfiles}
             />
           ) : selectedRequest ? (
             <RequestDesk
@@ -229,6 +360,12 @@ export default function Workspace({
         tagCatalog={tagCatalog}
         onInspect={inspect}
         onOpenPreview={() => setPreviewOpen(true)}
+        open={trayOpen}
+        setOpen={setTrayOpen}
+        expanded={trayExpanded}
+        setExpanded={setTrayExpanded}
+        revealSignal={revealSignal}
+        gmProfiles={gmProfiles}
       />
 
       {previewOpen && (
@@ -238,6 +375,8 @@ export default function Workspace({
           stagedMessages={stagedMessages}
           tagCatalog={tagCatalog}
           onClose={() => setPreviewOpen(false)}
+          onInspect={inspect}
+          onReveal={revealStagedRow}
         />
       )}
 

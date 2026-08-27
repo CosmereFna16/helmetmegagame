@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import StatusPill from "@/app/components/StatusPill";
 import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
+import GmAvatar from "@/app/components/GmAvatar";
 import { useTableState } from "@/app/components/DataTable";
 import { MOVE_REVIEW_TONES } from "@/lib/moves";
 
@@ -61,7 +62,7 @@ function RailFilters({ table, filterDefs, myZoneName }) {
   );
 }
 
-function MoveRows({ table, stagedByMove, selected, onSelect }) {
+function MoveRows({ table, stagedByMove, selected, onSelect, gmProfiles, kbdId, kbdLens }) {
   return table.visible.map((row) => {
     const staged = stagedByMove.get(row.id);
     const stagedCount = (staged?.effects.length ?? 0) + (staged?.messages.length ?? 0);
@@ -72,11 +73,18 @@ function MoveRows({ table, stagedByMove, selected, onSelect }) {
         type="button"
         className="desk-queue-row"
         data-active={active}
+        data-kbd={kbdLens === "moves" && kbdId === row.id ? "" : undefined}
+        data-row-key={row.id}
         onClick={() => onSelect({ type: "move", id: row.id })}
       >
         <span className="flex items-center justify-between gap-2">
           <span className="truncate font-medium">{row.characterName}</span>
-          <StatusPill tone={MOVE_REVIEW_TONES[row.statusLabel] ?? "neutral"}>{row.statusLabel}</StatusPill>
+          <span className="flex items-center gap-1.5">
+            {row.statusLabel === "In Progress" && (
+              <GmAvatar profile={gmProfiles?.[row.lockedByDiscordUserId]} size={14} />
+            )}
+            <StatusPill tone={MOVE_REVIEW_TONES[row.statusLabel] ?? "neutral"}>{row.statusLabel}</StatusPill>
+          </span>
         </span>
         <span className="block truncate text-xs text-muted">
           {row.kindLabel}
@@ -90,7 +98,7 @@ function MoveRows({ table, stagedByMove, selected, onSelect }) {
   });
 }
 
-function RequestRows({ table, selected, onSelect }) {
+function RequestRows({ table, selected, onSelect, kbdId, kbdLens }) {
   return table.visible.map((row) => {
     const active = selected?.type === "request" && selected.id === row.id;
     const killPending = row.type === "FEED_PERSON" && !row.effect?.killed;
@@ -101,6 +109,8 @@ function RequestRows({ table, selected, onSelect }) {
         className="desk-queue-row"
         data-active={active}
         data-urgent={killPending || undefined}
+        data-kbd={kbdLens === "requests" && kbdId === row.id ? "" : undefined}
+        data-row-key={row.id}
         onClick={() => onSelect({ type: "request", id: row.id })}
       >
         <span className="flex items-center justify-between gap-2">
@@ -129,6 +139,7 @@ export default function QueueRail({
   onSelect,
   lens,
   onLens,
+  gmProfiles,
 }) {
   const moveFilterDefs = useMemo(() => MOVE_FILTER_DEFS, []);
   const moveSearchFields = useMemo(() => MOVE_SEARCH_FIELDS, []);
@@ -155,8 +166,54 @@ export default function QueueRail({
     pageSize: 1000,
   });
 
+  const visibleRows = lens === "requests" ? requestTable.visible : moveTable.visible;
+  const [kbdIndex, setKbdIndex] = useState(-1);
+  const railRef = useRef(null);
+
+  // Filter/lens changes invalidate any prior focus position — clamped rather
+  // than reset-in-an-effect, since this is a plain derived value at read time.
+  const clampedKbdIndex = visibleRows.length ? Math.min(kbdIndex, visibleRows.length - 1) : -1;
+  const kbdId = clampedKbdIndex >= 0 ? visibleRows[clampedKbdIndex]?.id : null;
+
+  useEffect(() => {
+    function onKey(e) {
+      const key = e.key;
+      const isNav = key === "ArrowDown" || key === "ArrowUp" || key === "j" || key === "k" || key === "Enter";
+      const isLensKey = key === "m" || key === "r";
+      if (!isNav && !isLensKey) return;
+      if (document.querySelector(".modal-overlay")) return;
+      const active = document.activeElement;
+      if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) return;
+
+      if (isLensKey) {
+        onLens?.(key === "m" ? "moves" : "requests");
+        setKbdIndex(-1);
+        return;
+      }
+
+      const rows = lens === "requests" ? requestTable.visible : moveTable.visible;
+      if (!rows.length) return;
+
+      if (key === "Enter") {
+        const row = clampedKbdIndex >= 0 ? rows[clampedKbdIndex] : null;
+        if (row) onSelect({ type: lens === "requests" ? "request" : "move", id: row.id });
+        return;
+      }
+
+      e.preventDefault();
+      // Computed out here rather than inside the updater: React may call an
+      // updater twice, and scrolling is a side effect.
+      const delta = key === "ArrowDown" || key === "j" ? 1 : -1;
+      const next = Math.max(0, Math.min(rows.length - 1, clampedKbdIndex + delta));
+      setKbdIndex(next);
+      railRef.current?.querySelector(`[data-row-key="${rows[next].id}"]`)?.scrollIntoView({ block: "nearest" });
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lens, onLens, onSelect, moveTable.visible, requestTable.visible, clampedKbdIndex]);
+
   return (
-    <aside className="desk-rail">
+    <aside className="desk-rail" ref={railRef}>
       <div className="segmented desk-rail-lens" role="group" aria-label="Queue lens">
         <button type="button" aria-pressed={lens !== "requests"} onClick={() => onLens?.("moves")}>
           Moves ({moveTable.total})
@@ -170,7 +227,7 @@ export default function QueueRail({
         <>
           <RailFilters table={requestTable} filterDefs={requestFilterDefs} myZoneName={myZoneName} />
           <div className="desk-queue">
-            <RequestRows table={requestTable} selected={selected} onSelect={onSelect} />
+            <RequestRows table={requestTable} selected={selected} onSelect={onSelect} kbdId={kbdId} kbdLens={lens} />
             {requestTable.total === 0 && <p className="p-3 text-sm text-muted">No Requests match.</p>}
           </div>
         </>
@@ -178,11 +235,20 @@ export default function QueueRail({
         <>
           <RailFilters table={moveTable} filterDefs={moveFilterDefs} myZoneName={myZoneName} />
           <div className="desk-queue">
-            <MoveRows table={moveTable} stagedByMove={stagedByMove} selected={selected} onSelect={onSelect} />
+            <MoveRows
+              table={moveTable}
+              stagedByMove={stagedByMove}
+              selected={selected}
+              onSelect={onSelect}
+              gmProfiles={gmProfiles}
+              kbdId={kbdId}
+              kbdLens={lens}
+            />
             {moveTable.total === 0 && <p className="p-3 text-sm text-muted">No Moves match.</p>}
           </div>
         </>
       )}
+      <p className="desk-rail-hint text-xs text-muted">↑↓ / j k navigate · ⏎ open · m/r lens · esc close</p>
     </aside>
   );
 }

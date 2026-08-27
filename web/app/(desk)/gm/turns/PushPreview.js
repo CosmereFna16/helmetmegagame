@@ -8,7 +8,7 @@ import { effectSummary, tagNameLookup, truncate } from "./stagedFormat";
 // they'll get, the net staged deltas, their own Move's declared numbers —
 // plus the public declarations. Pure client derivation over data the page
 // already holds; nothing here fetches.
-export default function PushPreview({ moves, stagedEffects, stagedMessages, tagCatalog, onClose }) {
+export default function PushPreview({ moves, stagedEffects, stagedMessages, tagCatalog, onClose, onInspect, onReveal }) {
   const tagNames = useMemo(() => tagNameLookup(tagCatalog), [tagCatalog]);
 
   const perCharacter = useMemo(() => {
@@ -26,12 +26,12 @@ export default function PushPreview({ moves, stagedEffects, stagedMessages, tagC
     }
     for (const e of stagedEffects) {
       if (e.applied) continue;
-      entry(e.targetCharacterId, e.targetName).effects.push(effectSummary(e, tagNames));
+      entry(e.targetCharacterId, e.targetName).effects.push({ id: e.id, text: effectSummary(e, tagNames) });
     }
     for (const msg of stagedMessages) {
       if (msg.sent || msg.kind !== "PRIVATE") continue;
       for (const r of msg.recipients) {
-        entry(r.characterId, r.name).messages.push(truncate(msg.content, 80));
+        entry(r.characterId, r.name).messages.push({ id: msg.id, text: truncate(msg.content, 80) });
       }
     }
     return [...map.entries()]
@@ -52,7 +52,11 @@ export default function PushPreview({ moves, stagedEffects, stagedMessages, tagC
       <div className="mt-4 flex flex-col gap-4" style={{ maxHeight: "60vh", overflowY: "auto" }}>
         {perCharacter.map((c) => (
           <div key={c.id} className="panel p-3">
-            <p className="text-sm font-medium">{c.name}</p>
+            <p className="text-sm font-medium">
+              <button type="button" className="desk-name" onClick={() => onInspect?.(c.id, c.name)}>
+                {c.name}
+              </button>
+            </p>
             <ul className="mt-1 flex flex-col gap-1 text-sm">
               {c.declared ? (
                 <li className="mono">
@@ -60,14 +64,18 @@ export default function PushPreview({ moves, stagedEffects, stagedMessages, tagC
                   {c.declared} ⬢
                 </li>
               ) : null}
-              {c.effects.map((e, i) => (
-                <li key={`e${i}`} className="mono">
-                  staged: {e}
+              {c.effects.map((e) => (
+                <li key={e.id}>
+                  <button type="button" className="desk-preview-line mono" onClick={() => onReveal?.(e.id)}>
+                    staged: {e.text}
+                  </button>
                 </li>
               ))}
               {c.messages.map((m, i) => (
-                <li key={`m${i}`} className="text-muted">
-                  ✉ » {m}
+                <li key={`${m.id}-${i}`}>
+                  <button type="button" className="desk-preview-line text-muted" onClick={() => onReveal?.(m.id)}>
+                    ✉ » {m.text}
+                  </button>
                 </li>
               ))}
             </ul>
@@ -81,7 +89,9 @@ export default function PushPreview({ moves, stagedEffects, stagedMessages, tagC
             <ul className="mt-1 flex flex-col gap-1 text-sm">
               {publicPosts.map((p) => (
                 <li key={p.id}>
-                  {p.zoneName ? <span className="chip">{p.zoneName}</span> : null} {truncate(p.content, 120)}
+                  <button type="button" className="desk-preview-line" onClick={() => onReveal?.(p.id)}>
+                    {p.zoneName ? <span className="chip">{p.zoneName}</span> : null} {truncate(p.content, 120)}
+                  </button>
                 </li>
               ))}
             </ul>
