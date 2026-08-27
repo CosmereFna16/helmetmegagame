@@ -91,6 +91,21 @@ export default async function DevCharacterPanelPage({ params }) {
 
   const openTurnAction = openTurn ? moves.find((m) => m.turnId === openTurn.id) ?? null : null;
 
+  // What the adjudication workspace has queued against this sheet for the
+  // turn-end push. A GM live-editing resources here and a staged effect are
+  // additive and can't corrupt each other — but a GM WILL double-grant
+  // without the StateStrip hint this feeds.
+  const pendingStaged = await prisma.stagedEffect.findMany({
+    where: { targetCharacterId: characterId, appliedAt: null },
+    select: { payload: true },
+  });
+  const stagedForPush = pendingStaged.length
+    ? {
+        resources: pendingStaged.reduce((sum, e) => sum + (e.payload?.resources ?? 0), 0),
+        tagOps: pendingStaged.reduce((sum, e) => sum + (e.payload?.tagOps?.length ?? 0), 0),
+      }
+    : null;
+
   return (
     <PageShell width="wide">
       <DevPanel
@@ -183,6 +198,7 @@ export default async function DevCharacterPanelPage({ params }) {
         startingTagPoints={config?.startingTagPoints ?? 12}
         openTurn={openTurn ? { id: openTurn.id, number: openTurn.number, phase: openTurn.phase } : null}
         gambitModifier={gambitModifierTotal(heldTags)}
+        stagedForPush={stagedForPush}
         openTurnAction={
           openTurnAction
             ? {

@@ -54,6 +54,7 @@ export default function DevPanel({
   startingTagPoints,
   openTurn,
   gambitModifier,
+  stagedForPush,
   openTurnAction,
   defaultEffort,
   desires,
@@ -185,6 +186,7 @@ export default function DevPanel({
         gambitModifier={gambitModifier}
         openTurn={openTurn}
         hasActed={Boolean(openTurnAction)}
+        stagedForPush={stagedForPush}
       />
 
       <ActionBar
@@ -312,6 +314,7 @@ function StateStrip({
   gambitModifier,
   openTurn,
   hasActed,
+  stagedForPush,
 }) {
   const equipped = held.filter((h) => h.equipped).length;
   // Point-bought drawbacks only, matching the cap PointBuy enforces — a
@@ -351,6 +354,25 @@ function StateStrip({
           </div>
         ))}
       </dl>
+      {stagedForPush && (
+        /* The adjudication workspace has queued changes against this sheet
+           for the turn-end push. Live edits here are additive with those —
+           nothing corrupts — but a GM who can't see the queue double-grants. */
+        <p className="mt-2 text-xs text-accent">
+          Staged for the push:{" "}
+          {[
+            stagedForPush.resources
+              ? `${stagedForPush.resources > 0 ? "+" : ""}${stagedForPush.resources} ⬢`
+              : null,
+            stagedForPush.tagOps
+              ? `${stagedForPush.tagOps} tag change${stagedForPush.tagOps === 1 ? "" : "s"}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(", ")}{" "}
+          — queued in /gm/turns, lands at turn end.
+        </p>
+      )}
     </section>
   );
 }
