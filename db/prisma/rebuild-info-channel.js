@@ -120,7 +120,12 @@ async function createThreads(channelId, categories) {
       console.log(`  created thread: ${thread.title}`);
       links.push(created.id);
     }
-    linksByCategory.push({ name: category.name, threadIds: links, titles: category.threads.map((t) => t.title) });
+    linksByCategory.push({
+      name: category.name,
+      intro: category.intro,
+      threadIds: links,
+      titles: category.threads.map((t) => t.title),
+    });
   }
 
   return linksByCategory;
@@ -143,8 +148,9 @@ async function deleteThreadCreatedMessages(channelId) {
 
 function buildDirectoryMessage(mainMessage, linksByCategory) {
   const sections = linksByCategory.map((category) => {
+    const heading = category.name ? `**${category.name}**` : null;
     const lines = category.threadIds.map((id) => `<#${id}>`);
-    return category.name ? `***${category.name}:***\n${lines.join("\n")}` : lines.join("\n");
+    return [heading, category.intro, lines.join("\n")].filter(Boolean).join("\n\n");
   });
   return [mainMessage, ...sections].join("\n\n");
 }

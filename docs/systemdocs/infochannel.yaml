@@ -16,12 +16,14 @@
 #   actually-posted message is NOT written here — the script generates it
 #   from `categories` below, because thread IDs only exist once threads are
 #   created.
-# - categories: ordered list of { name, threads }. `name` is optional — if
-#   omitted, that category's threads are listed with no bold heading line
-#   above them in the directory message. When present, `name` becomes a
-#   bold heading line instead. Today: an unnamed category (Rules, Fates,
-#   Lore) followed by a "Gameplay" category (Gameplay, Moves, Roleplay,
-#   Resources, Tags).
+# - categories: ordered list of { name, intro, threads }. `name` is
+#   optional — if omitted, that category's threads are listed with no bold
+#   heading line above them in the directory message. When present, `name`
+#   becomes a plain bold heading line (no colon, not italicized). `intro`
+#   is optional text posted verbatim under that heading, in the directory
+#   message itself — not its own thread. Today: an unnamed category (Rules,
+#   Fates, Lore) followed by a "Gameplay" category (an intro paragraph,
+#   then Moves, Roleplay, Resources, Tags as threads).
 # - threads: ordered list of { title, body }, { title, generated }, or
 #   { title, body, generated }. Each becomes its own standalone public
 #   thread on #info, titled `title`. `body` (if present) is posted verbatim
@@ -97,10 +99,9 @@ categories:
           **Species?**
           Everyone's a human (?).
   - name: Gameplay
+    intro: |-
+      Bascinet has two layers: the Move layer (strategic) and the Roleplay layer (narrative). Moves are adjudicated every 12 hours, and are where mechanical effects take place. The Roleplay layer is always going on, and takes the results of the Move layer as its canon.
     threads:
-      - title: Gameplay
-        body: |-
-          Bascinet has two layers: the Move layer (strategic) and the Roleplay layer (narrative). Moves are adjudicated every 12 hours, and are where mechanical effects take place. The Roleplay layer is always going on, and takes the results of the Move layer as its canon.
       - title: Moves
         body: |-
           The game is split into two turns a day: Dawn and Dusk. Every turn, you can optionally plan a Move that’ll take effect the next turn.
