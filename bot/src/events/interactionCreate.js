@@ -189,7 +189,7 @@ async function handleThreadMemberCommand(interaction, action) {
   if (!canJoinThread(target, context)) {
     await respond(
       interaction,
-      `» *${target.name} isn't in ${context.locationName ?? "this location"} — they can't be brought in.*`,
+      `» *${target.name} isn't in ${context.zoneName ?? "this location"} — they can't be brought in.*`,
     );
     return;
   }
@@ -265,7 +265,7 @@ async function handlePersistentCommand(interaction) {
           threadId: channel.id,
           threadName: channel.name,
           persistent,
-          locationName: context.locationName ?? null,
+          zoneName: context.zoneName ?? null,
         },
       },
     })

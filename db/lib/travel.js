@@ -1,51 +1,48 @@
-const { isTravelFree } = require("./travelCost");
 const { recordArchiveEvent } = require("./archive");
+const { seatZoneIdFor } = require("./seatZone");
 
-// The database half of a location change, shared by both faces of the game:
-// bot/src/lib/location.js#performMove (gateway) and
+// The database half of a zone change, shared by both faces of the game:
+// bot/src/lib/zoneTravel.js#performMove (gateway) and
 // web/app/(app)/map/travelActions.js#travelTo (REST). It validates the hop,
-// writes the character's new location and — when the hop isn't free — the
-// auto-resolved Move that spends the turn.
+// writes the character's new zone and the auto-resolved Move that spends the
+// turn — since the zone rework EVERY hop costs the Move; free same-zone
+// travel went with the per-Location channels.
 //
 // It deliberately performs **no Discord side effects**, the same split
 // advanceTurn()/runSideEffects() uses: the bot has a gateway client and the
 // web app only has REST, so each caller runs its own twin of
-// swapLocationAccess/syncCharacterNarrowcastAccess afterwards. `oldLocation`
-// comes back on the result precisely so they can.
+// swapZoneRole/syncCharacterNarrowcastAccess/applyPendingInvites afterwards.
+// `oldZone` comes back on the result precisely so they can.
 //
-// Legality and cost are two independent gates:
-//  - legality: targetLocation must be a direct neighbour of where the
-//    character stands (Location.connectsTo, mastered by
-//    docs/locations.yaml's locationConnections). Skipped entirely when the
-//    character has no Location yet, so a first-ever placement can go
-//    anywhere.
-//  - cost: see isTravelFree in ./travelCost — same zone is free, except
-//    inside the Depths, where every level is its own Move.
+// Legality: targetZone must be a presence zone (never the Caves group row)
+// and a direct neighbour of where the character stands (Zone.connectsTo,
+// mastered by docs/zones.yaml's zoneConnections). The adjacency gate is
+// skipped entirely when the character has no zone yet, so a first-ever
+// placement can go anywhere.
 //
-// Returns { ok: true, free, oldLocation } or { ok: false, reason }.
-async function performTravel(prisma, character, targetLocation) {
-  let currentLocation = null;
-  if (character.locationId) {
-    currentLocation = await prisma.location.findUnique({
-      where: { id: character.locationId },
-      include: { connectsTo: { where: { id: targetLocation.id } } },
+// Returns { ok: true, oldZone } or { ok: false, reason }.
+async function performTravel(prisma, character, targetZone) {
+  if (targetZone.kind === "CAVE_GROUP") {
+    return { ok: false, reason: "That isn't a place you can stand." };
+  }
+
+  let currentZone = null;
+  if (character.zoneId) {
+    if (character.zoneId === targetZone.id) {
+      return { ok: false, reason: "You're already there." };
+    }
+    currentZone = await prisma.zone.findUnique({
+      where: { id: character.zoneId },
+      include: { connectsTo: { where: { id: targetZone.id } } },
     });
-    if (!currentLocation || currentLocation.connectsTo.length === 0) {
+    if (!currentZone || currentZone.connectsTo.length === 0) {
       return { ok: false, reason: "You can't get there directly from here." };
     }
   }
 
-  // The location's own zone, not Character.zoneId. The mirror can be null on a
-  // sheet the location isn't (ARCHITECTURE.md §6), and web/app/(app)/map's
-  // node colouring already asks the question this way — so reading it off the
-  // location is both more correct and the thing that keeps the map and the
-  // server from disagreeing.
-  const free = isTravelFree({
-    fromSlug: currentLocation?.slug ?? null,
-    fromZoneId: currentLocation?.zoneId ?? null,
-    toSlug: targetLocation.slug ?? null,
-    toZoneId: targetLocation.zoneId,
-  });
+  // A first placement (no current zone) is free — it isn't travel, it's
+  // arrival. Everything else files the Move.
+  const free = !currentZone;
 
   let openTurn = null;
   if (!free) {
@@ -55,17 +52,12 @@ async function performTravel(prisma, character, targetLocation) {
 
   // One transaction, and the Action is written BEFORE the character moves.
   //
-  // These used to be three bare statements on the raw client: check whether
-  // they had acted, move them, then file the Action. Two submissions at once —
-  // the #turns Travel button and the web map, or two map clicks — both passed
-  // the check and both moved, while @@unique([characterId, turnId]) let only
-  // one Action through. The player ended up two hops away having spent one
-  // Move, and the old comment here accepted that as the cost of not having a
-  // transaction.
-  //
-  // Filing first makes the unique constraint the gate rather than an
-  // afterthought: the loser's create raises P2002, which aborts the
-  // transaction, and the move it would have made is rolled back with it.
+  // Two submissions at once — the #turns Travel button and the web map, or
+  // two map clicks — used to both pass the acted-check and both move, while
+  // @@unique([characterId, turnId]) let only one Action through: the player
+  // ended up two hops away having spent one Move. Filing first makes the
+  // unique constraint the gate: the loser's create raises P2002, which aborts
+  // the transaction, and the move it would have made is rolled back with it.
   try {
     await prisma.$transaction(async (tx) => {
       if (!free) {
@@ -84,9 +76,11 @@ async function performTravel(prisma, character, targetLocation) {
             type: "MOVE",
             status: "CONFIRMED",
             moveReviewStatus: "SOLVED",
-            description: `Traveled to ${targetLocation.name}.`,
-            zoneId: targetLocation.zoneId,
-            resultMessage: `» Traveled to ${targetLocation.name}.`,
+            description: `Traveled to ${targetZone.name}.`,
+            // The SEAT zone, not the presence zone — a Move filed from the
+            // Railroad belongs on the Caves GM's table.
+            zoneId: seatZoneIdFor(targetZone),
+            resultMessage: `» Traveled to ${targetZone.name}.`,
             gmNotes: "auto:zone_change",
           },
         });
@@ -94,7 +88,7 @@ async function performTravel(prisma, character, targetLocation) {
 
       await tx.character.update({
         where: { id: character.id },
-        data: { locationId: targetLocation.id, zoneId: targetLocation.zoneId },
+        data: { zoneId: targetZone.id },
       });
     });
   } catch (err) {
@@ -105,8 +99,8 @@ async function performTravel(prisma, character, targetLocation) {
   }
 
   // Off by default (see GameConfig.archiveTravelEvents): arrivals are what
-  // make a location read like a story, and also two rows per character per
-  // turn before anyone says a word.
+  // make a zone read like a story, and also two rows per character per turn
+  // before anyone says a word.
   const config = await prisma.gameConfig.findUnique({
     where: { id: 1 },
     select: { archiveTravelEvents: true },
@@ -115,15 +109,15 @@ async function performTravel(prisma, character, targetLocation) {
     await recordArchiveEvent(prisma, {
       kind: "TRAVEL",
       character,
-      locationId: targetLocation.id,
-      locationName: targetLocation.name,
-      content: currentLocation
-        ? `${character.name} left ${currentLocation.name} for ${targetLocation.name}.`
-        : `${character.name} arrived at ${targetLocation.name}.`,
+      zoneId: targetZone.id,
+      zoneName: targetZone.name,
+      content: currentZone
+        ? `${character.name} left ${currentZone.name} for ${targetZone.name}.`
+        : `${character.name} arrived at ${targetZone.name}.`,
     });
   }
 
-  return { ok: true, free, oldLocation: currentLocation };
+  return { ok: true, oldZone: currentZone };
 }
 
 module.exports = { performTravel };

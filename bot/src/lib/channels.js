@@ -1,37 +1,35 @@
 const { ChannelType } = require("discord.js");
-const { prisma } = require("@lifeweb/db");
+const { prisma, SPECIAL_CHANNELS } = require("@lifeweb/db");
 
-// Tupper/summary status is Location-channel-ID-based (see locationChannelIds
-// below) — a channel opts in by being one of a Location's plain/public/
-// private channels, provisioned via
-// web/app/(app)/gm/dev/actions.js#provisionLocationChannels — plus the two
-// narrowcast channels (#watch, #intercom, GameConfig.watchChannelId/
-// intercomChannelId), which are tupper-only, never summary: they aren't tied
-// to a place, so there's no Location adjudication result to post there.
+// Tupper/summary status is zone-channel-ID-based (see locationChannelIds
+// below) — a channel opts in by being a zone's summary/public/private channel
+// (or a cave level's forum), provisioned by db/lib/syncZones.js — plus the
+// special channels (#watch, #intercom, db/lib/specialChannels.js), which are
+// tupper-only, never summary: they aren't tied to a place, so there's no
+// zone adjudication result to post there.
 
-// Refreshed on bot ready and every 5 minutes after — Location rows and the
-// narrowcast channel ids change rarely (GM provisioning, one-off sync), so a
-// periodic in-memory refresh is plenty fresh without a DB round trip on
-// every message.
+// Refreshed on bot ready and every 5 minutes after — Zone rows and the
+// special channel ids change rarely (sync-time provisioning), so a periodic
+// in-memory refresh is plenty fresh without a DB round trip on every
+// message.
 let locationChannelIds = { tupperSummary: new Set(), tupperOnly: new Set() };
 
-// channelId -> { locationId, locationName, zoneId, channelKind }, the same
-// refresh feeding the Sets above. It exists so the proxy can stamp an archive
-// row with where a message was said, and so the mention relay can gate a ping
-// on the speaker's Zone, both without a DB round trip per message. The
-// narrowcast channels are in here too with a null location AND null zone —
-// they aren't tied to a place, which is exactly what makes the relay fall
-// through to their own access rules (see db/lib/narrowcastAccess.js).
+// channelId -> { zoneId, zoneName, channelKind }, the same refresh feeding
+// the Sets above. It exists so the proxy can stamp an archive row with where
+// a message was said, and so the mention relay can gate a ping on the
+// speaker's zone, both without a DB round trip per message. The special
+// channels are in here too with a null zone — they aren't tied to a place,
+// which is exactly what makes the relay fall through to their own access
+// rules (see db/lib/specialChannels.js).
 let channelContexts = new Map();
 
 async function refreshLocationChannels() {
-  const [locations, config] = await Promise.all([
-    prisma.location.findMany({
+  const [zones, config] = await Promise.all([
+    prisma.zone.findMany({
       select: {
         id: true,
         name: true,
-        zoneId: true,
-        discordChannelId: true,
+        discordSummaryChannelId: true,
         discordPublicChannelId: true,
         discordPrivateChannelId: true,
       },
@@ -45,20 +43,22 @@ async function refreshLocationChannels() {
     if (channelId) contexts.set(channelId, context);
   };
 
-  for (const loc of locations) {
-    if (loc.discordChannelId) tupperSummary.add(loc.discordChannelId);
-    if (loc.discordPublicChannelId) tupperSummary.add(loc.discordPublicChannelId);
-    if (loc.discordPrivateChannelId) tupperOnly.add(loc.discordPrivateChannelId);
-    const place = { locationId: loc.id, locationName: loc.name, zoneId: loc.zoneId };
-    note(loc.discordChannelId, { ...place, channelKind: "plain" });
-    note(loc.discordPublicChannelId, { ...place, channelKind: "public" });
-    note(loc.discordPrivateChannelId, { ...place, channelKind: "private" });
+  for (const zone of zones) {
+    if (zone.discordSummaryChannelId) tupperSummary.add(zone.discordSummaryChannelId);
+    if (zone.discordPublicChannelId) tupperSummary.add(zone.discordPublicChannelId);
+    if (zone.discordPrivateChannelId) tupperOnly.add(zone.discordPrivateChannelId);
+    const place = { zoneId: zone.id, zoneName: zone.name };
+    note(zone.discordSummaryChannelId, { ...place, channelKind: "summary" });
+    note(zone.discordPublicChannelId, { ...place, channelKind: "public" });
+    note(zone.discordPrivateChannelId, { ...place, channelKind: "private" });
   }
-  if (config?.watchChannelId) tupperOnly.add(config.watchChannelId);
-  if (config?.intercomChannelId) tupperOnly.add(config.intercomChannelId);
-  const nowhere = { locationId: null, locationName: null, zoneId: null };
-  note(config?.watchChannelId, { ...nowhere, channelKind: "watch" });
-  note(config?.intercomChannelId, { ...nowhere, channelKind: "intercom" });
+  const nowhere = { zoneId: null, zoneName: null };
+  for (const entry of SPECIAL_CHANNELS) {
+    const channelId = config?.[entry.configKey];
+    if (!channelId) continue;
+    if (entry.tupper) tupperOnly.add(channelId);
+    note(channelId, { ...nowhere, channelKind: entry.slug });
+  }
 
   locationChannelIds = { tupperSummary, tupperOnly };
   channelContexts = contexts;
@@ -74,9 +74,8 @@ function resolveChannelContext(channel) {
   const parentId = isThread ? channel.parent?.id : channel.id;
   const context = parentId ? channelContexts.get(parentId) : null;
   return {
-    locationId: context?.locationId ?? null,
-    locationName: context?.locationName ?? null,
     zoneId: context?.zoneId ?? null,
+    zoneName: context?.zoneName ?? null,
     channelKind: context?.channelKind ?? null,
     threadName: isThread ? (channel.name ?? null) : null,
     // The id a jump link needs: the thread's own id when this is a thread,

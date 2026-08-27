@@ -150,7 +150,7 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
       // standing in that Location. Telling the pinger why keeps a refusal from
       // reading as a bug; a proxied message has no interaction to reply to.
       if (!canJoinThread(target, context)) {
-        console.log(`[mentions] ${target.name}: not in ${context.locationName ?? "this location"}, no thread add`);
+        console.log(`[mentions] ${target.name}: not in ${context.zoneName ?? "this location"}, no thread add`);
         notHere.push(target.name);
         continue;
       }
@@ -169,7 +169,7 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
   }
 
   if (notHere.length > 0) {
-    const where = context.locationName ?? "this location";
+    const where = context.zoneName ?? "this location";
     await sendDm(
       message.author,
       notHere.length === 1

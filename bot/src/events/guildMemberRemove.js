@@ -1,5 +1,5 @@
 const { prisma } = require("@lifeweb/db");
-const { revokeAllCharacterAccess } = require("@lifeweb/db/lib/locationAccess");
+const { revokeAllCharacterAccess } = require("@lifeweb/db/lib/accessSweep");
 const { recordArchiveEvent } = require("@lifeweb/db/lib/archive");
 
 const LEAVE_ANNOUNCE_CHANNEL_ID = "1540014692926361651";

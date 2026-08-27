@@ -166,7 +166,7 @@ async function listSpeakTargets(guild, member) {
     if (!isDesignatedTupperChannel(channel)) continue;
 
     const context = resolveChannelContext(channel);
-    const where = context.locationName ?? null;
+    const where = context.zoneName ?? null;
     const kind = context.channelKind;
 
     if (kind === "public" || kind === "private") {

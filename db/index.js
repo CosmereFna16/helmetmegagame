@@ -35,7 +35,7 @@ const { syncTagsFromYaml } = require("./lib/syncTags");
 const { deleteCharacterRow } = require("./lib/deleteCharacter");
 const { syncRolesFromYaml } = require("./lib/syncRoles");
 const { syncDocumentsFromYaml } = require("./lib/syncDocuments");
-const { NARROWCAST_SLUGS, buildNarrowcastContext, computeNarrowcastAccess } = require("./lib/specialChannels");
+const { SPECIAL_CHANNELS, NARROWCAST_SLUGS, buildNarrowcastContext, computeNarrowcastAccess } = require("./lib/specialChannels");
 const { syncSpecialChannels } = require("./lib/syncSpecialChannels");
 
 const globalForPrisma = globalThis;
@@ -766,6 +766,7 @@ module.exports = {
   deleteCharacterRow,
   syncRolesFromYaml,
   syncDocumentsFromYaml,
+  SPECIAL_CHANNELS,
   NARROWCAST_SLUGS,
   buildNarrowcastContext,
   computeNarrowcastAccess,
@@ -793,12 +794,8 @@ module.exports = {
   ...require("./lib/moveEffects"),
   ...require("./lib/resourceDelta"),
   ...require("./lib/laborAccess"),
-  ...require("./lib/travelCost"),
-  // Only the pure helpers. revokeAllCharacterAccess takes prisma as a
-  // parameter (the db/lib/dm.js convention) and is deliberately kept off the
-  // barrel — require it by path.
-  PERM_VIEW_CHANNEL: require("./lib/locationAccess").PERM_VIEW_CHANNEL,
-  OVERWRITE_TYPE_ROLE: require("./lib/locationAccess").OVERWRITE_TYPE_ROLE,
-  OVERWRITE_TYPE_MEMBER: require("./lib/locationAccess").OVERWRITE_TYPE_MEMBER,
-  locationAccessChannelIds: require("./lib/locationAccess").locationAccessChannelIds,
+  // Only the pure helper. The revoke functions take prisma as a parameter
+  // (the db/lib/dm.js convention) and are deliberately kept off the barrel —
+  // require db/lib/accessSweep.js by path.
+  zoneChannelIds: require("./lib/accessSweep").zoneChannelIds,
 };

@@ -60,8 +60,8 @@ function messageLink(guildId, channelId, messageId) {
 // message it quoted.
 async function notifyMentioned(client, character, context, link) {
   const where = context.threadName
-    ? `${context.locationName ?? "somewhere"} · ${context.threadName}`
-    : (context.locationName ?? (context.channelKind === "watch" ? "the Watch's radio" : "the Intercom"));
+    ? `${context.zoneName ?? "somewhere"} · ${context.threadName}`
+    : (context.zoneName ?? (context.channelKind === "watch" ? "the Watch's radio" : "the Intercom"));
 
   const user = await client.users.fetch(character.discordUserId).catch(() => null);
   if (!user) return;

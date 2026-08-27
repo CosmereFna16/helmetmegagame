@@ -8,19 +8,20 @@ import {
   computeNarrowcastAccess,
   PLAYER_ROLE_ID,
   LEADER_WHITELIST_ROLE_ID,
-  OVERWRITE_TYPE_MEMBER,
-  locationAccessChannelIds,
+  SPECIAL_CHANNELS,
 } from "@lifeweb/db";
 import { recordArchiveEvent } from "@lifeweb/db/lib/archive";
 import {
   revokeAllCharacterAccess as revokeAllCharacterAccessShared,
   revokeAccessForCharacters as revokeAccessForCharactersShared,
-} from "@lifeweb/db/lib/locationAccess";
+} from "@lifeweb/db/lib/accessSweep";
 import {
   putChannelOverwrite,
   deleteChannelOverwrite,
   discordRequest,
   postDmBatched,
+  addMemberRole,
+  removeMemberRole,
 } from "@lifeweb/db/lib/discordRest";
 
 // Channels opt into summary/tupper behavior by name instead of a manually
@@ -54,21 +55,26 @@ export function isTupperChannel(channel, locationChannelIds) {
 const locationChannelCache = ttlCache(30_000);
 
 async function fetchLocationChannelIds() {
-  const [locations, config] = await Promise.all([
-    prisma.location.findMany({
-      select: { discordChannelId: true, discordPublicChannelId: true, discordPrivateChannelId: true },
+  const [zones, config] = await Promise.all([
+    prisma.zone.findMany({
+      select: {
+        discordSummaryChannelId: true,
+        discordPublicChannelId: true,
+        discordPrivateChannelId: true,
+      },
     }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
   ]);
   const tupperSummary = new Set();
   const tupperOnly = new Set();
-  for (const loc of locations) {
-    if (loc.discordChannelId) tupperSummary.add(loc.discordChannelId);
-    if (loc.discordPublicChannelId) tupperSummary.add(loc.discordPublicChannelId);
-    if (loc.discordPrivateChannelId) tupperOnly.add(loc.discordPrivateChannelId);
+  for (const zone of zones) {
+    if (zone.discordSummaryChannelId) tupperSummary.add(zone.discordSummaryChannelId);
+    if (zone.discordPublicChannelId) tupperSummary.add(zone.discordPublicChannelId);
+    if (zone.discordPrivateChannelId) tupperOnly.add(zone.discordPrivateChannelId);
   }
-  if (config?.watchChannelId) tupperOnly.add(config.watchChannelId);
-  if (config?.intercomChannelId) tupperOnly.add(config.intercomChannelId);
+  for (const entry of SPECIAL_CHANNELS) {
+    if (entry.tupper && config?.[entry.configKey]) tupperOnly.add(config[entry.configKey]);
+  }
   return { tupperSummary, tupperOnly };
 }
 
@@ -501,40 +507,37 @@ export async function deleteCharacterRole(discordRoleId) {
   });
 }
 
-// REST twin of bot/src/lib/location.js#swapLocationAccess, for GM raw edits
-// (updateCharacterRaw, web/app/(app)/gm/dev/actions.js) which change
-// Character.locationId directly in the DB with no gateway Guild object on
-// hand. Same primitive as the gateway twin: grant the player's member
-// overwrite ViewChannel on every channel of the new Location, revoke it on
-// every channel of the old.
-export async function syncCharacterLocationAccess(discordUserId, oldLocationId, newLocationId) {
+// REST twin of bot/src/lib/zoneTravel.js#swapZoneRole, for GM raw edits
+// (updateCharacterRaw, web/app/(app)/gm/dev/actions.js), character creation
+// and the web map's travel action — paths with no gateway Guild object on
+// hand. Grant BEFORE revoke, so an interrupted swap leaves the player seeing
+// two zones (harmless, self-healing) rather than none. Failures are logged,
+// never swallowed — the channel doctor reconciles whatever a miss leaves.
+export async function syncCharacterZoneRole(discordUserId, oldZoneId, newZoneId) {
   const token = process.env.DISCORD_TOKEN;
-  if (!token || !discordUserId || oldLocationId === newLocationId) return;
+  if (!token || !discordUserId || oldZoneId === newZoneId) return;
 
-  const [oldLocation, newLocation] = await Promise.all([
-    oldLocationId ? prisma.location.findUnique({ where: { id: oldLocationId } }) : null,
-    newLocationId ? prisma.location.findUnique({ where: { id: newLocationId } }) : null,
+  const [oldZone, newZone] = await Promise.all([
+    oldZoneId ? prisma.zone.findUnique({ where: { id: oldZoneId } }) : null,
+    newZoneId ? prisma.zone.findUnique({ where: { id: newZoneId } }) : null,
   ]);
 
-  // Category AND all three channels, not the category alone — a channel does
-  // not reliably inherit from its category (db/lib/locationAccess.js). Routed
-  // through discordRest so these get the shared 429 retry the hand-rolled
-  // fetches here never had.
-  for (const channelId of locationAccessChannelIds(oldLocation)) {
-    await deleteChannelOverwrite(channelId, discordUserId).catch(() => {});
+  if (newZone?.discordRoleId) {
+    await addMemberRole(discordUserId, newZone.discordRoleId).catch((err) =>
+      console.error(`Failed to grant ${discordUserId} the ${newZone.name} zone role:`, err.message),
+    );
   }
-  for (const channelId of locationAccessChannelIds(newLocation)) {
-    await putChannelOverwrite(channelId, discordUserId, {
-      allow: String(PERM_VIEW_CHANNEL),
-      type: OVERWRITE_TYPE_MEMBER,
-    }).catch(() => {});
+  if (oldZone?.discordRoleId && oldZone.discordRoleId !== newZone?.discordRoleId) {
+    await removeMemberRole(discordUserId, oldZone.discordRoleId).catch((err) =>
+      console.error(`Failed to remove ${discordUserId}'s ${oldZone.name} zone role:`, err.message),
+    );
   }
 }
 
 // Reconciles a character's per-member permission overwrites on the two
 // hardcoded narrowcast channels (#watch, #intercom) against their current
 // tags and Location/Zone — see db/lib/narrowcastAccess.js for the actual
-// rules, and bot/src/lib/location.js's twin of the same name (gateway-based,
+// rules, and bot/src/lib/zoneTravel.js's twin of the same name (gateway-based,
 // called after every Move) for the other half. This one is the REST path,
 // called from GM raw location/tag edits and from character creation.
 // Idempotent — safe to call after any tag or location change.
@@ -553,10 +556,9 @@ export async function syncCharacterNarrowcastAccess(characterId) {
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
   ]);
   const access = computeNarrowcastAccess(ctx);
-  const channelIds = { watch: config?.watchChannelId, intercom: config?.intercomChannelId };
 
   await Promise.all(
-    Object.entries(channelIds)
+    SPECIAL_CHANNELS.map((entry) => [entry.slug, config?.[entry.configKey]])
       .filter(([, channelId]) => channelId)
       .map(async ([slug, channelId]) => {
         const grant = access[slug];
@@ -567,7 +569,7 @@ export async function syncCharacterNarrowcastAccess(characterId) {
             if (grant.send) allow |= PERM_SEND_MESSAGES;
             await putChannelOverwrite(channelId, character.discordUserId, {
               allow: String(allow),
-              type: OVERWRITE_TYPE_MEMBER,
+              type: 1,
             });
           } else {
             await deleteChannelOverwrite(channelId, character.discordUserId);
@@ -579,7 +581,7 @@ export async function syncCharacterNarrowcastAccess(characterId) {
   );
 }
 
-// Thin prisma-binding shim over db/lib/locationAccess.js#revokeAllCharacterAccess
+// Thin prisma-binding shim over db/lib/accessSweep.js#revokeAllCharacterAccess
 // — same convention as web/lib/factionPermissions.js, so web callers keep the
 // shorter signature while the bot (guildMemberRemove) requires the shared one
 // by path. The logic lives in db/lib because both faces need it.
@@ -588,7 +590,7 @@ export async function revokeAllCharacterAccess(character) {
 }
 
 // The bulk twin, for Restart Game. Channel-major rather than one blind sweep
-// per character — see db/lib/locationAccess.js#revokeAccessForCharacters.
+// per character — see db/lib/accessSweep.js#revokeAccessForCharacters.
 export async function revokeAccessForCharacters(characters) {
   return revokeAccessForCharactersShared(prisma, characters);
 }
