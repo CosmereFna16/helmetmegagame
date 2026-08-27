@@ -4,7 +4,6 @@ const { isDesignatedTupperChannel, resolveChannelContext } = require("../lib/cha
 const { sendDm } = require("../lib/dm");
 const {
   canHearPing,
-  canJoinThread,
   isPrivateThread,
   messageLink,
   notifyMentioned,
@@ -46,6 +45,15 @@ module.exports = {
     }
 
     if (!isDesignatedTupperChannel(message.channel)) return;
+
+    // Inactivity clock for player-made threads (db/lib/threadExpiryPass.js).
+    // Debounced to one write per thread per turn; runs before the character
+    // gate on purpose — a GM talking in a scene keeps it alive too.
+    if (message.channel.isThread?.()) {
+      touchThreadActivity(message.channel.id).catch((err) =>
+        console.error("Thread activity write failed:", err),
+      );
+    }
 
     const character = await prisma.character.findFirst({
       where: { discordUserId: message.author.id, status: "ALIVE" },
@@ -100,6 +108,26 @@ module.exports = {
   },
 };
 
+// In-memory debounce: threadId -> the turn number already recorded. A busy
+// thread costs one UPDATE per turn instead of one per message; the sweep also
+// re-derives activity from each thread's last_message_id snowflake, so a
+// restart losing this map costs nothing.
+const activityWritten = new Map();
+
+async function touchThreadActivity(threadId) {
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } });
+  const turnNumber = openTurn?.number ?? null;
+  if (turnNumber !== null && activityWritten.get(threadId) === turnNumber) return;
+
+  const updated = await prisma.playerThread.updateMany({
+    where: { threadId },
+    data: { lastActivityTurn: turnNumber ?? undefined, lastActivityAt: new Date() },
+  });
+  // Only remember threads we actually track — a Location topic has no row,
+  // and caching its id would just grow the map.
+  if (updated.count > 0 && turnNumber !== null) activityWritten.set(threadId, turnNumber);
+}
+
 // Two independent things a character-role mention does, both of which the bot
 // has to perform itself once the roles are assigned to nobody (see the
 // identity/access split): notify the player, and — in a private thread — let
@@ -145,19 +173,25 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
 
   for (const target of relayed) {
     if (privateThread) {
-      // Location-scoped, unlike the Zone gate below — Discord needs the target
-      // to be able to view the parent channel, which only holds while they're
-      // standing in that Location. Telling the pinger why keeps a refusal from
-      // reading as a bug; a proxied message has no interaction to reply to.
-      if (!canJoinThread(target, context)) {
-        console.log(`[mentions] ${target.name}: not in ${context.zoneName ?? "this location"}, no thread add`);
+      // A mention into a private thread is an invite, same contract as /add:
+      // recorded, applied now if the target can already see the zone, and
+      // replayed by applyPendingInvites when they arrive otherwise.
+      await prisma.playerThreadInvite
+        .upsert({
+          where: { threadId_characterId: { threadId: channel.id, characterId: target.id } },
+          update: {},
+          create: { threadId: channel.id, characterId: target.id },
+        })
+        .catch((err) => console.error("Failed to record thread invite:", err));
+      if (context.zoneId && target.zoneId === context.zoneId) {
+        await channel.members.add(target.discordUserId).catch((err) =>
+          console.error(`Failed to add ${target.discordUserId} to thread ${channel.id}:`, err),
+        );
+        await notifyMentioned(message.client, target, context, link);
+      } else {
+        console.log(`[mentions] ${target.name}: not in ${context.zoneName ?? "this zone"}, invite recorded`);
         notHere.push(target.name);
-        continue;
       }
-      await channel.members.add(target.discordUserId).catch((err) =>
-        console.error(`Failed to add ${target.discordUserId} to thread ${channel.id}:`, err),
-      );
-      await notifyMentioned(message.client, target, context, link);
       continue;
     }
 
@@ -169,12 +203,12 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
   }
 
   if (notHere.length > 0) {
-    const where = context.zoneName ?? "this location";
+    const where = context.zoneName ?? "this zone";
     await sendDm(
       message.author,
       notHere.length === 1
-        ? `» *${notHere[0]} isn't in ${where}. They can't be brought into this thread.*`
-        : `» *${notHere.join(", ")} aren't in ${where}. They can't be brought into this thread.*`,
+        ? `» *${notHere[0]} isn't in ${where} — they're invited, and they'll see this thread when they arrive.*`
+        : `» *${notHere.join(", ")} aren't in ${where} — they're invited, and they'll see this thread when they arrive.*`,
     ).catch(() => {});
   }
 }

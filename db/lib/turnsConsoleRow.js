@@ -31,6 +31,6 @@ const TURNS_CONSOLE_ROW = {
 // Sits under the turn announcement, so it reads as "given the above, what
 // now?" rather than as a heading of its own.
 const CONSOLE_TEXT =
-  "-# You can only travel to a directly connected location. Changing Zones takes a turn.";
+  "-# You can only travel to a connected zone, and it spends your Move for the turn.";
 
 module.exports = { TURNS_CONSOLE_ROW, CONSOLE_TEXT, MOVE_EMOJI };

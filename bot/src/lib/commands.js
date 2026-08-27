@@ -67,10 +67,10 @@ const commandDefinitions = [
     .setDescription("Remove a character from this private thread.")
     .addRoleOption((opt) => opt.setName("character").setDescription("Whose role to remove").setRequired(true))
     .setContexts(GUILD_ONLY),
-  // Marks the current thread to survive the Dawn wipe — the ⏰ forum tag on a
-  // forum post, a ⏰ name prefix on a private thread (text channels can't carry
-  // forum tags). Toggles, so the same command unmarks. No options: it always
-  // acts on the thread it was run in.
+  // Marks the current thread to survive the Dawn wipe — tracked on its
+  // PlayerThread row, mirrored as the Persistent forum tag on a forum post.
+  // Toggles, so the same command unmarks. No options: it always acts on the
+  // thread it was run in.
   new SlashCommandBuilder()
     .setName("persistent")
     .setDescription("Toggle whether this thread survives the Dawn wipe.")
@@ -86,7 +86,7 @@ const commandDefinitions = [
     .setContexts(ANYWHERE),
   new SlashCommandBuilder()
     .setName("location")
-    .setDescription("Travel to a connected location.")
+    .setDescription("Travel to a connected zone.")
     .setContexts(ANYWHERE),
   // Run inside a channel you can speak in, this skips the destination picker
   // and posts there. Run anywhere else — including a DM — it asks where first.

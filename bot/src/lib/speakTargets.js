@@ -187,7 +187,7 @@ async function listSpeakTargets(guild, member) {
 
     if (!canSpeakInChannel(channel, member)) continue;
 
-    if (kind === "plain") {
+    if (kind === "summary") {
       buckets.room.push({
         value: channel.id,
         label: `#${channel.name}`.slice(0, 100),

@@ -1,5 +1,5 @@
 const { ChannelType } = require("discord.js");
-const { prisma, buildNarrowcastContext, computeNarrowcastAccess } = require("@lifeweb/db");
+const { prisma, buildNarrowcastContext, computeNarrowcastAccess, NARROWCAST_SLUGS } = require("@lifeweb/db");
 const { sendDm } = require("./dm");
 
 // Character-role mentions: who was pinged, may they hear it, and (in a private
@@ -17,13 +17,13 @@ const { sendDm } = require("./dm");
 // becomes a free cross-map signalling channel. Two cases, because the two
 // kinds of channel mean different things by "in earshot":
 //
-//   - A Location channel is gated on ZONE, deliberately looser than the room
-//     itself: someone in the Square can shout for someone at the Cathedral.
-//   - #watch / #intercom have no Zone at all, so they're gated on whether the
-//     target currently *hears that channel* under its own rules — which reuses
-//     db/lib/narrowcastAccess.js rather than inventing a second copy of them.
+//   - A zone channel is gated on the zone: someone in the Square topic can
+//     shout for someone reading the Cathedral one.
+//   - The special channels have no zone at all, so they're gated on whether
+//     the target currently *hears that channel* under its own rules — which
+//     reuses db/lib/specialChannels.js rather than inventing a second copy.
 async function canHearPing(character, context) {
-  if (context.channelKind === "watch" || context.channelKind === "intercom") {
+  if (NARROWCAST_SLUGS.includes(context.channelKind)) {
     const ctx = await buildNarrowcastContext(prisma, character.id);
     return Boolean(computeNarrowcastAccess(ctx)[context.channelKind]?.view);
   }
@@ -68,23 +68,12 @@ async function notifyMentioned(client, character, context, link) {
   await sendDm(user, `» *You were mentioned in ${where}.*\n${link}`).catch(() => {});
 }
 
-// Adding someone to a private thread is LOCATION-scoped, stricter than the
-// Zone gate above and not a choice we get to make: Discord requires the target
-// to be able to view the thread's parent channel, and that view comes from the
-// per-character overwrite on the Location category, which only exists while
-// they're standing there. Adding someone who can't see the parent would put a
-// thread in their sidebar they can't open.
-function canJoinThread(character, context) {
-  return Boolean(context.locationId) && character.locationId === context.locationId;
-}
-
 function isPrivateThread(channel) {
   return channel?.type === ChannelType.PrivateThread;
 }
 
 module.exports = {
   canHearPing,
-  canJoinThread,
   isPrivateThread,
   messageLink,
   notifyMentioned,

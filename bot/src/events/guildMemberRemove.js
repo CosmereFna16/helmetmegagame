@@ -102,7 +102,7 @@ module.exports = {
     await recordArchiveEvent(prisma, {
       kind: "DEATH",
       character,
-      locationId: character.locationId ?? null,
+      zoneId: character.zoneId ?? null,
       content: `${character.name} died — the player left the guild.`,
     }).catch((err) => console.error(`Failed to log ${character.name}'s death archive:`, err));
   },
