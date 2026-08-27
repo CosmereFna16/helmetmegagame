@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Modal from "@/app/components/Modal";
 import FormError from "@/app/components/FormError";
 import { mergeTagOp } from "@/lib/tagOpAlgebra";
-import { createStagedEffects, updateStagedEffect } from "./actions";
+import { createStagedEffects, updateStagedEffect, getHeldTags } from "./actions";
 
 // Stage a mechanical adjustment: signed ⬢ and/or tag adds/removes, against
 // one target or many at once (the "Explosion Burns ×4 players" case — one
@@ -40,12 +40,41 @@ export default function EffectComposer({
     for (const op of existing?.tagOps ?? []) map.set(op.tagId, op);
     return map;
   });
+  const [tagPoints, setTagPoints] = useState(() => {
+    const v = existing?.tagPoints ?? 0;
+    return v ? String(v) : "";
+  });
   const [targetSearch, setTargetSearch] = useState("");
   const [tagSearch, setTagSearch] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
 
+  // Held-tags cache, one entry per character seen so far — cheap to keep for
+  // the life of the modal, since a target is rarely un-picked and re-picked.
+  const [heldByCharacter, setHeldByCharacter] = useState(() => new Map());
+
   const tagById = useMemo(() => new Map(tagCatalog.map((t) => [t.id, t])), [tagCatalog]);
+
+  // Only meaningful with exactly one target — a batch stage has no single
+  // "their tags" to show.
+  const soleTargetId = targets.length === 1 ? targets[0].id : null;
+  const heldEntry = soleTargetId ? (heldByCharacter.get(soleTargetId) ?? null) : null;
+
+  useEffect(() => {
+    if (!soleTargetId || heldEntry) return undefined;
+    let cancelled = false;
+    (async () => {
+      const res = await getHeldTags({ characterId: soleTargetId });
+      if (cancelled) return;
+      const value = res?.ok ? res.tags : [];
+      setHeldByCharacter((prev) => (prev.has(soleTargetId) ? prev : new Map(prev).set(soleTargetId, value)));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [soleTargetId, heldEntry]);
+
+  const heldTagIds = useMemo(() => new Set((heldEntry ?? []).map((t) => t.tagId)), [heldEntry]);
 
   const targetMatches = useMemo(() => {
     const q = targetSearch.trim().toLowerCase();
@@ -89,11 +118,12 @@ export default function EffectComposer({
     startTransition(async () => {
       const tagOps = [...ops.values()];
       const res = existing
-        ? await updateStagedEffect({ stagedEffectId: existing.id, resources, tagOps })
+        ? await updateStagedEffect({ stagedEffectId: existing.id, resources, tagPoints, tagOps })
         : await createStagedEffects({
             targetCharacterIds: targets.map((t) => t.id),
             moveId,
             resources,
+            tagPoints,
             tagOps,
           });
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
@@ -162,6 +192,15 @@ export default function EffectComposer({
               placeholder="±0"
             />
           </label>
+          <label className="field" style={{ width: "10rem" }}>
+            <span className="field-label">Tag points</span>
+            <input
+              type="number"
+              value={tagPoints}
+              onChange={(e) => setTagPoints(e.target.value)}
+              placeholder="±0"
+            />
+          </label>
           {declaredDelta != null && declaredDelta !== 0 && !existing && (
             <button
               type="button"
@@ -208,6 +247,36 @@ export default function EffectComposer({
               </div>
             );
           })}
+          {soleTargetId && (
+            <div className="flex flex-col gap-1">
+              <span className="field-label">Their tags</span>
+              {!heldEntry ? (
+                <span className="text-sm text-muted">Loading their tags…</span>
+              ) : heldEntry.length === 0 ? (
+                <span className="text-sm text-muted">They hold nothing.</span>
+              ) : (
+                heldEntry.map((t) => {
+                  const staged = ops.get(t.tagId);
+                  return (
+                    <div key={t.tagId} className="flex items-center justify-between gap-2 text-sm">
+                      <span className="min-w-0 truncate">
+                        {t.name}
+                        {t.quantity > 1 ? ` ×${t.quantity}` : ""}
+                      </span>
+                      <button
+                        type="button"
+                        className="btn-quiet"
+                        disabled={staged?.op === "remove"}
+                        onClick={() => stageOp(t.tagId, "remove")}
+                      >
+                        {staged?.op === "remove" ? "Staged" : "− Remove"}
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
           <label className="field">
             <span className="field-label">Find a tag</span>
             <input value={tagSearch} onChange={(e) => setTagSearch(e.target.value)} placeholder="Search the catalog…" />
@@ -226,9 +295,11 @@ export default function EffectComposer({
                     <button type="button" className="btn-quiet" onClick={() => stageOp(t.id, "add")}>
                       + Add
                     </button>
-                    <button type="button" className="btn-quiet" onClick={() => stageOp(t.id, "remove")}>
-                      − Remove
-                    </button>
+                    {(!soleTargetId || heldTagIds.has(t.id)) && (
+                      <button type="button" className="btn-quiet" onClick={() => stageOp(t.id, "remove")}>
+                        − Remove
+                      </button>
+                    )}
                   </span>
                 </div>
               ))}

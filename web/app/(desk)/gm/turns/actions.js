@@ -30,6 +30,10 @@ async function requireGm() {
 // to catch a slipped keystroke.
 const MAX_STAGED_RESOURCES = 500;
 
+// Same fat-finger guard, over tag points instead of ⬢. Negatives are a
+// sanctioned use (see web/lib/characterWrite.js) so the cap is symmetric.
+const MAX_STAGED_TAG_POINTS = 100;
+
 async function requireOpenTurn() {
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
   if (!openTurn) throw new UserError("No turn is open.");
@@ -193,14 +197,25 @@ function normalizeStagedResources(raw) {
   return n;
 }
 
-async function createStagedEffectsImpl({ targetCharacterIds, moveId, resources, tagOps }) {
+function normalizeStagedTagPoints(raw) {
+  if (raw === "" || raw == null) return 0;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n)) throw new UserError("Tag points must be a number.");
+  if (Math.abs(n) > MAX_STAGED_TAG_POINTS) {
+    throw new UserError(`That's over the ±${MAX_STAGED_TAG_POINTS} tag-point sanity cap.`);
+  }
+  return n;
+}
+
+async function createStagedEffectsImpl({ targetCharacterIds, moveId, resources, tagPoints, tagOps }) {
   const session = await requireGm();
   const targets = [...new Set((targetCharacterIds ?? []).filter(Boolean))];
   if (!targets.length) throw new UserError("Pick at least one target.");
 
   const delta = normalizeStagedResources(resources);
+  const points = normalizeStagedTagPoints(tagPoints);
   const ops = normalizeStagedOps(tagOps);
-  if (!delta && !ops.length) throw new UserError("Stage a resource change or a tag change.");
+  if (!delta && !points && !ops.length) throw new UserError("Stage a resource, tag-point, or tag change.");
 
   // Validated NOW against the catalog, with the same engine the push runs, so
   // the composer and the turn can't disagree. Presence ops don't read the
@@ -220,7 +235,11 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, resources, 
 
   const openTurn = await requireOpenTurn();
   const batchId = targets.length > 1 ? crypto.randomUUID() : null;
-  const payload = { ...(delta ? { resources: delta } : {}), ...(ops.length ? { tagOps: ops } : {}) };
+  const payload = {
+    ...(delta ? { resources: delta } : {}),
+    ...(points ? { tagPoints: points } : {}),
+    ...(ops.length ? { tagOps: ops } : {}),
+  };
 
   const created = await prisma.$transaction(
     targets.map((targetCharacterId) =>
@@ -251,15 +270,16 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, resources, 
   return { count: created.length, batchId };
 }
 
-async function updateStagedEffectImpl({ stagedEffectId, resources, tagOps }) {
+async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, tagOps }) {
   const session = await requireGm();
   const existing = await prisma.stagedEffect.findUnique({ where: { id: stagedEffectId ?? "" } });
   if (!existing) throw new UserError("That staged effect is gone.");
   if (existing.appliedAt) throw new UserError("That effect already applied — it can't be edited.");
 
   const delta = normalizeStagedResources(resources);
+  const points = normalizeStagedTagPoints(tagPoints);
   const ops = normalizeStagedOps(tagOps);
-  if (!delta && !ops.length) throw new UserError("Stage a resource change or a tag change.");
+  if (!delta && !points && !ops.length) throw new UserError("Stage a resource, tag-point, or tag change.");
   if (ops.length) {
     const tags = await prisma.tag.findMany({ where: { id: { in: ops.map((o) => o.tagId) } } });
     try {
@@ -275,7 +295,11 @@ async function updateStagedEffectImpl({ stagedEffectId, resources, tagOps }) {
   const claimed = await prisma.stagedEffect.updateMany({
     where: { id: existing.id, appliedAt: null },
     data: {
-      payload: { ...(delta ? { resources: delta } : {}), ...(ops.length ? { tagOps: ops } : {}) },
+      payload: {
+        ...(delta ? { resources: delta } : {}),
+        ...(points ? { tagPoints: points } : {}),
+        ...(ops.length ? { tagOps: ops } : {}),
+      },
       batchId: null,
     },
   });
@@ -827,6 +851,19 @@ async function getDmThreadImpl({ characterId }) {
   };
 }
 
+// The composer's held-tags panel: lean rows for one character, keyed by tag,
+// so a GM can stage a remove without re-typing the name into the catalog
+// search.
+async function getHeldTagsImpl({ characterId }) {
+  await requireGm();
+  const rows = await prisma.characterTag.findMany({
+    where: { characterId: characterId ?? "" },
+    select: { tagId: true, quantity: true, tag: { select: { name: true, stackable: true } } },
+    orderBy: { tag: { name: "asc" } },
+  });
+  return { tags: rows.map((r) => ({ tagId: r.tagId, name: r.tag.name, quantity: r.quantity, stackable: r.tag.stackable })) };
+}
+
 // ---------------------------------------------------------------------------
 
 export async function createStagedMessage(input) {
@@ -879,4 +916,7 @@ export async function getArchiveSlice(input) {
 }
 export async function getDmThread(input) {
   return guarded(() => getDmThreadImpl(input));
+}
+export async function getHeldTags(input) {
+  return guarded(() => getHeldTagsImpl(input));
 }

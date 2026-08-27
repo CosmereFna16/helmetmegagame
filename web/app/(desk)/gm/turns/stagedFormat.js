@@ -9,6 +9,7 @@ export function tagNameLookup(tagCatalog) {
 export function effectSummary(effect, tagNames) {
   const parts = [];
   if (effect.resources) parts.push(`${effect.resources > 0 ? "+" : ""}${effect.resources} ⬢`);
+  if (effect.tagPoints) parts.push(`${effect.tagPoints > 0 ? "+" : "−"}${Math.abs(effect.tagPoints)} tp`);
   for (const op of effect.tagOps ?? []) {
     const name = tagNames.get(op.tagId) ?? "a tag";
     const qty = op.quantity != null && op.quantity > 1 ? ` ×${op.quantity}` : "";

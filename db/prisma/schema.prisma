@@ -1496,6 +1496,12 @@ model ArchiveEntry {
   // scattered lines under its location.
   threadName String?
 
+  // The Discord channel the message was posted in — the THREAD's own id when
+  // it was said inside a thread, because that is what a jump link's channel
+  // slot needs. A plain snapshot, not an FK (same posture as every id column
+  // here): Locations are destructively resynced and a rework is coming.
+  discordChannelId String?
+
   createdAt DateTime @default(now())
 
   // NOTE: ArchiveEntry also carries a trigram GIN index on `content`
@@ -1513,4 +1519,5 @@ model ArchiveEntry {
   @@index([kind])
   @@index([locationId, sentAt])
   @@index([characterId, sentAt])
+  @@index([discordChannelId, sentAt])
 }

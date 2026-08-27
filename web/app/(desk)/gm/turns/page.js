@@ -263,6 +263,7 @@ export default async function TurnsWorkspacePage() {
     targetCharacterId: e.targetCharacterId,
     targetName: e.targetCharacter?.name ?? "(deleted)",
     resources: e.payload?.resources ?? 0,
+    tagPoints: e.payload?.tagPoints ?? 0,
     tagOps: e.payload?.tagOps ?? [],
     applied: Boolean(e.appliedAt),
     appliedError: e.appliedEffect?.error ?? null,

@@ -2,8 +2,8 @@
 // touches a player until the turn ends" true. It runs inside resolveNeeds()
 // against the CLOSING turn and does three things, in order:
 //
-//   1. Applies every StagedEffect a GM queued for this turn (resources and
-//      tag ops per target character).
+//   1. Applies every StagedEffect a GM queued for this turn ({ resources?,
+//      tagPoints?, tagOps? } per target character).
 //   2. Applies every confirmed Move's own declared numbers. Since the
 //      staged-arbitration rework nothing pays at confirm time — a Routine, a
 //      /labor payout and a GM-solved Gambit all sit with appliedEffects null
@@ -50,6 +50,17 @@ async function applyOneStagedEffect(prisma, row, turn, equipSlots) {
     const resources = Number.isInteger(row.payload?.resources) ? row.payload.resources : 0;
     if (resources) {
       snapshot.resources = await addResources(tx, row.targetCharacterId, resources);
+    }
+
+    const tagPoints = Number.isInteger(row.payload?.tagPoints) ? row.payload.tagPoints : 0;
+    if (tagPoints) {
+      // Unclamped on purpose: tagPoints may legitimately go negative
+      // (see web/lib/characterWrite.js). The snapshot is the delta itself.
+      await tx.character.update({
+        where: { id: row.targetCharacterId },
+        data: { tagPoints: { increment: tagPoints } },
+      });
+      snapshot.tagPoints = tagPoints;
     }
 
     const ops = Array.isArray(row.payload?.tagOps) ? row.payload.tagOps : [];

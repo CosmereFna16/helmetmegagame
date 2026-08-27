@@ -27,7 +27,7 @@ failed announcement can't leave two days with no boundary), `CHARACTER_CREATED`,
 since arrivals are what make a location read like a story and also two rows per
 character per turn before anyone speaks.
 
-Four things about it are load-bearing:
+Five things about it are load-bearing:
 
 - **The id columns are not foreign keys.** Same posture as `SiloTransaction`
   and `AuditLog`'s snapshots. `syncLocationsFromYaml` destructively deletes any
@@ -59,6 +59,20 @@ Four things about it are load-bearing:
   downloading the bytes the way avatars are stored, a deliberate non-goal. The
   placeholder at least makes the gap visible rather than silent, which is what
   the old wipe-time archive did.
+- **`discordChannelId` is a channel snapshot, not an FK** (same posture as the
+  other id columns above). It's the channel the message was posted in — the
+  THREAD's own id when it was said inside a thread, since that's what a jump
+  link's channel slot needs — written by the bot's `resolveChannelContext`
+  alongside `channelKind`/`threadName`. It has two jobs, and only one of them
+  stays useful: the Dawn wipe deletes non-persistent Discord messages every
+  turn, so a jump link built from this id is only live for the turn it was
+  posted in, plus ⏰ persistent threads. The other job — exact channel-identity
+  grouping for the desk's archive-context popup — works regardless of the
+  wipe, since it never depends on the Discord message still existing. Rows
+  written before this column existed are null; `npm run
+  db:backfill-archive-channel-ids` fills what it can from `channelKind` +
+  `locationId`, but pre-existing thread rows (`threadName` set) never had
+  their thread id captured anywhere else and can't be recovered.
 
 `/archive` (`web/app/(app)/archive/`) is **server-side paged over `?page=`**,
 the second such surface after `/gm/audit` and for the same reason — a

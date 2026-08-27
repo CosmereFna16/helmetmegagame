@@ -623,6 +623,7 @@ async function advanceTurn() {
           locationId: post.locationId,
           locationName: post.locationName,
           channelKind: "plain",
+          discordChannelId: post.channelId,
           turn: openTurn,
         });
       }

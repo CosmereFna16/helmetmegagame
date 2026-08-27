@@ -323,37 +323,65 @@ function StateStrip({
   const drawbacks = held.filter(
     (h) => h.source === "POINT_BUY" && (h.pointCost ?? 0) < 0,
   ).length;
-  const facts = [
-    ["Status", CHARACTER_STATUS[character.status]?.label ?? character.status],
-    ["Role", staged.roleTitle ?? "—"],
+  // Four labeled clusters instead of one undifferentiated 15-fact grid, so a
+  // GM's eye lands on the right group instead of scanning the whole strip.
+  // Purely presentational — every value below is unchanged from before.
+  const groups = [
     [
-      "Faction",
-      <FactionLink key="f" factionId={character.factionId} name={character.factionName ?? "—"} />,
+      "Identity",
+      [
+        ["Status", CHARACTER_STATUS[character.status]?.label ?? character.status],
+        ["Role", staged.roleTitle ?? "—"],
+        [
+          "Faction",
+          <FactionLink key="f" factionId={character.factionId} name={character.factionName ?? "—"} />,
+        ],
+        ["Location", character.locationName ?? character.zoneName ?? "—"],
+      ],
     ],
-    ["Location", character.locationName ?? character.zoneName ?? "—"],
-    ["Resources", `${staged.resources} ⬢`],
-    ["Tag points", <TagPointsValue key="tp" points={staged.tagPoints} />],
-    ["Equipment", `${equipped} / ${equipSlots}`],
-    ["Drawbacks", `${drawbacks} / ${maxNegativeTags}`],
-    ["Gambit", gambitModifier > 0 ? `+${gambitModifier}` : String(gambitModifier)],
-    ["Turn", openTurn ? `${openTurn.number} ${openTurn.phase}` : "none open"],
-    ["Acted", hasActed ? "yes" : "no"],
-    ["Discord", discord.username ?? "not in guild"],
-    ["Nickname", discord.nickname ?? "—"],
-    ["Cursed", discord.cursed ? "yes" : "no"],
-    ["Name role", character.discordRoleId ? "provisioned" : "missing"],
+    [
+      "Economy",
+      [
+        ["Resources", `${staged.resources} ⬢`],
+        ["Tag points", <TagPointsValue key="tp" points={staged.tagPoints} />],
+        ["Equipment", `${equipped} / ${equipSlots}`],
+        ["Drawbacks", `${drawbacks} / ${maxNegativeTags}`],
+        ["Gambit", gambitModifier > 0 ? `+${gambitModifier}` : String(gambitModifier)],
+      ],
+    ],
+    [
+      "Turn",
+      [
+        ["Turn", openTurn ? `${openTurn.number} ${openTurn.phase}` : "none open"],
+        ["Acted", hasActed ? "yes" : "no"],
+      ],
+    ],
+    [
+      "Discord",
+      [
+        ["Discord", discord.username ?? "not in guild"],
+        ["Nickname", discord.nickname ?? "—"],
+        ["Cursed", discord.cursed ? "yes" : "no"],
+        ["Name role", character.discordRoleId ? "provisioned" : "missing"],
+      ],
+    ],
   ];
 
   return (
     <section className="panel p-3">
-      <dl className="dev-state-strip">
-        {facts.map(([label, value]) => (
-          <div key={label}>
-            <dt className="field-label">{label}</dt>
-            <dd className="mono text-sm">{value}</dd>
-          </div>
+      <div className="dev-state-strip">
+        {groups.map(([label, facts]) => (
+          <dl key={label} className="dev-state-group">
+            <span className="dev-state-group-label">{label}</span>
+            {facts.map(([factLabel, value]) => (
+              <div key={factLabel}>
+                <dt className="field-label">{factLabel}</dt>
+                <dd className="mono text-sm">{value}</dd>
+              </div>
+            ))}
+          </dl>
         ))}
-      </dl>
+      </div>
       {stagedForPush && (
         /* The adjudication workspace has queued changes against this sheet
            for the turn-end push. Live edits here are additive with those —
@@ -366,6 +394,9 @@ function StateStrip({
               : null,
             stagedForPush.tagOps
               ? `${stagedForPush.tagOps} tag change${stagedForPush.tagOps === 1 ? "" : "s"}`
+              : null,
+            (stagedForPush.tagPoints ?? 0)
+              ? `${stagedForPush.tagPoints > 0 ? "+" : ""}${stagedForPush.tagPoints} tag points`
               : null,
           ]
             .filter(Boolean)

@@ -102,6 +102,7 @@ export default async function DevCharacterPanelPage({ params }) {
   const stagedForPush = pendingStaged.length
     ? {
         resources: pendingStaged.reduce((sum, e) => sum + (e.payload?.resources ?? 0), 0),
+        tagPoints: pendingStaged.reduce((sum, e) => sum + (e.payload?.tagPoints ?? 0), 0),
         tagOps: pendingStaged.reduce((sum, e) => sum + (e.payload?.tagOps?.length ?? 0), 0),
       }
     : null;

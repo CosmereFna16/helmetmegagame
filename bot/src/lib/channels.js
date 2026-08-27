@@ -79,6 +79,9 @@ function resolveChannelContext(channel) {
     zoneId: context?.zoneId ?? null,
     channelKind: context?.channelKind ?? null,
     threadName: isThread ? (channel.name ?? null) : null,
+    // The id a jump link needs: the thread's own id when this is a thread,
+    // else the channel's. Snapshotted by the archive writer — no FK.
+    discordChannelId: channel.id ?? null,
   };
 }
 setInterval(() => refreshLocationChannels().catch((err) => console.error("Failed to refresh location channels:", err)), 5 * 60_000);
