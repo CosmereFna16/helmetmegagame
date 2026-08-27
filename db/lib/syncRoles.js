@@ -30,6 +30,7 @@
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
+const { assertTitlesResolve } = require("./titles");
 
 // docsPath() is null only when docs/ cannot be found at all, which for a YAML
 // master is fatal — a sync with no master would read as "everything was
@@ -237,6 +238,14 @@ async function syncRolesFromYaml(prisma) {
     await prisma.faction.delete({ where: { id: faction.id } });
     stats.factionsPruned.push(faction.name);
   }
+
+  // Titles are earned from tags and roles (db/lib/titles.js), and both
+  // catalogs exist by now — tags sync before roles (SYNC.md). A title
+  // pointing at a slug that isn't there is silent otherwise: the word just
+  // becomes unearnable, and nobody finds out until a player asks why they
+  // can't be styled Doctor. Last, so a bad reference doesn't abort a sync
+  // that has already done its real work.
+  await assertTitlesResolve(prisma);
 
   return stats;
 }

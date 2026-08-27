@@ -7,7 +7,6 @@
 // Named rather than `export *`: the target is CommonJS, so a star re-export
 // makes Turbopack emit runtime interop and warn on every build.
 export {
-  HONORIFICS,
   NAME_LIMITS,
   AGE_MIN,
   AGE_MAX,
@@ -15,4 +14,9 @@ export {
   formatBareName,
   splitLegacyName,
   normalizeHonorific,
+  normalizeEarnedHonorific,
 } from "@lifeweb/db/lib/characterName";
+
+// The title catalog, same shim for the same reason — the wizard and the two
+// other pickers are client components.
+export { TITLE_WORDS, earnedTitles, genderOf } from "@lifeweb/db/lib/titles";

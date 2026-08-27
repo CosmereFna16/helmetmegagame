@@ -1,6 +1,6 @@
 // A character's displayed name is built from four parts rather than one
-// string: an honorific the player picks freely, a required first name, a
-// GM-granted title that renders in quotes, and an optional last name.
+// string: an honorific they earned, a required first name, a GM-granted title
+// that renders in quotes, and an optional last name.
 //
 //   Sir Jorren "the Blind" Vask
 //
@@ -9,40 +9,10 @@
 // dragging PrismaClient into the browser bundle. Same posture as
 // db/lib/roleColor.js and db/lib/mood.js, and spread into the @lifeweb/db
 // barrel alongside them.
-
-// The dropdown, in ladder order within each register. Deliberately short:
-// every entry has to read as something a Ravenheart character would actually
-// be called. Ungated — anyone may pick any of them, and a GM corrects an
-// abuse on the raw edit panel rather than the picker refusing it.
-const HONORIFICS = Object.freeze([
-  // Courtesy
-  "Mr.",
-  "Mrs.",
-  "Ms.",
-  "Master",
-  // Noble
-  "Sir",
-  "Dame",
-  "Lord",
-  "Lady",
-  "Baron",
-  "Baroness",
-  // Clerical
-  "Father",
-  "Mother",
-  "Brother",
-  "Sister",
-  "Bishop",
-  // Martial — Constable sits at the bottom of the ladder, which is where a
-  // parish-level sworn officer belongs (Constable -> Sergeant -> Marshal).
-  "Captain",
-  "Sergeant",
-  "Marshal",
-  "Constable",
-  // Scholarly
-  "Doctor",
-  "Professor",
-]);
+//
+// The word list itself lives in db/lib/titles.js, along with what earns each
+// one. Nothing here decides who may be a Baron.
+const { TITLE_WORDS, earnedTitles } = require("./titles");
 
 // Discord caps a webhook username at 80 characters, and bot/src/lib/proxy.js
 // sends `Character.name` as-is. Slicing there would silently break
@@ -95,11 +65,33 @@ function splitLegacyName(name) {
   };
 }
 
-// Server-side allowlist. Every form that sets an honorific is a public
-// endpoint, so the picker is advisory and this is the actual gate.
+// Two normalizers, because the GM and the player are asking different
+// questions and a shared default would be a footgun in whichever direction it
+// leaned. Both are server-side gates: every form that sets an honorific is a
+// public endpoint, so the picker is only advisory.
+
+// Is this a real title at all? The GM path (web/lib/characterWrite.js) — a GM
+// may put any word on anyone, matching the rule in TAGS.md §3 that a GM grant
+// ignores gates deliberately. It is also the only way to clear a title whose
+// owner can no longer re-select it.
 function normalizeHonorific(value) {
   const v = (value ?? "").toString().trim();
-  return HONORIFICS.includes(v) ? v : null;
+  return TITLE_WORDS.includes(v) ? v : null;
+}
+
+// Has THIS character earned it? The two player paths — creation and the
+// Mulligan Potion rename.
+//
+// Call this ONLY where the player is choosing a title. A write that happens
+// to touch the name for another reason must not re-validate: a character
+// keeps a title after losing the tag that granted it (the picker just stops
+// offering it), so re-normalizing on, say, a dynasty rename would silently
+// strip a disgraced knight's "Sir". See web/lib/dynasty.js, which composes
+// through formatCharacterName and never comes through here.
+function normalizeEarnedHonorific(value, { tagSlugs = [], roleSlug = null } = {}) {
+  const v = (value ?? "").toString().trim();
+  if (!v) return null;
+  return earnedTitles({ tagSlugs, roleSlug }).includes(v) ? v : null;
 }
 
 // A character is an adult, and nobody in Ravenheart is spry at 91. Enforced
@@ -108,7 +100,6 @@ const AGE_MIN = 18;
 const AGE_MAX = 90;
 
 module.exports = {
-  HONORIFICS,
   AGE_MIN,
   AGE_MAX,
   NAME_LIMITS,
@@ -116,4 +107,5 @@ module.exports = {
   formatBareName,
   splitLegacyName,
   normalizeHonorific,
+  normalizeEarnedHonorific,
 };

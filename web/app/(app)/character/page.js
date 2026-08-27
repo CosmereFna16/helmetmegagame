@@ -105,6 +105,9 @@ async function loadCreationData(discordUserId) {
                 id: role.id,
                 name: role.name,
                 intro: role.intro,
+                // Some titles are earned by role rather than by tag, and
+                // db/lib/titles.js keys on the slug (see the Identity step).
+                slug: role.slug,
                 difficulty: role.difficulty,
                 factionName: faction.name,
                 startingLocationName: role.startingLocation?.name ?? null,

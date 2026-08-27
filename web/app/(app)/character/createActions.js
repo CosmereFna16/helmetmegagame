@@ -45,7 +45,7 @@ import {
   NAME_LIMITS,
   formatCharacterName,
   formatBareName,
-  normalizeHonorific,
+  normalizeEarnedHonorific,
 } from "@/lib/characterName";
 
 // Creates a character from the wizard's final Confirm step.
@@ -68,7 +68,11 @@ export async function createCharacter(formData) {
   const part = (key, limit) => formData.get(key)?.toString().trim().slice(0, limit) || null;
   // `title` is deliberately absent: it is GM-granted, set only from
   // /gm/dev/characters/[characterId]. Not reading it here is the lock.
-  const honorific = normalizeHonorific(formData.get("honorific"));
+  //
+  // The honorific is only READ here. Whether this character has earned it
+  // depends on their role and their tags, neither of which is resolved yet —
+  // so the gate runs further down, once both are known.
+  const rawHonorific = formData.get("honorific");
   const firstName = part("firstName", NAME_LIMITS.firstName);
   // Not const: a Baroness/Heir/Successor wears the Baron's last name rather
   // than one they typed, so this is overwritten once the role is known below.
@@ -160,7 +164,6 @@ export async function createCharacter(formData) {
   // yet, which is the common case at creation; he propagates his name to them
   // the moment he rolls up (see below).
   if (isDynastyMember(role.slug)) lastName = await dynastyLastName();
-  const name = formatCharacterName({ honorific, firstName, title: null, lastName });
 
   // Selected tags must actually be buyable — a hand-posted request could
   // otherwise name a 0-cost, non-purchasable tag like Nobility.
@@ -182,6 +185,17 @@ export async function createCharacter(formData) {
   const startingTags = role.startingTagSlugs.length
     ? await prisma.tag.findMany({ where: { name: { in: role.startingTagSlugs } } })
     : [];
+
+  // Now both halves of "what did they earn" exist, so the title can be gated.
+  // A word this character has no claim to lands as null rather than failing
+  // the create: the wizard already filtered the dropdown, so anything else
+  // arriving here is a hand-posted request, and silently going untitled is
+  // the right answer to one.
+  const honorific = normalizeEarnedHonorific(rawHonorific, {
+    tagSlugs: [...selected, ...startingTags].map((t) => t.slug),
+    roleSlug: role.slug,
+  });
+  const name = formatCharacterName({ honorific, firstName, title: null, lastName });
 
   // The full catalog, not just what's selected/granted, so a chain walk
   // (parentTagId) never dead-ends on an ancestor the client didn't send.

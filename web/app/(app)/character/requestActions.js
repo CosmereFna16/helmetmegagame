@@ -30,7 +30,7 @@ import { canReachParty, canReachSilo, outOfReachMessage } from "@/lib/transferRe
 import { resolveConsumeGrants, heldSlugsOf } from "@/lib/consumeGrants";
 import { recordArchiveEvent } from "@/lib/archive";
 import { syncCharacterNarrowcastAccess, syncCharacterNickname, ensureCharacterRole } from "@/lib/discordGuild";
-import { NAME_LIMITS, formatCharacterName, formatBareName, normalizeHonorific } from "@/lib/characterName";
+import { NAME_LIMITS, formatCharacterName, formatBareName, normalizeEarnedHonorific } from "@/lib/characterName";
 import { propagateDynastyLastName } from "@/lib/dynasty";
 
 // The only sanctioned way a name changes after creation (CHARACTERS.md §1b).
@@ -1137,7 +1137,18 @@ async function changeNameRequestImpl({ honorific: rawHonorific, firstName: rawFi
   const held = character.tags.find((ct) => ct.tag.slug === MULLIGAN_POTION_SLUG);
   if (!held) throw new UserError("You need a Mulligan Potion to change your name.");
 
-  const honorific = normalizeHonorific(rawHonorific);
+  // Gated by what this character has actually earned, from their own tags and
+  // role — the dialog's dropdown is only advisory. An unearned word lands as
+  // null rather than throwing, so a stale tab posting an old title renames
+  // them untitled instead of failing the potion.
+  //
+  // Note this is the player CHOOSING a title, which is the only time it is
+  // re-checked. A character keeps a title after losing the tag that granted
+  // it; nothing else in the app revalidates.
+  const honorific = normalizeEarnedHonorific(rawHonorific, {
+    tagSlugs: character.tags.map((ct) => ct.tag.slug),
+    roleSlug: character.role?.slug ?? null,
+  });
   const firstName = rawFirstName?.toString().trim().slice(0, NAME_LIMITS.firstName) || null;
   if (!firstName) throw new UserError("A character needs a first name.");
 

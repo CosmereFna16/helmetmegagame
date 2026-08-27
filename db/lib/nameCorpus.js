@@ -190,10 +190,10 @@ const WITCHER_SHARE_OF_FLAVOUR = 1 / 6;
 // Railroad — so a mismatched name should happen, just not by default.
 const CROSS_REGION_CHANCE = 0.15;
 
-// Which given-name pool an honorific implies. Deliberately delegates to
-// db/lib/concealedIdentity.js#genderWord rather than restating its MAN/WOMAN
-// lists: one rule in the codebase, and a new honorific added to HONORIFICS
-// starts working in both places at once.
+// Which given-name pool a title implies. Deliberately delegates to
+// db/lib/concealedIdentity.js#genderWord, which in turn reads the `gender`
+// declared beside each word in db/lib/titles.js: one rule in the codebase, and
+// a new title starts working here and in /conceal at once.
 function poolsFor(honorific, medieval) {
   switch (genderWord(honorific)) {
     case "Man":
