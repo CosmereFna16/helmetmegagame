@@ -144,7 +144,7 @@ async function deleteThreadCreatedMessages(channelId) {
 function buildDirectoryMessage(mainMessage, linksByCategory) {
   const sections = linksByCategory.map((category) => {
     const lines = category.threadIds.map((id) => `<#${id}>`);
-    return `***${category.name}:***\n${lines.join("\n")}`;
+    return category.name ? `***${category.name}:***\n${lines.join("\n")}` : lines.join("\n");
   });
   return [mainMessage, ...sections].join("\n\n");
 }

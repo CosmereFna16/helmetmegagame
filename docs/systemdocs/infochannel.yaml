@@ -10,15 +10,16 @@
 # - banner: optional path (relative to docs/) to an image posted as a bare
 #   attachment, with no text, as the very first thing in #info — before the
 #   threads are even created, so nothing can land above it.
-# - main_message: the directory's intro/pitch/rules copy, posted verbatim
-#   as the first message(s) in #info. Discord markdown (bold, bullets) is
-#   preserved as-is. The category/thread-link listing that follows it in
-#   the actually-posted message is NOT written here — the script generates
-#   it from `categories` below, because thread IDs only exist once threads
-#   are created.
-# - categories: ordered list of { name, threads }. `name` becomes a bold
-#   heading line in the directory message; `threads` under it become
-#   clickable thread-mention links, in the order listed here.
+# - main_message: the directory's intro/pitch copy, posted verbatim as the
+#   first message(s) in #info. Discord markdown (bold, bullets) is
+#   preserved as-is. The thread-link listing that follows it in the
+#   actually-posted message is NOT written here — the script generates it
+#   from `categories` below, because thread IDs only exist once threads are
+#   created.
+# - categories: ordered list of { name, threads }. `name` is optional — if
+#   omitted, that category's threads are listed with no bold heading line
+#   above them in the directory message. When present, `name` becomes a
+#   bold heading line instead.
 # - threads: ordered list of { title, body }, { title, generated }, or
 #   { title, body, generated }. Each becomes its own standalone public
 #   thread on #info, titled `title`. `body` (if present) is posted verbatim
@@ -26,11 +27,13 @@
 #   posted after `body` — its content has no hand-authored text here at
 #   all, so it can never drift from its source. Either way the result is
 #   batched automatically if it exceeds Discord's 2000-char limit. The only
-#   generator right now is `generated: roles-intro` (used by
-#   Mechanics/Roles below), which reads docs/roles.yaml and lists every
-#   faction's roles by name + intro text only (no description/tags/threats)
-#   — edit roles.yaml, rerun `npm run db:rebuild-info-channel`, and the
-#   thread updates itself.
+#   generator right now is `generated: roles-intro` (used by the Fates
+#   thread below), which reads docs/roles.yaml and lists every faction's
+#   roles by name + intro text only (no description/tags/threats) — edit
+#   roles.yaml, rerun `npm run db:rebuild-info-channel`, and the thread
+#   updates itself. (The generator key stays `roles-intro` even though the
+#   thread is titled "Fates" — the rename is presentation-only, the game
+#   system's own term stays "roles" everywhere else.)
 
 banner: assets/info-banner.png
 
@@ -41,28 +44,96 @@ main_message: |-
 
   Bascinet simultaneously plays out on several levels. Kings win wars and move big pieces around the map while commoners try to fulfill their day-to-day desires.
 
-  ## Rules
-  ① **Basic** — You must be 18+.
-  - Romance is allowed. You can hint at sexual content, but nothing overt (fade to black!)
-  - There are no children in Ravenheart.
-  - Mild bigotry is fine. SA and similar aren’t.
-
-  ② **Atmosphere** — Everything serves the atmosphere.
-  - Act somewhat like a Medieval European. Play out fear (unless you have the Brave tag). Ravenheart is your home, your life.
-  - Insulting the Baron would mean death, plus having your family ostracized. Think carefully.
-
-  ③ **Information** — To support information asymmetry, everything that happens IC stays IC, and OOC stays OOC.
-  - Don’t discuss the game’s happenings OOC. Vague references are okay.
-  - Don’t say who your character is or who you’re playing. People might figure it out eventually, but protect the mystery.
-  - You are allowed to use vague OOC in roleplay channels when necessary—“(OOC: hey, gtg, see ya)”—instead of DM’ing the player.
-
-  ④ **Antagonism** — Fulfill your character’s Desires, but not to the point of crossing your faction’s objectives.
-  - High ranks are expected to be relatively fit for duty and willing to collaborate. Peasants can brawl and do mostly whatever they want.
-  - If things naturally progress to where you betray your faction, that’s fine, but come into the game planning to do mostly good.
-
 categories:
-  - name: Premise
-    threads:
+  - threads:
+      - title: Rules
+        body: |-
+          ① **Basic** — You must be 18+.
+          - Romance is allowed. You can hint at sexual content, but nothing overt (fade to black!)
+          - There are no children in Ravenheart.
+          - Mild bigotry is fine. SA and similar aren’t.
+
+          ② **Atmosphere** — Everything serves the atmosphere.
+          - Act somewhat like a Medieval European. Play out fear (unless you have the Brave tag). Ravenheart is your home, your life.
+          - Insulting the Baron would mean death, plus having your family ostracized. Think carefully.
+
+          ③ **Information** — To support information asymmetry, everything that happens IC stays IC, and OOC stays OOC.
+          - Don’t discuss the game’s happenings OOC. Vague references are okay.
+          - Don’t say who your character is or who you’re playing. People might figure it out eventually, but protect the mystery.
+          - You are allowed to use vague OOC in roleplay channels when necessary—“(OOC: hey, gtg, see ya)”—instead of DM’ing the player.
+
+          ④ **Antagonism** — Fulfill your character’s Desires, but not to the point of crossing your faction’s objectives.
+          - High ranks are expected to be relatively fit for duty and willing to collaborate. Peasants can brawl and do mostly whatever they want.
+          - If things naturally progress to where you betray your faction, that’s fine, but come into the game planning to do mostly good.
+      - title: Gameplay
+        body: |-
+          # Redesign
+          Bascinet has two layers: the Move layer (strategic) and the Roleplay layer (narrative). Moves are adjudicated every 12 hours, and are where mechanical effects take place. The Roleplay layer is always going on, and takes the results of the Move layer as its canon.
+
+          ## Moves
+          The game is split into two turns a day: Dawn and Dusk. Every turn, you can optionally plan a Move that’ll take effect the next turn.
+
+          Moves are your abstracted intent of what you planned to do during the next 12 hours. Moves are reserved for lengthy, time-consuming, or difficult activities.
+
+          **Examples**:
+          - robbing someone;
+          - cooking several meals;
+          - collecting taxes around the town;
+          - going to the inn to fulfill a Desire.
+
+          *You don’t have to Move every turn*. If it didn’t take more than an hour or wasn’t difficult, it’s not a Move. Bandaging people, trading, and talking are not Moves.
+
+          Like Mafia, Moves are collectively adjudicated by the Gamemasters at the end of every turn. If the Baron’s move was to stay in his castle, then the Brigand’s move to rob him won’t succeed. If the Baron was wandering in the forest, the Brigand may very well get him.
+
+          Adjudication results are messaged to players at the end of every turn.
+
+          **Routine / Gambit**
+          There are two types of Moves: **Routine** and **Gambit**.
+
+          Routine moves have no chance to fail—their results are usually just accepted and canonized at turn end. Hunting, farming, going out for drinks, or smithing are all Routine.
+
+          Gambit moves are actions that could affect the narrative and could go any way. Fighting, trying to discover a bandit outpost, and stealing from the Inn are all Gambits. Gambits require a 1d6 roll.
+
+          ## Roleplay
+          The game’s roleplay layer is where the results of last turn’s Moves come into life. If the Gamemaster declared you were bested in a duel, that’s canon; you can describe how it went down in the roleplay channels. You can also use the roleplay channels at any time to chat, exchange information, or coordinate your Moves with other players.
+
+          **Channels and Locations**
+          There are four zones: the Fortress, the Town, the Windlands, and the Caves. Moving from one zone to another is a Move. However, within a location, your character is assumed to be everywhere and nowhere—you can freely move around within the 12 hours.
+
+          Every zone has:
+          - a summary channel: optionally describe, in broad terms, what other people in your Zone saw you doing
+          - a public channel: roleplay in any of a zone’s sublocations
+          - and a private channel: create private threads and invite people for private moment-to-moment roleplay
+
+          You cannot roleplay in DMs or outside of the server.
+
+          ## Resources
+          The game’s central currency are Resources (⬢), abstracting food, money, and other bulk goods. Resources can be stored either in your character or in your faction’s Silo.
+
+          Players are responsible for producing, taxing, distributing, and trading Resources.
+
+          Characters automatically consume 1 ⬢ a day. If you have 0 ⬢ at the start of a turn, you’ll go Hungry, netting you -1 to all Rolls until the next time you eat. The penalty increases until you die at -6.
+
+          **Laboring**
+          Resources can be produced by anyone as a routine move. Laboring can be roleplayed in any way—hunting, fishing, foraging, herding. The yield is pitiful without supporting tags.
+
+          Farming is the best kind of labor, capable of feeding a massive amount of people. However, it can only be done in the town’s fields, and as such is always taxed by the Baron in order to distribute food through Ravenheart.
+
+          ## Tags
+          Tags represent your character’s health, items, traits, and skills.
+
+          The main way to obtain new Tags is to spend tag points. Everyone starts with tag points but gain more through the game as they fulfill Desires. However, you can also create, inflict, and remove tags throughout the game—such as by smithing a sword, poisoning someone, or treating a wound.
+
+          **Desires**
+          You can fulfill Desires to obtain more tag points.
+
+          Desires must be difficult and personal to receive points. For the Baron, even a whole bottle of gin is hardly satisfactory; for the Peasant, one glass is enough.
+      - title: Fates
+        body: |-
+          Choose a fate at game start, determining your starting tags, faction, and location. Leader roles (★) are reserved for players who can vouch frequent and long term availability, and some proficiency in roleplay. The Leader Whitelist role can be acquired in <#1539672933268459591>.
+
+          Most fates have small limits, but **Bolded** ones have higher caps and are more generalized, allowing for more freedom of play.
+        generated: roles-intro
       - title: Lore
         body: |-
           **Lore**
@@ -86,81 +157,3 @@ categories:
 
           **Species?**
           Everyone's a human (?).
-  - name: Mechanics
-    threads:
-      - title: Moves
-        body: |-
-          **Moves**:
-
-          * There are two turns a day—Dawn and Dusk. Once a turn, declare the most important thing your character did that turn in #moves.
-          * Moves are **Routine** if they are predictable and have no chance of failure, **Gambit** if it could go any way.
-             * **Routine** moves—such as spending the morning farming, brewing alcohol, or laying simple fortifications—are automatically approved.
-             * **Gambit** moves—such as engaging in a duel, going to a party to try to be happy, or spying on a house—require a 1d6 roll and a GM adjudication. The GM adjudicates primarily on the Tags and the narrative (Is your character a good fighter? How many people are on your side? Are you sick or healthy?) but also factors in the dice roll as a matter of chance (a roll of 1 means things went way worse than expected; a roll of 6 means they went surprisingly good).
-          * Moves are **Opposed** if they affect another player negatively. If a move is Opposed, the GMs wait to see what other players do.
-          * Moves are optional; you don’t have to play all of the time. You can set a default Routine Move using the /default command, to be executed if you don’t act that day. Leaders can use the /default command on other people too.
-          * Group actions are simple. Someone, usually the faction leader, assigns—by pinging or otherwise referencing—several people to one effort. Those people are assumed to participate unless they explicitly do their own thing. For Gambits, only the Leader has to roll.
-      - title: Tags
-        body: |-
-          **Tags**:
-
-          * Tags represent your character’s abilities, items, health, etc.
-          * You can use Moves to try to obtain or remove Tags, such as by smithing a Zweihander or curing someone’s illness. You can transfer certain Tags (typically items) to any player.
-          * You start with Tag Points but gain more throughout the game.
-      - title: Desires
-        body: |-
-          **Desires**:
-
-          * Characters obtain Tag Points by fulfilling Desires.
-          * The more difficult and personal the Desire, the more Tag Points you earn.
-          * Leader characters can set Desires aligned with their faction goals (such as conquering territory), but lower level characters are encouraged to find personally relevant Desires, ranging from having a nice meal to proving themselves in front of an audience.
-      - title: Resources
-        body: |-
-          **Resources**:
-
-          * The game’s central currency are Resources (⬢), abstracting food, money, and other bulk goods.
-          * Anyone can produce Resources by spending a Routine Move on Hunting, Herding, Farming, or Fishing (the /hunt, /fish, /farm and /herd commands are the shortcut) but only people with the Laborer tag produce enough to feed people. Each one needs the right ground under you — and nothing at all can be produced in the Caves.
-          * Resources can either be stored in your character or in your faction’s Silo.
-          * Players (but especially faction Leaders and Treasurers) are responsible for organizing, taxing, distributing, and trading Resources.
-          * Characters automatically consume 1 ⬢ a turn. If you have 0 ⬢ at the start of a turn, you’ll go Hungry, netting you -1 to all Rolls until the next time you eat.
-      - title: Respawning
-        body: |-
-          **Respawning**:
-
-          When you die, you can rejoin at any time—but you'll be Cursed, meaning you can only start as a Bum or Migrant and you'll suffer a -3 penalty to your starting points.
-
-          To rejoin as any other role, wait until your body is buried or your name is engraved. It is the Church and Mortii's jobs to do so.
-      - title: Roles
-        body: |-
-          Choose a role at game start, determining your starting tags, faction, and location. Leader roles (★) are reserved for players who can vouch frequent and long term availability, and some proficiency in roleplay. The Leader Whitelist role can be acquired in <#1539672933268459591>.
-
-          Most roles have small limits, but **Bolded** roles have higher caps and are more generalized, allowing for more freedom of play.
-        generated: roles-intro
-  - name: Discord
-    threads:
-      - title: Channels
-        body: |-
-          **Channels**
-
-          * You always have three roleplay channels available to you (plus a few like the Watch's radio and the Intercom, if you're wearing a bracelet or standing in the Keep) depending on the Location you’re in: the summary channel, the public channel, and the private channel.
-          * Summary: Big picture play. Describe what other people would see your character doing throughout that turn. Make announcements.
-          * Public: A forum channel for your public, moment-to-moment roleplay. Make a post for a certain location or meeting, have chats, argue.
-          * Private: A thread channel for your private meetings. Create a private thread (Thread button on the top right) and ping other characters to plot in secret.
-          * Your messages in roleplay channels are automatically sent as your character. To conceal your identity further, you can use the `/message` command in the Bascinet bot’s DMs or press the Speak button in #turns, so it doesn’t show your Discord username when typing.
-          * Type `/conceal` to write as an Unknown Person instead.
-      - title: Archive
-        body: |-
-          **Archive**
-
-          * All messages are wiped from the channels on Dawn and sent to the Archive. You’ll get to see all of your writing on game end.
-          * Forum topics marked with the Persistent tag (such as locations) remain, but their posts are also cleared.
-          * Run `/persistent` inside a forum topic or a private thread to mark it that way yourself — it survives Dawn (though its messages are still cleared), and a private thread keeps everyone you've invited into it. Run it again to unmark.
-          * You can react to a message with ⭐ to save it on your Notes tab on the web interface.
-      - title: Reacts
-        body: |-
-          **Reacts**
-
-          * React to a message in a roleplay channel for more options.
-          * 🔍: view more information about a character, including their visible Tags.
-          * ⭐: save the message to your Notes panel on the web interface.
-          * ❌: delete your own message.
-          * ✏️: edit your own message.

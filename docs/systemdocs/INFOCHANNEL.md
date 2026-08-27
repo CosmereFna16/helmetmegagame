@@ -23,11 +23,12 @@ ID is `1539629144801812641`.)
 `docs/systemdocs/infochannel.yaml` is the hand-authored source of truth —
 see its own top-of-file comment for the full field-by-field schema. In
 short: an optional `banner` (a path, relative to `docs/`, to an image posted
-as a bare attachment), a `main_message` (the intro/pitch/rules copy, posted
-verbatim) and `categories`, each holding an ordered list of `threads` (`title` + `body`).
-Each `title`/`body` pair becomes one standalone thread on `#info`; each
-category becomes a heading in the directory message grouping its threads'
-links.
+as a bare attachment), a `main_message` (the intro/pitch copy, posted
+verbatim) and `categories`, each holding an optional `name` and an ordered
+list of `threads` (`title` + `body`). Each `title`/`body` pair becomes one
+standalone thread on `#info`; a category with a `name` becomes a heading in
+the directory message grouping its threads' links, while a nameless
+category's thread links are listed with no heading above them.
 
 Editing the file has no effect on Discord until
 `npm run db:rebuild-info-channel` is run by hand — same "never auto-synced"
@@ -37,11 +38,12 @@ posture as `docs/locations.yaml`, just without the upsert semantics (see §4).
 
 The message actually posted to `#info` is **not** just `main_message`
 verbatim — the script appends a generated directory listing after it: for
-each category, a bold heading line (`***{category name}:***`) followed by
-one line per thread, each a Discord thread mention (`<#threadId>`, which
-Discord renders as a clickable `#thread-title` link). This listing can only
-be generated *after* the threads exist, since thread IDs are assigned by
-Discord at creation time — it's never hand-authored in the YAML.
+each category, an optional bold heading line (`***{category name}:***`,
+skipped when the category has no `name`) followed by one line per thread,
+each a Discord thread mention (`<#threadId>`, which Discord renders as a
+clickable `#thread-title` link). This listing can only be generated *after*
+the threads exist, since thread IDs are assigned by Discord at creation
+time — it's never hand-authored in the YAML.
 
 Threads themselves are created as standalone public threads directly on the
 channel (Discord's "no starter message" thread type), not threads-off-a-
