@@ -100,6 +100,10 @@ export async function createCharacter(formData) {
   const antagonistOptIns = normalizeAntagonistSlugs(formData.getAll("antagonistOptIns"));
 
   if (!firstName) return { error: "Your character needs a first name." };
+  // One word each — the wizard gates this too, but the form can be hand-posted.
+  if (/\s/.test(firstName) || /\s/.test(lastName ?? "")) {
+    return { error: "First and last names are one word each." };
+  }
   if (!roleId) return { error: "Pick a role before confirming." };
 
   if (await prisma.character.findFirst({ where: { discordUserId, status: "ALIVE" } })) {
