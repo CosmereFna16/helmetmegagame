@@ -13,6 +13,22 @@ enum CharacterStatus {
   CURSED
 }
 
+// How a character presents. Chosen once at creation and never editable by the
+// player afterwards (a GM can correct one from the dev panel).
+//
+// It does two jobs, and both used to be inferred from the honorific: it picks
+// WHICH word of a gendered title a character wears — a Man holding Nobility is
+// Lord, a Woman is Lady, Neutral is Noble (db/lib/titles.js) — and it is the
+// Man/Woman/Person half of a concealed alias
+// (db/lib/concealedIdentity.js). NEUTRAL is a real answer, not an absent one:
+// every gendered title carries a neutral third, and a neutral character draws
+// their rolled name from both pools.
+enum Gender {
+  MAN
+  WOMAN
+  NEUTRAL
+}
+
 enum ActionType {
   EFFORT
   MOVE
@@ -493,13 +509,30 @@ model Character {
 
   // A displayed name is four parts, joined by
   // db/lib/characterName.js#formatCharacterName as
-  // `Sir Jorren "the Blind" Vask`. `honorific` is picked freely by the player
-  // from a fixed dropdown; `title` is GM-only and renders in quotes — no
-  // player-facing form ever reads it, which is the whole lock.
+  // `Sir Jorren "the Blind" Vask`. `honorific` is EARNED, not picked: a tag
+  // the character holds or the role they took grants the word, and `gender`
+  // below decides which form of it they wear (db/lib/titles.js). `title` is
+  // GM-only and renders in quotes — no player-facing form ever reads it,
+  // which is the whole lock. Most characters carry neither.
   honorific String?
   firstName String
   title     String?
   lastName  String?
+
+  // Chosen once, on the last step of creation, and never editable afterwards:
+  // character/actions.js#updateCharacterProfile simply doesn't read the key,
+  // which is the lock — the same silence that keeps a name immutable, not the
+  // null-until-set conditional `age` below uses. A GM can still correct one
+  // from /gm/dev/characters/[characterId].
+  //
+  // Four seats fix it rather than letting the player choose: Baron and Heir
+  // are MAN, Baroness and Successor are WOMAN, declared as `gender:` in
+  // docs/roles.yaml and carried on Role.lockedGender. Those are the same four
+  // that already inherit the dynasty surname.
+  //
+  // Defaulted rather than nullable so the column backfills itself and no
+  // reader has to handle an absent value.
+  gender Gender @default(NEUTRAL)
 
   // Denormalized mirror of formatCharacterName(...) above, same posture as
   // zoneId below. It exists because ~60 readers want a single string —
@@ -949,6 +982,17 @@ model Role {
   grantsLeader        Boolean  @default(false)
   grantsTreasurer     Boolean  @default(false)
   docElements         String[] @default([])
+
+  // A seat that fixes the holder's gender rather than letting them choose:
+  // Baron and Heir are MAN, Baroness and Successor are WOMAN. Null for every
+  // ordinary role, which is nearly all of them. Declared as `gender:` in
+  // docs/roles.yaml, so a future gendered seat needs no code — same posture
+  // as grantsLeader/grantsTreasurer above.
+  //
+  // createCharacter stamps this over whatever the form posted, exactly as it
+  // does for a dynasty member's last name; the disabled picker in the wizard
+  // is only the hint.
+  lockedGender Gender?
 
   // Where characters with this role begin — and therefore the one Location
   // category their personal Discord role gets ViewChannel on at creation.

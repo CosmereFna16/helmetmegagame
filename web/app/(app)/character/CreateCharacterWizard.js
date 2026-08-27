@@ -19,7 +19,15 @@ import InfoIcon from "@/app/components/InfoIcon";
 import Tooltip from "@/app/components/Tooltip";
 import { FEAR_HELP } from "@/app/components/FearPanel";
 import { FEAR_PENALTY, FEAR_MAX_LENGTH } from "@/lib/constants";
-import { NAME_LIMITS, AGE_MIN, AGE_MAX, formatCharacterName, earnedTitles } from "@/lib/characterName";
+import {
+  NAME_LIMITS,
+  AGE_MIN,
+  AGE_MAX,
+  formatCharacterName,
+  earnedTitles,
+  GENDERS,
+  GENDER_LABELS,
+} from "@/lib/characterName";
 import { randomCharacterName } from "@/lib/nameCorpus";
 import { ANTAGONISTS, antagonistNames } from "@/lib/antagonists";
 
@@ -108,6 +116,10 @@ export default function CreateCharacterWizard({
 
   const [step, setStep] = useState(0);
   const [honorific, setHonorific] = useState("");
+  // No default: the brief is "choose gender", so an unpicked "" blocks Next
+  // rather than quietly filing everyone as NEUTRAL. Fixed for good once the
+  // character exists.
+  const [gender, setGender] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [age, setAge] = useState("");
@@ -142,10 +154,22 @@ export default function CreateCharacterWizard({
   // grantedTags, which this deliberately doesn't look at.
   const drawbacks = negativeTagCount(selectedTags);
 
+  // Four seats fix their holder's gender rather than letting them choose:
+  // Baron and Heir are men, Baroness and Successor are women. Same four roles
+  // that hand down the dynasty surname, so both locks land on this step.
+  // createCharacter stamps it over whatever the form posts, exactly as it does
+  // the surname — the disabled control is only the hint.
+  const lockedGender = role?.lockedGender ?? null;
+  const effectiveGender = lockedGender ?? gender;
+
   // Which titles this build has earned, from the role and from every tag it
   // will end up holding — bought and role-granted alike. Recomputed as the
-  // build changes, so buying Knighted on the Tags step puts Sir/Dame/Ser on
-  // the Identity step behind it.
+  // build changes, so buying Knighted on the Tags step puts Sir on the
+  // Identity step behind it.
+  //
+  // ONE word per title, not three: gender picks the form, so a woman sees
+  // Lady where a man sees Lord. Changing gender re-reads the whole list, which
+  // is why it is in the deps.
   //
   // roles.yaml `starting_tags` lists display NAMES, so the granted half is
   // resolved through the catalog rather than used directly.
@@ -154,8 +178,9 @@ export default function CreateCharacterWizard({
       earnedTitles({
         tagSlugs: [...grantedTags, ...selectedTags].map((t) => t.slug).filter(Boolean),
         roleSlug: role?.slug ?? null,
+        gender: effectiveGender || "NEUTRAL",
       }),
-    [grantedTags, selectedTags, role],
+    [grantedTags, selectedTags, role, effectiveGender],
   );
 
   // Switching roles changes the budget and what's already granted, so a
@@ -187,12 +212,13 @@ export default function CreateCharacterWizard({
   // word (see normalizeEarnedHonorific).
   const effectiveHonorific = earned.includes(honorific) ? honorific : "";
 
-  // Reads the title currently in the dropdown, so switching to Lady and
-  // rolling again gives a woman's name. A locked last name is left untouched
-  // rather than rolled and discarded — see db/lib/nameCorpus.js. A neutral
-  // title (Ser, Noble, Master) and no title alike draw from both pools.
+  // Reads the chosen gender, so a woman gets a woman's name whether or not she
+  // is titled — it used to read the title, so an untitled character or a
+  // Captain always drew from both pools. A locked last name is left untouched
+  // rather than rolled and discarded (db/lib/nameCorpus.js), and NEUTRAL draws
+  // from both, which is the honest answer rather than a fallback.
   function rollName() {
-    const rolled = randomCharacterName({ honorific: effectiveHonorific, lastNameLocked });
+    const rolled = randomCharacterName({ gender: effectiveGender || "NEUTRAL", lastNameLocked });
     setFirstName(rolled.firstName);
     if (!lastNameLocked) setLastName(rolled.lastName ?? "");
   }
@@ -208,7 +234,9 @@ export default function CreateCharacterWizard({
   const canAdvance =
     (step === 0 && role !== null) ||
     (step === 1 && remaining >= 0 && drawbacks <= maxNegativeTags) ||
-    (step === 2 && firstName.trim().length > 0) ||
+    // Gender is required and has no default, so it gates alongside the name.
+    // A locked seat supplies it, so those players only have the name to fill.
+    (step === 2 && firstName.trim().length > 0 && Boolean(effectiveGender)) ||
     // The Fear step is optional — you may walk straight past it and set
     // one later — so there is nothing to gate on.
     step === 3 ||
@@ -223,6 +251,9 @@ export default function CreateCharacterWizard({
     setError(null);
     const fd = new FormData();
     fd.set("firstName", firstName.trim());
+    // Sent even when the seat locks it; createCharacter re-stamps from the
+    // role either way, so this is the hint and that is the lock.
+    fd.set("gender", effectiveGender);
     if (effectiveHonorific) fd.set("honorific", effectiveHonorific);
     // Deliberately not sent for a family seat — createCharacter would discard
     // it anyway, and posting it would imply otherwise.
@@ -325,6 +356,41 @@ export default function CreateCharacterWizard({
 
       {step === 2 && (
         <div className="panel flex flex-col gap-4 p-4">
+          {/* Gender comes first on this step because it decides the rest of
+              it: which form of an earned title the picker below offers, and
+              which pool Randomize draws a name from. */}
+          <div className="grid gap-3 sm:grid-cols-[9rem_1fr]">
+            <label className="field">
+              <span className="field-label flex items-center gap-1.5">
+                Gender
+                <InfoIcon
+                  text={
+                    lockedGender
+                      ? "Your seat fixes this — the Baron and the Heir are men, the Baroness and the Successor are women."
+                      : "Chosen once, here. It can't be changed afterwards, and it decides which form of a title you wear — Lord, Lady or Noble."
+                  }
+                />
+              </span>
+              <select
+                value={effectiveGender}
+                onChange={(e) => setGender(e.target.value)}
+                disabled={Boolean(lockedGender)}
+                required
+              >
+                <option value="">(choose)</option>
+                {GENDERS.map((g) => (
+                  <option key={g} value={g}>
+                    {GENDER_LABELS[g]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="self-end pb-2 text-sm text-muted">
+              {lockedGender
+                ? `The ${role?.name} is always ${GENDER_LABELS[lockedGender].toLowerCase()}.`
+                : "Fixed once your character is made."}
+            </p>
+          </div>
           {/* The title stays narrow beside the two name inputs; it collapses
               to full width on a phone like every other grid in the app. */}
           <div className="grid gap-3 sm:grid-cols-[9rem_1fr_1fr]">

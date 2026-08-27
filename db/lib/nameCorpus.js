@@ -20,8 +20,6 @@
 // names an earlier pass of this file used (Miłosz, Zbyslava). The surnames mix
 // noble houses with trade and descriptive names on purpose, so one pool serves
 // both a Baron and a miner.
-const { genderWord } = require("./concealedIdentity");
-
 // Region tags exist only so a generated name can be internally coherent —
 // "Zsigmond Nádasdy" reads like a person, "Zsigmond Ataíde" reads like a random
 // generator. See randomCharacterName's CROSS_REGION_CHANCE for the exception.
@@ -190,18 +188,17 @@ const WITCHER_SHARE_OF_FLAVOUR = 1 / 6;
 // Railroad — so a mismatched name should happen, just not by default.
 const CROSS_REGION_CHANCE = 0.15;
 
-// Which given-name pool a title implies. Deliberately delegates to
-// db/lib/concealedIdentity.js#genderWord, which in turn reads the `gender`
-// declared beside each word in db/lib/titles.js: one rule in the codebase, and
-// a new title starts working here and in /conceal at once.
-function poolsFor(honorific, medieval) {
-  switch (genderWord(honorific)) {
-    case "Man":
+// Which given-name pool a character's gender implies. Reads Character.gender
+// directly — it used to be inferred from whichever title they happened to wear,
+// so an untitled character or a Captain drew from both pools whoever they were.
+function poolsFor(gender, medieval) {
+  switch (gender) {
+    case "MAN":
       return medieval ? [MEDIEVAL_MALE] : [FLAVOUR_MALE];
-    case "Woman":
+    case "WOMAN":
       return medieval ? [MEDIEVAL_FEMALE] : [FLAVOUR_FEMALE];
-    // Rank and profession honorifics ("Captain", "Doctor"), and having picked
-    // none at all, say nothing about the wearer — so draw from either.
+    // NEUTRAL draws from both, which is the honest answer rather than a
+    // fallback — there is no third corpus to reach for.
     default:
       return medieval ? [MEDIEVAL_MALE, MEDIEVAL_FEMALE] : [FLAVOUR_MALE, FLAVOUR_FEMALE];
   }
@@ -217,16 +214,15 @@ function poolsFor(honorific, medieval) {
  * caller simply doesn't write it (the disabled input is only a hint — see
  * db/lib/dynasty.js).
  */
-function randomCharacterName({ honorific = null, random = Math.random, lastNameLocked = false } = {}) {
+function randomCharacterName({ gender = "NEUTRAL", random = Math.random, lastNameLocked = false } = {}) {
   const pick = (arr) => arr[Math.floor(random() * arr.length)];
 
   const useFlavour = random() < FLAVOUR_CHANCE;
   // The three Witcher names are all masculine, so this narrowing only ever
-  // applies on a flavour roll that isn't explicitly asking for a woman's name
-  // — same posture as every other name in this file staying inside its
-  // implied gender.
-  const useWitcher = useFlavour && genderWord(honorific) !== "Woman" && random() < WITCHER_SHARE_OF_FLAVOUR;
-  const given = useWitcher ? pick(FLAVOUR_WITCHER) : pick(pick(poolsFor(honorific, !useFlavour)));
+  // applies on a flavour roll that isn't for a woman — same posture as every
+  // other name in this file staying inside its implied gender.
+  const useWitcher = useFlavour && gender !== "WOMAN" && random() < WITCHER_SHARE_OF_FLAVOUR;
+  const given = useWitcher ? pick(FLAVOUR_WITCHER) : pick(pick(poolsFor(gender, !useFlavour)));
 
   if (lastNameLocked) return { firstName: given.name, lastName: null };
 

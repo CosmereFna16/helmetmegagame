@@ -6,7 +6,6 @@
 // roughly how old someone looks, and how they present. Everything else — the
 // name, the appearance, the faction — is what concealing is for.
 
-const { genderOf } = require("./titles");
 
 // Under YOUNG you read as young, at OLD and above you read as old, and the
 // broad middle gets no adjective at all — which is what makes the word mean
@@ -14,17 +13,14 @@ const { genderOf } = require("./titles");
 const YOUNG_UNDER = 25;
 const OLD_FROM = 55;
 
-// A title's gender reading is a property of the WORD, and it is declared once
-// in db/lib/titles.js beside the word itself. This used to be two arrays here
-// that had to be edited in lockstep with that catalog — miss one and a new
-// title silently read as "Person" with nothing to catch it.
-//
-// Rank and profession say nothing about the wearer, so Captain, Doctor and
-// Master are all "neutral" and land on Person, as does having no title.
-function genderWord(honorific) {
-  const gender = genderOf(honorific);
-  if (gender === "man") return "Man";
-  if (gender === "woman") return "Woman";
+// Straight off Character.gender. This used to be inferred from the title —
+// first from two hardcoded MAN/WOMAN arrays here, then from a `gender` on each
+// word — which meant an untitled character was always "Person" however they
+// present, and that a Captain was too. A character carries their own gender
+// now, so the alias can simply say it.
+function genderWord(gender) {
+  if (gender === "MAN") return "Man";
+  if (gender === "WOMAN") return "Woman";
   return "Person";
 }
 
@@ -37,8 +33,16 @@ function ageWord(age) {
 
 // "Young Man" / "Old Woman" / "Person". Used as the webhook username, so it
 // is Title Case and comfortably inside Discord's 80-char cap.
-function concealedAlias({ age, honorific } = {}) {
-  return [ageWord(age), genderWord(honorific)].filter(Boolean).join(" ");
+//
+// Destructured off a whole Character row, which is what both call sites pass
+// (bot/src/events/messageCreate.js, interactionCreate.js) — so moving from
+// `honorific` to `gender` needed no change at either.
+//
+// The alias is frozen into ArchiveEntry.concealedAlias at send time, so a
+// later gender change never rewrites history. That is correct: the archive
+// records who someone was as they were known then.
+function concealedAlias({ age, gender } = {}) {
+  return [ageWord(age), genderWord(gender)].filter(Boolean).join(" ");
 }
 
 // The line shown when someone 🔍-inspects a concealed message. Lower-cased

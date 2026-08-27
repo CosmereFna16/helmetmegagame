@@ -46,6 +46,7 @@ import {
   formatCharacterName,
   formatBareName,
   normalizeEarnedHonorific,
+  GENDERS,
 } from "@/lib/characterName";
 
 // Creates a character from the wizard's final Confirm step.
@@ -73,6 +74,11 @@ export async function createCharacter(formData) {
   // depends on their role and their tags, neither of which is resolved yet —
   // so the gate runs further down, once both are known.
   const rawHonorific = formData.get("honorific");
+  // Unlike the title, gender needs no deferred gate — it is a closed enum, so
+  // the allowlist IS the boundary and junk lands as NEUTRAL. A locked seat
+  // overwrites it once the role is known, below.
+  const postedGender = formData.get("gender")?.toString();
+  const gender = GENDERS.includes(postedGender) ? postedGender : "NEUTRAL";
   const firstName = part("firstName", NAME_LIMITS.firstName);
   // Not const: a Baroness/Heir/Successor wears the Baron's last name rather
   // than one they typed, so this is overwritten once the role is known below.
@@ -165,6 +171,12 @@ export async function createCharacter(formData) {
   // the moment he rolls up (see below).
   if (isDynastyMember(role.slug)) lastName = await dynastyLastName();
 
+  // The same four seats fix the holder's gender as hand down the surname, and
+  // for the same reason: the Baron is a man and the Successor is his daughter.
+  // The wizard greys the picker out once such a role is picked, but the greying
+  // is only the hint — taking the seat's value over the posted one is the lock.
+  const effectiveGender = role.lockedGender ?? gender;
+
   // Selected tags must actually be buyable — a hand-posted request could
   // otherwise name a 0-cost, non-purchasable tag like Nobility.
   const selected = tagIds.length
@@ -194,6 +206,7 @@ export async function createCharacter(formData) {
   const honorific = normalizeEarnedHonorific(rawHonorific, {
     tagSlugs: [...selected, ...startingTags].map((t) => t.slug),
     roleSlug: role.slug,
+    gender: effectiveGender,
   });
   const name = formatCharacterName({ honorific, firstName, title: null, lastName });
 
@@ -294,6 +307,7 @@ export async function createCharacter(formData) {
           title: null,
           lastName,
           name,
+          gender: effectiveGender,
           age,
           roleId: role.id,
           roleTitle: role.name,

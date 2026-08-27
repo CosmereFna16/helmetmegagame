@@ -17,6 +17,7 @@ import {
   formatCharacterName,
   formatBareName,
   normalizeHonorific,
+  GENDERS,
 } from "@/lib/characterName";
 import { addToStack, dropCharacterTag } from "@/lib/requestEffects";
 import { expiryFor } from "@/lib/turnFormat";
@@ -32,6 +33,7 @@ export const EDITABLE_FIELDS = [
   "firstName",
   "title",
   "lastName",
+  "gender",
   "age",
   "appearance",
   "roleId",
@@ -95,6 +97,16 @@ export async function normalizeCoreEdits({ prisma, existing, core }) {
   }
   if ("title" in picked) data.title = trimmedOrNull(picked.title, NAME_LIMITS.title);
   if ("lastName" in picked) data.lastName = trimmedOrNull(picked.lastName, NAME_LIMITS.lastName);
+
+  // A GM may correct a gender freely — the chosen-once rule is a player-side
+  // rule, not a database one, same exemption `age` gets below. A value off the
+  // enum is refused rather than silently defaulted, because unlike a player
+  // form there is no picker upstream that could only have sent a valid one.
+  if ("gender" in picked) {
+    const value = (picked.gender ?? "").toString().trim();
+    if (!GENDERS.includes(value)) throw new UserError("That isn't a gender.");
+    data.gender = value;
+  }
 
   // ── role, and the dynasty lock that rides on it ─────────────────────────
   const roleId = "roleId" in picked ? trimmedOrNull(picked.roleId) : existing.roleId;

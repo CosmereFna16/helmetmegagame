@@ -77,6 +77,8 @@ zones:
         roles:
           - name: Baron
             slug: baron
+            # The seat fixes the holder's gender -> Role.lockedGender.
+            gender: MAN
             intro: >-
               They will know your glory, O Baron! This land is yours, hope incarnate—for humanity, for peace, for justice. Walk the path of your ancestors.
             description:
@@ -122,6 +124,8 @@ zones:
               - charon
           - name: Baroness
             slug: baroness
+            # The seat fixes the holder's gender -> Role.lockedGender.
+            gender: WOMAN
             intro: >-
               Someone must raise and protect the Heir, that invaluable link in the chain of infinity. Be the Lioness—or succumb to anxiety.
             description:
@@ -143,6 +147,8 @@ zones:
               - fortressstarting
           - name: Heir
             slug: heir
+            # The seat fixes the holder's gender -> Role.lockedGender.
+            gender: MAN
             intro: >-
               You are your father's son. Are you the exact opposite of him, or his closest ally?
             description:
@@ -165,6 +171,8 @@ zones:
               - fortressstarting
           - name: Successor
             slug: successor
+            # The seat fixes the holder's gender -> Role.lockedGender.
+            gender: WOMAN
             intro: >-
               You are the Baron's daughter. Bring some light to the darkness.
             description:

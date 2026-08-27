@@ -1148,6 +1148,9 @@ async function changeNameRequestImpl({ honorific: rawHonorific, firstName: rawFi
   const honorific = normalizeEarnedHonorific(rawHonorific, {
     tagSlugs: character.tags.map((ct) => ct.tag.slug),
     roleSlug: character.role?.slug ?? null,
+    // Their own, fixed at creation. A potion buys a new name, never a new
+    // gender, so this is read and never written on this path.
+    gender: character.gender,
   });
   const firstName = rawFirstName?.toString().trim().slice(0, NAME_LIMITS.firstName) || null;
   if (!firstName) throw new UserError("A character needs a first name.");

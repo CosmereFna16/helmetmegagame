@@ -28,17 +28,19 @@ export async function updateCharacterProfile(_prevState, formData) {
   });
   if (!character) redirect("/character");
 
-  // A character's name is SET AT CREATION and never read from this form
-  // again — honorific, firstName and lastName are all ignored here, however
-  // the form is posted. The greyed inputs on the sheet are the hint; this is
-  // the lock, same posture as `age` below and `title` before it.
+  // A character's name and GENDER are SET AT CREATION and never read from this
+  // form again — honorific, firstName, lastName and gender are all ignored
+  // here, however the form is posted. The greyed inputs on the sheet are the
+  // hint; this silence is the lock, same posture as `title`.
   //
-  // The one exception in the game is the Mulligan Potion (docs/tags.yaml),
-  // and it is deliberately not automated: a player consumes it, and a GM
-  // renames them from /gm/dev/characters/[characterId]. That keeps
-  // web/lib/characterWrite.js the only remaining rename path, which is also
-  // the only one that plans the Discord fan-out (role title, colour,
-  // nickname, dynasty propagation) properly.
+  // Gender deliberately does NOT get `age`'s null-until-set conditional below:
+  // there is no unset state to leave open. It is chosen once and only a GM can
+  // correct it, from /gm/dev/characters/[characterId].
+  //
+  // The one exception for the name is the Mulligan Potion (docs/tags.yaml),
+  // which is a CHANGE_NAME request handled by
+  // character/requestActions.js#changeNameRequestImpl — it applies immediately
+  // and a GM can undo it. Gender has no such exception.
   const appearance =
     formData.get("appearance")?.toString().trim().slice(0, APPEARANCE_MAX_LENGTH) || null;
   const turnPingOptIn = formData.get("turnPingOptIn") === "on";

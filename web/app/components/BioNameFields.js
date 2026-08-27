@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { earnedTitles, NAME_LIMITS, AGE_MIN, AGE_MAX } from "@/lib/characterName";
+import { earnedTitles, NAME_LIMITS, AGE_MIN, AGE_MAX, GENDER_LABELS } from "@/lib/characterName";
 import { randomCharacterName } from "@/lib/nameCorpus";
 import InfoIcon from "./InfoIcon";
 import RequestDialog from "./RequestDialog";
@@ -50,8 +50,11 @@ export default function BioNameFields({ character, lastNameLocked = false }) {
       earnedTitles({
         tagSlugs: (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
         roleSlug: character.role?.slug ?? null,
+        // Fixed at creation, so this never moves under the player — it just
+        // decides whether they are offered Lord, Lady or Noble.
+        gender: character.gender,
       }),
-    [character.tags, character.role],
+    [character.tags, character.role, character.gender],
   );
 
   function openDialog() {
@@ -65,11 +68,11 @@ export default function BioNameFields({ character, lastNameLocked = false }) {
     setOpen(true);
   }
 
-  // Same rule as the creation wizard and the old (pre-lock) Randomize: the
-  // honorific in the dropdown picks the pool, and a dynasty surname is left
-  // alone rather than rolled and discarded.
+  // Same rule as the creation wizard: the character's own gender picks the
+  // name pool, and a dynasty surname is left alone rather than rolled and
+  // discarded.
   function rollName() {
-    const rolled = randomCharacterName({ honorific, lastNameLocked });
+    const rolled = randomCharacterName({ gender: character.gender, lastNameLocked });
     setFirstName(rolled.firstName);
     if (!lastNameLocked) setLastName(rolled.lastName ?? "");
   }
@@ -101,6 +104,17 @@ export default function BioNameFields({ character, lastNameLocked = false }) {
             placeholder="No last name"
             disabled
           />
+        </label>
+        {/* Chosen at creation and fixed for good — unlike age there is no
+            unset state, so updateCharacterProfile simply never reads the
+            key. Shown so a player can confirm what they picked; it is not
+            published anywhere else, and never appears on 🔍 examine. */}
+        <label className="field">
+          <span className="field-label flex items-center gap-1.5">
+            Gender
+            <InfoIcon text="Chosen when your character was made and fixed since. It decides which form of a title you wear — Lord, Lady or Noble. Ask a GM if it's wrong." />
+          </span>
+          <input defaultValue={GENDER_LABELS[character.gender] ?? ""} disabled />
         </label>
         {/* Free to set once, then fixed — same treatment as the
             GM-granted title below. The disabled input submits nothing,

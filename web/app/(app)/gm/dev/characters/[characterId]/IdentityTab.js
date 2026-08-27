@@ -3,7 +3,7 @@
 import CheckField from "@/app/components/CheckField";
 import Switch from "@/app/components/Switch";
 import InfoIcon from "@/app/components/InfoIcon";
-import { TITLE_WORDS, NAME_LIMITS, AGE_MIN, AGE_MAX } from "@/lib/characterName";
+import { TITLE_WORDS, NAME_LIMITS, AGE_MIN, AGE_MAX, GENDERS, GENDER_LABELS } from "@/lib/characterName";
 
 // Every scalar on the Character row a GM may set, in one tab.
 //
@@ -79,6 +79,27 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
               onChange={(e) => onField("lastName", e.target.value)}
               style={touched("lastName")}
             />
+          </label>
+
+          {/* Editable here and nowhere else: a player chooses this once at
+              creation and can never change it, so correcting a mistake is a
+              GM job. Changing it moves which form of a title they are offered
+              — a Lord becomes a Lady — but never rewrites the word they
+              already wear. */}
+          <label className="field">
+            <span className="field-label flex items-center gap-1.5">
+              Gender
+              <InfoIcon text="Fixed for the player at creation; only you can change it. Four seats force it — Baron and Heir are men, Baroness and Successor women — but nothing here enforces that, so a deliberate exception is yours to make." />
+            </span>
+            <select
+              value={staged.gender ?? "NEUTRAL"}
+              onChange={(e) => onField("gender", e.target.value)}
+              style={touched("gender")}
+            >
+              {GENDERS.map((g) => (
+                <option key={g} value={g}>{GENDER_LABELS[g]}</option>
+              ))}
+            </select>
           </label>
 
           <label className="field">

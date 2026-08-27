@@ -108,6 +108,11 @@ async function loadCreationData(discordUserId) {
                 // Some titles are earned by role rather than by tag, and
                 // db/lib/titles.js keys on the slug (see the Identity step).
                 slug: role.slug,
+                // Null for every ordinary seat; set on the four dynasty roles,
+                // which fix their holder's gender the same way they hand down
+                // the surname. The wizard renders the picker disabled at this
+                // value, and createCharacter stamps it regardless.
+                lockedGender: role.lockedGender,
                 difficulty: role.difficulty,
                 factionName: faction.name,
                 startingLocationName: role.startingLocation?.name ?? null,

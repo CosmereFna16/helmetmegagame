@@ -140,54 +140,94 @@ is ≤79 by construction. Both form-fed writers — creation and the GM dev pane
 public endpoints. The longest title is 9 characters (Professor, Constable), so
 the 10-char cap holds with the catalog as it stands.
 
-## 1c. Titles are earned
+## 1c. Titles are earned, and gender picks the form
 
-`db/lib/titles.js` is the catalog: one frozen table mapping a **word** to the
-tags and roles that grant it, and to what the word says about its wearer.
+`db/lib/titles.js` is the catalog. An entry is one **title**, not one word:
+`words` is either a plain string, or a map keyed by gender.
 
-| Word(s) | Earned from |
-|---|---|
-| Sergeant | tag `sergeant` |
-| Constable | tag `watchman` |
-| Captain | role `captain` |
-| Sir / Dame / Ser | tag `knighted` |
-| Lord / Lady / Noble | tag `nobility` |
-| Baron / Baroness | roles `baron` / `baroness` |
-| Father / Mother / Reverend | tag `chaplain` |
-| Brother / Sister / Sibling | tag `mortus` |
-| Bishop | role `bishop` |
-| Doctor | tag `medical-skilled`, roles `esculap` `serpent` |
-| Professor | role `scholastic` |
-| Master | roles `metalsmith` `innkeeper` `headman` |
+| Title | Earned from | MAN / WOMAN / NEUTRAL |
+|---|---|---|
+| Sergeant | tag `sergeant` | one word |
+| Constable | tag `watchman` | one word |
+| Captain | role `captain` | one word |
+| Knighthood | tag `knighted` | Sir / Dame / Ser |
+| Nobility | tag `nobility` | Lord / Lady / Noble |
+| The Baron's seat | roles `baron` `baroness` | Baron / Baroness / Baron |
+| Ordination | tag `chaplain` | Father / Mother / Reverend |
+| The Mortii | tag `mortus` | Brother / Sister / Sibling |
+| Bishop | role `bishop` | one word |
+| Doctor | tag `medical-skilled`, roles `esculap` `serpent` | one word |
+| Professor | role `scholastic` | one word |
+| Master | roles `metalsmith` `innkeeper` `headman` | one word |
 
-Overlap is deliberate: the `bishop` role grants the `chaplain` tag, so a
-Bishop may style themselves Father, Mother or Reverend instead. Same for
-Captain (grants `watchman`) and Baron/Baroness (grant `nobility`). **Most of
+**A player never picks between Lord, Lady and Noble.** Their gender decides
+that; the dropdown picks between Lord and Sir. So `earnedTitles()` returns one
+word per earned title, never three.
+
+Only five titles are gendered at all. Rank and profession say nothing about
+their wearer, which is why Captain, Doctor and Master sit on the flat side —
+and every gendered set carries a neutral third, so nobody has to pick a side
+to be styled.
+
+Overlap is deliberate: the `bishop` role grants the `chaplain` tag, so a Bishop
+may style themselves Father, Mother or Reverend instead. Same for Captain
+(grants `watchman`) and the Baron's family (grant `nobility`). **Most of
 Ravenheart is untitled** — a peasant earns nothing, and the picker says so
 rather than showing an empty control.
 
-Three of these hang off *purchasable* tags (`sergeant`, `knighted`,
-`medical-skilled`), so those titles can be bought with points — but each sits
-behind a membership gate already (`general-watch` needs `watchman`,
-`general-court` needs `courtier`), so nobody buys a title cold.
+Three titles hang off *purchasable* tags (`sergeant`, `knighted`,
+`medical-skilled`), so they can be bought with points — but each sits behind a
+membership gate already (`general-watch` needs `watchman`, `general-court`
+needs `courtier`), so nobody buys a title cold.
 
-### One table, two questions
+### Gender
 
-The same `gender` column on each entry decides what `/conceal` calls you and
-which name pool Randomize draws from. That used to be two `MAN`/`WOMAN` arrays
-in `db/lib/concealedIdentity.js` that had to be edited in lockstep with the
-word list — and the guard meant to catch a drift,
-`assertHonorificsCovered()`, could never fire: its condition was
-`!MAN.includes(h) && !WOMAN.includes(h) && genderWord(h) !== "Person"`, which
-is unsatisfiable, since `genderWord` returned `"Person"` exactly when the
-first two held. `assertTitlesResolve(prisma)` replaces it, runs at the end of
-`db:sync-roles` (after tags, per `SYNC.md`), and actually fails on an unknown
-slug.
+`Character.gender` is `MAN | WOMAN | NEUTRAL`, non-null and defaulted. It is
+chosen on the **last step of creation** — it has to be, because it and the
+tags together decide what the title picker can offer — and never changes
+afterwards.
 
-Rank and profession say nothing about their wearer, so Captain, Doctor and
-Master are **neutral** and a concealed Master reads "a young person". Every
-gendered set carries a neutral third (Ser, Noble, Sibling, Reverend) so nobody
-has to pick a side to be styled at all.
+The lock is `character/actions.js#updateCharacterProfile` **not reading the
+key**, the same silence that keeps a name immutable. It deliberately does not
+copy `age`'s null-until-set conditional: there is no unset state to leave open.
+A GM can correct one from `/gm/dev/characters/[characterId]`, which is the only
+writer after creation.
+
+Gender does two jobs, and both used to be inferred from whichever title a
+character happened to wear:
+
+- **Which form of a title they get** — the table above.
+- **The Man/Woman/Person half of a concealed alias**
+  (`db/lib/concealedIdentity.js`) and the name pool Randomize draws from
+  (`db/lib/nameCorpus.js#poolsFor`).
+
+The second is a behaviour change worth knowing: an untitled woman now conceals
+as "a young woman" rather than "a young person". Concealing hides the name, the
+face and the faction — it was never meant to hide how someone presents, and the
+alias comment always said as much. `ArchiveEntry.concealedAlias` is frozen at
+send time, so a later correction never rewrites history.
+
+### Four seats fix it
+
+`baron` and `heir` are MAN; `baroness` and `successor` are WOMAN. Declared as
+`gender:` in `docs/roles.yaml` and carried on `Role.lockedGender`, so a future
+gendered seat needs no code — same posture as the `leader:` / `treasurer:`
+booleans beside them.
+
+These are **the same four roles that hand down the dynasty surname**, so both
+locks land on the same wizard step: the picker renders disabled with a
+tooltip, and `createCharacter` stamps the seat's value over whatever was
+posted, exactly as it does the surname. The GM panel does not enforce it — a
+deliberate exception is a GM's to make.
+
+### The guard that finally works
+
+`assertTitlesResolve(prisma)` runs at the end of `db:sync-roles` (after tags,
+per `SYNC.md`) and fails on an unknown tag or role slug, or a gendered entry
+missing a form. It replaced `assertHonorificsCovered()`, whose condition was
+`!MAN.includes(h) && !WOMAN.includes(h) && genderWord(h) !== "Person"` —
+unsatisfiable, since `genderWord` returned `"Person"` exactly when the first
+two held, so it never fired once.
 
 ### Losing the tag does not strip the title
 

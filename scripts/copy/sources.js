@@ -82,6 +82,10 @@ const IGNORE_DIRS = [
 const IGNORE_FILES = [
   "db/lib/discordRest.js",
   "db/lib/nameCorpus.js",
+  // Every entry is a single catalog word (Sir, Lady, Constable) that scores
+  // as copy and isn't — same reasoning as the name corpus above. The prose
+  // that explains titles to a player lives in the pickers, not here.
+  "db/lib/titles.js",
   "db/lib/syncTags.js",
   "db/lib/pruneTags.js",
   "db/lib/syncLocations.js",

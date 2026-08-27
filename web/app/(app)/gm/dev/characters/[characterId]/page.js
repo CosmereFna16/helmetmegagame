@@ -103,6 +103,7 @@ export default async function DevCharacterPanelPage({ params }) {
           firstName: character.firstName,
           title: character.title,
           lastName: character.lastName,
+          gender: character.gender,
           age: character.age,
           appearance: character.appearance,
           roleId: character.roleId,

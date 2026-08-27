@@ -19,4 +19,13 @@ export {
 
 // The title catalog, same shim for the same reason — the wizard and the two
 // other pickers are client components.
-export { TITLE_WORDS, earnedTitles, genderOf } from "@lifeweb/db/lib/titles";
+export { TITLE_WORDS, GENDERS, earnedTitles } from "@lifeweb/db/lib/titles";
+
+// How the Gender enum is written for a human. Lives here rather than in
+// db/lib/titles.js because it is presentation and nothing server-side or
+// bot-side needs it: the enum values are the vocabulary everywhere else.
+export const GENDER_LABELS = Object.freeze({
+  MAN: "Man",
+  WOMAN: "Woman",
+  NEUTRAL: "Neutral",
+});

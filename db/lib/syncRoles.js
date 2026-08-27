@@ -30,7 +30,7 @@
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
-const { assertTitlesResolve } = require("./titles");
+const { assertTitlesResolve, GENDERS } = require("./titles");
 
 // docsPath() is null only when docs/ cannot be found at all, which for a YAML
 // master is fatal — a sync with no master would read as "everything was
@@ -86,6 +86,13 @@ function parseRolesYaml(doc) {
           startingTagNames: role.starting_tags ?? [],
           grantsLeader: role.leader === true,
           grantsTreasurer: role.treasurer === true,
+          // A seat that fixes its holder's gender rather than letting them
+          // choose — Baron/Heir MAN, Baroness/Successor WOMAN. Validated
+          // against the enum here rather than trusted, so a typo in the YAML
+          // lands as null (an ordinary free-choice seat) instead of a value
+          // Prisma would reject at write time with no hint which role it came
+          // from.
+          lockedGender: GENDERS.includes(role.gender) ? role.gender : null,
           docElements: role.doc_elements ?? [],
         });
       }
@@ -198,6 +205,7 @@ async function syncRolesFromYaml(prisma) {
       startingTagSlugs: entry.startingTagNames,
       grantsLeader: entry.grantsLeader,
       grantsTreasurer: entry.grantsTreasurer,
+      lockedGender: entry.lockedGender,
       docElements: entry.docElements,
       startingLocationId: entry.startingLocationSlug ? locationIdBySlug.get(entry.startingLocationSlug) : null,
     };
