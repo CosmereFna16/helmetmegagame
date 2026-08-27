@@ -368,7 +368,7 @@ function StateStrip({
           "Faction",
           <FactionLink key="f" factionId={character.factionId} name={character.factionName ?? "—"} />,
         ],
-        ["Location", character.locationName ?? character.zoneName ?? "—"],
+        ["Zone", character.zoneName ?? "—"],
       ],
     ],
     [

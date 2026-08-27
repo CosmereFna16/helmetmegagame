@@ -191,7 +191,7 @@ function SheetView({ data, tab, tagsById, currentTurnNumber, characterId, pendin
     ["Status", data.status],
     ["Role", data.roleTitle ?? "—"],
     ["Faction", <FactionLink key="f" factionId={data.factionId} name={data.factionName ?? "—"} />],
-    ["Location", data.locationLabel],
+    ["Zone", data.locationLabel],
     [
       "Resources",
       <StagedDeltaFact
@@ -234,7 +234,7 @@ function ArchiveView({ data, onOpenContext }) {
           <>
             <p className="text-xs text-muted">
               {e.concealedAlias ? `${e.concealedAlias} (${e.characterName})` : e.characterName}
-              {e.locationName ? ` · ${e.locationName}` : ""}
+              {e.zoneName ? ` · ${e.zoneName}` : ""}
               {e.turnNumber != null ? ` · turn ${e.turnNumber}` : ""}
             </p>
             <div className="text-sm">
