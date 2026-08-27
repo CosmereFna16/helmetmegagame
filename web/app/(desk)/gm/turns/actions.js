@@ -856,6 +856,110 @@ async function getDmThreadImpl({ characterId }) {
   };
 }
 
+// The inspector's DM composer sends now — it is not staged, because a GM
+// reading a thread wants to answer it, not queue an answer for the push.
+async function sendInspectorDmImpl({ characterId, content }) {
+  const session = await requireGm();
+  const character = await prisma.character.findUnique({
+    where: { id: characterId ?? "" },
+    select: { id: true, discordUserId: true, name: true },
+  });
+  if (!character) throw new UserError("Character not found.");
+
+  const text = content?.toString().trim() ?? "";
+  if (!text) throw new UserError("Write the message first.");
+  if (text.length > GM_MESSAGE_MAX_LENGTH) {
+    throw new UserError(`Messages cap at ${GM_MESSAGE_MAX_LENGTH} characters.`);
+  }
+
+  // sendDm adds the » prefix and logs the DirectMessage row itself — this
+  // caller passes raw text, same as every other sendDm call site.
+  const sent = await sendDm(character.discordUserId, text).catch(() => null);
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: sent ? "gm_dm_sent" : "gm_message_delivery_failed",
+      targetCharacterId: character.id,
+      details: { via: "adjudication_inspector", length: text.length },
+    },
+  });
+
+  if (!sent) throw new UserError("Discord wouldn't deliver that — they may have DMs closed.");
+
+  revalidatePath(`/gm/messages/${character.discordUserId}`);
+  return getDmThreadImpl({ characterId });
+}
+
+const CONTEXT_SLICE = 30;
+
+// The scene around one archived line: ~30 messages before/after in the same
+// Discord channel/thread, so a GM clicking an old transcript row doesn't have
+// to reconstruct context from turn number and location alone.
+async function getArchiveContextImpl({ archiveEntryId }) {
+  await requireGm();
+  const anchor = await prisma.archiveEntry.findUnique({ where: { id: archiveEntryId ?? "" } });
+  if (!anchor) throw new UserError("That transcript row is gone.");
+
+  // Two ways to identify "the same channel": the snapshot column where it
+  // exists, and the legacy locationId/channelKind/threadName triple for rows
+  // written before the backfill. Both prongs stay live because history is
+  // mixed — a null in the legacy triple intentionally matches IS NULL.
+  const identity = [];
+  if (anchor.discordChannelId) identity.push({ discordChannelId: anchor.discordChannelId });
+  if (anchor.locationId != null || anchor.channelKind != null) {
+    identity.push({ locationId: anchor.locationId, channelKind: anchor.channelKind, threadName: anchor.threadName });
+  }
+  if (!identity.length) throw new UserError("That row carries no channel identity.");
+
+  const channelWhere = { kind: "MESSAGE", OR: identity };
+
+  const [before, after] = await Promise.all([
+    prisma.archiveEntry.findMany({
+      where: {
+        AND: [
+          channelWhere,
+          { OR: [{ sentAt: { lt: anchor.sentAt } }, { sentAt: anchor.sentAt, id: { lt: anchor.id } }] },
+        ],
+      },
+      orderBy: [{ sentAt: "desc" }, { id: "desc" }],
+      take: CONTEXT_SLICE,
+    }),
+    prisma.archiveEntry.findMany({
+      where: {
+        AND: [
+          channelWhere,
+          { OR: [{ sentAt: { gt: anchor.sentAt } }, { sentAt: anchor.sentAt, id: { gt: anchor.id } }] },
+        ],
+      },
+      orderBy: [{ sentAt: "asc" }, { id: "asc" }],
+      take: CONTEXT_SLICE,
+    }),
+  ]);
+
+  // Server-only env — this is why the URL is built here, never client-side.
+  const guildId = process.env.DISCORD_GUILD_ID || null;
+  const channelLabel =
+    [anchor.locationName, anchor.threadName].filter(Boolean).join(" · ") || anchor.channelKind || "unknown channel";
+  // Event rows and legacy thread rows can't link; Dawn-wiped messages make
+  // old links dead anyway — the popup itself is the durable value.
+  const jumpUrl =
+    guildId && anchor.discordChannelId && anchor.discordMessageId
+      ? `https://discord.com/channels/${guildId}/${anchor.discordChannelId}/${anchor.discordMessageId}`
+      : null;
+
+  const entries = [...before.reverse(), anchor, ...after].map((e) => ({
+    id: e.id,
+    content: e.content,
+    characterName: e.characterName,
+    concealedAlias: e.concealedAlias,
+    turnNumber: e.turnNumber,
+    sentAt: e.sentAt.toISOString(),
+  }));
+
+  return { anchorId: anchor.id, channelLabel, jumpUrl, entries };
+}
+
 // The composer's held-tags panel: lean rows for one character, keyed by tag,
 // so a GM can stage a remove without re-typing the name into the catalog
 // search.
@@ -924,4 +1028,10 @@ export async function getDmThread(input) {
 }
 export async function getHeldTags(input) {
   return guarded(() => getHeldTagsImpl(input));
+}
+export async function sendInspectorDm(input) {
+  return guarded(() => sendInspectorDmImpl(input));
+}
+export async function getArchiveContext(input) {
+  return guarded(() => getArchiveContextImpl(input));
 }

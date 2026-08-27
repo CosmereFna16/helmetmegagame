@@ -87,6 +87,22 @@ export default function Workspace({
   const selectedMove = selected?.type === "move" ? moves.find((m) => m.id === selected.id) : null;
   const selectedRequest = selected?.type === "request" ? requests.find((r) => r.id === selected.id) : null;
 
+  // The inspector's dim/suffix source for staged quick-edits: net staged
+  // resources/tag points and pending tag ops, per character, over everything
+  // not yet applied by a push.
+  const pendingByCharacter = useMemo(() => {
+    const map = new Map();
+    for (const e of stagedEffects) {
+      if (e.applied) continue;
+      const entry = map.get(e.targetCharacterId) ?? { resources: 0, tagPoints: 0, removes: new Set(), adds: new Set() };
+      entry.resources += e.resources ?? 0;
+      entry.tagPoints += e.tagPoints ?? 0;
+      for (const op of e.tagOps ?? []) (op.op === "remove" ? entry.removes : entry.adds).add(op.tagId);
+      map.set(e.targetCharacterId, entry);
+    }
+    return map;
+  }, [stagedEffects]);
+
   const stagedByMove = useMemo(() => {
     const map = new Map();
     for (const e of stagedEffects) {
@@ -191,6 +207,7 @@ export default function Workspace({
           setCache={setInspectorCache}
           tagsById={tagsById}
           currentTurnNumber={openTurn?.number ?? null}
+          pendingByCharacter={pendingByCharacter}
         />
       </div>
 

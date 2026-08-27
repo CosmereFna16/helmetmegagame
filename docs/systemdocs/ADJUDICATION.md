@@ -95,7 +95,15 @@ tokens and the shared control classes still apply; the `.desk-*` family in
   character name in the workspace is a click target that swaps the column to
   that character: Sheet (live facts + gambit modifier), Tags, their archive
   slice, their DM thread. Pin the ones an arbitration keeps returning to.
-  Fetched on demand via server actions, cached for the page view.
+  Fetched on demand via server actions, cached for the page view. Three quick
+  edits live here too: the DMs tab carries a composer that sends immediately
+  (»-prefixed, logged, not staged — `sendInspectorDm`); clicking an archived
+  line opens `ArchiveContextModal`, the ~30 messages before/after it in the
+  same Discord channel/thread with a jump link when the message still exists
+  (`getArchiveContext`); and the Sheet/Tags tabs stage deltas in place — ✕ a
+  held tag to stage its removal, click Resources or Tag points to stage a
+  ± delta. All three route through the same `createStagedEffects` the tray
+  uses, so they land at the push like any other staged effect.
 - **Tray** — the push, honestly: counts (including how many open Moves will
   silently close), every staged row with edit/delete, batches as one line,
   unattached and detached rows, and the composers for staging outside any

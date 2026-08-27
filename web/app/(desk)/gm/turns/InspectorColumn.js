@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import TagChip from "@/app/components/TagChip";
 import FactionLink from "@/app/components/FactionLink";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
 import MarkdownContent from "@/app/components/MarkdownContent";
-import { getCharacterInspector, getArchiveSlice, getDmThread } from "./actions";
+import FormError from "@/app/components/FormError";
+import ArchiveContextModal from "./ArchiveContextModal";
+import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
+import { getCharacterInspector, getArchiveSlice, getDmThread, sendInspectorDm, createStagedEffects } from "./actions";
 
 // The right-hand inspector: the "quickly pull up the guy he was talking to"
 // column. Sheet / Tags / Archive / DMs over whichever character was last
@@ -51,20 +55,124 @@ function useInspectorData(characterId, tab, cache, setCache) {
   };
 }
 
-function SheetView({ data, tab, tagsById, currentTurnNumber }) {
+// A Sheet fact that stages a delta at click — Resources and Tag points are
+// the only two, because those are the two `createStagedEffects` payload
+// numbers. `onStage` does the server call; this component only owns the
+// small input + error state.
+function StagedDeltaFact({ display, pendingSuffix, onStage, disabled }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState("");
+  const [error, setError] = useState(null);
+  const [pending, startTransition] = useTransition();
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        className="desk-fact-editable mono text-sm"
+        title="Stages a change for the turn-end push"
+        disabled={disabled}
+        onClick={() => {
+          setValue("");
+          setError(null);
+          setEditing(true);
+        }}
+      >
+        {display}
+        {pendingSuffix && <span className="desk-fact-pending">{pendingSuffix}</span>}
+      </button>
+    );
+  }
+
+  function submit() {
+    const delta = Number.parseInt(value, 10);
+    if (!Number.isInteger(delta) || delta === 0) return;
+    startTransition(async () => {
+      const res = await onStage(delta);
+      if (res?.ok) {
+        setEditing(false);
+      } else {
+        setError(res?.error ?? "Couldn't stage that.");
+      }
+    });
+  }
+
+  return (
+    <span className="flex flex-col gap-1">
+      <span className="flex items-center gap-1">
+        <input
+          className="mono text-sm"
+          style={{ width: "5rem" }}
+          value={value}
+          placeholder="±0"
+          autoFocus
+          disabled={pending}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+            if (e.key === "Escape") setEditing(false);
+          }}
+        />
+        <button type="button" className="btn-quiet" disabled={pending} onClick={submit}>
+          Stage
+        </button>
+        <button type="button" className="btn-quiet" disabled={pending} onClick={() => setEditing(false)}>
+          Cancel
+        </button>
+      </span>
+      {error && <FormError>{error}</FormError>}
+    </span>
+  );
+}
+
+function SheetView({ data, tab, tagsById, currentTurnNumber, characterId, pending, router }) {
+  async function stageResources(delta) {
+    const res = await createStagedEffects({ targetCharacterIds: [characterId], resources: delta });
+    if (res?.ok) router.refresh();
+    return res;
+  }
+
+  async function stageTagPoints(delta) {
+    const res = await createStagedEffects({ targetCharacterIds: [characterId], tagPoints: delta });
+    if (res?.ok) router.refresh();
+    return res;
+  }
+
+  async function removeTag(tagId) {
+    const res = await createStagedEffects({ targetCharacterIds: [characterId], tagOps: [{ tagId, op: "remove" }] });
+    if (res?.ok) router.refresh();
+    return res;
+  }
+
   if (tab === "Tags") {
     return (
       <div className="flex flex-wrap gap-1.5 p-3">
         {data.tags.length ? (
-          data.tags.map((ct) => (
-            <TagChip
-              key={ct.tagId}
-              tag={ct.tag ?? tagsById[ct.tagId]}
-              quantity={ct.quantity}
-              expiresTurn={ct.expiresTurn}
-              currentTurn={currentTurnNumber ?? data.currentTurnNumber}
-            />
-          ))
+          data.tags.map((ct) => {
+            const isPendingRemove = pending?.removes?.has(ct.tagId);
+            return (
+              <span key={ct.tagId} className={`flex items-center gap-1 ${isPendingRemove ? "desk-chip-pending" : ""}`}>
+                <TagChip
+                  tag={ct.tag ?? tagsById[ct.tagId]}
+                  quantity={ct.quantity}
+                  expiresTurn={ct.expiresTurn}
+                  currentTurn={currentTurnNumber ?? data.currentTurnNumber}
+                />
+                {isPendingRemove ? (
+                  <span className="text-xs text-muted">staged −</span>
+                ) : (
+                  <button
+                    type="button"
+                    className="desk-chip-x"
+                    aria-label={`Stage removing ${ct.tag?.name ?? tagsById[ct.tagId]?.name ?? "tag"}`}
+                    onClick={() => removeTag(ct.tagId)}
+                  >
+                    ✕
+                  </button>
+                )}
+              </span>
+            );
+          })
         ) : (
           <p className="text-sm text-muted">No tags.</p>
         )}
@@ -72,13 +180,36 @@ function SheetView({ data, tab, tagsById, currentTurnNumber }) {
     );
   }
 
+  const resourcesSuffix = pending?.resources
+    ? ` ${pending.resources > 0 ? "+" : "−"}${Math.abs(pending.resources)} ⬢ staged`
+    : null;
+  const tagPointsSuffix = pending?.tagPoints
+    ? ` ${pending.tagPoints > 0 ? "+" : "−"}${Math.abs(pending.tagPoints)} tp staged`
+    : null;
+
   const facts = [
     ["Status", data.status],
     ["Role", data.roleTitle ?? "—"],
     ["Faction", <FactionLink key="f" factionId={data.factionId} name={data.factionName ?? "—"} />],
     ["Location", data.locationLabel],
-    ["Resources", `${data.resources} ⬢`],
-    ["Tag points", String(data.tagPoints)],
+    [
+      "Resources",
+      <StagedDeltaFact
+        key="resources"
+        display={`${data.resources} ⬢`}
+        pendingSuffix={resourcesSuffix}
+        onStage={stageResources}
+      />,
+    ],
+    [
+      "Tag points",
+      <StagedDeltaFact
+        key="tagPoints"
+        display={String(data.tagPoints)}
+        pendingSuffix={tagPointsSuffix}
+        onStage={stageTagPoints}
+      />,
+    ],
     ["Gambit", data.gambitModifier > 0 ? `+${data.gambitModifier}` : String(data.gambitModifier)],
     ["Acted", data.acted ? "yes" : "no"],
     ["Fear", data.fear ?? "—"],
@@ -95,48 +226,102 @@ function SheetView({ data, tab, tagsById, currentTurnNumber }) {
   );
 }
 
-function ArchiveView({ data }) {
+function ArchiveView({ data, onOpenContext }) {
   if (!data.entries.length) return <p className="p-3 text-sm text-muted">Nothing in the transcript.</p>;
   return (
     <div className="flex flex-col gap-3 p-3">
-      {data.entries.map((e) => (
-        <div key={e.id}>
-          <p className="text-xs text-muted">
-            {e.concealedAlias ? `${e.concealedAlias} (${e.characterName})` : e.characterName}
-            {e.locationName ? ` · ${e.locationName}` : ""}
-            {e.turnNumber != null ? ` · turn ${e.turnNumber}` : ""}
-          </p>
-          <div className="text-sm">
-            <MarkdownContent content={e.content} />
-          </div>
-        </div>
-      ))}
+      {data.entries.map((e) => {
+        const row = (
+          <>
+            <p className="text-xs text-muted">
+              {e.concealedAlias ? `${e.concealedAlias} (${e.characterName})` : e.characterName}
+              {e.locationName ? ` · ${e.locationName}` : ""}
+              {e.turnNumber != null ? ` · turn ${e.turnNumber}` : ""}
+            </p>
+            <div className="text-sm">
+              <MarkdownContent content={e.content} />
+            </div>
+          </>
+        );
+        if (e.kind !== "MESSAGE") return <div key={e.id}>{row}</div>;
+        return (
+          <button
+            key={e.id}
+            type="button"
+            className="desk-archive-row"
+            onClick={() => onOpenContext(e.id)}
+          >
+            {row}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-function DmsView({ data }) {
-  if (!data.messages.length) return <p className="p-3 text-sm text-muted">No messages yet.</p>;
+function DmsView({ data, characterId, cacheKey, setCache }) {
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState(null);
+  const [pending, startTransition] = useTransition();
+
+  function send() {
+    const content = draft.trim();
+    if (!content) return;
+    setError(null);
+    startTransition(async () => {
+      const res = await sendInspectorDm({ characterId, content });
+      if (res?.ok) {
+        setDraft("");
+        setCache((prev) => new Map(prev).set(cacheKey, { data: res }));
+      } else {
+        setError(res?.error ?? "Couldn't send that.");
+      }
+    });
+  }
+
   return (
-    <div className="flex flex-col gap-2 p-3">
-      {data.messages.map((m) => (
-        <div
-          key={m.id}
-          className="rounded-md px-3 py-2 text-sm"
-          style={{
-            alignSelf: m.direction === "OUTBOUND" ? "flex-end" : "flex-start",
-            maxWidth: "90%",
-            background: m.direction === "OUTBOUND" ? "var(--accent-solid)" : "var(--field-bg)",
-            color: m.direction === "OUTBOUND" ? "var(--on-accent)" : "var(--text)",
-            border: m.direction === "OUTBOUND" ? "none" : "1px solid var(--border)",
-          }}
-        >
-          <MarkdownContent content={m.content} />
-          <p className="mt-1 text-xs" style={{ opacity: 0.7 }}>
-            {m.sentAt.slice(0, 16).replace("T", " ")}
-          </p>
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-3">
+        {data.messages.length ? (
+          data.messages.map((m) => (
+            <div
+              key={m.id}
+              className="rounded-md px-3 py-2 text-sm"
+              style={{
+                alignSelf: m.direction === "OUTBOUND" ? "flex-end" : "flex-start",
+                maxWidth: "90%",
+                background: m.direction === "OUTBOUND" ? "var(--accent-solid)" : "var(--field-bg)",
+                color: m.direction === "OUTBOUND" ? "var(--on-accent)" : "var(--text)",
+                border: m.direction === "OUTBOUND" ? "none" : "1px solid var(--border)",
+              }}
+            >
+              <MarkdownContent content={m.content} />
+              <p className="mt-1 text-xs" style={{ opacity: 0.7 }}>
+                {m.sentAt.slice(0, 16).replace("T", " ")}
+              </p>
+            </div>
+          ))
+        ) : (
+          <p className="text-sm text-muted">No messages yet.</p>
+        )}
+      </div>
+      <div className="field border-t p-3" style={{ borderColor: "var(--border)" }}>
+        <textarea
+          rows={2}
+          maxLength={GM_MESSAGE_MAX_LENGTH}
+          value={draft}
+          placeholder="Write a message…"
+          disabled={pending}
+          onChange={(e) => setDraft(e.target.value)}
+        />
+        <FormError>{error}</FormError>
+        <div className="mt-1 flex items-center justify-between gap-2">
+          <span className="text-xs text-muted">Sends now, » prefixed — not staged.</span>
+          <button type="button" className="btn" disabled={pending || !draft.trim()} onClick={send}>
+            {pending ? "Sending…" : "Send"}
+          </button>
         </div>
-      ))}
+      </div>
     </div>
   );
 }
@@ -150,11 +335,16 @@ export default function InspectorColumn({
   setCache,
   tagsById,
   currentTurnNumber,
+  pendingByCharacter,
 }) {
+  const router = useRouter();
   const [tab, setTab] = useState("Sheet");
+  const [contextEntry, setContextEntry] = useState(null);
   const { data, error, loading } = useInspectorData(inspected?.characterId ?? null, tab, cache, setCache);
 
   const isPinned = pinned.some((p) => p.characterId === inspected?.characterId);
+  const pending = pendingByCharacter?.get(inspected?.characterId);
+  const cacheKey = inspected ? `${inspected.characterId}:DMs` : null;
 
   return (
     <aside className="desk-inspector">
@@ -216,12 +406,25 @@ export default function InspectorColumn({
             {loading && <p className="p-3 text-sm text-muted">Loading…</p>}
             {error && <p className="p-3 text-sm form-error">{error}</p>}
             {data && (tab === "Sheet" || tab === "Tags") && (
-              <SheetView data={data} tab={tab} tagsById={tagsById} currentTurnNumber={currentTurnNumber} />
+              <SheetView
+                data={data}
+                tab={tab}
+                tagsById={tagsById}
+                currentTurnNumber={currentTurnNumber}
+                characterId={inspected.characterId}
+                pending={pending}
+                router={router}
+              />
             )}
-            {data && tab === "Archive" && <ArchiveView data={data} />}
-            {data && tab === "DMs" && <DmsView data={data} />}
+            {data && tab === "Archive" && <ArchiveView data={data} onOpenContext={setContextEntry} />}
+            {data && tab === "DMs" && (
+              <DmsView data={data} characterId={inspected.characterId} cacheKey={cacheKey} setCache={setCache} />
+            )}
           </div>
         </>
+      )}
+      {contextEntry && (
+        <ArchiveContextModal key={contextEntry} archiveEntryId={contextEntry} onClose={() => setContextEntry(null)} />
       )}
     </aside>
   );
