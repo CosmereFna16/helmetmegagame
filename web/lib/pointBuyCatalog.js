@@ -36,6 +36,10 @@ export async function loadPointBuyCatalog(extraTagIds = []) {
   });
   return tags.map((t) => ({
     id: t.id,
+    // The stable identifier. The creation wizard needs it to work out which
+    // titles a build has earned (db/lib/titles.js keys on slugs), since
+    // roles.yaml `starting_tags` carries display names rather than slugs.
+    slug: t.slug,
     name: t.name,
     description: t.description,
     category: t.category,

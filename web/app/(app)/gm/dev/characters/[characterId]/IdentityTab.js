@@ -3,7 +3,7 @@
 import CheckField from "@/app/components/CheckField";
 import Switch from "@/app/components/Switch";
 import InfoIcon from "@/app/components/InfoIcon";
-import { HONORIFICS, NAME_LIMITS, AGE_MIN, AGE_MAX } from "@/lib/characterName";
+import { TITLE_WORDS, NAME_LIMITS, AGE_MIN, AGE_MAX } from "@/lib/characterName";
 
 // Every scalar on the Character row a GM may set, in one tab.
 //
@@ -21,15 +21,22 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
       <section className="panel flex flex-col gap-3 p-4">
         <h2 className="panel-header">Name</h2>
         <div className="grid gap-3 sm:grid-cols-2">
+          {/* Every title, not just the ones this character earned — a GM
+              setting a title is the one path that should never be
+              second-guessed (TAGS.md §3), and this is the only way to clear
+              one whose owner can no longer re-select it. */}
           <label className="field">
-            <span className="field-label">Honorific</span>
+            <span className="field-label flex items-center gap-1.5">
+              Honorific
+              <InfoIcon text="Ungated here. Players only see titles their role and tags earned them; you see all of them." />
+            </span>
             <select
               value={staged.honorific ?? ""}
               onChange={(e) => onField("honorific", e.target.value || null)}
               style={touched("honorific")}
             >
               <option value="">(none)</option>
-              {HONORIFICS.map((h) => (
+              {TITLE_WORDS.map((h) => (
                 <option key={h} value={h}>{h}</option>
               ))}
             </select>

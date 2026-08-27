@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { HONORIFICS, NAME_LIMITS, AGE_MIN, AGE_MAX } from "@/lib/characterName";
+import { useMemo, useState, useTransition } from "react";
+import { earnedTitles, NAME_LIMITS, AGE_MIN, AGE_MAX } from "@/lib/characterName";
 import { randomCharacterName } from "@/lib/nameCorpus";
 import InfoIcon from "./InfoIcon";
 import RequestDialog from "./RequestDialog";
@@ -37,8 +37,28 @@ export default function BioNameFields({ character, lastNameLocked = false }) {
   const heldPotion = character.tags?.find((ct) => ct.tag?.slug === MULLIGAN_POTION_SLUG) ?? null;
   const potionCount = heldPotion?.quantity ?? 0;
 
+  // The titles this character has earned, from what they hold and the role
+  // they took. changeNameRequest re-checks exactly this server-side, so the
+  // list and the gate cannot disagree.
+  //
+  // A title they wear but no longer qualify for is deliberately NOT re-added:
+  // losing the tag leaves the word on the sheet, but claiming it again is not
+  // on offer, so drinking a potion is a one-way door out of a title you can
+  // no longer justify. A GM can put it back from the dev panel.
+  const earned = useMemo(
+    () =>
+      earnedTitles({
+        tagSlugs: (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
+        roleSlug: character.role?.slug ?? null,
+      }),
+    [character.tags, character.role],
+  );
+
   function openDialog() {
-    setHonorific(character.honorific ?? "");
+    // Seeded blank when the worn title is no longer earned — it isn't in the
+    // list, so leaving it selected would show an empty control with a value
+    // behind it that the server would reject anyway.
+    setHonorific(earned.includes(character.honorific) ? character.honorific : "");
     setFirstName(character.firstName ?? "");
     setLastName(character.lastName ?? "");
     setError(null);
@@ -134,10 +154,17 @@ export default function BioNameFields({ character, lastNameLocked = false }) {
         onConfirm={submit}
       >
         <label className="field">
-          <span className="field-label">Prefix</span>
-          <select value={honorific} onChange={(e) => setHonorific(e.target.value)}>
+          <span className="field-label flex items-center gap-1.5">
+            Prefix
+            <InfoIcon text="Titles are earned. Your role and the tags you hold decide which ones you may be styled by." />
+          </span>
+          <select
+            value={honorific}
+            onChange={(e) => setHonorific(e.target.value)}
+            disabled={earned.length === 0}
+          >
             <option value="">(none)</option>
-            {HONORIFICS.map((h) => (
+            {earned.map((h) => (
               <option key={h} value={h}>
                 {h}
               </option>

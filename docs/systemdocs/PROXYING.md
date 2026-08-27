@@ -185,12 +185,15 @@ The alias comes from `db/lib/concealedIdentity.js` (pure, in the barrel beside
 
 - `Young` / `Old` / nothing, from `Character.age` — under 25, 55+, nothing
   between, nothing when age is null.
-- `Man` / `Woman` / `Person`, from the honorific. Rank and profession say
-  nothing about the wearer, so Captain, Doctor and the rest fall through to
-  Person, as does having no honorific.
+- `Man` / `Woman` / `Person`, from the title. Rank and profession say nothing
+  about the wearer, so Captain, Doctor, Master and the rest fall through to
+  Person, as do the neutral halves of the gendered sets (Ser, Noble, Sibling,
+  Reverend) and having no title at all.
 
-`assertHonorificsCovered()` guards against `HONORIFICS` gaining an entry that
-silently reads as Person.
+That reading is **not** a list here any more: each word declares its own
+`gender` in `db/lib/titles.js`, and `genderWord` reads it. Two lists that had
+to be edited in lockstep are now one table — see `CHARACTERS.md` §1c, which
+also records why the old `assertHonorificsCovered()` guard could never fire.
 
 The avatar is `web/public/assets/unknown.png`, served straight out of `public/`
 and **identical for everyone** — a per-character concealed avatar would be a

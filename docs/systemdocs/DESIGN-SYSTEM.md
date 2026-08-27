@@ -269,6 +269,17 @@ asked or not. **Never hand-roll `.modal-overlay` markup**: eleven dialogs once
 did, and between all of them exactly one bound Escape and one set
 `role="dialog"`.
 
+**`Modal`'s focus effect depends on `open` and nothing else, and `onClose` is
+read through a ref.** Do not "fix" that dependency array. Nearly every caller
+passes an inline arrow, so `onClose` has a new identity on every render; with it
+in the deps, one keystroke in a dialog field re-ran the whole effect — the
+cleanup pulled focus back out of the field, and the body re-focused the top of
+the panel. A GM could type exactly one character into the adjudication panel
+before focus jumped to the Dev-panel button in the header and popped its
+tooltip. Initial focus also deliberately skips `.modal-header`: `actions` is a
+jump link, and `Tooltip` wraps its content in a `tabIndex={0}` span that would
+otherwise be the first focusable in the dialog.
+
 ### Confirm first, transition second — always
 
 **Never `await confirm()` inside `startTransition(async …)`.** This has now bitten

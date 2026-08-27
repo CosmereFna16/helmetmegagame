@@ -15,8 +15,17 @@ separate `/character/new` route; one URL, no redirect bounce.
 
 The wizard has six steps:
 
-1. **Identity** — an honorific (a free pick from the fixed `HONORIFICS`
-   dropdown), a required first name and an optional last name.
+1. **Role** — the role list, grouped Zone → Faction → Role, with live seat
+   counts.
+2. **Tags** — the point-buy menu.
+3. **Identity** — a title (only what the build has *earned* — see §1c), a
+   required first name and an optional last name.
+
+   **Identity comes third, after Role and Tags, and has to.** A title is
+   earned from the role taken and the tags held, so there is nothing to offer
+   until both are picked. It also fixes the dynasty surname, which is locked
+   by the role: while Identity ran first, `lastNameLocked` was read before the
+   role that sets it existed, so the input could not be locked in time.
 
    Age is optional here (18–90). Left blank, it stays editable on `/character`
    until the player saves a number, and locks at that point — a GM can still
@@ -30,9 +39,6 @@ The wizard has six steps:
    the character sheet shows it disabled with a "make your case to a GM"
    tooltip. `Character.name` remains as a denormalized mirror of the join.
    See §1b.
-2. **Role** — the role list, grouped Zone → Faction → Role, with live seat
-   counts.
-3. **Tags** — the point-buy menu.
 4. **Fear** — the character's Worst Fear. **Optional**: `canAdvance` is
    unconditionally true on this step, so a player may walk straight past it and
    name one later from `/character`. See `REQUESTS.md` §5b.
@@ -64,13 +70,10 @@ Sir Jorren "the Blind" Vask
  |    |         |        `-- lastName   String?  optional, player-editable
  |    |         `----------- title      String?  GM-ONLY, renders in quotes
  |    `--------------------- firstName  String   required, player-editable
- `-------------------------- honorific  String?  player picks from a fixed dropdown
+ `-------------------------- honorific  String?  a title the character EARNED
 ```
 
-`honorific` is **ungated** — any character may pick any of the 21 entries in
-`HONORIFICS` (Mr./Mrs./Ms./Master, Sir/Dame/Lord/Lady/Baron/Baroness,
-Father/Mother/Brother/Sister/Bishop, Captain/Sergeant/Marshal/Constable,
-Doctor/Professor).
+`honorific` is **earned, not chosen** — see §1c.
 
 `title` is the opposite: set **only** from `/gm/dev/characters/[characterId]`.
 The character sheet shows it as a `disabled` input with a "make your case to a
@@ -93,17 +96,17 @@ Keeping it also means the never-backfilled name snapshots
 no code change — correct, since those record who did something *as they were
 known then*.
 
-**Exactly five writers** keep it honest, and every one goes through the
+**Exactly four writers** keep it honest, and every one goes through the
 formatter:
 
-| Writer | When |
-|---|---|
-| `character/createActions.js` | Creation |
-| `web/lib/characterWrite.js` | GM raw edit, from the dev panel |
-| `web/lib/dynasty.js#propagateDynastyLastName` | The Baron renaming his house |
-| `character/requestActions.js#changeNameRequestImpl` | Drinking a Mulligan Potion |
+| Writer | When | Title gate |
+|---|---|---|
+| `character/createActions.js` | Creation | `normalizeEarnedHonorific` |
+| `web/lib/characterWrite.js` | GM raw edit, from the dev panel | `normalizeHonorific` (ungated) |
+| `web/lib/dynasty.js#propagateDynastyLastName` | The Baron renaming his house | **none — see §1c** |
+| `character/requestActions.js#changeNameRequestImpl` | Drinking a Mulligan Potion | `normalizeEarnedHonorific` |
 
-A sixth must do the same. `npm run db:backfill-name-parts` is the drift check
+A fifth must do the same. `npm run db:backfill-name-parts` is the drift check
 that catches one that doesn't.
 
 ### A name is immutable — with one sanctioned exception
@@ -133,8 +136,85 @@ catches up on the player's next Bio save.
 Not cosmetic. Discord caps a webhook username at 80 characters and the proxy
 sends `name` as-is, so the **inputs** are capped instead and the composed name
 is ≤79 by construction. Both form-fed writers — creation and the GM dev panel
-— apply the caps and `normalizeHonorific`'s allowlist server-side; both of
-those forms are public endpoints.
+— apply the caps and the title allowlist server-side; both of those forms are
+public endpoints. The longest title is 9 characters (Professor, Constable), so
+the 10-char cap holds with the catalog as it stands.
+
+## 1c. Titles are earned
+
+`db/lib/titles.js` is the catalog: one frozen table mapping a **word** to the
+tags and roles that grant it, and to what the word says about its wearer.
+
+| Word(s) | Earned from |
+|---|---|
+| Sergeant | tag `sergeant` |
+| Constable | tag `watchman` |
+| Captain | role `captain` |
+| Sir / Dame / Ser | tag `knighted` |
+| Lord / Lady / Noble | tag `nobility` |
+| Baron / Baroness | roles `baron` / `baroness` |
+| Father / Mother / Reverend | tag `chaplain` |
+| Brother / Sister / Sibling | tag `mortus` |
+| Bishop | role `bishop` |
+| Doctor | tag `medical-skilled`, roles `esculap` `serpent` |
+| Professor | role `scholastic` |
+| Master | roles `metalsmith` `innkeeper` `headman` |
+
+Overlap is deliberate: the `bishop` role grants the `chaplain` tag, so a
+Bishop may style themselves Father, Mother or Reverend instead. Same for
+Captain (grants `watchman`) and Baron/Baroness (grant `nobility`). **Most of
+Ravenheart is untitled** — a peasant earns nothing, and the picker says so
+rather than showing an empty control.
+
+Three of these hang off *purchasable* tags (`sergeant`, `knighted`,
+`medical-skilled`), so those titles can be bought with points — but each sits
+behind a membership gate already (`general-watch` needs `watchman`,
+`general-court` needs `courtier`), so nobody buys a title cold.
+
+### One table, two questions
+
+The same `gender` column on each entry decides what `/conceal` calls you and
+which name pool Randomize draws from. That used to be two `MAN`/`WOMAN` arrays
+in `db/lib/concealedIdentity.js` that had to be edited in lockstep with the
+word list — and the guard meant to catch a drift,
+`assertHonorificsCovered()`, could never fire: its condition was
+`!MAN.includes(h) && !WOMAN.includes(h) && genderWord(h) !== "Person"`, which
+is unsatisfiable, since `genderWord` returned `"Person"` exactly when the
+first two held. `assertTitlesResolve(prisma)` replaces it, runs at the end of
+`db:sync-roles` (after tags, per `SYNC.md`), and actually fails on an unknown
+slug.
+
+Rank and profession say nothing about their wearer, so Captain, Doctor and
+Master are **neutral** and a concealed Master reads "a young person". Every
+gendered set carries a neutral third (Ser, Noble, Sibling, Reverend) so nobody
+has to pick a side to be styled at all.
+
+### Losing the tag does not strip the title
+
+A knight who is stripped of `knighted` **keeps wearing "Sir"**. The picker
+stops offering the word, so changing away is a one-way door, and only a GM can
+put it back or take it off from `/gm/dev/characters/[characterId]`.
+
+That rule is why **only three call sites may normalize a title**, and each
+uses the right one:
+
+- `normalizeEarnedHonorific(value, { tagSlugs, roleSlug })` — the two paths
+  where the player is *choosing* a title: creation and the Mulligan rename.
+- `normalizeHonorific(value)` — membership in the catalog only, no earning
+  check. The GM dev panel, matching `TAGS.md` §3's rule that a GM grant is
+  never second-guessed. It is also the escape hatch for a title nobody can
+  re-select.
+
+Anything else that happens to touch the name must **not** revalidate.
+`web/lib/dynasty.js#propagateDynastyLastName` composes straight through
+`formatCharacterName` for exactly this reason: if it normalized, every time
+the Baron renamed his house it would silently strip the honorific of any
+family member who had since lost their granting tag.
+
+Retired with this change: Mr., Mrs., Ms. (a courtesy register that said
+nothing about a character) and Marshal (a rank with no seat behind it).
+**Master survives**, repurposed from a courtesy word into the craft-master's
+title and re-read as neutral.
 
 ### Age
 

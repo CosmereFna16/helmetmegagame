@@ -19,11 +19,16 @@ import InfoIcon from "@/app/components/InfoIcon";
 import Tooltip from "@/app/components/Tooltip";
 import { FEAR_HELP } from "@/app/components/FearPanel";
 import { FEAR_PENALTY, FEAR_MAX_LENGTH } from "@/lib/constants";
-import { HONORIFICS, NAME_LIMITS, AGE_MIN, AGE_MAX, formatCharacterName } from "@/lib/characterName";
+import { NAME_LIMITS, AGE_MIN, AGE_MAX, formatCharacterName, earnedTitles } from "@/lib/characterName";
 import { randomCharacterName } from "@/lib/nameCorpus";
 import { ANTAGONISTS, antagonistNames } from "@/lib/antagonists";
 
-const STEPS = ["Identity", "Role", "Tags", "Fear", "Antagonists", "Confirm"];
+// Identity comes AFTER Role and Tags, and has to: a title is earned from the
+// role you took and the tags you hold (db/lib/titles.js), so there is nothing
+// to offer until both are picked. It also fixes the dynasty last name, which
+// is locked by the role and so could never be applied while Identity ran
+// first.
+const STEPS = ["Role", "Tags", "Identity", "Fear", "Antagonists", "Confirm"];
 // Derived rather than written out: the footer's "is this the last step?" test
 // used to be a hardcoded index, which is exactly what goes stale the moment a
 // step is inserted in the middle.
@@ -137,6 +142,22 @@ export default function CreateCharacterWizard({
   // grantedTags, which this deliberately doesn't look at.
   const drawbacks = negativeTagCount(selectedTags);
 
+  // Which titles this build has earned, from the role and from every tag it
+  // will end up holding — bought and role-granted alike. Recomputed as the
+  // build changes, so buying Knighted on the Tags step puts Sir/Dame/Ser on
+  // the Identity step behind it.
+  //
+  // roles.yaml `starting_tags` lists display NAMES, so the granted half is
+  // resolved through the catalog rather than used directly.
+  const earned = useMemo(
+    () =>
+      earnedTitles({
+        tagSlugs: [...grantedTags, ...selectedTags].map((t) => t.slug).filter(Boolean),
+        roleSlug: role?.slug ?? null,
+      }),
+    [grantedTags, selectedTags, role],
+  );
+
   // Switching roles changes the budget and what's already granted, so a
   // carried-over selection could silently be over budget or duplicate a
   // starting tag. Clearing is the honest reset.
@@ -151,18 +172,27 @@ export default function CreateCharacterWizard({
     );
   }
 
-  // Identity comes before Role, so the last-name input is live on the first
-  // pass through. Picking one of the Baron's family retroactively takes it
-  // away: createCharacter ignores whatever was typed and stamps the dynasty
-  // name instead, so that is what the preview has to show from here on.
+  // The role is already picked by the time Identity renders, so the last-name
+  // input arrives correctly locked for one of the Baron's family rather than
+  // being taken away after the fact. createCharacter stamps the dynasty name
+  // regardless of what was typed, and this is what the preview shows.
   const lastNameLocked = role?.lastNameLocked === true;
   const effectiveLastName = lastNameLocked ? (dynastyName ?? "") : lastName;
 
-  // Reads the honorific currently in the dropdown, so switching to Lady and
+  // Going back and dropping the tag that earned your title leaves the select
+  // holding a word that is no longer on offer. Fall back to untitled rather
+  // than posting something createCharacter would reject — this is the ONE
+  // place a title is re-validated on its own, because the player is still
+  // choosing it. Once the character exists, losing the tag never strips the
+  // word (see normalizeEarnedHonorific).
+  const effectiveHonorific = earned.includes(honorific) ? honorific : "";
+
+  // Reads the title currently in the dropdown, so switching to Lady and
   // rolling again gives a woman's name. A locked last name is left untouched
-  // rather than rolled and discarded — see db/lib/nameCorpus.js.
+  // rather than rolled and discarded — see db/lib/nameCorpus.js. A neutral
+  // title (Ser, Noble, Master) and no title alike draw from both pools.
   function rollName() {
-    const rolled = randomCharacterName({ honorific, lastNameLocked });
+    const rolled = randomCharacterName({ honorific: effectiveHonorific, lastNameLocked });
     setFirstName(rolled.firstName);
     if (!lastNameLocked) setLastName(rolled.lastName ?? "");
   }
@@ -170,15 +200,15 @@ export default function CreateCharacterWizard({
   // The player never sees a `title` here — it is GM-granted — so this is
   // exactly what their name will read as on creation.
   const displayName = formatCharacterName({
-    honorific,
+    honorific: effectiveHonorific,
     firstName,
     lastName: effectiveLastName,
   });
 
   const canAdvance =
-    (step === 0 && firstName.trim().length > 0) ||
-    (step === 1 && role !== null) ||
-    (step === 2 && remaining >= 0 && drawbacks <= maxNegativeTags) ||
+    (step === 0 && role !== null) ||
+    (step === 1 && remaining >= 0 && drawbacks <= maxNegativeTags) ||
+    (step === 2 && firstName.trim().length > 0) ||
     // The Fear step is optional — you may walk straight past it and set
     // one later — so there is nothing to gate on.
     step === 3 ||
@@ -193,7 +223,7 @@ export default function CreateCharacterWizard({
     setError(null);
     const fd = new FormData();
     fd.set("firstName", firstName.trim());
-    if (honorific) fd.set("honorific", honorific);
+    if (effectiveHonorific) fd.set("honorific", effectiveHonorific);
     // Deliberately not sent for a family seat — createCharacter would discard
     // it anyway, and posting it would imply otherwise.
     if (!lastNameLocked && lastName.trim()) fd.set("lastName", lastName.trim());
@@ -242,15 +272,74 @@ export default function CreateCharacterWizard({
       <FormError>{error}</FormError>
 
       {step === 0 && (
+        <div className="flex flex-col gap-6">
+          {zones.map((zone) => (
+            <section key={zone.id} className="flex flex-col gap-3">
+              <h2 className="panel-header">{zone.name}</h2>
+              {zone.factions.map((faction) => (
+                <div key={faction.id} className="flex flex-col gap-2">
+                  <h3 className="text-sm font-bold text-muted">
+                    {faction.name}
+                  </h3>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {faction.roles.map((r) => (
+                      <RoleCard
+                        key={r.id}
+                        role={r}
+                        cap={r.cap}
+                        taken={r.taken}
+                        selected={r.id === roleId}
+                        disabled={!r.selectable || (r.cap !== null && r.taken >= r.cap)}
+                        onSelect={pickRole}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </section>
+          ))}
+        </div>
+      )}
+
+      {step === 1 && role && (
+        <div className="flex flex-col gap-4">
+          {/* Granted tags now live in PointBuy's build pane, so this header
+              only names the role. */}
+          <div className="panel flex flex-col gap-2 p-3 text-sm">
+            <span>
+              <strong>{role.name}</strong>
+              <span className="text-muted"> — {role.factionName}</span>
+            </span>
+          </div>
+          <PointBuy
+            tags={tags}
+            budget={budget}
+            grantedTags={grantedTags}
+            afterStartOnly={false}
+            selectedIds={selectedIds}
+            onChange={setSelectedIds}
+            negativeCap={maxNegativeTags}
+          />
+        </div>
+      )}
+
+      {step === 2 && (
         <div className="panel flex flex-col gap-4 p-4">
-          {/* Honorific stays narrow beside the two name inputs; it collapses
+          {/* The title stays narrow beside the two name inputs; it collapses
               to full width on a phone like every other grid in the app. */}
           <div className="grid gap-3 sm:grid-cols-[9rem_1fr_1fr]">
             <label className="field">
-              <span className="field-label">Title</span>
-              <select value={honorific} onChange={(e) => setHonorific(e.target.value)}>
+              <span className="field-label flex items-center gap-1.5">
+                Title
+                <InfoIcon text="Titles are earned. Your role and the tags you took decide which ones you may be styled by — most of Ravenheart goes untitled." />
+              </span>
+              <select
+                value={effectiveHonorific}
+                onChange={(e) => setHonorific(e.target.value)}
+                disabled={earned.length === 0}
+              >
                 <option value="">(none)</option>
-                {HONORIFICS.map((h) => (
+                {earned.map((h) => (
                   <option key={h} value={h}>
                     {h}
                   </option>
@@ -288,6 +377,12 @@ export default function CreateCharacterWizard({
               You take the Baron&apos;s last name.
             </p>
           )}
+          {earned.length === 0 && (
+            <p className="text-sm text-muted">
+              Your role and tags haven&apos;t earned you a title. Most people in
+              Ravenheart have none — you can earn one in play.
+            </p>
+          )}
           {/* The only place a player sees the join rule before submitting, and
               where Randomize sits so a roll and its result read as one line. */}
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -309,58 +404,6 @@ export default function CreateCharacterWizard({
               placeholder={`${AGE_MIN}\u2013${AGE_MAX} \u2014 fixed once set, so leave it for later if you'd like`}
             />
           </label>
-        </div>
-      )}
-
-      {step === 1 && (
-        <div className="flex flex-col gap-6">
-          {zones.map((zone) => (
-            <section key={zone.id} className="flex flex-col gap-3">
-              <h2 className="panel-header">{zone.name}</h2>
-              {zone.factions.map((faction) => (
-                <div key={faction.id} className="flex flex-col gap-2">
-                  <h3 className="text-sm font-bold text-muted">
-                    {faction.name}
-                  </h3>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {faction.roles.map((r) => (
-                      <RoleCard
-                        key={r.id}
-                        role={r}
-                        cap={r.cap}
-                        taken={r.taken}
-                        selected={r.id === roleId}
-                        disabled={!r.selectable || (r.cap !== null && r.taken >= r.cap)}
-                        onSelect={pickRole}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </section>
-          ))}
-        </div>
-      )}
-
-      {step === 2 && role && (
-        <div className="flex flex-col gap-4">
-          {/* Granted tags now live in PointBuy's build pane, so this header
-              only names the role. */}
-          <div className="panel flex flex-col gap-2 p-3 text-sm">
-            <span>
-              <strong>{role.name}</strong>
-              <span className="text-muted"> — {role.factionName}</span>
-            </span>
-          </div>
-          <PointBuy
-            tags={tags}
-            budget={budget}
-            grantedTags={grantedTags}
-            afterStartOnly={false}
-            selectedIds={selectedIds}
-            onChange={setSelectedIds}
-            negativeCap={maxNegativeTags}
-          />
         </div>
       )}
 
