@@ -69,6 +69,22 @@ module.exports = {
 
     await refreshLocationChannels().catch((err) => console.error("Failed to refresh location channels:", err));
 
+    // The cheap reconciliation pass: role membership (zone, turn-ping,
+    // no-romance, cursed) and structural drift, repaired against the DB. A
+    // handful of requests regardless of roster size, so it's safe on every
+    // restart — this is what catches whatever a wipe, a crash or a
+    // rate-limited swap left behind (db/lib/channelDoctor.js).
+    {
+      const { runChannelDoctor } = require("@lifeweb/db/lib/channelDoctor");
+      await runChannelDoctor(prisma, { apply: true, scope: "cheap" })
+        .then((r) => {
+          if (r.findings.length > 0) {
+            console.log(`Channel doctor: ${r.findings.length} finding(s), ${r.repaired} repaired.`);
+          }
+        })
+        .catch((err) => console.error("Channel doctor pass failed:", err));
+    }
+
     for (const guild of client.guilds.cache.values()) {
       await syncNicknamesForGuild(guild).catch((err) => console.error("Failed to sync nicknames:", err));
       await ensureTurnsConsole(guild).catch((err) => console.error("Failed to ensure turns console:", err));
