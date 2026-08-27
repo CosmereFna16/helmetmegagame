@@ -40,7 +40,7 @@ export default async function ArchivePage({ searchParams }) {
   // it.
   const requestedKind = params?.kind?.toString().trim() || "";
   const kind = KIND_OPTIONS.some(([value]) => value === requestedKind) ? requestedKind : "";
-  const locationId = params?.locationId?.toString().trim() || "";
+  const zoneId = params?.zoneId?.toString().trim() || "";
   const characterId = params?.characterId?.toString().trim() || "";
   const day = params?.day?.toString().trim() || "";
   const q = params?.q?.toString().trim() || "";
@@ -56,13 +56,13 @@ export default async function ArchivePage({ searchParams }) {
 
   const where = {
     ...(kind ? { kind } : {}),
-    ...(locationId ? { locationId } : {}),
+    ...(zoneId ? { zoneId } : {}),
     ...(characterId ? { characterId } : {}),
     ...(dayTurns ? { turnNumber: { in: dayTurns } } : {}),
     ...(q ? { content: { contains: q, mode: "insensitive" } } : {}),
   };
 
-  const [entries, total, locations, characters] = await Promise.all([
+  const [entries, total, zones, characters] = await Promise.all([
     prisma.archiveEntry.findMany({
       where,
       // id breaks ties: sentAt is only millisecond-resolution, and a burst of
@@ -73,7 +73,10 @@ export default async function ArchivePage({ searchParams }) {
       take: PAGE_SIZE,
     }),
     prisma.archiveEntry.count({ where }),
-    prisma.location.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    // Every zone a row can be stamped with, cave levels included — a line is
+    // filed where it was said, not on the GM seat that owns the place.
+    // Authoring order, so the list reads like the map rather than the alphabet.
+    prisma.zone.findMany({ select: { id: true, name: true }, orderBy: { sortOrder: "asc" } }),
     prisma.character.findMany({
       select: { id: true, name: true },
       orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
@@ -94,7 +97,7 @@ export default async function ArchivePage({ searchParams }) {
   const avatarVersions = Object.fromEntries(avatarRows.map((c) => [c.id, c.updatedAt.getTime()]));
 
   function pageHref(newPage) {
-    const next = new URLSearchParams({ kind, locationId, characterId, day, q, order, page: String(newPage) });
+    const next = new URLSearchParams({ kind, zoneId, characterId, day, q, order, page: String(newPage) });
     for (const key of [...next.keys()]) {
       if (!next.get(key)) next.delete(key);
     }
@@ -118,12 +121,12 @@ export default async function ArchivePage({ searchParams }) {
           <input name="day" type="number" min="1" defaultValue={day} placeholder="any" />
         </label>
         <label className="field">
-          <span className="field-label">Location</span>
-          <select name="locationId" defaultValue={locationId}>
+          <span className="field-label">Zone</span>
+          <select name="zoneId" defaultValue={zoneId}>
             <option value="">Anywhere</option>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
+            {zones.map((z) => (
+              <option key={z.id} value={z.id}>
+                {z.name}
               </option>
             ))}
           </select>

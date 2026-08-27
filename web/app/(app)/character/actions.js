@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import sharp from "sharp";
 import { redirect } from "next/navigation";
-import { prisma } from "@lifeweb/db";
+import { prisma, seatZoneIdFor } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
 import { AGE_MIN, AGE_MAX, formatBareName } from "@/lib/characterName";
@@ -181,23 +181,27 @@ export async function setDefaultEffort(characterId, formData) {
   const shareInSummary = formData.get("shareInSummary") === "on";
   const summaryMessage = formData.get("summaryMessage")?.toString().trim() || null;
 
-  // A Location's plain channel IS its summary channel (see
-  // bot/src/lib/channels.js#isSummaryChannel), so it's derived from where the
-  // character stands rather than picked — the panel has no channel field.
-  const location = character.locationId
-    ? await prisma.location.findUnique({
-        where: { id: character.locationId },
-        select: { discordChannelId: true },
+  // The zone owns the #summary channel, so it's derived from where the
+  // character stands rather than picked — the panel has no channel field. A
+  // cave level has no summary channel of its own, so that comes back null and
+  // the share-in-summary half simply doesn't apply.
+  const zone = character.zoneId
+    ? await prisma.zone.findUnique({
+        where: { id: character.zoneId },
+        select: { id: true, discordSummaryChannelId: true, parentZoneId: true, seatZoneId: true },
       })
     : null;
-  const summaryChannelId = location?.discordChannelId ?? null;
+  const summaryChannelId = zone?.discordSummaryChannelId ?? null;
+  // The SEAT zone, not the presence zone — a Default Move filed from a cave
+  // level belongs on the Caves GM's table (db/lib/seatZone.js).
+  const seatZoneId = seatZoneIdFor(zone) ?? null;
 
   await prisma.defaultEffort.upsert({
     where: { characterId: character.id },
     create: {
       characterId: character.id,
       description,
-      zoneId: character.zoneId,
+      zoneId: seatZoneId,
       shareInSummary: shareInSummary && !!summaryChannelId,
       summaryChannelId: shareInSummary ? summaryChannelId : null,
       summaryMessage,
@@ -205,7 +209,7 @@ export async function setDefaultEffort(characterId, formData) {
     },
     update: {
       description,
-      zoneId: character.zoneId,
+      zoneId: seatZoneId,
       shareInSummary: shareInSummary && !!summaryChannelId,
       summaryChannelId: shareInSummary ? summaryChannelId : null,
       summaryMessage,

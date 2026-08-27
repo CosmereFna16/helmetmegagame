@@ -18,7 +18,7 @@ import { HUNGER_SLUG, ATE_MEAL_SLUG } from "@lifeweb/db/lib/constants";
 export async function loadDevPanelProps(characterId, actingDiscordUserId) {
   const character = await prisma.character.findUnique({
     where: { id: characterId },
-    include: { role: true, faction: true, location: true, zone: true },
+    include: { role: true, faction: true, zone: true },
   });
   if (!character) return null;
 
@@ -39,9 +39,14 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     member,
   ] = await Promise.all([
     prisma.faction.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    // The zone picker's options: PRESENCE zones only — a character stands in
+    // a surface zone or a single cave level, never on the Caves group row
+    // (see Character.zoneId in schema.prisma). Authoring order, so the list
+    // reads like the YAML rather than the alphabet.
     prisma.zone.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, locations: { orderBy: { name: "asc" }, select: { id: true, name: true } } },
+      where: { kind: { not: "CAVE_GROUP" } },
+      orderBy: { sortOrder: "asc" },
+      select: { id: true, name: true },
     }),
     prisma.role.findMany({
       orderBy: [{ sortOrder: "asc" }],
@@ -119,8 +124,6 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       factionName: character.faction?.name ?? null,
       zoneId: character.zoneId,
       zoneName: character.zone?.name ?? null,
-      locationId: character.locationId,
-      locationName: character.location?.name ?? null,
       status: character.status,
       isLeader: character.isLeader,
       isTreasurer: character.isTreasurer,

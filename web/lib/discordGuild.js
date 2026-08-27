@@ -33,12 +33,11 @@ const CHANNEL_TYPE_FORUM = 15;
 const PERM_VIEW_CHANNEL = 1024;
 const PERM_SEND_MESSAGES = 2048;
 
-// Tupper/summary status is Location-channel-ID-based (see
-// getLocationChannelIds below) — a channel opts in by being one of a
-// Location's plain/public/private channels, provisioned via
-// web/app/(app)/gm/dev/actions.js#provisionLocationChannels — plus the two
+// Tupper/summary status is channel-ID-based (see getLocationChannelIds
+// below) — a channel opts in by being one of a Zone's summary/public/private
+// channels, provisioned by the YAML sync (db/lib/syncZones.js) — plus the two
 // narrowcast channels (#watch, #intercom), which are tupper-only, never
-// summary: they aren't tied to a place, so there's no Location adjudication
+// summary: they aren't tied to a place, so there's no zone adjudication
 // result to post there.
 export function isSummaryChannel(channel, locationChannelIds) {
   if (channel.type !== CHANNEL_TYPE_TEXT) return false;
@@ -465,9 +464,10 @@ export async function ensureCharacterRole(character) {
 
       // The role is deliberately assigned to NOBODY. It exists to be
       // @-mentioned — a name token — and holds no permissions of its own;
-      // access is a per-member overwrite (db/lib/locationAccess.js). Giving it
-      // to the player would list their account under the character's name in
-      // the guild's role members, which deanonymizes the entire game.
+      // access rides the zone's own role instead (syncCharacterZoneRole,
+      // below). Giving this one to the player would list their account under
+      // the character's name in the guild's role members, which deanonymizes
+      // the entire game.
 
       await prisma.character.update({ where: { id: character.id }, data: { discordRoleId: role.id } });
       return role.id;
@@ -536,11 +536,11 @@ export async function syncCharacterZoneRole(discordUserId, oldZoneId, newZoneId)
 
 // Reconciles a character's per-member permission overwrites on the two
 // hardcoded narrowcast channels (#watch, #intercom) against their current
-// tags and Location/Zone — see db/lib/narrowcastAccess.js for the actual
-// rules, and bot/src/lib/zoneTravel.js's twin of the same name (gateway-based,
-// called after every Move) for the other half. This one is the REST path,
-// called from GM raw location/tag edits and from character creation.
-// Idempotent — safe to call after any tag or location change.
+// tags and Zone — see db/lib/narrowcastAccess.js for the actual rules, and
+// bot/src/lib/zoneTravel.js's twin of the same name (gateway-based, called
+// after every Move) for the other half. This one is the REST path, called
+// from the web map's travel action, GM raw zone/tag edits and character
+// creation. Idempotent — safe to call after any tag or zone change.
 export async function syncCharacterNarrowcastAccess(characterId) {
   const token = process.env.DISCORD_TOKEN;
   if (!token || !characterId) return;
@@ -627,16 +627,16 @@ export async function killCharacter(character) {
   await recordArchiveEvent(prisma, {
     kind: "DEATH",
     character,
-    locationId: character.locationId ?? null,
+    zoneId: character.zoneId ?? null,
     content: `${character.name} died.`,
   });
 }
 
 const CHANNEL_TYPE_CATEGORY = 4;
 
-// Generic channel/category creation used by provisionLocationChannels
-// (web/app/(app)/gm/dev/actions.js) — a category is just this with type 4
-// and no parent_id.
+// Generic channel/category creation for the GM provisioning paths in
+// web/app/(app)/gm/dev/actions.js — a category is just this with type 4 and
+// no parent_id.
 export async function createGuildChannel(payload) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const token = process.env.DISCORD_TOKEN;
@@ -647,40 +647,11 @@ export async function createGuildChannel(payload) {
 
 export { CHANNEL_TYPE_CATEGORY };
 
-// Re-sorts every provisioned Location's category alphabetically by
-// "{Zone} / {Location}" (zone first, then location within it), called after
-// provisionLocationChannels creates a new one so the category list doesn't
-// need manual reordering in Discord. Only reassigns position values among
-// the category IDs that are already Location categories — every other
-// category (admin/GM channels, defaults) keeps whatever position it already
-// has, since Discord's bulk endpoint only touches entries you include.
-export async function sortLocationCategories() {
-  const guildId = process.env.DISCORD_GUILD_ID;
-  const token = process.env.DISCORD_TOKEN;
-  if (!guildId || !token) return;
-
-  const locations = await prisma.location.findMany({
-    where: { discordCategoryId: { not: null } },
-    include: { zone: true },
-  });
-  if (locations.length === 0) return;
-
-  const channels = await discordRequest(`/guilds/${guildId}/channels`).catch(() => null);
-  if (!channels) return;
-
-  const locationCategoryIds = new Set(locations.map((l) => l.discordCategoryId));
-  const currentPositions = channels
-    .filter((c) => c.type === CHANNEL_TYPE_CATEGORY && locationCategoryIds.has(c.id))
-    .map((c) => c.position)
-    .sort((a, b) => a - b);
-
-  const sorted = [...locations].sort((a, b) =>
-    `${a.zone.name} / ${a.name}`.localeCompare(`${b.zone.name} / ${b.name}`),
-  );
-  const updates = sorted.map((l, i) => ({ id: l.discordCategoryId, position: currentPositions[i] }));
-
-  await discordRequest(`/guilds/${guildId}/channels`, { method: "PATCH", body: updates }).catch(() => {});
-}
+// sortLocationCategories used to live here, re-ordering one Discord category
+// per Location. The zone rework retired per-Location channels entirely — a
+// zone's category is created once by the YAML sync in Zone.sortOrder order
+// (db/lib/syncZones.js), so there is nothing left to re-sort from the web
+// side.
 
 // Applies the `»` prefix (CLAUDE.md, "Bot message style") and logs the DM, so
 // /gm/messages keeps the whole conversation.

@@ -7,7 +7,7 @@ import TransferResourcesButton from "./TransferResourcesButton";
 
 const MOOD_COLORS = { NEUTRAL: "var(--text)", HAPPY: "var(--positive)", UNHAPPY: "var(--accent-text)" };
 
-// A labelled row, so Location / Resources / Mood line up on one grid instead
+// A labelled row, so Zone / Resources / Mood line up on one grid instead
 // of each being its own ad-hoc flex line.
 function Row({ label, children }) {
   return (
@@ -46,10 +46,7 @@ export default function StatusPanel({ character, isSelf, openTurn, parties }) {
         className="grid gap-x-4 gap-y-2"
         style={{ gridTemplateColumns: "auto minmax(0, 1fr)", margin: 0 }}
       >
-        <Row label="Location">
-          {character.zone?.name ?? "Unassigned"}
-          {character.location?.name ? ` / ${character.location.name}` : ""}
-        </Row>
+        <Row label="Zone">{character.zone?.name ?? "Unassigned"}</Row>
 
         <Row label="Resources">{character.resources} ⬢</Row>
 

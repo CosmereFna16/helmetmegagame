@@ -178,32 +178,17 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
           </div>
         </div>
 
+        {/* Where they physically stand, and the whole of what they can see:
+            Apply swaps the zone's Discord role. The list is presence zones
+            only — the Caves group is a seat, not a place anyone stands. */}
         <label className="field">
-          <span className="field-label">Location</span>
-          <select
-            value={staged.locationId ?? ""}
-            onChange={(e) => onField("locationId", e.target.value || null)}
-            style={touched("locationId")}
-          >
-            <option value="">(none — grants no location channel access)</option>
-            {zones.map((z) => (
-              <optgroup key={z.id} label={z.name}>
-                {z.locations.map((loc) => (
-                  <option key={loc.id} value={loc.id}>{loc.name}</option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        </label>
-
-        <label className="field">
-          <span className="field-label">Zone (only used when no Location is set)</span>
+          <span className="field-label">Zone</span>
           <select
             value={staged.zoneId ?? ""}
             onChange={(e) => onField("zoneId", e.target.value || null)}
             style={touched("zoneId")}
           >
-            <option value="">(none)</option>
+            <option value="">(nowhere — grants no zone channel access)</option>
             {zones.map((z) => (
               <option key={z.id} value={z.id}>{z.name}</option>
             ))}

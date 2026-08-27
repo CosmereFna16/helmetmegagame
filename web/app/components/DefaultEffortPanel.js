@@ -5,7 +5,11 @@ import { useState } from "react";
 import { setDefaultEffort, deleteDefaultEffort } from "../(app)/character/actions";
 import InfoIcon from "./InfoIcon";
 
-export default function DefaultEffortPanel({ characterId, defaultEffort, location }) {
+export default function DefaultEffortPanel({ characterId, defaultEffort, zone }) {
+  // A cave level owns only its forum channel, so it has no #summary to post
+  // into — that is what makes this a channel check rather than a "do you have
+  // a zone" one.
+  const canShare = Boolean(zone?.discordSummaryChannelId);
   const [description, setDescription] = useState(defaultEffort?.description ?? "");
   const [shareInSummary, setShareInSummary] = useState(defaultEffort?.shareInSummary ?? false);
   const [summaryMessage, setSummaryMessage] = useState(defaultEffort?.summaryMessage ?? "");
@@ -16,7 +20,7 @@ export default function DefaultEffortPanel({ characterId, defaultEffort, locatio
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (pending || !description.trim() || (shareInSummary && !location)) return;
+    if (pending || !description.trim() || (shareInSummary && !canShare)) return;
     setPending(true);
     setSaved(false);
     try {
@@ -88,7 +92,7 @@ export default function DefaultEffortPanel({ characterId, defaultEffort, locatio
         {shareInSummary && (
           <>
             <div className="panel px-3 py-2 text-xs text-muted">
-              Current location: {location?.name ?? "None — set a location before this can post"}
+              Posts in: {canShare ? `#summary in ${zone.name}` : "Nowhere — this zone has no summary channel"}
             </div>
             <label className="field">
               <span className="field-label">Message posted there</span>
@@ -105,7 +109,7 @@ export default function DefaultEffortPanel({ characterId, defaultEffort, locatio
           <button
             type="submit"
             className="btn self-start"
-            disabled={pending || !description.trim() || (shareInSummary && !location)}
+            disabled={pending || !description.trim() || (shareInSummary && !canShare)}
           >
             Save
           </button>

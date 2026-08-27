@@ -118,11 +118,12 @@ export default async function TurnsWorkspacePage() {
             include: {
               character: {
                 include: {
-                  // faction.zone is the ZONE SEAT this row answers to; `zone`
-                  // is where they physically stand (desk location label).
+                  // faction.zone is the ZONE SEAT this row answers to — a
+                  // faction always banks on a seat zone, never on a cave
+                  // level; `zone` is the PRESENCE zone, where they physically
+                  // stand, which is what the desk labels.
                   faction: { include: { zone: true } },
                   zone: true,
-                  location: true,
                   tags: {
                     select: {
                       tagId: true,
@@ -167,7 +168,14 @@ export default async function TurnsWorkspacePage() {
         orderBy: { name: "asc" },
         select: { id: true, name: true, faction: { select: { name: true } } },
       }),
-      prisma.zone.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+      // The four GM SEATS — Town, Fortress, Windlands, Caves. Every zone a
+      // desk row can be stamped with is a seat (db/lib/seatZone.js), so the
+      // cave levels are folded into the Caves group here rather than listed.
+      prisma.zone.findMany({
+        where: { kind: { not: "CAVE_LEVEL" } },
+        orderBy: { sortOrder: "asc" },
+        select: { id: true, name: true },
+      }),
       // The effect composer's search space: the whole catalog, lean.
       prisma.tag.findMany({
         orderBy: { name: "asc" },
@@ -214,8 +222,10 @@ export default async function TurnsWorkspacePage() {
     opposed: a.opposed,
     rollLabel: rollLabel(a),
     statusLabel: statusLabel(a, now),
-    locationLabel:
-      [a.character.zone?.name, a.character.location?.name].filter(Boolean).join(" / ") || "Unassigned",
+    // Where they stand. Key name kept because MoveDesk and InspectorColumn
+    // still read `locationLabel`; the value is now just the presence zone,
+    // since Locations are prose Topics and no longer a place on the sheet.
+    locationLabel: a.character.zone?.name || "Unassigned",
     resources: a.character.resources,
     tags: a.character.tags.map((ct) => ({
       tagId: ct.tagId,

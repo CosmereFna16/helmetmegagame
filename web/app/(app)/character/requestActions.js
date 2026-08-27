@@ -138,8 +138,8 @@ async function setMoodRequestImpl({ mood, reason: rawReason }) {
 //
 // What the source may NOT be is somewhere else: see web/lib/transferReach.js.
 // The bet is that you'll explain yourself afterwards, not that you can do it
-// from across the map. Location and zone come back on every party so the
-// caller can ask.
+// from across the map. The zone comes back on every party so the caller can
+// ask.
 async function resolveParty(key, { allowDead = false } = {}) {
   const [kind, id] = (key ?? "").split(":");
   // A server action is a public endpoint, and a posted key of just
@@ -158,10 +158,10 @@ async function resolveParty(key, { allowDead = false } = {}) {
     const statusFilter = allowDead ? { in: ["ALIVE", "DEAD"] } : "ALIVE";
     const c = await prisma.character.findFirst({
       where: { id: id ?? "", status: statusFilter },
-      select: { id: true, name: true, resources: true, locationId: true, zoneId: true, status: true },
+      select: { id: true, name: true, resources: true, zoneId: true, status: true },
     });
     return c
-      ? { kind, id: c.id, name: c.name, balance: c.resources, locationId: c.locationId, zoneId: c.zoneId, status: c.status }
+      ? { kind, id: c.id, name: c.name, balance: c.resources, zoneId: c.zoneId, status: c.status }
       : null;
   }
   if (kind === "faction") {
@@ -184,7 +184,7 @@ async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount,
   const amount = parseCount(rawAmount, { min: 1 });
   if (amount == null) throw new UserError("Amount must be a positive whole number.");
 
-  // Looting a corpse: the source has to be a DEAD character in the same room,
+  // Looting a corpse: the source has to be a DEAD character in the same zone,
   // and the recipient is the initiator. Every other constraint (reach,
   // balance-covers-amount, no-self-transfer) stays.
   const [from, to] = await Promise.all([
@@ -199,7 +199,7 @@ async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount,
     if (from.kind !== "character" || from.status !== "DEAD") {
       throw new UserError("You can only loot ⬢ from a corpse.");
     }
-    if (!character.locationId || from.locationId !== character.locationId) {
+    if (!character.zoneId || from.zoneId !== character.zoneId) {
       throw new UserError("They aren't here.");
     }
     if (to.kind !== "character" || to.id !== character.id) {
@@ -213,7 +213,7 @@ async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount,
   // would be a free "who is standing in my zone" scouting tool, which is a
   // worse leak than the friction it saves.
   //
-  // Loot has its own reach check above (same room as the corpse), so the
+  // Loot has its own reach check above (same zone as the corpse), so the
   // general reach gate would only add a false-positive dead-people-fail
   // branch — skip it for that direction.
   if (!isLoot) {
@@ -554,8 +554,8 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
 }
 
 // SEND is the ordinary path — the initiator hands their own Item/Asset to
-// someone in the room. LOOT is its inverse: the counterparty is a corpse
-// standing in the same location, and the initiator pulls the item off it.
+// someone in the same zone. LOOT is its inverse: the counterparty is a corpse
+// lying in that same zone, and the initiator pulls the item off it.
 // There is still no "request a tag from a living someone" — that direction
 // stays send-only, so browsing another live player's inventory is never a
 // menu the game hands you.
@@ -571,7 +571,7 @@ async function transferTagRequestImpl({
   const direction = rawDirection === "LOOT" ? "LOOT" : "SEND";
   const isLoot = direction === "LOOT";
 
-  if (!character.locationId) {
+  if (!character.zoneId) {
     throw new UserError(
       isLoot ? "You aren't anywhere you could pick that up." : "You aren't anywhere you could hand that over.",
     );
@@ -583,11 +583,11 @@ async function transferTagRequestImpl({
   // expiry, and read the category gate off the catalog side.
   let source;
   if (isLoot) {
-    // A corpse in the same room. Folded into the WHERE clause the same way
+    // A corpse in the same zone. Folded into the WHERE clause the same way
     // the recipient check used to be, so a corpse that gets moved (a Revive
     // between page load and submit) fails closed and nothing is written.
     const corpse = await prisma.character.findFirst({
-      where: { id: toCharacterId ?? "", status: "DEAD", locationId: character.locationId },
+      where: { id: toCharacterId ?? "", status: "DEAD", zoneId: character.zoneId },
       select: {
         id: true,
         name: true,
@@ -639,13 +639,13 @@ async function transferTagRequestImpl({
     ? parseCount(rawQuantity, { min: 1, max: source.quantity }) ?? 1
     : source.quantity;
 
-  // The RECIPIENT side. For SEND: pick a living character in the same room.
+  // The RECIPIENT side. For SEND: pick a living character in the same zone.
   // For LOOT: the initiator receives.
   let recipient;
   if (isLoot) {
     recipient = { id: character.id, name: character.name };
   } else {
-    // Same room, same as ⬢ — handing someone a sword across the map was the
+    // Same zone, same as ⬢ — handing someone a sword across the map was the
     // obvious way around the transfer gate. Folded into the WHERE clause
     // rather than done as a second read (the idiom heal uses, REQUESTS.md
     // §5c), so a recipient who walks out between page load and submit fails
@@ -653,8 +653,8 @@ async function transferTagRequestImpl({
     recipient = await prisma.character.findFirst({
       // `?? ""` for the same reason as resolveParty above: an omitted id
       // would otherwise be stripped from the where clause and hand the item
-      // to whoever happened to be standing in the room.
-      where: { id: toCharacterId ?? "", status: "ALIVE", locationId: character.locationId },
+      // to whoever happened to be standing in the zone.
+      where: { id: toCharacterId ?? "", status: "ALIVE", zoneId: character.zoneId },
       select: { id: true, name: true },
     });
     if (!recipient) throw new UserError("They aren't here.");
@@ -721,10 +721,10 @@ async function transferTagRequestImpl({
 // web/lib/requestEffects.js.
 //
 // Three gates, all re-checked here because the dialog is advisory: the medic
-// must hold a Medical skill, the patient must be standing in the medic's
-// Location, and the affliction's own requirementSkills must be satisfied. The
-// PAYER is deliberately ungated beyond being present — any co-located player
-// or any faction Silo, same bet as TRANSFER_RESOURCES.
+// must hold a Medical skill, the patient must be standing in the medic's zone,
+// and the affliction's own requirementSkills must be satisfied. The PAYER is
+// deliberately ungated beyond being present — any player in the same zone or
+// any faction Silo, same bet as TRANSFER_RESOURCES.
 async function healCharacterRequestImpl({
   targetCharacterId,
   tagId,
@@ -734,7 +734,7 @@ async function healCharacterRequestImpl({
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
-  if (!character.locationId) {
+  if (!character.zoneId) {
     throw new UserError("You aren't anywhere you could treat someone.");
   }
 
@@ -753,7 +753,7 @@ async function healCharacterRequestImpl({
 
   // No `id: { not: character.id }` — treating yourself is the ordinary case.
   const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId ?? "", status: "ALIVE", locationId: character.locationId },
+    where: { id: targetCharacterId ?? "", status: "ALIVE", zoneId: character.zoneId },
     include: { tags: { include: { tag: { include: { requirementSkills: true } } } } },
   });
   if (!target) throw new UserError("They aren't here.");
@@ -768,13 +768,13 @@ async function healCharacterRequestImpl({
 
   const payer = await resolveParty(payerKey);
   if (!payer) throw new UserError("Unknown payer.");
-  // A person has to be in the room; a Silo has to be in reach. A Silo used to
+  // A person has to be in the zone; a Silo has to be in reach. A Silo used to
   // pay from anywhere, which became a laundering hole the moment transfers
   // grew a reach gate — bill a distant Silo for a cure and the ⬢ has moved
   // across the map without anyone carrying it.
   if (payer.kind === "character") {
     const present = await prisma.character.count({
-      where: { id: payer.id, status: "ALIVE", locationId: character.locationId },
+      where: { id: payer.id, status: "ALIVE", zoneId: character.zoneId },
     });
     if (!present) throw new UserError("They aren't here to pay for it.");
   } else if (!(await canReachSilo(character, payer))) {
@@ -962,7 +962,7 @@ async function fulfillDesireRequestImpl({ reason: rawReason }) {
   await recordArchiveEvent({
     kind: "DESIRE_FULFILLED",
     character,
-    locationId: character.locationId ?? null,
+    zoneId: character.zoneId ?? null,
     turn: openTurn,
     content: `${character.name} fulfilled a Desire: ${active.text}`,
   });
