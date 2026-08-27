@@ -43,13 +43,11 @@ const YAML_SOURCES = [
     where: "Discord #info. Rebuilt by a full destructive wipe-and-repost (npm run db:rebuild-info-channel).",
   },
   {
-    file: "docs/locations.yaml",
-    group: "content-locations",
-    keys: ["description", "extendedDescription"],
-    where: {
-      description: "Location blurb — the Discord channel topic AND the node card on the web /map. Changes both faces.",
-      extendedDescription: "Location detail — the Discord forum post only.",
-    },
+    file: "docs/zones.yaml",
+    group: "content-zones",
+    keys: ["description"],
+    where:
+      "Zone blurb (heads the Create-a-Topic post) or Location topic prose (the topic's starter message).",
   },
   {
     file: "docs/taggroups.yaml",
@@ -88,7 +86,7 @@ const IGNORE_FILES = [
   "db/lib/titles.js",
   "db/lib/syncTags.js",
   "db/lib/pruneTags.js",
-  "db/lib/syncLocations.js",
+  "db/lib/syncZones.js",
   "db/lib/syncRoles.js",
   "db/lib/syncDocuments.js",
   "db/lib/archive.js",

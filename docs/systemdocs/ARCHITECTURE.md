@@ -25,9 +25,9 @@ game state has exactly one home. Deployment is Railway: `bot` and `web` run as
 two services from this repo against one Postgres instance.
 
 **Anything both faces need belongs in `db/lib/`**, not duplicated. That's why
-the rules modules (`travelCost.js`, `narrowcastAccess.js`, `laborAccess.js`,
-`gambitModifier.js`, `persistence.js`, `characterName.js`) live
-there as pure functions with no Prisma or Discord dependency of their own.
+the rules modules (`specialChannels.js`, `laborAccess.js`, `seatZone.js`,
+`gambitModifier.js`, `persistence.js`, `characterName.js`, `zoneChannelSpec.js`)
+live there as pure functions with no Prisma or Discord dependency of their own.
 
 ## 2. The barrel, and when not to use it
 
@@ -107,15 +107,27 @@ kept in sync by hand:
 | Is this a tupper/summary channel | `bot/src/lib/channels.js` | `web/lib/discordGuild.js` |
 | Build a nickname | `bot/src/lib/nickname.js#buildNickname` | `web/lib/discordGuild.js#buildNickname` |
 | Post as a character | `bot/src/lib/proxy.js#postAsCharacterTo` (`sendAsCharacter` wraps it) | `db/lib/discordRest.js#postAsCharacter` |
-| Location access | `bot/src/lib/location.js#swapLocationAccess` | `web/lib/discordGuild.js#syncCharacterLocationAccess` |
-| Narrowcast access | `bot/src/lib/location.js` | `web/lib/discordGuild.js` (same name) |
-| Sort location categories | `db/lib/syncLocations.js` | `web/lib/discordGuild.js` |
+| Zone access | `bot/src/lib/zoneTravel.js#swapZoneRole` | `web/lib/discordGuild.js#syncCharacterZoneRole` |
+| Special-channel access | `bot/src/lib/zoneTravel.js#syncCharacterNarrowcastAccess` | `web/lib/discordGuild.js` (same name) |
 
-**If you change one, change its twin.** Where the *rule* can be shared it
-already is — `computeNarrowcastAccess`, `isTravelFree`,
-`locationAccessChannelIds` and `isPersistentThreadName` are single pure
-functions both twins call. What's
-duplicated is only the Discord plumbing around them.
+**If you change one, change its twin.** Both zone twins do the same two calls
+in the same order — **grant before revoke**, so an interrupted swap shows a
+player two zones rather than none.
+
+Where the *rule* can be shared it already is: `computeNarrowcastAccess`,
+`seatZoneIdFor` and `zoneChannelSpec` are single pure functions every caller
+reads, and what is duplicated is only the Discord plumbing around them. Three
+things that *could* have been twins deliberately aren't, and live once in
+`db/` as REST-only helpers both faces require by path:
+
+- **`db/lib/accessSweep.js`** — the death/departure/restart revoke. Blind
+  channel sweeps have no gateway-only form worth having.
+- **`db/lib/threadInvites.js#applyPendingInvites`** — a thread-member add has
+  no gateway-only form at all, so both travel paths call the same function.
+- **`db/lib/specialChannels.js`** — the registry: one entry per special
+  channel, describing provisioning, wipe, ghost visibility and the access rule
+  together, so the logic can't be smeared across a script, two twins and the
+  wipe.
 
 ## 4. Side effects are returned, not performed
 
@@ -125,7 +137,7 @@ back to the caller** rather than doing it.
 - `advanceTurn()` returns a `runSideEffects` thunk (`TURN-ENGINE.md` §3).
 - `runHungerPass` returns `starvedDiscordUserIds`.
 - `runDefaultMovePass` returns `posts` and `dms`.
-- `performTravel` returns `oldLocation` so each caller runs its own access twin.
+- `performTravel` returns `oldZone` so each caller runs its own access twin.
 
 Two reasons, both load-bearing:
 
@@ -181,9 +193,10 @@ success for messages nobody received.
 `AuditLog`, `SiloTransaction` and `ArchiveEntry` all store plain indexed id
 columns plus **name snapshots**, with no relations. Two reasons:
 
-- `syncLocationsFromYaml` destructively deletes Locations, and `wipeGameData`
-  clears Characters. A real relation would either take the log with it or fail
-  on FK ordering — which Restart Game has been bitten by.
+- `syncZonesFromYaml` destructively deletes Zones, and `wipeGameData` clears
+  Characters. A real relation would either take the log with it or fail on FK
+  ordering — which Restart Game has been bitten by. `SystemReport` is the
+  newest table on the same plan.
 - The snapshot is the more correct record anyway: who someone was known as
   *at the time*.
 

@@ -6,11 +6,13 @@ import {
   prisma,
   advanceTurn as advanceTurnInDb,
   runFullChannelWipe,
-  syncLocationsFromYaml,
+  syncZonesFromYaml,
+  syncSpecialChannels,
   syncTagsFromYaml,
   syncRolesFromYaml,
   syncDocumentsFromYaml,
 } from "@lifeweb/db";
+import { runChannelDoctor } from "@lifeweb/db/lib/channelDoctor";
 // By path, not the barrel: it takes prisma as a parameter, the db/lib/dm.js
 // convention that keeps it off the barrel (ARCHITECTURE.md §2).
 import { postTurnsAnnouncement } from "@lifeweb/db/lib/turnAnnouncement";
@@ -24,7 +26,10 @@ import {
   removeCursedRole,
   setTurnPingRole,
   setRomanceOptOutRole,
+  syncCharacterZoneRole,
+  syncCharacterNarrowcastAccess,
 } from "@/lib/discordGuild";
+import { applyPendingInvites } from "@lifeweb/db/lib/threadInvites";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 
 async function requireSuperadmin() {
@@ -79,6 +84,11 @@ export async function updateGameConfig(formData) {
       nicknameSyncEnabled: formData.get("nicknameSyncEnabled") === "on",
       archiveVisible: formData.get("archiveVisible") === "on",
       archiveTravelEvents: formData.get("archiveTravelEvents") === "on",
+      threadExpiryEnabled: formData.get("threadExpiryEnabled") === "on",
+      // Floored at 1: "expire after 0 idle turns" would reap every thread on
+      // every dawn, which is the wipe's job, not this one's.
+      threadExpiryTurns: Math.max(1, intOrNull(formData, "threadExpiryTurns") ?? 5),
+      autoReconcileEnabled: formData.get("autoReconcileEnabled") === "on",
       productionCoefficient: floatOrDefault(formData, "productionCoefficient", 1),
       startingTagPoints: intOrZero(formData, "startingTagPoints"),
       // Guarded at 1 because it's the denominator of every weighted role's
@@ -233,14 +243,17 @@ const DEFAULT_GAME_CONFIG = {
   playerCount: 100,
   equipSlots: 6,
   maxNegativeTags: 4,
+  threadExpiryEnabled: false,
+  threadExpiryTurns: 5,
+  autoReconcileEnabled: false,
 };
 
 // Full game restart for dev/testing: wipes every player- and turn-scoped
 // row (characters, tags-on-characters, Moves, default efforts, notes, DM
 // log, audit log, silo history, and the /archive transcript), resets
 // GameConfig's balance knobs to their schema defaults, clears every Discord
-// channel this game has actually written to (#turns, and every Location's
-// plain/public/private channel — messages, forum posts, and threads, public
+// channel this game has actually written to (#turns, and every zone's
+// summary/public/private channel — messages, forum posts, and threads, public
 // or private), and opens a fresh Turn 1/DAWN — then reposts the #turns
 // console for it, which the channel wipe just deleted.
 //
@@ -250,16 +263,17 @@ const DEFAULT_GAME_CONFIG = {
 // Discord pass — this comment used to say otherwise, which read as "archive:
 // handled" and is how the deleteMany came to be missing. Then re-syncs every YAML master, in dependency
 // order, so the game starts from the canonical sets:
-//   locations (docs/locations.yaml) -> tags (docs/tags.yaml) -> roles (docs/roles.yaml)
-// Roles resolve a starting Location and validate starting_tags, so that
+//   zones (docs/zones.yaml) -> special channels -> tags (docs/tags.yaml) ->
+//   roles (docs/roles.yaml)
+// Roles resolve a starting zone and validate starting_tags, so that
 // order is load-bearing, not cosmetic. The #watch/#intercom channel ids on
 // GameConfig are left untouched (same "self-heals, provisioning is one-time"
 // treatment as turnsAnnouncementChannelId) rather than reset here.
 //
 // The four syncs do NOT share one contract, which is worth knowing before
-// relying on any of them: syncLocationsFromYaml is fully destructive (a
-// Location dropped from the YAML has its Discord category+channels deleted
-// and its row removed), syncDocumentsFromYaml is destructive in the same
+// relying on any of them: syncZonesFromYaml is fully destructive (a
+// zone dropped from the YAML loses its Discord category, channels, role and
+// row; a topic loses its forum post), syncDocumentsFromYaml is destructive in the same
 // sense but with nothing to delete in Discord (a Document is pure reference
 // content, so a dropped key just loses its row), syncRolesFromYaml prunes
 // only rows nothing references, and syncTagsFromYaml is a pure upsert that
@@ -305,6 +319,8 @@ export async function wipeGameData(formData) {
       prisma.characterTag.deleteMany({}),
       prisma.auditLog.deleteMany({}),
       prisma.character.deleteMany({}),
+      prisma.playerThread.deleteMany({}),
+      prisma.playerThreadInvite.deleteMany({}),
       prisma.stagedMessage.deleteMany({}),
       prisma.stagedEffect.deleteMany({}),
       prisma.turn.deleteMany({}),
@@ -336,16 +352,24 @@ export async function wipeGameData(formData) {
       },
     });
 
+    // The report row exists BEFORE the background work starts, so a container
+    // that dies partway leaves an unfinished report (finishedAt null) — which
+    // is itself the signal — instead of a panel claiming success it can't
+    // know about.
+    const reportRow = await prisma.systemReport.create({
+      data: { kind: "WIPE", actorDiscordUserId: session.discordUserId },
+    });
+
     revalidatePath("/gm/dev");
     revalidatePath("/", "layout");
 
     after(() =>
-      finishGameWipe(session.discordUserId, characters, cursedMemberIds, firstTurn).catch((err) =>
-        console.error("Game wipe side effects failed:", err),
+      finishGameWipe(session.discordUserId, characters, cursedMemberIds, firstTurn, reportRow.id).catch(
+        (err) => console.error("Game wipe side effects failed:", err),
       ),
     );
 
-    return { ok: true };
+    return { ok: true, reportId: reportRow.id };
   } catch (err) {
     // There's no error.js boundary in this app, so an uncaught throw here
     // would replace the panel with Next's generic error page and leave the GM
@@ -357,76 +381,75 @@ export async function wipeGameData(formData) {
 
 // Everything the wipe does outside the database, handed to after() rather than
 // awaited — the same split forceAdvanceTurn uses, and for the same reason.
-// This walks every channel in the game twice over and then re-syncs four YAML
+// This walks every channel in the game twice over and then re-syncs the YAML
 // masters; awaiting it held the server action open for minutes, and a pending
 // server action blocks client-side navigation, so the panel froze.
 //
-// Every step is best-effort: a Discord failure must not stop the ones after
-// it, and the database is already in its final state before any of this runs.
+// A step RUNNER, not a pile of bare .catch(() => {})s: every step is retried
+// once, every failure is collected, and the whole run lands on the
+// SystemReport row wipeGameData created — which the Dev Panel renders instead
+// of claiming success it cannot know about. This is the fix for the old
+// failure mode where a rate-limited setTurnPingRole left a player still
+// pinged with zero visibility. The last step is the channel doctor with
+// apply, which reconciles whatever the retries still missed — the structural
+// backstop, not a bigger retry count.
 //
-// If the container dies partway, the catalogs are untouched (the transaction
-// never deletes them) so a GM can re-run the syncs by hand. That is a
-// recoverable state; a fifty-minute hanging request is not.
-async function finishGameWipe(actorDiscordUserId, characters, cursedMemberIds, firstTurn) {
-  // First, while nothing has re-provisioned: strip every character's channel
-  // access. One pass over the channels rather than one pass per character —
-  // see db/lib/locationAccess.js#revokeAccessForCharacters for why that
-  // matters at roster scale.
-  const sweep = await revokeAccessForCharacters(characters).catch((err) => {
-    console.error("Access sweep failed during game wipe:", err);
-    return null;
-  });
-
-  // Sequential, not Promise.all. This used to fan out ~2 calls per character
-  // plus every cursed role plus the whole channel wipe at once — 240+
-  // simultaneous requests at roster scale against two per-guild buckets. Same
-  // conversion, and the same reasoning, as deliverGmMessage in
-  // web/app/(app)/gm/actions.js.
-  //
-  // The stakes here are specifically role LEAKAGE: this is the one moment 120
-  // roles are deleted at once, a dropped delete leaves a guild role nothing
-  // ever reaps, and the guild cap is 250. So a failed delete is retried once
-  // and then reported, rather than swallowed into a bare .catch(() => {}).
-  const leakedRoleIds = [];
-  for (const c of characters) {
-    if (c.discordRoleId) {
+// If the container dies partway, the report row is left unfinished
+// (finishedAt null), which the panel shows for what it is.
+async function finishGameWipe(actorDiscordUserId, characters, cursedMemberIds, firstTurn, reportId) {
+  const steps = [];
+  const failures = [];
+  async function step(name, fn, { retries = 1 } = {}) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        await deleteCharacterRole(c.discordRoleId);
+        const detail = await fn();
+        steps.push({ name, ok: true, ...(detail !== undefined && detail !== null ? { detail } : {}) });
+        return detail;
       } catch (err) {
-        try {
-          await deleteCharacterRole(c.discordRoleId);
-        } catch (retryErr) {
-          leakedRoleIds.push(c.discordRoleId);
-          console.error(`Leaked role ${c.discordRoleId} during wipe: ${retryErr.message}`);
+        if (attempt === retries) {
+          steps.push({ name, ok: false, message: err.message });
+          failures.push({ step: name, message: err.message });
+          console.error(`Game wipe step "${name}" failed:`, err);
+          return null;
         }
       }
     }
-    await updateGuildNickname(c.discordUserId, null).catch(() => {});
+    return null;
+  }
 
+  // First, while nothing has re-provisioned: strip every character's zone
+  // role and every stray member overwrite. One bulk pass, channel-major —
+  // see db/lib/accessSweep.js#revokeAccessForCharacters.
+  await step("access sweep", () => revokeAccessForCharacters(characters));
+
+  // Sequential, not Promise.all — 240+ simultaneous requests at roster scale
+  // against two per-guild buckets is its own incident. Each character's
+  // cleanup is its own step, so one player's failure names them rather than
+  // vanishing into a loop.
+  for (const c of characters) {
+    if (c.discordRoleId) {
+      await step(`character role ${c.discordRoleId}`, () => deleteCharacterRole(c.discordRoleId));
+    }
+    await step(`nickname ${c.discordUserId}`, () => updateGuildNickname(c.discordUserId, null), {
+      retries: 0,
+    });
     // A restart should not leave anyone still holding last game's turn-ping
     // or no-romance guild role — those are Discord role state, not touched
     // by the DB wipe above.
     if (c.turnPingOptIn) {
-      await setTurnPingRole(c.discordUserId, false).catch(() => {});
+      await step(`turn-ping ${c.discordUserId}`, () => setTurnPingRole(c.discordUserId, false));
     }
     if (c.romanceOptOut) {
-      await setRomanceOptOutRole(c.discordUserId, false).catch(() => {});
+      await step(`no-romance ${c.discordUserId}`, () => setRomanceOptOutRole(c.discordUserId, false));
     }
   }
 
   // A full restart should not leave anyone still cursed from the last game.
   for (const id of cursedMemberIds) {
-    await removeCursedRole(id).catch(() => {});
+    await step(`cursed ${id}`, () => removeCursedRole(id));
   }
 
-  if (leakedRoleIds.length > 0) {
-    console.error(
-      `Game wipe leaked ${leakedRoleIds.length} Discord role(s) against a 250-role guild cap. ` +
-        `Delete them by hand or re-run the wipe: ${leakedRoleIds.join(", ")}`,
-    );
-  }
-
-  await runFullChannelWipe(prisma).catch((err) => console.error("Full channel wipe failed:", err));
+  await step("full channel wipe", () => runFullChannelWipe(prisma));
 
   // After the wipe, never before it: the line above bulk-deletes every message
   // in #turns, including this one if it were posted first.
@@ -434,46 +457,51 @@ async function finishGameWipe(actorDiscordUserId, characters, cursedMemberIds, f
   // wipeGameData opens Turn 1 with a plain turn.create rather than through
   // advanceTurn() — there is no turn to close, and no roster to run default
   // moves, hunger or DMs against — so runSideEffects() never fires and the
-  // announcement that normally rides it never went out. #turns stayed empty
-  // (no Day 1 header, no banner, no Travel/Move/Speak) until the bot next
-  // restarted or the game reached Dusk. Same call the turn engine makes,
-  // db/index.js#advanceTurn; the note is null because the transaction above
-  // already cleared nextTurnNote.
-  await postTurnsAnnouncement(prisma, firstTurn, null).catch((err) =>
-    console.error("Turns console repost failed during game wipe:", err),
-  );
+  // announcement that normally rides it never went out. Same call the turn
+  // engine makes; the note is null because the transaction already cleared
+  // nextTurnNote.
+  await step("turns console repost", () => postTurnsAnnouncement(prisma, firstTurn, null));
 
   // Re-sync every YAML master, in dependency order, so the game starts from
-  // the canonical sets. Roles resolve a starting Location and validate
-  // starting_tags, so that order is load-bearing, not cosmetic.
-  const locationSync = await syncLocationsFromYaml(prisma).catch((err) => {
-    console.error("Location sync failed during game wipe:", err);
-    return null;
-  });
-  const tagSync = await syncTagsFromYaml(prisma).catch((err) => {
-    console.error("Tag sync failed during game wipe:", err);
-    return null;
-  });
-  const roleSync = await syncRolesFromYaml(prisma).catch((err) => {
-    console.error("Role sync failed during game wipe:", err);
-    return null;
-  });
-  // Last of the four: its assignment references are validated against the
-  // Tag/Role/Faction rows the syncs above create.
-  const documentSync = await syncDocumentsFromYaml(prisma).catch((err) => {
-    console.error("Document sync failed during game wipe:", err);
-    return null;
-  });
+  // the canonical sets. Roles resolve a starting zone and validate
+  // starting_tags, so that order is load-bearing, not cosmetic. The special
+  // channels come right after zones because their view grants name the zone
+  // roles the zone sync may just have recreated.
+  await step("zone sync", () => syncZonesFromYaml(prisma));
+  await step("special channels sync", () => syncSpecialChannels(prisma));
+  await step("tag sync", () => syncTagsFromYaml(prisma));
+  await step("role sync", () => syncRolesFromYaml(prisma));
+  // Last: its assignment references are validated against the Tag/Role/
+  // Faction rows the syncs above create.
+  await step("document sync", () => syncDocumentsFromYaml(prisma));
 
-  // A second row rather than details on the first: none of this is known when
-  // the action returns, and claiming it there would be a lie — the same
-  // reasoning runDefaultMovePass uses for reporting `shareable`, not `shared`.
+  // The structural backstop: whatever a retry above still missed, the doctor
+  // finds by diffing Discord against the (now empty) roster and repairs.
+  await step("channel doctor", () =>
+    runChannelDoctor(prisma, { apply: true, scope: "cheap", actorDiscordUserId }),
+  );
+
+  const okSteps = steps.filter((s) => s.ok).length;
+  await prisma.systemReport
+    .update({
+      where: { id: reportId },
+      data: {
+        finishedAt: new Date(),
+        ok: failures.length === 0,
+        summary: { steps: steps.length, okSteps, failedSteps: failures.length },
+        failures,
+      },
+    })
+    .catch((err) => console.error("Game wipe report write failed:", err));
+
+  // The audit row stays alongside the report — /gm/audit is the historical
+  // record, the report is the operational one.
   await prisma.auditLog
     .create({
       data: {
         actorDiscordUserId,
         actionType: "superadmin_game_wipe_finished",
-        details: { sweep, locationSync, tagSync, roleSync, documentSync },
+        details: { reportId, steps: steps.length, failed: failures.length },
       },
     })
     .catch((err) => console.error("Game wipe completion audit failed:", err));
@@ -563,3 +591,93 @@ export async function deleteFaction(formData) {
   revalidatePath("/gm/players");
 }
 
+// --- Channel doctor + system reports ----------------------------------
+
+// Both run in after() and land on a SystemReport row — the section on
+// /gm/dev polls the latest report per kind, so the button returns
+// immediately and the outcome shows up where every other operational pass
+// reports (db/lib/channelDoctor.js).
+export async function runDoctorAction(formData) {
+  const session = await requireSuperadmin();
+  const apply = str(formData, "mode") === "repair";
+  const scope = str(formData, "scope") === "full" ? "full" : "cheap";
+
+  after(() =>
+    runChannelDoctor(prisma, { apply, scope, actorDiscordUserId: session.discordUserId }).catch((err) =>
+      console.error("Channel doctor action failed:", err),
+    ),
+  );
+
+  revalidatePath("/gm/dev");
+  return { ok: true };
+}
+
+// GM bulk move: relocate many characters to one zone at once. A raw
+// relocation like updateCharacterRaw's, not a travel — no Move cost, no
+// Action filed, no adjacency check. The Discord half (role swap, narrowcast,
+// pending invites) runs in after(), sequential, and lands on a
+// SystemReport (kind: BULK_MOVE) like every other long pass.
+export async function bulkMoveCharacters(formData) {
+  const session = await requireSuperadmin();
+
+  const zoneId = str(formData, "zoneId");
+  const characterIds = formData.getAll("characterIds").map(String).filter(Boolean);
+  if (!zoneId || characterIds.length === 0) {
+    return { ok: false, error: "Pick a zone and at least one character." };
+  }
+
+  const zone = await prisma.zone.findUnique({ where: { id: zoneId } });
+  if (!zone || zone.kind === "CAVE_GROUP") {
+    return { ok: false, error: "That isn't a zone a character can stand in." };
+  }
+
+  const characters = await prisma.character.findMany({
+    where: { id: { in: characterIds }, status: "ALIVE" },
+    select: { id: true, name: true, discordUserId: true, zoneId: true },
+  });
+  if (characters.length === 0) return { ok: false, error: "No living characters matched." };
+
+  await prisma.character.updateMany({
+    where: { id: { in: characters.map((c) => c.id) } },
+    data: { zoneId: zone.id },
+  });
+
+  const report = await prisma.systemReport.create({
+    data: {
+      kind: "BULK_MOVE",
+      actorDiscordUserId: session.discordUserId,
+      summary: { zone: zone.name, characters: characters.length },
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "gm_bulk_move",
+      details: { zoneId: zone.id, zoneName: zone.name, characterIds: characters.map((c) => c.id) },
+    },
+  });
+
+  after(async () => {
+    const failures = [];
+    for (const c of characters) {
+      try {
+        await syncCharacterZoneRole(c.discordUserId, c.zoneId, zone.id);
+        await syncCharacterNarrowcastAccess(c.id);
+        await applyPendingInvites(prisma, { ...c, zoneId: zone.id });
+      } catch (err) {
+        failures.push({ step: "move", target: c.name, message: err.message });
+        console.error(`Bulk move: Discord sync failed for ${c.name}:`, err);
+      }
+    }
+    await prisma.systemReport
+      .update({
+        where: { id: report.id },
+        data: { finishedAt: new Date(), ok: failures.length === 0, failures },
+      })
+      .catch((err) => console.error("Bulk move report write failed:", err));
+  });
+
+  revalidatePath("/gm/dev");
+  return { ok: true, moved: characters.length };
+}

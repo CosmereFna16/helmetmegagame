@@ -302,7 +302,7 @@ means granting or changing a title never renames or recolours anyone.
 `orderBy: { name: "asc" }` on a Character would file `Sir Jorren` under S, so
 the seven Character-model sites use
 `[{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }]`. Most
-`orderBy: { name }` in the codebase is on Faction/Zone/Tag/Location and is
+`orderBy: { name }` in the codebase is on Faction/Zone/Tag and is
 untouched — **check the model before changing one.** The client-side
 `characterName` sort in the GM tables still sorts the titled string, which is
 fine: those tables are searched far more than sorted, and the search matches
@@ -405,8 +405,12 @@ assign a locked role by hand.
 Picking a role decides almost everything:
 
 - `factionId` — from the role's faction.
-- `locationId` + `zoneId` — from `starting_location` (a Location **slug**).
-  This is what gives the character their Discord channel access; see §5.
+- `zoneId` — from `starting_zone` (a Zone **slug** from `docs/zones.yaml`).
+  `createCharacter` then calls `syncCharacterZoneRole(uid, null, zoneId)`, and
+  **that role is the character's whole Discord channel access** — there are no
+  per-Location channels and no per-member overwrites to grant any more
+  (`CHANNELS.md` §3). A `starting_zone` must be a *presence* zone: the Caves
+  group is a container, not a place, and the role sync refuses it.
 - `resources` — `starting_resources`.
 - `isLeader` / `isTreasurer` — from `leader: true` / `treasurer: true`.
   These were once entries in `starting_tags`; they're booleans on
@@ -415,7 +419,7 @@ Picking a role decides almost everything:
   `GM_GRANT`, on top of anything bought.
 
 The sync **throws** on a `starting_tags` name that isn't in the catalog or a
-`starting_location` slug that isn't a Location, rather than half-applying. A
+`starting_zone` slug that isn't a standable zone, rather than half-applying. A
 typo can't ship characters missing part of their package.
 
 ## 3. The point economy
@@ -526,18 +530,19 @@ Discord role afterward. `web/lib/discordGuild.js#killCharacter`, called from
 
 1. **Explicitly revokes every viewing grant** (`revokeAllCharacterAccess`),
    before the role is deleted — it needs both the role id and the Discord user
-   id to name the overwrites. It sweeps every Location category *and its three
-   channels*, plus `#watch`/`#intercom`, clearing an overwrite under either
-   key.
+   id. It strips **every** zone role (removing one they don't hold is a no-op,
+   so all six cost less than trusting possibly-stale state about which they
+   held) and sweeps their member overwrites off every zone channel and the
+   special channels, under either key.
 
    This used to be a free side effect of step 2: Discord drops every overwrite
    tied to a role the moment the role goes. That holds only while access is
-   keyed on the role — a **member** overwrite is not tied to the role and
-   outlives it, which would leave a dead character's player still seeing the
-   room they died in. It also sweeps *every* Location rather than the
-   character's last one, since a half-failed `swapLocationAccess` leaves a
-   grant on the room they left and death is the wrong moment to trust that
-   invariant.
+   keyed on the *personal* role — a zone role outlives the character, and a
+   member overwrite is not tied to the personal role either, so a dead
+   character's player would keep seeing the room they died in. It sweeps
+   blindly rather than trusting `Character.zoneId`, since a half-failed role
+   swap leaves a grant on the zone they left and death is the wrong moment to
+   trust that invariant.
 2. Deletes the personal Discord role.
 3. Nulls `discordRoleId` — it's `@unique`, and a dangling id would have
    `ensureCharacterRole` PATCHing a deleted role forever.
@@ -551,16 +556,16 @@ Discord role afterward. `web/lib/discordGuild.js#killCharacter`, called from
    slots that may have moved. It also keeps the loot panel (below) from
    rendering an item as if it's still worn.
 
-`updateCharacterRaw` skips the role/location sync entirely for a non-`ALIVE`
+`updateCharacterRaw` skips the role/zone sync entirely for a non-`ALIVE`
 character.
 
 ### The corpse is lootable, the row survives
 
 A dead character is not deleted, and their `CharacterTag` and `⬢` stay on the
-row. Anyone standing in the location the character died in can `TRANSFER_TAG`
+row. Anyone standing in the zone the character died in can `TRANSFER_TAG`
 or `TRANSFER_RESOURCES` **in the `LOOT` direction** to lift Items/Assets or ⬢
 off the corpse — see `REQUESTS.md` §5. The `/character` page shows a "Bodies
-here" panel to any living character in a location that has a corpse; that
+here" panel to any living character in a zone that has a corpse; that
 panel is the **only** player-facing surface that spells out that someone
 died. Every other list (faction roster, transfer target picker) renders a
 DEAD character as a normal row with no status pill, and every GM surface
@@ -586,10 +591,9 @@ status transition at all: it reads the live value from the database.
 
 **Revive** is the inverse §5 never had: `removeCursedRole`, then
 `ensureCharacterRole`, then the nickname, then
-`syncCharacterLocationAccess(uid, null, locationId)` — the old location is
-`null` because `killCharacter` already stripped every overwrite, so this is a
-pure re-grant with nothing to move away from — then
-`syncCharacterNarrowcastAccess`.
+`syncCharacterZoneRole(uid, null, zoneId)` — the old zone is `null` because
+`killCharacter` already stripped every zone role, so this is a pure re-grant
+with nothing to move away from — then `syncCharacterNarrowcastAccess`.
 
 **Deleting** a character is a separate, superadmin-only action, and is not the
 same thing as killing them. It removes the row and everything pointing at it
@@ -599,13 +603,15 @@ dependents are detached rather than deleted: `AuditLog.targetCharacterId` and
 `Note.characterId` are nulled, because the audit trail must outlive its subject
 and `Note.characterName` is already a snapshot.
 
-## 6. Narrowcast channels (`#watch`, `#intercom`)
+## 6. Special channels (`#watch`, `#intercom`)
 
-Access to both is granted the same way Location access is — a per-member
-permission overwrite keyed on `Character.discordUserId` — and is reconciled
-after every Move and on character creation. The rules themselves (who holds
-which radio tag, the Keep gate) live in one place: **`CHANNELS.md` §6**.
-They were duplicated here and drifted; don't re-add them.
+These are the **only** per-member overwrites left in the game: zone access
+rides a role now, but a special channel's grant is still keyed on
+`Character.discordUserId`, reconciled after every zone change, every tag
+change and on character creation. `#intercom`'s *view* is a static grant to the
+six zone roles instead. The rules themselves (who holds which radio tag, the
+Fortress gate) live in one place: **`CHANNELS.md` §7**. They were duplicated
+here and drifted; don't re-add them.
 
 ## 7. Sync order
 
@@ -613,22 +619,22 @@ The three YAML masters have dependencies, so order is load-bearing — this is
 the order `wipeGameData`'s "Restart Game" runs them in:
 
 ```
-locations  ->  tags  ->  roles
+zones  ->  tags  ->  roles
 ```
 
-Roles resolve a starting Location *and* validate `starting_tags`. Their
-delete contracts differ and are worth knowing: locations is **fully
-destructive** (a dropped Location loses its Discord category and its row),
+Roles resolve a `starting_zone` *and* validate `starting_tags`. Their delete
+contracts differ and are worth knowing: zones is **fully destructive** (a
+dropped Zone loses its Discord category, channels, access role and its row),
 roles prunes only rows nothing references, and tags is a pure upsert that
-never deletes.
+never deletes. See `SYNC.md`.
 
 ## 8. Where the code lives
 
 | Concern | File |
 |---|---|
-| Masters | `docs/roles.yaml`, `docs/tags.yaml`, `docs/locations.yaml` |
+| Masters | `docs/roles.yaml`, `docs/tags.yaml`, `docs/zones.yaml` |
 | Role sync | `db/lib/syncRoles.js`, `db/prisma/sync-roles.js` |
-| Narrowcast channels | `db/lib/narrowcastAccess.js`, `db/lib/syncNarrowcastChannels.js`, `db/prisma/sync-narrowcast-channels.js` |
+| Special channels | `db/lib/specialChannels.js`, `db/lib/syncSpecialChannels.js`, `db/prisma/sync-narrowcast-channels.js` |
 | Seat math | `db/lib/roleCapacity.js` |
 | Budget/eligibility rules | `web/lib/characterCreation.js` |
 | Wizard | `web/app/(app)/character/CreateCharacterWizard.js` |

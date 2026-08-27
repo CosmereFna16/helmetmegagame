@@ -226,7 +226,7 @@ async function handleWindReaction(reaction, user) {
   // #intercom, #turns, an unmapped channel) resolves to some other kind or to
   // null, and is refused.
   const { channelKind } = resolveChannelContext(reaction.message.channel);
-  if (channelKind !== "plain" && channelKind !== "public") return;
+  if (channelKind !== "summary" && channelKind !== "public") return;
 
   const claim = await claimGhostWhisper(prisma, user.id);
   if (!claim.ok) {

@@ -24,7 +24,7 @@ function turnLabel(entry) {
 }
 
 function sceneLabel(entry) {
-  const place = entry.locationName ?? "Elsewhere";
+  const place = entry.zoneName ?? "Elsewhere";
   return entry.threadName ? `${place} · ${entry.threadName}` : place;
 }
 

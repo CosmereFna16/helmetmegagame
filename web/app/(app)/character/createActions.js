@@ -15,7 +15,7 @@ import { isSuperadmin } from "@/lib/superadmin";
 import {
   syncCharacterNickname,
   ensureCharacterRole,
-  syncCharacterLocationAccess,
+  syncCharacterZoneRole,
   syncCharacterNarrowcastAccess,
   getGuildMember,
   isCursed,
@@ -110,7 +110,7 @@ export async function createCharacter(formData) {
     // Windlands by zone, since no column marks a role as a Windlander one.
     prisma.role.findUnique({
       where: { id: roleId },
-      include: { faction: { include: { zone: true } }, startingLocation: true },
+      include: { faction: { include: { zone: true } }, startingZone: true },
     }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     getGuildMember(discordUserId),
@@ -311,8 +311,7 @@ export async function createCharacter(formData) {
           roleId: role.id,
           roleTitle: role.name,
           factionId: role.factionId,
-          locationId: role.startingLocationId,
-          zoneId: role.startingLocation?.zoneId ?? null,
+          zoneId: role.startingZoneId,
           resources: role.startingResources,
           tagPoints: budget - spent,
           isLeader: role.grantsLeader,
@@ -340,16 +339,16 @@ export async function createCharacter(formData) {
   }
 
   // Discord side effects, best-effort and strictly ordered: narrowcast access
-  // reads the location/tags written above.
+  // reads the zone/tags written above.
   //
-  // Access no longer depends on the role existing — it is a per-member
-  // overwrite keyed on discordUserId (db/lib/locationAccess.js), so the gate
-  // here is having somewhere to stand, not having a role. Gating on
-  // discordRoleId as this once did would silently deny a character their own
-  // room whenever role creation failed.
+  // Channel access is the zone's own "Zone: {Name}" role, granted here the
+  // same way travel swaps it (web/lib/discordGuild.js#syncCharacterZoneRole).
+  // It has nothing to do with the character's PERSONAL role, which is a
+  // mentionable name token only — so a failed ensureCharacterRole above must
+  // never cost a new character the rooms they can see.
   await ensureCharacterRole(created).catch(() => {});
-  if (created.locationId) {
-    await syncCharacterLocationAccess(discordUserId, null, created.locationId).catch(() => {});
+  if (created.zoneId) {
+    await syncCharacterZoneRole(discordUserId, null, created.zoneId).catch(() => {});
   }
   await syncCharacterNickname(discordUserId, formatBareName({ firstName, lastName })).catch(() => {});
   await syncCharacterNarrowcastAccess(created.id).catch(() => {});
@@ -373,7 +372,7 @@ export async function createCharacter(formData) {
       details: {
         role: role.name,
         faction: role.faction?.name ?? null,
-        location: role.startingLocation?.name ?? null,
+        zone: role.startingZone?.name ?? null,
         budget,
         spent,
         purchased: selected.map((t) => t.name),
@@ -385,8 +384,8 @@ export async function createCharacter(formData) {
   await recordArchiveEvent({
     kind: "CHARACTER_CREATED",
     character: created,
-    locationId: created.locationId ?? null,
-    locationName: role.startingLocation?.name ?? null,
+    zoneId: created.zoneId ?? null,
+    zoneName: role.startingZone?.name ?? null,
     turn: openTurn,
     content: `${created.name} arrived in Ravenheart as ${role.name}.`,
   });

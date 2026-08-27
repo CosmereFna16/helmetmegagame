@@ -57,15 +57,20 @@ and that is not the same as being able to put anything into it.
 
 | Moving | Gate |
 |---|---|
-| Person → person (⬢ or a tag) | Same **Location** |
-| Either end is a **Silo** | Same **Zone** as the faction's `zoneId`, **or** same Zone as one of its Leaders/Treasurers |
+| Person → person (⬢ or a tag) | Same **Zone** — since the zone rework a zone *is* the room, so this and the Silo gate are now the same grain |
+| Either end is a **Silo** | The actor's **seat** zone equals the faction's `zoneId`, **or** an officer (Leader/Treasurer) stands in the actor's **presence** zone |
 
-`Faction.zoneId` is the silo zone. It already existed for the role picker and
-now carries game state too — see the comment in `schema.prisma`.
+`Faction.zoneId` is the silo zone, and it is a **seat** zone: presence is six
+zones, seats are four, and the whole cave system belongs to the Caves row
+(`GAMEMASTERS.md` §2a). That is why the home-zone branch maps the actor's
+presence zone through `seatZoneIdFor` before comparing, while the officer
+branch stays presence-grain — two people are only face to face if they are in
+the same actual room. So a Silo seated in the Caves is reachable from any cave
+level, which is the intent.
 
 **Officers extend a Silo's reach, and that is the load-bearing part.** Pinning
-a Silo to a *building* would let an occupying force paralyse a faction's
-treasury with no counterplay. Pinning it to a zone with a mobile officer
+a Silo to a *building* (which the map no longer even has) would let an
+occupying force paralyse a faction's treasury with no counterplay. Pinning it to a zone with a mobile officer
 extension means a besieged fortress makes the tax run dangerous, while an
 officer who rides out to meet you makes it easier — leadership can always walk
 toward the problem. It also means losing every officer doesn't freeze a Silo:

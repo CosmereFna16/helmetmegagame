@@ -20,6 +20,7 @@ const { rollWeather, buildTurnAnnouncement } = require("./weather");
 const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 const { runDawnWipe } = require("./lib/dawnWipe");
+const { runThreadExpiry } = require("./lib/threadExpiryPass");
 const { runHungerPass, hungerDm, DYING_DM } = require("./lib/hungerPass");
 const { runDefaultMovePass } = require("./lib/defaultMovePass");
 const { runStagedPushPass } = require("./lib/stagedPush");
@@ -30,13 +31,13 @@ const { recordArchiveMessage, recordArchiveEvent } = require("./lib/archive");
 const { postAsCharacter, postMessage, attachBreakerStore } = require("./lib/discordRest");
 const { bumpBlood } = require("./lib/lifeweb");
 const { runFullChannelWipe } = require("./lib/fullWipe");
-const { syncLocationsFromYaml } = require("./lib/syncLocations");
+const { syncZonesFromYaml } = require("./lib/syncZones");
 const { syncTagsFromYaml } = require("./lib/syncTags");
 const { deleteCharacterRow } = require("./lib/deleteCharacter");
 const { syncRolesFromYaml } = require("./lib/syncRoles");
 const { syncDocumentsFromYaml } = require("./lib/syncDocuments");
-const { NARROWCAST_SLUGS, buildNarrowcastContext, computeNarrowcastAccess } = require("./lib/narrowcastAccess");
-const { syncNarrowcastChannels } = require("./lib/syncNarrowcastChannels");
+const { SPECIAL_CHANNELS, NARROWCAST_SLUGS, buildNarrowcastContext, computeNarrowcastAccess } = require("./lib/specialChannels");
+const { syncSpecialChannels } = require("./lib/syncSpecialChannels");
 
 const globalForPrisma = globalThis;
 
@@ -620,9 +621,9 @@ async function advanceTurn() {
           discordMessageId: sent.id,
           content: post.message,
           character: post.character,
-          locationId: post.locationId,
-          locationName: post.locationName,
-          channelKind: "plain",
+          zoneId: post.zoneId,
+          zoneName: post.zoneName,
+          channelKind: "summary",
           discordChannelId: post.channelId,
           turn: openTurn,
         });
@@ -694,7 +695,8 @@ async function advanceTurn() {
     }
 
     for (const post of publicPosts) {
-      if (!config.turnSummaryChannelId) {
+      const targetChannelId = post.zoneSummaryChannelId ?? config.turnSummaryChannelId;
+      if (!targetChannelId) {
         // Composed but nowhere to go. Left unsent (no sentAt) so it's still
         // there to release once a GM configures the channel on /gm/dev.
         console.error(`Public declaration ${post.stagedMessageId} skipped: no turnSummaryChannelId configured.`);
@@ -708,7 +710,7 @@ async function advanceTurn() {
         continue;
       }
       try {
-        await postMessage(config.turnSummaryChannelId, post.content);
+        await postMessage(targetChannelId, post.content);
         await prisma.stagedMessage
           .update({
             where: { id: post.stagedMessageId },
@@ -746,6 +748,24 @@ async function advanceTurn() {
     if (newTurn.phase === "DAWN" && config.messageWipeEnabled) {
       await runDawnWipe(prisma).catch((err) => console.error("Dawn message wipe failed:", err));
     }
+
+    // Inactivity expiry for player threads — independent of the wipe toggle,
+    // gated on its own switch inside the pass. After the wipe on purpose, so
+    // a thread the wipe just deleted isn't also "expired".
+    if (newTurn.phase === "DAWN") {
+      await runThreadExpiry(prisma, newTurn).catch((err) =>
+        console.error("Thread expiry pass failed:", err),
+      );
+    }
+
+    // The cheap reconciliation pass, when a GM has opted in — roles and
+    // membership only, a handful of requests (db/lib/channelDoctor.js).
+    if (config.autoReconcileEnabled) {
+      const { runChannelDoctor } = require("./lib/channelDoctor");
+      await runChannelDoctor(prisma, { apply: true, scope: "cheap" }).catch((err) =>
+        console.error("Post-turn channel doctor failed:", err),
+      );
+    }
   };
 
   return { advanced: true, previousTurn: openTurn, newTurn, note, runSideEffects };
@@ -761,15 +781,17 @@ module.exports = {
   resolveNeeds,
   advanceTurn,
   runFullChannelWipe,
-  syncLocationsFromYaml,
+  syncZonesFromYaml,
   syncTagsFromYaml,
   deleteCharacterRow,
   syncRolesFromYaml,
   syncDocumentsFromYaml,
+  SPECIAL_CHANNELS,
   NARROWCAST_SLUGS,
   buildNarrowcastContext,
   computeNarrowcastAccess,
-  syncNarrowcastChannels,
+  syncSpecialChannels,
+  ...require("./lib/seatZone"),
   LIFEWEB_SPUTTER_THRESHOLD,
   ...require("./weather"),
   ...require("./lib/constants"),
@@ -791,12 +813,8 @@ module.exports = {
   ...require("./lib/moveEffects"),
   ...require("./lib/resourceDelta"),
   ...require("./lib/laborAccess"),
-  ...require("./lib/travelCost"),
-  // Only the pure helpers. revokeAllCharacterAccess takes prisma as a
-  // parameter (the db/lib/dm.js convention) and is deliberately kept off the
-  // barrel — require it by path.
-  PERM_VIEW_CHANNEL: require("./lib/locationAccess").PERM_VIEW_CHANNEL,
-  OVERWRITE_TYPE_ROLE: require("./lib/locationAccess").OVERWRITE_TYPE_ROLE,
-  OVERWRITE_TYPE_MEMBER: require("./lib/locationAccess").OVERWRITE_TYPE_MEMBER,
-  locationAccessChannelIds: require("./lib/locationAccess").locationAccessChannelIds,
+  // Only the pure helper. The revoke functions take prisma as a parameter
+  // (the db/lib/dm.js convention) and are deliberately kept off the barrel —
+  // require db/lib/accessSweep.js by path.
+  zoneChannelIds: require("./lib/accessSweep").zoneChannelIds,
 };

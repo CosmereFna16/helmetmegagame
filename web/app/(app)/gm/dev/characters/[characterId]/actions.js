@@ -9,7 +9,7 @@ import {
   getGmSession,
   ensureCharacterRole,
   syncCharacterNickname,
-  syncCharacterLocationAccess,
+  syncCharacterZoneRole,
   syncCharacterNarrowcastAccess,
   revokeAllCharacterAccess,
   deleteCharacterRole,
@@ -172,10 +172,10 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
   });
 
   // Discord, after the commit and outside the request. revokeAllCharacterAccess
-  // and syncCharacterLocationAccess each walk every channel of a Location, and
-  // propagateDynastyLastName is two REST calls per living family member — none
-  // of that may hold the transaction, and none of it should hold the Apply
-  // button either. Same posture as forceAdvanceTurn.
+  // walks every channel a character can reach, syncCharacterZoneRole is a role
+  // grant plus a revoke, and propagateDynastyLastName is two REST calls per
+  // living family member — none of that may hold the transaction, and none of
+  // it should hold the Apply button either. Same posture as forceAdvanceTurn.
   const steps = planDiscordEffects({
     existing,
     diff,
@@ -199,11 +199,11 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
           if (step === "dynasty" && isDynastyHead((role ?? existing.role)?.slug)) {
             await propagateDynastyLastName(updated.lastName);
           }
-          if (step === "location") {
-            await syncCharacterLocationAccess(
+          if (step === "zone") {
+            await syncCharacterZoneRole(
               updated.discordUserId,
-              diff.locationId?.from ?? null,
-              updated.locationId,
+              diff.zoneId?.from ?? null,
+              updated.zoneId,
             );
           }
           if (step === "narrowcast") await syncCharacterNarrowcastAccess(characterId);
@@ -253,8 +253,8 @@ async function killCharacterNowImpl({ characterId, reason }) {
 // left it with no personal role, no channel access and the Cursed role still
 // on the account.
 //
-// The old location is passed as null deliberately — killCharacter already
-// stripped every overwrite, so this is a pure re-grant with nothing to move
+// The old zone is passed as null deliberately — killCharacter already stripped
+// every role and overwrite, so this is a pure re-grant with nothing to move
 // away from.
 async function reviveCharacterImpl({ characterId }) {
   const session = await requireGm();
@@ -273,7 +273,7 @@ async function reviveCharacterImpl({ characterId }) {
       await removeCursedRole(updated.discordUserId);
       await ensureCharacterRole(updated);
       await syncCharacterNickname(updated.discordUserId, formatBareName(updated));
-      await syncCharacterLocationAccess(updated.discordUserId, null, updated.locationId);
+      await syncCharacterZoneRole(updated.discordUserId, null, updated.zoneId);
       await syncCharacterNarrowcastAccess(characterId);
     } catch (err) {
       console.error("Revive Discord restore failed:", err);
@@ -399,7 +399,7 @@ async function resyncDiscordImpl({ characterId }) {
     try {
       await ensureCharacterRole(character);
       await syncCharacterNickname(character.discordUserId, formatBareName(character));
-      await syncCharacterLocationAccess(character.discordUserId, null, character.locationId);
+      await syncCharacterZoneRole(character.discordUserId, null, character.zoneId);
       await syncCharacterNarrowcastAccess(characterId);
     } catch (err) {
       console.error("Dev Panel resync failed:", err);
@@ -441,7 +441,7 @@ async function deleteCharacterImpl({ characterId, confirmName }) {
 
   // Checked, not discarded: once the Character row goes there is no id left to
   // clean up with, so a revoke that quietly did nothing leaves overwrites on
-  // every channel forever. See db/lib/locationAccess.js.
+  // every channel forever. See db/lib/accessSweep.js.
   const revoked = await revokeAllCharacterAccess(character).catch((err) => {
     console.error("revokeAllCharacterAccess failed during delete:", err);
     return null;

@@ -23,7 +23,7 @@
 // prose, since those seats are assigned by hand by a GM and must never show
 // up in the player-facing picker.
 //
-// Validation is strict and up-front: an unknown starting_location slug or an
+// Validation is strict and up-front: an unknown starting_zone slug or an
 // unknown starting_tags name throws before anything is written, so a typo in
 // the YAML can't half-apply and ship characters missing part of their
 // starting package.
@@ -82,7 +82,7 @@ function parseRolesYaml(doc) {
           weight: typeof role.weight === "number" ? role.weight : null,
           startingResources: role.starting_resources ?? 0,
           extraStartingPoints: role.extra_starting_points ?? 0,
-          startingLocationSlug: role.starting_location ?? null,
+          startingZoneSlug: role.starting_zone ?? null,
           startingTagNames: role.starting_tags ?? [],
           grantsLeader: role.leader === true,
           grantsTreasurer: role.treasurer === true,
@@ -134,18 +134,23 @@ async function syncRolesFromYaml(prisma) {
   }
 
   // Validate every cross-file reference before writing anything.
-  const zoneIdByName = new Map((await prisma.zone.findMany()).map((z) => [z.name, z.id]));
-  const locationIdBySlug = new Map((await prisma.location.findMany()).map((l) => [l.slug, l.id]));
+  const zones = await prisma.zone.findMany();
+  const zoneIdByName = new Map(zones.map((z) => [z.name, z.id]));
+  // starting_zone must be a PRESENCE zone — the Caves group is a container,
+  // not a place a character can stand.
+  const presenceZoneIdBySlug = new Map(
+    zones.filter((z) => z.kind !== "CAVE_GROUP").map((z) => [z.slug, z.id]),
+  );
   const tagNames = new Set((await prisma.tag.findMany({ select: { name: true } })).map((t) => t.name));
 
   for (const f of factions) {
     if (!zoneIdByName.has(f.zoneName)) {
-      throw new Error(`docs/roles.yaml: faction "${f.name}" is in unknown zone "${f.zoneName}" — run db:sync-locations first`);
+      throw new Error(`docs/roles.yaml: faction "${f.name}" is in unknown zone "${f.zoneName}" — run db:sync-zones first`);
     }
   }
   for (const r of roles) {
-    if (r.startingLocationSlug && !locationIdBySlug.has(r.startingLocationSlug)) {
-      throw new Error(`docs/roles.yaml: role "${r.name}" has unknown starting_location "${r.startingLocationSlug}"`);
+    if (r.startingZoneSlug && !presenceZoneIdBySlug.has(r.startingZoneSlug)) {
+      throw new Error(`docs/roles.yaml: role "${r.name}" has unknown or unstandable starting_zone "${r.startingZoneSlug}"`);
     }
     for (const name of r.startingTagNames) {
       if (!tagNames.has(name)) {
@@ -207,7 +212,7 @@ async function syncRolesFromYaml(prisma) {
       grantsTreasurer: entry.grantsTreasurer,
       lockedGender: entry.lockedGender,
       docElements: entry.docElements,
-      startingLocationId: entry.startingLocationSlug ? locationIdBySlug.get(entry.startingLocationSlug) : null,
+      startingZoneId: entry.startingZoneSlug ? presenceZoneIdBySlug.get(entry.startingZoneSlug) : null,
     };
     const row = await prisma.role.findUnique({ where: { slug: entry.slug } });
     if (!row) {

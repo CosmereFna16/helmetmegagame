@@ -138,7 +138,8 @@ npm run db:migrate                   # prisma migrate dev (needs DATABASE_URL se
 npm run db:migrate:deploy            # prisma migrate deploy (production)
 
 # YAML masters -> DB. Order matters; see SYNC.md.
-npm run db:sync-locations            # docs/locations.yaml  (destructive)
+npm run db:sync-zones                # docs/zones.yaml      (destructive; zones,
+                                     #   their channels + roles, Location topics)
 npm run db:sync-tags                 # docs/tags.yaml       (upsert-only)
 npm run db:sync-roles                # docs/roles.yaml      (prunes unreferenced)
 npm run db:sync-documents            # docs/documents.yaml  (destructive; last)
@@ -147,37 +148,31 @@ npm run db:prune-tags                # deletes tags absent from docs/tags.yaml.
                                      #   touches a GM-created tag or one anything
                                      #   references. See SYNC.md.
 
-npm run db:sync-narrowcast-channels  # one-off provisioning for the radio
-                                     #   category and its #watch/#intercom channels
+npm run db:sync-narrowcast-channels  # provisioning + reconcile for the special
+                                     #   channels registry (#watch/#intercom).
+                                     #   Run AFTER db:sync-zones — its view
+                                     #   grants name the zone roles.
 npm run db:rebuild-info-channel      # destructive rebuild of #info
 
-npm run map:check                    # geometry check over locations.yaml's `map:`
-                                     #   coordinates. No DB, no Discord.
+npm run db:doctor                    # the channel doctor: diffs Discord roles/
+                                     #   channels/threads against the DB. DRY
+                                     #   RUN unless given `-- --apply`; add
+                                     #   `-- --full` for overwrites + threads.
+                                     #   Also runs cheap+apply on every bot
+                                     #   start. See CHANNELS.md.
 
 # Repair / one-off scripts. See SYNC.md §4 for what each is for.
 npm run db:backfill-roles
 npm run db:backfill-name-parts
-npm run db:backfill-member-access
-npm run db:backfill-persistent-tag
 npm run db:backfill-tag-rework
 npm run db:backfill-medical-expert    # after db:sync-tags; retires medical-excellent
-npm run db:backfill-gm-permissions
-npm run db:backfill-spectator-access
-npm run db:backfill-cursed-access      # ghost seat: opens every non-Depths
-                                       #   Location (category + all 3 channels)
-                                       #   and #watch/#intercom to the Cursed
-                                       #   role, and strips it from the Depths.
-npm run db:backfill-tupper-attachment-restriction
-npm run db:backfill-archive-channel-ids  # DRY RUN unless given `-- --apply`;
-                                       #   thread rows are name-only and stay null
-npm run db:prune-orphan-categories
 npm run db:prune-orphan-roles          # deletes Discord character roles no living
                                        #   character claims. DRY RUN unless given
                                        #   `-- --apply`. Only touches roles carrying
                                        #   the character-role signature (mentionable
-                                       #   + hashNameToColor colour), so divider and
-                                       #   GM cosmetic roles are never candidates.
-                                       #   Guards the 250-role guild cap.
+                                       #   + hashNameToColor colour), so divider,
+                                       #   GM cosmetic and "Zone:" roles are never
+                                       #   candidates. Guards the 250-role cap.
 
 npm run build --workspace=web        # production build of the web app
 npm run lint --workspace=web         # eslint over the web app
@@ -261,12 +256,13 @@ state, plus one env-configured admin role. `Faction` is **not** one of them
 
 | Role | Source | What it gates |
 |---|---|---|
-| **Personal character role** | `Character.discordRoleId`, one per `ALIVE` character, titled after the **bare** name | A mentionable **name token only** (`PROXYING.md` §6) — held by nobody and granting nothing. Channel access is a per-member overwrite instead (`CHANNELS.md` §3). |
+| **Zone role** | `Zone.discordRoleId`, one per presence zone ("Zone: Town"), created by `db:sync-zones` | Channel access: holding it is what shows you the zone's category. Swapped by travel; reconciled by the channel doctor. |
+| **Personal character role** | `Character.discordRoleId`, one per `ALIVE` character, titled after the **bare** name | A mentionable **name token only** (`PROXYING.md` §6) — held by nobody and granting nothing. Channel access is the **zone role** instead (`CHANNELS.md` §3). |
 | **GM role** | `DISCORD_GM_ROLE_ID` env var | `/gm` pages, the `/gm` and `/message` slash commands. Checked via REST (`isGm`), not stored on any model. |
 | **Spectator role** | `SPECTATOR_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | A standing read-only observer seat, applied at provisioning time. See `CHANNELS.md`. |
 | **Player role** | `PLAYER_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may create a character, paired with `GameConfig.openToPlayers` (`CHARACTERS.md` §4b). |
 | **Leader Whitelist role** | `LEADER_WHITELIST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may pick a role flagged `leader: true` at character creation — unless `GameConfig.leaderWhitelistEnabled` is switched off on `/gm/dev` (`CHARACTERS.md` §2). |
-| **Cursed role** | `DISCORD_CURSED_ROLE_ID` env var | What a player may re-roll as after a death (`CHARACTERS.md` §4), **and** the ghost seat: read-only view of every Location except the Depths, plus the 🌬️ whisper (`CHANNELS.md` §3, `COMMANDS.md` §6). |
+| **Cursed role** | `DISCORD_CURSED_ROLE_ID` env var | What a player may re-roll as after a death (`CHARACTERS.md` §4), **and** the ghost seat: read-only view of every zone (cave levels included; private threads stay invisible), plus the 🌬️ whisper. Its color is pinned to 0 so ghosts aren't outed in the member list (`CHANNELS.md` §3, `COMMANDS.md` §6). |
 | **Turn-ping role** | `DISCORD_TURN_PING_ROLE_ID` env var | Plain opt-in notification, toggled from `/character`. |
 
 One more gate exists that is **not** a Discord role, and it's the only soft

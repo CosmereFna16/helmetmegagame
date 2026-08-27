@@ -1,6 +1,6 @@
 const { ChannelType, MessageFlags, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const { prisma, LABOR_FIELDS, FIELD_INFO, concealedAlias } = require("@lifeweb/db");
-const { buildLocationSelectRow, buildConfirmRow, performMove, syncCharacterNarrowcastAccess } = require("../lib/location");
+const { buildZoneSelectRow, buildConfirmRow, performMove, syncCharacterNarrowcastAccess } = require("../lib/zoneTravel");
 const { performLabor } = require("../lib/labor");
 const { sendDm } = require("../lib/dm");
 const { buildMoveModal } = require("../lib/moveModal");
@@ -14,15 +14,16 @@ const { resolveLaborRate } = require("@lifeweb/db");
 const { recordArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { dropCharacterTag } = require("@lifeweb/db/lib/tagWrites");
 const { HEALTH_CATEGORY } = require("@lifeweb/db/lib/medicalVision");
-const { canJoinThread, isPrivateThread, messageLink } = require("../lib/mentions");
-const { ensureForumTag } = require("@lifeweb/db/lib/discordRest");
+const { isPrivateThread, messageLink } = require("../lib/mentions");
+const { ensureForumTag, createForumPost, startPrivateThread, addThreadMember } = require("@lifeweb/db/lib/discordRest");
+const { PERSISTENT_TAG_NAME } = require("@lifeweb/db/lib/persistence");
+const { TOPIC_BUTTON_PREFIX, PRIVATE_BUTTON_PREFIX } = require("@lifeweb/db/lib/zoneAnchorRow");
 const {
-  PERSISTENT_TAG_NAME,
-  PERSISTENT_EMOJI,
-  isPersistentThreadName,
-  withPersistentPrefix,
-  withoutPersistentPrefix,
-} = require("@lifeweb/db/lib/persistence");
+  buildTopicModal,
+  buildPrivateModal,
+  TOPIC_MODAL_PREFIX,
+  PRIVATE_MODAL_PREFIX,
+} = require("../lib/topicModal");
 const { resolveChannelContext } = require("../lib/channels");
 const { ack, respond } = require("../lib/respond");
 
@@ -131,11 +132,14 @@ async function handleLaborCommand(interaction, field) {
 // bot/src/lib/commands.js), and both refuse outside a private thread.
 //
 // Anyone already in the thread may add or remove, plus GMs — the same posture
-// as pinging someone in, which any participant can already do. Nothing here
-// needs persisting: an ordinary private thread is deleted wholesale at Dawn
-// (db/lib/dawnWipe.js) and takes its guest list with it, while one marked by
-// /persistent survives and keeps that list on Discord's side — which is most
-// of why marking one is worth doing.
+// as pinging someone in, which any participant can already do.
+//
+// /add works on ANY living character, wherever they stand. The invite is
+// recorded as a PlayerThreadInvite row, and the Discord thread-member add is
+// attempted immediately: it lands if they can already see the zone, and
+// otherwise applyPendingInvites replays it the moment they arrive
+// (db/lib/threadInvites.js). No ping, no DM — being brought into a room
+// should be discovered, not announced.
 async function handleThreadMemberCommand(interaction, action) {
   const channel = interaction.channel;
   if (!isPrivateThread(channel)) {
@@ -168,6 +172,9 @@ async function handleThreadMemberCommand(interaction, action) {
   }
 
   if (action === "remove") {
+    await prisma.playerThreadInvite
+      .deleteMany({ where: { threadId: channel.id, characterId: target.id } })
+      .catch((err) => console.error("Failed to delete thread invite:", err));
     // Caught rather than left to the outer handler, which only logs — the
     // likely failure is the bot lacking MANAGE_THREADS on this channel, and
     // the invoker would otherwise just see "the application did not respond".
@@ -182,34 +189,48 @@ async function handleThreadMemberCommand(interaction, action) {
     return;
   }
 
-  // Location-scoped rather than Zone-scoped, and not a choice: Discord needs
-  // the target to be able to view the thread's parent channel, which only
-  // holds while they're standing in that Location.
-  const context = resolveChannelContext(channel);
-  if (!canJoinThread(target, context)) {
-    await respond(
-      interaction,
-      `» *${target.name} isn't in ${context.locationName ?? "this location"} — they can't be brought in.*`,
-    );
-    return;
-  }
+  // The invite row FIRST — it is what survives when the Discord add can't
+  // land yet, and what applyPendingInvites replays on the target's arrival.
+  await prisma.playerThreadInvite
+    .upsert({
+      where: { threadId_characterId: { threadId: channel.id, characterId: target.id } },
+      update: {},
+      create: { threadId: channel.id, characterId: target.id },
+    })
+    .catch((err) => console.error("Failed to record thread invite:", err));
 
-  try {
-    await channel.members.add(target.discordUserId);
-  } catch (err) {
-    console.error(`Failed to add ${target.discordUserId} to thread ${channel.id}:`, err);
-    await respond(interaction, "» *Couldn't add them — they may not be able to see this location.*");
+  const context = resolveChannelContext(channel);
+  const here = context.zoneId && target.zoneId === context.zoneId;
+  if (here) {
+    // channel.members.add would ping-mention them; the REST thread-members
+    // endpoint adds silently.
+    try {
+      await addThreadMember(channel.id, target.discordUserId);
+    } catch (err) {
+      console.error(`Failed to add ${target.discordUserId} to thread ${channel.id}:`, err);
+    }
+    await respond(interaction, `» *${target.name} was added.*`, { fleeting: true });
     return;
   }
-  await respond(interaction, `» *${target.name} was added.*`, { fleeting: true });
+  await respond(
+    interaction,
+    `» *${target.name} is invited — they'll see this thread when they reach ${context.zoneName ?? "this zone"}.*`,
+    { fleeting: true },
+  );
 }
 
 // /persistent: toggle whether the current thread survives the Dawn wipe.
 //
-// Two markers because the two channel types can't share one — a forum post
-// carries the real ⏰ forum tag, a private thread carries a ⏰ name prefix,
-// since a text channel can't have forum tags at all. db/lib/persistence.js
-// owns both, and db/lib/dawnWipe.js reads both.
+// The source of truth is PlayerThread.persistent in the DB — the wipe reads
+// the column, never a Discord marker, so a hand-stripped forum tag can't make
+// a standing side-room vanish. On a forum post the Persistent tag is still
+// mirrored for visibility; a private thread carries no marker at all (the old
+// ⏰ name prefix, and its two-renames-per-ten-minutes bucket, are gone).
+//
+// The sync-owned posts refuse: a Location topic and the Create-a-Topic anchor
+// never wipe and never expire, and that isn't a player's to change. Checked
+// against the recorded thread ids, not tags — a hand-edited tag opens no
+// hole.
 //
 // Gate is a living character or GM, deliberately NOT the thread-membership
 // check /add uses: that's wrong for a forum post, where you can act on a post
@@ -228,17 +249,9 @@ async function handlePersistentCommand(interaction) {
     return;
   }
 
-  // Deferred before anything else, and this command needs it more than any
-  // other: renaming a thread sits in a Discord bucket of TWO PER TEN MINUTES
-  // per thread, so toggling /persistent twice on the same thread parks the
-  // second rename behind a multi-minute wait inside discord.js's queue. The
-  // three-second window died every time and the player always saw "the
-  // application did not respond", even though the rename eventually landed.
-  // Not load-dependent — reproducible on demand. A deferred token lasts
-  // fifteen minutes, which covers it.
-  //
-  // The forum branch is no better: ensureForumTag is a channel GET and
-  // possibly a PATCH before the tag is even applied.
+  // Deferred before anything else: the DB round trips plus the forum-tag
+  // mirror (a channel GET and possibly a PATCH) can outlast the three-second
+  // window under load.
   await ack(interaction);
 
   if (!isGmMember(interaction) && !(await findAliveCharacter(interaction.user.id))) {
@@ -246,16 +259,49 @@ async function handlePersistentCommand(interaction) {
     return;
   }
 
-  let persistent;
-  try {
-    persistent = forumPost ? await toggleForumPostTag(channel) : await togglePrivateThreadPrefix(channel);
-  } catch (err) {
-    console.error(`Failed to toggle persistence on thread ${channel.id}:`, err);
-    await respond(interaction, "» *Couldn't change that — the bot may be missing Manage Threads here.*");
+  const [ownedTopic, ownedAnchor] = await Promise.all([
+    prisma.locationTopic.findFirst({ where: { discordThreadId: channel.id }, select: { id: true } }),
+    prisma.zone.findFirst({ where: { createTopicThreadId: channel.id }, select: { id: true } }),
+  ]);
+  if (ownedTopic || ownedAnchor) {
+    await respond(
+      interaction,
+      "» *That post belongs to the world — it never gets wiped, and that isn't yours to change.*",
+    );
     return;
   }
 
   const context = resolveChannelContext(channel);
+  let row = await prisma.playerThread.findUnique({ where: { threadId: channel.id } });
+  if (!row) {
+    // A thread with no row predates the rework or was made by a GM by hand —
+    // adopt it, the same posture the Dawn wipe takes.
+    if (!context.zoneId) {
+      await respond(interaction, "» *This thread isn't part of any zone.*");
+      return;
+    }
+    row = await prisma.playerThread.create({
+      data: {
+        threadId: channel.id,
+        kind: forumPost ? "PUBLIC" : "PRIVATE",
+        name: channel.name ?? "thread",
+        zoneId: context.zoneId,
+        persistent: false,
+      },
+    });
+  }
+
+  const persistent = !row.persistent;
+  await prisma.playerThread.update({ where: { id: row.id }, data: { persistent } });
+
+  // The visible mirror, forum posts only. A failed mirror logs but never
+  // fails the command — the DB is the truth the wipe reads.
+  if (forumPost) {
+    await mirrorPersistentTag(channel, persistent).catch((err) =>
+      console.error(`Failed to mirror the Persistent tag on ${channel.id}:`, err),
+    );
+  }
+
   await prisma.auditLog
     .create({
       data: {
@@ -265,7 +311,7 @@ async function handlePersistentCommand(interaction) {
           threadId: channel.id,
           threadName: channel.name,
           persistent,
-          locationName: context.locationName ?? null,
+          zoneName: context.zoneName ?? null,
         },
       },
     })
@@ -274,36 +320,29 @@ async function handlePersistentCommand(interaction) {
   await respond(
     interaction,
     persistent
-      ? "» *This thread will now survive the Dawn wipe — its messages still get cleared.*"
+      ? "» *This thread will now survive the nightly wipe — its messages still get cleared. It can still expire after long inactivity.*"
       : "» *This thread is no longer persistent, and will be removed at Dawn.*",
   );
 }
 
 // ensureForumTag rather than getForumTagId: a forum channel provisioned before
 // the Persistent tag existed would otherwise fail silently here, and this
-// creates it idempotently instead. Returns the thread's new persistence state.
-async function toggleForumPostTag(thread) {
-  const tagId = await ensureForumTag(thread.parentId, PERSISTENT_TAG_NAME, PERSISTENT_EMOJI);
+// creates it idempotently instead.
+async function mirrorPersistentTag(thread, persistent) {
+  const tagId = await ensureForumTag(thread.parentId, PERSISTENT_TAG_NAME, null);
   if (!tagId) throw new Error(`No ${PERSISTENT_TAG_NAME} tag available on ${thread.parentId}`);
 
   const current = thread.appliedTags ?? [];
   const has = current.includes(tagId);
-  await thread.setAppliedTags(has ? current.filter((id) => id !== tagId) : [...current, tagId]);
-  return !has;
+  if (persistent === has) return;
+  await thread.setAppliedTags(persistent ? [...current, tagId] : current.filter((id) => id !== tagId));
 }
 
-async function togglePrivateThreadPrefix(thread) {
-  const persistent = !isPersistentThreadName(thread.name);
-  await thread.setName(
-    persistent ? withPersistentPrefix(thread.name) : withoutPersistentPrefix(thread.name),
-  );
-  return persistent;
-}
-
-// All custom IDs below are namespaced "loc:" for the travel flow triggered
+// All custom IDs below are namespaced "zone:" for the travel flow triggered
 // from the Travel button on the #turns console
-// (bot/src/lib/turnsConsole.js) — "move:" and "say:" IDs further down are
-// the unrelated Move and Speak modals.
+// (bot/src/lib/turnsConsole.js; the button itself keeps its historical
+// "loc:open" id so the standing console message still works) — "move:" and
+// "say:" IDs further down are the unrelated Move and Speak modals.
 async function handleOpen(interaction) {
   // The Travel button on the #turns console, which every player presses within
   // a minute of turn open. Two queries before the first ack was the whole
@@ -316,30 +355,31 @@ async function handleOpen(interaction) {
     return;
   }
 
-  // An unset Location (brand-new character) can freely pick any Location to
-  // start in; otherwise the picker only offers the current Location's
-  // direct neighbors (see Location.connectsTo / performMove) — moving is
-  // now location-by-location, not "anywhere in zone, or any connected
-  // zone."
-  let locations;
-  let currentLocation = null;
-  if (!character.locationId) {
-    locations = await prisma.location.findMany({ orderBy: { name: "asc" } });
+  // An unset zone (brand-new character) can freely pick any presence zone to
+  // start in; otherwise the picker only offers the current zone's direct
+  // neighbors (Zone.connectsTo). The Caves group is never a destination.
+  let zones;
+  let currentZone = null;
+  if (!character.zoneId) {
+    zones = await prisma.zone.findMany({
+      where: { kind: { not: "CAVE_GROUP" } },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    });
   } else {
-    currentLocation = await prisma.location.findUnique({
-      where: { id: character.locationId },
+    currentZone = await prisma.zone.findUnique({
+      where: { id: character.zoneId },
       include: { connectsTo: true },
     });
-    locations = [...(currentLocation?.connectsTo ?? [])].sort((a, b) => a.name.localeCompare(b.name));
+    zones = [...(currentZone?.connectsTo ?? [])].sort((a, b) => a.name.localeCompare(b.name));
   }
-  if (locations.length === 0) {
+  if (zones.length === 0) {
     await respond(interaction, "» *Nowhere to go from here.*");
     return;
   }
 
   await respond(interaction, {
-    content: "Where would you like to move? Choose a location.",
-    components: [buildLocationSelectRow(locations, currentLocation)],
+    content: "Where would you like to move? Choose a zone.",
+    components: [buildZoneSelectRow(zones, currentZone)],
   });
 }
 
@@ -348,20 +388,20 @@ async function handlePlaceSelect(interaction) {
   // deferReply would post a second "thinking" message above it.
   await ack(interaction, { update: true });
 
-  const locationId = interaction.values[0];
-  const location = await prisma.location.findUnique({ where: { id: locationId } });
-  if (!location) {
-    await respond(interaction, { content: "» *That location no longer exists.*", components: [] });
+  const zoneId = interaction.values[0];
+  const zone = await prisma.zone.findUnique({ where: { id: zoneId } });
+  if (!zone) {
+    await respond(interaction, { content: "» *That zone no longer exists.*", components: [] });
     return;
   }
 
   await respond(interaction, {
-    content: `Move to **${location.name}**?`,
-    components: [buildConfirmRow(locationId)],
+    content: `Move to **${zone.name}**?`,
+    components: [buildConfirmRow(zoneId)],
   });
 }
 
-async function handleConfirm(interaction, locationId) {
+async function handleConfirm(interaction, zoneId) {
   await interaction.deferUpdate();
 
   const character = await findAliveCharacter(interaction.user.id);
@@ -370,9 +410,9 @@ async function handleConfirm(interaction, locationId) {
     return;
   }
 
-  const location = await prisma.location.findUnique({ where: { id: locationId } });
-  if (!location) {
-    await interaction.editReply({ content: "» *That location no longer exists.*", components: [] });
+  const zone = await prisma.zone.findUnique({ where: { id: zoneId } });
+  if (!zone) {
+    await interaction.editReply({ content: "» *That zone no longer exists.*", components: [] });
     return;
   }
 
@@ -382,18 +422,160 @@ async function handleConfirm(interaction, locationId) {
     return;
   }
 
-  const result = await performMove(guild, character, location);
+  const hadZone = Boolean(character.zoneId);
+  const result = await performMove(guild, character, zone);
   if (!result.ok) {
     await interaction.editReply({ content: `» *${result.reason}*`, components: [] });
     return;
   }
 
-  const suffix = result.free ? "" : " Your turn is spent.";
-  await interaction.editReply({ content: `» Moved to **${location.name}**.${suffix}`, components: [] });
+  const suffix = hadZone ? " Your turn is spent." : "";
+  await interaction.editReply({ content: `» Moved to **${zone.name}**.${suffix}`, components: [] });
 }
 
 async function handleCancel(interaction) {
   await interaction.update({ content: "» *Cancelled.*", components: [] });
+}
+
+// --- Create a Topic / Create a Private Thread -------------------------
+//
+// The two anchor buttons of the zone rework (db/lib/zoneAnchorRow.js): the
+// pinned Create-a-Topic post in each zone forum, and the permanent message
+// in each #private. Players hold no create-posts / create-threads permission
+// anywhere — the bot makes every thread, which is what keeps PlayerThread a
+// complete record (persistence, expiry, invites all hang off it).
+
+// showModal IS the acknowledgement and a deferred interaction can no longer
+// open one, so nothing is read before it — mirror of handleMoveOpen. The
+// gates run on submit.
+async function handleTopicOpen(interaction, zoneId) {
+  await interaction.showModal(buildTopicModal(zoneId));
+}
+
+async function handlePrivateOpen(interaction, zoneId) {
+  await interaction.showModal(buildPrivateModal(zoneId));
+}
+
+// Shared gates for both submit handlers: a living character, standing in the
+// zone whose button was pressed. The button lives in a channel only that
+// zone's role can see, but a button is a hint, not a lock — the ephemeral
+// picker outlives its player walking out of the zone.
+async function resolveCreationContext(interaction, zoneId) {
+  const character = await findAliveCharacter(interaction.user.id);
+  if (!character) {
+    await respond(interaction, "» *You don't have a living character.*");
+    return null;
+  }
+  const zone = await prisma.zone.findUnique({ where: { id: zoneId } });
+  if (!zone) {
+    await respond(interaction, "» *That zone no longer exists.*");
+    return null;
+  }
+  if (character.zoneId !== zone.id) {
+    await respond(interaction, `» *You're not in ${zone.name} any more.*`);
+    return null;
+  }
+  const name = interaction.fields.getTextInputValue("topic:name").trim().slice(0, 90);
+  if (!name) {
+    await respond(interaction, "» *Give it a name.*");
+    return null;
+  }
+  const persistent = optionalCheckbox(interaction, "topic:persistent");
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
+  return { character, zone, name, persistent, openTurn };
+}
+
+async function recordPlayerThread({ threadId, kind, name, zone, character, persistent, openTurn }) {
+  await prisma.playerThread.create({
+    data: {
+      threadId,
+      kind,
+      name,
+      zoneId: zone.id,
+      creatorCharacterId: character.id,
+      creatorDiscordUserId: character.discordUserId,
+      persistent,
+      lastActivityTurn: openTurn?.number ?? null,
+    },
+  });
+  await prisma.auditLog
+    .create({
+      data: {
+        actorDiscordUserId: character.discordUserId,
+        actionType: kind === "PUBLIC" ? "player_topic_created" : "player_thread_created",
+        targetCharacterId: character.id,
+        details: { threadId, name, zoneName: zone.name, persistent },
+      },
+    })
+    .catch((err) => console.error("Thread-creation audit log failed:", err));
+}
+
+async function handleTopicCreate(interaction, zoneId) {
+  // FIRST — the forum-post create plus two DB writes can outlast the window.
+  await ack(interaction);
+
+  const resolved = await resolveCreationContext(interaction, zoneId);
+  if (!resolved) return;
+  const { character, zone, name, persistent, openTurn } = resolved;
+
+  if (!zone.discordPublicChannelId) {
+    await respond(interaction, "» *This zone has no public forum.*");
+    return;
+  }
+
+  const appliedTags = [];
+  if (persistent) {
+    const tagId = await ensureForumTag(zone.discordPublicChannelId, PERSISTENT_TAG_NAME, null).catch(() => null);
+    if (tagId) appliedTags.push(tagId);
+  }
+
+  let thread;
+  try {
+    // The opening mention is what puts the new topic in the creator's
+    // mentions so they can find it, and makes them a follower.
+    thread = await createForumPost(zone.discordPublicChannelId, {
+      name,
+      content: `<@${interaction.user.id}> opened this scene.`,
+      appliedTags,
+    });
+  } catch (err) {
+    console.error(`Failed to create a topic in ${zone.name}:`, err);
+    await respond(interaction, "» *Couldn't create that — try again, or tell a GM.*");
+    return;
+  }
+
+  await recordPlayerThread({ threadId: thread.id, kind: "PUBLIC", name, zone, character, persistent, openTurn });
+  await respond(interaction, `» *Opened.*\n${messageLink(interaction.guildId, zone.discordPublicChannelId, thread.id)}`, {
+    fleeting: true,
+  });
+}
+
+async function handlePrivateCreate(interaction, zoneId) {
+  await ack(interaction);
+
+  const resolved = await resolveCreationContext(interaction, zoneId);
+  if (!resolved) return;
+  const { character, zone, name, persistent, openTurn } = resolved;
+
+  if (!zone.discordPrivateChannelId) {
+    await respond(interaction, "» *This zone has no private channel.*");
+    return;
+  }
+
+  let thread;
+  try {
+    thread = await startPrivateThread(zone.discordPrivateChannelId, name);
+    await addThreadMember(thread.id, interaction.user.id);
+  } catch (err) {
+    console.error(`Failed to create a private thread in ${zone.name}:`, err);
+    await respond(interaction, "» *Couldn't create that — try again, or tell a GM.*");
+    return;
+  }
+
+  await recordPlayerThread({ threadId: thread.id, kind: "PRIVATE", name, zone, character, persistent, openTurn });
+  await respond(interaction, `» *Opened.*\n${messageLink(interaction.guildId, thread.id, thread.id)}`, {
+    fleeting: true,
+  });
 }
 
 // --- Move ------------------------------------------------------------
@@ -437,7 +619,7 @@ async function handleMoveSubmit(interaction) {
   }
 
   // Also catches a prior auto-resolved zone-change Move (see
-  // bot/src/lib/location.js#performMove) — changing zones spends the turn
+  // bot/src/lib/zoneTravel.js#performMove) — changing zones spends the turn
   // just like a Move submission does.
   const alreadyActed = await prisma.action.findFirst({
     where: { characterId: character.id, turnId: openTurn.id },
@@ -797,21 +979,35 @@ module.exports = {
           return void (await handleLaborCommand(interaction, field));
         }
       } else if (interaction.isButton()) {
+        // "loc:open" survives from the pre-zone console message; the rest of
+        // the travel flow is "zone:"-namespaced.
         if (interaction.customId === "loc:open") return void (await handleOpen(interaction));
-        if (interaction.customId === "loc:cancel") return void (await handleCancel(interaction));
-        if (interaction.customId.startsWith("loc:confirm:")) {
-          return void (await handleConfirm(interaction, interaction.customId.slice("loc:confirm:".length)));
+        if (interaction.customId === "zone:cancel") return void (await handleCancel(interaction));
+        if (interaction.customId.startsWith("zone:confirm:")) {
+          return void (await handleConfirm(interaction, interaction.customId.slice("zone:confirm:".length)));
+        }
+        if (interaction.customId.startsWith(TOPIC_BUTTON_PREFIX)) {
+          return void (await handleTopicOpen(interaction, interaction.customId.slice(TOPIC_BUTTON_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(PRIVATE_BUTTON_PREFIX)) {
+          return void (await handlePrivateOpen(interaction, interaction.customId.slice(PRIVATE_BUTTON_PREFIX.length)));
         }
         if (interaction.customId === "move:open") return void (await handleMoveOpen(interaction));
         if (interaction.customId === "say:open") return void (await handleSpeakOpen(interaction));
       } else if (interaction.isStringSelectMenu()) {
-        if (interaction.customId === "loc:place") return void (await handlePlaceSelect(interaction));
+        if (interaction.customId === "zone:place") return void (await handlePlaceSelect(interaction));
         if (interaction.customId === "say:pick") return void (await handleSpeakPick(interaction));
         if (interaction.customId.startsWith("heal:pick:")) {
           return void (await handleHealPick(interaction, interaction.customId.slice("heal:pick:".length)));
         }
       } else if (interaction.isModalSubmit()) {
         if (interaction.customId === "move:new") return void (await handleMoveSubmit(interaction));
+        if (interaction.customId.startsWith(TOPIC_MODAL_PREFIX)) {
+          return void (await handleTopicCreate(interaction, interaction.customId.slice(TOPIC_MODAL_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(PRIVATE_MODAL_PREFIX)) {
+          return void (await handlePrivateCreate(interaction, interaction.customId.slice(PRIVATE_MODAL_PREFIX.length)));
+        }
         if (interaction.customId.startsWith("say:send:")) {
           return void (await handleSpeakSubmit(interaction, interaction.customId.slice("say:send:".length)));
         }

@@ -73,6 +73,32 @@ enum TurnPhase {
   DUSK
 }
 
+// What kind of place a Zone row is. SURFACE zones own the full category +
+// #summary/#public/#private layout. The Caves are special: one CAVE_GROUP row
+// owns the category and the GM seat but is not a place a character can stand,
+// and each CAVE_LEVEL under it owns a single forum channel and IS a presence
+// unit — you only see the level you're in. See docs/systemdocs/CHANNELS.md.
+enum ZoneKind {
+  SURFACE
+  CAVE_GROUP
+  CAVE_LEVEL
+}
+
+// Which kind of player-made thread a PlayerThread row tracks: a forum post in
+// a zone's #public, or a private thread under a zone's #private.
+enum PlayerThreadKind {
+  PUBLIC
+  PRIVATE
+}
+
+// Which operational pass a SystemReport row records the outcome of.
+enum SystemReportKind {
+  WIPE
+  DOCTOR
+  DAWN_WIPE
+  BULK_MOVE
+}
+
 enum TurnStatus {
   OPEN
   RESOLVED
@@ -327,13 +353,28 @@ model GameConfig {
   watchChannelId    String?
   intercomChannelId String?
 
-  // Where PUBLIC staged declarations post at the turn-end push (see
-  // StagedMessage below and db/lib/stagedPush.js). One channel for the whole
-  // game for now; when the per-zone summary channels arrive, delivery moves
-  // to the zoneId already carried on each row and this becomes the fallback.
-  // Named turnSummaryChannelId because DefaultEffort.summaryChannelId already
+  // Inactivity expiry for player-made topics and private threads
+  // (db/lib/threadExpiryPass.js, run alongside the Dawn wipe): a PlayerThread
+  // with no messages for threadExpiryTurns turns is deleted, persistent or
+  // not — only Location topics and the bot's anchor posts are forever.
+  // Independent of messageWipeEnabled: a game that never wipes at Dawn may
+  // still want dead scenes reaped. Off by default, same posture as
+  // messageWipeEnabled.
+  threadExpiryEnabled Boolean @default(false)
+  threadExpiryTurns   Int     @default(5)
+
+  // Whether the bot runs the channel doctor's cheap reconciliation pass
+  // (db/lib/channelDoctor.js) automatically after every turn advance, on top
+  // of its pass at ready. Off by default.
+  autoReconcileEnabled Boolean @default(false)
+
+  // FALLBACK target for PUBLIC staged declarations at the turn-end push (see
+  // StagedMessage below and db/lib/stagedPush.js). Since the zone rework a
+  // PUBLIC row posts to its zone's own #summary; this catches rows whose
+  // zone has none (the Caves seat) or was never set. Named
+  // turnSummaryChannelId because DefaultEffort.summaryChannelId already
   // means something else (where a default move's summary posts).
-  // Null means public declarations are composed but skipped at push, each
+  // Null means such declarations are composed but skipped at push, each
   // recorded on its row's deliveryFailures.
   turnSummaryChannelId String?
 }
@@ -382,22 +423,107 @@ model Faction {
   updatedAt DateTime @updatedAt
 }
 
+// A place a character stands — the unit of presence, travel and channel
+// access since the zone rework retired per-Location channels. Mastered by
+// docs/zones.yaml (db/lib/syncZones.js, npm run db:sync-zones), which is
+// destructive both ways, matched on `slug`.
+//
+// Access is ONE Discord guild role per presence zone ("Zone: Town",
+// discordRoleId below): moving a character is a role swap, and every zone
+// channel carries a handful of role overwrites instead of one per member.
+// That is what makes drift cheap to detect and repair — see
+// db/lib/channelDoctor.js.
+//
+// kind decides the Discord footprint (see ZoneKind above). seatZoneId is the
+// denormalized GM-seat key: parentZoneId ?? id, written by the sync. Every
+// query that groups by "which GM's table does this belong on" — factions,
+// GmAssignment, Action/Note/DefaultEffort/StagedMessage stamping — filters on
+// seatZoneId, so the four GM seats stay four while presence is six. Writers
+// stamp it via db/lib/seatZone.js#seatZoneIdFor, never by hand.
+//
+// connectsTo/connectedFrom back a single undirected travel graph, mastered by
+// docs/zones.yaml's zoneConnections. The sync writes each zone's full
+// neighbor set both directions explicitly, so only connectsTo is ever read;
+// connectedFrom exists because Prisma requires both sides of a self-relation
+// named. Every hop costs the character's Move — there is no free travel.
 model Zone {
-  id                String   @id @default(cuid())
-  name              String
-  discordChannelIds String[]
+  id   String @id @default(cuid())
+  slug String @unique
+  name String
 
-  locations      Location[]
-  factions       Faction[]
-  characters     Character[]
-  actions        Action[]
-  defaultEfforts DefaultEffort[]
-  notes          Note[]
-  gmAssignments  GmAssignment[]
-  stagedMessages StagedMessage[]
+  kind ZoneKind @default(SURFACE)
+
+  // Authoring order from the YAML, so category sorting and pickers match the
+  // file rather than the alphabet.
+  sortOrder Int @default(0)
+
+  // The short blurb heading the zone's "Create a Topic" post. One or two
+  // sentences ("A fertile valley.").
+  description String @default("")
+
+  // Self-parent: only CAVE_LEVEL rows set it, pointing at the CAVE_GROUP.
+  parentZoneId String?
+  parentZone   Zone?   @relation("ZoneNesting", fields: [parentZoneId], references: [id])
+  childZones   Zone[]  @relation("ZoneNesting")
+
+  // parentZoneId ?? id — see the model comment. A single equality, no
+  // recursion, for every seat-scoped query.
+  seatZoneId  String?
+  seatZone    Zone?  @relation("ZoneSeat", fields: [seatZoneId], references: [id])
+  seatedZones Zone[] @relation("ZoneSeat")
+
+  connectsTo    Zone[] @relation("ZoneConnections")
+  connectedFrom Zone[] @relation("ZoneConnections")
+
+  // Discord footprint. Null until provisioned by the sync (create-only,
+  // keyed on discordCategoryId being null — names are one-time; renaming a
+  // zone in the YAML does not rename live channels). Which of these a row
+  // uses depends on kind: SURFACE gets all four channels under its own
+  // category, CAVE_GROUP only the category, CAVE_LEVEL only the public forum
+  // (parented to the group's category).
+  discordCategoryId       String?
+  discordSummaryChannelId String?
+  discordPublicChannelId  String?
+  discordPrivateChannelId String?
+
+  // The zone's access role ("Zone: Town"). Held by every character standing
+  // here; grants ViewChannel on the zone's channels via role overwrites.
+  // Permissions 0, color 0, never hoisted or mentionable.
+  discordRoleId String? @unique
+
+  // The pinned, locked "Create a Topic" anchor post in the public forum, and
+  // the permanent anchor message in #private — both content-hash reconciled
+  // by the sync exactly as the old description posts were, so a no-op re-sync
+  // makes zero Discord calls.
+  createTopicThreadId    String?
+  createTopicHash        String?
+  privateAnchorMessageId String?
+  privateAnchorHash      String?
+
+  // Clickable region on the /map plate: a polygon of [x, y] percentage pairs
+  // (0-100 of the 4:3 plate, origin top-left), plus where the label sits.
+  // Json because a region is a variable-length point list. Null/empty means
+  // the zone draws nothing (the CAVE_GROUP row).
+  mapPolygon Json?
+  mapLabelX  Float?
+  mapLabelY  Float?
+
+  topics           LocationTopic[]
+  playerThreads    PlayerThread[]
+  factions         Faction[]
+  characters       Character[]
+  actions          Action[]
+  defaultEfforts   DefaultEffort[]
+  notes            Note[]
+  gmAssignments    GmAssignment[]
+  stagedMessages   StagedMessage[]
+  startingForRoles Role[]          @relation("RoleStartingZone")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([seatZoneId])
+  @@index([parentZoneId])
 }
 
 /// Which zone a GM is the seat for. The game runs with one master (the
@@ -430,94 +556,136 @@ model GmAssignment {
   @@index([zoneId])
 }
 
-// A place within a Zone (e.g. "church" within the "Town" zone), backed by a
-// standard 1-category/3-channel Discord layout: a plain channel (the
-// location itself, tupper+summary), a "-public" forum (tupper), and a
-// "-private" text channel (tupper within its private threads only — see
-// bot/src/lib/channels.js / web/lib/discordGuild.js isTupperChannel). The
-// Access is a ViewChannel permission overwrite per resident, keyed on
-// Character.discordUserId (type 1, a member overwrite), written to the
-// category AND all three channels — a channel does not reliably inherit its
-// category. See db/lib/locationAccess.js and bot/src/lib/location.js.
-// discordCategoryId/discordChannelId/discordPublicChannelId/
-// discordPrivateChannelId are null until the channels are provisioned by
-// db/lib/syncLocations.js#provisionLocationChannels (npm run db:sync-locations).
-// Provisioning is one-time — keyed on discordCategoryId being null — so a
-// re-sync never re-applies permissions; npm run db:reprovision-locations
-// verifies them, and rebuilds a named Location's channels with --apply.
-//
-// slug is the stable human-authored key used by docs/locations.yaml + the
-// db:sync-locations script (db/prisma/sync-locations.js) to match rows
-// across syncs — separate from `id` so the YAML doesn't need to know
-// Prisma's generated cuids. tags are free-text flavor/categorization labels
-// authored in the YAML, unrelated to the player-facing Tag/CharacterTag
-// system.
-//
-// connectsTo/connectedFrom back a single undirected adjacency graph (not a
-// directed "A can reach B but not vice versa" one), mastered by
-// docs/locations.yaml's locationConnections list and applied by
-// syncLocationsFromYaml, which always writes each Location's own
-// `connectsTo` to its full neighbor set (both directions explicitly, never
-// relying on Prisma's relation to mirror it) — so only `connectsTo` is ever
-// read; `connectedFrom` exists solely because Prisma requires a named field
-// on both sides of a self-relation and is otherwise unused. A Location pair
-// not listed in the YAML is NOT connected — there is no "fully connected by
-// default" fallback — which is what performMove (bot/src/lib/location.js)
-// checks before allowing any Move (whether free or turn-spending).
-model Location {
-  id                  String   @id @default(cuid())
-  slug                String?  @unique
-  name                String
-  // The INTRO string: one or two sentences, rendered into the summary
-  // channel's topic by syncLocations.js#buildSummaryTopic. Short by nature — a
-  // Discord channel topic is a single capped line.
-  description         String   @default("")
-  // The LONG-FORM description. Has no topic to fit into: it's rendered, with
-  // the sublocale prose below, into the generated locked+pinned
-  // "{Location}: Description" forum post in the -public channel. See
-  // syncLocations.js#syncDescriptionPost.
-  extendedDescription String   @default("")
-  // [{ name, description }], ordered. `name` alone feeds the topic's
-  // "**Sublocations**: …" list exactly as before; `description` is the
-  // per-sublocale section of the description post. Json rather than String[]
-  // because a sublocale is now a pair, not a label — docs/locations.yaml is
-  // the sole master and still accepts a bare string, which normalizes to
-  // `{ name, description: "" }`.
-  publicSubLocations  Json     @default("[]")
-  privateSubLocations String[] @default([])
-  tags                String[] @default([])
-  zoneId              String
-  zone                Zone     @relation(fields: [zoneId], references: [id])
+/// A former Location, demoted to prose. NOT a place a character stands —
+/// presence is Zone-level since the rework. Each row is one generated,
+/// "Location"-tagged forum post in its zone's public forum, whose starter
+/// message is the location's description plus its formatted sub-locations.
+/// The Dawn wipe deletes every message in it EXCEPT that starter; nothing
+/// player-facing can delete or unwipe the post itself. Mastered by
+/// docs/zones.yaml's per-zone `topics:` lists; reconciled by content hash
+/// exactly as the old description posts were (db/lib/syncZones.js).
+model LocationTopic {
+  id   String @id @default(cuid())
+  slug String @unique
+  name String
 
-  // Where this location's node sits on the web app's Map panel, as
-  // percentages of the plate (0-100, origin top-left). Mastered by `map:` in
-  // docs/locations.yaml and rewritten on every sync, same as description /
-  // publicSubLocations. Null means the location simply isn't drawn on the
-  // plate — it's still reachable from the destination list beside it.
-  mapX Float?
-  mapY Float?
+  // Long-form body of the starter message.
+  description String @default("")
 
-  discordCategoryId       String?
-  discordChannelId        String?
-  discordPublicChannelId  String?
-  discordPrivateChannelId String?
+  // [{ name, description }], ordered — one ### section per entry in the
+  // starter message. An empty description still gets its heading: the post
+  // is a skeleton, and the bare heading is the prompt.
+  subLocations Json @default("[]")
 
-  // The generated "{Location}: Description" forum post in the -public channel:
-  // its thread id (which is also its starter message's id), plus a hash of the
-  // body last written into it. The hash is what keeps a no-op re-sync from
-  // making any Discord call at all — same rate-limit discipline as the rest of
-  // syncLocations.js.
-  discordDescriptionThreadId String?
-  descriptionPostHash        String?
+  // Authoring order within the zone, from the YAML.
+  sortOrder Int @default(0)
 
-  characters       Character[]
-  startingForRoles Role[]      @relation("RoleStartingLocation")
+  zoneId String
+  zone   Zone   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
 
-  connectsTo    Location[] @relation("LocationConnections")
-  connectedFrom Location[] @relation("LocationConnections")
+  // The forum post's thread id (also its starter message's id), plus a hash
+  // of the body last written — the no-op-resync guard.
+  discordThreadId String?
+  postHash        String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+}
+
+/// Every forum post and private thread the bot has created on a player's
+/// behalf. The bot is the ONLY creator since the rework (players lose
+/// Create Posts / Create Private Threads), so this table is complete — which
+/// is what lets persistence live here instead of in an emoji name-prefix, and
+/// what makes turn-based inactivity expiry measurable at all (a persistent
+/// thread is EMPTIED every Dawn, so "no messages for N turns" cannot be read
+/// from its contents).
+///
+/// `persistent` here is the source of truth. For a PUBLIC post the
+/// "Persistent" forum tag is a visible mirror, re-asserted by the wipe; for a
+/// PRIVATE thread there is no marker at all — no rename, and none of the
+/// 2-renames-per-10-minutes rate limit the old prefix toggle fought.
+///
+/// Creator fields are snapshots, not FKs — the thread outlives a dead or
+/// wiped character, same posture as the log tables.
+model PlayerThread {
+  id       String           @id @default(cuid())
+  threadId String           @unique
+  kind     PlayerThreadKind
+  name     String
+
+  zoneId String
+  zone   Zone   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  creatorCharacterId   String?
+  creatorDiscordUserId String?
+
+  persistent Boolean @default(false)
+
+  // Inactivity clock, in TURNS — the game's own clock, not wall time.
+  // Written by the bot's messageCreate (debounced to one write per thread
+  // per turn) and cross-checked at sweep time against the thread's
+  // last_message_id snowflake, which covers messages the bot missed while
+  // disconnected. Swept by db/lib/threadExpiryPass.js once
+  // openTurn.number - lastActivityTurn reaches GameConfig.threadExpiryTurns.
+  lastActivityTurn Int?
+  lastActivityAt   DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([lastActivityTurn])
+}
+
+/// Who /add has invited into a private thread. Discord's thread-member list
+/// is the live truth, but it refuses (or loses) a member who can't currently
+/// view the parent channel — which is exactly what /add now supports: invite
+/// anyone, they see the thread when they reach the zone. So the invite is
+/// recorded here and re-applied by applyPendingInvites whenever the character
+/// enters the zone, in the same pass that swaps their zone role.
+///
+/// threadId deliberately carries no FK to PlayerThread so the doctor can
+/// clean the two independently; characterId is a plain id for the same
+/// reason.
+model PlayerThreadInvite {
+  threadId    String
+  characterId String
+
+  createdAt DateTime @default(now())
+
+  @@id([threadId, characterId])
+  @@index([characterId])
+}
+
+/// The outcome of a long-running operational pass that runs in after() or a
+/// side-effect thunk — Restart Game, the channel doctor, the Dawn wipe, a GM
+/// bulk move — where the UI has already returned "ok" long before the work
+/// finishes. The Dev Panel shows the latest report per kind instead of
+/// claiming a success it cannot know about. A row with finishedAt null is
+/// itself the signal: the container died mid-pass.
+model SystemReport {
+  id   String           @id @default(cuid())
+  kind SystemReportKind
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  ok         Boolean   @default(false)
+
+  actorDiscordUserId String?
+
+  /// { steps: [{ name, ok, detail?, message? }], ... } — one entry per step,
+  /// in execution order.
+  summary Json @default("{}")
+
+  /// [{ step, target?, message }] — every failure, never truncated to a
+  /// count.
+  failures Json @default("[]")
+
+  createdAt DateTime @default(now())
+
+  @@index([kind, createdAt])
 }
 
 model Character {
@@ -585,16 +753,15 @@ model Character {
   factionId String?
   faction   Faction? @relation(fields: [factionId], references: [id])
 
-  // zoneId is a denormalized mirror of location.zoneId, kept in sync
-  // whenever locationId changes (see bot/src/lib/location.js) so the
-  // existing zone-filter UI (players/turns tables, notes) and the zoneId
-  // stamped onto Action/DefaultEffort/Note keep working unchanged.
-  // locationId is the authoritative "where is this character" field and
-  // the source of their category-level channel access.
-  zoneId     String?
-  zone       Zone?     @relation(fields: [zoneId], references: [id])
-  locationId String?
-  location   Location? @relation(fields: [locationId], references: [id])
+  // AUTHORITATIVE "where is this character" since the zone rework — always a
+  // presence zone (SURFACE or CAVE_LEVEL, never the CAVE_GROUP row). Drives
+  // the character's "Zone: {Name}" Discord role (swapped on travel by
+  // bot/src/lib/zoneTravel.js / web/lib/discordGuild.js#syncCharacterZoneRole)
+  // and therefore everything they can see. Note this is the PRESENCE zone;
+  // rows stamped onto Action/Note/DefaultEffort/StagedMessage carry the SEAT
+  // zone instead (db/lib/seatZone.js#seatZoneIdFor).
+  zoneId String?
+  zone   Zone?   @relation(fields: [zoneId], references: [id])
 
   // Personal Discord role titled after this character's BARE name (first +
   // last, via formatBareName) and seeded to a muted color by
@@ -1000,10 +1167,10 @@ model Role {
   // is only the hint.
   lockedGender Gender?
 
-  // Where characters with this role begin — and therefore the one Location
-  // category their personal Discord role gets ViewChannel on at creation.
-  startingLocationId String?
-  startingLocation   Location? @relation("RoleStartingLocation", fields: [startingLocationId], references: [id])
+  // Where characters with this role begin — the presence Zone their zone
+  // role points at when the character is created.
+  startingZoneId String?
+  startingZone   Zone?   @relation("RoleStartingZone", fields: [startingZoneId], references: [id])
 
   characters Character[]
 
@@ -1486,8 +1653,8 @@ model Desire {
 //
 // The id columns are deliberately NOT foreign keys, same posture as
 // SiloTransaction and AuditLog's snapshot fields. Two things in this codebase
-// destructively delete the rows they'd point at: syncLocationsFromYaml removes
-// any Location dropped from the YAML, and wipeGameData clears Characters. A
+// destructively delete the rows they'd point at: syncZonesFromYaml removes
+// any Zone dropped from the YAML, and wipeGameData clears Characters. A
 // real relation would either take the transcript with it or fail on FK
 // ordering (which Restart Game has already been bitten by once). Plain indexed
 // ids plus name snapshots survive both, and the snapshot is the more correct
@@ -1501,8 +1668,8 @@ model ArchiveEntry {
   turnPhase  TurnPhase?
   sentAt     DateTime   @default(now())
 
-  locationId    String?
-  locationName  String?
+  zoneId        String?
+  zoneName      String?
   characterId   String?
   characterName String?
 
@@ -1517,8 +1684,9 @@ model ArchiveEntry {
   // events, which have no Discord message behind them.
   discordMessageId String? @unique
 
-  // plain | public | private | watch | intercom — lets the panel keep a
-  // location's summary channel apart from its forum scenes.
+  // summary | public | private | watch | intercom — lets the panel keep a
+  // zone's summary channel apart from its forum scenes. ("plain" in rows
+  // written before the zone rework.)
   channelKind String?
 
   // Forum post / thread title, so a scene reads as one unit rather than
@@ -1546,7 +1714,7 @@ model ArchiveEntry {
   @@index([sentAt, id])
   @@index([turnNumber])
   @@index([kind])
-  @@index([locationId, sentAt])
+  @@index([zoneId, sentAt])
   @@index([characterId, sentAt])
   @@index([discordChannelId, sentAt])
 }

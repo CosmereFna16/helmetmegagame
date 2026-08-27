@@ -1,0 +1,366 @@
+# Source of truth for the game's Zones and their Location topics,
+# hand-edited then pushed with `npm run db:sync-zones`
+# (db/lib/syncZones.js). This sync is fully destructive in both
+# directions: entries here are upserted into the DB and Discord by `id`
+# slug, and any Zone/Topic NOT listed here gets its Discord objects deleted
+# and its DB row removed — for a Zone that means a whole category, its
+# channels, and its "Zone: {Name}" access role; for a Topic it means one
+# forum post. Removing an entry is a real delete — there's no undo short of
+# re-adding it (which provisions brand-new Discord objects, since a
+# removed/re-added Zone or Topic loses its old Discord IDs).
+#
+# A ZONE is a place a character can stand. It owns a Discord category, a
+# "Zone: {Name}" access role, and channels. A TOPIC is prose only — one
+# generated, Location-tagged forum post inside its zone's public forum. You
+# cannot travel to a topic; only a Zone is a travel destination.
+#
+# - id: a stable slug, used to match this entry (Zone or Topic) to its DB
+#   row across syncs. Renaming an entry later means changing `name` here,
+#   NOT `id` — a changed `id` is treated as a brand-new Zone/Topic (old one
+#   pruned, new one provisioned from scratch) instead of a rename.
+# - name: display name (Title Case). Only used as the Discord
+#   channel/category name the FIRST time a Zone is provisioned — renaming it
+#   here later does not rename already-provisioned Discord channels (see
+#   CLAUDE.md).
+#
+# PROSE STYLE — every prose value in this file is a `>-` folded block
+# scalar, one physical line per paragraph, no hard wrapping, UNLESS it has
+# real paragraph breaks, in which case it takes `|-` instead, with ONE blank
+# line between paragraphs (a folded scalar collapses a blank line to a
+# single newline, not the `\n\n` a paragraph break needs). An unwritten
+# value is literally `""`.
+#
+# map: a clickable polygon on the /map plate — `polygon:` is a list of
+# [x, y] pairs as percentages (0-100) of the 4:3 plate, origin top-left,
+# plus `label: { x, y }` for where the name is drawn. A group Zone (the
+# Caves category itself, not its levels) has no standable footprint, so its
+# polygon is empty and it carries only a label point.
+#
+# zoneConnections: the whole travel graph — every hop costs the character's
+# Move (Location-to-location free walks within a Zone are gone; the topics
+# system replaces them with prose only). A `kind: group` zone may never
+# appear here — it isn't a place you can stand, only a container for its
+# levels.
+
+zones:
+  # --- Surface zones ---
+  - id: town
+    name: Town
+    kind: surface
+    sort: 1
+    description: >-
+      A fertile valley.
+    map:
+      polygon:
+        - [50, 30]
+        - [95, 30]
+        - [95, 75]
+        - [55, 80]
+        - [40, 55]
+      label: { x: 74, y: 50 }
+    topics:
+      # Old location id "town" collides with this zone's own id (topic ids
+      # and zone ids share one validation namespace) — renamed to
+      # "town-square".
+      - id: town-square
+        name: Square
+        description: >-
+          Vines dress the homes. An old, ruined wall, patched with wooden palisade, surrounds the town.
+        subLocations:
+          - name: Fields
+            description: ""
+          - name: Inn
+            description: ""
+          - name: Market Row
+            description: ""
+          - name: Gallows
+            description: ""
+          - name: Fountain
+            description: ""
+          - name: Smithery
+            description: ""
+      - id: church
+        name: Cathedral
+        description: >-
+          Stained limestone erected modestly upon a tall wooded hill. The inside is vastly illuminated.
+        subLocations:
+          - name: Hall
+            description: ""
+          - name: Vestry
+            description: ""
+          - name: Crypt
+            description: ""
+          - name: Bell Tower
+            description: ""
+          - name: Confessionals
+            description: ""
+          - name: Scriptorium
+            description: ""
+          - name: Courtyard
+            description: ""
+          - name: Houses
+            description: ""
+      - id: sanctuary
+        name: Sanctuary
+        description: >-
+          A squat but elegant place built into the ruins of an old fort. Immaculately clean, bathed by light. The Barons funded it with electrical and mechanical equipment, but not all of it works—the wooden contraptions are more reliable.
+        subLocations:
+          - name: Ward
+            description: ""
+          - name: Esculap's Office
+            description: ""
+          - name: Theater
+            description: ""
+          - name: Morgue
+            description: >-
+              Where they go before they're buried. There's also a cellar stuffed with ice here—a good place to store organs.
+          - name: Garden
+            description: >-
+              You can grow herbs here.
+      - id: underquarter
+        name: Underquarter
+        description: >-
+          Squat buildings, piled into discomfort.
+        subLocations:
+          - name: Shacks
+            description: ""
+          - name: Abandoned Theater
+            description: ""
+          - name: Gambling Den
+            description: ""
+          - name: Bathhouse
+            description: ""
+          - name: Old Lots
+            description: ""
+      - id: forest
+        name: Forest
+        description: >-
+          Streams part mossy boulders under the green shadows of spruce and beech.
+        subLocations: []
+
+  - id: fortress
+    name: Fortress
+    kind: surface
+    sort: 2
+    description: >-
+      A fortress.
+    map:
+      polygon:
+        - [5, 5]
+        - [50, 5]
+        - [50, 45]
+        - [5, 45]
+      label: { x: 27, y: 25 }
+    topics:
+      - id: keep
+        name: Keep
+        description: |-
+          Stone walls reinforced with ceramite, the color of terracotta and steel, draped with the Baron's fluttering heraldry. Old electric lamps of various colors illuminate the warm, comfortable interiors.
+
+          The gates open into a hallway branching into the Keep's many rooms. Past gargoyle-studded columns, the throne room. Stairs lead downwards into the Undercroft and upwards into the Quarters.
+        subLocations:
+          - name: Throne Room
+            description: >-
+              Intimately small, with an ornately carved wooden throne. Benches form concentric circles near the entrance. There's an elevated arcade to the left, and a hearth to the right.
+          - name: Great Hall
+            description: >-
+              The roof vaults over rows of banqueted tables. There's a balcony; the view plunges downwards into the forest.
+          - name: Council Room
+            description: >-
+              A wide table. There's a holographic map of Ravenheart and a button for the intercom.
+          - name: The Charon
+            description: >-
+              A sealed gate. The Baron's key opens this.
+          - name: Swimming Pool
+            description: "An extravagant design. Its novelty has worn off, and now it's a place where the nobility fall in and drown."
+          - name: Servant's Wing
+            description: "The kitchen, the pantry, the latrines."
+          - name: Healer's Ward
+            description: ""
+          - name: Library
+            description: "The library and some branching offices. Also, the Meister's rookery and its caged ravens."
+          - name: Reliquary Chapel
+            description: >-
+              The Silver Cross is locked away here, accessible by the Incarn's key.
+      - id: garrison
+        name: Garrison
+        description: >-
+          The garrison tower and its offshoot buildings surround the training yard. A home for those who walk the cobbles at night.
+        subLocations:
+          - name: Captain's Office
+            description: >-
+              In the center of the tower, second floor. You should let some fresh air in.
+          - name: Barracks
+            description: ""
+          - name: Armory
+            description: >-
+              It has enough to give each Watchman his choice of gear—short of plate—but nothing else. Consider stocking it.
+          - name: Dungeons
+            description: >-
+              Connects to the Undercroft.
+          - name: Training Yard
+            description: >-
+              In the center of the garrison, surrounded by elevated platforms. There are crates of wooden training weapons.
+          - name: Kennels
+            description: >-
+              Good and mean dogs both, ready to hunt unruly peasants.
+      - id: gatehouse
+        name: Gatehouse
+        description: |-
+          Grass rises rebelliously around the manicured paths, illuminated by searchlight. Past the portcullis, old stone stairs rise towards the Keep, and further yet, to the Lifeweb tower. The Gatehouse itself has several watchtowers and a murder hole over the gate. A winch system controls the portcullis. There is a back gate behind the fortress leading into the forest, but it's equally guarded.
+
+          There is a triple-barreled anti-air autocannon in the center of the yard. It seems to be off.
+        subLocations:
+          - name: Gate
+            description: >-
+              Menacing iron, with several inset windows, built by a paranoid man. There are old logs to the side, piled and bound.
+          - name: Lifeweb
+            description: >-
+              A tower of pure ceramite. It spews a voluminous flame. The Mortii's key unlocks the door.
+          - name: Yard
+            description: >-
+              The constant rains have raised vines across the fortress walls, which flower white and pink.
+          - name: Stables
+            description: >-
+              Old horses only, incapable of bearing anyone.
+          - name: Bell Tower
+            description: >-
+              The old-fashioned way.
+      - id: undercroft
+        name: Undercroft
+        description: >-
+          Pillars uphold the keep from collapsing onto the barrels of wine and antiquities. There are deeper passages.
+        subLocations:
+          - name: Sauna
+            description: >-
+              The heater is electric. Small and comfortable.
+          - name: Cistern
+            description: >-
+              Dark, connected rooms with ornate pillars, full of knee-high water.
+          - name: Tombs
+            description: >-
+              The Baron's progenitors bear faces of varying humanity.
+          - name: Bricked-up Door
+            description: >-
+              Where does this go...? It wouldn't be easy to open this passageway.
+          - name: Ancient Shrine
+            description: >-
+              A shrine to Thoth, the Old God of art, magnificence, and inspiration. How has this not been destroyed yet?
+
+  - id: windlands
+    name: Windlands
+    kind: surface
+    sort: 3
+    description: >-
+      Brush, puddles, and wind. Little survives here.
+    map:
+      polygon:
+        - [5, 65]
+        - [95, 65]
+        - [95, 98]
+        - [5, 98]
+      label: { x: 50, y: 82 }
+    topics:
+      - id: warcamp
+        name: Warcamp
+        description: >-
+          An arbitrary array of tents, shields, and banners rise against the mountainside.
+        subLocations:
+          - name: War Pavilion
+            description: ""
+          - name: Common Grounds
+            description: ""
+          - name: Healer's Tents
+            description: ""
+          - name: Mess Hall
+            description: ""
+          - name: Broken Spears Camp
+            description: ""
+          - name: Lieutenant's Camp
+            description: ""
+          - name: Fields
+            description: ""
+          - name: Mountains
+            description: ""
+
+  # --- Caves (group) ---
+  # Category + GM seat only, NOT a standable place: no summary/private
+  # channels, no "Zone: Caves" access role, and it never appears in
+  # zoneConnections. Its `levels:` list is what actually gets flattened by
+  # the sync into three real, standable zones (caverns / railroad /
+  # aberrant-pits), each shaped like a surface zone minus `kind`.
+  - id: caves
+    name: Caves
+    kind: group
+    sort: 4
+    description: >-
+      The mouth to the other world.
+    map:
+      polygon: []
+      label: { x: 12, y: 68 }
+    levels:
+      - id: caverns
+        name: Caverns
+        sort: 1
+        description: >-
+          Wet, dimly-lit caves, worked smooth by centuries of traffic.
+        map:
+          polygon:
+            - [5, 62]
+            - [21, 62]
+            - [21, 74]
+            - [5, 74]
+          label: { x: 13, y: 68 }
+        topics:
+          - id: customs
+            name: Customs
+            description: >-
+              The sentry beholds migrants and mercenaries as they talk around the fire.
+            subLocations:
+              - name: Outpost
+                description: ""
+              - name: Merchant's Depot
+                description: >-
+                  Inside the caves, crates around a decayed metal frame. There is a small gap in the roof where light comes in. Besides the shuttle pad, there is a ledger room and a bunkhouse.
+
+      # The three levels of the Depths, chained one Move apart like every
+      # other hop — since the zone rework there is no free walking anywhere,
+      # so the levels need no special cost rule, only their place in
+      # zoneConnections below.
+      - id: railroad
+        name: Railroad
+        sort: 2
+        description: "A powered train station looming over an inscrutable abyss. You could get on, but where would you go? There are openings in the subway tunnels leading into ancient, unused maintenance areas. Where the tunnels break into open air, you can indeed see the pits, deformed and warped into unnatural stone. There's reflective metal down there. Chrome? Ceramite?"
+        map:
+          polygon:
+            - [3, 76]
+            - [19, 76]
+            - [19, 88]
+            - [3, 88]
+          label: { x: 11, y: 82 }
+        topics: []
+      - id: aberrant-pits
+        name: Aberrant Pits
+        sort: 3
+        description: >-
+          The start and end of all things. What madness brought you down here? The stone curves into strange, meandering passageways, but ceramite catches your torchlight. Monuments of chrome—cities within the deep.
+        map:
+          polygon:
+            - [1, 90]
+            - [17, 90]
+            - [17, 99]
+            - [1, 99]
+          label: { x: 9, y: 95 }
+        topics: []
+
+# Every hop in this list costs the character's Move. A `kind: group` zone
+# (caves) may never appear here — only its levels (caverns, railroad,
+# aberrant-pits) are real travel destinations.
+zoneConnections:
+  - [town, fortress]
+  - [town, windlands]
+  - [town, caverns]
+  - [fortress, railroad]
+  - [windlands, railroad]
+  - [caverns, railroad]
+  - [railroad, aberrant-pits]

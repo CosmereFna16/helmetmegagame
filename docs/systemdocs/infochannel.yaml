@@ -1,7 +1,7 @@
 # Source of truth for #info's content, hand-edited then pushed with
 # `npm run db:rebuild-info-channel` (db/prisma/rebuild-info-channel.js).
 #
-# Unlike locations.yaml/roles.yaml, this is NOT an upsert — every run is a
+# Unlike zones.yaml/roles.yaml, this is NOT an upsert — every run is a
 # full destructive wipe of #info (every message, every thread) followed by
 # a full rebuild from whatever is currently in this file. There's no
 # player-generated content in #info worth preserving, so there's no diffing
@@ -130,13 +130,15 @@ categories:
         body: |-
           The game’s roleplay layer is where the results of last turn’s Moves come into life. If the Gamemaster declared you were bested in a duel, that’s canon; you can describe how it went down in the roleplay channels. You can also use the roleplay channels at any time to chat, exchange information, or coordinate your Moves with other players.
 
-          **Channels and Locations**
-          There are four zones: the Fortress, the Town, the Windlands, and the Caves. Moving from one zone to another is a Move. However, within a location, your character is assumed to be everywhere and nowhere—you can freely move around within the 12 hours.
+          **Channels and Zones**
+          There are three surface zones—the Fortress, the Town, and the Windlands—and three levels of the Caves: the Caverns, the Railroad, and the Aberrant Pits. Every move from one zone to another costs your Move, the cave levels included. Within a zone, your character is assumed to be everywhere and nowhere—you can freely move around within the 12 hours.
 
-          Every zone has:
+          Every surface zone has:
           - a summary channel: optionally describe, in broad terms, what other people in your Zone saw you doing
-          - a public channel: roleplay in any of a zone’s sublocations
-          - and a private channel: create private threads and invite people for private moment-to-moment roleplay
+          - a public channel: a forum of topics, one per place in the zone. Press Create a Topic to open your own scene
+          - and a private channel: press Create to open a private thread, then use /add (character) to invite people
+
+          A cave level is a forum and nothing else—no summary, no private threads.
 
           You cannot roleplay in DMs or outside of the server.
       - title: Resources

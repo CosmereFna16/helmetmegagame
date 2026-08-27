@@ -43,7 +43,7 @@ async function loadCreationData(discordUserId) {
         factions: {
           orderBy: { sortOrder: "asc" },
           include: {
-            roles: { orderBy: { sortOrder: "asc" }, include: { startingLocation: true } },
+            roles: { orderBy: { sortOrder: "asc" }, include: { startingZone: true } },
           },
         },
       },
@@ -115,7 +115,7 @@ async function loadCreationData(discordUserId) {
                 lockedGender: role.lockedGender,
                 difficulty: role.difficulty,
                 factionName: faction.name,
-                startingLocationName: role.startingLocation?.name ?? null,
+                startingZoneName: role.startingZone?.name ?? null,
                 startingResources: role.startingResources,
                 extraStartingPoints: role.extraStartingPoints,
                 startingTagNames: role.startingTagSlugs,
@@ -149,7 +149,6 @@ export default async function CharacterPage() {
     include: {
       faction: true,
       zone: true,
-      location: true,
       // Only the slug, and only so the Bio panel can grey out the last name
       // for the Baron's family (db/lib/dynasty.js).
       role: { select: { slug: true } },
@@ -272,12 +271,13 @@ export default async function CharacterPage() {
   const canHeal = Boolean(healSkillId && satisfied.has(healSkillId));
 
   // Skipped entirely for the great majority who aren't medics, and for anyone
-  // a GM hasn't placed yet. locationId is the authoritative "where are you"
-  // field; zoneId is only a mirror.
+  // a GM hasn't placed yet. Character.zoneId is the authoritative "where are
+  // you" field since the zone rework — always a presence zone, never the
+  // Caves group row.
   const coLocated =
-    canHeal && character.locationId
+    canHeal && character.zoneId
       ? await prisma.character.findMany({
-          where: { status: "ALIVE", locationId: character.locationId },
+          where: { status: "ALIVE", zoneId: character.zoneId },
           orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
           select: {
             id: true,
@@ -330,19 +330,19 @@ export default async function CharacterPage() {
   // the same reach TRANSFER_RESOURCES has, per REQUESTS.md.
   const healParties = { characters: coLocated.map(({ id, name }) => ({ id, name })), factions };
 
-  // Corpses to loot. Only DEAD characters at the same locationId, and only
+  // Corpses to loot. Only DEAD characters in the same zone, and only
   // Items/Assets get lifted off them — the same category gate the transfer
   // system enforces. Filtered here rather than in the client so nobody else's
   // full sheet crosses the wire.
   //
   // This is the single player-facing surface that reveals a death: every
   // other list (faction roster, transfer target picker) shows the row as
-  // normal. Someone standing in the room has intentionally looked, so
+  // normal. Someone standing in the zone has intentionally looked, so
   // surfacing the name here is the whole point.
-  const corpses = character.locationId
+  const corpses = character.zoneId
     ? (
         await prisma.character.findMany({
-          where: { status: "DEAD", locationId: character.locationId },
+          where: { status: "DEAD", zoneId: character.zoneId },
           orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
           select: {
             id: true,

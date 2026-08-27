@@ -24,18 +24,23 @@ chat log with no context: `TURN_START` (the chapter divider, written in
 failed announcement can't leave two days with no boundary), `CHARACTER_CREATED`,
 `DEATH`, `DESIRE_FULFILLED`, `LIFEWEB`, and `TRAVEL`
 — the last gated behind `GameConfig.archiveTravelEvents`, off by default,
-since arrivals are what make a location read like a story and also two rows per
+since arrivals are what make a zone read like a story and also two rows per
 character per turn before anyone speaks.
 
 Five things about it are load-bearing:
 
 - **The id columns are not foreign keys.** Same posture as `SiloTransaction`
-  and `AuditLog`'s snapshots. `syncLocationsFromYaml` destructively deletes any
-  Location dropped from the YAML and `wipeGameData` clears Characters — a real
+  and `AuditLog`'s snapshots. `syncZonesFromYaml` destructively deletes any
+  Zone dropped from the YAML and `wipeGameData` clears Characters — a real
   relation would either take the transcript with it or fail on FK ordering
   (which Restart Game has been bitten by once already). Plain indexed ids plus
-  `locationName`/`characterName` snapshots survive both, and the snapshot is
+  `zoneName`/`characterName` snapshots survive both, and the snapshot is
   the more correct record anyway: who someone was known as *then*.
+
+  The place columns are **`zoneId`/`zoneName`** since the zone rework — a row
+  records the zone it was said in, and the topic or thread it was said in is
+  `threadName`. `channelKind` reads `summary | public | private | watch |
+  intercom`.
 - **Restart Game clears the table.** `wipeGameData` deletes every
   `ArchiveEntry` inside the same transaction as Characters and Turns, so a
   restart starts on an empty transcript. It is the one thing here that is not
@@ -66,13 +71,13 @@ Five things about it are load-bearing:
   alongside `channelKind`/`threadName`. It has two jobs, and only one of them
   stays useful: the Dawn wipe deletes non-persistent Discord messages every
   turn, so a jump link built from this id is only live for the turn it was
-  posted in, plus ⏰ persistent threads. The other job — exact channel-identity
-  grouping for the desk's archive-context popup — works regardless of the
-  wipe, since it never depends on the Discord message still existing. Rows
-  written before this column existed are null; `npm run
-  db:backfill-archive-channel-ids` fills what it can from `channelKind` +
-  `locationId`, but pre-existing thread rows (`threadName` set) never had
-  their thread id captured anywhere else and can't be recovered.
+  posted in, plus persistent threads and the Location topics, whose starter
+  messages are never deleted. The other job — exact channel-identity grouping
+  for the desk's archive-context popup — works regardless of the wipe, since it
+  never depends on the Discord message still existing. Rows written before this
+  column existed are null and stay null; the backfill that filled some of them
+  is gone, and pre-existing thread rows (`threadName` set) never had their
+  thread id captured anywhere else anyway.
 
 `/archive` (`web/app/(app)/archive/`) is **server-side paged over `?page=`**,
 the second such surface after `/gm/audit` and for the same reason — a
@@ -80,12 +85,12 @@ finished game's worth of rows can't be a client-side `useTableState`. Sorted
 oldest-first by default (it's a diary to read forward, not a log to skim), with
 `id` breaking `sentAt` ties so a burst of same-millisecond messages can't put
 one row on two pages. It renders as a reading experience rather than a table:
-turn headers, scene headers per location/thread, avatar + name + prose.
+turn headers, scene headers per zone/thread, avatar + name + prose.
 
 `GameConfig.archiveVisible` gates it — GMs always, players only when it's on,
 enforced in the page and mirrored in the nav. It is **effectively a one-way
 door** and is meant to stay shut until the game ends: the archive shows every
-location regardless of where a character stood, and renders a concealed message
+zone regardless of where a character stood, and renders a concealed message
 as `Young Man (Sir Alder)`, so opening it retroactively unmasks every
 `/conceal` ever used.
 

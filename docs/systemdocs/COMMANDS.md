@@ -38,7 +38,7 @@ Each command declares its contexts:
 | Command | Options | Who | Contexts | Handler |
 |---|---|---|---|---|
 | `/move` | — | Living character | Guild, DM | `handleMoveOpen` |
-| `/location` | — | Living character | Guild, DM | `handleOpen` |
+| `/location` | — | Living character | Guild, DM | `handleOpen` — the **zone** picker (§4) |
 | `/message` | — | Living character | Guild, DM | `handleMessageCommand` |
 | `/labor` | `type` (choice: hunt/fish/farm/herd) | Living character | Guild, DM | `handleLaborCommand` |
 | `/add` | `character` (role) | Thread member or GM | Guild | `handleThreadMemberCommand` |
@@ -61,7 +61,45 @@ Notes:
 - `/dm` was named `/message` until `/message` became the player-facing speak
   command.
 - Commands taking a character take a **role** option, not a user option, so
-  the picker names characters rather than Discord accounts.
+  the picker names characters rather than Discord accounts. The role is the
+  character's personal name-token role (`CHANNELS.md` §3).
+
+### 2b. `/add`, `/remove` and `/persistent` in detail
+
+All three only work inside a thread, and all three changed with the zone
+rework.
+
+**`/add` works on any `ALIVE` character, wherever they stand.** There is no
+zone gate. Discord refuses (or quietly sheds) a thread member who can't view
+the parent channel, so the command records a **`PlayerThreadInvite`** row first
+— that is what survives when the Discord add can't land yet — and then attempts
+the add. If the target is already in this zone it lands immediately; otherwise
+`db/lib/threadInvites.js#applyPendingInvites` replays it the moment they
+arrive, and both travel twins call it (`MAP.md` §4). Adds are **silent**: the
+REST thread-members endpoint is used rather than `channel.members.add`, which
+would ping-mention them. Being brought into a room should be discovered, not
+announced. Mentions into a private thread follow the same contract.
+
+**`/remove`** deletes the invite row and then removes the thread member. If the
+bot is missing `Manage Threads` the caller is told so, rather than seeing "the
+application did not respond".
+
+Both are open to anyone already in the thread, plus GMs — the same posture as
+pinging someone in, which any participant can already do.
+
+**`/persistent` toggles `PlayerThread.persistent`**, the database column the
+Dawn wipe actually reads. On a forum post the Persistent tag is mirrored for
+visibility (a failed mirror logs but never fails the command); a private thread
+carries no marker at all. A thread with no row is **adopted** first, the same
+posture the wipe takes.
+
+It **refuses a sync-owned post** — a Location topic or a Create-a-Topic anchor
+never wipes and never expires, and that isn't a player's to change. The check
+is against the recorded thread ids, not the forum tag, so a hand-stripped tag
+opens no hole. Its gate is a living character or GM, deliberately *not* the
+thread-membership check `/add` uses: that would be wrong for a forum post you
+can act on without having joined, and redundant in a private thread. Each use
+writes a `thread_persistence_changed` `AuditLog` row. See `CHANNELS.md` §4.
 
 ## 3. The `#turns` console
 
@@ -85,7 +123,7 @@ deleted and files nothing.
 
 | Button | Emoji | customId | Opens |
 |---|---|---|---|
-| Travel | 🗺️ | `loc:open` | The location picker (§4) |
+| Travel | 🗺️ | `loc:open` | The zone picker (§4) |
 | Move | ⚜️ | `move:open` | The Move modal (§5) |
 | Speak | 🔊 | `say:open` | The Speak picker (§5) |
 
@@ -98,14 +136,32 @@ parsed by literal `startsWith` + `slice`.
 
 | customId | Type | Does |
 |---|---|---|
-| `loc:open` | Button | Offer connected locations |
-| `loc:place` | Select | Pick a destination |
-| `loc:confirm:{locationId}` | Button | Execute the travel |
-| `loc:cancel` | Button | Dismiss |
+| `loc:open` | Button | Offer the connected zones |
+| `zone:place` | Select | Pick a destination zone |
+| `zone:confirm:{zoneId}` | Button | Execute the travel |
+| `zone:cancel` | Button | Dismiss |
+| `topic:new:{zoneId}` | Button | Show the Create-a-Topic modal |
+| `topic:create:{zoneId}` | Modal | Create a public forum topic |
+| `priv:new:{zoneId}` | Button | Show the Create-a-Private-Thread modal |
+| `priv:create:{zoneId}` | Modal | Create a private thread |
 | `move:open` | Button | Show the Move modal |
 | `say:open` | Button | Show the Speak picker |
 | `say:pick` | Select | Pick a destination, then show the Speak modal |
 | `heal:pick:{characterId}` | Select | Clear the chosen afflictions |
+
+**The travel flow is `zone:`-namespaced, but the console button is still
+`loc:open`** — that id is baked into the standing `#turns` console message, so
+renaming it would break every console posted before the rework. The picker
+offers the current zone's direct neighbours (`Zone.connectsTo`), or every
+presence zone for a character who has none yet; the Caves group is never a
+destination. Every hop costs the Move, so the option descriptions say so
+without asking the server anything. See `MAP.md`.
+
+**The two creation buttons ride on the zone anchors** (`db/lib/zoneAnchorRow.js`
+— plain component JSON, because the sync posts them over REST from `db/`, which
+has no discord.js, while the bot answers the clicks over the gateway). The zone
+id rides in the custom id so the handlers need no channel→zone lookup; change a
+prefix in that file and you must change it in `interactionCreate.js` too.
 
 `say:nav` is the value carried by a **group header** option in the Speak
 picker. Discord select menus have no option groups, so headers are ordinary
@@ -113,15 +169,14 @@ options; picking one re-renders the panel unchanged.
 
 ## 5. Modals
 
-The repo's only modals. Both need discord.js >= 14.27 for the component types
-involved: `Label` (18) wrapping a `TextInput` (4), `RadioGroup` (21),
-`Checkbox` (23) or `FileUpload` (19), plus a bare `TextDisplay` (10) for the
-`-#` line.
+Four modals. All need discord.js >= 14.27 for the component types involved:
+`Label` (18) wrapping a `TextInput` (4), `RadioGroup` (21), `Checkbox` (23) or
+`FileUpload` (19), plus a bare `TextDisplay` (10) for the `-#` line.
 
 A modal must be shown within 3 seconds of the interaction and **cannot be
-deferred first**. That is why the Move button opens its modal directly (it
-reads nothing) while Speak goes through a picker first (enumerating threads
-costs API calls).
+deferred first**. That is why the Move button and the two creation buttons open
+their modals directly (they read nothing, and every gate runs on submit), while
+Speak goes through a picker first (enumerating threads costs API calls).
 
 ### Move — `move:new` (`bot/src/lib/moveModal.js`)
 
@@ -139,6 +194,28 @@ replies ephemerally. **Submit = locked**: there is no edit window, the dice
 and resource roll happen now, and the payout — like every Move payout — lands
 at the turn-end push (`ADJUDICATION.md`; player-declared deltas clamp at ±20,
 `db/lib/resourceDelta.js`). See `TURN-ENGINE.md`.
+
+### Create a Topic — `topic:create:{zoneId}` (`bot/src/lib/topicModal.js`)
+
+### Create a Private Thread — `priv:create:{zoneId}` (same file)
+
+| Field | customId | Type |
+|---|---|---|
+| Name | `topic:name` | Short, required, max 90 |
+| Persistent | `topic:persistent` | Checkbox |
+
+Two modals, one shape. Both gate on submit: a living character, standing in the
+zone whose id rode in the custom id. The button lives in a channel only that
+zone's role can see, but a button is a hint, not a lock — an ephemeral picker
+outlives its player walking out of the zone.
+
+On success the bot creates the forum post (with the Persistent tag applied if
+ticked) or the private thread (adding the creator), and writes the
+`PlayerThread` row plus an audit entry. A topic's opening message mentions the
+creator, which is what puts the post in their mentions and makes them a
+follower. Players hold no create-posts or create-threads permission anywhere —
+the bot makes every thread, which is what keeps `PlayerThread` a complete
+record. See `CHANNELS.md` §4.
 
 ### Speak — `say:send:{channelId}` (`bot/src/lib/speakModal.js`)
 
@@ -166,7 +243,7 @@ appears automatically.
 | Thread | `ViewChannel` + `SendMessagesInThreads` |
 
 The two thread containers are **never** offered as destinations themselves —
-you cannot post a message to a forum channel, and `-private` denies
+you cannot post a message to a forum channel, and `#private` denies
 `SendMessages` for `@everyone` by design (`CHANNELS.md` §2). Both are walked
 for their threads on `ViewChannel` alone. A private thread additionally
 requires the member to be in it.
@@ -199,9 +276,11 @@ except 🌫️ and 🌬️. Each is stripped back off after being processed.
 
 🌬️ is the ghost whisper, and the only thing a dead player can do. It works on
 **any** message — proxied or not, the bot's own posts included — but only in a
-Location's summary channel or a forum post: `-private`, `#watch` and
-`#intercom` refuse it, even though ghosts can *read* all of them
-(`db/lib/cursedAccess.js`). One press per ghost per **12 real hours**, tracked
+zone's `#summary` or a forum post (`channelKind` `summary` or `public`):
+`#private`, `#watch` and `#intercom` refuse it, even though ghosts can *read*
+all of them. Since the rework a ghost sees **every** zone, cave levels
+included (`db/lib/cursedAccess.js`, `CHANNELS.md` §5). One press per ghost per
+**12 real hours**, tracked
 in `GhostWhisper` and enforced by `db/lib/ghostWhisper.js#claimGhostWhisper`.
 
 Every refusal except the cooldown is silent, on purpose: a visible "you can't
@@ -224,6 +303,9 @@ so this is not a collision.
 | `bot/src/events/interactionCreate.js` | Every command, button, select and modal handler |
 | `bot/src/lib/turnsConsole.js` | The `#turns` anchor message |
 | `bot/src/lib/moveModal.js` | The Move modal |
+| `bot/src/lib/topicModal.js` | The two creation modals |
+| `bot/src/lib/zoneTravel.js` | The zone picker rows and `performMove` |
+| `db/lib/zoneAnchorRow.js` | The two anchor buttons, as shared component JSON |
 | `bot/src/lib/moveConfirm.js` | Resolving a Move |
 | `bot/src/lib/speakModal.js` | The Speak picker and modal |
 | `bot/src/lib/speakTargets.js` | Where a character may speak |

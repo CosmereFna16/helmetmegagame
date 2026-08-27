@@ -13,8 +13,8 @@ import {
 // someone actively went looking for a body to loot, which is the moment the
 // fiction earns the reveal.
 //
-// One panel per Location; corpses arrive already scoped to the player's
-// current locationId. Empty list means an empty panel that doesn't render.
+// One panel per zone; corpses arrive already scoped to the player's current
+// zoneId. Empty list means an empty panel that doesn't render.
 export default function CorpseLootPanel({ selfId, corpses }) {
   if (!corpses?.length) return null;
 

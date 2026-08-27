@@ -7,14 +7,14 @@
 //
 // Two grains, deliberately:
 //
-//   person -> person   same Location. A handoff is a room-scale act, and it
-//                      matches the co-location gate HEAL_CHARACTER already
-//                      enforces (REQUESTS.md §5c).
-//   party  -> Silo     same Zone as the faction's silo zone, OR same Zone as
-//                      one of its Leaders/Treasurers.
+//   person -> person   same presence zone. A handoff is a face-to-face act,
+//                      and it matches the co-presence gate HEAL_CHARACTER
+//                      already enforces (REQUESTS.md §5c).
+//   party  -> Silo     the faction's own seat zone, OR the same presence zone
+//                      as one of its Leaders/Treasurers.
 //
-// The officer clause is what stops this soft-locking. Pinning a Silo to a
-// building would let an occupying force paralyse a faction's treasury with no
+// The officer clause is what stops this soft-locking. Pinning a Silo to one
+// room would let an occupying force paralyse a faction's treasury with no
 // counterplay; pinning it to a zone with a mobile officer extension means a
 // besieged fortress makes the tax run dangerous while an officer who rides out
 // to meet you makes it easier. Leadership can always walk toward the problem.
@@ -23,25 +23,36 @@
 // moving ⬢ at all — every path is web (COMMANDS.md lists no /give, /pay or
 // /transfer). If a bot command ever appears, promote this to db/lib with the
 // prisma-as-first-parameter convention factionPermissions.js uses.
-import { prisma } from "@lifeweb/db";
+import { prisma, seatZoneIdFor } from "@lifeweb/db";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 
 // A character who hasn't been placed yet can't reach anything. Being nowhere
 // is not the same as being everywhere, and the null would otherwise match
 // every other unplaced character.
 export function canReachCharacter(actor, target) {
-  if (!actor?.locationId || !target?.locationId) return false;
-  return actor.locationId === target.locationId;
+  if (!actor?.zoneId) return false;
+  return actor.zoneId === target?.zoneId;
 }
 
-// Zone-grain, and Character.zoneId is the right field to compare: it is the
-// denormalized mirror of location.zoneId, written in the same update (MAP.md
-// §1), so it never disagrees with locationId.
+// Zone-grain. Character.zoneId is the PRESENCE zone (a surface zone or a
+// single cave level); Faction.zoneId is the SEAT zone, which for the whole
+// cave system is the Caves group row. So the home-zone branch compares
+// seat to seat — someone standing on the Railroad is standing in the Caves
+// faction's zone — while the officer branch stays presence-grain, because
+// meeting a Treasurer means standing where they stand.
 export async function canReachSilo(actor, faction) {
   if (!actor?.zoneId) return false;
 
-  // The faction's own home zone — the warehouse you can walk up to.
-  if (faction?.zoneId && faction.zoneId === actor.zoneId) return true;
+  // The faction's own home zone — the warehouse you can walk up to. Loaded
+  // rather than taken off `actor` because callers hand us a bare character
+  // row, and seatZoneId only lives on Zone.
+  if (faction?.zoneId) {
+    const actorZone = await prisma.zone.findUnique({
+      where: { id: actor.zoneId },
+      select: { id: true, parentZoneId: true, seatZoneId: true },
+    });
+    if (faction.zoneId === seatZoneIdFor(actorZone)) return true;
+  }
   if (!faction?.id) return false;
 
   // Otherwise, an officer standing in the actor's zone speaks for the Silo.
@@ -61,7 +72,7 @@ export async function canReachSilo(actor, faction) {
 }
 
 // One entry point for both party kinds, so call sites don't branch. `party` is
-// a resolveParty() result: { kind, id, name, balance, locationId?, zoneId? }.
+// a resolveParty() result: { kind, id, name, balance, zoneId? }.
 export async function canReachParty(actor, party) {
   if (!party) return false;
   if (party.kind === "character") {

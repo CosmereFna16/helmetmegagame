@@ -10,14 +10,15 @@ the transcript is written).
 
 ## 1. Which channels proxy
 
-Not configured by hand. A channel opts in **only** by being one of a
-provisioned Location's channels, or one of the two narrowcast channels:
+Not configured by hand. A channel opts in **only** by being one of a zone's
+provisioned channels, or a special channel whose registry entry says
+`tupper: true`:
 
 | Channel | Tupper | Summary |
 |---|---|---|
-| Location plain (text) | yes | **yes** |
-| Location `-public` (forum) | yes | no |
-| Location `-private` (text) | yes | no |
+| A zone's `#summary` (text) | yes | **yes** |
+| A zone's `#public` (forum), or a cave level's forum | yes | no |
+| A zone's `#private` (text) | yes | no |
 | `#watch` / `#intercom` | yes | no |
 
 `#watch`/`#intercom` aren't tied to a place, so they're never summary.
@@ -265,11 +266,13 @@ Otherwise, gated so a ping can't carry further than a voice would. Without a gat
 pinging is a free cross-map signalling channel. Two rules, because the two
 kinds of channel mean different things by "in earshot":
 
-- **Location channels** gate on **Zone** — deliberately looser than the room:
-  someone in the Square can shout for someone at the Cathedral.
-- **`#watch`/`#intercom`** have no Zone at all, so they gate on whether the
+- **Zone channels** gate on the **zone** — which is exactly as loose as the
+  room now: someone in the Square topic can shout for someone reading the
+  Cathedral one.
+- **The special channels** have no zone at all, so they gate on whether the
   target currently *hears that channel* — `computeNarrowcastAccess` from
-  `db/lib/narrowcastAccess.js`, not a second copy of those rules.
+  `db/lib/specialChannels.js`, keyed on `NARROWCAST_SLUGS` rather than a
+  hardcoded pair, so a future entry is covered by adding it to the registry.
 
 The DM carries **where and a jump link, never the message text**. A ping into a
 private thread the target hasn't joined would otherwise leak the room's
@@ -277,7 +280,7 @@ content, and a `DirectMessage` row outlives the ❌ that deletes the message it
 quoted.
 
 **A concealed message relays nothing at all** — the room isn't meant to know
-who spoke, and a DM naming the location would hand the target a thread to pull
+who spoke, and a DM naming the place would hand the target a thread to pull
 on.
 
 ### Adding to a private thread
@@ -292,23 +295,24 @@ option** rather than a user option on purpose: the picker then names
 characters, never Discord accounts, so inviting someone can't reveal who plays
 them. Anyone already in the thread may add or remove, plus GMs.
 
-Joining is **Location-scoped**, stricter than the relay's Zone gate and not a
-choice: Discord requires the target to be able to view the thread's parent
-channel, and that view comes from the per-character overwrite on the Location
-category, which only exists while they're standing there. A refused
-mention-add DMs the *pinger* the reason — a proxied message has no interaction
-to reply to, and silence would read as a bug.
+**A mention is an invite, on the same contract as `/add`** (`COMMANDS.md` §2b):
+a `PlayerThreadInvite` row is recorded, the Discord add is attempted now, and
+if the target is standing somewhere else `applyPendingInvites` replays it the
+moment they arrive. Discord still requires a thread member to be able to view
+the parent channel — that view is the zone role now — so an out-of-zone add
+would put a thread in their sidebar they can't open. The pinger is told who was
+invited rather than notified (collected into one DM, not one per target), since
+a proxied message has no interaction to reply to and silence would read as a
+bug.
 
-Two things worth knowing rather than fixing: private threads are deleted
-wholesale every Dawn (`db/lib/dawnWipe.js`), so membership is inherently
-per-turn and nothing needs persisting; and removing a member the bot didn't add
-needs `MANAGE_THREADS`, which comes from the bot's own role and is not granted
-by `locationChannelSpec` — `/remove` reports that failure rather than silently
-timing out.
+One thing worth knowing rather than fixing: removing a member the bot didn't
+add needs `MANAGE_THREADS`, which comes from the bot's own role and is not
+granted by `zoneChannelSpec` — `/remove` reports that failure rather than
+silently timing out.
 
 ## 7. Notes (⭐)
 
-Reacting ⭐ to a proxied message in any Location channel saves it as a personal
+Reacting ⭐ to a proxied message in any zone channel saves it as a personal
 `Note` for whoever reacted. `handleStarReaction` upserts a row keyed on
 `(discordMessageId, discordUserId)` with the sending character, a zone
 snapshot, content, and `sentAt`. Same `recentProxies` constraint as every other

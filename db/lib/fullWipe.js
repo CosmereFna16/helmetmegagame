@@ -1,12 +1,13 @@
 // Full Discord channel wipe for a dev-mode game restart (wipeGameData,
 // web/app/(app)/gm/dev/actions.js) — distinct from the routine Dawn message
-// wipe (dawnWipe.js), which spares anything marked Persistent: a ⏰-tagged
-// forum post or a ⏰-prefixed private thread (db/lib/persistence.js). This is
-// a hard reset: nothing is spared, whatever it's marked with — including the
-// 🗺 Information-tagged "{Location}: Description" posts the Dawn wipe skips
-// outright. That's correct: wipeGameData re-runs syncLocationsFromYaml, which
-// regenerates them from docs/locations.yaml. Entirely
-// sequential, same rate-limit reasoning as dawnWipe.js.
+// wipe (dawnWipe.js), which spares persistent player threads and the
+// sync-owned posts. This is a hard reset: nothing is spared, the Location
+// topics and Create-a-Topic anchors included. That's correct: wipeGameData
+// re-runs syncZonesFromYaml, which regenerates every generated post from
+// docs/zones.yaml (their recorded ids are cleared here so the sync rebuilds
+// rather than trusting a dangling id). PlayerThread/PlayerThreadInvite rows
+// are purged by wipeGameData's DB transaction, not here.
+// Entirely sequential, same rate-limit reasoning as dawnWipe.js.
 const {
   getGuildChannels,
   fetchAllMessages,
@@ -43,16 +44,23 @@ async function runFullChannelWipe(prisma) {
   const turnsChannel = channels.find((c) => c.type === CHANNEL_TYPE_TEXT && c.name?.toLowerCase() === "turns");
   if (turnsChannel) await wipeChannelMessages(turnsChannel.id);
 
-  const locations = await prisma.location.findMany();
-  for (const location of locations) {
-    if (location.discordChannelId) await wipeChannelMessages(location.discordChannelId);
-    if (location.discordPublicChannelId) {
-      await deleteAllThreads(location.discordPublicChannelId, { public: true, private: false });
+  const zones = await prisma.zone.findMany();
+  for (const zone of zones) {
+    if (zone.discordSummaryChannelId) await wipeChannelMessages(zone.discordSummaryChannelId);
+    if (zone.discordPublicChannelId) {
+      await deleteAllThreads(zone.discordPublicChannelId, { public: true, private: false });
     }
-    if (location.discordPrivateChannelId) {
-      await deleteAllThreads(location.discordPrivateChannelId, { public: false, private: true });
+    if (zone.discordPrivateChannelId) {
+      await deleteAllThreads(zone.discordPrivateChannelId, { public: false, private: true });
     }
   }
+
+  // The generated posts just went with the threads above; clear their
+  // recorded ids (and hashes) so the re-sync rebuilds them instead of
+  // hash-matching against a post that no longer exists. The #private anchor
+  // message survived (it's a message, not a thread) — its id stays.
+  await prisma.zone.updateMany({ data: { createTopicThreadId: null, createTopicHash: null } });
+  await prisma.locationTopic.updateMany({ data: { discordThreadId: null, postHash: null } });
 }
 
 module.exports = { runFullChannelWipe };

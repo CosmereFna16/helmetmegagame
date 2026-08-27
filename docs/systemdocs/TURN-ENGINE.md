@@ -112,7 +112,7 @@ Two things follow from that, and both are load-bearing:
 `{ advanced, previousTurn, newTurn, note, runSideEffects }`, and the caller
 decides when the thunk runs.
 
-That split is load-bearing. The Dawn wipe walks every Location's channels
+That split is load-bearing. The Dawn wipe walks every zone's channels
 sequentially; awaiting it inside a server action holds the action open, and a
 pending server action blocks client-side navigation — which froze the entire
 web app until a hard refresh.
@@ -130,18 +130,28 @@ The thunk performs, in narrative order:
    turn. PRIVATE rows fan out one DM per recipient (per-recipient try/catch,
    failures collected onto the row's `deliveryFailures` and into one
    `staged_push_delivery_failed` audit row naming who); PUBLIC rows post to
-   `GameConfig.turnSummaryChannelId` (unset → skipped and recorded, never
-   lost). Each row is stamped `sentAt` only after its sends were attempted,
-   so a crash mid-way leaves the remainder visibly unsent — the workspace's
+   **the row's own zone `#summary`**, with `GameConfig.turnSummaryChannelId` as
+   the fallback (neither set → skipped and recorded, never lost). The Caves
+   seat has no summary channel of its own, so its declarations always fall
+   back. Each row is stamped `sentAt` only after its sends were attempted, so a
+   crash mid-way leaves the remainder visibly unsent — the workspace's
    missed-push banner — rather than falsely delivered.
 6. The `#turns` announcement (`db/lib/turnAnnouncement.js`).
 7. The Dawn wipe, if the new phase is `DAWN` and `GameConfig.messageWipeEnabled`
-   is on (`db/lib/dawnWipe.js`; see `CHANNELS.md` §5).
+   is on (`db/lib/dawnWipe.js`; see `CHANNELS.md` §8).
+8. The thread expiry pass, on **every** Dawn, gated on its own
+   `GameConfig.threadExpiryEnabled` inside the pass — deliberately independent
+   of the wipe toggle, so a game that never wipes can still reap dead scenes.
+   After the wipe on purpose, so a thread the wipe just deleted isn't also
+   "expired" (`db/lib/threadExpiryPass.js`; `CHANNELS.md` §4).
+9. The channel doctor's **cheap** reconcile, if `GameConfig.autoReconcileEnabled`
+   is on — roles and membership only, a handful of requests
+   (`db/lib/channelDoctor.js`; `CHANNELS.md` §6).
 
 Everything is sequential and individually `.catch()`'d, so a Discord failure
-never blocks the turn. The Dawn wipe additionally guards **per location**, so
+never blocks the turn. The Dawn wipe additionally guards **per zone**, so
 one channel a GM deleted by hand costs that room rather than every room after
-it alphabetically plus `#watch` and `#intercom`. **Never `Promise.all` a fan-out here** — sequential
+it plus `#watch` and `#intercom`. **Never `Promise.all` a fan-out here** — sequential
 awaiting is what keeps the bot from emitting the burst of 429s that earns an
 IP-level ban.
 
@@ -282,9 +292,11 @@ Three details:
 - A `/hunt`-style shorthand resolves from three bulk reads, not per character.
   A gated Default Move still files (they did spend the day trying) but pays
   nothing, and carries a `gateNote` into the player's DM.
-- The summary posts to the character's **current** Location's plain channel,
-  not the `summaryChannelId` snapshotted when they saved the panel — so
-  travelling moves where their default gets narrated.
+- The summary posts to the character's **current** zone's `#summary`, not the
+  `summaryChannelId` snapshotted when they saved the panel — so travelling
+  moves where their default gets narrated. A cave level has no `#summary`, so a
+  Default Move down there simply isn't narrated (the stored id is the fallback,
+  and it's normally null).
 
 One summary `default_moves_resolved` audit row per turn. It reports
 `shareable` rather than `shared`, since the posts haven't been attempted when
@@ -301,7 +313,9 @@ it's written and claiming a success count would be a lie.
 | `db/lib/hungerPass.js` | The Hunger pass |
 | `db/lib/tagExpiryPass.js` | The tag progression pass (`Tag.expiresInto`) |
 | `db/lib/turnAnnouncement.js` | The rolling `#turns` announcement |
-| `db/lib/dawnWipe.js` | The Dawn wipe (`CHANNELS.md` §5) |
+| `db/lib/dawnWipe.js` | The Dawn wipe (`CHANNELS.md` §8) |
+| `db/lib/threadExpiryPass.js` | Inactivity expiry for player threads (`CHANNELS.md` §4) |
+| `db/lib/channelDoctor.js` | The optional post-turn reconcile (`CHANNELS.md` §6) |
 | `bot/src/lib/turnEngine.js` | The cron caller |
 | `bot/src/lib/moveModal.js` | The Move modal a player files a Move through (`COMMANDS.md`) |
 | `bot/src/lib/moveConfirm.js` | Resolving a filed Move |

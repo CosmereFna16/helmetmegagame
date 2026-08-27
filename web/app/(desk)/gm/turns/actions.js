@@ -827,7 +827,6 @@ async function getCharacterInspectorImpl({ characterId }) {
     include: {
       faction: { select: { id: true, name: true } },
       zone: { select: { name: true } },
-      location: { select: { name: true } },
       tags: {
         select: { tagId: true, quantity: true, expiresTurn: true, equipped: true, tag: { select: TAG_CHIP_FIELDS } },
       },
@@ -849,7 +848,9 @@ async function getCharacterInspectorImpl({ characterId }) {
     factionId: character.faction?.id ?? null,
     factionName: character.faction?.name ?? null,
     isLeader: character.isLeader,
-    locationLabel: [character.zone?.name, character.location?.name].filter(Boolean).join(" / ") || "Unassigned",
+    // Presence zone only — same key name and same reasoning as the queue
+    // page's moves DTO.
+    locationLabel: character.zone?.name || "Unassigned",
     resources: character.resources,
     tagPoints: character.tagPoints,
     gambitModifier: gambitModifierTotal(character.tags, { hungerStreak: character.hungerStreak }),
@@ -883,7 +884,7 @@ async function getArchiveSliceImpl({ characterId }) {
       content: e.content,
       characterName: e.characterName,
       concealedAlias: e.concealedAlias,
-      locationName: e.locationName,
+      zoneName: e.zoneName,
       turnNumber: e.turnNumber,
       turnPhase: e.turnPhase,
       sentAt: e.sentAt.toISOString(),
@@ -956,20 +957,23 @@ const CONTEXT_SLICE = 30;
 
 // The scene around one archived line: ~30 messages before/after in the same
 // Discord channel/thread, so a GM clicking an old transcript row doesn't have
-// to reconstruct context from turn number and location alone.
+// to reconstruct context from turn number and zone alone.
 async function getArchiveContextImpl({ archiveEntryId }) {
   await requireGm();
   const anchor = await prisma.archiveEntry.findUnique({ where: { id: archiveEntryId ?? "" } });
   if (!anchor) throw new UserError("That transcript row is gone.");
 
   // Two ways to identify "the same channel": the snapshot column where it
-  // exists, and the legacy locationId/channelKind/threadName triple for rows
+  // exists, and the legacy zoneId/channelKind/threadName triple for rows
   // written before the backfill. Both prongs stay live because history is
-  // mixed — a null in the legacy triple intentionally matches IS NULL.
+  // mixed — a null in the legacy triple intentionally matches IS NULL. Rows
+  // older than the zone rework carry a Location id in zoneId and "plain" as
+  // their channelKind; they still group with each other, which is all this
+  // needs.
   const identity = [];
   if (anchor.discordChannelId) identity.push({ discordChannelId: anchor.discordChannelId });
-  if (anchor.locationId != null || anchor.channelKind != null) {
-    identity.push({ locationId: anchor.locationId, channelKind: anchor.channelKind, threadName: anchor.threadName });
+  if (anchor.zoneId != null || anchor.channelKind != null) {
+    identity.push({ zoneId: anchor.zoneId, channelKind: anchor.channelKind, threadName: anchor.threadName });
   }
   if (!identity.length) throw new UserError("That row carries no channel identity.");
 
@@ -1001,7 +1005,7 @@ async function getArchiveContextImpl({ archiveEntryId }) {
   // Server-only env — this is why the URL is built here, never client-side.
   const guildId = process.env.DISCORD_GUILD_ID || null;
   const channelLabel =
-    [anchor.locationName, anchor.threadName].filter(Boolean).join(" · ") || anchor.channelKind || "unknown channel";
+    [anchor.zoneName, anchor.threadName].filter(Boolean).join(" · ") || anchor.channelKind || "unknown channel";
   // Event rows and legacy thread rows can't link; Dawn-wiped messages make
   // old links dead anyway — the popup itself is the durable value.
   const jumpUrl =

@@ -1,9 +1,11 @@
 // The Cursed role's ghost seat — read-only visibility for the dead.
 //
 // A player who dies keeps the Cursed role until their body is buried or their
-// name is engraved (docs/documents.yaml, the Respawning entry). Until this,
-// the role was a pure member-role flag: it gated what they could re-roll as
-// and nothing else, so a dead player saw nothing at all. Now they linger.
+// name is engraved (docs/documents.yaml, the Respawning entry). While cursed
+// they linger as a ghost: they see EVERY zone — the cave levels included,
+// since the zone rework retired the Depths blackout — plus the special
+// channels (#watch/#intercom). Private threads stay invisible to them the way
+// they are to any non-member; no overwrite is needed to keep that so.
 //
 // This is the spectator seat's sibling — see db/lib/spectatorAccess.js, which
 // this file mirrors deliberately, down to the two exports (one to inline into
@@ -18,19 +20,18 @@
 //     allow could never confer it anyway; naming it here keeps the intent
 //     legible next to the reaction allow.
 //
-// The Depths stay dark. Caverns, Railroad and Aberrant Pits get no cursed
-// overwrite at all, so @everyone's ViewChannel deny is the last word there.
-// The exclusion list is DEPTHS_SLUGS from db/lib/travelCost.js — the same set
-// that makes each level down its own Move — rather than a second hand-written
-// list of cave slugs that could drift from it.
+// The role's COLOR is part of the seat too: it is pinned to 0 (Discord's
+// "no color") by ensureCursedRoleAppearance below, re-asserted on every zone
+// sync and doctor run. A colored cursed role paints its holders' names in
+// the member list, which outs who is dead at a glance — exactly what a
+// concealed ghost seat must not do.
 //
 // Unlike the spectator role, the id is an env var (DISCORD_CURSED_ROLE_ID),
 // because that is where the rest of the codebase already reads it from —
 // web/lib/discordGuild.js#isCursed, grantCursedRole, removeCursedRole. Every
 // helper here no-ops when it is unset rather than throwing, so a guild without
 // the var configured simply has no ghosts.
-const { putChannelOverwrite, deleteChannelOverwrite } = require("./discordRest");
-const { DEPTHS_SLUGS } = require("./travelCost");
+const { putChannelOverwrite, deleteChannelOverwrite, patchGuildRole } = require("./discordRest");
 
 const PERM_VIEW_CHANNEL = 1024n;
 const PERM_ADD_REACTIONS = 64n;
@@ -56,16 +57,10 @@ function cursedRoleId() {
   return process.env.DISCORD_CURSED_ROLE_ID || null;
 }
 
-// Whether ghosts may see this Location at all. Keyed on the slug, matching
-// how every other Location rule in db/lib is written.
-function ghostsMaySee(location) {
-  return !DEPTHS_SLUGS.has(location?.slug);
-}
-
 // The overwrite object for inlining into a createChannel()
 // permission_overwrites array at provisioning time — same shape as
-// spectatorOverwrite() and syncLocations' gmChannelOverwrite, so call sites
-// can spread it. Empty when there is no cursed role configured.
+// spectatorOverwrite() and the GM overwrite, so call sites can spread it.
+// Empty when there is no cursed role configured.
 function cursedOverwrite() {
   const roleId = cursedRoleId();
   if (!roleId) return [];
@@ -85,9 +80,8 @@ async function applyCursedOverwrite(channelId) {
   return true;
 }
 
-// The undo, for a channel that should never have had one — a Depths channel
-// caught by a mis-scoped run. Tolerates a channel that has no cursed
-// overwrite, so it is safe to call on everything in the Depths.
+// The undo, for a channel that should never have had one. Tolerates a channel
+// that has no cursed overwrite, so it is safe to call broadly.
 async function removeCursedOverwrite(channelId) {
   const roleId = cursedRoleId();
   if (!channelId || !roleId) return false;
@@ -95,12 +89,22 @@ async function removeCursedOverwrite(channelId) {
   return true;
 }
 
+// Pins the cursed role's appearance: color 0 (Discord renders the holder with
+// the default name color, no tint), never hoisted. One PATCH, idempotent,
+// called from the zone sync and the channel doctor.
+async function ensureCursedRoleAppearance() {
+  const roleId = cursedRoleId();
+  if (!roleId) return false;
+  await patchGuildRole(roleId, { color: 0, hoist: false });
+  return true;
+}
+
 module.exports = {
   cursedRoleId,
-  ghostsMaySee,
   cursedOverwrite,
   applyCursedOverwrite,
   removeCursedOverwrite,
+  ensureCursedRoleAppearance,
   CURSED_ALLOW,
   CURSED_DENY,
 };

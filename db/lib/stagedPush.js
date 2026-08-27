@@ -182,7 +182,7 @@ async function runStagedPushPass(prisma, turn, config) {
           character: { select: { id: true, name: true, discordUserId: true } },
         },
       },
-      zone: { select: { name: true } },
+      zone: { select: { name: true, discordSummaryChannelId: true } },
     },
   });
 
@@ -194,6 +194,11 @@ async function runStagedPushPass(prisma, turn, config) {
         stagedMessageId: message.id,
         content: message.content,
         zoneName: message.zone?.name ?? null,
+        // Delivery target: the row's zone #summary when it has one (the
+        // per-zone summary channels the old comment on turnSummaryChannelId
+        // promised), the global channel as fallback. The Caves seat has no
+        // summary channel, so its declarations fall back too.
+        zoneSummaryChannelId: message.zone?.discordSummaryChannelId ?? null,
       });
       continue;
     }

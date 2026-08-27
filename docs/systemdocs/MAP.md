@@ -1,142 +1,159 @@
 # Geography, travel, and the Map panel
 
 Where characters are, how they move, and the two front-ends over one rule set.
-For the *Discord* side of a Location — channel layout, provisioning, who can
-see what — see `CHANNELS.md`. This page is the game side.
+For the *Discord* side of a Zone — channel layout, provisioning, who can see
+what — see `CHANNELS.md`. This page is the game side.
 
 ## 1. The model
 
-Two levels: **`Zone`** (e.g. "Town") and **`Location`** (e.g. "cathedral",
-nested under a Zone via `Location.zoneId`).
+There is one level now: the **`Zone`**. A Zone is a place a character can
+stand, and `Character.zoneId` is the whole answer to "where are you".
+`Location` as a standable place is gone — what used to be a Location is a
+**Location topic**, a generated forum post inside its zone's public forum
+(`CHANNELS.md` §4). You can read a topic, roleplay in it, and walk into the
+zone that holds it, but you cannot travel *to* one.
 
-`docs/locations.yaml` is the sole master; see `SYNC.md` for the sync's
-destructive semantics. Per entry: `id` (slug), `name`, `zone`, `description`
-(the short intro string, rendered into the summary channel's topic),
-`extendedDescription` (long-form, rendered into the generated description post —
-`CHANNELS.md` §2b), `publicSubLocations` (each a `name` plus its own long-form
-`description`), `privateSubLocations`, free-text `tags`, and `map: {x, y}`.
+`docs/zones.yaml` is the sole master (`SYNC.md` for the sync's destructive
+semantics). Zones come in three kinds:
 
-**`Character.locationId` is authoritative.** `Character.zoneId` is a
-denormalized mirror of `location.zoneId`, written in the same update, kept only
-so the pre-existing zone-stamping on `Action`/`DefaultEffort`/`Note` and the
-zone filters across `/gm/players`, `/gm/turns` and `/notes` keep working. Any
-new writer of `locationId` must write `zoneId` alongside it.
+| `kind` | Zones | Standable? | Discord |
+|---|---|---|---|
+| `SURFACE` | Town, Fortress, Windlands | yes | own category: `#summary`, `#public`, `#private` |
+| `CAVE_GROUP` | Caves | **no** | the shared "Caves" category only |
+| `CAVE_LEVEL` | Caverns, Railroad, Aberrant Pits | yes | one forum each, under the Caves category |
 
-New characters get their starting Location from their role
-(`role.startingLocationId`, set in `createCharacter`), not null — channel
-access is synced immediately after creation.
+So **presence is six zones** — three surface plus three cave levels — while the
+GM seats stay at four, because the whole cave system belongs to the Caves seat.
+That split is `Zone.seatZoneId` and it matters every time a row is stamped;
+`GAMEMASTERS.md` §2 is the contract.
+
+The Caves group row is a container, not a place. `performTravel` refuses it
+("That isn't a place you can stand"), it may never appear in `zoneConnections`,
+and it has no `Zone: {Name}` role.
+
+New characters get their starting zone from their role (`starting_zone` in
+`docs/roles.yaml` → `Role.startingZoneId`), and `createCharacter` grants the
+zone role immediately (`CHARACTERS.md` §3).
 
 ## 2. The adjacency graph
 
-A hop is only legal between Locations that are **connected**.
-`locationConnections` in `docs/locations.yaml` is a flat list of pairs, synced
-into the `Location.connectsTo` / `connectedFrom` self-relation. `performTravel`
-refuses anything not in the graph with "You can't get there directly from here."
+`zoneConnections` in `docs/zones.yaml` is a flat list of pairs, synced into the
+`Zone.connectsTo` self-relation **both directions explicitly**, so only
+`connectsTo` is ever read. The graph today:
 
-This is the part that's easy to forget exists: adding a Location to the YAML
-without adding any connection to it makes it unreachable, and nothing warns you
-at sync time. `map:check` (§5) is where you'd notice.
+```
+town — fortress        fortress — railroad
+town — windlands       windlands — railroad
+town — caverns         caverns  — railroad
+                       railroad — aberrant-pits
+```
+
+`performTravel` refuses anything not in the graph with "You can't get there
+directly from here." A presence zone that appears in no pair is unreachable;
+the sync **warns** about that rather than throwing, because a one-way starting
+zone is legal in principle — but it is almost always a typo.
 
 ## 3. What a move costs
 
-One pure function: `db/lib/travelCost.js#isTravelFree`, matched on Location
-**slug** — same posture as `narrowcastAccess.js` and `laborAccess.js`.
+**Every hop costs the character's Move.** There is no free walk any more; free
+same-zone travel went with the per-Location channels, and `isTravelFree` /
+`DEPTHS_SLUGS` are gone with it. The hop is written as a real, auto-resolved
+`Action` (`type: MOVE`, `status: CONFIRMED`, `moveReviewStatus: SOLVED`, no GM
+step, tagged `gmNotes: "auto:zone_change"`), so it lands in `/gm/turns`' Moves
+history rather than the pending queue. Its `zoneId` is the **seat** zone of the
+destination (`seatZoneIdFor`) — a hop onto the Railroad files work the Caves GM
+can see.
 
-- **Same Zone is free.** No `Action` is created.
-- **A different Zone spends the turn.** Submitted as a real, auto-resolved
-  `Action` (`status: CONFIRMED`, `moveReviewStatus: SOLVED`, no GM step, tagged
-  `gmNotes: "auto:zone_change"`), so it lands in `/gm/turns`' Moves history
-  rather than the pending queue.
+**One free arrival: a first placement.** A character with no zone yet can go
+anywhere on the map, spends nothing, and files no Action — it isn't travel, it's
+arrival. The adjacency gate is skipped entirely in that case.
 
-**One hardcoded exception: `DEPTHS_SLUGS`** — `caverns`, `railroad`,
-`aberrant-pits`. All three sit in the Caves zone, but moving between any two of
-them costs a Move anyway. This is the only place in the game where two
-Locations in one Zone aren't a free walk apart, and it's deliberate: going
-deeper is supposed to hurt. Entering the Depths *from Customs* is still free —
-Customs isn't one of the three, so only level-to-level costs.
+**Acting and travelling are mutually exclusive within a turn, in either order.**
+The Move modal checks for an existing `Action` on the open turn, and
+`performTravel` makes the same check in reverse. The enforcement is not that
+check, though — it's the `@@unique([characterId, turnId])` on `Action`.
+`performTravel` writes the Action **before** it moves the character, inside one
+transaction, so two simultaneous submissions (the `#turns` Travel button and the
+web map, or two map clicks) end with one `P2002` that rolls the second move back.
+Filing after moving is how a player once ended up two hops away having spent one
+Move.
 
-Migrants start on the **Railroad**, the line everyone who comes to Ravenheart
-from elsewhere arrives on, so "make it to the fortress" is two paid Moves
-rather than a figure of speech.
-
-Travel cost is now also what a **tax run** costs. Moving ⬢ into or out of a
-faction's Silo requires standing in its zone (or with one of its officers), and
-handing ⬢ or an item to a person requires the same Location — so a payment
-across zones is a journey somebody physically makes, and the road is a place
-things can happen to them. See `FACTIONS.md` §3b.
-
-**Acting and travelling are mutually exclusive within a turn, in either
-order.** `bot/src/lib/actionSubmission.js` checks for any existing `Action` on
-the open turn before accepting a Move, and `performTravel` makes the same check
-in reverse.
+Travel cost is also what a **tax run** costs. Moving ⬢ into or out of a
+faction's Silo requires standing in its zone, and handing ⬢ or an item to a
+person requires the same zone — so a payment across zones is a journey somebody
+physically makes. See `FACTIONS.md` §3b.
 
 ## 4. Two front-ends, one `performTravel`
 
-`db/lib/travel.js#performTravel` owns validation, the cost decision and the
-database writes. It performs **no Discord side effects** — the same split
+`db/lib/travel.js#performTravel` owns validation, the Action and the database
+writes. It performs **no Discord side effects** — the same split
 `advanceTurn()`/`runSideEffects()` uses, and for the same reason: the bot has a
-gateway client and the web app only has REST. It returns `oldLocation` and each
-caller runs its own twin.
+gateway client and the web app only has REST. It returns `oldZone` so each
+caller can run its own twin.
 
 | Surface | Entry | Runs afterwards |
 |---|---|---|
-| Discord | The ⚜ button in the guild's single `location` channel → ephemeral Zone → Location select cascade → Confirm (`bot/src/events/interactionCreate.js`, prompt maintained by `bot/src/lib/location.js#ensureLocationPrompt`) | `swapLocationAccess`, `syncCharacterNarrowcastAccess` (gateway) |
-| Web | `/map` (`web/app/(app)/map/travelActions.js#travelTo`) | `syncCharacterLocationAccess`, `syncCharacterNarrowcastAccess` (REST) |
+| Discord | Travel button on the `#turns` console (custom id `loc:open`, kept from the pre-zone console message) or `/location` → ephemeral zone select (`zone:place`) → Confirm (`zone:confirm:{zoneId}`) | `swapZoneRole`, `syncCharacterNarrowcastAccess`, `applyPendingInvites` (gateway + REST, `bot/src/lib/zoneTravel.js#performMove`) |
+| Web | `/map` (`web/app/(app)/map/travelActions.js#travelTo`) | `syncCharacterZoneRole`, `syncCharacterNarrowcastAccess`, `applyPendingInvites` (REST, in `after()`) |
 
-The `location` channel is read-only for `@everyone` and carries one tracked
-message. It's a button rather than a reaction because Discord modals can't
-contain dropdowns and reactions can't open ephemeral UI.
+The picker offers the current zone's direct neighbours — or, for an unplaced
+character, every presence zone. `applyPendingInvites` is on both paths because
+a `/add` invite for a private thread lands the moment its guest arrives
+(`COMMANDS.md`).
 
 ## 5. The Map panel
 
-`/map` is a **pointcrawl**: rhombus nodes with the location name on a stem
-above them, over one of two grounds — **Bare** (the default, nothing drawn
-in) and **Plate** (the drawn `Map_Basic.png`).
+`/map` is the drawn Ravenheart plate (`/assets/Map_Basic.png`) with one
+**clickable polygon per presence zone** over it. The pointcrawl — rhombus nodes,
+roads, the Bare/Plate ground toggle and its remembered choice — is gone: a zone
+region only means anything drawn over the art it was traced from, so there is
+no second ground to switch to.
 
-The Plate carries **no pointcrawl at all** — nodes, labels and roads are hidden
-over it, because a rhombus grid on top of a hand-drawn map fights the drawing.
-The ground choice persists in `localStorage`, read through
-`useSyncExternalStore` rather than an effect (`react-hooks/set-state-in-effect`
-is an error in this repo; the server snapshot is simply `null`).
-
-**Node positions are data, not code.** `map: {x, y}` in the YAML — 0–100
-percentages of the 4:3 plate — synced into `Location.mapX`/`mapY` on every run.
-Retuning the layout is a YAML edit and a re-sync.
-
-**`npm run map:check`** (`db/prisma/check-map.js`) is the fast loop: pure
-geometry over the YAML, no DB and no Discord, reporting crossing roads, nodes
-drawn on top of each other, and roads grazing a location they don't connect to.
-A road touching a Depths level is drawn **dashed**, as a tunnel, and its
-crossings are reported separately rather than as failures — the Gatehouse stair
-down to the Caverns has to pass beneath the town band, and no arrangement of
-nodes avoids that.
+**The polygons are data, not code.** `map.polygon` in `docs/zones.yaml` is a
+list of `[x, y]` pairs as percentages (0–100) of the 4:3 plate, origin top-left,
+plus `map.label: {x, y}` for where the name is drawn. They sync into
+`Zone.mapPolygon` (Json), `mapLabelX` and `mapLabelY`. Retuning the map is a
+YAML edit and a re-sync. The SVG is one fixed `1000 × 750` viewBox, so a
+coordinate is a multiplication. `readPolygon` in `page.js` drops anything that
+isn't at least three pairs of numbers, rather than throwing NaN points into the
+SVG. The Caves group carries an empty polygon and only a label point — it names
+its part of the plate without being clickable.
 
 Two things carry the panel:
 
-- **Tiers are resolved server-side** in `page.js`, by asking the same
-  `isTravelFree` the server action will ask on submit — so the map can never
-  colour a hop green and then charge for it. Five tiers: `here`, `free`
-  (green), `cost` (amber, confirms that the Move is spent), `noroad`, and
-  `spent` — a costing hop the character can't afford because they already acted
-  this turn, greyed out **up front** rather than failing after the confirm.
-- **The destination list beneath the plate is always rendered**, not a
-  mobile-only branch. It's the usable surface at 390px, the keyboard and
-  screen-reader path on any screen, and the only way to travel while the Plate
-  ground is up.
+- **Tiers are resolved server-side** in `page.js`, against the same graph and
+  the same already-acted check the server action will apply on submit — so the
+  map can never offer a hop `performTravel` would refuse. Four tiers: `here`,
+  `cost` (the only clickable one), `spent` (a legal hop the character can't
+  afford because they already acted this turn, greyed out **up front** rather
+  than failing after the confirm), and `noroad`. There is no `free` tier any
+  more; an unplaced character's whole map reads as `cost` with its own note
+  ("Your first arrival — it costs you nothing").
+- **The destination list beneath the plate is the accessible path.** The
+  polygons are `aria-hidden`; the list carries the same zones as real buttons,
+  and is the keyboard and screen-reader route as well as the usable surface at
+  390px.
 
-Confirmation goes through the shared `useConfirm()` dialog.
+Travel is optimistic: the "you are here" region moves on confirm and reverts on
+its own if the action errors. Confirmation goes through the shared
+`useConfirm()` dialog.
 
 The plate's colours are `--map-*` tokens in `globals.css` that deliberately
-**do not** flip with the theme — the pointcrawl rides on a photograph, so a
-light theme would put black labels on a night picture.
+**do not** flip with the theme — the regions ride on a painting, so a light
+theme would put black labels on a night picture.
+
+There is no `map:check`. The old geometry checker existed to catch crossing
+roads and overlapping nodes in a pointcrawl; polygons traced onto the art have
+neither problem, so `db/prisma/check-map.js` and the script went with it.
 
 ## 6. Where the code lives
 
 | File | Role |
 |---|---|
-| `db/lib/travel.js` | `performTravel` — validation, cost, DB writes, no Discord |
-| `db/lib/travelCost.js` | `isTravelFree`, `DEPTHS_SLUGS` |
-| `bot/src/lib/location.js` | The ⚜ prompt, `performMove`, `swapLocationAccess` |
-| `web/app/(app)/map/` | The panel, `travelActions.js#travelTo` |
-| `db/prisma/check-map.js` | `map:check` geometry |
-| `docs/locations.yaml` | The master, including `map:` coords and `locationConnections` |
+| `db/lib/travel.js` | `performTravel` — validation, the Action, DB writes, no Discord |
+| `db/lib/seatZone.js` | `seatZoneIdFor` — the presence-zone → seat-zone mapping |
+| `bot/src/lib/zoneTravel.js` | The picker rows, `performMove`, `swapZoneRole`, `syncCharacterNarrowcastAccess` (gateway twins) |
+| `web/lib/discordGuild.js` | `syncCharacterZoneRole`, `syncCharacterNarrowcastAccess` (REST twins) |
+| `db/lib/threadInvites.js` | `applyPendingInvites` — replays standing `/add` invites on arrival |
+| `web/app/(app)/map/` | The panel, `page.js` tiers, `travelActions.js#travelTo` |
+| `docs/zones.yaml` | The master: zones, topics, `map:` polygons, `zoneConnections` |

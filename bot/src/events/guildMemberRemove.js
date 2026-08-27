@@ -1,5 +1,5 @@
 const { prisma } = require("@lifeweb/db");
-const { revokeAllCharacterAccess } = require("@lifeweb/db/lib/locationAccess");
+const { revokeAllCharacterAccess } = require("@lifeweb/db/lib/accessSweep");
 const { recordArchiveEvent } = require("@lifeweb/db/lib/archive");
 
 const LEAVE_ANNOUNCE_CHANNEL_ID = "1540014692926361651";
@@ -102,7 +102,7 @@ module.exports = {
     await recordArchiveEvent(prisma, {
       kind: "DEATH",
       character,
-      locationId: character.locationId ?? null,
+      zoneId: character.zoneId ?? null,
       content: `${character.name} died — the player left the guild.`,
     }).catch((err) => console.error(`Failed to log ${character.name}'s death archive:`, err));
   },

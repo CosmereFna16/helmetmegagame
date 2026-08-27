@@ -11,7 +11,7 @@ looking.
 It runs **last** of the four YAML syncs, because it validates against tags,
 roles and factions — see `SYNC.md`.
 
-The sync is **destructive**, in the `syncLocations` sense: a key dropped from
+The sync is **destructive**, in the `syncZones` sense: a key dropped from
 the YAML loses its row. A Document is pure reference content with no player
 state to preserve.
 

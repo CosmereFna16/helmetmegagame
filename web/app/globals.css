@@ -71,23 +71,17 @@
      60vh, max-h-40, and nothing at all). */
   --list-h: 70vh;
 
-  /* The Map panel's plate. These five deliberately do NOT flip with the
-     theme: the pointcrawl rides on a photograph — its own dark world — so a
-     light theme would put black labels on a night picture. The travel tiers
-     are the same five the server computes in map/page.js. */
+  /* The Map panel's plate. These deliberately do NOT flip with the theme:
+     the zone regions ride on the drawn plate — its own dark world — so a
+     light theme would put black labels on a night picture. The tiers are the
+     same four the server computes in map/page.js; there is no `free` one any
+     more, since every hop spends the Move. */
   --map-ink: #f2ece0;
-  --map-road: rgba(226, 216, 198, 0.34);
-  --map-road-casing: rgba(0, 0, 0, 0.55);
+  --map-halo: rgba(0, 0, 0, 0.55); /* the shadow that lifts ink off the art */
   --map-here: #e8814f;
-  --map-free: #86bd80;
   --map-cost: #dfa04a;
-  --map-idle: #9daca6;
-  /* The photographic grounds are knocked well back — desaturated, flattened
-     and dimmed — so the pointcrawl reads as the subject and the photo as
-     ground. Order matters: contrast() before brightness(), since pulling
-     toward mid-grey lifts the dark areas and brightness has to land after
-     that to put them back down. */
-  --map-ground-filter: saturate(0.4) contrast(0.7) brightness(0.5);
+  --map-spent: #9daca6;
+  --map-noroad: #6f7c78;
 
   /* Elevation. --e-1 is border-only and intentionally has no shadow. */
   --e-2: 0 2px 6px var(--shadow-color);
@@ -1821,12 +1815,11 @@ input[type="radio"]:disabled {
 
 
 /* ---------------------------------------------------------------------------
-   Map panel (web/app/(app)/map). A pointcrawl laid over one of two grounds:
-   nothing at all (Bare), or the drawn plate. Colours come from the --map-*
-   tokens above rather than from the theme, for the reason stated there.
+   Map panel (web/app/(app)/map). Clickable zone regions traced over the drawn
+   plate: one SVG polygon per presence zone, plus the zone names as SVG text.
+   Colours come from the --map-* tokens above rather than from the theme, for
+   the reason stated there.
    --------------------------------------------------------------------------- */
-
-/* The ground picker is a .segmented group — see the button block above. */
 
 .map-plate {
   position: relative;
@@ -1845,88 +1838,77 @@ input[type="radio"]:disabled {
   object-fit: cover;
   user-select: none;
   -webkit-user-drag: none;
-  filter: var(--map-ground-filter);
 }
-/* The drawn plate carries no pointcrawl at all (see GROUNDS in MapPanel.js),
-   so there is nothing for it to compete with — it stays at full strength. */
-.map-plate[data-ground="plate"] .map-ground {
-  filter: none;
-}
-.map-roads {
+/* The regions layer sits exactly over the plate, sharing its 4 : 3 box, so a
+   percentage in the YAML lands on the same spot of the art at every size. */
+.map-regions {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
 }
-.map-road-casing { stroke: var(--map-road-casing); opacity: 0.6; }
-.map-road-casing[data-tunnel="true"] { opacity: 0.35; }
-.map-road { stroke: var(--map-road); opacity: 0.55; }
-.map-road[data-tunnel="true"] { opacity: 0.42; }
-.map-road[data-tier="free"] { stroke: var(--map-free); opacity: 0.95; }
-.map-road[data-tier="cost"],
-.map-road[data-tier="spent"] { stroke: var(--map-cost); opacity: 0.95; }
-.map-road[data-tier="noroad"] { stroke: var(--map-idle); }
 
-/* The node's anchor is the rhombus, not the label: the coordinates in
-   docs/locations.yaml name a place on the ground, and the name hangs above
-   it on a stem. A 44px box keeps the tap target at the touch minimum however
-   small the mark is drawn. */
-.map-node {
-  position: absolute;
-  width: 44px;
-  height: 44px;
-  transform: translate(-50%, -50%);
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border: none;
-  background: none;
-  color: inherit;
+/* A region is a translucent wash plus its own edge: enough to read as a
+   claimed area of the drawing without covering what was drawn there. */
+.map-region {
+  fill: var(--map-noroad);
+  fill-opacity: 0.1;
+  stroke: var(--map-noroad);
+  stroke-width: 2;
+  stroke-opacity: 0.45;
+  stroke-linejoin: round;
+  transition: fill-opacity 120ms ease, stroke-opacity 120ms ease;
 }
-button.map-node { cursor: pointer; }
-.map-rhomb {
-  width: 11px;
-  height: 11px;
-  transform: rotate(45deg);
-  border: 1.5px solid var(--map-ink);
-  background: var(--map-idle);
-  box-shadow: 0 0 0 2px var(--map-road-casing);
+.map-region[data-tier="here"] {
+  fill: var(--map-here);
+  fill-opacity: 0.3;
+  stroke: var(--map-here);
+  stroke-width: 3;
+  stroke-opacity: 1;
 }
-.map-stem {
-  position: absolute;
-  bottom: 60%;
-  width: 1px;
-  height: 9px;
-  background: var(--map-ink);
-  opacity: 0.7;
+.map-region[data-tier="cost"] {
+  fill: var(--map-cost);
+  fill-opacity: 0.2;
+  stroke: var(--map-cost);
+  stroke-opacity: 0.9;
 }
-.map-label {
-  position: absolute;
-  bottom: 78%;
-  white-space: nowrap;
-  font-size: var(--fs-2xs);
+.map-region[data-tier="spent"] {
+  fill: var(--map-spent);
+  fill-opacity: 0.12;
+  stroke: var(--map-spent);
+  stroke-opacity: 0.6;
+}
+/* Only a reachable region is a button; the rest are scenery and must not
+   take a pointer, or the map promises a hop it will refuse. */
+.map-region[data-walkable="true"] {
+  cursor: pointer;
+}
+.map-region[data-walkable="true"]:hover {
+  fill-opacity: 0.42;
+  stroke-opacity: 1;
+}
+
+/* Names are drawn into the same SVG so they scale with the plate instead of
+   drifting off their region. The halo is what keeps them legible over art. */
+.map-region-label {
+  fill: var(--map-ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 19px;
   letter-spacing: var(--ls-wide);
   text-transform: uppercase;
-  color: var(--map-ink);
-  text-shadow: 0 1px 3px var(--map-road-casing), 0 0 6px var(--map-road-casing);
+  text-anchor: middle;
+  dominant-baseline: middle;
+  paint-order: stroke fill;
+  stroke: var(--map-halo);
+  stroke-width: 4;
+  stroke-linejoin: round;
   pointer-events: none;
+  user-select: none;
 }
-.map-node[data-tier="here"] .map-rhomb { background: var(--map-here); }
-.map-node[data-tier="free"] .map-rhomb { background: var(--map-free); }
-.map-node[data-tier="cost"] .map-rhomb { background: var(--map-cost); }
-.map-node[data-tier="spent"] .map-rhomb,
-.map-node[data-tier="noroad"] .map-rhomb {
-  background: transparent;
-  border-color: var(--map-idle);
-}
-.map-node[data-tier="spent"] .map-label,
-.map-node[data-tier="noroad"] .map-label { opacity: 0.6; }
-button.map-node:hover .map-rhomb,
-button.map-node:focus-visible .map-rhomb { transform: rotate(45deg) scale(1.3); }
 
 /* The destination list. Always rendered, never a mobile-only branch: it is
-   the usable surface on a 390px screen, the keyboard and screen-reader path
-   on any screen, and the only way to travel while the Plate ground is up. */
+   the usable surface on a 390px screen, and the keyboard and screen-reader
+   path to travel on any screen — the regions themselves are aria-hidden. */
 .map-dests {
   display: flex;
   flex-direction: column;
@@ -1955,8 +1937,8 @@ button.map-node:focus-visible .map-rhomb { transform: rotate(45deg) scale(1.3); 
   transform: rotate(45deg);
   border: 1.5px solid var(--muted);
 }
-.map-dest[data-tier="free"] .map-dest-mark { background: var(--map-free); border-color: var(--map-free); }
 .map-dest[data-tier="cost"] .map-dest-mark { background: var(--map-cost); border-color: var(--map-cost); }
+.map-dest[data-tier="spent"] .map-dest-mark { border-color: var(--map-spent); }
 .map-dest-body { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .map-dest-name { font-size: var(--fs-base); }
 .map-dest-note { font-size: var(--fs-xs); color: var(--muted); }
@@ -1970,9 +1952,12 @@ button.map-node:focus-visible .map-rhomb { transform: rotate(45deg) scale(1.3); 
 }
 
 @media (max-width: 640px) {
-  .map-label { font-size: 0.5625rem; letter-spacing: 0.08em; }
+  /* The plate is a third of the width it was, so the names have to grow in
+     viewBox units to stay the same size on the glass. */
+  .map-region-label { font-size: 30px; stroke-width: 6; }
   .map-dest-tier { display: none; }
 }
+
 
 /* ── Dev Character Panel (docs/systemdocs/DEV-PANEL.md) ─────────────────── */
 

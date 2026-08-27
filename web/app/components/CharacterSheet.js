@@ -195,7 +195,7 @@ export default function CharacterSheet({
         <DefaultEffortPanel
           characterId={character.id}
           defaultEffort={character.defaultEffort ?? null}
-          location={character.location ?? null}
+          zone={character.zone ?? null}
         />
       )}
 

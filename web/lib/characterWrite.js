@@ -43,7 +43,6 @@ export const EDITABLE_FIELDS = [
   "roleTitle",
   "factionId",
   "zoneId",
-  "locationId",
   "isLeader",
   "isTreasurer",
   "resources",
@@ -161,18 +160,18 @@ export async function normalizeCoreEdits({ prisma, existing, core }) {
     data.factionId = factionId;
   }
 
-  // zoneId mirrors location.zoneId whenever a Location is set (see the
-  // Location model comment in schema.prisma); a raw zone is only meaningful
-  // for a character standing nowhere in particular.
-  if ("locationId" in picked || "zoneId" in picked) {
-    const locationId = "locationId" in picked ? trimmedOrNull(picked.locationId) : existing.locationId;
-    let zoneId = "zoneId" in picked ? trimmedOrNull(picked.zoneId) : existing.zoneId;
-    if (locationId) {
-      const location = await prisma.location.findUnique({ where: { id: locationId } });
-      if (!location) throw new UserError("That location no longer exists.");
-      zoneId = location.zoneId ?? zoneId;
+  // Character.zoneId is the authoritative "where is this character" since the
+  // zone rework, and it must be a PRESENCE zone — the Caves group row owns a
+  // category and a GM seat, but nobody stands in it. A GM picker only offers
+  // presence zones, but this action is a public endpoint, so the kind check
+  // is the lock.
+  if ("zoneId" in picked) {
+    const zoneId = trimmedOrNull(picked.zoneId);
+    if (zoneId) {
+      const zone = await prisma.zone.findUnique({ where: { id: zoneId } });
+      if (!zone) throw new UserError("That zone no longer exists.");
+      if (zone.kind === "CAVE_GROUP") throw new UserError("That isn't a place a character can stand.");
     }
-    if ("locationId" in picked) data.locationId = locationId;
     data.zoneId = zoneId;
   }
 
@@ -193,7 +192,7 @@ export async function normalizeCoreEdits({ prisma, existing, core }) {
 
 // Key-by-key {from, to} over only the keys actually being written. Drives
 // both the audit row and the Discord effect plan, so nothing downstream
-// re-derives "did the location change?" from raw input.
+// re-derives "did the zone change?" from raw input.
 export function diffCore(existing, data) {
   const diff = {};
   for (const [key, to] of Object.entries(data)) {
@@ -270,8 +269,8 @@ export function planDiscordEffects({ existing, diff, finalStatus, role, tagsTouc
   if (nameChanged || bareChanged || !existing.discordRoleId) steps.push("role");
   if (nameChanged) steps.push("nickname");
   if (diff.lastName && role) steps.push("dynasty");
-  if (diff.locationId) steps.push("location");
-  if (diff.locationId || tagsTouched) steps.push("narrowcast");
+  if (diff.zoneId) steps.push("zone");
+  if (diff.zoneId || tagsTouched) steps.push("narrowcast");
 
   return steps;
 }
