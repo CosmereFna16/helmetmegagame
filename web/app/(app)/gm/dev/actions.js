@@ -233,6 +233,9 @@ const DEFAULT_GAME_CONFIG = {
   playerCount: 100,
   equipSlots: 6,
   maxNegativeTags: 4,
+  threadExpiryEnabled: false,
+  threadExpiryTurns: 5,
+  autoReconcileEnabled: false,
 };
 
 // Full game restart for dev/testing: wipes every player- and turn-scoped
