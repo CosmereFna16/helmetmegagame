@@ -29,34 +29,39 @@ const FIELD_INFO = {
   herd: { rateField: "herding", specialistSlug: LABORER_HERDING_SLUG, verb: "herded", noun: "Herding" },
 };
 
-// Location matched by slug, Zone by name — narrowcastAccess.js's convention,
-// since these rules are authored against docs/locations.yaml, where a
-// Location has a stable `id` slug but a Zone is only matched by name.
+// Zones matched by slug — these rules are authored against docs/zones.yaml's
+// stable `id` slugs. The old Forest gate ("hunt only at the forest location")
+// became a Town-zone gate when locations stopped being standable: the Forest
+// is Town's topic now.
 //
-// Nothing feeds anyone in the Caves: all four rules exclude that zone, which
-// is the point rather than a coincidence of how they're written.
+// Nothing feeds anyone in the Caves: all four rules exclude that seat, which
+// is the point rather than a coincidence of how they're written (seatZoneSlug
+// folds the three cave levels into "caves" with one equality).
 // `where` is a full adverbial phrase, not a bare place name, so it reads
 // correctly after "happens" for the exclusion rule as well as the three
 // inclusion ones ("happens only in Town" / "happens anywhere but the Caves").
 const LABOR_RULES = {
-  hunt: { where: "only in the Forest", test: (ctx) => ctx.locationSlug === "forest" },
+  hunt: { where: "only in Town — the Forest", test: (ctx) => ctx.zoneSlug === "town" },
   fish: {
     where: "only in the Fortress or Town",
-    test: (ctx) => ctx.zoneName === "Fortress" || ctx.zoneName === "Town",
+    test: (ctx) => ctx.zoneSlug === "fortress" || ctx.zoneSlug === "town",
   },
-  farm: { where: "only in Town", test: (ctx) => ctx.zoneName === "Town" },
+  farm: { where: "only in Town", test: (ctx) => ctx.zoneSlug === "town" },
   // Requires a *known* zone, so a character who is nowhere on the map can't
-  // herd from nowhere — a bare `!== "Caves"` would let them.
-  herd: { where: "anywhere but the Caves", test: (ctx) => ctx.zoneName != null && ctx.zoneName !== "Caves" },
+  // herd from nowhere — a bare `!== "caves"` would let them.
+  herd: {
+    where: "anywhere but the Caves",
+    test: (ctx) => ctx.zoneSlug != null && ctx.seatZoneSlug !== "caves",
+  },
 };
 
-// Loads the current Location/Zone and held tags for one character — the only
-// inputs the rules and the tier ladder need.
+// Loads the current zone and held tags for one character — the only inputs
+// the rules and the tier ladder need.
 async function buildLaborContext(prisma, characterId) {
   const [character, tags] = await Promise.all([
     prisma.character.findUnique({
       where: { id: characterId },
-      select: { location: { select: { slug: true } }, zone: { select: { name: true } } },
+      select: { zone: { select: { slug: true, seatZone: { select: { slug: true } } } } },
     }),
     prisma.characterTag.findMany({
       where: { characterId },
@@ -65,8 +70,8 @@ async function buildLaborContext(prisma, characterId) {
   ]);
 
   return {
-    locationSlug: character?.location?.slug ?? null,
-    zoneName: character?.zone?.name ?? null,
+    zoneSlug: character?.zone?.slug ?? null,
+    seatZoneSlug: character?.zone?.seatZone?.slug ?? character?.zone?.slug ?? null,
     tagSlugs: new Set(tags.map((t) => t.tag.slug)),
   };
 }

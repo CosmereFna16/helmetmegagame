@@ -87,11 +87,18 @@ async function runDefaultMovePass(prisma, turn) {
           discordUserId: true,
           zoneId: true,
           updatedAt: true,
-          // slug + zone name feed the labor gate (db/lib/laborAccess.js);
-          // discordChannelId is where the summary post goes; id + name stamp
-          // the archive row for that post.
-          location: { select: { id: true, name: true, discordChannelId: true, slug: true } },
-          zone: { select: { name: true } },
+          // zone slug + seat feed the labor gate (db/lib/laborAccess.js);
+          // discordSummaryChannelId is where the summary post goes; id + name
+          // stamp the archive row for that post.
+          zone: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              discordSummaryChannelId: true,
+              seatZone: { select: { slug: true } },
+            },
+          },
         },
       },
     },
@@ -154,8 +161,8 @@ async function runDefaultMovePass(prisma, turn) {
 
     const ctx = shorthandSet.has(def.characterId)
       ? {
-          locationSlug: def.character.location?.slug ?? null,
-          zoneName: def.character.zone?.name ?? null,
+          zoneSlug: def.character.zone?.slug ?? null,
+          seatZoneSlug: def.character.zone?.seatZone?.slug ?? def.character.zone?.slug ?? null,
           tagSlugs: tagsByCharacter.get(def.characterId) ?? new Set(),
         }
       : null;
@@ -205,11 +212,11 @@ async function runDefaultMovePass(prisma, turn) {
   const posts = [];
   for (const { def } of filed) {
     // The channel is resolved from where the character stands NOW, not from
-    // the summaryChannelId snapshotted when they saved the panel — a
-    // Location's plain channel IS its summary channel, so travelling should
-    // move where their Default Move is narrated. The stored id is the
-    // fallback for a character with no current location.
-    const channelId = def.character.location?.discordChannelId ?? def.summaryChannelId;
+    // the summaryChannelId snapshotted when they saved the panel — travelling
+    // should move where their Default Move is narrated. The stored id is the
+    // fallback for a character with no current zone. A cave level has no
+    // summary channel, so a Default Move down there simply isn't narrated.
+    const channelId = def.character.zone?.discordSummaryChannelId ?? def.summaryChannelId;
     if (!def.shareInSummary || !def.summaryMessage || !channelId) continue;
     posts.push({
       channelId,
@@ -217,9 +224,9 @@ async function runDefaultMovePass(prisma, turn) {
       message: def.summaryMessage,
       // Carried so runSideEffects can stamp the archive row without re-reading
       // the character. Null when the post is falling back to the stored
-      // summaryChannelId, since that id doesn't tell us which Location it is.
-      locationId: def.character.location?.id ?? null,
-      locationName: def.character.location?.name ?? null,
+      // summaryChannelId, since that id doesn't tell us which zone it is.
+      zoneId: def.character.zone?.id ?? null,
+      zoneName: def.character.zone?.name ?? null,
     });
   }
 

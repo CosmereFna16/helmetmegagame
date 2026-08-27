@@ -20,6 +20,7 @@ const { rollWeather, buildTurnAnnouncement } = require("./weather");
 const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 const { runDawnWipe } = require("./lib/dawnWipe");
+const { runThreadExpiry } = require("./lib/threadExpiryPass");
 const { runHungerPass, hungerDm, DYING_DM } = require("./lib/hungerPass");
 const { runDefaultMovePass } = require("./lib/defaultMovePass");
 const { runStagedPushPass } = require("./lib/stagedPush");
@@ -620,9 +621,9 @@ async function advanceTurn() {
           discordMessageId: sent.id,
           content: post.message,
           character: post.character,
-          locationId: post.locationId,
-          locationName: post.locationName,
-          channelKind: "plain",
+          zoneId: post.zoneId,
+          zoneName: post.zoneName,
+          channelKind: "summary",
           discordChannelId: post.channelId,
           turn: openTurn,
         });
@@ -745,6 +746,24 @@ async function advanceTurn() {
 
     if (newTurn.phase === "DAWN" && config.messageWipeEnabled) {
       await runDawnWipe(prisma).catch((err) => console.error("Dawn message wipe failed:", err));
+    }
+
+    // Inactivity expiry for player threads — independent of the wipe toggle,
+    // gated on its own switch inside the pass. After the wipe on purpose, so
+    // a thread the wipe just deleted isn't also "expired".
+    if (newTurn.phase === "DAWN") {
+      await runThreadExpiry(prisma, newTurn).catch((err) =>
+        console.error("Thread expiry pass failed:", err),
+      );
+    }
+
+    // The cheap reconciliation pass, when a GM has opted in — roles and
+    // membership only, a handful of requests (db/lib/channelDoctor.js).
+    if (config.autoReconcileEnabled) {
+      const { runChannelDoctor } = require("./lib/channelDoctor");
+      await runChannelDoctor(prisma, { apply: true, scope: "cheap" }).catch((err) =>
+        console.error("Post-turn channel doctor failed:", err),
+      );
     }
   };
 

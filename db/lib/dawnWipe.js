@@ -1,45 +1,41 @@
 // Dawn message wipe: called from db/index.js#advanceTurn() whenever the
-// newly-opened turn's phase is DAWN and GameConfig.messageWipeEnabled is
-// on. Every Location's plain (summary) channel, public (forum) posts, and
-// private-channel threads — plus the guild-wide #watch/#intercom narrowcast
-// channels (GameConfig.watchChannelId/intercomChannelId) — get cleared:
-//   - plain channel / narrowcast channel: every message deleted.
-//   - public forum posts: deleted entirely, UNLESS tagged "Persistent" (⏰)
-//     — those survive but have their messages cleared instead — or tagged
-//     "Information" (🗺), which is skipped outright: not deleted, not cleared.
-//     🗺 is the generated "{Location}: Description" post, whose entire value is
-//     the text inside it, so ⏰'s "survives but emptied" is exactly wrong for
-//     it. Only db/lib/syncLocations.js ever applies 🗺.
-//   - private channel threads: deleted entirely (no top-level messages exist
-//     there, only threads — anyone can spin one up, not just GMs), UNLESS the
-//     thread's name carries the ⏰ prefix, which is the text-channel
-//     equivalent of the forum tag since text channels can't have forum tags.
-//     Both markers are set by /persistent; see db/lib/persistence.js.
+// newly-opened turn's phase is DAWN and GameConfig.messageWipeEnabled is on.
+// Per zone (cave levels included):
+//   - #summary: every message deleted.
+//   - the public forum's posts, by what each post IS:
+//       * the zone's Create-a-Topic anchor — untouched, the wipe does not
+//         reach in there at all.
+//       * a generated Location topic (LocationTopic.discordThreadId) — every
+//         message deleted EXCEPT the starter, whose id is the thread's own
+//         id; the location's prose is the post's whole value.
+//       * a player topic — its PlayerThread row decides: persistent rows
+//         survive but are emptied (and get their Persistent tag re-asserted,
+//         since the DB is the truth and the tag only a mirror); the rest are
+//         deleted, row and invites included.
+//       * a post with NO row — adopted: a row is written (persistent: false)
+//         rather than the post silently destroyed, so a GM's hand-made post
+//         gets one full turn and a visible record instead of vanishing on
+//         the first wipe after it appears.
+//   - #private threads: same PlayerThread rule; there is no visible marker
+//     at all (the ⏰ name-prefix era is over). Surviving keeps the thread's
+//     member list, which is the practical point of persistence there.
+// Then every special-channel registry entry with wipe: "clear".
 //
-// This used to also ARCHIVE, by reading every message back out of Discord and
-// re-posting it into a single #archive channel. That was the most expensive
-// thing the bot did — one channel is one ~1 msg/sec rate-limit lane, so a busy
-// turn meant hundreds of sequential posts and a wipe measured in tens of
-// minutes, growing with player count. It was also lossy and approximate: the
-// character was matched by *current* name (a rename mis-attributed everything
-// they had ever said), the turn was inferred from timestamps, and attachments
-// vanished silently.
-//
-// The transcript is now recorded at send time instead — db/lib/archive.js,
-// called from the proxy paths — and read on the web at /archive. So this file
-// only deletes, which is the cheap half: bulkDeleteMessages moves 100 messages
-// per request, and at a 12-hour cadence nothing is ever near the 14-day floor
-// where bulk delete stops working.
-//
-// Entirely sequential (no Promise.all fan-out across locations/channels/
-// threads) to avoid bursting Discord's rate-limit buckets.
-const { PERSISTENT_TAG_NAME, INFORMATION_TAG_NAME, isPersistentThreadName } = require("./persistence");
+// The transcript is recorded at send time (db/lib/archive.js), so this file
+// only deletes. Entirely sequential (no Promise.all fan-out) to avoid
+// bursting Discord's rate-limit buckets. Per-zone try/catch, so one bad room
+// costs one room. The whole run is persisted as a SystemReport row
+// (kind: DAWN_WIPE) — the Dev Panel shows it instead of guessing.
+const { PERSISTENT_TAG_NAME } = require("./persistence");
+const { SPECIAL_CHANNELS } = require("./specialChannels");
 const {
   fetchAllMessages,
   bulkDeleteMessages,
   listActiveThreadsForChannel,
   fetchActiveThreads,
   getChannel,
+  patchThread,
+  deleteMessage,
   listArchivedPublicThreads,
   listArchivedPrivateThreads,
   deleteThread,
@@ -54,14 +50,14 @@ async function clearMessages(channelOrThreadId) {
   );
 }
 
-async function wipePlainChannel(location) {
-  if (!location.discordChannelId) return;
-  await clearMessages(location.discordChannelId);
-}
-
-async function wipeNarrowcastChannel(channelId) {
-  if (!channelId) return;
-  await clearMessages(channelId);
+// Everything except the starter message, whose id IS the thread id — deleting
+// that one destroys the whole post. Same guard the sync's rebuild uses.
+async function clearMessagesExceptStarter(threadId) {
+  const messages = await fetchAllMessages(threadId);
+  for (const message of messages) {
+    if (message.id === threadId) continue;
+    await deleteMessage(threadId, message.id);
+  }
 }
 
 async function collectThreads(channelId, { public: includePublic, private: includePrivate }, activeSnapshot) {
@@ -74,121 +70,154 @@ async function collectThreads(channelId, { public: includePublic, private: inclu
   return [...byId.values()];
 }
 
-async function wipePublicForum(location, activeSnapshot) {
-  if (!location.discordPublicChannelId) return;
+// Adopt a thread the DB doesn't know: write the row rather than delete the
+// thread. First seen at the wipe after it appears, so it always survives one
+// turn — and from then on it lives under the ordinary rules.
+async function adoptThread(prisma, thread, zone, kind) {
+  return prisma.playerThread
+    .create({
+      data: {
+        threadId: thread.id,
+        kind,
+        name: thread.name ?? "thread",
+        zoneId: zone.id,
+        persistent: false,
+      },
+    })
+    .catch((err) => {
+      console.error(`Dawn wipe: couldn't adopt thread ${thread.id}:`, err.message);
+      return null;
+    });
+}
 
-  // One channel fetch for both tag ids rather than one each: getForumTagId
-  // fetches the whole channel to read available_tags off it, so asking twice
-  // was two identical GETs per location.
+async function deletePlayerThread(prisma, threadId) {
+  await deleteThread(threadId);
+  await prisma.playerThread.deleteMany({ where: { threadId } }).catch(() => {});
+  await prisma.playerThreadInvite.deleteMany({ where: { threadId } }).catch(() => {});
+}
+
+async function wipeForum(prisma, zone, rowsByThreadId, topicThreadIds, activeSnapshot) {
+  if (!zone.discordPublicChannelId) return;
+
   // allow404: a channel someone deleted by hand is an ordinary state for a
-  // blind sweep, not a reason to abandon it. Same reasoning, and the same
-  // idiom, as db/lib/syncLocations.js and db/lib/locationAccess.js.
-  const channel = await getChannel(location.discordPublicChannelId, { allow404: true });
+  // blind sweep, not a reason to abandon it.
+  const channel = await getChannel(zone.discordPublicChannelId, { allow404: true });
   if (!channel) return;
-  const tagId = (name) => channel.available_tags?.find((t) => t.name === name)?.id ?? null;
-  const persistentTagId = tagId(PERSISTENT_TAG_NAME);
-  const informationTagId = tagId(INFORMATION_TAG_NAME);
+  const persistentTagId = channel.available_tags?.find((t) => t.name === PERSISTENT_TAG_NAME)?.id ?? null;
+
   const threads = await collectThreads(
-    location.discordPublicChannelId,
+    zone.discordPublicChannelId,
     { public: true, private: false },
     activeSnapshot,
   );
 
   for (const thread of threads) {
-    // Untouched, before either branch: 🗺 is not "survives emptied", it's
-    // "the wipe does not reach in here at all".
-    if (informationTagId && thread.applied_tags?.includes(informationTagId)) continue;
+    if (thread.id === zone.createTopicThreadId) continue;
 
-    const isPersistent = persistentTagId && thread.applied_tags?.includes(persistentTagId);
-    if (isPersistent) {
+    if (topicThreadIds.has(thread.id)) {
+      await clearMessagesExceptStarter(thread.id);
+      continue;
+    }
+
+    let row = rowsByThreadId.get(thread.id);
+    if (!row) row = await adoptThread(prisma, thread, zone, "PUBLIC");
+    if (row?.persistent) {
       await clearMessages(thread.id);
+      // Re-assert the mirror: the DB said it survives, so the tag should say
+      // so too, whatever a hand-edit did to it.
+      if (persistentTagId && !thread.applied_tags?.includes(persistentTagId)) {
+        await patchThread(thread.id, {
+          archived: false,
+          applied_tags: [...(thread.applied_tags ?? []), persistentTagId],
+        }).catch((err) => console.error(`Dawn wipe: tag re-assert on ${thread.id} failed:`, err.message));
+      }
     } else {
-      await deleteThread(thread.id);
+      await deletePlayerThread(prisma, thread.id);
     }
   }
 }
 
-async function wipePrivateChannel(location, activeSnapshot) {
-  if (!location.discordPrivateChannelId) return;
+async function wipePrivateChannel(prisma, zone, rowsByThreadId, activeSnapshot) {
+  if (!zone.discordPrivateChannelId) return;
 
   const threads = await collectThreads(
-    location.discordPrivateChannelId,
+    zone.discordPrivateChannelId,
     { public: false, private: true },
     activeSnapshot,
   );
   for (const thread of threads) {
-    // A private thread lives under a TEXT channel, which can't carry forum
-    // tags — so persistence is marked by a ⏰ prefix on the thread's own name
-    // instead (see db/lib/persistence.js, set by /persistent). Free to check:
-    // collectThreads already returns raw thread objects with `name` on them.
-    //
-    // Surviving keeps the thread's MEMBER LIST as well as the thread, which is
-    // the practical point — otherwise a standing secret side-room has to be
-    // re-invited every single turn.
-    if (isPersistentThreadName(thread.name)) {
+    let row = rowsByThreadId.get(thread.id);
+    if (!row) row = await adoptThread(prisma, thread, zone, "PRIVATE");
+    if (row?.persistent) {
       await clearMessages(thread.id);
     } else {
-      await deleteThread(thread.id);
+      await deletePlayerThread(prisma, thread.id);
     }
   }
 }
 
 async function runDawnWipe(prisma) {
-  const [locations, config] = await Promise.all([
-    prisma.location.findMany({ include: { zone: true } }),
+  const [zones, config, topics, playerThreads] = await Promise.all([
+    prisma.zone.findMany({
+      where: { kind: { not: "CAVE_GROUP" } },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
+    prisma.locationTopic.findMany({ select: { discordThreadId: true } }),
+    prisma.playerThread.findMany(),
   ]);
-  const sorted = [...locations].sort((a, b) =>
-    `${a.zone.name} / ${a.name}`.localeCompare(`${b.zone.name} / ${b.name}`),
-  );
+  const topicThreadIds = new Set(topics.map((t) => t.discordThreadId).filter(Boolean));
+  const rowsByThreadId = new Map(playerThreads.map((row) => [row.threadId, row]));
 
-  // Fetched ONCE for the whole wipe. The endpoint is guild-wide, and asking
-  // per channel meant 30 identical full-guild fetches per run. A thread
-  // created mid-wipe is missed until the next one, which is the same window
-  // the per-channel version had anyway.
+  // Fetched ONCE for the whole wipe — the endpoint is guild-wide. A thread
+  // created mid-wipe is missed until the next one, same as always.
   const activeThreads = await fetchActiveThreads().catch((err) => {
     console.error("Dawn wipe: active-thread snapshot failed, falling back to per-channel fetches:", err);
     return null;
   });
 
-  // Per-location, so one bad room costs one room.
-  //
-  // These were three bare awaits with no guard, so a single stale channel id —
-  // a forum a GM deleted by hand, most likely — threw and aborted the loop for
-  // every location after it alphabetically, AND the two narrowcast wipes
-  // below. The only evidence was one line on stderr from the caller's catch,
-  // which couldn't even say how far it got.
   const failures = [];
-  for (const location of sorted) {
-    if (!location.discordCategoryId) continue;
-    const label = `${location.zone.name} / ${location.name}`;
-    console.log(`Dawn wipe: ${label}`);
+  for (const zone of zones) {
+    console.log(`Dawn wipe: ${zone.name}`);
     try {
-      await wipePlainChannel(location);
-      await wipePublicForum(location, activeThreads);
-      await wipePrivateChannel(location, activeThreads);
+      if (zone.discordSummaryChannelId) await clearMessages(zone.discordSummaryChannelId);
+      await wipeForum(prisma, zone, rowsByThreadId, topicThreadIds, activeThreads);
+      await wipePrivateChannel(prisma, zone, rowsByThreadId, activeThreads);
     } catch (err) {
-      failures.push(label);
-      console.error(`Dawn wipe: ${label} failed, continuing with the rest:`, err.message);
+      failures.push({ step: "zone", target: zone.name, message: err.message });
+      console.error(`Dawn wipe: ${zone.name} failed, continuing with the rest:`, err.message);
     }
   }
 
-  for (const [label, channelId] of [
-    ["Watch", config?.watchChannelId],
-    ["Intercom", config?.intercomChannelId],
-  ]) {
-    console.log(`Dawn wipe: ${label}`);
+  for (const entry of SPECIAL_CHANNELS) {
+    if (entry.wipe !== "clear") continue;
+    const channelId = config?.[entry.configKey];
+    if (!channelId) continue;
+    console.log(`Dawn wipe: #${entry.slug}`);
     try {
-      await wipeNarrowcastChannel(channelId);
+      await clearMessages(channelId);
     } catch (err) {
-      failures.push(label);
-      console.error(`Dawn wipe: ${label} failed:`, err.message);
+      failures.push({ step: "special", target: entry.slug, message: err.message });
+      console.error(`Dawn wipe: #${entry.slug} failed:`, err.message);
     }
   }
 
   if (failures.length > 0) {
-    console.error(`Dawn wipe finished with ${failures.length} failed: ${failures.join(", ")}.`);
+    console.error(`Dawn wipe finished with ${failures.length} failures.`);
   }
+
+  await prisma.systemReport
+    .create({
+      data: {
+        kind: "DAWN_WIPE",
+        finishedAt: new Date(),
+        ok: failures.length === 0,
+        summary: { zones: zones.length },
+        failures,
+      },
+    })
+    .catch((err) => console.error("Dawn wipe: report write failed:", err.message));
+
   return { failed: failures.length, failures };
 }
 
