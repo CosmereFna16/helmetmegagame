@@ -65,34 +65,29 @@ and that is not the same as being able to put anything into it.
 | Moving | Gate |
 |---|---|
 | Person → person (⬢ or a tag) | Same **Zone** — since the zone rework a zone *is* the room, so this and the Silo gate are now the same grain |
-| Either end is a **Silo** | The actor's **seat** zone equals the faction's `zoneId`, **or** an officer (Leader/Treasurer) stands in the actor's **presence** zone |
+| Either end is a **Silo** | The actor's **seat** zone equals the faction's `zoneId`. Full stop. |
 
 `Faction.zoneId` is the silo zone, and it is a **seat** zone: presence is six
 zones, seats are four, and the whole cave system belongs to the Caves row
-(`GAMEMASTERS.md` §2a). That is why the home-zone branch maps the actor's
-presence zone through `seatZoneIdFor` before comparing, while the officer
-branch stays presence-grain — two people are only face to face if they are in
-the same actual room. So a Silo seated in the Caves is reachable from any cave
-level, which is the intent.
+(`GAMEMASTERS.md` §2a). That is why `canReachSilo` maps the actor's presence
+zone through `seatZoneIdFor` before comparing. So a Silo seated in the Caves
+is reachable from any cave level, which is the intent.
 
-**Officers extend a Silo's reach, and that is the load-bearing part.** Pinning
-a Silo to a *building* (which the map no longer even has) would let an
-occupying force paralyse a faction's treasury with no counterplay. Pinning it to a zone with a mobile officer
-extension means a besieged fortress makes the tax run dangerous, while an
-officer who rides out to meet you makes it easier — leadership can always walk
-toward the problem. It also means losing every officer doesn't freeze a Silo:
-it only loses the extension, and the home zone still works.
-
-Ancestors count, for the same reason `getSiloAccess` lets a parent's Leader
-manage a subject's Silo — authority flows downward, so a parent's officer is a
-legitimate mouth for a subject faction. Never the reverse.
+**The officer extension has been removed.** A Silo's reach used to also
+include any zone one of its Leaders or Treasurers happened to be standing in
+— the idea being that leadership could always walk toward the problem during
+a siege. In practice that ran backwards: it let an officer ride out to meet a
+payer and keep a besieged faction's treasury payable from outside its own
+walls, which is exactly the counterplay a siege is supposed to deny the
+defender. Treasury access is now tied to physically holding the seat zone,
+with no mobile extension of it — losing the seat zone freezes the Silo, full
+stop.
 
 **The party dropdowns are deliberately NOT filtered by reach.** A range-filtered
 menu would be a free "who is standing in my zone" scouting tool, which is a
 worse leak than the friction it saves. Every living player and every Silo stays
-listed and the gate fires on submit. The residual leak — a *success* tells you
-some officer is in your zone — is a binary, not a roster, and is the mechanic
-working.
+listed and the gate fires on submit, with a clear rejection message instead of
+a hidden option.
 
 Same-Zone travel is free and creates no `Action` (`MAP.md` §3), so this costs a
 real Move only when the parties are genuinely far apart, and nothing at all in
@@ -143,9 +138,9 @@ The one way out is the `TRANSFER_RESOURCES` request on `/character`
 (`TransferResourcesButton`), which demands a reason, appears in the Requests
 tab, and is undoable. See `REQUESTS.md`.
 
-It is also gated on **reach** (§3b): the acting character has to be in the
-Silo's zone or standing with one of its officers. `HEAL_CHARACTER`'s Silo payer
-is gated the same way — it used to pay from anywhere, which became a laundering
+It is also gated on **reach** (§3b): the acting character has to be
+physically standing in the Silo's seat zone. `HEAL_CHARACTER`'s Silo payer is
+gated the same way — it used to pay from anywhere, which became a laundering
 hole the moment transfers grew a reach gate.
 
 `SiloTransaction` rows are still written on **both** directions of that

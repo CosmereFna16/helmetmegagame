@@ -21,6 +21,10 @@ export const REQUEST_TYPE_LABELS = {
   FEED_PERSON: "Feed Person",
   HEAL_CHARACTER: "Heal",
   CHANGE_NAME: "Change Name",
+  CAVING_LOOT: "Caving Find",
+  LOOT_CHARACTER: "Loot Character",
+  MOVE_CHARACTER: "Move Character",
+  CREATE_TAG: "Create Item",
 };
 
 export const REQUEST_STATUS_LABELS = {
