@@ -132,7 +132,7 @@ Keep in mind that submitting a Move doesn't end your ability to speak and intera
 
 ### Don't Ignore The Previous Turn's Results
 
-Sometimes turn will have consequences that impact your character. If you were bested in a duel, that becomes canon the moment the turn changes over. You can describe exactly how it played out in a roleplay channel, filling in flavor and giving the result its own scene, or you can continue on and simply take it into account during future roleplay and interactions, but you cannot ignore that the result occurred.
+Sometimes turns will have consequences that impact your character. If you were bested in a duel, that becomes canon the moment the turn changes over. You can describe exactly how it played out in a roleplay channel, filling in flavor and giving the result its own scene, or you can continue on and simply take it into account during future roleplay and interactions, but you cannot ignore that the result occurred.
 
 ## Talking & Roleplay
 
