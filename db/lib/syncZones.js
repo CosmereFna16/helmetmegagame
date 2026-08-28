@@ -570,12 +570,15 @@ async function syncZonesFromYaml(prisma) {
       mapLabelY: entry.mapLabelY,
     };
 
+    // No by-name fallback for a pre-slug row: the zone_rework migration's
+    // backfill (`UPDATE "Zone" SET "slug" = ... WHERE "slug" IS NULL`) already
+    // slugs every row that existed before this sync ever runs, and `slug` is
+    // a required column — Prisma's client refuses `slug: null` as a filter
+    // value outright (a validation error, not an empty result), which is
+    // exactly what crashed here on the first zone with no existing row at
+    // all (a genuinely new one, like a cave level). A miss on slug always
+    // means "doesn't exist yet" now.
     let zone = await prisma.zone.findUnique({ where: { slug: entry.slug } });
-    if (!zone) {
-      // Claim a pre-slug row by name (the migration slugs existing rows from
-      // their names, so this only fires for a hand-made row).
-      zone = await prisma.zone.findFirst({ where: { name: entry.name, slug: null } });
-    }
     if (!zone) {
       zone = await prisma.zone.create({ data: { ...data, slug: entry.slug } });
       report.zonesCreated += 1;
