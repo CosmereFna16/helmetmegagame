@@ -78,9 +78,9 @@ the sender at −10 and the recipient up 20, and it worked on faction Silos too.
 The throw aborts the surrounding transaction, so the tag grant, the `Request`
 row and the audit entry all roll back with it.
 
-## 3. The twenty types
+## 3. The seventeen types
 
-Sixteen live in `web/app/(app)/character/requestActions.js`, the two
+Thirteen live in `web/app/(app)/character/requestActions.js`, the two
 Lifeweb types in `web/app/(app)/lifeweb/requestActions.js`, `BUY_TAGS`
 in `web/app/(app)/store/actions.js`, and `CAVING_LOOT` is filed by the turn
 engine rather than by anybody. Each one
@@ -105,12 +105,9 @@ reason.
 | `CAVING_LOOT` | Nothing — the turn engine files it when a Caving Die rolls a 6 (`CAVING.md`) | — | Drops the find |
 | `LOOT_CHARACTER` | Searches a body, **or** anyone Bound/Dying/Paralyzed/Catatonic in their zone, taking Items, Assets and ⬢ in one act | — | Returns every tag with its original expiry, and the ⬢ |
 | `MOVE_CHARACTER` | Marches a faction member they lead, someone they've bound, or a body, into a neighbouring zone. Does **not** spend the target's turn | — | Restores the previous zone in the DB only |
-| `CREATE_TAG` | Invents an Item that isn't in the catalog, optionally paying ⬢ | — | Takes the grant back, refunds, deletes the tag if nobody else holds it |
 | `BIND_CHARACTER` | Ties up anyone standing in their zone | — | Cuts them loose |
 | `FREE_CHARACTER` | Cuts someone in their zone loose | — | Puts Bound back with its original expiry |
 | `HARM_CHARACTER` | Inflicts a Health affliction on someone already helpless, flags them to be killed, or both. **Never kills** — see §5b | — | Heals what was inflicted; never revives |
-| `DROP_ITEM` | Puts an Item or Asset on the ground in their zone, where it has no owner | — | Picks it back up, unless someone else already did |
-| `PICK_UP_ITEM` | Takes something off the ground in their zone | — | Puts it back on the ground |
 
 The per-type behaviour lives in `web/lib/requestEffects.js` as one
 `REQUEST_EFFECTS` entry each. **Adding a type means adding one entry
@@ -188,6 +185,21 @@ Riding the tag system means the per-turn expiry sweep already in
 `db/index.js#resolveNeeds` handles it for free —
 `characterTag.deleteMany({ where: { expiresTurn: { lte: turn.number } } })` —
 with no bespoke expiry column to keep in step.
+
+> **Create Item and the zone cache are gone.** `CREATE_TAG` let a player invent
+> an Item that wasn't in the catalog and have it become a real `Tag` row on their
+> sheet; `DROP_ITEM` / `PICK_UP_ITEM` let them leave an Item on the ground in a
+> zone for anyone standing there to take, backed by a `ZoneCache` table. The
+> buttons, the server actions, the `REQUEST_EFFECTS` entries and the table were
+> all removed, and `db/prisma/migrations/20260828150000_drop_zone_cache` drops
+> `ZoneCache`. Bascinet didn't want a player-facing tag-creation system, and the
+> cache never earned its complexity — `db/lib/pruneTags.js` had no `zoneCaches`
+> survival check, so a prune could delete a Tag that was lying on the ground.
+> **The three `RequestType` values survive**, because Postgres cannot drop an
+> enum value in place; `requestLabels.js` still names them so a row filed before
+> the removal reads as prose, but nothing renders a body for it and nothing can
+> undo it. GM-authored custom tags at `/gm/dev/tags` are a separate system and
+> are untouched (`TAGS.md` §5d).
 
 > **Mood is gone.** `happy` / `unhappy` were two Status tags worth ±1 on the
 > Gambit die, set from a Set Mood button via a `SET_MOOD` request. All of it —
@@ -488,7 +500,7 @@ icon grid** (`ActionGrid.js`, hover tooltips via the shared `IconButton.js`).
 That grid replaced three separate surfaces: a row of text buttons inside the
 Tags panel, a Transfer Resources button in the Status panel's own footer, and
 a whole "Bodies here" panel for looting corpses. It is a grid rather than a
-vertical strip because thirteen icons in one column would run far past the
+vertical strip because eleven icons in one column would run far past the
 four `<dl>` rows next to them and drag the panel's height with them.
 
 **The state had to move up to make that work.** `TagRequestButtons.js` used to

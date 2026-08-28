@@ -65,55 +65,56 @@ zones:
       - id: town-square
         name: Square
         description: >-
-          Vines dress the homes. An old, ruined wall, patched with wooden palisade, surrounds the town.
+          An open clearing—you can actually see the sky, finally. There's a simple platform with gallows at the centre. Since the inquisition's arrival, the gallows beams have come to serve the additional purpose of a crucifix. There's a stagnant pond, still and calm aside from the occasional rat seeking water. A solemn gargoyle perches on the central pillar, its eyes long dry since the waterworks broke down. Follow winding streets and alleyways to domiciles ranging from modest homes to opulent manors.
         subLocations:
-          - name: Fields
-            description: ""
-          - name: Inn
-            description: ""
+          - name: Courtyard
+            description: >-
+              A rectangular patch of salted earth. Spectator stands awaiting bloodshed surround it. Perfect place for a duel, competition or random bout of violence!
           - name: Market Row
-            description: ""
-          - name: Gallows
-            description: ""
-          - name: Fountain
-            description: ""
+            description: >-
+              Lines of stalls and tents perched against buildings. You can find all sorts of bargains here, if buying random crap is your kind of thing.
           - name: Smithery
-            description: ""
+            description: >-
+              The dull clanging ringing against your ears rises in intensity as you approach. Arms, armour and accoutrements are lined up behind the counter, waiting to be purchased.
+          - name: The Old Cock Inn
+            description: >-
+              The coziest part of Ravenheart, open all hours of the day. It draws people from all walks of life here with the promise of hot food and liquor. Alcohol heals the soul, and will surely help you win the bar fight that is no doubt brewing.
+      - id: fields
+        name: Fields
+        description: >-
+          Squalid patches of mud outside the town walls. The ground sustains you, and to it you shall return. Strike the earth!
+        subLocations: []
       - id: church
         name: Cathedral
         description: >-
-          Stained limestone erected modestly upon a tall wooded hill. The inside is vastly illuminated.
+          Stained limestone erected modestly upon a tall wooded hill on the western edge of the town—still within the walls. Hundreds of candles light the ornate interior.
         subLocations:
-          - name: Hall
-            description: ""
-          - name: Vestry
-            description: ""
-          - name: Crypt
-            description: ""
           - name: Bell Tower
-            description: ""
+            description: >-
+              A grand, bronze bell sits up here watching over the town, waiting for a tug from below to let it sound across the land. Some vagrant has painstakingly scraped their initials into it.
           - name: Confessionals
-            description: ""
+            description: >-
+              Cramped and dark, the confession box was the church's primary source of information until the arrival of the inquisition and their more proactive methods. If the bishop is feeling generous, he may even take your confession free of charge.
+          - name: Order Chambers
+            description: >-
+              The heart of the Order. There's a small room off to the side: tool racks line the walls with cruel and unusual instruments. Cages are positioned in the corners, awaiting occupants. At the centre sits a chair with straps. If you tell them what they want to hear, maybe your death will be painless.
           - name: Scriptorium
-            description: ""
-          - name: Courtyard
-            description: ""
-          - name: Houses
-            description: ""
+            description: >-
+              It is a cavern: books and tables immaculately organized, but towards the back, the stench of old books hosting colonies of mold is overwhelming. Every surface is stacked with piles of long forgotten scrawlings of past generations. Holy seals bearing quotes of scripture are stamped haphazardly.
       - id: sanctuary
         name: Sanctuary
         description: >-
           A squat but elegant place built into the ruins of an old fort. Immaculately clean, bathed by light. The Barons funded it with electrical and mechanical equipment, but not all of it works—the wooden contraptions are more reliable.
         subLocations:
           - name: Ward
-            description: ""
-          - name: Esculap's Office
-            description: ""
-          - name: Theater
-            description: ""
-          - name: Morgue
             description: >-
-              Where they go before they're buried. There's also a cellar stuffed with ice here—a good place to store organs.
+              A long, tiled room, on either side are small bedframes. Potted plants offer the patients a quiet hope.
+          - name: Esculap's Office
+            description: >-
+              Furnished with wood, the office stands in stark contrast to the sanitized aesthetics of the rest of the Sanctuary. Shelves on the wall are lined with glassware and bottles containing hundreds of different reagents.
+          - name: Operating Theater
+            description: >-
+              A small room, windowless. A single surgery bed rests at the centre, surrounded by tables with all manner of instruments neatly arranged. An anaesthetic system is hooked up to the surgery bed, mercifully letting patients sleep through the operation. A freezer box sits in the corner awaiting generous organ donations.
           - name: Garden
             description: >-
               You can grow herbs here.
@@ -123,20 +124,22 @@ zones:
           Squat buildings, piled into discomfort.
         subLocations:
           - name: Shacks
-            description: ""
+            description: >-
+              These crudely constructed dwellings—scrap metal, wood—were never designed to last, and yet here they remain. Very few have proper owners, even fewer have working locks. An endless cycle of vagrants staking claim to an empty shack, before being turfed off by another. There are old abandoned lots too, dozens of empty buildings without purpose.
           - name: Abandoned Theater
-            description: ""
-          - name: Gambling Den
-            description: ""
+            description: >-
+              Once a bustling centre of culture, this place now serves as a home for an ever-growing population of the destitute. A side room functions as a gambling den. Neon lights soak the interior, illuminating the felted gambling tables. There is a counter at the far end of the room with a bell waiting for patrons to ring it and have their worldly desires fulfilled.
           - name: Bathhouse
-            description: ""
-          - name: Old Lots
-            description: ""
+            description: >-
+              One of the newer parts of the town, the bath house offers a central communal bath. The water is off-color—it doesn't smell good. Alternatively, paid showers line the walls, providing fresh clean water in return for an coin inserted into slot.
       - id: forest
         name: Forest
         description: >-
-          Streams part mossy boulders under the green shadows of spruce and beech.
-        subLocations: []
+          Streams part mossy boulders under the green shadows of spruce and beech. The rustling of leaves in the wind is occasionally interjected by the sounds of things moving in the undergrowth. There are marshes, creeks, bountiful visages. The trees thin on their approach to the mountains.
+        subLocations:
+          - name: Tunnel
+            description: >-
+              In the middle of a clearing, the ground suddenly gives way. Looking inside, the passage appears pitch black, and yet it seems to invite you inside.
 
   - id: fortress
     name: Fortress
@@ -162,28 +165,34 @@ zones:
           The gates open into a hallway branching into the Keep's many rooms. Past gargoyle-studded columns, the throne room. Stairs lead downwards into the Undercroft and upwards into the Quarters.
         subLocations:
           - name: Throne Room
-            description: >-
-              Intimately small, with an ornately carved wooden throne. Benches form concentric circles near the entrance. There's an elevated arcade to the left, and a hearth to the right.
+            description: |-
+              Intimately small, with an ornately carved wooden throne. The floor is uniformly tiled with ceramite bricks aside from a patch directly in front of the throne. Benches form concentric circles near the entrance. There's an elevated arcade to the left, and a hearth to the right.
+
+              There's a trapdoor in the center. You can hear something rumbling in the darkness.
           - name: Great Hall
             description: >-
               The roof vaults over rows of banqueted tables. There's a balcony; the view plunges downwards into the forest.
           - name: Council Room
             description: >-
               A wide table. There's a holographic map of Ravenheart and a button for the intercom.
+          - name: Swimming Pool
+            description: >-
+              An extravagant design. Its novelty has worn off, and now it's a place where the nobility fall in and drown. You swear you can see something shiny at the bottom.
+          - name: Servant's Wing
+            description: >-
+              A small corridor leads into the kitchen and pantry. A few ovens line the back of the room, with a firepit and stew pot stationed at the centre. Latrines can be found on the other side of the corridor.
+          - name: Library
+            description: >-
+              Rows upon rows of bookcases, most of which lie empty. Various offices of members of the court branch off from here.
+          - name: Noble Chambers
+            description: >-
+              The Baron's room opens into a large, ornately decorated bedroom with a stunningly comfortable bed at the centre. A wardrobe built into the wall contains all manner of fine attire for both the Baron and Baroness. Just adjacent are the Heir and Successors rooms, both significantly smaller, and decorated to their occupants' preferences.
           - name: The Charon
             description: >-
               A sealed gate. The Baron's key opens this.
-          - name: Swimming Pool
-            description: "An extravagant design. Its novelty has worn off, and now it's a place where the nobility fall in and drown."
-          - name: Servant's Wing
-            description: "The kitchen, the pantry, the latrines."
-          - name: Healer's Ward
-            description: ""
-          - name: Library
-            description: "The library and some branching offices. Also, the Meister's rookery and its caged ravens."
           - name: Reliquary Chapel
             description: >-
-              The Silver Cross is locked away here, accessible by the Incarn's key.
+              The Silver Cross of Ravenheart is locked away here, accessible by the Incarn's key. Courtiers come here to pray.
       - id: garrison
         name: Garrison
         description: >-
@@ -191,43 +200,41 @@ zones:
         subLocations:
           - name: Captain's Office
             description: >-
-              In the center of the tower, second floor. You should let some fresh air in.
+              On the second floor of the tower, the captain's office is a spacious room. A small portrait of the captain's beloved Baron is perched on the wall. A window looks out over the training ground below, perhaps you should let in some air—it smells like alcohol...
           - name: Barracks
-            description: ""
+            description: >-
+              Rows of bunks stand at attention. All but a handful are orderly and unused, might be a sign it's time to find some new recruits.
           - name: Armory
             description: >-
-              It has enough to give each Watchman his choice of gear—short of plate—but nothing else. Consider stocking it.
+              The garrisons store of weapons, useful for when thorough beatings can no longer keep the peace. Locked, accessible by the Baron and captain. It has enough to give each Watchman his choice of Moderate gear (freely add item tags from the Moderate smithing document or below)—but nothing else. Consider stocking it.
           - name: Dungeons
             description: >-
-              Connects to the Undercroft.
+              Rows of cells behind iron bars, each with a lock only accessible by members of the garrison. Connects to the Undercroft.
           - name: Training Yard
             description: >-
-              In the center of the garrison, surrounded by elevated platforms. There are crates of wooden training weapons.
+              In the garrison's central courtyard, surrounded by elevated platforms, a patch of packed earth serves as a sparring ground for recruits and veterans alike. There is a box of wooden training weapons.
           - name: Kennels
             description: >-
-              Good and mean dogs both, ready to hunt unruly peasants.
+              Good and mean dogs both, ready to hunt unruly peasants. Their cages are locked and only accessible by members of the garrison.
       - id: gatehouse
         name: Gatehouse
         description: |-
           Grass rises rebelliously around the manicured paths, illuminated by searchlight. Past the portcullis, old stone stairs rise towards the Keep, and further yet, to the Lifeweb tower. The Gatehouse itself has several watchtowers and a murder hole over the gate. A winch system controls the portcullis. There is a back gate behind the fortress leading into the forest, but it's equally guarded.
 
-          There is a triple-barreled anti-air autocannon in the center of the yard. It seems to be off.
+          There is a triple-barreled machinegun in the center of the yard, on a rotor. It seems to be off.
         subLocations:
           - name: Gate
             description: >-
               Menacing iron, with several inset windows, built by a paranoid man. There are old logs to the side, piled and bound.
           - name: Lifeweb
             description: >-
-              A tower of pure ceramite. It spews a voluminous flame. The Mortii's key unlocks the door.
+              A tower of pure ceramite looms before you. Its peak crowned with vibrant flame. The Mortii's key unlocks the door.
           - name: Yard
             description: >-
               The constant rains have raised vines across the fortress walls, which flower white and pink.
           - name: Stables
             description: >-
-              Old horses only, incapable of bearing anyone.
-          - name: Bell Tower
-            description: >-
-              The old-fashioned way.
+              A small stable. Most of the pens are empty. Those that aren't have old horses, lame and unable to bear the weight of a human.
       - id: undercroft
         name: Undercroft
         description: >-
@@ -235,10 +242,10 @@ zones:
         subLocations:
           - name: Sauna
             description: >-
-              The heater is electric. Small and comfortable.
+              A bath and a sauna. The Barons preferred way to wash. The water is kept at a comfortably warm temperature, and is actually changed, unlike the public bathhouse.
           - name: Cistern
             description: >-
-              Dark, connected rooms with ornate pillars, full of knee-high water.
+              Dark, connected rooms with ornate pillars, full of knee-high water. A starry tile mosaic is visible beneath the water.
           - name: Tombs
             description: >-
               The Baron's progenitors bear faces of varying humanity.
@@ -269,21 +276,35 @@ zones:
           An arbitrary array of tents, shields, and banners rise against the mountainside.
         subLocations:
           - name: War Pavilion
-            description: ""
+            description: >-
+              Inside the enormous tent is a round table, with a parchment map of Ravenheart and its surroundings strewn across it.
           - name: Common Grounds
-            description: ""
+            description: >-
+              The wide open area features a round sparring ground with training weapons strewn around the perimeter. Nearby is the well—don't fall in.
           - name: Healer's Tents
-            description: ""
-          - name: Mess Hall
-            description: ""
-          - name: Broken Spears Camp
-            description: ""
-          - name: Lieutenant's Camp
-            description: ""
+            description: >-
+              A handful of individual bunks under small tents surround the larger healer's tent. Inside the main tent, a central slab serves as an operating table, with very basic instruments and herbal remedies in drawers around it.
           - name: Fields
-            description: ""
-          - name: Mountains
-            description: ""
+            description: >-
+              Ranch animals—some distant descendants of the cow—mull around. The crops grown here are measly and bitter due to the great distance from the Lifeweb.
+          - name: Mess Hall
+            description: >-
+              There are tables lined up to form rows with stools situated on either side. At the far end of the pavilion is a large pot, gently bubbling over some coals.
+      - id: broken-spears-camp
+        name: Broken Spears Camp
+        description: >-
+          The Broken Spears have claimed this part of the camp as their own. Despite the signs of revelry—a hookah tent, flagons are scattered across the tables, tentholes torn in from scuffles—this is clearly a place of survivors, efficient amd minimal.
+        subLocations: []
+      - id: windriders-camp
+        name: Windriders Camp
+        description: >-
+          The Windriders have established themselves here. Tents are placed in orderly rows with equipment in convenient locations, ready to be equipped at a moments notice. There are banners woven out of human hair.
+        subLocations: []
+      - id: mountains
+        name: Mountains
+        description: >-
+          Great peaks which rise above the landscape, shielding the valley from the worst of the winds. Traversing them will not be easy—the easiest route would be around and through the river valley, into the Town.
+        subLocations: []
 
   # --- Caves (group) ---
   # Category + GM seat only, NOT a standable place: no summary/private
@@ -305,7 +326,7 @@ zones:
         name: Caverns
         sort: 1
         description: >-
-          Wet, dimly-lit caves, worked smooth by centuries of traffic.
+          Wet, dimly-lit caves. The main paths have been smoothed down by centuries of traffic, but side paths and natural holes descend into darkness.
         map:
           polygon:
             - [5, 62]
@@ -317,13 +338,8 @@ zones:
           - id: customs
             name: Customs
             description: >-
-              The sentry beholds migrants and mercenaries as they talk around the fire.
-            subLocations:
-              - name: Outpost
-                description: ""
-              - name: Merchant's Depot
-                description: >-
-                  Inside the caves, crates around a decayed metal frame. There is a zig-zag gap in the roof where light comes in. Besides the shuttle pad, there is a ledger room and a bunkhouse. Monsters regularly approach the depot.
+              The sentry beholds migrants and mercenaries as they talk around the fire. To the side, there's the merchant's depot; crates of a foreign design are scattered around a decayed metal frame. Light flows forth, powered by their own basic generator. Besides the shuttle pad, there is a ledger room and a bunkhouse. The creatures of the caves seem drawn to the depot's light—there is an automated small-caliber mounted on the outside wall to account for that. It's off.
+            subLocations: []
 
       # The three levels of the Depths, chained one Move apart like every
       # other hop — since the zone rework there is no free walking anywhere,

@@ -29,7 +29,7 @@ const PERM_ATTACH_FILES = 32768n;
 const CHANNEL_TYPE_TEXT = 0;
 const CHANNEL_TYPE_CATEGORY = 4;
 
-const CATEGORY_NAME = "radio";
+const CATEGORY_NAME = "Radio";
 
 async function ensureCategory(prisma, config, guildChannels, categoryConfigKey) {
   const knownId = config[categoryConfigKey];

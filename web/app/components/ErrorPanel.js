@@ -16,12 +16,11 @@ export default function ErrorPanel({ error, retry, title = "Something went wrong
     <PageShell width="narrow">
       <PageHeader
         title={title}
-        subtitle="That page didn't load. It's usually worth trying again before anything else."
+        subtitle="That page didn't load."
       />
       <div className="panel flex flex-col items-start gap-4 p-4">
         <p className="text-sm text-muted">
-          If it keeps happening, tell a GM — and give them the reference below, which is what points
-          them at the right line in the logs.
+          If it keeps happening, tell a GM. Give them the reference below:
         </p>
         {error?.digest && (
           <p className="mono text-xs text-muted">

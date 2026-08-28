@@ -265,16 +265,34 @@ function buildCreateTopicBody(zone) {
 const PRIVATE_ANCHOR_BODY =
   "Use this channel to roleplay privately. Use /add <character> and /remove <character> to invite people to your thread.";
 
-// The starter message of a generated Location topic: the location's prose,
-// then one section per sub-location. A sub-location with no text still gets
-// its heading — the post is a skeleton, and the bare heading is the prompt.
+// The starter message of a generated Location topic: the location's name
+// and prose in bold/italic, then a compact sub-location block — one index
+// line naming every sub-location, followed by one `-#` subtext line per
+// sub-location that actually has descriptive text. A sub-location with no
+// text appears in the index only; there's nothing to caption yet.
 function buildTopicBody(topic) {
-  const parts = [`## ${topic.name}`];
+  const parts = [`**${topic.name}**`];
   const description = (topic.description || "").trim();
-  if (description) parts.push(description);
-  for (const sub of normalizeSubLocations(topic.subLocations)) {
-    const text = (sub.description || "").trim();
-    parts.push(text ? `### ${sub.name}\n${text}` : `### ${sub.name}`);
+  if (description) {
+    // Italic markup doesn't survive a blank line, so each paragraph is
+    // wrapped on its own rather than italicizing the whole block at once.
+    parts.push(
+      description
+        .split(/\n{2,}/)
+        .map((paragraph) => `*${paragraph.trim()}*`)
+        .join("\n\n"),
+    );
+  }
+  const subs = normalizeSubLocations(topic.subLocations);
+  if (subs.length) {
+    const index = `**Sublocations**: ${subs.map((sub) => sub.name).join(" | ")}`;
+    const captions = subs
+      .filter((sub) => (sub.description || "").trim())
+      // `-#` only turns a line into subtext for that one line, so a
+      // multi-paragraph sub-location description gets folded onto one line
+      // here rather than losing its formatting partway through.
+      .map((sub) => `-# ${sub.name}: ${sub.description.trim().replace(/\s*\n+\s*/g, " ")}`);
+    parts.push([index, ...captions].join("\n"));
   }
   return parts.join("\n\n");
 }

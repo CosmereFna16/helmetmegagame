@@ -617,7 +617,10 @@ async function handleMoveSubmit(interaction) {
   // guaranteed income on top of one would make the risk free. Refused here,
   // in memory, before any lookup: the turn must not be spent for this.
   if (labor && moveKind === "GAMBIT") {
-    await respond(interaction, "» *Laboring is Routine work — it can't ride on a Gambit.*");
+    await respond(
+      interaction,
+      "» *If you choose to Labor on a turn, you can only do that — Laboring has to be a Routine work.*",
+    );
     return;
   }
 

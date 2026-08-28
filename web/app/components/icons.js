@@ -343,16 +343,6 @@ export function ResourcesIcon(props) {
   );
 }
 
-// Create Item — an anvil, the making of a thing.
-export function AnvilIcon(props) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
-      <path d="M3 8h9l3 3h6l-2.5 3.5H9L6 11H3z" strokeLinejoin="round" />
-      <path d="M9 14.5V18M6 21h9l-1.5-3H7.5L6 21z" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 // Loot — a hand closing over what it takes.
 export function LootIcon(props) {
   return (
@@ -386,13 +376,3 @@ export function KeyIcon(props) {
   );
 }
 
-// Drop / Pick up — something set down onto the ground line.
-export function DropIcon(props) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
-      <path d="M12 3v10M8.5 9.5L12 13l3.5-3.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M4 17.5h16" strokeLinecap="round" />
-      <path d="M7 21h10" strokeLinecap="round" />
-    </svg>
-  );
-}

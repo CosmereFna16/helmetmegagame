@@ -103,6 +103,8 @@ zones:
                 Win people's loyalty. If your people trust and follow you, there is no danger you cannot overcome.
               - >-
                 Eventually you will be attacked by the Bastard. Besides your personal investment, it's clear that that man cannot be allowed to rule Ravenheart. The visionary that he is—he would lose it all. Ravenheart's survival is a delicate balance, one he cannot possibly hope to ever understand.
+              - >-
+                A note: there is a trapdoor in the throne room that drops into a dark pit. There's a Graga there, a true monster.
             difficulty: hard
             multiple: false
             starting_resources: 3
@@ -214,6 +216,8 @@ zones:
                 Win people's loyalty. If your people trust and follow you, there is no danger you cannot overcome.
               - >-
                 Eventually you will be attacked by the Bastard. Besides your personal investment, it's clear that that man cannot be allowed to rule Ravenheart. The self-loving "visionary" that he is—he would lose it all. Ravenheart's survival is a delicate balance, one he cannot possibly hope to ever understand.
+              - >-
+                A note: there is a trapdoor in the throne room that drops into a dark pit. There's a Graga there, a true monster.
             difficulty: normal
             multiple: false
             starting_resources: 1
@@ -245,6 +249,8 @@ zones:
                 Consider keeping records of what happens every day. They may be useful later.
               - >-
                 You have minor medical training and you know how to use the Keep's messenger ravens.
+              - >-
+                A note: there is a trapdoor in the throne room that drops into a dark pit. There's a Graga there, a true monster.
             difficulty: normal
             multiple: false
             starting_resources: 1
@@ -417,7 +423,6 @@ zones:
               - Fighting (Basic)
               - Radio Bracelet (Watch)
               - Pious
-              - Manacles
               - Cudgel
               - Simple Helm
               - Buckler

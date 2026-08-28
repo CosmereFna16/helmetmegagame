@@ -50,7 +50,6 @@ const LOOT_TABLE = {
     "alcohol",
     "cleaning-powder",
     "fine-meal",
-    "manacles",
     "bear-trap",
     "hatchet",
     "dagger",

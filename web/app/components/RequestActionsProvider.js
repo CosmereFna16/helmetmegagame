@@ -31,12 +31,9 @@ import {
   transferResourcesRequest,
   lootCharacterRequest,
   moveCharacterRequest,
-  createTagRequest,
   bindCharacterRequest,
   freeCharacterRequest,
   harmCharacterRequest,
-  dropItemRequest,
-  pickUpItemRequest,
 } from "../(app)/character/requestActions";
 
 // Every player action on the character sheet, in one place: the mode state,
@@ -246,34 +243,16 @@ export const ACTION_HELP = {
     "expected to subtract the appropriate amount of resources / spend the " +
     "amount of turns. They'll review the action later, but it'll push " +
     "immediately.",
-  heal:
-    "Treating an affliction. You can only work on people standing where you " +
-    "are — yourself included — and only on things your Medical training " +
-    "covers. Someone has to pay for the medicine: any of you, or a faction's " +
-    "Silo.",
-  consume:
-    "Using something up. A meal becomes Ate Meal; a crate unpacks into what's " +
-    "inside. It always takes one from a stack, so three meals feed you three " +
-    "times. You can also just click a consumable tag on your sheet.",
-  loot:
-    "Search someone who can't stop you — a body, or anyone Bound, Dying, " +
-    "Paralyzed or Catatonic standing where you are. You see their Items, " +
-    "their Assets and their ⬢, and take what you like.",
+  heal: "Works on others nearby too. Gated by your Medical skill.",
+  consume: "Use something up. You can also just click on the tag on your sheet.",
+  loot: "Search someone. Only works on Bound, Dying, or Catatonic people.",
   move:
     "Forcibly move someone with the Bound tag. Use this before changing zones " +
     "yourself. If you're a Leader, you can also move people within your own " +
     "faction. It does not spend their turn. Bodies can be dragged by anyone.",
-  create:
-    "Make up an Item that isn't in the catalog. It goes straight onto your " +
-    "sheet and a GM reads your reason afterwards, so describe it honestly.",
   bind: "Tie up anyone standing where you are. Once they're Bound you can loot them or march them somewhere.",
   free: "Cut someone loose. Anyone standing here can do this, including a rescuer.",
-  harm:
-    "Hurt someone who is already helpless. Inflict an injury, finish them off, " +
-    "or both. Finishing does NOT kill them — it flags a GM to make the call.",
-  ground:
-    "Put something down where anyone standing here can take it, or pick up " +
-    "what's already lying around. A cache has no owner — that's the point.",
+  harm: "Further injure someone who is bound or incapacitated.",
   resources: (
     <>
       <p>Both ends have to be within reach of you.</p>
@@ -296,11 +275,9 @@ const TITLES = {
   resources: "Transfer Resources",
   loot: "Loot",
   move: "Move Player",
-  create: "Create Item",
   bind: "Bind",
   free: "Free",
   harm: "Harm",
-  ground: "Ground",
 };
 
 // Why a given person is lootable, for the target list. The living cases are
@@ -336,7 +313,6 @@ export default function RequestActionsProvider({
   bindTargets = [],
   harmTargets = [],
   harmTags = [],
-  groundItems = [],
 }) {
   const [mode, setMode] = useState(null);
   const [tagId, setTagId] = useState(null);
@@ -354,10 +330,6 @@ export default function RequestActionsProvider({
   const [picks, setPicks] = useState({});
   const [zoneId, setZoneId] = useState("");
   const [lethal, setLethal] = useState(false);
-  const [itemName, setItemName] = useState("");
-  const [itemDescription, setItemDescription] = useState("");
-  const [groundMode, setGroundMode] = useState("drop");
-  const [cacheId, setCacheId] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
   const confirm = useConfirm();
@@ -397,7 +369,6 @@ export default function RequestActionsProvider({
     () => bindTargets.filter((t) => (mode === "bind" ? !t.bound : t.bound)),
     [bindTargets, mode],
   );
-  const cache = useMemo(() => groundItems.find((g) => g.id === cacheId) ?? null, [groundItems, cacheId]);
 
   const chosen = useMemo(() => {
     // heal's tagId is an affliction on someone else's sheet, and harm's is a
@@ -477,10 +448,6 @@ export default function RequestActionsProvider({
       setPicks({});
       setZoneId("");
       setLethal(false);
-      setItemName("");
-      setItemDescription("");
-      setGroundMode("drop");
-      setCacheId("");
       setError(null);
     },
     [selfId],
@@ -504,7 +471,7 @@ export default function RequestActionsProvider({
       const name = harmTargets.find((t) => t.id === targetId)?.name ?? "them";
       const ok = await confirm({
         title: "Finish them off?",
-        message: `This asks a GM to kill ${name} for good. It does not kill them by itself, and there is no taking it back once a GM acts on it.`,
+        message: `This asks a GM to kill ${name} for good. It doesn't kill them by itself.`,
         confirmLabel: "Ask for the kill",
       });
       if (!ok) return;
@@ -542,24 +509,12 @@ export default function RequestActionsProvider({
         });
       case "move":
         return moveCharacterRequest({ targetCharacterId: targetId, targetZoneId: zoneId, reason });
-      case "create":
-        return createTagRequest({
-          name: itemName,
-          description: itemDescription,
-          quantity,
-          resourcesSpent: spend,
-          reason,
-        });
       case "bind":
         return bindCharacterRequest({ targetCharacterId: targetId, reason });
       case "free":
         return freeCharacterRequest({ targetCharacterId: targetId, reason });
       case "harm":
         return harmCharacterRequest({ targetCharacterId: targetId, tagId, lethal, reason });
-      case "ground":
-        return groundMode === "drop"
-          ? dropItemRequest({ tagId, quantity, reason })
-          : pickUpItemRequest({ cacheId, quantity, reason });
       default:
         return Promise.resolve({ ok: false, error: "Nothing to do." });
     }
@@ -580,15 +535,11 @@ export default function RequestActionsProvider({
         return Boolean(targetId && takingSomething);
       case "move":
         return Boolean(targetId && zoneId);
-      case "create":
-        return Boolean(itemName.trim());
       case "bind":
       case "free":
         return Boolean(targetId);
       case "harm":
         return Boolean(targetId && (tagId || lethal));
-      case "ground":
-        return groundMode === "drop" ? Boolean(tagId) : Boolean(cacheId);
       default:
         return Boolean(tagId);
     }
@@ -603,7 +554,6 @@ export default function RequestActionsProvider({
       canTransfer: transferable.length > 0,
       canConsume: consumable.length > 0,
       canHeal,
-      canDrop: transferable.length > 0,
     }),
     [addable, removable, transferable, consumable, canHeal],
   );
@@ -953,38 +903,6 @@ export default function RequestActionsProvider({
           </>
         )}
 
-        {mode === "create" && (
-          <>
-            <label className="field">
-              <span className="field-label">What is it?</span>
-              <input
-                type="text"
-                maxLength={60}
-                value={itemName}
-                onChange={(e) => setItemName(e.target.value)}
-                placeholder="A name nobody else has used"
-                required
-              />
-            </label>
-            <label className="field">
-              <span className="field-label">Describe it</span>
-              <textarea
-                rows={3}
-                maxLength={500}
-                value={itemDescription}
-                onChange={(e) => setItemDescription(e.target.value)}
-              />
-            </label>
-            <div className="flex flex-wrap items-end gap-3">
-              <QuantityField value={quantity} onChange={setQuantity} max={99} label="How many?" />
-              <ResourceCostField value={spend} onChange={setSpend} max={resources} />
-            </div>
-            <p className="text-xs text-muted">
-              It becomes a real Item on your sheet straight away, and a GM reads your reason afterwards.
-            </p>
-          </>
-        )}
-
         {(mode === "bind" || mode === "free") && (
           <>
             {bindable.length === 0 ? (
@@ -1064,103 +982,6 @@ export default function RequestActionsProvider({
                   Only someone Dying or Bound can be finished off, and doing it does <strong>not</strong>{" "}
                   kill them — it asks a GM to. Pick an injury, tick the box, or both.
                 </p>
-              </>
-            )}
-          </>
-        )}
-
-        {mode === "ground" && (
-          <>
-            <div className="tab-bar">
-              <button
-                type="button"
-                className="tab-item"
-                data-active={groundMode === "drop"}
-                onClick={() => {
-                  setGroundMode("drop");
-                  setTagId(null);
-                  setCacheId("");
-                  setQuantity("1");
-                }}
-              >
-                Put down
-              </button>
-              <button
-                type="button"
-                className="tab-item"
-                data-active={groundMode === "pickup"}
-                onClick={() => {
-                  setGroundMode("pickup");
-                  setTagId(null);
-                  setCacheId("");
-                  setQuantity("1");
-                }}
-              >
-                Pick up
-              </button>
-            </div>
-
-            {groundMode === "drop" ? (
-              <>
-                <label className="field">
-                  <span className="field-label">What are you putting down?</span>
-                  <select value={tagId ?? ""} onChange={(e) => pick(e.target.value || null)} required>
-                    <option value="" disabled>
-                      Choose a tag…
-                    </option>
-                    {transferable.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                        {t.quantity > 1 ? ` ×${t.quantity}` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {stacking && (
-                  <QuantityField
-                    value={quantity}
-                    onChange={setQuantity}
-                    max={heldCount}
-                    label={`How many? (you have ${heldCount})`}
-                  />
-                )}
-                <p className="text-xs text-muted">
-                  Anyone standing here can pick it up. It has no owner once it&apos;s on the ground.
-                </p>
-              </>
-            ) : groundItems.length === 0 ? (
-              <NobodyHere>There&apos;s nothing lying around here.</NobodyHere>
-            ) : (
-              <>
-                <label className="field">
-                  <span className="field-label">What are you picking up?</span>
-                  <select
-                    value={cacheId}
-                    onChange={(e) => {
-                      setCacheId(e.target.value);
-                      setQuantity("1");
-                    }}
-                    required
-                  >
-                    <option value="" disabled>
-                      Choose something…
-                    </option>
-                    {groundItems.map((g) => (
-                      <option key={g.id} value={g.id}>
-                        {g.tagName}
-                        {g.quantity > 1 ? ` ×${g.quantity}` : ""} — left by {g.droppedByName}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {cache?.stackable && cache.quantity > 1 && (
-                  <QuantityField
-                    value={quantity}
-                    onChange={setQuantity}
-                    max={cache.quantity}
-                    label={`How many? (${cache.quantity} there)`}
-                  />
-                )}
               </>
             )}
           </>

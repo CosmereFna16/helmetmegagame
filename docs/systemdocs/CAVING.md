@@ -87,8 +87,8 @@ ladder rather than every entry in it:
 - **Ultracommon** — Cave Fungus, Saltpeter.
 - **Common** — Cudgel, Purse, Cracked Bone Club, Sling, Skinned Cave Rat, Old
   Coin.
-- **Uncommon** — Alcohol, Cleaning Powder, Fine Meal, Manacles, Bear Trap,
-  plus low-tier weapons and armor.
+- **Uncommon** — Alcohol, Cleaning Powder, Fine Meal, Bear Trap, plus
+  low-tier weapons and armor.
 - **Rare** — Ravenheart Red, Cat, Salvage Plate, Supply Kit, Jewelry, Bliss,
   Spyglass, Gas Mask, plus mid-tier weapons and armor.
 - **Extremely rare** — EMP Grenade, refined gunpowder, Skeleton Wedge,

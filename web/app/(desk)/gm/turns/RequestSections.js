@@ -371,18 +371,6 @@ export const SECTIONS = {
     ),
   },
 
-  CREATE_TAG: {
-    heading: "Create Item",
-    render: ({ effect }) => (
-      <>
-        <Line label="Item">{stackLabel(effect)}</Line>
-        <Line label="Spent">{effect.resourcesSpent ?? 0} ⬢</Line>
-        <p className="text-xs text-muted">
-          Undo takes the grant back, refunds the cost, and deletes the tag itself if nobody else holds it.
-        </p>
-      </>
-    ),
-  },
   BIND_CHARACTER: {
     heading: "Bind Character",
     render: ({ effect }) => (
@@ -460,28 +448,6 @@ export const SECTIONS = {
             </p>
           </div>
         )}
-      </>
-    ),
-  },
-  DROP_ITEM: {
-    heading: "Drop Item",
-    render: ({ effect }) => (
-      <>
-        <Line label="Left behind">{stackLabel(effect)}</Line>
-        <p className="text-xs text-muted">
-          It is lying in the zone for anyone standing there to take. Undo picks it back up — unless
-          somebody already has, in which case it does nothing rather than mint a second copy.
-        </p>
-      </>
-    ),
-  },
-  PICK_UP_ITEM: {
-    heading: "Pick Up Item",
-    render: ({ effect }) => (
-      <>
-        <Line label="Picked up">{stackLabel(effect)}</Line>
-        <Line label="Left by">{effect.droppedByName ?? "—"}</Line>
-        <p className="text-xs text-muted">Undo puts it back on the ground where it was.</p>
       </>
     ),
   },

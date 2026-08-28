@@ -489,29 +489,6 @@ export default async function CharacterPage() {
     },
   });
 
-  // What is lying on the ground here. No owner, so no filtering — anyone
-  // standing in the zone sees the same pile.
-  const groundItems = character.zoneId
-    ? (
-        await prisma.zoneCache.findMany({
-          where: { zoneId: character.zoneId },
-          orderBy: { createdAt: "asc" },
-          select: {
-            id: true,
-            quantity: true,
-            droppedByName: true,
-            tag: { select: { name: true, stackable: true } },
-          },
-        })
-      ).map((g) => ({
-        id: g.id,
-        tagName: g.tag.name,
-        stackable: g.tag.stackable,
-        quantity: g.quantity,
-        droppedByName: g.droppedByName,
-      }))
-    : [];
-
   const avatarSrc = `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`;
 
   return (
@@ -545,7 +522,6 @@ export default async function CharacterPage() {
       bindTargets={bindTargets}
       harmTargets={harmTargets}
       harmTags={harmTags}
-      groundItems={groundItems}
       lastNameLocked={isDynastyMember(character.role?.slug)}
       storeTags={storeTags}
       storeHeldTags={storeHeldTags}

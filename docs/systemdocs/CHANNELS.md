@@ -173,9 +173,12 @@ departed player still reading rooms.
 
 Each `topics:` entry in `docs/zones.yaml` becomes one `LocationTopic` row and
 one generated forum post in its zone's public forum. The starter message
-carries the topic's prose plus a `###` section per sub-location — a
-sub-location with no text still gets its heading, because the post is a
-skeleton and a bare heading is the prompt.
+carries the topic's name and prose in bold/italic, then a compact
+sub-location block: one `**Sublocations**: name1 | name2 | name3` index line
+naming every sub-location, followed by one `-#` subtext line per
+sub-location that actually has descriptive text. A sub-location with no text
+appears in the index only — it gets no `-#` line, since there's nothing to
+caption yet.
 
 These posts are **unlocked** (players roleplay in them — that is the point of
 the rework) and **not pinned** (Discord caps pinned posts per forum). They wear

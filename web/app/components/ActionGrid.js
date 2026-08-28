@@ -9,23 +9,20 @@ import {
   ResourcesIcon,
   MealIcon,
   BandageIcon,
-  AnvilIcon,
   LootIcon,
   MapIcon,
   ShackleIcon,
   KeyIcon,
   WoundIcon,
-  DropIcon,
 } from "./icons";
 
 // Everything a player can do to a sheet, as one block of icons on the right
 // of the Status panel. Before this the same actions were spread over three
 // surfaces — a text button row in the Tags panel, a Transfer Resources button
-// in the Status footer, and a whole separate "Bodies here" panel — and three
-// of them (Loot, Move, Create Item) had shipped server-side with no button at
-// all.
+// in the Status footer, and a whole separate "Bodies here" panel — and two
+// of them (Loot, Move) had shipped server-side with no button at all.
 //
-// A GRID, not a vertical strip. A single column of thirteen icons would run
+// A GRID, not a vertical strip. A single column of eleven icons would run
 // far past the four rows of the <dl> beside it and drag the panel's height
 // with it; four across keeps the block roughly as tall as what it sits next
 // to. Below `sm` it drops underneath at full width.
@@ -49,13 +46,17 @@ import {
 // who is here by opening the dialog and reading it.
 const ACTIONS = [
   { mode: "add", icon: PlusIcon, label: "Add Tag", help: ACTION_HELP.add, gate: "canAdd" },
-  { mode: "remove", icon: TrashIcon, label: "Remove Tag", gate: "canRemove" },
+  {
+    mode: "remove",
+    icon: TrashIcon,
+    label: "Remove Tag",
+    help: "Cure yourself or drop an item.",
+    gate: "canRemove",
+  },
   { mode: "transfer", icon: HandOffIcon, label: "Transfer Tag", gate: "canTransfer" },
   { mode: "resources", icon: ResourcesIcon, label: "Transfer Resources", help: ACTION_HELP.resources },
   { mode: "consume", icon: MealIcon, label: "Consume", help: ACTION_HELP.consume, gate: "canConsume" },
   { mode: "heal", icon: BandageIcon, label: "Heal", help: ACTION_HELP.heal, gate: "canHeal" },
-  { mode: "create", icon: AnvilIcon, label: "Create Item", help: ACTION_HELP.create },
-  { mode: "ground", icon: DropIcon, label: "Put down / Pick up", help: ACTION_HELP.ground },
   { mode: "loot", icon: LootIcon, label: "Loot", help: ACTION_HELP.loot },
   { mode: "move", icon: MapIcon, label: "Move Player", help: ACTION_HELP.move },
   { mode: "bind", icon: ShackleIcon, label: "Bind", help: ACTION_HELP.bind },

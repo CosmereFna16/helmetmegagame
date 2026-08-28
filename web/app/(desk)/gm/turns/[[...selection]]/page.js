@@ -88,8 +88,6 @@ function summarize(request) {
       return `${e.targetStatus === "DEAD" ? "Dragged" : "Moved"} ${e.targetName ?? "?"} to ${
         e.toZoneName ?? "?"
       }`;
-    case "CREATE_TAG":
-      return `Made ${e.tagName ?? "an item"}${e.quantity > 1 ? ` ×${e.quantity}` : ""}`;
     case "BIND_CHARACTER":
       return `Bound ${e.targetName ?? "?"}`;
     case "FREE_CHARACTER":
@@ -99,10 +97,6 @@ function summarize(request) {
       const kill = e.lethal ? (e.killed ? "killed" : "NOT YET KILLED") : null;
       return [hurt ?? `Moved to finish ${e.targetName ?? "?"}`, kill].filter(Boolean).join(" · ");
     }
-    case "DROP_ITEM":
-      return `Left ${e.tagName ?? "an item"}${e.quantity > 1 ? ` ×${e.quantity}` : ""} on the ground`;
-    case "PICK_UP_ITEM":
-      return `Picked up ${e.tagName ?? "an item"}${e.quantity > 1 ? ` ×${e.quantity}` : ""}`;
     default:
       return "";
   }

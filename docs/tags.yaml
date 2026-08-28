@@ -2998,25 +2998,6 @@ tags:
     purchasableAfterStart: false
     removable: true
 
-  - slug: manacles
-    name: Manacles
-    category: items
-    group: items-gear
-    description: "Why do you need these?"
-    pointCost: 1
-    tradeable: true
-    stackable: true
-    visible: true
-    purchasable: true
-    purchasableAfterStart: false
-    removable: true
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 8
-      skills: [smithing]
-      gambit: false
-
   - slug: disguise-kit
     name: Disguise Kit
     category: items

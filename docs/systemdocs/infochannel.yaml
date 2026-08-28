@@ -141,6 +141,14 @@ categories:
           A cave level is a forum and nothing else—no summary, no private threads.
 
           You cannot roleplay in DMs or outside of the server.
+
+          **Formatting**
+          Here’s the recommended way to write a post:
+          - “text” for dialogue.
+          - text for emotes or description.
+          - (text) for out-of-character text.
+
+          You can append -# before your OOC text to make it tiny and hidden, or even spoiler it with |text|.
       - title: Resources
         body: |-
           The game’s central currency are Resources (⬢), abstracting food, money, and other bulk goods. Resources can be stored either in your character or in your faction’s Silo.

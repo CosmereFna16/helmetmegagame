@@ -104,7 +104,6 @@ export default function CharacterSheet({
   bindTargets = [],
   harmTargets = [],
   harmTags = [],
-  groundItems = [],
   equipSlots = 6,
   avatarUploadsEnabled = false,
   portraitMakerEnabled = false,
@@ -168,7 +167,6 @@ export default function CharacterSheet({
             bindTargets={bindTargets}
             harmTargets={harmTargets}
             harmTags={harmTags}
-            groundItems={groundItems}
           >
             <div className="flex flex-col gap-6">
               <StatusPanel character={character} isSelf={isSelf} />

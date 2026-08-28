@@ -24,10 +24,16 @@ export const REQUEST_TYPE_LABELS = {
   CAVING_LOOT: "Caving Find",
   LOOT_CHARACTER: "Loot Character",
   MOVE_CHARACTER: "Move Character",
-  CREATE_TAG: "Create Item",
   BIND_CHARACTER: "Bind Character",
   FREE_CHARACTER: "Free Character",
   HARM_CHARACTER: "Harm Character",
+  // Retired: Create Item and the zone cache are gone, and nothing writes
+  // these any more. The labels stay because the enum values do — Postgres
+  // cannot drop a value in place — so a row filed before the removal still
+  // reads as prose instead of a raw enum on /gm/turns and /gm/audit. There is
+  // no REQUEST_EFFECTS entry and no RequestSections body behind them, so such
+  // a row shows its label and nothing else, which is the intended outcome.
+  CREATE_TAG: "Create Item",
   DROP_ITEM: "Drop Item",
   PICK_UP_ITEM: "Pick Up Item",
 };

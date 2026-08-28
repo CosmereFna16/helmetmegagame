@@ -143,7 +143,7 @@ export default function CavingDesk({
           roster={roster}
           presenceZones={presenceZones}
           onInspect={onInspect}
-          empty="Nothing staged yet. Effects change sheets; messages land as DMs; public posts hit the summary channel — all at the push."
+          empty="Nothing staged yet."
         />
       </div>
 

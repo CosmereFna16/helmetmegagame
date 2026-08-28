@@ -159,9 +159,6 @@ enum RequestType {
   // request transaction; the Discord zone-role swap happens after commit
   // (ARCHITECTURE.md §5 — no network call inside a transaction).
   MOVE_CHARACTER
-  // Player-authored Item tag, namespaced (`custom-<id>`) so its slug can
-  // never shadow a catalog slug. See REQUESTS.md.
-  CREATE_TAG
   // Putting the `bound` tag ON someone in the filer's zone, and taking it off
   // again. Nothing else in the game grants Bound, which is what LOOT_CHARACTER
   // and MOVE_CHARACTER's "or bound" branch both key on — so these two are what
@@ -172,8 +169,19 @@ enum RequestType {
   // or both in one act. Like FEED_PERSON it NEVER kills — effect.lethal only
   // raises the ☠ and the GM's Kill button. See REQUESTS.md §5b.
   HARM_CHARACTER
-  // The zone cache (model ZoneCache): an Item put down where anyone standing
-  // there can take it, and taken back up again.
+  // RETIRED, and kept only because Postgres cannot drop an enum value in
+  // place — the same reason MoveReviewStatus.WAITING_FOR_OPPONENTS and
+  // ActionStatus.ADJUDICATED are still here. Nothing writes any of these.
+  //   CREATE_TAG    — a player inventing an Item that wasn't in the catalog.
+  //                   Player-facing tag creation is gone; /gm/dev/tags is
+  //                   still the GM's way to author one.
+  //   DROP_ITEM /   — the zone cache, an Item put down where anyone standing
+  //   PICK_UP_ITEM    in the zone could take it. The ZoneCache table it rode
+  //                   on has been dropped.
+  // requestLabels.js still names all three so a row filed before the removal
+  // reads as prose; there is no REQUEST_EFFECTS entry behind them, so such a
+  // row can be seen but not undone.
+  CREATE_TAG
   DROP_ITEM
   PICK_UP_ITEM
 }
@@ -544,7 +552,6 @@ model Zone {
   stagedMessages   StagedMessage[]
   startingForRoles Role[]          @relation("RoleStartingZone")
   cavingRolls      CavingRoll[]
-  zoneCaches       ZoneCache[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1128,7 +1135,6 @@ model Tag {
   characters  CharacterTag[]
   gatedGroups TagGroup[]     @relation("TagGroupGate")
   cavingRolls CavingRoll[]
-  zoneCaches  ZoneCache[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1804,35 +1810,6 @@ model CavingRoll {
 
   @@unique([characterId, turnId])
   @@index([turnId, resolvedAt])
-}
-
-/// An Item or Asset put down on the ground in a zone — a dead-drop, a stash,
-/// contraband ditched before a search. Anyone standing in that zone may pick
-/// it up, which is the whole point: this is the one place in the game where a
-/// tag has no owner. Filed as DROP_ITEM / PICK_UP_ITEM requests.
-///
-/// One row per drop rather than one per (zone, tag) pair, so two players
-/// leaving the same item in the same place stay two separate finds and each
-/// DROP_ITEM has exactly one row for its Undo to reverse. A pick-up decrements
-/// and deletes at zero.
-///
-/// `droppedByName` is a snapshot with no FK, per the log-table convention
-/// (ARCHITECTURE.md) — a cache outlives whoever left it, and often outlives
-/// their character.
-model ZoneCache {
-  id     String @id @default(cuid())
-  zoneId String
-  zone   Zone   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
-  tagId  String
-  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  quantity      Int    @default(1)
-  droppedByName String
-
-  createdAt DateTime @default(now())
-
-  @@index([zoneId])
-  @@index([tagId])
 }
 
 // One row per player action that took effect without GM approval. `payload`

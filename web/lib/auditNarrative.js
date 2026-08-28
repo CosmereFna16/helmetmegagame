@@ -95,7 +95,6 @@ const R = {
     ...(d.granted?.length ? [t("for"), ...joinChips(d.granted)] : []),
     ...(d.resourcesGranted ? [t("and"), res(d.resourcesGranted)] : []),
   ],
-  request_create_tag: (d) => [actor(), t("created the tag"), chip(d.name), qty(d.quantity), t("for"), res(d.resourcesSpent)],
   request_buy_tags: (d) => [
     actor(), t("bought"), ...joinChips(d.tags ?? []),
     ...(d.totalPoints ? [t(`for ${d.totalPoints} point${d.totalPoints === 1 ? "" : "s"}`)] : []),
