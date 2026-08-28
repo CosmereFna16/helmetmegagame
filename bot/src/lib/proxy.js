@@ -2,7 +2,7 @@ const { WebhookClient, RESTJSONErrorCodes, GuildPremiumTier } = require("discord
 const { prisma } = require("@lifeweb/db");
 const { recordArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
-const { capitalizeSentences } = require("./textCorrection");
+const { capitalizeSentences, fixContractions } = require("./textCorrection");
 const { resolveChannelContext } = require("./channels");
 const { sendDm } = require("./dm");
 
@@ -147,7 +147,9 @@ async function postAsCharacterTo(channel, character, { content, files = [], disc
   const threadId = channel.isThread() ? channel.id : undefined;
 
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
-  const text = config?.tupperAutocorrectEnabled ? capitalizeSentences(content ?? "") : (content ?? "");
+  const text = config?.tupperAutocorrectEnabled
+    ? capitalizeSentences(fixContractions(content ?? ""))
+    : (content ?? "");
 
   const payload = {
     content: text,
