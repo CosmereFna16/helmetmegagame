@@ -193,17 +193,18 @@ export default async function TurnsWorkspacePage({ params }) {
         orderBy: { sortOrder: "asc" },
         select: { id: true, name: true },
       }),
-      // The effect composer's search space: the whole catalog, lean.
+      // The effect composer's search space: the whole catalog. TAG_CHIP_FIELDS
+      // is what TagChip/ChipLabel need to render coloured with a working
+      // tooltip (group, category, description, …) — this used to be a lean,
+      // bespoke select missing all of that, which is why chips here rendered
+      // uncoloured with an empty tooltip. See referenceData.js's own comment;
+      // this is the second time that regression happened.
       prisma.tag.findMany({
         orderBy: { name: "asc" },
         select: {
-          id: true,
-          slug: true,
-          name: true,
+          ...TAG_CHIP_FIELDS,
           stackable: true,
           equippable: true,
-          pointCost: true,
-          defaultDurationTurns: true,
         },
       }),
       listGuildMembers(),
