@@ -214,8 +214,12 @@ I verified the code behind several of these before tagging (notes inline).
 - also roles that do start with gear should be communicated to the player during gear selection ^
 - communicate starting tag in store
 
-> **Note.** The random-name pool is `db/lib/nameCorpus.js` — plain JS arrays
-> grouped by register, so widening it is purely additive.
+> **Note on "Two Lorenzo Ferraris" — DONE.** The random-name pool is
+> `db/lib/nameCorpus.js` — plain JS arrays grouped by register, so widening it
+> was purely additive. Dropped the Italian region outright (closes this item
+> by name) and added ~74 Kenshi/RimWorld-style names — short, found-object
+> nicknames and the initials DJ/VV/AJ/MJ/TJ — to the flavour pool, which now
+> rolls 1 in 3 instead of 1 in 5.
 
 ---
 

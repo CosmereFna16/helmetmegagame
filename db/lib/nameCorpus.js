@@ -13,8 +13,8 @@
 // wide margin (longest given name 10, longest surname 10, against caps of 24
 // and 20) — so nothing downstream ever silently truncates a generated name.
 //
-// Register: Central and Eastern European first, then Iberian, a few Italian, a
-// few British — all drawn from OpenXcom's bin/common/SoldierName/*.nam files
+// Register: Central and Eastern European first, then Iberian, a few
+// British — all drawn from OpenXcom's bin/common/SoldierName/*.nam files
 // (github.com/OpenXcom/OpenXcom, GPL-3.0), which ship real, everyday given
 // names and surnames per nationality rather than the archaic, hard-to-place
 // names an earlier pass of this file used (Miłosz, Zbyslava). The surnames mix
@@ -30,7 +30,6 @@ const SLAVIC_SOUTH = "slavic-south"; // OpenXcom has no Serbian/Croatian file; B
 const RUTHENIAN = "ruthenian"; // OpenXcom has no distinct Ruthenian/Ukrainian file; Russian.nam is the closest match
 const BALTIC = "baltic"; // OpenXcom has no Lithuanian/Latvian file — kept from the original hand-built list
 const IBERIAN = "iberian";
-const ITALIAN = "italian";
 const BRITISH = "british";
 
 // Written as `[region, ...names]` rows and expanded below rather than repeating
@@ -49,7 +48,6 @@ const MEDIEVAL_MALE = expand([
   [RUTHENIAN, "Aleksandr", "Andrey", "Boris", "Ivan", "Nikolay", "Sergey", "Vladimir"],
   [BALTIC, "Mindaugas", "Gediminas", "Vytautas", "Kęstutis"],
   [IBERIAN, "Alejandro", "Diego", "Javier", "Miguel", "Afonso", "Joao", "Rui", "Vasco"],
-  [ITALIAN, "Alessandro", "Andrea", "Francesco", "Giovanni", "Lorenzo", "Marco"],
   [BRITISH, "Alexander", "Andrew", "Charles", "James", "Thomas", "William"],
 ]);
 
@@ -61,7 +59,6 @@ const MEDIEVAL_FEMALE = expand([
   [RUTHENIAN, "Anna", "Ekaterina", "Irina", "Natalya", "Olga", "Svetlana", "Tatyana"],
   [BALTIC, "Birutė", "Aldona", "Danutė", "Gražina"],
   [IBERIAN, "Ana", "Carmen", "Isabel", "Sofia", "Beatriz", "Catarina", "Ines", "Mariana"],
-  [ITALIAN, "Chiara", "Giulia", "Martina", "Sofia", "Alice", "Francesca"],
   [BRITISH, "Alice", "Elizabeth", "Emma", "Hannah", "Margaret", "Victoria"],
 ]);
 
@@ -73,7 +70,6 @@ const MEDIEVAL_SURNAMES = expand([
   [RUTHENIAN, "Ivanov", "Petrov", "Smirnov", "Volkov", "Kuznetsov", "Sokolov", "Popov", "Morozov"],
   [BALTIC, "Radvila", "Sapieha", "Goštautas"],
   [IBERIAN, "Garcia", "Rodriguez", "Martinez", "Fernandez", "Silva", "Ferreira", "Pereira", "Costa", "Mendoza", "Almeida"],
-  [ITALIAN, "Rossi", "Ferrari", "Russo", "Romano", "Colombo", "Bruno", "Ricci", "Marino"],
   [BRITISH, "Adams", "Anderson", "Baker", "Clarke", "Fraser", "Mackenzie", "Taylor", "Wallace"],
 ]);
 
@@ -100,47 +96,62 @@ const MEDIEVAL_SURNAMES = expand([
 // itself implies), so rather than invent a third pool they are simply listed
 // in both arrays below — the same trick poolsFor()'s "Person" branch already
 // relies on.
-const FLAVOUR_MALE = Object.freeze(
-  [
-    "Ernö", "Santiago", "Aurel", "Zoltán", "Kasimir", "Stellan",
-    "Emeric", "Tibor", "Rui", "Nikodem", "Marek", "Cosmin",
-    "Cog", "Sprite", "Kid", "Bishop",
-    "Codsworth", "Freeman", "Rockatansky", "Halloway",
-    "Bigwig", "Buckthorn", "Woundwort", "Strong", "Brick", "Rook", "Ghost", "Scooter", "Domino",
-    "Fiver", "Pipkin", "Blackberry", "Dandelion", "Silver", "Acorn",
-    "Bastion", "Blade", "Bomb", "Bond", "Bones", "Bookworm", "Boomer", "Boots", "Bramble", "Bravo",
-    "Bubbles", "Buck", "Buddy", "Bugsy", "Bull", "Buster", "Butcher", "Cadet", "Cake", "Cannon",
-    "Canyon", "Cash", "Castle", "Chef", "Chief", "Chili", "Chopper", "Cobra", "Coffee", "Colonel",
-    "Comrade", "Cookie", "Cornbread", "Corporal", "Cosmic", "Dagger", "Dapper", "Dash", "Diesel", "Duke",
-    "Echo", "Falcon", "Ferret", "Flint", "Fox", "Fury", "Hammer", "Havoc", "Hawk", "Honey",
-    "Hound", "Husky", "Justice", "Legend", "Lucky", "Lynx", "Maestro", "Magpie", "Mantis", "Maverick",
-    "Meerkat", "Nova", "Ocelot", "Onyx", "Peaches", "Pepper", "Phoenix", "Pickle", "Possum", "Preacher",
-    "Puma", "Raccoon", "Ranger", "Rebel", "Reckless", "Rogue", "Rowdy", "Rutabaga", "Sarge", "Scout",
-    "Sensei", "Shadow", "Shark", "Sharp", "Skipper", "Slate", "Smokey", "Spark", "Sparrow", "Static",
-    "Storm", "Swift", "Thistle", "Thunder", "Toucan", "Turtle", "Weasel", "Wolf", "Wombat", "Zero",
-  ].map((name) => Object.freeze({ name, region: null })),
-);
+//
+// This block used to be pasted twice, byte-identical, into FLAVOUR_MALE and
+// FLAVOUR_FEMALE. Kept here as its own array instead so the next batch of
+// gender-neutral nicknames only needs adding once — don't re-inline it.
+function freezeNames(names) {
+  return Object.freeze(names.map((name) => Object.freeze({ name, region: null })));
+}
 
-const FLAVOUR_FEMALE = Object.freeze(
-  [
-    "Klaasje", "Marienne", "Annika", "Ilse", "Zsóka", "Věra",
-    "Renata", "Solveig", "Pilar", "Nadia", "Lenka", "Mirela",
-    "Kit", "Pip", "Birdie", "Dita", "Bibi",
-    "Holly", "Clover", "Bluebell", "Ivy", "Red",
-    "Fiver", "Pipkin", "Blackberry", "Dandelion", "Silver", "Acorn",
-    "Osgood", "Vermeer", "Ashby",
-    "Bastion", "Blade", "Bomb", "Bond", "Bones", "Bookworm", "Boomer", "Boots", "Bramble", "Bravo",
-    "Bubbles", "Buck", "Buddy", "Bugsy", "Bull", "Buster", "Butcher", "Cadet", "Cake", "Cannon",
-    "Canyon", "Cash", "Castle", "Chef", "Chief", "Chili", "Chopper", "Cobra", "Coffee", "Colonel",
-    "Comrade", "Cookie", "Cornbread", "Corporal", "Cosmic", "Dagger", "Dapper", "Dash", "Diesel", "Duke",
-    "Echo", "Falcon", "Ferret", "Flint", "Fox", "Fury", "Hammer", "Havoc", "Hawk", "Honey",
-    "Hound", "Husky", "Justice", "Legend", "Lucky", "Lynx", "Maestro", "Magpie", "Mantis", "Maverick",
-    "Meerkat", "Nova", "Ocelot", "Onyx", "Peaches", "Pepper", "Phoenix", "Pickle", "Possum", "Preacher",
-    "Puma", "Raccoon", "Ranger", "Rebel", "Reckless", "Rogue", "Rowdy", "Rutabaga", "Sarge", "Scout",
-    "Sensei", "Shadow", "Shark", "Sharp", "Skipper", "Slate", "Smokey", "Spark", "Sparrow", "Static",
-    "Storm", "Swift", "Thistle", "Thunder", "Toucan", "Turtle", "Weasel", "Wolf", "Wombat", "Zero",
-  ].map((name) => Object.freeze({ name, region: null })),
-);
+const FLAVOUR_NEUTRAL_NAMES = [
+  "Bastion", "Blade", "Bomb", "Bond", "Bones", "Bookworm", "Boomer", "Boots", "Bramble", "Bravo",
+  "Bubbles", "Buck", "Buddy", "Bugsy", "Bull", "Buster", "Butcher", "Cadet", "Cake", "Cannon",
+  "Canyon", "Cash", "Castle", "Chef", "Chief", "Chili", "Chopper", "Cobra", "Coffee", "Colonel",
+  "Comrade", "Cookie", "Cornbread", "Corporal", "Cosmic", "Dagger", "Dapper", "Dash", "Diesel", "Duke",
+  "Echo", "Falcon", "Ferret", "Flint", "Fox", "Fury", "Hammer", "Havoc", "Hawk", "Honey",
+  "Hound", "Husky", "Justice", "Legend", "Lucky", "Lynx", "Maestro", "Magpie", "Mantis", "Maverick",
+  "Meerkat", "Nova", "Ocelot", "Onyx", "Peaches", "Pepper", "Phoenix", "Pickle", "Possum", "Preacher",
+  "Puma", "Raccoon", "Ranger", "Rebel", "Reckless", "Rogue", "Rowdy", "Rutabaga", "Sarge", "Scout",
+  "Sensei", "Shadow", "Shark", "Sharp", "Skipper", "Slate", "Smokey", "Spark", "Sparrow", "Static",
+  "Storm", "Swift", "Thistle", "Thunder", "Toucan", "Turtle", "Weasel", "Wolf", "Wombat", "Zero",
+  // Kenshi's shared male/female name column (kenshi.fandom.com/wiki/Random_Names_List) —
+  // short found-object names, same register as the batch above.
+  "Bark", "Burn", "Claw", "Dirt", "Fade", "Fish", "Flick", "Gecko", "Gills", "Hex",
+  "Ice", "Knife", "Patch", "Plank", "Ribs", "Saint", "Sand", "Scratch", "Slick", "Spade",
+  "Squint", "Stone", "Stork", "Streak", "Twitch",
+  // More backer-submitted RimWorld colonist nicknames from the same
+  // Paintsimmon list, plus the initials DJ/VV/AJ/MJ/TJ, which pair with a
+  // regional surname the same way any other flavour name does.
+  "Rusty", "Trigger", "Moth", "Snake", "Wingnut", "Tweak", "Pyro", "Shorty", "Shrike", "Stalker",
+  "Laser", "Steel", "Twig", "Killjoy", "Doom", "Snow", "Blue", "Ginger", "Styx", "Ninja",
+  "DJ", "VV", "AJ", "MJ", "TJ",
+];
+
+const FLAVOUR_MALE = freezeNames([
+  "Ernö", "Santiago", "Aurel", "Zoltán", "Kasimir", "Stellan",
+  "Emeric", "Tibor", "Rui", "Nikodem", "Marek", "Cosmin",
+  "Cog", "Sprite", "Kid", "Bishop",
+  "Codsworth", "Freeman", "Rockatansky", "Halloway",
+  "Bigwig", "Buckthorn", "Woundwort", "Strong", "Brick", "Rook", "Ghost", "Scooter", "Domino",
+  "Fiver", "Pipkin", "Blackberry", "Dandelion", "Silver", "Acorn",
+  // Kenshi's male-only column (kenshi.fandom.com/wiki/Random_Names_List).
+  "Arkh", "Barth", "Brecht", "Carp", "Garr", "Harp", "Hesric", "Krup", "Nines",
+  "Stenn", "Thoke", "Voth", "Zepp", "Zimm",
+  ...FLAVOUR_NEUTRAL_NAMES,
+]);
+
+const FLAVOUR_FEMALE = freezeNames([
+  "Klaasje", "Marienne", "Annika", "Ilse", "Zsóka", "Věra",
+  "Renata", "Solveig", "Pilar", "Nadia", "Lenka", "Mirela",
+  "Kit", "Pip", "Dita", "Bibi",
+  "Holly", "Clover", "Bluebell", "Ivy", "Red",
+  "Fiver", "Pipkin", "Blackberry", "Dandelion", "Silver", "Acorn",
+  "Osgood", "Vermeer", "Ashby",
+  // Kenshi's female-only column (kenshi.fandom.com/wiki/Random_Names_List).
+  "Adi", "Kat", "Liff", "Nat", "Nei", "Pins", "Rin", "Slink", "Trepp", "Wish",
+  ...FLAVOUR_NEUTRAL_NAMES,
+]);
 
 // Tags a given name as belonging to the Witcher batch below, so
 // randomCharacterName knows to reach for FLAVOUR_WITCHER_SURNAMES instead of a
@@ -173,15 +184,17 @@ const NAME_CORPUS = Object.freeze({
 });
 
 // How often a roll reaches for the flavour pool instead of the medieval one.
-// One in five keeps the button worth pressing again without making the odd
-// names the house style.
-const FLAVOUR_CHANCE = 0.2;
+// One in three leans into the Kenshi/RimWorld nickname register without
+// making it the house style outright.
+const FLAVOUR_CHANCE = 1 / 3;
 
 // Of a flavour roll, how often it narrows further to the three-name Witcher
 // batch. Nested under FLAVOUR_CHANCE rather than a top-level chance of its own
-// — three names getting equal billing with the ~250-entry cosmopolitan/noun
-// pools would make Olgierd absurdly overrepresented.
-const WITCHER_SHARE_OF_FLAVOUR = 1 / 6;
+// — three names getting equal billing with the ~180-entry cosmopolitan/noun
+// pools would make Olgierd absurdly overrepresented. Dropped from 1/6 to 1/10
+// when FLAVOUR_CHANCE went up, so the Witcher batch's absolute rate holds
+// roughly steady rather than becoming more common along with everything else.
+const WITCHER_SHARE_OF_FLAVOUR = 1 / 10;
 
 // How often a medieval given name is paired with a surname from a different
 // region. Ravenheart is a destination — Migrants literally arrive on the
