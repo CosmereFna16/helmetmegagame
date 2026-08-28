@@ -1,5 +1,6 @@
 const { recordArchiveEvent } = require("./archive");
 const { seatZoneIdFor } = require("./seatZone");
+const { rollCaving } = require("./cavingPass");
 
 // The database half of a zone change, shared by both faces of the game:
 // bot/src/lib/zoneTravel.js#performMove (gateway) and
@@ -13,6 +14,14 @@ const { seatZoneIdFor } = require("./seatZone");
 // web app only has REST, so each caller runs its own twin of
 // swapZoneRole/syncCharacterNarrowcastAccess/applyPendingInvites afterwards.
 // `oldZone` comes back on the result precisely so they can.
+//
+// Arriving at a CAVE_LEVEL zone also rolls the Caving Die (the "on arrival"
+// trigger — see db/lib/cavingPass.js and docs/systemdocs/CAVING.md). Same
+// no-Discord discipline: the roll is written here, and `cavingDm` comes back
+// on the result for the caller to send. The turn-start pass fires the other
+// trigger every subsequent turn; @@unique([characterId, turnId]) on
+// CavingRoll is what keeps the two from double-rolling a character who
+// arrives and then the same turn closes under them.
 //
 // Legality: targetZone must be a presence zone (never the Caves group row)
 // and a direct neighbour of where the character stands (Zone.connectsTo,
@@ -117,7 +126,23 @@ async function performTravel(prisma, character, targetZone) {
     });
   }
 
-  return { ok: true, oldZone: currentZone };
+  let cavingDm = null;
+  if (targetZone.kind === "CAVE_LEVEL") {
+    // `openTurn` is already loaded when this hop cost a Move; a free first
+    // placement (a Migrant/Mercenary starting in the Depths) has none yet,
+    // so fetch it. No open turn at all (mid-restart) just skips the roll —
+    // the next turn's pass or the next arrival will catch them.
+    const turnForRoll = openTurn ?? (await prisma.turn.findFirst({ where: { status: "OPEN" } }));
+    if (turnForRoll) {
+      const { dm } = await rollCaving(prisma, character, turnForRoll, targetZone).catch((err) => {
+        console.error(`Caving arrival roll failed for character ${character.id}:`, err);
+        return { dm: null };
+      });
+      cavingDm = dm;
+    }
+  }
+
+  return { ok: true, oldZone: currentZone, cavingDm };
 }
 
 module.exports = { performTravel };

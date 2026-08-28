@@ -90,6 +90,8 @@ function summarize(request) {
       return `Healed ${e.tagName ?? "?"} on ${e.targetName ?? "?"}`;
     case "CHANGE_NAME":
       return `${e.previous?.name ?? "?"} → ${e.next?.name ?? "?"}`;
+    case "CAVING_LOOT":
+      return `Found ${e.tagName ?? "something"}`;
     default:
       return "";
   }
@@ -98,7 +100,7 @@ function summarize(request) {
 export default async function TurnsWorkspacePage() {
   const openTurn = await getOpenTurn();
 
-  const [actions, requests, stagedEffects, stagedMessages, roster, zones, presenceZones, tagCatalog, members, myZone, gmProfiles] =
+  const [actions, requests, cavingRolls, stagedEffects, stagedMessages, roster, zones, presenceZones, tagCatalog, members, myZone, gmProfiles] =
     await Promise.all([
       openTurn
         ? prisma.action.findMany({
@@ -131,6 +133,21 @@ export default async function TurnsWorkspacePage() {
         take: REQUEST_LIMIT,
         include: { character: { include: { faction: { include: { zone: true } } } }, turn: true },
       }),
+      // The Caving lens — every roll on the open turn. See
+      // docs/systemdocs/CAVING.md. No "strays from earlier turns" clause
+      // like stagedEffects/stagedMessages below: a CavingRoll is never
+      // "unapplied", it just sits resolved or not.
+      openTurn
+        ? prisma.cavingRoll.findMany({
+            where: { turnId: openTurn.id },
+            orderBy: { createdAt: "desc" },
+            include: {
+              character: { select: { id: true, name: true, discordUserId: true, faction: { include: { zone: true } } } },
+              zone: { select: { name: true } },
+              lootTag: { select: { name: true } },
+            },
+          })
+        : [],
       // Open-turn staging plus every unapplied stray from earlier turns —
       // the strays feed the missed-push banner.
       prisma.stagedEffect.findMany({
@@ -265,11 +282,32 @@ export default async function TurnsWorkspacePage() {
     reviewedAtLabel: r.reviewedAt ? r.reviewedAt.toISOString().slice(0, 16).replace("T", " ") : null,
   }));
 
+  const cavingRows = cavingRolls.map((c) => ({
+    id: c.id,
+    characterId: c.characterId,
+    characterName: c.character.name,
+    discordUsername: nameFor(c.character),
+    factionZoneName: c.character.faction?.zone?.name ?? c.zone?.name ?? "",
+    die: c.die,
+    kind: c.kind,
+    lootTier: c.lootTier ?? null,
+    lootTagName: c.lootTag?.name ?? null,
+    statusLabel: c.resolvedAt ? "Resolved" : "Needs attention",
+    resolvedAt: c.resolvedAt ? c.resolvedAt.toISOString() : null,
+    resolvedByUsername: c.resolvedByDiscordUserId
+      ? (usernameById.get(c.resolvedByDiscordUserId) ?? c.resolvedByDiscordUserId)
+      : null,
+    resolvedAtLabel: c.resolvedAt ? c.resolvedAt.toISOString().slice(0, 16).replace("T", " ") : null,
+    gmNotes: c.gmNotes ?? "",
+    createdAtMs: c.createdAt.getTime(),
+  }));
+
   const presenceZoneNameById = new Map(presenceZones.map((z) => [z.id, z.name]));
 
   const effects = stagedEffects.map((e) => ({
     id: e.id,
     moveId: e.moveId,
+    cavingRollId: e.cavingRollId,
     batchId: e.batchId,
     targetCharacterId: e.targetCharacterId,
     targetName: e.targetCharacter?.name ?? "(deleted)",
@@ -289,6 +327,7 @@ export default async function TurnsWorkspacePage() {
   const messages = stagedMessages.map((m) => ({
     id: m.id,
     moveId: m.moveId,
+    cavingRollId: m.cavingRollId,
     kind: m.kind,
     content: m.content,
     zoneId: m.zoneId,
@@ -313,6 +352,7 @@ export default async function TurnsWorkspacePage() {
       presenceZones={presenceZones}
       moves={moves}
       requests={requestRows}
+      cavingRolls={cavingRows}
       stagedEffects={effects}
       stagedMessages={messages}
       gmProfiles={gmProfilesById}

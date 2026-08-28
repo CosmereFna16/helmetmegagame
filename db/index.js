@@ -22,6 +22,7 @@ const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 const { runDawnWipe } = require("./lib/dawnWipe");
 const { runThreadExpiry } = require("./lib/threadExpiryPass");
 const { runHungerPass, hungerDm, DYING_DM } = require("./lib/hungerPass");
+const { runCavingPass } = require("./lib/cavingPass");
 const { runDefaultMovePass } = require("./lib/defaultMovePass");
 const { runStagedPushPass } = require("./lib/stagedPush");
 // Required by path, not through the barrel: see the note in db/lib/dm.js about
@@ -162,15 +163,24 @@ async function sweepExpiredStacks(turn) {
 // automated one actually resolving Needs.
 //
 // Returns { lifewebBlood, starvedNotices, defaultMovePosts,
-// defaultMoveDms, tagExpiryDms }. Everything after the first is Discord work
-// this function deliberately does NOT perform — the Hunger pass's DM list
-// (one notice per starved character: discordUserId, streak, justDied), the
-// Default Move pass's summary posts and DMs, and the tag progression pass's
-// DMs. See advanceTurn() below for why.
+// defaultMoveDms, tagExpiryDms, cavingDms }. Everything after the first is
+// Discord work this function deliberately does NOT perform — the Hunger
+// pass's DM list (one notice per starved character: discordUserId, streak,
+// justDied), the Default Move pass's summary posts and DMs, the tag
+// progression pass's DMs, and the Caving Die's one-DM-per-1-or-6 list. See
+// advanceTurn() below for why.
 // Every pass this turn owes, by the name markDone records it under. The
 // needsResolvedAt stamp at the bottom is written only when `done` covers all
 // of them, which is what makes the resume machinery mean anything.
-const TURN_PASSES = ["defaultMoves", "stagedPush", "tagExpiry", "expirySweep", "hunger", "lifewebDecay"];
+const TURN_PASSES = [
+  "defaultMoves",
+  "stagedPush",
+  "tagExpiry",
+  "expirySweep",
+  "caving",
+  "hunger",
+  "lifewebDecay",
+];
 
 // How long a resume lease is honoured before another advance may take it over.
 // Long enough that a real resume of a 100+ player roster is never stolen
@@ -329,6 +339,29 @@ async function resolveNeeds(turn, config) {
     }
   }
 
+  // The Caving Die — every ALIVE character standing in the Depths gets one
+  // roll for the turn that's opening. Slotted after expirySweep (loot
+  // granted just now must not be swept THIS turn) and before hunger (a
+  // Skinned Cave Rat eaten last turn needs to be swept before Hunger reads
+  // it — same ordering reason as tagExpiry -> expirySweep -> hunger below).
+  // See db/lib/cavingPass.js and docs/systemdocs/CAVING.md.
+  let caving = null;
+  if (!done.has("caving")) {
+    caving = await runCavingPass(prisma, turn).catch(async (err) => {
+      await passFailed("Caving", err);
+      return null;
+    });
+    if (caving) await markDone("caving");
+  }
+  const { dms: cavingDms = [], ...cavingSummary } = caving ?? {};
+  if (caving) {
+    await prisma.auditLog
+      .create({
+        data: { actorDiscordUserId: "system", actionType: "caving_resolved", details: cavingSummary },
+      })
+      .catch((err) => console.error("Caving audit log failed:", err));
+  }
+
   // Hunger upkeep runs AFTER the sweep, deliberately: a Hunger granted while
   // closing turn N-1 carries expiresTurn N, so the sweep is what clears it a
   // moment before this pass may grant a fresh one. In the other order a
@@ -421,6 +454,7 @@ async function resolveNeeds(turn, config) {
     defaultMovePosts,
     defaultMoveDms,
     tagExpiryDms,
+    cavingDms,
     privateDeliveries,
     publicPosts,
     zoneMoves,
@@ -462,6 +496,7 @@ async function advanceTurn() {
   let defaultMovePosts = [];
   let defaultMoveDms = [];
   let tagExpiryDms = [];
+  let cavingDms = [];
   let privateDeliveries = [];
   let publicPosts = [];
   let zoneMoves = [];
@@ -496,7 +531,7 @@ async function advanceTurn() {
       };
     }
 
-    ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, privateDeliveries, publicPosts, zoneMoves } =
+    ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, cavingDms, privateDeliveries, publicPosts, zoneMoves } =
       await resolveNeeds(openTurn, config));
   } else {
     // No OPEN turn, which normally means "opening the very first turn". It
@@ -561,7 +596,7 @@ async function advanceTurn() {
           },
         })
         .catch((logErr) => console.error("Failed to log turn_resume — the resume now has no record:", logErr));
-      ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, privateDeliveries, publicPosts, zoneMoves } =
+      ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, cavingDms, privateDeliveries, publicPosts, zoneMoves } =
         await resolveNeeds(unfinished, config));
     }
   }
@@ -644,6 +679,15 @@ async function advanceTurn() {
     for (const dm of tagExpiryDms) {
       await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
         console.error(`Tag progression DM to ${dm.discordUserId} failed:`, err),
+      );
+    }
+
+    // One DM per Caving Die roll of 1 or 6 — nothing for a quiet 2-5, which
+    // is the whole point of the die (see db/lib/cavingPass.js). Before the
+    // Hunger DMs for the same "worse news first" ordering as tagExpiry above.
+    for (const dm of cavingDms) {
+      await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
+        console.error(`Caving DM to ${dm.discordUserId} failed:`, err),
       );
     }
 

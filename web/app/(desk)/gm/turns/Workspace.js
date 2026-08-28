@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import QueueRail from "./QueueRail";
 import MoveDesk from "./MoveDesk";
 import RequestDesk from "./RequestDesk";
+import CavingDesk from "./CavingDesk";
 import InspectorColumn from "./InspectorColumn";
 import StagingTray from "./StagingTray";
 import PushPreview from "./PushPreview";
@@ -107,13 +108,14 @@ export default function Workspace({
   presenceZones,
   moves,
   requests,
+  cavingRolls,
   stagedEffects,
   stagedMessages,
   gmProfiles,
 }) {
   const router = useRouter();
   const [lens, setLens] = useState("moves"); // which queue the rail shows
-  const [selected, setSelected] = useState(null); // { type: "move"|"request", id }
+  const [selected, setSelected] = useState(null); // { type: "move"|"request"|"caving", id }
   const [inspected, setInspected] = useState(null); // { characterId, name }
   const storedPins = useSyncExternalStore(subscribePins, readStoredPins, serverPins);
   const [localPins, setLocalPins] = useState(null); // null until the user first touches a pin this session
@@ -190,6 +192,8 @@ export default function Workspace({
 
   const selectedMove = selected?.type === "move" ? moves.find((m) => m.id === selected.id) : null;
   const selectedRequest = selected?.type === "request" ? requests.find((r) => r.id === selected.id) : null;
+  const selectedCaving =
+    selected?.type === "caving" ? (cavingRolls ?? []).find((c) => c.id === selected.id) : null;
 
   // The inspector's dim/suffix source for staged quick-edits: net staged
   // resources/tag points and pending tag ops, per character, over everything
@@ -220,6 +224,26 @@ export default function Workspace({
       const entry = map.get(m.moveId) ?? { effects: [], messages: [] };
       entry.messages.push(m);
       map.set(m.moveId, entry);
+    }
+    return map;
+  }, [stagedEffects, stagedMessages]);
+
+  // Same shape as stagedByMove, keyed by cavingRollId instead — a GM can
+  // stage narration and effects against a Caving Die roll exactly as
+  // against a Move (see CavingDesk.js).
+  const stagedByCaving = useMemo(() => {
+    const map = new Map();
+    for (const e of stagedEffects) {
+      if (!e.cavingRollId) continue;
+      const entry = map.get(e.cavingRollId) ?? { effects: [], messages: [] };
+      entry.effects.push(e);
+      map.set(e.cavingRollId, entry);
+    }
+    for (const m of stagedMessages) {
+      if (!m.cavingRollId) continue;
+      const entry = map.get(m.cavingRollId) ?? { effects: [], messages: [] };
+      entry.messages.push(m);
+      map.set(m.cavingRollId, entry);
     }
     return map;
   }, [stagedEffects, stagedMessages]);
@@ -299,6 +323,7 @@ export default function Workspace({
         <QueueRail
           moves={moves}
           requests={requests}
+          cavingRolls={cavingRolls}
           myZoneName={myZoneName}
           stagedByMove={stagedByMove}
           selected={selected}
@@ -335,11 +360,28 @@ export default function Workspace({
               registerEscape={registerEscape}
               onOpenDev={onOpenDev}
             />
+          ) : selectedCaving ? (
+            <CavingDesk
+              key={selectedCaving.id}
+              roll={selectedCaving}
+              staged={stagedByCaving.get(selectedCaving.id) ?? { effects: [], messages: [] }}
+              tagsById={tagsById}
+              tagCatalog={tagCatalog}
+              roster={roster}
+              zones={zones}
+              presenceZones={presenceZones}
+              currentTurnNumber={openTurn?.number ?? null}
+              onInspect={inspect}
+              onClose={() => setSelected(null)}
+              registerEscape={registerEscape}
+              onOpenDev={onOpenDev}
+              gmProfiles={gmProfiles}
+            />
           ) : (
             <div className="desk-empty">
               <p className="text-sm text-muted">
-                Pick a Move or Request from the queue. Everything you stage — messages, effects,
-                public declarations — goes out together when the turn ends.
+                Pick a Move, Request or Caving roll from the queue. Everything you stage —
+                messages, effects, public declarations — goes out together when the turn ends.
               </p>
             </div>
           )}

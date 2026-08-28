@@ -138,6 +138,11 @@ enum RequestType {
   FEED_PERSON
   HEAL_CHARACTER
   CHANGE_NAME
+  // A system-filed grant, not a player action — written by db/lib/cavingPass.js
+  // when a Caving Die roll of 6 finds loot. PASSED by default like every
+  // other request; a GM's Undo goes through the ordinary handler in
+  // web/lib/requestEffects.js. See docs/systemdocs/CAVING.md.
+  CAVING_LOOT
 }
 
 // PASSED is the default and means "not yet touched by a GM" — the request
@@ -518,6 +523,7 @@ model Zone {
   gmAssignments    GmAssignment[]
   stagedMessages   StagedMessage[]
   startingForRoles Role[]          @relation("RoleStartingZone")
+  cavingRolls      CavingRoll[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -839,6 +845,7 @@ model Character {
   desires                 Desire[]
   stagedMessageRecipients StagedMessageRecipient[]
   stagedEffects           StagedEffect[]
+  cavingRolls             CavingRoll[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -933,6 +940,14 @@ model Tag {
   purchasable           Boolean @default(false)
   purchasableAfterStart Boolean @default(true)
 
+  // The other side of purchasable: whether the Merchant's Depot will buy
+  // this off a player, and for how many ⬢. Catalog data only, same status
+  // as purchasable — no sell flow reads it yet. syncTags.js requires the
+  // two fields to travel together: sellable without a positive sellablePrice
+  // is an error, and so is a price without sellable: true.
+  sellable      Boolean @default(false)
+  sellablePrice Int?
+
   // Catalog-level default duration in turns, for tags that auto-expire once
   // granted (mirrors CharacterTag.expiresTurn's "absolute turn number, swept
   // by resolveNeeds()" convention). E.g. Drained sets this to 3, so donating
@@ -955,6 +970,27 @@ model Tag {
   // clock at the moment it's granted, so chains work (meal -> Ate Meal that
   // the sweep then clears). Empty means consuming just uses the tag up.
   consumesInto String[]
+
+  // The Resources half of consuming, added for the Caves Update's Purse and
+  // Supply Kit — a Purse has no tag half at all (consumesInto: []), while a
+  // Supply Kit combines both. Null means consuming grants no Resources.
+  // Applied by the same consumeTagRequest that reads consumesInto, through
+  // the ordinary creditResources primitive (web/lib/requestEffects.js), and
+  // snapshotted into Request.effect so CONSUME_TAG's undo can debit it back
+  // without re-deriving from live state. See docs/systemdocs/CAVING.md.
+  consumesIntoResources Int?
+
+  // Parallel array to consumesInto, same length and order — added for the
+  // Caves Update's Skinned Cave Rat (a 50/50 pick between Ate Meal and
+  // Vomiting). Each entry is either null (that position grants exactly the
+  // slug consumesInto holds there) or a list of two-or-more alternative
+  // slugs to pick between with even odds; when it is a list, the
+  // corresponding consumesInto[i] holds the first alternative only as a
+  // display fallback — web/lib/consumeGrants.js reads this field first and
+  // rolls the real pick, the same { oneOf: [...] } shape expiresInto already
+  // uses for db/lib/tagExpiryPass.js. Null (the column, not an entry) is by
+  // far the common case — almost nothing needs a random consume outcome.
+  consumesIntoOneOf Json?
 
   // Per-target conditions on the list above, as { "<target slug>": ["<blocking
   // slug>", ...] } — the target is granted only if the character holds NONE of
@@ -1045,6 +1081,7 @@ model Tag {
 
   characters  CharacterTag[]
   gatedGroups TagGroup[]     @relation("TagGroupGate")
+  cavingRolls CavingRoll[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1270,6 +1307,7 @@ model Turn {
   requests       Request[]
   stagedMessages StagedMessage[]
   stagedEffects  StagedEffect[]
+  cavingRolls    CavingRoll[]
 }
 
 model Action {
@@ -1383,6 +1421,11 @@ model StagedMessage {
   moveId String?
   move   Action? @relation(fields: [moveId], references: [id], onDelete: SetNull)
 
+  // Same SetNull reasoning as moveId, for the Caving lens: a GM can stage
+  // narration against a Caving Die roll of 1 exactly as against a Move.
+  cavingRollId String?
+  cavingRoll   CavingRoll? @relation(fields: [cavingRollId], references: [id], onDelete: SetNull)
+
   kind    StagedMessageKind
   content String
 
@@ -1443,6 +1486,10 @@ model StagedEffect {
   // Same SetNull reasoning as StagedMessage.moveId above.
   moveId String?
   move   Action? @relation(fields: [moveId], references: [id], onDelete: SetNull)
+
+  // Same SetNull reasoning, for the Caving lens.
+  cavingRollId String?
+  cavingRoll   CavingRoll? @relation(fields: [cavingRollId], references: [id], onDelete: SetNull)
 
   targetCharacterId String
   targetCharacter   Character @relation(fields: [targetCharacterId], references: [id], onDelete: Cascade)
@@ -1635,6 +1682,65 @@ model AuditLog {
   @@index([targetCharacterId])
 }
 
+enum CavingRollKind {
+  TROUBLE
+  QUIET
+  FIND
+}
+
+// One roll per character per turn while standing in a CAVE_LEVEL zone —
+// rolled by db/lib/cavingPass.js, both at turn start (every character
+// currently in the Depths) and on arrival (db/lib/travel.js#performTravel).
+// The @@unique below is what makes both triggers safe to fire in the same
+// turn: whichever runs first wins the row, the other is a no-op.
+//
+// Shaped like a Move on purpose — it is adjudicated the same way, on the
+// same /gm/turns desk, with the same staging attachments. See
+// docs/systemdocs/CAVING.md.
+model CavingRoll {
+  id          String    @id @default(cuid())
+  turnId      String
+  turn        Turn      @relation(fields: [turnId], references: [id])
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  // The presence zone the character stood in when it rolled. Snapshot,
+  // because they may have moved since.
+  zoneId String
+  zone   Zone   @relation(fields: [zoneId], references: [id])
+
+  die  Int // 1-6, flat — no Gambit modifier
+  kind CavingRollKind
+
+  // Set on a FIND only: the tier drawn (db/lib/cavingLoot.js) and the tag
+  // granted, so the lens can show "Rare -> Spyglass" without a join through
+  // lootRequest.
+  lootTier  String?
+  lootTagId String?
+  lootTag   Tag?    @relation(fields: [lootTagId], references: [id])
+
+  // The PASSED-by-default Request the loot grant was filed as (type
+  // CAVING_LOOT), so a GM's Undo goes through the ordinary request handler
+  // in web/lib/requestEffects.js rather than a bespoke path.
+  lootRequestId String?  @unique
+  lootRequest   Request? @relation(fields: [lootRequestId], references: [id], onDelete: SetNull)
+
+  // Only a TROUBLE row is ever left unresolved — QUIET and FIND are stamped
+  // at creation, which is what keeps the Caving lens showing the 1s instead
+  // of every roll anyone made.
+  resolvedAt              DateTime?
+  resolvedByDiscordUserId String?
+  gmNotes                 String?
+
+  createdAt DateTime @default(now())
+
+  stagedMessages StagedMessage[]
+  stagedEffects  StagedEffect[]
+
+  @@unique([characterId, turnId])
+  @@index([turnId, resolvedAt])
+}
+
 // One row per player action that took effect without GM approval. `payload`
 // is what the player asked for; `effect` is what was actually applied, and is
 // the ONLY thing Undo reads. That split is load-bearing: reversing a request
@@ -1657,6 +1763,10 @@ model Request {
   reviewedByDiscordUserId String?
 
   createdAt DateTime @default(now())
+
+  // Back half of CavingRoll.lootRequestId — a system-filed CAVING_LOOT
+  // request points back at the roll that created it.
+  cavingRoll CavingRoll?
 
   @@index([status, createdAt])
   @@index([characterId])

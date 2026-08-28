@@ -320,7 +320,7 @@ two access twins and the wipe.
 
 | Channel | Who sees it | Who speaks |
 |---|---|---|
-| `#watch` | **Radio Bracelet** or **Radio System** holders (per-member overwrite) | Radio System holders only |
+| `#watch` | **Radio Bracelet (Watch)** or **Radio System (Watch)** holders (per-member overwrite) | Radio System (Watch) holders only |
 | `#intercom` | **every zone role** — all six presence zones, a static `roleViewZones` grant | a character holding the **Intercom** tag *and* standing in the **Fortress** zone (per-member overwrite) |
 
 Both tags are transferable, so possession is what matters — a bracelet handed

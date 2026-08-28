@@ -134,7 +134,7 @@ export default function RequestDesk({ request, onInspect, onClose, registerEscap
         <div className="mt-4 flex flex-col gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
           <h3 className="field-label">{section.heading}</h3>
           <div className="flex flex-col gap-3">
-            {section.render({ effect, edits, setEdit, onKill, killing })}
+            {section.render({ effect, payload: request?.payload ?? {}, edits, setEdit, onKill, killing })}
           </div>
         </div>
       )}

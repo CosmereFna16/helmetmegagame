@@ -74,7 +74,7 @@ async function normalizeRecipients(recipientCharacterIds) {
   return ids;
 }
 
-async function createStagedMessageImpl({ kind, content, recipientCharacterIds, moveId, zoneId }) {
+async function createStagedMessageImpl({ kind, content, recipientCharacterIds, moveId, cavingRollId, zoneId }) {
   const session = await requireGm();
   if (!["PRIVATE", "PUBLIC"].includes(kind)) throw new UserError("Unknown message kind.");
   const text = normalizeMessageContent(content);
@@ -86,6 +86,9 @@ async function createStagedMessageImpl({ kind, content, recipientCharacterIds, m
     data: {
       turnId: openTurn.id,
       moveId: moveId || null,
+      // Same SetNull-detach reasoning as moveId — a GM staging narration
+      // against a Caving Die roll of 1 (see docs/systemdocs/CAVING.md).
+      cavingRollId: cavingRollId || null,
       kind,
       content: text,
       zoneId: (kind === "PUBLIC" && zoneId) || null,
@@ -286,7 +289,7 @@ async function normalizeStagedZone(raw) {
   return zoneId;
 }
 
-async function createStagedEffectsImpl({ targetCharacterIds, moveId, resources, tagPoints, tagOps, zoneId }) {
+async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollId, resources, tagPoints, tagOps, zoneId }) {
   const session = await requireGm();
   const targets = [...new Set((targetCharacterIds ?? []).filter(Boolean))];
   if (!targets.length) throw new UserError("Pick at least one target.");
@@ -330,6 +333,7 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, resources, 
         data: {
           turnId: openTurn.id,
           moveId: moveId || null,
+          cavingRollId: cavingRollId || null,
           targetCharacterId,
           createdByDiscordUserId: session.discordUserId,
           batchId,
@@ -641,6 +645,42 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
 
   revalidatePath("/gm/turns");
   return result;
+}
+
+// The Caving lens' one verdict: "Mark resolved" on a TROUBLE roll, once the
+// GM has narrated it and staged whatever effects the encounter needs. Unlike
+// resolveMoveImpl there is no "unsolve" — a resolved Caving roll can simply
+// be reopened by clearing gmNotes' worth from the desk if a GM changes their
+// mind, so this stays a one-way stamp rather than a state machine. QUIET and
+// FIND rows are already resolvedAt at creation and never reach this action
+// from the UI (the desk only offers the button on an unresolved row), but it
+// is harmless — and idempotent — if one ever does.
+async function resolveCavingRollImpl({ cavingRollId, gmNotes: rawNotes }) {
+  const session = await requireGm();
+  const roll = await prisma.cavingRoll.findUnique({ where: { id: cavingRollId ?? "" } });
+  if (!roll) throw new UserError("Caving roll not found.");
+
+  const gmNotes = rawNotes?.toString().trim() || null;
+  await prisma.cavingRoll.update({
+    where: { id: roll.id },
+    data: {
+      resolvedAt: roll.resolvedAt ?? new Date(),
+      resolvedByDiscordUserId: session.discordUserId,
+      gmNotes,
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "caving_roll_resolved",
+      targetCharacterId: roll.characterId,
+      details: { cavingRollId: roll.id, die: roll.die, kind: roll.kind },
+    },
+  });
+
+  revalidatePath("/gm/turns");
+  return { status: "RESOLVED" };
 }
 
 // "Unlock" on the desk. Deletes the Action outright — the turn-economy checks
@@ -1046,6 +1086,9 @@ export async function resolveMove(input) {
 }
 export async function rejectMove(input) {
   return guarded(() => rejectMoveImpl(input));
+}
+export async function resolveCavingRoll(input) {
+  return guarded(() => resolveCavingRollImpl(input));
 }
 export async function resolveRequest(input) {
   return guarded(() => resolveRequestImpl(input));

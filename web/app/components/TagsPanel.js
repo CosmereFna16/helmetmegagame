@@ -5,7 +5,7 @@ import TagChip from "./TagChip";
 import TagPointsValue from "./TagPointsValue";
 import TagRequestButtons from "./TagRequestButtons";
 import { useTags } from "./TagsProvider";
-import { resolveConsumeGrants, heldSlugsOf } from "@/lib/consumeGrants";
+import { heldSlugsOf } from "@/lib/consumeGrants";
 
 // The Tags section of a character sheet. It's a client component for one
 // reason: the chips and the request buttons have to share state, so that
@@ -73,10 +73,21 @@ export default function TagsPanel({
   // names. It arrives via fetch, so fall back to the raw slug meanwhile.
   // Resolved against what this character holds, since a grant can be
   // conditional (Fine Meal cheers everyone but a noble) — promising a tag the
-  // grant won't deliver would be worse than saying nothing.
+  // grant won't deliver would be worse than saying nothing. A
+  // consumesIntoOneOf position (Skinned Cave Rat) is rendered as "A or B"
+  // rather than rolled — resolveConsumeGrants commits to a real pick, and
+  // this hint must not re-roll on every hover.
   function consumeHintFor(tag) {
-    const { slugs } = resolveConsumeGrants(tag, heldSlugs);
-    const names = slugs.map((slug) => tagsBySlug.get(slug)?.name ?? slug);
+    const names = (tag?.consumesInto ?? [])
+      .map((slug, i) => {
+        const blockers = tag?.consumesIntoUnless?.[slug] ?? null;
+        if (blockers?.some((b) => heldSlugs.has(b))) return null;
+        const alternatives = tag?.consumesIntoOneOf?.[i];
+        return Array.isArray(alternatives)
+          ? alternatives.map((s) => tagsBySlug.get(s)?.name ?? s).join(" or ")
+          : (tagsBySlug.get(slug)?.name ?? slug);
+      })
+      .filter(Boolean);
     return names.length ? `Click to consume → ${names.join(", ")}` : "Click to consume";
   }
 

@@ -22,15 +22,26 @@ const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
 
-// A consumesInto entry is either a bare slug ("ate-meal") or an object
-// carrying a condition and/or an expiry override ({ slug: "night-vision",
-// unlessTags: ["blind"] }, { slug: "high", durationTurns: 3 }). Every
-// shape normalises to the same triple here so validation and the write path
-// only ever handle one of them.
+// A consumesInto entry is a bare slug ("ate-meal"), an object carrying a
+// condition and/or an expiry override ({ slug: "night-vision", unlessTags:
+// ["blind"] }, { slug: "high", durationTurns: 3 }), or — added for the Caves
+// Update's Skinned Cave Rat — an even random pick between alternatives
+// ({ oneOf: ["ate-meal", "vomiting"] }), the same shape expiresInto already
+// uses. Every shape normalises to the same quad here so validation and the
+// write path only ever handle one of them. A oneOf entry's "slug" is its
+// first alternative — a display fallback for anything that still reads
+// consumesInto directly; the real pick lives in oneOf and is rolled by
+// web/lib/consumeGrants.js.
 function normalizeConsumesInto(entries) {
   return (entries ?? []).map((entry) => {
     if (typeof entry === "string") {
-      return { slug: entry, unlessTags: [], durationTurns: null };
+      return { slug: entry, unlessTags: [], durationTurns: null, oneOf: null };
+    }
+    if (Array.isArray(entry?.oneOf)) {
+      if (entry.oneOf.length < 2) {
+        throw new Error(`docs/tags.yaml: a consumesInto { oneOf: [...] } entry needs at least two alternatives`);
+      }
+      return { slug: entry.oneOf[0], unlessTags: [], durationTurns: null, oneOf: [...entry.oneOf] };
     }
     if (!entry?.slug) {
       throw new Error(`docs/tags.yaml: a consumesInto entry is missing its "slug"`);
@@ -41,28 +52,33 @@ function normalizeConsumesInto(entries) {
         `docs/tags.yaml: consumesInto entry "${entry.slug}" has a durationTurns that is not a positive whole number`,
       );
     }
-    return { slug: entry.slug, unlessTags: entry.unlessTags ?? [], durationTurns };
+    return { slug: entry.slug, unlessTags: entry.unlessTags ?? [], durationTurns, oneOf: null };
   });
 }
 
-// Splits the normalised list back into the three columns it's stored in.
+// Splits the normalised list back into the four columns it's stored in.
 // consumesInto keeps every target, in order, so a repeated slug still means
 // "grant two" and every existing reader (the previews, the grant path) sees
-// the full list. consumesIntoUnless and consumesIntoDurations are null unless
-// something is actually conditional or actually overrides its expiry, which
-// keeps both columns empty for all but a handful of tags.
+// the full list. consumesIntoUnless, consumesIntoDurations and
+// consumesIntoOneOf are null unless something is actually conditional,
+// actually overrides its expiry, or actually picks randomly — which keeps
+// all three columns empty for all but a handful of tags.
 function consumesIntoScalars(entries) {
   const normalized = normalizeConsumesInto(entries);
   const unless = {};
   const durations = {};
+  let anyOneOf = false;
   for (const { slug, unlessTags, durationTurns } of normalized) {
     if (unlessTags.length) unless[slug] = unlessTags;
     if (durationTurns != null) durations[slug] = durationTurns;
   }
+  const oneOfList = normalized.map((e) => e.oneOf ?? null);
+  if (oneOfList.some((v) => v !== null)) anyOneOf = true;
   return {
     consumesInto: normalized.map((e) => e.slug),
     consumesIntoUnless: Object.keys(unless).length ? unless : null,
     consumesIntoDurations: Object.keys(durations).length ? durations : null,
+    consumesIntoOneOf: anyOneOf ? oneOfList : null,
   };
 }
 
@@ -141,7 +157,7 @@ async function syncTagsFromYaml(prisma) {
     // itself, so a typo can fail cleanly instead of half-applying. Both halves
     // of a conditional entry are checked — an unknown blocking tag would
     // silently never block.
-    for (const { slug, unlessTags } of normalizeConsumesInto(t.consumesInto)) {
+    for (const { slug, unlessTags, oneOf } of normalizeConsumesInto(t.consumesInto)) {
       if (!allTagSlugs.has(slug)) {
         throw new Error(`docs/tags.yaml: tag "${t.slug}" consumesInto references unknown tag "${slug}"`);
       }
@@ -152,6 +168,20 @@ async function syncTagsFromYaml(prisma) {
           );
         }
       }
+      for (const alt of oneOf ?? []) {
+        if (!allTagSlugs.has(alt)) {
+          throw new Error(`docs/tags.yaml: tag "${t.slug}" consumesInto oneOf references unknown tag "${alt}"`);
+        }
+      }
+    }
+    // sellable/sellablePrice travel together — a typo on one side would
+    // either buy nothing off a player (sellable with no price) or silently
+    // never offer a sale (a price nobody switched on).
+    if (t.sellable && !(Number.isInteger(t.sellablePrice) && t.sellablePrice > 0)) {
+      throw new Error(`docs/tags.yaml: tag "${t.slug}" is sellable but has no positive sellablePrice`);
+    }
+    if (t.sellablePrice != null && !t.sellable) {
+      throw new Error(`docs/tags.yaml: tag "${t.slug}" sets sellablePrice without sellable: true`);
     }
     // expiresInto, same posture and the same reason: every slug is known from
     // this document, so a typo fails before anything is written. Three rules,
@@ -230,10 +260,13 @@ async function syncTagsFromYaml(prisma) {
       stackable: entry.stackable ?? false,
       purchasable: entry.purchasable ?? false,
       purchasableAfterStart: entry.purchasableAfterStart ?? true,
+      sellable: entry.sellable ?? false,
+      sellablePrice: entry.sellablePrice ?? null,
       defaultDurationTurns: entry.durationTurns ?? null,
       removable: entry.removable ?? false,
       craftable: entry.craftable ?? false,
       consumable: entry.consumable ?? false,
+      consumesIntoResources: entry.consumesIntoResources ?? null,
       expiresInto: normalizeExpiresInto(entry.expiresInto),
       requirementTurns: entry.requirement?.turnsCost ?? null,
       requirementResources: entry.requirement?.resourceCost ?? null,

@@ -2,6 +2,7 @@ const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } 
 const { prisma, buildNarrowcastContext, computeNarrowcastAccess, SPECIAL_CHANNELS } = require("@lifeweb/db");
 const { performTravel } = require("@lifeweb/db/lib/travel");
 const { applyPendingInvites } = require("@lifeweb/db/lib/threadInvites");
+const { sendDm } = require("@lifeweb/db/lib/dm");
 
 // `zones` are the destinations to offer — either the character's current
 // zone's direct neighbors, or (first-ever placement, no zone yet) every
@@ -119,6 +120,15 @@ async function performMove(guild, character, targetZone) {
   await swapZoneRole(guild, character.discordUserId, result.oldZone, targetZone);
   await syncCharacterNarrowcastAccess(guild, character);
   await applyPendingInvites(prisma, { ...character, zoneId: targetZone.id });
+
+  // The Caving Die's "on arrival" trigger — see db/lib/travel.js and
+  // docs/systemdocs/CAVING.md. Null on any zone that isn't a cave level, or
+  // if the character had already rolled for this turn some other way.
+  if (result.cavingDm) {
+    await sendDm(prisma, result.cavingDm.discordUserId, result.cavingDm.content).catch((err) =>
+      console.error(`Caving arrival DM to ${result.cavingDm.discordUserId} failed:`, err),
+    );
+  }
 
   return { ok: true };
 }

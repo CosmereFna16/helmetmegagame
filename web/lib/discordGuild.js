@@ -675,9 +675,12 @@ export async function sendDm(discordUserId, content, opts = {}) {
         direction: "OUTBOUND",
         content: formatted,
         authorDiscordUserId: opts.authorDiscordUserId ?? null,
-        // null, not "bot_auto" like the other two twins: nothing in the web
-        // app sends automated DMs, so an unlabelled row here is "unknown" —
-        // the same reading the UI already gives pre-migration rows.
+        // null, not "bot_auto" like the other two twins: web-app callers were
+        // all GM-authored until the Caving Die's arrival roll
+        // (web/app/(app)/map/travelActions.js) started sending automated DMs
+        // from here too. An unlabelled row still reads as "unknown" — the
+        // same reading the UI already gives pre-migration rows — so callers
+        // that want a real label pass one via opts.source.
         source: opts.source ?? null,
         discordMessageId: message?.id ?? null,
         meta: opts.meta ?? undefined,

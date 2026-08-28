@@ -19,6 +19,7 @@ const SEARCH_LIMIT = 12;
 
 export default function EffectComposer({
   moveId = null,
+  cavingRollId = null,
   existing = null,
   defaultTarget = null,
   declaredDelta = null,
@@ -124,6 +125,7 @@ export default function EffectComposer({
         : await createStagedEffects({
             targetCharacterIds: targets.map((t) => t.id),
             moveId,
+            cavingRollId,
             resources,
             tagPoints,
             tagOps,

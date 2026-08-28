@@ -2830,6 +2830,8 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
+    sellable: true
+    sellablePrice: 8
 
   - slug: saltpeter
     name: Saltpeter
@@ -2843,12 +2845,17 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
+    sellable: true
+    sellablePrice: 3
 
-  - slug: radio-system
-    name: Radio System
+  # Renamed in the Caves Update — the frozen slug means the DB row is
+  # repointed by db:backfill-radio-rename, not just re-synced. See
+  # docs/systemdocs/CAVING.md.
+  - slug: radio-system-watch
+    name: Radio System (Watch)
     category: items
     group: items-gear
-    description: "It sends a message to all its paired Systems and Bracelets."
+    description: "It sends a message to all its paired Systems and Bracelets. Tuned to the Watch's frequency."
     pointCost: 6
     requiredTag: watchman
     tradeable: true
@@ -2857,11 +2864,11 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  - slug: radio-bracelet
-    name: Radio Bracelet
+  - slug: radio-bracelet-watch
+    name: Radio Bracelet (Watch)
     category: items
     group: items-gear
-    description: "A bracelet. It receives only."
+    description: "A bracelet. It receives only. Tuned to the Watch's frequency."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -2984,6 +2991,133 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 8
+
+  # --- Caves Update loot -------------------------------------------------
+  # New found-only items for the Caving Die's loot table. See
+  # docs/systemdocs/CAVING.md for the table itself and db/lib/cavingLoot.js
+  # for how a tier resolves to one of these.
+  - slug: old-coin
+    name: Old Coin
+    category: items
+    group: items-gear
+    description: "The Merchant might buy this."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    sellable: true
+    sellablePrice: 1
+
+  - slug: purse
+    name: Purse
+    category: items
+    group: items-gear
+    description: "Consume this to gain 3 ⬢."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto: []
+    consumesIntoResources: 3
+
+  - slug: skinned-cave-rat
+    name: Skinned Cave Rat
+    category: items
+    group: items-food
+    description: "This is probably edible."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto:
+      - oneOf: [ate-meal, vomiting]
+
+  - slug: supply-kit
+    name: Supply Kit
+    category: items
+    group: items-gear
+    description: "This is probably edible."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto:
+      - alcohol
+    consumesIntoResources: 8
+
+  - slug: gas-mask
+    name: Gas Mask
+    category: items
+    group: items-gear
+    description: "This could protect you from fumes, but mostly it looks cool."
+    pointCost: 0
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  - slug: smoke-grenade
+    name: Smoke Grenade
+    category: items
+    group: items-gear
+    description: "Blocks vision, makes people choke."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  # Visible on purpose — the user wanted this one to read as an active thing
+  # on the sheet, not sit hidden like the rest of the loot.
+  - slug: autocannon-shell
+    name: Autocannon Shell
+    category: items
+    group: items-special
+    description: "Is it still active?"
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  - slug: military-autoinjector
+    name: Military Autoinjector
+    category: items
+    group: items-gear
+    description: "Using this heals you immediately, clearing all minor and moderate wounds (remove the tags yourself.)"
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    sellable: true
+    sellablePrice: 10
 
   # A creation-only bundle rather than a thing you carry: it sits on the sheet
   # until the player unpacks it from their own character sheet (see consumable
@@ -4043,6 +4177,8 @@ tags:
         durationTurns: 2
     requirement:
       resourceCost: 0
+    sellable: true
+    sellablePrice: 3
 
   # Brewed as a Routine Move, like the meals. Deliberately ONE generic drink
   # rather than a Fine/Lavish split: it cheers everybody, nobles included —

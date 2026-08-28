@@ -15,6 +15,7 @@ const SEARCH_LIMIT = 12;
 
 export default function MessageComposer({
   moveId = null,
+  cavingRollId = null,
   existing = null,
   defaultRecipients = [],
   initialContent = undefined,
@@ -48,7 +49,7 @@ export default function MessageComposer({
       const recipientCharacterIds = recipients.map((r) => r.characterId);
       const res = existing
         ? await updateStagedMessage({ stagedMessageId: existing.id, content, recipientCharacterIds })
-        : await createStagedMessage({ kind: "PRIVATE", content, recipientCharacterIds, moveId });
+        : await createStagedMessage({ kind: "PRIVATE", content, recipientCharacterIds, moveId, cavingRollId });
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
       onDone();
     });

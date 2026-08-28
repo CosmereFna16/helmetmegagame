@@ -9,7 +9,7 @@ import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 // Stage a public declaration. Posts to the configured summary channel at the
 // push; the zone is carried on the row now so the future per-zone summary
 // channels can deliver by it without a migration.
-export default function PublicComposer({ moveId = null, existing = null, zones, onDone, onCancel }) {
+export default function PublicComposer({ moveId = null, cavingRollId = null, existing = null, zones, onDone, onCancel }) {
   const [content, setContent] = useState(existing?.content ?? "");
   const [zoneId, setZoneId] = useState(existing?.zoneId ?? "");
   const [error, setError] = useState(null);
@@ -20,7 +20,7 @@ export default function PublicComposer({ moveId = null, existing = null, zones, 
     startTransition(async () => {
       const res = existing
         ? await updateStagedMessage({ stagedMessageId: existing.id, content, zoneId })
-        : await createStagedMessage({ kind: "PUBLIC", content, zoneId, moveId });
+        : await createStagedMessage({ kind: "PUBLIC", content, zoneId, moveId, cavingRollId });
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
       onDone();
     });

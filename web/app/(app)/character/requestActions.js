@@ -15,7 +15,14 @@ import {
   chainSiblingsToRemove,
   heldHigherTiers,
 } from "@/lib/characterCreation";
-import { addToStack, debitResources, dropCharacterTag, grantTagSlugs, moveResources } from "@/lib/requestEffects";
+import {
+  addToStack,
+  creditResources,
+  debitResources,
+  dropCharacterTag,
+  grantTagSlugs,
+  moveResources,
+} from "@/lib/requestEffects";
 import {
   HEAL_SKILL_SLUG,
   buildSkillAncestry,
@@ -451,11 +458,13 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
 
   // requireCharacter() already eager-loads tags.tag, so the held slugs cost
   // no extra query. Undo needs no matching change: it reads the `granted`
-  // snapshot below, never re-deriving from the catalog.
-  const { slugs: grantSlugs, durations: grantDurations } = resolveConsumeGrants(
-    held.tag,
-    heldSlugsOf(character.tags),
-  );
+  // (and `resourcesGranted`) snapshot below, never re-deriving from the
+  // catalog.
+  const {
+    slugs: grantSlugs,
+    durations: grantDurations,
+    resources: resourcesGranted,
+  } = resolveConsumeGrants(held.tag, heldSlugsOf(character.tags));
 
   await prisma.$transaction(async (tx) => {
     await dropCharacterTag(tx, character.id, tagId, 1);
@@ -466,13 +475,18 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
       openTurn?.number ?? null,
       grantDurations,
     );
+    // The Resources half — Purse and Supply Kit (see docs/systemdocs/
+    // CAVING.md). Most consumables grant none, so this is a no-op for them.
+    if (resourcesGranted) {
+      await creditResources(tx, { kind: "character", id: character.id, name: character.name }, resourcesGranted);
+    }
     await createRequest(tx, {
       characterId: character.id,
       turnId: openTurn?.id ?? null,
       type: "CONSUME_TAG",
       reason,
       payload: { tagId },
-      effect: { tagId, tagName: held.tag.name, restore, granted },
+      effect: { tagId, tagName: held.tag.name, restore, granted, resourcesGranted },
     });
     await logRequest(tx, {
       actorDiscordUserId: session.discordUserId,
@@ -483,6 +497,7 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
         tagId,
         tagName: held.tag.name,
         granted: granted.map((g) => g.tagName),
+        resourcesGranted,
       },
     });
   });

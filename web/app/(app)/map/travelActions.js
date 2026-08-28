@@ -7,7 +7,7 @@ import { prisma } from "@lifeweb/db";
 import { performTravel } from "@lifeweb/db/lib/travel";
 import { applyPendingInvites } from "@lifeweb/db/lib/threadInvites";
 import { auth } from "@/lib/auth";
-import { syncCharacterZoneRole, syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
+import { syncCharacterZoneRole, syncCharacterNarrowcastAccess, sendDm } from "@/lib/discordGuild";
 
 // The web twin of the bot's zone picker (bot/src/lib/zoneTravel.js#performMove).
 // Both go through performTravel for the rules and the database writes; all
@@ -59,6 +59,14 @@ export async function travelTo(zoneId) {
     await applyPendingInvites(prisma, { ...character, zoneId: target.id }).catch((err) =>
       console.error("Travel: pending thread invites failed:", err),
     );
+    // The Caving Die's "on arrival" trigger — see db/lib/travel.js and
+    // docs/systemdocs/CAVING.md. Null on any zone that isn't a cave level,
+    // or if the character had already rolled for this turn some other way.
+    if (result.cavingDm) {
+      await sendDm(result.cavingDm.discordUserId, result.cavingDm.content).catch((err) =>
+        console.error("Travel: caving arrival DM failed:", err),
+      );
+    }
   });
 
   revalidatePath("/map");

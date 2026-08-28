@@ -382,8 +382,8 @@ zones:
               - Fighting (Trained)
               - Dog
               - Disabler
-              - Radio System
-              - Radio Bracelet
+              - Radio System (Watch)
+              - Radio Bracelet (Watch)
               - Alcoholic
               - Broadsword
               - Simple Helm
@@ -415,7 +415,7 @@ zones:
             starting_tags:
               - Ravenhearter
               - Fighting (Basic)
-              - Radio Bracelet
+              - Radio Bracelet (Watch)
               - Pious
               - Manacles
               - Cudgel
@@ -454,7 +454,7 @@ zones:
               - Watchman
               - Fighting (Basic)
               - Disabler
-              - Radio Bracelet
+              - Radio Bracelet (Watch)
               - Cudgel
               - Simple Helm
               - Buckler
@@ -1372,7 +1372,7 @@ zones:
             starting_resources: 1
             starting_zone: railroad
             starting_tags: []
-            doc_elements: []
+            doc_elements: [caving]
           - name: Mercenary
             slug: mercenary
             intro: >-
@@ -1389,4 +1389,4 @@ zones:
               - Fighting (Basic)
               - Dagger
               - Mace
-            doc_elements: []
+            doc_elements: [caving]

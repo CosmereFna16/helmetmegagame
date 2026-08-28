@@ -321,6 +321,13 @@ here, change it there too** — they are meant to say the same thing.
   after.
 - `tradeable` — Items-category flag for a future trade flow; no transfer
   logic exists yet (Transfer Tag filters on `category`, not this).
+- `sellable` / `sellablePrice` — the seller's half of
+  `purchasable`/`purchasableAfterStart`: whether the Merchant's Depot will
+  buy this tag off a player, and for how many ⬢. Added for the Caves Update
+  (`CAVING.md` §6) — catalog data only, no sell flow reads it yet, same
+  status `purchasable` has always had. `syncTags.js` requires the two to
+  travel together: `sellable` without a positive `sellablePrice` is an error,
+  and so is a price set without `sellable: true`.
 - `stackable` — whether a character can hold more than one at a time. Live
   code reads this; see §5a.
 - `defaultDurationTurns` (spelled `durationTurns` in the YAML) — catalog-level "how many turns does this last once
@@ -540,6 +547,23 @@ frightening. A crate you open is not a wound that opens you. Both exist
 because those are genuinely different things — but a new field that could be
 written either way belongs in `consumesInto`, which is the one a player can
 see coming and a GM can take back.
+
+**Two more sidecars, added for the Caves Update** (see `CAVING.md` §7 for the
+Purse/Supply Kit/Skinned Cave Rat tags that use them):
+
+- **`consumesIntoResources`** (`Int?`) — the Resources half of a grant.
+  `Purse` consumes into nothing but 3 ⬢ (`consumesInto: []`); `Supply Kit`
+  combines both, 8 ⬢ plus one Alcohol. Applied by `consumeTagRequest` through
+  the ordinary `creditResources` primitive, snapshotted into `Request.effect`
+  so Undo debits it back exactly.
+- **`consumesIntoOneOf`** (`Json?`) — a parallel array to `consumesInto`,
+  same length and order, for an even random pick between alternatives —
+  `{ oneOf: [...] }` in `docs/tags.yaml`, the same shape `expiresInto` (§5c)
+  already uses. `Skinned Cave Rat` is the first user: 50/50 `ate-meal` or
+  `vomiting`. `resolveConsumeGrants()` rolls the real pick for the server
+  action; the client "Becomes:" preview does **not** call it for a `oneOf`
+  position, since that would re-roll (and lie about) an outcome on every
+  render — it renders "A or B" straight off the sidecar instead.
 
 ## 5c. Health, the cure ladder, and `expiresInto`
 

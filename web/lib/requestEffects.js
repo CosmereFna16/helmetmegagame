@@ -429,7 +429,7 @@ export const REQUEST_EFFECTS = {
   CONSUME_TAG: {
     editableFields: [],
     async undo(tx, request) {
-      const { restore, tagName, granted = [] } = request.effect;
+      const { restore, tagName, granted = [], resourcesGranted } = request.effect;
       for (const g of granted) {
         // `added: 0` means the character already held that tag and this
         // request left it alone — taking it away now would confiscate
@@ -437,9 +437,19 @@ export const REQUEST_EFFECTS = {
         if (g.tagId && g.added > 0) await dropCharacterTag(tx, request.characterId, g.tagId, g.added);
       }
       if (restore?.tagId) await restoreCharacterTag(tx, request.characterId, restore);
+      // The Resources half (Purse, Supply Kit) — debited back off the exact
+      // snapshot, never re-derived from the tag's current catalog value.
+      if (resourcesGranted) {
+        await debitResources(tx, { kind: "character", id: request.characterId }, resourcesGranted, {
+          note: `Undo of consume request ${request.id}`,
+        });
+      }
       const took = granted.filter((g) => g.added > 0).map((g) => formatStack(g.tagName, g.added));
-      return took.length
-        ? `Restored ${tagName ?? "the tag"} and took back ${took.join(", ")}.`
+      const notes = [];
+      if (took.length) notes.push(`took back ${took.join(", ")}`);
+      if (resourcesGranted) notes.push(`took back ${resourcesGranted} ⬢`);
+      return notes.length
+        ? `Restored ${tagName ?? "the tag"} and ${notes.join(", ")}.`
         : `Restored ${tagName ?? "the tag"}.`;
     },
   },
@@ -600,6 +610,18 @@ export const REQUEST_EFFECTS = {
         await restoreCharacterTag(tx, request.characterId, { tagId: potionTagId, ...potionRestore, quantity: 1 });
       }
       return `Restored the previous name (${previous?.name ?? "—"}) and gave back the Mulligan Potion.`;
+    },
+  },
+
+  // System-filed, not player-initiated — see db/lib/cavingPass.js. Same
+  // apply-first-review-after shape as every other request, so a GM's Undo on
+  // a Caving Die find works exactly like Undo on anything else.
+  CAVING_LOOT: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { tagId, tagName, added } = request.effect;
+      if (tagId && added > 0) await dropCharacterTag(tx, request.characterId, tagId, added);
+      return `Took back ${formatStack(tagName, added)}.`;
     },
   },
 };

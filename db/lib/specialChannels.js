@@ -47,8 +47,8 @@ const SPECIAL_CHANNELS = [
     // Possession is what matters — a bracelet transferred to a non-Watch
     // character still opens the channel.
     member: (ctx) => {
-      if (ctx.tagSlugs.has("radio-system")) return { view: true, send: true };
-      if (ctx.tagSlugs.has("radio-bracelet")) return { view: true, send: false };
+      if (ctx.tagSlugs.has("radio-system-watch")) return { view: true, send: true };
+      if (ctx.tagSlugs.has("radio-bracelet-watch")) return { view: true, send: false };
       return null;
     },
   },

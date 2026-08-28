@@ -21,7 +21,7 @@ import InfoIcon from "./InfoIcon";
 import ChipText from "./ChipText";
 import { useConfirm } from "./ConfirmProvider";
 import { useTags } from "./TagsProvider";
-import { resolveConsumeGrants, heldSlugsOf } from "@/lib/consumeGrants";
+import { heldSlugsOf } from "@/lib/consumeGrants";
 import {
   addTagRequest,
   removeTagRequest,
@@ -297,11 +297,24 @@ export default function TagRequestButtons({
   // arrives via fetch, so fall back to the raw slug while that's in flight.
   // Filtered through the same resolver the server action uses, so the preview
   // can't promise a conditional grant this character won't get.
+  //
+  // A consumesIntoOneOf position (Skinned Cave Rat -> Ate Meal or Vomiting)
+  // is NOT resolved through resolveConsumeGrants here — that rolls a real
+  // pick, and calling it on every render would make the preview commit to
+  // (and re-roll) an outcome nobody chose yet. It's rendered as "A or B"
+  // instead, off the raw sidecar, so the preview stays honest without lying
+  // about which one you'll get.
   const { tagsBySlug } = useTags();
   const heldSlugs = useMemo(() => heldSlugsOf(characterTags), [characterTags]);
-  const becomes = resolveConsumeGrants(chosen, heldSlugs).slugs.map(
-    (slug) => tagsBySlug.get(slug)?.name ?? slug,
-  );
+  const nameOf = (slug) => tagsBySlug.get(slug)?.name ?? slug;
+  const becomes = (chosen?.consumesInto ?? [])
+    .map((slug, i) => {
+      const blockers = chosen?.consumesIntoUnless?.[slug] ?? null;
+      if (blockers?.some((b) => heldSlugs.has(b))) return null;
+      const alternatives = chosen?.consumesIntoOneOf?.[i];
+      return Array.isArray(alternatives) ? alternatives.map(nameOf).join(" or ") : nameOf(slug);
+    })
+    .filter(Boolean);
 
   function pick(nextTagId) {
     setTagId(nextTagId);

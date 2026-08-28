@@ -270,4 +270,17 @@ export const SECTIONS = {
       </>
     ),
   },
+
+  // System-filed by db/lib/cavingPass.js on a Caving Die roll of 6 — see
+  // docs/systemdocs/CAVING.md. `payload.tier` names which of the six loot
+  // tiers this drew from.
+  CAVING_LOOT: {
+    heading: "Caving Find",
+    render: ({ effect, payload }) => (
+      <>
+        <Line label="Found">{stackLabel(effect)}</Line>
+        <Line label="Tier">{payload?.tier ?? "—"}</Line>
+      </>
+    ),
+  },
 };

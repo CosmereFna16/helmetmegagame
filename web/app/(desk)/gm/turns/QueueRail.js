@@ -29,6 +29,17 @@ const REQUEST_SEARCH_FIELDS = [(r) => r.characterName, (r) => r.discordUsername,
 
 const REQUEST_TONES = { Passed: "neutral", Edited: "neutral", Undone: "bad" };
 
+// The Caving lens — see docs/systemdocs/CAVING.md. Only a TROUBLE (die 1)
+// row is ever "Needs attention"; QUIET and FIND are stamped resolved at
+// creation, so that's the default filter and, in practice, the whole list a
+// GM ever needs to open.
+const CAVING_FILTER_DEFS = [
+  { key: "zone", label: "Zone", value: (r) => r.factionZoneName },
+  { key: "status", label: "Status", value: (r) => r.statusLabel },
+];
+const CAVING_SEARCH_FIELDS = [(r) => r.characterName, (r) => r.discordUsername, (r) => r.lootTagName];
+const CAVING_TONES = { "Needs attention": "bad", Resolved: "neutral" };
+
 function RailFilters({ table, filterDefs, myZoneName }) {
   return (
     <div className="desk-rail-filters">
@@ -131,9 +142,39 @@ function RequestRows({ table, selected, onSelect, kbdId, kbdLens }) {
   });
 }
 
+function CavingRows({ table, selected, onSelect, kbdId, kbdLens }) {
+  return table.visible.map((row) => {
+    const active = selected?.type === "caving" && selected.id === row.id;
+    return (
+      <button
+        key={row.id}
+        type="button"
+        className="desk-queue-row"
+        data-active={active}
+        data-urgent={row.statusLabel === "Needs attention" || undefined}
+        data-kbd={kbdLens === "caving" && kbdId === row.id ? "" : undefined}
+        data-row-key={row.id}
+        onClick={() => onSelect({ type: "caving", id: row.id })}
+      >
+        <span className="flex items-center justify-between gap-2">
+          <span className="truncate font-medium">
+            ⚀ {row.die} — {row.characterName}
+          </span>
+          <StatusPill tone={CAVING_TONES[row.statusLabel] ?? "neutral"}>{row.statusLabel}</StatusPill>
+        </span>
+        <span className="block truncate text-xs text-muted">
+          {row.factionZoneName} · {row.kindLabel}
+        </span>
+        {row.lootTagName && <span className="block truncate text-xs text-muted">{row.lootTier} → {row.lootTagName}</span>}
+      </button>
+    );
+  });
+}
+
 export default function QueueRail({
   moves,
   requests,
+  cavingRolls,
   myZoneName,
   stagedByMove,
   selected,
@@ -146,10 +187,13 @@ export default function QueueRail({
   const moveSearchFields = useMemo(() => MOVE_SEARCH_FIELDS, []);
   const requestFilterDefs = useMemo(() => REQUEST_FILTER_DEFS, []);
   const requestSearchFields = useMemo(() => REQUEST_SEARCH_FIELDS, []);
+  const cavingFilterDefs = useMemo(() => CAVING_FILTER_DEFS, []);
+  const cavingSearchFields = useMemo(() => CAVING_SEARCH_FIELDS, []);
 
-  // Both tables mount permanently so lens flips keep each one's filters; the
-  // rail just shows one at a time. Page size is effectively "everything" —
-  // the rail scrolls, and an open turn caps the set at the roster size.
+  // All three tables mount permanently so lens flips keep each one's
+  // filters; the rail just shows one at a time. Page size is effectively
+  // "everything" — the rail scrolls, and an open turn caps the set at the
+  // roster size.
   const moveTable = useTableState({
     rows: moves,
     filterDefs: moveFilterDefs,
@@ -166,8 +210,20 @@ export default function QueueRail({
     initialFilters: myZoneName ? { zone: myZoneName } : undefined,
     pageSize: 1000,
   });
+  const cavingTable = useTableState({
+    rows: cavingRolls ?? [],
+    filterDefs: cavingFilterDefs,
+    searchFields: cavingSearchFields,
+    initialSort: { key: "createdAtMs", dir: "desc" },
+    // "Needs attention" only ever matches an unresolved TROUBLE row — QUIET
+    // and FIND are stamped resolved at creation — so this is what keeps a
+    // hundred quiet 2-5s off the rail by default.
+    initialFilters: { status: "Needs attention", ...(myZoneName ? { zone: myZoneName } : {}) },
+    pageSize: 1000,
+  });
 
-  const visibleRows = lens === "requests" ? requestTable.visible : moveTable.visible;
+  const tableForLens = { moves: moveTable, requests: requestTable, caving: cavingTable }[lens] ?? moveTable;
+  const visibleRows = tableForLens.visible;
   const [kbdIndex, setKbdIndex] = useState(-1);
   const railRef = useRef(null);
   const coarse = useIsCoarsePointer();
@@ -183,24 +239,24 @@ export default function QueueRail({
     function onKey(e) {
       const key = e.key;
       const isNav = key === "ArrowDown" || key === "ArrowUp" || key === "j" || key === "k" || key === "Enter";
-      const isLensKey = key === "m" || key === "r";
+      const isLensKey = key === "m" || key === "r" || key === "c";
       if (!isNav && !isLensKey) return;
       if (document.querySelector(".modal-overlay")) return;
       const active = document.activeElement;
       if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) return;
 
       if (isLensKey) {
-        onLens?.(key === "m" ? "moves" : "requests");
+        onLens?.(key === "m" ? "moves" : key === "r" ? "requests" : "caving");
         setKbdIndex(-1);
         return;
       }
 
-      const rows = lens === "requests" ? requestTable.visible : moveTable.visible;
+      const rows = { moves: moveTable.visible, requests: requestTable.visible, caving: cavingTable.visible }[lens] ?? [];
       if (!rows.length) return;
 
       if (key === "Enter") {
         const row = clampedKbdIndex >= 0 ? rows[clampedKbdIndex] : null;
-        if (row) onSelect({ type: lens === "requests" ? "request" : "move", id: row.id });
+        if (row) onSelect({ type: lens === "requests" ? "request" : lens === "caving" ? "caving" : "move", id: row.id });
         return;
       }
 
@@ -214,16 +270,19 @@ export default function QueueRail({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [lens, onLens, onSelect, moveTable.visible, requestTable.visible, clampedKbdIndex, coarse]);
+  }, [lens, onLens, onSelect, moveTable.visible, requestTable.visible, cavingTable.visible, clampedKbdIndex, coarse]);
 
   return (
     <aside className="desk-rail" ref={railRef}>
       <div className="segmented desk-rail-lens" role="group" aria-label="Queue lens">
-        <button type="button" aria-pressed={lens !== "requests"} onClick={() => onLens?.("moves")}>
+        <button type="button" aria-pressed={lens === "moves" || !lens} onClick={() => onLens?.("moves")}>
           Moves ({moveTable.total})
         </button>
         <button type="button" aria-pressed={lens === "requests"} onClick={() => onLens?.("requests")}>
           Requests
+        </button>
+        <button type="button" aria-pressed={lens === "caving"} onClick={() => onLens?.("caving")}>
+          Caving
         </button>
       </div>
 
@@ -233,6 +292,14 @@ export default function QueueRail({
           <div className="desk-queue">
             <RequestRows table={requestTable} selected={selected} onSelect={onSelect} kbdId={kbdId} kbdLens={lens} />
             {requestTable.total === 0 && <p className="p-3 text-sm text-muted">No Requests match.</p>}
+          </div>
+        </>
+      ) : lens === "caving" ? (
+        <>
+          <RailFilters table={cavingTable} filterDefs={cavingFilterDefs} myZoneName={myZoneName} />
+          <div className="desk-queue">
+            <CavingRows table={cavingTable} selected={selected} onSelect={onSelect} kbdId={kbdId} kbdLens={lens} />
+            {cavingTable.total === 0 && <p className="p-3 text-sm text-muted">No Caving rolls match.</p>}
           </div>
         </>
       ) : (
@@ -252,7 +319,7 @@ export default function QueueRail({
           </div>
         </>
       )}
-      <p className="desk-rail-hint text-xs text-muted">↑↓ / j k navigate · ⏎ open · m/r lens · esc close</p>
+      <p className="desk-rail-hint text-xs text-muted">↑↓ / j k navigate · ⏎ open · m/r/c lens · esc close</p>
     </aside>
   );
 }
