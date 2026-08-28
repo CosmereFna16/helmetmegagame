@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { TURNS_PATH } from "@/lib/routes";
 import { after } from "next/server";
 import { prisma, isDynastyHead, deleteCharacterRow } from "@lifeweb/db";
 import { UserError, guarded } from "@/lib/actionResult";
@@ -245,7 +246,7 @@ async function killCharacterNowImpl({ characterId, reason }) {
   );
 
   repaint(characterId);
-  revalidatePath("/gm/turns");
+  revalidatePath(TURNS_PATH, "page");
   return { name: character.name };
 }
 
@@ -327,7 +328,7 @@ async function restoreTurnImpl({ characterId, reason, notify = true }) {
   }
 
   repaint(characterId);
-  revalidatePath("/gm/turns");
+  revalidatePath(TURNS_PATH, "page");
   return { description: action.description };
 }
 
@@ -360,7 +361,7 @@ async function spendTurnImpl({ characterId, description }) {
   await audit(session, "gm_turn_spent", characterId, { actionId: created.id, turn: openTurn.number });
 
   repaint(characterId);
-  revalidatePath("/gm/turns");
+  revalidatePath(TURNS_PATH, "page");
   return { actionId: created.id };
 }
 

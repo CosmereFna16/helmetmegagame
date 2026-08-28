@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { TURNS_PATH } from "@/lib/routes";
 import { redirect } from "next/navigation";
 import {
   prisma,
@@ -60,7 +61,7 @@ function revalidateAll() {
   revalidatePath("/lifeweb");
   revalidatePath("/character");
   revalidatePath("/gm/players");
-  revalidatePath("/gm/turns");
+  revalidatePath(TURNS_PATH, "page");
   revalidatePath("/gm/audit");
 }
 

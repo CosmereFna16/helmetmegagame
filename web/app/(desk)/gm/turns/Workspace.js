@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import QueueRail from "./QueueRail";
 import MoveDesk from "./MoveDesk";
@@ -98,7 +97,14 @@ function formatCountdown(minutes) {
   return `Push in ${h}h ${m}m`;
 }
 
+// Selection is mirrored into the URL as /gm/turns/<type>/<id>, so a refresh
+// keeps your seat and a GM can send another GM a link to the exact Move.
+function selectionHref(sel) {
+  return sel ? `/gm/turns/${sel.type}/${sel.id}` : "/gm/turns";
+}
+
 export default function Workspace({
+  initialSelection,
   openTurn,
   myZoneName,
   tagsById,
@@ -115,7 +121,21 @@ export default function Workspace({
 }) {
   const router = useRouter();
   const [lens, setLens] = useState("moves"); // which queue the rail shows
-  const [selected, setSelected] = useState(null); // { type: "move"|"request"|"caving", id }
+  const [selected, setSelected] = useState(initialSelection ?? null); // { type: "move"|"request"|"caving", id }
+
+  // The URL mirrors `selected`; it is never its source after the first paint.
+  // replaceState is Next's documented escape hatch: it syncs the router
+  // without fetching an RSC payload, so picking a row leaves the queue, every
+  // DTO, the inspector cache and the tray exactly as they were. A router.push
+  // here would reload the whole desk on every click.
+  //
+  // replaceState, not pushState, so Back leaves the desk rather than walking
+  // your selection history — and so nothing has to listen for popstate.
+  const select = useCallback((sel) => {
+    setSelected(sel);
+    window.history.replaceState(null, "", selectionHref(sel));
+  }, []);
+  const deselect = useCallback(() => select(null), [select]);
   const [inspected, setInspected] = useState(null); // { characterId, name }
   const storedPins = useSyncExternalStore(subscribePins, readStoredPins, serverPins);
   const [localPins, setLocalPins] = useState(null); // null until the user first touches a pin this session
@@ -147,7 +167,10 @@ export default function Workspace({
   //   2. A focused input/textarea/select — blur it, don't blow away the desk.
   //   3. A selected Move/Request — deselect through the desk's own dirty
   //      guard (registerEscape), so unsaved edits still prompt.
-  //   4. Nothing selected — Escape leaves the workspace, same as ← Exit.
+  // With nothing selected, Escape does nothing. It used to navigate to
+  // /gm/players, which made the desk feel like a mode you were trapped in
+  // rather than a page: one stray keystroke and the whole workspace was gone.
+  // The nav rail is how you leave.
   // One window listener, stable deps, live state read through refs so it
   // never needs to re-bind.
   const selectedRef = useRef(null);
@@ -176,13 +199,11 @@ export default function Workspace({
       }
       if (selectedRef.current) {
         deskEscapeRef.current?.();
-        return;
       }
-      router.push("/gm/players");
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [router, coarse]);
+  }, [coarse]);
 
   // Inspector fetches are cached for the life of the page view, keyed
   // `${characterId}:${tab}`. State rather than a ref because the entries are
@@ -313,9 +334,6 @@ export default function Workspace({
           <button type="button" className="btn-quiet" onClick={() => setPreviewOpen(true)}>
             Preview push
           </button>
-          <Link href="/gm/players" className="btn-quiet">
-            ← Exit
-          </Link>
         </div>
       </header>
 
@@ -327,7 +345,7 @@ export default function Workspace({
           myZoneName={myZoneName}
           stagedByMove={stagedByMove}
           selected={selected}
-          onSelect={setSelected}
+          onSelect={select}
           lens={lens}
           onLens={setLens}
           gmProfiles={gmProfiles}
@@ -346,7 +364,7 @@ export default function Workspace({
               presenceZones={presenceZones}
               currentTurnNumber={openTurn?.number ?? null}
               onInspect={inspect}
-              onClose={() => setSelected(null)}
+              onClose={deselect}
               registerEscape={registerEscape}
               onOpenDev={onOpenDev}
               gmProfiles={gmProfiles}
@@ -356,7 +374,7 @@ export default function Workspace({
               key={selectedRequest.id}
               request={selectedRequest}
               onInspect={inspect}
-              onClose={() => setSelected(null)}
+              onClose={deselect}
               registerEscape={registerEscape}
               onOpenDev={onOpenDev}
             />
@@ -372,7 +390,7 @@ export default function Workspace({
               presenceZones={presenceZones}
               currentTurnNumber={openTurn?.number ?? null}
               onInspect={inspect}
-              onClose={() => setSelected(null)}
+              onClose={deselect}
               registerEscape={registerEscape}
               onOpenDev={onOpenDev}
               gmProfiles={gmProfiles}

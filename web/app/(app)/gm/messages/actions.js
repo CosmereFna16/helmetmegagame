@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { TURNS_PATH } from "@/lib/routes";
 import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { getGmSession, sendDm } from "@/lib/discordGuild";
@@ -246,7 +247,7 @@ export async function stageDmAsMessage({ characterId, content }) {
     });
 
     revalidatePath(`/gm/messages/${character.discordUserId}`);
-    revalidatePath("/gm/turns");
+    revalidatePath(TURNS_PATH, "page");
 
     return { id: row.id, content: text, createdAt: row.createdAt.toISOString() };
   });
@@ -329,7 +330,7 @@ export async function sendGmBroadcast({ characterIds, message }) {
 
     revalidatePath("/gm/messages");
     revalidatePath("/gm/players");
-    revalidatePath("/gm/turns");
+    revalidatePath(TURNS_PATH, "page");
 
     after(() =>
       deliverGmBroadcast(session.discordUserId, recipients, text).catch((err) =>

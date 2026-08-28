@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { TURNS_PATH } from "@/lib/routes";
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
@@ -176,7 +177,7 @@ async function buyTagsImpl({ tagIds }) {
   await syncCharacterNarrowcastAccess(character.id);
   revalidatePath("/store");
   revalidatePath("/character");
-  revalidatePath("/gm/turns");
+  revalidatePath(TURNS_PATH, "page");
   revalidatePath("/gm/audit");
 }
 

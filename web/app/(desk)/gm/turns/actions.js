@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { TURNS_PATH } from "@/lib/routes";
 import { prisma, rollDie, Prisma } from "@lifeweb/db";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { TagOpError, validateTagOps } from "@lifeweb/db/lib/tagOps";
@@ -106,7 +107,7 @@ async function createStagedMessageImpl({ kind, content, recipientCharacterIds, m
     },
   });
 
-  revalidatePath("/gm/turns");
+  revalidatePath(TURNS_PATH, "page");
   return { id: row.id };
 }
 
@@ -146,7 +147,7 @@ async function updateStagedMessageImpl({ stagedMessageId, content, recipientChar
     },
   });
 
-  revalidatePath("/gm/turns");
+  revalidatePath(TURNS_PATH, "page");
   return {};
 }
 
@@ -165,7 +166,7 @@ async function deleteStagedMessageImpl({ stagedMessageId }) {
     },
   });
 
-  revalidatePath("/gm/turns");
+  revalidatePath(TURNS_PATH, "page");
   return {};
 }
 
@@ -229,7 +230,7 @@ async function resendStagedMessageImpl({ stagedMessageId }) {
     },
   });
 
-  revalidatePath("/gm/turns");
+  revalidatePath(TURNS_PATH, "page");
   return { resent, stillFailing };
 }
 
@@ -353,7 +354,7 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollI
     },
   });
 
-  revalidatePath("/gm/turns");
+  revalidatePath(TURNS_PATH, "page");
   return { count: created.length, batchId };
 }
 
@@ -402,7 +403,7 @@ async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, ta
     },
   });
 
-  revalidatePath("/gm/turns");
+  revalidatePath(TURNS_PATH, "page");
   return {};
 }
 
@@ -418,7 +419,7 @@ async function deleteStagedEffectImpl({ stagedEffectId, batchId }) {
         details: { batchId, count },
       },
     });
-    revalidatePath("/gm/turns");
+    revalidatePath(TURNS_PATH, "page");
     return { count };
   }
 
@@ -433,7 +434,7 @@ async function deleteStagedEffectImpl({ stagedEffectId, batchId }) {
       details: { stagedEffectId: existing.id, count: 1 },
     },
   });
-  revalidatePath("/gm/turns");
+  revalidatePath(TURNS_PATH, "page");
   return { count: 1 };
 }
 
@@ -467,7 +468,7 @@ async function retargetMissedStagingImpl({ effectIds = [], messageIds = [] }) {
     },
   });
 
-  revalidatePath("/gm/turns");
+  revalidatePath(TURNS_PATH, "page");
   return { effects: effects.count, messages: messages.count };
 }
 
@@ -643,7 +644,7 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
     },
   });
 
-  revalidatePath("/gm/turns");
+  revalidatePath(TURNS_PATH, "page");
   return result;
 }
 
@@ -679,7 +680,7 @@ async function resolveCavingRollImpl({ cavingRollId, gmNotes: rawNotes }) {
     },
   });
 
-  revalidatePath("/gm/turns");
+  revalidatePath(TURNS_PATH, "page");
   return { status: "RESOLVED" };
 }
 
@@ -730,7 +731,7 @@ async function rejectMoveImpl({ actionId, reason: rawReason }) {
     deliveryFailed = true;
   }
 
-  revalidatePath("/gm/turns");
+  revalidatePath(TURNS_PATH, "page");
   revalidatePath("/character");
   return { description: action.description, deliveryFailed };
 }
@@ -811,7 +812,7 @@ async function resolveRequestImpl({ requestId, mode, edits = {}, gmNotes }) {
     return { status: updated.status, note, changed };
   });
 
-  revalidatePath("/gm/turns");
+  revalidatePath(TURNS_PATH, "page");
   revalidatePath("/gm/audit");
   revalidatePath("/character");
   revalidatePath("/faction");
@@ -856,7 +857,7 @@ async function killRequestTargetImpl({ requestId }) {
     },
   });
 
-  revalidatePath("/gm/turns");
+  revalidatePath(TURNS_PATH, "page");
   revalidatePath("/gm/players");
   revalidatePath("/gm/audit");
   revalidatePath("/lifeweb");

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { TURNS_PATH } from "@/lib/routes";
 import { redirect } from "next/navigation";
 import { prisma, isDynastyHead, isDynastyMember } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
@@ -66,7 +67,7 @@ async function requireCharacter() {
 function revalidateAll() {
   revalidatePath("/character");
   revalidatePath("/faction");
-  revalidatePath("/gm/turns");
+  revalidatePath(TURNS_PATH, "page");
   revalidatePath("/gm/audit");
 }
 

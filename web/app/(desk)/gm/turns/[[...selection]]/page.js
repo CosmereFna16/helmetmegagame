@@ -5,7 +5,7 @@ import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requests";
 import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, rollLabel } from "@/lib/moves";
 import { getOpenTurn } from "@/lib/turn";
 import { getMyZone } from "@/lib/gmZone";
-import Workspace from "./Workspace";
+import Workspace from "../Workspace";
 
 // The adjudication workspace's server half: one load, all DTOs, no
 // Prisma-shaped object across the boundary. The queue is the OPEN turn's
@@ -97,7 +97,26 @@ function summarize(request) {
   }
 }
 
-export default async function TurnsWorkspacePage() {
+// An optional catch-all rather than a [moveId] child route, for two reasons.
+// The desk selects a Move, a Request OR a Caving roll, so the URL has to carry
+// both halves of Workspace's { type, id }. And a child route would force this
+// file to become a layout, putting the client Workspace above `children` —
+// which cannot then hand tagsById/roster/zones/stagedByMove down to a server
+// child, so every desk would have to reload its own DTOs and loading.js would
+// flash on each queue click.
+//
+// The route also has to exist, not just be tolerated: Workspace polls
+// router.refresh() every 45s against the CURRENT url, so a GM parked on
+// /gm/turns/move/abc would 404 on the first poll without it.
+function parseSelection(segments) {
+  if (!segments || segments.length !== 2) return null;
+  const [type, id] = segments;
+  if (!["move", "request", "caving"].includes(type)) return null;
+  return { type, id };
+}
+
+export default async function TurnsWorkspacePage({ params }) {
+  const { selection } = await params;
   const openTurn = await getOpenTurn();
 
   const [actions, requests, cavingRolls, stagedEffects, stagedMessages, roster, zones, presenceZones, tagCatalog, members, myZone, gmProfiles] =
@@ -343,6 +362,7 @@ export default async function TurnsWorkspacePage() {
 
   return (
     <Workspace
+      initialSelection={parseSelection(selection)}
       openTurn={openTurn ? { id: openTurn.id, number: openTurn.number, phase: openTurn.phase } : null}
       myZoneName={myZone?.name ?? null}
       tagsById={tagsById}
