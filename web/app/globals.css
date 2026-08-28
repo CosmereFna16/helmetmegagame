@@ -1472,13 +1472,14 @@ input[type="radio"]:disabled {
   flex-direction: column;
   align-items: stretch;
   gap: 2px;
-  /* 92px, up from 84px, to give the labels room now that they are 11px rather
-     than 9.6px. The mobile bottom-bar crowding (a GM has up to nine items on a
-     390px viewport, ~39px each, under the 44px touch minimum) is the other
-     half of this and needs a "More" sheet — that lands with the page pass. */
-  width: 92px;
+  /* 56px, icon-only, down from 92px of stacked icon-over-label. The desks in
+     (desk) are full-viewport-minus-rail, and 36px of that width is a third of
+     a queue column; the label survives as the accessible name (visually
+     hidden below) plus a title tooltip. The mobile bottom bar is a different
+     rule set entirely and keeps its text. */
+  width: 56px;
   flex-shrink: 0;
-  padding: 18px 0;
+  padding: 12px 0;
   border-right: 1px solid var(--border);
   background: var(--surface);
   position: sticky;
@@ -1496,6 +1497,7 @@ input[type="radio"]:disabled {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 5px;
   padding: 10px 4px;
   text-decoration: none;
@@ -1507,6 +1509,8 @@ input[type="radio"]:disabled {
   background: none;
   font-family: inherit;
   cursor: pointer;
+  /* Anchors the active pill and the badge below. */
+  position: relative;
 }
 
 .rail-item svg {
@@ -1520,6 +1524,50 @@ input[type="radio"]:disabled {
 
 .rail-item[data-active="true"] {
   color: var(--accent-text);
+}
+
+/* Desktop only: the icon carries the item on its own. The mobile bottom bar
+   still shows labels (it has width to spare per item and no hover to fall
+   back on), and .nav-sheet-item is a separate class the sheet uses. */
+@media (min-width: 721px) {
+  .app-rail .rail-item {
+    gap: 0;
+    /* 20px icon + 12px either side = 44px, the touch minimum, kept even
+       though this branch is pointer-first. */
+    padding: 12px 4px;
+  }
+
+  .app-rail .rail-item > span:not(.rail-item-badge) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* A pill against the rail's edge, rather than the whole item changing
+     background — at 56px a filled block reads as a button, not a location. */
+  .rail-item[data-active="true"]::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 22px;
+    border-radius: 0 var(--r-full) var(--r-full) 0;
+    background: var(--accent-solid);
+  }
+
+  /* With the label gone there is no baseline to sit the count on, so it
+     tucks into the icon's top-right corner. */
+  .app-rail .rail-item-badge {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+  }
 }
 
 .rail-signout {
@@ -2003,18 +2051,24 @@ input[type="radio"]:disabled {
 
 /* ── Adjudication workspace (docs/systemdocs/ADJUDICATION.md) ───────────── */
 
-/* The one full-viewport surface in the app — no PageShell, no nav rail
-   (web/app/(desk)/). A fixed shell with three internally-scrolling regions
-   and a collapsible tray, so the page body itself never scrolls: mission
-   control, not a document. Tokens and the shared control classes still
-   apply everywhere inside it. */
+/* A full-viewport workspace — no PageShell, no centred max-width
+   (web/app/(desk)/). Three internally-scrolling regions and a collapsible
+   tray, so the page body itself never scrolls: mission control, not a
+   document. Tokens and the shared control classes still apply inside it.
+   It does carry the nav rail: (desk)/layout.js renders the same .app-shell
+   as (app), so this is a 100dvh column inside .app-main.
+
+   Deliberately NOT positioned, and deliberately no z-index. Modal.js renders
+   .modal-overlay (z-index 100) in-tree rather than through a portal, so a
+   stacking context here would trap every desk modal at this element's level
+   — and under 720px .app-rail is a fixed bottom bar at z-index 30, so the
+   modals would paint underneath it. */
 .desk-shell {
-  position: fixed;
-  inset: 0;
   display: flex;
   flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
   background: var(--bg);
-  z-index: 10;
 }
 
 .desk-header {
@@ -2394,8 +2448,14 @@ input[type="radio"]:disabled {
    must stay usable on a phone. */
 @media (max-width: 720px) {
   .desk-shell {
-    position: static;
-    min-height: 100dvh;
+    /* The height contract inverts: on desktop the shell is exactly the
+       viewport and its regions scroll inside it, here the column grows and
+       the page scrolls. The 72px comes off because .app-main carries the
+       fixed bottom bar's clearance as padding — a full 100dvh here would add
+       that much dead scroll under the tray. */
+    height: auto;
+    overflow: visible;
+    min-height: calc(100dvh - 72px - env(safe-area-inset-bottom, 0px));
   }
 
   .desk-body {
@@ -2414,12 +2474,13 @@ input[type="radio"]:disabled {
     max-width: none;
   }
 
-  /* Keeps the tray reachable without scrolling to the very bottom of a
-     long stacked column — the shell is static under this breakpoint, so
-     sticky works against the page rather than a fixed ancestor. */
+  /* Keeps the tray reachable without scrolling to the very bottom of a long
+     stacked column. It sticks above the nav rail's height, not at 0: the rail
+     is a fixed bottom bar under this breakpoint, so a tray at 0 sits under
+     it. */
   .desk-tray {
     position: sticky;
-    bottom: 0;
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
     background: var(--bg);
     z-index: 5;
   }

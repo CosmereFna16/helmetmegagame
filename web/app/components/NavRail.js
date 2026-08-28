@@ -67,6 +67,10 @@ export default function NavRail({ items }) {
               // the desktop rail still shows everything.
               className={i >= MOBILE_PRIMARY ? "rail-item rail-item--overflow" : "rail-item"}
               data-active={isActive(item.href) ? "true" : "false"}
+              // The desktop rail is icon-only, so the label is visually hidden
+              // rather than removed: it stays the accessible name, and title
+              // gives it back to a sighted mouse user on hover.
+              title={item.label}
             >
               <Icon aria-hidden="true" />
               <span>{item.label}</span>
@@ -88,7 +92,7 @@ export default function NavRail({ items }) {
         </button>
 
         <form action={signOutOfDiscord} className="rail-signout">
-          <button type="submit" className="rail-item" style={{ width: "100%" }}>
+          <button type="submit" className="rail-item" style={{ width: "100%" }} title="Sign out">
             <SignOutIcon aria-hidden="true" />
             <span>Sign out</span>
           </button>
