@@ -8,6 +8,7 @@ import Tooltip from "@/app/components/Tooltip";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { useConfirm } from "@/app/components/ConfirmProvider";
+import { useTags } from "@/app/components/TagsProvider";
 import { resolveRequest, killRequestTarget } from "./actions";
 import { SECTIONS } from "./RequestSections";
 
@@ -45,6 +46,12 @@ export default function RequestDesk({ request, onInspect, onClose, registerEscap
   const [pending, startTransition] = useTransition();
   const { markDirty, markClean, guardedClose } = useDirtyGuard();
   const confirm = useConfirm();
+  // A Request's effect only snapshots tagId/tagName (REQUESTS.md §2 — Undo
+  // reads off the snapshot, never live state), so a section that wants a
+  // hoverable chip has to resolve the live catalog row itself. Read via
+  // context here — a hook, so it can't be called from inside SECTIONS'
+  // plain render() functions — and hand the lookup down.
+  const { tagsById } = useTags();
 
   // The workspace's layered Escape deselects through the same dirty guard
   // as the Close button.
@@ -140,7 +147,7 @@ export default function RequestDesk({ request, onInspect, onClose, registerEscap
         <div className="mt-4 flex flex-col gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
           <h3 className="field-label">{section.heading}</h3>
           <div className="flex flex-col gap-3">
-            {section.render({ effect, payload: request?.payload ?? {}, edits, setEdit, onKill, killing })}
+            {section.render({ effect, payload: request?.payload ?? {}, edits, setEdit, onKill, killing, tagsById })}
           </div>
         </div>
       )}

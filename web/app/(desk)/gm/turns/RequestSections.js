@@ -2,6 +2,8 @@
 
 import CheckField from "@/app/components/CheckField";
 import CharacterLink from "@/app/components/CharacterLink";
+import TagChip from "@/app/components/TagChip";
+import { useTags } from "@/app/components/TagsProvider";
 
 // The per-type bottom half of a Request review, extracted verbatim from the
 // old RequestPanel so the desk renders the same controls. Adding a
@@ -44,6 +46,35 @@ function stackLabel(effect) {
   return (effect.quantity ?? 1) > 1 ? `${name} ×${effect.quantity}` : name;
 }
 
+// A hoverable TagChip when `effect.tagId` still resolves against the live
+// catalog, falling back to the plain snapshot name when it doesn't (the tag
+// was deleted since the request was filed — the snapshot is exactly what
+// Undo would still put back, so the text stays truthful even then).
+function TagStack({ effect, tagsById }) {
+  const tag = effect.tagId ? tagsById?.get(effect.tagId) : null;
+  if (!tag) return stackLabel(effect);
+  return <TagChip tag={tag} quantity={effect.quantity ?? 1} />;
+}
+
+// CONSUME_TAG's "Became" line — several tags at once (`granted`), each
+// resolved the same way TagStack resolves the one it consumed.
+function GrantedList({ granted, tagsById }) {
+  const items = (granted ?? []).filter((g) => g.added > 0);
+  if (!items.length) return "—";
+  return (
+    <span className="flex flex-wrap items-center gap-1">
+      {items.map((g) => {
+        const tag = g.tagId ? tagsById?.get(g.tagId) : null;
+        return tag ? (
+          <TagChip key={g.tagId} tag={tag} quantity={g.added} />
+        ) : (
+          <span key={g.tagId ?? g.tagName}>{g.added > 1 ? `${g.tagName} ×${g.added}` : g.tagName}</span>
+        );
+      })}
+    </span>
+  );
+}
+
 export const SECTIONS = {
   FULFILL_DESIRE: {
     heading: "Fulfill Desire",
@@ -71,9 +102,11 @@ export const SECTIONS = {
 
   ADD_TAG: {
     heading: "Add Tag",
-    render: ({ effect, edits, setEdit }) => (
+    render: ({ effect, edits, setEdit, tagsById }) => (
       <>
-        <Line label="Tag added">{stackLabel(effect)}</Line>
+        <Line label="Tag added">
+          <TagStack effect={effect} tagsById={tagsById} />
+        </Line>
         <SpendField value={edits.resourcesSpent} onChange={(v) => setEdit("resourcesSpent", v)} />
         <CheckField
           checked={Boolean(edits.removeTag)}
@@ -87,13 +120,16 @@ export const SECTIONS = {
 
   BUY_TAGS: {
     heading: "Store Purchase",
-    render: ({ effect }) => (
+    render: ({ effect, tagsById }) => (
       <>
-        {(effect.items ?? []).map((item) => (
-          <Line key={item.tagId} label={item.tagName}>
-            {item.cost} pt{item.cost === 1 ? "" : "s"}
-          </Line>
-        ))}
+        {(effect.items ?? []).map((item) => {
+          const tag = item.tagId ? tagsById?.get(item.tagId) : null;
+          return (
+            <Line key={item.tagId} label={tag ? <TagChip tag={tag} /> : item.tagName}>
+              {item.cost} pt{item.cost === 1 ? "" : "s"}
+            </Line>
+          );
+        })}
         <Line label="Total">{effect.totalPoints ?? 0} Tag Points</Line>
         <p className="text-xs text-muted">
           Undo returns every tag in the cart and refunds the points.
@@ -104,9 +140,11 @@ export const SECTIONS = {
 
   REMOVE_TAG: {
     heading: "Remove Tag",
-    render: ({ effect, edits, setEdit }) => (
+    render: ({ effect, edits, setEdit, tagsById }) => (
       <>
-        <Line label="Tag removed">{stackLabel(effect)}</Line>
+        <Line label="Tag removed">
+          <TagStack effect={effect} tagsById={tagsById} />
+        </Line>
         <SpendField value={edits.resourcesSpent} onChange={(v) => setEdit("resourcesSpent", v)} />
         <p className="text-xs text-muted">
           Undo puts the tag back with its original source and expiry, and refunds the cost.
@@ -117,16 +155,13 @@ export const SECTIONS = {
 
   CONSUME_TAG: {
     heading: "Consume Tag",
-    render: ({ effect }) => (
+    render: ({ effect, tagsById }) => (
       <>
-        <Line label="Consumed">{effect.tagName ?? "—"}</Line>
+        <Line label="Consumed">
+          <TagStack effect={effect} tagsById={tagsById} />
+        </Line>
         <Line label="Became">
-          {(effect.granted ?? []).filter((g) => g.added > 0).length
-            ? effect.granted
-                .filter((g) => g.added > 0)
-                .map((g) => (g.added > 1 ? `${g.tagName} ×${g.added}` : g.tagName))
-                .join(", ")
-            : "—"}
+          <GrantedList granted={effect.granted} tagsById={tagsById} />
         </Line>
         <p className="text-xs text-muted">
           Nothing to re-score here.
@@ -151,10 +186,10 @@ export const SECTIONS = {
 
   TRANSFER_TAG: {
     heading: "Transfer Tag",
-    render: ({ effect }) => (
+    render: ({ effect, tagsById }) => (
       <>
         <Line label="Handed over">
-          {stackLabel(effect)} to {effect.toName ?? "?"}
+          <TagStack effect={effect} tagsById={tagsById} /> to {effect.toName ?? "?"}
         </Line>
         <p className="text-xs text-muted">
           Undo moves the tag back to its original holder.
@@ -232,7 +267,7 @@ export const SECTIONS = {
   // half (which shows the requester).
   HEAL_CHARACTER: {
     heading: "Heal",
-    render: ({ effect, edits, setEdit }) => (
+    render: ({ effect, edits, setEdit, tagsById }) => (
       <>
         <Line label="Patient">
           {effect.targetCharacterId ? (
@@ -242,7 +277,9 @@ export const SECTIONS = {
           )}
           {effect.selfHeal ? <span className="text-muted"> — themselves</span> : null}
         </Line>
-        <Line label="Cured">{effect.tagName ?? "—"}</Line>
+        <Line label="Cured">
+          <TagStack effect={effect} tagsById={tagsById} />
+        </Line>
         {effect.requirement?.skills?.length ? (
           <Line label="Needed">{effect.requirement.skills.join(", ")}</Line>
         ) : null}
@@ -276,9 +313,11 @@ export const SECTIONS = {
   // tiers this drew from.
   CAVING_LOOT: {
     heading: "Caving Find",
-    render: ({ effect, payload }) => (
+    render: ({ effect, payload, tagsById }) => (
       <>
-        <Line label="Found">{stackLabel(effect)}</Line>
+        <Line label="Found">
+          <TagStack effect={effect} tagsById={tagsById} />
+        </Line>
         <Line label="Tier">{payload?.tier ?? "—"}</Line>
       </>
     ),
