@@ -250,8 +250,8 @@ model GameConfig {
   restBreakerOpenUntil   DateTime?
 
   // Multiplier applied to every rate in db/lib/production.js's
-  // PRODUCTION_RATES table — read live by /hunt, /fish, /farm and /herd
-  // (bot/src/lib/labor.js). docs/documents.yaml renders its numbers through
+  // PRODUCTION_RATES table — read live by the Labor checkbox
+  // (db/lib/laborAccess.js). docs/documents.yaml renders its numbers through
   // live {resource:...} bubbles, so nothing needs regenerating when this
   // changes. See docs/systemdocs/PRODUCTION.md.
   productionCoefficient Float @default(1)
@@ -1345,8 +1345,8 @@ model Action {
   stagedEffects      StagedEffect[]
 
   // One Action per character per turn — the rule every writer already applies
-  // by hand (bot/src/lib/labor.js, db/lib/travel.js, interactionCreate's Move
-  // modal, defaultMovePass's `acted` set, and the Dev Panel's spendTurn), each
+  // by hand (db/lib/travel.js, interactionCreate's Move modal,
+  // defaultMovePass's `acted` set, and the Dev Panel's spendTurn), each
   // via a non-transactional findFirst-then-create. At rollover, when everyone
   // acts at once and Discord retries interactions, that gap lets a
   // double-submit file two Actions and pay out twice. The database is the only
@@ -1480,7 +1480,13 @@ model DefaultEffort {
   description      String
   zoneId           String?
   zone             Zone?      @relation(fields: [zoneId], references: [id])
+  // Vestigial: never written any more (the +N/range grammar it stored is
+  // gone), only ever selected — dropping it now would throw against an
+  // old-code instance mid-deploy. Kept until a post-wipe cleanup migration.
   resourceDelta    Int?
+  // The Labor checkbox — the single flavor-free flag that replaces the old
+  // "/hunt"-style shorthand embedded in the description text.
+  labor            Boolean    @default(false)
   shareInSummary   Boolean    @default(false)
   summaryChannelId String?
   summaryMessage   String?
