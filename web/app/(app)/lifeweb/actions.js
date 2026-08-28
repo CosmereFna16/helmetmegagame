@@ -32,20 +32,27 @@ export async function donateBlood(characterId) {
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
 
   const { amount, tier } = bloodValueForTags(character.tags);
-  // Atomic read-and-move in one statement; see db/lib/lifeweb.js#bumpBlood for
-  // why the old read-then-write shape lost concurrent donations.
-  const blood = await bumpBlood(prisma, amount);
+  const drainedTag = openTurn ? await prisma.tag.findUnique({ where: { slug: DRAINED_SLUG } }) : null;
+  const expiresTurn =
+    openTurn && drainedTag?.defaultDurationTurns != null
+      ? openTurn.number + drainedTag.defaultDurationTurns
+      : null;
 
-  if (openTurn) {
-    const drainedTag = await prisma.tag.findUnique({ where: { slug: DRAINED_SLUG } });
+  // Credit and mark in ONE transaction, same as the player-facing twin in
+  // requestActions.js#donateBloodRequestImpl. Split apart, a throw between the
+  // two left the pool credited and the donor unmarked — and an unmarked donor
+  // passes the alreadyDrained gate above, so the same character could be
+  // drained again for another full payout. bumpBlood is still the atomic
+  // read-and-move (db/lib/lifeweb.js); it just runs on `tx` now.
+  let blood;
+  await prisma.$transaction(async (tx) => {
+    blood = await bumpBlood(tx, amount);
     if (drainedTag) {
-      const expiresTurn =
-        drainedTag.defaultDurationTurns != null ? openTurn.number + drainedTag.defaultDurationTurns : null;
-      await prisma.characterTag.create({
+      await tx.characterTag.create({
         data: { characterId: character.id, tagId: drainedTag.id, source: "EVENT", expiresTurn },
       });
     }
-  }
+  });
 
   await prisma.auditLog.create({
     data: {

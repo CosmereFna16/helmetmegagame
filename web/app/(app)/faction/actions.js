@@ -86,6 +86,16 @@ export async function addCharacterToFaction(formData) {
   const factionId = formData.get("factionId")?.toString();
   if (!characterId || !factionId) return;
 
+  // Both ids resolved before the write, same as setFactionLeader above.
+  // Updating straight from formData threw Prisma's P2025/FK violation on a
+  // stale or hand-posted id, and Next redacts a thrown error to a bare digest
+  // — so the GM got a broken page instead of a no-op.
+  const faction = await prisma.faction.findUnique({ where: { id: factionId } });
+  if (!faction) return;
+
+  const character = await prisma.character.findUnique({ where: { id: characterId } });
+  if (!character) return;
+
   await prisma.character.update({
     where: { id: characterId },
     data: { factionId, isLeader: false },
@@ -112,6 +122,10 @@ export async function removeCharacterFromFaction(formData) {
 
   const unaffiliated = await prisma.faction.findFirst({ where: { name: "Unaffiliated" } });
   if (!unaffiliated) return;
+
+  // Resolved before the write for the same reason as addCharacterToFaction.
+  const character = await prisma.character.findUnique({ where: { id: characterId } });
+  if (!character) return;
 
   await prisma.character.update({
     where: { id: characterId },

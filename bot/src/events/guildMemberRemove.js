@@ -14,16 +14,24 @@ module.exports = {
       include: { role: true },
     });
 
-    await prisma.auditLog.create({
-      data: {
-        actorDiscordUserId: member.id,
-        actionType: "member_left",
-        details: {
-          username: member.user?.tag ?? member.id,
-          characterName: character?.name ?? null,
+    // Caught like every other write in this handler. It is only a log line,
+    // but a bare throw here would take the whole execute() with it — index.js
+    // guard() logs and drops the rest — and everything below is the cleanup
+    // that has no second pass: the access revoke, the role delete, the
+    // soft-kill. A logging hiccup must never strand a departed player's
+    // overwrites on every channel.
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: member.id,
+          actionType: "member_left",
+          details: {
+            username: member.user?.tag ?? member.id,
+            characterName: character?.name ?? null,
+          },
         },
-      },
-    });
+      })
+      .catch((err) => console.error(`Failed to log member_left for ${member.id}:`, err));
 
     const roleLabel = character?.roleTitle ?? character?.role?.name ?? "Unaffiliated";
     const playerName = member.user?.username ?? member.user?.tag ?? member.id;

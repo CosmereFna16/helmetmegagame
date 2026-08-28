@@ -321,7 +321,7 @@ export const SECTIONS = {
           <TagStack effect={effect} tagsById={tagsById} />
         </Line>
         <Line label="Die">{payload?.die ?? "—"}</Line>
-      <Line label="Tier">{payload?.tier ?? "—"}</Line>
+        <Line label="Tier">{payload?.tier ?? "—"}</Line>
       </>
     ),
   },

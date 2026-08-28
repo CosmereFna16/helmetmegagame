@@ -131,7 +131,13 @@ async function runHungerPass(prisma, turn) {
   const starvedNotices = toStarve.map((character) => ({
     discordUserId: character.discordUserId,
     streak: Math.min(character.hungerStreak + 1, HUNGER_STREAK_CAP),
-    justDied: dyingId != null && character.hungerStreak + 1 === HUNGER_STREAK_CAP,
+    // `>=`, matching newlyDyingIds below — the flag that sends DYING_DM and
+    // the grant that lands the tag must never disagree. With `===`, a GM who
+    // pulled Dying off by hand without also dropping the streak below the cap
+    // got the tag re-granted on the next starved turn (skipDuplicates no
+    // longer suppresses it, since it is no longer held) and the player was
+    // never told.
+    justDied: dyingId != null && character.hungerStreak + 1 >= HUNGER_STREAK_CAP,
   }));
   const newlyDyingIds = dyingId
     ? toStarve.filter((character) => character.hungerStreak + 1 >= HUNGER_STREAK_CAP).map((character) => character.id)
