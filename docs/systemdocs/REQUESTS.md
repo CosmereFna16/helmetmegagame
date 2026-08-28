@@ -100,7 +100,7 @@ reason.
 | `DONATE_BLOOD` | Mortus bleeds someone into the Lifeweb | blood added; clear Drained | Draws the blood back, clears Drained |
 | `FEED_PERSON` | Mortus feeds someone to the Lifeweb | blood added | Draws the blood back (never revives) |
 | `HEAL_CHARACTER` | Treats an affliction on anyone standing in their zone, on whoever's tab they choose | cost; put the affliction back | Restores the tag with its original expiry, refunds the payer |
-| `CHANGE_NAME` | Drinks a Mulligan Potion and takes a new honorific/first/last name | — | Restores the previous name and gives back the potion |
+| `CHANGE_NAME` | Takes a new honorific/first/last name | — | Restores the previous name |
 
 The per-type behaviour lives in `web/lib/requestEffects.js` as one
 `REQUEST_EFFECTS` entry each. **Adding a type means adding one entry

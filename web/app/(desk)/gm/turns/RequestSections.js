@@ -266,7 +266,9 @@ export const SECTIONS = {
       <>
         <Line label="Now">{effect.next?.name ?? "—"}</Line>
         <Line label="Was">{effect.previous?.name ?? <span className="text-muted">nothing</span>}</Line>
-        <Line label="Spent">1 Mulligan Potion</Line>
+        {/* Only older Request rows, from before renaming stopped costing a
+            Mulligan Potion, carry this key — see requestEffects.js. */}
+        {effect.potionTagId && <Line label="Spent">1 Mulligan Potion</Line>}
       </>
     ),
   },

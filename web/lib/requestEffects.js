@@ -586,13 +586,17 @@ export const REQUEST_EFFECTS = {
     },
   },
 
-  // Drinking a Mulligan Potion. Nothing numeric to re-score, so Undo is the
+  // A player-initiated rename. Nothing numeric to re-score, so Undo is the
   // only lever: put the previous honorific/first/last name (and the composed
-  // `name`) back, and restore the one potion this took, same idiom as
-  // CONSUME_TAG. Undo does NOT re-run the Discord role/nickname sync — no
+  // `name`) back. Undo does NOT re-run the Discord role/nickname sync — no
   // network call may run inside this transaction (ARCHITECTURE.md §5) — so
   // Discord catches up the next time the player saves their Bio form, which
   // always re-syncs off the live DB name regardless of what changed.
+  //
+  // Older Request rows, from before renaming stopped costing a Mulligan
+  // Potion, carry a `potionTagId`/`potionRestore` in their effect — undoing
+  // one of those also gives the potion back, same idiom as CONSUME_TAG. New
+  // requests carry neither key, so that step is skipped for them.
   CHANGE_NAME: {
     editableFields: [],
     async undo(tx, request) {
@@ -609,7 +613,9 @@ export const REQUEST_EFFECTS = {
       if (potionTagId) {
         await restoreCharacterTag(tx, request.characterId, { tagId: potionTagId, ...potionRestore, quantity: 1 });
       }
-      return `Restored the previous name (${previous?.name ?? "—"}) and gave back the Mulligan Potion.`;
+      return potionTagId
+        ? `Restored the previous name (${previous?.name ?? "—"}) and gave back the Mulligan Potion.`
+        : `Restored the previous name (${previous?.name ?? "—"}).`;
     },
   },
 

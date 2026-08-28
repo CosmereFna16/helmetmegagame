@@ -101,32 +101,35 @@ formatter:
 | `character/createActions.js` | Creation | `normalizeEarnedHonorific` |
 | `web/lib/characterWrite.js` | GM raw edit, from the dev panel | `normalizeHonorific` (ungated) |
 | `web/lib/dynasty.js#propagateDynastyLastName` | The Baron renaming his house | **none — see §1c** |
-| `character/requestActions.js#changeNameRequestImpl` | Drinking a Mulligan Potion | `normalizeEarnedHonorific` |
+| `character/requestActions.js#changeNameRequestImpl` | The "Change name" request | `normalizeEarnedHonorific` |
 
 A fifth must do the same. `npm run db:backfill-name-parts` is the drift check
 that catches one that doesn't.
 
-### A name is immutable — with one sanctioned exception
+### A name is immutable — except through the "Change name" request
 
-There is **no ordinary player-facing rename.** A name is chosen once, in the
+There is **no direct player-facing rename.** A name is chosen once, in the
 creation wizard, and after that `character/actions.js#updateCharacterProfile`
 ignores `honorific`, `firstName` and `lastName` outright — the three inputs on
 `/character` render `disabled`, but as always the disabled input is the hint
 and the server action is the lock. The rest of the Bio form (appearance,
 avatar, opt-ins) is untouched.
 
-The sanctioned exception is the **Mulligan Potion** (`docs/tags.yaml`),
-consumed by a `CHANGE_NAME` request (`REQUESTS.md` §3): the player picks a new
-honorific/first/last name, it applies immediately in the same transaction
-that spends the potion, and a GM can Undo it from `/gm/turns` like any other
-request. It re-validates the same allowlist/cap/dynasty-lock rules every other
-writer of `Character.name` enforces, and runs the same lightweight Discord
-fan-out `updateCharacterProfile` used to (`ensureCharacterRole`,
-`syncCharacterNickname`, and `propagateDynastyLastName` if the renamer is the
-Baron) right after the transaction commits — best-effort and outside it, same
-posture as every other request that touches Discord. `REQUESTS.md` §3 has the
-one gap worth knowing: Undo reverts the database but not Discord, which
-catches up on the player's next Bio save.
+The one way through is the **`CHANGE_NAME` request** (`REQUESTS.md` §3),
+reached from the "Change name" button next to those disabled fields: the
+player picks a new honorific/first/last name and gives a reason, it applies
+immediately, and a GM can Undo it from `/gm/turns` like any other request. It
+requires nothing beyond that reason — it used to also spend a Mulligan
+Potion (`docs/tags.yaml`), but that gate has been removed; the tag survives
+as a flavor collectible only. It re-validates the same allowlist/cap/dynasty-
+lock rules every other writer of `Character.name` enforces, and runs the same
+lightweight Discord fan-out `updateCharacterProfile` used to
+(`ensureCharacterRole`, `syncCharacterNickname`, and
+`propagateDynastyLastName` if the renamer is the Baron) right after the
+transaction commits — best-effort and outside it, same posture as every other
+request that touches Discord. `REQUESTS.md` §3 has the one gap worth knowing:
+Undo reverts the database but not Discord, which catches up on the player's
+next Bio save.
 
 ### `NAME_LIMITS` (10/24/20/20)
 
@@ -236,7 +239,7 @@ That rule is why **only three call sites may normalize a title**, and each
 uses the right one:
 
 - `normalizeEarnedHonorific(value, { tagSlugs, roleSlug })` — the two paths
-  where the player is *choosing* a title: creation and the Mulligan rename.
+  where the player is *choosing* a title: creation and the Change-name request.
 - `normalizeHonorific(value)` — membership in the catalog only, no earning
   check. The GM dev panel, matching `TAGS.md` §3's rule that a GM grant is
   never second-guessed. It is also the escape hatch for a title nobody can

@@ -4649,17 +4649,16 @@ tags:
       skills: [brewing-skilled]
       gambit: false
 
-  # The one tag that undoes an otherwise permanent decision. A character's name
-  # is set at creation and no player-facing path changes it (see
-  # docs/systemdocs/CHARACTERS.md) — this is the exception, and it is honoured
-  # by a GM rather than automated: `consumable` with no `consumesInto`, so
-  # drinking it simply spends the tag and leaves a CONSUME_TAG request in the
-  # GM's queue to act on.
+  # Flavor collectible. Changing your name no longer requires this — it's an
+  # ordinary "Change name" Request on the character sheet, gated only on a
+  # reason (docs/systemdocs/CHARACTERS.md §1b). `consumable` with no
+  # `consumesInto`, so drinking it simply spends the tag and leaves a
+  # CONSUME_TAG request in the GM's queue to act on.
   - slug: mulligan-potion
     name: Mulligan Potion
     category: items
     group: items-drink
-    description: "Milky but tastes like nothing. Grants a new name and appearance."
+    description: "Milky but tastes like nothing. A keepsake — it doesn't do anything on its own."
     pointCost: 1
     tradeable: true
     stackable: true
