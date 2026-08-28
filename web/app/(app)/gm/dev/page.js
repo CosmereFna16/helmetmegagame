@@ -209,19 +209,6 @@ export default async function DevPanelPage() {
             Wipe messages at Dawn — the transcript is already recorded at send time, this only deletes (see docs/systemdocs/CHANNELS.md)
           </Switch>
           <label className="field">
-            <span className="field-label">Idle turns before a player topic/thread expires</span>
-            <input
-              type="number"
-              name="threadExpiryTurns"
-              min="1"
-              max="60"
-              defaultValue={config.threadExpiryTurns}
-            />
-          </label>
-          <Switch name="threadExpiryEnabled" defaultChecked={config.threadExpiryEnabled} className="col-span-full">
-            Delete player-made topics and private threads after that many turns without a message — persistent ones included. Location topics never expire.
-          </Switch>
-          <label className="field">
             <span className="field-label">Idle turns before a character goes Catatonic (AFK)</span>
             <input
               type="number"

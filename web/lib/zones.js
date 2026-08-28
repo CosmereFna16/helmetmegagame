@@ -37,3 +37,16 @@ export function sortZones(zones) {
     return ai - bi;
   });
 }
+
+// Which zone a GM's table should OPEN on, given their seats.
+//
+// One seat is the whole point of the feature: the table opens narrowed to it.
+// Two or more and there is no single right answer — opening on the first would
+// silently hide the other seat's rows behind a filter the GM never set — so the
+// table opens on All and the ZoneScopeToggle offers a button per seat instead.
+// No seat (the master, or an unassigned GM) is All as well.
+//
+// `filters.zone` is a zone NAME, matching useTableState's filterDefs.
+export function openingZoneName(myZoneNames) {
+  return myZoneNames?.length === 1 ? myZoneNames[0] : "";
+}

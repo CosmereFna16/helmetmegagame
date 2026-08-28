@@ -1,6 +1,6 @@
 import { prisma } from "@lifeweb/db";
 import { listGuildMembers } from "@/lib/discordGuild";
-import { getMyZone } from "@/lib/gmZone";
+import { getMyZones } from "@/lib/gmZone";
 import { getOpenTurn } from "@/lib/turn";
 import RosterTable from "./RosterTable";
 
@@ -13,7 +13,7 @@ import RosterTable from "./RosterTable";
 // re-runs on every router.refresh().
 
 export default async function PlayerRosterPage({ searchParams }) {
-  const [tags, factions, myZone, openTurn, params] = await Promise.all([
+  const [tags, factions, myZones, openTurn, params] = await Promise.all([
     // The whole catalog, gates and all: bulk tagging is a GM grant, which
     // deliberately ignores requiredTag and the TagGroup gate (TAGS.md).
     prisma.tag.findMany({
@@ -34,7 +34,7 @@ export default async function PlayerRosterPage({ searchParams }) {
       orderBy: { name: "asc" },
       include: { characters: { select: { id: true, name: true, isLeader: true } } },
     }),
-    getMyZone(),
+    getMyZones(),
     getOpenTurn(),
     searchParams,
   ]);
@@ -85,7 +85,7 @@ export default async function PlayerRosterPage({ searchParams }) {
           acted: actedCharacterIds.has(c.id),
         }))}
         tags={tags}
-        myZoneName={myZone?.name ?? null}
+        myZoneNames={myZones.map((z) => z.name)}
         hasOpenTurn={Boolean(openTurn)}
         factions={factions}
         factionCount={factions.length}

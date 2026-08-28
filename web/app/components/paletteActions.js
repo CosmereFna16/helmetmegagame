@@ -2,7 +2,6 @@
 
 import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
-import { isSuperadmin } from "@/lib/superadmin";
 import { getOpenTurn } from "@/lib/turn";
 import { guarded } from "@/lib/actionResult";
 import { moveKindLabel } from "@/lib/moves";
@@ -44,11 +43,9 @@ async function getPaletteIndexImpl() {
   const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId) return { entries: [] };
 
-  const pages = gm
-    ? [...GM_PAGES, ...GENERIC_PAGES].filter(
-        (p) => p.href !== "/gm/audit" || isSuperadmin(session.discordUserId),
-      )
-    : GENERIC_PAGES;
+  // /gm/audit used to be filtered out here for everyone but the superadmin.
+  // Every GM reads the log now, so the whole GM page list goes through.
+  const pages = gm ? [...GM_PAGES, ...GENERIC_PAGES] : GENERIC_PAGES;
 
   const entries = pages.map((p) => ({
     kind: "page",
@@ -105,6 +102,30 @@ async function getPaletteIndexImpl() {
       href: `/gm/players/${c.discordUserId}`,
       search: { role: c.roleTitle ?? "", faction: c.faction?.name ?? "" },
     });
+    // "What has been done to this person" is a question the palette can answer
+    // in one keystroke now that the audit log takes a target filter in its URL.
+    if (gm) {
+      entries.push({
+        kind: "page",
+        id: `audit:${c.id}`,
+        label: `Audit: about ${c.name}`,
+        hint: "audit log",
+        dim: c.status !== "ALIVE",
+        href: `/gm/audit?target=${c.id}`,
+      });
+    }
+    // And the other direction, for a player who has one — a GM's own "by"
+    // entry rides the GM roster instead, which the palette does not carry.
+    if (gm && c.discordUserId) {
+      entries.push({
+        kind: "page",
+        id: `auditby:${c.discordUserId}`,
+        label: `Audit: by ${c.name}`,
+        hint: "audit log",
+        dim: c.status !== "ALIVE",
+        href: `/gm/audit?actor=${c.discordUserId}`,
+      });
+    }
   }
 
   for (const a of actions) {

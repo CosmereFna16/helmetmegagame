@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
-import { getMyZone } from "@/lib/gmZone";
+import { getMyZones } from "@/lib/gmZone";
 import PageShell, { PageHeader } from "../../components/PageShell";
 import DocumentsBoard from "./DocumentsBoard";
 import { toDocumentPreviewText } from "@/lib/documentPreview";
@@ -54,8 +54,10 @@ export default async function DocumentsPage() {
     ? written.filter((d) => d.flags.includes("gamemaster")).map((d) => shape(d, "Gamemaster"))
     : [];
 
-  const myZone = isGm ? await getMyZone() : null;
-  const isMasterGm = isGm && myZone === null;
+  // Holding no seat at all is the master's state; a GM seated anywhere — one
+  // zone or several — is a zone-GM and does not see Secret papers.
+  const myZones = isGm ? await getMyZones() : [];
+  const isMasterGm = isGm && myZones.length === 0;
 
   const secretDocs = isMasterGm
     ? written.filter((d) => d.isSecret).map((d) => shape(d, "Secret"))

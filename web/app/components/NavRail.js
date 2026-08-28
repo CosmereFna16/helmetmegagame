@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -38,12 +38,21 @@ const ICONS = {
 
 // How many items stay in the mobile bottom bar. The rest go behind "More".
 //
-// A GM carries up to eight nav items (Character, Players, Adjudicate,
-// Messages, Notes, Map, Audit, Dev) plus Lifeweb/Archive and Sign out. Ten
+// A GM carries up to nine nav items (Players, Adjudicate, Audit, Character,
+// Map, Notes, Documents, plus Lifeweb/Archive and Dev) and Sign out. Ten
 // targets across a 390px viewport is ~39px each — under the 44px touch minimum, and visually
-// crammed. Five plus More is ~65px. Players have 3-4 items and are unaffected
+// crammed. Five plus More is ~65px. Players have 5 items and are unaffected
 // by the cap; they still get the sheet, because Sign out lives in it on mobile.
+//
+// GM_NAV leads with its "gm" section, so the five a GM keeps in the bar are
+// Players, Adjudicate, Audit, Character, Map — the job first, then the two
+// player screens they actually open. Notes/Documents fall into the sheet.
 const MOBILE_PRIMARY = 5;
+
+// What a section break is called in the mobile sheet. The desktop rail draws
+// it as a plain rule instead: at 56px there is no room for a word, and the
+// grouping reads off the gap on its own.
+const SECTION_LABELS = { gm: "Gamemaster", player: "You" };
 
 export default function NavRail({ items }) {
   const pathname = usePathname();
@@ -57,9 +66,19 @@ export default function NavRail({ items }) {
       <nav className="app-rail" aria-label="Main">
         {items.map((item, i) => {
           const Icon = ICONS[item.icon];
+          // A rule wherever the section changes, never before the first item.
+          // PLAYER_NAV sets no section at all, so a player sees none of these —
+          // the whole feature costs them nothing.
+          const divide = i > 0 && item.section !== items[i - 1].section;
           return (
+            <Fragment key={item.href}>
+            {divide && (
+              <span
+                className={i >= MOBILE_PRIMARY ? "rail-divider rail-item--overflow" : "rail-divider"}
+                aria-hidden="true"
+              />
+            )}
             <Link
-              key={item.href}
               href={item.href}
               // Beyond the cap, an item is hidden in the bottom bar only —
               // the desktop rail still shows everything.
@@ -74,6 +93,7 @@ export default function NavRail({ items }) {
               <span>{item.label}</span>
               {item.badge > 0 && <span className="rail-item-badge mono">{item.badge}</span>}
             </Link>
+            </Fragment>
           );
         })}
 
@@ -100,11 +120,17 @@ export default function NavRail({ items }) {
       {sheetOpen && (
         <div className="modal-overlay nav-sheet-overlay" onClick={() => setSheetOpen(false)}>
           <div className="nav-sheet" onClick={(e) => e.stopPropagation()}>
-            {overflow.map((item) => {
+            {overflow.map((item, i) => {
               const Icon = ICONS[item.icon];
+              // The sheet has width for a word, so the same break shows as a
+              // heading here rather than the rail's bare rule.
+              const heading =
+                (i === 0 || item.section !== overflow[i - 1].section) &&
+                SECTION_LABELS[item.section];
               return (
+                <Fragment key={item.href}>
+                {heading && <span className="rail-section-label">{heading}</span>}
                 <Link
-                  key={item.href}
                   href={item.href}
                   className="menu-item nav-sheet-item"
                   data-active={isActive(item.href) ? "true" : "false"}
@@ -116,6 +142,7 @@ export default function NavRail({ items }) {
                   <Icon aria-hidden="true" />
                   <span>{item.label}</span>
                 </Link>
+                </Fragment>
               );
             })}
             <form action={signOutOfDiscord}>

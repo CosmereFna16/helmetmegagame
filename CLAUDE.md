@@ -337,17 +337,21 @@ state, plus one env-configured admin role. `Faction` is **not** one of them
 | **Turn-ping role** | `DISCORD_TURN_PING_ROLE_ID` env var | Plain opt-in notification, toggled from `/character`. |
 
 One more gate exists that is **not** a Discord role, and it's the only soft
-one in the app. `GmAssignment` (keyed on `discordUserId`, set from
-`/gm/gamemasters`) seats each of the four zone-GMs in a Zone. All it does is
-decide which zone that GM's tables *open* on. No query is scoped by it, and
-no row is hidden — a Move crosses zones by nature, so hiding rows
-would break the job. Every other row in the table above is real enforcement;
-this one is just convenience. Read
+one in the app. `GmAssignment` (one row per seat, keyed on the pair
+`discordUserId` + `zoneId`, set from `/gm/gamemasters`) seats a zone-GM over
+one or more of the four **seat** zones — Town, Fortress, Windlands, Caves,
+never one of the three cave levels. All it does is decide which zones that GM's
+tables *open* on. No query is scoped by it, and no row is hidden — a Move
+crosses zones by nature, so hiding rows would break the job. Every other row in
+the table above is real enforcement; this one is just convenience. Read
 [`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) before you try to harden
 it.
 
-`/gm/audit` and `/gm/gamemasters` are **superadmin-only**, not GM-visible.
-With five GMs, the audit log is a record *of* them, not a tool *for* them.
+`/gm/gamemasters` and `/gm/dev` are **superadmin-only**, not GM-visible —
+those are host access, not game permission. `/gm/audit` is **open to every
+GM**: it used to be the master's alone, on the argument that with five GMs the
+log is a record *of* them, but that left four people unable to answer "who
+changed this", which is what the log is for.
 
 **Why two role IDs live in code instead of env vars:** a role ID is not a
 secret — anyone in the guild can read it. Bascinet runs in a single guild, so

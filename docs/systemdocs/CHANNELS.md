@@ -237,13 +237,14 @@ recorded thread ids rather than the tag, so a hand-edited tag opens no hole.
 
 ### Inactivity expiry
 
-`db/lib/threadExpiryPass.js` runs at every Dawn, gated on
-`GameConfig.threadExpiryEnabled` — deliberately independent of
-`messageWipeEnabled`, so a game that never wipes can still reap dead scenes.
-Any `PlayerThread` with no messages for `GameConfig.threadExpiryTurns` turns
-(default 5) is deleted — thread, row and invites — **persistent ones included**.
-Location topics and the anchors have no `PlayerThread` row, so they are
-structurally exempt; there is no exclusion list to keep in sync.
+`db/lib/threadExpiryPass.js` runs at every Dawn, after the Dawn wipe. The
+wipe already deletes every non-persistent `PlayerThread` outright, that same
+Dawn (§8) — so by the time this pass runs, the only rows left to find are
+`persistent: true` ones. This pass exists purely to age those out: any
+`PlayerThread` with no messages for `THREAD_EXPIRY_TURNS` turns (hardcoded,
+5) is deleted — thread, row and invites. Location topics and the anchors
+have no `PlayerThread` row, so they are structurally exempt; there is no
+exclusion list to keep in sync.
 
 The clock is **turns, not wall time**, and it lives on the row rather than in
 Discord: a persistent thread is emptied nightly, so "no messages for N turns"
@@ -353,7 +354,7 @@ Both build the context with `buildNarrowcastContext` and run
 | Pass | When | What it does |
 |---|---|---|
 | **Dawn wipe** (`db/lib/dawnWipe.js`) | every turn that opens with `phase === "DAWN"`, if `GameConfig.messageWipeEnabled` | clears roleplay content per the table below |
-| **Thread expiry** (`db/lib/threadExpiryPass.js`) | every Dawn, if `GameConfig.threadExpiryEnabled` | deletes idle player threads (§4) |
+| **Thread expiry** (`db/lib/threadExpiryPass.js`) | every Dawn | deletes idle persistent player threads (§4) |
 | **Full wipe** (`db/lib/fullWipe.js`) | Restart Game only | spares nothing (`LAUNCH.md`) |
 | **`#turns` sweep** (`db/lib/turnAnnouncement.js#postTurnsConsole`, via `dawnWipe.js#clearMessagesExcept`) | every turn, Dawn or Dusk | deletes everything in `#turns` except the console message just posted — a stray GM post, an orphaned console from before a config reset |
 

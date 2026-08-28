@@ -271,8 +271,6 @@ wipe:
 
 | Knob | Does |
 |---|---|
-| `threadExpiryTurns` (1–60, default 5) | How many turns a player topic or private thread may sit with no messages before it is deleted |
-| `threadExpiryEnabled` | Whether that pass runs at all. Persistent threads are **included**; Location topics and the anchors never expire (`CHANNELS.md` §4) |
 | `autoReconcileEnabled` | Run the channel doctor's cheap reconcile after every turn advance. It always runs on bot restart regardless |
 
 **System Reports** shows the latest run of each operational pass — `WIPE`,
@@ -306,6 +304,6 @@ sequentially in `after()` and lands on a `BULK_MOVE` report.
 | Bulk tagging | `web/app/(app)/gm/actions.js#bulkTagCharacters` |
 | Shared tag search | `web/lib/characterCreation.js#filterTagsByQuery` |
 | Panel styling | `.dev-state-strip`, `.dev-state-group`, `.dev-bar-sep`, `.dev-apply-bar`, `.dev-tag-row`, `.dev-tag-group-head`, `.dev-modal-panel` in `globals.css` |
-| Desk modal mount, its server action | `web/app/(desk)/gm/turns/DevPanelModal.js`, `devPanelActions.js` |
+| Desk modal mount (shared by turns/players desks), its server action | `web/app/components/DevPanelModal.js`, `devPanelActions.js` |
 | The game-level panel (§11) | `web/app/(app)/gm/dev/page.js`, `actions.js` |
 | The channel doctor it runs | `db/lib/channelDoctor.js` |

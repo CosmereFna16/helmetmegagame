@@ -10,6 +10,7 @@ import FactionLink from "@/app/components/FactionLink";
 import { useTableState, SortHeader, FilterBar, TableScroll } from "@/app/components/DataTable";
 import ZoneChip from "@/app/components/ZoneChip";
 import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
+import { openingZoneName } from "@/lib/zones";
 import FactionsPanel from "./FactionsPanel";
 import Pager from "@/app/components/Pager";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
@@ -48,7 +49,7 @@ const SEARCH_FIELDS = [(c) => c.name, (c) => c.roleTitle, (c) => c.factionName];
 export default function RosterTable({
   characters,
   tags = [],
-  myZoneName,
+  myZoneNames,
   hasOpenTurn,
   factions,
   factionCount,
@@ -94,7 +95,7 @@ export default function RosterTable({
     filterDefs,
     searchFields,
     initialSort: { key: "name", dir: "asc" },
-    initialFilters: myZoneName ? { zone: myZoneName } : undefined,
+    initialFilters: { zone: openingZoneName(myZoneNames) },
   });
 
   const onComposerKeyDown = useSubmitOnEnter();
@@ -158,7 +159,7 @@ export default function RosterTable({
             setQuery={setQuery}
             searchLabel="Search players"
           >
-            <ZoneScopeToggle myZoneName={myZoneName} filters={filters} setFilters={setFilters} />
+            <ZoneScopeToggle myZoneNames={myZoneNames} filters={filters} setFilters={setFilters} />
             <button
               type="button"
               className="btn"

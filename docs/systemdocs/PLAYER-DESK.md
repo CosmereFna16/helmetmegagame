@@ -148,7 +148,10 @@ and it means nothing once the character is gone.
 
 - **⌘K** (`CommandPalette.js`) — a player, an open Move or Request, a zone, a
   faction, or any page including the ones with no rail item at all
-  (`/gm/gamemasters`, `/gm/dev/tags`, `/gm/dev/factions`, `/gm/audit`). Built
+  (`/gm/gamemasters`, `/gm/dev/tags`, `/gm/dev/factions`). It also offers
+  "Audit: about <name>" and "Audit: by <name>" per character, which are just
+  pre-filtered `/gm/audit` URLs — the audit desk keeps its whole filter state
+  in the query string, so anything can link into a view of it. Built
   on `Modal` so it inherits the focus trap and the topmost-Escape stack; its
   `.modal-overlay` also stands the adjudication desk's Escape and 45s refresh
   down, the way every other dialog does. The index is fetched on first open and

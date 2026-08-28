@@ -377,21 +377,11 @@ model GameConfig {
   watchChannelId    String?
   intercomChannelId String?
 
-  // Inactivity expiry for player-made topics and private threads
-  // (db/lib/threadExpiryPass.js, run alongside the Dawn wipe): a PlayerThread
-  // with no messages for threadExpiryTurns turns is deleted, persistent or
-  // not — only Location topics and the bot's anchor posts are forever.
-  // Independent of messageWipeEnabled: a game that never wipes at Dawn may
-  // still want dead scenes reaped. Off by default, same posture as
-  // messageWipeEnabled.
-  threadExpiryEnabled Boolean @default(false)
-  threadExpiryTurns   Int     @default(5)
-
   // The Catatonic (AFK) pass (db/lib/catatonicPass.js): any ALIVE character
   // with no player-filed Action and no in-character speech for
   // catatonicTurns turns straight is flagged; the flag lifts the moment they
-  // act or speak again. On by default, unlike threadExpiryEnabled above —
-  // this doesn't delete anything, it just marks the sheet for a GM to see.
+  // act or speak again. On by default — this doesn't delete anything, it
+  // just marks the sheet for a GM to see.
   catatonicEnabled Boolean @default(true)
   catatonicTurns   Int     @default(4)
 
@@ -551,6 +541,7 @@ model Zone {
   stagedMessages   StagedMessage[]
   startingForRoles Role[]          @relation("RoleStartingZone")
   cavingRolls      CavingRoll[]
+  zoneCaches       ZoneCache[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -559,25 +550,33 @@ model Zone {
   @@index([parentZoneId])
 }
 
-/// Which zone a GM is the seat for. The game runs with one master (the
-/// superadmin, web/lib/superadmin.js) plus four zone-GMs, one per Zone.
+/// Which zones a GM is the seat for. The game runs with one master (the
+/// superadmin, web/lib/superadmin.js) plus zone-GMs seated over the four SEAT
+/// zones -- Town, Fortress, Windlands and Caves. Never a cave level: the three
+/// levels of the Depths all belong to the Caves seat via Zone.seatZoneId, so a
+/// row here pointing at a CAVE_LEVEL would be a seat nothing is ever stamped
+/// with. The server action refuses one.
+///
+/// ONE ROW PER SEAT. A GM may hold several at once (five GMs, four zones, and
+/// somebody covers two), so the primary key is the pair. Absence of any row is
+/// "no seat", which is also the master's state and reads as All.
 ///
 /// Keyed on discordUserId rather than hung off Character, because a GM may
 /// never roll one -- and should not lose their seat when theirs dies.
 ///
 /// The near-miss alternative was a nullable Zone.gmDiscordUserId: one column,
-/// no new table. It was rejected because assignment then becomes
-/// clear-everywhere-then-set, a two-statement write whose partial failure
-/// leaves a GM holding two zones or none. Keying on the user makes that
-/// invariant structural and the write a single idempotent upsert.
+/// no new table. It was rejected because a zone can then hold only one GM, and
+/// assignment becomes clear-everywhere-then-set: a two-statement write whose
+/// partial failure leaves a seat orphaned. The join table makes the set of
+/// seats the unit of the write, replaced wholesale in one transaction.
 ///
 /// This is a SOFT gate and the only one in the app that is: it picks the
 /// default filter on the GM tables, it hides nothing. See CLAUDE.md's Discord
 /// permission model table.
 model GmAssignment {
-  discordUserId String  @id
-  zoneId        String?
-  zone          Zone?   @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  discordUserId String
+  zoneId        String
+  zone          Zone   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
 
   /// Snapshot of the superadmin who set it, per the log-table convention --
   /// no FK, so it survives the actor leaving the guild.
@@ -586,7 +585,9 @@ model GmAssignment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@id([discordUserId, zoneId])
   @@index([zoneId])
+  @@index([discordUserId])
 }
 
 /// A former Location, demoted to prose. NOT a place a character stands —
@@ -661,7 +662,7 @@ model PlayerThread {
   // per turn) and cross-checked at sweep time against the thread's
   // last_message_id snowflake, which covers messages the bot missed while
   // disconnected. Swept by db/lib/threadExpiryPass.js once
-  // openTurn.number - lastActivityTurn reaches GameConfig.threadExpiryTurns.
+  // openTurn.number - lastActivityTurn reaches THREAD_EXPIRY_TURNS.
   lastActivityTurn Int?
   lastActivityAt   DateTime @default(now())
 
@@ -1124,6 +1125,7 @@ model Tag {
   characters  CharacterTag[]
   gatedGroups TagGroup[]     @relation("TagGroupGate")
   cavingRolls CavingRoll[]
+  zoneCaches  ZoneCache[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1800,6 +1802,35 @@ model CavingRoll {
 
   @@unique([characterId, turnId])
   @@index([turnId, resolvedAt])
+}
+
+/// An Item or Asset put down on the ground in a zone — a dead-drop, a stash,
+/// contraband ditched before a search. Anyone standing in that zone may pick
+/// it up, which is the whole point: this is the one place in the game where a
+/// tag has no owner. Filed as DROP_ITEM / PICK_UP_ITEM requests.
+///
+/// One row per drop rather than one per (zone, tag) pair, so two players
+/// leaving the same item in the same place stay two separate finds and each
+/// DROP_ITEM has exactly one row for its Undo to reverse. A pick-up decrements
+/// and deletes at zero.
+///
+/// `droppedByName` is a snapshot with no FK, per the log-table convention
+/// (ARCHITECTURE.md) — a cache outlives whoever left it, and often outlives
+/// their character.
+model ZoneCache {
+  id     String @id @default(cuid())
+  zoneId String
+  zone   Zone   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  tagId  String
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  quantity      Int    @default(1)
+  droppedByName String
+
+  createdAt DateTime @default(now())
+
+  @@index([zoneId])
+  @@index([tagId])
 }
 
 // One row per player action that took effect without GM approval. `payload`

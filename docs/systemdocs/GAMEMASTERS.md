@@ -8,9 +8,13 @@ colour vocabulary that tells them at a glance whose row is whose.
 ## 1. The shape of it
 
 Lifeweb runs with **one master** — the superadmin (`web/lib/superadmin.js`) —
-and **four zone-GMs**, each seated in one of the four **seat** zones:
-**Fortress, Town, Windlands, Caves**. (Characters stand in six *presence*
-zones, because the Caves seat covers three cave levels — §2a.)
+and zone-GMs seated over the four **seat** zones: **Fortress, Town, Windlands,
+Caves**. (Characters stand in six *presence* zones, because the Caves seat
+covers three cave levels — §2a.)
+
+**A GM may hold more than one seat.** With five GMs and four zones somebody
+covers two, so `GmAssignment` is one row per seat rather than one row per GM.
+Holding none is the master's state, and reads as All.
 
 Zone-GMs also play, so the point is to keep each of them oriented toward their
 own zone without cutting them off from the rest of the game.
@@ -150,11 +154,21 @@ overwritten on the next sync.
 
 ## 5. Mine / All, and the unclaimed count
 
-`ZoneScopeToggle.js` is a two-button `.segmented` control that flips
-`filters.zone` between the viewer's zone and `""`. It **holds no state of its
-own** — it and the Zone `<select>` in `FilterBar` are two faces of one value,
-and a second `useState` would let them disagree the moment someone used the
-select. It renders nothing when the viewer has no seat.
+`ZoneScopeToggle.js` is a `.segmented` control that writes `filters.zone`. It
+**holds no state of its own** — it and the Zone `<select>` in `FilterBar` are
+two faces of one value, and a second `useState` would let them disagree the
+moment someone used the select. It renders nothing when the viewer has no seat.
+
+`filters.zone` stays a **single zone name**, because that is what
+`useTableState`'s `filterDefs` match on. So the control shows *one button per
+seat* rather than a combined Mine: a GM with one seat sees the old `Mine / All`
+pair, and a GM with two sees `[Town] [Caves] [All]`. That is also the honest
+control — with two seats there is no one zone that is "mine".
+
+The opening default follows the same logic, in `openingZoneName()`
+(`web/lib/zones.js`): one seat opens narrowed to it, **two or more open on
+All**. Picking one arbitrarily would hide the other seat's rows behind a filter
+the GM never set.
 
 The default itself is `useTableState`'s `initialFilters`, which seeds filter
 state once at mount exactly as `initialSort` already does. It must **not**
@@ -176,25 +190,31 @@ live, wrong after a long backlog. If that ever matters, replace it with
 
 `/gm/gamemasters`, superadmin only. Lists everyone holding the GM role with
 their Discord avatar, their character (linked through `CharacterLink`), and a
-segmented picker for their zone.
+segmented multi-toggle for their seats. **"All" is the cleared state**, named
+for what the GM's tables then show rather than for the empty set.
 
-`GmAssignment` is keyed on `discordUserId` as its primary key, not hung off
-`Character`, because **a GM may never roll one** — and should not lose their
-seat when theirs dies. The near-miss alternative was a nullable
-`Zone.gmDiscordUserId`: one column, no new table. It was rejected because
-assignment then becomes clear-everywhere-then-set, a two-statement write whose
-partial failure leaves a GM holding two zones or none. Keying on the user makes
-that invariant structural and the write a single idempotent upsert. Absence of
-a row **is** "no seat", so clearing deletes rather than nulls.
+`GmAssignment` is keyed on `discordUserId`, not hung off `Character`, because
+**a GM may never roll one** — and should not lose their seat when theirs dies.
+The primary key is the **pair** `(discordUserId, zoneId)`: one row per seat, so
+a GM can hold several. The near-miss alternative was a nullable
+`Zone.gmDiscordUserId`: one column, no new table. It was rejected because a
+zone can then hold only one GM, and assignment becomes
+clear-everywhere-then-set — a two-statement write whose partial failure leaves
+a seat orphaned. The join table makes the *set* of seats the unit of the write,
+replaced wholesale in one `$transaction`. Absence of any row **is** "no seat".
 
-The FK is `onDelete: SetNull` and that is load-bearing: `db:sync-zones` is
-destructive and *will* delete a Zone row that has left `docs/zones.yaml`. A
-cascade would take the GM's seat with it silently.
+The FK is `onDelete: Cascade`. It used to be `SetNull`, on the argument that
+`db:sync-zones` is destructive and *will* delete a Zone row that has left
+`docs/zones.yaml` — a cascade would take the GM's seat with it silently. With
+`zoneId` now required that option is gone, and the loss is smaller than it was:
+what cascades away is a seat for a zone that no longer exists, where `SetNull`
+would have left a row meaning nothing.
 
-`assignGmZone` re-validates everything the picker already applied — a server
-action is a public endpoint. In particular it re-checks that the **target**
-holds the GM role; without that the endpoint would happily seat any Discord ID
-a caller invented.
+`assignGmZones` re-validates everything the picker already applied — a server
+action is a public endpoint. It re-checks that the **target** holds the GM role
+(without that the endpoint would happily seat any Discord ID a caller
+invented), and that every zone is a **seat** zone: a `CAVE_LEVEL` seat is one
+no stamped row can ever match, so it is refused rather than stored.
 
 This is also the only page in the app that renders a **Discord** identity
 rather than an in-game one, and so the only user of `DiscordAvatar.js` — the
@@ -204,12 +224,48 @@ declares no `images.remotePatterns` and `next/image` against
 
 ---
 
-## 7. The audit log is the master's
+## 7. The audit log is everyone's
 
-`/gm/audit` used to be open to every GM. With five of them the log stops being
-a shared work surface and becomes a record **of** them — including what each
-did inside their own zone — so it is superadmin-only, and its nav entry sits
-with Gamemasters and Dev rather than in `GM_NAV`.
+`/gm/audit` used to be superadmin-only, on the argument that with five GMs the
+log stops being a shared work surface and becomes a record **of** them. That
+was true and beside the point: it left four of the five people who run the game
+unable to answer "who changed this, and why", which is the only question the
+log exists for. Peer visibility is now the feature. **Every GM reads the whole
+log**, and the Actor filter's `GMs` toggle makes reviewing each other a
+first-class view rather than something you squint for.
+
+Dev (`/gm/dev`) and Gamemasters (`/gm/gamemasters`) stay superadmin — those are
+host access, not game permission.
+
+The page is a **desk** (`web/app/(desk)/gm/audit/`), not a table: filter rail,
+feed, inspector, the same frame as `/gm/turns`. Three things about it are worth
+knowing before changing it.
+
+**It filters server-side, alone among the app's lists.** `DataTable.js`'s whole
+model is "ship the rows, filter in the browser", and `AuditLog` is the app's
+biggest table and append-only — it can never be shipped whole. So the filter
+state lives in the URL and the WHERE is built in Postgres
+(`web/lib/auditQuery.js#buildAuditWhere`). That also makes any view a link, and
+a filtered log a GM can paste at another GM.
+
+**Selection does not re-fetch.** The page already shipped every row on screen,
+so picking one is a lookup plus a `history.replaceState` — the same trick
+`/gm/turns`'s `Workspace` uses. Only a permalink naming a row *outside* the
+current page costs a query.
+
+**`actionType` is a free string, so the renderer must never require knowing
+it.** `web/lib/auditNarrative.js` maps ~90 known types to sentences, and
+anything else falls back to the prettified string plus a family derived from
+its prefix. Adding an action type at a call site is a one-line change in some
+server action, and nobody is going to remember this file — so an unregistered
+type has to render, not blank and not throw. Same for `details`: every accessor
+in there survives a null, a missing key, and a payload shape from two reworks
+ago.
+
+`AuditLog` carries no `turnId` and no `zoneId`. Both are **derived** — the turn
+by bucketing `createdAt` against `Turn.startedAt`, the zone through the target
+character's faction. Stamping them would only cover rows written from that day
+onward, and the log's value is its history.
 
 Adjudicator identity moved the other way, from private to visible. Both
 `Action` and `Request` have carried `reviewedByDiscordUserId`/`reviewedAt` all
@@ -226,12 +282,15 @@ UI, and Solved is Move vocabulary bound to a `MoveReviewStatus` value.
 
 | Path | What |
 |---|---|
-| `web/lib/zones.js` | `zoneKey()`, `ZONE_KEYS`, `sortZones()` |
-| `web/lib/gmZone.js` | `getMyZone()` (cached), `listGmAssignments()` |
+| `web/lib/zones.js` | `zoneKey()`, `ZONE_KEYS`, `sortZones()`, `openingZoneName()` |
+| `web/lib/gmZone.js` | `getMyZones()` (cached), `listGmAssignments()` |
 | `web/app/components/ZoneChip.js` | The chip |
 | `web/app/components/ZoneScopeToggle.js` | Mine / All |
 | `web/app/components/DiscordAvatar.js` | The one remote image |
-| `web/app/(app)/gm/gamemasters/` | Page, picker, `assignGmZone` |
+| `web/app/(app)/gm/gamemasters/` | Page, picker, `assignGmZones` |
+| `web/app/(desk)/gm/audit/` | The audit desk — filters, feed, inspector, export |
+| `web/lib/auditNarrative.js` | actionType + details → a sentence |
+| `web/lib/auditQuery.js` | The audit filter parser and WHERE builder |
 | `db/prisma/schema.prisma` | `GmAssignment` |
 | `web/app/globals.css` | `--zone-*` per theme, `.zone-chip` |
 | `web/scripts/audit-contrast.js` | The 3.0 gate |

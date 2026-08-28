@@ -5,6 +5,7 @@ import { useMemo, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import ZoneChip from "@/app/components/ZoneChip";
 import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
+import { openingZoneName } from "@/lib/zones";
 import usePins from "@/app/components/usePins";
 import { scoreMatch } from "@/lib/fuzzySearch";
 import { markConversationRead } from "./actions";
@@ -33,12 +34,12 @@ function relativeTime(ms) {
   return `${days}d`;
 }
 
-export default function PlayerRail({ rows, myZoneName, myDiscordUserId }) {
+export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
   const pathname = usePathname();
   const [, startTransition] = useTransition();
   const [lens, setLens] = useState("inbox");
   const [query, setQuery] = useState("");
-  const [zoneFilter, setZoneFilter] = useState(myZoneName ?? "");
+  const [zoneFilter, setZoneFilter] = useState(openingZoneName(myZoneNames));
   const [statusFilter, setStatusFilter] = useState("all");
 
   const { isPinned, togglePin } = usePins();
@@ -135,7 +136,7 @@ export default function PlayerRail({ rows, myZoneName, myDiscordUserId }) {
           ))}
         </div>
         <ZoneScopeToggle
-          myZoneName={myZoneName}
+          myZoneNames={myZoneNames}
           filters={{ zone: zoneFilter }}
           setFilters={(fn) => setZoneFilter((prev) => fn({ zone: prev }).zone)}
         />

@@ -1,6 +1,6 @@
 import { prisma } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
-import { getMyZone } from "@/lib/gmZone";
+import { getMyZones } from "@/lib/gmZone";
 import { getOpenTurn } from "@/lib/turn";
 import PlayerRail from "./PlayerRail";
 import InboxPoller from "./InboxPoller";
@@ -22,7 +22,7 @@ import InboxPoller from "./InboxPoller";
 export default async function PlayerDeskLayout({ children }) {
   const { session } = await getGmSession();
 
-  const [grouped, guildMembers, myZone, openTurn, characters] = await Promise.all([
+  const [grouped, guildMembers, myZones, openTurn, characters] = await Promise.all([
     prisma.directMessage.groupBy({
       by: ["discordUserId"],
       _count: { _all: true },
@@ -30,7 +30,7 @@ export default async function PlayerDeskLayout({ children }) {
       orderBy: { _max: { createdAt: "desc" } },
     }),
     listGuildMembers(),
-    getMyZone(),
+    getMyZones(),
     getOpenTurn(),
     prisma.character.findMany({
       orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
@@ -157,7 +157,7 @@ export default async function PlayerDeskLayout({ children }) {
       <div className="desk-body desk-body--players">
         <PlayerRail
           rows={rows}
-          myZoneName={myZone?.name ?? null}
+          myZoneNames={myZones.map((z) => z.name)}
           myDiscordUserId={session.discordUserId}
         />
         {children}

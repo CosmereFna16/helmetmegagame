@@ -4,7 +4,7 @@ import { getGmProfiles } from "@/lib/gmProfiles";
 import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requests";
 import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, rollLabel } from "@/lib/moves";
 import { getOpenTurn } from "@/lib/turn";
-import { getMyZone } from "@/lib/gmZone";
+import { getMyZones } from "@/lib/gmZone";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
 import Workspace from "../Workspace";
 
@@ -76,6 +76,33 @@ function summarize(request) {
       return `${e.previous?.name ?? "?"} → ${e.next?.name ?? "?"}`;
     case "CAVING_LOOT":
       return `Found ${e.tagName ?? "something"}`;
+    case "LOOT_CHARACTER": {
+      const took = [
+        ...(e.tags ?? []).map((t) => t.tagName ?? "a tag"),
+        ...(e.amount ? [`${e.amount} ⬢`] : []),
+      ];
+      const what = took.length ? took.join(", ") : "nothing";
+      return `Took ${what} off ${e.targetName ?? "?"}${e.targetStatus === "DEAD" ? "'s body" : ""}`;
+    }
+    case "MOVE_CHARACTER":
+      return `${e.targetStatus === "DEAD" ? "Dragged" : "Moved"} ${e.targetName ?? "?"} to ${
+        e.toZoneName ?? "?"
+      }`;
+    case "CREATE_TAG":
+      return `Made ${e.tagName ?? "an item"}${e.quantity > 1 ? ` ×${e.quantity}` : ""}`;
+    case "BIND_CHARACTER":
+      return `Bound ${e.targetName ?? "?"}`;
+    case "FREE_CHARACTER":
+      return `Freed ${e.targetName ?? "?"}`;
+    case "HARM_CHARACTER": {
+      const hurt = e.tagName ? `Inflicted ${e.tagName} on ${e.targetName ?? "?"}` : null;
+      const kill = e.lethal ? (e.killed ? "killed" : "NOT YET KILLED") : null;
+      return [hurt ?? `Moved to finish ${e.targetName ?? "?"}`, kill].filter(Boolean).join(" · ");
+    }
+    case "DROP_ITEM":
+      return `Left ${e.tagName ?? "an item"}${e.quantity > 1 ? ` ×${e.quantity}` : ""} on the ground`;
+    case "PICK_UP_ITEM":
+      return `Picked up ${e.tagName ?? "an item"}${e.quantity > 1 ? ` ×${e.quantity}` : ""}`;
     default:
       return "";
   }
@@ -103,7 +130,7 @@ export default async function TurnsWorkspacePage({ params }) {
   const { selection } = await params;
   const openTurn = await getOpenTurn();
 
-  const [actions, requests, cavingRolls, stagedEffects, stagedMessages, roster, zones, presenceZones, tagCatalog, members, myZone, gmProfiles] =
+  const [actions, requests, cavingRolls, stagedEffects, stagedMessages, roster, zones, presenceZones, tagCatalog, members, myZones, gmProfiles] =
     await Promise.all([
       openTurn
         ? prisma.action.findMany({
@@ -208,7 +235,7 @@ export default async function TurnsWorkspacePage({ params }) {
         },
       }),
       listGuildMembers(),
-      getMyZone(),
+      getMyZones(),
       getGmProfiles(),
     ]);
 
@@ -352,7 +379,7 @@ export default async function TurnsWorkspacePage({ params }) {
     <Workspace
       initialSelection={parseSelection(selection)}
       openTurn={openTurn ? { id: openTurn.id, number: openTurn.number, phase: openTurn.phase } : null}
-      myZoneName={myZone?.name ?? null}
+      myZoneNames={myZones.map((z) => z.name)}
       tagsById={tagsById}
       tagCatalog={tagCatalog}
       roster={roster.map((c) => ({ id: c.id, name: c.name, factionName: c.faction?.name ?? "" }))}

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import StatusPill from "@/app/components/StatusPill";
 import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
+import { openingZoneName } from "@/lib/zones";
 import GmAvatar from "@/app/components/GmAvatar";
 import { useTableState } from "@/app/components/DataTable";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
@@ -40,7 +41,7 @@ const CAVING_FILTER_DEFS = [
 const CAVING_SEARCH_FIELDS = [(r) => r.characterName, (r) => r.discordUsername, (r) => r.lootTagName];
 const CAVING_TONES = { "Needs attention": "bad", Resolved: "neutral" };
 
-function RailFilters({ table, filterDefs, myZoneName }) {
+function RailFilters({ table, filterDefs, myZoneNames }) {
   return (
     <div className="desk-rail-filters">
       <label className="field">
@@ -69,7 +70,7 @@ function RailFilters({ table, filterDefs, myZoneName }) {
           </label>
         ))}
       </div>
-      <ZoneScopeToggle myZoneName={myZoneName} filters={table.filters} setFilters={table.setFilters} />
+      <ZoneScopeToggle myZoneNames={myZoneNames} filters={table.filters} setFilters={table.setFilters} />
     </div>
   );
 }
@@ -112,7 +113,11 @@ function MoveRows({ table, stagedByMove, selected, onSelect, gmProfiles, kbdId, 
 function RequestRows({ table, selected, onSelect, kbdId, kbdLens }) {
   return table.visible.map((row) => {
     const active = selected?.type === "request" && selected.id === row.id;
-    const killPending = row.type === "FEED_PERSON" && !row.effect?.killed;
+    // Both types that can name someone to kill without killing them.
+    // See killRequestTargetImpl in actions.js.
+    const killPending =
+      (row.type === "FEED_PERSON" || (row.type === "HARM_CHARACTER" && row.effect?.lethal)) &&
+      !row.effect?.killed;
     return (
       <button
         key={row.id}
@@ -174,7 +179,7 @@ export default function QueueRail({
   moves,
   requests,
   cavingRolls,
-  myZoneName,
+  myZoneNames,
   stagedByMove,
   selected,
   onSelect,
@@ -198,7 +203,7 @@ export default function QueueRail({
     filterDefs: moveFilterDefs,
     searchFields: moveSearchFields,
     initialSort: { key: "createdAtMs", dir: "desc" },
-    initialFilters: myZoneName ? { zone: myZoneName } : undefined,
+    initialFilters: { zone: openingZoneName(myZoneNames) },
     pageSize: 1000,
   });
   const requestTable = useTableState({
@@ -206,7 +211,7 @@ export default function QueueRail({
     filterDefs: requestFilterDefs,
     searchFields: requestSearchFields,
     initialSort: { key: "createdAtMs", dir: "desc" },
-    initialFilters: myZoneName ? { zone: myZoneName } : undefined,
+    initialFilters: { zone: openingZoneName(myZoneNames) },
     pageSize: 1000,
   });
   const cavingTable = useTableState({
@@ -217,7 +222,7 @@ export default function QueueRail({
     // "Needs attention" only ever matches an unresolved TROUBLE row — QUIET
     // and FIND are stamped resolved at creation — so this is what keeps a
     // hundred quiet 2-5s off the rail by default.
-    initialFilters: { status: "Needs attention", ...(myZoneName ? { zone: myZoneName } : {}) },
+    initialFilters: { status: "Needs attention", zone: openingZoneName(myZoneNames) },
     pageSize: 1000,
   });
 
@@ -287,7 +292,7 @@ export default function QueueRail({
 
       {lens === "requests" ? (
         <>
-          <RailFilters table={requestTable} filterDefs={requestFilterDefs} myZoneName={myZoneName} />
+          <RailFilters table={requestTable} filterDefs={requestFilterDefs} myZoneNames={myZoneNames} />
           <div className="desk-queue">
             <RequestRows table={requestTable} selected={selected} onSelect={onSelect} kbdId={kbdId} kbdLens={lens} />
             {requestTable.total === 0 && <p className="p-3 text-sm text-muted">No Requests match.</p>}
@@ -295,7 +300,7 @@ export default function QueueRail({
         </>
       ) : lens === "caving" ? (
         <>
-          <RailFilters table={cavingTable} filterDefs={cavingFilterDefs} myZoneName={myZoneName} />
+          <RailFilters table={cavingTable} filterDefs={cavingFilterDefs} myZoneNames={myZoneNames} />
           <div className="desk-queue">
             <CavingRows table={cavingTable} selected={selected} onSelect={onSelect} kbdId={kbdId} kbdLens={lens} />
             {cavingTable.total === 0 && <p className="p-3 text-sm text-muted">No Caving rolls match.</p>}
@@ -303,7 +308,7 @@ export default function QueueRail({
         </>
       ) : (
         <>
-          <RailFilters table={moveTable} filterDefs={moveFilterDefs} myZoneName={myZoneName} />
+          <RailFilters table={moveTable} filterDefs={moveFilterDefs} myZoneNames={myZoneNames} />
           <div className="desk-queue">
             <MoveRows
               table={moveTable}

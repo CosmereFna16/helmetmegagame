@@ -66,7 +66,7 @@ function selectionHref(sel) {
 export default function Workspace({
   initialSelection,
   openTurn,
-  myZoneName,
+  myZoneNames,
   tagsById,
   tagCatalog,
   roster,
@@ -289,7 +289,7 @@ export default function Workspace({
           moves={moves}
           requests={requests}
           cavingRolls={cavingRolls}
-          myZoneName={myZoneName}
+          myZoneNames={myZoneNames}
           stagedByMove={stagedByMove}
           selected={selected}
           onSelect={select}

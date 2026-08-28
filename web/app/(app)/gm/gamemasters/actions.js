@@ -16,20 +16,22 @@ async function requireSuperadmin() {
   return session;
 }
 
-// Seat a GM in a zone, or clear their seat with a null/empty zoneId.
+// Seat a GM in zero or more zones. The array IS the seat set — it replaces
+// whatever was there, and an empty one clears every seat.
 //
 // A server action is a public endpoint, so every gate the UI applied is
 // re-applied here: the caller is the superadmin, the TARGET actually holds the
-// GM role, and the zone is real. Without the target check this endpoint would
-// happily seat any Discord ID a caller invented — the picker being
-// superadmin-only is a hint, not the lock.
+// GM role, and every zone is a real SEAT zone. Without the target check this
+// endpoint would happily seat any Discord ID a caller invented — the picker
+// being superadmin-only is a hint, not the lock. Without the CAVE_LEVEL check
+// a caller could seat a GM on the Railroad, which no row is ever stamped with.
 // Every refusal below is a UserError, and the export is wrapped in guarded(),
 // so the reason reaches the screen as data. They were plain Errors, and Next
 // redacts anything thrown out of a Server Action into React error #441 — so
 // GmZonePicker's catch, which is genuinely written to display e.message,
 // showed a digest where it should have said "That member does not hold the GM
 // role." The check was doing its job; only the explanation was lost.
-async function assignGmZoneImpl({ discordUserId, zoneId }) {
+async function assignGmZonesImpl({ discordUserId, zoneIds }) {
   const session = await requireSuperadmin();
 
   const targetId = String(discordUserId ?? "").trim();
@@ -38,39 +40,53 @@ async function assignGmZoneImpl({ discordUserId, zoneId }) {
   const member = await getGuildMember(targetId);
   if (!isGm(member)) throw new UserError("That member does not hold the GM role.");
 
-  const wanted = String(zoneId ?? "").trim();
-  if (wanted) {
-    const zone = await prisma.zone.findUnique({ where: { id: wanted }, select: { id: true } });
-    if (!zone) throw new UserError("No such zone.");
+  // De-duplicated, because the same id twice would violate the composite key
+  // rather than mean anything.
+  const wanted = [...new Set((Array.isArray(zoneIds) ? zoneIds : []).map((z) => String(z ?? "").trim()).filter(Boolean))];
+
+  let zones = [];
+  if (wanted.length > 0) {
+    zones = await prisma.zone.findMany({
+      where: { id: { in: wanted } },
+      select: { id: true, name: true, kind: true },
+    });
+    if (zones.length !== wanted.length) throw new UserError("No such zone.");
+    if (zones.some((z) => z.kind === "CAVE_LEVEL")) {
+      throw new UserError("A seat is a zone, not one level of the Depths — pick Caves.");
+    }
   }
 
-  if (wanted) {
-    await prisma.gmAssignment.upsert({
-      where: { discordUserId: targetId },
-      update: { zoneId: wanted, assignedByDiscordUserId: session.discordUserId },
-      create: {
-        discordUserId: targetId,
-        zoneId: wanted,
-        assignedByDiscordUserId: session.discordUserId,
-      },
-    });
-  } else {
-    // Absence of a row IS "no seat", so clearing deletes rather than nulling.
-    // P2025 (nothing to delete) is the already-clear case, not an error.
-    await prisma.gmAssignment.delete({ where: { discordUserId: targetId } }).catch((e) => {
-      if (e?.code !== "P2025") throw e;
-    });
-  }
+  // Replace the whole set in one transaction. Absence of a row IS "no seat",
+  // so clearing is just the delete with nothing to follow it.
+  await prisma.$transaction([
+    prisma.gmAssignment.deleteMany({ where: { discordUserId: targetId } }),
+    ...(zones.length > 0
+      ? [
+          prisma.gmAssignment.createMany({
+            data: zones.map((z) => ({
+              discordUserId: targetId,
+              zoneId: z.id,
+              assignedByDiscordUserId: session.discordUserId,
+            })),
+          }),
+        ]
+      : []),
+  ]);
 
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: session.discordUserId,
-      actionType: "superadmin_gm_zone_assigned",
-      details: { targetDiscordUserId: targetId, zoneId: wanted || null },
+      actionType: "superadmin_gm_zones_assigned",
+      details: {
+        targetDiscordUserId: targetId,
+        zoneIds: zones.map((z) => z.id),
+        // Names too, so the audit line still reads years after a zone rename.
+        zoneNames: zones.map((z) => z.name),
+      },
     },
   });
 
-  // The seat picks the default filter on every GM table, so they all go stale
+  // The seats pick the default filter on every GM table, so they all go stale
   // together.
   revalidatePath("/gm/gamemasters");
   // The player desk's rail lives in its layout, and a page path does not
@@ -80,6 +96,6 @@ async function assignGmZoneImpl({ discordUserId, zoneId }) {
   revalidatePath(TURNS_PATH, "page");
 }
 
-export async function assignGmZone(input) {
-  return guarded(() => assignGmZoneImpl(input));
+export async function assignGmZones(input) {
+  return guarded(() => assignGmZonesImpl(input));
 }

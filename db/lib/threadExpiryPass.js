@@ -1,12 +1,14 @@
 // Inactivity expiry for player-made topics and private threads: any
-// PlayerThread — persistent or not — with no messages for
-// GameConfig.threadExpiryTurns turns is deleted, thread, row and invites.
-// Location topics and the anchor posts have no PlayerThread row, so they are
-// structurally exempt; there is no exclusion list to keep in sync.
+// PlayerThread with no messages for THREAD_EXPIRY_TURNS turns is deleted,
+// thread, row and invites. Location topics and the anchor posts have no
+// PlayerThread row, so they are structurally exempt; there is no exclusion
+// list to keep in sync.
 //
-// Called from advanceTurn()'s side-effect thunk on every DAWN, gated on
-// GameConfig.threadExpiryEnabled — deliberately independent of
-// messageWipeEnabled, so a game that never wipes can still reap dead scenes.
+// Called from advanceTurn()'s side-effect thunk on every DAWN, after the Dawn
+// wipe (dawnWipe.js) has already run. The wipe deletes every non-persistent
+// PlayerThread outright, immediately, that same Dawn — so by the time this
+// pass runs, the only rows left to find are persistent: true ones. This pass
+// exists purely to age those out once they've sat idle too long.
 //
 // The clock is TURNS, not wall time, and it survives the Dawn wipe on the
 // row even though a persistent thread is emptied by it (which is the single
@@ -16,6 +18,8 @@
 // cross-checks the thread's last_message_id snowflake, so a message the bot
 // missed while disconnected still counts.
 const { getChannel, messageTimestamp, deleteThread } = require("./discordRest");
+
+const THREAD_EXPIRY_TURNS = 5;
 
 // The turn whose span contains `date` — the newest turn that had started by
 // then. One query, and only run for threads already past the cutoff.
@@ -29,11 +33,9 @@ async function turnNumberAt(prisma, date) {
 }
 
 async function runThreadExpiry(prisma, openTurn) {
-  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
-  if (!config?.threadExpiryEnabled || !openTurn) return { expired: [], failures: [] };
+  if (!openTurn) return { expired: [], failures: [] };
 
-  const limit = Math.max(1, config.threadExpiryTurns ?? 5);
-  const cutoff = openTurn.number - limit;
+  const cutoff = openTurn.number - THREAD_EXPIRY_TURNS;
 
   const rows = await prisma.playerThread.findMany();
   const expired = [];

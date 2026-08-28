@@ -26,7 +26,7 @@ balance knob**: `playerCount`, `startingTagPoints`, `equipSlots`,
 `maxNegativeTags`, `productionCoefficient`, and the feature switches
 (`playtestModeEnabled`, `nicknameSyncEnabled`, `archiveVisible`,
 `avatarUploadsEnabled`, `portraitMakerEnabled`, `messageWipeEnabled`,
-`threadExpiryEnabled`, `threadExpiryTurns`, `autoReconcileEnabled`).
+`autoReconcileEnabled`).
 **Screenshot the Game Config form before you wipe.** The row is updated, not
 recreated, so anything absent from `DEFAULT_GAME_CONFIG` survives — including
 the special-channel and `#turns` channel pointers.

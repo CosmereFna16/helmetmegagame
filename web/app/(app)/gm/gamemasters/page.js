@@ -21,7 +21,12 @@ export default async function GamemastersPage() {
 
   const [members, zones, assignments] = await Promise.all([
     listGmMembers(),
-    prisma.zone.findMany({ select: { id: true, name: true } }),
+    // SEAT zones only — Town, Fortress, Windlands, Caves. The three cave
+    // levels are excluded because nothing is ever stamped with one
+    // (db/lib/seatZone.js maps them all to the Caves group), so a GM seated on
+    // the Railroad would open every table on an empty filter. This used to be
+    // a bare findMany, which is exactly the bug it produced.
+    prisma.zone.findMany({ where: { kind: { not: "CAVE_LEVEL" } }, select: { id: true, name: true } }),
     listGmAssignments(),
   ]);
 
@@ -45,7 +50,7 @@ export default async function GamemastersPage() {
     <PageShell>
       <PageHeader
         title="Gamemasters"
-        subtitle="Superadmin only. A zone seat is a soft default — it decides which zone a GM's tables open on, and hides nothing."
+        subtitle="Superadmin only. A zone seat is a soft default — it decides which zones a GM's tables open on, and hides nothing. A GM may hold several."
         actions={
           <nav className="flex gap-4 text-sm">
             <Link href="/gm/audit" className="menu-item">
@@ -64,7 +69,7 @@ export default async function GamemastersPage() {
             <tr>
               <th scope="col">Gamemaster</th>
               <th scope="col">Character</th>
-              <th scope="col">Zone seat</th>
+              <th scope="col">Zone seats</th>
             </tr>
           </thead>
           <tbody>
@@ -95,7 +100,7 @@ export default async function GamemastersPage() {
                     <GmZonePicker
                       discordUserId={m.id}
                       zones={ordered}
-                      currentZoneId={assignments.get(m.id)?.id ?? ""}
+                      currentZoneIds={(assignments.get(m.id) ?? []).map((z) => z.id)}
                     />
                   </td>
                 </tr>

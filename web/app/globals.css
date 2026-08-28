@@ -1570,6 +1570,20 @@ input[type="radio"]:disabled {
   }
 }
 
+/* The break between the two hats a GM wears — the GM group and their own
+   player screens. A hairline rather than a labelled heading: the desktop rail
+   is 56px of icons with no room for a word, and the extra breathing space
+   above and below carries the grouping on its own. The mobile sheet uses
+   .rail-section-label below instead, where there IS room. Hidden entirely for
+   a player, whose items carry no section (see navItems.js). */
+.rail-divider {
+  display: block;
+  height: 1px;
+  background: var(--border);
+  margin: var(--sp-2) var(--sp-3);
+  flex-shrink: 0;
+}
+
 .rail-signout {
   margin-top: auto;
 }
@@ -1649,6 +1663,13 @@ input[type="radio"]:disabled {
     display: none;
   }
 
+  /* The rail is a horizontal bar down here, where a horizontal rule between
+     two icons is meaningless — the sheet carries the grouping as a heading
+     instead (.rail-section-label). */
+  .app-rail .rail-divider {
+    display: none;
+  }
+
   .rail-more {
     display: flex;
   }
@@ -1697,6 +1718,16 @@ input[type="radio"]:disabled {
     border-radius: var(--r-lg) var(--r-lg) 0 0;
     box-shadow: var(--e-3);
     padding: var(--sp-3) var(--sp-3) calc(var(--sp-3) + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* The sheet's version of .rail-divider: a word, since there is width for
+     one. Sits above the first item of each section, including the first. */
+  .rail-section-label {
+    padding: var(--sp-3) var(--sp-3) var(--sp-1);
+    font-size: var(--fs-2xs);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
   }
 
   .nav-sheet-item {
@@ -2308,6 +2339,218 @@ input[type="radio"]:disabled {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
   gap: 0.75rem 1rem;
+}
+
+/* ---- The audit desk ---------------------------------------------------- */
+
+/* The rail is one scrolling stack of filter groups rather than .desk-rail-
+   filters' fixed block: there are eight of them, and two carry their own
+   scrolling picker. */
+.audit-filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-3);
+}
+
+.audit-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+/* Not .panel-header: these sit inside a rail, several to a column, and want a
+   quiet label rather than a card heading. */
+.audit-group-title {
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.audit-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
+
+.audit-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-2);
+}
+
+/* A bounded, scrolling list of toggles — action types run to ~50 and actors to
+   the whole roster, and neither may push the rest of the rail off-screen. */
+.audit-picker {
+  max-height: 13rem;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.audit-picker-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-2);
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.audit-picker-row:hover {
+  background: var(--field-bg);
+}
+
+.audit-picker-row[data-active] {
+  background: var(--field-bg);
+  color: var(--accent-text);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.audit-picker-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The feed column owns its own scroll so the Pager stays pinned under it. */
+.audit-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+}
+
+.audit-feed {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* The turn + day rule the feed breaks on. Sticky, because a GM scrolling three
+   turns deep needs to know which one they are in. */
+.audit-daymark {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Three columns: when, what, which family. The middle one takes the slack. */
+.audit-row {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--sp-3);
+}
+
+.audit-feed[data-density="compact"] .audit-row {
+  padding-top: var(--sp-1);
+  padding-bottom: var(--sp-1);
+}
+
+.audit-row-time {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  text-align: right;
+}
+
+.audit-row-body {
+  min-width: 0;
+}
+
+.audit-row-tail {
+  white-space: nowrap;
+}
+
+/* The sentence itself. inline-flex with a gap rather than spaces between
+   segments: a segment can be a chip or a pill, and those do not sit on a text
+   baseline with a plain space between them. */
+.audit-line {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3em;
+}
+
+.audit-em {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* The player's own words, quoted under the line that summarises them. */
+.audit-reason {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audit-reason-block {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.audit-sentence {
+  border-bottom: 1px solid var(--border);
+}
+
+.audit-person {
+  border-bottom: 1px solid var(--border);
+}
+
+.audit-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--r-full);
+}
+
+/* The details blob, as facts. Label over value rather than a two-column grid:
+   a value can be a chip row or a nested object, and neither fits a narrow
+   right-hand column in a 22rem inspector. */
+.audit-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.audit-details dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.audit-diff {
+  width: 100%;
+  margin-bottom: var(--sp-3);
+  font-size: var(--fs-xs);
+}
+
+.audit-raw {
+  margin: 0 var(--sp-3) var(--sp-3);
+  padding: var(--sp-2);
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-2xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* A transcript row that opens ArchiveContextModal — full-width so the whole

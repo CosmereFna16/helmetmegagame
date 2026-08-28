@@ -148,11 +148,9 @@ The thunk performs, in narrative order:
 6. The `#turns` announcement (`db/lib/turnAnnouncement.js`).
 7. The Dawn wipe, if the new phase is `DAWN` and `GameConfig.messageWipeEnabled`
    is on (`db/lib/dawnWipe.js`; see `CHANNELS.md` §8).
-8. The thread expiry pass, on **every** Dawn, gated on its own
-   `GameConfig.threadExpiryEnabled` inside the pass — deliberately independent
-   of the wipe toggle, so a game that never wipes can still reap dead scenes.
-   After the wipe on purpose, so a thread the wipe just deleted isn't also
-   "expired" (`db/lib/threadExpiryPass.js`; `CHANNELS.md` §4).
+8. The thread expiry pass, on **every** Dawn, unconditionally. After the wipe
+   on purpose, so a thread the wipe just deleted isn't also "expired"
+   (`db/lib/threadExpiryPass.js`; `CHANNELS.md` §4).
 9. The channel doctor's **cheap** reconcile, if `GameConfig.autoReconcileEnabled`
    is on — roles and membership only, a handful of requests
    (`db/lib/channelDoctor.js`; `CHANNELS.md` §6).

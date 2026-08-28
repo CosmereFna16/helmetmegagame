@@ -24,26 +24,30 @@ export const PLAYER_NAV = [
 // No Messages item either: Players and Messages used to be two screens and
 // are one desk now, so the unread badge rides Players. The roster and the
 // conversations are the same list seen through two lenses.
+//
+// `section` splits the rail into the two hats a GM wears: the "gm" group is
+// the job, the "player" group is the same five screens every player gets.
+// NavRail draws a divider wherever the section changes, so the order below IS
+// the grouping — moving an item between groups is a one-word edit here.
+// PLAYER_NAV carries no section at all, which is how a player gets no divider.
 export const GM_NAV = [
-  { href: "/character", label: "Character", icon: "character" },
-  { href: "/gm/players", label: "Players", icon: "messages" },
-  { href: "/gm/turns", label: "Adjudicate", icon: "turns" },
-  { href: "/notes", label: "Notes", icon: "notes" },
-  { href: "/documents", label: "Documents", icon: "documents" },
-  // Appended rather than slotted in beside Character: on a GM's rail the
-  // first five are what the mobile bar shows, and Adjudicate/Players earn
-  // those slots ahead of the Map.
-  { href: "/map", label: "Map", icon: "map" },
+  { href: "/gm/players", label: "Players", icon: "messages", section: "gm" },
+  { href: "/gm/turns", label: "Adjudicate", icon: "turns", section: "gm" },
+  { href: "/gm/audit", label: "Audit", icon: "audit", section: "gm" },
+  // The GM's own player screens, in PLAYER_NAV's order minus Faction.
+  { href: "/character", label: "Character", icon: "character", section: "player" },
+  { href: "/map", label: "Map", icon: "map", section: "player" },
+  { href: "/notes", label: "Notes", icon: "notes", section: "player" },
+  { href: "/documents", label: "Documents", icon: "documents", section: "player" },
 ];
 
-// Superadmin-only, appended together below. The Audit log used to sit in
-// GM_NAV; with five GMs it is a record of them rather than a tool for them.
-// Gamemasters has no rail item at all — it is one more superadmin table, so
-// it hangs off the Dev panel's sub-nav beside Characters/Factions/Tags.
-const AUDIT_NAV_ITEM = { href: "/gm/audit", label: "Audit", icon: "audit" };
-const DEV_NAV_ITEM = { href: "/gm/dev", label: "Dev", icon: "dev" };
-const LIFEWEB_NAV_ITEM = { href: "/lifeweb", label: "Lifeweb", icon: "lifeweb" };
-const ARCHIVE_NAV_ITEM = { href: "/archive", label: "Archive", icon: "archive" };
+// Appended conditionally below. Audit now sits in GM_NAV itself — every GM
+// reads it, so it is a tool for them rather than a record of them. Dev stays
+// superadmin. Gamemasters still has no rail item at all: it is one more
+// superadmin table hanging off the Dev panel's sub-nav.
+const DEV_NAV_ITEM = { href: "/gm/dev", label: "Dev", icon: "dev", section: "gm" };
+const LIFEWEB_NAV_ITEM = { href: "/lifeweb", label: "Lifeweb", icon: "lifeweb", section: "player" };
+const ARCHIVE_NAV_ITEM = { href: "/archive", label: "Archive", icon: "archive", section: "player" };
 
 // Streamed separately from the nav shell (see the Suspense boundary in
 // AppRail) — the live Discord role check and the Mortus-tag lookup never
@@ -89,7 +93,9 @@ export async function loadNavItems(discordUserId) {
   // /character's creation gate.
   const withArchive =
     gm || config?.archiveVisible ? [...withLifeweb, ARCHIVE_NAV_ITEM] : withLifeweb;
-  return isSuperadmin(discordUserId)
-    ? [...withArchive, AUDIT_NAV_ITEM, DEV_NAV_ITEM]
-    : withArchive;
+  // Dev is appended last and carries section "gm", so on a GM's rail it lands
+  // after the player group. That is one more divider than the two groups
+  // suggest, which is correct: Dev is not the same job as Players/Adjudicate
+  // and reads better as its own mark at the bottom.
+  return isSuperadmin(discordUserId) ? [...withArchive, DEV_NAV_ITEM] : withArchive;
 }
