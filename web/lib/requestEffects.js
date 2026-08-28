@@ -676,6 +676,38 @@ export const REQUEST_EFFECTS = {
     },
   },
 
+  // Putting a body in the ground. Undo raises it again, and says out loud what
+  // it cannot do: the Cursed role was lifted off a Discord account, and no
+  // network call may run inside this transaction (ARCHITECTURE.md §5), so
+  // re-cursing is a GM's manual role edit. Same posture MOVE_CHARACTER and
+  // CHANGE_NAME already document for their Discord halves.
+  BURY_CHARACTER: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { targetCharacterId, targetName } = request.effect;
+      if (targetCharacterId) {
+        await tx.character.update({ where: { id: targetCharacterId }, data: { buriedAt: null } });
+      }
+      return `${targetName ?? "The body"} is out of the ground and lootable again. The Cursed role is NOT restored — re-add it in Discord if you want the curse back.`;
+    },
+  },
+
+  // A horse ride. Undo returns the rider AND the ride: a hop that no longer
+  // happened must not have burnt the once-a-day, so fastTravelTurnId goes back
+  // to whatever it was before rather than to null, which would hand a free
+  // second ride to someone who had already used one earlier the same turn.
+  FAST_TRAVEL: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { fromZoneId, fromZoneName, previousFastTravelTurnId } = request.effect;
+      await tx.character.update({
+        where: { id: request.characterId },
+        data: { zoneId: fromZoneId ?? null, fastTravelTurnId: previousFastTravelTurnId ?? null },
+      });
+      return `Sent back to ${fromZoneName ?? "where they started"}, and the ride is theirs again. Discord access is not re-synced by Undo — it catches up on their next Move.`;
+    },
+  },
+
   BIND_CHARACTER: {
     editableFields: [],
     async undo(tx, request) {

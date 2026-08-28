@@ -395,9 +395,11 @@ export async function setRomanceOptOutRole(discordUserId, optOut) {
 }
 
 // Granted automatically by killCharacter on death, removed automatically by
-// createCharacter once the cursed player successfully rolls a new one. A GM
-// clearing the curse early (body buried / rites read) is now just removing
-// the role directly in Discord — there's no app-side "uncurse" action.
+// createCharacter once the cursed player successfully rolls a new one — and by
+// a BURY_CHARACTER request, which is the app-side uncurse: any player standing
+// where the body lies can bury it and lift the curse, which is the fiction
+// docs/documents.yaml's Respawning entry has always described. A GM can still
+// clear it by hand from Discord's member panel.
 export async function grantCursedRole(discordUserId) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const token = process.env.DISCORD_TOKEN;

@@ -78,6 +78,22 @@ web map, or two map clicks) end with one `P2002` that rolls the second move back
 Filing after moving is how a player once ended up two hops away having spent one
 Move.
 
+**The one exception is a horse.** The `horse` and `horse-windlander` tags buy a
+single free hop a day — one zone, no `Action` filed, and therefore no Move
+spent and no block from having already acted. It is a **Request**
+(`FAST_TRAVEL`), not a route through `performTravel`: `performTravel` always
+files the Move, and a Request has to write its effect and its `Request` row in
+the same transaction, so `fastTravelRequestImpl`
+(`web/app/(app)/character/requestActions.js`) re-derives the same adjacency
+rules instead of calling it. Everything else about the hop matches an ordinary
+one — the zone-role swap, the narrowcast sync, the standing thread invites and
+the Caving Die's on-arrival roll all run after the commit, exactly as
+`travelTo` runs them. The once-a-day limit is `Character.fastTravelTurnId`, a
+claim token written by a conditional `updateMany` whose `WHERE` is the check —
+the same lesson as the `Action` unique above, since counting the rider's
+Requests afterwards would let two tabs put them two zones away.
+See `REQUESTS.md` §5d.
+
 Travel cost is also what a **tax run** costs. Moving ⬢ into or out of a
 faction's Silo requires standing in its zone, and handing ⬢ or an item to a
 person requires the same zone — so a payment across zones is a journey somebody

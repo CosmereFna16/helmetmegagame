@@ -376,3 +376,30 @@ export function KeyIcon(props) {
   );
 }
 
+
+// Bury — a headstone in the ground. The rounded top and the ground line read
+// as a grave at 16px, where a cross alone would read as a plus sign.
+export function GraveIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M7 20V9a5 5 0 0 1 10 0v11" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 8v6M9.5 10.5h5" strokeLinecap="round" />
+      <path d="M3.5 20h17" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Fast travel — a horse's head and neck in profile, the shape a chess knight
+// uses for the same reason: it survives being shrunk.
+export function HorseIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path
+        d="M8 20.5c0-4 1-6 3.5-7.6 1.6-1 2.3-1.9 2.4-3.2l-3.2 1.2-1.6-2.2 2.6-3.3c1.2-1.5 2.6-2.2 4.1-1.9 2.3.5 3.7 2.6 3.7 5.6 0 5.4-2.4 8.6-2.4 11.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M16.2 8.2h.01" strokeLinecap="round" />
+    </svg>
+  );
+}

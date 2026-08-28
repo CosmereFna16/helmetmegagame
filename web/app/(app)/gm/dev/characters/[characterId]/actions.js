@@ -302,7 +302,10 @@ async function reviveCharacterImpl({ characterId }) {
 
   const updated = await prisma.character.update({
     where: { id: characterId },
-    data: { status: "ALIVE" },
+    // buriedAt goes with the status: a revived character must never be a live
+    // person still marked buried, which would leave them un-lootable and
+    // missing from every zone target menu (BURY_CHARACTER, REQUESTS.md §5d).
+    data: { status: "ALIVE", buriedAt: null },
   });
 
   await audit(session, "gm_character_revived", characterId, { name: character.name });

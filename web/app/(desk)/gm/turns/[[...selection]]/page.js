@@ -88,6 +88,10 @@ function summarize(request) {
       return `${e.targetStatus === "DEAD" ? "Dragged" : "Moved"} ${e.targetName ?? "?"} to ${
         e.toZoneName ?? "?"
       }`;
+    case "BURY_CHARACTER":
+      return `Buried ${e.targetName ?? "?"} — curse lifted`;
+    case "FAST_TRAVEL":
+      return `Rode ${e.fromZoneName ?? "?"} → ${e.toZoneName ?? "?"}`;
     case "BIND_CHARACTER":
       return `Bound ${e.targetName ?? "?"}`;
     case "FREE_CHARACTER":

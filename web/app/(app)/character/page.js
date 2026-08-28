@@ -18,7 +18,7 @@ import {
 import { loadPointBuyCatalog } from "@/lib/pointBuyCatalog";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
-import { TRANSFERABLE_CATEGORIES } from "@/lib/tagRequests";
+import { TRANSFERABLE_CATEGORIES, FAST_TRAVEL_SLUGS } from "@/lib/tagRequests";
 import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { parseSelection } from "@/lib/portrait/catalog";
 import {
@@ -307,6 +307,11 @@ export default async function CharacterPage() {
   const healSkillId = tierRows.find((t) => t.slug === HEAL_SKILL_SLUG)?.id;
   const canHeal = Boolean(healSkillId && satisfied.has(healSkillId));
 
+  // Owning a horse is a fact about your OWN sheet, so this one may grey the
+  // button out — ActionGrid.js's rule only forbids greying for facts about who
+  // is standing near you. The server re-derives it anyway.
+  const canFastTravel = character.tags.some((ct) => FAST_TRAVEL_SLUGS.has(ct.tag.slug));
+
   // Skipped entirely for the great majority who aren't medics, and for anyone
   // a GM hasn't placed yet. Character.zoneId is the authoritative "where are
   // you" field since the zone rework — always a presence zone, never the
@@ -384,7 +389,11 @@ export default async function CharacterPage() {
     ? await prisma.character.findMany({
         where: {
           zoneId: character.zoneId,
-          status: { in: ["ALIVE", "DEAD"] },
+          // A buried body has left the world (BURY_CHARACTER): it stops being
+          // lootable, draggable or bindable, so it stops appearing here too.
+          // Every one of the five target menus below derives from this one
+          // roster, which is what keeps them from disagreeing about it.
+          OR: [{ status: "ALIVE" }, { status: "DEAD", buriedAt: null }],
           id: { not: character.id },
         },
         orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
@@ -503,6 +512,7 @@ export default async function CharacterPage() {
       desire={desire}
       desireCooldownUntilTurn={lastEndedDesire?.endedTurnNumber ?? null}
       canHeal={canHeal}
+      canFastTravel={canFastTravel}
       equipSlots={gameConfig?.equipSlots ?? 6}
       avatarUploadsEnabled={gameConfig?.avatarUploadsEnabled ?? false}
       portraitMakerEnabled={gameConfig?.portraitMakerEnabled ?? false}

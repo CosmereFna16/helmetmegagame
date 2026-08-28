@@ -34,6 +34,8 @@ import {
   bindCharacterRequest,
   freeCharacterRequest,
   harmCharacterRequest,
+  buryCharacterRequest,
+  fastTravelRequest,
 } from "../(app)/character/requestActions";
 
 // Every player action on the character sheet, in one place: the mode state,
@@ -253,6 +255,13 @@ export const ACTION_HELP = {
   bind: "Tie up anyone standing where you are. Once they're Bound you can loot them or march them somewhere.",
   free: "Cut someone loose. Anyone standing here can do this, including a rescuer.",
   harm: "Further injure someone who is bound or incapacitated.",
+  bury:
+    "Put a body that lies where you are into the ground. It lays the soul to " +
+    "rest and lifts the curse from the player it belonged to, so they can " +
+    "roll a full character again. Type their first name — there is no list.",
+  fasttravel:
+    "Ride to a neighbouring zone without spending your turn. Once a day, and " +
+    "everyone sees you go.",
   resources: (
     <>
       <p>Both ends have to be within reach of you.</p>
@@ -278,6 +287,8 @@ const TITLES = {
   bind: "Bind",
   free: "Free",
   harm: "Harm",
+  bury: "Bury Person",
+  fasttravel: "Fast Travel",
 };
 
 // Why a given person is lootable, for the target list. The living cases are
@@ -313,6 +324,7 @@ export default function RequestActionsProvider({
   bindTargets = [],
   harmTargets = [],
   harmTags = [],
+  canFastTravel = false,
 }) {
   const [mode, setMode] = useState(null);
   const [tagId, setTagId] = useState(null);
@@ -330,6 +342,9 @@ export default function RequestActionsProvider({
   const [picks, setPicks] = useState({});
   const [zoneId, setZoneId] = useState("");
   const [lethal, setLethal] = useState(false);
+  // Bury is the only request that types its target instead of picking it —
+  // a dropdown here would be a list of the dead. See REQUESTS.md §5d.
+  const [buryName, setBuryName] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
   const confirm = useConfirm();
@@ -448,6 +463,7 @@ export default function RequestActionsProvider({
       setPicks({});
       setZoneId("");
       setLethal(false);
+      setBuryName("");
       setError(null);
     },
     [selfId],
@@ -515,6 +531,10 @@ export default function RequestActionsProvider({
         return freeCharacterRequest({ targetCharacterId: targetId, reason });
       case "harm":
         return harmCharacterRequest({ targetCharacterId: targetId, tagId, lethal, reason });
+      case "bury":
+        return buryCharacterRequest({ firstName: buryName, reason });
+      case "fasttravel":
+        return fastTravelRequest({ targetZoneId: zoneId, reason });
       default:
         return Promise.resolve({ ok: false, error: "Nothing to do." });
     }
@@ -540,6 +560,10 @@ export default function RequestActionsProvider({
         return Boolean(targetId);
       case "harm":
         return Boolean(targetId && (tagId || lethal));
+      case "bury":
+        return Boolean(buryName.trim());
+      case "fasttravel":
+        return Boolean(zoneId);
       default:
         return Boolean(tagId);
     }
@@ -554,8 +578,9 @@ export default function RequestActionsProvider({
       canTransfer: transferable.length > 0,
       canConsume: consumable.length > 0,
       canHeal,
+      canFastTravel,
     }),
-    [addable, removable, transferable, consumable, canHeal],
+    [addable, removable, transferable, consumable, canHeal, canFastTravel],
   );
 
   const value = useMemo(() => (enabled ? { open, pools } : null), [enabled, open, pools]);
@@ -900,6 +925,53 @@ export default function RequestActionsProvider({
                 </p>
               </>
             )}
+          </>
+        )}
+
+        {mode === "bury" && (
+          <>
+            <label className="field">
+              <span className="field-label">Whose body?</span>
+              <input
+                type="text"
+                value={buryName}
+                onChange={(e) => setBuryName(e.target.value)}
+                placeholder="First name"
+                autoComplete="off"
+                maxLength={24}
+                required
+              />
+            </label>
+            {/* No target list, and no "nobody here" line either — both would
+                answer "who is dead in this room?" without anyone choosing to
+                ask. You type a name and find out whether you were right. */}
+            <p className="text-xs text-muted">
+              Their first name only, spelled the way they spell it. The body has to be lying where
+              you are. Burying lays the soul to rest and lifts the curse from the player it belonged
+              to, so they can roll a full character again.
+            </p>
+          </>
+        )}
+
+        {mode === "fasttravel" && (
+          <>
+            <label className="field">
+              <span className="field-label">Where are you riding?</span>
+              <select value={zoneId} onChange={(e) => setZoneId(e.target.value)} required>
+                <option value="" disabled>
+                  Choose a neighbouring zone…
+                </option>
+                {moveZones.map((z) => (
+                  <option key={z.id} value={z.id}>
+                    {z.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="text-xs text-muted">
+              One zone over, and it does not spend your turn — you can still act when you arrive.
+              Your horse will carry you once a day. Everyone sees you ride.
+            </p>
           </>
         )}
 

@@ -507,11 +507,17 @@ While cursed, a player may still roll a new character — but only as a
 **Migrant** or a **Bum**, and with **3 fewer points**
 (`web/lib/characterCreation.js`'s `CURSED_ROLE_SLUGS`/`CURSED_POINT_PENALTY`,
 enforced by `isRoleSelectable`/`computeBudget`, unchanged by this — only
-where the `cursed` boolean they're fed comes from changed). A GM clears the
-curse early (body buried / rites read) by removing the role directly in
-Discord's member panel — `/gm/dev/characters/[characterId]` only shows a
-read-only Cursed status line now, there's no checkbox to toggle it from the
-app.
+where the `cursed` boolean they're fed comes from changed).
+
+**Players lift it themselves, by burying the body.** The `BURY_CHARACTER`
+request (`REQUESTS.md` §5d) is the app-side uncurse: anyone standing where a
+corpse lies types that character's first name, and the request removes the role
+from the dead player's Discord account after its transaction commits. That is
+the fiction the setting has always carried — `docs/documents.yaml`'s Respawning
+entry says to wait until your body is buried, and the Mortus role exists to do
+the burying — finally wired to something. A GM can still do it by hand from
+Discord's member panel; `/gm/dev/characters/[characterId]` shows a read-only
+Cursed status line, with no checkbox to toggle it from the app.
 
 (`CharacterStatus.CURSED` still exists in the enum and is unrelated — it's an
 unused leftover, kept only because dropping a Postgres enum value is a risky
@@ -584,7 +590,10 @@ character.
 ### The corpse is lootable, the row survives
 
 A dead character is not deleted, and their `CharacterTag` and `⬢` stay on the
-row. Anyone standing in the zone the character died in can `TRANSFER_TAG`
+row — until somebody buries them. `Character.buriedAt`, set by a
+`BURY_CHARACTER` request, takes the body out of the world: it stops being
+lootable, draggable and bindable, and it drops out of every zone target menu.
+Revive clears it, so a revived character is never a live person marked buried. Anyone standing in the zone the character died in can `TRANSFER_TAG`
 or `TRANSFER_RESOURCES` **in the `LOOT` direction** to lift Items/Assets or ⬢
 off the corpse — see `REQUESTS.md` §5. The `/character` page shows a "Bodies
 here" panel to any living character in a zone that has a corpse; that

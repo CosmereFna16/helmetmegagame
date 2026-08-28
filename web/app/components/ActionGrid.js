@@ -14,6 +14,8 @@ import {
   ShackleIcon,
   KeyIcon,
   WoundIcon,
+  GraveIcon,
+  HorseIcon,
 } from "./icons";
 
 // Everything a player can do to a sheet, as one block of icons on the right
@@ -62,6 +64,19 @@ const ACTIONS = [
   { mode: "bind", icon: ShackleIcon, label: "Bind", help: ACTION_HELP.bind },
   { mode: "free", icon: KeyIcon, label: "Free", help: ACTION_HELP.free },
   { mode: "harm", icon: WoundIcon, label: "Harm", help: ACTION_HELP.harm },
+  // No gate: burying is a co-presence action, and the rule above forbids
+  // greying a button for a fact about who is near you. You learn whether a
+  // body is here by opening the dialog and typing a name.
+  { mode: "bury", icon: GraveIcon, label: "Bury Person", help: ACTION_HELP.bury },
+  // This one DOES take a gate, and legitimately: owning a horse is a fact
+  // about your own sheet, which is exactly what the rule allows.
+  {
+    mode: "fasttravel",
+    icon: HorseIcon,
+    label: "Fast Travel",
+    help: ACTION_HELP.fasttravel,
+    gate: "canFastTravel",
+  },
 ];
 
 // The tooltip is the label plus, where there is one, the sentence explaining

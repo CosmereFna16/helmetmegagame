@@ -78,9 +78,9 @@ the sender at −10 and the recipient up 20, and it worked on faction Silos too.
 The throw aborts the surrounding transaction, so the tag grant, the `Request`
 row and the audit entry all roll back with it.
 
-## 3. The seventeen types
+## 3. The nineteen types
 
-Thirteen live in `web/app/(app)/character/requestActions.js`, the two
+Fifteen live in `web/app/(app)/character/requestActions.js`, the two
 Lifeweb types in `web/app/(app)/lifeweb/requestActions.js`, `BUY_TAGS`
 in `web/app/(app)/store/actions.js`, and `CAVING_LOOT` is filed by the turn
 engine rather than by anybody. Each one
@@ -108,6 +108,8 @@ reason.
 | `BIND_CHARACTER` | Ties up anyone standing in their zone | — | Cuts them loose |
 | `FREE_CHARACTER` | Cuts someone in their zone loose | — | Puts Bound back with its original expiry |
 | `HARM_CHARACTER` | Inflicts a Health affliction on someone already helpless, flags them to be killed, or both. **Never kills** — see §5b | — | Heals what was inflicted; never revives |
+| `BURY_CHARACTER` | Puts a body lying in their zone into the ground, lifting the **Cursed** role off the dead player's Discord account. Target is **typed**, first name only | — | Raises the body; does **not** re-curse |
+| `FAST_TRAVEL` | Rides one zone over on a horse without spending the Move. Once a day | — | Sends them back and returns the ride |
 
 The per-type behaviour lives in `web/lib/requestEffects.js` as one
 `REQUEST_EFFECTS` entry each. **Adding a type means adding one entry
@@ -494,6 +496,75 @@ the patient, and every tag write in `requestEffects.js` takes the latter. A
 GM can re-price the cure or tick "put the affliction back but keep the
 payment" — the treatment that didn't take, the one partial outcome a full
 Undo can't express.
+
+## 5d. Bury and Fast Travel
+
+Two requests that each break one rule the other sixteen keep.
+
+**Bury's target is typed, not picked — and typed as a first name.** Every other
+target menu in the app is a dropdown built from the zone roster. A dropdown
+here would be a list of the dead, readable by anyone who opened the dialog, and
+the whole reason `/character`'s panels never render a status pill on a corpse is
+that who died is not supposed to be free information. So the dialog holds one
+text field, `firstName` is matched case-insensitively against `Character.firstName`
+inside a `WHERE` already scoped to the filer's zone and to `buriedAt: null`, and
+two dead people sharing a first name in one room is a plain error rather than a
+guess. A miss says "Nobody here by that name is dead" and writes nothing. That
+does leak a little — a wrong guess tells you that person is not a corpse *in
+your zone* — and it is accepted, because the corpses in your zone are already
+named in the Loot and Move menus.
+
+**No gate beyond co-presence**, same as Bind and Free (§5b). The Mortii's job
+in the fiction (`docs/roles.yaml`) is not a permission in the code.
+
+**It is the one request whose real effect lands on Discord rather than a
+sheet.** `removeCursedRole` runs *after* the transaction commits — no network
+call may run inside one (`ARCHITECTURE.md` §5) — which is also why **Undo does
+not re-curse**. It raises the body and says so in its note; putting the role
+back is a GM's manual edit, the same posture `MOVE_CHARACTER` and `CHANGE_NAME`
+already take with their Discord halves.
+
+**A buried body is out of the world.** `Character.buriedAt` is both the flag and
+the record of when. Five places treat a corpse as a target and all five now
+refuse a buried one — the `LOOT` direction of `TRANSFER_RESOURCES` and
+`TRANSFER_TAG`, `LOOT_CHARACTER`, `MOVE_CHARACTER`, and the zone roster in
+`character/page.js` that feeds all five target menus. A GM Revive clears it, so
+a revived character is never a live person marked buried.
+
+**Fast Travel is the only request that changes a zone and files no `Action`.**
+That is exactly what the `horse` and `horse-windlander` tags have always
+promised in the catalog — "Once per day, you may enter an adjacent zone without
+spending a turn, but you'll be easily visible" — and nothing read either slug
+until this. No Action means no Move spent *and* no block from having already
+acted: riding is not acting.
+
+**The once-a-day limit is a claim, not a count.** `Character.fastTravelTurnId`
+is written by a conditional `updateMany` whose `WHERE` is the check, as the
+first statement in the transaction, so a loser aborts before anyone has moved.
+Counting the rider's existing `FAST_TRAVEL` rows would be two statements and two
+tabs would both pass — which is precisely the bug `db/lib/travel.js` documents
+above its `Action` create, where a player ended up two hops away on one Move.
+Undo restores the previous value rather than nulling it, so an undone hop hands
+the ride back without minting a second one for someone who had already ridden
+earlier that turn.
+
+It re-derives `performTravel`'s adjacency rules instead of calling it, the same
+way `MOVE_CHARACTER` does and for the same reason: `performTravel` runs its own
+transaction and always files the Move, while `createRequest` has to sit inside
+the same transaction as its effect (§2). The four side effects after the commit
+— zone role, narrowcast access, pending thread invites, and the Caving Die's
+on-arrival roll — are the same four `map/travelActions.js#travelTo` defers, for
+the same reason it defers them.
+
+One thing it does *not* share with an ordinary hop: the `TRAVEL` archive entry
+is written **unconditionally**, ignoring `GameConfig.archiveTravelEvents`.
+"Easily visible" is the price the tag charges for the free hop, and nothing else
+collects it.
+
+**Bury's button carries no gate; Fast Travel's does.** Both follow §6's rule
+rather than bending it. Owning a horse is a fact about your own sheet, so the
+icon may grey out. Whether a body lies where you stand is a fact about who is
+near you, so that icon is always lit and you find out by typing a name.
 
 ## 6. The player-facing surface
 

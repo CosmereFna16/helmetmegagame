@@ -93,6 +93,7 @@ export default function CharacterSheet({
   desire,
   desireCooldownUntilTurn,
   canHeal = false,
+  canFastTravel = false,
   healTargets = [],
   healParties = null,
   // Everyone and everything in this character's zone worth acting on, built
@@ -159,6 +160,7 @@ export default function CharacterSheet({
             otherCharacters={otherCharacters ?? []}
             transferParties={transferParties}
             canHeal={canHeal}
+            canFastTravel={canFastTravel}
             healTargets={healTargets}
             healParties={healParties}
             lootTargets={lootTargets}

@@ -169,6 +169,18 @@ enum RequestType {
   // or both in one act. Like FEED_PERSON it NEVER kills — effect.lethal only
   // raises the ☠ and the GM's Kill button. See REQUESTS.md §5b.
   HARM_CHARACTER
+
+  // Putting a body in the ground. Removes the Cursed Discord role from the
+  // dead player's account, which is the one request whose real effect lands
+  // on Discord rather than on a sheet, and sets Character.buriedAt so the
+  // corpse stops being lootable. The target is TYPED, not picked — first name
+  // only, and only a body in the filer's own zone. See REQUESTS.md §5d.
+  BURY_CHARACTER
+  // Riding a horse one zone over without spending the Move. The only request
+  // that changes a zone and files no Action; the once-a-day limit lives on
+  // Character.fastTravelTurnId. Gated on the `horse` or `horse-windlander`
+  // tag, whose catalog text is what this implements. See REQUESTS.md §5d.
+  FAST_TRAVEL
   // RETIRED, and kept only because Postgres cannot drop an enum value in
   // place — the same reason MoveReviewStatus.WAITING_FOR_OPPONENTS and
   // ActionStatus.ADJUDICATED are still here. Nothing writes any of these.
@@ -829,6 +841,23 @@ model Character {
   isTreasurer Boolean         @default(false)
   status      CharacterStatus @default(ALIVE)
   resources   Int             @default(0)
+
+  // When this body went into the ground, set by a BURY_CHARACTER request.
+  // Nullable, so the column is both the flag and the record of when. A buried
+  // corpse is out of the world: it cannot be looted, dragged or bound, and it
+  // stops appearing in the zone's target menus. Cleared on revive, so a
+  // GM-revived character is never a live person marked buried.
+  buriedAt DateTime?
+
+  // The turn a FAST_TRAVEL was last claimed in. The horse tags promise "once
+  // per day" and a day is a turn, so this column IS the claim: it is written
+  // by a conditional updateMany whose WHERE is the check, the same structural
+  // shape the hunger decrement uses. Counting the character's Requests
+  // afterwards would let two tabs both pass and put the rider two zones away,
+  // which is exactly the bug db/lib/travel.js documents above its Action
+  // create. Not a foreign key on purpose — it is a claim token, and a turn
+  // being deleted should never cascade into a character row.
+  fastTravelTurnId String?
 
   // Consecutive turns this character has closed hungry — written only by
   // db/lib/hungerPass.js. Any turn they're fed (paid, Ate Meal, or

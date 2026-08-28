@@ -54,3 +54,11 @@ export function consumableTags(characterTags = []) {
     .filter((ct) => ct.tag?.consumable)
     .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1 }));
 }
+
+// The two tags that unlock Fast Travel. Their catalog text — "Once per day,
+// you may enter an adjacent zone without spending a turn, but you'll be easily
+// visible" (docs/tags.yaml) — is exactly what FAST_TRAVEL implements. It lives
+// here rather than in requestActions.js because that file is "use server" and
+// can export nothing but async functions, and both the page's gate and the
+// server action's re-derivation have to read the same set or they will drift.
+export const FAST_TRAVEL_SLUGS = new Set(["horse", "horse-windlander"]);

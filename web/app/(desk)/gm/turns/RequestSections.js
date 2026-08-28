@@ -371,6 +371,42 @@ export const SECTIONS = {
     ),
   },
 
+  BURY_CHARACTER: {
+    heading: "Bury Person",
+    render: ({ effect }) => (
+      <>
+        <Line label="Buried">
+          {effect.targetCharacterId ? (
+            <CharacterLink characterId={effect.targetCharacterId} name={effect.targetName ?? "—"} isGm />
+          ) : (
+            (effect.targetName ?? "—")
+          )}
+        </Line>
+        <p className="text-xs text-muted">
+          The body is out of the world — nobody can loot or drag it — and the Cursed role has been
+          lifted off the dead player&apos;s Discord account, so they can roll a full character again.
+          Undo raises the body but does <strong>not</strong> re-curse them; re-add the role in
+          Discord if you want that back.
+        </p>
+      </>
+    ),
+  },
+
+  FAST_TRAVEL: {
+    heading: "Fast Travel",
+    render: ({ effect }) => (
+      <>
+        <Line label="Rode">
+          {effect.fromZoneName ?? "—"} → {effect.toZoneName ?? "—"}
+        </Line>
+        <p className="text-xs text-muted">
+          A horse hop: one zone, no Move spent, once a day. Undo puts them back and returns the
+          ride. It does not re-sync Discord access — that catches up on their next ordinary Move.
+        </p>
+      </>
+    ),
+  },
+
   BIND_CHARACTER: {
     heading: "Bind Character",
     render: ({ effect }) => (

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { TURNS_PATH } from "@/lib/routes";
 import { redirect } from "next/navigation";
 import { prisma, isDynastyHead, isDynastyMember } from "@lifeweb/db";
@@ -9,7 +10,7 @@ import { getOpenTurn } from "@/lib/turn";
 import { createRequest, logRequest, requireReason } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { expiryFor } from "@/lib/turnFormat";
-import { TRANSFERABLE_CATEGORIES } from "@/lib/tagRequests";
+import { TRANSFERABLE_CATEGORIES, FAST_TRAVEL_SLUGS } from "@/lib/tagRequests";
 import {
   tagsById as buildTagsById,
   requirementSatisfied,
@@ -41,7 +42,11 @@ import {
   syncCharacterNickname,
   ensureCharacterRole,
   syncCharacterZoneRole,
+  removeCursedRole,
+  sendDm,
 } from "@/lib/discordGuild";
+import { applyPendingInvites } from "@lifeweb/db/lib/threadInvites";
+import { rollCaving } from "@lifeweb/db/lib/cavingPass";
 import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { NAME_LIMITS, formatCharacterName, formatBareName, normalizeEarnedHonorific } from "@/lib/characterName";
 import { propagateDynastyLastName } from "@/lib/dynasty";
@@ -110,10 +115,18 @@ async function resolveParty(key, { allowDead = false } = {}) {
     const statusFilter = allowDead ? { in: ["ALIVE", "DEAD"] } : "ALIVE";
     const c = await prisma.character.findFirst({
       where: { id: id ?? "", status: statusFilter },
-      select: { id: true, name: true, resources: true, zoneId: true, status: true },
+      select: { id: true, name: true, resources: true, zoneId: true, status: true, buriedAt: true },
     });
     return c
-      ? { kind, id: c.id, name: c.name, balance: c.resources, zoneId: c.zoneId, status: c.status }
+      ? {
+          kind,
+          id: c.id,
+          name: c.name,
+          balance: c.resources,
+          zoneId: c.zoneId,
+          status: c.status,
+          buriedAt: c.buriedAt,
+        }
       : null;
   }
   if (kind === "faction") {
@@ -151,6 +164,9 @@ async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount,
     if (from.kind !== "character" || from.status !== "DEAD") {
       throw new UserError("You can only loot ⬢ from a corpse.");
     }
+    // A buried body is out of the world — see BURY_CHARACTER. Rejected here
+    // rather than filtered out of resolveParty so the wording explains itself.
+    if (from.buriedAt) throw new UserError("They're already in the ground.");
     if (!character.zoneId || from.zoneId !== character.zoneId) {
       throw new UserError("They aren't here.");
     }
@@ -547,7 +563,7 @@ async function transferTagRequestImpl({
     // the recipient check used to be, so a corpse that gets moved (a Revive
     // between page load and submit) fails closed and nothing is written.
     const corpse = await prisma.character.findFirst({
-      where: { id: toCharacterId ?? "", status: "DEAD", zoneId: character.zoneId },
+      where: { id: toCharacterId ?? "", status: "DEAD", buriedAt: null, zoneId: character.zoneId },
       select: {
         id: true,
         name: true,
@@ -844,6 +860,8 @@ async function lootCharacterRequestImpl({
     },
   });
   if (!target) throw new UserError("They aren't here.");
+  // A buried body is out of the world — see BURY_CHARACTER.
+  if (target.buriedAt) throw new UserError("They're already in the ground.");
 
   // A corpse needs no further excuse. A living target has to be helpless —
   // going through the pockets of someone who could stop you is a Gambit, and
@@ -964,6 +982,9 @@ async function moveCharacterRequestImpl({ targetCharacterId, targetZoneId, reaso
     include: { tags: { where: { tag: { slug: "bound" } }, select: { tagId: true } } },
   });
   if (!target) throw new UserError("They aren't here.");
+  // A buried body is out of the world — see BURY_CHARACTER. Nobody drags a
+  // grave to the next zone.
+  if (target.buriedAt) throw new UserError("They're already in the ground.");
 
   // Dragging a body needs no authority over it — a corpse doesn't get a say.
   // This is the "drag a corpse" case, folded in here rather than given its own
@@ -1479,6 +1500,221 @@ async function changeNameRequestImpl({ honorific: rawHonorific, firstName: rawFi
   return { name: next.name };
 }
 
+// --- Burying a body -------------------------------------------------------
+
+// The one request whose real effect lands on Discord rather than on a sheet.
+// A dead player carries the Cursed role (web/lib/discordGuild.js#killCharacter),
+// which caps their next character at Migrant or Bum and docks them 3 points —
+// and the fiction has always said the curse lifts once the body is in the
+// ground (docs/documents.yaml, the Respawning entry; the Mortus role exists to
+// do it). Until now that cost a GM a manual role edit in Discord, which is the
+// day of real time the Requests system exists to save.
+//
+// The target is TYPED, not picked, and typed as a FIRST NAME. Every other
+// target menu in the app is a dropdown built from the zone roster; a dropdown
+// here would be a list of the dead, readable by anyone who opened the dialog.
+// First name only because an honorific or a granted title is exactly what a
+// player standing over a body would not know.
+//
+// No gate beyond co-presence — same posture as Bind and Free. Burying someone
+// is an act with consequences, not a permission, and the reason field plus the
+// GM's review are the anti-abuse mechanism as everywhere else.
+async function buryCharacterRequestImpl({ firstName: rawFirstName, reason: rawReason }) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+
+  if (!character.zoneId) throw new UserError("You aren't anywhere you could do that.");
+
+  const typed = rawFirstName?.toString().trim().slice(0, NAME_LIMITS.firstName) ?? "";
+  if (!typed) throw new UserError("Whose name?");
+
+  // Scoped to the filer's zone and to the unburied dead, in the WHERE rather
+  // than by a second read — a body carried off between page load and submit
+  // fails closed with the same wording a wrong guess gets.
+  const matches = await prisma.character.findMany({
+    where: {
+      zoneId: character.zoneId,
+      status: "DEAD",
+      buriedAt: null,
+      firstName: { equals: typed, mode: "insensitive" },
+    },
+  });
+  if (matches.length === 0) throw new UserError("Nobody here by that name is dead.");
+  if (matches.length > 1) {
+    throw new UserError("More than one body here answers to that name. A GM will have to do it.");
+  }
+  const target = matches[0];
+
+  const openTurn = await getOpenTurn();
+  const buriedAt = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    await tx.character.update({ where: { id: target.id }, data: { buriedAt } });
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn?.id ?? null,
+      type: "BURY_CHARACTER",
+      reason,
+      payload: { firstName: typed },
+      // Undo reads only this. targetDiscordUserId is deliberately absent: the
+      // curse is not re-granted on Undo (no network call may run inside a
+      // $transaction, ARCHITECTURE.md §5), so recording the id would suggest a
+      // reversal that never happens. The note tells the GM instead.
+      effect: {
+        targetCharacterId: target.id,
+        targetName: target.name,
+        zoneId: character.zoneId,
+        buriedAt: buriedAt.toISOString(),
+      },
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_bury_character",
+      targetCharacterId: target.id,
+      reason,
+      details: { zoneId: character.zoneId },
+    });
+  });
+
+  // After the commit, never inside it. allow404 on the underlying call makes
+  // this a no-op for a player who already re-rolled (createCharacter clears
+  // the curse itself) or who has left the guild.
+  await removeCursedRole(target.discordUserId).catch((err) =>
+    console.error(`Bury: failed to lift the curse from ${target.discordUserId}:`, err),
+  );
+
+  revalidateAll();
+  return { name: target.name };
+}
+
+// --- Fast travel ----------------------------------------------------------
+
+// The only request that changes a zone and files no Action. That is the whole
+// tag: an ordinary hop spends the Move (db/lib/travel.js#performTravel writes
+// the Action BEFORE it moves anyone), and riding does not — which also means
+// the already-acted check is deliberately skipped, since riding is not acting.
+//
+// It re-derives performTravel's adjacency rules rather than calling it, the
+// same way moveCharacterRequestImpl above does, because performTravel runs its
+// own transaction and always files the Move, and createRequest has to sit
+// inside the same transaction as its effect (REQUESTS.md §2).
+async function fastTravelRequestImpl({ targetZoneId, reason: rawReason }) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+
+  if (!character.zoneId) throw new UserError("You aren't anywhere you could ride from.");
+  // Re-derived from the database. The greyed-out button is a hint, not a lock.
+  if (!character.tags.some((ct) => FAST_TRAVEL_SLUGS.has(ct.tag.slug))) {
+    throw new UserError("You have no horse.");
+  }
+
+  const openTurn = await getOpenTurn();
+  if (!openTurn) throw new UserError("No turn is currently open.");
+
+  const targetZone = await prisma.zone.findUnique({ where: { id: targetZoneId ?? "" } });
+  if (!targetZone) throw new UserError("Unknown destination.");
+  if (targetZone.kind === "CAVE_GROUP") throw new UserError("That isn't a place you can stand.");
+  if (targetZone.id === character.zoneId) throw new UserError("You're already there.");
+
+  const fromZoneId = character.zoneId;
+  const currentZone = await prisma.zone.findUnique({
+    where: { id: fromZoneId },
+    include: { connectsTo: { where: { id: targetZone.id } } },
+  });
+  if (!currentZone || currentZone.connectsTo.length === 0) {
+    throw new UserError("You can't get there directly from here.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // The claim comes FIRST, and its WHERE is the check. Read the column in
+    // one statement and write it in another and two tabs both pass, which is
+    // precisely how travel.js's "two hops on one Move" bug worked before the
+    // Action was filed ahead of the move. A loser aborts here, before anyone
+    // has been moved anywhere.
+    const claimed = await tx.character.updateMany({
+      where: {
+        id: character.id,
+        OR: [{ fastTravelTurnId: null }, { fastTravelTurnId: { not: openTurn.id } }],
+      },
+      data: { fastTravelTurnId: openTurn.id },
+    });
+    if (claimed.count === 0) throw new UserError("Your horse has already carried you today.");
+
+    await tx.character.update({ where: { id: character.id }, data: { zoneId: targetZone.id } });
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn.id,
+      type: "FAST_TRAVEL",
+      reason,
+      payload: { targetZoneId: targetZone.id },
+      effect: {
+        fromZoneId,
+        fromZoneName: currentZone.name,
+        toZoneId: targetZone.id,
+        toZoneName: targetZone.name,
+        // So Undo can hand the ride back rather than leaving the day burnt on
+        // a hop that no longer happened.
+        previousFastTravelTurnId: character.fastTravelTurnId ?? null,
+      },
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_fast_travel",
+      targetCharacterId: character.id,
+      reason,
+      details: { fromZoneId, toZoneId: targetZone.id },
+    });
+  });
+
+  // Deferred, not awaited in the request — the same handful of sequential
+  // Discord calls web/app/(app)/map/travelActions.js#travelTo defers, for the
+  // same reason: a pending server action blocks App Router navigation, and the
+  // database write has already committed.
+  after(async () => {
+    await syncCharacterZoneRole(character.discordUserId, fromZoneId, targetZone.id).catch((err) =>
+      console.error("Fast travel: zone role sync failed:", err),
+    );
+    await syncCharacterNarrowcastAccess(character.id).catch((err) =>
+      console.error("Fast travel: narrowcast access sync failed:", err),
+    );
+    // The second half of the /add contract: standing invites for private
+    // threads in this zone land the moment their guest arrives.
+    await applyPendingInvites(prisma, { ...character, zoneId: targetZone.id }).catch((err) =>
+      console.error("Fast travel: pending thread invites failed:", err),
+    );
+    // The Caving Die's "on arrival" trigger, exactly as an ordinary hop fires
+    // it (db/lib/travel.js, CAVING.md). @@unique([characterId, turnId]) on
+    // CavingRoll makes a second roll this turn a no-op rather than an error.
+    if (targetZone.kind === "CAVE_LEVEL") {
+      const { dm } = await rollCaving(prisma, character, openTurn, targetZone).catch((err) => {
+        console.error("Fast travel: caving arrival roll failed:", err);
+        return { dm: null };
+      });
+      if (dm) {
+        await sendDm(dm.discordUserId, dm.content).catch((err) =>
+          console.error("Fast travel: caving arrival DM failed:", err),
+        );
+      }
+    }
+  });
+
+  // Riding is loud. The ordinary TRAVEL archive entry is off by default
+  // (GameConfig.archiveTravelEvents) because it is two rows per character per
+  // turn; this one is unconditional, because "you'll be easily visible" is the
+  // price the tag charges for the free hop and nothing else collects it.
+  await recordArchiveEvent({
+    kind: "TRAVEL",
+    character,
+    zoneId: targetZone.id,
+    zoneName: targetZone.name,
+    content: `${character.name} rode from ${currentZone.name} into ${targetZone.name}.`,
+  }).catch((err) => console.error("Fast travel: archive entry failed:", err));
+
+  revalidatePath("/map");
+  revalidateAll();
+  return { name: targetZone.name };
+}
+
 // --- public surface ---------------------------------------------------
 
 // Each action is wrapped so validation comes back as { ok: false, error }
@@ -1541,4 +1777,12 @@ export async function freeCharacterRequest(input) {
 }
 export async function harmCharacterRequest(input) {
   return guarded(() => harmCharacterRequestImpl(input));
+}
+
+export async function buryCharacterRequest(input) {
+  return guarded(() => buryCharacterRequestImpl(input));
+}
+
+export async function fastTravelRequest(input) {
+  return guarded(() => fastTravelRequestImpl(input));
 }

@@ -27,6 +27,8 @@ export const REQUEST_TYPE_LABELS = {
   BIND_CHARACTER: "Bind Character",
   FREE_CHARACTER: "Free Character",
   HARM_CHARACTER: "Harm Character",
+  BURY_CHARACTER: "Bury Person",
+  FAST_TRAVEL: "Fast Travel",
   // Retired: Create Item and the zone cache are gone, and nothing writes
   // these any more. The labels stay because the enum values do — Postgres
   // cannot drop a value in place — so a row filed before the removal still
