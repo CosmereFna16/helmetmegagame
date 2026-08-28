@@ -5,6 +5,7 @@ import StatusPill from "@/app/components/StatusPill";
 import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
 import GmAvatar from "@/app/components/GmAvatar";
 import { useTableState } from "@/app/components/DataTable";
+import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { MOVE_REVIEW_TONES } from "@/lib/moves";
 
 // The left rail: the work queue as a compact list rather than a table.
@@ -169,6 +170,7 @@ export default function QueueRail({
   const visibleRows = lens === "requests" ? requestTable.visible : moveTable.visible;
   const [kbdIndex, setKbdIndex] = useState(-1);
   const railRef = useRef(null);
+  const coarse = useIsCoarsePointer();
 
   // Filter/lens changes invalidate any prior focus position — clamped rather
   // than reset-in-an-effect, since this is a plain derived value at read time.
@@ -176,6 +178,8 @@ export default function QueueRail({
   const kbdId = clampedKbdIndex >= 0 ? visibleRows[clampedKbdIndex]?.id : null;
 
   useEffect(() => {
+    // No keyboard on a touch-primary device — skip wiring the listener.
+    if (coarse) return undefined;
     function onKey(e) {
       const key = e.key;
       const isNav = key === "ArrowDown" || key === "ArrowUp" || key === "j" || key === "k" || key === "Enter";
@@ -210,7 +214,7 @@ export default function QueueRail({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [lens, onLens, onSelect, moveTable.visible, requestTable.visible, clampedKbdIndex]);
+  }, [lens, onLens, onSelect, moveTable.visible, requestTable.visible, clampedKbdIndex, coarse]);
 
   return (
     <aside className="desk-rail" ref={railRef}>

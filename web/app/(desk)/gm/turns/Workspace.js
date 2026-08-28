@@ -11,6 +11,7 @@ import StagingTray from "./StagingTray";
 import PushPreview from "./PushPreview";
 import DevPanelModal from "./DevPanelModal";
 import { isAnyDirty } from "@/app/components/useDirtyGuard";
+import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 
 // The adjudication workspace's client shell — mission control. It owns three
 // pieces of state and nothing else:
@@ -157,7 +158,12 @@ export default function Workspace({
     deskEscapeRef.current = fn;
   }, []);
 
+  const coarse = useIsCoarsePointer();
+
   useEffect(() => {
+    // No Escape key on a touch-primary device — skip wiring the listener
+    // (also stops a stray Escape from navigating away on mobile).
+    if (coarse) return undefined;
     function onKey(e) {
       if (e.key !== "Escape") return;
       if (document.querySelector(".modal-overlay")) return;
@@ -174,7 +180,7 @@ export default function Workspace({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [router]);
+  }, [router, coarse]);
 
   // Inspector fetches are cached for the life of the page view, keyed
   // `${characterId}:${tab}`. State rather than a ref because the entries are
