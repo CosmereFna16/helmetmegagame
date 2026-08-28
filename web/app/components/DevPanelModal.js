@@ -6,15 +6,18 @@ import Modal from "@/app/components/Modal";
 import DevPanel from "@/app/(app)/gm/dev/characters/[characterId]/DevPanel";
 import { getDevPanelData } from "./devPanelActions";
 
-// The full Dev Character Panel, mounted as a modal over the adjudication
-// desk (Workspace.js) instead of the standalone /gm/dev/characters/[id]
-// page, so a GM never leaves the desk or loses its state.
+// The full Dev Character Panel, mounted as a modal over a desk (the
+// adjudication desk's Workspace.js, the player desk's RosterTable.js and
+// ConversationPane.js) instead of the standalone /gm/dev/characters/[id]
+// page, so a GM never leaves the desk or loses its state. Shared here rather
+// than living under one desk, since more than one desk mounts it.
 //
 // The data assembly is identical to the page's — web/lib/devPanelData.js —
-// fetched here through the desk's own server action (devPanelActions.js)
-// rather than the page's RSC. DevPanel itself owns the Modal shell when
-// `frame="modal"`, because the dirty (staged-edit) state lives inside it and
-// closing has to route through the same guard Apply/Cancel use.
+// fetched here through this component's own server action
+// (devPanelActions.js) rather than the page's RSC. DevPanel itself owns the
+// Modal shell when `frame="modal"`, because the dirty (staged-edit) state
+// lives inside it and closing has to route through the same guard
+// Apply/Cancel use.
 export default function DevPanelModal({ characterId, name, onClose }) {
   const router = useRouter();
   const [data, setData] = useState(null);

@@ -3,7 +3,6 @@ import { listGuildMembers } from "@/lib/discordGuild";
 import { getMyZone } from "@/lib/gmZone";
 import { getOpenTurn } from "@/lib/turn";
 import RosterTable from "./RosterTable";
-import FactionsPanel from "./FactionsPanel";
 
 // The desk with nobody selected: the roster, spanning the whole pane rather
 // than leaving a dossier column empty beside it. Selecting someone in the rail
@@ -69,6 +68,7 @@ export default async function PlayerRosterPage({ searchParams }) {
     <main className="desk-main">
       <RosterTable
         initialTab={params?.tab?.toString() ?? ""}
+        initialHighlightFactionId={params?.faction?.toString() ?? null}
         characters={characters.map((c) => ({
           id: c.id,
           discordUserId: c.discordUserId,
@@ -87,7 +87,7 @@ export default async function PlayerRosterPage({ searchParams }) {
         tags={tags}
         myZoneName={myZone?.name ?? null}
         hasOpenTurn={Boolean(openTurn)}
-        factions={<FactionsPanel factions={factions} />}
+        factions={factions}
         factionCount={factions.length}
       />
     </main>

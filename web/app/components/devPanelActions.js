@@ -4,11 +4,11 @@ import { getGmSession } from "@/lib/discordGuild";
 import { loadDevPanelProps } from "@/lib/devPanelData";
 import { UserError, guarded } from "@/lib/actionResult";
 
-// The server half of the Dev Panel modal mounted over /gm/turns
-// (DevPanelModal.js). This is a separate "use server" file rather than an
-// import from actions.js in this same directory, because that file is itself
-// a "use server" module — its requireGm isn't importable, so the same few
-// lines are replicated here.
+// The server half of the Dev Panel modal (DevPanelModal.js), shared by every
+// desk that mounts it — /gm/turns and /gm/players. This is its own
+// "use server" file rather than an import from one desk's actions.js,
+// because those are themselves "use server" modules — their requireGm isn't
+// importable, so the same few lines are replicated here.
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId) throw new UserError("Not authenticated.");
