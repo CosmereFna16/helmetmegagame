@@ -221,6 +221,19 @@ export default async function DevPanelPage() {
           <Switch name="threadExpiryEnabled" defaultChecked={config.threadExpiryEnabled} className="col-span-full">
             Delete player-made topics and private threads after that many turns without a message — persistent ones included. Location topics never expire.
           </Switch>
+          <label className="field">
+            <span className="field-label">Idle turns before a character goes Catatonic (AFK)</span>
+            <input
+              type="number"
+              name="catatonicTurns"
+              min="1"
+              max="60"
+              defaultValue={config.catatonicTurns}
+            />
+          </label>
+          <Switch name="catatonicEnabled" defaultChecked={config.catatonicEnabled} className="col-span-full">
+            Flag a character Catatonic (AFK) after that many turns with no move filed and nothing said in character — clears the moment they act or speak again.
+          </Switch>
           <Switch name="autoReconcileEnabled" defaultChecked={config.autoReconcileEnabled} className="col-span-full">
             Run the channel doctor&apos;s cheap reconcile (roles vs. the database) automatically after every turn advance — it always runs when the bot restarts.
           </Switch>

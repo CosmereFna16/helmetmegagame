@@ -108,8 +108,17 @@ the ink spans x 16..104, centre 60 rather than 64. `SHIFT_X` undoes that, or
 the bust visibly hugs the left edge of its plaque. Vertically it is
 bottom-anchored on purpose, the way a bust sits in a frame.
 
-Scaling is 128 → 256 with a **nearest** kernel in both renderers. Any other
-kernel turns pixel art into mush.
+Scaling is 128 → `BUST_PX` (320) → cropped back to `CANVAS` (256),
+bottom-anchored and centred in x, with a **nearest** kernel throughout in
+both renderers. Any other kernel turns pixel art into mush. The bust is head
+and jaw only — no neck, no shoulders — so at a flat 128 → 256 scale the chin
+ended in a hard cut right on the plate's edge and read as a severed head.
+Scaling to the larger `BUST_PX` first pushes that cut below the frame before
+the crop brings it back to `CANVAS`; whatever chin is still visible is then
+dissolved into the plate's own shadow by a bottom-of-frame gradient
+(`FADE_HEIGHT`/`FADE_TINT`/`FADE_DARKEN` in `catalog.js`) composited over the
+finished bust. `FADE_TINT` must track `TINT` in `generate-letters.js` — they
+are meant to read as the same shadow, and drift between them would show.
 
 ## 4. The client never posts pixels
 

@@ -143,7 +143,7 @@ documents:
     description: |-
       Everyone can use Routine Moves to produce resources, but only people with the {tag:laborer-basic} set of tags will produce an actually good amount.
 
-      Tick **Labor** on your Move—or on your Default Move—and it applies your skills automatically. Your laboring can be flavored in any way you want—hunting, herding, foraging.
+      To produce, simply enable **Labor** on your Move. Your skills are automatically applied. Laboring can be flavored in any way, from herding to hunting and foraging.
 
       | Skill | Per turn | Where |
       |---|---|---|
@@ -153,8 +153,6 @@ documents:
       | {tag:laborer-farming} | {resource:labor:farming} | Town only—elsewhere you work at Skilled rates |
 
       Nothing can be produced in the Depths.
-
-      Laborer (Basic) is a 1-point tag that makes producing resources more viable than just as a survival method. Laborer (Skilled) (2 points on top) increases the value, and Laborer (Farming) (2 more, an asset) makes you a true farmer—as long as you stay in Town.
   - name: Combat
     key: combat
     public: true

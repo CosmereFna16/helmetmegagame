@@ -26,6 +26,15 @@ design:
 | When | On **Apply** | The moment it's confirmed |
 | Undo | **Cancel** discards the lot | Its own inverse, if it has one |
 | Audit | One row for the whole Apply | One row each |
+| DM | Only if something changed | Every verb but Resync and Delete |
+
+**Every microaction but Resync and Delete tells the player.** A dev-panel edit
+is still a thing that happened to their character — `notifyCharacter()` in
+`actions.js` sends a plain DM (not a Request; nothing here rides the Request
+lifecycle) from `after()`, post-commit, same posture as the Discord-sync steps.
+Resync is invisible plumbing with nothing to report; a deleted character has
+no row left to DM about. Apply summarises whatever actually changed (tags
+gained/lost, resources, zone, name) rather than restating the whole diff.
 
 They are held to **disjoint fields**, so they can never race each other. The
 field that would have straddled both is `status`: it is deliberately absent
@@ -181,7 +190,9 @@ Everything follows from that:
   is a wasted day.
 - **Spend turn** files a stub: a `PASSED` Routine worth nothing, marked
   `gmNotes: "auto:gm_spent_turn"` in the same family as
-  `defaultMovePass.js`'s `auto:default_move`.
+  `defaultMovePass.js`'s `auto:default_move`. It DMs the player too now, so
+  like Restore and Kill it opens a `RequestDialog` for a reason first — the
+  same reason becomes both the stub's `description` and the DM text.
 
 Editing a Move is **not** duplicated here. `/gm/turns` owns that, with the
 cooperative lock, the dirty guard, Solve/Reject and the dice invariant on a

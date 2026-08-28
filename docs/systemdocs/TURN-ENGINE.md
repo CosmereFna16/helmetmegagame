@@ -72,17 +72,26 @@ each arrived at by getting them wrong first.
 6. **Stackable sweep** (`sweepExpiredStacks`) — a stack is one row carrying a
    count, so an expiry sheds a single unit and rerolls the remainder's timer,
    deleting the row only when the last unit goes.
-7. **Hunger pass** (`db/lib/hungerPass.js`) — **after** the sweep, never
+7. **Catatonic (AFK) pass** (`db/lib/catatonicPass.js`) — every ALIVE
+   character's `lastActivityTurn` checked against `GameConfig.catatonicTurns`.
+   Slotted **after** the sweep for the same reason Hunger is below: it reads
+   and writes `CharacterTag` rows and must not race the sweep over the same
+   table. Unlike every other pass here, it also **clears** its own tag —
+   there is no `durationTurns` on `catatonic`, so nothing sweeps it; the pass
+   grants it when a character goes stale and deletes it the moment their
+   clock moves again. Ordering against Caving/Hunger doesn't matter; it
+   touches neither resources nor the Hunger streak.
+8. **Hunger pass** (`db/lib/hungerPass.js`) — **after** the sweep, never
    before. Last turn's Hunger carries `expiresTurn` equal to the closing turn's
    number, so the sweep clears it a moment before a fresh one may be granted.
    The other order collides with `@@unique([characterId, tagId])` and silently
    drops the re-grant, leaving a tag that expires immediately.
-8. **Lifeweb decay** — a fixed `lifewebDecayPerTurn` off `GameConfig.lifewebBlood`.
-9. **Open the next turn** with the alternated phase, and roll its weather (§4).
-10. **Write the `TURN_START` archive row** — here, where the turn is created,
+9. **Lifeweb decay** — a fixed `lifewebDecayPerTurn` off `GameConfig.lifewebBlood`.
+10. **Open the next turn** with the alternated phase, and roll its weather (§4).
+11. **Write the `TURN_START` archive row** — here, where the turn is created,
    rather than in the side effects, so a failed announcement can't leave two
    days with no boundary in the transcript.
-11. **Return `runSideEffects`** — see §3. Nothing above this line talks to
+12. **Return `runSideEffects`** — see §3. Nothing above this line talks to
    Discord; nothing below it touches the database.
 
 **`needsResolvedAt` is stamped only when every pass in `TURN_PASSES` has been

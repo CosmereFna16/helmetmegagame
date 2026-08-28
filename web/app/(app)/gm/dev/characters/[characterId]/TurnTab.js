@@ -33,10 +33,6 @@ export default function TurnTab({ character, openTurn, action, defaultEffort }) 
                 <dd className="mono text-sm">{action.moveReviewStatus}</dd>
               </div>
               <div>
-                <dt className="field-label">Opposed</dt>
-                <dd className="mono text-sm">{action.opposed ? "yes" : "no"}</dd>
-              </div>
-              <div>
                 <dt className="field-label">Resources</dt>
                 <dd className="mono text-sm">
                   {action.resourceDelta ? `${action.resourceDelta > 0 ? "+" : ""}${action.resourceDelta} ⬢` : "—"}

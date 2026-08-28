@@ -13,6 +13,7 @@ const { getGuildChannels, postMessage, deleteMessage, postAttachment } = require
 const { buildTurnAnnouncement } = require("../weather");
 const { TURNS_CONSOLE_ROW, CONSOLE_TEXT } = require("./turnsConsoleRow");
 const { docsPath } = require("./repoPaths");
+const { clearMessagesExcept } = require("./dawnWipe");
 
 const CHANNEL_TYPE_TEXT = 0;
 
@@ -122,6 +123,15 @@ async function postTurnsConsole(prisma, channelId, text, turn, config) {
     await prisma.gameConfig.update({
       where: { id: 1 },
       data: { turnsConsoleChannelId: channelId, turnsConsoleMessageId: sent.id },
+    });
+    // Sweep anything else that landed in #turns since the last turn — a
+    // stray GM message, an orphaned console from before a config reset.
+    // #turns is not in SPECIAL_CHANNELS, so the Dawn wipe never reaches it;
+    // this is that channel's only cleanup, and it runs every turn, not just
+    // at Dawn. Best-effort: a sweep failure must not cost the turn
+    // announcement that already went out.
+    await clearMessagesExcept(channelId, sent.id).catch((err) => {
+      console.error("Turn announcement: #turns sweep failed:", err);
     });
   }
   return sent;

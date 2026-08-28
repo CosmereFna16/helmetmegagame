@@ -825,7 +825,14 @@ handed renders inert rather than either vanishing or leaking.
 by automatic game logic rather than by a player, a GM, or a starting package —
 `db/lib/hungerPass.js` is their only writer, and `db/lib/gambitModifier.js`
 their only reader. `db/lib/constants.js` holds the slugs so neither file
-hardcodes a string. The Health chain (§5c) is the second such system, and it
+hardcodes a string. `catatonic` is a third: `db/lib/catatonicPass.js` is its
+only writer, gated on `GameConfig.catatonicEnabled`/`catatonicTurns`, and it
+is also the only tag in the game that a pass both grants **and** clears
+itself — it carries no `durationTurns`, deliberately, because there is no
+sweep to hand the clear to; see `TURN-ENGINE.md` §2 for why that's the
+correct exception to "every grant must stamp `expiresTurn`" rather than a
+repeat of the Paralyzed bug. The Health chain (§5c) is another such system,
+and it
 deliberately holds **no** slugs in `constants.js`: the whole chain is catalog
 data, so `tagExpiryPass.js` never names a tag and a new chain needs no code
 at all.

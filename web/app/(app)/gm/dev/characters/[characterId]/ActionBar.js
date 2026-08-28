@@ -74,7 +74,7 @@ export default function ActionBar({
   // sit in a row of verbs that fire immediately, so without a line saying so
   // they read as having silently done nothing.
   const [staged, setStaged] = useState(null);
-  const [dialog, setDialog] = useState(null); // "restore" | "message" | "delete" | "wound"
+  const [dialog, setDialog] = useState(null); // "kill" | "restore" | "spend" | "message" | "delete" | "wound"
   const [draft, setDraft] = useState("");
 
   const alive = character.status === "ALIVE";
@@ -169,17 +169,7 @@ export default function ActionBar({
               icon={SkullIcon}
               label={`Kill ${character.name}`}
               disabled={pending}
-              onClick={() =>
-                confirmThenRun(
-                  {
-                    title: `Kill ${character.name}?`,
-                    message:
-                      "Revokes every channel overwrite, deletes their personal Discord role, clears their nickname, grants Cursed, and writes a death into the archive.",
-                    confirmLabel: "Kill them",
-                  },
-                  () => killCharacterNow({ characterId: character.id }),
-                )
-              }
+              onClick={() => setDialog("kill")}
             />
           ) : (
             <IconButton
@@ -210,16 +200,7 @@ export default function ActionBar({
             icon={SkipIcon}
             label={hasActed ? "They've already acted this turn" : "Spend their turn"}
             disabled={pending || hasActed || !openTurn}
-            onClick={() =>
-              confirmThenRun(
-                {
-                  title: "Spend their turn?",
-                  message: `${character.name} won't be able to act again until the turn advances.`,
-                  confirmLabel: "Spend it",
-                },
-                () => spendTurn({ characterId: character.id }),
-              )
-            }
+            onClick={() => setDialog("spend")}
           />
           <IconButton
             icon={MessageIcon}
@@ -307,6 +288,39 @@ export default function ActionBar({
       >
         <p className="text-sm text-muted">
           Deletes their Move and undoes any rewards. They&apos;ll be DM&apos;d with your reason.
+        </p>
+      </RequestDialog>
+
+      {/* Kill and Spend-turn DM the player too now, so both ask for a reason
+          to send along with the notice. */}
+      <RequestDialog
+        open={dialog === "kill"}
+        title={`Kill ${character.name}?`}
+        submitLabel="Kill them"
+        busy={pending}
+        onCancel={() => setDialog(null)}
+        onConfirm={(reason) => run(() => killCharacterNow({ characterId: character.id, reason }))}
+      >
+        <p className="text-sm text-muted">
+          Revokes every channel overwrite, deletes their personal Discord role, clears their
+          nickname, grants Cursed, and writes a death into the archive. They&apos;ll be DM&apos;d
+          with your reason.
+        </p>
+      </RequestDialog>
+
+      <RequestDialog
+        open={dialog === "spend"}
+        title="Spend their turn?"
+        submitLabel="Spend it"
+        busy={pending}
+        onCancel={() => setDialog(null)}
+        onConfirm={(reason) =>
+          run(() => spendTurn({ characterId: character.id, description: reason }))
+        }
+      >
+        <p className="text-sm text-muted">
+          {character.name} won&apos;t be able to act again until the turn advances. They&apos;ll
+          be DM&apos;d with your reason.
         </p>
       </RequestDialog>
 

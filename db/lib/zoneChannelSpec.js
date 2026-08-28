@@ -188,7 +188,10 @@ function zoneChannelSpec(zone) {
       topic: PRIVATE_TOPIC,
       permission_overwrites: [
         ...roleAllow(gmRoleId, GM_PRIVATE_PERMS),
-        ...roleAllow(zoneRoleId, PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES_IN_THREADS),
+        ...roleAllow(
+          zoneRoleId,
+          PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES_IN_THREADS | PERM_ADD_REACTIONS,
+        ),
         // No top-level messages, and — the rework's point — no player-created
         // threads of either kind. The bot spawns every private thread.
         {

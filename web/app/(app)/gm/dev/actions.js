@@ -88,6 +88,8 @@ export async function updateGameConfig(formData) {
       // Floored at 1: "expire after 0 idle turns" would reap every thread on
       // every dawn, which is the wipe's job, not this one's.
       threadExpiryTurns: Math.max(1, intOrNull(formData, "threadExpiryTurns") ?? 5),
+      catatonicEnabled: formData.get("catatonicEnabled") === "on",
+      catatonicTurns: Math.max(1, intOrNull(formData, "catatonicTurns") ?? 4),
       autoReconcileEnabled: formData.get("autoReconcileEnabled") === "on",
       productionCoefficient: floatOrDefault(formData, "productionCoefficient", 1),
       startingTagPoints: intOrZero(formData, "startingTagPoints"),
@@ -245,6 +247,8 @@ const DEFAULT_GAME_CONFIG = {
   maxNegativeTags: 4,
   threadExpiryEnabled: false,
   threadExpiryTurns: 5,
+  catatonicEnabled: true,
+  catatonicTurns: 4,
   autoReconcileEnabled: false,
 };
 

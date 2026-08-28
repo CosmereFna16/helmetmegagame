@@ -14,6 +14,7 @@ const ARTHRITIS_SLUG = "arthritis";
 const LABORER_BASIC_SLUG = "laborer-basic";
 const LABORER_SKILLED_SLUG = "laborer-skilled";
 const LABORER_FARMING_SLUG = "laborer-farming";
+const CATATONIC_SLUG = "catatonic";
 
 // The "read someone else's sheet" tag and its discounted Demoness
 // twin — see db/lib/inspectVision.js, the only reader. Mindreading is the
@@ -43,6 +44,7 @@ module.exports = {
   LABORER_BASIC_SLUG,
   LABORER_SKILLED_SLUG,
   LABORER_FARMING_SLUG,
+  CATATONIC_SLUG,
   SEDUCTIVE_SLUG,
   SEDUCTIVE_DEMONESS_SLUG,
   MINDREADING_SLUG,

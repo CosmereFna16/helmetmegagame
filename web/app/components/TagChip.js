@@ -64,10 +64,19 @@ export default function TagChip({
 
   const panel = (
     <>
-      <strong>
-        {tag.name}
-        {stack ? ` ×${stack}` : ""}
-      </strong>
+      <div className="flex items-start justify-between gap-2">
+        <strong>
+          {tag.name}
+          {stack ? ` ×${stack}` : ""}
+        </strong>
+        {/* Group · category, top right — same info ChipLabel's border colour
+            implies, spelled out for whoever can't rely on the colour alone. */}
+        {(tag.group?.name || tag.category) && (
+          <span className="text-muted whitespace-nowrap text-xs">
+            {[tag.group?.name, tag.category].filter(Boolean).join(" · ")}
+          </span>
+        )}
+      </div>
       {/* ChipText, not RichText: a {tag:…} in here resolves to a plain label,
           since a chip nested inside a tooltip could never be hovered to reach
           its own tooltip. */}

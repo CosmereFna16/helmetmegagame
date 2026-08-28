@@ -26,9 +26,6 @@ import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 // (the old Reject — deletes the Move, frees the turn, tells them now) and
 // the lock this desk claims so two GMs don't work the same row.
 
-const OPPOSED_HELP =
-  "Opposed moves negatively affect another player. Stage these once every party involved has locked in.";
-
 const UNLOCK_HELP =
   "Deletes the Move and frees up their turn — the misclick escape hatch, or a Move that shouldn't have been one. They're DM'd the reason immediately.";
 
@@ -95,7 +92,6 @@ export default function MoveDesk({
 
   const [edits, setEdits] = useState({
     moveKind: move.moveKind,
-    opposed: Boolean(move.opposed),
     resultMessage: move.resultMessage ?? "",
   });
   const [composer, setComposer] = useState(null); // "effect" | "message" | "public" | null
@@ -208,20 +204,6 @@ export default function MoveDesk({
               { value: "GAMBIT", label: "Gambit" },
             ]}
           />
-          <Switch
-            label="Opposed"
-            value={edits.opposed}
-            disabled={disabled}
-            onChange={(v) => setEdit("opposed", v)}
-            options={[
-              { value: false, label: "No" },
-              { value: true, label: "Yes" },
-            ]}
-          >
-            <Tooltip text={OPPOSED_HELP}>
-              <span className="text-muted">?</span>
-            </Tooltip>
-          </Switch>
           <div className="flex flex-col gap-1">
             <span className="field-label">Dice</span>
             <span className="mono text-sm">{move.rollLabel || "—"}</span>

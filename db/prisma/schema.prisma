@@ -36,6 +36,10 @@ enum ActionType {
 
 enum ActionStatus {
   PENDING_TYPE
+  // Legacy: Opposed no longer exists as a submission-flow state. Nothing
+  // writes this. Kept in the enum (rather than removed) for the same reason
+  // as ADJUDICATED below — a Postgres enum-value removal is riskier than an
+  // unused value.
   PENDING_OPPOSED
   PENDING
   CONFIRMED
@@ -59,6 +63,9 @@ enum MoveKind {
 // only covers the player-side submission pipeline up through CONFIRMED).
 enum MoveReviewStatus {
   OPEN
+  // Legacy: nothing ever set this — a GM parked an Opposed Move by simply not
+  // solving it yet, and Opposed itself has since been removed. Kept in the
+  // enum rather than removed; see ActionStatus.PENDING_OPPOSED above.
   WAITING_FOR_OPPONENTS
   IN_PROGRESS
   SOLVED
@@ -367,6 +374,14 @@ model GameConfig {
   // messageWipeEnabled.
   threadExpiryEnabled Boolean @default(false)
   threadExpiryTurns   Int     @default(5)
+
+  // The Catatonic (AFK) pass (db/lib/catatonicPass.js): any ALIVE character
+  // with no player-filed Action and no in-character speech for
+  // catatonicTurns turns straight is flagged; the flag lifts the moment they
+  // act or speak again. On by default, unlike threadExpiryEnabled above —
+  // this doesn't delete anything, it just marks the sheet for a GM to see.
+  catatonicEnabled Boolean @default(true)
+  catatonicTurns   Int     @default(4)
 
   // Whether the bot runs the channel doctor's cheap reconciliation pass
   // (db/lib/channelDoctor.js) automatically after every turn advance, on top
@@ -794,6 +809,19 @@ model Character {
   // other terminal chain (tagExpiryPass.js).
   hungerStreak Int @default(0)
 
+  // Turn number this character last acted or spoke in character — a
+  // player-filed Action (never an auto one; defaultMovePass.js does not
+  // touch this) or a proxied/`/speak` message. Same shape as
+  // PlayerThread.lastActivityTurn and for the same reason: "no activity for
+  // N turns" cannot be read reliably out of best-effort, player-erasable
+  // records (ArchiveEntry writes swallow failure, and a ❌ reaction deletes
+  // the row). Written debounced to one update per character per turn by
+  // db/lib/characterActivity.js#touchCharacterActivity. Read by
+  // db/lib/catatonicPass.js. Null only before this column's own backfill
+  // migration and for a character created after — the pass treats null as
+  // "as of right now", never as stale.
+  lastActivityTurn Int?
+
   // Unspent point-buy points. Seeded at creation with whatever the player
   // didn't spend in the wizard (budget minus purchases) and drawn down by
   // the mid-game store.
@@ -853,6 +881,7 @@ model Character {
 
   @@index([discordUserId])
   @@index([status])
+  @@index([status, lastActivityTurn])
 }
 
 // Master-sourced from docs/tags.yaml (db/lib/syncTags.js#syncTagsFromYaml,
@@ -1210,12 +1239,33 @@ model Role {
   startingZoneId String?
   startingZone   Zone?   @relation("RoleStartingZone", fields: [startingZoneId], references: [id])
 
-  characters Character[]
+  characters   Character[]
+  reservations RoleReservation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([factionId])
+}
+
+// A creation-wizard-in-progress hold on a Role seat. Without this, a player
+// who picks a capacity-1 role at step 1 and spends ten minutes on the tag
+// menu can lose the seat at Confirm with no warning — reported verbatim as
+// "someone took my role". See db/lib/roleReservation.js for the seat math
+// and CHARACTERS.md's Seat caps section.
+//
+// discordUserId is @unique so a player can hold exactly one seat at a time —
+// reserving a second role is an upsert that releases the first. Expiry is
+// swept lazily wherever taken counts are read; there is no cron job.
+model RoleReservation {
+  id            String   @id @default(cuid())
+  discordUserId String   @unique
+  roleId        String
+  role          Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
+  @@index([roleId, expiresAt])
 }
 
 // Master-sourced from docs/documents.yaml
@@ -1336,13 +1386,11 @@ model Action {
   diceModifier Int?
   status       ActionStatus @default(PENDING)
 
-  // Routine vs Gambit (see MoveKind above), whether the player and/or GM has
-  // flagged it Opposed, and the GM's spreadsheet-workflow status — all set
-  // during the DM submission flow (moveKind/opposed) and/or later edited by
-  // a GM from the Moves adjudication popup (all three, plus moveReviewStatus
-  // itself).
+  // Routine vs Gambit (see MoveKind above) and the GM's spreadsheet-workflow
+  // status — set during the DM submission flow (moveKind) and/or later
+  // edited by a GM from the Moves adjudication popup (both, plus
+  // moveReviewStatus itself).
   moveKind         MoveKind?
-  opposed          Boolean          @default(false)
   moveReviewStatus MoveReviewStatus @default(OPEN)
 
   // Who resolved this Move and when. Request has carried these since the

@@ -22,6 +22,7 @@ const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 const { runDawnWipe } = require("./lib/dawnWipe");
 const { runThreadExpiry } = require("./lib/threadExpiryPass");
 const { runHungerPass, hungerDm, DYING_DM } = require("./lib/hungerPass");
+const { runCatatonicPass } = require("./lib/catatonicPass");
 const { runCavingPass } = require("./lib/cavingPass");
 const { runDefaultMovePass } = require("./lib/defaultMovePass");
 const { runStagedPushPass } = require("./lib/stagedPush");
@@ -163,12 +164,13 @@ async function sweepExpiredStacks(turn) {
 // automated one actually resolving Needs.
 //
 // Returns { lifewebBlood, starvedNotices, defaultMovePosts,
-// defaultMoveDms, tagExpiryDms, cavingDms }. Everything after the first is
-// Discord work this function deliberately does NOT perform — the Hunger
-// pass's DM list (one notice per starved character: discordUserId, streak,
-// justDied), the Default Move pass's summary posts and DMs, the tag
-// progression pass's DMs, and the Caving Die's one-DM-per-1-or-6 list. See
-// advanceTurn() below for why.
+// defaultMoveDms, tagExpiryDms, catatonicDms, cavingDms }. Everything after
+// the first is Discord work this function deliberately does NOT perform —
+// the Hunger pass's DM list (one notice per starved character: discordUserId,
+// streak, justDied), the Default Move pass's summary posts and DMs, the tag
+// progression pass's DMs, the Catatonic pass's one-DM-per-newly-flagged list,
+// and the Caving Die's one-DM-per-1-or-6 list. See advanceTurn() below for
+// why.
 // Every pass this turn owes, by the name markDone records it under. The
 // needsResolvedAt stamp at the bottom is written only when `done` covers all
 // of them, which is what makes the resume machinery mean anything.
@@ -177,6 +179,7 @@ const TURN_PASSES = [
   "stagedPush",
   "tagExpiry",
   "expirySweep",
+  "catatonic",
   "caving",
   "hunger",
   "lifewebDecay",
@@ -339,6 +342,29 @@ async function resolveNeeds(turn, config) {
     }
   }
 
+  // Catatonic (AFK) — every ALIVE character's activity clock checked against
+  // GameConfig.catatonicTurns. Slotted after expirySweep for the same reason
+  // tagExpiry -> expirySweep -> hunger is ordered below: it reads/writes
+  // CharacterTag rows and must not race the sweep over the same table.
+  // Ordering against caving/hunger doesn't matter — this pass doesn't touch
+  // resources or Hunger's streak. See db/lib/catatonicPass.js.
+  let catatonic = null;
+  if (!done.has("catatonic")) {
+    catatonic = await runCatatonicPass(prisma, turn).catch(async (err) => {
+      await passFailed("Catatonic", err);
+      return null;
+    });
+    if (catatonic) await markDone("catatonic");
+  }
+  const { dms: catatonicDms = [], ...catatonicSummary } = catatonic ?? {};
+  if (catatonic) {
+    await prisma.auditLog
+      .create({
+        data: { actorDiscordUserId: "system", actionType: "catatonic_resolved", details: catatonicSummary },
+      })
+      .catch((err) => console.error("Catatonic audit log failed:", err));
+  }
+
   // The Caving Die — every ALIVE character standing in the Depths gets one
   // roll for the turn that's opening. Slotted after expirySweep (loot
   // granted just now must not be swept THIS turn) and before hunger (a
@@ -454,6 +480,7 @@ async function resolveNeeds(turn, config) {
     defaultMovePosts,
     defaultMoveDms,
     tagExpiryDms,
+    catatonicDms,
     cavingDms,
     privateDeliveries,
     publicPosts,
@@ -496,6 +523,7 @@ async function advanceTurn() {
   let defaultMovePosts = [];
   let defaultMoveDms = [];
   let tagExpiryDms = [];
+  let catatonicDms = [];
   let cavingDms = [];
   let privateDeliveries = [];
   let publicPosts = [];
@@ -531,7 +559,7 @@ async function advanceTurn() {
       };
     }
 
-    ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, cavingDms, privateDeliveries, publicPosts, zoneMoves } =
+    ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, cavingDms, privateDeliveries, publicPosts, zoneMoves } =
       await resolveNeeds(openTurn, config));
   } else {
     // No OPEN turn, which normally means "opening the very first turn". It
@@ -596,7 +624,7 @@ async function advanceTurn() {
           },
         })
         .catch((logErr) => console.error("Failed to log turn_resume — the resume now has no record:", logErr));
-      ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, cavingDms, privateDeliveries, publicPosts, zoneMoves } =
+      ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, cavingDms, privateDeliveries, publicPosts, zoneMoves } =
         await resolveNeeds(unfinished, config));
     }
   }
@@ -679,6 +707,15 @@ async function advanceTurn() {
     for (const dm of tagExpiryDms) {
       await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
         console.error(`Tag progression DM to ${dm.discordUserId} failed:`, err),
+      );
+    }
+
+    // One DM per player just flagged Catatonic — nothing for one just
+    // cleared, since clearing only ever follows the player's own action or
+    // speech, which needs no notice.
+    for (const dm of catatonicDms) {
+      await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
+        console.error(`Catatonic DM to ${dm.discordUserId} failed:`, err),
       );
     }
 

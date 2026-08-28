@@ -147,6 +147,13 @@ cache-buster every caller appends is what gets past the route's `immutable`
 header. An accented, non-Latin, numeric or empty initial falls through to
 `_default.webp` rather than 404ing.
 
+Every successful proxy (and `/speak`) also touches
+`Character.lastActivityTurn` via `db/lib/characterActivity.js#touchCharacterActivity`
+— the clock `db/lib/catatonicPass.js` reads to lift the Catatonic (AFK) tag.
+It's a separate write from the `ArchiveEntry` above on purpose: the archive
+row is best-effort and a ❌ reaction deletes it outright, neither of which
+should un-flag the activity that already happened.
+
 ## 4. Reactions on a proxied message
 
 All in `bot/src/events/messageReactionAdd.js`, all gated on `recentProxies`.

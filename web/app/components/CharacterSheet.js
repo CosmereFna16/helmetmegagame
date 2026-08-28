@@ -37,14 +37,13 @@ function ActionStatus({ currentAction, openTurn }) {
   return (
     <div className="text-sm">
       <p className="mb-1">
-        {kindLabel}
-        {currentAction.opposed ? " (Opposed)" : ""}: {currentAction.description}
+        {kindLabel}: {currentAction.description}
       </p>
       {currentAction.status === "PENDING_TYPE" && (
-        <p className="text-muted">Waiting on you to set Kind/Opposed and hit Confirm — check Discord DMs.</p>
+        <p className="text-muted">Waiting on you to set Kind and hit Confirm — check Discord DMs.</p>
       )}
       {currentAction.status === "PENDING_OPPOSED" && (
-        <p className="text-muted">Waiting on you to say whether it&apos;s Opposed — check Discord DMs.</p>
+        <p className="text-muted">Pending confirmation — check Discord DMs and hit Confirm to lock it in.</p>
       )}
       {currentAction.status === "PENDING" && (
         <p className="text-muted">Pending confirmation — check Discord DMs and hit Confirm to lock it in.</p>

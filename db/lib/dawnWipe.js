@@ -60,6 +60,19 @@ async function clearMessagesExceptStarter(threadId) {
   }
 }
 
+// Everything in a channel except one message, by id. Unlike
+// clearMessagesExceptStarter above, a plain channel has no un-bulk-deletable
+// starter to route around, so this goes through bulkDeleteMessages — cheaper
+// than the one-at-a-time loop. Used by #turns' per-turn console repost
+// (db/lib/turnAnnouncement.js), not the Dawn wipe itself: #turns runs this
+// every turn, Dawn or Dusk, and isn't in SPECIAL_CHANNELS.
+async function clearMessagesExcept(channelId, keepId) {
+  const messages = await fetchAllMessages(channelId);
+  const toDelete = messages.filter((m) => m.id !== keepId).map((m) => m.id);
+  if (toDelete.length === 0) return;
+  await bulkDeleteMessages(channelId, toDelete);
+}
+
 async function collectThreads(channelId, { public: includePublic, private: includePrivate }, activeSnapshot) {
   const active = await listActiveThreadsForChannel(channelId, activeSnapshot);
   const archivedPublic = includePublic ? await listArchivedPublicThreads(channelId) : [];
@@ -221,4 +234,4 @@ async function runDawnWipe(prisma) {
   return { failed: failures.length, failures };
 }
 
-module.exports = { runDawnWipe };
+module.exports = { runDawnWipe, clearMessagesExcept };

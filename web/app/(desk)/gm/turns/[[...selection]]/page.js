@@ -5,6 +5,7 @@ import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requests";
 import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, rollLabel } from "@/lib/moves";
 import { getOpenTurn } from "@/lib/turn";
 import { getMyZone } from "@/lib/gmZone";
+import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
 import Workspace from "../Workspace";
 
 // The adjudication workspace's server half: one load, all DTOs, no
@@ -14,23 +15,6 @@ import Workspace from "../Workspace";
 // plus the newest Requests, which keep their own review lifecycle.
 
 const REQUEST_LIMIT = 300;
-
-// Exactly the Tag columns TagChip and formatTagRequirement read, and nothing
-// else — same discipline as the old /gm/turns page and referenceData.js.
-const TAG_CHIP_FIELDS = {
-  id: true,
-  slug: true,
-  name: true,
-  description: true,
-  pointCost: true,
-  defaultDurationTurns: true,
-  expiresInto: true,
-  visibleOnInspect: true,
-  requirementTurns: true,
-  requirementResources: true,
-  requirementGambit: true,
-  requirementSkills: { select: { name: true } },
-};
 
 function isConfirmed(a) {
   return a.status === "CONFIRMED" || a.status === "ADJUDICATED";
@@ -255,7 +239,6 @@ export default async function TurnsWorkspacePage({ params }) {
     description: a.description,
     kindLabel: moveKindLabel(a.moveKind),
     moveKind: a.moveKind ?? "ROUTINE",
-    opposed: a.opposed,
     rollLabel: rollLabel(a),
     statusLabel: statusLabel(a, now),
     // Where they stand. Key name kept because MoveDesk and InspectorColumn

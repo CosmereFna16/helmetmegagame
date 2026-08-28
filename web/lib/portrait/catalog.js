@@ -31,6 +31,22 @@ export const CANVAS = 256; // an integer multiple of TILE, so nearest-neighbour 
 // bottom of its frame.
 export const SHIFT_X = 5;
 
+// The bust is head + jaw only — no neck, no shoulders — so drawn at 1:1 the
+// chin ends in a hard cut right on the plate's bottom edge, which reads as a
+// severed head rather than a portrait. Two things fix it together:
+// BUST_PX pushes that cut below the frame (scale up, then crop back down to
+// CANVAS, bottom-anchored — the same "a bust sits in a frame" framing as
+// SHIFT_X above, just vertical), and the FADE_* constants dissolve whatever
+// chin is still left into the plate's own darkness instead of ending in a
+// line. 320 keeps the intermediate scale (128 -> 320) an integer multiple of
+// TILE, so nearest-neighbour stays crisp through the extra step.
+export const BUST_PX = 320;
+export const FADE_HEIGHT = 0.3; // fraction of CANVAS the gradient covers, from the bottom
+// Must match TINT / DARKEN in web/scripts/generate-letters.js — the fade is
+// meant to read as "sinking into the plate's own shadow", not a new colour.
+export const FADE_TINT = { r: 0x27, g: 0x44, b: 0x3e };
+export const FADE_DARKEN = 0.5;
+
 export const SHEET_DIR = "/assets/portrait";
 // The same tinted-stone plate the letter plaques are built on
 // (web/scripts/generate-letters.js), minus their inset rule — a thin white

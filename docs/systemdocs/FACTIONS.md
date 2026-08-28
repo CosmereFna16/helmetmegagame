@@ -116,6 +116,23 @@ subject's active Desire, resolved by `db/lib/inspectVision.js` (which also
 accepts the tag's discounted Demoness twin). That's bot-only — the web has no
 other-player character sheet.
 
+## 4a. Role is same-faction knowledge, not Silo authority
+
+Role (`Character.roleTitle`) is visible on both faces of the game, gated on
+**sharing a faction** — deliberately not on Silo authority, and not on the
+ancestor walk `getSiloAccess` does. A parent faction's Leader or Treasurer can
+manage a subject faction's Silo without knowing its org chart; only actually
+being a member of that faction does.
+
+- `/faction`'s roster carries an unconditional Role column, on both the
+  player and GM branches, and on the subject-faction view a parent's Leader
+  or Treasurer opens — that view already exposes Resources, so Role is not a
+  widening of what a parent can see there.
+- The bot's 🔍 inspect embed adds a `Role` field only when the viewer's own
+  ALIVE character shares `factionId` with the subject (and neither is
+  Unaffiliated). Absent, never masked, same posture as Resources above. A
+  `/conceal`ed message never reaches this branch at all.
+
 ## 5. Moving Resources out of a Silo
 
 **There is no direct transfer UI.** `/faction` had a "Transfer from Silo" panel

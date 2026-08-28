@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { prisma, roleCapacity, isDynastyMember } from "@lifeweb/db";
+import { takenCounts } from "@lifeweb/db/lib/roleReservation";
 import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
@@ -32,11 +33,12 @@ import CreateCharacterWizard from "./CreateCharacterWizard";
 import CreationClosed from "./CreationClosed";
 
 // Everything the creation wizard needs, shaped as the Zone -> Faction -> Role
-// tree it renders. Seat counts are computed here rather than in the client so
-// the numbers can't be stale-rendered from a cached page; the server action
-// re-counts inside its transaction anyway, since this is only advisory.
+// tree it renders. Seat counts (ALIVE characters + live reservations, see
+// takenCounts) are computed here rather than in the client so the numbers
+// can't be stale-rendered from a cached page. This is still only advisory —
+// createActions.js takes the actual lock inside the create transaction.
 async function loadCreationData(discordUserId) {
-  const [zones, tags, config, member, takenRows, dynastyName] = await Promise.all([
+  const [zones, tags, config, member, dynastyName] = await Promise.all([
     prisma.zone.findMany({
       orderBy: { name: "asc" },
       include: {
@@ -51,10 +53,15 @@ async function loadCreationData(discordUserId) {
     loadPointBuyCatalog(),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     getGuildMember(discordUserId),
-    prisma.character.groupBy({ by: ["roleId"], where: { status: "ALIVE" }, _count: true }),
     // Shown on the (locked) last-name input if a family seat is picked.
     dynastyLastName(),
   ]);
+
+  // ALIVE characters plus anyone else's live wizard-in-progress hold — see
+  // db/lib/roleReservation.js. Excludes the viewer's own hold, so a role
+  // they're mid-reserving on renders taken to everyone but them.
+  const roleIds = zones.flatMap((zone) => zone.factions.flatMap((faction) => faction.roles.map((r) => r.id)));
+  const takenByRole = await takenCounts(prisma, roleIds, discordUserId);
 
   const cursed = isCursed(member);
   // Mirrors the bypass in createCharacter so the host sees the wizard rather
@@ -74,7 +81,6 @@ async function loadCreationData(discordUserId) {
   // an unfinished role, so the host wants it locked too (characterCreation.js).
   const playtestMode = config?.playtestModeEnabled === true;
   const playerCount = config?.playerCount ?? 100;
-  const takenByRole = new Map(takenRows.map((r) => [r.roleId, r._count]));
 
   return {
     gate,
@@ -124,6 +130,10 @@ async function loadCreationData(discordUserId) {
                 // uncapped roles cross the boundary as null and render "∞".
                 cap: cap === Infinity ? null : cap,
                 taken: takenByRole.get(role.id) ?? 0,
+                // ^ ALIVE characters + everyone else's live wizard-in-progress
+                // hold on this seat (db/lib/roleReservation.js#takenCounts) —
+                // the viewer's own hold is excluded so their held role never
+                // renders as full to them.
                 selectable: isRoleSelectable({ role, cursed, leaderWhitelisted, playtestLocked }),
                 playtestLocked,
                 // The Baron's family don't choose a surname (db/lib/dynasty.js).
@@ -152,8 +162,9 @@ export default async function CharacterPage() {
       // Only the slug, and only so the Bio panel can grey out the last name
       // for the Baron's family (db/lib/dynasty.js).
       role: { select: { slug: true } },
-      // group comes along so TagChip can tint the chip, same as
-      // /gm/turns does it — otherwise every Item renders uncoloured.
+      // group comes along so TagChip can tint the chip and label its
+      // group/category — /gm/turns and referenceData.js share the same
+      // TAG_CHIP_FIELDS select for the same reason.
       // requirementSkills has to be named explicitly: `include` returns every
       // scalar but no unnamed relation, and formatTagRequirement guards with
       // `?.length`, so leaving it off silently drops the skill from the

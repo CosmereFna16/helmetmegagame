@@ -340,7 +340,7 @@ One more gate exists that is **not** a Discord role, and it's the only soft
 one in the app. `GmAssignment` (keyed on `discordUserId`, set from
 `/gm/gamemasters`) seats each of the four zone-GMs in a Zone. All it does is
 decide which zone that GM's tables *open* on. No query is scoped by it, and
-no row is hidden — an Opposed Move crosses zones by nature, so hiding rows
+no row is hidden — a Move crosses zones by nature, so hiding rows
 would break the job. Every other row in the table above is real enforcement;
 this one is just convenience. Read
 [`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) before you try to harden
@@ -424,7 +424,7 @@ dashboard. No big colorful emoji — small unicode marks only.
 
 Discord's `-#` subtext is part of the vocabulary too. Use it for a line of
 guidance that shouldn't compete with the message itself — the
-Move-declaration DM uses it to explain Routine/Gambit/Opposed under the
+Move-declaration DM uses it to explain Routine/Gambit under the
 dropdowns. Use it sparingly: it's for explaining a control, not for
 footnoting prose.
 
@@ -610,9 +610,10 @@ global CLIs. To make one able to build, run, and deploy:
   version-specific Next.js guidance and are separate from this file.
 - The bot has no ESLint config yet; the web app's linting is scoped to
   `web/`.
-- **Waiting for Opponents** is a `MoveReviewStatus` value the Moves table
-  already colours, but nothing ever sets it. A GM parks an Opposed Move by
-  simply not solving it yet.
+- **Waiting for Opponents** (`MoveReviewStatus.WAITING_FOR_OPPONENTS`) and
+  `ActionStatus.PENDING_OPPOSED` are legacy values from the removed Opposed
+  flag. Nothing writes either any more; they're kept in their Postgres enums
+  rather than dropped, same as `ActionStatus.ADJUDICATED`.
 - The **mid-game tag store is `/store`**: the shared `PointBuy.js` experience
   mounted with `afterStartOnly`, spending `Character.tagPoints`, each cart
   filed as one `BUY_TAGS` request. What's still open is the rules for earning

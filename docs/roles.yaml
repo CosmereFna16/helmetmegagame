@@ -625,7 +625,7 @@ zones:
             difficulty: normal
             multiple: true
             weight: 4
-            starting_resources: 1
+            starting_resources: 8
             starting_zone: town
             starting_tags:
               - Ravenhearter
@@ -802,13 +802,13 @@ zones:
               - >-
                 The theory is important. Axes are good at breaking shields; blunt weapons harm people even in full armor; swords excel in one-to-one combat.
               - >-
-                Simple things, like shortswords or basic tools, cost 1 Effort and 2 ⬢. Moderately difficult things, like swords or breastplates, cost 1 Effort and 4 ⬢. High quality objects cost 2 Efforts and 6 ⬢.
+                Simple tools and weapons are cheap and quick; a moderate or high-quality piece — a proper sword, a breastplate — costs more of both, and something truly exceptional costs more still. Check the smithing price list for exact numbers.
               - >-
-                You can also make Unique Tags—name and describe them—for 2 Efforts, 1 Move, and 12 ⬢. You'll have to roll to see what the quality ends up being.
+                You can also make Unique Tags—name and describe them yourself. You'll have to roll to see what the quality ends up being.
             difficulty: normal
             multiple: true
             weight: 1
-            starting_resources: 12
+            starting_resources: 20
             starting_zone: town
             starting_tags:
               - Ravenhearter
@@ -1376,14 +1376,16 @@ zones:
           - name: Mercenary
             slug: mercenary
             intro: >-
-              Delve into the Caves for pay.
+              Sell your sword or delve into the caves for pay.
             description:
               - >-
-                Delve into the Caves for pay.
+                No one's going to pay you. It's therefore your responsibility to provide for yourself. There's a few ways to do that: selling your sword to someone or going into the caves, fetching loot, and selling it to the Merchant or the Sanctuary. Trust me, the Sanctuary loves cave fungus!
+              - >-
+                If you'd prefer the virtuous angle, you can be a hedge knight instead.
             difficulty: normal
             multiple: true
             weight: 2
-            starting_resources: 5
+            starting_resources: 4
             starting_zone: caverns
             starting_tags:
               - Fighting (Basic)

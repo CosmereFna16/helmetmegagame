@@ -10,6 +10,7 @@ const { resolveActingMember, isGmMember, findAliveCharacter } = require("../lib/
 const { postAsCharacterTo } = require("../lib/proxy");
 const { resolveLaborRate } = require("@lifeweb/db");
 const { recordArchiveMessage } = require("@lifeweb/db/lib/archive");
+const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
 const { dropCharacterTag } = require("@lifeweb/db/lib/tagWrites");
 const { HEALTH_CATEGORY } = require("@lifeweb/db/lib/medicalVision");
 const { isPrivateThread, messageLink } = require("../lib/mentions");
@@ -609,7 +610,6 @@ async function handleMoveSubmit(interaction) {
   }
 
   const moveKind = interaction.fields.getRadioGroup("move:kind");
-  const opposed = optionalCheckbox(interaction, "move:opposed");
   const labor = optionalCheckbox(interaction, "move:labor");
   const description = raw;
 
@@ -649,7 +649,6 @@ async function handleMoveSubmit(interaction) {
         type: "MOVE",
         status: "PENDING_TYPE",
         moveKind,
-        opposed,
         description,
         resourceDelta: null,
         resourceRollExpression,
@@ -663,6 +662,8 @@ async function handleMoveSubmit(interaction) {
     }
     throw err;
   }
+
+  await touchCharacterActivity(prisma, character.id);
 
   await prisma.auditLog.create({
     data: {
@@ -816,6 +817,7 @@ async function handleSpeakSubmit(interaction, channelId) {
     concealedAlias: conceal?.alias ?? null,
     ...resolveChannelContext(channel),
   });
+  await touchCharacterActivity(prisma, character.id);
 
   await interaction.editReply({
     content: `» *Sent.*\n${messageLink(guild.id, channel.id, posted.webhookMessage.id)}`,

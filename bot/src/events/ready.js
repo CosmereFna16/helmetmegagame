@@ -88,6 +88,15 @@ module.exports = {
     for (const guild of client.guilds.cache.values()) {
       await syncNicknamesForGuild(guild).catch((err) => console.error("Failed to sync nicknames:", err));
       await ensureTurnsConsole(guild).catch((err) => console.error("Failed to ensure turns console:", err));
+      // Warms client.channels.cache with every active thread, private ones
+      // included. GUILD_CREATE only ships a thread the bot is already a
+      // member of, so without this a fresh boot never learns about a private
+      // thread it hasn't posted in since — and a reaction on it never fires
+      // messageReactionAdd at all (Partials.Channel resolves an uncached id
+      // to a typeless payload, which ChannelManager can't turn into a
+      // channel). A thread created after this boot still needs the
+      // per-reaction fallback in messageReactionAdd.js.
+      await guild.channels.fetchActiveThreads().catch((err) => console.error("Failed to warm thread cache:", err));
     }
 
     // Global, not per-guild: a guild command can never appear in the bot's

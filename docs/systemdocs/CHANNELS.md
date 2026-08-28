@@ -355,6 +355,14 @@ Both build the context with `buildNarrowcastContext` and run
 | **Dawn wipe** (`db/lib/dawnWipe.js`) | every turn that opens with `phase === "DAWN"`, if `GameConfig.messageWipeEnabled` | clears roleplay content per the table below |
 | **Thread expiry** (`db/lib/threadExpiryPass.js`) | every Dawn, if `GameConfig.threadExpiryEnabled` | deletes idle player threads (§4) |
 | **Full wipe** (`db/lib/fullWipe.js`) | Restart Game only | spares nothing (`LAUNCH.md`) |
+| **`#turns` sweep** (`db/lib/turnAnnouncement.js#postTurnsConsole`, via `dawnWipe.js#clearMessagesExcept`) | every turn, Dawn or Dusk | deletes everything in `#turns` except the console message just posted — a stray GM post, an orphaned console from before a config reset |
+
+`#turns` is **not** in `SPECIAL_CHANNELS` and the Dawn wipe never reaches it —
+it is one rolling message (the turn announcement, weather banner, and player
+console) that gets deleted and reposted every turn regardless of
+`messageWipeEnabled`, so its sweep runs on that same cadence rather than the
+Dawn-only one above. It is best-effort: a sweep failure is logged but never
+costs the turn announcement that already went out.
 
 Both Dawn passes are wired into `db/index.js#advanceTurn()`'s side-effect
 thunk, so they fire identically whether Dawn came from the bot's twice-daily

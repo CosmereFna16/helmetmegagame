@@ -197,7 +197,6 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
           id: openTurnAction.id,
           description: openTurnAction.description,
           moveKind: openTurnAction.moveKind,
-          opposed: openTurnAction.opposed,
           moveReviewStatus: openTurnAction.moveReviewStatus,
           resourceDelta: openTurnAction.resourceDelta,
           diceRoll: openTurnAction.diceRoll,

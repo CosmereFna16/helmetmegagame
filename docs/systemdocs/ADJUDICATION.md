@@ -52,8 +52,8 @@ tray as "unattached" for the GM to keep or drop.
   who disagrees stages a counter-effect; the composer's "offset declared"
   prefill is that in one click. Nothing pays at confirm any more — Routines
   and Labor included.
-- **Solve is bookkeeping.** It stores the Result and Kind/Opposed edits,
-  stamps `reviewedBy`, and marks the staging complete. It applies nothing;
+- **Solve is bookkeeping.** It stores the Result and Kind edit, stamps
+  `reviewedBy`, and marks the staging complete. It applies nothing;
   Unsolve reverts nothing, because there is nothing yet to revert.
 - **Silent close.** A Move still `OPEN` at the push closes `PASSED` with
   `auto:silent_close` appended to `gmNotes`, pays its declared numbers, and

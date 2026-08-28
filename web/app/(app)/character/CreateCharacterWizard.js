@@ -3,7 +3,7 @@
 import FormError from "@/app/components/FormError";
 import CheckField from "@/app/components/CheckField";
 import { useMemo, useState } from "react";
-import { createCharacter } from "./createActions";
+import { createCharacter, reserveRoleAction } from "./createActions";
 import PointBuy from "../../components/PointBuy";
 import {
   computeBudget,
@@ -61,7 +61,12 @@ function StepBar({ step }) {
 }
 
 function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
-  const full = taken >= cap;
+  // `cap` crosses from the server as null for an uncapped role (Infinity
+  // doesn't survive serialization — see page.js). `taken >= cap` used to
+  // compare against that null directly, and JS coerces null to 0, so every
+  // uncapped role rendered its count in the "full" colour. Uncapped is
+  // never full.
+  const full = cap !== null && taken >= cap;
   return (
     <button
       type="button"
@@ -128,6 +133,11 @@ export default function CreateCharacterWizard({
   const [antagonists, setAntagonists] = useState([]);
   const [error, setError] = useState(null);
   const [pending, setPending] = useState(false);
+  // Set once the picked role is actually held server-side (see
+  // reserveRoleAction), so the hold notice only shows a real claim rather
+  // than the browsing state before Next is first hit on step 0.
+  const [heldUntil, setHeldUntil] = useState(null);
+  const [reserving, setReserving] = useState(false);
 
   const allRoles = useMemo(
     () => zones.flatMap((z) => z.factions.flatMap((f) => f.roles)),
@@ -186,6 +196,36 @@ export default function CreateCharacterWizard({
   function pickRole(id) {
     setRoleId(id);
     setSelectedIds([]);
+    // Browsing cards never claims a seat — only Next off step 0 does, below.
+    // A stale hold from a role the player has since abandoned would be
+    // misleading in the header.
+    setHeldUntil(null);
+  }
+
+  // Claims (or extends) the held seat on the way out of step 0, and again on
+  // every later Next so the 30-minute hold keeps sliding while the player is
+  // still working the form — a slow tag menu should never cost the seat.
+  // Re-validates server-side, same as createCharacter: the wizard's disabled
+  // cards are the hint, not the lock.
+  async function handleNext() {
+    if (reserving) return;
+    if (!roleId) {
+      setStep((s) => s + 1);
+      return;
+    }
+    setReserving(true);
+    setError(null);
+    try {
+      const result = await reserveRoleAction(roleId);
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+      setHeldUntil(result?.expiresAt ?? null);
+      setStep((s) => s + 1);
+    } finally {
+      setReserving(false);
+    }
   }
 
   function toggleAntagonist(slug) {
@@ -291,6 +331,13 @@ export default function CreateCharacterWizard({
     <PageShell>
       <PageHeader title="Create Your Character" />
       <StepBar step={step} />
+
+      {step > 0 && heldUntil && (
+        <p className="text-sm text-muted">
+          Held for you until{" "}
+          {new Date(heldUntil).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.
+        </p>
+      )}
 
       {cursed && (
         <p className="panel p-3 text-sm text-accent">
@@ -580,10 +627,10 @@ export default function CreateCharacterWizard({
           <button
             type="button"
             className="btn"
-            onClick={() => setStep((s) => s + 1)}
-            disabled={!canAdvance}
+            onClick={handleNext}
+            disabled={!canAdvance || reserving}
           >
-            Next
+            {reserving ? "Holding…" : "Next"}
           </button>
         ) : (
           <button type="button" className="btn" onClick={submit} disabled={pending}>

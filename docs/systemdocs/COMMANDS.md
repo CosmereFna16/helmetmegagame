@@ -183,7 +183,6 @@ Speak goes through a picker first (enumerating threads costs API calls).
 |---|---|---|
 | Your Move | `move:body` | Paragraph, required, max 1800 |
 | Kind | `move:kind` | Radio: `ROUTINE` / `GAMBIT`, required |
-| Opposed | `move:opposed` | Checkbox |
 | Labor | `move:labor` | Checkbox — Routine only, refused on a Gambit |
 
 Submitting runs every gate the old `#turns` message flow ran — living

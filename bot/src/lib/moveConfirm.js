@@ -76,7 +76,7 @@ async function confirmMove(action, actorDiscordUserId) {
 
   const lines = [
     `» ${action.description}`,
-    `Kind: **${action.moveKind === "GAMBIT" ? "Gambit" : "Routine"}**${action.opposed ? " — Opposed" : ""}`,
+    `Kind: **${action.moveKind === "GAMBIT" ? "Gambit" : "Routine"}**`,
   ];
   if (diceRoll != null) {
     lines.push(

@@ -26,52 +26,61 @@ import { toDocumentPreviewText } from "@/lib/documentPreview";
 // the {tag:fighting-archer} references in public documents for everyone who
 // hasn't bought it.
 //
+// Exactly the Tag columns TagChip (and formatTagRequirement/prerequisiteNames)
+// read, and nothing else. Shared so every caller that feeds TagChip — this
+// module, the /gm/turns queue and inspector — selects the same shape instead
+// of maintaining their own copy that quietly drifts (group/category fell out
+// of the /gm/turns copies this way once already, which is why every chip
+// there rendered uncoloured with no "Requires" row).
+export const TAG_CHIP_FIELDS = {
+  id: true,
+  slug: true,
+  name: true,
+  description: true,
+  pointCost: true,
+  category: true,
+  // The prerequisite gates' NAMES drive TagChip's "Requires" line. A caller
+  // gating a list to what the viewer holds (getVisibleTags below) must filter
+  // group-gated tags to gate-holders itself — the name would tip off anyone
+  // else.
+  requiredTagId: true,
+  requiredTag: { select: { name: true } },
+  group: {
+    select: {
+      slug: true,
+      name: true,
+      color: true,
+      requiredTagId: true,
+      requiredTag: { select: { name: true } },
+    },
+  },
+  removable: true,
+  craftable: true,
+  // Minified via formatTagRequirement (@lifeweb/db) wherever a tag's
+  // description renders — see Tag.requirement* in schema.prisma.
+  requirementTurns: true,
+  requirementResources: true,
+  requirementGambit: true,
+  requirementSkills: { select: { id: true, slug: true, name: true } },
+  // A prose {tag:…} reference has no CharacterTag behind it and so no
+  // live expiresTurn — this is the only thing that can tell a reader
+  // how long the tag would last. See TagChip.js's expiry line.
+  defaultDurationTurns: true,
+  // What this tag turns into when that duration runs out — the
+  // untreated-wound chain. TagChip renders it as a "Becomes" line, so a
+  // player can see the threat before the timer teaches them.
+  expiresInto: true,
+  // Drives TagChip's "Visible" line — whether a 🔍 inspect shows this
+  // tag to another player.
+  visibleOnInspect: true,
+};
+
 // Session-dependent, so it must never be cached across callers.
 export async function getVisibleTags() {
   const session = await auth();
   const [tags, character] = await Promise.all([
     prisma.tag.findMany({
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-        description: true,
-        pointCost: true,
-        category: true,
-        // The prerequisite gates' NAMES drive TagChip's "Requires" line.
-        // Group-gated tags are filtered to gate-holders below, so the name
-        // never reaches someone it would tip off.
-        requiredTagId: true,
-        requiredTag: { select: { name: true } },
-        group: {
-          select: {
-            slug: true,
-            name: true,
-            color: true,
-            requiredTagId: true,
-            requiredTag: { select: { name: true } },
-          },
-        },
-        removable: true,
-        craftable: true,
-        // Minified via formatTagRequirement (@lifeweb/db) wherever a tag's
-        // description renders — see Tag.requirement* in schema.prisma.
-        requirementTurns: true,
-        requirementResources: true,
-        requirementGambit: true,
-        requirementSkills: { select: { id: true, slug: true, name: true } },
-        // A prose {tag:…} reference has no CharacterTag behind it and so no
-        // live expiresTurn — this is the only thing that can tell a reader
-        // how long the tag would last. See TagChip.js's expiry line.
-        defaultDurationTurns: true,
-        // What this tag turns into when that duration runs out — the
-        // untreated-wound chain. TagChip renders it as a "Becomes" line, so a
-        // player can see the threat before the timer teaches them.
-        expiresInto: true,
-        // Drives TagChip's "Visible" line — whether a 🔍 inspect shows this
-        // tag to another player.
-        visibleOnInspect: true,
-      },
+      select: TAG_CHIP_FIELDS,
     }),
     session?.discordUserId
       ? prisma.character.findFirst({

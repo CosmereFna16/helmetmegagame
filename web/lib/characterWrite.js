@@ -110,6 +110,10 @@ export async function normalizeCoreEdits({ prisma, existing, core }) {
   }
 
   // ── role, and the dynasty lock that rides on it ─────────────────────────
+  // Deliberately NO roleCapacity() check here, unlike createActions.js and
+  // reserveRoleAction — a GM hand-assigning a role is treated as an override
+  // of the seat cap, not a request subject to it. It also does not see or
+  // clear a live RoleReservation on the seat it's assigning into.
   const roleId = "roleId" in picked ? trimmedOrNull(picked.roleId) : existing.roleId;
   const role = roleId ? await prisma.role.findUnique({ where: { id: roleId } }) : null;
   if (roleId && !role) throw new UserError("That role no longer exists.");

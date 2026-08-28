@@ -1492,6 +1492,22 @@ tags:
     removable: false
     durationTurns: 1
 
+  # Granted and cleared automatically by the per-turn upkeep pass
+  # (db/lib/catatonicPass.js, called from resolveNeeds) — never by a player or
+  # a picker, hence purchasable/removable false. Deliberately no
+  # durationTurns: the pass owns both the grant and the clear itself, so
+  # there is nothing for the expiry sweep to do here.
+  - slug: catatonic
+    name: Catatonic (AFK)
+    category: status
+    group: status-debuffs
+    description: "The stresses of Ravenheart have proven too much for this one. They have an empty look."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
   - slug: tipsy
     name: Tipsy
     category: status

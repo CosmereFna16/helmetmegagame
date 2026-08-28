@@ -80,6 +80,22 @@ async function audit(session, actionType, characterId, details, reason = null) {
   });
 }
 
+// Every microaction that changes something a player would otherwise only
+// discover by re-opening their sheet tells them so — a dev-panel edit is
+// still a thing that happened to their character. Called from `after()`,
+// post-commit, same posture as the Discord-sync steps above: a DM must never
+// hold up the button, and a failed one must never undo what already
+// happened. Not a Request — this is a notification, not something the
+// player responds to, so it never touches the Request lifecycle.
+function notifyCharacter(session, character, text) {
+  after(() =>
+    sendDm(character.discordUserId, text, {
+      authorDiscordUserId: session.discordUserId,
+      source: "gm_dev",
+    }).catch((err) => console.error(`Dev Panel DM failed for ${character.id}:`, err)),
+  );
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // The one staged-apply action.
 // ───────────────────────────────────────────────────────────────────────────
@@ -215,6 +231,22 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
     });
   }
 
+  // Summarise what actually changed — tags first (the part most likely to
+  // matter to a player), then the plain fields, skipping the transaction's
+  // own bookkeeping (updatedAt and the like never surface here anyway since
+  // diffCore only diffs edited fields).
+  const changeLines = [];
+  const tagGains = appliedTags.filter((t) => t.op === "add").map((t) => t.name ?? t.tagId);
+  const tagLosses = appliedTags.filter((t) => t.op === "remove").map((t) => t.name ?? t.tagId);
+  if (tagGains.length) changeLines.push(`+ ${tagGains.join(", ")}`);
+  if (tagLosses.length) changeLines.push(`- ${tagLosses.join(", ")}`);
+  if (diff.resources) changeLines.push(`Resources: ${diff.resources.from} → ${diff.resources.to} ⬢`);
+  if (diff.zoneId) changeLines.push(`Moved.`);
+  if (diff.name || diff.lastName) changeLines.push(`Name updated.`);
+  if (changeLines.length) {
+    notifyCharacter(session, existing, `Your sheet was edited:\n${changeLines.join("\n")}`);
+  }
+
   repaint(characterId);
   if (diff.factionId || leader !== null || diff.isTreasurer) revalidatePath("/faction");
 
@@ -244,6 +276,11 @@ async function killCharacterNowImpl({ characterId, reason }) {
   after(() =>
     killCharacter(updated).catch((err) => console.error("killCharacter failed:", err)),
   );
+  notifyCharacter(
+    session,
+    character,
+    `${character.name} has died.${reason?.trim() ? `\n${reason.trim()}` : ""}`,
+  );
 
   repaint(characterId);
   revalidatePath(TURNS_PATH, "page");
@@ -268,6 +305,7 @@ async function reviveCharacterImpl({ characterId }) {
   });
 
   await audit(session, "gm_character_revived", characterId, { name: character.name });
+  notifyCharacter(session, character, `${character.name} has been revived.`);
 
   after(async () => {
     try {
@@ -287,7 +325,7 @@ async function reviveCharacterImpl({ characterId }) {
 
 // Giving the turn back means deleting the Action row — there is no
 // turnsRemaining column, so nothing else frees the player (web/lib/moveEconomy.js).
-async function restoreTurnImpl({ characterId, reason, notify = true }) {
+async function restoreTurnImpl({ characterId, reason }) {
   const session = await requireGm();
   const character = await loadCharacter(characterId);
   const { action } = await findOpenTurnAction(prisma, characterId);
@@ -316,16 +354,14 @@ async function restoreTurnImpl({ characterId, reason, notify = true }) {
     });
   });
 
-  if (notify) {
-    // A freed turn they don't know about is a wasted day.
-    after(() =>
-      sendDm(
-        character.discordUserId,
-        `Your Move was returned to you — you can act again this turn.${reason?.trim() ? `\n${reason.trim()}` : ""}`,
-        { authorDiscordUserId: session.discordUserId, source: "gm_dev" },
-      ).catch(() => null),
-    );
-  }
+  // Always DM'd, not optional — a freed turn they don't know about is a
+  // wasted day. Plain notification, not a Request: nothing here rides the
+  // request lifecycle.
+  notifyCharacter(
+    session,
+    character,
+    `Your Move was returned to you — you can act again this turn.${reason?.trim() ? `\n${reason.trim()}` : ""}`,
+  );
 
   repaint(characterId);
   revalidatePath(TURNS_PATH, "page");
@@ -359,6 +395,11 @@ async function spendTurnImpl({ characterId, description }) {
   });
 
   await audit(session, "gm_turn_spent", characterId, { actionId: created.id, turn: openTurn.number });
+  notifyCharacter(
+    session,
+    character,
+    `Your turn was spent for you today.${description?.trim() ? `\n${description.trim()}` : ""}`,
+  );
 
   repaint(characterId);
   revalidatePath(TURNS_PATH, "page");
@@ -477,7 +518,7 @@ async function deleteCharacterImpl({ characterId, confirmName }) {
 // schema one, so setting a new one cancels the old in the same transaction.
 async function setDesireGmImpl({ characterId, text, points }) {
   const session = await requireGm();
-  await loadCharacter(characterId);
+  const character = await loadCharacter(characterId);
   const body = (text ?? "").trim();
   if (!body) throw new UserError("A desire needs some text.");
   const value = Number.parseInt(points, 10);
@@ -498,13 +539,14 @@ async function setDesireGmImpl({ characterId, text, points }) {
   });
 
   await audit(session, "gm_desire_set", characterId, { desireId: desire.id, points: value });
+  notifyCharacter(session, character, `New Desire (worth ${value} pt${value === 1 ? "" : "s"}):\n${body}`);
   repaint(characterId);
   return { desireId: desire.id };
 }
 
 async function endDesireGmImpl({ characterId, desireId, mode }) {
   const session = await requireGm();
-  await loadCharacter(characterId);
+  const character = await loadCharacter(characterId);
   const desire = await prisma.desire.findUnique({ where: { id: desireId } });
   if (!desire || desire.characterId !== characterId) throw new UserError("That desire is gone.");
   if (desire.status !== "ACTIVE") throw new UserError("That desire has already ended.");
@@ -534,6 +576,13 @@ async function endDesireGmImpl({ characterId, desireId, mode }) {
     desireId,
     points: fulfilling ? desire.points : 0,
   });
+  notifyCharacter(
+    session,
+    character,
+    fulfilling
+      ? `Desire fulfilled: "${desire.text}" (+${desire.points} tag point${desire.points === 1 ? "" : "s"})`
+      : `Desire cancelled: "${desire.text}"`,
+  );
   repaint(characterId);
   return { points: fulfilling ? desire.points : 0 };
 }

@@ -1,6 +1,7 @@
 const { WebhookClient, RESTJSONErrorCodes, GuildPremiumTier } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const { recordArchiveMessage } = require("@lifeweb/db/lib/archive");
+const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
 const { capitalizeSentences } = require("./textCorrection");
 const { resolveChannelContext } = require("./channels");
 const { sendDm } = require("./dm");
@@ -335,6 +336,7 @@ async function sendAsCharacter(channel, character, message, { conceal = null, co
     concealedAlias: conceal?.alias ?? null,
     ...resolveChannelContext(channel),
   });
+  await touchCharacterActivity(prisma, character.id);
 
   await deleteOriginal(message);
 

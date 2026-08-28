@@ -37,6 +37,7 @@ import {
   CURSED_ROLE_SLUGS,
 } from "@/lib/characterCreation";
 
+import { reserveRole, releaseRole } from "@lifeweb/db/lib/roleReservation";
 import { recordArchiveEvent } from "@/lib/archive";
 import {
   AGE_MIN,
@@ -57,9 +58,14 @@ import {
 // directly.
 //
 // The seat-cap recheck also closes a genuine race the UI cannot: two players
-// sitting on the last Baron seat both see "0/1" and both hit Confirm. The
-// count is taken inside the transaction that creates the character, so the
-// second one loses.
+// sitting on the last Baron seat both see "0/1" and both hit Confirm. A bare
+// count inside the transaction is NOT enough on its own — Prisma runs at
+// READ COMMITTED, so two concurrent transactions can both read the same
+// pre-insert count and both commit. The `FOR UPDATE` row lock on the Role
+// below is what actually serializes the two attempts, same pattern as
+// equipActions.js's equip-slot check. The wizard's own reservation
+// (db/lib/roleReservation.js) only narrows the window before Confirm; this
+// lock is what closes it.
 export async function createCharacter(formData) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
@@ -293,10 +299,20 @@ export async function createCharacter(formData) {
   let created;
   try {
     created = await prisma.$transaction(async (tx) => {
-      const taken = await tx.character.count({ where: { roleId: role.id, status: "ALIVE" } });
-      if (taken >= roleCapacity(role, config?.playerCount ?? 100)) {
+      // The lock that actually closes the race — see the header comment.
+      await tx.$queryRaw`SELECT id FROM "Role" WHERE id = ${role.id} FOR UPDATE`;
+      const [taken, reservedByOthers] = await Promise.all([
+        tx.character.count({ where: { roleId: role.id, status: "ALIVE" } }),
+        tx.roleReservation.count({
+          where: { roleId: role.id, discordUserId: { not: discordUserId }, expiresAt: { gt: new Date() } },
+        }),
+      ]);
+      if (taken + reservedByOthers >= roleCapacity(role, config?.playerCount ?? 100)) {
         throw new Error("ROLE_FULL");
       }
+      // Release the caller's own hold in the same transaction — it's spent
+      // now, either way this commits.
+      await releaseRole(tx, discordUserId);
 
       const character = await tx.character.create({
         data: {
@@ -392,4 +408,57 @@ export async function createCharacter(formData) {
 
   revalidatePath("/", "layout");
   redirect("/character");
+}
+
+// Called from the wizard on Next out of the Role step, and again on every
+// later Next, so the hold's expiry keeps sliding out while the player is
+// still working the form. A server action is a public endpoint, so this
+// re-checks the same gates createCharacter does before touching the seat —
+// the wizard already disables ineligible cards, but that's the hint, not
+// the lock.
+export async function reserveRoleAction(roleId) {
+  const session = await auth();
+  if (!session?.discordUserId) return { error: "Sign in to hold a role." };
+  const discordUserId = session.discordUserId;
+  if (!roleId) return { error: "Pick a role before continuing." };
+
+  if (await prisma.character.findFirst({ where: { discordUserId, status: "ALIVE" } })) {
+    return { error: "You already have a character." };
+  }
+
+  const [role, config, member] = await Promise.all([
+    prisma.role.findUnique({ where: { id: roleId }, include: { faction: { include: { zone: true } } } }),
+    prisma.gameConfig.findUnique({ where: { id: 1 } }),
+    getGuildMember(discordUserId),
+  ]);
+  if (!role) return { error: "That role no longer exists." };
+
+  const bypass = isSuperadmin(discordUserId);
+  if (!bypass && !config?.openToPlayers) {
+    return { error: "Ravenheart isn't open yet. Character creation opens when the game begins." };
+  }
+  if (!bypass && !isApprovedPlayer(member)) {
+    return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong." };
+  }
+  const playtestLocked =
+    config?.playtestModeEnabled === true &&
+    isPlaytestLocked({ role, zoneName: role.faction?.zone?.name });
+  if (playtestLocked) {
+    return { error: "That role is closed for this playtest." };
+  }
+  const leaderWhitelisted =
+    bypass || config?.leaderWhitelistEnabled === false || isLeaderWhitelisted(member);
+  if (role.grantsLeader && !leaderWhitelisted) {
+    return { error: "That role isn't available to you." };
+  }
+  const cursed = isCursed(member);
+  if (!isRoleSelectable({ role, cursed, leaderWhitelisted })) {
+    return { error: `While cursed you may only return as ${CURSED_ROLE_SLUGS.join(" or ")}.` };
+  }
+
+  const result = await reserveRole(prisma, discordUserId, roleId, config?.playerCount ?? 100);
+  if (!result.ok) {
+    return { error: `${role.name} was taken while you were deciding. Pick another role.` };
+  }
+  return { ok: true, expiresAt: result.expiresAt };
 }

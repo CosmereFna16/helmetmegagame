@@ -150,7 +150,6 @@ async function handleDossierReaction(reaction, proxy, user) {
     value: action
       ? [
           action.moveKind ? (action.moveKind === "GAMBIT" ? "Gambit" : "Routine") : "Move",
-          action.opposed ? "Opposed" : null,
           action.moveReviewStatus,
           action.diceRoll != null
             ? `🎲 ${action.diceRoll}${action.diceModifier ? ` (${action.diceModifier > 0 ? "+" : ""}${action.diceModifier})` : ""}`
@@ -281,7 +280,7 @@ module.exports = {
       // Stripped like every other handled reaction, so no count accumulates —
       // and so the next ghost's press is a fresh event rather than a no-op on
       // an existing reaction.
-      await reaction.users.remove(user.id).catch(() => {});
+      await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
       return;
     }
 
@@ -296,7 +295,7 @@ module.exports = {
       await handleDossierReaction(reaction, proxy, user).catch((err) =>
         console.error("Dossier reaction failed:", err),
       );
-      await reaction.users.remove(user.id).catch(() => {});
+      await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
       return;
     }
 
@@ -305,22 +304,32 @@ module.exports = {
       // Universal rule: a ⭐ reaction is always stripped back off right after
       // being processed, for any user, on any message — so the star lives on
       // the reactor's Notes list, not as a visible, accumulating reaction.
-      await reaction.users.remove(user.id).catch(() => {});
+      await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
       return;
     }
 
     if (emoji === DELETE_EMOJI) {
       if (!isOwner && !(await isGm(reaction, user.id))) return;
       const webhookClient = webhookClientFor({ id: proxy.webhookId, token: proxy.webhookToken });
-      await webhookClient
+      const deleted = await webhookClient
         .deleteMessage(reaction.message.id, { threadId: proxy.threadId })
-        .catch(() => {});
-      // The transcript honors the deletion, so ❌ means gone everywhere and a
-      // player can trust the button. The accepted cost is that /archive is an
-      // incomplete record — someone can quietly retract what they said.
-      await deleteArchiveMessage(prisma, reaction.message.id);
-      await reaction.users.remove(user.id).catch(() => {});
-      recentProxies.delete(reaction.message.id);
+        .then(() => true)
+        .catch((err) => {
+          // An archived thread (or any other write Discord refuses) must not
+          // destroy the archive row for a message that's still visibly on
+          // screen — mirrors the ✏️ branch below, which only mirrors an edit
+          // once Discord has actually accepted it.
+          console.error("Failed to delete proxied message:", err);
+          return false;
+        });
+      if (deleted) {
+        // The transcript honors the deletion, so ❌ means gone everywhere and a
+        // player can trust the button. The accepted cost is that /archive is an
+        // incomplete record — someone can quietly retract what they said.
+        await deleteArchiveMessage(prisma, reaction.message.id);
+        recentProxies.delete(reaction.message.id);
+      }
+      await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip ❌ reaction:", err));
       return;
     }
 
@@ -343,7 +352,7 @@ module.exports = {
 
       const reply = collected?.first();
       if (!reply) {
-        await reaction.users.remove(user.id).catch(() => {});
+        await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
         return;
       }
 
@@ -356,7 +365,7 @@ module.exports = {
         .then(() => updateArchiveMessage(prisma, reaction.message.id, reply.content))
         .then(() => sendDm(user, "» *Updated.*"))
         .catch(() => sendDm(user, "» *Couldn't update that message, it may be too old.*"));
-      await reaction.users.remove(user.id).catch(() => {});
+      await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
       return;
     }
 
@@ -437,7 +446,7 @@ module.exports = {
           }),
           prisma.character.findFirst({
             where: { discordUserId: user.id, status: "ALIVE" },
-            select: { tags: { select: { tagId: true, tag: { select: { slug: true } } } } },
+            select: { factionId: true, tags: { select: { tagId: true, tag: { select: { slug: true } } } } },
           }),
           prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
           // Just the tier chain, for the same reason healCharacterRequest reads
@@ -505,6 +514,19 @@ module.exports = {
           });
         }
 
+        // Role is same-faction knowledge, not Silo authority — deliberately
+        // NOT the ancestor walk getSiloAccess does below. A parent faction's
+        // officer can manage a subject's treasury without knowing its
+        // org chart; only standing in the same faction does.
+        if (
+          character.factionId &&
+          character.faction?.name !== "Unaffiliated" &&
+          viewer?.factionId === character.factionId &&
+          character.roleTitle
+        ) {
+          embed.addFields({ name: "Role", value: character.roleTitle, inline: true });
+        }
+
         // Whoever holds Silo authority over this character's faction — its
         // Leader/Treasurer, or an ancestor faction's — sees what they're
         // carrying, the same gate /faction's roster column uses. For anyone
@@ -534,7 +556,7 @@ module.exports = {
         }
       } finally {
         // Runs on the concealed branch's early return too.
-        await reaction.users.remove(user.id).catch(() => {});
+        await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
       }
     }
   },

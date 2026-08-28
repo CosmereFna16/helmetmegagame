@@ -58,10 +58,6 @@ function buildMoveModal() {
             ),
         ),
       new LabelBuilder()
-        .setLabel("Opposed")
-        .setDescription("Tick if this affects other players negatively.")
-        .setCheckboxComponent(new CheckboxBuilder().setCustomId("move:opposed")),
-      new LabelBuilder()
         .setLabel("Labor")
         .setDescription("Applies your skills automatically.")
         .setCheckboxComponent(new CheckboxBuilder().setCustomId("move:labor")),

@@ -2,7 +2,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 import {
+  BUST_PX,
   CANVAS,
+  FADE_DARKEN,
+  FADE_HEIGHT,
+  FADE_TINT,
   LAYERS,
   PLATE_SRC,
   SHEET_DIR,
@@ -12,6 +16,32 @@ import {
   recolor,
   tileRect,
 } from "./catalog";
+
+// How far the BUST_PX bust is cropped back down to CANVAS — bottom-anchored,
+// centred in x. See the BUST_PX comment in catalog.js.
+const CROP_X = (BUST_PX - CANVAS) / 2;
+const CROP_Y = BUST_PX - CANVAS;
+
+// A linear gradient from transparent to the plate's own darkened tint over
+// the bottom FADE_HEIGHT of the canvas, cached like the sheets — it never
+// changes. Drawn OVER the finished bust, not under it: the point is to
+// swallow the chin cut, not to cast a shadow behind the head.
+let fadeSvgCache = null;
+function fadeSvg() {
+  if (fadeSvgCache) return fadeSvgCache;
+  const h = Math.round(CANVAS * FADE_HEIGHT);
+  const { r, g, b } = FADE_TINT;
+  const c = `rgb(${Math.round(r * FADE_DARKEN)},${Math.round(g * FADE_DARKEN)},${Math.round(b * FADE_DARKEN)})`;
+  fadeSvgCache = Buffer.from(
+    `<svg width="${CANVAS}" height="${CANVAS}" xmlns="http://www.w3.org/2000/svg">` +
+      `<defs><linearGradient id="f" x1="0" y1="0" x2="0" y2="1">` +
+      `<stop offset="0" stop-color="${c}" stop-opacity="0"/>` +
+      `<stop offset="1" stop-color="${c}" stop-opacity="1"/>` +
+      `</linearGradient></defs>` +
+      `<rect x="0" y="${CANVAS - h}" width="${CANVAS}" height="${h}" fill="url(#f)"/></svg>`,
+  );
+  return fadeSvgCache;
+}
 
 // Renders a saved portrait — the server half of the pair described in
 // catalog.js. The browser draws the same layers through the same palette onto
@@ -93,16 +123,19 @@ export async function renderPortrait(selection) {
     .png()
     .toBuffer();
 
+  // Nearest, not the default Lanczos: this is pixel art, and every other
+  // kernel turns its hard edges into mush at 2x. Scaled to BUST_PX rather
+  // than straight to CANVAS, then cropped back down bottom-anchored — that
+  // extra headroom is what pushes the chin cut below the plate's edge.
   const bust = await sharp(shifted)
     .extract({ left: 0, top: 0, width: TILE, height: TILE })
-    // Nearest, not the default Lanczos: this is pixel art, and every other
-    // kernel turns its hard edges into mush at 2x.
-    .resize(CANVAS, CANVAS, { kernel: "nearest" })
+    .resize(BUST_PX, BUST_PX, { kernel: "nearest" })
+    .extract({ left: CROP_X, top: CROP_Y, width: CANVAS, height: CANVAS })
     .png()
     .toBuffer();
 
   return sharp(await readAsset(PLATE_SRC))
-    .composite([{ input: bust }])
+    .composite([{ input: bust }, { input: fadeSvg() }])
     .webp({ quality: 90 })
     .toBuffer();
 }

@@ -14,13 +14,15 @@
 // in over Discord dropdowns.
 export const MOVE_PIPELINE_LABELS = {
   PENDING_TYPE: "Setting up Move",
-  PENDING_OPPOSED: "Picking Opposed",
+  // Legacy: no longer written, kept for old rows. See ActionStatus.PENDING_OPPOSED.
+  PENDING_OPPOSED: "Pending confirm",
   PENDING: "Pending confirm",
 };
 
 export const MOVE_REVIEW_LABELS = {
   OPEN: "Open",
   PASSED: "Passed",
+  // Legacy: no longer written, kept for old rows. See MoveReviewStatus.WAITING_FOR_OPPONENTS.
   WAITING_FOR_OPPONENTS: "Waiting for Opponents",
   IN_PROGRESS: "In Progress",
   SOLVED: "Solved",

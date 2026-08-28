@@ -12,6 +12,7 @@ import { requireReason } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { deleteActionRestoringTurn, MOVE_LOCK_TTL_MS, lockIsLive } from "@/lib/moveEconomy";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
+import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
 
 // The server half of the adjudication workspace. Everything here follows the
 // staged-arbitration rule: nothing a GM does on the desk touches a player's
@@ -557,7 +558,6 @@ function normalizeEdits(action, edits, characterTags, hungerStreak) {
     }
   }
 
-  data.opposed = Boolean(edits.opposed);
   data.resultMessage = edits.resultMessage?.toString().trim() || null;
   return data;
 }
@@ -867,23 +867,6 @@ async function killRequestTargetImpl({ requestId }) {
 // ---------------------------------------------------------------------------
 // Inspector fetchers — read-only DTOs for the right-hand column
 // ---------------------------------------------------------------------------
-
-// Same field discipline as the queue page's TAG_CHIP_FIELDS: exactly what
-// TagChip renders.
-const TAG_CHIP_FIELDS = {
-  id: true,
-  slug: true,
-  name: true,
-  description: true,
-  pointCost: true,
-  defaultDurationTurns: true,
-  expiresInto: true,
-  visibleOnInspect: true,
-  requirementTurns: true,
-  requirementResources: true,
-  requirementGambit: true,
-  requirementSkills: { select: { name: true } },
-};
 
 async function getCharacterInspectorImpl({ characterId }) {
   await requireGm();

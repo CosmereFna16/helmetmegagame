@@ -22,7 +22,7 @@ import PageShell, { PageHeader } from "@/app/components/PageShell";
 // naming the counts keeps an added column from silently shortening the empty
 // row underneath it.
 const SILO_COL_COUNT = 5;
-const MEMBER_COL_COUNT = 6;
+const MEMBER_COL_COUNT = 7;
 
 async function loadFaction(factionId) {
   return prisma.faction.findUnique({
@@ -40,6 +40,7 @@ async function loadFaction(factionId) {
           status: true,
           isLeader: true,
           isTreasurer: true,
+          roleTitle: true,
           // Only ever rendered behind a Silo-access check (viewCanManageSilo
           // below, or the GM branch) — a plain member never sees the column.
           resources: true,
@@ -265,6 +266,11 @@ export default async function FactionPage({ searchParams }) {
             <thead>
               <tr>
                 <th>Name</th>
+                {/* Role is same-faction knowledge — this whole roster is
+                    already scoped to your faction (or a subject faction you
+                    have Silo access into), so it renders unconditionally,
+                    unlike Resources below. */}
+                <th>Role</th>
                 {/* Silo authority — a faction's Leader/Treasurer, or an
                     ancestor faction's — is exactly who may see what each
                     member is holding, same gate as the Silo panels below. */}
@@ -289,6 +295,7 @@ export default async function FactionPage({ searchParams }) {
                       {c.isLeader ? " (Leader)" : ""}
                       {treasurer ? " (Treasurer)" : ""}
                     </td>
+                    <td>{c.roleTitle ?? "—"}</td>
                     {viewCanManageSilo && <td>{c.resources} ⬢</td>}
                     {canManageMembers && (
                       <td>
@@ -396,6 +403,7 @@ export default async function FactionPage({ searchParams }) {
             <tr>
               <th>Name</th>
               <th>Fate</th>
+              <th>Role</th>
               <th>Resources</th>
               <th></th>
               <th></th>
@@ -415,6 +423,7 @@ export default async function FactionPage({ searchParams }) {
                   <td>
                       <EnumPill map={CHARACTER_STATUS} value={c.status} />
                     </td>
+                  <td>{c.roleTitle ?? "—"}</td>
                   <td>{c.resources} ⬢</td>
                   <td>
                     {!isUnaffiliated && !c.isLeader && (

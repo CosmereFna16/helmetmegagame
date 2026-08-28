@@ -100,7 +100,6 @@ function MoveRows({ table, stagedByMove, selected, onSelect, gmProfiles, kbdId, 
         </span>
         <span className="block truncate text-xs text-muted">
           {row.kindLabel}
-          {row.opposed ? " · Opposed" : ""}
           {row.rollLabel ? ` · ${row.rollLabel}` : ""}
           {stagedCount ? ` · ${stagedCount} staged` : ""}
         </span>

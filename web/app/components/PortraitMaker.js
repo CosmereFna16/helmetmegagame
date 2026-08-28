@@ -4,8 +4,12 @@ import Tooltip from "./Tooltip";
 import FormError from "@/app/components/FormError";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  BUST_PX,
   CANVAS,
   COLOR_GROUPS,
+  FADE_DARKEN,
+  FADE_HEIGHT,
+  FADE_TINT,
   GROUPS,
   LAYERS,
   PLATE_SRC,
@@ -19,6 +23,18 @@ import {
   tileRect,
   randomSelection,
 } from "@/lib/portrait/catalog";
+
+// How far the BUST_PX bust is cropped back down to CANVAS, expressed as
+// fractions of CANVAS so the same math works at any output `size` (the big
+// preview and the small option thumbnails alike). Mirrors CROP_X/CROP_Y in
+// web/lib/portrait/render.js.
+const CROP_X_FRAC = (BUST_PX - CANVAS) / 2 / CANVAS;
+const CROP_Y_FRAC = (BUST_PX - CANVAS) / CANVAS;
+
+const FADE_RGB = (() => {
+  const { r, g, b } = FADE_TINT;
+  return [Math.round(r * FADE_DARKEN), Math.round(g * FADE_DARKEN), Math.round(b * FADE_DARKEN)];
+})();
 import Modal from "./Modal";
 import { setPortraitAvatar } from "../(app)/character/actions";
 
@@ -97,9 +113,17 @@ function tintedSheet(cache, layer, img, selection, palette) {
 }
 
 // The mirror of renderPortrait() in web/lib/portrait/render.js: same layers,
-// same order, same palette, same SHIFT_X. If you change one, change the other.
+// same order, same palette, same SHIFT_X, same BUST_PX crop and fade. If you
+// change one, change the other.
 function drawPortrait(ctx, size, assets, cache, selection, palette) {
-  const scale = size / TILE;
+  // Overall scale from one TILE (128) to the BUST_PX-sized bust, expressed in
+  // this canvas's own `size` units (128 for a thumbnail, 256 for the
+  // preview) — the same ratio render.js gets from two separate resize steps.
+  const bustScale = (size / TILE) * (BUST_PX / CANVAS);
+  const destSize = TILE * bustScale;
+  const destX = SHIFT_X * bustScale - CROP_X_FRAC * size;
+  const destY = -CROP_Y_FRAC * size;
+
   ctx.imageSmoothingEnabled = false;
   ctx.clearRect(0, 0, size, size);
   if (assets.plate) ctx.drawImage(assets.plate, 0, 0, size, size);
@@ -111,10 +135,19 @@ function drawPortrait(ctx, size, assets, cache, selection, palette) {
     const rect = tileRect(index);
     if (rect.top + TILE > img.height) continue;
     const sheet = tintedSheet(cache, layer, img, selection, palette);
-    // Overhangs the right edge by SHIFT_X and is clipped there, which is what
-    // the server's extract() does to the same pixels.
-    ctx.drawImage(sheet, rect.left, rect.top, TILE, TILE, SHIFT_X * scale, 0, size, size);
+    // Drawn at bust scale, shifted and cropped to match the server's
+    // resize-to-BUST_PX-then-extract-to-CANVAS path; the canvas clips
+    // anything outside [0, size) on its own, same as sharp's extract().
+    ctx.drawImage(sheet, rect.left, rect.top, TILE, TILE, destX, destY, destSize, destSize);
   }
+
+  // The bottom-of-frame fade, drawn last so it sits over the finished bust.
+  const [fr, fg, fb] = FADE_RGB;
+  const gradient = ctx.createLinearGradient(0, size * (1 - FADE_HEIGHT), 0, size);
+  gradient.addColorStop(0, `rgba(${fr},${fg},${fb},0)`);
+  gradient.addColorStop(1, `rgba(${fr},${fg},${fb},1)`);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, size * (1 - FADE_HEIGHT), size, size * FADE_HEIGHT);
 }
 
 /**

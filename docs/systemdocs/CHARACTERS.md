@@ -352,9 +352,28 @@ live dial: set it to 120 on `/gm/dev` and every weighted role widens by 1.2×.
 Baron in a 300-player game.
 
 A role at capacity renders disabled. That's advisory only: `createCharacter`
-re-counts **inside the transaction that creates the character**, so when two
-players sit on the last Baron seat and both hit Confirm, the second one gets
-told to pick again.
+re-counts inside the transaction that creates the character. A bare count
+there is **not** enough by itself — Prisma runs at READ COMMITTED, so two
+concurrent transactions can both read the same pre-insert count and both
+commit, seating two Barons. What actually closes it is a `SELECT ... FOR
+UPDATE` row lock taken on the Role first, the same pattern
+`equipActions.js`'s equip-slot check uses, so the second attempt reads the
+first's committed count. When two players sit on the last Baron seat and
+both hit Confirm, the second one gets told to pick again.
+
+### Seat reservations
+
+A five-step wizard between "pick a role" and "the seat is actually yours" is
+a long window for a capacity-1 role to vanish out from under a player mid-tag-menu.
+`RoleReservation` (`db/lib/roleReservation.js`) holds a seat for **30
+minutes**, refreshed on every Next after the Role step — so a careful tag
+menu never costs it, but an abandoned tab frees a unique seat the same
+session. `discordUserId` is `@unique`: a player can hold exactly one seat,
+and reserving a different role releases the first as part of the same
+upsert. Expiry is swept lazily wherever a taken count is read; there is no
+cron job. The picker (`/character`) counts ALIVE characters plus everyone
+else's live hold, excluding the viewer's own — so a held role reads as taken
+to other players and available to its holder.
 
 ### The Leader Whitelist
 
