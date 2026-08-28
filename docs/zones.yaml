@@ -49,7 +49,7 @@ zones:
     kind: surface
     sort: 1
     description: >-
-      A fertile valley.
+      Ants in the marshy chaff. The town is surrounded by an old wall of ancient ceramide, so old it looks exhumed from the ground, patched by wooden palisade. Decayed electric lights illuminate the narrow streets. Speakers blare the Baron's words. It is claustrophobic—salt-of-the-earth, virtuous, and degenerate types all in one disease-ridden congregation.
     map:
       polygon:
         - [50, 30]
@@ -142,8 +142,10 @@ zones:
     name: Fortress
     kind: surface
     sort: 2
-    description: >-
-      A fortress.
+    description: |-
+      The fortress and its small surrounding estates rise nobly from the wooded hills, the keep itself visible behind the walls. They look down upon the town. A stone bridge fords the river.
+
+      The Lifeweb emits primordial green fires.
     map:
       polygon:
         - [5, 5]
@@ -252,7 +254,7 @@ zones:
     kind: surface
     sort: 3
     description: >-
-      Brush, puddles, and wind. Little survives here.
+      Little monsters, puddles, and lizards, scorched by foul sunlight and buffeted by hurricane winds. Shadowy, unexplored openings in the mountains lead into the caves.
     map:
       polygon:
         - [5, 65]
@@ -321,7 +323,7 @@ zones:
                 description: ""
               - name: Merchant's Depot
                 description: >-
-                  Inside the caves, crates around a decayed metal frame. There is a zig-zag gap in the roof where light comes in. Besides the shuttle pad, there is a ledger room and a bunkhouse.
+                  Inside the caves, crates around a decayed metal frame. There is a zig-zag gap in the roof where light comes in. Besides the shuttle pad, there is a ledger room and a bunkhouse. Monsters regularly approach the depot.
 
       # The three levels of the Depths, chained one Move apart like every
       # other hop — since the zone rework there is no free walking anywhere,

@@ -11,13 +11,6 @@ import { travelTo } from "./travelActions";
 // region only means anything drawn over the art it was traced from.
 const PLATE_SRC = "/assets/Map_Basic.png";
 
-// The plate is authored as percentages of a 4:3 field, so the SVG is one
-// fixed 1000 x 750 viewBox and a coordinate is just a multiplication.
-const VIEW_W = 1000;
-const VIEW_H = 750;
-const sx = (x) => x * (VIEW_W / 100);
-const sy = (y) => y * (VIEW_H / 100);
-
 const TIER_LABEL = {
   here: "You are here",
   cost: "Costs your Move",
@@ -31,7 +24,6 @@ const isReachable = (tier) => tier === "cost";
 
 export default function MapPanel({
   regions,
-  groupLabels,
   currentId,
   hasCharacter,
   unplaced,
@@ -45,17 +37,6 @@ export default function MapPanel({
   // if the action errors (the transition ends without currentId changing).
   const [optimisticId, setOptimisticId] = useOptimistic(currentId);
   const [status, setStatus] = useState(null);
-
-  // Tiers come from the server relative to currentId, so while the optimistic
-  // position differs, the destination reads "here" and everything else reads
-  // as spent — the walk is in flight, and nothing is walkable until the
-  // refresh recomputes the real tiers anyway.
-  const tierOf = (region) => {
-    if (optimisticId === currentId) return region.tier;
-    if (region.id === optimisticId) return "here";
-    if (region.tier === "here" || region.tier === "cost") return "spent";
-    return region.tier;
-  };
 
   const here = optimisticId ? regions.find((r) => r.id === optimisticId) ?? null : null;
   const destinations = regions
@@ -113,47 +94,6 @@ export default function MapPanel({
               here. Same call as CharacterSheet's avatar. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className="map-ground" src={PLATE_SRC} alt="" />
-
-          {/* The regions are decoration as far as assistive tech is
-              concerned: the destination list below carries the same zones as
-              real buttons, and is the keyboard and screen-reader path. */}
-          <svg
-            className="map-regions"
-            viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-            preserveAspectRatio="none"
-            aria-hidden="true"
-          >
-            {regions.map((region) => {
-              if (!region.polygon) return null;
-              const tier = tierOf(region);
-              const walkable = isReachable(tier) && !pending;
-              return (
-                <polygon
-                  key={region.id}
-                  className="map-region"
-                  data-tier={tier}
-                  data-walkable={walkable ? "true" : "false"}
-                  points={region.polygon.map(([x, y]) => `${sx(x)},${sy(y)}`).join(" ")}
-                  onClick={walkable ? () => travel(region) : undefined}
-                />
-              );
-            })}
-
-            {/* Zone names, including the Caves group — which owns no region,
-                only a point over its levels. */}
-            {[...regions, ...groupLabels].map((label) =>
-              typeof label.labelX === "number" && typeof label.labelY === "number" ? (
-                <text
-                  key={`label-${label.id}`}
-                  className="map-region-label"
-                  x={sx(label.labelX)}
-                  y={sy(label.labelY)}
-                >
-                  {label.name}
-                </text>
-              ) : null,
-            )}
-          </svg>
         </div>
       </div>
 
