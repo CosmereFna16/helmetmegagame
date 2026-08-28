@@ -15,7 +15,7 @@ staged-arbitration rework (`ADJUDICATION.md`) — the reply says so.
 | base | — | 0–2 |
 | basic | `laborer-basic` (1 pt) | 2–5 |
 | skilled | `laborer-skilled` (2 pt, chains from basic) | 7–9 |
-| farming | `laborer-farming` (2 pt asset, requires skilled) | 18–26, **Town only** |
+| farming | `laborer-farming` (2 pt, requires skilled) | 18–26, **Town only** |
 
 - `computeRate` scales both ends by `GameConfig.productionCoefficient` and
   returns `{min,max}`.

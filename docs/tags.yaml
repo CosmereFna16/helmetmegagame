@@ -1146,7 +1146,7 @@ tags:
 
   - slug: laborer-farming
     name: Laborer (Farming)
-    category: assets
+    category: skills
     description: "When laboring in the Town zone, you make {resource:labor:farming} per turn. Anywhere else, you work at Skilled rates."
     pointCost: 2
     requiredTag: laborer-skilled

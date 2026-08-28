@@ -596,7 +596,7 @@ zones:
                 You can perform medicine, removing negative medical tags according to their skill, Resource, and action cost.
             difficulty: normal
             multiple: false
-            starting_resources: 1
+            starting_resources: 12
             starting_zone: town
             leader: true
             starting_tags:
@@ -808,7 +808,7 @@ zones:
             difficulty: normal
             multiple: true
             weight: 1
-            starting_resources: 1
+            starting_resources: 12
             starting_zone: town
             starting_tags:
               - Ravenhearter
