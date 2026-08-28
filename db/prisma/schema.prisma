@@ -846,6 +846,7 @@ model Character {
   stagedMessageRecipients StagedMessageRecipient[]
   stagedEffects           StagedEffect[]
   cavingRolls             CavingRoll[]
+  gmNotes                 GmCharacterNote[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1872,4 +1873,31 @@ model ArchiveEntry {
   @@index([zoneId, sentAt])
   @@index([characterId, sentAt])
   @@index([discordChannelId, sentAt])
+}
+
+// A GM's own notes about a player, on the player desk's dossier.
+//
+// NOT to be confused with Note above, which is a PLAYER's personal list of
+// messages they starred with a reaction in a location channel. That one is
+// keyed to the reacting user and is theirs; this one is GM-only and is about
+// somebody else.
+//
+// Append-only short notes with attribution rather than one shared editable
+// field, because five GMs editing a single textarea race each other and the
+// loser's paragraph vanishes with no trace of who ate it. A GM may delete
+// their own.
+//
+// A real relation with a cascade, unlike the log tables (DirectMessage,
+// AuditLog) that store snapshot columns on purpose: a note is live data ABOUT
+// a character rather than a record of something that happened, and it has no
+// meaning once the character is gone.
+model GmCharacterNote {
+  id                  String    @id @default(cuid())
+  characterId         String
+  character           Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  authorDiscordUserId String
+  content             String
+  createdAt           DateTime  @default(now())
+
+  @@index([characterId, createdAt])
 }

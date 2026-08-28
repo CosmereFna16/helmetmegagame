@@ -340,3 +340,90 @@ export async function sendGmBroadcast({ characterIds, message }) {
     return { recipientCount: recipients.length };
   });
 }
+
+// ── GM notes on a player ────────────────────────────────────────────────
+//
+// Append-only, attributed, delete-your-own. See the GmCharacterNote model for
+// why this isn't one shared editable field.
+
+const GM_NOTE_MAX_LENGTH = 2000;
+
+async function listGmNotesImpl({ characterId }) {
+  await requireGm();
+  const notes = await prisma.gmCharacterNote.findMany({
+    where: { characterId: String(characterId ?? "") },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+  // Wrapped in an object because guarded() spreads the payload — a bare array
+  // would come back as indices.
+  return {
+    notes: notes.map((n) => ({
+      id: n.id,
+      content: n.content,
+      authorDiscordUserId: n.authorDiscordUserId,
+      createdAt: n.createdAt.toISOString(),
+    })),
+  };
+}
+
+async function addGmNoteImpl({ characterId, content }) {
+  const session = await requireGm();
+  const text = String(content ?? "").trim();
+  if (!text) throw new UserError("Write something first.");
+  if (text.length > GM_NOTE_MAX_LENGTH) throw new UserError("That note is too long.");
+
+  // Re-checked server-side rather than trusted from the client, same posture
+  // as every other action here.
+  const character = await prisma.character.findUnique({
+    where: { id: String(characterId ?? "") },
+    select: { id: true, discordUserId: true },
+  });
+  if (!character) throw new UserError("That character no longer exists.");
+
+  const note = await prisma.gmCharacterNote.create({
+    data: {
+      characterId: character.id,
+      authorDiscordUserId: session.discordUserId,
+      content: text,
+    },
+  });
+
+  revalidatePath(`/gm/players/${character.discordUserId}`);
+  return {
+    note: {
+      id: note.id,
+      content: note.content,
+      authorDiscordUserId: note.authorDiscordUserId,
+      createdAt: note.createdAt.toISOString(),
+    },
+  };
+}
+
+async function deleteGmNoteImpl({ noteId }) {
+  const session = await requireGm();
+  const note = await prisma.gmCharacterNote.findUnique({
+    where: { id: String(noteId ?? "") },
+    select: { id: true, authorDiscordUserId: true, character: { select: { discordUserId: true } } },
+  });
+  if (!note) throw new UserError("That note is already gone.");
+  // Your own only. A GM tidying up someone else's read on a player is how a
+  // shared record stops being trustworthy.
+  if (note.authorDiscordUserId !== session.discordUserId) {
+    throw new UserError("That's another GM's note.");
+  }
+
+  await prisma.gmCharacterNote.delete({ where: { id: note.id } });
+  revalidatePath(`/gm/players/${note.character.discordUserId}`);
+  return {};
+}
+
+export async function listGmNotes(input) {
+  return guarded(() => listGmNotesImpl(input));
+}
+export async function addGmNote(input) {
+  return guarded(() => addGmNoteImpl(input));
+}
+export async function deleteGmNote(input) {
+  return guarded(() => deleteGmNoteImpl(input));
+}

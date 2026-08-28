@@ -13,6 +13,7 @@ import DossierColumn from "./DossierColumn";
 // ConversationPane), so holding a second copy here would just be a second
 // source of truth to keep in step.
 export default function PersonShell({ canon, currentTurnNumber, ...conversationProps }) {
+  const { gmProfiles, myDiscordUserId } = conversationProps;
   const prefillRef = useRef(null);
   const registerPrefill = useCallback((fn) => {
     prefillRef.current = fn;
@@ -31,6 +32,8 @@ export default function PersonShell({ canon, currentTurnNumber, ...conversationP
         canon={canon}
         onPrefill={onPrefill}
         currentTurnNumber={currentTurnNumber}
+        gmProfiles={gmProfiles}
+        myDiscordUserId={myDiscordUserId}
       />
     </div>
   );

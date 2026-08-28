@@ -6,6 +6,7 @@ import FactionLink from "@/app/components/FactionLink";
 import MarkdownContent from "@/app/components/MarkdownContent";
 import { getCharacterInspector, getArchiveSlice } from "@/app/(desk)/gm/turns/actions";
 import CanonPanel from "./CanonPanel";
+import NotesTab from "./NotesTab";
 
 // The right column: everything about this player that isn't the conversation.
 // The adjudication desk's inspector is the same idea pointed the other way —
@@ -17,11 +18,14 @@ import CanonPanel from "./CanonPanel";
 //
 // No DMs tab, unlike the inspector: the thread is the pane next door.
 
-const TABS = ["Canon", "Sheet", "Tags", "Record"];
+const TABS = ["Canon", "Sheet", "Tags", "Record", "Notes"];
 
 function useDossierData(characterId, tab) {
   // Sheet and Tags read the same payload, so they share a cache key.
-  const key = characterId && tab !== "Canon" ? `${characterId}:${tab === "Tags" ? "Sheet" : tab}` : null;
+  // Canon arrives with the page and Notes fetches its own, so neither goes
+  // through this cache.
+  const fetched = tab !== "Canon" && tab !== "Notes";
+  const key = characterId && fetched ? `${characterId}:${tab === "Tags" ? "Sheet" : tab}` : null;
   const [cache, setCache] = useState(() => new Map());
   const entry = key ? (cache.get(key) ?? null) : null;
 
@@ -58,7 +62,14 @@ function Fact({ label, children }) {
   );
 }
 
-export default function DossierColumn({ characterId, canon, onPrefill, currentTurnNumber }) {
+export default function DossierColumn({
+  characterId,
+  canon,
+  onPrefill,
+  currentTurnNumber,
+  gmProfiles,
+  myDiscordUserId,
+}) {
   const [tab, setTab] = useState("Canon");
   const { data, error, loading } = useDossierData(characterId, tab);
 
@@ -97,8 +108,16 @@ export default function DossierColumn({ characterId, canon, onPrefill, currentTu
           <CanonPanel canon={canon} onPrefill={onPrefill} />
         )}
 
-        {tab !== "Canon" && loading && <p className="text-sm text-muted">Loading…</p>}
-        {tab !== "Canon" && error && <p className="text-sm" style={{ color: "var(--danger)" }}>{error}</p>}
+        {tab === "Notes" && (
+          <NotesTab
+            characterId={characterId}
+            gmProfiles={gmProfiles}
+            myDiscordUserId={myDiscordUserId}
+          />
+        )}
+
+        {loading && <p className="text-sm text-muted">Loading…</p>}
+        {error && <p className="text-sm" style={{ color: "var(--danger)" }}>{error}</p>}
 
         {tab === "Sheet" && data && (
           <div className="flex flex-col gap-2">
