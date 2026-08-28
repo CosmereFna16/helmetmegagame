@@ -2799,7 +2799,7 @@ tags:
     category: assets
     group: assets-companions
     description: "You have a highly-trained bird."
-    pointCost: 2
+    pointCost: 1
     purchasable: true
     purchasableAfterStart: true
 
@@ -2841,7 +2841,7 @@ tags:
     category: assets
     group: assets-companions
     description: "You have a highly-trained dog with good sense of smell."
-    pointCost: 2
+    pointCost: 1
     purchasable: true
     purchasableAfterStart: true
 

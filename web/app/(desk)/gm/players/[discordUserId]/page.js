@@ -104,6 +104,7 @@ export default async function PlayerDeskPersonPage({ params }) {
       discordUserId={discordUserId}
       label={label}
       characterId={aliveCharacter?.id ?? character?.id ?? null}
+      avatarVersion={(aliveCharacter ?? character)?.updatedAt.getTime() ?? null}
       zoneName={aliveCharacter?.zone?.name ?? null}
       statusLabel={character && character.status !== "ALIVE" ? character.status.toLowerCase() : null}
       initialMessages={messages}

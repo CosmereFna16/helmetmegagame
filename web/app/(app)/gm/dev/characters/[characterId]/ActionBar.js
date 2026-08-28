@@ -21,6 +21,7 @@ import {
   BandageIcon,
   MealIcon,
   PointsIcon,
+  MapIcon,
 } from "@/app/components/icons";
 import { computeBudget } from "@/lib/characterCreation";
 import {
@@ -30,6 +31,7 @@ import {
   spendTurn,
   messageCharacter,
   resyncDiscord,
+  teleportCharacter,
   deleteCharacter,
 } from "./actions";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
@@ -53,6 +55,7 @@ export default function ActionBar({
   canDelete,
   hasActed,
   openTurn,
+  zones,
   tags,
   held,
   feed,
@@ -208,6 +211,12 @@ export default function ActionBar({
             disabled={pending}
             onClick={() => setDialog("message")}
           />
+          <IconButton
+            icon={MapIcon}
+            label={alive ? `Teleport ${character.name}` : "A corpse can't be moved"}
+            disabled={pending || !alive}
+            onClick={() => setDialog("teleport")}
+          />
         </div>
 
         <span className="dev-bar-sep" aria-hidden="true" />
@@ -348,6 +357,39 @@ export default function ActionBar({
                 onClick={() => run(() => messageCharacter({ characterId: character.id, message: draft }))}
               >
                 Send
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Raw relocation, same as Bulk Move — no Move cost, no Action row, no
+          adjacency check. Immediate, not staged: it fires on click. */}
+      {dialog === "teleport" && (
+        <Modal title={`Teleport ${character.name}`} onClose={() => setDialog(null)}>
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-muted">
+              Moves them there instantly. They&apos;ll be DM&apos;d that they were moved.
+            </p>
+            <ul className="flex flex-col gap-2">
+              {(zones ?? []).map((z) => (
+                <li key={z.id}>
+                  <button
+                    type="button"
+                    className="btn-quiet w-full text-left"
+                    disabled={character.zoneId === z.id}
+                    onClick={() => run(() => teleportCharacter({ characterId: character.id, zoneId: z.id }))}
+                  >
+                    {z.name}
+                    {character.zoneId === z.id ? " — already there" : ""}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <FormError>{error}</FormError>
+            <div className="modal-actions">
+              <button type="button" className="btn-quiet" onClick={() => setDialog(null)}>
+                Cancel
               </button>
             </div>
           </div>

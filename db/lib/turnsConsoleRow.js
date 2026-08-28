@@ -22,8 +22,8 @@ const MOVE_EMOJI = "⚜️";
 const TURNS_CONSOLE_ROW = {
   type: ACTION_ROW,
   components: [
-    { type: BUTTON, style: SECONDARY, custom_id: "loc:open", label: "Travel", emoji: { name: "🗺️" } },
     { type: BUTTON, style: SECONDARY, custom_id: "move:open", label: "Move", emoji: { name: MOVE_EMOJI } },
+    { type: BUTTON, style: SECONDARY, custom_id: "loc:open", label: "Travel", emoji: { name: "🗺️" } },
     { type: BUTTON, style: SECONDARY, custom_id: "say:open", label: "Speak", emoji: { name: "🔊" } },
   ],
 };
@@ -31,6 +31,6 @@ const TURNS_CONSOLE_ROW = {
 // Sits under the turn announcement, so it reads as "given the above, what
 // now?" rather than as a heading of its own.
 const CONSOLE_TEXT =
-  "-# You can only travel to a connected zone, and it spends your Move for the turn.";
+  "-# Moves take effect next turn • Traveling spends your turn • Speaking sends a message in a channel without showing you typing.";
 
 module.exports = { TURNS_CONSOLE_ROW, CONSOLE_TEXT, MOVE_EMOJI };

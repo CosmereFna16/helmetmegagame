@@ -16,12 +16,42 @@ const MARGIN = 8;
 // position: fixed alone does NOT fix that: .doc-card sets a transform on
 // hover, and a transformed ancestor becomes the containing block even for
 // fixed children. Escaping to document.body is the part that actually holds.
+//
+// A click (or Enter/Space) on the trigger pins the panel open — it stays
+// visible after the pointer leaves, so the reader can reach into it (e.g. to
+// click a nested chip or the Consume button). Any onClick/onKeyDown a caller
+// passes still runs; HoverCard just also toggles the pin.
 export default function HoverCard({ children, panel, className = "", ...triggerProps }) {
   const triggerRef = useRef(null);
   const panelRef = useRef(null);
-  const [open, setOpen] = useState(false);
+  const [hovering, setHovering] = useState(false);
+  const [pinned, setPinned] = useState(false);
   const [pos, setPos] = useState(null);
   const id = useId();
+  const open = hovering || pinned;
+
+  const { onClick: triggerOnClick, onKeyDown: triggerOnKeyDown, ...restTriggerProps } = triggerProps;
+
+  const closePin = useCallback(() => setPinned(false), []);
+
+  const togglePin = useCallback(
+    (e) => {
+      triggerOnClick?.(e);
+      setPinned((p) => !p);
+    },
+    [triggerOnClick],
+  );
+
+  const handleTriggerKeyDown = useCallback(
+    (e) => {
+      triggerOnKeyDown?.(e);
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        setPinned((p) => !p);
+      }
+    },
+    [triggerOnKeyDown],
+  );
 
   const place = useCallback(() => {
     const trigger = triggerRef.current;
@@ -60,35 +90,61 @@ export default function HoverCard({ children, panel, className = "", ...triggerP
   // plain effect the panel flashes at 0,0 before settling.
   useLayoutEffect(() => {
     if (open) place();
-  }, [open, place]);
+  }, [open, pinned, place]);
 
   useEffect(() => {
     if (!open) return;
-    // Fixed positioning detaches on scroll, so close rather than chase it.
-    const close = () => setOpen(false);
-    const onKey = (e) => e.key === "Escape" && setOpen(false);
-    window.addEventListener("scroll", close, true);
-    window.addEventListener("resize", close);
+    // Fixed positioning detaches on scroll. Unpinned, that's still the
+    // simplest fix — close rather than chase it. Pinned, the reader
+    // deliberately opened this and may be about to click into it, so
+    // reposition instead of yanking it away under them.
+    const onScrollOrResize = () => {
+      if (pinned) place();
+      else setHovering(false);
+    };
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      setHovering(false);
+      setPinned(false);
+    };
+    window.addEventListener("scroll", onScrollOrResize, true);
+    window.addEventListener("resize", onScrollOrResize);
     document.addEventListener("keydown", onKey);
     return () => {
-      window.removeEventListener("scroll", close, true);
-      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", onScrollOrResize, true);
+      window.removeEventListener("resize", onScrollOrResize);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, pinned, place]);
+
+  // While pinned, a click anywhere outside the trigger and the portaled
+  // panel unpins it — the usual "click away to dismiss" a pinned popover
+  // needs, since the panel no longer closes on pointerleave.
+  useEffect(() => {
+    if (!pinned) return;
+    const onPointerDown = (e) => {
+      if (triggerRef.current?.contains(e.target)) return;
+      if (panelRef.current?.contains(e.target)) return;
+      setPinned(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [pinned]);
 
   return (
     <>
       <span
-        {...triggerProps}
+        {...restTriggerProps}
         ref={triggerRef}
         className={`tag-hover ${className}`.trim()}
         tabIndex={0}
         aria-describedby={open ? id : undefined}
-        onPointerEnter={() => setOpen(true)}
-        onPointerLeave={() => setOpen(false)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
+        onPointerEnter={() => setHovering(true)}
+        onPointerLeave={() => setHovering(false)}
+        onFocus={() => setHovering(true)}
+        onBlur={() => setHovering(false)}
+        onClick={togglePin}
+        onKeyDown={handleTriggerKeyDown}
       >
         {children}
       </span>
@@ -99,6 +155,7 @@ export default function HoverCard({ children, panel, className = "", ...triggerP
             id={id}
             role="tooltip"
             className="tag-tooltip"
+            data-pinned={pinned || undefined}
             style={
               pos
                 ? { top: pos.top, left: pos.left, maxHeight: pos.maxHeight }
@@ -107,6 +164,16 @@ export default function HoverCard({ children, panel, className = "", ...triggerP
                   { top: 0, left: 0, visibility: "hidden" }
             }
           >
+            {pinned && (
+              <button
+                type="button"
+                className="tag-tooltip-close"
+                aria-label="Close"
+                onClick={closePin}
+              >
+                ✕
+              </button>
+            )}
             {panel}
           </span>,
           document.body,

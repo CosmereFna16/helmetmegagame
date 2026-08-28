@@ -83,6 +83,7 @@ async function createStagedMessageImpl({ kind, content, recipientCharacterIds, m
   const openTurn = await requireOpenTurn();
 
   const recipients = kind === "PRIVATE" ? await normalizeRecipients(recipientCharacterIds) : [];
+  if (kind === "PUBLIC" && !zoneId) throw new UserError("Pick a zone.");
 
   const row = await prisma.stagedMessage.create({
     data: {
@@ -120,6 +121,7 @@ async function updateStagedMessageImpl({ stagedMessageId, content, recipientChar
 
   const text = normalizeMessageContent(content);
   const recipients = existing.kind === "PRIVATE" ? await normalizeRecipients(recipientCharacterIds) : null;
+  if (existing.kind === "PUBLIC" && !zoneId) throw new UserError("Pick a zone.");
 
   await prisma.$transaction(async (tx) => {
     // Conditional on sentAt so an edit racing the push loses cleanly rather
@@ -181,7 +183,10 @@ async function resendStagedMessageImpl({ stagedMessageId }) {
   const session = await requireGm();
   const existing = await prisma.stagedMessage.findUnique({
     where: { id: stagedMessageId ?? "" },
-    include: { recipients: { include: { character: { select: { id: true, name: true, discordUserId: true } } } } },
+    include: {
+      recipients: { include: { character: { select: { id: true, name: true, discordUserId: true } } } },
+      zone: { select: { discordSummaryChannelId: true } },
+    },
   });
   if (!existing) throw new UserError("That staged message is gone.");
   if (!existing.sentAt) throw new UserError("That message hasn't gone out yet.");
@@ -208,10 +213,10 @@ async function resendStagedMessageImpl({ stagedMessageId }) {
       }
     }
   } else {
-    const config = await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { turnSummaryChannelId: true } });
-    if (!config?.turnSummaryChannelId) throw new UserError("No summary channel is configured.");
+    const channelId = existing.zone?.discordSummaryChannelId;
+    if (!channelId) throw new UserError("That zone has no summary channel configured.");
     try {
-      await postMessage(config.turnSummaryChannelId, existing.content);
+      await postMessage(channelId, existing.content);
       resent += 1;
     } catch (err) {
       stillFailing = [{ error: String(err?.message ?? err) }];
@@ -826,7 +831,14 @@ async function killRequestTargetImpl({ requestId }) {
 
   const request = await prisma.request.findUnique({ where: { id: requestId } });
   if (!request) throw new UserError("Request not found.");
-  if (request.type !== "FEED_PERSON") throw new UserError("That request doesn't name someone to kill.");
+  // Two types name someone to kill without killing them: feeding a person
+  // to the Lifeweb, and finishing off someone already helpless. Both stop
+  // short for the same reason — a player must not be able to end another
+  // player's game from a dropdown (REQUESTS.md §5a).
+  const namesAKill =
+    request.type === "FEED_PERSON" ||
+    (request.type === "HARM_CHARACTER" && request.effect?.lethal);
+  if (!namesAKill) throw new UserError("That request doesn't name someone to kill.");
 
   const effect = request.effect ?? {};
   if (effect.killed) throw new UserError("They've already been killed.");

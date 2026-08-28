@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import FormError from "@/app/components/FormError";
 import Tooltip from "@/app/components/Tooltip";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
+import CharacterAvatar from "@/app/components/CharacterAvatar";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useTags } from "@/app/components/TagsProvider";
@@ -104,7 +105,13 @@ export default function RequestDesk({ request, onInspect, onClose, registerEscap
     <div className="desk-card">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="section-title">
+          <h2 className="section-title flex items-center gap-2">
+            <CharacterAvatar
+              characterId={request.characterId}
+              name={request.characterName}
+              version={request.avatarVersion}
+              size={32}
+            />
             <button
               type="button"
               className="desk-name"

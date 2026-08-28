@@ -25,6 +25,9 @@ export default function RequestDialog({ open, ...props }) {
 function RequestDialogBody({
   title,
   submitLabel = "Confirm",
+  // Forwarded to Modal's own narrow/wide/widest sizes. A dialog whose body is
+  // a browsable tag catalog needs the room; the ordinary two-field ones don't.
+  width = undefined,
   busy = false,
   error = null,
   canSubmit = true,
@@ -38,7 +41,7 @@ function RequestDialogBody({
   const ready = !busy && canSubmit && trimmed.length > 0;
 
   return (
-    <Modal title={title} onClose={() => !busy && onCancel?.()}>
+    <Modal title={title} width={width} onClose={() => !busy && onCancel?.()}>
       <form
         className="mt-3 flex flex-col gap-3"
         onSubmit={(e) => {
@@ -56,7 +59,7 @@ function RequestDialogBody({
             maxLength={MAX_REASON_LENGTH}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="This goes to the GMs — say what happened."
+            placeholder="The GMs will see this."
           />
         </label>
         <p className="text-xs text-muted" style={{ marginTop: "-0.25rem" }}>

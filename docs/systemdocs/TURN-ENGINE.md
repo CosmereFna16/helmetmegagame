@@ -139,10 +139,9 @@ The thunk performs, in narrative order:
    turn. PRIVATE rows fan out one DM per recipient (per-recipient try/catch,
    failures collected onto the row's `deliveryFailures` and into one
    `staged_push_delivery_failed` audit row naming who); PUBLIC rows post to
-   **the row's own zone `#summary`**, with `GameConfig.turnSummaryChannelId` as
-   the fallback (neither set → skipped and recorded, never lost). The Caves
-   seat has no summary channel of its own, so its declarations always fall
-   back. Each row is stamped `sentAt` only after its sends were attempted, so a
+   **the row's own zone `#summary`** (the composer requires a real zone — no
+   fallback). If that zone's summary channel isn't configured, the post is
+   skipped and recorded instead — never lost. Each row is stamped `sentAt` only after its sends were attempted, so a
    crash mid-way leaves the remainder visibly unsent — the workspace's
    missed-push banner — rather than falsely delivered.
 6. The `#turns` announcement (`db/lib/turnAnnouncement.js`).

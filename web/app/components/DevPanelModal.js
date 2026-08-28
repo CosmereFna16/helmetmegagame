@@ -25,14 +25,19 @@ export default function DevPanelModal({ characterId, name, onClose }) {
 
   useEffect(() => {
     let cancelled = false;
-    getDevPanelData({ characterId }).then((res) => {
-      if (cancelled) return;
-      if (!res?.ok) {
-        setError(res?.error ?? "Something went wrong.");
-        return;
-      }
-      setData(res.props);
-    });
+    getDevPanelData({ characterId })
+      .then((res) => {
+        if (cancelled) return;
+        if (!res?.ok) {
+          setError(res?.error ?? "Something went wrong.");
+          return;
+        }
+        setData(res.props);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err?.message ?? "Something went wrong.");
+      });
     return () => {
       cancelled = true;
     };

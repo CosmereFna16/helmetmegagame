@@ -315,3 +315,84 @@ export function PointsIcon(props) {
     </svg>
   );
 }
+
+// --- The player Actions grid (ActionGrid.js) -------------------------------
+// Seven glyphs that had no equivalent in the set above. Same flat 1.6 stroke
+// on currentColor as everything else here, so they inherit .icon-btn's
+// accent-on-hover fill without any colour of their own.
+
+// Transfer Tag — a thing passed from one open hand to another.
+export function HandOffIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M3 10h4l2.5 2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M21 14h-4l-2.5-2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9 7.5l3-2.5 3 2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 5v9" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Transfer Resources — the filled ⬢ of the Resources glyph, hexagon only, so
+// it reads as the currency next to PointsIcon's hollow ⬡.
+export function ResourcesIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M12 3l7.5 4.5v9L12 21l-7.5-4.5v-9L12 3z" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// Create Item — an anvil, the making of a thing.
+export function AnvilIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M3 8h9l3 3h6l-2.5 3.5H9L6 11H3z" strokeLinejoin="round" />
+      <path d="M9 14.5V18M6 21h9l-1.5-3H7.5L6 21z" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// Loot — a hand closing over what it takes.
+export function LootIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M7 11V5.5a1.5 1.5 0 013 0V11" strokeLinecap="round" />
+      <path d="M10 11V4.5a1.5 1.5 0 013 0V11" strokeLinecap="round" />
+      <path d="M13 11V6a1.5 1.5 0 013 0v5" strokeLinecap="round" />
+      <path d="M16 9.5a1.5 1.5 0 013 0V15a6 6 0 01-6 6h-1a6 6 0 01-6-6v-2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// Bind — a shackle: a closed loop through a link.
+export function ShackleIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <circle cx="8" cy="12" r="4.5" />
+      <circle cx="16" cy="12" r="4.5" />
+      <path d="M12.5 12h-1" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Free — the key that opens it.
+export function KeyIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <circle cx="8" cy="8" r="4" />
+      <path d="M11 11l8 8M16.5 16.5l-2 2M19 19l-2 2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Drop / Pick up — something set down onto the ground line.
+export function DropIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M12 3v10M8.5 9.5L12 13l3.5-3.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 17.5h16" strokeLinecap="round" />
+      <path d="M7 21h10" strokeLinecap="round" />
+    </svg>
+  );
+}

@@ -5,19 +5,27 @@ import { useProductionRates } from "./ProductionRatesProvider";
 import { usePartySizes } from "./PartySizeProvider";
 import { useDocuments } from "./DocumentsProvider";
 import ChipLabel from "./ChipLabel";
+import TagChip from "./TagChip";
 import ResourceChip from "./ResourceChip";
 import PartySizeChip from "./PartySizeChip";
 import { splitTokens } from "./richTokens";
 
 // RichText's quiet twin: same {tag:…} / {resource:…} tokens, but a tag
-// renders as a plain ChipLabel rather than a hoverable TagChip. See
-// richTokens.js for which of the two a given call site wants — the short
+// renders as a plain ChipLabel rather than a hoverable TagChip by default.
+// See richTokens.js for which of the two a given call site wants — the short
 // version is that this one is for text already living inside a tooltip or a
 // button, where a second interactive element can't work.
 //
+// `inTooltip`: set only by a call site that is DEFINITELY rendering inside a
+// HoverCard's `panel` prop (never inside a `<button>` — nesting an
+// interactive TagChip there would be invalid markup). Pinning made a nested
+// tag reachable, so it can become a real TagChip instead of a flat label.
+// TagChip itself renders its own description through this component WITHOUT
+// `inTooltip`, so nesting stops at one level rather than recursing forever.
+//
 // An unresolved token is left as literal text, same as RichText, so a bad
 // reference is easy to spot rather than silently disappearing.
-export default function ChipText({ text, as: Wrapper = "span", className }) {
+export default function ChipText({ text, as: Wrapper = "span", className, inTooltip = false }) {
   const { tagsById, tagsBySlug } = useTags();
   const { rates } = useProductionRates();
   const { sizes } = usePartySizes();
@@ -31,7 +39,12 @@ export default function ChipText({ text, as: Wrapper = "span", className }) {
     if (part.kind === "tag") {
       const key = part.payload.trim();
       const tag = tagsById.get(key) ?? tagsBySlug.get(key);
-      return tag ? <ChipLabel key={`t-${i}`} tag={tag} /> : part.raw;
+      if (!tag) return part.raw;
+      return inTooltip ? (
+        <TagChip key={`t-${i}`} tag={tag} />
+      ) : (
+        <ChipLabel key={`t-${i}`} tag={tag} />
+      );
     }
 
     if (part.kind === "resource") {

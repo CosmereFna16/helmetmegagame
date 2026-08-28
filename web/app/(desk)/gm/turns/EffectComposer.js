@@ -5,7 +5,7 @@ import Modal from "@/app/components/Modal";
 import FormError from "@/app/components/FormError";
 import { mergeTagOp } from "@/lib/tagOpAlgebra";
 import TagChip from "@/app/components/TagChip";
-import ChipLabel from "@/app/components/ChipLabel";
+import TagCatalogBrowser from "@/app/components/TagCatalogBrowser";
 import { createStagedEffects, updateStagedEffect, getHeldTags } from "./actions";
 
 // Stage a mechanical adjustment: signed ⬢ and/or tag adds/removes, against
@@ -16,6 +16,11 @@ import { createStagedEffects, updateStagedEffect, getHeldTags } from "./actions"
 //
 // With `existing` it edits one staged row instead (target fixed, batch
 // membership dropped server-side).
+//
+// Tag selection uses the same power-user catalog browser as the Dev Panel's
+// TagEditor (categories, description search, group/chain sort, multi-select)
+// via the shared TagCatalogBrowser — this is where most mid-turn effect
+// changes actually happen, so it gets the full surface, not a shortcut.
 
 const SEARCH_LIMIT = 12;
 
@@ -50,7 +55,6 @@ export default function EffectComposer({
   });
   const [zoneId, setZoneId] = useState(() => existing?.zoneId ?? "");
   const [targetSearch, setTargetSearch] = useState("");
-  const [tagSearch, setTagSearch] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
 
@@ -90,13 +94,10 @@ export default function EffectComposer({
       .slice(0, SEARCH_LIMIT);
   }, [targetSearch, roster, targets]);
 
-  const tagMatches = useMemo(() => {
-    const q = tagSearch.trim().toLowerCase();
-    if (!q) return [];
-    return tagCatalog
-      .filter((t) => t.name.toLowerCase().includes(q) || t.slug.includes(q))
-      .slice(0, SEARCH_LIMIT);
-  }, [tagSearch, tagCatalog]);
+  const stagedByTagId = useMemo(
+    () => new Map([...ops.entries()].map(([tagId, op]) => [tagId, op.op])),
+    [ops],
+  );
 
   function stageOp(tagId, op) {
     setOps((prev) => {
@@ -116,6 +117,40 @@ export default function EffectComposer({
       if (op) next.set(tagId, { ...op, quantity: Number.isInteger(quantity) && quantity > 0 ? quantity : 1 });
       return next;
     });
+  }
+
+  function stageManyAdds(tagIds) {
+    for (const tagId of tagIds) stageOp(tagId, "add");
+  }
+
+  function renderTagBrowserActions(tag, { held: isHeld, staged }) {
+    return (
+      <>
+        <button type="button" className="btn-quiet" onClick={() => stageOp(tag.id, "add")}>
+          + Add
+        </button>
+        {(!soleTargetId || isHeld) && (
+          <button type="button" className="btn-quiet" onClick={() => stageOp(tag.id, "remove")}>
+            − Remove
+          </button>
+        )}
+        {staged && (
+          <button
+            type="button"
+            className="btn-quiet"
+            onClick={() =>
+              setOps((prev) => {
+                const next = new Map(prev);
+                next.delete(tag.id);
+                return next;
+              })
+            }
+          >
+            Unstage
+          </button>
+        )}
+      </>
+    );
   }
 
   function submit() {
@@ -139,7 +174,11 @@ export default function EffectComposer({
   }
 
   return (
-    <Modal title={existing ? "Edit staged effect" : "Stage an effect"} onClose={() => !pending && onCancel()}>
+    <Modal
+      title={existing ? "Edit staged effect" : "Stage an effect"}
+      onClose={() => !pending && onCancel()}
+      width="widest"
+    >
       <div className="mt-3 flex flex-col gap-4">
         <div className="flex flex-col gap-2">
           <span className="field-label">Targets</span>
@@ -307,38 +346,15 @@ export default function EffectComposer({
               )}
             </div>
           )}
-          <label className="field">
-            <span className="field-label">Find a tag</span>
-            <input value={tagSearch} onChange={(e) => setTagSearch(e.target.value)} placeholder="Search the catalog…" />
-          </label>
-          {tagMatches.length > 0 && (
-            <div className="flex flex-col gap-1">
-              {tagMatches.map((t) => (
-                <div key={t.id} className="flex items-center justify-between gap-2 text-sm">
-                  {/* ChipLabel, not TagChip: this is a dense scan list of
-                      catalog matches with its own Add/Remove buttons — a full
-                      hover tooltip on every row is more than the row needs,
-                      and the coloured edge already tells you the group. */}
-                  <span className="min-w-0 truncate">
-                    <ChipLabel
-                      tag={t}
-                      duration={t.defaultDurationTurns ? { badge: `${t.defaultDurationTurns}t` } : null}
-                    />
-                  </span>
-                  <span className="flex gap-1.5">
-                    <button type="button" className="btn-quiet" onClick={() => stageOp(t.id, "add")}>
-                      + Add
-                    </button>
-                    {(!soleTargetId || heldTagIds.has(t.id)) && (
-                      <button type="button" className="btn-quiet" onClick={() => stageOp(t.id, "remove")}>
-                        − Remove
-                      </button>
-                    )}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+          <TagCatalogBrowser
+            tags={tagCatalog}
+            heldTagIds={heldTagIds}
+            stagedByTagId={stagedByTagId}
+            selectable
+            onSelectAction={stageManyAdds}
+            selectActionLabel="Add"
+            renderActions={renderTagBrowserActions}
+          />
         </div>
 
         <FormError>{error}</FormError>

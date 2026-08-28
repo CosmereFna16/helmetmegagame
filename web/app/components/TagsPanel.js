@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import TagChip from "./TagChip";
 import TagPointsValue from "./TagPointsValue";
-import TagRequestButtons from "./TagRequestButtons";
+import { useRequestActions } from "./RequestActionsProvider";
 import EquipmentPanel from "./EquipmentPanel";
 import Modal from "./Modal";
 import StorePanel from "./StorePanel";
@@ -11,10 +11,12 @@ import { useTags } from "./TagsProvider";
 import { heldSlugsOf } from "@/lib/consumeGrants";
 
 // The Tags section of a character sheet. It's a client component for one
-// reason: the chips and the request buttons have to share state, so that
-// clicking a consumable tag can open the Consume dialog already pointed at
-// it. Everything else here is the markup that used to sit inline in
-// CharacterSheet.js.
+// reason: clicking a consumable chip opens the Consume dialog already pointed
+// at that tag. That used to work through an onReady callback out of
+// TagRequestButtons, which this panel rendered; the buttons are now
+// ActionGrid.js up in StatusPanel, so the opener comes off
+// RequestActionsProvider's context instead. Everything else here is the
+// markup that used to sit inline in CharacterSheet.js.
 //
 // Equipment lives here too, as an embedded EquipmentPanel sub-section —
 // equipped items are just a view over the same held-tags data this panel
@@ -57,17 +59,13 @@ function groupTagsByCategory(characterTags) {
   );
 }
 
+// The catalog, resources, co-located rosters and heal targets all moved to
+// RequestActionsProvider with the dialogs that used them — this panel only
+// ever renders what the character already holds.
 export default function TagsPanel({
   characterTags,
   isSelf,
-  catalog,
-  resources,
-  otherCharacters,
   currentTurn = null,
-  selfId = null,
-  canHeal = false,
-  healTargets = [],
-  healParties = null,
   tagPoints = null,
   equipSlots = 6,
   // The mid-game store's catalog and this character's standing within it —
@@ -78,10 +76,9 @@ export default function TagsPanel({
   storeNegativeCap = null,
   storeNegativeHeld = 0,
 }) {
-  // TagRequestButtons owns the dialog, and hands its opener up through
-  // onReady so a chip click can drive it.
-  const [openDialog, setOpenDialog] = useState(null);
-  const onReady = useCallback((open) => setOpenDialog(() => open), []);
+  // Null on someone else's sheet, where no provider is mounted — which is
+  // also exactly when the chips must stay read-only.
+  const openDialog = useRequestActions()?.open ?? null;
   const [storeOpen, setStoreOpen] = useState(false);
 
   const { tagsBySlug } = useTags();
@@ -115,31 +112,18 @@ export default function TagsPanel({
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <h2 className="section-title">Tags</h2>
-          {tagPoints != null && (
+          {tagPoints != null && isSelf && storeTags && (
+            <button type="button" className="btn-quiet" onClick={() => setStoreOpen(true)}>
+              Spend Tag Points (<TagPointsValue points={tagPoints} />)
+            </button>
+          )}
+          {tagPoints != null && !(isSelf && storeTags) && (
             <span className="text-sm">
               <span className="text-muted">Tag points </span>
               <TagPointsValue points={tagPoints} />
             </span>
           )}
-          {isSelf && storeTags && (
-            <button type="button" className="btn-quiet" onClick={() => setStoreOpen(true)}>
-              Spend Tag Points
-            </button>
-          )}
         </div>
-        {isSelf && (
-          <TagRequestButtons
-            catalog={catalog ?? []}
-            characterTags={characterTags}
-            resources={resources}
-            otherCharacters={otherCharacters ?? []}
-            selfId={selfId}
-            canHeal={canHeal}
-            healTargets={healTargets}
-            healParties={healParties}
-            onReady={onReady}
-          />
-        )}
       </div>
 
       <div className="mb-3 border-b pb-3" style={{ borderColor: "var(--border)" }}>

@@ -383,4 +383,106 @@ export const SECTIONS = {
       </>
     ),
   },
+  BIND_CHARACTER: {
+    heading: "Bind Character",
+    render: ({ effect }) => (
+      <>
+        <Line label="Bound">
+          {effect.targetCharacterId ? (
+            <CharacterLink characterId={effect.targetCharacterId} name={effect.targetName ?? "—"} isGm />
+          ) : (
+            (effect.targetName ?? "—")
+          )}
+        </Line>
+        <p className="text-xs text-muted">
+          Bound is what Loot Character and Move Character both read. Undo cuts them loose.
+        </p>
+      </>
+    ),
+  },
+  FREE_CHARACTER: {
+    heading: "Free Character",
+    render: ({ effect }) => (
+      <>
+        <Line label="Freed">
+          {effect.targetCharacterId ? (
+            <CharacterLink characterId={effect.targetCharacterId} name={effect.targetName ?? "—"} isGm />
+          ) : (
+            (effect.targetName ?? "—")
+          )}
+        </Line>
+        <p className="text-xs text-muted">Undo puts Bound back, with the expiry it had.</p>
+      </>
+    ),
+  },
+  // The second type that names a kill without performing one — same shape as
+  // FEED_PERSON above, and the same Kill button, because the reason is the
+  // same: a player must not end another player's game from a dropdown.
+  HARM_CHARACTER: {
+    heading: "Harm Character",
+    render: ({ effect, onKill, killing }) => (
+      <>
+        <Line label="Target">
+          {effect.targetCharacterId ? (
+            <CharacterLink characterId={effect.targetCharacterId} name={effect.targetName ?? "—"} isGm />
+          ) : (
+            (effect.targetName ?? "—")
+          )}
+        </Line>
+        <Line label="Inflicted">{effect.tagName ?? "Nothing"}</Line>
+
+        {!effect.lethal ? (
+          <p className="text-xs text-muted">
+            No kill was called for. Undo heals what was inflicted.
+          </p>
+        ) : effect.killed ? (
+          <p className="text-sm text-muted">☠ {effect.targetName ?? "They"} has been killed.</p>
+        ) : (
+          <div
+            className="flex flex-col gap-2 border-t pt-3"
+            style={{ borderColor: "var(--accent)" }}
+          >
+            <p className="text-sm text-accent">
+              ☠ {effect.targetName ?? "This character"} was finished off, but is still alive. A GM has to
+              make the kill themselves.
+            </p>
+            <button
+              type="button"
+              className="btn self-start"
+              style={{ borderColor: "var(--accent)", color: "var(--accent-text)" }}
+              onClick={onKill}
+              disabled={killing}
+            >
+              {killing ? "Working…" : `Kill ${effect.targetName ?? "them"}`}
+            </button>
+            <p className="text-xs text-muted">
+              This deletes their personal Discord role, clears their nickname and marks them Cursed.
+            </p>
+          </div>
+        )}
+      </>
+    ),
+  },
+  DROP_ITEM: {
+    heading: "Drop Item",
+    render: ({ effect }) => (
+      <>
+        <Line label="Left behind">{stackLabel(effect)}</Line>
+        <p className="text-xs text-muted">
+          It is lying in the zone for anyone standing there to take. Undo picks it back up — unless
+          somebody already has, in which case it does nothing rather than mint a second copy.
+        </p>
+      </>
+    ),
+  },
+  PICK_UP_ITEM: {
+    heading: "Pick Up Item",
+    render: ({ effect }) => (
+      <>
+        <Line label="Picked up">{stackLabel(effect)}</Line>
+        <Line label="Left by">{effect.droppedByName ?? "—"}</Line>
+        <p className="text-xs text-muted">Undo puts it back on the ground where it was.</p>
+      </>
+    ),
+  },
 };

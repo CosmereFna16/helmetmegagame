@@ -78,11 +78,12 @@ the sender at −10 and the recipient up 20, and it worked on faction Silos too.
 The throw aborts the surrounding transaction, so the tag grant, the `Request`
 row and the audit entry all roll back with it.
 
-## 3. The twelve types
+## 3. The twenty types
 
-Ten live in `web/app/(app)/character/requestActions.js`, the two
-Lifeweb types in `web/app/(app)/lifeweb/requestActions.js`, and `BUY_TAGS`
-in `web/app/(app)/store/actions.js`. Each one
+Sixteen live in `web/app/(app)/character/requestActions.js`, the two
+Lifeweb types in `web/app/(app)/lifeweb/requestActions.js`, `BUY_TAGS`
+in `web/app/(app)/store/actions.js`, and `CAVING_LOOT` is filed by the turn
+engine rather than by anybody. Each one
 authenticates, **re-validates everything the client sent** (a server action is
 a public endpoint, and the client's filtered menus are only advisory), applies
 the effect, and writes the `Request` plus an `AuditLog` row carrying the same
@@ -101,13 +102,23 @@ reason.
 | `FEED_PERSON` | Mortus feeds someone to the Lifeweb | blood added | Draws the blood back (never revives) |
 | `HEAL_CHARACTER` | Treats an affliction on anyone standing in their zone, on whoever's tab they choose | cost; put the affliction back | Restores the tag with its original expiry, refunds the payer |
 | `CHANGE_NAME` | Takes a new honorific/first/last name | — | Restores the previous name |
+| `CAVING_LOOT` | Nothing — the turn engine files it when a Caving Die rolls a 6 (`CAVING.md`) | — | Drops the find |
+| `LOOT_CHARACTER` | Searches a body, **or** anyone Bound/Dying/Paralyzed/Catatonic in their zone, taking Items, Assets and ⬢ in one act | — | Returns every tag with its original expiry, and the ⬢ |
+| `MOVE_CHARACTER` | Marches a faction member they lead, someone they've bound, or a body, into a neighbouring zone. Does **not** spend the target's turn | — | Restores the previous zone in the DB only |
+| `CREATE_TAG` | Invents an Item that isn't in the catalog, optionally paying ⬢ | — | Takes the grant back, refunds, deletes the tag if nobody else holds it |
+| `BIND_CHARACTER` | Ties up anyone standing in their zone | — | Cuts them loose |
+| `FREE_CHARACTER` | Cuts someone in their zone loose | — | Puts Bound back with its original expiry |
+| `HARM_CHARACTER` | Inflicts a Health affliction on someone already helpless, flags them to be killed, or both. **Never kills** — see §5b | — | Heals what was inflicted; never revives |
+| `DROP_ITEM` | Puts an Item or Asset on the ground in their zone, where it has no owner | — | Picks it back up, unless someone else already did |
+| `PICK_UP_ITEM` | Takes something off the ground in their zone | — | Puts it back on the ground |
 
 The per-type behaviour lives in `web/lib/requestEffects.js` as one
 `REQUEST_EFFECTS` entry each. **Adding a type means adding one entry
-there, one entry in `RequestPanel.js`'s `SECTIONS` map, and one value to the
+there, one entry in `RequestSections.js`'s `SECTIONS` map, one label in
+`requestLabels.js`, one line in the desk's `summarize()`, and one value in the
 `RequestType` enum — nothing else in the adjudication surface changes.** That
-extensibility was an explicit requirement, and the two Lifeweb types added
-later cost exactly that.
+extensibility was an explicit requirement, and every type added since — the
+two Lifeweb ones, then the eight of the Actions grid — cost exactly that.
 
 **Validation is returned, never thrown.** Every one of these actions and
 `resolveRequest` reports a validation failure as `{ ok: false, error }` via
@@ -126,10 +137,9 @@ Three notes on deliberate choices:
   and it was chosen over the safer factions-only reading.
 
   What it is *not* is action at a distance. Every party has to be somewhere the
-  filer can stand: a person in the same zone, a Silo in its own seat zone —
-  the officer extension (an officer standing in the filer's zone counting as
-  reach) has been removed; a besieged Silo is only reachable by physically
-  holding its seat zone (`web/lib/transferReach.js`, `FACTIONS.md` §3b).
+  filer can stand: a person in the same zone, a Silo in its own seat zone — a
+  besieged Silo is only reachable by physically holding its seat zone
+  (`web/lib/transferReach.js`, `FACTIONS.md` §3b).
   Picking a pocket is now a mugging rather than a wire transfer. The dropdowns
   stay unfiltered on purpose — filtering them to who's in range would make the
   dialog a free scouting tool for who is standing in your zone. Correctness
@@ -353,6 +363,51 @@ Both buttons ask twice: the `RequestDialog` reason, then `useConfirm()` before
 anything is written. They act on someone else's character, which is the one
 place in the Requests system where that second gate is worth the friction.
 
+## 5b. Coercion: Bind, Loot, Move, Harm
+
+Four requests that act on somebody else, and one tag holding them together.
+
+`bound` is the hinge. `LOOT_CHARACTER`, `HARM_CHARACTER` and the "or bound"
+branch of `MOVE_CHARACTER` all read `db/lib/incapacitation.js`'s
+`INCAPACITATING_SLUGS` — `dying / catatonic / paralyzed / bound` — and for a
+long time nothing in the game **granted** Bound. A GM had to place it by hand,
+which is the day of real time §1 exists to save, so `BIND_CHARACTER` and its
+counterpart `FREE_CHARACTER` close the loop.
+
+**Neither one is gated beyond co-presence.** Tying somebody up is an act with
+consequences, not a permission. Anyone standing there can do it, and anyone
+standing there can cut them loose again — a captor who wants their prisoner
+kept has to keep other people out of the room, which is a fiction problem
+rather than a permissions one. The reason field and the GM's review are the
+anti-abuse mechanism, exactly as everywhere else.
+
+**Harm is Wound and Finish in one request**, because they are one act: you
+stand over someone who can't stop you and decide how far to take it. Either
+half alone is valid — a beating that leaves them alive, a clean kill with no
+new injury — but not neither. The target must **already** be helpless; knifing
+someone who could fight back is a Gambit, and a GM adjudicates that.
+
+**It does not kill.** `effect.lethal` raises the ☠ on the Requests row and
+surfaces the same **Kill** button `FEED_PERSON` uses, and
+`killRequestTargetImpl` accepts both types for the same reason: letting a
+player end another player's game from a dropdown is too abusable. The lethal
+half is also the only place besides billing someone else for a cure where the
+dialog asks twice. `FINISHABLE_SLUGS` narrows it further than the loot gate —
+you can rob a Paralyzed or Catatonic character, but only someone Dying or
+Bound can be finished off.
+
+**Move Player does not spend the target's turn**, and it moves nobody but the
+target — the copy says to walk there yourself afterwards. It takes a body too,
+which is how a corpse gets anywhere: bodies are lootable and Lifeweb-feedable
+but would otherwise be pinned where they fell. A corpse needs no authority
+over it, so the leader/bound gate is skipped and no Discord role is swapped.
+
+**The target menus are deliberately unfiltered.** Every one of these lists
+names people a player might not be allowed to act on, and the server rejects
+the rest with its own wording. Narrowing the menu to who you *may* move would
+turn it into a readout of who is tied up. See §6 on why the buttons don't grey
+out either.
+
 ## 5c. Healing
 
 The Heal button on `/character` sits beside Consume and is the third request
@@ -426,10 +481,38 @@ existing `.modal-overlay` / `.modal-panel` styling, so it matches every other
 modal for free, and it only mounts its body while open, which resets the
 reason field between openings without an effect syncing state.
 
-The Status panel (`StatusPanel.js`) was pulled out of `CharacterSheet.js`,
-where it had been inline markup at a broken indent level, and now lays
-Zone / Resources / Gambit / Tag Points out on one `<dl>` grid instead of
-four ad-hoc flex lines.
+The Status panel (`StatusPanel.js`) lays Zone / Resources / Gambit / Tag
+Points out on one `<dl>` grid, and **every player action sits beside it as an
+icon grid** (`ActionGrid.js`, hover tooltips via the shared `IconButton.js`).
+
+That grid replaced three separate surfaces: a row of text buttons inside the
+Tags panel, a Transfer Resources button in the Status panel's own footer, and
+a whole "Bodies here" panel for looting corpses. It is a grid rather than a
+vertical strip because thirteen icons in one column would run far past the
+four `<dl>` rows next to them and drag the panel's height with them.
+
+**The state had to move up to make that work.** `TagRequestButtons.js` used to
+own both the buttons and the dialogs, and handed its opener up to `TagsPanel`
+through an `onReady` callback so a chip click could open Consume. The buttons
+now live in `StatusPanel`, a **sibling above** `TagsPanel`, so no component
+contains both. `RequestActionsProvider.js` holds the mode state and every
+dialog, and the two consumers read the opener off context — the same shape
+`ConfirmProvider` uses for the same reason. It is mounted only in `self` mode,
+which is what keeps another player's chips read-only for free.
+
+**A button greys out only for a fact about your own sheet** — nothing to
+remove, nothing to hand over, no Medical training. **Never** for a fact about
+who is standing near you. A greyed-out Loot icon would announce "nobody here
+is helpless" to anyone who glanced at their own sheet, and a live one would
+announce the opposite: free scouting, on every page load, without anyone
+choosing to look. So the co-presence actions are always lit and you learn who
+is here only by opening the dialog. Same reasoning as the unfiltered transfer
+dropdowns in §3.
+
+The tag menu inside the Add and Harm dialogs shares `filterTagsByQuery` with
+`PointBuy.js`, so the in-play menu and the creation menu find the same tags
+for the same words, and its pane is `60vh` rather than the 16rem box that used
+to show three rows of a hundred-tag catalog.
 
 One consequence worth knowing: `CharacterSheet#groupTagsByCategory` now groups
 the **`CharacterTag` rows**, not the bare `Tag`s. The wrapper carries
@@ -458,8 +541,11 @@ of a transfer. Deposits into a Silo previously left no ledger entry at all.
 | The player-facing server actions | `web/app/(app)/character/requestActions.js` |
 | Universal popup | `web/app/components/RequestDialog.js` |
 | Status panel | `web/app/components/StatusPanel.js` |
-| Transfer Resources | `web/app/components/TransferResourcesButton.js` |
-| Add / Remove / Transfer / Consume Tag / Heal | `web/app/components/TagRequestButtons.js`, `web/lib/tagRequests.js` |
+| Every action's dialog + the mode state | `web/app/components/RequestActionsProvider.js` |
+| The Actions icon grid | `web/app/components/ActionGrid.js`, `IconButton.js`, `icons.js` |
+| Which held tags each menu offers | `web/lib/tagRequests.js` |
+| Who is standing in your zone (one roster, five menus) | `web/app/(app)/character/page.js` |
+| Who counts as helpless, and who can be finished off | `db/lib/incapacitation.js` |
 | Heal gate, tier chain, treatable-tag filter | `web/lib/healRequests.js` |
 | One end of a resource movement (Silo or player) | `web/app/components/PartySelect.js` |
 | Reach gate — same zone / same Silo seat zone | `web/lib/transferReach.js` |
@@ -468,6 +554,7 @@ of a transfer. Deposits into a Silo previously left no ledger entry at all.
 | Lifeweb blood tiers + cap, shared bot/web | `db/lib/lifeweb.js` |
 | Lifeweb requests, GM bypass panel | `web/app/(app)/lifeweb/requestActions.js`, `actions.js` |
 | Lifeweb player buttons | `web/app/components/LifewebRequestButtons.js` |
-| GM kill-the-target action | `web/app/(app)/gm/turns/actions.js#killRequestTarget` |
+| GM kill-the-target action (FEED_PERSON + HARM_CHARACTER) | `web/app/(desk)/gm/turns/actions.js#killRequestTarget` |
+| GM review rows | `web/app/(desk)/gm/turns/RequestSections.js`, `web/lib/requestLabels.js` |
 | Gambit roll + modifier | `bot/src/events/interactionCreate.js#handleMoveConfirm` |
 | Expiry sweep | `db/index.js#resolveNeeds` |

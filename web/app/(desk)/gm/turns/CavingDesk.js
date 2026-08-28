@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import FormError from "@/app/components/FormError";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
+import CharacterAvatar from "@/app/components/CharacterAvatar";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 import EffectComposer from "./EffectComposer";
 import MessageComposer from "./MessageComposer";
@@ -31,7 +32,6 @@ export default function CavingDesk({
   staged,
   tagCatalog,
   roster,
-  zones,
   presenceZones,
   onInspect,
   onClose,
@@ -73,7 +73,8 @@ export default function CavingDesk({
     <div className="desk-card">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="section-title">
+          <h2 className="section-title flex items-center gap-2">
+            <CharacterAvatar characterId={roll.characterId} name={roll.characterName} version={roll.avatarVersion} size={32} />
             <button type="button" className="desk-name" onClick={() => onInspect(roll.characterId, roll.characterName)}>
               {roll.characterName}
             </button>{" "}
@@ -140,7 +141,6 @@ export default function CavingDesk({
           messages={staged.messages}
           tagCatalog={tagCatalog}
           roster={roster}
-          zones={zones}
           presenceZones={presenceZones}
           onInspect={onInspect}
           empty="Nothing staged yet. Effects change sheets; messages land as DMs; public posts hit the summary channel — all at the push."
@@ -176,7 +176,7 @@ export default function CavingDesk({
       {composer === "public" && (
         <PublicComposer
           cavingRollId={roll.id}
-          zones={zones}
+          zones={presenceZones}
           onDone={() => {
             setComposer(null);
             router.refresh();

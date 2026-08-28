@@ -2,12 +2,11 @@ import BioForm from "./BioForm";
 import DefaultEffortPanel from "./DefaultEffortPanel";
 import GoalsPanel from "./GoalsPanel";
 import StatusPanel from "./StatusPanel";
+import RequestActionsProvider from "./RequestActionsProvider";
 import TagsPanel from "./TagsPanel";
-import CorpseLootPanel from "./CorpseLootPanel";
 import RichText from "./RichText";
 import FactionLink from "./FactionLink";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
-import InfoIcon from "./InfoIcon";
 
 // Raw d6 first, then the summed modifier (Hunger) and the total —
 // a GM reading this has to be able to tell a modified 5 from a natural 5.
@@ -96,7 +95,16 @@ export default function CharacterSheet({
   canHeal = false,
   healTargets = [],
   healParties = null,
-  corpses = [],
+  // Everyone and everything in this character's zone worth acting on, built
+  // once in character/page.js so the Actions dialogs can't disagree about who
+  // is standing here. Empty on someone else's sheet.
+  lootTargets = [],
+  moveTargets = [],
+  moveZones = [],
+  bindTargets = [],
+  harmTargets = [],
+  harmTags = [],
+  groundItems = [],
   equipSlots = 6,
   avatarUploadsEnabled = false,
   portraitMakerEnabled = false,
@@ -136,33 +144,55 @@ export default function CharacterSheet({
           their phone actually wants — not a form. */}
       <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="flex flex-col gap-6">
-          <StatusPanel character={character} isSelf={isSelf} parties={transferParties} />
-
-          {!isSelf && currentAction && (
-            <section className="panel p-4">
-              <h2 className="panel-header">This turn</h2>
-              <ActionStatus currentAction={currentAction} openTurn={openTurn} />
-            </section>
-          )}
-
-          <TagsPanel
-            characterTags={character.tags}
-            isSelf={isSelf}
-            tagPoints={character.tagPoints}
+          {/* Every player action — the icon grid in StatusPanel and the
+              chip-click-to-consume path in TagsPanel — reads its opener off
+              this provider. It wraps both because they are siblings: the
+              buttons sit in the panel ABOVE the one that needs to drive them,
+              so the state can't live in either. Not mounted on someone else's
+              sheet, which is what makes their chips read-only for free. */}
+          <RequestActionsProvider
+            enabled={isSelf}
+            selfId={character.id}
+            selfName={character.name}
             catalog={tagCatalog ?? []}
+            characterTags={character.tags}
             resources={character.resources}
             otherCharacters={otherCharacters ?? []}
-            currentTurn={openTurn?.number ?? null}
-            selfId={character.id}
+            transferParties={transferParties}
             canHeal={canHeal}
             healTargets={healTargets}
             healParties={healParties}
-            equipSlots={equipSlots}
-            storeTags={storeTags}
-            storeHeldTags={storeHeldTags}
-            storeNegativeCap={storeNegativeCap}
-            storeNegativeHeld={storeNegativeHeld}
-          />
+            lootTargets={lootTargets}
+            moveTargets={moveTargets}
+            moveZones={moveZones}
+            bindTargets={bindTargets}
+            harmTargets={harmTargets}
+            harmTags={harmTags}
+            groundItems={groundItems}
+          >
+            <div className="flex flex-col gap-6">
+              <StatusPanel character={character} isSelf={isSelf} />
+
+              {!isSelf && currentAction && (
+                <section className="panel p-4">
+                  <h2 className="panel-header">This turn</h2>
+                  <ActionStatus currentAction={currentAction} openTurn={openTurn} />
+                </section>
+              )}
+
+              <TagsPanel
+                characterTags={character.tags}
+                isSelf={isSelf}
+                tagPoints={character.tagPoints}
+                currentTurn={openTurn?.number ?? null}
+                equipSlots={equipSlots}
+                storeTags={storeTags}
+                storeHeldTags={storeHeldTags}
+                storeNegativeCap={storeNegativeCap}
+                storeNegativeHeld={storeNegativeHeld}
+              />
+            </div>
+          </RequestActionsProvider>
 
           {isSelf && (
             <GoalsPanel
@@ -179,20 +209,12 @@ export default function CharacterSheet({
               zone={character.zone ?? null}
             />
           )}
-
-          {isSelf && corpses.length > 0 && <CorpseLootPanel selfId={character.id} corpses={corpses} />}
         </div>
 
         <div className="flex flex-col gap-6 md:sticky md:top-4">
-          {/* TODO(requests-panel): another agent is adding a Requests panel
-              here, above Bio — this column is otherwise ready for it. */}
-
           {isSelf && (
             <section className="panel p-4">
-              <h2 className="panel-header panel-header--with-icon">
-                Bio
-                <InfoIcon text="Your name and age are fixed once set. Ask a GM if either needs to change." />
-              </h2>
+              <h2 className="panel-header">Bio</h2>
               <BioForm
                 character={character}
                 lastNameLocked={lastNameLocked}

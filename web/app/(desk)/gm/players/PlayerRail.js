@@ -7,6 +7,7 @@ import ZoneChip from "@/app/components/ZoneChip";
 import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
 import { openingZoneName } from "@/lib/zones";
 import usePins from "@/app/components/usePins";
+import CharacterAvatar from "@/app/components/CharacterAvatar";
 import { scoreMatch } from "@/lib/fuzzySearch";
 import { markConversationRead } from "./actions";
 
@@ -180,6 +181,7 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
               </button>
               <Link href={href} className="desk-queue-link">
                 <div className="desk-queue-top">
+                  <CharacterAvatar characterId={row.characterId} name={row.name} version={row.avatarVersion} />
                   <span className="desk-queue-name">{row.name}</span>
                   {row.factionZoneName ? <ZoneChip zoneName={row.factionZoneName} /> : null}
                   {row.status && row.status !== "ALIVE" && (

@@ -58,10 +58,6 @@ export default function TagChip({
   // What it turns into when that runs out, rather than simply going away.
   const becomes = expiresIntoTokens(tag.expiresInto);
 
-  // The wrapper already carries tabIndex for the tooltip, so once it's
-  // clickable it has to answer the keyboard too.
-  const clickable = typeof onConsume === "function";
-
   const panel = (
     <>
       <div className="flex items-start justify-between gap-2">
@@ -82,13 +78,21 @@ export default function TagChip({
           its own tooltip. */}
       {tag.description && <ChipText text={tag.description} as="p" />}
       {consumeHint && <p className="text-accent">{consumeHint}</p>}
+      {typeof onConsume === "function" && (
+        <button type="button" className="btn-quiet" onClick={onConsume}>
+          Consume
+        </button>
+      )}
       <dl className="tag-meta">
         {duration && <Meta label="Expires">{duration.label}</Meta>}
         {/* Reinforcement, not the only warning — every tag that gets worse
-            says so in its own description too. This is the precise version. */}
+            says so in its own description too. This is the precise version.
+            inTooltip: this text is rendered inside a HoverCard panel (this
+            one), so a nested {tag:…} can safely become a real, hoverable
+            TagChip now that pinning makes it reachable. */}
         {becomes && (
           <Meta label="Becomes">
-            <ChipText text={becomes} />
+            <ChipText text={becomes} inTooltip />
           </Meta>
         )}
         {/* Labelled, not bare: formatTagRequirement's leading "1t" is turns of
@@ -119,22 +123,7 @@ export default function TagChip({
   );
 
   return (
-    <HoverCard
-      panel={panel}
-      className={clickable ? "cursor-pointer" : ""}
-      role={clickable ? "button" : undefined}
-      onClick={clickable ? onConsume : undefined}
-      onKeyDown={
-        clickable
-          ? (e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onConsume();
-              }
-            }
-          : undefined
-      }
-    >
+    <HoverCard panel={panel}>
       <ChipLabel tag={tag} quantity={quantity} duration={duration} />
     </HoverCard>
   );

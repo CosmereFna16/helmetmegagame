@@ -70,7 +70,6 @@ export default function Workspace({
   tagsById,
   tagCatalog,
   roster,
-  zones,
   presenceZones,
   moves,
   requests,
@@ -307,7 +306,6 @@ export default function Workspace({
               tagsById={tagsById}
               tagCatalog={tagCatalog}
               roster={roster}
-              zones={zones}
               presenceZones={presenceZones}
               currentTurnNumber={openTurn?.number ?? null}
               onInspect={inspect}
@@ -333,7 +331,6 @@ export default function Workspace({
               tagsById={tagsById}
               tagCatalog={tagCatalog}
               roster={roster}
-              zones={zones}
               presenceZones={presenceZones}
               currentTurnNumber={openTurn?.number ?? null}
               onInspect={inspect}
@@ -371,7 +368,6 @@ export default function Workspace({
         stagedMessages={stagedMessages}
         moves={moves}
         roster={roster}
-        zones={zones}
         presenceZones={presenceZones}
         tagCatalog={tagCatalog}
         onInspect={inspect}

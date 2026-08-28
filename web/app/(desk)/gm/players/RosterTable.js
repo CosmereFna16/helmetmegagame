@@ -5,6 +5,7 @@ import { useMemo, useState, useTransition } from "react";
 import FormError from "@/app/components/FormError";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
+import CharacterAvatar from "@/app/components/CharacterAvatar";
 import DevPanelModal from "@/app/components/DevPanelModal";
 import FactionLink from "@/app/components/FactionLink";
 import { useTableState, SortHeader, FilterBar, TableScroll } from "@/app/components/DataTable";
@@ -274,6 +275,7 @@ export default function RosterTable({
                   </td>
                   <td>
                     <div className="flex items-center gap-2">
+                      <CharacterAvatar characterId={c.id} name={c.name} version={c.avatarVersion} />
                       {/* Straight into their conversation — the verb this desk
                           exists for. The Dev Panel is one click further, off
                           the name itself. */}

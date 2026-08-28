@@ -130,7 +130,7 @@ export default async function TurnsWorkspacePage({ params }) {
   const { selection } = await params;
   const openTurn = await getOpenTurn();
 
-  const [actions, requests, cavingRolls, stagedEffects, stagedMessages, roster, zones, presenceZones, tagCatalog, members, myZones, gmProfiles] =
+  const [actions, requests, cavingRolls, stagedEffects, stagedMessages, roster, presenceZones, tagCatalog, members, myZones, gmProfiles] =
     await Promise.all([
       openTurn
         ? prisma.action.findMany({
@@ -172,7 +172,9 @@ export default async function TurnsWorkspacePage({ params }) {
             where: { turnId: openTurn.id },
             orderBy: { createdAt: "desc" },
             include: {
-              character: { select: { id: true, name: true, discordUserId: true, faction: { include: { zone: true } } } },
+              character: {
+                select: { id: true, name: true, discordUserId: true, updatedAt: true, faction: { include: { zone: true } } },
+              },
               zone: { select: { name: true } },
               lootTag: { select: { name: true } },
             },
@@ -184,7 +186,7 @@ export default async function TurnsWorkspacePage({ params }) {
         where: openTurn ? { OR: [{ turnId: openTurn.id }, { appliedAt: null }] } : { appliedAt: null },
         orderBy: { createdAt: "asc" },
         include: {
-          targetCharacter: { select: { id: true, name: true } },
+          targetCharacter: { select: { id: true, name: true, updatedAt: true } },
           turn: { select: { id: true, number: true } },
         },
       }),
@@ -192,7 +194,7 @@ export default async function TurnsWorkspacePage({ params }) {
         where: openTurn ? { OR: [{ turnId: openTurn.id }, { sentAt: null }] } : { sentAt: null },
         orderBy: { createdAt: "asc" },
         include: {
-          recipients: { include: { character: { select: { id: true, name: true } } } },
+          recipients: { include: { character: { select: { id: true, name: true, updatedAt: true } } } },
           zone: { select: { id: true, name: true } },
           turn: { select: { id: true, number: true } },
         },
@@ -204,17 +206,10 @@ export default async function TurnsWorkspacePage({ params }) {
         orderBy: { name: "asc" },
         select: { id: true, name: true, faction: { select: { name: true } } },
       }),
-      // The four GM SEATS — Town, Fortress, Windlands, Caves. Every zone a
-      // desk row can be stamped with is a seat (db/lib/seatZone.js), so the
-      // cave levels are folded into the Caves group here rather than listed.
-      prisma.zone.findMany({
-        where: { kind: { not: "CAVE_LEVEL" } },
-        orderBy: { sortOrder: "asc" },
-        select: { id: true, name: true },
-      }),
-      // The staged-relocate picker's option list: PRESENCE zones only — a
-      // character stands in a surface zone or a single cave level, never on
-      // the Caves group row (mirrors web/lib/devPanelData.js's zone query).
+      // Every zone picker on this desk (staged relocation, public-declaration
+      // delivery) offers PRESENCE zones only — a character stands in a
+      // surface zone or a single cave level, never on the abstract Caves
+      // group row (mirrors web/lib/devPanelData.js's zone query).
       prisma.zone.findMany({
         where: { kind: { not: "CAVE_GROUP" } },
         orderBy: { sortOrder: "asc" },
@@ -257,6 +252,7 @@ export default async function TurnsWorkspacePage({ params }) {
     id: a.id,
     characterId: a.characterId,
     characterName: a.character.name,
+    avatarVersion: a.character.updatedAt.getTime(),
     // The player desk keys on discordUserId, not characterId — carried here
     // so a Move can link straight to that player's conversation.
     discordUserId: a.character.discordUserId,
@@ -295,6 +291,7 @@ export default async function TurnsWorkspacePage({ params }) {
     id: r.id,
     characterId: r.characterId,
     characterName: r.character.name,
+    avatarVersion: r.character.updatedAt.getTime(),
     discordUserId: r.character.discordUserId,
     discordUsername: nameFor(r.character),
     factionName: r.character.faction?.name ?? "",
@@ -320,6 +317,7 @@ export default async function TurnsWorkspacePage({ params }) {
     id: c.id,
     characterId: c.characterId,
     characterName: c.character.name,
+    avatarVersion: c.character.updatedAt.getTime(),
     discordUsername: nameFor(c.character),
     factionZoneName: c.character.faction?.zone?.name ?? c.zone?.name ?? "",
     die: c.die,
@@ -345,6 +343,7 @@ export default async function TurnsWorkspacePage({ params }) {
     batchId: e.batchId,
     targetCharacterId: e.targetCharacterId,
     targetName: e.targetCharacter?.name ?? "(deleted)",
+    targetAvatarVersion: e.targetCharacter?.updatedAt ? e.targetCharacter.updatedAt.getTime() : null,
     resources: e.payload?.resources ?? 0,
     tagPoints: e.payload?.tagPoints ?? 0,
     tagOps: e.payload?.tagOps ?? [],
@@ -366,7 +365,11 @@ export default async function TurnsWorkspacePage({ params }) {
     content: m.content,
     zoneId: m.zoneId,
     zoneName: m.zone?.name ?? null,
-    recipients: m.recipients.map((r) => ({ characterId: r.character.id, name: r.character.name })),
+    recipients: m.recipients.map((r) => ({
+      characterId: r.character.id,
+      name: r.character.name,
+      avatarVersion: r.character.updatedAt.getTime(),
+    })),
     sent: Boolean(m.sentAt),
     deliveryFailures: m.deliveryFailures ?? null,
     createdByUsername: usernameById.get(m.createdByDiscordUserId) ?? m.createdByDiscordUserId,
@@ -383,7 +386,6 @@ export default async function TurnsWorkspacePage({ params }) {
       tagsById={tagsById}
       tagCatalog={tagCatalog}
       roster={roster.map((c) => ({ id: c.id, name: c.name, factionName: c.faction?.name ?? "" }))}
-      zones={zones}
       presenceZones={presenceZones}
       moves={moves}
       requests={requestRows}

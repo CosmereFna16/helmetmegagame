@@ -116,6 +116,7 @@ export default async function PlayerDeskLayout({ children }) {
     return {
       discordUserId,
       characterId: c?.id ?? null,
+      avatarVersion: c?.updatedAt ? c.updatedAt.getTime() : null,
       name: c?.name ?? username ?? discordUserId,
       roleTitle: c?.roleTitle ?? "",
       factionId: c?.factionId ?? null,

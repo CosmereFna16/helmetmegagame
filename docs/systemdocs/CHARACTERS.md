@@ -447,7 +447,7 @@ typo can't ship characters missing part of their package.
 ## 3. The point economy
 
 ```
-budget = GameConfig.startingTagPoints      (default 12, live on /gm/dev)
+budget = GameConfig.startingTagPoints      (default 5, live on /gm/dev)
        + role.extra_starting_points        (Peasant +2, Outsider +3)
        - 3 if the player is Cursed
 ```

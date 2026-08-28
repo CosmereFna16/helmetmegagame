@@ -49,7 +49,6 @@ export default function StagingTray({
   stagedMessages,
   moves,
   roster,
-  zones,
   presenceZones,
   tagCatalog,
   onInspect,
@@ -266,7 +265,7 @@ export default function StagingTray({
               key={m.id}
               message={m}
               roster={roster}
-              zones={zones}
+              presenceZones={presenceZones}
               onInspect={onInspect}
               gmProfiles={gmProfiles}
             />
@@ -304,7 +303,7 @@ export default function StagingTray({
       )}
       {composer === "public" && (
         <PublicComposer
-          zones={zones}
+          zones={presenceZones}
           onDone={() => {
             setComposer(null);
             router.refresh();

@@ -168,6 +168,17 @@ never instead of it — otherwise a lucky search string would reveal a gated tag
   a GM finds a second copy or the next tier of a chain), but only carries the
   not-yet-held action; anything on an existing holding is Holds' job.
 
+  The catalog half — search, tabs, grouping, the row shell, multi-select — is
+  the shared `web/app/components/TagCatalogBrowser.js`, extracted so
+  `EffectComposer.js` (`/gm/turns`' stage-an-effect modal) gets the same
+  power-user tag surface instead of a flat name/slug search box. Row actions
+  are the one thing each caller supplies (`renderActions`): `TagEditor.js`
+  grants live, `EffectComposer.js` stages an add/remove op instead. Held-tag
+  context differs too — `TagEditor.js` keeps its own Holds section above the
+  browser (with the live-mutation actions the browser doesn't render);
+  `EffectComposer.js` shows the *target's* held tags read-only next to its
+  own staged-ops list, since a staged effect only ever adds a fresh op.
+
 A non-empty search box searches the **whole catalog**, ignoring the active
 category tab, with a chip on each hit naming its category. Clear the box to
 go back to per-category browsing.
@@ -303,6 +314,7 @@ sequentially in `after()` and lands on a `BULK_MOVE` report.
 | Custom tag catalog | `web/app/(app)/gm/dev/tags/` |
 | Bulk tagging | `web/app/(app)/gm/actions.js#bulkTagCharacters` |
 | Shared tag search | `web/lib/characterCreation.js#filterTagsByQuery` |
+| Shared catalog browser (categories, search, grouping, multi-select) | `web/app/components/TagCatalogBrowser.js` |
 | Panel styling | `.dev-state-strip`, `.dev-state-group`, `.dev-bar-sep`, `.dev-apply-bar`, `.dev-tag-row`, `.dev-tag-group-head`, `.dev-modal-panel` in `globals.css` |
 | Desk modal mount (shared by turns/players desks), its server action | `web/app/components/DevPanelModal.js`, `devPanelActions.js` |
 | The game-level panel (§11) | `web/app/(app)/gm/dev/page.js`, `actions.js` |

@@ -5,6 +5,7 @@ import StatusPill from "@/app/components/StatusPill";
 import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
 import { openingZoneName } from "@/lib/zones";
 import GmAvatar from "@/app/components/GmAvatar";
+import CharacterAvatar from "@/app/components/CharacterAvatar";
 import { useTableState } from "@/app/components/DataTable";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { MOVE_REVIEW_TONES } from "@/lib/moves";
@@ -91,7 +92,10 @@ function MoveRows({ table, stagedByMove, selected, onSelect, gmProfiles, kbdId, 
         onClick={() => onSelect({ type: "move", id: row.id })}
       >
         <span className="flex items-center justify-between gap-2">
-          <span className="truncate font-medium">{row.characterName}</span>
+          <span className="flex items-center gap-1.5 truncate font-medium">
+            <CharacterAvatar characterId={row.characterId} name={row.characterName} version={row.avatarVersion} />
+            <span className="truncate">{row.characterName}</span>
+          </span>
           <span className="flex items-center gap-1.5">
             {row.statusLabel === "In Progress" && (
               <GmAvatar profile={gmProfiles?.[row.lockedByDiscordUserId]} size={14} />
@@ -130,10 +134,13 @@ function RequestRows({ table, selected, onSelect, kbdId, kbdLens }) {
         onClick={() => onSelect({ type: "request", id: row.id })}
       >
         <span className="flex items-center justify-between gap-2">
-          <span className="truncate font-medium">
-            {killPending ? "☠ " : ""}
-            {!row.reviewedByUsername && <span className="desk-dot" aria-label="Not yet reviewed" />}
-            {row.characterName}
+          <span className="flex items-center gap-1.5 truncate font-medium">
+            <CharacterAvatar characterId={row.characterId} name={row.characterName} version={row.avatarVersion} />
+            <span className="truncate">
+              {killPending ? "☠ " : ""}
+              {!row.reviewedByUsername && <span className="desk-dot" aria-label="Not yet reviewed" />}
+              {row.characterName}
+            </span>
           </span>
           <StatusPill tone={REQUEST_TONES[row.statusLabel] ?? "neutral"}>{row.statusLabel}</StatusPill>
         </span>
@@ -161,8 +168,11 @@ function CavingRows({ table, selected, onSelect, kbdId, kbdLens }) {
         onClick={() => onSelect({ type: "caving", id: row.id })}
       >
         <span className="flex items-center justify-between gap-2">
-          <span className="truncate font-medium">
-            ⚀ {row.die} — {row.characterName}
+          <span className="flex items-center gap-1.5 truncate font-medium">
+            <CharacterAvatar characterId={row.characterId} name={row.characterName} version={row.avatarVersion} />
+            <span className="truncate">
+              ⚀ {row.die} — {row.characterName}
+            </span>
           </span>
           <StatusPill tone={CAVING_TONES[row.statusLabel] ?? "neutral"}>{row.statusLabel}</StatusPill>
         </span>

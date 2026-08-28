@@ -96,10 +96,6 @@ export async function updateGameConfig(formData) {
       // 0 is a real setting here — "no drawbacks at all" is coherent, only a
       // negative cap is nonsense.
       maxNegativeTags: Math.max(0, intOrZero(formData, "maxNegativeTags")),
-      // Where the staged push posts PUBLIC declarations (db/lib/stagedPush.js).
-      // Empty means composed posts are skipped at push, recorded on their
-      // rows' deliveryFailures — never lost.
-      turnSummaryChannelId: str(formData, "turnSummaryChannelId").trim() || null,
     },
   });
 

@@ -704,6 +704,93 @@ export const REQUEST_EFFECTS = {
       return `Removed ${formatStack(tagName, quantity)} and refunded ${resourcesSpent ?? 0} ⬢.`;
     },
   },
+  BIND_CHARACTER: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { targetCharacterId, targetName, tagId } = request.effect;
+      if (targetCharacterId && tagId) await dropCharacterTag(tx, targetCharacterId, tagId);
+      return `Cut ${targetName ?? "them"} loose.`;
+    },
+  },
+  FREE_CHARACTER: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { targetCharacterId, targetName } = request.effect;
+      // restoreCharacterTag takes the whole snapshot, so the tag goes back
+      // with the source and expiry it had rather than a fresh full duration.
+      if (targetCharacterId) await restoreCharacterTag(tx, targetCharacterId, request.effect);
+      return `Put ${targetName ?? "them"} back in their bonds.`;
+    },
+  },
+  HARM_CHARACTER: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { targetCharacterId, targetName, tagId, tagName, killed } = request.effect;
+      if (targetCharacterId && tagId) await dropCharacterTag(tx, targetCharacterId, tagId);
+      // Undo never revives, the same rule FEED_PERSON documents — a death a
+      // GM confirmed by hand is not something the request that flagged it
+      // gets to take back.
+      const parts = [];
+      if (tagId) parts.push(`Healed ${formatStack(tagName, 1)} on ${targetName ?? "them"}.`);
+      if (killed) parts.push("They stay dead — Undo does not revive.");
+      return parts.length ? parts.join(" ") : `Nothing to reverse on ${targetName ?? "them"}.`;
+    },
+  },
+  DROP_ITEM: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { cacheId, tagName, quantity } = request.effect;
+      // Reverses THIS drop by its own cache row, never by what happens to be
+      // lying in the zone now. If someone already picked it up the row is
+      // gone, and minting the item back onto the filer's sheet would be
+      // creating a second copy of something another player is holding.
+      const cache = cacheId
+        ? await tx.zoneCache.findUnique({ where: { id: cacheId } })
+        : null;
+      if (!cache) return `${formatStack(tagName, quantity)} has already been picked up — nothing to put back.`;
+
+      const n = Math.min(cache.quantity, quantity ?? 1);
+      if (n >= cache.quantity) {
+        await tx.zoneCache.delete({ where: { id: cache.id } });
+      } else {
+        await tx.zoneCache.update({
+          where: { id: cache.id },
+          data: { quantity: { decrement: n } },
+        });
+      }
+      await restoreCharacterTag(tx, request.characterId, { ...request.effect, quantity: n });
+      return `Picked ${formatStack(tagName, n)} back up off the ground.`;
+    },
+  },
+  PICK_UP_ITEM: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { cacheId, zoneId, tagId, tagName, quantity, droppedByName, emptied } = request.effect;
+      if (!tagId || !zoneId) return "Nothing to put back.";
+      await dropCharacterTag(tx, request.characterId, tagId, quantity ?? 1);
+      // A partial take left the row behind, so put the count back on it. A
+      // take that emptied the pile deleted it, so recreate it — reusing the
+      // original id keeps any other request's effect.cacheId pointing at a
+      // real row.
+      if (emptied) {
+        await tx.zoneCache.create({
+          data: {
+            id: cacheId,
+            zoneId,
+            tagId,
+            quantity: quantity ?? 1,
+            droppedByName: droppedByName ?? "someone",
+          },
+        });
+      } else {
+        await tx.zoneCache.updateMany({
+          where: { id: cacheId },
+          data: { quantity: { increment: quantity ?? 1 } },
+        });
+      }
+      return `Put ${formatStack(tagName, quantity)} back on the ground.`;
+    },
+  },
 };
 
 // A GM can only ever set a non-negative amount; anything else is a typo, and

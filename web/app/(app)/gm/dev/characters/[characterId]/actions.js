@@ -29,6 +29,7 @@ import {
   applyTagOpsInTx,
   planDiscordEffects,
 } from "@/lib/characterWrite";
+import { applyPendingInvites } from "@lifeweb/db/lib/threadInvites";
 import { findOpenTurnAction, lockIsLive, deleteActionRestoringTurn } from "@/lib/moveEconomy";
 
 // Everything here is gated on GM membership, not superadmin: this panel is
@@ -457,6 +458,53 @@ async function resyncDiscordImpl({ characterId }) {
   return { name: character.name };
 }
 
+// A raw relocation like Bulk Move's, not travel: no Move cost, no Action
+// filed, no adjacency check. Immediate rather than staged — it touches only
+// zoneId, so it can't race the staged form's own zone field, same posture as
+// Kill/Revive owning `status`.
+async function teleportCharacterImpl({ characterId, zoneId }) {
+  const session = await requireGm();
+  const character = await loadCharacter(characterId);
+  if (character.status !== "ALIVE") throw new UserError("A corpse can't be moved.");
+
+  const zone = zoneId ? await prisma.zone.findUnique({ where: { id: zoneId } }) : null;
+  if (zoneId && !zone) throw new UserError("That zone no longer exists.");
+  if (zone?.kind === "CAVE_GROUP") throw new UserError("That isn't a place a character can stand.");
+  if (character.zoneId === (zoneId || null)) {
+    throw new UserError(`${character.name} is already there.`);
+  }
+
+  const fromZoneId = character.zoneId;
+  const updated = await prisma.character.update({
+    where: { id: characterId },
+    data: { zoneId: zoneId || null },
+  });
+
+  await audit(session, "gm_character_teleported", characterId, {
+    fromZoneId,
+    toZoneId: updated.zoneId,
+    toZoneName: zone?.name ?? null,
+  });
+  notifyCharacter(
+    session,
+    character,
+    zone ? `You were moved to ${zone.name}.` : "You were moved somewhere with no zone access.",
+  );
+
+  after(async () => {
+    try {
+      await syncCharacterZoneRole(updated.discordUserId, fromZoneId, updated.zoneId);
+      await syncCharacterNarrowcastAccess(characterId);
+      await applyPendingInvites(prisma, updated);
+    } catch (err) {
+      console.error("Dev Panel teleport Discord sync failed:", err);
+    }
+  });
+
+  repaint(characterId);
+  return { zoneName: zone?.name ?? null };
+}
+
 // The irreversible one. Discord cleanup runs FIRST and inline, while the row
 // still names the overwrites and the personal role id; the database half is
 // the shared deleteCharacterRow, which also detaches the audit trail rather
@@ -609,6 +657,9 @@ export async function messageCharacter(input) {
 }
 export async function resyncDiscord(input) {
   return guarded(() => resyncDiscordImpl(input));
+}
+export async function teleportCharacter(input) {
+  return guarded(() => teleportCharacterImpl(input));
 }
 export async function deleteCharacter(input) {
   return guarded(() => deleteCharacterImpl(input));

@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import StatusPill from "@/app/components/StatusPill";
 import GmAvatar from "@/app/components/GmAvatar";
+import CharacterAvatar from "@/app/components/CharacterAvatar";
 import EffectComposer from "./EffectComposer";
 import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
@@ -38,9 +39,15 @@ export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, presence
         <p className="text-sm">
           <button
             type="button"
-            className="desk-name"
+            className="desk-name inline-flex items-center gap-1"
             onClick={() => onInspect?.(effect.targetCharacterId, effect.targetName)}
           >
+            <CharacterAvatar
+              characterId={effect.targetCharacterId}
+              name={effect.targetName}
+              version={effect.targetAvatarVersion}
+              size={16}
+            />
             {effect.targetName}
           </button>{" "}
           <span className="mono">{effectSummary(effect, tagNames)}</span>
@@ -83,7 +90,7 @@ export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, presence
   );
 }
 
-export function StagedMessageRow({ message, roster, zones, onInspect, gmProfiles }) {
+export function StagedMessageRow({ message, roster, presenceZones, onInspect, gmProfiles }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -125,9 +132,10 @@ export function StagedMessageRow({ message, roster, zones, onInspect, gmProfiles
                   <button
                     key={r.characterId}
                     type="button"
-                    className="chip desk-name"
+                    className="chip desk-name inline-flex items-center gap-1"
                     onClick={() => onInspect?.(r.characterId, r.name)}
                   >
+                    <CharacterAvatar characterId={r.characterId} name={r.name} version={r.avatarVersion} size={16} />
                     {r.name}
                   </button>
                 ))
@@ -172,7 +180,7 @@ export function StagedMessageRow({ message, roster, zones, onInspect, gmProfiles
         (message.kind === "PUBLIC" ? (
           <PublicComposer
             existing={message}
-            zones={zones}
+            zones={presenceZones}
             onDone={() => {
               setEditing(false);
               router.refresh();
@@ -194,7 +202,7 @@ export function StagedMessageRow({ message, roster, zones, onInspect, gmProfiles
   );
 }
 
-export default function StagedItems({ effects, messages, tagCatalog, roster, zones, presenceZones, onInspect, empty, gmProfiles }) {
+export default function StagedItems({ effects, messages, tagCatalog, roster, presenceZones, onInspect, empty, gmProfiles }) {
   const tagNames = useMemo(() => tagNameLookup(tagCatalog), [tagCatalog]);
 
   if (!effects.length && !messages.length) {
@@ -220,7 +228,7 @@ export default function StagedItems({ effects, messages, tagCatalog, roster, zon
           key={m.id}
           message={m}
           roster={roster}
-          zones={zones}
+          presenceZones={presenceZones}
           onInspect={onInspect}
           gmProfiles={gmProfiles}
         />

@@ -8,6 +8,7 @@ import { PageHeader } from "@/app/components/PageShell";
 import FactionLink from "@/app/components/FactionLink";
 import TagPointsValue from "@/app/components/TagPointsValue";
 import Modal from "@/app/components/Modal";
+import CharacterAvatar from "@/app/components/CharacterAvatar";
 import ActionBar from "./ActionBar";
 import IdentityTab from "./IdentityTab";
 import TagEditor from "./TagEditor";
@@ -199,6 +200,7 @@ export default function DevPanel({
         canDelete={canDelete}
         hasActed={Boolean(openTurnAction)}
         openTurn={openTurn}
+        zones={zones}
         tags={tags}
         held={held}
         feed={feed}
@@ -301,10 +303,17 @@ export default function DevPanel({
     </>
   );
 
+  const titleWithAvatar = (
+    <span className="flex items-center gap-2">
+      <CharacterAvatar characterId={character.id} name={character.name} version={character.updatedAt} size={32} />
+      {staged.name || character.name}
+    </span>
+  );
+
   if (frame === "modal") {
     return (
       <Modal
-        title={staged.name || character.name}
+        title={titleWithAvatar}
         onClose={closeModal}
         panelClassName="modal-panel dev-modal-panel"
       >
@@ -316,7 +325,7 @@ export default function DevPanel({
   return (
     <>
       <PageHeader
-        title={staged.name || character.name}
+        title={titleWithAvatar}
         subtitle={
           <>
             All of the character&apos;s values can be edited.

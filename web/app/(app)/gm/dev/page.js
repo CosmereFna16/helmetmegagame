@@ -176,14 +176,6 @@ export default async function DevPanelPage() {
               defaultValue={config.maxNegativeTags}
             />
           </label>
-          <label className="field">
-            <span className="field-label">Summary channel ID (public declarations)</span>
-            <input
-              name="turnSummaryChannelId"
-              placeholder="Discord channel ID"
-              defaultValue={config.turnSummaryChannelId ?? ""}
-            />
-          </label>
           <Switch name="openToPlayers" defaultChecked={config.openToPlayers} className="col-span-full">
             Open to players
           </Switch>

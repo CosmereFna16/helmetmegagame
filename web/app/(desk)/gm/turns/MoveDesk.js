@@ -7,6 +7,7 @@ import FormError from "@/app/components/FormError";
 import TagChip from "@/app/components/TagChip";
 import Tooltip from "@/app/components/Tooltip";
 import GmAvatar from "@/app/components/GmAvatar";
+import CharacterAvatar from "@/app/components/CharacterAvatar";
 import RequestDialog from "@/app/components/RequestDialog";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
@@ -70,7 +71,6 @@ export default function MoveDesk({
   tagsById,
   tagCatalog,
   roster,
-  zones,
   presenceZones,
   currentTurnNumber,
   onInspect,
@@ -146,7 +146,8 @@ export default function MoveDesk({
     <div className="desk-card">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="section-title">
+          <h2 className="section-title flex items-center gap-2">
+            <CharacterAvatar characterId={move.characterId} name={move.characterName} version={move.avatarVersion} size={32} />
             <button type="button" className="desk-name" onClick={() => onInspect(move.characterId, move.characterName)}>
               {move.characterName}
             </button>{" "}
@@ -281,7 +282,6 @@ export default function MoveDesk({
           messages={staged.messages}
           tagCatalog={tagCatalog}
           roster={roster}
-          zones={zones}
           presenceZones={presenceZones}
           onInspect={onInspect}
           gmProfiles={gmProfiles}
@@ -325,7 +325,7 @@ export default function MoveDesk({
       {composer === "public" && (
         <PublicComposer
           moveId={move.id}
-          zones={zones}
+          zones={presenceZones}
           onDone={() => {
             setComposer(null);
             router.refresh();

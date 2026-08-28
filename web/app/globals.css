@@ -1086,6 +1086,32 @@ input[type="radio"]:disabled {
   pointer-events: none;
 }
 
+/* Pinned by a click on the trigger: the reader can now reach into the panel
+   (a nested chip, the Consume button), so it has to accept pointer events,
+   and the border says "this stays" rather than "passing through". */
+.tag-tooltip[data-pinned] {
+  pointer-events: auto;
+  border-color: var(--accent);
+  padding-right: 22px;
+}
+
+.tag-tooltip-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  padding: 2px 4px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tag-tooltip-close:hover {
+  color: var(--text);
+}
+
 .tag-tooltip strong {
   display: block;
   margin-bottom: 2px;
@@ -2936,6 +2962,37 @@ input[type="radio"]:disabled {
   color: var(--on-accent);
   border: none;
 }
+/* A bot-authored Discord embed (dossier/inspect reactions), rendered
+   compactly. Left-aligned like an inbound bubble but visually distinct from
+   a GM's own words — it isn't one. */
+.dm-embed {
+  background: var(--surface-raised);
+  color: var(--text);
+  border: none;
+  border-left: 3px solid var(--border);
+  font-size: var(--fs-xs);
+}
+
+.dm-embed-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.dm-embed-more {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  flex-shrink: 0;
+}
+
 .dm-bubble-in {
   background: var(--field-bg);
   color: var(--text);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import HoverCard from "./HoverCard";
 
 // An inline reference to another document, from {document:key}.
@@ -9,10 +9,9 @@ import HoverCard from "./HoverCard";
 // (/documents?doc=key), so a reference in one paper can be followed to the
 // paper it names.
 //
-// Navigation is an onClick on HoverCard's trigger rather than a <Link> inside
-// it, the same way TagChip adds its consume click. The trigger span already
-// carries tabIndex={0} so the tooltip can be reached by keyboard; nesting a
-// focusable <a> inside it would make one chip two tab stops.
+// HoverCard's trigger click/Enter/Space now pins the tooltip open rather
+// than navigating, so the "Open →" link lives inside the panel instead —
+// reachable once pinning makes the panel interactive.
 //
 // `doc` comes from useDocuments() and is already resolved by the caller —
 // see DocumentsProvider. A doc the reader may not open arrives with
@@ -21,8 +20,6 @@ import HoverCard from "./HoverCard";
 // deliberate — degrading to plain text would hide that a document exists,
 // while a working link would hand out Gamemaster briefs.
 export default function DocumentChip({ doc }) {
-  const router = useRouter();
-
   const face = (
     <span className="chip doc-chip" data-locked={!doc.accessible || undefined}>
       <span aria-hidden="true">▣</span>
@@ -32,8 +29,6 @@ export default function DocumentChip({ doc }) {
 
   if (!doc.accessible) return face;
 
-  const open = () => router.push(`/documents?doc=${encodeURIComponent(doc.key)}`);
-
   return (
     <HoverCard
       panel={
@@ -41,17 +36,11 @@ export default function DocumentChip({ doc }) {
           <strong>{doc.name}</strong>
           {doc.source && <p className="text-muted">{doc.source}</p>}
           {doc.excerpt && <p>{doc.excerpt}</p>}
+          <Link href={`/documents?doc=${encodeURIComponent(doc.key)}`} className="btn-quiet">
+            Open →
+          </Link>
         </>
       }
-      className="cursor-pointer"
-      role="link"
-      onClick={open}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          open();
-        }
-      }}
     >
       {face}
     </HoverCard>

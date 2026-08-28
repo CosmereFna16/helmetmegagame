@@ -134,8 +134,8 @@ being a member of that faction does.
 and it was removed: it was a direct mutation with an optional note and no
 `Request` row, so a GM could neither review nor undo it.
 
-The one way out is the `TRANSFER_RESOURCES` request on `/character`
-(`TransferResourcesButton`), which demands a reason, appears in the Requests
+The one way out is the `TRANSFER_RESOURCES` request on `/character` (the ⬢
+button in the Actions grid, `RequestActionsProvider.js`), which demands a reason, appears in the Requests
 tab, and is undoable. See `REQUESTS.md`.
 
 It is also gated on **reach** (§3b): the acting character has to be

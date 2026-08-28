@@ -6,17 +6,17 @@ import FormError from "@/app/components/FormError";
 import { createStagedMessage, updateStagedMessage } from "./actions";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 
-// Stage a public declaration. Posts to the configured summary channel at the
-// push; the zone is carried on the row now so the future per-zone summary
-// channels can deliver by it without a migration.
+// Stage a public declaration. Posts to the declaration's zone's #summary
+// channel at the push.
 export default function PublicComposer({ moveId = null, cavingRollId = null, existing = null, zones, onDone, onCancel }) {
   const [content, setContent] = useState(existing?.content ?? "");
-  const [zoneId, setZoneId] = useState(existing?.zoneId ?? "");
+  const [zoneId, setZoneId] = useState(existing?.zoneId ?? zones[0]?.id ?? "");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
 
   function submit() {
     setError(null);
+    if (!zoneId) return setError("Pick a zone.");
     startTransition(async () => {
       const res = existing
         ? await updateStagedMessage({ stagedMessageId: existing.id, content, zoneId })
@@ -43,9 +43,9 @@ export default function PublicComposer({ moveId = null, cavingRollId = null, exi
         </label>
 
         <label className="field" style={{ width: "14rem" }}>
-          <span className="field-label">Zone (optional)</span>
-          <select value={zoneId ?? ""} onChange={(e) => setZoneId(e.target.value)}>
-            <option value="">Whole barony</option>
+          <span className="field-label">Zone</span>
+          <select value={zoneId ?? ""} onChange={(e) => setZoneId(e.target.value)} required>
+            {!zoneId && <option value="">Pick a zone…</option>}
             {zones.map((z) => (
               <option key={z.id} value={z.id}>
                 {z.name}

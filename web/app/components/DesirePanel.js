@@ -9,10 +9,14 @@ import { setDesire, cancelDesire, fulfillDesireRequest } from "../(app)/characte
 
 const DESIRE_HELP = (
   <>
-    <p>Characters earn Tag Points by fulfilling Desires.</p>
-    <p>The more difficult and personal the Desire, the more Tag Points you earn.</p>
+    <p>
+      You can fulfill Desires to obtain more tag points. Desires must be difficult and personal
+      to receive points. For the Baron, even a whole bottle of gin is hardly satisfactory; for
+      the Peasant, one glass is enough.
+    </p>
     <p className="text-muted">
-      Leaders can set Desires aligned with faction goals, like conquering territory. Everyone else is encouraged to find personally relevant ones, from having a nice meal to proving themselves in front of an audience.
+      Leaders can set desires according to their faction goals, but to encourage conflict and
+      roleplay, most people should have more personalized, individual goals.
     </p>
   </>
 );

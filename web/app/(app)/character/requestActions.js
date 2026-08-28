@@ -25,6 +25,7 @@ import {
   moveResources,
 } from "@/lib/requestEffects";
 import {
+  HEALABLE_CATEGORY,
   HEAL_SKILL_SLUG,
   buildSkillAncestry,
   healCost,
@@ -41,7 +42,7 @@ import {
   ensureCharacterRole,
   syncCharacterZoneRole,
 } from "@/lib/discordGuild";
-import { INCAPACITATING_SLUGS } from "@lifeweb/db/lib/incapacitation";
+import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { NAME_LIMITS, formatCharacterName, formatBareName, normalizeEarnedHonorific } from "@/lib/characterName";
 import { propagateDynastyLastName } from "@/lib/dynasty";
 
@@ -814,14 +815,15 @@ async function healCharacterRequestImpl({
 // --- Looting a living, incapacitated target ----------------------------
 
 // Someone dying/catatonic/paralyzed/bound in the filer's zone is a lootable
-// pile the same way a corpse is (`TRANSFER_TAG`'s LOOT direction), except
-// they're still ALIVE — one request can take a mix of tags AND ⬢ at once
-// rather than needing a TRANSFER_TAG + TRANSFER_RESOURCES pair, since both
-// come off the same helpless person in the same act.
+// pile the same way a corpse is, and this handles BOTH — one request takes a
+// mix of tags AND ⬢ at once rather than needing a TRANSFER_TAG +
+// TRANSFER_RESOURCES pair, since both come off the same helpless body in the
+// same act.
 //
-// UI wiring (a picker on the character sheet, alongside CorpseLootPanel) is
-// pending — CharacterSheet.js/TagRequestButtons.js are owned by the
-// character-sheet-layout agent's pass. This is the server-side half only.
+// Folding corpses in here is what let CorpseLootPanel.js go. The older
+// `TRANSFER_TAG`/`TRANSFER_RESOURCES` LOOT direction still exists and still
+// works — Request rows filed under it before this change have to keep undoing
+// correctly — but nothing files one any more.
 async function lootCharacterRequestImpl({
   targetCharacterId,
   tagPicks: rawTagPicks,
@@ -834,7 +836,7 @@ async function lootCharacterRequestImpl({
   if (!character.zoneId) throw new UserError("You aren't anywhere you could do that.");
 
   const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId ?? "", status: "ALIVE", zoneId: character.zoneId },
+    where: { id: targetCharacterId ?? "", status: { in: ["ALIVE", "DEAD"] }, zoneId: character.zoneId },
     include: {
       tags: {
         include: { tag: { select: { name: true, category: true, stackable: true, slug: true } } },
@@ -843,7 +845,11 @@ async function lootCharacterRequestImpl({
   });
   if (!target) throw new UserError("They aren't here.");
 
-  const incapacitated = target.tags.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug));
+  // A corpse needs no further excuse. A living target has to be helpless —
+  // going through the pockets of someone who could stop you is a Gambit, and
+  // a GM adjudicates that.
+  const incapacitated =
+    target.status === "DEAD" || target.tags.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug));
   if (!incapacitated) throw new UserError("They aren't in any state to be looted.");
 
   const picks = Array.isArray(rawTagPicks) ? rawTagPicks : [];
@@ -897,6 +903,7 @@ async function lootCharacterRequestImpl({
     const effect = {
       targetCharacterId: target.id,
       targetName: target.name,
+      targetStatus: target.status,
       tags: takenTags.map((t) => ({
         tagId: t.tagId,
         tagName: t.tagName,
@@ -923,8 +930,12 @@ async function lootCharacterRequestImpl({
     });
   });
 
+  // A corpse holds no channel access to reconcile, so only the living end of
+  // a body-search is worth the REST call.
   await Promise.all([
-    syncCharacterNarrowcastAccess(target.id).catch(() => {}),
+    target.status === "ALIVE"
+      ? syncCharacterNarrowcastAccess(target.id).catch(() => {})
+      : Promise.resolve(),
     syncCharacterNarrowcastAccess(character.id).catch(() => {}),
   ]);
   revalidateAll();
@@ -949,15 +960,20 @@ async function moveCharacterRequestImpl({ targetCharacterId, targetZoneId, reaso
   if (!character.zoneId) throw new UserError("You aren't anywhere you could do that.");
 
   const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId ?? "", status: "ALIVE", zoneId: character.zoneId },
+    where: { id: targetCharacterId ?? "", status: { in: ["ALIVE", "DEAD"] }, zoneId: character.zoneId },
     include: { tags: { where: { tag: { slug: "bound" } }, select: { tagId: true } } },
   });
   if (!target) throw new UserError("They aren't here.");
 
+  // Dragging a body needs no authority over it — a corpse doesn't get a say.
+  // This is the "drag a corpse" case, folded in here rather than given its own
+  // request type: it is the same act with the same validation and the same
+  // Undo, minus the Discord swap a dead character has no roles for.
+  const isCorpse = target.status === "DEAD";
   const isBound = target.tags.length > 0;
   const commandsThem =
     character.isLeader && target.factionId != null && target.factionId === character.factionId;
-  if (!isBound && !commandsThem) {
+  if (!isCorpse && !isBound && !commandsThem) {
     throw new UserError("You can only move someone you lead, or someone bound.");
   }
 
@@ -991,6 +1007,7 @@ async function moveCharacterRequestImpl({ targetCharacterId, targetZoneId, reaso
       effect: {
         targetCharacterId: target.id,
         targetName: target.name,
+        targetStatus: target.status,
         fromZoneId,
         toZoneId: targetZone.id,
         toZoneName: targetZone.name,
@@ -1005,8 +1022,10 @@ async function moveCharacterRequestImpl({ targetCharacterId, targetZoneId, reaso
     });
   });
 
-  await syncCharacterZoneRole(target.discordUserId, fromZoneId, targetZone.id).catch(() => {});
-  await syncCharacterNarrowcastAccess(target.id).catch(() => {});
+  if (!isCorpse) {
+    await syncCharacterZoneRole(target.discordUserId, fromZoneId, targetZone.id).catch(() => {});
+    await syncCharacterNarrowcastAccess(target.id).catch(() => {});
+  }
   revalidateAll();
   return {};
 }
@@ -1093,6 +1112,385 @@ async function createTagRequestImpl({
     });
   });
 
+  revalidateAll();
+  return {};
+}
+
+// --- Binding and freeing -------------------------------------------------
+
+// Nothing else in the game grants `bound`, and both LOOT_CHARACTER and
+// MOVE_CHARACTER's "or bound" branch key on it — so without these two the
+// whole coercion loop needs a GM to start it, which is exactly the day of
+// real time the Requests system exists to save (REQUESTS.md §1).
+//
+// There is deliberately no gate beyond co-presence. Tying someone up is an
+// act with consequences, not a permission: the reason field and the GM's
+// review are the anti-abuse mechanism here, same as everywhere else.
+async function requireBoundTag() {
+  const bound = await prisma.tag.findUnique({
+    where: { slug: "bound" },
+    select: { id: true, name: true, stackable: true, defaultDurationTurns: true },
+  });
+  if (!bound) throw new UserError("The Bound tag is missing from the catalog.");
+  return bound;
+}
+
+async function bindCharacterRequestImpl({ targetCharacterId, reason: rawReason }) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+
+  if (!character.zoneId) throw new UserError("You aren't anywhere you could do that.");
+  if (targetCharacterId === character.id) throw new UserError("You can't bind yourself.");
+
+  const bound = await requireBoundTag();
+  const target = await prisma.character.findFirst({
+    where: { id: targetCharacterId ?? "", status: "ALIVE", zoneId: character.zoneId },
+    include: { tags: { where: { tagId: bound.id }, select: { tagId: true } } },
+  });
+  if (!target) throw new UserError("They aren't here.");
+  if (target.tags.length) throw new UserError(`${target.name} is already bound.`);
+
+  const openTurn = await getOpenTurn();
+  const expiresTurn = expiryFor(bound, openTurn);
+
+  await prisma.$transaction(async (tx) => {
+    await addToStack(tx, target.id, bound.id, 1, {
+      source: "EVENT",
+      expiresTurn,
+      stackable: bound.stackable,
+    });
+    const effect = {
+      targetCharacterId: target.id,
+      targetName: target.name,
+      tagId: bound.id,
+      tagName: bound.name,
+      expiresTurn,
+    };
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn?.id ?? null,
+      type: "BIND_CHARACTER",
+      reason,
+      payload: { targetCharacterId: target.id },
+      effect,
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_bind_character",
+      targetCharacterId: target.id,
+      reason,
+      details: effect,
+    });
+  });
+
+  await syncCharacterNarrowcastAccess(target.id).catch(() => {});
+  revalidateAll();
+  return {};
+}
+
+// The rescue half. Anyone standing there may cut someone loose — a captor who
+// wants their prisoner to stay tied has to keep other people out of the room,
+// which is a fiction problem rather than a permissions one.
+async function freeCharacterRequestImpl({ targetCharacterId, reason: rawReason }) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+
+  if (!character.zoneId) throw new UserError("You aren't anywhere you could do that.");
+
+  const bound = await requireBoundTag();
+  const target = await prisma.character.findFirst({
+    where: { id: targetCharacterId ?? "", status: "ALIVE", zoneId: character.zoneId },
+    include: { tags: { where: { tagId: bound.id } } },
+  });
+  if (!target) throw new UserError("They aren't here.");
+
+  const held = target.tags[0];
+  if (!held) throw new UserError(`${target.name} isn't bound.`);
+
+  const openTurn = await getOpenTurn();
+
+  await prisma.$transaction(async (tx) => {
+    await dropCharacterTag(tx, target.id, bound.id);
+    // The restore snapshot, per REQUESTS.md §2 — Undo puts back the tag that
+    // was there, with its original source and expiry, not a fresh grant with
+    // a full duration.
+    const effect = {
+      targetCharacterId: target.id,
+      targetName: target.name,
+      tagId: bound.id,
+      tagName: bound.name,
+      quantity: held.quantity,
+      source: held.source,
+      expiresTurn: held.expiresTurn,
+    };
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn?.id ?? null,
+      type: "FREE_CHARACTER",
+      reason,
+      payload: { targetCharacterId: target.id },
+      effect,
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_free_character",
+      targetCharacterId: target.id,
+      reason,
+      details: effect,
+    });
+  });
+
+  await syncCharacterNarrowcastAccess(target.id).catch(() => {});
+  revalidateAll();
+  return {};
+}
+
+// --- Harming someone already helpless -------------------------------------
+
+// Wounding and finishing off, in one request rather than two, because they
+// are one act: you stand over someone who can't stop you and decide how far
+// to take it. Either half alone is valid — a beating that leaves them alive,
+// or a clean kill with no new injury — but not neither.
+//
+// The target must ALREADY be helpless. Knifing someone who could fight back
+// is a Gambit and a GM adjudicates it; this is the aftermath, not the fight.
+//
+// **It does not kill.** Exactly the FEED_PERSON posture (REQUESTS.md §5a):
+// letting a player end another player's game from a dropdown is too abusable,
+// so `effect.lethal` only raises the ☠ in the Requests tab and surfaces the
+// GM's Kill button. `effect.killed` is stamped there, not here.
+
+async function harmCharacterRequestImpl({
+  targetCharacterId,
+  tagId,
+  lethal: rawLethal,
+  reason: rawReason,
+}) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+
+  if (!character.zoneId) throw new UserError("You aren't anywhere you could do that.");
+  if (targetCharacterId === character.id) throw new UserError("Pick someone else.");
+
+  const lethal = Boolean(rawLethal);
+  const wantsTag = Boolean(tagId);
+  if (!wantsTag && !lethal) throw new UserError("Pick an injury, tick Finish them, or both.");
+
+  const target = await prisma.character.findFirst({
+    where: { id: targetCharacterId ?? "", status: "ALIVE", zoneId: character.zoneId },
+    include: { tags: { include: { tag: { select: { slug: true } } } } },
+  });
+  if (!target) throw new UserError("They aren't here.");
+
+  const heldSlugs = new Set(target.tags.map((ct) => ct.tag.slug));
+  if (![...heldSlugs].some((slug) => INCAPACITATING_SLUGS.has(slug))) {
+    throw new UserError("They can still defend themselves — that's a Gambit, not a request.");
+  }
+  if (lethal && ![...heldSlugs].some((slug) => FINISHABLE_SLUGS.has(slug))) {
+    throw new UserError("You can only finish off someone Dying or Bound.");
+  }
+
+  let tag = null;
+  if (wantsTag) {
+    tag = await prisma.tag.findUnique({
+      where: { id: tagId },
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        stackable: true,
+        defaultDurationTurns: true,
+      },
+    });
+    if (!tag) throw new UserError("Unknown injury.");
+    if (tag.category !== HEALABLE_CATEGORY) throw new UserError("That isn't an injury.");
+    if (target.tags.some((ct) => ct.tagId === tag.id)) {
+      throw new UserError(`${target.name} already has ${tag.name}.`);
+    }
+  }
+
+  const openTurn = await getOpenTurn();
+  const expiresTurn = tag ? expiryFor(tag, openTurn) : null;
+
+  await prisma.$transaction(async (tx) => {
+    if (tag) {
+      await addToStack(tx, target.id, tag.id, 1, {
+        source: "EVENT",
+        expiresTurn,
+        stackable: tag.stackable,
+      });
+    }
+    const effect = {
+      targetCharacterId: target.id,
+      targetName: target.name,
+      tagId: tag?.id ?? null,
+      tagName: tag?.name ?? null,
+      expiresTurn,
+      lethal,
+      killed: false,
+    };
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn?.id ?? null,
+      type: "HARM_CHARACTER",
+      reason,
+      payload: { targetCharacterId: target.id, tagId: tag?.id ?? null, lethal },
+      effect,
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_harm_character",
+      targetCharacterId: target.id,
+      reason,
+      details: effect,
+    });
+  });
+
+  if (tag) await syncCharacterNarrowcastAccess(target.id).catch(() => {});
+  revalidateAll();
+  return {};
+}
+
+// --- The zone cache: dropping and picking up ------------------------------
+
+// The one place in the game where a tag has no owner. Putting something down
+// is how a dead-drop, a stash, or ditching contraband before a search all
+// work, and anyone standing in the zone can take it — that openness is the
+// feature, not a hole in it.
+async function dropItemRequestImpl({ tagId, quantity: rawQuantity, reason: rawReason }) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+
+  if (!character.zoneId) throw new UserError("You aren't anywhere you could put that down.");
+
+  const held = character.tags.find((ct) => ct.tagId === tagId);
+  if (!held) throw new UserError("You don't have that.");
+  if (!TRANSFERABLE_CATEGORIES.includes(held.tag.category)) {
+    throw new UserError("Only Items and Assets can be put down.");
+  }
+
+  const quantity = held.tag.stackable
+    ? parseCount(rawQuantity, { min: 1, max: held.quantity })
+    : held.quantity;
+  if (quantity == null) throw new UserError("Bad quantity.");
+
+  const openTurn = await getOpenTurn();
+
+  await prisma.$transaction(async (tx) => {
+    await dropCharacterTag(tx, character.id, held.tagId, quantity);
+    const cache = await tx.zoneCache.create({
+      data: {
+        zoneId: character.zoneId,
+        tagId: held.tagId,
+        quantity,
+        droppedByName: character.name,
+      },
+    });
+    // `cacheId` is what makes Undo exact: it reverses THIS drop, not whatever
+    // happens to be lying in the zone by the time a GM looks at it. If
+    // somebody has already picked the pile up, the row is gone and the undo
+    // says so rather than minting the item back out of nothing.
+    const effect = {
+      cacheId: cache.id,
+      zoneId: character.zoneId,
+      tagId: held.tagId,
+      tagName: held.tag.name,
+      quantity,
+      source: held.source,
+      expiresTurn: held.expiresTurn,
+    };
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn?.id ?? null,
+      type: "DROP_ITEM",
+      reason,
+      payload: { tagId: held.tagId, quantity },
+      effect,
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_drop_item",
+      targetCharacterId: character.id,
+      reason,
+      details: effect,
+    });
+  });
+
+  await syncCharacterNarrowcastAccess(character.id).catch(() => {});
+  revalidateAll();
+  return {};
+}
+
+async function pickUpItemRequestImpl({ cacheId, quantity: rawQuantity, reason: rawReason }) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+
+  if (!character.zoneId) throw new UserError("You aren't anywhere you could pick that up.");
+
+  // The zone is in the WHERE clause rather than checked after the read, so a
+  // stale page whose cache row was already taken (or that belongs to a zone
+  // the player has since left) fails closed instead of racing.
+  const cache = await prisma.zoneCache.findFirst({
+    where: { id: cacheId ?? "", zoneId: character.zoneId },
+    include: { tag: { select: { id: true, name: true, stackable: true } } },
+  });
+  if (!cache) throw new UserError("That isn't lying here any more.");
+
+  const quantity = cache.tag.stackable
+    ? parseCount(rawQuantity, { min: 1, max: cache.quantity })
+    : cache.quantity;
+  if (quantity == null) throw new UserError("Bad quantity.");
+
+  const openTurn = await getOpenTurn();
+
+  await prisma.$transaction(async (tx) => {
+    // Conditional delete/decrement, the same discipline moveResources uses:
+    // the write IS the check, so two people grabbing the same pile at once
+    // can't both succeed.
+    if (quantity >= cache.quantity) {
+      const { count } = await tx.zoneCache.deleteMany({
+        where: { id: cache.id, quantity: { lte: quantity } },
+      });
+      if (!count) throw new UserError("Someone got there first.");
+    } else {
+      const { count } = await tx.zoneCache.updateMany({
+        where: { id: cache.id, quantity: { gte: quantity } },
+        data: { quantity: { decrement: quantity } },
+      });
+      if (!count) throw new UserError("Someone got there first.");
+    }
+    await addToStack(tx, character.id, cache.tagId, quantity, {
+      source: "EVENT",
+      expiresTurn: null,
+      stackable: cache.tag.stackable,
+    });
+    const effect = {
+      cacheId: cache.id,
+      zoneId: character.zoneId,
+      tagId: cache.tagId,
+      tagName: cache.tag.name,
+      quantity,
+      droppedByName: cache.droppedByName,
+      emptied: quantity >= cache.quantity,
+    };
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn?.id ?? null,
+      type: "PICK_UP_ITEM",
+      reason,
+      payload: { cacheId: cache.id, quantity },
+      effect,
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_pick_up_item",
+      targetCharacterId: character.id,
+      reason,
+      details: effect,
+    });
+  });
+
+  await syncCharacterNarrowcastAccess(character.id).catch(() => {});
   revalidateAll();
   return {};
 }
@@ -1367,4 +1765,19 @@ export async function moveCharacterRequest(input) {
 
 export async function createTagRequest(input) {
   return guarded(() => createTagRequestImpl(input));
+}
+export async function bindCharacterRequest(input) {
+  return guarded(() => bindCharacterRequestImpl(input));
+}
+export async function freeCharacterRequest(input) {
+  return guarded(() => freeCharacterRequestImpl(input));
+}
+export async function harmCharacterRequest(input) {
+  return guarded(() => harmCharacterRequestImpl(input));
+}
+export async function dropItemRequest(input) {
+  return guarded(() => dropItemRequestImpl(input));
+}
+export async function pickUpItemRequest(input) {
+  return guarded(() => pickUpItemRequestImpl(input));
 }

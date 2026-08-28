@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import DmThread from "@/app/components/DmThread";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
+import CharacterAvatar from "@/app/components/CharacterAvatar";
 import DevPanelModal from "@/app/components/DevPanelModal";
 import ZoneChip from "@/app/components/ZoneChip";
 import useSubmitOnEnter from "@/app/components/useSubmitOnEnter";
@@ -42,6 +43,7 @@ export default function ConversationPane({
   discordUserId,
   label,
   characterId,
+  avatarVersion,
   zoneName,
   statusLabel,
   moveId,
@@ -156,6 +158,7 @@ export default function ConversationPane({
     <div className="desk-convo">
       <div className="desk-convo-head">
         <div className="flex items-center gap-2 min-w-0">
+          <CharacterAvatar characterId={characterId} name={label} version={avatarVersion} size={32} />
           <h2 className="section-title truncate">{label}</h2>
           {zoneName ? <ZoneChip zoneName={zoneName} /> : null}
           {statusLabel && <span className="chip text-xs text-muted">{statusLabel}</span>}
@@ -197,6 +200,7 @@ export default function ConversationPane({
             gmProfiles={gmProfiles}
             onLoadOlder={loadOlder}
             hasMore={pages.hasMore}
+            character={characterId ? { id: characterId, name: label, avatarVersion } : null}
           />
         )}
       </div>

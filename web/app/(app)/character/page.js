@@ -19,8 +19,10 @@ import { loadPointBuyCatalog } from "@/lib/pointBuyCatalog";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { TRANSFERABLE_CATEGORIES } from "@/lib/tagRequests";
+import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { parseSelection } from "@/lib/portrait/catalog";
 import {
+  HEALABLE_CATEGORY,
   HEAL_SKILL_SLUG,
   buildSkillAncestry,
   healCost,
@@ -365,48 +367,149 @@ export default async function CharacterPage() {
   // the same reach TRANSFER_RESOURCES has, per REQUESTS.md.
   const healParties = { characters: coLocated.map(({ id, name }) => ({ id, name })), factions };
 
-  // Corpses to loot. Only DEAD characters in the same zone, and only
-  // Items/Assets get lifted off them — the same category gate the transfer
-  // system enforces. Filtered here rather than in the client so nobody else's
-  // full sheet crosses the wire.
+  // ONE roster for every action that acts on somebody standing here — Loot,
+  // Move Player, Bind, Free and Harm. They used to be (or would have been)
+  // five separate queries with five slightly different WHERE clauses, which is
+  // five chances for two menus to disagree about who is in the room.
   //
-  // This is the single player-facing surface that reveals a death: every
-  // other list (faction roster, transfer target picker) shows the row as
-  // normal. Someone standing in the zone has intentionally looked, so
-  // surfacing the name here is the whole point.
-  const corpses = character.zoneId
+  // Everything is derived and trimmed here rather than in the client, so
+  // nobody else's full sheet crosses the wire — only a name, a status, the
+  // condition that makes them a valid target, and their Items/Assets.
+  //
+  // These lists reveal who is standing here and who among them is helpless.
+  // That disclosure is the feature: a player has to open a dialog to see it,
+  // and the alternative — greying the buttons out — would leak the same fact
+  // passively, to everyone, on every page load. See ActionGrid.js.
+  const zoneRoster = character.zoneId
+    ? await prisma.character.findMany({
+        where: {
+          zoneId: character.zoneId,
+          status: { in: ["ALIVE", "DEAD"] },
+          id: { not: character.id },
+        },
+        orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          resources: true,
+          tags: {
+            select: {
+              tagId: true,
+              quantity: true,
+              tag: { select: { name: true, slug: true, category: true, stackable: true } },
+            },
+          },
+        },
+      })
+    : [];
+
+  // The catalog name of whichever incapacitating tag they hold, so the target
+  // lists read "Mira Solt — Bound" rather than making a player guess why
+  // somebody is on the menu. db/lib/incapacitation.js owns the set.
+  function conditionOf(c) {
+    return c.tags.find((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))?.tag.name ?? null;
+  }
+  const helpless = zoneRoster.filter((c) => c.status === "DEAD" || conditionOf(c));
+
+  // A body, or anyone who can't stop you. Only Items and Assets come off —
+  // the same category gate the transfer system enforces. Someone carrying
+  // nothing still appears: the dialog says so, and hiding them would make an
+  // empty menu mean two different things.
+  const lootTargets = helpless.map((c) => ({
+    id: c.id,
+    name: c.name,
+    status: c.status,
+    condition: conditionOf(c),
+    resources: c.resources,
+    tags: c.tags
+      .filter((ct) => TRANSFERABLE_CATEGORIES.includes(ct.tag.category))
+      .map((ct) => ({
+        tagId: ct.tagId,
+        tagName: ct.tag.name,
+        stackable: ct.tag.stackable,
+        quantity: ct.quantity ?? 1,
+      })),
+  }));
+
+  // Deliberately unfiltered: everyone here, led or bound or neither, plus the
+  // bodies. Narrowing it to who you may actually move would turn the menu into
+  // a readout of who is tied up — the server's own gate rejects the rest with
+  // wording that explains itself.
+  const moveTargets = zoneRoster.map(({ id, name, status }) => ({ id, name, status }));
+  const moveZones = character.zoneId
     ? (
-        await prisma.character.findMany({
-          where: { status: "DEAD", zoneId: character.zoneId },
-          orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
+        await prisma.zone.findUnique({
+          where: { id: character.zoneId },
           select: {
-            id: true,
-            name: true,
-            resources: true,
-            tags: {
-              where: { tag: { category: { in: TRANSFERABLE_CATEGORIES } } },
-              select: {
-                tagId: true,
-                quantity: true,
-                tag: { select: { name: true, category: true, stackable: true } },
-              },
+            connectsTo: {
+              where: { kind: { not: "CAVE_GROUP" } },
+              select: { id: true, name: true },
+              orderBy: { name: "asc" },
             },
           },
         })
-      )
-          .map((c) => ({
-            id: c.id,
-            name: c.name,
-            resources: c.resources,
-            lootableTags: c.tags.map((ct) => ({
-              tagId: ct.tagId,
-              tagName: ct.tag.name,
-              category: ct.tag.category,
-              stackable: ct.tag.stackable,
-              quantity: ct.quantity ?? 1,
-            })),
-          }))
-          .filter((c) => c.lootableTags.length > 0 || c.resources > 0)
+      )?.connectsTo ?? []
+    : [];
+
+  // Bind and Free split this one list on `bound`, so the two menus can never
+  // disagree about the same person.
+  const bindTargets = zoneRoster
+    .filter((c) => c.status === "ALIVE")
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      bound: c.tags.some((ct) => ct.tag.slug === "bound"),
+    }));
+
+  // Harm needs someone already helpless, and `finishable` is the narrower
+  // Dying-or-Bound gate on the lethal half. Both re-derived server-side.
+  const harmTargets = helpless
+    .filter((c) => c.status === "ALIVE")
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      condition: conditionOf(c),
+      finishable: c.tags.some((ct) => FINISHABLE_SLUGS.has(ct.tag.slug)),
+    }));
+
+  // The injuries that can be inflicted: the same Health category the cure
+  // ladder treats (TAGS.md §5c), minus anything a GM or a player invented.
+  const harmTags = await prisma.tag.findMany({
+    where: { category: HEALABLE_CATEGORY, custom: false },
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      category: true,
+      pointCost: true,
+      stackable: true,
+      group: { select: { name: true, color: true } },
+    },
+  });
+
+  // What is lying on the ground here. No owner, so no filtering — anyone
+  // standing in the zone sees the same pile.
+  const groundItems = character.zoneId
+    ? (
+        await prisma.zoneCache.findMany({
+          where: { zoneId: character.zoneId },
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            quantity: true,
+            droppedByName: true,
+            tag: { select: { name: true, stackable: true } },
+          },
+        })
+      ).map((g) => ({
+        id: g.id,
+        tagName: g.tag.name,
+        stackable: g.tag.stackable,
+        quantity: g.quantity,
+        droppedByName: g.droppedByName,
+      }))
     : [];
 
   const avatarSrc = `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`;
@@ -436,7 +539,13 @@ export default async function CharacterPage() {
       hasCustomAvatar={Boolean(character.avatarMimeType)}
       healTargets={healTargets}
       healParties={healParties}
-      corpses={corpses}
+      lootTargets={lootTargets}
+      moveTargets={moveTargets}
+      moveZones={moveZones}
+      bindTargets={bindTargets}
+      harmTargets={harmTargets}
+      harmTags={harmTags}
+      groundItems={groundItems}
       lastNameLocked={isDynastyMember(character.role?.slug)}
       storeTags={storeTags}
       storeHeldTags={storeHeldTags}

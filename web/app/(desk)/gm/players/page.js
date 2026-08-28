@@ -83,6 +83,7 @@ export default async function PlayerRosterPage({ searchParams }) {
           cursed: cursedUserIds.has(c.discordUserId),
           tagCount: tagCountByCharacter.get(c.id) ?? 0,
           acted: actedCharacterIds.has(c.id),
+          avatarVersion: c.updatedAt.getTime(),
         }))}
         tags={tags}
         myZoneNames={myZones.map((z) => z.name)}

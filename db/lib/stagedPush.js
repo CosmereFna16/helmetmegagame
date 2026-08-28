@@ -243,10 +243,8 @@ async function runStagedPushPass(prisma, turn, config) {
         stagedMessageId: message.id,
         content: message.content,
         zoneName: message.zone?.name ?? null,
-        // Delivery target: the row's zone #summary when it has one (the
-        // per-zone summary channels the old comment on turnSummaryChannelId
-        // promised), the global channel as fallback. The Caves seat has no
-        // summary channel, so its declarations fall back too.
+        // Every PUBLIC row is required to carry a real (non-CAVE_GROUP)
+        // zone, so this is that zone's #summary channel.
         zoneSummaryChannelId: message.zone?.discordSummaryChannelId ?? null,
       });
       continue;

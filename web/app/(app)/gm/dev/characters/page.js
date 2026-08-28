@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import FactionLink from "@/app/components/FactionLink";
+import CharacterAvatar from "@/app/components/CharacterAvatar";
 
 // Name, Faction, Zone, Status, Resources — kept beside the <thead> it counts.
 const COL_COUNT = 5;
@@ -44,7 +45,8 @@ export default async function DevCharactersPage() {
             {characters.map((c) => (
               <tr key={c.id}>
                 <td>
-                  <Link href={`/gm/dev/characters/${c.id}`} className="menu-item">
+                  <Link href={`/gm/dev/characters/${c.id}`} className="menu-item inline-flex items-center gap-2">
+                    <CharacterAvatar characterId={c.id} name={c.name} version={c.updatedAt.getTime()} />
                     {c.name}
                   </Link>
                 </td>

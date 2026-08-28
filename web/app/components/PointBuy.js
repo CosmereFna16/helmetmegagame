@@ -20,6 +20,7 @@ import {
 } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import ChipText from "./ChipText";
+import ChipLabel from "./ChipLabel";
 import CheckField from "./CheckField";
 
 // The point-buy experience, shared by both stores: a catalog pane on the
@@ -49,7 +50,6 @@ import CheckField from "./CheckField";
 // to render nothing at all.
 
 function TagRow({ tag, isSelected, cost, unaffordable, onToggle }) {
-  const groupColor = tag.group?.color ?? null;
   return (
     <li>
       <button
@@ -58,10 +58,6 @@ function TagRow({ tag, isSelected, cost, unaffordable, onToggle }) {
         aria-pressed={isSelected}
         className="select-card panel flex w-full items-start gap-3 p-3 text-left"
         data-unaffordable={unaffordable || undefined}
-        style={{
-          borderLeftColor: groupColor ?? undefined,
-          borderLeftWidth: groupColor ? 3 : undefined,
-        }}
       >
         <span
           aria-hidden="true"
@@ -72,7 +68,7 @@ function TagRow({ tag, isSelected, cost, unaffordable, onToggle }) {
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="flex flex-wrap items-baseline gap-2">
-            <strong>{tag.name}</strong>
+            <ChipLabel tag={tag} />
             <span className="text-sm" style={{ color: costColor(cost) }}>
               {formatCost(cost)}
             </span>

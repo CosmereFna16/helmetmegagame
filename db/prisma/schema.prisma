@@ -162,6 +162,20 @@ enum RequestType {
   // Player-authored Item tag, namespaced (`custom-<id>`) so its slug can
   // never shadow a catalog slug. See REQUESTS.md.
   CREATE_TAG
+  // Putting the `bound` tag ON someone in the filer's zone, and taking it off
+  // again. Nothing else in the game grants Bound, which is what LOOT_CHARACTER
+  // and MOVE_CHARACTER's "or bound" branch both key on — so these two are what
+  // make that whole loop playable by players instead of by a GM.
+  BIND_CHARACTER
+  FREE_CHARACTER
+  // Hurting someone already helpless: an affliction inflicted, a kill flagged,
+  // or both in one act. Like FEED_PERSON it NEVER kills — effect.lethal only
+  // raises the ☠ and the GM's Kill button. See REQUESTS.md §5b.
+  HARM_CHARACTER
+  // The zone cache (model ZoneCache): an Item put down where anyone standing
+  // there can take it, and taken back up again.
+  DROP_ITEM
+  PICK_UP_ITEM
 }
 
 // PASSED is the default and means "not yet touched by a GM" — the request
@@ -284,7 +298,7 @@ model GameConfig {
   // role's own `extra_starting_points` and the Cursed penalty are applied
   // (see web/lib/characterCreation.js#computeBudget). Editable live from
   // the Dev Panel so it can be tuned right up to launch.
-  startingTagPoints Int @default(12)
+  startingTagPoints Int @default(5)
 
   // Master switch for the game being open to players at all. While false,
   // nobody can create a character — the game has not launched. Turning it on
@@ -389,16 +403,6 @@ model GameConfig {
   // (db/lib/channelDoctor.js) automatically after every turn advance, on top
   // of its pass at ready. Off by default.
   autoReconcileEnabled Boolean @default(false)
-
-  // FALLBACK target for PUBLIC staged declarations at the turn-end push (see
-  // StagedMessage below and db/lib/stagedPush.js). Since the zone rework a
-  // PUBLIC row posts to its zone's own #summary; this catches rows whose
-  // zone has none (the Caves seat) or was never set. Named
-  // turnSummaryChannelId because DefaultEffort.summaryChannelId already
-  // means something else (where a default move's summary posts).
-  // Null means such declarations are composed but skipped at push, each
-  // recorded on its row's deliveryFailures.
-  turnSummaryChannelId String?
 }
 
 // Master-sourced from docs/roles.yaml's zones[].factions[]
@@ -1469,7 +1473,7 @@ enum StagedMessageKind {
 // A message a GM composed during adjudication that has NOT gone out yet.
 // Nothing a GM stages reaches a player until the turn-end push
 // (db/lib/stagedPush.js): PRIVATE rows fan out as DMs to their recipient
-// characters' players, PUBLIC rows post to GameConfig.turnSummaryChannelId.
+// characters' players, PUBLIC rows post to their zone's #summary channel.
 // Until then every row is freely editable and deletable from the /gm/turns
 // workspace; sentAt non-null is what freezes one.
 model StagedMessage {
@@ -1492,9 +1496,8 @@ model StagedMessage {
   kind    StagedMessageKind
   content String
 
-  // PUBLIC only, and not yet read by delivery: the per-zone summary channels
-  // are a planned channel rework, so rows carry their zone now and the push
-  // targets the single turnSummaryChannelId until those channels exist.
+  // PUBLIC only, required: the zone whose #summary channel this posts to
+  // (db/lib/stagedPush.js).
   zoneId String?
   zone   Zone?   @relation(fields: [zoneId], references: [id], onDelete: SetNull)
 

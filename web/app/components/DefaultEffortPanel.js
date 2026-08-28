@@ -57,19 +57,7 @@ export default function DefaultEffortPanel({ characterId, defaultEffort, zone })
       <h2 className="panel-header panel-header--with-icon">
         Default Move
         <InfoIcon
-          text={
-            <>
-              <p>If you don&apos;t submit a Move on a given day, this is assumed instead.</p>
-              <p className="text-muted">
-                Tick Labor and it makes Resources automatically, scaled to your tags — the same
-                as ticking it on a Move.
-              </p>
-              <p className="text-muted">
-                Nothing can be produced in the depths — a Labor default files with nothing gained
-                if you&apos;re standing in the caves when the turn ends.
-              </p>
-            </>
-          }
+          text={<p>You can set a default move so that it&apos;s sent if you don&apos;t act on a given turn.</p>}
         />
       </h2>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -85,7 +73,10 @@ export default function DefaultEffortPanel({ characterId, defaultEffort, zone })
         </label>
 
         <Switch checked={labor} onChange={(e) => setLabor(e.target.checked)}>
-          Labor — applies your skills automatically
+          <span className="flex items-center gap-1.5">
+            Labor
+            <InfoIcon text="Applies your skills automatically to make Resources. Produces nothing while you're in the caves." />
+          </span>
         </Switch>
 
         <Switch checked={shareInSummary} onChange={(e) => setShareInSummary(e.target.checked)}>

@@ -91,7 +91,7 @@ removed tier is snapshotted onto the request's `effect.replaced`, so a GM
 Undo restores exactly what came off — see `web/lib/requestEffects.js`.
 
 Enforced in five places, all reading those same helpers: `PointBuy.js`
-(creation and `/store`), the Add Tag picker in `TagRequestButtons.js`
+(creation and `/store`), the Add Tag picker in `RequestActionsProvider.js`
 (mid-game), `createActions.js` and `requestActions.js#addTagRequest` (the
 server-side re-checks, since both menus are advisory), and
 `web/lib/referenceData.js#getVisibleTags` (§3a). **A GM grant still ignores
@@ -164,7 +164,7 @@ pool*, never whether the tag is a good thing to have:
 | Shack | `0` | `0 pts` | `--muted` |
 
 These two functions are the only place that flip lives — every caller
-(`TagChip`, `PointBuy`, `TagRequestButtons`, `CreateCharacterWizard`) passes
+(`TagChip`, `PointBuy`, `RequestActionsProvider`, `CreateCharacterWizard`) passes
 the raw signed `pointCost` and lets them decide, so nothing else should ever
 negate it. The arithmetic is untouched: `PointBuy`'s affordability check and
 `remaining = budget - sum(pointCost)` both still read the raw catalog value.
@@ -173,7 +173,7 @@ Before this, the sign was catalog-style while the colour was pool-style, so
 Frail read as "`-3`, in green" — two conventions disagreeing on one line.
 
 A character's budget is
-`GameConfig.startingTagPoints` (default 12) `+ role.extra_starting_points`
+`GameConfig.startingTagPoints` (default 5) `+ role.extra_starting_points`
 `- 3 if the player is Cursed`, computed by
 `web/lib/characterCreation.js#computeBudget`. Anything unspent is kept on
 `Character.tagPoints`.
@@ -592,6 +592,13 @@ learns it once and can then read any affliction they meet.
 | 5 | Very minor surgery | 6 | 1 | Skilled | no |
 | 6 | Severe surgery | 8 | 1 | Expert | no |
 | 7 | Complex surgery | 8 | 1 | Expert | yes |
+
+The ladder now runs in both directions. `HARM_CHARACTER` (`REQUESTS.md` §5b)
+puts a Health tag **on** somebody — the same category, offered from the same
+list — so every rung you price is also an injury a player can inflict on
+someone already helpless. Nothing extra is needed on the tag to allow that: any
+non-`custom` Health tag is inflictable, exactly as any Health tag with a
+requirement block is treatable. A rung priced carelessly is now wrong twice.
 
 Four things about it are deliberate.
 

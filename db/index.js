@@ -792,11 +792,12 @@ async function advanceTurn() {
     }
 
     for (const post of publicPosts) {
-      const targetChannelId = post.zoneSummaryChannelId ?? config.turnSummaryChannelId;
+      const targetChannelId = post.zoneSummaryChannelId;
       if (!targetChannelId) {
-        // Composed but nowhere to go. Left unsent (no sentAt) so it's still
-        // there to release once a GM configures the channel on /gm/dev.
-        console.error(`Public declaration ${post.stagedMessageId} skipped: no turnSummaryChannelId configured.`);
+        // Composed but nowhere to go — its zone has no summary channel set
+        // up yet. Left unsent (no sentAt) so it's still there to release
+        // once the channel doctor / zone sync fixes it.
+        console.error(`Public declaration ${post.stagedMessageId} skipped: its zone has no summary channel.`);
         await prisma.stagedMessage
           .update({
             where: { id: post.stagedMessageId },

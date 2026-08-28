@@ -25,6 +25,11 @@ export const REQUEST_TYPE_LABELS = {
   LOOT_CHARACTER: "Loot Character",
   MOVE_CHARACTER: "Move Character",
   CREATE_TAG: "Create Item",
+  BIND_CHARACTER: "Bind Character",
+  FREE_CHARACTER: "Free Character",
+  HARM_CHARACTER: "Harm Character",
+  DROP_ITEM: "Drop Item",
+  PICK_UP_ITEM: "Pick Up Item",
 };
 
 export const REQUEST_STATUS_LABELS = {

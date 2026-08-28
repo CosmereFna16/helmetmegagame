@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import MarkdownContent from "./MarkdownContent";
 import GmAvatar from "./GmAvatar";
+import CharacterAvatar from "./CharacterAvatar";
 
 // Quiet source labels for machine-authored rows — a GM should be able to
 // tell a turn result from an automated nudge at a glance, without it
@@ -26,6 +27,10 @@ function authorLabel(message, gmProfileById) {
 // Runs of ≥3 consecutive bot_auto rows collapse into one expandable "N
 // automated messages" row. staged_push never collapses — it's canon, a turn
 // result a GM needs to actually see.
+function isAutomated(message) {
+  return message.source === "bot_auto" || message.meta?.embed === true;
+}
+
 function groupMessages(messages) {
   const groups = [];
   let run = [];
@@ -36,7 +41,7 @@ function groupMessages(messages) {
     run = [];
   };
   for (const m of messages) {
-    if (m.source === "bot_auto") {
+    if (isAutomated(m)) {
       run.push(m);
     } else {
       flushRun();
@@ -47,18 +52,89 @@ function groupMessages(messages) {
   return groups;
 }
 
-function Bubble({ message, gmProfileById }) {
+// Splits a flattened embed's `content` into a title, an optional plain
+// description, and any `**Field**: value` rows. See bot/src/lib/dm.js for
+// how the embed got flattened into content in the first place.
+const FIELD_LINE = /^\*\*(.+?)\*\*:\s*(.*)$/;
+
+function parseEmbedContent(content) {
+  const lines = (content ?? "").split("\n");
+  let title = null;
+  const descriptionLines = [];
+  const fields = [];
+  for (const line of lines) {
+    if (title === null) {
+      if (line.trim() === "") continue;
+      title = line;
+      continue;
+    }
+    const match = line.match(FIELD_LINE);
+    if (match) fields.push({ name: match[1], value: match[2] });
+    else descriptionLines.push(line);
+  }
+  return { title: title ?? "", description: descriptionLines.join("\n").trim(), fields };
+}
+
+function EmbedBubble({ message }) {
+  const [expanded, setExpanded] = useState(false);
+  const { title, description, fields } = useMemo(() => parseEmbedContent(message.content), [message.content]);
+
+  const bodyLineCount = (description ? description.split("\n").length : 0) + fields.length;
+  const hasMore = bodyLineCount > 0;
+
+  if (!hasMore) {
+    return (
+      <div className="dm-bubble dm-embed">
+        {title ? <span>{title}</span> : <MarkdownContent content={message.content} />}
+      </div>
+    );
+  }
+
+  return (
+    <div className="dm-bubble dm-embed">
+      <button type="button" className="dm-embed-toggle" onClick={() => setExpanded((v) => !v)}>
+        <span>{title}</span>
+        {!expanded && <span className="dm-embed-more">· {bodyLineCount} more</span>}
+      </button>
+      {expanded && (
+        <div className="mt-1">
+          {description && <MarkdownContent content={description} />}
+          {fields.length > 0 && (
+            <dl className="tag-meta">
+              {fields.map((f, i) => (
+                <div key={i} className="contents">
+                  <dt>{f.name}</dt>
+                  <dd>{f.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Bubble({ message, gmProfileById, character }) {
   const outbound = message.direction === "OUTBOUND";
   const author = authorLabel(message, gmProfileById);
   const sourceLabel = outbound ? SOURCE_LABELS[message.source] : null;
+  const isEmbed = message.meta?.embed === true;
 
   return (
-    <div className="flex flex-col" style={{ alignItems: outbound ? "flex-end" : "flex-start" }}>
-      <div className={outbound ? "dm-bubble dm-bubble-out" : "dm-bubble dm-bubble-in"}>
-        <MarkdownContent content={message.content} />
-      </div>
+    <div className="flex flex-col" style={{ alignItems: isEmbed ? "flex-start" : outbound ? "flex-end" : "flex-start" }}>
+      {isEmbed ? (
+        <EmbedBubble message={message} />
+      ) : (
+        <div className={outbound ? "dm-bubble dm-bubble-out" : "dm-bubble dm-bubble-in"}>
+          <MarkdownContent content={message.content} />
+        </div>
+      )}
       <span className="mt-1 flex items-center gap-1 text-xs text-muted">
         {author?.profile && <GmAvatar profile={author.profile} size={14} />}
+        {!outbound && character?.id && (
+          <CharacterAvatar characterId={character.id} name={character.name} version={character.avatarVersion} size={14} />
+        )}
         {author?.name && <span>{author.name}</span>}
         {sourceLabel && <span aria-hidden="true">· {sourceLabel}</span>}
         <span>{new Date(message.createdAt).toLocaleString()}</span>
@@ -67,13 +143,13 @@ function Bubble({ message, gmProfileById }) {
   );
 }
 
-function CollapsedGroup({ group, gmProfileById }) {
+function CollapsedGroup({ group, gmProfileById, character }) {
   const [expanded, setExpanded] = useState(false);
   if (expanded) {
     return (
       <>
         {group.messages.map((m) => (
-          <Bubble key={m.id} message={m} gmProfileById={gmProfileById} />
+          <Bubble key={m.id} message={m} gmProfileById={gmProfileById} character={character} />
         ))}
       </>
     );
@@ -99,7 +175,11 @@ function CollapsedGroup({ group, gmProfileById }) {
 //                 hide the control
 //   hasMore     — whether an older page exists
 //   compact     — tighter padding for the Inspector's narrower column
-export default function DmThread({ messages, gmProfiles = [], onLoadOlder, hasMore, compact = false }) {
+//   character   — { id, name, avatarVersion } of the conversation's own
+//                 character, shown on an inbound bubble beside GmAvatar's
+//                 outbound one; omit where the caller has no character (e.g.
+//                 a DM-only row with no sheet)
+export default function DmThread({ messages, gmProfiles = [], onLoadOlder, hasMore, compact = false, character = null }) {
   const containerRef = useRef(null);
   const prevFirstIdRef = useRef(null);
   const prevLastIdRef = useRef(null);
@@ -145,9 +225,9 @@ export default function DmThread({ messages, gmProfiles = [], onLoadOlder, hasMo
       )}
       {groups.map((g, i) =>
         g.type === "collapsed" ? (
-          <CollapsedGroup key={g.messages[0].id} group={g} gmProfileById={gmProfileById} />
+          <CollapsedGroup key={g.messages[0].id} group={g} gmProfileById={gmProfileById} character={character} />
         ) : (
-          <Bubble key={g.message.id} message={g.message} gmProfileById={gmProfileById} />
+          <Bubble key={g.message.id} message={g.message} gmProfileById={gmProfileById} character={character} />
         ),
       )}
       {messages.length === 0 && <p className="text-sm text-muted">No messages yet.</p>}

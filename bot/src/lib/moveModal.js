@@ -28,9 +28,9 @@ const MOVE_MODAL_ID = "move:new";
 // Label.description caps at 100 characters, which the full guidance line
 // overruns, so it lives in the TextDisplay below instead.
 const MOVE_HELP =
-  "-# Write the intent of your Move in here and anything GMs should know. " +
-  "Submitting locks it in for the turn; results land when the turn ends. " +
-  "Tick Labor to make Resources from it, scaled to your tags.";
+  "-# Describe what you're hoping to accomplish—in the broadest sense, the ideal outcome, your intent. " +
+  "Mention relevant tags or circumstances that the GMs should consider. " +
+  "Careful! This can't be changed or canceled.";
 
 function buildMoveModal() {
   return new ModalBuilder()
@@ -59,7 +59,7 @@ function buildMoveModal() {
         ),
       new LabelBuilder()
         .setLabel("Labor")
-        .setDescription("Applies your skills automatically.")
+        .setDescription("Auto-applies your skills, but consumes your turn without doing anything else.")
         .setCheckboxComponent(new CheckboxBuilder().setCustomId("move:labor")),
     )
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(MOVE_HELP));

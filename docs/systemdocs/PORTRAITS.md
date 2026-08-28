@@ -8,6 +8,14 @@ Everything here is web-only. The bot never renders a portrait — it reads the
 avatar through the same `/api/avatar/[characterId]` route as before, which
 doesn't care how the picture got there.
 
+`web/app/components/CharacterAvatar.js` is the shared renderer for that route
+— every GM surface that shows a character's face (the player desk rail and
+roster, the adjudication queue, the dev panel, a conversation header) uses it
+rather than hand-rolling another `<img>`. It needs `characterId` and a
+`version` (the character's `updatedAt.getTime()`) — the route answers with an
+immutable `Cache-Control`, so a stale version is how a GM keeps seeing a face
+from before the last rename or portrait change.
+
 ## 1. What a player sees
 
 `AvatarField` (inside the Bio form on `/character`) offers up to three things:
