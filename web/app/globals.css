@@ -416,10 +416,30 @@ h3 {
   margin: 0.5em 0;
 }
 
+/* The global h1/h2/h3 rule (above) only sets the serif face and line-height —
+   every other heading-sized element in the app carries its own explicit
+   font-size and weight at the call site (PageHeader's h1 is literally
+   `text-2xl font-bold`; .panel-header and .section-title set --fs-lg). A
+   Markdown-rendered heading had neither, so it read as plain body text.
+   font-weight: 700 to match PageHeader's own `font-bold`, since a document's
+   H1 is standing in for a page title the same way. */
 .markdown-content h1,
 .markdown-content h2,
 .markdown-content h3 {
   margin: 0.8em 0 0.3em;
+  font-weight: 700;
+}
+
+.markdown-content h1 {
+  font-size: var(--fs-2xl);
+}
+
+.markdown-content h2 {
+  font-size: var(--fs-xl);
+}
+
+.markdown-content h3 {
+  font-size: var(--fs-lg);
 }
 
 .markdown-content > :first-child {
