@@ -34,6 +34,9 @@
 //
 // ctx is built by buildNarrowcastContext below:
 //   { zoneSlug, seatZoneSlug, tagSlugs }
+
+const { FORTRESS_SLUG } = require("./constants");
+
 const SPECIAL_CHANNELS = [
   {
     slug: "watch",
@@ -69,7 +72,7 @@ const SPECIAL_CHANNELS = [
     // rule said "standing in the Keep"; the Keep is prose now, so the
     // Fortress zone is the gate.
     member: (ctx) => {
-      if (ctx.tagSlugs.has("intercom") && ctx.zoneSlug === "fortress") {
+      if (ctx.tagSlugs.has("intercom") && ctx.zoneSlug === FORTRESS_SLUG) {
         return { view: true, send: true };
       }
       return null;

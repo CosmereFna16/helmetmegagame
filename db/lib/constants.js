@@ -27,7 +27,12 @@ const MINDREADING_SLUG = "mindreading";
 // requiredTag in docs/taggroups.yaml).
 const DEMONESS_SLUG = "demoness";
 
+// A ZONE slug, not a tag: the Fortress holds the Lifeweb tower and the PA
+// system, so two separate rules gate on standing there.
+const FORTRESS_SLUG = "fortress";
+
 module.exports = {
+  FORTRESS_SLUG,
   HUNGER_SLUG,
   HUNGERLESS_SLUG,
   DYING_SLUG,

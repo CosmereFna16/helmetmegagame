@@ -7,6 +7,7 @@ import {
   prisma,
   MORTUS_SLUG,
   DRAINED_SLUG,
+  FORTRESS_SLUG,
   bloodValueForTags,
   bumpBlood,
   FEED_PERSON_AMOUNT,
@@ -28,21 +29,31 @@ import { UserError, guarded } from "@/lib/actionResult";
 // The /lifeweb page gate is advisory: a server action is a public endpoint,
 // so Mortus is checked again here. A GM without a living Mortus character
 // can't submit these — the GM panel on the same page is their route.
+//
+// Standing in the Fortress is the second half of the gate. The tower is up the
+// Keep stairs (docs/zones.yaml, the Gatehouse topic), so tending the Web is
+// something you do with your boots on that ground — the same reach rule every
+// other person-touching Request already applies (MAP.md §3).
 async function requireMortusCharacter() {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
 
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
-    include: { tags: { include: { tag: true } } },
+    include: { tags: { include: { tag: true } }, zone: { select: { slug: true } } },
   });
   if (!character) throw new UserError("You need a living character to do that.");
   if (!character.tags.some((ct) => ct.tag.slug === MORTUS_SLUG)) {
     throw new UserError("Only the Mortii may touch the Lifeweb.");
   }
+  if (character.zone?.slug !== FORTRESS_SLUG) {
+    throw new UserError("The Lifeweb is in the Fortress. You have to be standing there.");
+  }
   return { session, character };
 }
 
+// The target has to be at the tower too — folded into the WHERE clause rather
+// than checked after, the same shape the character-sheet Requests use.
 async function requireLivingTarget(targetCharacterId) {
   const target = await prisma.character.findFirst({
     // `?? ""` is load-bearing: Prisma strips an undefined field from a where
@@ -50,10 +61,10 @@ async function requireLivingTarget(targetCharacterId) {
     // person" into "bleed any living character". These two buttons act on
     // somebody else's sheet, which makes it the worst place in the app for
     // that.
-    where: { id: targetCharacterId ?? "", status: "ALIVE" },
+    where: { id: targetCharacterId ?? "", status: "ALIVE", zone: { slug: FORTRESS_SLUG } },
     include: { tags: { include: { tag: true } } },
   });
-  if (!target) throw new UserError("Unknown person.");
+  if (!target) throw new UserError("They aren't in the Fortress.");
   return target;
 }
 

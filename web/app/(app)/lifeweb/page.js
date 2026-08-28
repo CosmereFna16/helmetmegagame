@@ -1,5 +1,11 @@
 import { redirect } from "next/navigation";
-import { prisma, MORTUS_SLUG, LIFEWEB_SPUTTER_THRESHOLD, DONATE_BLOOD_BY_TAG } from "@lifeweb/db";
+import {
+  prisma,
+  MORTUS_SLUG,
+  FORTRESS_SLUG,
+  LIFEWEB_SPUTTER_THRESHOLD,
+  DONATE_BLOOD_BY_TAG,
+} from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import LifewebDonateBloodPanel from "../../components/LifewebDonateBloodPanel";
@@ -28,7 +34,7 @@ export default async function LifewebPage() {
   // player-facing Request buttons, since the server action re-checks the tag.
   const mortusCharacter = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE", tags: { some: { tag: { slug: MORTUS_SLUG } } } },
-    select: { id: true },
+    select: { id: true, zone: { select: { slug: true } } },
   });
   if (!mortusCharacter && !gm) redirect("/character");
 
@@ -52,6 +58,9 @@ export default async function LifewebPage() {
         name: true,
         firstName: true,
         lastName: true,
+        // The Mortus picker only offers people standing at the tower; the GM
+        // panel below still gets the whole roster.
+        zone: { select: { slug: true } },
         tags: {
           where: { tag: { slug: { in: BLOOD_TIER_SLUGS } } },
           select: { tag: { select: { slug: true } } },
@@ -62,6 +71,9 @@ export default async function LifewebPage() {
 
   const blood = config?.lifewebBlood ?? 0;
   const band = bloodBand(blood);
+
+  const atFortress = mortusCharacter?.zone?.slug === FORTRESS_SLUG;
+  const fortressCharacters = aliveCharacters.filter((c) => c.zone?.slug === FORTRESS_SLUG);
 
   return (
     <PageShell width="narrow">
@@ -90,9 +102,11 @@ export default async function LifewebPage() {
       {mortusCharacter && (
         <section className="panel p-5">
           <h2 className="panel-header">Tend the Web</h2>
-          <LifewebRequestButtons characters={aliveCharacters} />
+          <LifewebRequestButtons characters={fortressCharacters} disabled={!atFortress} />
           <p className="mt-3 text-xs text-muted">
-            These actions take effect immediately, but are reviewed by a GM later.
+            {atFortress
+              ? "These actions take effect immediately, but are reviewed by a GM later."
+              : "The Web is in the Fortress. You can watch it from here, but you have to be standing at the tower to tend it."}
           </p>
         </section>
       )}

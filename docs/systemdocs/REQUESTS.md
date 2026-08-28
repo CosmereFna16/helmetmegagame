@@ -347,7 +347,18 @@ The 1–5 ladder is shown in an `InfoIcon` beside the points field:
 ## 5a. The Lifeweb
 
 `/lifeweb` is gated on the `mortus` tag. Its two buttons are Requests like any
-other — they land immediately and a GM reviews afterwards — with two wrinkles.
+other — they land immediately and a GM reviews afterwards — with three wrinkles.
+
+**Both of you have to be in the Fortress.** The tower is up the Keep stairs, so
+tending the Web is the same reach rule as every other person-touching Request
+(`MAP.md` §3): `requireMortusCharacter()` refuses a Mortus standing anywhere
+else, and the target lookup folds `zone: { slug: FORTRESS_SLUG }` into its WHERE
+clause, so a person elsewhere on the map simply isn't found. Getting a victim to
+the tower is a journey somebody physically makes. The page stays readable from
+anywhere — a Mortus in Town sees the gauge with both buttons disabled and the
+reason underneath — and the picker only offers people already at the tower. The
+**GM panel on the same page is not gated**; that's host access, not game
+permission.
 
 **Whose blood it is decides what it's worth.** Keyed on the *target's* tags,
 not the Mortus doing the bleeding: Nobility 40, Courtier 30, anyone else 20;

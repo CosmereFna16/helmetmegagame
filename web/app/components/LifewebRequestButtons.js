@@ -31,7 +31,7 @@ const MODES = {
   },
 };
 
-export default function LifewebRequestButtons({ characters }) {
+export default function LifewebRequestButtons({ characters, disabled = false }) {
   const confirm = useConfirm();
   const { tagsBySlug } = useTags();
   const drainedTag = tagsBySlug.get(DRAINED_SLUG) ?? null;
@@ -89,12 +89,13 @@ export default function LifewebRequestButtons({ characters }) {
   return (
     <>
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn" onClick={() => open("donate")}>
+        <button type="button" className="btn" disabled={disabled} onClick={() => open("donate")}>
           Donate Blood
         </button>
         <button
           type="button"
           className="btn-danger"
+          disabled={disabled}
           onClick={() => open("feed")}
         >
           ☠ Feed Person
@@ -111,19 +112,23 @@ export default function LifewebRequestButtons({ characters }) {
         onCancel={() => !pending && setMode(null)}
         onConfirm={submit}
       >
-        <label className="field">
-          <span className="field-label">Who?</span>
-          <select value={targetId} onChange={(e) => setTargetId(e.target.value)} required>
-            <option value="" disabled>
-              Choose a person…
-            </option>
-            {characters.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
+        {characters.length === 0 ? (
+          <p className="text-sm text-muted">Nobody is at the tower.</p>
+        ) : (
+          <label className="field">
+            <span className="field-label">Who?</span>
+            <select value={targetId} onChange={(e) => setTargetId(e.target.value)} required>
+              <option value="" disabled>
+                Choose a person…
               </option>
-            ))}
-          </select>
-        </label>
+              {characters.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         {mode === "donate" && worth && (
           <p className="text-sm">

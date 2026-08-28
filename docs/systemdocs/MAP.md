@@ -83,6 +83,10 @@ faction's Silo requires standing in its zone, and handing ⬢ or an item to a
 person requires the same zone — so a payment across zones is a journey somebody
 physically makes. See `FACTIONS.md` §3b.
 
+The Lifeweb is the same rule with a fixed address: bleeding or feeding someone
+to the Web needs the Mortus **and** the target standing in the Fortress, because
+that is where the tower is (`REQUESTS.md` §5a).
+
 ## 4. Two front-ends, one `performTravel`
 
 `db/lib/travel.js#performTravel` owns validation, the Action and the database
