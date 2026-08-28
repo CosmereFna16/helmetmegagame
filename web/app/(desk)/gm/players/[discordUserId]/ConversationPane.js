@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import DmThread from "@/app/components/DmThread";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
+import DevPanelModal from "@/app/components/DevPanelModal";
 import ZoneChip from "@/app/components/ZoneChip";
 import useSubmitOnEnter from "@/app/components/useSubmitOnEnter";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
@@ -59,6 +60,10 @@ export default function ConversationPane({
   const [error, setError] = useState(null);
   const [claimedBy, setClaimedBy] = useState(claimedByDiscordUserId);
   const lastMarkedIdRef = useRef(null);
+  // The Dev Panel open as a modal over this conversation, or null. Mirrors
+  // RosterTable.js and the adjudication desk's Workspace.js — opening it
+  // never navigates away from the conversation.
+  const [devPanelOpen, setDevPanelOpen] = useState(false);
 
   const readDraft = useCallback(() => {
     try {
@@ -161,7 +166,11 @@ export default function ConversationPane({
               Adjudicate →
             </Link>
           )}
-          <DevCharacterButton characterId={characterId} />
+          <DevCharacterButton
+            characterId={characterId}
+            name={label}
+            onOpen={() => setDevPanelOpen(true)}
+          />
           <button
             type="button"
             className="btn-quiet"
@@ -220,6 +229,14 @@ export default function ConversationPane({
           </p>
         )}
       </form>
+
+      {devPanelOpen && (
+        <DevPanelModal
+          characterId={characterId}
+          name={label}
+          onClose={() => setDevPanelOpen(false)}
+        />
+      )}
     </div>
   );
 }

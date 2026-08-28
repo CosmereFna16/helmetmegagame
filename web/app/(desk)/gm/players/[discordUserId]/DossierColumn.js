@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import TagChip from "@/app/components/TagChip";
 import FactionLink from "@/app/components/FactionLink";
 import MarkdownContent from "@/app/components/MarkdownContent";
@@ -72,6 +73,14 @@ export default function DossierColumn({
 }) {
   const [tab, setTab] = useState("Canon");
   const { data, error, loading } = useDossierData(characterId, tab);
+  const router = useRouter();
+
+  // A different route under this same desk (/gm/players — the roster, with
+  // its own Factions tab) rather than /faction, so a GM never leaves the
+  // desk shell (the rail, the header) to look up a faction from here.
+  function goToFaction(factionId) {
+    router.push(`/gm/players?tab=factions&faction=${factionId}`);
+  }
 
   if (!characterId) {
     return (
@@ -124,7 +133,11 @@ export default function DossierColumn({
             <Fact label="Role">{data.roleTitle ?? "—"}</Fact>
             <Fact label="Faction">
               {data.factionId ? (
-                <FactionLink factionId={data.factionId} name={data.factionName ?? "—"} />
+                <FactionLink
+                  factionId={data.factionId}
+                  name={data.factionName ?? "—"}
+                  onSelect={goToFaction}
+                />
               ) : (
                 "—"
               )}

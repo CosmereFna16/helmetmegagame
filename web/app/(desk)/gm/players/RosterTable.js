@@ -5,10 +5,12 @@ import { useMemo, useState, useTransition } from "react";
 import FormError from "@/app/components/FormError";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
+import DevPanelModal from "@/app/components/DevPanelModal";
 import FactionLink from "@/app/components/FactionLink";
 import { useTableState, SortHeader, FilterBar, TableScroll } from "@/app/components/DataTable";
 import ZoneChip from "@/app/components/ZoneChip";
 import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
+import FactionsPanel from "./FactionsPanel";
 import Pager from "@/app/components/Pager";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import { filterTagsByQuery, sortForMode, tagsById as buildTagsById } from "@/lib/characterCreation";
@@ -51,8 +53,15 @@ export default function RosterTable({
   factions,
   factionCount,
   initialTab,
+  initialHighlightFactionId,
 }) {
   const [view, setView] = useState(initialTab === "factions" ? "factions" : "players");
+  // Which faction row the Factions tab highlights — set on load from the
+  // `?faction=` search param (a link in from the Dossier column, a different
+  // route under this same desk), and again whenever a FactionLink inside
+  // this desk is clicked, so the click always lands on its own row rather
+  // than just switching tabs.
+  const [highlightFactionId, setHighlightFactionId] = useState(initialHighlightFactionId || null);
   // Keyed on character id rather than row index, so a selection survives
   // paging, filtering and sorting — the recipient list is what gets sent.
   const [selected, setSelected] = useState(new Set());
@@ -60,6 +69,10 @@ export default function RosterTable({
   const [tagBarOpen, setTagBarOpen] = useState(false);
   const [composerError, setComposerError] = useState(null);
   const [sending, startSending] = useTransition();
+  // { characterId, name } of the Dev Panel currently open as a modal over
+  // this desk, or null. Mirrors the adjudication desk's Workspace.js —
+  // opening it never leaves /gm/players or resets the roster's filters.
+  const [devPanel, setDevPanel] = useState(null);
 
   const filterDefs = useMemo(() => FILTER_DEFS, []);
   const searchFields = useMemo(() => SEARCH_FIELDS, []);
@@ -85,6 +98,13 @@ export default function RosterTable({
   });
 
   const onComposerKeyDown = useSubmitOnEnter();
+
+  // Every FactionLink in this desk routes here rather than to /faction —
+  // switch to the Factions tab and highlight the row, instead of leaving.
+  function goToFaction(factionId) {
+    setHighlightFactionId(factionId);
+    setView("factions");
+  }
 
   function toggle(id) {
     setSelected((prev) => {
@@ -122,7 +142,11 @@ export default function RosterTable({
       </div>
 
       {view === "factions" ? (
-        factions
+        <FactionsPanel
+          factions={factions}
+          highlightFactionId={highlightFactionId}
+          onSelectFaction={goToFaction}
+        />
       ) : (
         <>
           <FilterBar
@@ -255,7 +279,11 @@ export default function RosterTable({
                       <Link href={`/gm/players/${c.discordUserId}`} className="menu-item">
                         {c.name}
                       </Link>
-                      <DevCharacterButton characterId={c.id} />
+                      <DevCharacterButton
+                        characterId={c.id}
+                        name={c.name}
+                        onOpen={() => setDevPanel({ characterId: c.id, name: c.name })}
+                      />
                     </div>
                   </td>
                   <td>{c.roleTitle ?? "-"}</td>
@@ -263,7 +291,11 @@ export default function RosterTable({
                     <ZoneChip zoneName={c.factionZoneName} />
                   </td>
                   <td>
-                    <FactionLink factionId={c.factionId} name={c.factionName || "-"} />
+                    <FactionLink
+                      factionId={c.factionId}
+                      name={c.factionName || "-"}
+                      onSelect={goToFaction}
+                    />
                   </td>
                   <td className="text-muted">{c.zoneName || "-"}</td>
                   <td>
@@ -294,6 +326,14 @@ export default function RosterTable({
 
           <Pager page={page} totalPages={totalPages} total={total} unit="players" onPage={setPage} />
         </>
+      )}
+
+      {devPanel && (
+        <DevPanelModal
+          characterId={devPanel.characterId}
+          name={devPanel.name}
+          onClose={() => setDevPanel(null)}
+        />
       )}
     </div>
   );

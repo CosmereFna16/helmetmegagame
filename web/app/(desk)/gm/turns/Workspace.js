@@ -9,7 +9,7 @@ import CavingDesk from "./CavingDesk";
 import InspectorColumn from "./InspectorColumn";
 import StagingTray from "./StagingTray";
 import PushPreview from "./PushPreview";
-import DevPanelModal from "./DevPanelModal";
+import DevPanelModal from "@/app/components/DevPanelModal";
 import { isAnyDirty } from "@/app/components/useDirtyGuard";
 import usePins from "@/app/components/usePins";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
