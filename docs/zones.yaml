@@ -321,7 +321,7 @@ zones:
                 description: ""
               - name: Merchant's Depot
                 description: >-
-                  Inside the caves, crates around a decayed metal frame. There is a small gap in the roof where light comes in. Besides the shuttle pad, there is a ledger room and a bunkhouse.
+                  Inside the caves, crates around a decayed metal frame. There is a zig-zag gap in the roof where light comes in. Besides the shuttle pad, there is a ledger room and a bunkhouse.
 
       # The three levels of the Depths, chained one Move apart like every
       # other hop — since the zone rework there is no free walking anywhere,

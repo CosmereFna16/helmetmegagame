@@ -443,7 +443,7 @@ documents:
     secret: true
     tags: []
     description: |-
-      The Charon is a spaceship. It'll take its passengers out into space, where an enormous passenger liner is allegedly waiting for refugees. The Charon's hatch can be accessed through the catacombs.
+      The Charon is a spaceship. It'll take its passengers out into space, where an enormous passenger liner is allegedly waiting for refugees. The Charon's hatch can be accessed through the Undercroft.
   - name: Meals & Kitchens
     key: meals
     public: true
