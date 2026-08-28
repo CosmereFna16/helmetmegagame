@@ -40,7 +40,6 @@ Each command declares its contexts:
 | `/move` | — | Living character | Guild, DM | `handleMoveOpen` |
 | `/location` | — | Living character | Guild, DM | `handleOpen` — the **zone** picker (§4) |
 | `/message` | — | Living character | Guild, DM | `handleMessageCommand` |
-| `/labor` | `type` (choice: hunt/fish/farm/herd) | Living character | Guild, DM | `handleLaborCommand` |
 | `/add` | `character` (role) | Thread member or GM | Guild | `handleThreadMemberCommand` |
 | `/remove` | `character` (role) | Thread member or GM | Guild | `handleThreadMemberCommand` |
 | `/persistent` | — | Living character or GM | Guild | `handlePersistentCommand` |
@@ -55,9 +54,9 @@ Notes:
 - `/message` run inside a channel the player can already speak in skips the
   destination picker and posts there. Anywhere else — including a DM — it asks
   where first. See `PROXYING.md`.
-- `/labor` replaced four separate commands (`/hunt`, `/fish`, `/farm`,
-  `/herd`). The **text shorthand** a Move body accepts is unchanged and still
-  spelled `/hunt`; see `PRODUCTION.md` §3.
+- `/labor` is retired too — laboring is now the **Labor checkbox** on the
+  Move modal (`PRODUCTION.md` §3). A stub handler answers the stale picker
+  entry during the propagation hour; delete it once the hour is past.
 - `/dm` was named `/message` until `/message` became the player-facing speak
   command.
 - Commands taking a character take a **role** option, not a user option, so
@@ -185,15 +184,15 @@ Speak goes through a picker first (enumerating threads costs API calls).
 | Your Move | `move:body` | Paragraph, required, max 1800 |
 | Kind | `move:kind` | Radio: `ROUTINE` / `GAMBIT`, required |
 | Opposed | `move:opposed` | Checkbox |
+| Labor | `move:labor` | Checkbox — Routine only, refused on a Gambit |
 
 Submitting runs every gate the old `#turns` message flow ran — living
-character, open turn, hasn't already acted, non-empty body, labor shorthand
-resolved **before** any `Action` row exists so a refusal never costs a turn —
-then locks the Move in through `bot/src/lib/moveConfirm.js#confirmMove` and
+character, open turn, hasn't already acted, non-empty body, Labor resolved
+**before** any `Action` row exists so a refusal never costs a turn — then
+locks the Move in through `bot/src/lib/moveConfirm.js#confirmMove` and
 replies ephemerally. **Submit = locked**: there is no edit window, the dice
 and resource roll happen now, and the payout — like every Move payout — lands
-at the turn-end push (`ADJUDICATION.md`; player-declared deltas clamp at ±20,
-`db/lib/resourceDelta.js`). See `TURN-ENGINE.md`.
+at the turn-end push (`ADJUDICATION.md`). See `TURN-ENGINE.md`.
 
 ### Create a Topic — `topic:create:{zoneId}` (`bot/src/lib/topicModal.js`)
 

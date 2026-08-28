@@ -13,6 +13,13 @@ faction pings and the like — are independent and unmanaged by Bascinet.
 Factions nest: `Faction.parentFactionId` forms a hierarchy, and a parent's
 leadership reaches down into its subjects.
 
+A Silo's **opening balance is computed, not authored**: the sum of the
+faction's role weights (`unlimited` counts 5, a single-seat role counts 1),
+scaled by `GameConfig.playerCount` and floored at 10 ⬢ —
+`db/lib/factionSilo.js`. Seeded at faction creation and by the Restart Game
+wipe (`SYNC.md` "Create-only fields"). Unaffiliated is excluded and holds no
+Silo.
+
 ## 2. Leader and Treasurer are booleans, not tags
 
 `Character.isLeader` and `Character.isTreasurer`. They were tags once; they

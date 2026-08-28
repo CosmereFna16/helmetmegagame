@@ -47,11 +47,11 @@ tray as "unattached" for the GM to keep or drop.
   reason immediately — the one thing the desk sends in real time, because a
   freed turn the player doesn't know about is a wasted day.
 - **Declared numbers always pay.** Every confirmed Move's own
-  `resourceDelta` (clamped ±20 at parse time, `db/lib/resourceDelta.js` —
-  the human gate the old Solve used to be) applies at the push, solved or
-  not. A GM who disagrees stages a counter-effect; the composer's "offset
-  declared" prefill is that in one click. Nothing pays at confirm any more —
-  Routines and `/hunt`-family labor included.
+  `resourceDelta` (now only ever machine-written — the Labor roll; players
+  can no longer type a delta at all) applies at the push, solved or not. A GM
+  who disagrees stages a counter-effect; the composer's "offset declared"
+  prefill is that in one click. Nothing pays at confirm any more — Routines
+  and Labor included.
 - **Solve is bookkeeping.** It stores the Result and Kind/Opposed edits,
   stamps `reviewedBy`, and marks the staging complete. It applies nothing;
   Unsolve reverts nothing, because there is nothing yet to revert.

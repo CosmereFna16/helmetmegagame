@@ -278,8 +278,10 @@ const DEFAULT_GAME_CONFIG = {
 // content, so a dropped key just loses its row), syncRolesFromYaml prunes
 // only rows nothing references, and syncTagsFromYaml is a pure upsert that
 // never deletes.
-// Faction silos reset to 0, same "back to day one" treatment as the Turn
-// counter, rather than carrying over stale economy numbers.
+// Faction silos reset to 0 and are then re-seeded by the role sync below
+// (seedSilos: true) to their computed opening balance — the same "back to
+// day one" treatment as the Turn counter, rather than carrying over stale
+// economy numbers.
 //
 // Requires typing the literal string "WIPE" in the confirm field — this is
 // the most destructive action in the Dev Panel and has no undo.
@@ -470,7 +472,13 @@ async function finishGameWipe(actorDiscordUserId, characters, cursedMemberIds, f
   await step("zone sync", () => syncZonesFromYaml(prisma));
   await step("special channels sync", () => syncSpecialChannels(prisma));
   await step("tag sync", () => syncTagsFromYaml(prisma));
-  await step("role sync", () => syncRolesFromYaml(prisma));
+  // seedSilos: true — the fix for silo seeding otherwise being dead on
+  // restart (Faction rows persist across the wipe, and an ordinary sync only
+  // seeds silo on CREATE). This re-seeds every faction's silo to its computed
+  // opening balance at the playerCount the same transaction just reset to
+  // 100 — a smaller game needs playerCount set on /gm/dev, then
+  // `db:sync-roles -- --seed-silos` run by hand afterward.
+  await step("role sync", () => syncRolesFromYaml(prisma, { seedSilos: true }));
   // Last: its assignment references are validated against the Tag/Role/
   // Faction rows the syncs above create.
   await step("document sync", () => syncDocumentsFromYaml(prisma));

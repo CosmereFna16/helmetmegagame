@@ -1125,47 +1125,29 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  - slug: laborer
-    name: Laborer
+  - slug: laborer-basic
+    name: Laborer (Basic)
     category: skills
-    description: "You can produce food efficiently. Further specializations increase your production."
+    description: "When laboring, you make {resource:labor:basic} per turn."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: laborer-skilled
+    name: Laborer (Skilled)
+    category: skills
+    description: "When laboring, you make {resource:labor:skilled} per turn."
     pointCost: 2
+    parentTag: laborer-basic
     purchasable: true
     purchasableAfterStart: true
 
   - slug: laborer-farming
-    description: "Specialist rates when you /farm. You know how to make black gold."
     name: Laborer (Farming)
-    category: skills
+    category: assets
+    description: "When laboring in the Town zone, you make {resource:labor:farming} per turn. Anywhere else, you work at Skilled rates."
     pointCost: 2
-    requiredTag: laborer
-    purchasable: true
-    purchasableAfterStart: true
-
-  - slug: laborer-fishing
-    description: "Specialist rates when you /fish. You can read water bodies like a fish."
-    name: Laborer (Fishing)
-    category: skills
-    pointCost: 2
-    requiredTag: laborer
-    purchasable: true
-    purchasableAfterStart: true
-
-  - slug: laborer-herding
-    description: "Specialist rates when you /herd. You can keep animals safer and increase their weight gain."
-    name: Laborer (Herding)
-    category: skills
-    pointCost: 2
-    requiredTag: laborer
-    purchasable: true
-    purchasableAfterStart: true
-
-  - slug: laborer-hunting
-    description: "Specialist rates when you /hunt. You are quicker to notice animal signs and to hit their vitals."
-    name: Laborer (Hunting)
-    category: skills
-    pointCost: 2
-    requiredTag: laborer
+    requiredTag: laborer-skilled
     purchasable: true
     purchasableAfterStart: true
 
@@ -1225,7 +1207,7 @@ tags:
   - slug: butcher
     name: Butcher
     category: skills
-    description: "When butchering non-humans, you can obtain interesting organs. Also gain +2 when hunting (not calculated with /labor, make sure to write it out)."
+    description: "When butchering non-humans, you can obtain interesting organs. Also gain +2 ⬢ when your laboring is flavored as hunting (not auto-calculated, make sure to write it out)."
     pointCost: 1
     purchasable: true
     purchasableAfterStart: true
@@ -2804,55 +2786,6 @@ tags:
     group: assets-companions
     description: "You have a highly-trained dog with good sense of smell."
     pointCost: 2
-    purchasable: true
-    purchasableAfterStart: true
-
-  - slug: follower
-    name: Follower
-    category: assets
-    group: assets-companions
-    description: "You have a follower, servant, or friend. You control them."
-    pointCost: 2
-    purchasable: true
-    purchasableAfterStart: true
-
-  - slug: follower-cook
-    name: Follower (Cook)
-    category: assets
-    group: assets-companions
-    description: "Your follower has the Cooking (Basic) tag."
-    pointCost: 1
-    parentTag: follower
-    purchasable: true
-    purchasableAfterStart: true
-
-  - slug: follower-medic
-    name: Follower (Medic)
-    category: assets
-    group: assets-companions
-    description: "Your follower has the {tag:medical-basic} tag."
-    pointCost: 1
-    parentTag: follower
-    purchasable: true
-    purchasableAfterStart: true
-
-  - slug: follower-laborer
-    name: Follower (Laborer)
-    category: assets
-    group: assets-companions
-    description: "Your follower has the Laborer tag."
-    pointCost: 1
-    parentTag: follower
-    purchasable: true
-    purchasableAfterStart: true
-
-  - slug: follower-goon
-    name: Follower (Goon)
-    category: assets
-    group: assets-companions
-    description: "Your follower has the Fighting (Basic) tag."
-    pointCost: 1
-    parentTag: follower
     purchasable: true
     purchasableAfterStart: true
 

@@ -29,7 +29,8 @@ const MOVE_MODAL_ID = "move:new";
 // overruns, so it lives in the TextDisplay below instead.
 const MOVE_HELP =
   "-# Write the intent of your Move in here and anything GMs should know. " +
-  "Submitting locks it in for the turn; results land when the turn ends.";
+  "Submitting locks it in for the turn; results land when the turn ends. " +
+  "Tick Labor to make Resources from it, scaled to your tags.";
 
 function buildMoveModal() {
   return new ModalBuilder()
@@ -60,6 +61,10 @@ function buildMoveModal() {
         .setLabel("Opposed")
         .setDescription("Tick if this affects other players negatively.")
         .setCheckboxComponent(new CheckboxBuilder().setCustomId("move:opposed")),
+      new LabelBuilder()
+        .setLabel("Labor")
+        .setDescription("Applies your skills automatically.")
+        .setCheckboxComponent(new CheckboxBuilder().setCustomId("move:labor")),
     )
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(MOVE_HELP));
 }

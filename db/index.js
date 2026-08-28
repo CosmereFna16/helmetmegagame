@@ -248,9 +248,9 @@ async function resolveNeeds(turn, config) {
   //   - BEFORE tagExpiry/expirySweep: a staged "remove Infected" must beat
   //     the progression that would turn it into Festering, and a staged fresh
   //     grant carries expiresTurn > turn.number so the sweep can't eat it.
-  //   - BEFORE hunger: deferred Routine and /labor income has to land before
-  //     upkeep is charged, or every laborer who banked their last ⬢ on paper
-  //     goes hungry — the same income-before-upkeep rule that puts
+  //   - BEFORE hunger: deferred Routine and Labor-checkbox income has to land
+  //     before upkeep is charged, or every laborer who banked their last ⬢ on
+  //     paper goes hungry — the same income-before-upkeep rule that puts
   //     defaultMoves first.
   let stagedPush = null;
   if (!done.has("stagedPush")) {

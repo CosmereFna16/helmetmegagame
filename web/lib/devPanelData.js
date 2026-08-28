@@ -206,7 +206,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
         }
       : null,
     defaultEffort: defaultEffort
-      ? { description: defaultEffort.description, resourceDelta: defaultEffort.resourceDelta }
+      ? { description: defaultEffort.description, labor: defaultEffort.labor }
       : null,
     desires: desires.map((d) => ({
       id: d.id,

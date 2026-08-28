@@ -17,62 +17,54 @@
 // asleep. It's tagged `gmNotes: "auto:default_move"`, the same identifiable
 // marker performMove uses for an auto-resolved zone change.
 //
-// The +N / 1d6 notation in the description is parsed here rather than at save
-// time, so DefaultEffort needs no extra columns and the player keeps seeing
-// the text they typed. The dice are rolled per turn, which is the point of
-// writing a roll instead of a flat number.
-//
-// Shaped like db/lib/hungerPass.js: bulk reads, one summary audit row rather
-// than one per character, and — also like hungerPass — no network call of its
-// own. The summary posts and DMs it wants are returned as `posts` and `dms`
-// for advanceTurn()'s runSideEffects() to perform, so they can't hold the turn
-// advance open. Takes `prisma` as a parameter for the same reason (see
-// db/lib/dm.js).
-const { parseResourceExpression, rollResourceRange } = require("./resourceDelta");
+// `DefaultEffort.labor` is a plain boolean now, so this needs no notation
+// parsing at all — the description is stored and filed verbatim, and the
+// only thing resolved per turn is the Labor rate itself, since zone (and
+// therefore tier and the depths gate) can change between saves.
 const { applyMoveEffects, describeMoveEffects } = require("./moveEffects");
 const { resolveLaborRateFrom } = require("./laborAccess");
+const { rollResourceRange } = require("./resourceDelta");
 
-// Reproduces the #turns submission pipeline (roll first, then flat deltas) so
-// a Default Move reading "+2", "5-12" or "/hunt" is worth exactly what the
-// same text posted by hand would have been.
+// Reproduces the #turns submission pipeline's Labor resolution, so a Default
+// Move with the checkbox ticked pays exactly what the same submission by hand
+// would have.
 //
 // Stays pure and synchronous, taking a pre-built labor context rather than a
 // characterId: this runs once per character in a bulk pass, and a version
 // that did its own lookups would turn one turn advance into N round trips.
-// The context is null for a character whose default names no shorthand.
+// The context is null for a character whose default doesn't have Labor
+// ticked.
 //
-// A shorthand the character can't perform where they're standing still files
-// the Move — they did spend the day trying — but pays nothing, and returns a
-// gateNote so their DM says why rather than leaving them to guess.
-function parseDefaultMove(text, ctx, coefficient) {
-  const { description, resourceDelta, roll } = parseResourceExpression(text);
+// Labor somewhere it can't be done still files the Move — they did spend the
+// day trying — but pays nothing, and returns a gateNote so their DM says why
+// rather than leaving them to guess.
+function resolveDefaultMove(def, ctx, coefficient) {
+  const description = def.description;
 
-  let expression = roll?.expression ?? null;
-  let gateNote = null;
-
-  if (roll?.kind === "shorthand") {
-    const rate = ctx ? resolveLaborRateFrom(ctx, roll.field, coefficient) : { ok: false, reason: null };
-    if (!rate.ok) {
-      return {
-        description: description || text.trim(),
-        resourceRollExpression: null,
-        resourceRollValue: null,
-        resourceDelta: resourceDelta ?? null,
-        gateNote: rate.reason ?? `You couldn't ${roll.field} from where you were standing.`,
-      };
-    }
-    expression = rate.expression;
+  if (!def.labor) {
+    return { description, resourceRollExpression: null, resourceRollValue: null, resourceDelta: null, gateNote: null };
   }
 
-  const rollResult = expression ? rollResourceRange(expression) : null;
+  const rate = ctx ? resolveLaborRateFrom(ctx, coefficient) : { ok: false, reason: null };
+  if (!rate.ok) {
+    return {
+      description,
+      resourceRollExpression: null,
+      resourceRollValue: null,
+      resourceDelta: null,
+      gateNote: rate.reason ?? "You couldn't labor from where you were standing.",
+    };
+  }
 
+  // Rolled here, not left for later: applyMoveEffects reads resourceDelta
+  // only, so an unrolled expression would file the Move and pay nothing.
+  const rollResult = rollResourceRange(rate.expression);
   return {
-    description: description || text.trim(),
-    resourceRollExpression: expression,
+    description,
+    resourceRollExpression: rate.expression,
     resourceRollValue: rollResult?.value ?? null,
-    resourceDelta:
-      rollResult || resourceDelta != null ? (resourceDelta ?? 0) + (rollResult?.value ?? 0) : null,
-    gateNote,
+    resourceDelta: rollResult?.value ?? null,
+    gateNote: null,
   };
 }
 
@@ -128,20 +120,18 @@ async function runDefaultMovePass(prisma, turn) {
   });
   const actedIds = new Set(acted.map((a) => a.characterId));
 
-  // Only defaults that actually name a "/hunt"-style shorthand need tags
-  // loaded, and they're loaded in one query for all of them rather than per
-  // character — same bulk-read posture as the `acted` query above. Most
-  // turns this set is empty and the query never runs.
-  const shorthandIds = defaults
-    .filter((d) => !actedIds.has(d.characterId) && parseResourceExpression(d.description).roll?.kind === "shorthand")
-    .map((d) => d.characterId);
+  // Only Labor-ticked defaults need tags loaded, and they're loaded in one
+  // query for all of them rather than per character — same bulk-read posture
+  // as the `acted` query above. Most turns this set is empty and the query
+  // never runs.
+  const laborIds = defaults.filter((d) => d.labor === true && !actedIds.has(d.characterId)).map((d) => d.characterId);
 
   const tagsByCharacter = new Map();
   let coefficient = 1;
-  if (shorthandIds.length > 0) {
+  if (laborIds.length > 0) {
     const [tagRows, config] = await Promise.all([
       prisma.characterTag.findMany({
-        where: { characterId: { in: shorthandIds } },
+        where: { characterId: { in: laborIds } },
         select: { characterId: true, tag: { select: { slug: true } } },
       }),
       prisma.gameConfig.findUnique({ where: { id: 1 }, select: { productionCoefficient: true } }),
@@ -152,21 +142,21 @@ async function runDefaultMovePass(prisma, turn) {
     }
     coefficient = config?.productionCoefficient ?? 1;
   }
-  const shorthandSet = new Set(shorthandIds);
+  const laborSet = new Set(laborIds);
 
   const filed = [];
 
   for (const def of defaults) {
     if (actedIds.has(def.characterId)) continue;
 
-    const ctx = shorthandSet.has(def.characterId)
+    const ctx = laborSet.has(def.characterId)
       ? {
           zoneSlug: def.character.zone?.slug ?? null,
           seatZoneSlug: def.character.zone?.seatZone?.slug ?? def.character.zone?.slug ?? null,
           tagSlugs: tagsByCharacter.get(def.characterId) ?? new Set(),
         }
       : null;
-    const parsed = parseDefaultMove(def.description, ctx, coefficient);
+    const resolved = resolveDefaultMove(def, ctx, coefficient);
 
     try {
       const action = await prisma.$transaction(async (tx) => {
@@ -179,10 +169,10 @@ async function runDefaultMovePass(prisma, turn) {
             confirmedAt: new Date(),
             moveKind: "ROUTINE",
             moveReviewStatus: "PASSED",
-            description: parsed.description,
-            resourceDelta: parsed.resourceDelta,
-            resourceRollExpression: parsed.resourceRollExpression,
-            resourceRollValue: parsed.resourceRollValue,
+            description: resolved.description,
+            resourceDelta: resolved.resourceDelta,
+            resourceRollExpression: resolved.resourceRollExpression,
+            resourceRollValue: resolved.resourceRollValue,
             zoneId: def.character.zoneId ?? def.zoneId ?? null,
             gmNotes: "auto:default_move",
           },
@@ -191,7 +181,7 @@ async function runDefaultMovePass(prisma, turn) {
         return tx.action.update({ where: { id: row.id }, data: { appliedEffects: applied } });
       });
 
-      filed.push({ def, action, gateNote: parsed.gateNote });
+      filed.push({ def, action, gateNote: resolved.gateNote });
     } catch (err) {
       console.error(`Default Move for character ${def.characterId} failed:`, err);
     }
@@ -239,7 +229,8 @@ async function runDefaultMovePass(prisma, turn) {
     const lines = [
       `*Your Default Move was taken for turn ${turn.number}.*`,
       `» ${action.description}`,
-      // Why a standing "/hunt" paid nothing — they weren't there to be told.
+      // Why a standing Labor default paid nothing — they weren't there to be
+      // told.
       ...(gateNote ? [`*${gateNote} No Resources were gained.*`] : []),
       ...(effects ? [`**Applied:** ${effects}`] : []),
     ];
@@ -258,4 +249,4 @@ async function runDefaultMovePass(prisma, turn) {
   };
 }
 
-module.exports = { runDefaultMovePass, parseDefaultMove };
+module.exports = { runDefaultMovePass, resolveDefaultMove };

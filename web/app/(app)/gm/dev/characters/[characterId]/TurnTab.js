@@ -67,6 +67,7 @@ export default function TurnTab({ character, openTurn, action, defaultEffort }) 
         {defaultEffort ? (
           <>
             <p className="text-sm">» {defaultEffort.description}</p>
+            {defaultEffort.labor && <p className="text-sm text-muted">Labor is ticked.</p>}
             <p className="text-sm text-muted">
               Filed automatically at the close of any turn they don&apos;t act on, as a Routine.
             </p>

@@ -178,6 +178,7 @@ export async function setDefaultEffort(characterId, formData) {
   const description = formData.get("description")?.toString().trim();
   if (!description) return;
 
+  const labor = formData.get("labor") === "on";
   const shareInSummary = formData.get("shareInSummary") === "on";
   const summaryMessage = formData.get("summaryMessage")?.toString().trim() || null;
 
@@ -201,6 +202,7 @@ export async function setDefaultEffort(characterId, formData) {
     create: {
       characterId: character.id,
       description,
+      labor,
       zoneId: seatZoneId,
       shareInSummary: shareInSummary && !!summaryChannelId,
       summaryChannelId: shareInSummary ? summaryChannelId : null,
@@ -209,6 +211,7 @@ export async function setDefaultEffort(characterId, formData) {
     },
     update: {
       description,
+      labor,
       zoneId: seatZoneId,
       shareInSummary: shareInSummary && !!summaryChannelId,
       summaryChannelId: shareInSummary ? summaryChannelId : null,

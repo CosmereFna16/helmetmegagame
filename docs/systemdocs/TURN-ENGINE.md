@@ -42,7 +42,7 @@ each arrived at by getting them wrong first.
    default buys them a meal go hungry anyway.
 3. **Staged push pass** (`db/lib/stagedPush.js`) — applies every `StagedEffect`
    the GMs queued this turn, then every confirmed Move's own declared numbers
-   (nothing pays at confirm any more — a Routine, a `/labor` payout and a
+   (nothing pays at confirm any more — a Routine, a Labor payout and a
    GM-solved Gambit all sit with `appliedEffects` null until here), and
    silently closes untouched Moves (`OPEN → PASSED`, `auto:silent_close`, no
    DM). Its slot is load-bearing three ways: **after** the Default Move pass
@@ -189,9 +189,9 @@ A GM can override the next turn's weather from the Dev Panel
 
 Each turn announcement carries a photo of the weather,
 one per weather **per phase** — eight images in
-`docs/assets/weather/{weather}-{phase}.jpg`, built by
-`docs/assets/make-weather.py` in the same 2446×1122 frame as the `#info`
-banner so both channels read as one system.
+`docs/assets/weather/{weather}-{phase}.jpg`, each a genuine dawn or dusk
+photograph, cropped to the same 2446×1122 frame as the `#info` banner by
+`docs/assets/make-weather.py` so both channels read as one system.
 
 How it is posted (`db/lib/turnAnnouncement.js`): **`#turns` is ONE rolling
 message**, replaced each turn, carrying the announcement, the banner and the
@@ -285,13 +285,14 @@ Gambit** — a Gambit is a deliberate risk and nobody's there to take it. Marked
 
 Three details:
 
-- The `+N` / `5-12` / `/hunt` notation is parsed out of `description` **at
-  resolution time** (`db/lib/resourceDelta.js`), not at save time — so no extra
-  columns, the player keeps seeing the text they typed, and a written roll
-  actually re-rolls each turn.
-- A `/hunt`-style shorthand resolves from three bulk reads, not per character.
-  A gated Default Move still files (they did spend the day trying) but pays
-  nothing, and carries a `gateNote` into the player's DM.
+- Laboring is the `DefaultEffort.labor` column, not text: the description is
+  stored and filed verbatim, and the rate resolves **at resolution time**
+  (`db/lib/laborAccess.js`) — against the zone the character stands in that
+  night, at the coefficient in force that night — so a standing default keeps
+  paying correctly as both change.
+- Labor rates resolve from bulk reads, not per character. A gated Default
+  Move (asleep in a cave) still files (they did spend the day trying) but
+  pays nothing, and carries a `gateNote` into the player's DM.
 - The summary posts to the character's **current** zone's `#summary`, not the
   `summaryChannelId` snapshotted when they saved the panel — so travelling
   moves where their default gets narrated. A cave level has no `#summary`, so a

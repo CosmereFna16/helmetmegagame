@@ -41,10 +41,15 @@ provisioned from scratch, losing its Discord objects. Rename by editing `name`.
 
 ### Create-only fields
 
-`Faction.silo` is seeded from `starting_resources` **on CREATE only**. An
-existing faction's silo is live game state and a re-sync must never overwrite
-it. This is the only field in any sync with that behaviour, and it's easy to
-break by "fixing" the upsert to write all fields uniformly.
+`Faction.silo` is **computed** — the sum of the faction's role weights,
+scaled by `GameConfig.playerCount` (`db/lib/factionSilo.js`) — and seeded
+**on CREATE only**. An existing faction's silo is live game state and an
+ordinary re-sync must never overwrite it. The one deliberate exception is
+`seedSilos: true` (`db:sync-roles -- --seed-silos`, and the Restart Game
+wipe), which re-seeds every silo at its computed opening balance — without
+it, a wipe would leave every silo at the 0 it was zeroed to, since no
+faction row is ever *created* again after the first sync. Unaffiliated is
+excluded and stays silo-less.
 
 ### One-time vs every-run
 
@@ -184,6 +189,11 @@ counterpart, and the only tag operation in this repo that deletes anything.
 
 **It is a dry run by default.** Nothing is removed without `-- --apply`, the
 same posture as `db:prune-orphan-roles` and `db:doctor`.
+
+**Retiring a chain may take two applies.** Blockers are computed per run, so
+a parent (`laborer-basic` under a removed `laborer-skilled`, a base tag under
+its removed variants) is reported as still-referenced until the run that
+deleted its children is over — run `-- --apply` again and it goes.
 
 A Tag is deleted only when *every* one of these holds. Anything failing even
 one is reported with its reason and skipped — never cascaded, never forced,

@@ -217,7 +217,7 @@ and `MAP.md`.
 | `ADJUDICATION.md` | The `/gm/turns` GM surface |
 | `MAP.md` | Geography, travel, the map panel |
 | `FACTIONS.md` | Factions, the Silo, Leader/Treasurer |
-| `PRODUCTION.md` | `/labor` and the payout table |
+| `PRODUCTION.md` | The Labor checkbox and the payout table |
 | `COMMANDS.md` | Every slash command, button, modal and reaction |
 | `ARCHIVE.md` | The transcript |
 | `DESIGN-SYSTEM.md` | Web styling |

@@ -1,24 +1,23 @@
-// Canonical Farming/Fishing/Herding/Hunting production rates (base/Laborer/
-// specialist tiers, see docs/roles.yaml's Laborer tree and
-// docs/documents.yaml's "Producing Resources" doc). Single source of truth
-// for both the labor commands (bot/src/lib/labor.js, computed live against
-// GameConfig.productionCoefficient) and web/app/api/production-rates/route.js
-// (which backs the {resource:field:tier} bubbles docs/documents.yaml's
-// "Producing Resources" doc renders through) — change a rate here, not in
-// either of those places.
+// Canonical Labor tiers (base/Basic/Skilled/Farming, see docs/roles.yaml's
+// Laborer tree and docs/documents.yaml's "Producing Resources" doc). Single
+// source of truth for both the Labor checkbox (db/lib/laborAccess.js,
+// computed live against GameConfig.productionCoefficient) and
+// web/lib/referenceData.js's getProductionRates (which backs the
+// {resource:field:tier} bubbles docs/documents.yaml's "Producing Resources"
+// doc renders through) — change a rate here, not in either of those places.
 //
-// Every tier is a {min,max} range, even the three fields whose payout is a
-// flat number (min === max). Hunting is the only one that actually varies,
-// but giving it a table of its own is what used to make it a special case in
-// five separate places — the API route's field loop, the three
-// {resource:...} renderers, and labor.js's payout branch. One shape means
-// `/herd` and `/hunt` run identical code and hunting rides the Laborer tier
-// ladder and the production coefficient like everything else.
+// One flavor, one field: `labor` is the only key. The old table kept a row
+// per production flavor (hunting/fishing/farming/herding) purely so the
+// {resource:field:tier} renderers stayed field-agnostic; now there is only
+// one field and the same two-level {field: {tier}} shape carries no dead
+// weight, it's just the generic shape `{resource:labor:tier}` bubbles need.
 const PRODUCTION_RATES = {
-  herding: { base: { min: 1, max: 1 }, laborer: { min: 5, max: 5 }, specialist: { min: 10, max: 10 } },
-  farming: { base: { min: 3, max: 3 }, laborer: { min: 9, max: 9 }, specialist: { min: 18, max: 18 } },
-  fishing: { base: { min: 2, max: 2 }, laborer: { min: 7, max: 7 }, specialist: { min: 14, max: 14 } },
-  hunting: { base: { min: 0, max: 4 }, laborer: { min: 5, max: 12 }, specialist: { min: 10, max: 24 } },
+  labor: {
+    base: { min: 0, max: 2 },
+    basic: { min: 2, max: 5 },
+    skilled: { min: 7, max: 9 },
+    farming: { min: 18, max: 26 },
+  },
 };
 
 // Both ends scale independently. No min>max guard on purpose: Math.round is

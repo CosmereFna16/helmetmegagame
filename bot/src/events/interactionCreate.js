@@ -1,7 +1,6 @@
 const { ChannelType, MessageFlags, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
-const { prisma, LABOR_FIELDS, FIELD_INFO, concealedAlias } = require("@lifeweb/db");
+const { prisma, concealedAlias } = require("@lifeweb/db");
 const { buildZoneSelectRow, buildConfirmRow, performMove, syncCharacterNarrowcastAccess } = require("../lib/zoneTravel");
-const { performLabor } = require("../lib/labor");
 const { sendDm } = require("../lib/dm");
 const { buildMoveModal } = require("../lib/moveModal");
 const { confirmMove } = require("../lib/moveConfirm");
@@ -9,7 +8,6 @@ const { buildSpeakModal, buildSpeakPicker } = require("../lib/speakModal");
 const { listSpeakTargets, canSpeakInTarget, canSpeakInChannel, isNavValue } = require("../lib/speakTargets");
 const { resolveActingMember, isGmMember, findAliveCharacter } = require("../lib/interactionGuild");
 const { postAsCharacterTo } = require("../lib/proxy");
-const { parseResourceExpression } = require("../lib/resourceDelta");
 const { resolveLaborRate } = require("@lifeweb/db");
 const { recordArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { dropCharacterTag } = require("@lifeweb/db/lib/tagWrites");
@@ -91,40 +89,15 @@ async function handleGmDmCommand(interaction) {
   }
 }
 
-// /labor <type>: any player with a living, un-acted character can use it —
-// no GM gate. `type` is the LABOR_FIELDS key. See
-// bot/src/lib/labor.js#performLabor for the tag-tier lookup, the location
-// gate and the auto-resolved Action creation.
-async function handleLaborCommand(interaction, field) {
-  // FIRST, before any query. performLabor writes an Action and files an
-  // audit row — under launch-day pool contention that can pass three
-  // seconds, and then the player saw "The application did not respond" for
-  // work that had already committed. Retrying told them they'd already
-  // acted.
+// /labor is gone — laboring is the checkbox on the Move modal now. This stub
+// only exists for the ~1h a removed global command can linger in a client's
+// picker while Discord propagates the deregistration; without it a stale
+// click would read as "The application did not respond" instead of an
+// answer. Delete this branch (and its dispatch case below) once that window
+// has passed.
+async function handleLaborStub(interaction) {
   await ack(interaction);
-
-  const character = await findAliveCharacter(interaction.user.id);
-  if (!character) {
-    await respond(interaction, "» *You don't have a living character.*");
-    return;
-  }
-
-  const result = await performLabor(character, field);
-  if (!result.ok) {
-    await respond(interaction, `» *${result.reason}*`);
-    return;
-  }
-
-  const lines = [`» ${character.name} ${FIELD_INFO[field].verb}.`];
-  // A flat tier (min === max) has nothing to show its work for.
-  lines.push(
-    result.min === result.max
-      ? `**Resource change:** +${result.resourceDelta} ⬢`
-      : `**Resource roll (${result.min}–${result.max}):** +${result.resourceDelta} ⬢`,
-  );
-  lines.push("» *Locked in. The ⬢ land when the turn ends.*");
-
-  await respond(interaction, lines.join("\n"));
+  await respond(interaction, "» *Laboring is now a checkbox on your Move — press the ⚜️ button or use /move.*");
 }
 
 // /add and /remove: the private-thread guest list. Both take a ROLE option so
@@ -637,22 +610,31 @@ async function handleMoveSubmit(interaction) {
 
   const moveKind = interaction.fields.getRadioGroup("move:kind");
   const opposed = optionalCheckbox(interaction, "move:opposed");
+  const labor = optionalCheckbox(interaction, "move:labor");
+  const description = raw;
 
-  const { description, resourceDelta, roll } = parseResourceExpression(raw);
+  // Labor rides a Routine only — a Gambit is a deliberate risk, and stacking
+  // guaranteed income on top of one would make the risk free. Refused here,
+  // in memory, before any lookup: the turn must not be spent for this.
+  if (labor && moveKind === "GAMBIT") {
+    await respond(interaction, "» *Laboring is Routine work — it can't ride on a Gambit.*");
+    return;
+  }
 
-  // A "/hunt"-style shorthand is collapsed into a concrete range here rather
-  // than at confirm, for two reasons: the turn is spent by the Action row
-  // existing, so the location gate has to run before we create one (a refusal
-  // must cost nothing); and resolving now means only one grammar — a plain
-  // range — ever reaches the database.
-  let resourceRollExpression = roll?.expression ?? null;
-  if (roll?.kind === "shorthand") {
-    const rate = await resolveLaborRate(prisma, character.id, roll.field);
+  // Resolved here rather than at confirm, for two reasons: the turn is spent
+  // by the Action row existing, so the depths gate has to run before we
+  // create one (a refusal must cost nothing); and resolving now means only
+  // one grammar — a plain range — ever reaches the database.
+  let resourceRollExpression = null;
+  let laborTier = null;
+  if (labor) {
+    const rate = await resolveLaborRate(prisma, character.id);
     if (!rate.ok) {
       await respond(interaction, `» *${rate.reason}*`);
       return;
     }
     resourceRollExpression = rate.expression;
+    laborTier = rate.tier;
   }
 
   // @@unique([characterId, turnId]) is the real gate; the earlier openTurn/
@@ -669,7 +651,7 @@ async function handleMoveSubmit(interaction) {
         moveKind,
         opposed,
         description,
-        resourceDelta,
+        resourceDelta: null,
         resourceRollExpression,
         zoneId: character.zoneId ?? null,
       },
@@ -687,7 +669,9 @@ async function handleMoveSubmit(interaction) {
       actorDiscordUserId: interaction.user.id,
       actionType: "move_submitted",
       targetCharacterId: character.id,
-      details: { actionId: action.id },
+      // What performLabor used to log — labor + the resolved tier — now
+      // recorded on the ordinary Move audit row instead of a separate one.
+      details: { actionId: action.id, labor, tier: laborTier },
     },
   });
 
@@ -973,11 +957,9 @@ module.exports = {
         if (interaction.commandName === "move") return void (await handleMoveOpen(interaction));
         if (interaction.commandName === "location") return void (await handleOpen(interaction));
         if (interaction.commandName === "message") return void (await handleMessageCommand(interaction));
-        if (interaction.commandName === "labor") {
-          const field = interaction.options.getString("type", true);
-          if (!LABOR_FIELDS.includes(field)) return;
-          return void (await handleLaborCommand(interaction, field));
-        }
+        // Stub only — see handleLaborStub. Delete once the deregistration
+        // has propagated (up to 1h after deploy).
+        if (interaction.commandName === "labor") return void (await handleLaborStub(interaction));
       } else if (interaction.isButton()) {
         // "loc:open" survives from the pre-zone console message; the rest of
         // the travel flow is "zone:"-namespaced.

@@ -56,7 +56,12 @@ a GM unseated unless you specifically want the default.
 
 `wipeGameData` does the database half synchronously — every player- and
 turn-scoped row deleted in one transaction (in FK-dependency order), factions'
-silos zeroed, `GameConfig` reset, and a fresh Turn 1/DAWN opened. It writes a
+silos zeroed, `GameConfig` reset, and a fresh Turn 1/DAWN opened. The role re-sync runs with
+`seedSilos: true`, so every silo comes back at its computed opening balance
+(`db/lib/factionSilo.js`) rather than staying at the 0 it was zeroed to.
+Because the same transaction resets `playerCount` to 100, the wipe always
+seeds at the 100-player scale — for a smaller game, set `playerCount` on
+`/gm/dev` and re-run `npm run db:sync-roles -- --seed-silos`. It writes a
 `SystemReport` row (`kind: WIPE`) **before** the Discord half starts, then hands
 that half to `after()` and returns.
 
@@ -140,7 +145,7 @@ Worth knowing, because none of it is obvious from the confirm dialog.
 | `GmAssignment` zone seats | GMs keep their seats across a restart — which also means they keep *losing* the Secret tab (§1). |
 | `GhostWhisper` rows | A returning player can carry a 12-hour whisper cooldown into the new game. |
 | `SystemReport` rows | The operational history is kept on purpose; the panel shows the latest per kind. |
-| `Zone`, `LocationTopic`, `Faction`, `Tag`, `Role`, `Document` | Re-synced from YAML rather than deleted. Faction `silo` is zeroed. |
+| `Zone`, `LocationTopic`, `Faction`, `Tag`, `Role`, `Document` | Re-synced from YAML rather than deleted. Faction `silo` is zeroed, then re-seeded at its computed opening balance (`db/lib/factionSilo.js`). |
 
 Everything zone-side in Discord — categories, channels, zone roles, anchors,
 Location topic posts — is **destroyed and regenerated**. Zone rows keep their

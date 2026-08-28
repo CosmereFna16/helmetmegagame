@@ -58,19 +58,17 @@ diff check, same style as the zone sync's hash gate).
 
 - **`parentTag` (tier chain)** — sequential, replacing. Fighting (Basic) ->
   Fighting (Trained) -> Fighting (Skilled) -> ... Acquiring a tier is meant
-  to replace the previous one on the character, not stack alongside it. Also
-  used where a specialization *is* the base thing rather than a second copy of
-  it: `Follower (Cook)`/`(Laborer)`/`(Goon)` all chain off `Follower`, so
-  picking one gives you a follower who cooks — not a follower plus a cook.
+  to replace the previous one on the character, not stack alongside it.
+  `Laborer (Skilled)` chains off `Laborer (Basic)` the same way.
 - **`requiredTag` (prerequisite)** — non-replacing. The character must
   already hold `requiredTag`, but acquiring this tag does **not** remove or
   replace it. Example in the catalog: `Fighting (Archer)` requires
   `Fighting (Basic)` but coexists with `Fighting (Skilled)` — a character can
   hold both at once. Also the right relation for an origin/membership gate the
   gated tag doesn't consume: `Windlander (Horse)` requires `Windlander`,
-  `Manor` requires `Courtier`, `House`/`Shack` require `Ravenhearter`, and the
-  `Laborer (…)` specializations require `Laborer` — those stack, several
-  specializations on one Laborer, each charged once.
+  `Manor` requires `Courtier`, `House`/`Shack` require `Ravenhearter`, and
+  `Laborer (Farming)` requires `Laborer (Skilled)` — a sidegrade that coexists
+  with the tier it builds on.
 - **`TagGroup.requiredTag`** — the group-level version of the same
   prerequisite: every tag in that group stays gated behind one required tag,
   so a whole category-of-flavor can be hidden behind a single membership tag
@@ -418,7 +416,7 @@ true` in `docs/tags.yaml` sets `Tag.stackable`; the count lives on
 **A stack is one row carrying a count, never N rows.**
 `@@unique([characterId, tagId])` stays exactly as it was, which is the whole
 point: every presence check in the codebase — `specialChannels.js`,
-`gambitModifier.js`, `labor.js`, the Mortus nav gate — keeps
+`gambitModifier.js`, `laborAccess.js`, the Mortus nav gate — keeps
 reading "holds it or doesn't" with no change, and `restoreCharacterTag`'s
 upsert stays valid.
 
@@ -746,10 +744,9 @@ GM/the faction's own Leader (Treasurer) from `/faction`
 mechanism changed, not who can assign what. `Courtier` survived too, and still gates `Manor` via that tag's `requiredTag` (§3). `Mortus` survived the
 "Role" category's retirement as an ordinary General tag since it drives real
 logic elsewhere — it gates `/lifeweb` nav visibility. `Hunter` survived
-alongside it for the same reason, but has since been retired: hunting joined
-the Laborer ladder, so the production-tier check in `bot/src/lib/labor.js`
-reads `laborer-hunting` like every other specialisation and no `hunter` entry
-remains in `docs/tags.yaml`.
+alongside it for the same reason, but has since been retired: hunting is now
+just a flavor of laboring (`PRODUCTION.md`), and no `hunter` entry remains in
+`docs/tags.yaml`.
 
 ## 7. Where the code lives
 

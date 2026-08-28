@@ -207,7 +207,10 @@ npm run db:migrate:deploy            # prisma migrate deploy (production)
 npm run db:sync-zones                # docs/zones.yaml      (destructive; zones,
                                      #   their channels + roles, Location topics)
 npm run db:sync-tags                 # docs/tags.yaml       (upsert-only)
-npm run db:sync-roles                # docs/roles.yaml      (prunes unreferenced)
+npm run db:sync-roles                # docs/roles.yaml      (prunes unreferenced;
+                                     #   `-- --seed-silos` also re-seeds every
+                                     #   faction Silo at its computed opening
+                                     #   balance — see SYNC.md)
 npm run db:sync-documents            # docs/documents.yaml  (destructive; last)
 npm run db:prune-tags                # deletes tags absent from docs/tags.yaml.
                                      #   DRY RUN unless given `-- --apply`; never
@@ -360,7 +363,7 @@ before adding or changing a command. Three things cause real problems:
 - **Registration is global**, not per-guild
   (`client.application.commands.set` in `bot/src/events/ready.js`). A guild
   command can never appear in the bot's DMs, no matter what contexts it
-  declares — and `/move` `/location` `/message` `/labor` need to work there.
+  declares — and `/move` `/location` `/message` need to work there.
   The cost of global registration is real: a new or renamed command takes
   **up to an hour** to show up. `set` fully replaces the list, so removing a
   command needs no separate deregistration step.
@@ -448,7 +451,7 @@ Two exceptions. A `{resource:…}` bubble already renders its own glyph via
 `ResourceChip.js`, so never write a glyph after one. `PartySizeChip.js` is
 the opposite case and carries **no** glyph, because a party threshold is a
 count of people, not a currency. Also, literal syntax a player is meant to
-*type* (`+3`, `5-12`, `/hunt`) is quoted as-is. The glossary line in
+*type* (`/move`, `/conceal`) is quoted as-is. The glossary line in
 `docs/systemdocs/infochannel.yaml` is, on purpose, the one place the glyph is
 introduced to players.
 

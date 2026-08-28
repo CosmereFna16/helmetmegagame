@@ -6,7 +6,7 @@
 //      tagPoints?, tagOps? } per target character).
 //   2. Applies every confirmed Move's own declared numbers. Since the
 //      staged-arbitration rework nothing pays at confirm time — a Routine, a
-//      /labor payout and a GM-solved Gambit all sit with appliedEffects null
+//      Labor payout and a GM-solved Gambit all sit with appliedEffects null
 //      until this pass. Solve is bookkeeping; the declared resourceDelta is
 //      what pays, and a GM who disagreed staged a counter-effect instead.
 //   3. Silently closes every Move no GM touched (OPEN -> PASSED, no DM —

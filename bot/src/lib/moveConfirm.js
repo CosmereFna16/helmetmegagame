@@ -13,9 +13,10 @@ const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 // Nothing pays here any more. A Routine still enters the queue PASSED —
 // needing a GM only if one disagrees — but its resources, like everything
 // else a Move is worth, land at the turn-end staged push
-// (db/lib/stagedPush.js). The dice and the resource roll still happen NOW,
-// so the player sees their numbers the moment they lock in; only the payout
-// defers.
+// (db/lib/stagedPush.js). The dice and the resource roll (the Labor
+// checkbox's tag-scaled range, resolved at submit — see
+// db/lib/laborAccess.js) still happen NOW, so the player sees their numbers
+// the moment they lock in; only the payout defers.
 //
 // `action` must come in with its character, that character's tags, AND
 // hungerStreak loaded: Hunger is an ordinary Status tag, but its penalty

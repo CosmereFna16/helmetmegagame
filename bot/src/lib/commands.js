@@ -1,5 +1,4 @@
 const { SlashCommandBuilder, InteractionContextType } = require("discord.js");
-const { LABOR_FIELDS, FIELD_INFO, LABOR_RULES } = require("@lifeweb/db");
 
 // Slash command definitions, registered GLOBALLY (see registerCommands) so
 // they are usable in the bot's DMs as well as in the guild — a guild command
@@ -94,28 +93,6 @@ const commandDefinitions = [
     .setName("message")
     .setDescription("Say something as your character, without anyone seeing you type.")
     .setContexts(ANYWHERE),
-  // One command with a `type` choice, replacing the four separate /hunt
-  // /fish /farm /herd commands. The choices are built from LABOR_FIELDS so
-  // they still cannot drift from the rules table. Note the TEXT shorthand a
-  // Move or Default Move accepts is unchanged and still spelled "/hunt" —
-  // see docs/systemdocs/PRODUCTION.md §3.
-  new SlashCommandBuilder()
-    .setName("labor")
-    .setDescription("Work for Resources, scaled to your tags.")
-    .addStringOption((opt) =>
-      opt
-        .setName("type")
-        .setDescription("What kind of work")
-        .setRequired(true)
-        .addChoices(
-          ...LABOR_FIELDS.map((field) => ({
-            // Discord caps a choice name at 100 characters; these are short.
-            name: `${FIELD_INFO[field].noun} — ${LABOR_RULES[field].where}`.slice(0, 100),
-            value: field,
-          })),
-        ),
-    )
-    .setContexts(ANYWHERE),
 ].map((builder) => builder.toJSON());
 
 // Global, not per-guild: a guild command is invisible in DMs no matter what
@@ -128,11 +105,11 @@ async function registerCommands(client) {
   // The `set` above replaces the GLOBAL list only — it never touches a guild's
   // own list. So when registration moved from per-guild to global, everything
   // the old code had written into the guild was orphaned there, and Discord
-  // showed both copies in the picker: /gm /message /add /remove /persistent
-  // twice over, plus the four retired /hunt /fish /farm /herd with no handler
-  // left to answer them. Registration is global, so the correct guild-scoped
-  // list is empty — sweep it every boot, at one REST call per guild, and it
-  // cannot come back.
+  // showed both copies in the picker — including a command already retired
+  // with no handler left to answer it (see /labor's one-deploy stub in
+  // interactionCreate.js for the same problem in miniature). Registration is
+  // global, so the correct guild-scoped list is empty — sweep it every boot,
+  // at one REST call per guild, and it cannot come back.
   for (const guild of client.guilds.cache.values()) {
     await client.application.commands.set([], guild.id);
   }

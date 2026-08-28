@@ -45,10 +45,10 @@
 # Treasurer are plain booleans on Character, not Tags (see
 # docs/systemdocs/TAGS.md §6).
 #
-# `starting_resources` appears on both roles and factions, but means two
-# different things depending on where it sits: on a role, it's how many
-# Resources that character starts play with; on a faction, it's how many
-# Resources start in that faction's Silo.
+# `starting_resources` (role-level) is how many Resources that character
+# starts play with. A faction's Silo is not listed here: its opening balance
+# is computed at seed time from the weights of the faction's roles — see
+# db/lib/factionSilo.js.
 #
 # `starting_zone` (role-level) is a Zone **slug** from docs/zones.yaml — it
 # decides where the character starts, and therefore which zone role (and so
@@ -75,7 +75,6 @@ zones:
     factions:
       - name: The Court
         slug: the-court
-        starting_resources: 5
         roles:
           - name: Baron
             slug: baron
@@ -353,7 +352,6 @@ zones:
       - name: The Watch
         slug: the-watch
         parent: The Court
-        starting_resources: 5
         roles:
           - name: Captain
             slug: captain
@@ -502,7 +500,6 @@ zones:
     factions:
       - name: The Church
         slug: the-church
-        starting_resources: 5
         roles:
           - name: Bishop
             slug: bishop
@@ -581,7 +578,6 @@ zones:
               - church
       - name: The Sanctuary
         slug: the-sanctuary
-        starting_resources: 5
         roles:
           - name: Esculap
             slug: esculap
@@ -642,7 +638,6 @@ zones:
       - name: Order of the Silver Cross
         slug: order-of-the-silver-cross
         parent: The Church
-        starting_resources: 5
         roles:
           - name: Inquisitor
             slug: inquisitor
@@ -738,7 +733,6 @@ zones:
               - church
       - name: The Town
         slug: the-town
-        starting_resources: 5
         roles:
           - name: Headman
             slug: headman
@@ -766,6 +760,7 @@ zones:
               - Ravenhearter
               - Insightful
               - Old
+              - Laborer (Skilled)
               - Laborer (Farming)
               - House
               - Literate
@@ -834,7 +829,7 @@ zones:
               - >-
                 Naturally, you must work during the Dawn, but you are encouraged to experiment with what you do at Dusk.
               - >-
-                You start as a Laborer, working every trade a little harder than most. Specialize further with Laborer (Farming), Laborer (Fishing) (comes with a Boat), or Laborer (Herding) to produce at a dedicated rate in one of them—or find your own trade.
+                You start as a skilled Laborer—and a farmer, producing best of all in the Town's fields. Your laboring can be flavored in any way you want: herding, foraging, hunting. Or find your own trade.
             difficulty: easy
             multiple: true
             weight: unlimited
@@ -843,7 +838,8 @@ zones:
             extra_starting_points: 2
             starting_tags:
               - Ravenhearter
-              - Laborer
+              - Laborer (Skilled)
+              - Laborer (Farming)
               - Shack
             doc_elements:
               - townstarting
@@ -880,7 +876,7 @@ zones:
               - >-
                 You are aware of the Goddess of Nature, Sylva. Some still worship her in Ravenheart. It is up to you to follow the Church or stick to the oldways.
               - >-
-                Forage and heal as a Healer (Medical (Basic), Brewing (Basic)), or track game as a Hunter (Laborer (Hunting))—both still Forester at heart. Hunting pays better than any other honest work and can just as easily pay nothing: use the /hunt command from Town — the Forest is its hunting ground — or write /hunt in your Move.
+                Forage and heal as a Healer (Medical (Basic), Brewing (Basic)), or track game as a Hunter (the Laborer skills)—both still Forester at heart. Tick Labor on your Move and flavor it as hunting; the Forest is the Town's hunting ground.
             difficulty: easy
             multiple: true
             weight: 2
@@ -966,7 +962,6 @@ zones:
       - name: The Inn
         slug: the-inn
         parent: The Town
-        starting_resources: 5
         roles:
           - name: Innkeeper
             slug: innkeeper
@@ -1016,7 +1011,6 @@ zones:
               - independent
       - name: Brigands
         slug: brigands
-        starting_resources: 5
         roles:
           - name: Brigand Leader
             slug: brigand-leader
@@ -1081,7 +1075,6 @@ zones:
     factions:
       - name: The Bastard's Camp
         slug: the-bastards-camp
-        starting_resources: 5
         roles:
           - name: Bastard
             slug: bastard
@@ -1175,7 +1168,6 @@ zones:
       - name: Broken Spears Clan
         slug: broken-spears-clan
         parent: The Bastard's Camp
-        starting_resources: 5
         roles:
           - name: Lieutenant (Broken Spears Clan)
             slug: lieutenant-broken-spears-clan
@@ -1248,7 +1240,6 @@ zones:
       - name: Windrider Clan
         slug: windrider-clan
         parent: The Bastard's Camp
-        starting_resources: 5
         roles:
           - name: Lieutenant (Windrider Clan)
             slug: lieutenant-windrider-clan
@@ -1323,7 +1314,6 @@ zones:
     factions:
       - name: The Company
         slug: the-company
-        starting_resources: 5
         roles:
           - name: Merchant
             slug: merchant
@@ -1393,7 +1383,7 @@ zones:
             difficulty: normal
             multiple: true
             weight: 2
-            starting_resources: 1
+            starting_resources: 5
             starting_zone: caverns
             starting_tags:
               - Fighting (Basic)

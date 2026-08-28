@@ -11,11 +11,9 @@ const MORTUS_SLUG = "mortus";
 const DRAINED_SLUG = "drained";
 const MANOR_SLUG = "manor";
 const ARTHRITIS_SLUG = "arthritis";
-const LABORER_SLUG = "laborer";
+const LABORER_BASIC_SLUG = "laborer-basic";
+const LABORER_SKILLED_SLUG = "laborer-skilled";
 const LABORER_FARMING_SLUG = "laborer-farming";
-const LABORER_FISHING_SLUG = "laborer-fishing";
-const LABORER_HERDING_SLUG = "laborer-herding";
-const LABORER_HUNTING_SLUG = "laborer-hunting";
 
 // The "read someone else's sheet" tag and its discounted Demoness
 // twin — see db/lib/inspectVision.js, the only reader. Mindreading is the
@@ -42,11 +40,9 @@ module.exports = {
   DRAINED_SLUG,
   MANOR_SLUG,
   ARTHRITIS_SLUG,
-  LABORER_SLUG,
+  LABORER_BASIC_SLUG,
+  LABORER_SKILLED_SLUG,
   LABORER_FARMING_SLUG,
-  LABORER_FISHING_SLUG,
-  LABORER_HERDING_SLUG,
-  LABORER_HUNTING_SLUG,
   SEDUCTIVE_SLUG,
   SEDUCTIVE_DEMONESS_SLUG,
   MINDREADING_SLUG,

@@ -1,59 +1,19 @@
-// Where each kind of food production is legal, what tag ladder sets its
-// tier, and the one place a "/hunt"-style shorthand becomes a concrete range.
+// The one gate on Labor (nothing grows in the depths) and the one tag ladder
+// that sets its tier. There is no flavor left to route on — a player's
+// laboring can be narrated as hunting, herding or anything else, but it is
+// mechanically one activity now, so this file carries no per-field table.
 //
 // Same pure-rules / async-context split as db/lib/narrowcastAccess.js, and
-// for a sharper reason here: db/lib/defaultMovePass.js resolves shorthands
-// for every character in one bulk pass, so the rules have to be callable
-// against a context the caller already has in hand rather than each one
-// costing its own round trip.
+// for a sharper reason here: db/lib/defaultMovePass.js resolves Labor for
+// every character in one bulk pass, so the rules have to be callable against
+// a context the caller already has in hand rather than each one costing its
+// own round trip.
 //
-// Called by bot/src/lib/labor.js (the /hunt /fish /farm /herd commands),
-// the Move modal (a shorthand typed into it) and
-// db/lib/defaultMovePass.js (a shorthand standing as a Default Move).
+// Called by the Move modal (the `labor` checkbox,
+// bot/src/events/interactionCreate.js#handleMoveSubmit) and
+// db/lib/defaultMovePass.js (a Default Move with `labor: true`).
 const { computeRate, rollRate } = require("./production");
-const {
-  LABORER_SLUG,
-  LABORER_FARMING_SLUG,
-  LABORER_FISHING_SLUG,
-  LABORER_HERDING_SLUG,
-  LABORER_HUNTING_SLUG,
-} = require("./constants");
-
-const LABOR_FIELDS = ["hunt", "fish", "farm", "herd"];
-
-// field -> { rateField (db/lib/production.js key), specialistSlug, verb }.
-const FIELD_INFO = {
-  hunt: { rateField: "hunting", specialistSlug: LABORER_HUNTING_SLUG, verb: "hunted", noun: "Hunting" },
-  fish: { rateField: "fishing", specialistSlug: LABORER_FISHING_SLUG, verb: "fished", noun: "Fishing" },
-  farm: { rateField: "farming", specialistSlug: LABORER_FARMING_SLUG, verb: "farmed", noun: "Farming" },
-  herd: { rateField: "herding", specialistSlug: LABORER_HERDING_SLUG, verb: "herded", noun: "Herding" },
-};
-
-// Zones matched by slug — these rules are authored against docs/zones.yaml's
-// stable `id` slugs. The old Forest gate ("hunt only at the forest location")
-// became a Town-zone gate when locations stopped being standable: the Forest
-// is Town's topic now.
-//
-// Nothing feeds anyone in the Caves: all four rules exclude that seat, which
-// is the point rather than a coincidence of how they're written (seatZoneSlug
-// folds the three cave levels into "caves" with one equality).
-// `where` is a full adverbial phrase, not a bare place name, so it reads
-// correctly after "happens" for the exclusion rule as well as the three
-// inclusion ones ("happens only in Town" / "happens anywhere but the Caves").
-const LABOR_RULES = {
-  hunt: { where: "only in Town — the Forest", test: (ctx) => ctx.zoneSlug === "town" },
-  fish: {
-    where: "only in the Fortress or Town",
-    test: (ctx) => ctx.zoneSlug === "fortress" || ctx.zoneSlug === "town",
-  },
-  farm: { where: "only in Town", test: (ctx) => ctx.zoneSlug === "town" },
-  // Requires a *known* zone, so a character who is nowhere on the map can't
-  // herd from nowhere — a bare `!== "caves"` would let them.
-  herd: {
-    where: "anywhere but the Caves",
-    test: (ctx) => ctx.zoneSlug != null && ctx.seatZoneSlug !== "caves",
-  },
-};
+const { LABORER_BASIC_SLUG, LABORER_SKILLED_SLUG, LABORER_FARMING_SLUG } = require("./constants");
 
 // Loads the current zone and held tags for one character — the only inputs
 // the rules and the tier ladder need.
@@ -76,54 +36,60 @@ async function buildLaborContext(prisma, characterId) {
   };
 }
 
-// { ok: true } or { ok: false, reason } — reason is player-facing copy naming
-// where the activity *is* possible, since "you can't do that here" without
-// the alternative just sends them back to the docs.
-function computeLaborAccess(ctx, field) {
-  const rule = LABOR_RULES[field];
-  if (!rule) return { ok: false, reason: "Unknown activity." };
-  if (!rule.test(ctx)) {
-    return { ok: false, reason: `You can't ${field} here — ${FIELD_INFO[field].noun} happens ${rule.where}.` };
+// { ok: true } or { ok: false, reason }. One rule: nothing can be produced in
+// the depths. A null/unknown zone is allowed — the old "can't herd from
+// nowhere" carve-out dies with herding, since there's no longer a field whose
+// absence of a zone was ambiguous.
+function computeLaborAccess(ctx) {
+  if (ctx.seatZoneSlug === "caves") {
+    return { ok: false, reason: "Nothing can be produced in the depths." };
   }
   return { ok: true };
 }
 
-// Specialist if they hold the field's own Laborer tag, Laborer if they hold
-// the base one, else base. Hunting rides this ladder like the other three.
-function resolveLaborTier(ctx, field) {
-  const info = FIELD_INFO[field];
-  if (ctx.tagSlugs.has(info.specialistSlug)) return "specialist";
-  if (ctx.tagSlugs.has(LABORER_SLUG)) return "laborer";
+// Farming (holds laborer-farming AND stands in Town) beats Skilled beats
+// Basic beats base. The parentTag chain means a Skilled holder does NOT also
+// hold laborer-basic — Fighting/Brewing work the same way — so the ladder
+// below has to check Skilled on its own rung rather than assuming it implies
+// Basic.
+//
+// A GM-granted Farming tag with no Skilled behind it re-runs the ladder
+// without the farming rung, rather than defaulting straight to Farming's
+// written prerequisite — so it resolves to whatever tag they actually hold
+// (Basic, or base), never silently to Skilled's rate.
+function resolveLaborTier(ctx) {
+  if (ctx.tagSlugs.has(LABORER_FARMING_SLUG) && ctx.zoneSlug === "town" && ctx.tagSlugs.has(LABORER_SKILLED_SLUG)) {
+    return "farming";
+  }
+  if (ctx.tagSlugs.has(LABORER_SKILLED_SLUG)) return "skilled";
+  if (ctx.tagSlugs.has(LABORER_BASIC_SLUG)) return "basic";
   return "base";
 }
 
 // Pure half: context + coefficient -> the range this character would get.
 // { ok: false, reason } | { ok: true, tier, min, max, expression }
-function resolveLaborRateFrom(ctx, field, coefficient) {
-  const access = computeLaborAccess(ctx, field);
+function resolveLaborRateFrom(ctx, coefficient) {
+  const access = computeLaborAccess(ctx);
   if (!access.ok) return access;
 
-  const tier = resolveLaborTier(ctx, field);
-  const rate = computeRate(FIELD_INFO[field].rateField, tier, coefficient);
+  const tier = resolveLaborTier(ctx);
+  const rate = computeRate("labor", tier, coefficient);
   if (!rate) return { ok: false, reason: "Unknown activity." };
 
   return { ok: true, tier, min: rate.min, max: rate.max, expression: `${rate.min}-${rate.max}` };
 }
 
-// Async convenience for the one-character call sites (the slash commands and
-// a shorthand typed into #turns), which have no context loaded yet.
-async function resolveLaborRate(prisma, characterId, field) {
+// Async convenience for the one-character call sites (the Move modal),
+// which have no context loaded yet.
+async function resolveLaborRate(prisma, characterId) {
   const [ctx, config] = await Promise.all([
     buildLaborContext(prisma, characterId),
     prisma.gameConfig.findUnique({ where: { id: 1 }, select: { productionCoefficient: true } }),
   ]);
-  return resolveLaborRateFrom(ctx, field, config?.productionCoefficient ?? 1);
+  return resolveLaborRateFrom(ctx, config?.productionCoefficient ?? 1);
 }
 
 module.exports = {
-  LABOR_FIELDS,
-  FIELD_INFO,
-  LABOR_RULES,
   buildLaborContext,
   computeLaborAccess,
   resolveLaborTier,

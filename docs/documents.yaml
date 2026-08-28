@@ -137,26 +137,24 @@ documents:
     key: production
     public: true
     tags:
-      - Laborer
+      - Laborer (Basic)
+      - Laborer (Skilled)
       - Laborer (Farming)
-      - Laborer (Fishing)
-      - Laborer (Herding)
-      - Laborer (Hunting)
     description: |-
-      Everyone can use Routine Moves to produce resources, but only people with the {tag:laborer} set of tags will produce an actually good amount.
+      Everyone can use Routine Moves to produce resources, but only people with the {tag:laborer-basic} set of tags will produce an actually good amount.
 
-      Use the `/hunt`, `/fish`, `/farm` and `/herd` commands in #turns to automatically generate a turn (or `/labor <type>`) but you have to be in the right location.
+      Tick **Labor** on your Move—or on your Default Move—and it applies your skills automatically. Your laboring can be flavored in any way you want—hunting, herding, foraging.
 
-      | Activity | Base | Laborer | Specialist | Where |
-      |---|---|---|---|---|
-      | Herding | {resource:herding:base} | {resource:herding:laborer} | {resource:herding:specialist} | Anywhere but the Caves |
-      | Farming | {resource:farming:base} | {resource:farming:laborer} | {resource:farming:specialist} | Town |
-      | Fishing | {resource:fishing:base} | {resource:fishing:laborer} | {resource:fishing:specialist} | Fortress or Town |
-      | Hunting | {resource:hunting:base} | {resource:hunting:laborer} | {resource:hunting:specialist} | The Forest |
+      | Skill | Per turn | Where |
+      |---|---|---|
+      | None | {resource:labor:base} | Anywhere but the Depths |
+      | {tag:laborer-basic} | {resource:labor:basic} | Anywhere but the Depths |
+      | {tag:laborer-skilled} | {resource:labor:skilled} | Anywhere but the Depths |
+      | {tag:laborer-farming} | {resource:labor:farming} | Town only—elsewhere you work at Skilled rates |
 
-      Laborer is a general-purpose 2-point tag that makes producing resources more viable than just as a survival method. Specialist tags (you can buy them for 2 points on top of Laborer) increase the value.
+      Nothing can be produced in the Depths.
 
-      You can automatically add Resources on a Move by typing +(resources) anywhere in your message. Write a range like `5-12` (in the case of hunting) to roll for it instead. Or just write `/hunt`, `/fish`, etc. and it'll auto-calculate with your tags. Works with default moves too..
+      Laborer (Basic) is a 1-point tag that makes producing resources more viable than just as a survival method. Laborer (Skilled) (2 points on top) increases the value, and Laborer (Farming) (2 more, an asset) makes you a true farmer—as long as you stay in Town.
   - name: Combat
     key: combat
     public: true

@@ -11,6 +11,7 @@ export default function DefaultEffortPanel({ characterId, defaultEffort, zone })
   // a zone" one.
   const canShare = Boolean(zone?.discordSummaryChannelId);
   const [description, setDescription] = useState(defaultEffort?.description ?? "");
+  const [labor, setLabor] = useState(defaultEffort?.labor ?? false);
   const [shareInSummary, setShareInSummary] = useState(defaultEffort?.shareInSummary ?? false);
   const [summaryMessage, setSummaryMessage] = useState(defaultEffort?.summaryMessage ?? "");
   const [pending, setPending] = useState(false);
@@ -26,6 +27,7 @@ export default function DefaultEffortPanel({ characterId, defaultEffort, zone })
     try {
       const formData = new FormData();
       formData.set("description", description);
+      if (labor) formData.set("labor", "on");
       if (shareInSummary) formData.set("shareInSummary", "on");
       formData.set("summaryMessage", summaryMessage);
       await setDefaultEffort(characterId, formData);
@@ -41,6 +43,7 @@ export default function DefaultEffortPanel({ characterId, defaultEffort, zone })
     try {
       await deleteDefaultEffort(characterId);
       setDescription("");
+      setLabor(false);
       setShareInSummary(false);
       setSummaryMessage("");
       setSaved(false);
@@ -58,16 +61,12 @@ export default function DefaultEffortPanel({ characterId, defaultEffort, zone })
             <>
               <p>If you don&apos;t submit a Move on a given day, this is assumed instead.</p>
               <p className="text-muted">
-                Tip: add a Resource amount like +3 anywhere in the text and it&apos;ll be applied
-                automatically. It can be negative too — say a Cook spending Resources on
-                ingredients (-3 ⬢). Write a range like 5-12 to roll for it instead.
+                Tick Labor and it makes Resources automatically, scaled to your tags — the same
+                as ticking it on a Move.
               </p>
               <p className="text-muted">
-                Or include /hunt, /fish, /farm or /herd and the right amount is applied. However, to hunt you must be in the Forest, to fish you must be in the Fortress or Town, and to farm you must be in the town.
-              </p>
-              <p className="text-muted">
-                Careful: any bare range in the text is read as a roll, so &quot;waits 5-10
-                minutes&quot; would be taken as one.
+                Nothing can be produced in the depths — a Labor default files with nothing gained
+                if you&apos;re standing in the caves when the turn ends.
               </p>
             </>
           }
@@ -80,10 +79,14 @@ export default function DefaultEffortPanel({ characterId, defaultEffort, zone })
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            placeholder="John spends the turn watching his cows. /herd"
+            placeholder="John spends the turn watching his cows."
             required
           />
         </label>
+
+        <Switch checked={labor} onChange={(e) => setLabor(e.target.checked)}>
+          Labor — applies your skills automatically
+        </Switch>
 
         <Switch checked={shareInSummary} onChange={(e) => setShareInSummary(e.target.checked)}>
           Share in a summary channel?

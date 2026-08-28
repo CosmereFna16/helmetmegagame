@@ -10,9 +10,14 @@
 // AFTER syncTagsFromYaml (starting_tags are validated against the catalog).
 //
 // Passes:
-//   1. Upsert Faction by slug — name, zone, sortOrder. `silo` is seeded from
-//      starting_resources on CREATE only; an existing row's silo is live
-//      game state and is never overwritten (same guard factionSync.js had).
+//   1. Upsert Faction by slug — name, zone, sortOrder. `silo` is computed from
+//      the sum of its roles' weights (db/lib/factionSilo.js) and seeded on
+//      CREATE only — an existing row's silo is live game state and is never
+//      overwritten by an ordinary sync. The one deliberate exception is
+//      `seedSilos: true`, which also re-seeds an existing faction's silo —
+//      that's what lets a wipe (or a GM re-running the CLI with
+//      `--seed-silos`) put every silo back at its computed opening balance.
+//      Unaffiliated is excluded from seeding altogether and stays silo-less.
 //   2. Resolve each faction's `parent:` slug to parentFactionId, once every
 //      faction row is guaranteed to exist.
 //   3. Upsert Role by slug — the whole starting package.
@@ -31,6 +36,11 @@ const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
 const { assertTitlesResolve, GENDERS } = require("./titles");
+const { roleWeight, factionSiloSeed } = require("./factionSilo");
+
+// Excluded from silo seeding — it stays silo-less on purpose (see
+// db/lib/factionSilo.js and the "Silos" section of CLAUDE.md's linked plan).
+const UNAFFILIATED_SLUG = "unaffiliated";
 
 // docsPath() is null only when docs/ cannot be found at all, which for a YAML
 // master is fatal — a sync with no master would read as "everything was
@@ -55,19 +65,24 @@ function parseRolesYaml(doc) {
     let factionOrder = 0;
     for (const faction of zone?.factions ?? []) {
       if (!faction.slug) throw new Error(`docs/roles.yaml: faction "${faction.name}" has no slug`);
-      factions.push({
+      const entry = {
         slug: faction.slug,
         name: faction.name,
         zoneName: zone.name,
         parentSlug: faction.parent ?? null,
-        startingResources: faction.starting_resources ?? 0,
         sortOrder: factionOrder++,
-      });
+        // Summed below as each of its roles is parsed — this is what
+        // db/lib/factionSilo.js#factionSiloSeed scales into an opening silo.
+        // Faction-level `starting_resources:` is gone from the YAML; a
+        // faction's opening balance is entirely derived from its roles now.
+        totalWeight: 0,
+      };
+      factions.push(entry);
 
       let roleOrder = 0;
       for (const role of faction?.roles ?? []) {
         if (!role.slug) throw new Error(`docs/roles.yaml: role "${role.name}" has no slug`);
-        roles.push({
+        const parsedRole = {
           slug: role.slug,
           name: role.name,
           intro: (role.intro ?? "").trim(),
@@ -94,7 +109,12 @@ function parseRolesYaml(doc) {
           // from.
           lockedGender: GENDERS.includes(role.gender) ? role.gender : null,
           docElements: role.doc_elements ?? [],
-        });
+        };
+        roles.push(parsedRole);
+        // roleWeight reads the raw YAML `weight` (a number, "unlimited", or
+        // absent) — parsedRole has already normalized that into
+        // weight/unlimited fields, so it's read off the source `role` here.
+        entry.totalWeight += roleWeight(role);
       }
     }
   }
@@ -119,9 +139,12 @@ function changed(row, data) {
   );
 }
 
-async function syncRolesFromYaml(prisma) {
+async function syncRolesFromYaml(prisma, { seedSilos = false } = {}) {
   const { factions, roles } = parseRolesYaml(loadDoc());
   resolveParentSlugs(factions);
+
+  const config = await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playerCount: true } });
+  const playerCount = config?.playerCount ?? 100;
 
   const slugs = { faction: new Set(), role: new Set() };
   for (const f of factions) {
@@ -159,12 +182,23 @@ async function syncRolesFromYaml(prisma) {
     }
   }
 
-  const stats = { factionsCreated: 0, factionsUpdated: 0, rolesCreated: 0, rolesUpdated: 0, rolesPruned: [], factionsPruned: [] };
+  const stats = {
+    factionsCreated: 0,
+    factionsUpdated: 0,
+    rolesCreated: 0,
+    rolesUpdated: 0,
+    rolesPruned: [],
+    factionsPruned: [],
+    seededSilos: [],
+  };
 
   // Pass 1: Faction scalars.
   const factionIdBySlug = new Map();
   for (const entry of factions) {
     const data = { name: entry.name, zoneId: zoneIdByName.get(entry.zoneName), sortOrder: entry.sortOrder };
+    // Unaffiliated is deliberately excluded from silo seeding — it seeds 0
+    // and stays silo-less, both on creation and on a --seed-silos re-run.
+    const siloSeed = entry.slug === UNAFFILIATED_SLUG ? 0 : factionSiloSeed(entry.totalWeight, playerCount);
     let row = await prisma.faction.findUnique({ where: { slug: entry.slug } });
     if (!row) {
       // Claim a pre-slug row of the same name rather than duplicating it.
@@ -173,12 +207,23 @@ async function syncRolesFromYaml(prisma) {
         row = await prisma.faction.update({ where: { id: row.id }, data: { slug: entry.slug, ...data } });
         stats.factionsUpdated++;
       } else {
-        row = await prisma.faction.create({ data: { slug: entry.slug, silo: entry.startingResources, ...data } });
+        row = await prisma.faction.create({ data: { slug: entry.slug, silo: siloSeed, ...data } });
         stats.factionsCreated++;
+        stats.seededSilos.push({ name: entry.name, silo: siloSeed });
       }
-    } else if (changed(row, data)) {
-      row = await prisma.faction.update({ where: { id: row.id }, data });
-      stats.factionsUpdated++;
+    } else {
+      // The deliberate exception to "silo is live state, create-only": an
+      // opt-in re-seed (a wipe, or the CLI's --seed-silos) writes the
+      // computed silo onto an EXISTING row too — this is the fix for silo
+      // seeding being otherwise dead on every restart (Faction rows persist
+      // across a wipe, so without this every restarted game started with
+      // every silo at 0).
+      const rowData = seedSilos ? { ...data, silo: siloSeed } : data;
+      if (changed(row, rowData)) {
+        row = await prisma.faction.update({ where: { id: row.id }, data: rowData });
+        stats.factionsUpdated++;
+      }
+      if (seedSilos) stats.seededSilos.push({ name: entry.name, silo: siloSeed });
     }
     factionIdBySlug.set(entry.slug, row.id);
   }
