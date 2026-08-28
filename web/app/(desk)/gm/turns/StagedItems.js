@@ -16,7 +16,7 @@ import { effectSummary, effectState, messageState, tagNameLookup, truncate } fro
 // how the interactive push preview scrolls a row into view and flashes it
 // (Workspace#revealStagedRow).
 
-export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, onInspect, showBatch, gmProfiles }) {
+export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, presenceZones, onInspect, showBatch, gmProfiles }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -71,6 +71,7 @@ export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, onInspec
           existing={effect}
           roster={roster}
           tagCatalog={tagCatalog}
+          presenceZones={presenceZones}
           onDone={() => {
             setEditing(false);
             router.refresh();
@@ -193,7 +194,7 @@ export function StagedMessageRow({ message, roster, zones, onInspect, gmProfiles
   );
 }
 
-export default function StagedItems({ effects, messages, tagCatalog, roster, zones, onInspect, empty, gmProfiles }) {
+export default function StagedItems({ effects, messages, tagCatalog, roster, zones, presenceZones, onInspect, empty, gmProfiles }) {
   const tagNames = useMemo(() => tagNameLookup(tagCatalog), [tagCatalog]);
 
   if (!effects.length && !messages.length) {
@@ -209,6 +210,7 @@ export default function StagedItems({ effects, messages, tagCatalog, roster, zon
           tagNames={tagNames}
           tagCatalog={tagCatalog}
           roster={roster}
+          presenceZones={presenceZones}
           onInspect={onInspect}
           gmProfiles={gmProfiles}
         />

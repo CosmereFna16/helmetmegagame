@@ -30,6 +30,12 @@ const { Prisma } = require("@prisma/client");
 const { addResources, applyMoveEffects } = require("./moveEffects");
 const { TagOpError, validateTagOps, applyTagOpsInTx } = require("./tagOps");
 
+// Mirrors TagOpError's role for the zone half of a staged effect: thrown from
+// inside applyOneStagedEffect's transaction so the whole row (including the
+// appliedAt claim) rolls back clean, then caught by runStagedPushPass and
+// turned into the same "stamped errored, not silently dropped" verdict.
+class StagedZoneError extends Error {}
+
 // One transaction per row, never one around the batch: one bad row must not
 // roll back a hundred good ones, and per-row scoping keeps the character row
 // locks short. Returns what the row actually moved, for the appliedEffect
@@ -87,6 +93,25 @@ async function applyOneStagedEffect(prisma, row, turn, equipSlots) {
       });
     }
 
+    // Raw relocation — no Action row, no Move cost, no adjacency check (same
+    // semantics as the Dev Panel's zone edit and Bulk Move: this deliberately
+    // does not go through performTravel). Re-verified here, inside the row's
+    // own transaction, since the zone the GM picked on the desk may have
+    // since been deleted or reworked into a CAVE_GROUP by a zone sync.
+    const zoneId = row.payload?.zoneId ?? null;
+    if (zoneId) {
+      const zone = await tx.zone.findUnique({ where: { id: zoneId } });
+      if (!zone || zone.kind === "CAVE_GROUP") {
+        throw new StagedZoneError("That isn't a place a character can stand.");
+      }
+      const before = await tx.character.findUnique({
+        where: { id: row.targetCharacterId },
+        select: { zoneId: true },
+      });
+      await tx.character.update({ where: { id: row.targetCharacterId }, data: { zoneId } });
+      snapshot.zone = { from: before?.zoneId ?? null, to: zoneId };
+    }
+
     await tx.stagedEffect.update({ where: { id: row.id }, data: { appliedEffect: snapshot } });
     return snapshot;
   });
@@ -98,20 +123,43 @@ async function runStagedPushPass(prisma, turn, config) {
 
   // ── 1. GM-staged effects ─────────────────────────────────────────────────
   let effectsApplied = 0;
+  // ALIVE + a real discordUserId only, deduped to each character's FINAL
+  // zone so a batch (or several stages against the same character) doesn't
+  // churn roles on the way through — Map insertion order doesn't matter here
+  // since the rows are processed in createdAt order and each overwrite wins.
+  const zoneMovesByCharacter = new Map();
   const stagedEffects = await prisma.stagedEffect.findMany({
     where: { turnId: turn.id, appliedAt: null },
     orderBy: { createdAt: "asc" },
+    include: { targetCharacter: { select: { status: true, discordUserId: true } } },
   });
   for (const row of stagedEffects) {
     try {
       const snapshot = await applyOneStagedEffect(prisma, row, turn, equipSlots);
-      if (snapshot) effectsApplied += 1;
+      if (snapshot) {
+        effectsApplied += 1;
+        if (snapshot.zone) {
+          const target = row.targetCharacter;
+          if (target?.status === "ALIVE" && target.discordUserId) {
+            const existing = zoneMovesByCharacter.get(row.targetCharacterId);
+            zoneMovesByCharacter.set(row.targetCharacterId, {
+              characterId: row.targetCharacterId,
+              discordUserId: target.discordUserId,
+              // The FIRST applied move's "from" is the character's true prior
+              // zone; a later move in the same batch overwrites only "to".
+              fromZoneId: existing ? existing.fromZoneId : snapshot.zone.from,
+              toZoneId: snapshot.zone.to,
+            });
+          }
+        }
+      }
     } catch (err) {
-      if (err instanceof TagOpError) {
+      if (err instanceof TagOpError || err instanceof StagedZoneError) {
         // A GM staged something that no longer validates (the tag vanished
-        // from the catalog, the target re-acquired an equip conflict...).
-        // Stamp it errored — payload preserved, appliedEffect says why — so
-        // the tray shows a verdict rather than an eternally-pending row.
+        // from the catalog, the target re-acquired an equip conflict, the
+        // zone was deleted or reworked into a group row...). Stamp it
+        // errored — payload preserved, appliedEffect says why — so the tray
+        // shows a verdict rather than an eternally-pending row.
         await prisma.stagedEffect
           .update({
             where: { id: row.id },
@@ -127,6 +175,7 @@ async function runStagedPushPass(prisma, turn, config) {
       }
     }
   }
+  const zoneMoves = [...zoneMovesByCharacter.values()];
 
   // ── 2. every confirmed Move's own declared numbers ───────────────────────
   // status CONFIRMED filters out abandoned modal drafts (PENDING_*); the
@@ -229,6 +278,7 @@ async function runStagedPushPass(prisma, turn, config) {
     failures,
     privateDeliveries,
     publicPosts,
+    zoneMoves,
   };
 }
 

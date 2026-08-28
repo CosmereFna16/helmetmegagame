@@ -272,7 +272,21 @@ function normalizeStagedTagPoints(raw) {
   return n;
 }
 
-async function createStagedEffectsImpl({ targetCharacterIds, moveId, resources, tagPoints, tagOps }) {
+// The composer's "Relocate to" select. Raw relocation, same semantics as the
+// Dev Panel's zone edit and Bulk Move — no Action row, no Move cost, no
+// adjacency check (deliberately not performTravel). Mirrors the zone check
+// in web/lib/characterWrite.js: a presence zone only, never the Caves group
+// row nobody actually stands in.
+async function normalizeStagedZone(raw) {
+  const zoneId = raw?.toString().trim() || null;
+  if (!zoneId) return null;
+  const zone = await prisma.zone.findUnique({ where: { id: zoneId } });
+  if (!zone) throw new UserError("That zone no longer exists.");
+  if (zone.kind === "CAVE_GROUP") throw new UserError("That isn't a place a character can stand.");
+  return zoneId;
+}
+
+async function createStagedEffectsImpl({ targetCharacterIds, moveId, resources, tagPoints, tagOps, zoneId }) {
   const session = await requireGm();
   const targets = [...new Set((targetCharacterIds ?? []).filter(Boolean))];
   if (!targets.length) throw new UserError("Pick at least one target.");
@@ -280,7 +294,10 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, resources, 
   const delta = normalizeStagedResources(resources);
   const points = normalizeStagedTagPoints(tagPoints);
   const ops = normalizeStagedOps(tagOps);
-  if (!delta && !points && !ops.length) throw new UserError("Stage a resource, tag-point, or tag change.");
+  // One zone for the whole batch — the composer only offers one select for
+  // however many targets are picked.
+  const zone = await normalizeStagedZone(zoneId);
+  if (!delta && !points && !ops.length && !zone) throw new UserError("Stage a resource, tag-point, tag change, or zone change.");
 
   // Validated NOW against the catalog, with the same engine the push runs, so
   // the composer and the turn can't disagree. Presence ops don't read the
@@ -304,6 +321,7 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, resources, 
     ...(delta ? { resources: delta } : {}),
     ...(points ? { tagPoints: points } : {}),
     ...(ops.length ? { tagOps: ops } : {}),
+    ...(zone ? { zoneId: zone } : {}),
   };
 
   const created = await prisma.$transaction(
@@ -335,7 +353,7 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, resources, 
   return { count: created.length, batchId };
 }
 
-async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, tagOps }) {
+async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, tagOps, zoneId }) {
   const session = await requireGm();
   const existing = await prisma.stagedEffect.findUnique({ where: { id: stagedEffectId ?? "" } });
   if (!existing) throw new UserError("That staged effect is gone.");
@@ -344,7 +362,8 @@ async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, ta
   const delta = normalizeStagedResources(resources);
   const points = normalizeStagedTagPoints(tagPoints);
   const ops = normalizeStagedOps(tagOps);
-  if (!delta && !points && !ops.length) throw new UserError("Stage a resource, tag-point, or tag change.");
+  const zone = await normalizeStagedZone(zoneId);
+  if (!delta && !points && !ops.length && !zone) throw new UserError("Stage a resource, tag-point, tag change, or zone change.");
   if (ops.length) {
     const tags = await prisma.tag.findMany({ where: { id: { in: ops.map((o) => o.tagId) } } });
     try {
@@ -364,6 +383,7 @@ async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, ta
         ...(delta ? { resources: delta } : {}),
         ...(points ? { tagPoints: points } : {}),
         ...(ops.length ? { tagOps: ops } : {}),
+        ...(zone ? { zoneId: zone } : {}),
       },
       batchId: null,
     },

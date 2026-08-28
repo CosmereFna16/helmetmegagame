@@ -24,6 +24,7 @@ export default function EffectComposer({
   declaredDelta = null,
   roster,
   tagCatalog,
+  presenceZones = [],
   onDone,
   onCancel,
 }) {
@@ -44,6 +45,7 @@ export default function EffectComposer({
     const v = existing?.tagPoints ?? 0;
     return v ? String(v) : "";
   });
+  const [zoneId, setZoneId] = useState(() => existing?.zoneId ?? "");
   const [targetSearch, setTargetSearch] = useState("");
   const [tagSearch, setTagSearch] = useState("");
   const [error, setError] = useState(null);
@@ -118,13 +120,14 @@ export default function EffectComposer({
     startTransition(async () => {
       const tagOps = [...ops.values()];
       const res = existing
-        ? await updateStagedEffect({ stagedEffectId: existing.id, resources, tagPoints, tagOps })
+        ? await updateStagedEffect({ stagedEffectId: existing.id, resources, tagPoints, tagOps, zoneId })
         : await createStagedEffects({
             targetCharacterIds: targets.map((t) => t.id),
             moveId,
             resources,
             tagPoints,
             tagOps,
+            zoneId,
           });
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
       onDone();
@@ -200,6 +203,17 @@ export default function EffectComposer({
               onChange={(e) => setTagPoints(e.target.value)}
               placeholder="±0"
             />
+          </label>
+          <label className="field" style={{ width: "12rem" }}>
+            <span className="field-label">Relocate to</span>
+            <select value={zoneId} onChange={(e) => setZoneId(e.target.value)}>
+              <option value="">— no move —</option>
+              {presenceZones.map((z) => (
+                <option key={z.id} value={z.id}>
+                  {z.name}
+                </option>
+              ))}
+            </select>
           </label>
           {declaredDelta != null && declaredDelta !== 0 && !existing && (
             <button

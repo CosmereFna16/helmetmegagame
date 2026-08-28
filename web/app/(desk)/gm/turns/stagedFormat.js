@@ -15,6 +15,7 @@ export function effectSummary(effect, tagNames) {
     const qty = op.quantity != null && op.quantity > 1 ? ` ×${op.quantity}` : "";
     parts.push(`${op.op === "add" ? "+" : "−"}${name}${qty}`);
   }
+  if (effect.zoneId) parts.push(`→ ${effect.zoneName ?? "?"}`);
   return parts.join(" · ") || "nothing";
 }
 

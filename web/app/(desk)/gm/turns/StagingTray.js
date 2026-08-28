@@ -50,6 +50,7 @@ export default function StagingTray({
   moves,
   roster,
   zones,
+  presenceZones,
   tagCatalog,
   onInspect,
   onOpenPreview,
@@ -241,6 +242,7 @@ export default function StagingTray({
                 tagNames={tagNames}
                 tagCatalog={tagCatalog}
                 roster={roster}
+                presenceZones={presenceZones}
                 onInspect={onInspect}
                 gmProfiles={gmProfiles}
                 showBatch
@@ -254,6 +256,7 @@ export default function StagingTray({
               tagNames={tagNames}
               tagCatalog={tagCatalog}
               roster={roster}
+              presenceZones={presenceZones}
               onInspect={onInspect}
               gmProfiles={gmProfiles}
             />
@@ -281,6 +284,7 @@ export default function StagingTray({
         <EffectComposer
           roster={roster}
           tagCatalog={tagCatalog}
+          presenceZones={presenceZones}
           onDone={() => {
             setComposer(null);
             router.refresh();

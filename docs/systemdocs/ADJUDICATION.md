@@ -21,7 +21,7 @@ day of work survives a refresh):
 |---|---|---|
 | **Private messages** | `StagedMessage` (kind `PRIVATE`) + `StagedMessageRecipient` | One DM per recipient character's player, `»`-prefixed, logged to `DirectMessage` like every DM. |
 | **Public declarations** | `StagedMessage` (kind `PUBLIC`, optional `zoneId`) | Posted to **the row's own zone `#summary`** — the per-zone delivery the `zoneId` was always carried for. `GameConfig.turnSummaryChannelId` is the fallback, used when the row has no zone or its zone has no summary channel (the Caves seat, which is a category only). Neither set means the post is skipped and recorded on `deliveryFailures` — never lost. |
-| **Mechanical adjustments** | `StagedEffect` — `payload` `{ resources?, tagPoints?, tagOps? }` per target character | Resources through `addResources`' clamp, tag ops through `db/lib/tagOps.js` — the same engine the Dev Panel applies with. `tagPoints` is an unclamped increment (a GM may take points back, and negative is legal). `appliedEffect` snapshots what actually moved (the payload-vs-effect rule from `REQUESTS.md` §2). |
+| **Mechanical adjustments** | `StagedEffect` — `payload` `{ resources?, tagPoints?, tagOps?, zoneId? }` per target character | Resources through `addResources`' clamp, tag ops through `db/lib/tagOps.js` — the same engine the Dev Panel applies with. `tagPoints` is an unclamped increment (a GM may take points back, and negative is legal). `appliedEffect` snapshots what actually moved (the payload-vs-effect rule from `REQUESTS.md` §2). |
 
 A staged message takes a *set* of recipients — you need to tell different
 people different things, so a Move carries as many messages as the truth
@@ -153,8 +153,13 @@ The mechanics live in `db/lib/stagedPush.js` (ordering and crash-resume
 guarantees: `TURN-ENGINE.md` §2–3). What a GM needs to know:
 
 - Effects apply one transaction per row — one bad row can't roll back the
-  batch. A row that no longer validates (the tag left the catalog) is
-  stamped errored with the reason on `appliedEffect`, shown in the tray.
+  batch. A row that no longer validates (the tag left the catalog, the
+  staged zone was reworked away) is stamped errored with the reason on
+  `appliedEffect`, shown in the tray.
+- A staged relocation writes `Character.zoneId` in that same transaction;
+  the Discord half (zone role, narrowcast, thread invites) runs afterwards
+  in the side-effect thunk via `db/lib/zoneMove.js`, with the channel
+  doctor as the safety net (`CHANNELS.md` §3).
 - Messages are stamped `sentAt` after their sends are attempted, per-recipient
   failures recorded on the row and in one `staged_push_delivery_failed`
   audit row. A crash mid-delivery leaves the rest visibly unsent, not

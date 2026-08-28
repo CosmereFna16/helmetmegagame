@@ -1456,8 +1456,9 @@ model StagedEffect {
 
   // { resources?: Int, tagOps?: [op] } — the op shape is the Dev Panel's
   // (see db/lib/tagOps.js): {tagId, op: add|remove|patch, quantity?, source?,
-  // expiry?, equipped?}. May also carry a future `zoneId?: String` key
-  // (staged relocation).
+  // expiry?, equipped?}. May also carry `zoneId?: String` — a staged
+  // relocation, applied as a raw zone write at the push with the Discord
+  // half handed to db/lib/zoneMove.js in the side-effect thunk.
   payload Json
 
   appliedAt     DateTime?

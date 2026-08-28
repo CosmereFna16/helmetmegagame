@@ -139,8 +139,9 @@ half:
 | Travel button on `#turns`, or `/location` | `bot/src/lib/zoneTravel.js#performMove` → `swapZoneRole` | Gateway |
 | Web map | `web/app/(app)/map/travelActions.js#travelTo` → `syncCharacterZoneRole` | REST |
 | GM raw edit, GM Bulk Move, character creation | `web/lib/discordGuild.js#syncCharacterZoneRole` | REST |
+| Staged relocation, applied at the turn push | `db/lib/zoneMove.js#applyZoneMoveSideEffects`, from the side-effect thunk | REST |
 
-Both **grant before revoke**, deliberately: an interrupted swap leaves the
+All of them **grant before revoke**, deliberately: an interrupted swap leaves the
 player seeing two zones for a moment (harmless, self-healing) rather than none
 (a lockout a player can't diagnose). Neither swallows a failure silently — the
 doctor reconciles whatever they miss.

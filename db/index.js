@@ -262,7 +262,7 @@ async function resolveNeeds(turn, config) {
   }
   // Same split as every pass here: the deliveries are routing data for
   // runSideEffects(), not part of the turn's record.
-  const { privateDeliveries = [], publicPosts = [], ...stagedPushSummary } = stagedPush ?? {};
+  const { privateDeliveries = [], publicPosts = [], zoneMoves = [], ...stagedPushSummary } = stagedPush ?? {};
   if (stagedPush) {
     await prisma.auditLog
       .create({
@@ -423,6 +423,7 @@ async function resolveNeeds(turn, config) {
     tagExpiryDms,
     privateDeliveries,
     publicPosts,
+    zoneMoves,
   };
 }
 
@@ -463,6 +464,7 @@ async function advanceTurn() {
   let tagExpiryDms = [];
   let privateDeliveries = [];
   let publicPosts = [];
+  let zoneMoves = [];
   if (openTurn) {
     // Close the turn FIRST, conditioned on it still being OPEN. This is the
     // guard against two advances racing — a GM double-clicking End turn, or
@@ -494,7 +496,7 @@ async function advanceTurn() {
       };
     }
 
-    ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, privateDeliveries, publicPosts } =
+    ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, privateDeliveries, publicPosts, zoneMoves } =
       await resolveNeeds(openTurn, config));
   } else {
     // No OPEN turn, which normally means "opening the very first turn". It
@@ -559,7 +561,7 @@ async function advanceTurn() {
           },
         })
         .catch((logErr) => console.error("Failed to log turn_resume — the resume now has no record:", logErr));
-      ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, privateDeliveries, publicPosts } =
+      ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, privateDeliveries, publicPosts, zoneMoves } =
         await resolveNeeds(unfinished, config));
     }
   }
@@ -660,6 +662,17 @@ async function advanceTurn() {
           console.error(`Dying DM to ${notice.discordUserId} failed:`, err),
         );
       }
+    }
+
+    // Staged-relocation Discord side effects, before the private deliveries:
+    // a result DM referencing "where you are now" should arrive after the
+    // player can actually see the new zone. Sequential, individually caught
+    // — see db/lib/zoneMove.js for why nothing here throws.
+    const { applyZoneMoveSideEffects } = require("./lib/zoneMove");
+    for (const move of zoneMoves) {
+      await applyZoneMoveSideEffects(prisma, move).catch((err) =>
+        console.error(`Staged zone-move side effects failed for ${move.characterId}:`, err),
+      );
     }
 
     // The staged-arbitration deliveries — everything the GMs composed during

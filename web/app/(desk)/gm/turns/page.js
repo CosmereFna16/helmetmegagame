@@ -98,7 +98,7 @@ function summarize(request) {
 export default async function TurnsWorkspacePage() {
   const openTurn = await getOpenTurn();
 
-  const [actions, requests, stagedEffects, stagedMessages, roster, zones, tagCatalog, members, myZone, gmProfiles] =
+  const [actions, requests, stagedEffects, stagedMessages, roster, zones, presenceZones, tagCatalog, members, myZone, gmProfiles] =
     await Promise.all([
       openTurn
         ? prisma.action.findMany({
@@ -162,6 +162,14 @@ export default async function TurnsWorkspacePage() {
       // cave levels are folded into the Caves group here rather than listed.
       prisma.zone.findMany({
         where: { kind: { not: "CAVE_LEVEL" } },
+        orderBy: { sortOrder: "asc" },
+        select: { id: true, name: true },
+      }),
+      // The staged-relocate picker's option list: PRESENCE zones only — a
+      // character stands in a surface zone or a single cave level, never on
+      // the Caves group row (mirrors web/lib/devPanelData.js's zone query).
+      prisma.zone.findMany({
+        where: { kind: { not: "CAVE_GROUP" } },
         orderBy: { sortOrder: "asc" },
         select: { id: true, name: true },
       }),
@@ -257,6 +265,8 @@ export default async function TurnsWorkspacePage() {
     reviewedAtLabel: r.reviewedAt ? r.reviewedAt.toISOString().slice(0, 16).replace("T", " ") : null,
   }));
 
+  const presenceZoneNameById = new Map(presenceZones.map((z) => [z.id, z.name]));
+
   const effects = stagedEffects.map((e) => ({
     id: e.id,
     moveId: e.moveId,
@@ -266,6 +276,8 @@ export default async function TurnsWorkspacePage() {
     resources: e.payload?.resources ?? 0,
     tagPoints: e.payload?.tagPoints ?? 0,
     tagOps: e.payload?.tagOps ?? [],
+    zoneId: e.payload?.zoneId ?? null,
+    zoneName: e.payload?.zoneId ? (presenceZoneNameById.get(e.payload.zoneId) ?? "(deleted zone)") : null,
     applied: Boolean(e.appliedAt),
     appliedError: e.appliedEffect?.error ?? null,
     createdByUsername: usernameById.get(e.createdByDiscordUserId) ?? e.createdByDiscordUserId,
@@ -298,6 +310,7 @@ export default async function TurnsWorkspacePage() {
       tagCatalog={tagCatalog}
       roster={roster.map((c) => ({ id: c.id, name: c.name, factionName: c.faction?.name ?? "" }))}
       zones={zones}
+      presenceZones={presenceZones}
       moves={moves}
       requests={requestRows}
       stagedEffects={effects}

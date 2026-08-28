@@ -103,6 +103,7 @@ export default function Workspace({
   tagCatalog,
   roster,
   zones,
+  presenceZones,
   moves,
   requests,
   stagedEffects,
@@ -311,6 +312,7 @@ export default function Workspace({
               tagCatalog={tagCatalog}
               roster={roster}
               zones={zones}
+              presenceZones={presenceZones}
               currentTurnNumber={openTurn?.number ?? null}
               onInspect={inspect}
               onClose={() => setSelected(null)}
@@ -357,6 +359,7 @@ export default function Workspace({
         moves={moves}
         roster={roster}
         zones={zones}
+        presenceZones={presenceZones}
         tagCatalog={tagCatalog}
         onInspect={inspect}
         onOpenPreview={() => setPreviewOpen(true)}

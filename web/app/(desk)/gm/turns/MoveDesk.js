@@ -73,6 +73,7 @@ export default function MoveDesk({
   tagCatalog,
   roster,
   zones,
+  presenceZones,
   currentTurnNumber,
   onInspect,
   onClose,
@@ -291,6 +292,7 @@ export default function MoveDesk({
           tagCatalog={tagCatalog}
           roster={roster}
           zones={zones}
+          presenceZones={presenceZones}
           onInspect={onInspect}
           gmProfiles={gmProfiles}
           empty="Nothing staged yet. Effects change sheets; messages land as DMs; public posts hit the summary channel — all at the push."
@@ -304,6 +306,7 @@ export default function MoveDesk({
           declaredDelta={move.resourceDelta ?? null}
           roster={roster}
           tagCatalog={tagCatalog}
+          presenceZones={presenceZones}
           onDone={() => {
             setComposer(null);
             router.refresh();
