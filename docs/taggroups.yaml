@@ -65,6 +65,15 @@ groups:
     category: general
     color: "#b89a5e"
     requiredTag: courtier
+  # Fourth body-membership group, same shape as the three above. The key is
+  # `windlander` — a purchasable Skills tag every Windlands role gets free
+  # from roles.yaml, so the door stays open to anyone willing to pay for the
+  # origin first, same reasoning as `the-wind`'s own comment.
+  - slug: general-windlands
+    name: The Windlands
+    category: general
+    color: "#94a06a"
+    requiredTag: windlander
   # Orphaned: the Health category below took every tag that used to live
   # here. Groups sync upsert-only and are never deleted, so this row survives
   # empty — don't reuse the slug, and don't put anything back in it.

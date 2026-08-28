@@ -22,11 +22,11 @@ A full gunsmith is `smithing` + `smithing-skilled` + `smithing-gunpowder` =
 | Tier | pt | ⬢ | Turns | Skill gate | Fighting gate | Purchasable at start |
 |---|---|---|---|---|---|---|
 | Dead Simple | 1 | 3 | 0 | `crafting` OR `smithing` | none | yes |
-| Simple | 2 | 8 | 1 | `smithing` | `fighting-basic` | yes |
-| Moderate | 3 | 18 | 1 | `smithing-skilled` | `fighting-basic` | yes |
-| High Quality | 4 | 25 | 1 | `smithing-skilled` | `fighting-basic` | yes |
-| Exceptional | 6 | 35 | 2 | `smithing-skilled` | `fighting-basic` | yes |
-| Gunpowder | 6 | 40 | 2 | `smithing-gunpowder` | `fighting-basic` | yes |
+| Simple | 2 | 7 | 1 | `smithing` | `fighting-basic` | yes |
+| Moderate | 3 | 17 | 1 | `smithing-skilled` | `fighting-basic` | yes |
+| High Quality | 4 | 23 | 1 | `smithing-skilled` | `fighting-basic` | yes |
+| Exceptional | 6 | 32 | 2 | `smithing-skilled` | `fighting-basic` | yes |
+| Gunpowder | 6 | 37 | 2 | `smithing-gunpowder` | `fighting-basic` | yes |
 
 Bows use `crafting` in place of `smithing` at every tier. The Crossbow does
 not — its steel prod and lock are `smithing-skilled` work.

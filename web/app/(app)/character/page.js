@@ -16,6 +16,7 @@ import {
   DEFAULT_MAX_NEGATIVE_TAGS,
 } from "@/lib/characterCreation";
 import { loadPointBuyCatalog } from "@/lib/pointBuyCatalog";
+import { findOpenTurnAction } from "@/lib/moveEconomy";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { TRANSFERABLE_CATEGORIES, FAST_TRAVEL_SLUGS } from "@/lib/tagRequests";
@@ -191,10 +192,19 @@ export default async function CharacterPage() {
     return <CreateCharacterWizard {...creation} />;
   }
 
-  const [openTurn, otherCharacters, factions, tagCatalog, tierRows, desire, lastEndedDesire, gameConfig] =
-    await Promise.all([
-      getOpenTurn(),
-      prisma.character.findMany({
+  const [
+    openTurn,
+    otherCharacters,
+    factions,
+    tagCatalog,
+    tierRows,
+    desire,
+    lastEndedDesire,
+    gameConfig,
+    { action: currentAction },
+  ] = await Promise.all([
+    getOpenTurn(),
+    prisma.character.findMany({
         where: { status: "ALIVE", id: { not: character.id } },
         orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
         select: { id: true, name: true },
@@ -264,6 +274,7 @@ export default async function CharacterPage() {
           maxNegativeTags: true,
         },
       }),
+      findOpenTurnAction(prisma, character.id),
     ]);
 
   // The mid-game tag store, folded into the sheet as a modal (see
@@ -505,6 +516,7 @@ export default async function CharacterPage() {
       character={character}
       mode="self"
       openTurn={openTurn}
+      currentAction={currentAction}
       avatarSrc={avatarSrc}
       transferParties={transferParties}
       tagCatalog={tagCatalog}

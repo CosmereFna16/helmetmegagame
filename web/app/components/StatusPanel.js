@@ -1,21 +1,62 @@
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
+import { moveKindLabel, rollLabel } from "@/lib/moves";
 import TagPointsValue from "./TagPointsValue";
 import ActionGrid from "./ActionGrid";
+import ExpandableText from "./ExpandableText";
 
 // A labelled row, so Zone / Resources / Gambit line up on one grid instead
-// of each being its own ad-hoc flex line.
-function Row({ label, children }) {
+// of each being its own ad-hoc flex line. `stacked` swaps the value cell to a
+// column for content that clamps onto multiple lines (the Move description)
+// — the default flex-wrap row fights a CSS line-clamp otherwise.
+function Row({ label, children, stacked = false }) {
   return (
     <>
-      <dt className="field-label" style={{ alignSelf: "center" }}>
+      <dt className="field-label" style={{ alignSelf: stacked ? "start" : "center" }}>
         {label}
       </dt>
-      <dd className="m-0 flex flex-wrap items-center gap-2 text-sm">{children}</dd>
+      <dd className={`m-0 text-sm ${stacked ? "flex flex-col items-start gap-1" : "flex flex-wrap items-center gap-2"}`}>
+        {children}
+      </dd>
     </>
   );
 }
 
-export default function StatusPanel({ character, isSelf }) {
+// The player's own read of the Move they filed this turn — the same row the
+// bot's DM confirms, just left standing where they can check it later
+// instead of scrolling Discord. Player-facing wording, not the GM workflow
+// enums (moveReviewStatus's "Passed"/"Open" mean nothing to a player).
+function ThisTurn({ currentAction, openTurn }) {
+  if (!openTurn) return <span className="text-muted">No turn is open.</span>;
+  if (!currentAction) return <span className="text-muted">Not filed yet.</span>;
+
+  const { status, moveReviewStatus, resourceRollValue } = currentAction;
+
+  let stateLine;
+  if (status === "PENDING_TYPE" || status === "PENDING" || status === "PENDING_OPPOSED") {
+    stateLine = <span className="text-muted">Not locked in yet — check your Discord DMs.</span>;
+  } else if (moveReviewStatus === "SOLVED") {
+    stateLine = <span className="text-positive">Solved.</span>;
+  } else {
+    const roll = rollLabel(currentAction);
+    const payout = resourceRollValue != null ? `${resourceRollValue > 0 ? "+" : ""}${resourceRollValue} ⬢` : null;
+    stateLine = (
+      <span className="text-muted">
+        Locked in{roll ? ` — ${roll}` : ""}
+        {payout ? ` (${payout})` : ""}. Results land when the turn ends.
+      </span>
+    );
+  }
+
+  return (
+    <>
+      <span className="field-label">{moveKindLabel(currentAction.moveKind)}</span>
+      <ExpandableText text={currentAction.description} lines={3} />
+      {stateLine}
+    </>
+  );
+}
+
+export default function StatusPanel({ character, isSelf, currentAction, openTurn }) {
   // Hunger is the only Gambit contributor, and this is the same module the bot
   // rolls against (db/lib/gambitModifier.js) — so what a player reads here is
   // exactly what gets applied.
@@ -49,6 +90,10 @@ export default function StatusPanel({ character, isSelf }) {
 
           <Row label="Tag Points">
             <TagPointsValue points={character.tagPoints} />
+          </Row>
+
+          <Row label="This turn" stacked>
+            <ThisTurn currentAction={currentAction} openTurn={openTurn} />
           </Row>
         </dl>
 

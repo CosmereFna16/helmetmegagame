@@ -65,7 +65,7 @@ diff check, same style as the zone sync's hash gate).
   replace it. Example in the catalog: `Fighting (Archer)` requires
   `Fighting (Basic)` but coexists with `Fighting (Skilled)` — a character can
   hold both at once. Also the right relation for an origin/membership gate the
-  gated tag doesn't consume: `Windlander (Horse)` requires `Windlander`,
+  gated tag doesn't consume: `Horse (Windlander)` requires `Windlander`,
   `Manor` requires `Courtier`, `House`/`Shack` require `Ravenhearter`, and
   `Laborer (Farming)` requires `Laborer (Skilled)` — a sidegrade that coexists
   with the tier it builds on.
@@ -638,6 +638,25 @@ they just roll for it, while Esculap (Medical (Expert)) does not.
 Only `requirementResources` and `requirementSkills` are enforced — by the Heal
 request, which charges the ⬢ and checks the tier chain. `requirementTurns` and
 `requirementGambit` stay GM adjudication reference, as everywhere else (§5).
+
+### Six named exceptions
+
+A handful of Health tags sit off the standard rungs on purpose — priced by
+Kata's 8/28 review rather than a copy-pasted block. They are exceptions to
+"pick a rung," not new reusable rungs; don't copy their numbers onto anything
+else.
+
+- **`minor-bleeding`, `dislocated-shoulder`** — 0 ⬢, 0 turns, Medical
+  (Basic). Below tier 1: a bandage or a shoulder pop is real medical
+  knowledge, but it costs the doctor nothing to do.
+- **`severe-bleeding`, `arterial-bleed`, `parasites`** — 3 ⬢, 1 turn, Medical
+  (Skilled). Sits between tiers 3 and 4: stopping blood loss is urgent but
+  simpler than the rest of what "Severe" covers.
+- **`choking`** — 2 ⬢, 1 turn, no skill. A Heimlich needs no training at
+  all — the ⬢ buys the doctor's time, not their expertise.
+- **`frostbite`** — 2 ⬢, 0 turns, Medical (Skilled). Also gained
+  `expiresInto: [necrosis]` — it now progresses like an untreated wound
+  instead of sitting inert.
 
 ### `expiresInto`
 

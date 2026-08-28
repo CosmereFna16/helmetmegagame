@@ -233,7 +233,7 @@ const DEFAULT_GAME_CONFIG = {
   archiveVisible: false,
   archiveTravelEvents: false,
   productionCoefficient: 1,
-  startingTagPoints: 5,
+  startingTagPoints: 6,
   playerCount: 100,
   equipSlots: 6,
   maxNegativeTags: 4,

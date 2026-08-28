@@ -136,10 +136,7 @@ zones:
         name: Forest
         description: >-
           Streams part mossy boulders under the green shadows of spruce and beech. The rustling of leaves in the wind is occasionally interjected by the sounds of things moving in the undergrowth. There are marshes, creeks, bountiful visages. The trees thin on their approach to the mountains.
-        subLocations:
-          - name: Tunnel
-            description: >-
-              In the middle of a clearing, the ground suddenly gives way. Looking inside, the passage appears pitch black, and yet it seems to invite you inside.
+        subLocations: []
 
   - id: fortress
     name: Fortress
@@ -206,7 +203,7 @@ zones:
               Rows of bunks stand at attention. All but a handful are orderly and unused, might be a sign it's time to find some new recruits.
           - name: Armory
             description: >-
-              The garrisons store of weapons, useful for when thorough beatings can no longer keep the peace. Locked, accessible by the Baron and captain. It has enough to give each Watchman his choice of Moderate gear (freely add item tags from the Moderate smithing document or below)—but nothing else. Consider stocking it.
+              The garrisons store of weapons, useful for when thorough beatings can no longer keep the peace. Locked, accessible by the Baron and captain. It has enough to give each Watchman his choice of Moderate gear (freely add item tags from the Simple smithing document or below)—but nothing else. Consider stocking it.
           - name: Dungeons
             description: >-
               Rows of cells behind iron bars, each with a lock only accessible by members of the garrison. Connects to the Undercroft.

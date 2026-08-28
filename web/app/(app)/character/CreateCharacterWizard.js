@@ -94,7 +94,6 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
             says the role is shut on purpose (GameConfig.playtestModeEnabled). */}
         {role.playtestLocked && <span className="chip">closed for this playtest</span>}
         {role.difficulty && <span className="chip">{role.difficulty}</span>}
-        {role.startingZoneName && <span className="chip">{role.startingZoneName}</span>}
         {role.extraStartingPoints > 0 && (
           <span className="chip text-positive">
             +{role.extraStartingPoints} pts

@@ -76,6 +76,7 @@ documents:
 
       | Tier | ⬢ | Turns | Skill |
       |---|---|---|---|
+      | Free | 0 | 0 | Medical (Basic) |
       | Very minor — first aid | 1 | 0 | Medical (Basic) |
       | Minor | 2 | 0 | Medical (Basic) |
       | Moderately severe | 2 | 1 | Medical (Skilled) |
@@ -84,23 +85,27 @@ documents:
       | Severe surgery | 8 | 1 | Medical (Expert) |
       | Complex surgery | 8 | 1 | Medical (Expert) + Gambit |
 
+      **Free — 0 ⬢, no turn**
+
+      - {tag:minor-bleeding}, {tag:dislocated-shoulder}
+
       **Very minor — 1 ⬢, no turn**
 
-      - {tag:minor-bleeding}, {tag:bruised}, {tag:dislocated-shoulder},
-        {tag:malnourished}, {tag:severe-pain}
+      - {tag:bruised}, {tag:severe-pain}
 
       **Minor — 2 ⬢, no turn**
 
-      - {tag:burned}, {tag:sprained-ankle}, {tag:infected}
+      - {tag:burned}, {tag:sprained-ankle}, {tag:infected}, {tag:frostbite}
 
       **Moderately severe — 2 ⬢, 1 turn**
 
       - {tag:deep-wound}, {tag:broken-bone}, {tag:cracked-ribs},
-        {tag:poisoned}, {tag:parasites}, {tag:heatstroke}, {tag:pain-shock}
+        {tag:poisoned}, {tag:heatstroke}, {tag:pain-shock}, {tag:choking},
+        {tag:blunt-force-trauma}
 
-      **Severe — 4 ⬢, 1 turn**
+      **Severe — 3–4 ⬢, 1 turn**
 
-      - {tag:severe-bleeding}, {tag:arterial-bleed}, {tag:choking},
+      - {tag:severe-bleeding}, {tag:arterial-bleed}, {tag:parasites},
         {tag:severe-burns}, {tag:broken-jaw}, {tag:mangled-hand},
         {tag:festering}, {tag:rot-lung}, {tag:pox}
 
@@ -115,7 +120,7 @@ documents:
 
       **Complex surgery — 8 ⬢, 1 turn, Gambit**
 
-      - {tag:sepsis}, {tag:dying}, {tag:consumptive}, {tag:blinded},
+      - {tag:sepsis}, {tag:dying}, {tag:consumptive}, {tag:blind},
         {tag:crippled-leg}, {tag:phrygian-toxin}
 
       Tonics (see {document:alcoholdrugs}) cure some tags outright.
@@ -206,6 +211,8 @@ documents:
       The air is still here near Ravenheart. This could be a home. What will life be without having to move to find food? What will life be without wind? What will it be like to see your friend's face, and not just their mask?
 
       The Bastard has united the clans. The Windriders and the Broken Spears are the two that survived the long march to Ravenheart. You are ready to fight. However, there was an incident: a man from the Broken Spears killed one of the Windriders during an argument on whether to raid the town. Additionally, food stores are running low.
+
+      **Your camp has an armory. While in camp, you may freely equip yourself with any weapon or armor from the Simple or Dead Simple tier (use the add tag menu; see Smithing document for options).**
   - name: Broken Spear Clan
     key: brokenspear
     public: false
@@ -286,6 +293,8 @@ documents:
       Every member of the Watch has a disabler (takes several shots; useful against unarmed people, but not someone who can run up to you and take it out of your hands), but otherwise relies on their armory—which has a good supply of Simple weapons and a decent supply of Moderate weapons (see Smithing document). The Fortress's yard also has an automated turret, which can't tell the difference between hostiles and friendlies. The switch to enable it is in the captain's office.
 
       Watchmen also have bracelets which connect to the Captain's radio system.
+
+      **Your camp has an armory. While in camp, you may freely equip yourself with any weapon or armor from the Simple or Dead Simple tier (use the add tag menu; see Smithing document for options).**
   - name: Post-Christianity
     key: postchristianity
     public: true
@@ -302,13 +311,6 @@ documents:
       The problem with the Heretic is just that: they crawl out from their holes, seeking to turn us against the Truth. But they cannot. Even if they were to murder and devour all of us, we would not forget God—as long as we chose not to. Nothing can take away faith, charity, and virtue, except our own malfeasance.
 
       In any case, the Afterlife is around the corner, as it always was and it always will be. Only by forgetting that could we prioritize the gratification of the moment.
-  - name: Messenger Ravens
-    key: ravens
-    public: true
-    tags:
-      - Ravenkeeper
-    description: |-
-      Anyone with the Ravenkeeper tag can, assuming they're near their rookery, send a message to up to one person daily (every 2 turns). To do so, simply message the GMs asking.
   - name: Smithing and Crafting
     key: smithing
     public: true
@@ -328,11 +330,11 @@ documents:
       | Tier | ⬢ | Turns | Skill |
       |---|---|---|---|
       | Dead Simple | 3 | 0 | Crafting or Smithing |
-      | Simple | 8 | 1 | Smithing |
-      | Moderate | 18 | 1 | Smithing (Skilled) |
-      | High Quality | 25 | 1 | Smithing (Skilled) |
-      | Exceptional | 35 | 2 | Smithing (Skilled) |
-      | Gunpowder | 40 | 2 | Smithing (Gunpowder) |
+      | Simple | 7 | 1 | Smithing |
+      | Moderate | 17 | 1 | Smithing (Skilled) |
+      | High Quality | 23 | 1 | Smithing (Skilled) |
+      | Exceptional | 32 | 2 | Smithing (Skilled) |
+      | Gunpowder | 37 | 2 | Smithing (Gunpowder) |
 
       **Dead Simple — 3 ⬢, no turn**
 
@@ -342,29 +344,29 @@ documents:
       - Padded Armor needs Crafting. Mail Coif needs Smithing. Everything else
         here takes either skill.
 
-      **Simple — 8 ⬢, 1 turn**
+      **Simple — 7 ⬢, 1 turn**
 
       - Weapons: {tag:spear}, {tag:dagger}, {tag:silver-knife}, {tag:gladius},
         {tag:phrygian-spear}, {tag:mace}, {tag:battle-axe}
       - Armor: {tag:simple-helm}
       - Crafting instead of Smithing: {tag:longbow}, {tag:shield}, {tag:pavise}
 
-      **Moderate — 18 ⬢, 1 turn**
+      **Moderate — 17 ⬢, 1 turn**
 
       - Weapons: {tag:bardiche}, {tag:broadsword}, {tag:war-hammer}, {tag:knuckle-duster}
       - Armor: {tag:mail-shirt}
 
-      **High Quality — 25 ⬢, 1 turn**
+      **High Quality — 23 ⬢, 1 turn**
 
       - Weapons: {tag:bastard-sword}, {tag:rapier}, {tag:sabre}, {tag:katana},
         {tag:silver-spear}, {tag:lucerne}, {tag:zweihander}, {tag:crossbow}
       - Armor: {tag:knights-helmet}, {tag:breastplate}, {tag:brigandine} (hidden under clothes)
 
-      **Exceptional — 35 ⬢, 2 turns**
+      **Exceptional — 32 ⬢, 2 turns**
 
       - Armor: {tag:plate-armor}.
 
-      **Gunpowder — 40 ⬢, 2 turns**
+      **Gunpowder — 37 ⬢, 2 turns**
 
       - Weapons: {tag:musketoon}, {tag:bore-pistol}
       - {tag:bomb}
@@ -604,3 +606,14 @@ documents:
       Typing /conceal before your message hides your identity.
 
       You'll appear as a stranger, but people can still see (using the 🔎 reaction) any visible wounds or gear.
+  - name: The Pusher
+    key: thepusher
+    public: true
+    tags: []
+    roles:
+      - captain
+      - pusher
+    description: |-
+      The Pusher sells drugs and runs the town's gambling den and, well, er, informal drug pub. It's his job to keep the peasants satisfied and not rebelling.
+
+      He is exempted from the usual capital punishment for drug possession—completely above the law. But he owes the Baron a cut, directly.

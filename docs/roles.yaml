@@ -107,13 +107,16 @@ zones:
                 A note: there is a trapdoor in the throne room that drops into a dark pit. There's a Graga there, a true monster.
             difficulty: hard
             multiple: false
-            starting_resources: 3
+            starting_resources: 12
             starting_zone: fortress
             leader: true
             starting_tags:
               - Ravenhearter
               - Nobility
               - The Baron's Key
+              - Baron's Scepter
+              - Brigandine
+              - Sabre
               - Literate
               - Intercom
               - Courtier
@@ -227,6 +230,7 @@ zones:
               - Ravenhearter
               - Courtier
               - Literate
+              - Hand's Pin
             doc_elements:
               - courtstructure
               - lifewebbasic
@@ -262,13 +266,11 @@ zones:
               - Frail
               - Medical (Basic)
               - Literate
-              - Ravenkeeper
             doc_elements:
               - courtstructure
               - lifewebbasic
               - fortressstarting
               - courtier
-              - ravens
               - medical
               - ravenhearteconomy
           - name: Courtier
@@ -385,12 +387,14 @@ zones:
             starting_tags:
               - Ravenhearter
               - Watchman
+              - Tactician
               - Fighting (Trained)
               - Dog
               - Disabler
               - Radio System (Watch)
               - Radio Bracelet (Watch)
               - Alcoholic
+              - Watch Badge
               - Broadsword
               - Simple Helm
               - Buckler
@@ -423,6 +427,7 @@ zones:
               - Fighting (Basic)
               - Radio Bracelet (Watch)
               - Pious
+              - Incarn's Key
               - Cudgel
               - Simple Helm
               - Buckler
@@ -451,7 +456,7 @@ zones:
                 Or you can try to be a good man. It's up to you.
             difficulty: easy
             multiple: true
-            weight: 8
+            weight: 7
             starting_resources: 1
             starting_zone: fortress
             starting_tags:
@@ -460,9 +465,9 @@ zones:
               - Fighting (Basic)
               - Disabler
               - Radio Bracelet (Watch)
+              - Watch Badge
               - Cudgel
               - Simple Helm
-              - Buckler
               - Mail Coif
               - Mail Shirt
             doc_elements:
@@ -485,6 +490,7 @@ zones:
             starting_zone: fortress
             starting_tags:
               - Ravenhearter
+              - Watch Badge
               - Cudgel
               - Simple Helm
               - Buckler
@@ -530,6 +536,7 @@ zones:
               - Pious
               - Literate
               - Post-Christian
+              - Bishop's Mitre
             doc_elements:
               - townstarting
               - postchristianity
@@ -601,7 +608,7 @@ zones:
                 You can perform medicine, removing negative medical tags according to their skill, Resource, and action cost.
             difficulty: normal
             multiple: false
-            starting_resources: 12
+            starting_resources: 26
             starting_zone: town
             leader: true
             starting_tags:
@@ -609,6 +616,7 @@ zones:
               - Medical (Expert)
               - Brewing (Skilled)
               - Literate
+              - Esculap's Vest
             doc_elements:
               - townstarting
               - medical
@@ -670,6 +678,7 @@ zones:
               - Ravenhearter
               - Pious
               - Post-Christian
+              - Inquisitor's Longcoat
             doc_elements:
               - townstarting
               - postchristianity
@@ -700,6 +709,7 @@ zones:
               - Ravenhearter
               - Pious
               - Post-Christian
+              - Practicii's Robes
             doc_elements:
               - townstarting
               - postchristianity
@@ -769,6 +779,7 @@ zones:
               - Laborer (Farming)
               - House
               - Literate
+              - Headman's Cap
             doc_elements:
               - townstarting
               - farming
@@ -792,6 +803,7 @@ zones:
               - Fighting (Trained)
               - Neoclassic R&W10
               - House
+              - Sheriff's Badge
             doc_elements:
               - townstarting
               - combat
@@ -812,7 +824,7 @@ zones:
                 You can also make Unique Tags—name and describe them yourself. You'll have to roll to see what the quality ends up being.
             difficulty: normal
             multiple: true
-            weight: 1
+            weight: 2
             starting_resources: 20
             starting_zone: town
             starting_tags:
@@ -840,7 +852,6 @@ zones:
             weight: unlimited
             starting_resources: 1
             starting_zone: town
-            extra_starting_points: 2
             starting_tags:
               - Ravenhearter
               - Laborer (Skilled)
@@ -868,6 +879,7 @@ zones:
             starting_zone: town
             starting_tags:
               - Ravenhearter
+              - Insightful
             doc_elements:
               - townstarting
               - independent
@@ -885,12 +897,13 @@ zones:
             difficulty: easy
             multiple: true
             weight: 2
-            starting_resources: 1
+            starting_resources: 2
             starting_zone: town
-            extra_starting_points: 3
+            extra_starting_points: 2
             starting_tags:
               - Ravenhearter
               - Forester
+              - Old Ways (Sylvia)
             doc_elements:
               - townstarting
               - production
@@ -906,7 +919,7 @@ zones:
               - >-
                 The Mortii take a lifelong vow dedicating themselves to powering the Lifeweb. They are often exiles, outcasts, or infirms. Why did you take the vow?
               - >-
-                The Lifeweb maintains Ravenheart's environment. Without it, it'll fade into the wastelands. However, it is powered by human blood. People can either voluntarily donate their blood to feed it for a short time—or you can kidnap people and feed them manually.
+                The Lifeweb maintains Ravenheart's environment. Without it, it'll fade into the wastelands. However, it is powered by human blood. People can either voluntarily donate their blood to feed it for a short time—or you can kidnap people and feed them manually. Dead bodies cannot be fed to the Lifeweb. Dead bodies can, however, be buried to bring the person's soul to peace—it takes a Routine move (hard to dig the pit).
               - >-
                 Any crimes you commit in service of your vow are not crimes.
               - >-
@@ -919,6 +932,7 @@ zones:
             starting_tags:
               - Ravenhearter
               - Mortus
+              - Mortus Rags
             doc_elements:
               - townstarting
               - lifeweb
@@ -932,25 +946,27 @@ zones:
                 You live in a shell and sleep with the dogs, but you understand life (or think you do). Beg for food and coin.
             difficulty: easy
             multiple: true
-            weight: unlimited
+            weight: 5
             starting_resources: 1
             starting_zone: town
             starting_tags:
               - Ravenhearter
+              - Unhygenic
+              - Ugly
             doc_elements:
               - townstarting
           - name: Pusher
             slug: pusher
             intro: >-
-              Sell drugs.
+              Sell drugs, run the gambling den, peddle to people's worldly desires. Hell, hire a few bums to be your goons.
             description:
               - >-
-                Sell drugs.
+                Sell drugs. The Abandoned Theater in the Underquarter is yours; run a gambling den.
               - >-
                 You start with an assortment of drugs and can make more.
             difficulty: normal
             multiple: false
-            starting_resources: 1
+            starting_resources: 8
             starting_zone: town
             starting_tags:
               - Ravenhearter
@@ -960,6 +976,7 @@ zones:
               - Poppy
               - Advanced Poppy
               - Distilled Coca
+              - Alcohol
             doc_elements:
               - townstarting
               - alcoholdrugs
@@ -1036,12 +1053,16 @@ zones:
                 A little hint: some of the Watchmen take bribes.
             difficulty: normal
             multiple: false
-            starting_resources: 1
+            starting_resources: 3
             starting_zone: town
             leader: true
             starting_tags:
               - Brigand
-              - Fighting (Basic)
+              - Fighting (Trained)
+              - Brigandine
+              - Simple Helm
+              - Buckler
+              - Crossbow
             doc_elements:
               - campstarting
               - concealing
@@ -1063,11 +1084,16 @@ zones:
             difficulty: easy
             multiple: true
             weight: 2
-            starting_resources: 1
+            starting_resources: 2
             starting_zone: town
             starting_tags:
               - Brigand
               - Fighting (Basic)
+              - Dagger
+              - Padded Armor
+              - Mail Coif
+              - Buckler
+              - Shortbow
             doc_elements:
               - campstarting
               - concealing
@@ -1106,8 +1132,14 @@ zones:
             starting_tags:
               - Fighting (Trained)
               - Windlander
+              - Tactician
+              - Sabre
+              - Buckler
               - Sign Language
               - The Wind
+              - Knight's Helmet
+              - Brigandine
+              - Mail Coif
               - Nobility
               - Literate
               - Bastard's Garb
@@ -1129,7 +1161,11 @@ zones:
             starting_zone: windlands
             starting_tags:
               - Musician
+              - Brave
               - Fighting (Skilled)
+              - Knight's Helmet
+              - Mail Coif
+              - Mail Shirt
               - Windlander
               - Sign Language
               - The Wind
@@ -1149,6 +1185,10 @@ zones:
             starting_tags:
               - Windlander
               - Sign Language
+              - Laborer (Basic)
+              - Keen Hearing
+              - Sixth Sense
+              - Medical (Basic)
               - The Wind
             doc_elements:
               - campstarting
@@ -1167,6 +1207,11 @@ zones:
             starting_tags:
               - Windlander
               - Sign Language
+              - Laborer (Basic)
+              - Fighting (Basic)
+              - Dagger
+              - Spear
+              - Salvage Plate
               - The Wind
             doc_elements:
               - campstarting
@@ -1195,8 +1240,10 @@ zones:
             starting_tags:
               - Fighting (Trained)
               - Windlander
+              - Tactician
               - Sign Language
               - The Wind
+              - Broken Spears Banner
             doc_elements:
               - campstarting
               - brokenspear
@@ -1208,15 +1255,22 @@ zones:
               - >-
                 Supply the Clan with tonics, sound the drums, and keep the men fighting!
               - >-
-                You are the Lieutenant's right hand man.
+                You are the Lieutenant's right hand man, but you are also the Broken Spears' most radically posed man. The Windriders are dangerous, treacherous, plotting to depose the Broken Spears—and possibly the Bastard himself. What weakness!  You venerate your ancestors and act entirely according to Providence. It's clear that even if you take Ravenheart, the Windriders will have to go. Only one clan can come out alive out of the two. Desires to continue feuds are valid for you.
             difficulty: normal
-            multiple: false
+            multiple: true
+            weight: 1
             starting_resources: 1
             starting_zone: windlands
             starting_tags:
               - Brewing (Skilled)
               - Musician
-              - Fighting (Trained)
+              - Medical (Basic)
+              - Fighting (Basic)
+              - Salvage Plate
+              - Mail Coif
+              - Distilled Coca
+              - Poppy
+              - Advanced Poppy
               - Windlander
               - Sign Language
               - The Wind
@@ -1232,12 +1286,17 @@ zones:
                 A member of the Broken Spears: a warrior, a drug alchemist, a drummer, a healer, a fortune teller, a herder, or simply a camp follower—the spouse or servant of one of the above.
             difficulty: easy
             multiple: true
-            weight: 6
+            weight: 4
             starting_resources: 1
             starting_zone: windlands
             starting_tags:
+              - Fighting (Basic)
               - Windlander
               - Sign Language
+              - Spear
+              - Dagger
+              - Salvage Plate
+              - Laborer (Basic)
               - The Wind
             doc_elements:
               - campstarting
@@ -1264,8 +1323,11 @@ zones:
             leader: true
             starting_tags:
               - Windlander
+              - Tactician
               - Sign Language
+              - Fighting (Trained)
               - The Wind
+              - Windrider Banner
             doc_elements:
               - campstarting
               - windrider
@@ -1277,18 +1339,22 @@ zones:
               - >-
                 Track the enemy and ensure the plan comes to fruition.
               - >-
-                You are the Lieutenant's right hand man.
+                You are the Lieutenant's right hand man, but you are also the Windrider's most radically posed man. You venerate your ancestors and act entirely according to Providence. You almost feel as if dealing with the blood-crazed, idiot Broken Spears is a more important goal for now—it's clear that even if you take Ravenheart, they will have to go. Only one clan can come out alive out of the two. Desires to continue feuds are valid for you.
             difficulty: normal
-            multiple: false
+            multiple: true
+            weight: 1
             starting_resources: 1
             starting_zone: windlands
             starting_tags:
-              - Neoclassic R&W10
-              - Windlander (Horse)
+              - Musketoon
+              - Horse (Windlander)
               - Windlander
               - Sign Language
               - The Wind
+              - Spotter
               - Fighting (Trained)
+              - Mail Shirt
+              - Mail Coif
               - Tracking
             doc_elements:
               - campstarting
@@ -1302,13 +1368,19 @@ zones:
                 You are the essence of the Windlands: a warrior, a healer, a mentat, a scribe, an inventor-engineer, a herder, or simply a camp follower—the spouse or servant of one of the above.
             difficulty: easy
             multiple: true
-            weight: 6
+            weight: 4
             starting_resources: 1
             starting_zone: windlands
             starting_tags:
+              - Fighting (Basic)
+              - Shortbow
+              - Cudgel
+              - Dagger
+              - Salvage Plate
               - Windlander
               - Sign Language
               - The Wind
+              - Laborer (Basic)
             doc_elements:
               - campstarting
               - windrider
@@ -1342,6 +1414,7 @@ zones:
             leader: true
             starting_tags:
               - Literate
+              - Merchant's Garb
             doc_elements:
               - townstarting
               - merchant
@@ -1376,7 +1449,7 @@ zones:
             weight: unlimited
             starting_resources: 1
             starting_zone: railroad
-            starting_tags: []
+            starting_tags: [Pale]
             doc_elements: [caving]
           - name: Mercenary
             slug: mercenary

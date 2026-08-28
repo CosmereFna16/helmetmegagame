@@ -311,9 +311,9 @@ false as every item's is, and `requirement` is the craft cost:
     removable: true
     craftable: true
     requirement:
-      turnsCost: 2
-      resourceCost: 35
-      skills: [smithing]
+      turnsCost: 1
+      resourceCost: 23
+      skills: [smithing-skilled]
       gambit: false
 ```
 

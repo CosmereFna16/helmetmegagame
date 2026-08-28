@@ -155,7 +155,7 @@ export default function PointBuy({
   );
 
   const [query, setQuery] = useState("");
-  const [sortMode, setSortMode] = useState("group");
+  const [sortMode, setSortMode] = useState("cost");
   const [groupFilter, setGroupFilter] = useState("");
   // "Unlocked by your tags": only tags sitting behind a prerequisite gate.
   // Everything on offer already passed unlockedTags, so gated-and-shown

@@ -8,58 +8,6 @@ import RichText from "./RichText";
 import FactionLink from "./FactionLink";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 
-// Raw d6 first, then the summed modifier (Hunger) and the total —
-// a GM reading this has to be able to tell a modified 5 from a natural 5.
-function formatRoll(action) {
-  if (action.diceRoll == null) return "";
-  const mod = action.diceModifier ?? 0;
-  if (!mod) return ` — rolled ${action.diceRoll}`;
-  const sign = mod > 0 ? `+${mod}` : `${mod}`;
-  return ` — rolled ${action.diceRoll} (${sign}) = ${action.diceRoll + mod}`;
-}
-
-function ActionStatus({ currentAction, openTurn }) {
-  if (!openTurn) return <p className="text-sm text-muted">No turn is currently open.</p>;
-
-  if (!currentAction) return null;
-
-  const kindLabel =
-    currentAction.moveKind === "GAMBIT"
-      ? "Gambit"
-      : currentAction.moveKind === "ROUTINE"
-        ? "Routine"
-        : currentAction.type === "MOVE"
-          ? "Move"
-          : "Move";
-
-  return (
-    <div className="text-sm">
-      <p className="mb-1">
-        {kindLabel}: {currentAction.description}
-      </p>
-      {currentAction.status === "PENDING_TYPE" && (
-        <p className="text-muted">Waiting on you to set Kind and hit Confirm — check Discord DMs.</p>
-      )}
-      {currentAction.status === "PENDING_OPPOSED" && (
-        <p className="text-muted">Pending confirmation — check Discord DMs and hit Confirm to lock it in.</p>
-      )}
-      {currentAction.status === "PENDING" && (
-        <p className="text-muted">Pending confirmation — check Discord DMs and hit Confirm to lock it in.</p>
-      )}
-      {currentAction.status === "CONFIRMED" && currentAction.moveReviewStatus !== "SOLVED" && (
-        <p className="text-muted">
-          Confirmed{formatRoll(currentAction)} — awaiting GM review.
-        </p>
-      )}
-      {(currentAction.status === "ADJUDICATED" || currentAction.moveReviewStatus === "SOLVED") && (
-        <p>
-          <span className="text-positive">Solved</span>
-        </p>
-      )}
-    </div>
-  );
-}
-
 // The header's avatar, rendered into PageHeader's `actions` slot. A plain
 // image rather than a button — the portrait maker and avatar upload live in
 // the Bio panel below, not up here.
@@ -171,14 +119,7 @@ export default function CharacterSheet({
             harmTags={harmTags}
           >
             <div className="flex flex-col gap-6">
-              <StatusPanel character={character} isSelf={isSelf} />
-
-              {!isSelf && currentAction && (
-                <section className="panel p-4">
-                  <h2 className="panel-header">This turn</h2>
-                  <ActionStatus currentAction={currentAction} openTurn={openTurn} />
-                </section>
-              )}
+              <StatusPanel character={character} isSelf={isSelf} currentAction={currentAction} openTurn={openTurn} />
 
               <TagsPanel
                 characterTags={character.tags}
