@@ -676,7 +676,10 @@ async function advanceTurn() {
       const failed = [];
       for (const recipient of delivery.recipients) {
         try {
-          await sendDm(prisma, recipient.discordUserId, delivery.content);
+          await sendDm(prisma, recipient.discordUserId, delivery.content, {
+            authorDiscordUserId: delivery.createdByDiscordUserId ?? null,
+            source: "staged_push",
+          });
         } catch (err) {
           failed.push({
             characterId: recipient.characterId,

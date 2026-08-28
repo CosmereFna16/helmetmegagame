@@ -193,7 +193,10 @@ async function resendStagedMessageImpl({ stagedMessageId }) {
       .filter((c) => failedIds.has(c.id));
     for (const target of targets) {
       try {
-        await sendDm(target.discordUserId, existing.content);
+        await sendDm(target.discordUserId, existing.content, {
+          authorDiscordUserId: existing.createdByDiscordUserId,
+          source: "staged_push",
+        });
         resent += 1;
       } catch (err) {
         stillFailing.push({ characterId: target.id, name: target.name, error: String(err?.message ?? err) });
@@ -660,6 +663,7 @@ async function rejectMoveImpl({ actionId, reason: rawReason }) {
     await sendDm(
       action.character.discordUserId,
       `Your Move was unlocked and returned to you — you can act again this turn.\n${reason}`,
+      { authorDiscordUserId: session.discordUserId, source: "move_unlock" },
     );
   } catch (err) {
     console.error(`Failed to DM the unlock to ${action.character.discordUserId}:`, err);
@@ -936,7 +940,10 @@ async function sendInspectorDmImpl({ characterId, content }) {
 
   // sendDm adds the » prefix and logs the DirectMessage row itself — this
   // caller passes raw text, same as every other sendDm call site.
-  const sent = await sendDm(character.discordUserId, text).catch(() => null);
+  const sent = await sendDm(character.discordUserId, text, {
+    authorDiscordUserId: session.discordUserId,
+    source: "gm_inspector",
+  }).catch(() => null);
 
   await prisma.auditLog.create({
     data: {

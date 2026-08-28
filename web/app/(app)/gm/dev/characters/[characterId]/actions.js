@@ -321,6 +321,7 @@ async function restoreTurnImpl({ characterId, reason, notify = true }) {
       sendDm(
         character.discordUserId,
         `Your Move was returned to you — you can act again this turn.${reason?.trim() ? `\n${reason.trim()}` : ""}`,
+        { authorDiscordUserId: session.discordUserId, source: "gm_dev" },
       ).catch(() => null),
     );
   }
@@ -372,7 +373,10 @@ async function messageCharacterImpl({ characterId, message }) {
   const text = message?.trim();
   if (!text) throw new UserError("Write something first.");
 
-  const sent = await sendDm(character.discordUserId, text).catch(() => null);
+  const sent = await sendDm(character.discordUserId, text, {
+    authorDiscordUserId: session.discordUserId,
+    source: "gm_dev",
+  }).catch(() => null);
   await audit(session, sent ? "gm_dm_sent" : "gm_message_delivery_failed", characterId, {
     length: text.length,
   });

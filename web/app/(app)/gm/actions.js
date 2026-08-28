@@ -38,7 +38,7 @@ async function deliverGmMessage(actorDiscordUserId, recipients, message) {
 
   for (const recipient of recipients) {
     try {
-      await sendDm(recipient.discordUserId, message);
+      await sendDm(recipient.discordUserId, message, { authorDiscordUserId: actorDiscordUserId, source: "gm_broadcast" });
     } catch (err) {
       console.error(`GM message to ${recipient.name} (${recipient.discordUserId}) failed:`, err);
       failed.push({ characterId: recipient.id, name: recipient.name, discordUserId: recipient.discordUserId });
@@ -100,7 +100,7 @@ export async function sendDmReply(formData) {
   if (!discordUserId || !message) return;
   if (message.length > GM_MESSAGE_MAX_LENGTH) return;
 
-  await sendDm(discordUserId, message);
+  await sendDm(discordUserId, message, { authorDiscordUserId: session.discordUserId, source: "gm_reply" });
 
   await prisma.auditLog.create({
     data: {

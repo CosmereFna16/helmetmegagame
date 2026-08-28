@@ -21,11 +21,23 @@ const { postDmBatched } = require("./discordRest");
 // postDmBatched splits anything over Discord's 2000 characters rather than
 // letting the send fail, and reuses the cached DM channel. One log row per
 // call carries the whole text, however many messages it took to deliver.
-async function sendDm(prisma, discordUserId, content) {
+async function sendDm(prisma, discordUserId, content, opts = {}) {
   const formatted = `» ${content}`;
   const message = await postDmBatched(discordUserId, formatted);
   await prisma.directMessage
-    .create({ data: { discordUserId, direction: "OUTBOUND", content: formatted } })
+    .create({
+      data: {
+        discordUserId,
+        direction: "OUTBOUND",
+        content: formatted,
+        authorDiscordUserId: opts.authorDiscordUserId ?? null,
+        source: opts.source ?? "bot_auto",
+        discordMessageId: message?.id ?? null,
+        // ?? undefined: a caller's explicit null would be rejected by Prisma
+        // for a Json? column, and the .catch below would eat the lost row.
+        meta: opts.meta ?? undefined,
+      },
+    })
     .catch(() => {});
   return message;
 }

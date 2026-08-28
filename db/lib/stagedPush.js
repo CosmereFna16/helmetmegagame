@@ -213,7 +213,12 @@ async function runStagedPushPass(prisma, turn, config) {
       failures.push({ kind: "message", id: message.id, error: "no recipients" });
       continue;
     }
-    privateDeliveries.push({ stagedMessageId: message.id, content: message.content, recipients });
+    privateDeliveries.push({
+      stagedMessageId: message.id,
+      content: message.content,
+      recipients,
+      createdByDiscordUserId: message.createdByDiscordUserId,
+    });
   }
 
   return {

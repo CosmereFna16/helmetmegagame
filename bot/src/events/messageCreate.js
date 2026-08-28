@@ -27,8 +27,19 @@ module.exports = {
     if (message.author.bot || message.webhookId) return;
 
     if (!message.inGuild()) {
+      const attachmentNames = message.attachments.size > 0 ? [...message.attachments.values()].map((a) => a.name) : null;
+      const content = message.content || (attachmentNames ? `*(attachment: ${attachmentNames.join(", ")})*` : "");
       await prisma.directMessage
-        .create({ data: { discordUserId: message.author.id, direction: "INBOUND", content: message.content } })
+        .create({
+          data: {
+            discordUserId: message.author.id,
+            direction: "INBOUND",
+            content,
+            source: "player",
+            discordMessageId: message.id,
+            meta: attachmentNames ? { attachments: attachmentNames } : undefined,
+          },
+        })
         .catch(() => {});
       return;
     }

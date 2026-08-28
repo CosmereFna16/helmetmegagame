@@ -1456,7 +1456,8 @@ model StagedEffect {
 
   // { resources?: Int, tagOps?: [op] } — the op shape is the Dev Panel's
   // (see db/lib/tagOps.js): {tagId, op: add|remove|patch, quantity?, source?,
-  // expiry?, equipped?}.
+  // expiry?, equipped?}. May also carry a future `zoneId?: String` key
+  // (staged relocation).
   payload Json
 
   appliedAt     DateTime?
@@ -1499,8 +1500,45 @@ model DirectMessage {
   content       String
   createdAt     DateTime    @default(now())
 
+  // The GM who sent it; null = bot/system or inbound.
+  authorDiscordUserId String?
+
+  // gm_reply | gm_broadcast | gm_inspector | gm_dev | gm_slash |
+  // move_unlock | staged_push | bot_auto | player. Plain String on purpose —
+  // a PG enum would cost a migration per new value.
+  source String?
+
+  // Discord id of the sent message — the last chunk when postDmBatched had
+  // to split it, which is the same message for anything under 2000 chars.
+  discordMessageId String?
+
+  // e.g. { attachments: [names] } or { embed: true }.
+  meta Json?
+
   @@index([discordUserId, createdAt])
   @@index([createdAt])
+  @@index([direction, discordUserId, createdAt]) // unread scans
+}
+
+// Per-GM read cursor on a player conversation. Unread = INBOUND
+// DirectMessage rows newer than lastReadAt. Snapshot ids, no relations/FKs —
+// same log-table convention as DirectMessage.
+model ConversationRead {
+  id                  String   @id @default(cuid())
+  gmDiscordUserId     String
+  playerDiscordUserId String
+  lastReadAt          DateTime
+
+  @@unique([gmDiscordUserId, playerDiscordUserId])
+}
+
+// Conversation-level state, currently just advisory claiming. Snapshot ids,
+// no relations/FKs — same log-table convention as DirectMessage.
+model ConversationMeta {
+  id                     String    @id @default(cuid())
+  playerDiscordUserId    String    @unique
+  claimedByDiscordUserId String?
+  claimedAt              DateTime?
 }
 
 // A player's personal note on a message in a Location channel — created by

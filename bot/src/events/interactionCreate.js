@@ -74,7 +74,7 @@ async function handleGmDmCommand(interaction) {
   const content = interaction.options.getString("message", true);
 
   try {
-    await sendDm(recipient, `» ${content}`);
+    await sendDm(recipient, `» ${content}`, { authorDiscordUserId: interaction.user.id, source: "gm_slash" });
     await respond(interaction, `» *Sent to ${recipient}.*`, { fleeting: true });
   } catch (err) {
     console.error("Failed to send /dm DM:", err);

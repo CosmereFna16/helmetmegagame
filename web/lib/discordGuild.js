@@ -665,11 +665,24 @@ export { CHANNEL_TYPE_CATEGORY };
 //
 // The prefix goes on before the split, so it lands on the first message and
 // the continuations run on bare.
-export async function sendDm(discordUserId, content) {
+export async function sendDm(discordUserId, content, opts = {}) {
   const formatted = `» ${content}`;
   const message = await postDmBatched(discordUserId, formatted);
   await prisma.directMessage
-    .create({ data: { discordUserId, direction: "OUTBOUND", content: formatted } })
+    .create({
+      data: {
+        discordUserId,
+        direction: "OUTBOUND",
+        content: formatted,
+        authorDiscordUserId: opts.authorDiscordUserId ?? null,
+        // null, not "bot_auto" like the other two twins: nothing in the web
+        // app sends automated DMs, so an unlabelled row here is "unknown" —
+        // the same reading the UI already gives pre-migration rows.
+        source: opts.source ?? null,
+        discordMessageId: message?.id ?? null,
+        meta: opts.meta ?? undefined,
+      },
+    })
     .catch(() => {});
   return message;
 }
