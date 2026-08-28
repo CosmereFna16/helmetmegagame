@@ -324,4 +324,63 @@ export const SECTIONS = {
       </>
     ),
   },
+
+  // Subject differs from filer, same as HEAL_CHARACTER: the patient/victim
+  // is named explicitly rather than left to the desk's universal half.
+  LOOT_CHARACTER: {
+    heading: "Loot Character",
+    render: ({ effect }) => (
+      <>
+        <Line label="Taken from">
+          {effect.targetCharacterId ? (
+            <CharacterLink characterId={effect.targetCharacterId} name={effect.targetName ?? "—"} isGm />
+          ) : (
+            (effect.targetName ?? "—")
+          )}
+        </Line>
+        <Line label="Tags">
+          {(effect.tags ?? []).length
+            ? effect.tags.map((t) => stackLabel(t)).join(", ")
+            : "—"}
+        </Line>
+        <Line label="⬢ taken">{effect.amount ?? 0}</Line>
+        <p className="text-xs text-muted">
+          Undo returns every tag and the ⬢ to the target.
+        </p>
+      </>
+    ),
+  },
+
+  MOVE_CHARACTER: {
+    heading: "Move Character",
+    render: ({ effect }) => (
+      <>
+        <Line label="Moved">
+          {effect.targetCharacterId ? (
+            <CharacterLink characterId={effect.targetCharacterId} name={effect.targetName ?? "—"} isGm />
+          ) : (
+            (effect.targetName ?? "—")
+          )}
+        </Line>
+        <Line label="To">{effect.toZoneName ?? "—"}</Line>
+        <p className="text-xs text-muted">
+          Undo restores their previous zone in the database. It does not re-sync Discord access —
+          that catches up the next time they make an ordinary Move.
+        </p>
+      </>
+    ),
+  },
+
+  CREATE_TAG: {
+    heading: "Create Item",
+    render: ({ effect }) => (
+      <>
+        <Line label="Item">{stackLabel(effect)}</Line>
+        <Line label="Spent">{effect.resourcesSpent ?? 0} ⬢</Line>
+        <p className="text-xs text-muted">
+          Undo takes the grant back, refunds the cost, and deletes the tag itself if nobody else holds it.
+        </p>
+      </>
+    ),
+  },
 };

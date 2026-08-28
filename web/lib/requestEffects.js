@@ -630,6 +630,80 @@ export const REQUEST_EFFECTS = {
       return `Took back ${formatStack(tagName, added)}.`;
     },
   },
+
+  // Looting a living, incapacitated target. `request.characterId` is the
+  // looter; `effect.targetCharacterId` is the person it came off — the same
+  // "subject differs from filer" shape HEAL_CHARACTER documents above. Undo
+  // takes every tag back off the looter and restores it to the target with
+  // its original source/expiry, and reverses the ⬢.
+  LOOT_CHARACTER: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { targetCharacterId, targetName, tags = [], amount } = request.effect;
+      for (const t of tags) {
+        if (!t.tagId) continue;
+        await dropCharacterTag(tx, request.characterId, t.tagId, t.quantity ?? 1);
+        if (targetCharacterId) await restoreCharacterTag(tx, targetCharacterId, t);
+      }
+      if (amount && targetCharacterId) {
+        await moveResources(tx, { kind: "character", id: request.characterId }, -amount);
+        await moveResources(tx, { kind: "character", id: targetCharacterId }, amount);
+      }
+      const took = tags.map((t) => formatStack(t.tagName, t.quantity));
+      const notes = [];
+      if (took.length) notes.push(took.join(", "));
+      if (amount) notes.push(`${amount} ⬢`);
+      return notes.length
+        ? `Returned ${notes.join(" and ")} to ${targetName ?? "the target"}.`
+        : `Nothing to return to ${targetName ?? "the target"}.`;
+    },
+  },
+
+  // Moving a character who follows the filer. Undo puts `Character.zoneId`
+  // back to `fromZoneId` — DB only. It does NOT re-run the Discord zone-role
+  // swap, matching CHANGE_NAME's documented posture: no network call may run
+  // inside this transaction (ARCHITECTURE.md §5), so the moved player's
+  // Discord channel access catches up the next time THEY make an ordinary
+  // Move, which always re-syncs off the live DB zone.
+  MOVE_CHARACTER: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { targetCharacterId, targetName, fromZoneId } = request.effect;
+      if (targetCharacterId) {
+        await tx.character.update({ where: { id: targetCharacterId }, data: { zoneId: fromZoneId ?? null } });
+      }
+      return `Moved ${targetName ?? "them"} back to their previous zone. Discord access is not re-synced by Undo — it catches up on their next Move.`;
+    },
+  },
+
+  // A player-authored Item. Undo always takes the CharacterTag grant back
+  // off the filer. The Tag row itself is only deleted if nothing else on the
+  // sheet still points at it (another CharacterTag, since a player-created
+  // Item has no children/prerequisites/skills to gate on) — the same
+  // reference check /gm/dev/tags' delete does. If something else DOES
+  // reference it, Undo leaves the Tag row behind, orphaned rather than
+  // crashing; a GM can still hand-delete it from /gm/dev/tags once it's
+  // truly unheld.
+  CREATE_TAG: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { tagId, tagName, quantity, resourcesSpent } = request.effect;
+      if (tagId) {
+        await dropCharacterTag(tx, request.characterId, tagId, quantity ?? 1);
+        const stillHeld = await tx.characterTag.count({ where: { tagId } });
+        if (!stillHeld) {
+          await tx.tag.deleteMany({ where: { id: tagId, custom: true } });
+        }
+      }
+      if (resourcesSpent) {
+        await tx.character.update({
+          where: { id: request.characterId },
+          data: { resources: { increment: resourcesSpent } },
+        });
+      }
+      return `Removed ${formatStack(tagName, quantity)} and refunded ${resourcesSpent ?? 0} ⬢.`;
+    },
+  },
 };
 
 // A GM can only ever set a non-negative amount; anything else is a typo, and

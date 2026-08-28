@@ -150,6 +150,18 @@ enum RequestType {
   // other request; a GM's Undo goes through the ordinary handler in
   // web/lib/requestEffects.js. See docs/systemdocs/CAVING.md.
   CAVING_LOOT
+  // Looting a living but incapacitated player (dying/catatonic/paralyzed/
+  // bound) in the filer's zone — tags and/or ⬢ taken in one request. See
+  // db/lib/incapacitation.js and REQUESTS.md.
+  LOOT_CHARACTER
+  // Moving a character who follows the filer: a Leader moving a faction
+  // member, or anyone moving someone they've bound. DB write happens in the
+  // request transaction; the Discord zone-role swap happens after commit
+  // (ARCHITECTURE.md §5 — no network call inside a transaction).
+  MOVE_CHARACTER
+  // Player-authored Item tag, namespaced (`custom-<id>`) so its slug can
+  // never shadow a catalog slug. See REQUESTS.md.
+  CREATE_TAG
 }
 
 // PASSED is the default and means "not yet touched by a GM" — the request

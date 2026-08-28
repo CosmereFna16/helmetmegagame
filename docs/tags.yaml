@@ -1508,6 +1508,20 @@ tags:
     purchasableAfterStart: false
     removable: false
 
+  # Granted/cleared by whoever does the binding — a GM microaction or a
+  # MOVE_CHARACTER/LOOT_CHARACTER request, never a picker, hence
+  # purchasable false. See db/lib/incapacitation.js and REQUESTS.md.
+  - slug: bound
+    name: Bound
+    category: status
+    group: status-debuffs
+    description: "Restrained — can't act, can be looted or moved by whoever bound them."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
   - slug: tipsy
     name: Tipsy
     category: status

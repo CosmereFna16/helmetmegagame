@@ -35,7 +35,13 @@ import {
 import { canReachParty, canReachSilo, outOfReachMessage } from "@/lib/transferReach";
 import { resolveConsumeGrants, heldSlugsOf } from "@/lib/consumeGrants";
 import { recordArchiveEvent } from "@/lib/archive";
-import { syncCharacterNarrowcastAccess, syncCharacterNickname, ensureCharacterRole } from "@/lib/discordGuild";
+import {
+  syncCharacterNarrowcastAccess,
+  syncCharacterNickname,
+  ensureCharacterRole,
+  syncCharacterZoneRole,
+} from "@/lib/discordGuild";
+import { INCAPACITATING_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { NAME_LIMITS, formatCharacterName, formatBareName, normalizeEarnedHonorific } from "@/lib/characterName";
 import { propagateDynastyLastName } from "@/lib/dynasty";
 
@@ -805,6 +811,292 @@ async function healCharacterRequestImpl({
   return { targetName: target.name, tagName: held.tag.name, cost };
 }
 
+// --- Looting a living, incapacitated target ----------------------------
+
+// Someone dying/catatonic/paralyzed/bound in the filer's zone is a lootable
+// pile the same way a corpse is (`TRANSFER_TAG`'s LOOT direction), except
+// they're still ALIVE — one request can take a mix of tags AND ⬢ at once
+// rather than needing a TRANSFER_TAG + TRANSFER_RESOURCES pair, since both
+// come off the same helpless person in the same act.
+//
+// UI wiring (a picker on the character sheet, alongside CorpseLootPanel) is
+// pending — CharacterSheet.js/TagRequestButtons.js are owned by the
+// character-sheet-layout agent's pass. This is the server-side half only.
+async function lootCharacterRequestImpl({
+  targetCharacterId,
+  tagPicks: rawTagPicks,
+  amount: rawAmount,
+  reason: rawReason,
+}) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+
+  if (!character.zoneId) throw new UserError("You aren't anywhere you could do that.");
+
+  const target = await prisma.character.findFirst({
+    where: { id: targetCharacterId ?? "", status: "ALIVE", zoneId: character.zoneId },
+    include: {
+      tags: {
+        include: { tag: { select: { name: true, category: true, stackable: true, slug: true } } },
+      },
+    },
+  });
+  if (!target) throw new UserError("They aren't here.");
+
+  const incapacitated = target.tags.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug));
+  if (!incapacitated) throw new UserError("They aren't in any state to be looted.");
+
+  const picks = Array.isArray(rawTagPicks) ? rawTagPicks : [];
+  const amount = parseCount(rawAmount, { min: 0 }) ?? 0;
+  if (!picks.length && amount <= 0) throw new UserError("Pick something to take.");
+
+  // Capped at what the target actually holds, same discipline as TRANSFER_TAG
+  // — a hand-crafted request can't mint items out of a stack that isn't
+  // there.
+  const takenTags = [];
+  for (const pick of picks) {
+    const held = target.tags.find((ct) => ct.tagId === pick.tagId);
+    if (!held || !TRANSFERABLE_CATEGORIES.includes(held.tag.category)) {
+      throw new UserError("Only Items and Assets can be taken.");
+    }
+    const quantity = held.tag.stackable
+      ? (parseCount(pick.quantity, { min: 1, max: held.quantity }) ?? null)
+      : held.quantity;
+    if (quantity == null) throw new UserError(`Bad quantity for ${held.tag.name}.`);
+    takenTags.push({
+      tagId: held.tagId,
+      tagName: held.tag.name,
+      quantity,
+      source: held.source,
+      expiresTurn: held.expiresTurn,
+      stackable: held.tag.stackable,
+    });
+  }
+
+  if (amount > target.resources) throw new UserError(`${target.name} only has ${target.resources} ⬢.`);
+
+  const openTurn = await getOpenTurn();
+
+  await prisma.$transaction(async (tx) => {
+    for (const t of takenTags) {
+      await dropCharacterTag(tx, target.id, t.tagId, t.quantity);
+      await addToStack(tx, character.id, t.tagId, t.quantity, {
+        source: "EVENT",
+        expiresTurn: t.expiresTurn,
+        stackable: t.stackable,
+      });
+    }
+    if (amount > 0) {
+      await moveResources(tx, { kind: "character", id: target.id }, -amount);
+      await moveResources(tx, { kind: "character", id: character.id }, amount);
+    }
+
+    // The snapshot Undo reads: enough per tag to restore it to the target
+    // with its original source/expiry (REMOVE_TAG's restore idiom), plus the
+    // ⬢ delta. Never re-derived from live state.
+    const effect = {
+      targetCharacterId: target.id,
+      targetName: target.name,
+      tags: takenTags.map((t) => ({
+        tagId: t.tagId,
+        tagName: t.tagName,
+        quantity: t.quantity,
+        source: t.source,
+        expiresTurn: t.expiresTurn,
+      })),
+      amount,
+    };
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn?.id ?? null,
+      type: "LOOT_CHARACTER",
+      reason,
+      payload: { targetCharacterId: target.id, tagPicks: picks, amount },
+      effect,
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_loot_character",
+      targetCharacterId: target.id,
+      reason,
+      details: effect,
+    });
+  });
+
+  await Promise.all([
+    syncCharacterNarrowcastAccess(target.id).catch(() => {}),
+    syncCharacterNarrowcastAccess(character.id).catch(() => {}),
+  ]);
+  revalidateAll();
+  return {};
+}
+
+// --- Moving another character -------------------------------------------
+
+// A character who follows the filer: either a faction member the filer
+// leads, or anyone the filer has bound. Destination is validated the same
+// way an ordinary /move hop is (db/lib/travel.js#performTravel) — direct
+// Zone.connectsTo neighbour of the target's current zone, never the Caves
+// group row — but this does NOT spend a Move or file an Action, since it
+// isn't the target's own turn-cost act. The DB write happens inside the
+// transaction; the Discord zone-role swap runs after commit, same as
+// changeNameRequestImpl — no network call may run inside a $transaction
+// (ARCHITECTURE.md §5).
+async function moveCharacterRequestImpl({ targetCharacterId, targetZoneId, reason: rawReason }) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+
+  if (!character.zoneId) throw new UserError("You aren't anywhere you could do that.");
+
+  const target = await prisma.character.findFirst({
+    where: { id: targetCharacterId ?? "", status: "ALIVE", zoneId: character.zoneId },
+    include: { tags: { where: { tag: { slug: "bound" } }, select: { tagId: true } } },
+  });
+  if (!target) throw new UserError("They aren't here.");
+
+  const isBound = target.tags.length > 0;
+  const commandsThem =
+    character.isLeader && target.factionId != null && target.factionId === character.factionId;
+  if (!isBound && !commandsThem) {
+    throw new UserError("You can only move someone you lead, or someone bound.");
+  }
+
+  const targetZone = await prisma.zone.findUnique({ where: { id: targetZoneId ?? "" } });
+  if (!targetZone) throw new UserError("Unknown destination.");
+  if (targetZone.kind === "CAVE_GROUP") throw new UserError("That isn't a place you can stand.");
+  if (targetZone.id === target.zoneId) throw new UserError("They're already there.");
+
+  const currentZone = await prisma.zone.findUnique({
+    where: { id: character.zoneId },
+    include: { connectsTo: { where: { id: targetZone.id } } },
+  });
+  if (!currentZone || currentZone.connectsTo.length === 0) {
+    throw new UserError("You can't get there directly from here.");
+  }
+
+  const openTurn = await getOpenTurn();
+  const fromZoneId = target.zoneId;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.character.update({ where: { id: target.id }, data: { zoneId: targetZone.id } });
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn?.id ?? null,
+      type: "MOVE_CHARACTER",
+      reason,
+      payload: { targetCharacterId: target.id, targetZoneId: targetZone.id },
+      // Undo restores fromZoneId in the DB only — it does NOT re-run the
+      // Discord role swap (same posture CHANGE_NAME documents), so the
+      // player's #zone channels catch up the next time they Move themselves.
+      effect: {
+        targetCharacterId: target.id,
+        targetName: target.name,
+        fromZoneId,
+        toZoneId: targetZone.id,
+        toZoneName: targetZone.name,
+      },
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_move_character",
+      targetCharacterId: target.id,
+      reason,
+      details: { fromZoneId, toZoneId: targetZone.id },
+    });
+  });
+
+  await syncCharacterZoneRole(target.discordUserId, fromZoneId, targetZone.id).catch(() => {});
+  await syncCharacterNarrowcastAccess(target.id).catch(() => {});
+  revalidateAll();
+  return {};
+}
+
+// --- Creating a custom Item -----------------------------------------------
+
+// A player-authored Item, distinct from the GM's /gm/dev/tags custom tags
+// (web/app/(app)/gm/dev/tags/actions.js) only in who may file one and where
+// it starts: category is pinned to "Items", nothing but a name/description/
+// quantity/optional ⬢ cost is player-settable, and the new tag is granted
+// straight to the filer. Same "custom-" slug prefix and the same reason for
+// it: a player-chosen slug could otherwise collide with (or later get
+// silently upserted over by) a docs/tags.yaml entry of the same name. Using
+// crypto.randomUUID() rather than a slugified name means two players titling
+// an item identically never collide with EACH OTHER either.
+function customPlayerTagSlug() {
+  return `custom-${crypto.randomUUID()}`;
+}
+
+async function createTagRequestImpl({
+  name: rawName,
+  description: rawDescription,
+  quantity: rawQuantity,
+  resourcesSpent: rawSpend,
+  reason: rawReason,
+}) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+
+  const name = rawName?.toString().trim().slice(0, 60);
+  if (!name) throw new UserError("Give it a name.");
+  const description = rawDescription?.toString().trim().slice(0, 500) || null;
+  const quantity = parseCount(rawQuantity, { min: 1, max: 99 }) ?? 1;
+  const resourcesSpent = parseCount(rawSpend, { min: 0 }) ?? 0;
+  if (resourcesSpent > character.resources) throw new UserError("You don't have that many ⬢.");
+
+  const clash = await prisma.tag.findFirst({ where: { name }, select: { name: true } });
+  if (clash) throw new UserError(`A tag called "${clash.name}" already exists.`);
+
+  const slug = customPlayerTagSlug();
+  const openTurn = await getOpenTurn();
+  const stackable = quantity > 1;
+
+  await prisma.$transaction(async (tx) => {
+    const tag = await tx.tag.create({
+      data: {
+        name,
+        slug,
+        description,
+        category: "Items",
+        pointCost: 0,
+        purchasable: false,
+        purchasableAfterStart: false,
+        craftable: false,
+        stackable,
+        custom: true,
+      },
+    });
+    if (resourcesSpent > 0) {
+      await moveResources(tx, { kind: "character", id: character.id }, -resourcesSpent);
+    }
+    await addToStack(tx, character.id, tag.id, quantity, {
+      source: "EVENT",
+      expiresTurn: null,
+      stackable,
+    });
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn?.id ?? null,
+      type: "CREATE_TAG",
+      reason,
+      payload: { name, description, quantity, resourcesSpent },
+      // `granted` mirrors CharacterTag exactly (tagId/quantity), and the Tag
+      // row's own id is carried separately since Undo may need to delete it
+      // — see REQUEST_EFFECTS.CREATE_TAG for why that's conditional.
+      effect: { tagId: tag.id, tagName: name, slug, quantity, resourcesSpent },
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_create_tag",
+      targetCharacterId: character.id,
+      reason,
+      details: { tagId: tag.id, name, quantity, resourcesSpent },
+    });
+  });
+
+  revalidateAll();
+  return {};
+}
+
 // --- Desires ----------------------------------------------------------
 
 // Setting and cancelling are NOT requests — nothing has been granted yet, so
@@ -1063,4 +1355,16 @@ export async function fulfillDesireRequest(input) {
 
 export async function changeNameRequest(input) {
   return guarded(() => changeNameRequestImpl(input));
+}
+
+export async function lootCharacterRequest(input) {
+  return guarded(() => lootCharacterRequestImpl(input));
+}
+
+export async function moveCharacterRequest(input) {
+  return guarded(() => moveCharacterRequestImpl(input));
+}
+
+export async function createTagRequest(input) {
+  return guarded(() => createTagRequestImpl(input));
 }

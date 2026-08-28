@@ -126,20 +126,25 @@ Three notes on deliberate choices:
   and it was chosen over the safer factions-only reading.
 
   What it is *not* is action at a distance. Every party has to be somewhere the
-  filer can stand: a person in the same zone, a Silo in its own seat zone or with
-  an officer in the filer's zone (`web/lib/transferReach.js`, `FACTIONS.md` §3b).
+  filer can stand: a person in the same zone, a Silo in its own seat zone —
+  the officer extension (an officer standing in the filer's zone counting as
+  reach) has been removed; a besieged Silo is only reachable by physically
+  holding its seat zone (`web/lib/transferReach.js`, `FACTIONS.md` §3b).
   Picking a pocket is now a mugging rather than a wire transfer. The dropdowns
   stay unfiltered on purpose — filtering them to who's in range would make the
-  dialog a free scouting tool for who is standing in your zone.
+  dialog a free scouting tool for who is standing in your zone. Correctness
+  lives entirely in the server-side gate: a transfer to/from someone out of
+  reach is rejected with a clear error, not hidden from the picker.
 - **Transfer Tag is send-only for the living, plus a LOOT direction for
   corpses.** There is no "request a tag from a live someone", because
   browsing another player's inventory to pick something is the abuse the
   one-way flow prevents. But a dead character is a lootable pile: filing a
   `TRANSFER_TAG` with `direction: "LOOT"` names a corpse in the same zone as
   the counterparty and pulls the item OFF it. Being in the same place is folded
-  into the same `WHERE` clause in both directions. `TRANSFER_RESOURCES` mirrors this:
-  a `LOOT` request pulls ⬢ off a corpse and can only credit the initiator.
-  See `CHARACTERS.md` §5.
+  into the same `WHERE` clause in both directions — the same co-presence rule
+  `canReachCharacter` enforces elsewhere, just inlined into the query.
+  `TRANSFER_RESOURCES` mirrors this: a `LOOT` request pulls ⬢ off a corpse and
+  can only credit the initiator. See `CHARACTERS.md` §5.
 - **Consume has no resource field and no quantity field.** A meal already
   cost ⬢ to make and the Hunger pass charges its own upkeep, so a third
   charge here would be the same meal paid for three times; and taking one
