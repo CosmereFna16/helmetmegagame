@@ -84,7 +84,7 @@ export async function bulkTagCharacters({ characterIds, tagId, mode }) {
       }
     });
 
-    revalidatePath("/gm/players");
+    revalidatePath("/gm/players", "layout");
     revalidatePath("/character");
     return { applied, failed: failed.length, tagName: tag.name };
   });

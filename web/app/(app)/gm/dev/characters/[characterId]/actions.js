@@ -55,7 +55,7 @@ async function requireSuperadminSession() {
 
 function repaint(characterId) {
   revalidatePath(`/gm/dev/characters/${characterId}`);
-  revalidatePath("/gm/players");
+  revalidatePath("/gm/players", "layout");
   revalidatePath("/character");
 }
 
@@ -384,7 +384,7 @@ async function messageCharacterImpl({ characterId, message }) {
   });
   if (!sent) throw new UserError("Discord wouldn't deliver that — they may have DMs closed.");
 
-  revalidatePath(`/gm/messages/${character.discordUserId}`);
+  revalidatePath(`/gm/players/${character.discordUserId}`);
   repaint(characterId);
   return {};
 }
@@ -465,7 +465,7 @@ async function deleteCharacterImpl({ characterId, confirmName }) {
 
   await deleteCharacterRow(prisma, characterId);
 
-  revalidatePath("/gm/players");
+  revalidatePath("/gm/players", "layout");
   revalidatePath("/gm/dev/characters");
   revalidatePath("/character");
   return { name: character.name };

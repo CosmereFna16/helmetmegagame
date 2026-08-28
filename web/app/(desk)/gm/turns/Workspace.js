@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import QueueRail from "./QueueRail";
 import MoveDesk from "./MoveDesk";
@@ -11,6 +11,7 @@ import StagingTray from "./StagingTray";
 import PushPreview from "./PushPreview";
 import DevPanelModal from "./DevPanelModal";
 import { isAnyDirty } from "@/app/components/useDirtyGuard";
+import usePins from "@/app/components/usePins";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 
 // The adjudication workspace's client shell — mission control. It owns three
@@ -26,47 +27,6 @@ import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 // deviation) — tokens and shared control classes still apply.
 
 const REFRESH_MS = 45_000;
-const PINS_STORAGE_KEY = "desk-pins";
-
-// Same pattern as web/app/(app)/map/MapPanel.js's ground preference: read
-// through useSyncExternalStore so there's no setState-in-effect and no
-// server/client hydration mismatch. Subscribed to the `storage` event so a
-// pin change in another tab is picked up here too.
-function subscribePins(callback) {
-  window.addEventListener("storage", callback);
-  return () => window.removeEventListener("storage", callback);
-}
-// getSnapshot must return the SAME reference until the value actually
-// changes — a fresh array every call is an infinite render loop. So the
-// parse is memoized against the raw string it came from.
-const NO_PINS = [];
-let pinsCache = { raw: null, value: NO_PINS };
-function readStoredPins() {
-  try {
-    const raw = window.localStorage.getItem(PINS_STORAGE_KEY);
-    if (raw === pinsCache.raw) return pinsCache.value;
-    let parsed = null;
-    try {
-      parsed = raw ? JSON.parse(raw) : null;
-    } catch {
-      parsed = null;
-    }
-    pinsCache = { raw, value: Array.isArray(parsed) ? parsed : NO_PINS };
-    return pinsCache.value;
-  } catch {
-    return pinsCache.value;
-  }
-}
-function serverPins() {
-  return NO_PINS;
-}
-function writeStoredPins(pins) {
-  try {
-    window.localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(pins));
-  } catch {
-    /* private window / blocked site data */
-  }
-}
 
 const CT_PARTS = new Intl.DateTimeFormat("en-US", {
   timeZone: "America/Chicago",
@@ -137,9 +97,8 @@ export default function Workspace({
   }, []);
   const deselect = useCallback(() => select(null), [select]);
   const [inspected, setInspected] = useState(null); // { characterId, name }
-  const storedPins = useSyncExternalStore(subscribePins, readStoredPins, serverPins);
-  const [localPins, setLocalPins] = useState(null); // null until the user first touches a pin this session
-  const pinned = localPins ?? storedPins;
+  // One pin list shared with the player desk — see usePins.js.
+  const { pins: pinned, togglePin } = usePins();
   const [previewOpen, setPreviewOpen] = useState(false);
   // { characterId, name } of the Dev Panel currently open as a modal over
   // the desk, or null. Opening it never leaves /gm/turns or resets any of
@@ -274,18 +233,6 @@ export default function Workspace({
   function inspect(characterId, name) {
     if (!characterId) return;
     setInspected({ characterId, name });
-  }
-
-  function togglePin(character) {
-    setLocalPins((prev) => {
-      const base = prev ?? storedPins;
-      const exists = base.some((p) => p.characterId === character.characterId);
-      const next = exists
-        ? base.filter((p) => p.characterId !== character.characterId)
-        : [...base, character];
-      writeStoredPins(next);
-      return next;
-    });
   }
 
   // Live queue refresh: paused while a modal is open (an in-flight

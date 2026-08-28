@@ -1,16 +1,26 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import DmThread from "@/app/components/DmThread";
+import DevCharacterButton from "@/app/components/DevCharacterButton";
+import ZoneChip from "@/app/components/ZoneChip";
+import useSubmitOnEnter from "@/app/components/useSubmitOnEnter";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
-import { getDmThreadPage, sendGmDm, markConversationRead, claimConversation, releaseConversation } from "../actions";
+import {
+  getDmThreadPage,
+  sendGmDm,
+  markConversationRead,
+  claimConversation,
+  releaseConversation,
+} from "../actions";
 
 function draftKey(discordUserId) {
   return `messages-draft-${discordUserId}`;
 }
 
 // Per-conversation draft persistence, read through useSyncExternalStore —
-// same discipline as the desk's pins (Workspace.js): the textarea's value IS
+// same discipline as the shared pins (usePins.js): the textarea's value IS
 // the store's value (no parallel useState to seed via an effect, which is
 // what react-hooks/set-state-in-effect exists to catch), and writing to it is
 // a direct localStorage write + a manual `storage` dispatch (the event
@@ -23,23 +33,27 @@ function serverDraft() {
   return "";
 }
 
-export default function ThreadPane({
+// The centre column: a real chat pane rather than a thread block sitting in
+// document flow. The transcript takes the height that's left and scrolls
+// inside itself; the composer is pinned to the bottom where a composer
+// belongs.
+export default function ConversationPane({
   discordUserId,
   label,
+  characterId,
+  zoneName,
+  statusLabel,
+  moveId,
   initialMessages,
   initialHasMore,
   gmProfiles,
   myDiscordUserId,
   claimedByDiscordUserId,
-  // Extension points for a later task (CanonPanel prefill buttons, extra
-  // header content like the current-Move summary) — not built here, just
-  // kept open so DmThread/ThreadPane don't need reshaping later.
-  extraHeaderContent = null,
   registerPrefill,
 }) {
-  // The parent page keys this component on `discordUserId` (see
-  // [discordUserId]/page.js), so a conversation switch remounts it — that's
-  // what resets this state, rather than an effect syncing it to a prop.
+  // The parent page keys this component on `discordUserId`, so a conversation
+  // switch remounts it — that's what resets this state, rather than an effect
+  // syncing it to a prop.
   const [pages, setPages] = useState({ messages: initialMessages, hasMore: initialHasMore });
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(null);
@@ -129,42 +143,82 @@ export default function ThreadPane({
     });
   }
 
+  const onKeyDown = useSubmitOnEnter();
   const over = content.length > GM_MESSAGE_MAX_LENGTH;
   const claimedByOther = claimedBy && claimedBy !== myDiscordUserId;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="section-title">{label}</h2>
+    <div className="desk-convo">
+      <div className="desk-convo-head">
+        <div className="flex items-center gap-2 min-w-0">
+          <h2 className="section-title truncate">{label}</h2>
+          {zoneName ? <ZoneChip zoneName={zoneName} /> : null}
+          {statusLabel && <span className="chip text-xs text-muted">{statusLabel}</span>}
+        </div>
         <div className="flex items-center gap-2">
-          {extraHeaderContent}
+          {moveId && (
+            <Link href={`/gm/turns/move/${moveId}`} className="btn-quiet">
+              Adjudicate →
+            </Link>
+          )}
+          <DevCharacterButton characterId={characterId} />
           <button
             type="button"
             className="btn-quiet"
             disabled={claimedByOther || pending}
             onClick={toggleClaim}
           >
-            {claimedBy ? (claimedByOther ? "Claimed by another GM" : "Release claim") : "Claim conversation"}
+            {claimedBy
+              ? claimedByOther
+                ? "Claimed by another GM"
+                : "Release claim"
+              : "Claim conversation"}
           </button>
         </div>
       </div>
 
-      <DmThread messages={pages.messages} gmProfiles={gmProfiles} onLoadOlder={loadOlder} hasMore={pages.hasMore} />
+      <div className="desk-convo-thread">
+        {pages.messages.length === 0 ? (
+          <p className="text-sm text-muted p-4">
+            No messages yet. Whatever you send first opens the conversation.
+          </p>
+        ) : (
+          <DmThread
+            messages={pages.messages}
+            gmProfiles={gmProfiles}
+            onLoadOlder={loadOlder}
+            hasMore={pages.hasMore}
+          />
+        )}
+      </div>
 
-      <form className="panel flex flex-col gap-2 p-4" onSubmit={handleSend}>
+      <form className="desk-convo-composer" onSubmit={handleSend}>
         <label className="field">
-          <span className="field-label">Reply</span>
-          <textarea rows={3} value={content} onChange={(e) => writeDraft(e.target.value)} />
+          <span className="sr-only">Reply</span>
+          <textarea
+            rows={3}
+            value={content}
+            onChange={(e) => writeDraft(e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder={`Message ${label}…`}
+          />
         </label>
-        <div className="flex items-center justify-between">
-          <span className="text-xs" style={over ? { color: "var(--danger)" } : { color: "var(--muted)" }}>
-            {content.length} / {GM_MESSAGE_MAX_LENGTH}
+        <div className="flex items-center justify-between gap-2">
+          <span
+            className="text-xs"
+            style={over ? { color: "var(--danger)" } : { color: "var(--muted)" }}
+          >
+            {content.length} / {GM_MESSAGE_MAX_LENGTH} · Enter sends, Shift+Enter for a new line
           </span>
           <button type="submit" className="btn" disabled={pending || !content.trim() || over}>
             {pending ? "Sending…" : "Send"}
           </button>
         </div>
-        {error && <p className="text-sm" style={{ color: "var(--danger)" }}>{error}</p>}
+        {error && (
+          <p className="text-sm" style={{ color: "var(--danger)" }}>
+            {error}
+          </p>
+        )}
       </form>
     </div>
   );

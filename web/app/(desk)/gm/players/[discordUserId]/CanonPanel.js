@@ -49,7 +49,9 @@ export default function CanonPanel({ canon, onPrefill }) {
         <button type="button" className="btn-quiet" onClick={() => setOpen((v) => !v)}>
           {open ? "▾" : "▸"} Canon — {canon.characterName}
         </button>
-        <Link href="/gm/turns" className="btn-quiet">
+        {/* Deep-links the row, not just the desk — /gm/turns carries its
+            selection in the URL now, so this lands on the Move itself. */}
+        <Link href={move ? `/gm/turns/move/${move.id}` : "/gm/turns"} className="btn-quiet">
           Open in Adjudication →
         </Link>
       </div>

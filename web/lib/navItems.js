@@ -20,13 +20,17 @@ export const PLAYER_NAV = [
 ];
 
 // No Faction item: for a GM /faction only ever rendered the all-factions
-// overview, which is now the Factions tab of the Players panel. Players keep
-// theirs in PLAYER_NAV above — that one is their own faction, not a list.
+// overview, which is now the Factions view of the player desk's roster.
+// Players keep theirs in PLAYER_NAV above — that one is their own faction,
+// not a list.
+//
+// No Messages item either: Players and Messages used to be two screens and
+// are one desk now, so the unread badge rides Players. The roster and the
+// conversations are the same list seen through two lenses.
 export const GM_NAV = [
   { href: "/character", label: "Character", icon: "character" },
-  { href: "/gm/players", label: "Players", icon: "players" },
+  { href: "/gm/players", label: "Players", icon: "messages" },
   { href: "/gm/turns", label: "Adjudicate", icon: "turns" },
-  { href: "/gm/messages", label: "Messages", icon: "messages" },
   { href: "/notes", label: "Notes", icon: "notes" },
   { href: "/documents", label: "Documents", icon: "documents" },
   // Appended rather than slotted in beside Character: on a GM's rail the
@@ -82,7 +86,7 @@ export async function loadNavItems(discordUserId) {
   // isn't what this badge is for.
   const unreadCount = gm ? await loadUnreadConversationCount(discordUserId) : 0;
   const baseNav = (gm ? GM_NAV : PLAYER_NAV).map((item) =>
-    item.href === "/gm/messages" && unreadCount > 0 ? { ...item, badge: unreadCount } : item,
+    item.href === "/gm/players" && unreadCount > 0 ? { ...item, badge: unreadCount } : item,
   );
   const withLifeweb = hasMortus ? [...baseNav, LIFEWEB_NAV_ITEM] : baseNav;
   // GMs always have the Archive; players only once it's opened. The page

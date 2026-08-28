@@ -11,7 +11,7 @@ import DmThread from "@/app/components/DmThread";
 import ArchiveContextModal from "./ArchiveContextModal";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import { getCharacterInspector, getArchiveSlice, createStagedEffects } from "./actions";
-import { getDmThreadPage, sendGmDm } from "@/app/(app)/gm/messages/actions";
+import { getDmThreadPage, sendGmDm } from "@/app/(desk)/gm/players/actions";
 
 // The right-hand inspector: the "quickly pull up the guy he was talking to"
 // column. Sheet / Tags / Archive / DMs over whichever character was last

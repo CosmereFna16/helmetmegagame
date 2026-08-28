@@ -4,11 +4,11 @@ import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getGmProfiles } from "@/lib/gmProfiles";
 import { getOpenTurn } from "@/lib/turn";
 import { MOVE_REVIEW_LABELS, moveKindLabel, rollLabel } from "@/lib/moves";
-import MessageThreadShell from "./MessageThreadShell";
+import PersonShell from "./PersonShell";
 
 const TAKE = 100;
 
-export default async function MessageThreadPage({ params }) {
+export default async function PlayerDeskPersonPage({ params }) {
   const { discordUserId } = await params;
   const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
@@ -24,7 +24,11 @@ export default async function MessageThreadPage({ params }) {
     }),
     listGuildMembers(),
     prisma.character.findFirst({ where: { discordUserId }, orderBy: { createdAt: "desc" } }),
-    prisma.character.findFirst({ where: { discordUserId, status: "ALIVE" }, orderBy: { createdAt: "desc" } }),
+    prisma.character.findFirst({
+      where: { discordUserId, status: "ALIVE" },
+      orderBy: { createdAt: "desc" },
+      include: { zone: { select: { name: true } } },
+    }),
     getGmProfiles(),
     prisma.conversationMeta.findUnique({ where: { playerDiscordUserId: discordUserId } }),
     getOpenTurn(),
@@ -92,19 +96,23 @@ export default async function MessageThreadPage({ params }) {
   }
 
   return (
-    <MessageThreadShell
-      // Keying on the conversation makes a navigation between threads a
-      // remount, which is what resets ThreadPane's local page/claim state —
+    <PersonShell
+      // Keying on the conversation makes a navigation between people a
+      // remount, which is what resets the pane's local page/claim state —
       // simpler and safer than an effect that syncs state to a changed prop.
       key={discordUserId}
       discordUserId={discordUserId}
       label={label}
+      characterId={aliveCharacter?.id ?? character?.id ?? null}
+      zoneName={aliveCharacter?.zone?.name ?? null}
+      statusLabel={character && character.status !== "ALIVE" ? character.status.toLowerCase() : null}
       initialMessages={messages}
       initialHasMore={hasMore}
       gmProfiles={gmProfiles}
       myDiscordUserId={session.discordUserId}
       claimedByDiscordUserId={claim?.claimedByDiscordUserId ?? null}
       canon={canon}
+      currentTurnNumber={openTurn?.number ?? null}
     />
   );
 }

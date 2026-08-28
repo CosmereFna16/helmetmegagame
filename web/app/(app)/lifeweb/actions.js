@@ -57,7 +57,7 @@ export async function donateBlood(characterId) {
   });
 
   revalidatePath("/lifeweb");
-  revalidatePath("/gm/players");
+  revalidatePath("/gm/players", "layout");
   revalidatePath("/character");
 }
 

@@ -37,7 +37,7 @@ export default function RecordTab({ moves, requests, auditLog, messages, discord
           ))}
         </div>
         {section === "Messages" && (
-          <Link href={`/gm/messages/${discordUserId}`} className="btn-quiet">
+          <Link href={`/gm/players/${discordUserId}`} className="btn-quiet">
             Full conversation
           </Link>
         )}

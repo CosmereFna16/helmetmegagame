@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { TURNS_PATH } from "@/lib/routes";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -71,9 +72,12 @@ async function assignGmZoneImpl({ discordUserId, zoneId }) {
 
   // The seat picks the default filter on every GM table, so they all go stale
   // together.
-  for (const path of ["/gm/gamemasters", "/gm/turns", "/gm/players", "/gm/messages"]) {
-    revalidatePath(path);
-  }
+  revalidatePath("/gm/gamemasters");
+  // The player desk's rail lives in its layout, and a page path does not
+  // invalidate what is below it — so a GM sitting in a conversation would
+  // never see the reseated filter without "layout".
+  revalidatePath("/gm/players", "layout");
+  revalidatePath(TURNS_PATH, "page");
 }
 
 export async function assignGmZone(input) {

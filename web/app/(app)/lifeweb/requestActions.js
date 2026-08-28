@@ -60,7 +60,7 @@ async function requireLivingTarget(targetCharacterId) {
 function revalidateAll() {
   revalidatePath("/lifeweb");
   revalidatePath("/character");
-  revalidatePath("/gm/players");
+  revalidatePath("/gm/players", "layout");
   revalidatePath(TURNS_PATH, "page");
   revalidatePath("/gm/audit");
 }

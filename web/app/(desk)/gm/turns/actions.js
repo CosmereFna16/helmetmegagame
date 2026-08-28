@@ -858,7 +858,7 @@ async function killRequestTargetImpl({ requestId }) {
   });
 
   revalidatePath(TURNS_PATH, "page");
-  revalidatePath("/gm/players");
+  revalidatePath("/gm/players", "layout");
   revalidatePath("/gm/audit");
   revalidatePath("/lifeweb");
   return { targetName: target.name };

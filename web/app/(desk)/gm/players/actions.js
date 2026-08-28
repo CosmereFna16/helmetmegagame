@@ -111,8 +111,8 @@ export async function sendGmDm({ discordUserId, characterId, content, source = "
       })
       .catch(() => {});
 
-    revalidatePath("/gm/messages");
-    revalidatePath(`/gm/messages/${playerDiscordUserId}`);
+    revalidatePath("/gm/players", "layout");
+    revalidatePath(`/gm/players/${playerDiscordUserId}`);
 
     const page = await getDmThreadPage({ discordUserId: playerDiscordUserId });
     return page.ok ? { messages: page.messages, hasMore: page.hasMore } : { messages: [], hasMore: false };
@@ -133,7 +133,7 @@ export async function markConversationRead({ playerDiscordUserId }) {
       create: { gmDiscordUserId: session.discordUserId, playerDiscordUserId: id, lastReadAt: new Date() },
     });
 
-    revalidatePath("/gm/messages");
+    revalidatePath("/gm/players", "layout");
   });
 }
 
@@ -153,7 +153,7 @@ export async function markConversationUnread({ playerDiscordUserId }) {
       create: { gmDiscordUserId: session.discordUserId, playerDiscordUserId: id, lastReadAt: new Date(0) },
     });
 
-    revalidatePath("/gm/messages");
+    revalidatePath("/gm/players", "layout");
   });
 }
 
@@ -169,7 +169,7 @@ export async function claimConversation({ playerDiscordUserId }) {
       create: { playerDiscordUserId: id, claimedByDiscordUserId: session.discordUserId, claimedAt: new Date() },
     });
 
-    revalidatePath("/gm/messages");
+    revalidatePath("/gm/players", "layout");
   });
 }
 
@@ -186,7 +186,7 @@ export async function releaseConversation({ playerDiscordUserId }) {
       })
       .catch(() => {}); // no row yet — already "released"
 
-    revalidatePath("/gm/messages");
+    revalidatePath("/gm/players", "layout");
   });
 }
 
@@ -246,7 +246,7 @@ export async function stageDmAsMessage({ characterId, content }) {
       },
     });
 
-    revalidatePath(`/gm/messages/${character.discordUserId}`);
+    revalidatePath(`/gm/players/${character.discordUserId}`);
     revalidatePath(TURNS_PATH, "page");
 
     return { id: row.id, content: text, createdAt: row.createdAt.toISOString() };
@@ -328,8 +328,7 @@ export async function sendGmBroadcast({ characterIds, message }) {
       },
     });
 
-    revalidatePath("/gm/messages");
-    revalidatePath("/gm/players");
+    revalidatePath("/gm/players", "layout");
     revalidatePath(TURNS_PATH, "page");
 
     after(() =>

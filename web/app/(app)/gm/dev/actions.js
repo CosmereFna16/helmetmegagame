@@ -562,7 +562,7 @@ export async function updateFaction(formData) {
 
   revalidatePath("/gm/dev/factions");
   revalidatePath("/faction");
-  revalidatePath("/gm/players");
+  revalidatePath("/gm/players", "layout");
 }
 
 // Reassigns the faction's members to "Unaffiliated" (same pattern as
@@ -596,7 +596,7 @@ export async function deleteFaction(formData) {
 
   revalidatePath("/gm/dev/factions");
   revalidatePath("/faction");
-  revalidatePath("/gm/players");
+  revalidatePath("/gm/players", "layout");
 }
 
 // --- Channel doctor + system reports ----------------------------------
