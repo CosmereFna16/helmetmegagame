@@ -13,18 +13,17 @@ import { changeNameRequest } from "../(app)/character/requestActions";
 // what this form posts, which (not the greying) is the actual lock. See
 // docs/systemdocs/CHARACTERS.md §1b.
 //
-// The one way a name changes after that is drinking a Mulligan Potion
-// (docs/tags.yaml), which is now a Request like any other — it applies
-// immediately and a GM can Undo it from /gm/turns. That is the "Change
-// name" control below, wired through web/lib/requestEffects.js's
-// CHANGE_NAME entry rather than this form's own submit.
+// The one way a name changes after that is the "Change name" request below —
+// a Request like any other, requiring only a reason. It applies immediately
+// and a GM can Undo it from /gm/turns, wired through
+// web/lib/requestEffects.js's CHANGE_NAME entry rather than this form's own
+// submit.
 //
 // Why these fields carry no InfoIcon of their own: CharacterSheet.js already
 // puts one summary tooltip on the "Bio" heading covering name-and-age being
 // locked, so repeating it per field was one tooltip too many. `title` below
 // (the GM-granted one, in quotes) keeps its own because it explains a
 // DIFFERENT thing — how to get one, not why it's locked.
-const MULLIGAN_POTION_SLUG = "mulligan-potion";
 
 export default function BioNameFields({ character, lastNameLocked = false }) {
   const [open, setOpen] = useState(false);
@@ -34,17 +33,14 @@ export default function BioNameFields({ character, lastNameLocked = false }) {
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
 
-  const heldPotion = character.tags?.find((ct) => ct.tag?.slug === MULLIGAN_POTION_SLUG) ?? null;
-  const potionCount = heldPotion?.quantity ?? 0;
-
   // The titles this character has earned, from what they hold and the role
   // they took. changeNameRequest re-checks exactly this server-side, so the
   // list and the gate cannot disagree.
   //
   // A title they wear but no longer qualify for is deliberately NOT re-added:
   // losing the tag leaves the word on the sheet, but claiming it again is not
-  // on offer, so drinking a potion is a one-way door out of a title you can
-  // no longer justify. A GM can put it back from the dev panel.
+  // on offer, so a name change is a one-way door out of a title you can no
+  // longer justify. A GM can put it back from the dev panel.
   const earned = useMemo(
     () =>
       earnedTitles({
@@ -145,22 +141,15 @@ export default function BioNameFields({ character, lastNameLocked = false }) {
       </div>
 
       <div className="flex items-center gap-1.5">
-        <button type="button" className="btn-quiet" onClick={openDialog} disabled={!potionCount}>
+        <button type="button" className="btn-quiet" onClick={openDialog}>
           Change name
         </button>
-        <InfoIcon
-          text={
-            potionCount
-              ? `Drink a Mulligan Potion to take a new name. You have ${potionCount}. This takes effect immediately and a GM can undo it.`
-              : "Drink a Mulligan Potion to unlock this — none of the buttons above take a new name."
-          }
-        />
       </div>
 
       <RequestDialog
         open={open}
         title="Change Name"
-        submitLabel="Drink the potion"
+        submitLabel="Change name"
         busy={pending}
         error={error}
         canSubmit={Boolean(firstName.trim())}
@@ -209,8 +198,7 @@ export default function BioNameFields({ character, lastNameLocked = false }) {
             disabled={lastNameLocked}
           />
         </label>
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs text-muted">Uses 1 of your {potionCount} Mulligan Potion(s).</p>
+        <div className="flex items-center justify-end gap-3">
           <button type="button" className="btn-secondary" onClick={rollName}>
             Randomize name
           </button>

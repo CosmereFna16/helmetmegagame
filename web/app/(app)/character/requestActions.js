@@ -39,9 +39,6 @@ import { syncCharacterNarrowcastAccess, syncCharacterNickname, ensureCharacterRo
 import { NAME_LIMITS, formatCharacterName, formatBareName, normalizeEarnedHonorific } from "@/lib/characterName";
 import { propagateDynastyLastName } from "@/lib/dynasty";
 
-// The only sanctioned way a name changes after creation (CHARACTERS.md §1b).
-const MULLIGAN_POTION_SLUG = "mulligan-potion";
-
 // Every player-initiated change that is applied immediately and reviewed
 // afterwards. Each action: authenticate, re-validate everything the client
 // sent (a server action is a public endpoint), then apply the effect and
@@ -929,22 +926,18 @@ async function fulfillDesireRequestImpl({ reason: rawReason }) {
 
 // --- Name ---------------------------------------------------------------
 
-// The one player-facing rename: drinking a Mulligan Potion. Re-validates the
-// potion is actually held (the button that opens this dialog is only
-// advisory), applies the same allowlist/cap/dynasty-lock rules every other
-// writer of Character.name uses, then spends the potion and rewrites the
-// name in one transaction. See docs/systemdocs/CHARACTERS.md §1b.
+// The one player-facing rename: an ordinary reason-gated request. Applies
+// the same allowlist/cap/dynasty-lock rules every other writer of
+// Character.name uses, then rewrites the name in one transaction. See
+// docs/systemdocs/CHARACTERS.md §1b.
 async function changeNameRequestImpl({ honorific: rawHonorific, firstName: rawFirstName, lastName: rawLastName, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
-  const held = character.tags.find((ct) => ct.tag.slug === MULLIGAN_POTION_SLUG);
-  if (!held) throw new UserError("You need a Mulligan Potion to change your name.");
-
   // Gated by what this character has actually earned, from their own tags and
   // role — the dialog's dropdown is only advisory. An unearned word lands as
   // null rather than throwing, so a stale tab posting an old title renames
-  // them untitled instead of failing the potion.
+  // them untitled instead of failing the request.
   //
   // Note this is the player CHOOSING a title, which is the only time it is
   // re-checked. A character keeps a title after losing the tag that granted
@@ -952,8 +945,8 @@ async function changeNameRequestImpl({ honorific: rawHonorific, firstName: rawFi
   const honorific = normalizeEarnedHonorific(rawHonorific, {
     tagSlugs: character.tags.map((ct) => ct.tag.slug),
     roleSlug: character.role?.slug ?? null,
-    // Their own, fixed at creation. A potion buys a new name, never a new
-    // gender, so this is read and never written on this path.
+    // Their own, fixed at creation. A name change buys a new name, never a
+    // new gender, so this is read and never written on this path.
     gender: character.gender,
   });
   const firstName = rawFirstName?.toString().trim().slice(0, NAME_LIMITS.firstName) || null;
@@ -983,13 +976,9 @@ async function changeNameRequestImpl({ honorific: rawHonorific, firstName: rawFi
   if (next.name === previous.name) throw new UserError("That's already your name.");
 
   const openTurn = await getOpenTurn();
-  // Snapshot before dropping — Undo restores the original source/expiry of
-  // the one potion this took, same idiom as CONSUME_TAG.
-  const potionRestore = { source: held.source, expiresTurn: held.expiresTurn, quantity: 1 };
 
   let updated;
   await prisma.$transaction(async (tx) => {
-    await dropCharacterTag(tx, character.id, held.tagId, 1);
     updated = await tx.character.update({
       where: { id: character.id },
       data: next,
@@ -1000,7 +989,7 @@ async function changeNameRequestImpl({ honorific: rawHonorific, firstName: rawFi
       type: "CHANGE_NAME",
       reason,
       payload: { honorific, firstName, lastName },
-      effect: { previous, next, potionTagId: held.tagId, potionRestore },
+      effect: { previous, next },
     });
     await logRequest(tx, {
       actorDiscordUserId: session.discordUserId,
