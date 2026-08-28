@@ -14,9 +14,6 @@ export const PLAYER_NAV = [
   { href: "/faction", label: "Faction", icon: "faction" },
   { href: "/notes", label: "Notes", icon: "notes" },
   { href: "/documents", label: "Documents", icon: "documents" },
-  // Sixth item, so on mobile it lands behind the More sheet — an occasional
-  // shopping trip loses that seat to the five daily surfaces above.
-  { href: "/store", label: "Store", icon: "store" },
 ];
 
 // No Faction item: for a GM /faction only ever rendered the all-factions
@@ -37,8 +34,6 @@ export const GM_NAV = [
   // first five are what the mobile bar shows, and Adjudicate/Players earn
   // those slots ahead of the Map.
   { href: "/map", label: "Map", icon: "map" },
-  // Zone-GMs play too, so they shop too.
-  { href: "/store", label: "Store", icon: "store" },
 ];
 
 // Superadmin-only, appended together below. The Audit log used to sit in

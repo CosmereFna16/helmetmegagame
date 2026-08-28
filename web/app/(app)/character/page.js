@@ -257,9 +257,33 @@ export default async function CharacterPage() {
           avatarUploadsEnabled: true,
           portraitMakerEnabled: true,
           portraitFantasyPartsEnabled: true,
+          // Read here too, for the Spend Tag Points modal folded in from the
+          // old /store page — see store below.
+          maxNegativeTags: true,
         },
       }),
     ]);
+
+  // The mid-game tag store, folded into the sheet as a modal (see
+  // StorePanel.js). Held ids widen the catalog so unpurchasable held tags (a
+  // GM-granted Demoness, a crafted item) still reach the client's byId map —
+  // chain discounts and hidden-category gates key off them. This reuses
+  // character.tags, already loaded above, rather than re-querying the sheet.
+  const heldIds = character.tags.map((ct) => ct.tagId);
+  const storeTags = await loadPointBuyCatalog(heldIds);
+  const heldSet = new Set(heldIds);
+  const storeHeldTags = storeTags
+    .filter((t) => heldSet.has(t.id))
+    .map((t) => ({ id: t.id, name: t.name }));
+  // Drawbacks already spent, for PointBuy's counter. Every negative tag is
+  // purchasableAfterStart: false, so the store can't sell one and this number
+  // can't move here — it is shown so a player knows where they stand, not to
+  // gate the cart. Only POINT_BUY counts: a GM-inflicted wound is not a
+  // choice the player made with their points.
+  const storeCostById = new Map(storeTags.map((t) => [t.id, t.pointCost]));
+  const storeNegativeHeld = character.tags.filter(
+    (ct) => ct.source === "POINT_BUY" && (storeCostById.get(ct.tagId) ?? 0) < 0,
+  ).length;
 
   // Both ends of a transfer list every Silo and every living player,
   // INCLUDING yourself — pulling ⬢ out of a Silo into your own pocket is the
@@ -414,6 +438,10 @@ export default async function CharacterPage() {
       healParties={healParties}
       corpses={corpses}
       lastNameLocked={isDynastyMember(character.role?.slug)}
+      storeTags={storeTags}
+      storeHeldTags={storeHeldTags}
+      storeNegativeCap={gameConfig?.maxNegativeTags ?? DEFAULT_MAX_NEGATIVE_TAGS}
+      storeNegativeHeld={storeNegativeHeld}
     />
   );
 }

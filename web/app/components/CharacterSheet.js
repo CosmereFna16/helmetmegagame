@@ -3,11 +3,10 @@ import DefaultEffortPanel from "./DefaultEffortPanel";
 import GoalsPanel from "./GoalsPanel";
 import StatusPanel from "./StatusPanel";
 import TagsPanel from "./TagsPanel";
-import EquipmentPanel from "./EquipmentPanel";
 import CorpseLootPanel from "./CorpseLootPanel";
 import RichText from "./RichText";
 import FactionLink from "./FactionLink";
-import PageShell from "@/app/components/PageShell";
+import PageShell, { PageHeader } from "@/app/components/PageShell";
 import InfoIcon from "./InfoIcon";
 
 // Raw d6 first, then the summed modifier (Hunger) and the total —
@@ -62,6 +61,27 @@ function ActionStatus({ currentAction, openTurn }) {
   );
 }
 
+// The header's avatar, rendered into PageHeader's `actions` slot. A plain
+// image rather than a button — the portrait maker and avatar upload live in
+// the Bio panel below, not up here.
+function Avatar({ avatarSrc, name }) {
+  return avatarSrc ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={avatarSrc}
+      alt={name}
+      className="h-16 w-16 object-cover"
+      style={{ borderRadius: "var(--radius)", border: "1px solid var(--border)" }}
+    />
+  ) : (
+    <div
+      aria-hidden="true"
+      className="h-16 w-16"
+      style={{ background: "var(--field-bg)", borderRadius: "var(--radius)", border: "1px solid var(--border)" }}
+    />
+  );
+}
+
 export default function CharacterSheet({
   character,
   mode,
@@ -84,43 +104,37 @@ export default function CharacterSheet({
   portraitSelection = null,
   hasCustomAvatar = false,
   lastNameLocked = false,
+  // The mid-game Store, folded into the Tags panel as a modal (see
+  // TagsPanel.js / StorePanel.js). Absent on someone else's sheet.
+  storeTags = null,
+  storeHeldTags = null,
+  storeNegativeCap = null,
+  storeNegativeHeld = 0,
 }) {
   const isSelf = mode === "self";
 
   return (
     <PageShell width="wide">
-      <div className="flex items-center gap-4">
-        {avatarSrc ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={avatarSrc}
-            alt={character.name}
-            className="h-16 w-16 object-cover"
-            style={{ borderRadius: "var(--radius)", border: "1px solid var(--border)" }}
-          />
-        ) : (
-          <div
-            aria-hidden="true"
-            className="h-16 w-16"
-            style={{ background: "var(--field-bg)", borderRadius: "var(--radius)", border: "1px solid var(--border)" }}
-          />
-        )}
-        <div>
-          <h1 className="text-2xl font-bold">{character.name}</h1>
-          <p className="text-sm text-muted">
+      <PageHeader
+        title={character.name}
+        subtitle={
+          <>
             {character.roleTitle ?? "No role"} —{" "}
             <FactionLink factionId={character.factionId} name={character.faction?.name ?? "No faction"} />
-          </p>
-        </div>
-      </div>
+          </>
+        }
+        actions={<Avatar avatarSrc={avatarSrc} name={character.name} />}
+      />
 
-      {/* Two explicit columns rather than letting panels flow into a grid.
-          Flowed, the columns end ragged, because these panels differ a lot in
-          height — the Bio form is several times the height of the status
-          block. Assigning by weight (identity/status left, the tall Bio form
-          right) keeps the two sides close in length at any content size. The
-          avatar/identity header above spans both. */}
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+      {/* Two real columns, not panels flowed by guessed height. The left
+          column is the wide working column — tags/equipment first (what a
+          player checks most), then the two small self-forms below it. The
+          right column is a fixed-width rail that stays put while the left
+          column scrolls past it, the same sticky treatment PointBuy.js uses
+          for its own build-list aside. Below `md` both collapse into one
+          stacked column, tags-and-status first since that's what a player on
+          their phone actually wants — not a form. */}
+      <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="flex flex-col gap-6">
           <StatusPanel character={character} isSelf={isSelf} parties={transferParties} />
 
@@ -130,77 +144,77 @@ export default function CharacterSheet({
               <ActionStatus currentAction={currentAction} openTurn={openTurn} />
             </section>
           )}
+
+          <TagsPanel
+            characterTags={character.tags}
+            isSelf={isSelf}
+            tagPoints={character.tagPoints}
+            catalog={tagCatalog ?? []}
+            resources={character.resources}
+            otherCharacters={otherCharacters ?? []}
+            currentTurn={openTurn?.number ?? null}
+            selfId={character.id}
+            canHeal={canHeal}
+            healTargets={healTargets}
+            healParties={healParties}
+            equipSlots={equipSlots}
+            storeTags={storeTags}
+            storeHeldTags={storeHeldTags}
+            storeNegativeCap={storeNegativeCap}
+            storeNegativeHeld={storeNegativeHeld}
+          />
+
+          {isSelf && (
+            <GoalsPanel
+              desire={desire ?? null}
+              desireCooldownUntilTurn={desireCooldownUntilTurn ?? null}
+              openTurnNumber={openTurn?.number ?? null}
+            />
+          )}
+
+          {isSelf && (
+            <DefaultEffortPanel
+              characterId={character.id}
+              defaultEffort={character.defaultEffort ?? null}
+              zone={character.zone ?? null}
+            />
+          )}
+
+          {isSelf && corpses.length > 0 && <CorpseLootPanel selfId={character.id} corpses={corpses} />}
         </div>
 
-        <div className="flex flex-col gap-6">
-        {isSelf && (
-          <section className="panel p-4">
-            <h2 className="panel-header panel-header--with-icon">
-              Bio
-              <InfoIcon text="Your name and age are fixed once set. Ask a GM if either needs to change." />
-            </h2>
-            <BioForm
-              character={character}
-              lastNameLocked={lastNameLocked}
-              avatarUploadsEnabled={avatarUploadsEnabled}
-              portraitMakerEnabled={portraitMakerEnabled}
-              portraitFantasyPartsEnabled={portraitFantasyPartsEnabled}
-              portraitSelection={portraitSelection}
-              hasCustomAvatar={hasCustomAvatar}
-            />
-          </section>
-        )}
+        <div className="flex flex-col gap-6 md:sticky md:top-4">
+          {/* TODO(requests-panel): another agent is adding a Requests panel
+              here, above Bio — this column is otherwise ready for it. */}
 
-        {!isSelf && character.appearance && (
-          <section className="panel p-4">
-            <h2 className="panel-header">Appearance</h2>
-            <p className="text-sm">
-              <RichText text={character.appearance} />
-            </p>
-          </section>
-        )}
+          {isSelf && (
+            <section className="panel p-4">
+              <h2 className="panel-header panel-header--with-icon">
+                Bio
+                <InfoIcon text="Your name and age are fixed once set. Ask a GM if either needs to change." />
+              </h2>
+              <BioForm
+                character={character}
+                lastNameLocked={lastNameLocked}
+                avatarUploadsEnabled={avatarUploadsEnabled}
+                portraitMakerEnabled={portraitMakerEnabled}
+                portraitFantasyPartsEnabled={portraitFantasyPartsEnabled}
+                portraitSelection={portraitSelection}
+                hasCustomAvatar={hasCustomAvatar}
+              />
+            </section>
+          )}
+
+          {!isSelf && character.appearance && (
+            <section className="panel p-4">
+              <h2 className="panel-header">Appearance</h2>
+              <p className="text-sm">
+                <RichText text={character.appearance} />
+              </p>
+            </section>
+          )}
         </div>
       </div>
-
-      <EquipmentPanel
-        characterTags={character.tags}
-        slots={equipSlots}
-        isSelf={isSelf}
-      />
-
-      <TagsPanel
-        characterTags={character.tags}
-        isSelf={isSelf}
-        tagPoints={character.tagPoints}
-        catalog={tagCatalog ?? []}
-        resources={character.resources}
-        otherCharacters={otherCharacters ?? []}
-        currentTurn={openTurn?.number ?? null}
-        selfId={character.id}
-        canHeal={canHeal}
-        healTargets={healTargets}
-        healParties={healParties}
-      />
-
-      {isSelf && (
-        <GoalsPanel
-          desire={desire ?? null}
-          desireCooldownUntilTurn={desireCooldownUntilTurn ?? null}
-          openTurnNumber={openTurn?.number ?? null}
-        />
-      )}
-
-      {isSelf && (
-        <DefaultEffortPanel
-          characterId={character.id}
-          defaultEffort={character.defaultEffort ?? null}
-          zone={character.zone ?? null}
-        />
-      )}
-
-      {isSelf && (
-        <CorpseLootPanel selfId={character.id} corpses={corpses} />
-      )}
     </PageShell>
   );
 }

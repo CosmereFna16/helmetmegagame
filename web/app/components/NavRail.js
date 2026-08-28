@@ -16,7 +16,6 @@ import {
   ArchiveIcon,
   LifewebIcon,
   MapIcon,
-  StoreIcon,
   SignOutIcon,
   MoreIcon,
 } from "./icons";
@@ -35,7 +34,6 @@ const ICONS = {
   archive: ArchiveIcon,
   lifeweb: LifewebIcon,
   map: MapIcon,
-  store: StoreIcon,
 };
 
 // How many items stay in the mobile bottom bar. The rest go behind "More".
