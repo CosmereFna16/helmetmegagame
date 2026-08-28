@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import FormError from "@/app/components/FormError";
@@ -160,6 +161,13 @@ export default function MoveDesk({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Straight to their conversation on the player desk. The reverse
+              link lives on that desk's Canon tab, so the two are one loop. */}
+          {move.discordUserId && (
+            <Link href={`/gm/players/${move.discordUserId}`} className="btn-quiet">
+              Message →
+            </Link>
+          )}
           <DevCharacterButton
             characterId={move.characterId}
             name={move.characterName}

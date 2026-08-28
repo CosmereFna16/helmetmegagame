@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import NavRail from "./NavRail";
 import NavRailAsync from "./NavRailAsync";
+import CommandPalette from "./CommandPalette";
 import { PLAYER_NAV, loadNavItems } from "@/lib/navItems";
 
 // The rail both route groups render, so neither hand-rolls the Suspense
@@ -12,8 +13,13 @@ import { PLAYER_NAV, loadNavItems } from "@/lib/navItems";
 // it is GM-gated at the layout and a PLAYER_NAV flash there would be wrong.
 export default function AppRail({ discordUserId, fallback = PLAYER_NAV }) {
   return (
-    <Suspense fallback={<NavRail items={fallback} />}>
-      <NavRailAsync itemsPromise={loadNavItems(discordUserId)} />
-    </Suspense>
+    <>
+      <Suspense fallback={<NavRail items={fallback} />}>
+        <NavRailAsync itemsPromise={loadNavItems(discordUserId)} />
+      </Suspense>
+      {/* Mounted here rather than in the root layout so it only exists for a
+          signed-in user — and so both route groups get it from one place. */}
+      <CommandPalette />
+    </>
   );
 }

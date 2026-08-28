@@ -245,6 +245,9 @@ export default async function TurnsWorkspacePage({ params }) {
     id: a.id,
     characterId: a.characterId,
     characterName: a.character.name,
+    // The player desk keys on discordUserId, not characterId — carried here
+    // so a Move can link straight to that player's conversation.
+    discordUserId: a.character.discordUserId,
     discordUsername: nameFor(a.character),
     factionName: a.character.faction?.name ?? "",
     factionId: a.character.factionId ?? null,
@@ -281,6 +284,7 @@ export default async function TurnsWorkspacePage({ params }) {
     id: r.id,
     characterId: r.characterId,
     characterName: r.character.name,
+    discordUserId: r.character.discordUserId,
     discordUsername: nameFor(r.character),
     factionName: r.character.faction?.name ?? "",
     factionId: r.character.factionId ?? null,

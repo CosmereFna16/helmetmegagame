@@ -2734,3 +2734,83 @@ input[type="radio"]:disabled {
     overflow-y: visible;
   }
 }
+
+/* ── ⌘K command palette ─────────────────────────────────────────────────
+   Rides Modal's shell (focus trap, focus restore, topmost-Escape stack) and
+   only swaps the panel: a palette is a list you steer with the keyboard, not
+   a dialog with a title bar and padding. */
+.palette-panel {
+  width: min(100%, 40rem);
+  max-height: min(70vh, 34rem);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--e-3);
+  padding: 0.75rem 0.75rem 0;
+  gap: 0.5rem;
+  /* Sits high rather than centred: the list grows downward, and a centred
+     panel that changes height with every keystroke jitters under the eye. */
+  margin-bottom: auto;
+  margin-top: 12vh;
+}
+
+.palette-results {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.palette-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  min-width: 0;
+}
+
+.palette-row[data-active="true"] {
+  background: var(--field-bg);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.palette-row[data-dim="true"] .palette-row-label {
+  color: var(--muted);
+}
+
+.palette-row-kind {
+  flex-shrink: 0;
+  width: 4.5rem;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.palette-row-label {
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.palette-row-hint {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

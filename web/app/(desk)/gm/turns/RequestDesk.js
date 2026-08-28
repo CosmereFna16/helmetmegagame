@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import FormError from "@/app/components/FormError";
 import Tooltip from "@/app/components/Tooltip";
@@ -111,6 +112,11 @@ export default function RequestDesk({ request, onInspect, onClose, registerEscap
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {request.discordUserId && (
+            <Link href={`/gm/players/${request.discordUserId}`} className="btn-quiet">
+              Message →
+            </Link>
+          )}
           <DevCharacterButton
             characterId={request.characterId}
             name={request.characterName}
