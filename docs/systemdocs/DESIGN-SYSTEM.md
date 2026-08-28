@@ -209,11 +209,25 @@ slot takes anything belonging beside the title: a sub-nav, a faction switcher.
 was a documented convention for months and drifted anyway, which is why it is
 now a component.
 
-The one sanctioned exception is the `(desk)` route group — today, exactly the
-`/gm/turns` adjudication workspace. A full-viewport workspace owns its whole
-screen (no PageShell, no nav rail; the `.desk-*` layout family in
-`globals.css`), but everything inside it still uses the tokens and the shared
-control classes. See `ADJUDICATION.md` §3 before adding a second page there.
+The one sanctioned exception is the `(desk)` route group, which holds the two
+GM workspaces: `/gm/turns` (adjudication) and `/gm/players` (the player desk).
+A workspace owns its whole screen — no PageShell, no centred max-width; the
+`.desk-*` layout family in `globals.css` is its layout — but everything inside
+it still uses the tokens and the shared control classes.
+
+Desks **do** carry the nav rail. `(desk)/layout.js` renders the same
+`.app-shell` + `AppRail` + `.app-main` as `(app)`, so a desk is
+full-viewport-*minus-rail*. They did not always: the adjudication desk rendered
+bare, and the only ways out were a hand-placed "Exit" link and an Escape
+keypress that navigated away from an empty selection. With two desks, the way
+between them cannot be a link each one remembers to carry.
+
+`.desk-shell` is deliberately **not positioned and carries no z-index**.
+`Modal.js` renders `.modal-overlay` in-tree rather than through a portal, so a
+stacking context on the shell traps every desk modal at that element's level —
+and under 720px `.app-rail` is a fixed bottom bar at `z-index: 30`, which puts
+those modals underneath it. Read `ADJUDICATION.md` §3 and `PLAYER-DESK.md`
+before adding a third page there.
 
 A page's `loading.js` is `<SkeletonPage width title panels />` from the same
 file, so a skeleton physically cannot disagree with its page about width or

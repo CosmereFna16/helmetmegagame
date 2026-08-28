@@ -65,13 +65,29 @@ tray as "unattached" for the GM to keep or drop.
 
 ## 3. The workspace
 
-The one full-viewport surface in the app: `web/app/(desk)/gm/turns/`, its own
-route group with no NavRail and no PageShell (the sanctioned deviation —
+A full-viewport workspace: `web/app/(desk)/gm/turns/`, in the `(desk)` route
+group with no PageShell and no centred max-width (the sanctioned deviation —
 tokens and the shared control classes still apply; the `.desk-*` family in
-`globals.css` is its layout). Same URL, `/gm/turns`.
+`globals.css` is its layout). It **does** carry the nav rail, which is how you
+leave; `/gm/players` is its sibling in the same group.
+
+The route is `/gm/turns/[[...selection]]`, and the URL carries which row is
+open — `/gm/turns/move/<id>`, `/gm/turns/request/<id>`, `/gm/turns/caving/<id>`.
+An optional catch-all, not `[moveId]`: the desk selects one of three things, so
+the URL has to carry both halves of `{ type, id }`. Selection changes never
+touch the server — `setSelected` is `useState` and the URL is mirrored with
+`history.replaceState`, so picking a row leaves the queue, every DTO, the
+inspector cache and the tray untouched.
+
+Two consequences worth knowing. The route file has to genuinely exist, because
+the desk polls `router.refresh()` against the *current* URL and a GM parked on
+a selection would otherwise 404 on the first poll. And every
+`revalidatePath("/gm/turns")` became `revalidatePath(TURNS_PATH, "page")`
+(`web/lib/routes.js`) — a dynamic route needs its pattern, not a path that
+happens to match it.
 
 ```
-┌ header: turn chip · push times · Preview push · Exit ──────────────┐
+┌ header: turn chip · push times · Preview push ─────────────────────┐
 │ QUEUE RAIL      │  ARBITRATION DESK          │  INSPECTOR          │
 │ Moves/Requests  │  the selected Move or      │  Sheet · Tags ·     │
 │ lens, zone-seat │  Request: result box,      │  Archive · DMs for  │
@@ -128,22 +144,28 @@ keeps itself current and stays reachable from the keyboard:
 - **GM identity** shows as a small avatar (`GmAvatar.js`, roster from
   `web/lib/gmProfiles.js`) wherever a GM is named: the lock holder on an
   In Progress row, a staged row's author, a Move's solver, and the actor
-  column on `/gm/audit`. `/gm/messages` gets none — `DirectMessage` records
-  the player, not which GM typed the reply.
+  column on `/gm/audit`. The player desk's conversations get none —
+  `DirectMessage` records the player, not which GM typed the reply — though
+  its GM notes do (`GmCharacterNote.authorDiscordUserId`).
 - The **push preview is a way in**, not just a readout: a character name
   swaps the inspector to them, and a staged line closes the preview, opens
   and expands the tray, and scrolls to that row with a brief flash.
-- **Pins survive a reload** (`localStorage`, read through
-  `useSyncExternalStore`). A message whose push left `deliveryFailures` grows
+- **Pins survive a reload** and are **shared with the player desk**
+  (`web/app/components/usePins.js`, `localStorage` read through
+  `useSyncExternalStore`). Pin someone while adjudicating and they are pinned
+  when you go talk to them. A message whose push left `deliveryFailures` grows
   a **Resend** button that retries only the recipients that failed
   (`resendStagedMessage`). The Result box has a **Stage as message** button
   that opens the message composer prefilled with the result text and the
   Move's own character.
 
 Escape is layered, topmost-first: an open `Modal` handles its own Escape and
-the workspace yields to it; otherwise a focused field just blurs, a selected
-Move/Request deselects through its own dirty guard, and only with nothing
-selected does Escape leave for `/gm/players` (`Workspace.js`). The tray also
+the workspace yields to it; otherwise a focused field just blurs, and a
+selected Move/Request deselects through its own dirty guard (`Workspace.js`).
+With nothing selected **Escape does nothing**. It used to navigate to
+`/gm/players`, which made the desk read as a mode you were trapped in rather
+than a page — one stray keystroke and the whole workspace was gone. The rail
+is how you leave. The tray also
 grew a search box, an All/Effects/Messages/Public filter, and an Expand
 toggle for combing through a big push (`StagingTray.js`).
 

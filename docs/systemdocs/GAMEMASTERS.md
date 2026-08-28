@@ -126,7 +126,6 @@ reason `audit-contrast.js` can see it.
 | `/gm/turns` Moves | ✓ | ✓ | ✓ |
 | `/gm/turns` Requests | ✓ | ✓ | ✓ |
 | `/gm/players` | ✓ | ✓ | ✓ |
-| `/gm/messages` | ✓ | ✓ | ✓ |
 | `/gm/dev/factions` | ✓ | — | — |
 | `/faction` (player-facing) | ✓ | — | — |
 
@@ -137,7 +136,7 @@ zone. It now means the seat, matching every other surface; the physical one is
 still there, renamed to **Standing in** rather than dropped, because it answers
 a real and different question.
 
-**`/gm/messages` has no character FK** — `DirectMessage` keys on
+**The player desk has no character FK** — `DirectMessage` keys on
 `discordUserId`. The zone comes through a character lookup over the
 conversation's user IDs, resolved in the *same* loop as the display name under
 one ALIVE-wins rule. Splitting them into two loops is how a dead character's

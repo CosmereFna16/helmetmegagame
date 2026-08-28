@@ -206,7 +206,7 @@ destructive counterpart — see `SYNC.md`.
 
 ## 9. Bulk tagging
 
-`/gm/players` grows a "Tag selected" bar beside the existing message composer,
+The player desk's roster grows a "Tag selected" bar beside the message composer,
 reusing the row selection already there. `bulkTagCharacters` runs **one
 transaction per character, never one across the batch**: a hundred-character
 transaction would hold a row lock against each of those players' own equip
@@ -247,7 +247,7 @@ modal it re-fetches `getDevPanelData` (so the open panel repaints) and also
 calls `router.refresh()` (so the desk's own queue rows and staged hints
 repaint too). The standalone page still just calls `router.refresh()`.
 Delete follows the same shape through `onDeleted` — the modal closes itself
-and refreshes the desk, instead of the page's `router.push("/gm/players")`.
+and refreshes the desk, instead of the page's own navigation away.
 
 ## 11. The other Dev Panel: `/gm/dev`
 
