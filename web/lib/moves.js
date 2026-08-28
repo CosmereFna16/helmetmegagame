@@ -44,3 +44,12 @@ export const MOVE_REVIEW_TONES = {
 export function moveKindLabel(moveKind) {
   return MOVE_KIND_LABELS[moveKind] ?? "Move";
 }
+
+// Raw roll, then the summed modifier (Hunger) and total — a GM
+// has to be able to tell a modified 5 from a natural 5.
+export function rollLabel(a) {
+  if (a.diceRoll == null) return "";
+  const mod = a.diceModifier ?? 0;
+  if (!mod) return `rolled ${a.diceRoll}`;
+  return `rolled ${a.diceRoll} (${mod > 0 ? `+${mod}` : mod}) = ${a.diceRoll + mod}`;
+}

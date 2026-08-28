@@ -51,6 +51,22 @@ const ARCHIVE_NAV_ITEM = { href: "/archive", label: "Archive", icon: "archive" }
 // Streamed separately from the nav shell (see the Suspense boundary in
 // AppLayout below) — the live Discord role check and the Mortus-tag lookup
 // never block a navigation's paint.
+async function loadUnreadConversationCount(discordUserId) {
+  // Distinct players with an INBOUND row newer than this GM's read cursor —
+  // the same shape the messages layout uses per-conversation, collapsed to
+  // one number for the rail badge.
+  const rows = await prisma.$queryRaw`
+    SELECT COUNT(DISTINCT dm."discordUserId")::int AS "count"
+    FROM "DirectMessage" dm
+    LEFT JOIN "ConversationRead" cr
+      ON cr."playerDiscordUserId" = dm."discordUserId"
+      AND cr."gmDiscordUserId" = ${discordUserId}
+    WHERE dm."direction" = 'INBOUND'
+      AND dm."createdAt" > COALESCE(cr."lastReadAt", to_timestamp(0))
+  `;
+  return rows[0]?.count ?? 0;
+}
+
 async function loadNavItems(discordUserId) {
   const [{ isGm: gm }, hasMortusTag, config] = await Promise.all([
     getGmSession(),
@@ -64,7 +80,12 @@ async function loadNavItems(discordUserId) {
   ]);
   const hasMortus = gm || !!hasMortusTag;
 
-  const baseNav = gm ? GM_NAV : PLAYER_NAV;
+  // Only a GM has a per-GM read cursor to speak of; a player's own DM history
+  // isn't what this badge is for.
+  const unreadCount = gm ? await loadUnreadConversationCount(discordUserId) : 0;
+  const baseNav = (gm ? GM_NAV : PLAYER_NAV).map((item) =>
+    item.href === "/gm/messages" && unreadCount > 0 ? { ...item, badge: unreadCount } : item,
+  );
   const withLifeweb = hasMortus ? [...baseNav, LIFEWEB_NAV_ITEM] : baseNav;
   // GMs always have the Archive; players only once it's opened. The page
   // re-checks — this is presentation, that is enforcement, same posture as

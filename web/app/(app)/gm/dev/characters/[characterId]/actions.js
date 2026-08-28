@@ -364,8 +364,9 @@ async function spendTurnImpl({ characterId, description }) {
   return { actionId: created.id };
 }
 
-// One recipient, so sendDm directly. deliverGmMessage in gm/actions.js exists
-// for the sequential 100-recipient fan-out and would be the wrong shape here.
+// One recipient, so sendDm directly. sendGmBroadcast in gm/messages/actions.js
+// exists for the sequential 100-recipient fan-out and would be the wrong shape
+// here.
 // sendDm writes the DirectMessage log row and applies the » prefix itself.
 async function messageCharacterImpl({ characterId, message }) {
   const session = await requireGm();

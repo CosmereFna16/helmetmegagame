@@ -896,69 +896,10 @@ async function getArchiveSliceImpl({ characterId }) {
   };
 }
 
-const DM_SLICE = 50;
-
-async function getDmThreadImpl({ characterId }) {
-  await requireGm();
-  const character = await prisma.character.findUnique({
-    where: { id: characterId ?? "" },
-    select: { discordUserId: true },
-  });
-  if (!character) throw new UserError("Character not found.");
-
-  const messages = await prisma.directMessage.findMany({
-    where: { discordUserId: character.discordUserId },
-    orderBy: { createdAt: "desc" },
-    take: DM_SLICE,
-  });
-  return {
-    discordUserId: character.discordUserId,
-    messages: messages.reverse().map((m) => ({
-      id: m.id,
-      direction: m.direction,
-      content: m.content,
-      sentAt: m.createdAt.toISOString(),
-    })),
-  };
-}
-
-// The inspector's DM composer sends now — it is not staged, because a GM
-// reading a thread wants to answer it, not queue an answer for the push.
-async function sendInspectorDmImpl({ characterId, content }) {
-  const session = await requireGm();
-  const character = await prisma.character.findUnique({
-    where: { id: characterId ?? "" },
-    select: { id: true, discordUserId: true, name: true },
-  });
-  if (!character) throw new UserError("Character not found.");
-
-  const text = content?.toString().trim() ?? "";
-  if (!text) throw new UserError("Write the message first.");
-  if (text.length > GM_MESSAGE_MAX_LENGTH) {
-    throw new UserError(`Messages cap at ${GM_MESSAGE_MAX_LENGTH} characters.`);
-  }
-
-  // sendDm adds the » prefix and logs the DirectMessage row itself — this
-  // caller passes raw text, same as every other sendDm call site.
-  const sent = await sendDm(character.discordUserId, text, {
-    authorDiscordUserId: session.discordUserId,
-    source: "gm_inspector",
-  }).catch(() => null);
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: sent ? "gm_dm_sent" : "gm_message_delivery_failed",
-      targetCharacterId: character.id,
-      details: { via: "adjudication_inspector", length: text.length },
-    },
-  });
-
-  if (!sent) throw new UserError("Discord wouldn't deliver that — they may have DMs closed.");
-
-  revalidatePath(`/gm/messages/${character.discordUserId}`);
-  return getDmThreadImpl({ characterId });
-}
+// getDmThreadImpl/sendInspectorDmImpl used to live here. The Inspector's DMs
+// tab now uses web/app/(app)/gm/messages/actions.js#getDmThreadPage and
+// #sendGmDm directly — the same functions the /gm/messages inbox uses — so
+// there's one DM fetch/send path instead of two.
 
 const CONTEXT_SLICE = 30;
 
@@ -1098,14 +1039,8 @@ export async function getCharacterInspector(input) {
 export async function getArchiveSlice(input) {
   return guarded(() => getArchiveSliceImpl(input));
 }
-export async function getDmThread(input) {
-  return guarded(() => getDmThreadImpl(input));
-}
 export async function getHeldTags(input) {
   return guarded(() => getHeldTagsImpl(input));
-}
-export async function sendInspectorDm(input) {
-  return guarded(() => sendInspectorDmImpl(input));
 }
 export async function getArchiveContext(input) {
   return guarded(() => getArchiveContextImpl(input));

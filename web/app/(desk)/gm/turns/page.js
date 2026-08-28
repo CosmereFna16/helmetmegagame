@@ -2,7 +2,7 @@ import { prisma } from "@lifeweb/db";
 import { listGuildMembers } from "@/lib/discordGuild";
 import { getGmProfiles } from "@/lib/gmProfiles";
 import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requests";
-import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel } from "@/lib/moves";
+import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, rollLabel } from "@/lib/moves";
 import { getOpenTurn } from "@/lib/turn";
 import { getMyZone } from "@/lib/gmZone";
 import Workspace from "./Workspace";
@@ -42,15 +42,6 @@ function statusLabel(a, now) {
   if (!isConfirmed(a)) return MOVE_PIPELINE_LABELS[a.status] ?? a.status;
   if (a.lockExpiresAt && a.lockExpiresAt > now) return "In Progress";
   return MOVE_REVIEW_LABELS[a.moveReviewStatus] ?? "Open";
-}
-
-// Raw roll, then the summed modifier (Hunger) and total — a GM
-// has to be able to tell a modified 5 from a natural 5.
-function rollLabel(a) {
-  if (a.diceRoll == null) return "";
-  const mod = a.diceModifier ?? 0;
-  if (!mod) return `rolled ${a.diceRoll}`;
-  return `rolled ${a.diceRoll} (${mod > 0 ? `+${mod}` : mod}) = ${a.diceRoll + mod}`;
 }
 
 function turnLabel(turn) {

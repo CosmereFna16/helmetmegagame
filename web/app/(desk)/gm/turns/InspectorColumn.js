@@ -7,9 +7,11 @@ import FactionLink from "@/app/components/FactionLink";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
 import MarkdownContent from "@/app/components/MarkdownContent";
 import FormError from "@/app/components/FormError";
+import DmThread from "@/app/components/DmThread";
 import ArchiveContextModal from "./ArchiveContextModal";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
-import { getCharacterInspector, getArchiveSlice, getDmThread, sendInspectorDm, createStagedEffects } from "./actions";
+import { getCharacterInspector, getArchiveSlice, createStagedEffects } from "./actions";
+import { getDmThreadPage, sendGmDm } from "@/app/(app)/gm/messages/actions";
 
 // The right-hand inspector: the "quickly pull up the guy he was talking to"
 // column. Sheet / Tags / Archive / DMs over whichever character was last
@@ -37,7 +39,7 @@ function useInspectorData(characterId, tab, cache, setCache) {
     let cancelled = false;
     (async () => {
       const fetcher =
-        tab === "Archive" ? getArchiveSlice : tab === "DMs" ? getDmThread : getCharacterInspector;
+        tab === "Archive" ? getArchiveSlice : tab === "DMs" ? getDmThreadPage : getCharacterInspector;
       const res = await fetcher({ characterId });
       if (cancelled) return;
       const value = res?.ok ? { data: res } : { error: res?.error ?? "Couldn't load that." };
@@ -258,17 +260,41 @@ function ArchiveView({ data, onOpenContext }) {
   );
 }
 
+// A thin wrapper over the shared DmThread — the same component the
+// /gm/messages inbox uses (compact, for the Inspector's narrower column).
+// The fetch/send/cache plumbing is still this file's job (Workspace owns the
+// cache), but the thread rendering and the reply form are no longer a
+// bespoke second implementation.
 function DmsView({ data, characterId, cacheKey, setCache }) {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
+
+  function loadOlder() {
+    const oldest = data.messages[0];
+    if (!oldest) return;
+    startTransition(async () => {
+      const res = await getDmThreadPage({
+        characterId,
+        beforeMs: new Date(oldest.createdAt).getTime(),
+        beforeId: oldest.id,
+      });
+      if (res?.ok) {
+        setCache((prev) =>
+          new Map(prev).set(cacheKey, {
+            data: { ...res, messages: [...res.messages, ...data.messages], hasMore: res.hasMore },
+          }),
+        );
+      }
+    });
+  }
 
   function send() {
     const content = draft.trim();
     if (!content) return;
     setError(null);
     startTransition(async () => {
-      const res = await sendInspectorDm({ characterId, content });
+      const res = await sendGmDm({ characterId, content, source: "gm_inspector" });
       if (res?.ok) {
         setDraft("");
         setCache((prev) => new Map(prev).set(cacheKey, { data: res }));
@@ -280,29 +306,8 @@ function DmsView({ data, characterId, cacheKey, setCache }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-3">
-        {data.messages.length ? (
-          data.messages.map((m) => (
-            <div
-              key={m.id}
-              className="rounded-md px-3 py-2 text-sm"
-              style={{
-                alignSelf: m.direction === "OUTBOUND" ? "flex-end" : "flex-start",
-                maxWidth: "90%",
-                background: m.direction === "OUTBOUND" ? "var(--accent-solid)" : "var(--field-bg)",
-                color: m.direction === "OUTBOUND" ? "var(--on-accent)" : "var(--text)",
-                border: m.direction === "OUTBOUND" ? "none" : "1px solid var(--border)",
-              }}
-            >
-              <MarkdownContent content={m.content} />
-              <p className="mt-1 text-xs" style={{ opacity: 0.7 }}>
-                {m.sentAt.slice(0, 16).replace("T", " ")}
-              </p>
-            </div>
-          ))
-        ) : (
-          <p className="text-sm text-muted">No messages yet.</p>
-        )}
+      <div className="flex-1 overflow-y-auto">
+        <DmThread messages={data.messages} onLoadOlder={loadOlder} hasMore={data.hasMore} compact />
       </div>
       <div className="field border-t p-3" style={{ borderColor: "var(--border)" }}>
         <textarea

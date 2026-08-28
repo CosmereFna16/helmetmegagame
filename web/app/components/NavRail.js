@@ -70,6 +70,7 @@ export default function NavRail({ items }) {
             >
               <Icon aria-hidden="true" />
               <span>{item.label}</span>
+              {item.badge > 0 && <span className="rail-item-badge mono">{item.badge}</span>}
             </Link>
           );
         })}

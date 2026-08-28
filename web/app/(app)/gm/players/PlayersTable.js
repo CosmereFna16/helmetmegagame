@@ -3,7 +3,8 @@
 import FormError from "@/app/components/FormError";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { useMemo, useState, useTransition } from "react";
-import { sendGmMessage, bulkTagCharacters } from "../actions";
+import { bulkTagCharacters } from "../actions";
+import { sendGmBroadcast } from "../messages/actions";
 import { filterTagsByQuery, sortForMode, tagsById as buildTagsById } from "@/lib/characterCreation";
 import CharacterLink from "../../../components/CharacterLink";
 import FactionLink from "../../../components/FactionLink";
@@ -35,6 +36,8 @@ export default function PlayersTable({ characters, tags = [], myZoneName }) {
   const [selected, setSelected] = useState(new Set());
   const [composerOpen, setComposerOpen] = useState(false);
   const [tagBarOpen, setTagBarOpen] = useState(false);
+  const [composerError, setComposerError] = useState(null);
+  const [sending, startSending] = useTransition();
 
   const filterDefs = useMemo(() => FILTER_DEFS, []);
   const searchFields = useMemo(() => SEARCH_FIELDS, []);
@@ -100,22 +103,30 @@ export default function PlayersTable({ characters, tags = [], myZoneName }) {
 
       {composerOpen && selected.size > 0 && (
         <form
-          action={sendGmMessage}
           className="panel flex flex-col gap-3 p-4"
-          onSubmit={() => {
-            setComposerOpen(false);
-            setSelected(new Set());
+          onSubmit={(e) => {
+            e.preventDefault();
+            const message = new FormData(e.currentTarget).get("message")?.toString().trim();
+            if (!message) return;
+            setComposerError(null);
+            startSending(async () => {
+              const res = await sendGmBroadcast({ characterIds: [...selected], message });
+              if (!res.ok) {
+                setComposerError(res.error);
+                return;
+              }
+              setComposerOpen(false);
+              setSelected(new Set());
+            });
           }}
         >
-          {[...selected].map((id) => (
-            <input key={id} type="hidden" name="characterId" value={id} />
-          ))}
           <label className="field">
             <span className="field-label">Message ({selected.size} recipient{selected.size === 1 ? "" : "s"}, sent from Bascinet)</span>
             <textarea name="message" rows={3} required maxLength={GM_MESSAGE_MAX_LENGTH} />
           </label>
-          <button type="submit" className="btn self-start">
-            Send
+          <FormError>{composerError}</FormError>
+          <button type="submit" className="btn self-start" disabled={sending}>
+            {sending ? "Sending…" : "Send"}
           </button>
         </form>
       )}
