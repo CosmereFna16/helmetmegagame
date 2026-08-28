@@ -48,6 +48,9 @@ const {
   fetchAllMessages,
   chunkMessage,
   THREAD_FLAG_PINNED,
+  fetchActiveThreads,
+  listActiveThreadsForChannel,
+  listArchivedPublicThreads,
 } = require("./discordRest");
 const crypto = require("node:crypto");
 const { SPECTATOR_ROLE_ID } = require("./roleIds");
@@ -334,9 +337,12 @@ async function syncCreateTopicPost(prisma, zone) {
   const locationTagId = await ensureForumTag(zone.discordPublicChannelId, LOCATION_TAG_NAME, null);
   const appliedTags = locationTagId ? [locationTagId] : [];
   const body = buildCreateTopicBody(zone);
-  const hash = hashBody(body);
   const chunks = chunkMessage(body);
   const components = [createTopicRow(zone.id)];
+  // The hash folds in the button row, not just the body — otherwise adding
+  // or changing a button (like "Who's here?") would never trip the no-op
+  // guard and the anchor would keep its stale components forever.
+  const hash = hashBody(`${body} ${JSON.stringify(components)}`);
 
   let existing = null;
   if (zone.createTopicThreadId) {
@@ -427,6 +433,20 @@ async function syncPrivateAnchor(prisma, zone) {
   return "created";
 }
 
+// Finds a forum post already sitting in the forum with this exact title, so
+// syncTopicPost can adopt it instead of creating a second post next to it. A
+// retried create (discordRest.js's bounded 429 retry, or a request Discord
+// actually applied before the client gave up on it) is the only way this
+// happens in practice — nothing else in this sync creates a Location post —
+// so an exact-name match is a safe, cheap check rather than a fuzzy one.
+async function findExistingTopicThread(forumChannelId, title) {
+  const active = await listActiveThreadsForChannel(forumChannelId, await fetchActiveThreads());
+  const found = active.find((t) => t.name === title);
+  if (found) return found;
+  const archived = await listArchivedPublicThreads(forumChannelId);
+  return archived.find((t) => t.name === title) ?? null;
+}
+
 // One generated, Location-tagged, UNLOCKED, unpinned forum post per topic.
 // Players roleplay inside it — that is the point of the rework — so it is
 // never locked; the Dawn wipe clears its replies but never its starter.
@@ -441,28 +461,84 @@ async function syncTopicPost(prisma, topic, zone) {
   const hash = hashBody(body);
   const chunks = chunkMessage(body);
   const title = topic.name.slice(0, 100);
+  // The "Who's here?" button lives on the Create-a-Topic anchor only, not on
+  // every generated Location post — components stays empty here, but the
+  // hash-tracked starter-edit path below still matters: it is what lets a
+  // future button change (or removal, like this one) clear the row without
+  // the destructive rewriteForumPost rebuild.
+  const components = [];
+  const componentsHash = hashBody(JSON.stringify(components));
 
   let existing = null;
   if (topic.discordThreadId) {
     existing = await getChannel(topic.discordThreadId, { allow404: true });
   }
-  if (existing && topic.postHash === hash) return "unchanged";
+  if (existing && topic.postHash === hash && topic.componentsHash === componentsHash) return "unchanged";
 
   if (!existing) {
-    const thread = await createForumPost(zone.discordPublicChannelId, {
-      name: title,
-      content: chunks[0],
-      appliedTags,
-    });
+    // Adopt a same-named post already sitting in the forum instead of making
+    // a second one — same posture as syncSpecialChannels.js for a same-name
+    // channel (CHANNELS.md §7). Without this, a 429 mid-create that Discord
+    // actually applied before timing out gets retried by discordRest.js's
+    // bounded-retry loop (any non-2xx that isn't a clean 404/429 throws, but
+    // a slow 2xx the client gave up waiting on looks like a fresh failure to
+    // the next attempt) and the retry makes a second, empty post next to the
+    // first — the exact duplicate this guard exists to catch.
+    const adopted = await findExistingTopicThread(zone.discordPublicChannelId, title);
+    if (adopted) {
+      await rewriteForumPost(adopted.id, { name: title, chunks, appliedTags, locked: false, components });
+      await prisma.locationTopic.update({
+        where: { id: topic.id },
+        data: { discordThreadId: adopted.id, postHash: hash, componentsHash },
+      });
+      topic.discordThreadId = adopted.id;
+      topic.postHash = hash;
+      topic.componentsHash = componentsHash;
+      return "updated";
+    }
+
+    // Same 400-status wobble as the Create-a-Topic anchor (syncCreateTopicPost)
+    // — whether a forum post's create call honors `components` has wobbled
+    // across API revisions, so a rejection falls back to create-then-edit.
+    let thread;
+    try {
+      thread = await createForumPost(zone.discordPublicChannelId, {
+        name: title,
+        content: chunks[0],
+        appliedTags,
+        components,
+      });
+    } catch (err) {
+      if (err?.status !== 400) throw err;
+      thread = await createForumPost(zone.discordPublicChannelId, {
+        name: title,
+        content: chunks[0],
+        appliedTags,
+      });
+      await editMessage(thread.id, thread.id, chunks[0], components);
+    }
     for (const chunk of chunks.slice(1)) await postMessage(thread.id, chunk);
     await patchThread(thread.id, { archived: false, applied_tags: appliedTags });
     await prisma.locationTopic.update({
       where: { id: topic.id },
-      data: { discordThreadId: thread.id, postHash: hash },
+      data: { discordThreadId: thread.id, postHash: hash, componentsHash },
     });
     topic.discordThreadId = thread.id;
     topic.postHash = hash;
+    topic.componentsHash = componentsHash;
     return "created";
+  }
+
+  // A components-only change (e.g. the button row changed but the body
+  // didn't) takes a cheap starter-message edit instead of the full
+  // rewriteForumPost rebuild — that rebuild deletes every non-starter
+  // message in the thread, which for a Location post means the day's
+  // roleplay. Only a real body change earns the full rebuild.
+  if (topic.postHash === hash) {
+    await editMessage(topic.discordThreadId, topic.discordThreadId, chunks[0], components);
+    await prisma.locationTopic.update({ where: { id: topic.id }, data: { componentsHash } });
+    topic.componentsHash = componentsHash;
+    return "updated";
   }
 
   await rewriteForumPost(topic.discordThreadId, {
@@ -470,9 +546,11 @@ async function syncTopicPost(prisma, topic, zone) {
     chunks,
     appliedTags,
     locked: false,
+    components,
   });
-  await prisma.locationTopic.update({ where: { id: topic.id }, data: { postHash: hash } });
+  await prisma.locationTopic.update({ where: { id: topic.id }, data: { postHash: hash, componentsHash } });
   topic.postHash = hash;
+  topic.componentsHash = componentsHash;
   return "updated";
 }
 

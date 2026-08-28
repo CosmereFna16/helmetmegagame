@@ -24,9 +24,9 @@ const { MessageFlags } = require("discord.js");
 const DISCORD_MESSAGE_LIMIT = 2000;
 const TRUNCATION_NOTE = "\n-# …trimmed to fit Discord's 2000-character limit.";
 
-// How long a `fleeting` reply sits before it self-deletes. Well inside the
+// How long an ephemeral reply sits before it self-deletes. Well inside the
 // interaction token's 15-minute life, and long enough to actually read.
-const FLEETING_DELETE_DELAY_MS = 2 * 60_000;
+const FLEETING_DELETE_DELAY_MS = 60_000;
 
 // Trims to Discord's limit rather than letting the send fail. Truncating a
 // long reply costs the tail of one message; failing loses the whole reply on
@@ -35,6 +35,20 @@ function clampContent(content) {
   const text = String(content ?? "");
   if (text.length <= DISCORD_MESSAGE_LIMIT) return text;
   return text.slice(0, DISCORD_MESSAGE_LIMIT - TRUNCATION_NOTE.length) + TRUNCATION_NOTE;
+}
+
+// Schedules an already-answered interaction's reply (or, for a `deferUpdate`
+// component interaction, its own picker message) to self-delete after
+// FLEETING_DELETE_DELAY_MS. `respond` calls this itself; exported for the
+// handful of sites (a raw `interaction.update(...)`, the Speak flow's own
+// defer/edit pair) that answer without going through `respond` but still
+// want the same 60s expiry.
+function scheduleDismiss(interaction) {
+  // The user may dismiss it, restart their client, or the token may have
+  // gone dead in the meantime — any of which makes this a routine no-op.
+  setTimeout(() => {
+    interaction.deleteReply().catch(() => {});
+  }, FLEETING_DELETE_DELAY_MS);
 }
 
 // Acknowledge before doing any work. `update: true` for a component
@@ -59,14 +73,13 @@ async function ack(interaction, { update = false, ephemeral = true } = {}) {
 // interaction. Never throws: by the time this runs the database work is done,
 // and a failed reply must not become an unhandled rejection on top of it.
 //
-// `fleeting: true` self-deletes the reply after FLEETING_DELETE_DELAY_MS —
-// for a bare acknowledgement ("Sent.", "Cleared.") that carries no
-// information the player needs to keep, so it doesn't sit in their client
-// forever the way an ephemeral reply otherwise does. Never set it on a reply
-// that's the only record of something (a dice roll, a jump link) or that
-// tells the player their work did NOT happen — see respond.js's own header on
-// why a silently-lost reply is the failure this module exists to prevent.
-async function respond(interaction, payload, { fleeting = false } = {}) {
+// Self-deletes after FLEETING_DELETE_DELAY_MS by default — an ephemeral reply
+// is only ever visible to the one player who triggered it, and one that
+// outlives its moment just sits there as a Dismiss chore. The durable record
+// of anything that matters lives in AuditLog / Action / ArchiveEntry, not in
+// an ephemeral, so there is nothing here worth keeping around. Pass
+// `fleeting: false` to opt a specific reply out.
+async function respond(interaction, payload, { fleeting = true } = {}) {
   const options = typeof payload === "string" ? { content: payload } : { ...payload };
   if (options.content !== undefined) options.content = clampContent(options.content);
 
@@ -83,13 +96,7 @@ async function respond(interaction, payload, { fleeting = false } = {}) {
     return;
   }
 
-  if (fleeting) {
-    // The user may dismiss it, restart their client, or the token may have
-    // gone dead in the meantime — any of which makes this a routine no-op.
-    setTimeout(() => {
-      interaction.deleteReply().catch(() => {});
-    }, FLEETING_DELETE_DELAY_MS);
-  }
+  if (fleeting) scheduleDismiss(interaction);
 }
 
-module.exports = { ack, respond, clampContent, DISCORD_MESSAGE_LIMIT, FLEETING_DELETE_DELAY_MS };
+module.exports = { ack, respond, scheduleDismiss, clampContent, DISCORD_MESSAGE_LIMIT, FLEETING_DELETE_DELAY_MS };

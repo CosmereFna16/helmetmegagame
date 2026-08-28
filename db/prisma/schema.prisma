@@ -632,6 +632,12 @@ model LocationTopic {
   discordThreadId String?
   postHash        String?
 
+  // Hash of the starter message's button row (the "Who's here?" button),
+  // tracked separately from postHash so a components-only change can take
+  // the cheap starter-edit path in syncTopicPost instead of the full
+  // rewriteForumPost rebuild, which would delete the day's roleplay replies.
+  componentsHash String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -1,4 +1,4 @@
-const { ChannelType, MessageFlags, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { ChannelType, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const { prisma, concealedAlias } = require("@lifeweb/db");
 const { buildZoneSelectRow, buildConfirmRow, performMove, syncCharacterNarrowcastAccess } = require("../lib/zoneTravel");
 const { sendDm } = require("../lib/dm");
@@ -16,7 +16,7 @@ const { HEALTH_CATEGORY } = require("@lifeweb/db/lib/medicalVision");
 const { isPrivateThread, messageLink } = require("../lib/mentions");
 const { ensureForumTag, createForumPost, startPrivateThread, addThreadMember } = require("@lifeweb/db/lib/discordRest");
 const { PERSISTENT_TAG_NAME } = require("@lifeweb/db/lib/persistence");
-const { TOPIC_BUTTON_PREFIX, PRIVATE_BUTTON_PREFIX } = require("@lifeweb/db/lib/zoneAnchorRow");
+const { TOPIC_BUTTON_PREFIX, PRIVATE_BUTTON_PREFIX, WHOS_HERE_PREFIX } = require("@lifeweb/db/lib/zoneAnchorRow");
 const {
   buildTopicModal,
   buildPrivateModal,
@@ -24,7 +24,7 @@ const {
   PRIVATE_MODAL_PREFIX,
 } = require("../lib/topicModal");
 const { resolveChannelContext } = require("../lib/channels");
-const { ack, respond } = require("../lib/respond");
+const { ack, respond, scheduleDismiss } = require("../lib/respond");
 
 // Discord's hard cap on select-menu options, and on max_values with them.
 const MENU_OPTION_LIMIT = 25;
@@ -35,7 +35,7 @@ const MENU_OPTION_LIMIT = 25;
 // has no message of its own to delete, so it just sends directly).
 async function handleGmCommand(interaction) {
   if (!isGmMember(interaction)) {
-    await interaction.reply({ content: "» *GMs only.*", flags: MessageFlags.Ephemeral });
+    await respond(interaction, "» *GMs only.*");
     return;
   }
   // Deferred before the send: re-uploading an attachment through Discord can
@@ -62,7 +62,7 @@ async function handleGmCommand(interaction) {
 // bot-composed DM (see the "Bot message style" note in CLAUDE.md).
 async function handleGmDmCommand(interaction) {
   if (!isGmMember(interaction)) {
-    await interaction.reply({ content: "» *GMs only.*", flags: MessageFlags.Ephemeral });
+    await respond(interaction, "» *GMs only.*");
     return;
   }
   // A DM costs two round trips (open the channel, post), which is most of the
@@ -117,10 +117,7 @@ async function handleLaborStub(interaction) {
 async function handleThreadMemberCommand(interaction, action) {
   const channel = interaction.channel;
   if (!isPrivateThread(channel)) {
-    await interaction.reply({
-      content: "» *That only works inside a private thread.*",
-      flags: MessageFlags.Ephemeral,
-    });
+    await respond(interaction, "» *That only works inside a private thread.*");
     return;
   }
   // Deferred before the member fetch: on a cache miss that is a REST round
@@ -216,10 +213,7 @@ async function handlePersistentCommand(interaction) {
   const privateThread = isPrivateThread(channel);
 
   if (!forumPost && !privateThread) {
-    await interaction.reply({
-      content: "» *That only works inside a forum post or a private thread.*",
-      flags: MessageFlags.Ephemeral,
-    });
+    await respond(interaction, "» *That only works inside a forum post or a private thread.*");
     return;
   }
 
@@ -380,35 +374,36 @@ async function handleConfirm(interaction, zoneId) {
 
   const character = await findAliveCharacter(interaction.user.id);
   if (!character) {
-    await interaction.editReply({ content: "» *You don't have a living character.*", components: [] });
+    await respond(interaction, { content: "» *You don't have a living character.*", components: [] });
     return;
   }
 
   const zone = await prisma.zone.findUnique({ where: { id: zoneId } });
   if (!zone) {
-    await interaction.editReply({ content: "» *That zone no longer exists.*", components: [] });
+    await respond(interaction, { content: "» *That zone no longer exists.*", components: [] });
     return;
   }
 
   const { guild } = await resolveActingMember(interaction);
   if (!guild) {
-    await interaction.editReply({ content: "» *Couldn't reach the server.*", components: [] });
+    await respond(interaction, { content: "» *Couldn't reach the server.*", components: [] });
     return;
   }
 
   const hadZone = Boolean(character.zoneId);
   const result = await performMove(guild, character, zone);
   if (!result.ok) {
-    await interaction.editReply({ content: `» *${result.reason}*`, components: [] });
+    await respond(interaction, { content: `» *${result.reason}*`, components: [] });
     return;
   }
 
   const suffix = hadZone ? " Your turn is spent." : "";
-  await interaction.editReply({ content: `» Moved to **${zone.name}**.${suffix}`, components: [] });
+  await respond(interaction, { content: `» Moved to **${zone.name}**.${suffix}`, components: [] });
 }
 
 async function handleCancel(interaction) {
   await interaction.update({ content: "» *Cancelled.*", components: [] });
+  scheduleDismiss(interaction);
 }
 
 // --- Create a Topic / Create a Private Thread -------------------------
@@ -428,6 +423,48 @@ async function handleTopicOpen(interaction, zoneId) {
 
 async function handlePrivateOpen(interaction, zoneId) {
   await interaction.showModal(buildPrivateModal(zoneId));
+}
+
+// The green "Who's here?" button (db/lib/zoneAnchorRow.js) on a zone's
+// Create-a-Topic anchor and every generated Location post. Replies privately
+// with just the names of every ALIVE character standing in the zone —
+// nothing more — plus a same-faction Role, mirroring the gate the bot's 🔍
+// inspect embed uses (bot/src/events/messageReactionAdd.js): Role is
+// same-faction knowledge, not Silo authority (FACTIONS.md §4a).
+//
+// No extra gate on the button itself: the forum it lives in is already
+// visible only to that zone's role, so this reveals nothing a press couldn't
+// already reach. It touches the database, so it acks like any other handler
+// rather than opening a modal.
+async function handleWhosHere(interaction, zoneId) {
+  await ack(interaction);
+
+  const [viewer, present] = await Promise.all([
+    prisma.character.findFirst({
+      where: { discordUserId: interaction.user.id, status: "ALIVE" },
+      select: { factionId: true },
+    }),
+    prisma.character.findMany({
+      where: { status: "ALIVE", zoneId },
+      select: { name: true, roleTitle: true, factionId: true, faction: { select: { name: true } } },
+      orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
+    }),
+  ]);
+
+  if (present.length === 0) {
+    await respond(interaction, "» *Nobody is here.*");
+    return;
+  }
+
+  const names = present.map((c) => {
+    const sameFaction =
+      viewer?.factionId &&
+      c.factionId === viewer.factionId &&
+      c.faction?.name !== "Unaffiliated" &&
+      c.roleTitle;
+    return sameFaction ? `${c.name}, ${c.roleTitle}` : c.name;
+  });
+  await respond(interaction, names.join(" | "));
 }
 
 // Shared gates for both submit handlers: a living character, standing in the
@@ -719,28 +756,28 @@ function optionalCheckbox(interaction, customId) {
 // speak. Deferred, because enumerating threads costs API calls — which is
 // exactly why the modal cannot be opened straight from this button.
 async function handleSpeakOpen(interaction) {
-  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  await ack(interaction);
 
   const character = await findAliveCharacter(interaction.user.id);
   if (!character) {
-    await interaction.editReply({ content: "» *You don't have a living character.*" });
+    await respond(interaction, "» *You don't have a living character.*");
     return;
   }
 
   const { guild, member } = await resolveActingMember(interaction);
   if (!guild || !member) {
-    await interaction.editReply({ content: "» *Couldn't reach the server.*" });
+    await respond(interaction, "» *Couldn't reach the server.*");
     return;
   }
 
   const { options, truncated } = await listSpeakTargets(guild, member);
   if (options.length === 0) {
-    await interaction.editReply({ content: "» *There's nowhere you can speak right now.*" });
+    await respond(interaction, "» *There's nowhere you can speak right now.*");
     return;
   }
 
   const { rows, note } = buildSpeakPicker(options, truncated);
-  await interaction.editReply({
+  await respond(interaction, {
     content: ["Where would you like to speak?", note].filter(Boolean).join("\n"),
     components: rows,
   });
@@ -809,7 +846,7 @@ async function handleSpeakSubmit(interaction, channelId) {
     });
   } catch (err) {
     console.error("Failed to post a Speak message:", err);
-    await interaction.editReply({ content: "» *Couldn't post that.*" });
+    await respond(interaction, "» *Couldn't post that.*");
     return;
   }
 
@@ -822,9 +859,7 @@ async function handleSpeakSubmit(interaction, channelId) {
   });
   await touchCharacterActivity(prisma, character.id);
 
-  await interaction.editReply({
-    content: `» *Sent.*\n${messageLink(guild.id, channel.id, posted.webhookMessage.id)}`,
-  });
+  await respond(interaction, `» *Sent.*\n${messageLink(guild.id, channel.id, posted.webhookMessage.id)}`);
 }
 
 // /message. Inside a channel the player can already speak in, skip the picker
@@ -854,7 +889,7 @@ async function handleMessageCommand(interaction) {
 // be able to clear those too. Category is the only filter.
 async function handleHealCommand(interaction) {
   if (!isGmMember(interaction)) {
-    await interaction.reply({ content: "» *GMs only.*", flags: MessageFlags.Ephemeral });
+    await respond(interaction, "» *GMs only.*");
     return;
   }
   await ack(interaction);
@@ -903,6 +938,7 @@ async function handleHealCommand(interaction) {
 async function handleHealPick(interaction, characterId) {
   if (!isGmMember(interaction)) {
     await interaction.update({ content: "» *GMs only.*", components: [] });
+    scheduleDismiss(interaction);
     return;
   }
   await interaction.deferUpdate();
@@ -913,7 +949,7 @@ async function handleHealPick(interaction, characterId) {
     include: { tags: { include: { tag: true } } },
   });
   if (!target) {
-    await interaction.editReply({ content: "» *That character no longer exists.*", components: [] });
+    await respond(interaction, { content: "» *That character no longer exists.*", components: [] });
     return;
   }
 
@@ -938,7 +974,7 @@ async function handleHealPick(interaction, characterId) {
   const { guild } = await resolveActingMember(interaction);
   if (guild) await syncCharacterNarrowcastAccess(guild, target).catch(() => {});
 
-  await interaction.editReply({
+  await respond(interaction, {
     content: `» *Cleared ${cleared.join(", ")} from ${target.name}.*`,
     components: [],
   });
@@ -979,6 +1015,9 @@ module.exports = {
         if (interaction.customId.startsWith(PRIVATE_BUTTON_PREFIX)) {
           return void (await handlePrivateOpen(interaction, interaction.customId.slice(PRIVATE_BUTTON_PREFIX.length)));
         }
+        if (interaction.customId.startsWith(WHOS_HERE_PREFIX)) {
+          return void (await handleWhosHere(interaction, interaction.customId.slice(WHOS_HERE_PREFIX.length)));
+        }
         if (interaction.customId === "move:open") return void (await handleMoveOpen(interaction));
         if (interaction.customId === "say:open") return void (await handleSpeakOpen(interaction));
       } else if (interaction.isStringSelectMenu()) {
@@ -1012,15 +1051,8 @@ module.exports = {
 
 async function respondToFailure(interaction) {
   if (!interaction.isRepliable?.()) return;
-  const content = "» *Something went wrong — that didn't go through.*";
-  try {
-    if (interaction.deferred || interaction.replied) {
-      await interaction.editReply({ content, components: [] });
-    } else {
-      await interaction.reply({ content, flags: MessageFlags.Ephemeral });
-    }
-  } catch {
-    // The interaction token may already be dead (a modal that timed out, a
-    // 3-second miss). Nothing left to say to the user.
-  }
+  // respond() never throws on its own — it logs and returns — which is what
+  // this catch-all needs: the interaction token may already be dead (a modal
+  // that timed out, a 3-second miss), and there is nothing left to say then.
+  await respond(interaction, { content: "» *Something went wrong — that didn't go through.*", components: [] });
 }

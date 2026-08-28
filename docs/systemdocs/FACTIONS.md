@@ -127,6 +127,10 @@ being a member of that faction does.
   ALIVE character shares `factionId` with the subject (and neither is
   Unaffiliated). Absent, never masked, same posture as Resources above. A
   `/conceal`ed message never reaches this branch at all.
+- The **Who's here?** button (`zone:who:{zoneId}`, `db/lib/zoneAnchorRow.js`,
+  `CHANNELS.md` §4) on each zone's Create-a-Topic anchor runs the same test:
+  it lists every name in the zone, appending `, {roleTitle}` only for a
+  character sharing the viewer's `factionId` (neither Unaffiliated).
 
 ## 5. Moving Resources out of a Silo
 

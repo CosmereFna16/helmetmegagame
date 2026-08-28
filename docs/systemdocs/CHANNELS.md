@@ -190,6 +190,21 @@ the starter, re-post overflow chunks, then re-assert name, tags and lock state.
 The starter message's id *is* the thread id, and deleting it would destroy the
 post.
 
+The starter message's button row is hashed separately, on
+`LocationTopic.componentsHash` — a Location post currently carries no
+buttons, but the column exists so a future button change on it never has to
+go through the destructive rebuild above just to update a row of components:
+a components-only change takes a cheap starter-message **edit** instead,
+which matters here because the body rewrite deletes every reply in the
+thread, and a Location post is where the day's roleplay actually lives.
+
+Creating a new post first checks the forum for one already carrying that
+exact title and adopts it rather than posting a duplicate (§7 has the same
+posture for a special channel). This exists because a retried create — the
+429 bounded-retry loop in `discordRest.js`, or a request Discord actually
+applied before the client gave up waiting on it — can otherwise leave two
+empty posts with the same name sitting side by side.
+
 A topic whose zone changed in the YAML **moves**: a forum post can't change
 forums, so the old post is deleted and the recorded ids nulled, and the post
 pass recreates it in the new forum.
@@ -198,8 +213,17 @@ pass recreates it in the new forum.
 
 | Anchor | Where | What it is |
 |---|---|---|
-| **Create a Topic** | one pinned, **locked**, Location-tagged forum post at the top of every public forum (surface and cave level) | Its single message carries the zone's blurb plus instructions; the `topic:new:{zoneId}` button rides on it |
+| **Create a Topic** | one pinned, **locked**, Location-tagged forum post at the top of every public forum (surface and cave level) | Its single message carries the zone's blurb plus instructions; the `topic:new:{zoneId}` and `zone:who:{zoneId}` buttons ride on it |
 | **Create** | one permanent message in every surface `#private` | Carries the `priv:new:{zoneId}` button |
+
+**Who's here?** replies privately with the names of every `ALIVE` character
+standing in the zone — plus each name's `roleTitle` for anyone who shares the
+viewer's faction, the same same-faction gate the bot's 🔍 inspect embed uses
+(`FACTIONS.md` §4a). It lives on the anchor only, not on every generated
+Location post below — one button per forum, not one per post. No extra gate
+sits on the button itself: the forum it lives in is already visible only to
+that zone's role, so pressing it reveals nothing a player in the room
+couldn't already see by walking around.
 
 Both are hash-gated the same way the topics are (`Zone.createTopicHash`,
 `Zone.privateAnchorHash`). The `#private` anchor is a plain message, not a

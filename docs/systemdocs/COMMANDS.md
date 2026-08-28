@@ -143,6 +143,7 @@ parsed by literal `startsWith` + `slice`.
 | `topic:create:{zoneId}` | Modal | Create a public forum topic |
 | `priv:new:{zoneId}` | Button | Show the Create-a-Private-Thread modal |
 | `priv:create:{zoneId}` | Modal | Create a private thread |
+| `zone:who:{zoneId}` | Button | Reply privately with who's standing in the zone |
 | `move:open` | Button | Show the Move modal |
 | `say:open` | Button | Show the Speak picker |
 | `say:pick` | Select | Pick a destination, then show the Speak modal |
