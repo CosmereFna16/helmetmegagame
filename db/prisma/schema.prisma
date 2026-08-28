@@ -420,9 +420,8 @@ model Faction {
   //
   //   1. Groups the character-creation role picker (Zone -> Faction -> Role).
   //   2. It is where the faction's SILO sits. Resources only move in or out
-  //      of a Silo if the acting character is standing in this zone, or in
-  //      the same zone as one of the faction's Leaders/Treasurers. See
-  //      web/lib/transferReach.js and FACTIONS.md.
+  //      of a Silo if the acting character is standing in this zone. See
+  //      web/lib/transferReach.js and FACTIONS.md §3b.
   //
   // A faction's MEMBERS are still not confined to it — only its Silo is.
   // One column serving both means a faction cannot be grouped under one zone

@@ -56,7 +56,7 @@ documents:
 
       **Transferring Resources**
 
-      You can transfer resources from any source to any recipient, but there's a couple of criteria. For Silos, you only have to share the same Zone, since they're big, abstracted warehouses. For players, you have to share their location. Treasurers and Leaders function as extensions of their Silos.
+      You can transfer resources from any source to any recipient, but you have to be able to reach both ends. For a Silo, stand in that faction's Zone. For a player, stand in the same Zone as them. Being a Treasurer or Leader does not extend that reach — if you lose your Zone, the Silo is frozen.
   - name: Medical
     key: medical
     public: true

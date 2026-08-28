@@ -276,9 +276,9 @@ export const ACTION_HELP = {
     "what's already lying around. A cache has no owner — that's the point.",
   resources: (
     <>
-      <p>The source and the recipient have to be in the same place.</p>
+      <p>Both ends have to be within reach of you.</p>
       <p>
-        <strong>To a person</strong> Be in the same location.
+        <strong>To a person</strong> Be in the same zone.
       </p>
       <p>
         <strong>To or from a Silo</strong> Be in the faction&apos;s zone.
