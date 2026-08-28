@@ -14,7 +14,12 @@ import { toggleEquip } from "@/app/(app)/character/equipActions";
 // This is its own surface rather than an affordance on TagChip because
 // TagChip's click already opens the Consume dialog (see TagsPanel.js);
 // overloading it would make a consumable-and-equippable tag ambiguous.
-export default function EquipmentPanel({ characterTags, slots = 6, isSelf }) {
+//
+// `embedded` renders this as a sub-section of TagsPanel.js instead of its own
+// `.panel` card — the equipped rack is just a view over the same held-tags
+// data the Tags panel already has, so it earns a heading, not a whole card.
+// The equip/unequip interaction underneath is unchanged either way.
+export default function EquipmentPanel({ characterTags, slots = 6, isSelf, embedded = false }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(null);
 
@@ -31,26 +36,29 @@ export default function EquipmentPanel({ characterTags, slots = 6, isSelf }) {
     });
   }
 
+  const Wrapper = embedded ? "div" : "section";
+  const wrapperClassName = embedded ? "" : "panel p-4";
+
   // Nothing equippable and nothing equipped — say so once rather than
   // rendering an empty rack of slots at someone with no gear.
   if (equippable.length === 0) {
     return (
-      <section className="panel p-4">
+      <Wrapper className={wrapperClassName}>
         <div className="section-title">
-          <h2>Equipment</h2>
+          <h2>Equipped</h2>
           <span className="text-sm text-muted mono">0 / {slots}</span>
         </div>
         <p className="text-sm text-muted">You&apos;re not carrying any equippable items.</p>
-      </section>
+      </Wrapper>
     );
   }
 
   return (
-    <section className="panel p-4">
+    <Wrapper className={wrapperClassName}>
       {/* .section-title, not .panel-header: the heading is a flex child beside
           the counter, and panel-header's rule would underline just the word. */}
       <div className="section-title">
-        <h2>Equipment</h2>
+        <h2>Equipped</h2>
         <span className="text-sm text-muted mono">
           {equipped.length} / {slots}
         </span>
@@ -110,6 +118,6 @@ export default function EquipmentPanel({ characterTags, slots = 6, isSelf }) {
       )}
 
       <FormError>{error}</FormError>
-    </section>
+    </Wrapper>
   );
 }

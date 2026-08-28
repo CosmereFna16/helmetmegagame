@@ -20,7 +20,6 @@ const GENERIC_PAGES = [
   { label: "Map", href: "/map" },
   { label: "Notes", href: "/notes" },
   { label: "Documents", href: "/documents" },
-  { label: "Store", href: "/store" },
   { label: "Archive", href: "/archive" },
 ];
 

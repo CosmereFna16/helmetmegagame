@@ -4,6 +4,9 @@ import { useCallback, useMemo, useState } from "react";
 import TagChip from "./TagChip";
 import TagPointsValue from "./TagPointsValue";
 import TagRequestButtons from "./TagRequestButtons";
+import EquipmentPanel from "./EquipmentPanel";
+import Modal from "./Modal";
+import StorePanel from "./StorePanel";
 import { useTags } from "./TagsProvider";
 import { heldSlugsOf } from "@/lib/consumeGrants";
 
@@ -12,6 +15,13 @@ import { heldSlugsOf } from "@/lib/consumeGrants";
 // clicking a consumable tag can open the Consume dialog already pointed at
 // it. Everything else here is the markup that used to sit inline in
 // CharacterSheet.js.
+//
+// Equipment lives here too, as an embedded EquipmentPanel sub-section —
+// equipped items are just a view over the same held-tags data this panel
+// already renders, so a standalone Equipment card was one more scroll stop
+// for no new information. And "Spend Tag Points" (the old /store page,
+// mounted here as StorePanel inside a Modal) sits in this header next to the
+// Tag Points readout it spends, rather than as its own nav destination.
 
 // Fixed display order rather than alphabetical or catalog order — Status
 // (needs, buffs/debuffs) and Health (whatever is currently wrong with you)
@@ -59,11 +69,20 @@ export default function TagsPanel({
   healTargets = [],
   healParties = null,
   tagPoints = null,
+  equipSlots = 6,
+  // The mid-game store's catalog and this character's standing within it —
+  // undefined for a viewer looking at someone else's sheet (mode !== "self"),
+  // which is also why the button below only ever renders for isSelf.
+  storeTags = null,
+  storeHeldTags = null,
+  storeNegativeCap = null,
+  storeNegativeHeld = 0,
 }) {
   // TagRequestButtons owns the dialog, and hands its opener up through
   // onReady so a chip click can drive it.
   const [openDialog, setOpenDialog] = useState(null);
   const onReady = useCallback((open) => setOpenDialog(() => open), []);
+  const [storeOpen, setStoreOpen] = useState(false);
 
   const { tagsBySlug } = useTags();
   const tagGroups = useMemo(() => groupTagsByCategory(characterTags), [characterTags]);
@@ -102,6 +121,11 @@ export default function TagsPanel({
               <TagPointsValue points={tagPoints} />
             </span>
           )}
+          {isSelf && storeTags && (
+            <button type="button" className="btn-quiet" onClick={() => setStoreOpen(true)}>
+              Spend Tag Points
+            </button>
+          )}
         </div>
         {isSelf && (
           <TagRequestButtons
@@ -117,6 +141,34 @@ export default function TagsPanel({
           />
         )}
       </div>
+
+      <div className="mb-3 border-b pb-3" style={{ borderColor: "var(--border)" }}>
+        <EquipmentPanel
+          characterTags={characterTags}
+          slots={equipSlots}
+          isSelf={isSelf}
+          embedded
+        />
+      </div>
+
+      {isSelf && storeTags && (
+        <Modal
+          open={storeOpen}
+          onClose={() => setStoreOpen(false)}
+          title="Spend Tag Points"
+          width="widest"
+        >
+          <StorePanel
+            tags={storeTags}
+            budget={tagPoints ?? 0}
+            heldTags={storeHeldTags ?? []}
+            negativeCap={storeNegativeCap}
+            negativeHeld={storeNegativeHeld}
+            onDone={() => setStoreOpen(false)}
+          />
+        </Modal>
+      )}
+
       {tagGroups.length === 0 ? (
         <p className="text-sm text-muted">No tags yet.</p>
       ) : (
