@@ -14,6 +14,7 @@ export const PLAYER_NAV = [
   { href: "/faction", label: "Faction", icon: "faction" },
   { href: "/notes", label: "Notes", icon: "notes" },
   { href: "/documents", label: "Documents", icon: "documents" },
+  { href: "/handbook", label: "Handbook", icon: "help" },
 ];
 
 // No Faction item: for a GM /faction only ever rendered the all-factions
@@ -39,6 +40,7 @@ export const GM_NAV = [
   { href: "/map", label: "Map", icon: "map", section: "player" },
   { href: "/notes", label: "Notes", icon: "notes", section: "player" },
   { href: "/documents", label: "Documents", icon: "documents", section: "player" },
+  { href: "/handbook", label: "Handbook", icon: "help", section: "player" },
 ];
 
 // Appended conditionally below. Audit now sits in GM_NAV itself — every GM

@@ -24,12 +24,14 @@ const { docsPath } = require("./repoPaths");
 // against the Discord GM role at request time (web/lib/discordGuild.js#isGm),
 // which is the same check that gates every /gm page. A GM has no character to
 // hang the flag on, so the documents page asks Discord instead.
-// /documents synthesizes one card that is not a row: the reader's role
-// charter, which carries key "role" so ?doc=role links to it. A real document
-// taking that key would collide with it in the Assigned grid and make the
-// deep link ambiguous, so the sync refuses it rather than letting the clash
-// show up as a duplicate-React-key warning months later.
-const RESERVED_KEYS = new Set(["role"]);
+// /documents synthesizes two cards that are not rows: the reader's role
+// charter (key "role") and the pinned Player Handbook (key "handbook", read
+// from docs/handbook.md — see web/lib/handbook.js), so ?doc=role and
+// ?doc=handbook link to them. A real document taking either key would
+// collide with it in the grid and make the deep link ambiguous, so the sync
+// refuses both rather than letting the clash show up as a duplicate-React-key
+// warning months later.
+const RESERVED_KEYS = new Set(["role", "handbook"]);
 
 const FLAGS = ["leader", "treasurer", "gamemaster"];
 

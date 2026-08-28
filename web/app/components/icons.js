@@ -83,6 +83,17 @@ export function DocumentsIcon(props) {
   );
 }
 
+// The Handbook rail tab.
+export function HelpIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M9.6 9.3a2.4 2.4 0 114.15 1.65c-.7.65-1.35 1.1-1.35 2.15" strokeLinecap="round" />
+      <circle cx="12" cy="16.6" r="0.15" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export function NotesIcon(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>

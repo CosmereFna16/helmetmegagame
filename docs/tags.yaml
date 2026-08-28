@@ -584,7 +584,7 @@ tags:
     name: Tactician
     category: general
     group: general-traits
-    description: "You think several moves ahead of everyone else in the room. A GM will tell you honestly, in confidence, whether a plan you're about to attempt is a good idea."
+    description: "Group fights you lead tend to go in your favor."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true

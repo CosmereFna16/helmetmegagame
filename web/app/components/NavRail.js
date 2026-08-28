@@ -16,6 +16,7 @@ import {
   ArchiveIcon,
   LifewebIcon,
   MapIcon,
+  HelpIcon,
   SignOutIcon,
   MoreIcon,
 } from "./icons";
@@ -34,15 +35,20 @@ const ICONS = {
   archive: ArchiveIcon,
   lifeweb: LifewebIcon,
   map: MapIcon,
+  help: HelpIcon,
 };
 
 // How many items stay in the mobile bottom bar. The rest go behind "More".
 //
-// A GM carries up to nine nav items (Players, Adjudicate, Audit, Character,
-// Map, Notes, Documents, plus Lifeweb/Archive and Dev) and Sign out. Ten
-// targets across a 390px viewport is ~39px each — under the 44px touch minimum, and visually
-// crammed. Five plus More is ~65px. Players have 5 items and are unaffected
-// by the cap; they still get the sheet, because Sign out lives in it on mobile.
+// A GM carries up to ten nav items (Players, Adjudicate, Audit, Character,
+// Map, Notes, Documents, Handbook, plus Lifeweb/Archive and Dev) and Sign
+// out. That many targets across a 390px viewport is well under the 44px
+// touch minimum, and visually crammed. Five plus More is ~65px. Players now
+// carry six (Character, Map, Faction, Notes, Documents, Handbook) — one over
+// the cap, so Handbook is the first thing to fall into the mobile sheet.
+// That's the deliberate casualty: it's a read-once reference, unlike the
+// other five, which stay in the bar untouched. Sign out lives in the sheet
+// too on mobile, for anyone under the cap.
 //
 // GM_NAV leads with its "gm" section, so the five a GM keeps in the bar are
 // Players, Adjudicate, Audit, Character, Map — the job first, then the two

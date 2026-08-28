@@ -50,11 +50,25 @@ cards, in four tabs:
 Opening a card is a `Modal` (`DESIGN-SYSTEM.md` §8) over `.doc-sheet` — wider
 and more generously set than an ordinary dialog, because it is a page of prose.
 
-**`?doc=<key>` opens that sheet on load**, selecting whichever tab holds it.
-That is what a `{document:…}` chip links to, and it makes a document
-shareable. It resolves against the lists the server already sent, so a key the
-reader may not open simply does nothing. Closing clears the param, so a
-refresh lands on the board.
+**Every open sheet lives at `?doc=<key>`**, and it is derived from that param
+on every render rather than seeded once into `useState`. Clicking a card
+`router.push`es the param; a `{document:…}` chip is a plain `<Link>` to the
+same URL, so clicking one while a different sheet is already open re-derives
+`open` from the new param and swaps the sheet in place — no remount needed,
+and no dead click where the URL changed but the sheet didn't. Closing
+`router.replace`s the param away, so Back from an open sheet lands on the
+board rather than stepping back through sheets, and a refresh always lands on
+the board. The open sheet also carries a `⧉ Copy link` button, Prev/Next
+(and `←`/`→`/`j`/`k`) stepping through whichever tab the open document came
+from under the board's current search and sort, and — once a document has
+three or more headings — a generated table of contents alongside the prose,
+built by `web/lib/documentHeadings.js` off the same heading text
+`DocumentMarkdown.js` slugs into `id`s, so the two never disagree about where
+`#some-heading` points.
+
+The board above the sheet carries a search box (name, source and body,
+case-insensitive) and a Default/A–Z/Source sort — all client-side, since
+`DocumentsPage` already sent every document the reader may see.
 
 ### Your role, pinned
 
@@ -74,6 +88,29 @@ player got was the one-line `role.intro` in the creation wizard.
 
 Documents with an empty `description` are filtered out. Several are still
 stubs, and a slot awaiting prose shouldn't reach a player as a blank page.
+
+### The Handbook, pinned
+
+The first card in PUBLIC (before any real `public: true` document) is the
+**Player Handbook** — `docs/handbook.md`, read at request time by
+`web/lib/handbook.js#getHandbookBody` (its leading `# Bascinet Player
+Handbook` H1 stripped, since both surfaces that render it already carry the
+title in their own chrome) and synthesized into the same pinned-card shape as
+the role charter above, key `"handbook"`. Public rather than Assigned: it's
+the tab a character-less visitor lands on, and it's exactly what that visitor
+wants. Skipped entirely if `docs/handbook.md` can't be read.
+
+Like `"role"`, `"handbook"` is a reserved key in
+`db/lib/syncDocuments.js#RESERVED_KEYS` — a real document taking it would
+collide with the synthesized card and make `?doc=handbook` ambiguous.
+
+The same file also backs a second, standalone surface: **`/handbook`**
+(`web/app/(public)/handbook/`), a public page that needs no sign-in — the
+`(public)` route group is the one place in the app that renders for an
+anonymous visitor, specifically so `ravenheart.quest/handbook` works as a bare
+link handed to someone who hasn't joined the game yet. Its nav rail tab (`?`
+icon, next to Documents in both `PLAYER_NAV` and `GM_NAV`) only shows for a
+signed-in reader, same as everywhere else in the app.
 
 ## 3. Assignment
 
@@ -144,6 +181,9 @@ inside the `<button>` a card is.
 | Sync | `db/lib/syncDocuments.js`, `db/prisma/sync-documents.js` |
 | Page | `web/app/(app)/documents/` |
 | Visibility rule (shared) | `web/lib/documentAccess.js` |
-| Chip index API | `web/app/api/documents/route.js` |
+| Chip index | `getDocumentIndex()` in `web/lib/referenceData.js` (the standalone `web/app/api/documents/route.js` this table used to point at no longer exists — the logic moved here) |
 | Chip | `web/app/components/DocumentChip.js`, `DocumentsProvider.js` |
 | Role document lists | `docs/roles.yaml` (`doc_elements`) |
+| Handbook source | `docs/handbook.md`, read by `web/lib/handbook.js` |
+| Handbook standalone page | `web/app/(public)/handbook/`, `web/app/(public)/layout.js` |
+| Sheet heading slugs / ToC | `web/lib/documentHeadings.js` |

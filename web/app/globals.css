@@ -1911,6 +1911,77 @@ input[type="radio"]:disabled {
   color: var(--text);
 }
 
+/* Copy link / Close, beside the title. Same border+padding .modal-actions
+   gives its own buttons, so a two-button row here lines up the same way a
+   confirm dialog's footer does — Copy link and Close are ~31px tall side by
+   side rather than a bare 20px text link next to a 20px "x". */
+.doc-sheet-head .btn-quiet {
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  padding: 7px 14px;
+}
+
+/* Two columns once there's room for a sidebar ToC beside the prose; one
+   column (ToC above body) below that, same as every other sidebar layout
+   in the app collapsing on mobile. */
+.doc-sheet-layout {
+  display: grid;
+  gap: var(--sp-5);
+}
+
+@media (min-width: 52rem) {
+  .doc-sheet-layout {
+    grid-template-columns: 12rem 1fr;
+    align-items: start;
+  }
+}
+
+.doc-sheet-toc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  font-size: var(--fs-xs);
+}
+
+@media (min-width: 52rem) {
+  .doc-sheet-toc {
+    position: sticky;
+    top: 0;
+  }
+}
+
+.doc-sheet-toc a {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 2px 0;
+}
+
+.doc-sheet-toc a:hover,
+.doc-sheet-toc a:focus-visible {
+  color: var(--accent-text);
+}
+
+/* An H3 in the source nests one step under its H2. */
+.doc-sheet-toc a[data-depth="3"] {
+  padding-left: var(--sp-3);
+}
+
+.doc-sheet-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+}
+
+.doc-sheet-foot .btn-quiet {
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  padding: 7px 14px;
+}
+
 
 /* ---------------------------------------------------------------------------
    Map panel (web/app/(app)/map). The drawn Ravenheart plate as a plain image;

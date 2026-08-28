@@ -64,7 +64,7 @@ categories:
           ③ **Information** — To support information asymmetry, everything that happens IC stays IC, and OOC stays OOC.
           - Don’t discuss the game’s happenings OOC. Vague references are okay.
           - Don’t say who your character is or who you’re playing. People might figure it out eventually, but protect the mystery.
-          - You are allowed to use vague OOC in roleplay channels when necessary—“(OOC: hey, gtg, see ya)”—instead of DM’ing the player.
+          - You are allowed to use vague OOC in roleplay channels when necessary—`(OOC: hey, gtg, see ya)`—instead of DM’ing the player.
 
           ④ **Antagonism** — Fulfill your character’s Desires, but not to the point of crossing your faction’s objectives.
           - High ranks are expected to be relatively fit for duty and willing to collaborate. Peasants can brawl and do mostly whatever they want.
@@ -126,6 +126,9 @@ categories:
           Routine moves have no chance to fail—their results are usually just accepted and canonized at turn end. Hunting, farming, going out for drinks, or smithing are all Routine.
 
           Gambit moves are actions that could affect the narrative and could go any way. Fighting, trying to discover a bandit outpost, and stealing from the Inn are all Gambits. Gambits require a 1d6 roll.
+
+          **Group Moves**
+          Unless they do something else or refuse to participate, a Leader can direct members of his faction (even AFK members) as part of his Moves. Their tags are considered during the adjudication. Only one Gambit die is rolled.
       - title: Roleplay
         body: |-
           The game’s roleplay layer is where the results of last turn’s Moves come into life. If the Gamemaster declared you were bested in a duel, that’s canon; you can describe how it went down in the roleplay channels. You can also use the roleplay channels at any time to chat, exchange information, or coordinate your Moves with other players.
@@ -136,7 +139,7 @@ categories:
           Every surface zone has:
           - a summary channel: optionally describe, in broad terms, what other people in your Zone saw you doing
           - a public channel: a forum of topics, one per place in the zone. Press Create a Topic to open your own scene
-          - and a private channel: press Create to open a private thread, then use /add (character) to invite people
+          - and a private channel: press Create to open a private thread, then use `/add (character)` to invite people
 
           A cave level is a forum and nothing else—no summary, no private threads.
 
@@ -144,11 +147,11 @@ categories:
 
           **Formatting**
           Here’s the recommended way to write a post:
-          - “text” for dialogue.
+          - `"text"` for dialogue.
           - text for emotes or description.
-          - (text) for out-of-character text.
+          - `(text)` for out-of-character text.
 
-          You can append -# before your OOC text to make it tiny and hidden, or even spoiler it with |text|.
+          You can append `-#` before your OOC text to make it tiny and hidden, or even spoiler it with `||text||`.
       - title: Resources
         body: |-
           The game’s central currency are Resources (⬢), abstracting food, money, and other bulk goods. Resources can be stored either in your character or in your faction’s Silo.

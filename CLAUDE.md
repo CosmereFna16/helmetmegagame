@@ -144,7 +144,7 @@ you pick the right doc — they are never enough to change code with.
 | [`PRODUCTION.md`](docs/systemdocs/PRODUCTION.md) | You're touching `/hunt` `/fish` `/farm` `/herd`, payouts, or resource shorthand |
 | [`PARTY-SIZE.md`](docs/systemdocs/PARTY-SIZE.md) | You're touching the Cult of Bacchus's party goals or the `{partysize:N}` token |
 | [`ARCHIVE.md`](docs/systemdocs/ARCHIVE.md) | You're touching the transcript or `/archive` |
-| [`DOCUMENTS.md`](docs/systemdocs/DOCUMENTS.md) | You're touching `/documents` or `docs/documents.yaml` |
+| [`DOCUMENTS.md`](docs/systemdocs/DOCUMENTS.md) | You're touching `/documents`, `docs/documents.yaml`, `/handbook`, or `docs/handbook.md` |
 | [`INFOCHANNEL.md`](docs/systemdocs/INFOCHANNEL.md) | You're changing `#info` or `docs/systemdocs/infochannel.yaml` |
 | [`PORTRAITS.md`](docs/systemdocs/PORTRAITS.md) | You're touching the portrait maker, avatar art, or `Character.avatarData` |
 | [`DESIGN-SYSTEM.md`](docs/systemdocs/DESIGN-SYSTEM.md) | You're writing or restyling **any** web UI |
@@ -157,6 +157,11 @@ Other reference docs, outside `systemdocs/`:
   `db/lib/antagonists.js` ships 12 opt-in entries.
 - `docs/tag-design.md` — the player-facing version of the tag point scale and
   the YAML format. `TAGS.md` §4a is the one that governs; keep the two in step.
+- `docs/handbook.md` — the player handbook, read at runtime by the web app
+  (`web/lib/handbook.js`) rather than repo-only reference. It renders on two
+  live surfaces: the pinned "Player Handbook" card on `/documents` and the
+  public, no-sign-in `/handbook` page. Editing it changes what players see on
+  the next request, no sync or deploy of any other file required.
 
 ## Repository layout
 

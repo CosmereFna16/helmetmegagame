@@ -6,6 +6,7 @@ import PageShell, { PageHeader } from "../../components/PageShell";
 import DocumentsBoard from "./DocumentsBoard";
 import { toDocumentPreviewText } from "@/lib/documentPreview";
 import { assignedTo, isWritten, readerFromCharacter } from "@/lib/documentAccess";
+import { getHandbookBody, HANDBOOK_KEY } from "@/lib/handbook";
 
 export const metadata = { title: "Documents" };
 
@@ -44,7 +45,28 @@ export default async function DocumentsPage() {
     source,
   });
 
-  const publicDocs = written.filter((d) => d.isPublic).map((d) => shape(d, "Public"));
+  // The player handbook, pinned first in Public — same synthesized-card shape
+  // as the role charter below, reading from docs/handbook.md rather than a
+  // Document row. Public rather than Assigned: it's the tab a character-less
+  // visitor lands on, and the handbook is exactly what that visitor wants.
+  // "handbook" is reserved in db/lib/syncDocuments.js#RESERVED_KEYS, so a real
+  // Document can never collide with it.
+  const handbookBody = getHandbookBody();
+  const handbookCard = handbookBody
+    ? {
+      pinned: true,
+      key: HANDBOOK_KEY,
+      name: "Player Handbook",
+      source: "Start Here",
+      description: handbookBody,
+      previewText: toDocumentPreviewText(handbookBody),
+    }
+    : null;
+
+  const publicDocs = [
+    ...(handbookCard ? [handbookCard] : []),
+    ...written.filter((d) => d.isPublic).map((d) => shape(d, "Public")),
+  ];
 
   // GM-only papers. Unlike every other assignment, this one keys off a Discord
   // role rather than anything on a Character — a GM usually has no character at
