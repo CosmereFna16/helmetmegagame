@@ -1,6 +1,6 @@
 const { recordArchiveEvent } = require("./archive");
 const { seatZoneIdFor } = require("./seatZone");
-const { rollCaving } = require("./cavingPass");
+const { rollCavingOnArrival } = require("./cavingPass");
 
 // The database half of a zone change, shared by both faces of the game:
 // bot/src/lib/zoneTravel.js#performMove (gateway) and
@@ -126,21 +126,10 @@ async function performTravel(prisma, character, targetZone) {
     });
   }
 
-  let cavingDm = null;
-  if (targetZone.kind === "CAVE_LEVEL") {
-    // `openTurn` is already loaded when this hop cost a Move; a free first
-    // placement (a Migrant/Mercenary starting in the Depths) has none yet,
-    // so fetch it. No open turn at all (mid-restart) just skips the roll —
-    // the next turn's pass or the next arrival will catch them.
-    const turnForRoll = openTurn ?? (await prisma.turn.findFirst({ where: { status: "OPEN" } }));
-    if (turnForRoll) {
-      const { dm } = await rollCaving(prisma, character, turnForRoll, targetZone).catch((err) => {
-        console.error(`Caving arrival roll failed for character ${character.id}:`, err);
-        return { dm: null };
-      });
-      cavingDm = dm;
-    }
-  }
+  // The arrival trigger, shared with the raw GM relocations (the Dev Panel's
+  // zone edit, Bulk Move) so every way into the Depths rolls the same die.
+  // Zone kind, the open turn and error swallowing all live in the helper.
+  const cavingDm = await rollCavingOnArrival(prisma, character, targetZone);
 
   return { ok: true, oldZone: currentZone, cavingDm };
 }

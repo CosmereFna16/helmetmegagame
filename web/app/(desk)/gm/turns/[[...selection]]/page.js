@@ -2,6 +2,7 @@ import { prisma } from "@lifeweb/db";
 import { listGuildMembers } from "@/lib/discordGuild";
 import { getGmProfiles } from "@/lib/gmProfiles";
 import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requests";
+import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
 import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, rollLabel } from "@/lib/moves";
 import { getOpenTurn } from "@/lib/turn";
 import { getMyZones } from "@/lib/gmZone";
@@ -175,6 +176,10 @@ export default async function TurnsWorkspacePage({ params }) {
               },
               zone: { select: { name: true } },
               lootTag: { select: { name: true } },
+              // A FIND's loot is undoable from the Caving desk as well as the
+              // Requests lens — both routes call the one CAVING_LOOT handler,
+              // so the desk needs the request's id and its current status.
+              lootRequest: { select: { id: true, status: true } },
             },
           })
         : [],
@@ -320,8 +325,11 @@ export default async function TurnsWorkspacePage({ params }) {
     factionZoneName: c.character.faction?.zone?.name ?? c.zone?.name ?? "",
     die: c.die,
     kind: c.kind,
+    kindLabel: CAVING_KIND_LABELS[c.kind] ?? c.kind,
     lootTier: c.lootTier ?? null,
     lootTagName: c.lootTag?.name ?? null,
+    lootRequestId: c.lootRequest?.id ?? null,
+    lootRequestStatus: c.lootRequest?.status ?? null,
     statusLabel: c.resolvedAt ? "Resolved" : "Needs attention",
     resolvedAt: c.resolvedAt ? c.resolvedAt.toISOString() : null,
     resolvedByUsername: c.resolvedByDiscordUserId

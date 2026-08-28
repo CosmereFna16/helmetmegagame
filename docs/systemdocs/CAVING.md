@@ -38,13 +38,29 @@ Two triggers share that one primitive:
   `expirySweep`, before `hunger`**: loot granted just now must not be swept
   this same turn, and a Skinned Cave Rat eaten last turn needs to be swept
   before Hunger reads whether the character ate.
-- **On arrival** — `db/lib/travel.js#performTravel` rolls once more the
-  moment a hop lands a character in a `CAVE_LEVEL` zone (including a first
-  placement — Migrant and Mercenary start there). `travel.js` performs no
-  Discord side effects itself; the roll's DM comes back on the result as
-  `cavingDm` for the caller (`bot/src/lib/zoneTravel.js`,
-  `web/app/(app)/map/travelActions.js`) to send, the same split
-  `performTravel` already uses for the zone-role swap.
+- **On arrival** — `rollCavingOnArrival(prisma, character, zone)`, in the same
+  file, rolls once more the moment *anything* lands a character in a
+  `CAVE_LEVEL` zone. It owns the whole gate: not a cave level, or no open turn
+  (mid-restart), or any error at all, and it quietly returns `null` — a caving
+  roll must never fail the move that caused it. It sends nothing; the DM comes
+  back for the caller's own side-effect half, the same split `performTravel`
+  already uses for the zone-role swap. Four callers:
+
+  - `db/lib/travel.js#performTravel` — player travel, including a first
+    placement (Migrant and Mercenary start in the Depths). Returns the DM as
+    `cavingDm` for `bot/src/lib/zoneTravel.js` and
+    `web/app/(app)/map/travelActions.js` to send.
+  - The Dev Panel's zone edit and **Bulk Move** — the raw GM relocations.
+    They roll too, on purpose: being *dropped* into the Depths by a GM used to
+    be the one free walk in, which is exactly how the die first looked broken.
+    Both send the DM plainly rather than through the Dev Panel's
+    `notifyCharacter()`, since the die is the game speaking, not the GM.
+  - The staged **"Relocate to"** on `/gm/turns` is the one zone write that
+    does *not* call it, and needs no equivalent: `stagedPush` runs before
+    `caving` in `TURN_PASSES`, so a character pushed into the Depths is
+    already caught by the turn pass later in that same `resolveNeeds()`.
+    `rollCaving` could not run there anyway — it opens its own transaction,
+    and `applyOneStagedEffect` is already inside one.
 
 `CavingRoll.@@unique([characterId, turnId])` is what makes firing both
 triggers in the same turn safe: whichever gets there first wins the row, and
@@ -55,9 +71,13 @@ never a second roll, never an error surfaced to the player.
 
 | Die | Kind | What happens |
 |---|---|---|
-| 1 | `TROUBLE` | Nothing auto-applies. The row lands **unresolved** on the Caving lens for a GM to adjudicate — monsters are a GM call, briefed by the GM-only `cavingmonsters` document (`documents.yaml`). The player gets one short DM immediately: *"Something is wrong down here. A GM has been notified."* |
+| 1 | `TROUBLE` | Nothing auto-applies. The row lands **unresolved** on the Caving lens for a GM to adjudicate — monsters are a GM call, briefed by the GM-only `cavingmonsters` document (`documents.yaml`). The player gets one short DM immediately: *"Caving Die: 1 — Something is wrong down here. A GM has been notified."* |
 | 2–5 | `QUIET` | Stamped resolved at creation. No DM, no GM attention — the row exists purely as a record (so the lens' default filter, and a GM skimming the log, both read the truth). |
 | 6 | `FIND` | Draws a loot tier and a tag (below), grants it, and DMs the player what they found. Also resolved at creation — the grant already landed. |
+
+Both DMs lead with the face — *"Caving Die: 6 — You found something: Padded
+Armor."* — so a player reads their own roll and not just its outcome. A
+`QUIET` still sends nothing; there is nothing to say.
 
 ## 3. The loot table
 
@@ -120,8 +140,17 @@ That buys the whole GM workflow for free. A `CAVING_LOOT` request shows up
 in the **Requests** lens exactly like any other, with its own
 `REQUEST_EFFECTS` entry (`web/lib/requestEffects.js`) whose `undo` drops the
 granted tag off the `effect` snapshot — never re-derived from the tag's
-current catalog value, same rule every Undo in the game follows. A GM who
-thinks a find was a mistake undoes it there, not from the Caving desk.
+current catalog value, same rule every Undo in the game follows.
+
+A GM can reach that Undo from **either** lens. The Requests row stays where it
+was, and the Caving desk grew an "Undo this find" button of its own so nobody
+has to leave the caving log to correct a caving roll. It is the same call —
+`resolveRequest({ requestId: roll.lootRequestId, mode: "undo" })`, through the
+same `CAVING_LOOT` handler — so there is exactly one way the tag ever comes
+back off, and `resolveRequestImpl` is already idempotent on an `UNDONE` row, so
+pressing it twice cannot re-grant. The desk finds the request through
+`CavingRoll.lootRequestId`; that column is `SetNull`, so a roll whose request
+was deleted shows the find with no button.
 
 ## 5. The Caving lens
 
@@ -133,6 +162,12 @@ practice only ever matches an unresolved `TROUBLE` row — a hundred players
 in the Depths would otherwise put a hundred quiet 2–5s in front of a GM every
 day. Flip the filter to see the full log.
 
+Rows show the die face, the kind, the character, the zone, and — for a `FIND`
+— the tier and what was found. The kind's label comes from
+`CAVING_KIND_LABELS` in `web/lib/cavingLabels.js`, shared by the rail's DTO
+and the desk header; it lives in its own module because when the desk owned
+the only copy, the rail printed every row's kind as "undefined" for months.
+
 `CavingDesk.js` (modeled on `MoveDesk.js`, much thinner) is where a GM
 narrates a `TROUBLE` roll: GM notes, the same `EffectComposer` /
 `MessageComposer` / `PublicComposer` trio every desk uses (wired to
@@ -140,8 +175,9 @@ narrates a `TROUBLE` roll: GM notes, the same `EffectComposer` /
 carry the column, `SetNull` on delete same as `moveId`), and a **Mark
 resolved** button. No cooperative lock like a Move — two GMs opening the same
 roll can't race a solve that pays anyone twice, since resolving is a one-way
-stamp with nothing to apply. A `FIND` row opens read-only-ish: what was
-found, and a pointer to undo it from the Requests lens instead.
+stamp with nothing to apply. A `FIND` row has nothing to resolve, so it opens
+without that button: what was found, and the **Undo this find** button
+described in §4.
 
 ## 6. `sellable` / `sellablePrice`
 
@@ -195,8 +231,10 @@ script's own header for the exact order.
 | The die, both triggers | `db/lib/cavingPass.js` |
 | The loot table | `db/lib/cavingLoot.js` |
 | Turn-start registration | `db/index.js` — `TURN_PASSES`, `resolveNeeds()` |
-| Arrival trigger | `db/lib/travel.js#performTravel` |
-| Arrival DM senders | `bot/src/lib/zoneTravel.js`, `web/app/(app)/map/travelActions.js` |
+| Arrival trigger | `db/lib/cavingPass.js#rollCavingOnArrival` |
+| Its callers | `db/lib/travel.js#performTravel`, the Dev Panel's `teleportCharacterImpl`, `web/app/(app)/gm/dev/actions.js#bulkMoveCharacters` |
+| Arrival DM senders | `bot/src/lib/zoneTravel.js`, `web/app/(app)/map/travelActions.js` (travel); the two GM paths send their own |
+| Kind labels | `web/lib/cavingLabels.js` |
 | Loot grant → Request/Undo | `web/lib/requestEffects.js` (`CAVING_LOOT`) |
 | Consume mechanics | `web/lib/consumeGrants.js`, `db/lib/syncTags.js` |
 | The Caving lens | `web/app/(desk)/gm/turns/QueueRail.js`, `CavingDesk.js` |

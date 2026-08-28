@@ -10,7 +10,9 @@ import EffectComposer from "./EffectComposer";
 import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import StagedItems from "./StagedItems";
-import { resolveCavingRoll } from "./actions";
+import { useConfirm } from "@/app/components/ConfirmProvider";
+import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
+import { resolveCavingRoll, resolveRequest } from "./actions";
 
 // The arbitration desk for one Caving Die roll — see
 // docs/systemdocs/CAVING.md. Only a TROUBLE (die 1) row is ever unresolved;
@@ -20,12 +22,12 @@ import { resolveCavingRoll } from "./actions";
 // lock — unlike a Move, two GMs opening the same roll can't race a solve
 // that pays anyone twice.
 //
-// A FIND row still opens here (mostly for the record — the loot already
-// landed as a PASSED CAVING_LOOT Request, undoable from the Requests lens),
-// and shows what was found without a "Mark resolved" button, since it has
-// nothing left to resolve.
-
-const KIND_LABEL = { TROUBLE: "Trouble", QUIET: "Quiet", FIND: "Find" };
+// A FIND row opens here too, showing what was found — with no "Mark resolved"
+// button, since it has nothing left to resolve, but with its own Undo. The
+// loot landed as a PASSED CAVING_LOOT Request and that row still shows in the
+// Requests lens; Undo here just saves the GM the trip, and goes through the
+// very same REQUEST_EFFECTS.CAVING_LOOT.undo handler (web/lib/requestEffects.js)
+// so there is exactly one way the tag ever comes back off.
 
 export default function CavingDesk({
   roll,
@@ -39,6 +41,7 @@ export default function CavingDesk({
   onOpenDev,
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const { markDirty, markClean, guardedClose } = useDirtyGuard();
 
   useEffect(() => {
@@ -69,6 +72,25 @@ export default function CavingDesk({
     });
   }
 
+  // The Requests lens' Undo, reachable from here. resolveRequestImpl is
+  // already idempotent on an UNDONE row, so a double-click can't re-grant.
+  async function undoFind() {
+    setError(null);
+    const ok = await confirm({
+      title: `Take back ${roll.lootTagName ?? "this find"}?`,
+      message: `${roll.characterName} keeps the roll — only the loot comes off the sheet. This is the same Undo the Requests lens runs.`,
+      confirmLabel: "Take it back",
+      cancelLabel: "Leave it",
+    });
+    if (!ok) return;
+
+    startTransition(async () => {
+      const res = await resolveRequest({ requestId: roll.lootRequestId, mode: "undo" });
+      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
+      router.refresh();
+    });
+  }
+
   return (
     <div className="desk-card">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -81,7 +103,7 @@ export default function CavingDesk({
             <span className="text-muted text-sm">({roll.discordUsername})</span>
           </h2>
           <p className="text-xs text-muted">
-            {roll.factionZoneName} · ⚀ {roll.die} · {KIND_LABEL[roll.kind] ?? roll.kind}
+            {roll.factionZoneName} · ⚀ {roll.die} · {roll.kindLabel ?? CAVING_KIND_LABELS[roll.kind] ?? roll.kind}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -97,11 +119,20 @@ export default function CavingDesk({
       </header>
 
       {roll.kind === "FIND" && (
-        <div className="mt-4 border-t pt-4" style={{ borderColor: "var(--border)" }}>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
           <p className="text-sm">
-            Found <strong>{roll.lootTagName ?? "—"}</strong> ({roll.lootTier ?? "—"}). Already granted as a
-            passed Request — undo it from the Requests lens if this shouldn&apos;t have happened.
+            Rolled a {roll.die} and found <strong>{roll.lootTagName ?? "—"}</strong> ({roll.lootTier ?? "—"}).{" "}
+            {roll.lootRequestStatus === "UNDONE"
+              ? "That find has been undone — the tag is off the sheet."
+              : roll.lootRequestId
+                ? "Already granted, and filed as a passed Request."
+                : "Already granted. The Request behind it is gone, so undo it by hand from the Dev Panel."}
           </p>
+          {roll.lootRequestId && roll.lootRequestStatus !== "UNDONE" && (
+            <button type="button" className="btn-quiet" onClick={undoFind} disabled={pending}>
+              {pending ? "Working…" : "Undo this find"}
+            </button>
+          )}
         </div>
       )}
 

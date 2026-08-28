@@ -30,6 +30,7 @@ import {
   planDiscordEffects,
 } from "@/lib/characterWrite";
 import { applyPendingInvites } from "@lifeweb/db/lib/threadInvites";
+import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
 import { findOpenTurnAction, lockIsLive, deleteActionRestoringTurn } from "@/lib/moveEconomy";
 
 // Everything here is gated on GM membership, not superadmin: this panel is
@@ -501,6 +502,17 @@ async function teleportCharacterImpl({ characterId, zoneId }) {
       await applyPendingInvites(prisma, updated);
     } catch (err) {
       console.error("Dev Panel teleport Discord sync failed:", err);
+    }
+    // A GM dropping someone into the Depths rolls the Caving Die exactly like
+    // walking in does — see docs/systemdocs/CAVING.md. Null on any zone that
+    // isn't a cave level, or if they'd already rolled this turn. Sent plainly
+    // rather than through notifyCharacter(): the die is the game speaking,
+    // not the GM, so it carries no gm_dev attribution.
+    const cavingDm = await rollCavingOnArrival(prisma, updated, zone);
+    if (cavingDm) {
+      await sendDm(cavingDm.discordUserId, cavingDm.content).catch((err) =>
+        console.error("Dev Panel teleport: caving arrival DM failed:", err),
+      );
     }
   });
 

@@ -3,7 +3,10 @@
 // Two triggers share the one primitive, rollCaving(): the turn-start pass
 // below (runCavingPass, called from db/index.js#resolveNeeds()) rolls for
 // every ALIVE character currently standing in a CAVE_LEVEL zone, and
-// db/lib/travel.js#performTravel rolls once more on arrival. The
+// rollCavingOnArrival() rolls once more the moment anything lands a
+// character in one — player travel (db/lib/travel.js#performTravel) and the
+// raw GM relocations alike (the Dev Panel's zone edit, Bulk Move), so being
+// dropped into the Depths by a GM is never a free walk in. The
 // @@unique([characterId, turnId]) constraint on CavingRoll is what makes
 // firing both in the same turn safe — whichever gets there first wins the
 // row, and rollCaving swallows the other's P2002 as "already rolled".
@@ -30,12 +33,14 @@ const { drawLoot } = require("./cavingLoot");
 const { addToStack } = require("./tagWrites");
 const { rollDie } = require("./moveEffects");
 
-function troubleDm() {
-  return "Something is wrong down here. A GM has been notified.";
+// Both DMs lead with the face, so a player sees their own roll and not just
+// its outcome. A QUIET (2-5) still sends nothing — there is nothing to say.
+function troubleDm(die) {
+  return `Caving Die: ${die} — Something is wrong down here. A GM has been notified.`;
 }
 
-function findDm(tagName) {
-  return `You found something: ${tagName}.`;
+function findDm(die, tagName) {
+  return `Caving Die: ${die} — You found something: ${tagName}.`;
 }
 
 // The single-character primitive, shared by both triggers. `zone` must be a
@@ -66,7 +71,7 @@ async function rollCaving(prisma, character, turn, zone) {
         });
         return {
           roll: row,
-          dm: kind === "TROUBLE" ? { discordUserId: character.discordUserId, content: troubleDm() } : null,
+          dm: kind === "TROUBLE" ? { discordUserId: character.discordUserId, content: troubleDm(die) } : null,
         };
       }
 
@@ -85,7 +90,7 @@ async function rollCaving(prisma, character, turn, zone) {
         });
         return {
           roll: row,
-          dm: { discordUserId: character.discordUserId, content: troubleDm() },
+          dm: { discordUserId: character.discordUserId, content: troubleDm(die) },
         };
       }
 
@@ -97,7 +102,7 @@ async function rollCaving(prisma, character, turn, zone) {
           turnId: turn.id,
           type: "CAVING_LOOT",
           reason: `Caving Die find in ${zone.slug}`,
-          payload: { zoneId: zone.id, tier },
+          payload: { zoneId: zone.id, tier, die },
           effect: { tagId: tag.id, tagName: tag.name, added: 1 },
         },
       });
@@ -116,7 +121,7 @@ async function rollCaving(prisma, character, turn, zone) {
         },
       });
 
-      return { roll: row, dm: { discordUserId: character.discordUserId, content: findDm(tag.name) } };
+      return { roll: row, dm: { discordUserId: character.discordUserId, content: findDm(die, tag.name) } };
     });
   } catch (err) {
     // P2002 on @@unique([characterId, turnId]) — the other trigger (arrival
@@ -124,6 +129,32 @@ async function rollCaving(prisma, character, turn, zone) {
     // error; the caller should simply have nothing to report.
     if (err?.code === "P2002") return { roll: null, dm: null };
     throw err;
+  }
+}
+
+// The arrival trigger, for every path that lands a character in a zone —
+// player travel (db/lib/travel.js#performTravel) and the raw GM relocations
+// alike (the Dev Panel's zone edit, Bulk Move). Not the staged "Relocate to":
+// stagedPush runs before the caving pass inside the same resolveNeeds(), so a
+// character pushed into the Depths is already caught by the pass that turn,
+// and rollCaving can't open its transaction inside the row's own one anyway.
+//
+// Bails quietly on a non-cave zone, on no open turn (mid-restart — the next
+// turn's pass or the next arrival catches them), and on any error: a caving
+// roll must never fail the move that caused it. Returns the caller's DM to
+// send, or null; sends nothing itself, same split as everything else here.
+async function rollCavingOnArrival(prisma, character, zone) {
+  if (zone?.kind !== "CAVE_LEVEL") return null;
+
+  const turn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
+  if (!turn) return null;
+
+  try {
+    const { dm } = await rollCaving(prisma, character, turn, zone);
+    return dm;
+  } catch (err) {
+    console.error(`Caving arrival roll failed for character ${character.id}:`, err);
+    return null;
   }
 }
 
@@ -161,4 +192,4 @@ async function runCavingPass(prisma, turn) {
   return { rolled: characters.length - alreadyRolled, trouble, finds, quiet, alreadyRolled, dms };
 }
 
-module.exports = { rollCaving, runCavingPass };
+module.exports = { rollCaving, rollCavingOnArrival, runCavingPass };

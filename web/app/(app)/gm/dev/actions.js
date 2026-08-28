@@ -28,8 +28,10 @@ import {
   setRomanceOptOutRole,
   syncCharacterZoneRole,
   syncCharacterNarrowcastAccess,
+  sendDm,
 } from "@/lib/discordGuild";
 import { applyPendingInvites } from "@lifeweb/db/lib/threadInvites";
+import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 
 async function requireSuperadmin() {
@@ -670,6 +672,17 @@ export async function bulkMoveCharacters(formData) {
       } catch (err) {
         failures.push({ step: "move", target: c.name, message: err.message });
         console.error(`Bulk move: Discord sync failed for ${c.name}:`, err);
+      }
+      // One Caving Die per arrival, same as walking in — see
+      // docs/systemdocs/CAVING.md. Null off a cave level, or if they had
+      // already rolled this turn. Outside the try above on purpose: a Discord
+      // sync that failed still moved the character, so they still get a roll.
+      try {
+        const cavingDm = await rollCavingOnArrival(prisma, { ...c, zoneId: zone.id }, zone);
+        if (cavingDm) await sendDm(cavingDm.discordUserId, cavingDm.content);
+      } catch (err) {
+        failures.push({ step: "caving", target: c.name, message: err.message });
+        console.error(`Bulk move: caving arrival DM failed for ${c.name}:`, err);
       }
     }
     await prisma.systemReport

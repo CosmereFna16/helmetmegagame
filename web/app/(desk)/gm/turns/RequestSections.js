@@ -320,7 +320,8 @@ export const SECTIONS = {
         <Line label="Found">
           <TagStack effect={effect} tagsById={tagsById} />
         </Line>
-        <Line label="Tier">{payload?.tier ?? "—"}</Line>
+        <Line label="Die">{payload?.die ?? "—"}</Line>
+      <Line label="Tier">{payload?.tier ?? "—"}</Line>
       </>
     ),
   },
