@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import Modal from "@/app/components/Modal";
 import ChipText from "@/app/components/ChipText";
+import ChipLabel from "@/app/components/ChipLabel";
 import { formatCost, costColor } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 
@@ -36,15 +37,18 @@ function Row({ label, children }) {
   );
 }
 
+// `tags` (see page.js) ships a flattened `groupColor`, not the `group.color`
+// TagChip/ChipLabel expect — the detail sheet's rows are hand-picked columns,
+// not a full Tag row. This adapts it rather than widening that query, since
+// nothing else here needs the rest of the group relation.
+function withGroupColor(tag) {
+  return { name: tag.name, group: tag.groupColor ? { color: tag.groupColor } : null };
+}
+
 function TagButton({ tag, onOpen }) {
   return (
-    <button
-      type="button"
-      className="chip"
-      style={{ cursor: "pointer" }}
-      onClick={() => onOpen(tag)}
-    >
-      {tag.name}
+    <button type="button" className="btn-quiet" style={{ cursor: "pointer" }} onClick={() => onOpen(tag)}>
+      <ChipLabel tag={withGroupColor(tag)} />
     </button>
   );
 }
@@ -105,14 +109,7 @@ export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="section-title flex items-center gap-2">
-              {tag.groupColor && (
-                <span
-                  aria-hidden="true"
-                  className="inline-block h-5 w-1.5 rounded-sm"
-                  style={{ background: tag.groupColor }}
-                />
-              )}
-              {tag.name}
+              <ChipLabel tag={withGroupColor(tag)} />
               <span className="text-base" style={{ color: costColor(tag.pointCost) }}>
                 {formatCost(tag.pointCost)}
               </span>

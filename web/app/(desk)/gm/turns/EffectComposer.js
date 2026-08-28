@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import Modal from "@/app/components/Modal";
 import FormError from "@/app/components/FormError";
 import { mergeTagOp } from "@/lib/tagOpAlgebra";
+import TagChip from "@/app/components/TagChip";
+import ChipLabel from "@/app/components/ChipLabel";
 import { createStagedEffects, updateStagedEffect, getHeldTags } from "./actions";
 
 // Stage a mechanical adjustment: signed ⬢ and/or tag adds/removes, against
@@ -236,7 +238,7 @@ export default function EffectComposer({
             return (
               <div key={op.tagId} className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="mono">{op.op === "add" ? "+" : "−"}</span>
-                <span>{tag?.name ?? "Unknown tag"}</span>
+                {tag ? <TagChip tag={tag} /> : <span>Unknown tag</span>}
                 {tag?.stackable && (
                   <input
                     type="number"
@@ -273,11 +275,23 @@ export default function EffectComposer({
               ) : (
                 heldEntry.map((t) => {
                   const staged = ops.get(t.tagId);
+                  // The held list comes back with only id/name/quantity (see
+                  // getHeldTags), not the full catalog row — fall back to the
+                  // catalog copy (tagById) so the chip can show its colour and
+                  // tooltip; a tag dropped from the catalog since it was
+                  // granted just reads as plain text.
+                  const catalogTag = tagById.get(t.tagId);
                   return (
                     <div key={t.tagId} className="flex items-center justify-between gap-2 text-sm">
                       <span className="min-w-0 truncate">
-                        {t.name}
-                        {t.quantity > 1 ? ` ×${t.quantity}` : ""}
+                        {catalogTag ? (
+                          <TagChip tag={catalogTag} quantity={t.quantity} />
+                        ) : (
+                          <>
+                            {t.name}
+                            {t.quantity > 1 ? ` ×${t.quantity}` : ""}
+                          </>
+                        )}
                       </span>
                       <button
                         type="button"
@@ -301,11 +315,15 @@ export default function EffectComposer({
             <div className="flex flex-col gap-1">
               {tagMatches.map((t) => (
                 <div key={t.id} className="flex items-center justify-between gap-2 text-sm">
+                  {/* ChipLabel, not TagChip: this is a dense scan list of
+                      catalog matches with its own Add/Remove buttons — a full
+                      hover tooltip on every row is more than the row needs,
+                      and the coloured edge already tells you the group. */}
                   <span className="min-w-0 truncate">
-                    {t.name}
-                    {t.defaultDurationTurns ? (
-                      <span className="text-muted"> · {t.defaultDurationTurns}t</span>
-                    ) : null}
+                    <ChipLabel
+                      tag={t}
+                      duration={t.defaultDurationTurns ? { badge: `${t.defaultDurationTurns}t` } : null}
+                    />
                   </span>
                   <span className="flex gap-1.5">
                     <button type="button" className="btn-quiet" onClick={() => stageOp(t.id, "add")}>

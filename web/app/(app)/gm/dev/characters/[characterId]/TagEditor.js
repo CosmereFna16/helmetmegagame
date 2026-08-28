@@ -11,6 +11,7 @@ import {
 } from "@/lib/characterCreation";
 import { tagDuration, turnsLeft } from "@/lib/turnFormat";
 import ChipText from "@/app/components/ChipText";
+import ChipLabel from "@/app/components/ChipLabel";
 
 // The GM's tag surface. Not PointBuy — that is the player's rules-respecting
 // store and must stay that way. This is its sibling, sharing the same pure
@@ -262,13 +263,15 @@ function HeldRow({ tag, holding, op, openTurn, onStage }) {
   return (
     <li
       className="dev-tag-row"
-      style={{
-        outline: stagedOutline(staged),
-        borderLeftColor: tag?.group?.color ?? undefined,
-      }}
+      style={{ outline: stagedOutline(staged) }}
     >
       <span className="flex flex-wrap items-baseline gap-2 flex-1 min-w-0">
-        <strong>{holding.name}</strong>
+        {/* ChipLabel carries its own left edge in tag.group.color, so the
+            row no longer needs one of its own. `holding.name` is the
+            snapshot name (what the character actually holds); `tag` — the
+            live catalog row, absent if it's since fallen out of the catalog
+            — supplies the colour only. */}
+        <ChipLabel tag={{ name: holding.name, group: tag?.group ?? null }} />
         {holding.quantity > 1 && <span className="mono text-xs text-muted">×{holding.quantity}</span>}
         <span className="text-xs text-muted mono">{holding.source}</span>
         {holding.equipped && <span className="chip">equipped</span>}
@@ -356,10 +359,7 @@ function CatalogRow({
   return (
     <li
       className="dev-tag-row"
-      style={{
-        outline: stagedOutline(staged),
-        borderLeftColor: tag.group?.color ?? undefined,
-      }}
+      style={{ outline: stagedOutline(staged) }}
     >
       <span className="flex flex-wrap items-baseline gap-2 flex-1 min-w-0">
         {!holding && (
@@ -370,7 +370,9 @@ function CatalogRow({
             aria-label={`Select ${tag.name} for a mass grant`}
           />
         )}
-        <strong>{tag.name}</strong>
+        {/* ChipLabel carries its own left edge in tag.group.color, so the
+            row no longer needs one of its own. */}
+        <ChipLabel tag={tag} />
         <span className="text-sm" style={{ color: costColor(tag.pointCost) }}>
           {formatCost(tag.pointCost)}
         </span>
