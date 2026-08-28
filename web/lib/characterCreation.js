@@ -37,9 +37,12 @@ export function negativeTagCount(tags) {
 export const CURSED_ROLE_SLUGS = ["migrant", "bum"];
 
 // The roster held back while GameConfig.playtestModeEnabled is on. The
-// Merchant is unfinished; the Windlands are out of scope for a short test.
-// Nothing is removed from docs/roles.yaml, so switching the flag off restores
-// them with no sync.
+// Windlands are out of scope for a short test. Nothing is removed from
+// docs/roles.yaml, so switching the flag off restores them with no sync.
+//
+// The Merchant came off this list in the Merchant Update: the seat was held
+// back because its whole economy was a prose instruction to message a GM, and
+// it now has a real one at /depot (docs/systemdocs/DEPOT.md).
 //
 // There is no "windlander" flag to match on — Role has no availability column
 // and Faction has none either. The only structural marker is the nesting in
@@ -47,7 +50,7 @@ export const CURSED_ROLE_SLUGS = ["migrant", "bum"];
 // matches the ZONE rather than a faction: a fourth clan added later is covered
 // for free. Zone carries no slug, so it is a name match — rename the zone in
 // roles.yaml and this list has to move with it.
-export const PLAYTEST_LOCKED_ROLE_SLUGS = ["merchant"];
+export const PLAYTEST_LOCKED_ROLE_SLUGS = [];
 export const PLAYTEST_LOCKED_ZONE_NAMES = ["Windlands"];
 
 // Callers must have the role's zone name to hand (character/page.js walks the

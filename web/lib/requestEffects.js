@@ -631,6 +631,64 @@ export const REQUEST_EFFECTS = {
     },
   },
 
+  // --- The Depot (docs/systemdocs/DEPOT.md) ---------------------------
+  // All three are wholesale between the Merchant and an orbital station that
+  // is not a party in the game, so there is only ever ONE side to reverse —
+  // no counterparty balance, no SiloTransaction. None is editable: ⬢ and
+  // stock move together in one transaction, and a GM nudging the price on a
+  // completed sale would leave the two out of step with no way back. Undo is
+  // the whole correction, and it is exact because every number comes off the
+  // snapshot rather than from re-reading a catalog price that may since have
+  // been re-tuned.
+  DEPOT_BUY: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { tagId, tagName, added, total } = request.effect;
+      // `added` is what actually landed, which is not `quantity` for a
+      // non-stackable tag he already held — grantTagSlugs' rule, and the
+      // reason Undo may only ever take back what this request really put on
+      // the sheet. The ⬢ still come back in full: he paid them either way.
+      if (tagId && added > 0) await dropCharacterTag(tx, request.characterId, tagId, added);
+      await moveResources(tx, { kind: "character", id: request.characterId }, total);
+      return `Returned ${formatStack(tagName, added)} to the Depot and refunded ${total} ⬢.`;
+    },
+  },
+
+  DEPOT_SELL: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { tagName, total, restore, quantity } = request.effect;
+      // Debit first. If he has already spent the proceeds this throws and
+      // rolls the whole undo back, rather than handing the goods back for
+      // free — the same posture TRANSFER_RESOURCES takes.
+      await moveResources(tx, { kind: "character", id: request.characterId }, -total);
+      if (restore?.tagId) {
+        await restoreCharacterTag(tx, request.characterId, { ...restore, quantity });
+      }
+      return `Bought ${formatStack(tagName, quantity)} back off the Depot for ${total} ⬢.`;
+    },
+  },
+
+  DEPOT_CREDIT: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { direction, amount } = request.effect;
+      const draw = direction === "DRAW";
+      // A draw put ⬢ in his pocket and the same number on the tab; a repayment
+      // did both in reverse. Undoing a draw can therefore fail on the ⬢ if he
+      // has already spent them, which is correct: the debt is not forgivable
+      // by an Undo he cannot fund.
+      await moveResources(tx, { kind: "character", id: request.characterId }, draw ? -amount : amount);
+      await tx.character.update({
+        where: { id: request.characterId },
+        data: { depotDebt: { [draw ? "decrement" : "increment"]: amount } },
+      });
+      return draw
+        ? `Called back the ${amount} ⬢ draw and cleared it off the tab.`
+        : `Re-advanced the ${amount} ⬢ repayment and put it back on the tab.`;
+    },
+  },
+
   // Looting a living, incapacitated target. `request.characterId` is the
   // looter; `effect.targetCharacterId` is the person it came off — the same
   // "subject differs from filer" shape HEAL_CHARACTER documents above. Undo

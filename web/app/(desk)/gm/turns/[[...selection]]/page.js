@@ -93,6 +93,12 @@ function summarize(request) {
       return `Buried ${e.targetName ?? "?"} — curse lifted`;
     case "FAST_TRAVEL":
       return `Rode ${e.fromZoneName ?? "?"} → ${e.toZoneName ?? "?"}`;
+    case "DEPOT_BUY":
+      return `Bought ${e.tagName ?? "something"}${(e.quantity ?? 1) > 1 ? ` ×${e.quantity}` : ""} for ${e.total ?? 0} ⬢`;
+    case "DEPOT_SELL":
+      return `Sold ${e.tagName ?? "something"}${(e.quantity ?? 1) > 1 ? ` ×${e.quantity}` : ""} for ${e.total ?? 0} ⬢`;
+    case "DEPOT_CREDIT":
+      return `${e.direction === "DRAW" ? "Drew" : "Repaid"} ${e.amount ?? 0} ⬢ — owes ${e.debtAfter ?? 0} ⬢`;
     case "BIND_CHARACTER":
       return `Bound ${e.targetName ?? "?"}`;
     case "FREE_CHARACTER":

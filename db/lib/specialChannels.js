@@ -25,6 +25,8 @@
 //   roleViewZones     zone SLUGS whose "Zone: X" role gets a ViewChannel
 //                     allow — a static, role-based floor under the
 //                     per-member rule. Re-applied every sync.
+//   slowmode          optional rate_limit_per_user in seconds, re-asserted
+//                     every sync alongside the topic. Omit for none.
 //   member(ctx)       per-character rule → { view, send } | null. null means
 //                     no overwrite at all (falls back to @everyone's deny —
 //                     or to a roleViewZones grant the character's zone role
@@ -75,6 +77,23 @@ const SPECIAL_CHANNELS = [
       if (ctx.tagSlugs.has("intercom") && ctx.zoneSlug === FORTRESS_SLUG) {
         return { view: true, send: true };
       }
+      return null;
+    },
+  },
+  {
+    slug: "mindlink",
+    configKey: "mindlinkChannelId",
+    categoryConfigKey: "radioCategoryId",
+    topic: "Bacchus's own net. Every Cultist hears; only a Mindlink speaks.",
+    tupper: true,
+    wipe: "clear",
+    ghostsMaySee: true,
+    slowmode: 1800,
+    // Per-member only — the cult isn't a zone, so there's no role floor.
+    roleViewZones: [],
+    member: (ctx) => {
+      if (ctx.tagSlugs.has("mindlink")) return { view: true, send: true };
+      if (ctx.tagSlugs.has("follower-of-bacchus")) return { view: true, send: false };
       return null;
     },
   },

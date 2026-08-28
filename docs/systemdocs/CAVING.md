@@ -182,15 +182,23 @@ described in §4.
 ## 6. `sellable` / `sellablePrice`
 
 Two `Tag` columns, the seller's half of `purchasable`/`purchasableAfterStart`
-— whether the Merchant's Depot (`docs/roles.yaml`'s Merchant role,
-`docs/documents.yaml`'s still-thin Merchant document) will buy a tag off a
-player, and for how many ⬢. Catalog data only for now, same status
-`purchasable` has always had — no sell flow reads it yet. `syncTags.js`
-requires the two to travel together: `sellable` without a positive
-`sellablePrice` is an error, and so is a price set without `sellable: true`.
+— whether the Merchant's Depot will buy a tag off him, and for how many ⬢.
+`syncTags.js` requires the two to travel together: `sellable` without a
+positive `sellablePrice` is an error, and so is a price set without
+`sellable: true`.
 
-Set on six tags so far: Graga Sac (8), Cave Fungus (3), Saltpeter (3),
-Jewelry (8), Old Coin (1), Military Autoinjector (10).
+This update set them on six tags and left them inert, with no sell flow
+reading either. **The Merchant Update built that flow** — `/depot` and the
+`DEPOT_SELL` request — and widened the six to about 106, across brews, smithed
+gear, bulk goods and salvage. The six originals kept their numbers: Graga Sac
+(8), Cave Fungus (3), Saltpeter (3), Jewelry (8), Old Coin (1), Military
+Autoinjector (10). See [`DEPOT.md`](DEPOT.md) §4, which is now canonical for
+all of it.
+
+Two of the caving artifacts are also on the Depot's *buy* shelf — the
+Motorcycle and the Flamethrower, which the station has no trouble sourcing and
+Ravenheart has every trouble hauling out of the Caves. Nothing else on the loot
+table is purchasable at any price.
 
 ## 7. Two catalog fields this update added
 

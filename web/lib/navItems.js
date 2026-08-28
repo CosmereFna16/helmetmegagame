@@ -1,4 +1,4 @@
-import { prisma, MORTUS_SLUG } from "@lifeweb/db";
+import { prisma, MORTUS_SLUG, MERCHANT_LICENSE_SLUG } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 
@@ -50,6 +50,11 @@ export const GM_NAV = [
 const DEV_NAV_ITEM = { href: "/gm/dev", label: "Dev", icon: "dev", section: "gm" };
 const LIFEWEB_NAV_ITEM = { href: "/lifeweb", label: "Lifeweb", icon: "lifeweb", section: "player" };
 const ARCHIVE_NAV_ITEM = { href: "/archive", label: "Archive", icon: "archive", section: "player" };
+// Conditional on the licence tag, exactly like Lifeweb's Mortus check below —
+// and, like it, NOT extended to every GM. A GM has no counter to trade at, and
+// /depot redirects them; putting a dead link on their rail would only puzzle
+// them. See docs/systemdocs/DEPOT.md §2.
+const DEPOT_NAV_ITEM = { href: "/depot", label: "Depot", icon: "store", section: "player" };
 
 // Streamed separately from the nav shell (see the Suspense boundary in
 // AppRail) — the live Discord role check and the Mortus-tag lookup never
@@ -71,13 +76,18 @@ async function loadUnreadConversationCount(discordUserId) {
 }
 
 export async function loadNavItems(discordUserId) {
-  const [{ isGm: gm }, hasMortusTag, config] = await Promise.all([
+  const [{ isGm: gm }, hasMortusTag, hasLicenceTag, config] = await Promise.all([
     getGmSession(),
     // The Lifeweb's Blood level is a secret the Mortii keep — everyone else
     // only gets the vague public omen line in the turn announcement (see
     // advanceTurn() in db/index.js) once it runs low.
     prisma.characterTag.findFirst({
       where: { character: { discordUserId, status: "ALIVE" }, tag: { slug: MORTUS_SLUG } },
+    }),
+    // The Depot rail item follows the licence, not the Merchant role — the
+    // tag is tradeable, so whoever is carrying it is who gets the counter.
+    prisma.characterTag.findFirst({
+      where: { character: { discordUserId, status: "ALIVE" }, tag: { slug: MERCHANT_LICENSE_SLUG } },
     }),
     prisma.gameConfig.findUnique({ where: { id: 1 }, select: { archiveVisible: true } }),
   ]);
@@ -95,9 +105,10 @@ export async function loadNavItems(discordUserId) {
   // /character's creation gate.
   const withArchive =
     gm || config?.archiveVisible ? [...withLifeweb, ARCHIVE_NAV_ITEM] : withLifeweb;
+  const withDepot = hasLicenceTag ? [...withArchive, DEPOT_NAV_ITEM] : withArchive;
   // Dev is appended last and carries section "gm", so on a GM's rail it lands
   // after the player group. That is one more divider than the two groups
   // suggest, which is correct: Dev is not the same job as Players/Adjudicate
   // and reads better as its own mark at the bottom.
-  return isSuperadmin(discordUserId) ? [...withArchive, DEV_NAV_ITEM] : withArchive;
+  return isSuperadmin(discordUserId) ? [...withDepot, DEV_NAV_ITEM] : withDepot;
 }

@@ -933,6 +933,8 @@ zones:
               - Ravenhearter
               - Mortus
               - Mortus Rags
+              - Fighting (Basic)
+              - Cudgel
             doc_elements:
               - townstarting
               - lifeweb
@@ -1398,15 +1400,17 @@ zones:
               Make your fortune buying and selling Tags.
             description:
               - >-
-                Ravenheart is a great source of business and not much else. You wouldn't dare put your heart here—the place is doomed.
+                Ravenheart is a great source of business and not much else. You wouldn't dare put your heart here—the place is doomed. You are not from here, you are not staying, and you are going to make money off these people.
               - >-
-                You start with a huge amount of capital, invest it.
+                Your Depot sits in Customs, down in the Caves: a shuttle tethered to your sponsors' station, somewhere above the weather. Your Licence opens it. Go there and the whole catalogue is yours—tea and coffee and sweets at the cheap end, cameras and surgical kits in the middle, and at the far end things nobody in Ravenheart has ever seen work. A pistol costs more than a house. That is not a mistake.
               - >-
-                Your goal is to make as many Resources as you can by buying and selling Tags. Your Supply Depot sits in Customs, down in the caves: go there to request Tags by shuttle (it'll cost you), and then sell them. To sell Tags, simply message a GM explaining who'd like the tag and how much you're selling it for.
+                Nobody else on this rock can buy any of it. You buy it at the station's price and you sell it at whatever you can talk somebody into, and the difference is your living. You buy the other way too: brews, ore, cave fungus, anything the smiths beat out—and Ravenheart Red, which fetches a fine price up there. Buy it cheap off the people who made it and sell it high to the station.
               - >-
-                Try your hand at usury. Lend loans with interest, and call on your Dockers to enforce them. That's probably the easiest way to make serious bucks.
+                The Company will advance you up to 60 ⬢ against the business. There is no interest and no schedule: take out sixty, pay back sixty. It is capital, not a wage. Put it into the town and nobody will trouble you about it. Put it into yourself and somebody will start asking what your Licence is worth.
               - >-
-                If things ever get too dour, simply hop on your sponsor's shuttle… if you can pay for it. Trip's 30 ⬢ flat, pal.
+                Try your hand at usury. Lend at whatever rate you like, and call on your Dockers to collect. That's probably the easiest way to make serious bucks—and if a debtor won't pay, that is your problem, not theirs.
+              - >-
+                If things ever get too dour, simply hop on your sponsor's shuttle… if you can pay for it. Trip's 30 ⬢ flat, pal. Lose the Licence and you lose that too.
             difficulty: hard
             multiple: false
             starting_resources: 10
@@ -1415,6 +1419,7 @@ zones:
             starting_tags:
               - Literate
               - Merchant's Garb
+              - Merchant's License
             doc_elements:
               - townstarting
               - merchant
@@ -1425,6 +1430,10 @@ zones:
             description:
               - >-
                 Serve the Merchant and get drunk during the night. Maybe he'll let you get a ride on his spaceship if things ever get bad around here.
+              - >-
+                You are the legs of his business. The Depot is at the bottom of the Caves and his customers are not, so somebody carries the goods up and the money down—that is you. Somebody also collects from the people who owe him. That is also you.
+              - >-
+                One warning about the Depot: the mini-turret only recognises the Merchant's Licence. He has one. You do not.
             difficulty: easy
             multiple: true
             weight: 2

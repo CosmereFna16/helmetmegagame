@@ -181,6 +181,18 @@ enum RequestType {
   // Character.fastTravelTurnId. Gated on the `horse` or `horse-windlander`
   // tag, whose catalog text is what this implements. See REQUESTS.md §5d.
   FAST_TRAVEL
+
+  // The Merchant's Depot, three halves of one counter (DEPOT.md). BUY and
+  // SELL are wholesale against the orbital station: Tag.depotPrice is what it
+  // charges him, Tag.sellablePrice what it pays him, and only the holder of
+  // `merchants-license` standing in Customs may file either. CREDIT draws or
+  // repays against the Company's 60 ⬢ line, tracked on Character.depotDebt.
+  // None of the three is GM-editable — a partial edit would desync ⬢ from
+  // stock — so Undo is the only correction.
+  DEPOT_BUY
+  DEPOT_SELL
+  DEPOT_CREDIT
+
   // RETIRED, and kept only because Postgres cannot drop an enum value in
   // place — the same reason MoveReviewStatus.WAITING_FOR_OPPONENTS and
   // ActionStatus.ADJUDICATED are still here. Nothing writes any of these.
@@ -339,9 +351,10 @@ model GameConfig {
   // gate fails closed, and the reservation is the normal state of the game.
   leaderWhitelistEnabled Boolean @default(true)
 
-  // Playtest lever: locks the Merchant (unfinished) and every role in the
-  // Windlands out of character creation, without removing either from
-  // docs/roles.yaml — flip it back off and the full roster returns. Which
+  // Playtest lever: locks every role in the Windlands out of character
+  // creation, without removing them from docs/roles.yaml — flip it back off
+  // and the full roster returns. (It used to hold the Merchant back too; the
+  // Merchant Update finished that seat, so only the zone lock is left.) Which
   // roles it covers lives in web/lib/characterCreation.js
   // (PLAYTEST_LOCKED_ROLE_SLUGS / PLAYTEST_LOCKED_ZONE_NAMES), not here.
   // Off by default: this is a temporary content lock, not a permission gate,
@@ -403,13 +416,14 @@ model GameConfig {
   // capped role proportionally without touching the YAML.
   playerCount Int @default(100)
 
-  // The two hardcoded narrowcast channels (#watch, #intercom) live under a
-  // shared Discord "radio" category — see db/lib/narrowcastAccess.js.
+  // The narrowcast channels (#watch, #intercom, #mindlink) live under a
+  // shared Discord "radio" category — see db/lib/specialChannels.js.
   // Provisioned once by npm run db:sync-narrowcast-channels; never touched
   // again after that.
-  radioCategoryId   String?
-  watchChannelId    String?
-  intercomChannelId String?
+  radioCategoryId    String?
+  watchChannelId     String?
+  intercomChannelId  String?
+  mindlinkChannelId  String?
 
   // The Catatonic (AFK) pass (db/lib/catatonicPass.js): any ALIVE character
   // with no player-filed Action and no in-character speech for
@@ -842,6 +856,17 @@ model Character {
   status      CharacterStatus @default(ALIVE)
   resources   Int             @default(0)
 
+  // ⬢ currently drawn against the Company's credit line at the Depot, moved
+  // only by DEPOT_CREDIT. It is a debt, not a balance: the ⬢ themselves land
+  // in `resources` above, and this is what he owes back. Capped at
+  // DEPOT_CREDIT_CAP (db/lib/depot.js), and it lives here rather than on the
+  // Company's Faction.silo because the line is advanced to the Merchant
+  // personally — the Silo stays the faction's own money. Nothing punishes a
+  // standing balance in code; it is simply visible to GMs, which is the whole
+  // enforcement. Non-null with a 0 default, so every character has one and
+  // only the licensed one can ever move it. See docs/systemdocs/DEPOT.md §5.
+  depotDebt Int @default(0)
+
   // When this body went into the ground, set by a BURY_CHARACTER request.
   // Nullable, so the column is both the flag and the record of when. A buried
   // corpse is out of the world: it cannot be looted, dragged or bound, and it
@@ -1029,12 +1054,22 @@ model Tag {
   purchasableAfterStart Boolean @default(true)
 
   // The other side of purchasable: whether the Merchant's Depot will buy
-  // this off a player, and for how many ⬢. Catalog data only, same status
-  // as purchasable — no sell flow reads it yet. syncTags.js requires the
-  // two fields to travel together: sellable without a positive sellablePrice
-  // is an error, and so is a price without sellable: true.
+  // this off him, and for how many ⬢. Live as of the Merchant Update — read
+  // by the Sell counter on /depot (DEPOT_SELL). syncTags.js requires the two
+  // fields to travel together: sellable without a positive sellablePrice is
+  // an error, and so is a price without sellable: true.
   sellable      Boolean @default(false)
   sellablePrice Int?
+
+  // The buy side of the same counter: what the Depot CHARGES the Merchant for
+  // one of these, read by DEPOT_BUY. Null means the station does not stock it
+  // at all, which is the case for everything Ravenheart makes itself — the
+  // Depot only imports. A ware is Depot-stocked purely by having this, so it
+  // travels with nothing else; syncTags.js only checks it is positive, and
+  // warns (without throwing) if it is at or under the tag's own sellablePrice,
+  // since buying and selling the same tag in a loop would print ⬢.
+  // See docs/systemdocs/DEPOT.md §3.
+  depotPrice Int?
 
   // Catalog-level default duration in turns, for tags that auto-expire once
   // granted (mirrors CharacterTag.expiresTurn's "absolute turn number, swept

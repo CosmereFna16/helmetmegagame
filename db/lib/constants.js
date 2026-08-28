@@ -27,6 +27,10 @@ const MINDREADING_SLUG = "mindreading";
 // requiredTag in docs/taggroups.yaml).
 const DEMONESS_SLUG = "demoness";
 
+// Consumed with everything a Rite: Rage caster examines — see
+// db/lib/inspectVision.js. Read off the REACTOR, same posture as Seductive.
+const RAGE_SLUG = "rage";
+
 // A ZONE slug, not a tag: the Fortress holds the Lifeweb tower and the PA
 // system, so two separate rules gate on standing there.
 const FORTRESS_SLUG = "fortress";
@@ -54,4 +58,5 @@ module.exports = {
   SEDUCTIVE_DEMONESS_SLUG,
   MINDREADING_SLUG,
   DEMONESS_SLUG,
+  RAGE_SLUG,
 };

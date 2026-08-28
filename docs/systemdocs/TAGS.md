@@ -146,6 +146,45 @@ Three things make a category actually hidden rather than merely empty:
   (Archer) isn't a secret, and hiding it would break `{tag:fighting-archer}`
   in public documents for everyone who hasn't bought it.
 
+### The Bacchus power ladder
+
+Where the `bacchus` category's own tags live is a further split, since the
+cult's progression isn't one group but three: `bacchus` (gated by
+`follower-of-bacchus`), `bacchus-ripening` (gated by `cult-ripening`) and
+`bacchus-bountiful` (gated by `cult-bountiful`) — one for each rung of the
+`cult-seedling` → `cult-ripening` → `cult-bountiful` chain (`docs/tags.yaml`'s
+`# --- Cult ---` block). Same rule as above: none of the member tags repeat
+`requiredTag` for that gate.
+
+Two further conventions, specific to this category:
+
+- **Spells and Rites carry a `Spell:`/`Rite:` name prefix.** A spell that
+  inflicts a status on someone else would otherwise collide with that status's
+  own name (`Rite: Rage` the caster holds, vs. `Rage` the victim ends up
+  with) — and `docs/documents.yaml` assigns documents by tag **name**, so a
+  collision there is a coin toss, same problem `peerless-beauty`'s comment
+  already documents for Demoness.
+- **A cooldown is a self-referencing `consumesInto`.** A spell with a stated
+  cooldown lists *itself* plus a `<name>-expired` marker:
+  `consumesInto: [spell-nourishment, nourishment-expired]`. This works because
+  `dropCharacterTag` runs before `grantTagSlugs` inside `consumeTagRequestImpl`
+  (`web/app/(app)/character/requestActions.js`) — the caster's stack is
+  decremented and then both slugs are granted back in the same transaction, so
+  the spell survives its own consumption and the marker's `durationTurns`
+  becomes the visible cooldown clock. The marker carries no `description` (an
+  optional field) and sits outside the `Spell:`/`Rite:` naming, since nothing
+  ever renders it as a standalone chip a player picks.
+
+**A status a Bacchus power inflicts on someone else is never gated.** The
+target is usually not a cultist: a gated group renders as literal
+`{tag:slug}` text to its own holder (per the `getVisibleTags` rule above), and
+`visibleOnInspect` would be silently withheld from a bystander's 🔍. So
+`Rage`, `Lunatic`, `Silence` and the rest sit in ordinary `status`/`health`
+groups; only the caster-facing `Spell:`/`Rite:` tag itself is gated. The same
+goes for anything craftable — `Nailgun`, `Armor Robes` — which get traded to
+and worn by non-cultists, so they gate on the `smithing-bacchus` *skill*
+rather than the tag group.
+
 ## 4. The point economy
 
 `pointCost` is the price in the point-buy menu, and it is **signed**:
@@ -323,11 +362,18 @@ here, change it there too** — they are meant to say the same thing.
   logic exists yet (Transfer Tag filters on `category`, not this).
 - `sellable` / `sellablePrice` — the seller's half of
   `purchasable`/`purchasableAfterStart`: whether the Merchant's Depot will
-  buy this tag off a player, and for how many ⬢. Added for the Caves Update
-  (`CAVING.md` §6) — catalog data only, no sell flow reads it yet, same
-  status `purchasable` has always had. `syncTags.js` requires the two to
+  buy this tag off him, and for how many ⬢. Added for the Caves Update
+  (`CAVING.md` §6) and inert until the Merchant Update, which built the
+  counter that reads it (`DEPOT.md` §4). `syncTags.js` requires the two to
   travel together: `sellable` without a positive `sellablePrice` is an error,
   and so is a price set without `sellable: true`.
+- `depotPrice` — the buy side of that counter: what the Depot **charges** him
+  for one (`DEPOT.md` §3). Null means the station does not stock the tag,
+  which is the case for everything Ravenheart makes itself. It travels with
+  nothing else — carrying a price is what puts a ware on the shelf — so
+  `syncTags.js` only checks it is positive, and warns without throwing if it
+  is at or under the same tag's `sellablePrice`, since buying and selling one
+  thing in a loop would print ⬢.
 - `stackable` — whether a character can hold more than one at a time. Live
   code reads this; see §5a.
 - `defaultDurationTurns` (spelled `durationTurns` in the YAML) — catalog-level "how many turns does this last once

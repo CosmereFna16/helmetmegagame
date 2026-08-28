@@ -192,7 +192,7 @@ tags:
     name: Cult Leader
     category: meta
     group: meta-cult
-    description: "You understand Bacchus's plan. Every 2 days, you can send a telepathic message to every cultist in Ravenheart to help organize."
+    description: "You understand Bacchus's plan. Every two days, you can send a telepathic message to every cultist in Ravenheart to help organize."
     pointCost: 0
     purchasable: false
 
@@ -219,6 +219,10 @@ tags:
     pointCost: 0
     parentTag: cult-ripening
     purchasable: false
+    # A cult that reaches its prime can no longer hide: this is the tag whose
+    # rung makes a bystander's 🔍 read "Cult: Bountiful" (visibleOnInspect).
+    # Seedling and Ripening stay concealed.
+    visible: true
 
   # --- General --------------------------------------------------------------
 
@@ -584,7 +588,7 @@ tags:
     name: Tactician
     category: general
     group: general-traits
-    description: "Group fights you lead tend to go in your favor."
+    description: "You think several moves ahead of everyone else in the room. A GM will tell you honestly, in confidence, whether a plan you're about to attempt is a good idea."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -888,10 +892,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  # General rather than Health on purpose: this is a body you were given and
-  # kept, not a condition anyone is going to treat. No requirement block, so
-  # the Heal request never offers it, and `removable: false` so it doesn't
-  # come off from the sheet either.
   - slug: fat
     name: Fat
     category: general
@@ -937,16 +937,6 @@ tags:
     group: general-traits
     description: "You can't speak. You mean, you really shouldn't."
     pointCost: 0
-    purchasable: true
-    purchasableAfterStart: false
-    removable: true
-
-  - slug: bespectacled
-    name: Bespectacled
-    category: general
-    group: general-traits
-    description: "You are badly nearsighted, but wear special corrective spectacles. You can see fine... until the spectacles come off. Don't lose them! (Make sure to select the {tag:spectacles} item, too.)"
-    pointCost: -1
     purchasable: true
     purchasableAfterStart: false
     removable: true
@@ -1017,7 +1007,7 @@ tags:
     category: general
     group: general-traits
     description: "People wonder if you were dropped on your face as a child."
-    pointCost: -2
+    pointCost: -1
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -1027,8 +1017,8 @@ tags:
     name: Unhygenic
     category: general
     group: general-traits
-    description: "Many peasants can't bathe often. But you don't bathe, even when you have the option. You have a certain odor."
-    pointCost: -2
+    description: "Many peasants can't bathe often. But you don't bathe, even when you have the option. You have a repellent odor."
+    pointCost: -1
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -1070,7 +1060,7 @@ tags:
     category: general
     group: general-traits
     description: "You like split knuckles, cracked teeth, black eyes — though they look better on the other guy! You actively pick fights where they might not be necessary."
-    pointCost: -2
+    pointCost: -1
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -1129,11 +1119,18 @@ tags:
     purchasableAfterStart: true
     removable: true
 
-  # requiredTag rather than a group gate: the Windlands faith is not a secret,
-  # it just isn't yours to take unless you are of them. Same shape as
-  # horse-windlander, and `windlander` itself is a purchasable Skills tag that
-  # Windlander roles get free from roles.yaml, so the door is open to anyone
-  # willing to pay for the origin first.
+  - slug: fundamentalist
+    name: Fundamentalist
+    category: general
+    group: general-beliefs
+    description: "You are hardcore about your Post-Christian beliefs — perhaps more hardcore than the Church itself is."
+    pointCost: -1
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    requiredTag: post-christian
+
+#Windlanders only
   - slug: the-wind
     name: The Wind
     category: general
@@ -1175,10 +1172,7 @@ tags:
     purchasableAfterStart: true
     removable: true
 
-  # NOT the Cult. `follower-of-bacchus` ("Cultist of Bacchus", in
-  # general-traits) is the gate on the hidden Bacchus category; this is the
-  # distant superstition that gate has nothing to do with. Don't wire them
-  # together — holding one should imply nothing about the other.
+#Unrelated to the formal bacchus cult
   - slug: old-ways-bacchus
     name: Old Ways (Bacchus)
     category: general
@@ -1189,23 +1183,8 @@ tags:
     purchasableAfterStart: true
     removable: true
 
-  - slug: fundamentalist
-    name: Fundamentalist
-    category: general
-    group: general-beliefs
-    description: "You are hardcore about your Post-Christian beliefs — perhaps more hardcore than the Church itself is."
-    pointCost: -1
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-    requiredTag: post-christian
 
   # --- The Watch ------------------------------------------------------------
-  # Watchman is the membership tag and the gate: docs/taggroups.yaml puts
-  # `requiredTag: watchman` on the general-watch group, so every tag below
-  # inherits the gate and none of them repeats it. Watchman itself lives in
-  # general-traits, outside the group it opens — a gated group cannot contain
-  # its own key. Granted by roles.yaml (Captain, Watchman), never bought.
   - slug: watchman
     name: Watchman
     category: general
@@ -1266,8 +1245,6 @@ tags:
     removable: true
 
   # --- Brigands -------------------------------------------------------------
-  # Same shape as the Watch above: Brigand is the key, gated group holds the
-  # rest. Granted by roles.yaml (Brigand Leader, Brigand).
   - slug: brigand
     name: Brigand
     category: general
@@ -1316,12 +1293,6 @@ tags:
     purchasableAfterStart: false
 
   # --- The Windlands ----------------------------------------------------
-  # general-windlands is gated behind `windlander` at the group level
-  # (docs/taggroups.yaml), same idiom as the Watch and Brigands above, so
-  # none of these repeat requiredTag. Fighting (Cavalry) is the one
-  # exception — it stays in skills-fighting alongside its Archer/Guerrilla
-  # siblings, so it carries requiredTag: windlander directly instead.
-
   - slug: horse-trainer
     name: Horse Trainer
     category: general
@@ -1394,11 +1365,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  # Fighting (Cavalry) sits with the rest of the Fighting family rather than
-  # in general-windlands, same reasoning as Shield Wall below — it's a
-  # combat sidegrade, not a Windlands social tag, so a player looking for it
-  # should find it next to Archer and Guerrilla. Gated on windlander
-  # directly since it isn't in the gated group.
 
   # --- Skills ---------------------------------------------------------------
 
@@ -1518,9 +1484,6 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # A sidegrade on the Smithing pattern, like Fighting (Archer) is to Fighting
-  # (Basic): `requiredTag`, not `parentTag`, so it gates without replacing or
-  # costing the chain.
   - slug: smithing-gunpowder
     name: Smithing (Gunpowder)
     category: skills
@@ -1531,11 +1494,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: true
-
-  # Combat Update: every Fighting tag costs 3, rungs and sidegrades alike.
-  # Rungs are still `parentTag` (cumulative), so Legendary = 15 — impossible
-  # from a 12-point creation budget by design. Sidegrades are still
-  # `requiredTag` and stack. See SMITHING.md for combat-item balancing.
   - slug: fighting-basic
     name: Fighting (Basic)
     category: skills
@@ -1545,6 +1503,7 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: true
+
   - slug: fighting-trained
     name: Fighting (Trained)
     category: skills
@@ -1555,6 +1514,7 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: true
+
   - slug: fighting-skilled
     name: Fighting (Skilled)
     category: skills
@@ -1565,6 +1525,7 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: true
+
   - slug: fighting-expert
     name: Fighting (Expert)
     category: skills
@@ -1575,6 +1536,7 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: true
+
   - slug: fighting-legendary
     name: Fighting (Legendary)
     category: skills
@@ -1585,6 +1547,7 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: true
+
   - slug: fighting-archer
     name: Fighting (Archer)
     category: skills
@@ -1596,8 +1559,6 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # Two more sidegrades on the Archer pattern: `requiredTag`, not `parentTag`,
-  # so they gate on a tier without replacing it or costing the chain.
   - slug: fighting-guerrilla
     name: Fighting (Guerrilla)
     category: skills
@@ -1609,24 +1570,6 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # Gates on Windlander rather than a Fighting tier — the horsemanship is the
-  # point, not a swordsmanship prerequisite. Left in skills-fighting instead
-  # of the gated general-windlands group, same reasoning as Shield Wall below.
-  - slug: fighting-cavalry
-    name: Fighting (Cavalry)
-    category: skills
-    group: skills-fighting
-    description: "You fire bows and wield spears effortlessly from the back of a horse. While mounted, your fighting skill is two levels higher."
-    pointCost: 3
-    requiredTag: windlander
-    visible: false
-    purchasable: true
-    purchasableAfterStart: true
-
-  # Gates on Watchman rather than a Fighting tier — the formation is the point,
-  # not the swordsmanship. Left in the skills-fighting group instead of the
-  # gated general-watch group, so it files with the rest of the Fighting
-  # family where a player looks for it.
   - slug: fighting-shield-wall
     name: Fighting (Shield Wall)
     category: skills
@@ -1671,9 +1614,20 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # Construction, which `crafting` gestured at and never really covered. Two
-  # rungs rather than the usual three — there is no Builder (Basic); anyone can
-  # nail two boards together.
+#Windlander only
+  - slug: fighting-cavalry
+    name: Fighting (Cavalry)
+    category: skills
+    group: skills-fighting
+    description: "You fire bows and wield spears effortlessly from the back of a horse. While mounted, your fighting skill is two levels higher."
+    pointCost: 3
+    requiredTag: windlander
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+
+  # Construction
   - slug: builder-skilled
     name: Builder (Skilled)
     category: skills
@@ -1695,11 +1649,7 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # The three rungs of the cure ladder (see this file's header and
-  # docs/systemdocs/TAGS.md §5c). Each description names the tiers it clears
-  # AS ROUTINE, because that word is the whole mechanic: anything above your
-  # tier is still attemptable, it is just a Gambit, and a failed Gambit can
-  # make the patient worse.
+  # Medical
   - slug: medical-basic
     name: Medical (Basic)
     category: skills
@@ -1709,6 +1659,7 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: true
+
   - slug: medical-skilled
     name: Medical (Skilled)
     category: skills
@@ -1719,6 +1670,7 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: true
+
   - slug: medical-expert
     name: Medical (Expert)
     category: skills
@@ -1730,6 +1682,7 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+#Brewing
   - slug: brewing-basic
     name: Brewing (Basic)
     category: skills
@@ -1739,6 +1692,7 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: true
+
   - slug: brewing-skilled
     name: Brewing (Skilled)
     category: skills
@@ -1750,6 +1704,7 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+#Cooking
   - slug: cooking-basic
     name: Cooking (Basic)
     category: skills
@@ -1759,6 +1714,7 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: true
+
   - slug: cooking-skilled
     name: Cooking (Skilled)
     category: skills
@@ -1779,15 +1735,6 @@ tags:
     pointCost: 0
     purchasable: false
 
-  # Granted automatically by the per-turn upkeep pass (db/lib/hungerPass.js,
-  # called from resolveNeeds) — never by a player or a picker, hence
-  # purchasable/removable false. Deliberately no
-  # durationTurns on Ate Meal above: it must NOT be swept, because the pass
-  # consumes it explicitly.
-  #
-  # durationTurns: 1 means a Hunger granted while closing turn N carries
-  # expiresTurn N+1 — it bites for exactly turn N+1 and is swept when N+1
-  # closes.
   - slug: hunger
     name: Hungry
     category: status
@@ -1799,11 +1746,6 @@ tags:
     removable: false
     durationTurns: 1
 
-  # Granted and cleared automatically by the per-turn upkeep pass
-  # (db/lib/catatonicPass.js, called from resolveNeeds) — never by a player or
-  # a picker, hence purchasable/removable false. Deliberately no
-  # durationTurns: the pass owns both the grant and the clear itself, so
-  # there is nothing for the expiry sweep to do here.
   - slug: catatonic
     name: Catatonic (AFK)
     category: status
@@ -1815,9 +1757,7 @@ tags:
     purchasableAfterStart: false
     removable: false
 
-  # Granted/cleared by whoever does the binding — a GM microaction or a
-  # MOVE_CHARACTER/LOOT_CHARACTER request, never a picker, hence
-  # purchasable false. See db/lib/incapacitation.js and REQUESTS.md.
+  # GMs can assign this
   - slug: bound
     name: Bound
     category: status
@@ -1878,7 +1818,7 @@ tags:
     name: Pain Immunity
     category: status
     group: status-buffs
-    description: "You can't feel pain, but you're clear headed."
+    description: "You can't feel pain, but you're clear-headed."
     pointCost: 0
     visible: false
     purchasable: false
@@ -1890,7 +1830,7 @@ tags:
     name: Brutish Strength
     category: status
     group: status-buffs
-    description: "You gain impossible Strength."
+    description: "You gain impossible strength."
     pointCost: 0
     visible: false
     purchasable: false
@@ -1982,8 +1922,7 @@ tags:
     removable: false
     durationTurns: 4
 
-  # Granted to the TARGET of a Mesmer Glass, not to whoever used it — the
-  # consume path grants to the consumer, so a GM applies this one by hand.
+  # For targets of Mesmer Glass, GM applied
   - slug: flashed
     name: Flashed
     category: status
@@ -2009,10 +1948,8 @@ tags:
     removable: false
     durationTurns: 2
 
-  # The two fear states, granted by a GM — most often by a Demoness in her
-  # True Form (see the Terrifying tag). Afraid is the milder one and lasts
-  # longer; Panic is the one that takes you out of a fight, and burns off in
-  # a single turn.
+  # The two fear states, granted by a GM. Can be applied by Demoness
+
   - slug: afraid
     name: Afraid
     category: status
@@ -2037,10 +1974,7 @@ tags:
     removable: false
     durationTurns: 1
 
-  # The two stages of a Disabler hit. Slowed persists until a GM adjudicates
-  # enough further shots to escalate it into Shocked — no durationTurns, since
-  # nothing automatic clears it. Shocked burns off in a single turn, same
-  # shape as Paralyzed.
+  # For Disabler
   - slug: disabled-slowed
     name: Disabled (Slowed)
     category: status
@@ -2118,6 +2052,34 @@ tags:
     purchasable: false
     durationTurns: 4
 
+  # Two effects the Merchant's imported goods produce (docs/systemdocs/DEPOT.md
+  # §3). Neither is bought or brewed: Caffeinated is what a cup of Coffee
+  # consumes into, and Asleep is what a Soporific does to whoever drinks it —
+  # so both live here with the other tonic effects rather than in Items.
+  - slug: caffeinated
+    name: Caffeinated
+    category: status
+    group: status-buffs
+    description: "You're full of energy and always alert."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 2
+
+  - slug: asleep
+    name: Asleep
+    category: status
+    group: status-debuffs
+    description: "You're dreaming."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 1
+
   # === Health ===========================================================
   # Afflictions. Priced off the eight-rung cure ladder in this file's header
   # — pick a rung and copy its block, don't invent numbers. Two conventions
@@ -2134,9 +2096,6 @@ tags:
   #     hiding rather than just flagging everything visible.
 
   # --- Infection ---------------------------------------------------------
-  # One chain, five rungs, and the whole thing starts from a scratch nobody
-  # washed. Each rung is dearer than the last, which is the argument for
-  # treating it early.
   - slug: infected
     name: Infected
     category: health
@@ -2610,9 +2569,6 @@ tags:
       resourceCost: 4
       skills: [medical-skilled]
 
-  # Tier 1 on the cure ladder: food and a fortnight of someone paying
-  # attention. The cheapest thing on the list to undo, and the easiest to let
-  # slide back.
   - slug: arthritis
     name: Arthritis
     category: health
@@ -2624,7 +2580,6 @@ tags:
     purchasableAfterStart: false
     removable: false
 
-  # NEW (Claude) --------------------------------------------------------
   - slug: consumptive
     name: Consumptive
     category: health
@@ -2769,8 +2724,6 @@ tags:
       skills: [medical-expert]
       gambit: true
 
-  # The mild end of what Mute is the whole of. Permanent, so no requirement
-  # block — but not `visible`, since it only shows when you speak.
   - slug: stutter
     name: Stutter
     category: health
@@ -2793,8 +2746,7 @@ tags:
     removable: false
 
   # --- Maiming -----------------------------------------------------------
-  # All permanent, all untreatable. Medicine's job with these ended at the
-  # amputation; what's left is living with it.
+
   - slug: missing-leg
     name: Missing Leg
     category: health
@@ -2817,9 +2769,6 @@ tags:
     purchasableAfterStart: false
     removable: false
 
-  # A crutch replaced by something that bears weight. Better off than Missing
-  # Leg, which is why it prices between that and Crippled Leg — and still
-  # permanent, so no requirement block.
   - slug: peg-leg
     name: Peg Leg
     category: health
@@ -2875,9 +2824,6 @@ tags:
       skills: [medical-expert]
       gambit: true
 
-  # The cheap, purchasable alternative to Crippled Leg — a permanent -1pt limp
-  # rather than a treatable -3pt wound. No requirement block: it's not a
-  # condition anyone cures.
   - slug: limp
     name: Limp
     category: health
@@ -2910,10 +2856,7 @@ tags:
     purchasableAfterStart: false
     removable: false
 
-  # NEW (Claude) --------------------------------------------------------
-  # Two purchasable drawbacks for the widened floor. Night Blind is priced for
-  # this setting specifically -- Ravenheart is underground, so poor sight in
-  # low light costs you more here than it would on the surface.
+
   - slug: night-blind
     name: Night Blind
     category: health
@@ -2935,9 +2878,7 @@ tags:
     removable: false
 
   # --- Ailments ----------------------------------------------------------
-  # Tier 0, every one of them: realistically untreatable, quick, harmless.
-  # No requirement block, so the Heal request never offers them — there is
-  # nothing for a doctor to do and pretending otherwise would be silly.
+
   - slug: vomiting
     name: Vomiting
     category: health
@@ -2951,9 +2892,6 @@ tags:
     durationTurns: 2
 
   # --- Pain ---------------------------------------------------------------
-  # Three rungs of hurt, all of which pass on their own. Poppy and its
-  # advanced form are the tonics that answer them (see items-drink); a medic
-  # can shorten the worse two, and nobody can do a thing about an ache.
   - slug: aching
     name: Aching
     category: health
@@ -2997,11 +2935,7 @@ tags:
       resourceCost: 2
       skills: [medical-skilled]
 
-  # --- The two poisons ----------------------------------------------------
-  # Both end at Dying in a single turn, and both sit on tier 7 of the cure
-  # ladder — Expert plus a Gambit — which is how "hard to cure" is written in
-  # this file. The difference between them is entirely who can tell: Nightshade
-  # is a scene, Phrygian Tears is a mystery.
+#Caused by nightshade
   - slug: choking
     name: Choking
     category: health
@@ -3183,8 +3117,6 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # NEW (Claude) --------------------------------------------------------
-  # Assets was the thinnest category at eleven.
   - slug: workshop
     name: Workshop
     category: assets
@@ -3239,10 +3171,6 @@ tags:
   # Portable things a character owns, carries, hands over, and (where
   # stackable) holds several of. Standing property and companions live in
   # Assets below, not here.
-  # --- Caving kit ---------------------------------------------------------
-  # What people carry down. Mostly found or scavenged rather than bought, so
-  # purchasable stays false and the Skeleton Wedge is the one deliberate
-  # exception — a locksmith will sell you one.
 
   - slug: graga-sac
     name: Graga Sac
@@ -3299,6 +3227,7 @@ tags:
     tradeable: true
     stackable: true
     visible: true
+    equippable: true
     purchasable: false
     purchasableAfterStart: false
 
@@ -3372,7 +3301,7 @@ tags:
     name: Disguise Kit
     category: items
     group: items-gear
-    description: "Makeup, a change of clothes, an array of false mustaches... (Change your name temporarily. It takes a turn to apply.)"
+    description: "Makeup, a change of clothes, an array of false mustaches... (Change your name temporarily. It takes a turn to apply, and lasts for three. You need the {tag:artist} trait to impersonate someone specific.)"
     pointCost: 2
     tradeable: true
     stackable: true
@@ -3395,11 +3324,16 @@ tags:
     pointCost: 1
     equippable: true
     tradeable: true
+    # Stackable as of the Merchant Update: a trader turns up with a handful,
+    # Starting Wares grants two, and the Depot's Sell counter takes a stack in
+    # one go. Equippable + stackable is already how the revolver works.
+    stackable: true
     visible: true
     purchasable: true
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 8
+    depotPrice: 18
 
   # --- Caves Update loot -------------------------------------------------
   # New found-only items for the Caving Die's loot table. See
@@ -3478,7 +3412,7 @@ tags:
     equippable: true
     tradeable: true
     stackable: true
-    visible: false
+    visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
@@ -3534,14 +3468,32 @@ tags:
     name: Starting Wares
     category: items
     group: items-gear
-    description: "Goods you came in with, still crated. Unpack them whenever you like. [This is a bundle of items with a high sale value, should you wish to roleplay a trader.]"
+    description: "Goods you came in with, still crated. Unpack them whenever you like. [This is a small trader's stock, should you wish to go into business. Its real value is in what you can talk somebody into paying for it.]"
     pointCost: 6
     purchasable: true
     purchasableAfterStart: false
     consumable: true
+    # Priced by what it unpacks into, the rule TAGS.md §4a sets for every
+    # consumable and the rule this tag was caught breaking once already:
+    # 2 Jewelry (1 pt each) + Instant Camera (1) + Sword Cane (3) = 6 pt.
+    #
+    # The 0-pt goods after those cost nothing on the scale and are the point
+    # of the rebuild — a would-be trader now opens the crate onto actual
+    # stock to haggle over, instead of a revolver. The comforts among them are
+    # ordinarily Depot-only (docs/systemdocs/DEPOT.md §3), which is exactly
+    # right: you brought them in with you, the same way the Merchant does.
+    # Nothing here is hardware, so this is not a back door to his real shelf.
     consumesInto:
-      - old-45-revolver
       - jewelry
+      - jewelry
+      - instant-camera
+      - sword-cane
+      - old-coin
+      - old-coin
+      - tea
+      - coffee
+      - sake
+      - sweets
 
   - slug: ridiculous-hat
     name: Ridiculous Hat
@@ -3563,21 +3515,18 @@ tags:
       skills: [crafting]
       gambit: false
 
-  # Cures the visibility side of {tag:bespectacled} — sold separately so
-  # losing the item (not just the trait) is the thing that matters.
   - slug: spectacles
     name: Spectacles
     category: items
     group: items-gear
-    description: "You can see clearly when you wear these. Be careful with them: they're hard to obtain."
-    pointCost: 0
+    description: "You can see clearly when you wear these, removing the downside of {tag:nearsighted}. Be careful with them: they're hard to obtain."
+    pointCost: 1
     tradeable: true
     stackable: true
     visible: true
     purchasable: true
     purchasableAfterStart: false
     removable: true
-    requiredTag: bespectacled
 
   - slug: manacles
     name: Manacles
@@ -3609,12 +3558,6 @@ tags:
     visible: false
     requiredTag: brigand
 
-  # A unique key, not a purchase: the Baron starts with it (roles.yaml) and
-  # there is exactly one. In Items rather than Assets because the whole point
-  # is that it can change hands — Transfer Tag filters on category, so a key
-  # in Items is a key that can be handed over, bargained for, or taken off a
-  # body. `visible` is left closed: a 🔍-inspect should not tell a stranger
-  # that this man is carrying the way off the planet.
   - slug: barons-key
     name: "The Baron's Key"
     category: items
@@ -3624,31 +3567,7 @@ tags:
     tradeable: true
     purchasable: false
 
-  # The Bastard's signature garment, and the catalog's second unique role grant
-  # after the key above — he starts with it (roles.yaml) and there is exactly
-  # one. Purely cosmetic on purpose: it buys him a silhouette, not a bonus.
-  # Equippable and `visible` both, unlike the key, because being recognised in
-  # it is the entire function — a 🔍-inspect should say this is him. Tradeable
-  # follows from that: a signature coat is worth something to whoever takes it
-  # off him.
-  - slug: bastards-garb
-    name: "Bastard's Garb"
-    category: items
-    group: items-gear
-    description: "Wind goggles, a mended cloak, quilted boots, and a long ivory pendant—the fang of a leviathan. Purest aura."
-    pointCost: 0
-    equippable: true
-    tradeable: true
-    stackable: false
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    removable: true
-
-  # Renamed from "Old .45 Revolver". The slug is deliberately unchanged — it is
-  # the stable sync key (docs/systemdocs/SYNC.md), starting-wares grants it by
-  # slug, and two roles grant it by NAME in docs/roles.yaml (updated to match).
-  # Bought at creation only — no smith, gunpowder-skilled or not, can forge one.
+#Uncraftable
   - slug: old-45-revolver
     name: Neoclassic R&W10
     category: items
@@ -3662,10 +3581,13 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     requiredTag: fighting-basic
+    # The Depot stocks it too, at a price that makes the 6-pt creation pick
+    # look like the bargain it is. See docs/systemdocs/DEPOT.md §3.
+    sellable: true
+    sellablePrice: 72
+    depotPrice: 180
 
-  # Two weapons that come out of the caves rather than a forge — found on a
-  # body or traded for, never bought at the Armory, so neither is purchasable
-  # and neither names a smithing cost.
+#Cave weapons
   - slug: cracked-bone-club
     name: Cracked Bone Club
     category: items
@@ -3728,6 +3650,8 @@ tags:
       resourceCost: 3
       skills: [smithing, crafting]
       gambit: false
+    sellable: true
+    sellablePrice: 4
 
   - slug: hatchet
     name: Hatchet
@@ -3748,6 +3672,8 @@ tags:
       resourceCost: 3
       skills: [smithing, crafting]
       gambit: false
+    sellable: true
+    sellablePrice: 4
 
   - slug: sling
     name: Sling
@@ -3768,6 +3694,8 @@ tags:
       resourceCost: 3
       skills: [crafting, smithing]
       gambit: false
+    sellable: true
+    sellablePrice: 4
 
   - slug: quarterstaff
     name: Quarterstaff
@@ -3788,6 +3716,8 @@ tags:
       resourceCost: 3
       skills: [crafting, smithing]
       gambit: false
+    sellable: true
+    sellablePrice: 4
 
   - slug: cudgel
     name: Cudgel
@@ -3808,6 +3738,8 @@ tags:
       resourceCost: 3
       skills: [crafting, smithing]
       gambit: false
+    sellable: true
+    sellablePrice: 4
 
   - slug: pitchfork
     name: Pitchfork
@@ -3828,6 +3760,8 @@ tags:
       resourceCost: 3
       skills: [smithing, crafting]
       gambit: false
+    sellable: true
+    sellablePrice: 4
 
   - slug: shortbow
     name: Shortbow
@@ -3848,6 +3782,8 @@ tags:
       resourceCost: 3
       skills: [crafting, smithing]
       gambit: false
+    sellable: true
+    sellablePrice: 4
 
   # ─── Simple ────────────────────────────────────────────────────────────────
   - slug: spear
@@ -3870,6 +3806,8 @@ tags:
       resourceCost: 7
       skills: [smithing]
       gambit: false
+    sellable: true
+    sellablePrice: 9
 
   - slug: dagger
     name: Dagger
@@ -3891,6 +3829,8 @@ tags:
       resourceCost: 7
       skills: [smithing]
       gambit: false
+    sellable: true
+    sellablePrice: 9
 
   - slug: silver-knife
     name: Silver Knife
@@ -3912,6 +3852,8 @@ tags:
       resourceCost: 7
       skills: [smithing]
       gambit: false
+    sellable: true
+    sellablePrice: 9
 
   - slug: gladius
     name: Gladius
@@ -3933,6 +3875,8 @@ tags:
       resourceCost: 7
       skills: [smithing]
       gambit: false
+    sellable: true
+    sellablePrice: 9
 
   - slug: phrygian-spear
     name: Phrygian Spear
@@ -3954,6 +3898,8 @@ tags:
       resourceCost: 7
       skills: [smithing]
       gambit: false
+    sellable: true
+    sellablePrice: 9
 
   - slug: longbow
     name: Longbow
@@ -3975,6 +3921,8 @@ tags:
       resourceCost: 7
       skills: [crafting]
       gambit: false
+    sellable: true
+    sellablePrice: 9
 
   - slug: mace
     name: Mace
@@ -3996,6 +3944,8 @@ tags:
       resourceCost: 7
       skills: [smithing]
       gambit: false
+    sellable: true
+    sellablePrice: 9
 
   - slug: battle-axe
     name: Battle Axe
@@ -4017,6 +3967,8 @@ tags:
       resourceCost: 7
       skills: [smithing]
       gambit: false
+    sellable: true
+    sellablePrice: 9
 
   # ─── Moderate ──────────────────────────────────────────────────────────────
   - slug: knuckle-duster
@@ -4038,6 +3990,8 @@ tags:
       resourceCost: 17
       skills: [smithing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 22
 
   # `bardiche` slug kept for sync stability (see SYNC.md); the item was
   # renamed Halberd in the Combat Update. Same pattern as `old-45-revolver` /
@@ -4062,6 +4016,8 @@ tags:
       resourceCost: 17
       skills: [smithing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 22
 
   - slug: broadsword
     name: Broadsword
@@ -4083,6 +4039,8 @@ tags:
       resourceCost: 17
       skills: [smithing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 22
 
   - slug: war-hammer
     name: War Hammer
@@ -4104,6 +4062,8 @@ tags:
       resourceCost: 17
       skills: [smithing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 22
 
   # ─── High Quality ──────────────────────────────────────────────────────────
   - slug: bastard-sword
@@ -4126,6 +4086,8 @@ tags:
       resourceCost: 23
       skills: [smithing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 30
 
   - slug: rapier
     name: Rapier
@@ -4147,6 +4109,8 @@ tags:
       resourceCost: 23
       skills: [smithing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 30
 
   - slug: sabre
     name: Sabre
@@ -4168,6 +4132,8 @@ tags:
       resourceCost: 23
       skills: [smithing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 30
 
   - slug: katana
     name: Katana
@@ -4189,6 +4155,8 @@ tags:
       resourceCost: 23
       skills: [smithing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 30
 
   - slug: silver-spear
     name: Silver Spear
@@ -4210,6 +4178,8 @@ tags:
       resourceCost: 23
       skills: [smithing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 30
 
   - slug: lucerne
     name: Lucerne
@@ -4231,6 +4201,8 @@ tags:
       resourceCost: 23
       skills: [smithing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 30
 
   - slug: zweihander
     name: Zweihander
@@ -4252,6 +4224,8 @@ tags:
       resourceCost: 23
       skills: [smithing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 30
 
   - slug: crossbow
     name: Crossbow
@@ -4273,6 +4247,8 @@ tags:
       resourceCost: 23
       skills: [smithing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 30
 
   # ─── Gunpowder ─────────────────────────────────────────────────────────────
   - slug: musketoon
@@ -4295,6 +4271,8 @@ tags:
       resourceCost: 37
       skills: [smithing-gunpowder]
       gambit: false
+    sellable: true
+    sellablePrice: 49
 
   - slug: bore-pistol
     name: Bore Pistol
@@ -4316,6 +4294,8 @@ tags:
       resourceCost: 23
       skills: [smithing-gunpowder]
       gambit: false
+    sellable: true
+    sellablePrice: 49
 
   - slug: bomb
     name: Bomb
@@ -4337,6 +4317,8 @@ tags:
       resourceCost: 37
       skills: [smithing-gunpowder]
       gambit: false
+    sellable: true
+    sellablePrice: 49
 
   # ─── Special / concealed ───────────────────────────────────────────────────
   # A gentleman's sidearm, sold complete — no smithing recipe attached.
@@ -4352,6 +4334,8 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     removable: true
+    sellable: true
+    sellablePrice: 12
 
   # A Watch-issued sidearm — the Captain and every Watchman start with one.
   # Never bought or built: the batteries are shipped in by the Baron, so
@@ -4429,6 +4413,10 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     requiredTag: medical-basic
+    tradeable: true
+    sellable: true
+    sellablePrice: 17
+    depotPrice: 42
 
   # --- Special ------------------------------------------------------------
   # Relics, grafts and machinery. None of it is purchasable at any price and
@@ -4476,8 +4464,8 @@ tags:
     purchasableAfterStart: false
     removable: true
 
-  # Courtier starting picks. Per-tag requiredTag like Manor, since these sit
-  # in items-special rather than the gated general-court group.
+  # Courtier starting picks:
+
   - slug: heirloom
     name: Heirloom
     category: items
@@ -4490,6 +4478,8 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     removable: true
+    sellable: true
+    sellablePrice: 12
 
   - slug: compromising-letters
     name: Compromising Letters
@@ -4504,6 +4494,8 @@ tags:
     removable: true
     consumable: true
 
+#Artifacts
+
   - slug: flamethrower
     name: Flamethrower
     category: items
@@ -4516,6 +4508,12 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
+    # Caving loot the Depot also imports — one of only two artifacts it will
+    # sell (the Motorcycle is the other). Everything else on this shelf stays
+    # something you have to go down and find. See docs/systemdocs/DEPOT.md §3.
+    sellable: true
+    sellablePrice: 104
+    depotPrice: 260
 
   - slug: dark-eye-lenses
     name: Dark-Eye Lenses
@@ -4544,13 +4542,11 @@ tags:
     removable: true
     consumable: true
 
-  # Grafted, not carried: it is in your arm. Hence not equippable, not
-  # tradeable, and not removable — there is no giving this one away.
   - slug: quickened-nerve-braid
     name: Quickened Nerve-Braid
     category: items
     group: items-special
-    description: "Grafted into your neck, it sends electric throbs through you. Once a Day, attain the speed of a galloping horse. But watch out: you don't have a horse's circulation."
+    description: "Grafted into your neck, it sends electric spasms through you. Once a Day, attain the speed of a galloping horse. But watch out: you don't have a horse's circulation."
     pointCost: 0
     tradeable: false
     visible: false
@@ -4569,6 +4565,10 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
+    # The Depot imports these, and it does not have to haul them anywhere.
+    sellable: true
+    sellablePrice: 92
+    depotPrice: 230
 
   - slug: sawn-off-double-barrel
     name: Sawn-Off Double Barrel
@@ -4604,7 +4604,7 @@ tags:
     name: Codex Supprimata
     category: items
     group: items-special
-    description: "A strange kind of book: you can only read it once. Your breath slows when you near it."
+    description: "A strange kind of book: you can only read it once. Your breath slows when you near it. [You must be {tag:literate} to understand its contents.]"
     pointCost: 0
     tradeable: true
     visible: false
@@ -4615,11 +4615,22 @@ tags:
     consumesInto:
       - time-stop
 
-  # --- Role regalia ---------------------------------------------------------
-  # Cosmetic identifiers, one per single-seat role, granted by roles.yaml and
-  # never purchased. Same shape as `bastards-garb` above: 0pt, `visible`, not
-  # `purchasable`. A 🔍-inspect is meant to say "this is the Bishop" the same
-  # way it says "this is the Bastard".
+  # --- Role items ---------------------------------------------------------
+
+  - slug: bastards-garb
+    name: "Bastard's Garb"
+    category: items
+    group: items-gear
+    description: "Wind goggles, a mended cloak, quilted boots, and a long ivory pendant—the fang of a leviathan. Purest aura."
+    pointCost: 0
+    equippable: true
+    tradeable: true
+    stackable: false
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
   - slug: bishops-mitre
     name: Bishop's Mitre
     category: items
@@ -4679,6 +4690,25 @@ tags:
     tradeable: false
     purchasable: false
     purchasableAfterStart: false
+
+  # The key to the whole Depot, and the entire permission model behind it:
+  # holding this is what opens /depot, and db/lib/depot.js is where the slug
+  # is named. `tradeable: true` is not an oversight — handing it to somebody
+  # really does hand them the shuttle, and that is a decision worth being able
+  # to make. `visible: false` so it isn't obvious on inspection who is
+  # carrying the Merchant's way off this rock.
+  # See docs/systemdocs/DEPOT.md §2.
+  - slug: merchants-license
+    name: Merchant's License
+    category: items
+    group: items-special
+    description: "It bears the Merchant's face and, funnily enough, his home address—somewhere in a certain city far away. Allows you to use the Depot or call down the Merchant's supply ship: a quick escape route. Additionally, whoever holds this won't be shot at by the Depot's mini-turret. The poor Dockers will, though."
+    pointCost: 0
+    tradeable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
 
   - slug: incarns-key
     name: Incarn's Key
@@ -4756,7 +4786,7 @@ tags:
     name: Practicii's Robes
     category: items
     group: items-special
-    description: "A Practicii's belted, hooded, knee-length robes. An argent cross on the belt buckle makes sure you know who you're dealing with."
+    description: "A Practicus's belted, hooded, knee-length robes. An argent cross on the belt buckle makes sure you know who you're dealing with."
     pointCost: 0
     equippable: true
     visible: true
@@ -4788,27 +4818,435 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
-  # --- Tonics -------------------------------------------------------------
-  # Alcohol, drugs and tonics. Brewed as a Move, never bought: purchasable
-  # false keeps them out of both point-buy menus, craftable true is what lets
-  # addTagRequestImpl accept a player brewing one — exactly the posture the
-  # meals above take. Every requirement block below is a RECIPE, and like
-  # every other requirement block in this file it is a GM adjudication
-  # reference rather than anything the code enforces. The canonical recipe
-  # table is docs/systemdocs/BREWING.md; the player-facing version is
-  # docs/documents.yaml's Alcohol & Drugs document.
+  # --- Depot imports ------------------------------------------------------
+  # Everything the Merchant's shuttle brings down from the orbital station.
+  # The canonical price table is docs/systemdocs/DEPOT.md §3 — change a
+  # `depotPrice` here and change it there in the same commit.
   #
-  # The tiers are the two existing Brewing skills, whose descriptions already
-  # promised all of this: Basic brews alcohol and the simple stuff, Skilled
-  # brews wine and the tonics that need hard-to-find ingredients. Those
-  # ingredients are named in each description — they are the real cost, and
-  # the reason most of these are a negotiation with another player rather than
-  # a shopping trip.
+  # These are kept in one block rather than filed under Items/Assets by kind,
+  # because what they have in common is the shelf they sit on: DEPOT.md has to
+  # stay in step with them, and a scattered set would drift. `category:` and
+  # `group:` are still correct per entry, and the sync reads those, not the
+  # section a tag happens to sit in.
+  #
+  # House rules for this block:
+  #   * `purchasable: false` on almost everything. The Merchant is the ONLY
+  #     source in the game — that is the whole point of the seat, and a ware
+  #     a player could just buy at creation gives him nothing to sell. The one
+  #     exception is the Poison Snooper, deliberately priced high at 4 pt.
+  #   * `pointCost: 0` follows from that: an unpurchasable tag's point cost is
+  #     never read (TAGS.md §4a), so the real price is the ⬢ one.
+  #   * `tradeable: true` on all of it. He has to be able to hand it over.
+  #   * Most carry a `sellablePrice` well under their `depotPrice`, so buying
+  #     a thing and selling it straight back always loses money. syncTags.js
+  #     warns if that ever inverts.
+  #   * Nothing here is `craftable`. Ravenheart cannot make any of it; that is
+  #     what makes it worth importing.
+
+  # Comforts. Cheap, harmless, and the reason ordinary people have any reason
+  # at all to walk down to Customs.
+  - slug: tea
+    name: Tea
+    category: items
+    group: items-drink
+    description: "Its soothing aroma cures minor unpleasant effects—like {tag:afraid} and {tag:panic}. Ravenheart has never grown a leaf of it."
+    pointCost: 0
+    depotPrice: 3
+    sellable: true
+    sellablePrice: 1
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto: []
+
+  - slug: coffee
+    name: Coffee
+    category: items
+    group: items-drink
+    description: "Refreshing and energizing."
+    pointCost: 0
+    depotPrice: 3
+    sellable: true
+    sellablePrice: 1
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto:
+      - caffeinated
+
+  - slug: firecracker
+    name: Firecracker
+    category: items
+    group: items-gear
+    description: "It'll cause a commotion—maybe enough to get away."
+    pointCost: 0
+    depotPrice: 4
+    sellable: true
+    sellablePrice: 1
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto: []
+
+  - slug: sweets
+    name: Sweets
+    category: items
+    group: items-food
+    description: "What a rarity! There's no sugar in Ravenheart!"
+    pointCost: 0
+    depotPrice: 5
+    sellable: true
+    sellablePrice: 2
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto:
+      - ate-meal
+
+  - slug: honey
+    name: Honey
+    category: items
+    group: items-food
+    description: "What a rarity! Delicious on its own, even better if cooked into a meal."
+    pointCost: 0
+    depotPrice: 5
+    sellable: true
+    sellablePrice: 2
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto:
+      - ate-meal
+
+  - slug: sky-lantern
+    name: Sky Lantern
+    category: items
+    group: items-gear
+    description: "Throw a small object into the air or celebrate something special."
+    pointCost: 0
+    depotPrice: 5
+    sellable: true
+    sellablePrice: 2
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto: []
+
+  - slug: sake
+    name: Sake
+    category: items
+    group: items-drink
+    description: "Rice wine aged in the shadow of cherry blossoms."
+    pointCost: 0
+    depotPrice: 6
+    sellable: true
+    sellablePrice: 2
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto:
+      - tipsy
+
+  # Gear. The band where a working person might actually save up for one.
+  - slug: boombox
+    name: Boombox
+    category: items
+    group: items-gear
+    description: "A portable speaker."
+    pointCost: 0
+    depotPrice: 14
+    sellable: true
+    sellablePrice: 5
+    tradeable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  - slug: whip
+    name: Whip
+    category: items
+    group: items-weapons
+    description: "Punish the heretics or those who have not paid their taxes."
+    pointCost: 0
+    depotPrice: 15
+    sellable: true
+    sellablePrice: 6
+    tradeable: true
+    equippable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  - slug: censer
+    name: Censer
+    category: items
+    group: items-gear
+    description: "Pour a substance into it and watch as it diffuses through the room."
+    pointCost: 0
+    depotPrice: 16
+    sellable: true
+    sellablePrice: 6
+    tradeable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  # The one ware a player can also buy at creation. Priced at 4 pt on the §4a
+  # scale — "Good, a third of the default budget" — because knowing which cup
+  # is poisoned, over and over, changes a whole campaign of court intrigue.
+  # Its ⬢ price stays steep so that buying one off the Merchant mid-game is a
+  # real decision rather than the obvious move.
+  - slug: poison-snooper
+    name: Poison Snooper
+    category: items
+    group: items-gear
+    description: "Detects poisons. Multi-use."
+    pointCost: 4
+    depotPrice: 30
+    sellable: true
+    sellablePrice: 12
+    tradeable: true
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+
+  - slug: black-body-bag
+    name: Black Body Bag
+    category: items
+    group: items-gear
+    description: "It muffles whatever goes on inside."
+    pointCost: 0
+    depotPrice: 30
+    sellable: true
+    sellablePrice: 11
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  - slug: microscope
+    name: Microscope
+    category: items
+    group: items-gear
+    description: "What the hell are those things?!"
+    pointCost: 0
+    depotPrice: 38
+    sellable: true
+    sellablePrice: 15
+    tradeable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  - slug: light-infantry-armour
+    name: Light Infantry Armour
+    category: items
+    group: items-armor
+    description: "A bulletproof vest and pad combination. Nothing forged in Ravenheart comes close, and nothing forged in Ravenheart stops a bullet."
+    pointCost: 0
+    depotPrice: 45
+    sellable: true
+    sellablePrice: 18
+    tradeable: true
+    equippable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  # Companions. Live cargo, which is why they cost what they do.
+  - slug: monkey
+    name: Monkey
+    category: assets
+    group: assets-companions
+    description: "A pet monkey! Why, how exquisite!"
+    pointCost: 0
+    depotPrice: 30
+    sellable: true
+    sellablePrice: 11
+    tradeable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  - slug: hound
+    name: Hound
+    category: assets
+    group: assets-companions
+    description: "A large, well-trained fighting dog awaits your commands."
+    pointCost: 0
+    depotPrice: 50
+    sellable: true
+    sellablePrice: 20
+    tradeable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  # Potent goods. Past this line a purchase is a season's work for most people.
+  - slug: soporific
+    name: Soporific
+    category: items
+    group: items-drink
+    description: "Give someone a few vials of this and they'll be asleep for a while. Inflicts {tag:asleep}."
+    pointCost: 0
+    depotPrice: 60
+    sellable: true
+    sellablePrice: 24
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto: []
+
+  - slug: amoeba-vial
+    name: Amoeba Vial
+    category: items
+    group: items-gear
+    description: "Let them go wherever you like—they'll eat anything. It'll even help you get rid of the tiniest traces of a crime."
+    pointCost: 0
+    depotPrice: 70
+    sellable: true
+    sellablePrice: 28
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto: []
+
+  - slug: illusion-crystal
+    name: Illusion Crystal
+    category: items
+    group: items-gear
+    description: "Creates an illusion up to human size. It lasts as long as you want."
+    pointCost: 0
+    depotPrice: 80
+    sellable: true
+    sellablePrice: 32
+    tradeable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  - slug: homunculus
+    name: Homunculus
+    category: items
+    group: items-special
+    description: "A hideous little monster that will understand your simple instructions and carry them out."
+    pointCost: 0
+    depotPrice: 100
+    sellable: true
+    sellablePrice: 40
+    tradeable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  - slug: antibiotics
+    name: Antibiotics
+    category: items
+    group: items-drink
+    description: "Immediately cures all stages of infection."
+    pointCost: 0
+    depotPrice: 110
+    sellable: true
+    sellablePrice: 44
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto: []
+
+  # Hardware. The wall. A gun costs more than a house and that is the point.
+  # The Steam Automobile carries the Horse's fast-travel behaviour and its
+  # caveats — web/lib/tagRequests.js#FAST_TRAVEL_SLUGS is what implements it,
+  # and this description is what that implements.
+  - slug: steam-automobile
+    name: Steam Automobile
+    category: assets
+    group: assets-property
+    description: "Fill it with water, warm it up, and move along a straight path without any obstacles. Once per day, you may enter an adjacent zone without spending a turn, but you will be easily visible. Do not use through caves."
+    pointCost: 0
+    depotPrice: 180
+    sellable: true
+    sellablePrice: 72
+    tradeable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  - slug: ml-23
+    name: ML-23
+    category: items
+    group: items-weapons
+    description: "A 9mm pistol."
+    pointCost: 0
+    depotPrice: 200
+    sellable: true
+    sellablePrice: 80
+    tradeable: true
+    equippable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  # --- Tonics -------------------------------------------------------------
+  # Alcohol, drugs and tonics, and the recipes for them. Split into Basic and Skilled brewing. Some need special ingredients.
   - slug: cave-fungus
     name: Cave Fungus
     category: items
     group: items-drink
-    description: "Pale and tastes like mud. An important ingredient in a great many recipes. Eaten raw it will get you {tag:high} for a couple of turns."
+    description: "Many different kinds of fungus: all of them are pale and taste like mud. An important ingredient in a great many recipes. Eaten raw, it will get you {tag:high} for a couple of turns."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4826,11 +5264,6 @@ tags:
     sellable: true
     sellablePrice: 3
 
-  # Brewed as a Routine Move, like the meals. Deliberately ONE generic drink
-  # rather than a Fine/Lavish split: it cheers everybody, nobles included —
-  # which is the one thing a Fine Meal does not do — and it does not feed you,
-  # so it grants no Ate Meal. Output sits just under the kitchen's (3 a Move
-  # against the cook's 4) because a drink is worth slightly less than a dinner.
   - slug: alcohol
     name: Alcohol
     category: items
@@ -4851,12 +5284,18 @@ tags:
       resourceCost: 2
       skills: [brewing-basic]
       gambit: false
+    sellable: true
+    sellablePrice: 4
+    # The one local brew the Depot also sells, for a Merchant who would rather
+    # not wait on a brewer. Six against a sell-back of four, so importing it
+    # and dumping it straight back is a losing trade. See DEPOT.md §3.
+    depotPrice: 6
 
   - slug: bliss
     name: Bliss
     category: items
     group: items-drink
-    description: "Properly boiled and refined cave fungus that will give you a greater high."
+    description: "Properly boiled and refined cave fungus; will give you a greater high. Still doesn't taste great."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4874,12 +5313,14 @@ tags:
       resourceCost: 0
       skills: [brewing-basic]
       gambit: false
+    sellable: true
+    sellablePrice: 3
 
   - slug: ravenheart-red
     name: Ravenheart Red
     category: items
     group: items-drink
-    description: "Ravenheart's only export. A fair object of desire."
+    description: "Dark as a raven's blood. Ravenheart's only export. A fair object of desire."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4895,19 +5336,12 @@ tags:
       resourceCost: 4
       skills: [brewing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 14
 
   # --- The apothecary -----------------------------------------------------
-  # Every tonic costs ⬢ AND an ingredient named in its own description — a
-  # corpse to bottle beside, a Graga cut open, the heart of a rainbow trout.
-  # The ⬢ are deliberately cheap, between 2 and 4, because the ingredient is
-  # the real price and getting hold of one is meant to be a scene rather than
-  # a purchase. No code enforces the ingredient; a GM does, the same way every
-  # other requirement block in this file works.
-  #
-  # `consumable` is set only where something is genuinely used up BY THE
-  # DRINKER. A poison you administer, a flask you throw and a powder you work
-  # into someone else's wound are all spent by a Move instead, so they carry
-  # no consumesInto and the GM applies the result to whoever it happened to.
+#Needs resources and a special ingredient acquired through RP. GMs need to adjudicate the results,
+#as most of these are spent through Moves, not automatically.
 
   # --- Basic tonics — Brewing (Basic) --------------------------------------
   - slug: miasma
@@ -4928,6 +5362,8 @@ tags:
       resourceCost: 2
       skills: [brewing-basic]
       gambit: false
+    sellable: true
+    sellablePrice: 5
 
   - slug: feces
     name: Feces
@@ -4967,12 +5403,14 @@ tags:
       resourceCost: 2
       skills: [brewing-basic]
       gambit: false
+    sellable: true
+    sellablePrice: 4
 
   - slug: cat
     name: Cat
     category: items
     group: items-drink
-    description: "Distilled with alcohol until it turns pale. Drink it and the dark opens up — {tag:night-vision} for one turn."
+    description: "Distilled with alcohol until it turns pale. Drink it and your eyes flash yellow: gain {tag:night-vision} for one turn."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4989,12 +5427,14 @@ tags:
       resourceCost: 3
       skills: [brewing-basic]
       gambit: false
+    sellable: true
+    sellablePrice: 7
 
   - slug: poppy
     name: Poppy
     category: items
     group: items-drink
-    description: "Takes away pain and gives addiction. Grants you {tag:opium-high}."
+    description: "Soothes pain, but is rapidly addictive. Grants you {tag:opium-high}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -5010,12 +5450,14 @@ tags:
       resourceCost: 2
       skills: [brewing-basic]
       gambit: false
+    sellable: true
+    sellablePrice: 4
 
   - slug: molotov-cocktail
     name: Molotov Cocktail
     category: items
     group: items-drink
-    description: "A bottle of alcohol and a rag. Light it and cause fire to spread."
+    description: "A bottle of alcohol and a rag. Light it, throw it, and run."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -5029,6 +5471,8 @@ tags:
       resourceCost: 2
       skills: [brewing-basic]
       gambit: false
+    sellable: true
+    sellablePrice: 4
 
   - slug: nightshade
     name: Nightshade
@@ -5048,6 +5492,8 @@ tags:
       resourceCost: 3
       skills: [brewing-basic]
       gambit: false
+    sellable: true
+    sellablePrice: 7
 
   # --- Advanced tonics — Brewing (Skilled) ---------------------------------
   - slug: gunpowder-grenade
@@ -5068,6 +5514,8 @@ tags:
       resourceCost: 6
       skills: [brewing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 14
 
   - slug: phrygian-tears
     name: Phrygian Tears
@@ -5088,6 +5536,9 @@ tags:
       resourceCost: 4
       skills: [brewing-skilled]
       gambit: true
+    sellable: true
+    sellablePrice: 20
+    depotPrice: 40
 
   - slug: advanced-poppy
     name: Advanced Poppy
@@ -5109,6 +5560,8 @@ tags:
       resourceCost: 4
       skills: [brewing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 10
 
   - slug: graga-sweat
     name: Graga Sweat
@@ -5130,12 +5583,14 @@ tags:
       resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 6
 
   - slug: purifier
     name: Purifier
     category: items
     group: items-drink
-    description: "Requires a rare ingredient. Clears {tag:infected}, {tag:festering} and {tag:feverish} without medical attention, and greatly improves the conditon of someone with {tag:sepsis}."
+    description: "Brewed from {tag:cave-fungus}. Clears {tag:infected}, {tag:festering} and {tag:feverish} without medical attention, and greatly improves the conditon of someone with {tag:sepsis}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -5149,6 +5604,8 @@ tags:
       resourceCost: 6
       skills: [brewing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 14
 
   - slug: white-honey
     name: White Honey
@@ -5168,12 +5625,14 @@ tags:
       resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 6
 
   - slug: deadeye-drops
     name: Deadeye Drops
     category: items
     group: items-drink
-    description: "Eye drops refined from Cave Fungus. {tag:increased-accuracy} for two turns."
+    description: "Eye drops refined from {tag:cave-fungus}. {tag:increased-accuracy} for two turns."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -5189,6 +5648,8 @@ tags:
       resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 5
 
   - slug: mercy
     name: Mercy
@@ -5210,6 +5671,8 @@ tags:
       resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 4
 
   - slug: distilled-coca
     name: Distilled Coca
@@ -5231,6 +5694,9 @@ tags:
       resourceCost: 4
       skills: [brewing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 10
+    depotPrice: 12
 
   - slug: mindbreaker-toxin
     name: Mindbreaker Toxin
@@ -5252,6 +5718,8 @@ tags:
       resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 5
 
   # Flavor collectible. Changing your name no longer requires this — it's an
   # ordinary "Change name" Request on the character sheet, gated only on a
@@ -5293,6 +5761,8 @@ tags:
       resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 8
 
   - slug: nekker-pheromones
     name: Nekker Pheromones
@@ -5314,6 +5784,8 @@ tags:
       resourceCost: 2
       skills: [brewing-basic]
       gambit: false
+    sellable: true
+    sellablePrice: 5
 
   - slug: succubus-draught
     name: Succubus Draught
@@ -5335,6 +5807,8 @@ tags:
       resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 7
 
   - slug: raven-draught
     name: Raven Draught
@@ -5354,6 +5828,8 @@ tags:
       resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 6
 
   - slug: pure-luck
     name: Pure Luck
@@ -5375,6 +5851,8 @@ tags:
       resourceCost: 0
       skills: [brewing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 14
 
   # The three tonics. Each one needs something the brewer cannot simply buy,
   # named in its description — that ingredient is the actual gate, and getting
@@ -5397,12 +5875,14 @@ tags:
       resourceCost: 6
       skills: [brewing-skilled]
       gambit: true
+    sellable: true
+    sellablePrice: 16
 
   - slug: forgiveness
     name: Forgiveness
     category: items
     group: items-drink
-    description: "Requires someone's tears. Whoever drinks it forgets the last ten days."
+    description: "Requires someone's tears. Whoever drinks it forgets the last three days."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -5416,6 +5896,8 @@ tags:
       resourceCost: 8
       skills: [brewing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 18
 
   - slug: flawless-skin
     name: Flawless Skin
@@ -5437,17 +5919,11 @@ tags:
       resourceCost: 8
       skills: [brewing-skilled]
       gambit: false
+    sellable: true
+    sellablePrice: 20
 
-  # --- Demoness -------------------------------------------------------------
-  # A hidden category (see the `categories:` note at the top of this file).
-  # The Demoness prerequisite is written ONCE, as `requiredTag: demoness` on
-  # the `demoness` group in docs/taggroups.yaml — deliberately not repeated on
-  # each tag here, since the group gate is what hides the category and a
-  # second copy of the same rule is a second thing to keep in sync.
+
   # --- Armor -------------------------------------------------------------
-  # Armor is priced on the same six-tier ladder as weapons (SMITHING.md).
-  # `visible` decides whether the piece shows on a 🔍 inspect while equipped,
-  # which is what makes a Brigandine worth its points.
 
   # ─── Dead Simple (1 pt / 3 ⬢ / 0 turns) ───
   - slug: padded-armor
@@ -5466,6 +5942,8 @@ tags:
       turnsCost: 0
       resourceCost: 3
       skills: [crafting]
+    sellable: true
+    sellablePrice: 4
 
   - slug: mail-coif
     name: Mail Coif
@@ -5483,6 +5961,8 @@ tags:
       turnsCost: 0
       resourceCost: 3
       skills: [smithing]
+    sellable: true
+    sellablePrice: 4
 
   - slug: buckler
     name: Buckler
@@ -5500,6 +5980,8 @@ tags:
       turnsCost: 0
       resourceCost: 3
       skills: [smithing, crafting]
+    sellable: true
+    sellablePrice: 4
 
   # ─── Simple (2 pt / 7 ⬢ / 1 turn) ───
   - slug: simple-helm
@@ -5518,6 +6000,8 @@ tags:
       turnsCost: 1
       resourceCost: 7
       skills: [smithing]
+    sellable: true
+    sellablePrice: 9
 
   - slug: shield
     name: Shield
@@ -5535,6 +6019,8 @@ tags:
       turnsCost: 1
       resourceCost: 7
       skills: [crafting]
+    sellable: true
+    sellablePrice: 9
 
   - slug: pavise
     name: Pavise
@@ -5552,6 +6038,8 @@ tags:
       turnsCost: 1
       resourceCost: 7
       skills: [crafting]
+    sellable: true
+    sellablePrice: 9
 
   # ─── Moderate (3 pt / 17 ⬢ / 1 turn, skilled smithing) ───
   - slug: mail-shirt
@@ -5570,6 +6058,8 @@ tags:
       turnsCost: 1
       resourceCost: 17
       skills: [smithing-skilled]
+    sellable: true
+    sellablePrice: 22
 
   # ─── High Quality (4 pt / 23 ⬢ / 1 turn, skilled smithing) ───
   - slug: knights-helmet
@@ -5588,6 +6078,8 @@ tags:
       turnsCost: 1
       resourceCost: 23
       skills: [smithing-skilled]
+    sellable: true
+    sellablePrice: 30
 
   - slug: brigandine
     name: Brigandine
@@ -5605,6 +6097,8 @@ tags:
       turnsCost: 1
       resourceCost: 23
       skills: [smithing-skilled]
+    sellable: true
+    sellablePrice: 30
 
   - slug: breastplate
     name: Breastplate
@@ -5622,6 +6116,8 @@ tags:
       turnsCost: 1
       resourceCost: 23
       skills: [smithing-skilled]
+    sellable: true
+    sellablePrice: 30
 
   # ─── Exceptional (6 pt / 32 ⬢ / 2 turns, skilled smithing) ───
   - slug: plate-armor
@@ -5640,6 +6136,8 @@ tags:
       turnsCost: 2
       resourceCost: 32
       skills: [smithing-skilled]
+    sellable: true
+    sellablePrice: 42
 
   # --- Setting-specific --------------------------------------------------
 
@@ -5658,6 +6156,8 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 5
+    sellable: true
+    sellablePrice: 3
 
   - slug: energy-shield
     name: Energy Shield
@@ -5671,6 +6171,8 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+#-------------Demoness---------------
+
   - slug: slavemaster
     name: Slavemaster
     category: demoness
@@ -5680,10 +6182,6 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # Discounted twin of the General Seductive. Deliberately a separate
-  # tag rather than a parentTag chain: a chain prices cumulatively, so
-  # Seductive (Demoness) would cost 4 + 3 = 7 — the opposite of a discount.
-  # db/lib/inspectVision.js reads both slugs of the pair.
   - slug: seductive-demoness
     name: Seductive
     category: demoness
@@ -5720,12 +6218,6 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # Apex Form and Terrifying both want "any one of the three True Forms" as a
-  # prerequisite, and `requiredTag` cannot say that — it takes a single slug,
-  # satisfied by that tag's own chain, and the three forms are alternatives
-  # rather than a chain. So the gate is written into the description and left
-  # to the GM. Do NOT chain the forms to fake it: a chain prices cumulatively
-  # and would let a character "upgrade" Serpent into Spider.
   - slug: apex-form
     name: Apex Form
     category: demoness
@@ -5783,20 +6275,11 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  - slug: demoness-memory
-    name: Memory
-    category: demoness
-    group: demoness
-    description: "The fuzz clears a little. Once a week, ask a GM one question about the old world or the Caves."
-    pointCost: 1
-    purchasable: true
-    purchasableAfterStart: true
-
   - slug: demoness-heal
     name: Heal
     category: demoness
     group: demoness
-    description: "Drink a person's blood to clear up to two of your Health tags."
+    description: "Drink a person's blood to clear up to two of your negative Health tags."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -5814,7 +6297,7 @@ tags:
     name: Claws
     category: demoness
     group: demoness
-    description: "You can put out a set of dangerous claws at will, human face and all."
+    description: "You can put out a set of dangerous claws at will, even while keeping a human face."
     pointCost: 2
     visible: false
     purchasable: true
@@ -5836,3 +6319,541 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: true
+
+  # --- Bacchus --------------------------------------------------------------
+  # The Cult's own powers. Gated by group, not by tag: `bacchus` requires
+  # `follower-of-bacchus`, `bacchus-ripening` requires `cult-ripening`,
+  # `bacchus-bountiful` requires `cult-bountiful` (docs/taggroups.yaml), so
+  # none of the tags below repeat a requiredTag for that gate — same posture
+  # as the `demoness` group above.
+  #
+  # Spell/Rite naming: the display name carries the "Spell:"/"Rite:" prefix so
+  # it can never collide with the status it inflicts on someone else (Rite:
+  # Rage vs. the Rage status a victim ends up holding) — documents.yaml
+  # assigns by tag NAME, and two rows sharing one is a coin toss.
+  #
+  # Cooldown markers: a spell with a stated cooldown lists ITSELF plus a
+  # `<name>-expired` marker in consumesInto. dropCharacterTag runs before
+  # grantTagSlugs in consumeTagRequestImpl, so the caster keeps the spell and
+  # picks up the marker in the same transaction — same idiom as the potion at
+  # requestEffects.js. Markers carry no description (optional field) and sit
+  # outside the Spell:/Rite: naming, since nobody reads them as a chip.
+  #
+  # A status a spell inflicts on someone ELSE — who is usually not a cultist —
+  # is NOT gated: a gated group would render as literal `{tag:slug}` text to
+  # its own holder and inspect would withhold it. Same for the Bacchus
+  # craftables, which get traded to non-cultists.
+  - slug: spell-nourishment
+    name: "Spell: Nourishment"
+    category: bacchus
+    group: bacchus
+    description: "Once every two turns, touch someone else. Grant them {tag:ate-meal}. | vory ysm lechem, wa oryy"
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    consumable: true
+    consumesInto: [spell-nourishment, nourishment-expired]
+  - slug: nourishment-expired
+    name: Nourishment (Expired)
+    category: bacchus
+    group: bacchus
+    pointCost: 0
+    purchasable: false
+    removable: true
+    durationTurns: 2
+
+  - slug: rite-transmutation
+    name: "Rite: Transmutation"
+    category: bacchus
+    group: bacchus
+    description: "Takes one turn. Turn up to three {tag:fine-meal}s into one {tag:ravenheart-red} each. | xe qorvym lys ymadv rechem"
+    pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  - slug: spell-summon-camera
+    name: "Spell: Summon Camera"
+    category: bacchus
+    group: bacchus
+    description: "Once every three turns, summon an {tag:instant-camera}. You need photos for certain spells. | bymadv lys xe oryym"
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    consumable: true
+    consumesInto: [spell-summon-camera, instant-camera, summon-camera-expired]
+  - slug: summon-camera-expired
+    name: Summon Camera (Expired)
+    category: bacchus
+    group: bacchus
+    pointCost: 0
+    purchasable: false
+    removable: true
+    durationTurns: 3
+
+  - slug: worry-free
+    name: Worry Free
+    category: bacchus
+    group: bacchus
+    description: "Pain doesn't bother you, nor does fear."
+    pointCost: 4
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  - slug: mindlink
+    name: Mindlink
+    category: bacchus
+    group: bacchus
+    description: "You can send messages to all fellow cultists, regardless of where you are."
+    pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  - slug: brewing-ambrosia
+    name: Brewing (Ambrosia)
+    category: bacchus
+    group: bacchus
+    description: "You can refine {tag:bliss} into {tag:ambrosia}. It's the best substance on Earth, valid of a five point desire, but is very expensive."
+    pointCost: 2
+    requiredTag: brewing-basic
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    visible: false
+
+  - slug: spell-electromagnetic-pulse
+    name: "Spell: Electromagnetic Pulse"
+    category: bacchus
+    group: bacchus
+    description: "Disables electronic devices within 15 feet. | hazyq iw vorytm, xe dechem"
+    pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  - slug: spell-stun
+    name: "Spell: Stun"
+    category: bacchus
+    group: bacchus
+    description: "Once per day, drop someone to the ground, inflicting {tag:paralyzed}. They can still talk. | mh ryitem vorav, wa lys"
+    pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    consumable: true
+    consumesInto: [spell-stun, stun-expired]
+  - slug: stun-expired
+    name: Stun (Expired)
+    category: bacchus
+    group: bacchus
+    pointCost: 0
+    purchasable: false
+    removable: true
+    durationTurns: 2
+
+  - slug: fighting-drunken-master
+    name: Fighting (Drunken Master)
+    category: bacchus
+    group: bacchus
+    description: "While intoxicated, your fighting skill is two levels higher."
+    pointCost: 3
+    requiredTag: fighting-basic
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  - slug: spell-soothe
+    name: "Spell: Soothe"
+    category: bacchus
+    group: bacchus
+    description: "Once a turn, immediately cure a Moderate or lesser wound. | eraqylym iw xe vechem"
+    pointCost: 4
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    consumable: true
+    consumesInto: [spell-soothe, soothe-expired]
+  - slug: soothe-expired
+    name: Soothe (Expired)
+    category: bacchus
+    group: bacchus
+    pointCost: 0
+    purchasable: false
+    removable: true
+    durationTurns: 1
+
+  # Not cult-gated: an Instant Camera can be handed to anyone. Purchasable at
+  # start like every other item (TAGS.md §4a: items are never
+  # purchasableAfterStart).
+  - slug: instant-camera
+    name: Instant Camera
+    category: items
+    group: items-gear
+    description: "An analog camera. It prints the photo out right there."
+    pointCost: 1
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    sellable: true
+    sellablePrice: 14
+    depotPrice: 35
+
+  - slug: ambrosia
+    name: Ambrosia
+    category: items
+    group: items-drink
+    description: "Bacchus's own choice, valid of a five point desire."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto: [euphoric]
+    requirement:
+      turnsCost: 3
+      resourceCost: 25
+      skills: [brewing-ambrosia]
+      gambit: false
+    sellable: true
+    sellablePrice: 40
+
+  # --- Bacchus: Ripening ------------------------------------------------
+  - slug: rite-teleport
+    name: "Rite: Teleport"
+    category: bacchus
+    group: bacchus-ripening
+    description: "Once per day, you and up to three people whose hands you hold can be teleported anywhere. This takes a turn. | wy oryym xe qarvadv lys"
+    pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    consumable: true
+    consumesInto: [rite-teleport, teleport-expired]
+  - slug: teleport-expired
+    name: Teleport (Expired)
+    category: bacchus
+    group: bacchus-ripening
+    pointCost: 0
+    purchasable: false
+    removable: true
+    durationTurns: 2
+
+  - slug: spell-silence
+    name: "Spell: Silence"
+    category: bacchus
+    group: bacchus-ripening
+    description: "Once per day, make someone lose the will to speak. | xe lymrav, wa vechem"
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    consumable: true
+    consumesInto: [spell-silence, silence-expired]
+  - slug: silence-expired
+    name: Silence (Expired)
+    category: bacchus
+    group: bacchus-ripening
+    pointCost: 0
+    purchasable: false
+    removable: true
+    durationTurns: 2
+
+  - slug: rite-den
+    name: "Rite: Den"
+    category: bacchus
+    group: bacchus-ripening
+    description: "Carefully scrawl Bacchus's sigil. Takes one turn. A pocket dimension forms at the sigil. The gate itself is invisible—it'd take a very close eye to detect the faint shimmering on its surface. It lasts until you close it or die. You don't know what happens to anyone or anything who's in it when it closes. You can only have one active at a time. | bymadv qoryy iw xe hazym"
+    pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  - slug: rite-summon-nekker
+    name: "Rite: Summon Nekker"
+    category: bacchus
+    group: bacchus-ripening
+    description: "Transmute the aroma of {tag:ravenheart-red} into powerful pheromones. Requires one turn and a {tag:ravenheart-red} as the basis. Nekkers—paranoid, hungry, thin-limbed creatures from the caves—may come running out. This may not work during stormy days. Nekkers will attack anyone, including cultists. | vory nechem lys oryitm"
+    pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  - slug: rite-rage
+    name: "Rite: Rage"
+    category: bacchus
+    group: bacchus-ripening
+    description: "Carefully scrawl Bacchus's sigil. Set a head—animal or human—on fire. Requires one turn and a willing target—can be yourself. You can no longer examine people, but are rewarded with true power. | mh ryqadv, xe vorym rechem"
+    pointCost: 4
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  - slug: rite-overwhelm
+    name: "Rite: Overwhelm"
+    category: bacchus
+    group: bacchus-ripening
+    description: "Carefully scrawl Bacchus's sigil. Place a photo of your target, a left foot, and a right foot. If target isn't {tag:pious} or {tag:ascetic}, they lose their mind. Takes one turn. | wa hazyluzar, iw xe lechem"
+    pointCost: 4
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  - slug: spell-fulfill
+    name: "Spell: Fulfill"
+    category: bacchus
+    group: bacchus-ripening
+    description: "Once every three days, select a target (not yourself) and fulfill their desire immediately—they are convinced that it happened. | xe eraqym vory, wa oryy"
+    pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    consumable: true
+    consumesInto: [spell-fulfill, fulfill-expired]
+  - slug: fulfill-expired
+    name: Fulfill (Expired)
+    category: bacchus
+    group: bacchus-ripening
+    pointCost: 0
+    purchasable: false
+    removable: true
+    durationTurns: 6
+
+  - slug: gills
+    name: Gills
+    category: bacchus
+    group: bacchus-ripening
+    description: "You can breathe underwater. Your gills are visible."
+    pointCost: 1
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  - slug: smithing-bacchus
+    name: Smithing (Bacchus)
+    category: bacchus
+    group: bacchus-ripening
+    description: "You can smith unholy weapons and armor."
+    pointCost: 1
+    requiredTag: smithing
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    visible: false
+
+  - slug: rite-revive
+    name: "Rite: Revive"
+    category: bacchus
+    group: bacchus-ripening
+    description: "Carefully scrawl Bacchus's sigil. Place a human skull at the sigil's apex. Hack off the target body's former skull and implant the new one. The person's life is restored, fully healed, but they gain the {tag:disfigured} tag. You don't know what happens if the person's soul already moved on. | bymadv iw mh vechem lys"
+    pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  - slug: spell-cure
+    name: "Spell: Cure"
+    category: bacchus
+    group: bacchus-ripening
+    description: "Once every three turns, immediately cure a Very minor surgery wound or lesser. | vory lymechem, xe oryitm"
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    consumable: true
+    consumesInto: [spell-cure, cure-expired]
+  - slug: cure-expired
+    name: Cure (Expired)
+    category: bacchus
+    group: bacchus-ripening
+    pointCost: 0
+    purchasable: false
+    removable: true
+    durationTurns: 3
+
+  # Statuses a Bacchus spell/rite inflicts on someone else — deliberately NOT
+  # in a gated group (see the header note above).
+  - slug: silenced
+    name: Silence
+    category: health
+    group: health-mind
+    description: "You can't speak!"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
+  - slug: rage
+    name: Rage
+    category: status
+    group: status-buffs
+    description: "Inhumanly strong, fast, tough, and intelligent, but completely consumed by bloodlust. You are terribly impatient and are uninterested in anything but killing people."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
+  - slug: lunatic
+    name: Lunatic
+    category: health
+    group: health-mind
+    description: "Oh, I SEE now! AHAHAHAH! HAHAHAH! ETERNAL BLISSSS!"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 8
+      skills: [medical-expert]
+      gambit: true
+
+  - slug: nailed
+    name: Nailed
+    category: status
+    group: status-buffs
+    description: "Nails have been hammered into your thorax, granting you strength and stamina. Your skin can also turn blows."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
+  - slug: shirtless
+    name: Shirtless
+    category: status
+    group: status-buffs
+    description: "You are shirtless."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
+  # Bacchus craftables, gated by the smithing-bacchus SKILL rather than the
+  # tag group, so they can be traded to and worn by non-cultists.
+  - slug: nailgun
+    name: Nailgun
+    category: items
+    group: items-weapons
+    description: "A huge, menacing, jury-rigged rifle. It penetrates armor, but is extremely slow, inaccurate, and cumbersome. Requires {tag:saltpeter}."
+    pointCost: 0
+    requiredTag: fighting-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 20
+      skills: [smithing-bacchus]
+      gambit: false
+
+  - slug: armor-robes
+    name: Armor Robes
+    category: items
+    group: items-armor
+    description: "A set of fine red robes woven into a full chainmail set. A declaration of your pleasure."
+    pointCost: 0
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 8
+      skills: [smithing-bacchus]
+      gambit: false
+
+  - slug: nails-of-life
+    name: Nails of Life
+    category: items
+    group: items-gear
+    description: "Consume (implant them into someone) to permanently render them {tag:nailed} and {tag:shirtless}."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto: [nailed, shirtless]
+    requirement:
+      turnsCost: 1
+      resourceCost: 5
+      skills: [smithing-bacchus]
+      gambit: false
+
+  # --- Bacchus: Bountiful -------------------------------------------------
+  - slug: rite-judgement
+    name: "Rite: Judgement"
+    category: bacchus
+    group: bacchus-bountiful
+    description: "Carefully scrawl Bacchus's sigil. Place a photo of your victim in the center. Pour a liter of human blood on it. If the target isn't {tag:pious} or {tag:ascetic}, their head immediately shoots off at supersonic speed. The ritual takes two turns. | mh qaravym iw xe ryitm dechem"
+    pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  - slug: spell-become-monster
+    name: "Spell: Become Monster"
+    category: bacchus
+    group: bacchus-bountiful
+    description: "Touch a monster. You displace its mind. One-way. | wa nechyluzar, xe vory oryy"
+    pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  - slug: monster-possession
+    name: Monster Possession
+    category: status
+    group: status-buffs
+    description: "You have permanently become a monster, but you keep your mind. Remove your other tags; you won't need them."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
+  # --- Health: Grievous Wound ---------------------------------------------
+  # Tier 5 (Very minor surgery) on the cure ladder — TAGS.md §5c.
+  - slug: grievous-wound
+    name: Grievous Wound
+    category: health
+    group: health-wounds
+    description: "No… It can't be—"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [medical-skilled]
+      gambit: false

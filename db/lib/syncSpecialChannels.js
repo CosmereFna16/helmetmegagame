@@ -104,7 +104,10 @@ async function syncSpecialChannels(prisma) {
     // ATTACH_FILES is denied and never granted back by any player-facing
     // overwrite. GM gets an explicit attach allow so moderation posts with
     // attachments still work.
-    await patchChannel(channelId, { topic: entry.topic });
+    await patchChannel(channelId, {
+      topic: entry.topic,
+      ...(entry.slowmode !== undefined ? { rate_limit_per_user: entry.slowmode } : {}),
+    });
     await putChannelOverwrite(channelId, guildId, {
       deny: (PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES | PERM_ATTACH_FILES).toString(),
     });

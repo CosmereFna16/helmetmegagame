@@ -11,7 +11,7 @@
 // Today the only caller is the bot's inspect handler
 // (bot/src/events/messageReactionAdd.js) — the web has no other-player
 // character sheet to put this on.
-const { SEDUCTIVE_SLUG, SEDUCTIVE_DEMONESS_SLUG, MINDREADING_SLUG } = require("./constants");
+const { SEDUCTIVE_SLUG, SEDUCTIVE_DEMONESS_SLUG, MINDREADING_SLUG, RAGE_SLUG } = require("./constants");
 
 const DESIRE_SIGHT_SLUGS = [SEDUCTIVE_SLUG, SEDUCTIVE_DEMONESS_SLUG, MINDREADING_SLUG];
 
@@ -21,6 +21,9 @@ function inspectVision(characterTags = []) {
   const slugs = new Set(characterTags.map((ct) => ct?.tag?.slug ?? ct?.slug).filter(Boolean));
   return {
     canSeeDesire: DESIRE_SIGHT_SLUGS.some((slug) => slugs.has(slug)),
+    // Rite: Rage (docs/tags.yaml): "you can no longer examine people." Blinds
+    // the REACTOR's own inspect — nothing about who they're looking at.
+    ragingBlind: slugs.has(RAGE_SLUG),
   };
 }
 

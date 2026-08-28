@@ -55,10 +55,20 @@ ingredient. `addTagRequestImpl` accepts a brew because the tag is
 | `advanced-poppy` | 4 | 0 | poppy | `pain-immunity` |
 | `phrygian-tears` | 4 | 2 | **Gambit** | — |
 | `gunpowder-grenade` | 6 | 0 | saltpeter | — |
-| `purifier` | 6 | 0 | a rare ingredient | — |
+| `purifier` | 6 | 0 | cave fungus | — |
 | `dreamers-draught` | 6 | 0 | **Gambit** | — |
 | `forgiveness` | 8 | 0 | someone's tears | — |
 | `flawless-skin` | 8 | 0 | a lock of Nobility hair | `otherworldly-beauty` |
+
+## 3a. Bacchus recipe
+
+Gated by the cult's own `brewing-ambrosia` tag (`requiredTag: brewing-basic`),
+not by `brewing-skilled` — a Cultist doesn't need the ordinary Skilled rung to
+make this one.
+
+| Brew | ⬢ | Turns | Ingredient | Consumes into |
+|---|---|---|---|---|
+| `ambrosia` | 25 | 3 | `bliss` | `euphoric` |
 
 An empty **Consumes into** cell is not an oversight. `consumable` with no
 `consumesInto` is set where the brew is spent *by a Move* rather than by the
@@ -82,9 +92,6 @@ heart, a willing lover's blood, a lock of Nobility hair — are prose. Nothing
 tracks them, and that is the point: getting hold of one is meant to be a scene
 with another player rather than a purchase. If it is just flavor, the player
 tells the GMs how they got it.
-
-`purifier` is the one recipe whose ingredient is unnamed. Name it when
-somebody decides what it is.
 
 ## 5. Yields
 

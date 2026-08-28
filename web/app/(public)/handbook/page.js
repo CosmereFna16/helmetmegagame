@@ -30,7 +30,6 @@ export default async function HandbookPage() {
     <PageShell width="wide">
       <PageHeader
         title="Player Handbook"
-        subtitle="How to play Bascinet, turn by turn."
         actions={
           signedIn ? (
             <Link className="btn-quiet" href="/documents?doc=handbook">

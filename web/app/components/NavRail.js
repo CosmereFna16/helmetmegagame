@@ -19,6 +19,7 @@ import {
   HelpIcon,
   SignOutIcon,
   MoreIcon,
+  StoreIcon,
 } from "./icons";
 import { signOutOfDiscord } from "../actions";
 
@@ -36,6 +37,7 @@ const ICONS = {
   lifeweb: LifewebIcon,
   map: MapIcon,
   help: HelpIcon,
+  store: StoreIcon,
 };
 
 // How many items stay in the mobile bottom bar. The rest go behind "More".

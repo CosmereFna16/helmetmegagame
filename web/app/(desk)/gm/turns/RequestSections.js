@@ -408,6 +408,59 @@ export const SECTIONS = {
     ),
   },
 
+  // The Depot's three counters (docs/systemdocs/DEPOT.md). Nothing here is
+  // editable — ⬢ and stock moved together, so a price nudged after the fact
+  // would leave them out of step. Every panel names Undo as the correction so
+  // a GM isn't hunting for a field that deliberately isn't there.
+  DEPOT_BUY: {
+    heading: "Depot Purchase",
+    render: ({ effect, tagsById }) => (
+      <>
+        <Line label="Bought">
+          <TagStack effect={effect} tagsById={tagsById} />
+        </Line>
+        <Line label="Paid">{effect.total ?? 0} ⬢</Line>
+        <Line label="Unit price">{effect.unitPrice ?? 0} ⬢</Line>
+        <p className="text-xs text-muted">
+          Wholesale off the orbital station — there is no counterparty to reverse. Undo returns the
+          goods and refunds the ⬢.
+        </p>
+      </>
+    ),
+  },
+
+  DEPOT_SELL: {
+    heading: "Depot Sale",
+    render: ({ effect, tagsById }) => (
+      <>
+        <Line label="Sold">
+          <TagStack effect={effect} tagsById={tagsById} />
+        </Line>
+        <Line label="Received">{effect.total ?? 0} ⬢</Line>
+        <Line label="Unit price">{effect.unitPrice ?? 0} ⬢</Line>
+        <p className="text-xs text-muted">
+          Undo buys the goods back and takes the ⬢ off him. If he has already spent them, the undo
+          refuses rather than handing the stock back for free.
+        </p>
+      </>
+    ),
+  },
+
+  DEPOT_CREDIT: {
+    heading: "Depot Credit",
+    render: ({ effect }) => (
+      <>
+        <Line label={effect.direction === "DRAW" ? "Drew" : "Repaid"}>{effect.amount ?? 0} ⬢</Line>
+        <Line label="Owed now">{effect.debtAfter ?? 0} ⬢</Line>
+        <Line label="Was">{effect.debtBefore ?? 0} ⬢</Line>
+        <p className="text-xs text-muted">
+          The Company advances against a flat ceiling. Nothing in code punishes a standing balance —
+          this row is the record, and what he did with the money is a matter for you.
+        </p>
+      </>
+    ),
+  },
+
   BIND_CHARACTER: {
     heading: "Bind Character",
     render: ({ effect }) => (

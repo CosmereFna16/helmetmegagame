@@ -183,6 +183,21 @@ async function syncTagsFromYaml(prisma) {
     if (t.sellablePrice != null && !t.sellable) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" sets sellablePrice without sellable: true`);
     }
+    // depotPrice is the buy side of the same counter, and unlike sellable it
+    // travels with no companion flag — carrying a price IS what puts a ware on
+    // the Depot's shelf, so there is nothing to fall out of step with.
+    if (t.depotPrice != null && !(Number.isInteger(t.depotPrice) && t.depotPrice > 0)) {
+      throw new Error(`docs/tags.yaml: tag "${t.slug}" has a depotPrice that is not a positive integer`);
+    }
+    // Buying a tag and selling it straight back should always lose money. A
+    // warning rather than an error: a GM-authored oddity might want the two
+    // prices close, and this sync must not become unrunnable over a balance
+    // opinion. See docs/systemdocs/DEPOT.md §3.
+    if (t.depotPrice != null && t.sellablePrice != null && t.sellablePrice >= t.depotPrice) {
+      console.warn(
+        `docs/tags.yaml: tag "${t.slug}" sells back for ${t.sellablePrice} ⬢ but costs ${t.depotPrice} ⬢ at the Depot — buying and selling it in a loop prints Resources`,
+      );
+    }
     // expiresInto, same posture and the same reason: every slug is known from
     // this document, so a typo fails before anything is written. Three rules,
     // each of which is a silent no-op rather than an error if it slips
@@ -262,6 +277,7 @@ async function syncTagsFromYaml(prisma) {
       purchasableAfterStart: entry.purchasableAfterStart ?? true,
       sellable: entry.sellable ?? false,
       sellablePrice: entry.sellablePrice ?? null,
+      depotPrice: entry.depotPrice ?? null,
       defaultDurationTurns: entry.durationTurns ?? null,
       removable: entry.removable ?? false,
       craftable: entry.craftable ?? false,

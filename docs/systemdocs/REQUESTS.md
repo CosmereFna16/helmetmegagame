@@ -109,7 +109,10 @@ reason.
 | `FREE_CHARACTER` | Cuts someone in their zone loose | — | Puts Bound back with its original expiry |
 | `HARM_CHARACTER` | Inflicts a Health affliction on someone already helpless, flags them to be killed, or both. **Never kills** — see §5b | — | Heals what was inflicted; never revives |
 | `BURY_CHARACTER` | Puts a body lying in their zone into the ground, lifting the **Cursed** role off the dead player's Discord account. Target is **typed**, first name only | — | Raises the body; does **not** re-curse |
-| `FAST_TRAVEL` | Rides one zone over on a horse without spending the Move. Once a day | — | Sends them back and returns the ride |
+| `FAST_TRAVEL` | Rides one zone over on a horse (or the Merchant's Steam Automobile) without spending the Move. Once a day | — | Sends them back and returns the ride |
+| `DEPOT_BUY` | Buys an import off the orbital station at its `depotPrice`. Licence + standing at Customs (`DEPOT.md`) | — | Returns the goods, refunds the ⬢ |
+| `DEPOT_SELL` | Sells a `sellable` tag to the station at its `sellablePrice` | — | Buys it back with its original expiry, takes the ⬢ |
+| `DEPOT_CREDIT` | Draws on or repays the Company's 60 ⬢ credit line | — | Reverses the ⬢ and the tab together |
 
 The per-type behaviour lives in `web/lib/requestEffects.js` as one
 `REQUEST_EFFECTS` entry each. **Adding a type means adding one entry
@@ -117,7 +120,16 @@ there, one entry in `RequestSections.js`'s `SECTIONS` map, one label in
 `requestLabels.js`, one line in the desk's `summarize()`, and one value in the
 `RequestType` enum — nothing else in the adjudication surface changes.** That
 extensibility was an explicit requirement, and every type added since — the
-two Lifeweb ones, then the eight of the Actions grid — cost exactly that.
+two Lifeweb ones, the eight of the Actions grid, then the Depot's three — cost
+exactly that.
+
+The Depot's three are the only ones whose **counterparty is not in the game**.
+An orbital station has no balance to debit and no stock to run down, so each
+moves exactly one side, and there is nothing to reverse but his own. They are
+also the only three where the price is enforced rather than adjudicated: a GM
+does not sign off a purchase, which is why none of them is editable — ⬢ and
+stock moved together, and a price nudged afterwards would leave them out of
+step with no way back. Undo is the whole correction.
 
 **Validation is returned, never thrown.** Every one of these actions and
 `resolveRequest` reports a validation failure as `{ ok: false, error }` via

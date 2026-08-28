@@ -904,6 +904,7 @@ module.exports = {
   ...require("./lib/roleCapacity"),
   ...require("./lib/partySize"),
   ...require("./lib/production"),
+  ...require("./lib/depot"),
   ...require("./lib/formatTagRequirement"),
   ...require("./lib/turnFormat"),
   ...require("./lib/lifeweb"),

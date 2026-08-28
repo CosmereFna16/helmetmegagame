@@ -376,14 +376,32 @@ module.exports = {
       // player could see, and re-clicking did nothing because the reaction was
       // still theirs. Clearing it means a retry is always one click away.
       try {
-        // The inspected character, and the inspector — what the embed shows
-        // depends on both. Seductive (and its Demoness twin) is read off the
-        // REACTOR, not the subject: it's the sight, not the thing seen.
-        // A concealed message answers with a hardcoded, deliberately impoverished
-        // embed: what a stranger could see, and nothing else. It returns before
-        // any of the normal field logic below, so no appearance, name, Desire,
-        // or Resources can leak through a gate that happens to be
-        // open for this particular viewer.
+        // The inspector, loaded first and ahead of the concealed-identity
+        // branch below — Rite: Rage's "you can no longer examine people" has
+        // to blind THAT path too, not just the normal embed further down.
+        const viewer = await prisma.character.findFirst({
+          where: { discordUserId: user.id, status: "ALIVE" },
+          select: { factionId: true, tags: { select: { tagId: true, tag: { select: { slug: true } } } } },
+        });
+        const { canSeeDesire, ragingBlind } = inspectVision(viewer?.tags ?? []);
+        if (ragingBlind) {
+          try {
+            await sendDm(user, "No time, no time!");
+          } catch (err) {
+            console.error("Inspect reaction DM failed (raging):", err);
+          }
+          // The finally below clears the reaction on the way out of this return.
+          return;
+        }
+
+        // The inspected character — what the embed shows also depends on the
+        // inspector loaded above. Seductive (and its Demoness twin) is read
+        // off the REACTOR, not the subject: it's the sight, not the thing
+        // seen. A concealed message answers with a hardcoded, deliberately
+        // impoverished embed: what a stranger could see, and nothing else. It
+        // returns before any of the normal field logic below, so no
+        // appearance, name, Desire, or Resources can leak through a gate that
+        // happens to be open for this particular viewer.
         if (proxy.concealed) {
           const concealedChar = await prisma.character.findUnique({
             where: { id: proxy.characterId },
@@ -434,7 +452,7 @@ module.exports = {
           return;
         }
 
-        const [character, viewer, openTurn, skillCatalog] = await Promise.all([
+        const [character, openTurn, skillCatalog] = await Promise.all([
           prisma.character.findUnique({
             where: { id: proxy.characterId },
             include: {
@@ -444,10 +462,6 @@ module.exports = {
               faction: { select: { name: true } },
             },
           }),
-          prisma.character.findFirst({
-            where: { discordUserId: user.id, status: "ALIVE" },
-            select: { factionId: true, tags: { select: { tagId: true, tag: { select: { slug: true } } } } },
-          }),
           prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
           // Just the tier chain, for the same reason healCharacterRequest reads
           // it: holding Medical (Expert) has to satisfy a requirement written
@@ -455,8 +469,6 @@ module.exports = {
           prisma.tag.findMany({ select: { id: true, parentTagId: true } }),
         ]);
         if (!character) return;
-
-        const { canSeeDesire } = inspectVision(viewer?.tags ?? []);
 
         // The doctor's eye: an affliction you could treat as ROUTINE is one you
         // can recognise on sight, even when it's invisible to everyone else —

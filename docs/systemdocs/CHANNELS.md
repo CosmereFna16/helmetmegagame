@@ -331,14 +331,14 @@ Every check is independently caught and the whole run is persisted as a
 answer to the old wipe-time complaint: instead of hoping every removal in a
 hundred-call loop lands, a miss becomes visible and repairable.
 
-## 7. Special channels (`#watch`, `#intercom`)
+## 7. Special channels (`#watch`, `#intercom`, `#mindlink`)
 
 Standing channels outside the zone system, under one `radio` category (id on
 `GameConfig.radioCategoryId`). `db/lib/specialChannels.js` is a **registry**:
 one entry fully describes a channel — its `GameConfig` id columns, topic,
-tupper routing, wipe behaviour, ghost visibility, static role grants, and the
-per-character access rule. Adding a future special channel is one entry plus
-one `GameConfig` column.
+tupper routing, wipe behaviour, ghost visibility, static role grants, an
+optional `slowmode`, and the per-character access rule. Adding a future
+special channel is one entry plus one `GameConfig` column.
 
 The rules stay **code**, deliberately: a special channel's access condition is
 real logic over tags and zones, and a YAML mini-language would only be a worse
@@ -350,6 +350,7 @@ two access twins and the wipe.
 |---|---|---|
 | `#watch` | **Radio Bracelet (Watch)** or **Radio System (Watch)** holders (per-member overwrite) | Radio System (Watch) holders only |
 | `#intercom` | **every zone role** — all six presence zones, a static `roleViewZones` grant | a character holding the **Intercom** tag *and* standing in the **Fortress** zone (per-member overwrite) |
+| `#mindlink` | any **Cultist of Bacchus** (`follower-of-bacchus`) holder (per-member overwrite) | **Mindlink** tag holders only |
 
 Both tags are transferable, so possession is what matters — a bracelet handed
 to a non-Watch character still opens `#watch`.
@@ -361,13 +362,19 @@ member entries. The speak half stays per-member, and its gate moved from
 "standing in the Keep" to "standing in the Fortress zone" because the Keep is
 prose now.
 
+`#mindlink` is Bacchus's own telepathy — every Cultist reads it, but only a
+Cultist holding the **Mindlink** tag can post. It carries a `slowmode` of
+1800 seconds (30 minutes), the first special channel to set one; nothing else
+in the registry does, so `entry.slowmode` is optional and only applied when
+present.
+
 `db/lib/syncSpecialChannels.js` provisions and **reconciles every run** (topic,
-`@everyone` deny, GM allow, spectator, ghost, and the `roleViewZones` grants) —
-a channel that misses its role grants is a channel nobody can hear. Channel
-identity (name, id) stays one-time, and a same-name channel that already exists
-is adopted rather than duplicated. Run it with `npm run db:sync-narrowcast-channels`
-— **after** `db:sync-zones`, since the grants name zone roles the zone sync may
-have just recreated.
+slowmode, `@everyone` deny, GM allow, spectator, ghost, and the
+`roleViewZones` grants) — a channel that misses its role grants is a channel
+nobody can hear. Channel identity (name, id) stays one-time, and a same-name
+channel that already exists is adopted rather than duplicated. Run it with
+`npm run db:sync-narrowcast-channels` — **after** `db:sync-zones`, since the
+grants name zone roles the zone sync may have just recreated.
 
 Per-character access is applied by the two `syncCharacterNarrowcastAccess`
 twins: `bot/src/lib/zoneTravel.js` (gateway, after every zone change and after

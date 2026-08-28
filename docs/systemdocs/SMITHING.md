@@ -33,7 +33,10 @@ not — its steel prod and lock are `smithing-skilled` work.
 
 Every combat item is `purchasable: true, purchasableAfterStart: false` — buy
 at creation or have someone craft one in play. Found-only items
-(`purchasable: false`) sit outside the ladder.
+(`purchasable: false`) sit outside the ladder — as do the Bacchus craftables
+(Nailgun, Armor Robes, Nails of Life), gated by the cult's own
+`smithing-bacchus` skill rather than `smithing`/`smithing-skilled`, priced on
+their own terms rather than a rung of this table.
 
 ## 3. Weapons
 
