@@ -67,10 +67,10 @@ function rollWeather(previousWeather, phase) {
   return rollFromWeights(weights);
 }
 
-// Turns advance at 4:00 and 16:00 America/Chicago (bot/src/events/ready.js's
+// Turns advance at 0:00 and 12:00 America/Chicago (bot/src/events/ready.js's
 // cron schedule), strictly alternating DAWN/DUSK — a DAWN turn always opens
-// at 4 AM and runs until 4 PM the same day, a DUSK turn always opens at
-// 4 PM and runs until 4 AM the next day. The announcement renders this as a
+// at noon and runs until midnight the same day, a DUSK turn always opens at
+// midnight and runs until noon the same day. The announcement renders this as a
 // Discord <t:EPOCH:t>/<t:EPOCH:R> tag (per-viewer local time + relative
 // countdown), which needs an actual Unix epoch rather than a text label —
 // these two helpers do a DST-safe local-time-in-a-zone -> UTC conversion
@@ -105,7 +105,8 @@ function zonedTimeToUtc(y, m, d, h, min, s, timeZone) {
 
 // Given the phase of the turn that just opened, returns the epoch seconds
 // (for a Discord <t:> tag) of the boundary when it closes: DAWN closes at
-// 4 PM the same Chicago day it opened, DUSK closes at 4 AM the next one.
+// midnight the same Chicago day it opened (i.e. hour 0 the next calendar
+// day), DUSK closes at noon the same Chicago day it opened.
 function turnEndEpochSeconds(phase) {
   const timeZone = "America/Chicago";
   const nowParts = new Intl.DateTimeFormat("en-US", {
@@ -119,8 +120,8 @@ function turnEndEpochSeconds(phase) {
       acc[p.type] = p.value;
       return acc;
     }, {});
-  const targetHour = phase === "DAWN" ? 16 : 4;
-  const dayOffset = phase === "DAWN" ? 0 : 1;
+  const targetHour = phase === "DAWN" ? 0 : 12;
+  const dayOffset = phase === "DAWN" ? 1 : 0;
   const utcMs = zonedTimeToUtc(
     Number(nowParts.year),
     Number(nowParts.month),

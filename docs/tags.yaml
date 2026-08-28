@@ -1128,6 +1128,7 @@ tags:
   - slug: laborer-basic
     name: Laborer (Basic)
     category: skills
+    group: skills-labor
     description: "When laboring, you make {resource:labor:basic} per turn."
     pointCost: 1
     purchasable: true
@@ -1136,6 +1137,7 @@ tags:
   - slug: laborer-skilled
     name: Laborer (Skilled)
     category: skills
+    group: skills-labor
     description: "When laboring, you make {resource:labor:skilled} per turn."
     pointCost: 2
     parentTag: laborer-basic
@@ -1181,6 +1183,7 @@ tags:
   - slug: smithing
     name: Smithing
     category: skills
+    group: skills-crafting
     description: "Basic smithing.."
     pointCost: 2
     purchasable: true
@@ -1189,6 +1192,7 @@ tags:
   - slug: smithing-skilled
     name: Smithing (Skilled)
     category: skills
+    group: skills-crafting
     description: "Skilled smithing — the Moderate and higher recipes."
     pointCost: 2
     parentTag: smithing
@@ -1199,6 +1203,7 @@ tags:
   - slug: crafting
     name: Crafting
     category: skills
+    group: skills-crafting
     description: "Lets you tailor, craft, woodwork, and any other miscellaneous production. Also fulfills requirements on Dead Simple smithing recipes."
     pointCost: 2
     purchasable: true
@@ -1226,6 +1231,7 @@ tags:
   - slug: smithing-gunpowder
     name: Smithing (Gunpowder)
     category: skills
+    group: skills-crafting
     description: "{tag:saltpeter} is your best friend. Requires Skilled smithing."
     pointCost: 4
     requiredTag: smithing-skilled
@@ -1240,6 +1246,7 @@ tags:
   - slug: fighting-basic
     name: Fighting (Basic)
     category: skills
+    group: skills-fighting
     description: "You can hold a weapon and defend yourself in a pinch."
     pointCost: 3
     visible: true
@@ -1248,6 +1255,7 @@ tags:
   - slug: fighting-trained
     name: Fighting (Trained)
     category: skills
+    group: skills-fighting
     description: "You have been trained how to fight."
     pointCost: 3
     parentTag: fighting-basic
@@ -1257,6 +1265,7 @@ tags:
   - slug: fighting-skilled
     name: Fighting (Skilled)
     category: skills
+    group: skills-fighting
     description: "You've actually fought before. You're a grizzled presence on the battlefield."
     pointCost: 3
     parentTag: fighting-trained
@@ -1266,6 +1275,7 @@ tags:
   - slug: fighting-expert
     name: Fighting (Expert)
     category: skills
+    group: skills-fighting
     description: "You have survived many fights. Almost no one matches you."
     pointCost: 3
     parentTag: fighting-skilled
@@ -1275,6 +1285,7 @@ tags:
   - slug: fighting-legendary
     name: Fighting (Legendary)
     category: skills
+    group: skills-fighting
     description: "The peak of your generation."
     pointCost: 6
     parentTag: fighting-expert
@@ -1284,6 +1295,7 @@ tags:
   - slug: fighting-archer
     name: Fighting (Archer)
     category: skills
+    group: skills-fighting
     description: "When using bows, your fighting skill is two levels higher."
     pointCost: 3
     requiredTag: fighting-basic
@@ -1296,6 +1308,7 @@ tags:
   - slug: fighting-guerrilla
     name: Fighting (Guerrilla)
     category: skills
+    group: skills-fighting
     description: "When you start a fight with a surprise attack in terrain wth obstacles, your fighting skill is two levels higher."
     pointCost: 3
     requiredTag: fighting-basic
@@ -1304,12 +1317,13 @@ tags:
     purchasableAfterStart: true
 
   # Gates on Watchman rather than a Fighting tier — the formation is the point,
-  # not the swordsmanship. Left in Skills (and so groupless, like every Skills
-  # tag) instead of the gated general-watch group, so it files with the rest of
-  # the Fighting family where a player looks for it.
+  # not the swordsmanship. Left in the skills-fighting group instead of the
+  # gated general-watch group, so it files with the rest of the Fighting
+  # family where a player looks for it.
   - slug: fighting-shield-wall
     name: Fighting (Shield Wall)
     category: skills
+    group: skills-fighting
     description: "You have practiced this drill. Standing within reach of two or more other Watchmen, your fighting skill is one level higher."
     pointCost: 3
     requiredTag: fighting-basic
@@ -1320,6 +1334,7 @@ tags:
   - slug: fighting-grappler
     name: Fighting (Grappler)
     category: skills
+    group: skills-fighting
     description: "Even weaponless, you can take down someone on the ground and choke them out. Your fighting skill counts as two tiers higher."
     pointCost: 3
     requiredTag: fighting-basic
@@ -1330,6 +1345,7 @@ tags:
   - slug: fighting-firearms
     name: Fighting (Firearms)
     category: skills
+    group: skills-fighting
     description: "You're a master with firearms and disablers. Your fighting skill counts as two tiers higher."
     pointCost: 3
     requiredTag: fighting-basic
@@ -1340,6 +1356,7 @@ tags:
   - slug: fighting-duelist
     name: Fighting (Duelist)
     category: skills
+    group: skills-fighting
     description: "You're particularly good at fighting people one on one—especially with swords, rapiers, and knives. Your fighting skill counts as two tiers higher."
     pointCost: 3
     requiredTag: fighting-basic
@@ -1353,6 +1370,7 @@ tags:
   - slug: builder-skilled
     name: Builder (Skilled)
     category: skills
+    group: skills-crafting
     description: "You can build more complex things than the average person, like a cart, a palisade, or stairs."
     pointCost: 2
     visible: true
@@ -1362,6 +1380,7 @@ tags:
   - slug: builder-expert
     name: Builder (Expert)
     category: skills
+    group: skills-crafting
     description: "You have an architect's mind. You could design a cathedral, a bridge, or a water mill."
     pointCost: 2
     parentTag: builder-skilled
@@ -1377,6 +1396,7 @@ tags:
   - slug: medical-basic
     name: Medical (Basic)
     category: skills
+    group: skills-medical
     description: "Allows you to treat very minor and minor injuries as routine. Basically first aid, bandaging, packing a wound, setting a simple break. Anything harder is a Gambit."
     pointCost: 2
     visible: true
@@ -1385,6 +1405,7 @@ tags:
   - slug: medical-skilled
     name: Medical (Skilled)
     category: skills
+    group: skills-medical
     description: "Allows you to treat moderate and severe cases as routine, and the most minor surgery, like closing a large bleed or cutting away dead flesh. Any surgery past that is a Gambit."
     pointCost: 2
     parentTag: medical-basic
@@ -1394,6 +1415,7 @@ tags:
   - slug: medical-expert
     name: Medical (Expert)
     category: skills
+    group: skills-medical
     description: "Allows you to treat almost everything as routine, severe surgery included. Only the most complex work counts a Gambit."
     pointCost: 2
     parentTag: medical-skilled
@@ -1404,6 +1426,7 @@ tags:
   - slug: brewing-basic
     name: Brewing (Basic)
     category: skills
+    group: skills-brewing
     description: "Can brew basic alcohol (beer, ale, mead) and basic tonics."
     pointCost: 2
     visible: true
@@ -1412,6 +1435,7 @@ tags:
   - slug: brewing-skilled
     name: Brewing (Skilled)
     category: skills
+    group: skills-brewing
     description: "Can brew advanced alcohol (wine and other refined drinks) and advanced tonics, which call for hard-to-find ingredients."
     pointCost: 2
     parentTag: brewing-basic
@@ -1422,6 +1446,7 @@ tags:
   - slug: cooking-basic
     name: Cooking (Basic)
     category: skills
+    group: skills-cooking
     description: "Can cook Fine Meals — 2 ⬢ each, up to 4 in one Routine Move."
     pointCost: 2
     visible: true
@@ -1430,6 +1455,7 @@ tags:
   - slug: cooking-skilled
     name: Cooking (Skilled)
     category: skills
+    group: skills-cooking
     description: "Can cook Lavish Meals — 3 ⬢ and one exotic ingredient each, up to 3 in one Routine Move."
     pointCost: 2
     parentTag: cooking-basic

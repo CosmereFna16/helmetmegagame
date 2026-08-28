@@ -157,6 +157,34 @@ groups:
     name: Companions
     category: assets
     color: "#7fa38b"
+  # Skill families, clustered the same way General and Status already are.
+  # A handful of standalone Skills tags (sign-language, intercom, forester,
+  # musician, lockpicking, butcher) stay groupless on purpose — they don't
+  # belong to any family and would just be noise in a one-tag group.
+  - slug: skills-labor
+    name: Labor
+    category: skills
+    color: "#7d9b5a"
+  - slug: skills-fighting
+    name: Fighting
+    category: skills
+    color: "#a8515c"
+  - slug: skills-crafting
+    name: Crafting
+    category: skills
+    color: "#b8834f"
+  - slug: skills-brewing
+    name: Brewing
+    category: skills
+    color: "#c2984a"
+  - slug: skills-cooking
+    name: Cooking
+    category: skills
+    color: "#c4703f"
+  - slug: skills-medical
+    name: Medical
+    category: skills
+    color: "#5f9a94"
   # --- Gated groups ------------------------------------------------------
   # These all carry `requiredTag`, which is what makes the Demoness and
   # Bacchus categories hidden. Every tag in them is gated by the group, so the
