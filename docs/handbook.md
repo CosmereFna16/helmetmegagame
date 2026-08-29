@@ -223,9 +223,11 @@ Other players can still 🔎 you and see any visible wounds or gear, but your na
 
 ### Talking OOC
 
-OOC discussions should be kept out of roleplay channels as much as possible. If you need to add a brief OOC comment, you can bracket the message like this: "[OOC: Have to step away, be back soon]".
+OOC discussion should be kept out of roleplay channels as much as possible. If you need to add a brief OOC comment, you can bracket the message like this: "[OOC: Have to step away, be back soon]".
 
-OOC discussion should take place in `#general`, keeping in mind that you should not reveal who you're playing.
+Non-roleplay conversation should take place in `#general`, keeping in mind that you should not reveal who you're playing.
+
+**Do not reveal game information in `#general`.** Discussing the game overall is fine, discussing what just happened inside the Inn or who you saw at the Gatehouse is not.
 
 ### Reactions
 
@@ -436,5 +438,6 @@ When your character dies:
 
 - Their body stays where it fell. Items, assets, and ⬢ can be **looted** and the body can be moved elsewhere or buried.
 - Your Discord account becomes **Cursed** as you now exist as a ghost. You can read what's going on in every zone, but you can no longer interact with the world of the living.
-- As a ghost, once every 12 real hours you can react 🌬️ to any message in a `#summary` or public topic, the bot will post a haunting line thereThat's your only voice, and it's a reminder to others that your body remains unburied.
-- You can create a new character at any time, but while Cursed you only have access to the **Bum** and **Migrant** roles. You also receive a 6 point penalty during character creation. The curse lifts the moment somebody buries your body (traditionally the Mortii's or the Church's job, but anyone standing over the body can do so). A buried body can no longer be looted or moved.
+- As a ghost, once every 12 real hours you can react 🌬️ to any message in a `#summary` or public topic and the bot will post a haunting line there. That's your only voice, and it's a reminder to others that your body remains unburied.
+- You can create a new character at any time, but while Cursed you only have access to the **Bum** and **Migrant** roles. You also receive a 6 point penalty during character creation.
+- The curse lifts the moment somebody buries your body (traditionally the Mortii's or the Church's job, but anyone standing over the body can do so). A buried body can no longer be looted or moved.
