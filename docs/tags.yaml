@@ -3347,6 +3347,41 @@ tags:
     sellablePrice: 8
     depotPrice: 18
 
+  # The one thing an Artist can turn a week of work into. No depotPrice: the
+  # station imports nothing Ravenheart makes itself, and a painting is the
+  # purest case of that.
+  #
+  # 60 ⬢ makes it the top of the sell table by a wide margin (Gunpowder, the
+  # old ceiling, is 49) and that is deliberate — 7 turns is three and a half
+  # times the longest smithing rung, and unlike every other craftable it
+  # consumes no materials at all. It works out just under Ravenheart Red's
+  # 10 ⬢ a turn, which DEPOT.md §4 already treats as the top of what honest
+  # work should pay.
+  #
+  # purchasable: false is load-bearing, not tidiness. A points-buyable
+  # Painting would be the best deal in the point economy by an order of
+  # magnitude — Jewelry is the going rate at 1 point for 8 ⬢.
+  - slug: painting
+    name: Painting
+    category: items
+    group: items-gear
+    description: "A painting of middling beauty. It'll fetch a good price—owning it is a valid Desire too, especially for nobles."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 7
+      resourceCost: 0
+      skills: [artist]
+      gambit: false
+    sellable: true
+    sellablePrice: 60
+
   # --- Caves Update loot -------------------------------------------------
   # New found-only items for the Caving Die's loot table. See
   # docs/systemdocs/CAVING.md for the table itself and db/lib/cavingLoot.js
