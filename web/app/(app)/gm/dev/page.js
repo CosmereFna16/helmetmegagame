@@ -205,7 +205,7 @@ export default async function DevPanelPage() {
             <input type="number" name="equipSlots" min="1" max="20" defaultValue={config.equipSlots} />
           </label>
           <label className="field">
-            <span className="field-label">Max drawbacks</span>
+            <span className="field-label">Max drawback points</span>
             <input
               type="number"
               name="maxNegativeTags"

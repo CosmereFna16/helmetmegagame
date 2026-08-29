@@ -88,9 +88,10 @@ Off the ladder — no recipe, no smithing gate:
 | Armor | Tier | Notes |
 |---|---|---|
 | Padded Armor | Dead Simple | `crafting` |
-| Mail Coif | Dead Simple | |
+| Padded Cap | Dead Simple | `crafting` |
 | Buckler | Dead Simple | |
 | Simple Helm | Simple | |
+| Mail Coif | Simple | |
 | Shield | Simple | `crafting` |
 | Pavise | Simple | `crafting` |
 | Mail Shirt | Moderate | |

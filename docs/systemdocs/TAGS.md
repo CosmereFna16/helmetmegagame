@@ -286,25 +286,31 @@ reason to price one at 5.
 without a deliberate decision recorded here. **Pilgrim is the one deliberate
 exception, priced at 1** — off the scale entirely, Gunboat's call.
 
-**A character may buy at most `GameConfig.maxNegativeTags` drawbacks —
-4 by default, live on `/gm/dev`.** Only what was bought through the point-buy
-menu counts (`CharacterTag.source === "POINT_BUY"`): a role's free drawback
-(the Meister's Frail, the Headman's Old) arrives as `GM_GRANT`, and so does
-anything a GM or a turn effect inflicts, so neither eats a player's slots. A
-GM grant can still push someone past the cap, deliberately — the same bypass
-every other gate has (§3).
+**A character may buy at most `GameConfig.maxNegativeTags` drawback
+POINTS — 8 by default, live on `/gm/dev`.** This is a cap on the sum of what
+drawbacks grant, not on how many drawback tags are held: one −8 drawback and
+eight −1 drawbacks spend the same slice of the cap. Only what was bought
+through the point-buy menu counts (`CharacterTag.source === "POINT_BUY"`): a
+role's free drawback (the Meister's Frail, the Headman's Old) arrives as
+`GM_GRANT`, and so does anything a GM or a turn effect inflicts, so neither
+eats into a player's points. A GM grant can still push someone past the cap,
+deliberately — the same bypass every other gate has (§3). The field is still
+named `maxNegativeTags` even though it now caps points, not tags — renaming
+the column would be a migration for no behavioural gain.
 
-The cap has three surfaces. `PointBuy.js` counts it live in the build pane
-(`negativeCap` / `negativeHeld`), dims a drawback past the limit the same way
-it dims an unaffordable tag, and — like the budget — lets the click through
-so the pane can say why the build isn't legal. `CreateCharacterWizard` folds
-it into `canAdvance` beside `remaining >= 0`. `createCharacter` re-checks it
-server-side, because a server action is a public endpoint. `/store` shows the
-same line as a **readout only**: every drawback is
-`purchasableAfterStart: false`, so the shelf never offers one and the count
-can't move there. `negativeTagCount()` in `web/lib/characterCreation.js` is
-the shared predicate, over raw `pointCost` rather than `effectiveCost` — a
-drawback never sits in a tier chain, so there is nothing to discount.
+The cap has three surfaces. `PointBuy.js` sums it live in the build pane
+(`negativeCap` / `negativeHeld`), shown in red once the total is over the cap
+(`−{used} / {cap} drawback points spent`), dims a drawback that would push
+the total past the limit the same way it dims an unaffordable tag, and — like
+the budget — lets the click through so the pane can say why the build isn't
+legal. `CreateCharacterWizard` folds it into `canAdvance` beside
+`remaining >= 0`. `createCharacter` re-checks it server-side, because a
+server action is a public endpoint. `/store` shows the same line as a
+**readout only**: every drawback is `purchasableAfterStart: false`, so the
+shelf never offers one and the total can't move there. `negativeTagPoints()`
+in `web/lib/characterCreation.js` is the shared predicate, over raw
+`pointCost` rather than `effectiveCost` — a drawback never sits in a tier
+chain, so there is nothing to discount.
 
 **0 is a real price, not a missing one**, and it is the most common value in
 the file (142 of 268). Everything unpurchasable — injuries, statuses, meals,
@@ -325,11 +331,14 @@ no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
   rung) and use `requiredTag` on their tree's Basic, so they are *not*
   cumulative and stack with each other and with any rung: Melee (Shield Wall,
   Duelist, Polearms, Swords, Clubs) and Ranged (Archer, Firearms). Melee
-  (Drunken Master) is priced the same way but sits in the `bacchus` category.
-  Three sidegrades sit outside both trees: Grappler (5, standalone — bare
-  hands are not a rung of either tree, so it gates on nothing), Guerrilla (10,
-  standalone and deliberately ungated, since a single `requiredTag` can't say
-  "either tree"), and Cavalry (10, `requiredTag: windlander`).
+  (Flamboyant) is priced at 7, not the usual 10 — the "without armor"
+  condition is a real cost of its own, unlike the other sidegrades'
+  situational-but-free conditions. Melee (Drunken Master) is priced the same
+  way but sits in the `bacchus` category. Three sidegrades sit outside both
+  trees: Grappler (5, standalone — bare hands are not a rung of either tree,
+  so it gates on nothing), Guerrilla (10, standalone and deliberately
+  ungated, since a single `requiredTag` can't say "either tree"), and
+  Cavalry (10, `requiredTag: windlander`).
 - **Combat items ride a fixed six-tier ladder.** Weapons and armor are priced
   from the tier they sit in, not by feel. See
   [`SMITHING.md`](SMITHING.md) for the table.

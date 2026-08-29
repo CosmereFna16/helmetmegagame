@@ -12,7 +12,7 @@ import {
   tagsById as buildTagsById,
   effectiveTotalCost,
   effectiveCost,
-  negativeTagCount,
+  negativeTagPoints,
 } from "@/lib/characterCreation";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import InfoIcon from "@/app/components/InfoIcon";
@@ -167,7 +167,7 @@ export default function CreateCharacterWizard({
   // Only what's bought here counts against the cap — a role's free drawback
   // (the Meister's Frail, the Headman's Old) lands as GM_GRANT and sits in
   // grantedTags, which this deliberately doesn't look at.
-  const drawbacks = negativeTagCount(selectedTags);
+  const drawbackPoints = negativeTagPoints(selectedTags);
 
   // Four seats fix their holder's gender rather than letting them choose:
   // Baron and Heir are men, Baroness and Successor are women. Same four roles
@@ -280,7 +280,7 @@ export default function CreateCharacterWizard({
   const oneWord = (s) => s.trim().length > 0 && !/\s/.test(s.trim());
   const canAdvance =
     (step === 0 && role !== null) ||
-    (step === 1 && remaining >= 0 && drawbacks <= maxNegativeTags) ||
+    (step === 1 && remaining >= 0 && drawbackPoints <= maxNegativeTags) ||
     // Gender is required and has no default, so it gates alongside the name.
     // A locked seat supplies it, so those players only have the name to fill.
     (step === 2 &&

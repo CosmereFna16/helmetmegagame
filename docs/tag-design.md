@@ -44,10 +44,13 @@ Negative tags return points, on a mirrored scale:
 Pilgrim is the one deliberate exception, priced at 1 — off this scale
 entirely, Gunboat's call.
 
-**You can take at most 4 negative tags.** (A GM can change that number, so
-the point-buy menu always shows the live limit next to your points.) Only
-what you buy yourself counts — a drawback your role hands you for free, and
-anything that happens to you in play, does not use up one of the four.
+**You can take at most 8 points' worth of negative tags.** (A GM can change
+that number, so the point-buy menu always shows the live limit next to your
+points, in red once you're over it.) It's a cap on the sum of what your
+drawbacks grant, not on how many you hold — one −8 drawback and eight −1
+drawbacks spend the same slice of the cap. Only what you buy yourself counts
+— a drawback your role hands you for free, and anything that happens to you
+in play, does not use up any of it.
 
 **0 is a valid cost and the most common one.** A tag that cannot be bought —
 an injury, a status, a meal, something a role grants — still needs the field,

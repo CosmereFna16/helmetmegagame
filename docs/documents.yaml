@@ -341,16 +341,17 @@ documents:
 
       - Weapons: {tag:work-knife}, {tag:hatchet}, {tag:pitchfork}, {tag:sling},
         {tag:quarterstaff}, {tag:shortbow}
-      - Armor: {tag:buckler}, {tag:mail-coif}, {tag:padded-armor}
-      - Padded Armor needs Crafting. Mail Coif needs Smithing. Everything else
-        here takes either skill.
+      - Armor: {tag:buckler}, {tag:padded-armor}, {tag:padded-cap}
+      - Padded Armor and Padded Cap need Crafting. Everything else here takes
+        either skill.
 
       **Simple — 7 ⬢, 1 turn**
 
       - Weapons: {tag:spear}, {tag:dagger}, {tag:silver-knife}, {tag:gladius},
         {tag:phrygian-spear}, {tag:mace}, {tag:battle-axe}
-      - Armor: {tag:simple-helm}
-      - Crafting instead of Smithing: {tag:longbow}, {tag:shield}, {tag:pavise}
+      - Armor: {tag:simple-helm}, {tag:mail-coif}
+      - Mail Coif needs Smithing. Crafting instead of Smithing: {tag:longbow},
+        {tag:shield}, {tag:pavise}
 
       **Moderate — 17 ⬢, 1 turn**
 

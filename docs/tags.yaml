@@ -467,12 +467,21 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
+  - slug: depressed
+    name: Depressed
+    category: general
+    group: general-traits
+    description: "Until this is somehow fixed, you can no longer take Desires."
+    pointCost: -7
+    purchasable: true
+    purchasableAfterStart: false
+
   - slug: alcoholic
     name: Alcoholic
     category: general
     group: general-traits
-    description: "A depraved way of life. You've chosen it."
-    pointCost: -5
+    description: "A depraved way of life. You've chosen it. {tag:alcohol} can't fulfill your Desires, but you must drink it regardless. {tag:ravenheart-red} still pleases you, though, although less than other people."
+    pointCost: -3
     purchasable: true
     purchasableAfterStart: false
 
@@ -1008,7 +1017,7 @@ tags:
     category: general
     group: general-traits
     description: "Another character saved your life, and now it's theirs for the taking. Choose a random person in your faction and let them know of this."
-    pointCost: -7
+    pointCost: -4
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -1758,6 +1767,17 @@ tags:
     group: skills-fighting
     description: "While using clubs, your fighting skill is two levels higher."
     pointCost: 10
+    requiredTag: melee-basic
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: melee-flamboyant
+    name: Melee (Flamboyant)
+    category: skills
+    group: skills-fighting
+    description: "While fighting without armor, your melee skill counts as two tiers higher."
+    pointCost: 7
     requiredTag: melee-basic
     visible: false
     purchasable: true
@@ -3342,7 +3362,6 @@ tags:
     group: assets-companions
     description: "Normally, it fits in the palm of your hand, but lately it's taken the disguise of a bird and spends most of its time in the forest. Neither of you like each other—it seems to wish it was back with the other Minds. It is relatively human, but its intelligence and abilities are completely beyond you. It doesn't seem to have any combat abilities. You could assign it to collect information or similar, but it might not always listen."
     pointCost: 0
-    requiredTag: diplomat
     purchasable: false
     visible: false
 
@@ -4546,6 +4565,7 @@ tags:
     group: items-weapons
     description: "A gentleman's cane, filled with three feet of steel."
     pointCost: 7
+    depotPrice: 28
     equippable: true
     tradeable: true
     visible: false
@@ -4901,7 +4921,7 @@ tags:
     name: Merchant's Garb
     category: items
     group: items-special
-    description: "The elaborate outfit of a wealthy Merchant. Exotic furs and silks go a long way toward disguising the cold metal beneath."
+    description: "The elaborate outfit of a wealthy Merchant. Exotic furs and silks go a long way toward disguising the thin breastplate beneath—and the couple bionic pumps, which serve some unknown, impractical purpose."
     pointCost: 0
     equippable: true
     visible: true
@@ -6162,11 +6182,11 @@ tags:
     sellable: true
     sellablePrice: 4
 
-  - slug: mail-coif
-    name: Mail Coif
+  - slug: padded-cap
+    name: Padded Cap
     category: items
     group: items-armor
-    description: "A mail hood covering the head and neck, worn under a helmet."
+    description: "Cushioned. Turns away blows."
     pointCost: 2
     equippable: true
     visible: true
@@ -6177,7 +6197,7 @@ tags:
     requirement:
       turnsCost: 0
       resourceCost: 3
-      skills: [smithing]
+      skills: [crafting]
     sellable: true
     sellablePrice: 4
 
@@ -6206,6 +6226,25 @@ tags:
     category: items
     group: items-armor
     description: "An open helmet."
+    pointCost: 5
+    equippable: true
+    visible: true
+    tradeable: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 7
+      skills: [smithing]
+    sellable: true
+    sellablePrice: 9
+
+  - slug: mail-coif
+    name: Mail Coif
+    category: items
+    group: items-armor
+    description: "A mail hood covering the head and neck, worn under a helmet."
     pointCost: 5
     equippable: true
     visible: true
@@ -6385,6 +6424,17 @@ tags:
     equippable: true
     visible: true
     tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  - slug: silver-cross
+    name: Silver Cross
+    category: items
+    group: items-special
+    description: "Holding it, you feel chastised."
+    pointCost: 0
+    visible: true
+    tradeable: true
     purchasable: false
     purchasableAfterStart: false
 
@@ -6615,7 +6665,7 @@ tags:
     category: bacchus
     group: bacchus
     description: "Pain doesn't bother you, nor does fear."
-    pointCost: 9
+    pointCost: 6
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -6702,6 +6752,72 @@ tags:
     purchasable: false
     removable: true
     durationTurns: 1
+
+  - slug: death-wish
+    name: "Death Wish"
+    category: bacchus
+    group: bacchus
+    description: "The only valid Desires for you are near-death occurrences."
+    pointCost: -5
+    purchasable: true
+    purchasableAfterStart: true
+    removable: false
+    consumable: false
+
+  - slug: addiction-romantic
+    name: "Addiction: Romantic"
+    category: bacchus
+    group: bacchus
+    description: "The only valid Desires for you are related to romance. Do not take with other Addiction tags."
+    pointCost: -5
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    consumable: true
+
+  - slug: addiction-cruel
+    name: "Addiction: Cruel"
+    category: bacchus
+    group: bacchus
+    description: "The only valid Desires for you are related to cruelty. Do not take with other Addiction tags."
+    pointCost: -5
+    purchasable: true
+    purchasableAfterStart: true
+    removable: false
+    consumable: fals
+
+  - slug: addiction-glutton
+    name: "Addiction: Glutton"
+    category: bacchus
+    group: bacchus
+    description: "The only valid Desires for you are related to {tag:lavish-meal}, {tag:sweets}, and other expensive foods—not fine meals. Do not take with other Addiction tags."
+    pointCost: -5
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    consumable: true
+
+  - slug: addiction-drugs
+    name: "Addiction: Drugs"
+    category: bacchus
+    group: bacchus
+    description: "The only valid Desires for you are related to recreational drugs. Do not take with other Addiction tags."
+    pointCost: -5
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    consumable: true
+
+  - slug: addiction-drugs
+    name: "Addiction: Drugs"
+    category: bacchus
+    group: bacchus
+    description: "The only valid Desires for you are related to recreational drugs. Do not take with other Addiction tags."
+    pointCost: -5
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    consumable: true
 
   # Not cult-gated: an Instant Camera can be handed to anyone. Purchasable at
   # start like every other item (TAGS.md §4a: items are never

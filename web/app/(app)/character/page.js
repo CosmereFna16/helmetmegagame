@@ -288,15 +288,18 @@ export default async function CharacterPage() {
   const storeHeldTags = storeTags
     .filter((t) => heldSet.has(t.id))
     .map((t) => ({ id: t.id, name: t.name }));
-  // Drawbacks already spent, for PointBuy's counter. Every negative tag is
-  // purchasableAfterStart: false, so the store can't sell one and this number
-  // can't move here — it is shown so a player knows where they stand, not to
-  // gate the cart. Only POINT_BUY counts: a GM-inflicted wound is not a
-  // choice the player made with their points.
+  // Drawback points already spent, for PointBuy's counter. Every negative tag
+  // is purchasableAfterStart: false, so the store can't sell one and this
+  // number can't move here — it is shown so a player knows where they stand,
+  // not to gate the cart. Only POINT_BUY counts: a GM-inflicted wound is not
+  // a choice the player made with their points. Summed as points, not
+  // counted as tags — see negativeTagPoints in lib/characterCreation.js.
   const storeCostById = new Map(storeTags.map((t) => [t.id, t.pointCost]));
-  const storeNegativeHeld = character.tags.filter(
-    (ct) => ct.source === "POINT_BUY" && (storeCostById.get(ct.tagId) ?? 0) < 0,
-  ).length;
+  const storeNegativeHeld = character.tags.reduce((sum, ct) => {
+    if (ct.source !== "POINT_BUY") return sum;
+    const cost = storeCostById.get(ct.tagId) ?? 0;
+    return cost < 0 ? sum - cost : sum;
+  }, 0);
 
   // Both ends of a transfer list every Silo and every living player,
   // INCLUDING yourself — pulling ⬢ out of a Silo into your own pocket is the

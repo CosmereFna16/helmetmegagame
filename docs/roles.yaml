@@ -107,8 +107,9 @@ zones:
                 A note: there is a trapdoor in the throne room that drops into a dark pit. There's a Graga there, a true monster.
             difficulty: hard
             multiple: false
-            starting_resources: 12
+            starting_resources: 5
             starting_zone: fortress
+            extra_starting_points: 7
             leader: true
             starting_tags:
               - Ravenhearter
@@ -166,6 +167,7 @@ zones:
             multiple: false
             starting_resources: 1
             starting_zone: fortress
+            extra_starting_points: 5
             starting_tags:
               - Ravenhearter
               - Courtier
@@ -225,6 +227,7 @@ zones:
             multiple: false
             starting_resources: 1
             starting_zone: fortress
+            extra_starting_points: 7
             treasurer: true
             starting_tags:
               - Ravenhearter
@@ -257,7 +260,7 @@ zones:
                 A note: there is a trapdoor in the throne room that drops into a dark pit. There's a Graga there, a true monster.
             difficulty: normal
             multiple: false
-            starting_resources: 1
+            starting_resources: 2
             starting_zone: fortress
             treasurer: true
             starting_tags:
@@ -390,7 +393,6 @@ zones:
               - Watchman
               - Tactician
               - Melee (Trained)
-              - Dog
               - Disabler
               - Radio System (Watch)
               - Radio Bracelet (Watch)
@@ -430,8 +432,8 @@ zones:
               - Pious
               - Incarn's Key
               - Cudgel
-              - Simple Helm
-              - Buckler
+              - Watch Badge
+              - Disabler
               - Mail Coif
               - Mail Shirt
             doc_elements:
@@ -678,6 +680,11 @@ zones:
             starting_tags:
               - Ravenhearter
               - Pious
+              - Melee (Basic)
+              - War Hammer
+              - Silver Knife
+              - Shield
+              - Mail Shirt
               - Post-Christian
               - Inquisitor's Longcoat
             doc_elements:
@@ -703,12 +710,15 @@ zones:
                 One other thing: the Incarn holds the Silver Cross, an artifact blessed to defeat evil. Secure it from him.
             difficulty: easy
             multiple: true
-            weight: 3
+            weight: 2
             starting_resources: 1
             starting_zone: town
             starting_tags:
               - Ravenhearter
               - Pious
+              - Melee (Basic)
+              - Mail Shirt
+              - Cudgel
               - Post-Christian
               - Practicii's Robes
             doc_elements:
@@ -801,9 +811,10 @@ zones:
             starting_zone: town
             starting_tags:
               - Ravenhearter
-              - Melee (Trained)
+              - Melee (Basic)
               - Ranged (Basic)
               - Neoclassic R&W10
+              - Cudgel
               - House
               - Sheriff's Badge
             doc_elements:
@@ -881,7 +892,6 @@ zones:
             starting_zone: town
             starting_tags:
               - Ravenhearter
-              - Insightful
             doc_elements:
               - townstarting
               - independent
@@ -901,9 +911,10 @@ zones:
             weight: 2
             starting_resources: 2
             starting_zone: town
-            extra_starting_points: 4
+            extra_starting_points: 7
             starting_tags:
               - Ravenhearter
+              - Laborer
               - Forester
               - Old Ways (Sylvia)
             doc_elements:
@@ -976,7 +987,6 @@ zones:
               - Ravenhearter
               - Brewing (Skilled)
               - Bliss
-              - Cat
               - Poppy
               - Advanced Poppy
               - Distilled Coca
@@ -1002,7 +1012,7 @@ zones:
                 You are responsible for paying your staff. They have to eat.
             difficulty: normal
             multiple: false
-            starting_resources: 10
+            starting_resources: 9
             starting_zone: town
             leader: true
             starting_tags:
@@ -1062,10 +1072,11 @@ zones:
             leader: true
             starting_tags:
               - Brigand
-              - Melee (Trained)
+              - Melee (Basic)
               - Ranged (Basic)
-              - Brigandine
-              - Simple Helm
+              - Padded Armor
+              - Broadsword
+              - Mail Coif
               - Buckler
               - Crossbow
             doc_elements:
@@ -1096,7 +1107,8 @@ zones:
               - Ranged (Basic)
               - Dagger
               - Padded Armor
-              - Mail Coif
+              - Gladius
+              - Padded Cap
               - Buckler
               - Shortbow
             doc_elements:
@@ -1132,9 +1144,10 @@ zones:
             multiple: false
             starting_resources: 1
             starting_zone: windlands
+            extra_starting_points: 2
             leader: true
             starting_tags:
-              - Melee (Trained)
+              - Melee (Basic)
               - Windlander
               - Tactician
               - Sabre
@@ -1158,7 +1171,7 @@ zones:
               You taught the Bastard how to fight, how to play the lute, how to survive. You will follow him even into death.
             description:
               - >-
-                You taught the Bastard how to fight, how to play the lute, how to survive. You will follow him even into death.
+                You taught the Bastard how to fight, how to play the lute, how to survive. You will follow him even into death. However, the love of your life died on the war trail. You are slightly broken inside.
             difficulty: normal
             multiple: false
             starting_resources: 1
@@ -1166,11 +1179,15 @@ zones:
             starting_tags:
               - Musician
               - Brave
-              - Melee (Skilled)
+              - Melee (Trained)
+              - Melee (Duelist)
               - Ranged (Basic)
               - Knight's Helmet
+              - Depressed
+              - Dagger
+              - Bastard Sword
               - Mail Coif
-              - Mail Shirt
+              - Brigandine
               - Windlander
               - Sign Language
               - The Wind
@@ -1192,6 +1209,7 @@ zones:
               - Sign Language
               - Laborer (Basic)
               - Keen Hearing
+              - Dagger
               - Sixth Sense
               - Medical (Basic)
               - The Wind
@@ -1243,11 +1261,12 @@ zones:
             starting_zone: windlands
             leader: true
             starting_tags:
-              - Melee (Trained)
+              - Melee (Basic)
               - Windlander
               - Tactician
               - Battle Axe
               - Mail Shirt
+              - Ranged (Basic)
               - Simple Helm
               - Sign Language
               - The Wind
@@ -1273,7 +1292,7 @@ zones:
               - Brewing (Skilled)
               - Musician
               - Medical (Basic)
-              - Melee (Skilled)
+              - Melee (Trained)
               - Ranged (Basic)
               - Battle Axe
               - Salvage Plate
@@ -1335,7 +1354,9 @@ zones:
               - Windlander
               - Tactician
               - Sign Language
-              - Melee (Trained)
+              - Melee (Basic)
+              - Ranged (Basic)
+              - Shortbow
               - The Wind
               - Windrider Banner
               - Gladius
@@ -1366,7 +1387,7 @@ zones:
               - The Wind
               - Spotter
               - Ranged (Skilled)
-              - Melee (Trained)
+              - Melee (Basic)
               - Mail Shirt
               - Mail Coif
               - Tracking
@@ -1487,6 +1508,11 @@ zones:
             starting_zone: caverns
             starting_tags:
               - Melee (Basic)
+              - Ranged (Basic)
               - Dagger
-              - Mace
+              - Battle Axe
+              - Mail Shirt
+              - Buckler
+              - Mail Coif
+              - Shortbow
             doc_elements: [caving]

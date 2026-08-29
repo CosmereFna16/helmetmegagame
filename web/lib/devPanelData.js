@@ -177,7 +177,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       equipped: ct.equipped,
       expiresTurn: ct.expiresTurn,
       source: ct.source,
-      // For the state strip's drawback count — a negative pointCost is
+      // For the state strip's drawback point total — a negative pointCost is
       // what makes a tag a drawback (TAGS.md §4a).
       pointCost: ct.tag.pointCost,
     })),

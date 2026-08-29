@@ -439,8 +439,13 @@ export default function ActionBar({
             <p className="text-sm text-muted">
               Removes the character and their Moves, Requests, Desires, and tags. This also cleans up their Discord permissions. Their notes and archive posts stay. This is permanent.
             </p>
+            {/* Not .field-label: that class is uppercase, and the name below
+                must be typed verbatim — an uppercased label made a correctly
+                typed name look wrong forever. */}
             <label className="field">
-              <span className="field-label">Type “{character.name}” to confirm</span>
+              <span className="text-sm">
+                Type <strong>{character.name}</strong> to confirm
+              </span>
               <input value={draft} onChange={(e) => setDraft(e.target.value)} />
             </label>
             <FormError>{error}</FormError>

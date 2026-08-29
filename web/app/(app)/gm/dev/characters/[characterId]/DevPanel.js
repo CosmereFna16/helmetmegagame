@@ -359,11 +359,15 @@ function StateStrip({
 }) {
   const equipped = held.filter((h) => h.equipped).length;
   // Point-bought drawbacks only, matching the cap PointBuy enforces — a
-  // GM-inflicted wound is not one of the player's slots. Shown as a fact, not
-  // a limit: a GM grant deliberately ignores every gate, this one included.
-  const drawbacks = held.filter(
-    (h) => h.source === "POINT_BUY" && (h.pointCost ?? 0) < 0,
-  ).length;
+  // GM-inflicted wound is not one of the player's points. Shown as a fact,
+  // not a limit: a GM grant deliberately ignores every gate, this one
+  // included. Summed as points, not counted as tags — see negativeTagPoints.
+  const drawbackPoints = held.reduce((sum, h) => {
+    if (h.source !== "POINT_BUY") return sum;
+    const cost = h.pointCost ?? 0;
+    return cost < 0 ? sum - cost : sum;
+  }, 0);
+  const overDrawbackCap = drawbackPoints > maxNegativeTags;
   // Four labeled clusters instead of one undifferentiated 15-fact grid, so a
   // GM's eye lands on the right group instead of scanning the whole strip.
   // Purely presentational — every value below is unchanged from before.
@@ -386,7 +390,12 @@ function StateStrip({
         ["Resources", `${staged.resources} ⬢`],
         ["Tag points", <TagPointsValue key="tp" points={staged.tagPoints} />],
         ["Equipment", `${equipped} / ${equipSlots}`],
-        ["Drawbacks", `${drawbacks} / ${maxNegativeTags}`],
+        [
+          "Drawbacks",
+          <span key="db" style={overDrawbackCap ? { color: "var(--danger)" } : undefined}>
+            −{drawbackPoints} / {maxNegativeTags}
+          </span>,
+        ],
         ["Gambit", gambitModifier > 0 ? `+${gambitModifier}` : String(gambitModifier)],
       ],
     ],
