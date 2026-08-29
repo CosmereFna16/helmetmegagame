@@ -232,7 +232,20 @@ someone gets their Appendicitis; the man beside them gets nothing. Those rows
 are marked `· your diagnosis`, because the patient isn't showing it to the room
 — repeating it aloud is saying something nobody else could know.
 `db/lib/medicalVision.js` decides it, and a cure needing a Gambit stays hidden
-even from an Expert, since guessing isn't diagnosing.
+even from an Expert, since guessing isn't diagnosing. Those Health rows are
+also the only ones that print what the tag costs (`TAGS.md` §5) — everything
+else on the embed is a bare name.
+
+The **Desire** field on that same embed is bought by exactly one tag, the
+Demoness's Seductive (`db/lib/inspectVision.js`), and closed by
+**Inscrutable**, the one rule in that file read off the *subject* rather than
+the viewer. A closed read renders `Nothing you can read.` — byte for byte what
+a subject with no active Desire produces, so a reader cannot tell "they're
+guarded" from "there's nothing there", and holding Inscrutable never
+advertises itself. Empathetic (slug `seductive`) and Mindreading buy no field
+at all: both read a Desire on a Gambit after a conversation, and that is the
+GM's call, not the bot's. Being free and silent is what the Demoness tag is
+paying its extra point for.
 - **✏️/❌** are unchanged; both already gate on `proxy.discordUserId`.
 
 The archive records **both halves** — `ArchiveEntry.concealedAlias` alongside

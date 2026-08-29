@@ -1,7 +1,7 @@
 const { EmbedBuilder } = require("discord.js");
 const { prisma, formatTagRequirement, turnsLeft, formatTurnsLeft, concealedLine } = require("@lifeweb/db");
 const { getSiloAccess } = require("@lifeweb/db/lib/factionPermissions");
-const { inspectVision } = require("@lifeweb/db/lib/inspectVision");
+const { inspectVision, isInscrutable } = require("@lifeweb/db/lib/inspectVision");
 const {
   HEALTH_CATEGORY,
   buildSkillAncestry,
@@ -337,7 +337,9 @@ module.exports = {
       if (!isOwner) return;
       let dm;
       try {
-        ({ dm } = await sendDm(user, "» *Reply here with the new text for that message (60 seconds).*"));
+        ({ dm } = await sendDm(user, "» *Reply here with the new text for that message (60 seconds).*", {
+          source: "system_notice",
+        }));
       } catch {
         return;
       }
@@ -363,8 +365,8 @@ module.exports = {
         // it, or a rejected edit (too old) would leave /archive showing text
         // that was never actually posted.
         .then(() => updateArchiveMessage(prisma, reaction.message.id, reply.content))
-        .then(() => sendDm(user, "» *Updated.*"))
-        .catch(() => sendDm(user, "» *Couldn't update that message, it may be too old.*"));
+        .then(() => sendDm(user, "» *Updated.*", { source: "system_notice" }))
+        .catch(() => sendDm(user, "» *Couldn't update that message, it may be too old.*", { source: "system_notice" }));
       await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
       return;
     }
@@ -386,7 +388,7 @@ module.exports = {
         const { canSeeDesire, ragingBlind } = inspectVision(viewer?.tags ?? []);
         if (ragingBlind) {
           try {
-            await sendDm(user, "No time, no time!");
+            await sendDm(user, "No time, no time!", { source: "system_notice" });
           } catch (err) {
             console.error("Inspect reaction DM failed (raging):", err);
           }
@@ -479,14 +481,17 @@ module.exports = {
           buildSkillAncestry(skillCatalog),
         );
 
-        // Each entry is the tag name, plus a parenthetical carrying the minified
-        // "cost to add/remove" (see formatTagRequirement, @lifeweb/db) and how
-        // long it has left, whichever are set. Same `·` separator the web
-        // tooltip uses, so both faces of the game read alike — mind Discord's
+        // Each entry is the tag name, plus a parenthetical carrying how long it
+        // has left and — for a Health tag only — the minified cost to treat it
+        // (see formatTagRequirement, @lifeweb/db). Health only, because that
+        // block reads as a doctor's bill on an affliction and as a recipe on
+        // anything else: a bystander glancing at a worn sword has no business
+        // learning what forging one takes. Same `·` separator the web tooltip
+        // uses, so both faces of the game read alike — mind Discord's
         // 1024-char embed field cap.
         const visibleTags = medicallyVisibleTags(character.tags, satisfied).map(({ characterTag: ct, viaSkill }) => {
           const bits = [
-            formatTagRequirement(ct.tag, { resources: false }),
+            ct.tag.category === HEALTH_CATEGORY ? formatTagRequirement(ct.tag) : null,
             formatTurnsLeft(turnsLeft(ct.expiresTurn, openTurn?.number)),
             // Only the reader is seeing this one. Worth saying so plainly: the
             // patient isn't showing it to the room, and a medic who repeats it
@@ -515,11 +520,18 @@ module.exports = {
         // scripted. Absence still means "you can't see this" to everyone
         // without the tag, so the no-advertising rule for non-holders is
         // untouched.
+        //
+        // Inscrutable closes the read, and it closes it as "nothing there"
+        // rather than as a blocked field — the exact line a subject with no
+        // active Desire produces. A reader can't tell the two apart, which is
+        // the whole point of buying it.
         if (canSeeDesire) {
-          const desire = await prisma.desire.findFirst({
-            where: { characterId: character.id, status: "ACTIVE" },
-            select: { text: true, points: true },
-          });
+          const desire = isInscrutable(character.tags)
+            ? null
+            : await prisma.desire.findFirst({
+                where: { characterId: character.id, status: "ACTIVE" },
+                select: { text: true, points: true },
+              });
           embed.addFields({
             name: "Desire",
             value: desire ? fitField(`${desire.text} (+${desire.points})`) : "Nothing you can read.",

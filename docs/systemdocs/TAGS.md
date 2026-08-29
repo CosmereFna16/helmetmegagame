@@ -456,8 +456,14 @@ them).
   narratively relevant to a given tag, rather than separate blocks per
   direction. Rendered everywhere a tag's description already renders, in a
   minified form, via `formatTagRequirement()` (`db/lib/formatTagRequirement.js`,
-  exported from `@lifeweb/db`) — see `TagChip.js`, `PointBuy.js`, and the
-  🔍-inspect embed in `bot/src/events/messageReactionAdd.js`.
+  exported from `@lifeweb/db`) — see `TagChip.js` and `PointBuy.js`.
+  The one surface that does **not** render it wholesale is the 🔍-inspect
+  embed (`bot/src/events/messageReactionAdd.js`), which shows it for
+  **Health-category tags only**. The same block reads as a doctor's bill on an
+  affliction and as a recipe on everything else, and a bystander glancing at a
+  worn sword has no business learning what forging one costs. On the Health
+  rows the ⬢ *is* shown; every other visible tag is a bare name plus its
+  turns-left badge.
 
 ## 5a. Stacks
 

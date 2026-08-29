@@ -16,12 +16,16 @@ const LABORER_SKILLED_SLUG = "laborer-skilled";
 const LABORER_FARMING_SLUG = "laborer-farming";
 const CATATONIC_SLUG = "catatonic";
 
-// The "read someone else's sheet" tag and its discounted Demoness
-// twin — see db/lib/inspectVision.js, the only reader. Mindreading is the
-// Succubus Draught's grant and buys the same sight.
-const SEDUCTIVE_SLUG = "seductive";
+// The one "read someone else's sheet" tag — see db/lib/inspectVision.js, the
+// only reader. This is the Demoness Seductive, not its general-category cousin
+// Empathetic (slug `seductive`), which is deliberately NOT here; nor is
+// Mindreading, the Succubus Draught's grant. Both of those read a Desire on a
+// Gambit after a conversation, which no code adjudicates.
 const SEDUCTIVE_DEMONESS_SLUG = "seductive-demoness";
-const MINDREADING_SLUG = "mindreading";
+
+// The counter to both of the above, read off the SUBJECT rather than the
+// viewer — see db/lib/inspectVision.js.
+const INSCRUTABLE_SLUG = "inscrutable";
 
 // Gates the hidden Demoness tag category (via the `demoness` group's
 // requiredTag in docs/taggroups.yaml).
@@ -54,9 +58,8 @@ module.exports = {
   LABORER_SKILLED_SLUG,
   LABORER_FARMING_SLUG,
   CATATONIC_SLUG,
-  SEDUCTIVE_SLUG,
   SEDUCTIVE_DEMONESS_SLUG,
-  MINDREADING_SLUG,
+  INSCRUTABLE_SLUG,
   DEMONESS_SLUG,
   RAGE_SLUG,
 };
