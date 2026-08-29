@@ -5,8 +5,8 @@ How a turn closes and the next one opens. One function owns it —
 pass it calls or a side effect it hands back.
 
 Turns advance **twice a day, 12:00 and 00:00 America/Chicago**, strictly
-alternating: a DAWN turn opens at noon and runs to midnight, a DUSK turn opens
-at midnight and runs to noon. The schedule lives in `bot/src/events/ready.js`'s
+alternating: a DAWN turn opens at midnight and runs to noon, a DUSK turn opens
+at noon and runs to midnight. The schedule lives in `bot/src/events/ready.js`'s
 cron. The advance is also **the push**: everything the GMs staged during the
 closing turn — mechanical effects, private messages, public declarations, and
 every Move's own declared payout — applies and delivers here, and nowhere

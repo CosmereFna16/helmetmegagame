@@ -595,16 +595,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  - slug: honest
-    name: Honest
-    category: general
-    group: general-traits
-    description: "You can't lie no matter what—nor can you withhold the truth. A good thing to be."
-    pointCost: -2
-    visible: true
-    purchasable: true
-    purchasableAfterStart: false
-
   # Granted as a starting tag to the Captain, the Bastard, and both Windlands
   # Lieutenants — the leadership seats across the Watch and the Windlands
   # camp. Left purchasable so anyone else can buy their way into the
@@ -940,7 +930,7 @@ tags:
     name: Pacifist
     category: general
     group: general-traits
-    description: "You will never, ever kill. God smiles upon you; so do your enemies."
+    description: "You will never, ever attack someone except in self defense. And even in self defense, you won't kill. Fighting disgusts you, but God smiles upon you."
     pointCost: -5
     purchasable: true
     purchasableAfterStart: false

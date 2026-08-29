@@ -104,9 +104,10 @@ function zonedTimeToUtc(y, m, d, h, min, s, timeZone) {
 }
 
 // Given the phase of the turn that just opened, returns the epoch seconds
-// (for a Discord <t:> tag) of the boundary when it closes: DAWN closes at
-// midnight the same Chicago day it opened (i.e. hour 0 the next calendar
-// day), DUSK closes at noon the same Chicago day it opened.
+// (for a Discord <t:> tag) of the boundary when it closes: DAWN opens at
+// midnight and closes at noon the same Chicago day (dawn breaks somewhere in
+// that stretch), DUSK opens at noon and closes at midnight (hour 0 the next
+// calendar day) — dusk falls somewhere in that stretch.
 function turnEndEpochSeconds(phase) {
   const timeZone = "America/Chicago";
   const nowParts = new Intl.DateTimeFormat("en-US", {
@@ -120,8 +121,8 @@ function turnEndEpochSeconds(phase) {
       acc[p.type] = p.value;
       return acc;
     }, {});
-  const targetHour = phase === "DAWN" ? 0 : 12;
-  const dayOffset = phase === "DAWN" ? 1 : 0;
+  const targetHour = phase === "DAWN" ? 12 : 0;
+  const dayOffset = phase === "DAWN" ? 0 : 1;
   const utcMs = zonedTimeToUtc(
     Number(nowParts.year),
     Number(nowParts.month),

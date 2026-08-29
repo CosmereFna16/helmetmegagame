@@ -896,6 +896,7 @@ zones:
             starting_zone: town
             starting_tags:
               - Ravenhearter
+              - Literate
             doc_elements:
               - townstarting
               - independent
@@ -968,6 +969,7 @@ zones:
             weight: 5
             starting_resources: 1
             starting_zone: town
+            extra_starting_points: -3
             starting_tags:
               - Ravenhearter
               - Unhygenic
