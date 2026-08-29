@@ -6784,7 +6784,7 @@ tags:
     purchasable: true
     purchasableAfterStart: true
     removable: false
-    consumable: fals
+    consumable: false
 
   - slug: addiction-glutton
     name: "Addiction: Glutton"

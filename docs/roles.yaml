@@ -914,7 +914,7 @@ zones:
             extra_starting_points: 7
             starting_tags:
               - Ravenhearter
-              - Laborer
+              - Laborer (Basic)
               - Forester
               - Old Ways (Sylvia)
             doc_elements:
