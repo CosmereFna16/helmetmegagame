@@ -42,16 +42,32 @@ export const SHIFT_X = 5;
 // TILE, so nearest-neighbour stays crisp through the extra step.
 export const BUST_PX = 320;
 
-// Where that crop window sits. Plain centred-in-x and bottom-anchored (the
-// window at 32, 64) left the head reading high and right in the plaque, so
-// the two nudges move it: fractions of CANVAS, negative x for left, positive
-// y for down. Change these, not the arithmetic below — both renderers read
-// CROP_X/CROP_Y from here, which is what keeps them pixel-identical.
-export const NUDGE_X = -0.08;
-export const NUDGE_Y = 0.3;
+// Where that crop window sits, as fractions of CANVAS: negative x moves the
+// head left, positive y moves it down. Change these two, never the arithmetic
+// under them — both renderers import the resulting CROP_X/CROP_Y from here,
+// and that shared window is what keeps them pixel-identical.
+//
+// Both numbers are measured, not taste. Strict bottom-anchoring (the window
+// at y 64) cut the crown off 23 of the 66 hair, cranium and headwear tiles —
+// a third of the catalog wearing its plaque like a low ceiling, which is what
+// read as badly centred. Sliding the window up fixes that fast and then
+// stops paying: 0.06 takes it to 9 tiles clipped, 0.08 to 8, and everything
+// out to 0.18 only reaches 5 while steadily trading the chin for empty plate
+// above the head. So 0.08, just past the knee.
+export const NUDGE_Y = 0.08;
+// These heads are three-quarter, not frontal: the skull's ink centres at x 150
+// in bust space while the nose centres at 204. Strict x-centring therefore put
+// the FACE well right of the plaque's middle even with the head mass square in
+// it. -0.03 lands the head mass a couple of pixels left of centre, which reads
+// centred and leaves the looking room on the side the face is turned toward.
+// It also stays clear of the left edge: the widest hair-back tile keeps a
+// 12px margin, and nothing in the catalog clips.
+export const NUDGE_X = -0.03;
+
 export const CROP_X = Math.round((BUST_PX - CANVAS) / 2 - NUDGE_X * CANVAS);
-// Negative once NUDGE_Y passes 0.25 — the window runs off the top of the
-// bust, and the renderers pad for it rather than clamping. See render.js.
+// Goes negative past a NUDGE_Y of 0.25 — the window would run off the top of
+// the bust. It doesn't at 0.08, but the renderers pad for it rather than
+// clamp, so the constants above stay free to move. See render.js.
 export const CROP_Y = Math.round(BUST_PX - CANVAS - NUDGE_Y * CANVAS);
 
 export const FADE_HEIGHT = 0.3; // fraction of CANVAS the gradient covers, from the bottom

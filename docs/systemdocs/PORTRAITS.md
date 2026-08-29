@@ -114,13 +114,27 @@ register this setting is in.
 The art is drawn left of its tile's centre: across every part in every sheet
 the ink spans x 16..104, centre 60 rather than 64. `SHIFT_X` undoes that, or
 the bust visibly hugs the left edge of its plaque. That one is a correction to
-the sheets. Where the head then *sits* in the plaque is a separate, purely
-aesthetic choice, and it lives in `NUDGE_X` / `NUDGE_Y` — fractions of
-`CANVAS`, negative x for left, positive y for down. Plain centred-in-x and
-bottom-anchored read as high and right, so they currently move it 8% left and
-30% down. **Dial those two constants, never the crop arithmetic under them**:
-both renderers import the resulting `CROP_X` / `CROP_Y` from `catalog.js`,
-which is what keeps them pixel-identical.
+the sheets. Where the head then *sits* in the plaque is a separate question,
+and it lives in `NUDGE_X` / `NUDGE_Y` — fractions of `CANVAS`, negative x for
+left, positive y for down. **Dial those two constants, never the crop
+arithmetic under them**: both renderers import the resulting `CROP_X` /
+`CROP_Y` from `catalog.js`, which is what keeps them pixel-identical.
+
+Both are measured rather than eyeballed, and it is worth knowing what they
+measure before moving them:
+
+- **`NUDGE_Y` = 0.08.** Strict bottom-anchoring cut the crown off **23 of the
+  66** hair, cranium and headwear tiles. Sliding the window up pays out fast
+  and then stops: 0.06 leaves 9 clipped, 0.08 leaves 8, and everything out to
+  0.18 only reaches 5 while steadily trading chin for empty plate. 0.08 is
+  just past that knee.
+- **`NUDGE_X` = -0.03.** These heads are three-quarter, not frontal — the
+  skull's ink centres at x 150 in bust space while the nose centres at 204.
+  Centring the frame on the *tile* therefore threw the face well right of the
+  plaque's middle. -0.03 puts the head mass a couple of pixels left of centre,
+  which reads centred and leaves looking room on the side the face is turned
+  toward. Nothing in the catalog clips at the left; the widest `hair-back`
+  tile keeps a 12px margin, which is the budget if you push it further.
 
 Scaling is 128 → `BUST_PX` (320) → cropped back to `CANVAS` (256) at that
 window, with a **nearest** kernel throughout in
@@ -135,12 +149,14 @@ finished bust. `FADE_TINT` must track `TINT` in `generate-letters.js` — they
 are meant to read as the same shadow, and drift between them would show.
 
 Past a `NUDGE_Y` of 0.25 the crop window runs off the top of the bust and
-`CROP_Y` goes negative. A canvas clips that on its own, but sharp's
-`extract()` refuses a window that overhangs at all, so `render.js` pads the
-bust with transparency first (`PAD_TOP` and its three siblings, all 0 at a
-nudge of zero, which makes the `extend()` a no-op). The padding is
-transparent and the plate is composited under the bust, so the freed space
-simply shows plate.
+`CROP_Y` goes negative. It doesn't at 0.08, but the renderers handle it
+anyway so the constants stay free to move. A canvas clips an out-of-range
+draw on its own; sharp's `extract()` refuses a window that overhangs at all,
+so `render.js` pads the bust with transparency first (`PAD_TOP` and its three
+siblings, all 0 in the normal case, which makes the `extend()` a no-op). One
+trap there: sharp runs `extend()` **after** the post-resize `extract()`
+whatever order they are chained in, so the two have to be separate passes.
+The plate is composited under the bust, so any freed space shows plate.
 
 Changing any of this only affects portraits saved **from then on**. The bytes
 in `Character.avatarData` are already baked; `Character.portrait` keeps the
