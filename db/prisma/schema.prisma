@@ -1699,8 +1699,8 @@ model DirectMessage {
   authorDiscordUserId String?
 
   // gm_reply | gm_broadcast | gm_inspector | gm_dev | gm_slash |
-  // move_unlock | staged_push | bot_auto | player. Plain String on purpose —
-  // a PG enum would cost a migration per new value.
+  // move_unlock | staged_push | bot_auto | player | player_event. Plain
+  // String on purpose — a PG enum would cost a migration per new value.
   source String?
 
   // Discord id of the sent message — the last chunk when postDmBatched had

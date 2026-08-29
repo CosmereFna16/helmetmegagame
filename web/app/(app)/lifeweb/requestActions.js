@@ -16,6 +16,7 @@ import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { createRequest, logRequest, requireReason } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
+import { notifyCharacter } from "@/lib/notifyCharacter";
 
 // The Lifeweb's two player-facing Requests, following the same contract as
 // the ones on the character sheet (web/app/(app)/character/requestActions.js):
@@ -140,6 +141,10 @@ async function donateBloodRequestImpl({ targetCharacterId, reason: rawReason }) 
     });
   });
 
+  // Self-donation is the ordinary case (see the comment above), and it needs
+  // no DM — a player already knows what they just clicked.
+  if (target.id !== character.id) notifyCharacter(target, "You've been Drained.");
+
   revalidateAll();
   return { targetName: target.name, amount: blood.delta, tier };
 }
@@ -185,6 +190,8 @@ async function feedPersonRequestImpl({ targetCharacterId, reason: rawReason }) {
       details: effect,
     });
   });
+
+  notifyCharacter(target, "You've been fed to the Lifeweb.");
 
   revalidateAll();
   return { targetName: target.name, amount: blood.delta };

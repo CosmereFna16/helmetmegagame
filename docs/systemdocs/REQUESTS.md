@@ -166,6 +166,21 @@ Three notes on deliberate choices:
   `canReachCharacter` enforces elsewhere, just inlined into the query.
   `TRANSFER_RESOURCES` mirrors this: a `LOOT` request pulls ⬢ off a corpse and
   can only credit the initiator. See `CHARACTERS.md` §5.
+- **Every request whose subject is a different character notifies that
+  character.** `TRANSFER_TAG`, `TRANSFER_RESOURCES`, `HEAL_CHARACTER`,
+  `LOOT_CHARACTER`, `MOVE_CHARACTER`, `BIND_CHARACTER`, `FREE_CHARACTER`,
+  `HARM_CHARACTER`, `BURY_CHARACTER`, `DONATE_BLOOD` and `FEED_PERSON` all DM
+  their target through `web/lib/notifyCharacter.js` — one line, fired after
+  the transaction commits, same posture as the Dev Panel's own notifier
+  (`DEV-PANEL.md`). **The DM never names the actor.** Several of these only
+  work on someone helpless (a bind, a looting, a forced move), so telling the
+  victim what changed while leaving out who did it keeps that information in
+  the fiction rather than handing it to them for free. A self-targeting act
+  (healing yourself, donating your own blood) sends nothing — you already
+  know what you just clicked. `killCharacter`
+  (`web/lib/discordGuild.js`) carries the one death DM for every path that
+  kills a character, so a GM's Kill button and an adjudicated lethal outcome
+  never send two.
 - **Consume has no resource field and no quantity field.** A meal already
   cost ⬢ to make and the Hunger pass charges its own upkeep, so a third
   charge here would be the same meal paid for three times; and taking one

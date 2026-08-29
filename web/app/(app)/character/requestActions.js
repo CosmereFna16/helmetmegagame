@@ -22,6 +22,7 @@ import {
   creditResources,
   debitResources,
   dropCharacterTag,
+  formatStack,
   grantTagSlugs,
   moveResources,
 } from "@/lib/requestEffects";
@@ -46,6 +47,7 @@ import {
   sendDm,
 } from "@/lib/discordGuild";
 import { applyPendingInvites } from "@lifeweb/db/lib/threadInvites";
+import { notifyCharacter } from "@/lib/notifyCharacter";
 import { rollCaving } from "@lifeweb/db/lib/cavingPass";
 import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { NAME_LIMITS, formatCharacterName, formatBareName, normalizeEarnedHonorific } from "@/lib/characterName";
@@ -115,7 +117,15 @@ async function resolveParty(key, { allowDead = false } = {}) {
     const statusFilter = allowDead ? { in: ["ALIVE", "DEAD"] } : "ALIVE";
     const c = await prisma.character.findFirst({
       where: { id: id ?? "", status: statusFilter },
-      select: { id: true, name: true, resources: true, zoneId: true, status: true, buriedAt: true },
+      select: {
+        id: true,
+        name: true,
+        resources: true,
+        zoneId: true,
+        status: true,
+        buriedAt: true,
+        discordUserId: true,
+      },
     });
     return c
       ? {
@@ -126,6 +136,7 @@ async function resolveParty(key, { allowDead = false } = {}) {
           zoneId: c.zoneId,
           status: c.status,
           buriedAt: c.buriedAt,
+          discordUserId: c.discordUserId,
         }
       : null;
   }
@@ -262,6 +273,15 @@ async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount,
       details: effect,
     });
   });
+
+  // Only a character on the receiving end learns anything — a faction silo
+  // has no one person to DM, and loot's "recipient" is the initiator, who
+  // already knows what they just did.
+  if (isLoot) {
+    if (from.kind === "character") notifyCharacter(from, `You were looted for ${amount} ⬢.`);
+  } else if (to.kind === "character") {
+    notifyCharacter(to, `You were given ${amount} ⬢.`);
+  }
 
   revalidateAll();
   return {};
@@ -567,6 +587,7 @@ async function transferTagRequestImpl({
       select: {
         id: true,
         name: true,
+        discordUserId: true,
         tags: {
           where: { tagId },
           select: {
@@ -585,6 +606,7 @@ async function transferTagRequestImpl({
     source = {
       id: corpse.id,
       name: corpse.name,
+      discordUserId: corpse.discordUserId,
       tag: corpseHeld.tag,
       source: corpseHeld.source,
       expiresTurn: corpseHeld.expiresTurn,
@@ -631,7 +653,7 @@ async function transferTagRequestImpl({
       // would otherwise be stripped from the where clause and hand the item
       // to whoever happened to be standing in the zone.
       where: { id: toCharacterId ?? "", status: "ALIVE", zoneId: character.zoneId },
-      select: { id: true, name: true },
+      select: { id: true, name: true, discordUserId: true },
     });
     if (!recipient) throw new UserError("They aren't here.");
   }
@@ -685,6 +707,15 @@ async function transferTagRequestImpl({
     syncCharacterNarrowcastAccess(source.id).catch(() => {}),
     syncCharacterNarrowcastAccess(recipient.id).catch(() => {}),
   ]);
+
+  // SEND tells the recipient what landed on their sheet; LOOT tells the
+  // corpse's player what was taken off their body — nobody names the actor.
+  if (isLoot) {
+    notifyCharacter(source, `Something was taken off your body: ${formatStack(source.tag.name, quantity)}.`);
+  } else {
+    notifyCharacter(recipient, `You were handed ${formatStack(source.tag.name, quantity)}.`);
+  }
+
   revalidateAll();
   return {};
 }
@@ -824,6 +855,11 @@ async function healCharacterRequestImpl({
 
   // A tag moved, and #watch/#intercom access is tag-gated.
   await syncCharacterNarrowcastAccess(target.id).catch(() => {});
+  // Not for a self-heal — the medic already knows, they're the one who
+  // clicked Treat.
+  if (target.id !== character.id) {
+    notifyCharacter(target, `Your ${held.tag.name} was treated.`);
+  }
   revalidateAll();
   return { targetName: target.name, tagName: held.tag.name, cost };
 }
@@ -956,6 +992,13 @@ async function lootCharacterRequestImpl({
       : Promise.resolve(),
     syncCharacterNarrowcastAccess(character.id).catch(() => {}),
   ]);
+
+  const lootParts = [
+    ...takenTags.map((t) => formatStack(t.tagName, t.quantity)),
+    amount > 0 ? `${amount} ⬢` : null,
+  ].filter(Boolean);
+  if (lootParts.length) notifyCharacter(target, `Your body was searched: ${lootParts.join(", ")} taken.`);
+
   revalidateAll();
   return {};
 }
@@ -1047,6 +1090,7 @@ async function moveCharacterRequestImpl({ targetCharacterId, targetZoneId, reaso
     await syncCharacterZoneRole(target.discordUserId, fromZoneId, targetZone.id).catch(() => {});
     await syncCharacterNarrowcastAccess(target.id).catch(() => {});
   }
+  notifyCharacter(target, `You were moved to ${targetZone.name}.`);
   revalidateAll();
   return {};
 }
@@ -1119,6 +1163,7 @@ async function bindCharacterRequestImpl({ targetCharacterId, reason: rawReason }
   });
 
   await syncCharacterNarrowcastAccess(target.id).catch(() => {});
+  notifyCharacter(target, "Someone bound you.");
   revalidateAll();
   return {};
 }
@@ -1176,6 +1221,7 @@ async function freeCharacterRequestImpl({ targetCharacterId, reason: rawReason }
   });
 
   await syncCharacterNarrowcastAccess(target.id).catch(() => {});
+  notifyCharacter(target, "Someone freed you.");
   revalidateAll();
   return {};
 }
@@ -1282,6 +1328,10 @@ async function harmCharacterRequestImpl({
   });
 
   if (tag) await syncCharacterNarrowcastAccess(target.id).catch(() => {});
+  // A kill, if one lands, is its own later act — the GM's Kill button, which
+  // sends its own DM through killCharacter(). This one is just "you were
+  // hurt", true whether or not that finishing blow ever comes.
+  notifyCharacter(target, "Someone hurt you.");
   revalidateAll();
   return {};
 }
@@ -1582,6 +1632,8 @@ async function buryCharacterRequestImpl({ firstName: rawFirstName, reason: rawRe
   await removeCursedRole(target.discordUserId).catch((err) =>
     console.error(`Bury: failed to lift the curse from ${target.discordUserId}:`, err),
   );
+
+  notifyCharacter(target, "Your body was buried. The curse has lifted.");
 
   revalidateAll();
   return { name: target.name };

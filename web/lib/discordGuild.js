@@ -603,7 +603,12 @@ export async function revokeAccessForCharacters(characters) {
 //
 // Order matters: revoke before the role is deleted and before discordRoleId is
 // nulled, since both are needed to name the overwrites being removed.
-export async function killCharacter(character) {
+//
+// `reason` is optional prose from whoever pulled the trigger (a GM's Kill
+// button, or the lethal-outcome path off a request) — folded into the same
+// death DM rather than each caller sending its own, so a character dies with
+// exactly one notification no matter which door it came through.
+export async function killCharacter(character, reason = null) {
   await revokeAllCharacterAccess(character).catch((err) =>
     console.error(`Failed to revoke access for dead character ${character.id}:`, err),
   );
@@ -625,6 +630,10 @@ export async function killCharacter(character) {
     .catch((err) => console.error(`Failed to unequip on death for ${character.id}:`, err));
 
   await grantCursedRole(character.discordUserId);
+
+  await sendDm(character.discordUserId, `You have died.${reason?.trim() ? `\n${reason.trim()}` : ""}`, {
+    source: "player_event",
+  }).catch((err) => console.error(`Death DM failed for ${character.id}:`, err));
 
   await recordArchiveEvent(prisma, {
     kind: "DEATH",

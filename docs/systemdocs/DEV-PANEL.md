@@ -32,9 +32,16 @@ design:
 is still a thing that happened to their character — `notifyCharacter()` in
 `actions.js` sends a plain DM (not a Request; nothing here rides the Request
 lifecycle) from `after()`, post-commit, same posture as the Discord-sync steps.
-Resync is invisible plumbing with nothing to report; a deleted character has
-no row left to DM about. Apply summarises whatever actually changed (tags
-gained/lost, resources, zone, name) rather than restating the whole diff.
+It's a thin `source: "gm_dev"` wrapper around the shared
+`web/lib/notifyCharacter.js`, the same notifier every player-to-player
+Request uses (`REQUESTS.md`) — one DM helper, one posture, everywhere a
+player's sheet changes because of someone else's action. Resync is invisible
+plumbing with nothing to report; a deleted character has no row left to DM
+about. Apply summarises whatever actually changed (tags gained/lost,
+resources, zone, name) rather than restating the whole diff. Kill is the one
+exception: it doesn't call `notifyCharacter` at all, because
+`killCharacter()` sends the death DM itself (`REQUESTS.md`) — a second one
+here would double it up.
 
 They are held to **disjoint fields**, so they can never race each other. The
 field that would have straddled both is `status`: it is deliberately absent

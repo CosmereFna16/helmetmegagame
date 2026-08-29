@@ -823,7 +823,7 @@ export const REQUEST_EFFECTS = {
 // "Fine Meal x3" / "the Manor" — GM-facing note text for a possibly-stacked
 // tag. Quantity 1 (or absent) reads as a plain name, so nothing changes for
 // the ordinary case.
-function formatStack(tagName, quantity) {
+export function formatStack(tagName, quantity) {
   const name = tagName ?? "the tag";
   return (quantity ?? 1) > 1 ? `${name} x${quantity}` : name;
 }

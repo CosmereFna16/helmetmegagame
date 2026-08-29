@@ -19,6 +19,7 @@ import {
   killCharacter,
   sendDm,
 } from "@/lib/discordGuild";
+import { notifyCharacter as notifyCharacterShared } from "@/lib/notifyCharacter";
 import { propagateDynastyLastName } from "@/lib/dynasty";
 import { formatBareName } from "@/lib/characterName";
 import {
@@ -90,12 +91,10 @@ async function audit(session, actionType, characterId, details, reason = null) {
 // happened. Not a Request — this is a notification, not something the
 // player responds to, so it never touches the Request lifecycle.
 function notifyCharacter(session, character, text) {
-  after(() =>
-    sendDm(character.discordUserId, text, {
-      authorDiscordUserId: session.discordUserId,
-      source: "gm_dev",
-    }).catch((err) => console.error(`Dev Panel DM failed for ${character.id}:`, err)),
-  );
+  notifyCharacterShared(character, text, {
+    authorDiscordUserId: session.discordUserId,
+    source: "gm_dev",
+  });
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -275,13 +274,10 @@ async function killCharacterNowImpl({ characterId, reason }) {
 
   await audit(session, "gm_character_killed", characterId, { name: character.name }, reason?.trim() || null);
 
+  // killCharacter sends the death DM itself (web/lib/discordGuild.js), with
+  // this reason folded in — a second notifyCharacter here would double it up.
   after(() =>
-    killCharacter(updated).catch((err) => console.error("killCharacter failed:", err)),
-  );
-  notifyCharacter(
-    session,
-    character,
-    `${character.name} has died.${reason?.trim() ? `\n${reason.trim()}` : ""}`,
+    killCharacter(updated, reason).catch((err) => console.error("killCharacter failed:", err)),
   );
 
   repaint(characterId);
