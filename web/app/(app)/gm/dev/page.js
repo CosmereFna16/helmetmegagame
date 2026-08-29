@@ -6,9 +6,12 @@ import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getOpenTurn } from "@/lib/turn";
 import { describeTurn } from "@/lib/turnFormat";
+import { listGuildMembers } from "@/lib/discordGuild";
+import { antagonistNames } from "@/lib/antagonists";
 import { updateGameConfig, updateCurrentTurn, updateNextTurn, runDoctorAction, bulkMoveCharacters } from "./actions";
 import EndTurnButton from "./EndTurnButton";
 import WipeGameButton from "./WipeGameButton";
+import AntagonistRosterButton from "./AntagonistRosterButton";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import Switch from "@/app/components/Switch";
 import Select from "@/app/components/Select";
@@ -25,24 +28,57 @@ export default async function DevPanelPage() {
   if (!session?.discordUserId) redirect("/");
   if (!isSuperadmin(session.discordUserId)) redirect("/character");
 
-  const [config, openTurnRecord, lastTurn, reports, zones, livingCharacters] = await Promise.all([
-    prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
-    getOpenTurn(),
-    prisma.turn.findFirst({ orderBy: { number: "desc" } }),
-    // Latest report per kind — the section renders what actually happened,
-    // instead of the fake success the wipe used to claim.
-    prisma.systemReport.findMany({ orderBy: { createdAt: "desc" }, take: 30 }),
-    prisma.zone.findMany({
-      where: { kind: { not: "CAVE_GROUP" } },
-      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      select: { id: true, name: true },
-    }),
-    prisma.character.findMany({
-      where: { status: "ALIVE" },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, zone: { select: { name: true } } },
-    }),
-  ]);
+  const [config, openTurnRecord, lastTurn, reports, zones, livingCharacters, antagonistCharacters, tags, members] =
+    await Promise.all([
+      prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
+      getOpenTurn(),
+      prisma.turn.findFirst({ orderBy: { number: "desc" } }),
+      // Latest report per kind — the section renders what actually happened,
+      // instead of the fake success the wipe used to claim.
+      prisma.systemReport.findMany({ orderBy: { createdAt: "desc" }, take: 30 }),
+      prisma.zone.findMany({
+        where: { kind: { not: "CAVE_GROUP" } },
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        select: { id: true, name: true },
+      }),
+      prisma.character.findMany({
+        where: { status: "ALIVE" },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, zone: { select: { name: true } } },
+      }),
+      // Written once at creation, never edited — see the antagonistOptIns
+      // comment on the Character model. Nothing else in the app reads this,
+      // so this popup is the only place a GM can see who wants a seat.
+      prisma.character.findMany({
+        where: { antagonistOptIns: { isEmpty: false } },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, discordUserId: true, antagonistOptIns: true },
+      }),
+      // Same shape as /gm/players' bulk-tag catalog — the popup's per-row
+      // grant reuses that picker.
+      prisma.tag.findMany({
+        orderBy: [{ category: "asc" }, { name: "asc" }],
+        select: {
+          id: true,
+          name: true,
+          category: true,
+          description: true,
+          pointCost: true,
+          parentTagId: true,
+          group: { select: { name: true } },
+        },
+      }),
+      listGuildMembers(),
+    ]);
+
+  const memberById = new Map(members.map((m) => [m.id, m]));
+  const antagonistRoster = antagonistCharacters.map((c) => ({
+    id: c.id,
+    name: c.name,
+    username: memberById.get(c.discordUserId)?.username ?? "",
+    globalName: memberById.get(c.discordUserId)?.globalName ?? "",
+    roleNames: antagonistNames(c.antagonistOptIns),
+  }));
 
   const latestByKind = new Map();
   for (const report of reports) {
@@ -64,11 +100,12 @@ export default async function DevPanelPage() {
         title="Dev Panel"
         subtitle="Superadmin only. Edits here bypass all game rules — use with care."
         actions={
-          <nav className="flex gap-4 text-sm">
+          <nav className="flex items-center gap-4 text-sm">
             <Link href="/gm/dev/characters" className="menu-item">Characters</Link>
             <Link href="/gm/dev/factions" className="menu-item">Factions</Link>
             <Link href="/gm/dev/tags" className="menu-item">Tags</Link>
             <Link href="/gm/gamemasters" className="menu-item">Gamemasters</Link>
+            <AntagonistRosterButton characters={antagonistRoster} tags={tags} />
           </nav>
         }
       />

@@ -331,6 +331,7 @@ zones:
             starting_tags:
               - Ravenhearter
               - Literate
+              - Drone
             doc_elements:
               - courtier
               - diplomat

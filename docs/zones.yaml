@@ -271,7 +271,7 @@ zones:
         - [95, 65]
         - [95, 98]
         - [5, 98]
-      label: { x: 15.9, y: 74.7 }
+      label: { x: 52.2, y: 82.4 }
     topics:
       - id: warcamp
         name: Warcamp
@@ -323,7 +323,7 @@ zones:
       The mouth to the other world.
     map:
       polygon: []
-      label: { x: 52.2, y: 82.4 }
+      label: { x: 15.9, y: 74.7 }
     levels:
       - id: caverns
         name: Caverns

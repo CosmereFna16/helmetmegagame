@@ -65,7 +65,7 @@ export async function getDmThreadPage({ discordUserId, characterId, beforeMs, be
   });
 }
 
-const ALLOWED_SEND_SOURCES = new Set(["gm_reply", "gm_inspector"]);
+const ALLOWED_SEND_SOURCES = new Set(["gm_reply", "gm_inspector", "gm_dev_panel"]);
 
 export async function sendGmDm({ discordUserId, characterId, content, source = "gm_reply" }) {
   return guarded(async () => {

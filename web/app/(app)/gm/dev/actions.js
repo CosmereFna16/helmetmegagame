@@ -238,7 +238,7 @@ const DEFAULT_GAME_CONFIG = {
   startingTagPoints: 12,
   playerCount: 100,
   equipSlots: 6,
-  maxNegativeTags: 4,
+  maxNegativeTags: 8,
   catatonicEnabled: true,
   catatonicTurns: 4,
   autoReconcileEnabled: false,

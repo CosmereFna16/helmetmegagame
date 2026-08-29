@@ -33,7 +33,7 @@ import useSubmitOnEnter from "@/app/components/useSubmitOnEnter";
 // Bulk zone moves stay a superadmin verb on /gm/dev, so a button for it here
 // would fail for most of the people looking at it.
 
-const COL_COUNT = 11;
+const COL_COUNT = 12;
 
 // The key "zone" means the zone SEAT — the zone their faction is keyed to —
 // because that is what every other GM surface means by Zone and what a GM's
@@ -252,9 +252,9 @@ export default function RosterTable({
             </form>
           )}
 
-          {/* Eleven columns. Without a minWidth they compress to one word per
+          {/* Twelve columns. Without a minWidth they compress to one word per
               line at 375px instead of scrolling inside the frame. */}
-          <TableScroll minWidth="1040px">
+          <TableScroll minWidth="1140px">
             <thead>
               <tr>
                 <th scope="col" className="col-fit">
@@ -266,6 +266,7 @@ export default function RosterTable({
                   />
                 </th>
                 <SortHeader label="Name" sortKey="name" sort={sort} onSort={toggleSort} />
+                <SortHeader label="Discord" sortKey="username" sort={sort} onSort={toggleSort} />
                 <SortHeader label="Role" sortKey="roleTitle" sort={sort} onSort={toggleSort} />
                 <SortHeader label="Zone" sortKey="factionZoneName" sort={sort} onSort={toggleSort} />
                 <SortHeader label="Faction" sortKey="factionName" sort={sort} onSort={toggleSort} />
@@ -311,6 +312,7 @@ export default function RosterTable({
                       />
                     </div>
                   </td>
+                  <td className="text-muted">{c.username ? `@${c.username}` : c.globalName || "-"}</td>
                   <td>{c.roleTitle ?? "-"}</td>
                   <td>
                     <ZoneChip zoneName={c.factionZoneName} />

@@ -1458,6 +1458,13 @@ input[type="radio"]:disabled {
   vertical-align: top;
 }
 
+/* .menu-item adds its own 2px vertical padding on top of the cell's, which
+   sinks a linked cell (Name, Faction) below a plain-text cell (Role) in the
+   same row. Zero it out here so every cell's text sits on the same line. */
+.data-table td .menu-item {
+  padding: 0;
+}
+
 .data-table tbody tr:hover td {
   background: var(--row-hover);
 }

@@ -291,7 +291,7 @@ tags:
     category: general
     group: general-court
     description: "Your name brings dishonor."
-    pointCost: -5
+    pointCost: -3
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -319,7 +319,7 @@ tags:
     category: general
     group: general-court
     description: "You've never done a day's labor. It'll be harder to work."
-    pointCost: -2
+    pointCost: -3
     purchasable: true
     purchasableAfterStart: false
 
@@ -826,7 +826,7 @@ tags:
     name: Short-Tempered
     category: general
     group: general-traits
-    description: "You explode at people easily and struggle to keep a secret. It's a weakness."
+    description: "You explode at people, are provoked easily, and struggle to keep a secret. It's a weakness... A few cracked teeth, maybe a broken nose or even a black eye—just so they know you’re not messing around. But what isn’t worth those few minutes of energy you feel?"
     pointCost: -5
     purchasable: true
     purchasableAfterStart: false
@@ -836,7 +836,7 @@ tags:
     category: general
     group: general-traits
     description: "Other people's possessions just seem to fall into your hands. There's nothing you can do about it!"
-    pointCost: -5
+    pointCost: -3
     purchasable: true
     purchasableAfterStart: false
 
@@ -1340,12 +1340,12 @@ tags:
 
   # The new general `climbing` skill overlaps this brigand-gated trait.
   # Gunboat to decide whether one of them should go.
-  - slug: climber
-    name: Climber
+  - slug: Acrobat
+    name: acrobat
     category: general
     group: general-brigand
-    description: "Like a cat or goat, you are more capable at climbing sheer surfaces than the average person."
-    pointCost: 2
+    description: "Your exploits are of some renown."
+    pointCost: 3
     purchasable: true
     purchasableAfterStart: true
 
@@ -1414,7 +1414,7 @@ tags:
     category: general
     group: general-windlands
     description: "A great keg of dynamite hauled from one of the old gunpowder clans. Can blow a hole in a wall."
-    pointCost: 11
+    pointCost: 14
     tradeable: true
     stackable: true
     visible: true
@@ -1635,7 +1635,7 @@ tags:
     name: Melee (Expert)
     category: skills
     group: skills-fighting
-    description: "You have survived many fights. Almost no one matches you."
+    description: "You've survived many fights. Almost no one matches you."
     pointCost: 7
     parentTag: melee-skilled
     visible: false
@@ -1647,10 +1647,10 @@ tags:
     category: skills
     group: skills-fighting
     description: "The peak of your generation."
-    pointCost: 14
+    pointCost: 0
     parentTag: melee-expert
     visible: false
-    purchasable: true
+    purchasable: false
     purchasableAfterStart: true
 
   - slug: ranged-basic
@@ -1704,7 +1704,7 @@ tags:
     pointCost: 14
     parentTag: ranged-expert
     visible: false
-    purchasable: true
+    purchasable: false
     purchasableAfterStart: true
 
   - slug: melee-shield-wall
@@ -2903,7 +2903,7 @@ tags:
     category: health
     group: health-mind
     description: "You can't see. Good luck fighting. Requires a fresh pair of eyes to treat."
-    pointCost: -11
+    pointCost: -8
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -2992,7 +2992,7 @@ tags:
     category: health
     group: health-maiming
     description: "One hand is missing several fingers."
-    pointCost: -2
+    pointCost: -4
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -3176,7 +3176,7 @@ tags:
     category: health
     group: health-minor
     description: "Pain behind your eye and bright lights that come and go. Incurable."
-    pointCost: -2
+    pointCost: -4
     purchasable: true
     purchasableAfterStart: false
     removable: false
@@ -3335,6 +3335,16 @@ tags:
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
+
+  - slug: drone
+    name: Drone
+    category: assets
+    group: assets-companions
+    description: "Normally, it fits in the palm of your hand, but lately it's taken the disguise of a bird and spends most of its time in the forest. Neither of you like each other—it seems to wish it was back with the other Minds. It is relatively human, but its intelligence and abilities are completely beyond you. It doesn't seem to have any combat abilities. You could assign it to collect information or similar, but it might not always listen."
+    pointCost: 0
+    requiredTag: diplomat
+    purchasable: false
+    visible: false
 
   - slug: house
     name: House
@@ -3751,25 +3761,9 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     removable: true
-
-  - slug: manacles
-    name: Manacles
-    category: items
-    group: items-gear
-    description: "Why do you need these?"
-    pointCost: 2
-    tradeable: true
-    stackable: true
-    visible: false
-    purchasable: true
-    purchasableAfterStart: false
-    removable: true
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 8
-      skills: [smithing]
-      gambit: false
+    sellable: true
+    sellablePrice: 13
+    depotPrice: 30
 
   - slug: suspicious-game-set
     name: Suspicious Game Set

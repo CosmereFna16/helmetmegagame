@@ -21,7 +21,7 @@ export const CURSED_POINT_PENALTY = 6;
 // How many negative-cost tags a character may buy through the point-buy menu,
 // when there is no GameConfig row to read it from. The live value is
 // GameConfig.maxNegativeTags (default 4), editable on /gm/dev.
-export const DEFAULT_MAX_NEGATIVE_TAGS = 4;
+export const DEFAULT_MAX_NEGATIVE_TAGS = 8;
 
 // A drawback is any tag with a negative pointCost — there is no `negative`
 // flag in the schema and the sign has always been the definition (TAGS.md

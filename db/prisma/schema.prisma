@@ -408,7 +408,7 @@ model GameConfig {
   // /store never sells a drawback, so there it is only a readout. Editable
   // live from the Dev Panel, same posture as equipSlots above. 0 is a real
   // setting: no drawbacks at all.
-  maxNegativeTags Int @default(4)
+  maxNegativeTags Int @default(8)
 
   // Expected total number of players, the denominator for every role's seat
   // cap: a role with `weight: 6` in docs/roles.yaml gets
