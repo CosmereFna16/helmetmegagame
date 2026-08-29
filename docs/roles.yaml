@@ -757,7 +757,7 @@ zones:
               - >-
                 On certain days, you hike up the mountain and behold the Town. Those are the people that are beholden to you. You cannot afford to let them down, Headman!
               - >-
-                Your main job is to tax people. You are beholden to the Meister, the Baron's taxman, and things have gotten nasty in the past when the tithe didn't meet his expectations. If the Silo's not full next time he comes, it won't be a pretty day.
+                Your main job is to tax people. You are beholden to the Meister, the Baron's taxman, and things have gotten nasty in the past when the tithe didn't meet his expectations. If the Silo's not full next time he comes, it won't be a pretty day. You tax people by using the Transfer Resources button. Speak to them to communicate how much you should be taking. For convenience, Transfer Resources allows you to take from anyone without them having to send it toyou—but flavor wise, you should make sure you have permission.
               - >-
                 Laborers produce far more than they need to eat. Take everything they have, and call the Sheriff if they won't budge.
               - >-
@@ -1068,7 +1068,6 @@ zones:
               - Buckler
               - Crossbow
             doc_elements:
-              - campstarting
               - concealing
           - name: Brigand
             slug: brigand
@@ -1100,7 +1099,6 @@ zones:
               - Buckler
               - Shortbow
             doc_elements:
-              - campstarting
               - concealing
   - name: Windlands
     situation:
