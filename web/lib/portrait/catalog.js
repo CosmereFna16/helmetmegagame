@@ -27,8 +27,8 @@ export const CANVAS = 256; // an integer multiple of TILE, so nearest-neighbour 
 // The art is drawn left of the tile's centre — across every part in every
 // sheet the ink spans x 16..104, centre 60 rather than 64. Undo that here so
 // the bust sits centred in the plaque instead of visibly hugging its left
-// edge. Vertically the art is bottom-anchored on purpose: a bust touches the
-// bottom of its frame.
+// edge. That correction is about the SHEETS; NUDGE_X/NUDGE_Y below are the
+// separate, purely aesthetic framing choice.
 export const SHIFT_X = 5;
 
 // The bust is head + jaw only — no neck, no shoulders — so drawn at 1:1 the
@@ -41,6 +41,19 @@ export const SHIFT_X = 5;
 // line. 320 keeps the intermediate scale (128 -> 320) an integer multiple of
 // TILE, so nearest-neighbour stays crisp through the extra step.
 export const BUST_PX = 320;
+
+// Where that crop window sits. Plain centred-in-x and bottom-anchored (the
+// window at 32, 64) left the head reading high and right in the plaque, so
+// the two nudges move it: fractions of CANVAS, negative x for left, positive
+// y for down. Change these, not the arithmetic below — both renderers read
+// CROP_X/CROP_Y from here, which is what keeps them pixel-identical.
+export const NUDGE_X = -0.08;
+export const NUDGE_Y = 0.3;
+export const CROP_X = Math.round((BUST_PX - CANVAS) / 2 - NUDGE_X * CANVAS);
+// Negative once NUDGE_Y passes 0.25 — the window runs off the top of the
+// bust, and the renderers pad for it rather than clamping. See render.js.
+export const CROP_Y = Math.round(BUST_PX - CANVAS - NUDGE_Y * CANVAS);
+
 export const FADE_HEIGHT = 0.3; // fraction of CANVAS the gradient covers, from the bottom
 // Must match TINT / DARKEN in web/scripts/generate-letters.js — the fade is
 // meant to read as "sinking into the plate's own shadow", not a new colour.

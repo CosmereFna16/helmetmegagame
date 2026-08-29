@@ -113,11 +113,17 @@ register this setting is in.
 
 The art is drawn left of its tile's centre: across every part in every sheet
 the ink spans x 16..104, centre 60 rather than 64. `SHIFT_X` undoes that, or
-the bust visibly hugs the left edge of its plaque. Vertically it is
-bottom-anchored on purpose, the way a bust sits in a frame.
+the bust visibly hugs the left edge of its plaque. That one is a correction to
+the sheets. Where the head then *sits* in the plaque is a separate, purely
+aesthetic choice, and it lives in `NUDGE_X` / `NUDGE_Y` — fractions of
+`CANVAS`, negative x for left, positive y for down. Plain centred-in-x and
+bottom-anchored read as high and right, so they currently move it 8% left and
+30% down. **Dial those two constants, never the crop arithmetic under them**:
+both renderers import the resulting `CROP_X` / `CROP_Y` from `catalog.js`,
+which is what keeps them pixel-identical.
 
-Scaling is 128 → `BUST_PX` (320) → cropped back to `CANVAS` (256),
-bottom-anchored and centred in x, with a **nearest** kernel throughout in
+Scaling is 128 → `BUST_PX` (320) → cropped back to `CANVAS` (256) at that
+window, with a **nearest** kernel throughout in
 both renderers. Any other kernel turns pixel art into mush. The bust is head
 and jaw only — no neck, no shoulders — so at a flat 128 → 256 scale the chin
 ended in a hard cut right on the plate's edge and read as a severed head.
@@ -127,6 +133,18 @@ dissolved into the plate's own shadow by a bottom-of-frame gradient
 (`FADE_HEIGHT`/`FADE_TINT`/`FADE_DARKEN` in `catalog.js`) composited over the
 finished bust. `FADE_TINT` must track `TINT` in `generate-letters.js` — they
 are meant to read as the same shadow, and drift between them would show.
+
+Past a `NUDGE_Y` of 0.25 the crop window runs off the top of the bust and
+`CROP_Y` goes negative. A canvas clips that on its own, but sharp's
+`extract()` refuses a window that overhangs at all, so `render.js` pads the
+bust with transparency first (`PAD_TOP` and its three siblings, all 0 at a
+nudge of zero, which makes the `extend()` a no-op). The padding is
+transparent and the plate is composited under the bust, so the freed space
+simply shows plate.
+
+Changing any of this only affects portraits saved **from then on**. The bytes
+in `Character.avatarData` are already baked; `Character.portrait` keeps the
+selection, so a re-bake is possible, but there is no script for one.
 
 ## 4. The client never posts pixels
 

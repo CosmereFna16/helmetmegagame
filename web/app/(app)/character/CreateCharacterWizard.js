@@ -2,7 +2,7 @@
 
 import FormError from "@/app/components/FormError";
 import CheckField from "@/app/components/CheckField";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createCharacter, reserveRoleAction } from "./createActions";
 import PointBuy from "../../components/PointBuy";
 import {
@@ -132,6 +132,14 @@ export default function CreateCharacterWizard({
   const [antagonists, setAntagonists] = useState([]);
   const [error, setError] = useState(null);
   const [pending, setPending] = useState(false);
+  // The banner sits above the step content, and both the role list and the
+  // tag catalog are long enough to leave it well off the top of the screen.
+  // "Role was taken while you were deciding" then looked like the Next button
+  // simply doing nothing. Take the player to the message instead.
+  const errorRef = useRef(null);
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ block: "center" });
+  }, [error]);
   // Set once the picked role is actually held server-side (see
   // reserveRoleAction), so the hold notice only shows a real claim rather
   // than the browsing state before Next is first hit on step 0.
@@ -344,7 +352,9 @@ export default function CreateCharacterWizard({
         </p>
       )}
 
-      <FormError>{error}</FormError>
+      <div ref={errorRef}>
+        <FormError>{error}</FormError>
+      </div>
 
       {step === 0 && (
         <div className="flex flex-col gap-6">

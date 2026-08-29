@@ -4,6 +4,8 @@ import sharp from "sharp";
 import {
   BUST_PX,
   CANVAS,
+  CROP_X,
+  CROP_Y,
   FADE_DARKEN,
   FADE_HEIGHT,
   FADE_TINT,
@@ -17,10 +19,14 @@ import {
   tileRect,
 } from "./catalog";
 
-// How far the BUST_PX bust is cropped back down to CANVAS — bottom-anchored,
-// centred in x. See the BUST_PX comment in catalog.js.
-const CROP_X = (BUST_PX - CANVAS) / 2;
-const CROP_Y = BUST_PX - CANVAS;
+// The NUDGE_Y in catalog.js puts the crop window off the top of the BUST_PX
+// bust, and sharp's extract() refuses a window that overhangs at all. So pad
+// the bust out to hold it first. All four are 0 at a nudge of zero, which
+// makes extend() a no-op — this stays correct however the nudges are dialled.
+const PAD_TOP = Math.max(0, -CROP_Y);
+const PAD_LEFT = Math.max(0, -CROP_X);
+const PAD_BOTTOM = Math.max(0, CROP_Y + CANVAS - BUST_PX);
+const PAD_RIGHT = Math.max(0, CROP_X + CANVAS - BUST_PX);
 
 // A linear gradient from transparent to the plate's own darkened tint over
 // the bottom FADE_HEIGHT of the canvas, cached like the sheets — it never
@@ -125,12 +131,35 @@ export async function renderPortrait(selection) {
 
   // Nearest, not the default Lanczos: this is pixel art, and every other
   // kernel turns its hard edges into mush at 2x. Scaled to BUST_PX rather
-  // than straight to CANVAS, then cropped back down bottom-anchored — that
-  // extra headroom is what pushes the chin cut below the plate's edge.
-  const bust = await sharp(shifted)
+  // than straight to CANVAS, then cropped back down at CROP_X/CROP_Y — that
+  // extra headroom is what pushes the chin cut below the plate's edge. The
+  // padding is transparent, so wherever the window runs off the bust the
+  // plate composited under it below simply shows through.
+  //
+  // Two passes, not one. sharp has a fixed pipeline order and runs extend()
+  // AFTER the post-resize extract() regardless of the call order, so chaining
+  // them produced a 256x269 bust and a composite that threw. Re-encoding to
+  // PNG in between is lossless, so the pixels are the same either way.
+  const padded = await sharp(shifted)
     .extract({ left: 0, top: 0, width: TILE, height: TILE })
     .resize(BUST_PX, BUST_PX, { kernel: "nearest" })
-    .extract({ left: CROP_X, top: CROP_Y, width: CANVAS, height: CANVAS })
+    .extend({
+      top: PAD_TOP,
+      bottom: PAD_BOTTOM,
+      left: PAD_LEFT,
+      right: PAD_RIGHT,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    })
+    .png()
+    .toBuffer();
+
+  const bust = await sharp(padded)
+    .extract({
+      left: CROP_X + PAD_LEFT,
+      top: CROP_Y + PAD_TOP,
+      width: CANVAS,
+      height: CANVAS,
+    })
     .png()
     .toBuffer();
 

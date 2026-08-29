@@ -7,6 +7,8 @@ import {
   BUST_PX,
   CANVAS,
   COLOR_GROUPS,
+  CROP_X,
+  CROP_Y,
   FADE_DARKEN,
   FADE_HEIGHT,
   FADE_TINT,
@@ -24,12 +26,13 @@ import {
   randomSelection,
 } from "@/lib/portrait/catalog";
 
-// How far the BUST_PX bust is cropped back down to CANVAS, expressed as
-// fractions of CANVAS so the same math works at any output `size` (the big
-// preview and the small option thumbnails alike). Mirrors CROP_X/CROP_Y in
-// web/lib/portrait/render.js.
-const CROP_X_FRAC = (BUST_PX - CANVAS) / 2 / CANVAS;
-const CROP_Y_FRAC = (BUST_PX - CANVAS) / CANVAS;
+// The catalog's crop window, expressed as fractions of CANVAS so the same
+// math works at any output `size` (the big preview and the small option
+// thumbnails alike). render.js pads the bust where the window overhangs; a
+// canvas needs no equivalent, since it clips a draw outside [0, size) on its
+// own and the plate is already painted underneath.
+const CROP_X_FRAC = CROP_X / CANVAS;
+const CROP_Y_FRAC = CROP_Y / CANVAS;
 
 const FADE_RGB = (() => {
   const { r, g, b } = FADE_TINT;

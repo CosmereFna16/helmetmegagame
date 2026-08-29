@@ -22,6 +22,7 @@ import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import ChipText from "./ChipText";
 import ChipLabel from "./ChipLabel";
 import CheckField from "./CheckField";
+import HoverCard from "./HoverCard";
 
 // The point-buy experience, shared by both stores: a catalog pane on the
 // left, "Your Build" on the right (Project Zomboid's trait screen is the
@@ -48,6 +49,50 @@ import CheckField from "./CheckField";
 // creation, and since no drawback is ever purchasableAfterStart its own count
 // can never move — there the line is a readout, not a limit. Pass a null cap
 // to render nothing at all.
+
+// A name in one of the build pane's two lists, with the catalog row's own
+// detail on hover. The pane is deliberately narrow and its list scrolls, so
+// the description cannot simply be printed under every name the way TagRow
+// prints it — HoverCard is what makes that workable here. It portals to
+// document.body, so the panel escapes the list's overflow-y-auto instead of
+// being clipped by it, and a click pins it open, which is the whole touch
+// story. Same facts as TagRow below, so a pick reads the same in both places.
+function BuildTagName({ tag }) {
+  const panel = (
+    <>
+      <div className="flex items-start justify-between gap-2">
+        <strong>{tag.name}</strong>
+        {(tag.group?.name || tag.category) && (
+          <span className="text-muted whitespace-nowrap text-xs">
+            {[tag.group?.name, tag.category].filter(Boolean).join(" · ")}
+          </span>
+        )}
+      </div>
+      {/* ChipText rather than RichText, same as TagRow and TagChip: a chip
+          nested inside a tooltip could never be hovered to reach its own. */}
+      {tag.description && <ChipText text={tag.description} as="p" />}
+      {formatTagRequirement(tag) && (
+        <p className="text-muted">{formatTagRequirement(tag)}</p>
+      )}
+      {prerequisiteNames(tag).length > 0 && (
+        <p style={{ color: "var(--accent-text)" }}>
+          Requires: {prerequisiteNames(tag).join(", ")}
+        </p>
+      )}
+    </>
+  );
+  return (
+    // color: inherit because .tag-hover declares --text, which would light up
+    // the "Granted free" list that is deliberately muted.
+    <HoverCard
+      panel={panel}
+      className="min-w-0 max-w-full"
+      style={{ color: "inherit" }}
+    >
+      <span className="truncate">{tag.name}</span>
+    </HoverCard>
+  );
+}
 
 function TagRow({ tag, isSelected, cost, unaffordable, onToggle }) {
   return (
@@ -454,8 +499,8 @@ export default function PointBuy({
               </span>
               <ul className="flex flex-col">
                 {grantedTags.map((t) => (
-                  <li key={t.id} className="text-sm text-muted">
-                    {t.name}
+                  <li key={t.id} className="flex text-sm text-muted">
+                    <BuildTagName tag={t} />
                   </li>
                 ))}
               </ul>
@@ -474,7 +519,9 @@ export default function PointBuy({
                   const cost = effectiveCost(t, byId, grantedIds);
                   return (
                     <li key={t.id} className="flex items-center gap-2 py-1 text-sm">
-                      <span className="min-w-0 flex-1 truncate">{t.name}</span>
+                      <span className="flex min-w-0 flex-1">
+                        <BuildTagName tag={t} />
+                      </span>
                       <span style={{ color: costColor(cost) }}>{formatCost(cost)}</span>
                       <button
                         type="button"
