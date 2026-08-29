@@ -2,6 +2,7 @@ const { prisma, concealedAlias } = require("@lifeweb/db");
 const { sendAsCharacter } = require("../lib/proxy");
 const { isDesignatedTupperChannel, resolveChannelContext } = require("../lib/channels");
 const { sendDm } = require("../lib/dm");
+const { REPORT_CHANNEL_ID } = require("@lifeweb/db/lib/reportChannelAccess");
 const {
   canHearPing,
   isPrivateThread,
@@ -70,8 +71,12 @@ module.exports = {
     // player types is simply removed. It no longer files a Move — that is a
     // modal now, so nothing a player writes ever sits in a channel waiting to
     // be deleted, and no typing indicator fires under their real account.
+    // The report channel is the same kind of surface: one anchor with an Open
+    // Ticket button (bot/src/lib/reportChannel.js), everything typed under it
+    // removed. A ticket thread reports itself as message.channel, so this only
+    // ever matches the channel proper.
     const channelName = message.channel.name?.toLowerCase();
-    if (channelName === "turns") {
+    if (channelName === "turns" || message.channel.id === REPORT_CHANNEL_ID) {
       await message.delete().catch(() => {});
       return;
     }

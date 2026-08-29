@@ -25,6 +25,8 @@ const {
 } = require("../lib/topicModal");
 const { resolveChannelContext } = require("../lib/channels");
 const { ack, respond, scheduleDismiss } = require("../lib/respond");
+const { handleReportOpen, handleReportClose } = require("../lib/reportChannel");
+const { OPEN_BUTTON_ID: REPORT_OPEN_ID, CLOSE_BUTTON_ID: REPORT_CLOSE_ID } = require("@lifeweb/db/lib/reportChannelAccess");
 
 // Discord's hard cap on select-menu options, and on max_values with them.
 const MENU_OPTION_LIMIT = 25;
@@ -1020,6 +1022,8 @@ module.exports = {
         }
         if (interaction.customId === "move:open") return void (await handleMoveOpen(interaction));
         if (interaction.customId === "say:open") return void (await handleSpeakOpen(interaction));
+        if (interaction.customId === REPORT_OPEN_ID) return void (await handleReportOpen(interaction));
+        if (interaction.customId === REPORT_CLOSE_ID) return void (await handleReportClose(interaction));
       } else if (interaction.isStringSelectMenu()) {
         if (interaction.customId === "zone:place") return void (await handlePlaceSelect(interaction));
         if (interaction.customId === "say:pick") return void (await handleSpeakPick(interaction));

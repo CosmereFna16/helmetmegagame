@@ -9,6 +9,7 @@ const {
 const { syncNicknamesForGuild } = require("../lib/nickname");
 const { advanceTurn } = require("../lib/turnEngine");
 const { ensureTurnsConsole } = require("../lib/turnsConsole");
+const { ensureReportAnchor } = require("../lib/reportChannel");
 const { refreshLocationChannels } = require("../lib/channels");
 const { registerCommands } = require("../lib/commands");
 
@@ -88,6 +89,7 @@ module.exports = {
     for (const guild of client.guilds.cache.values()) {
       await syncNicknamesForGuild(guild).catch((err) => console.error("Failed to sync nicknames:", err));
       await ensureTurnsConsole(guild).catch((err) => console.error("Failed to ensure turns console:", err));
+      await ensureReportAnchor(guild).catch((err) => console.error("Failed to ensure report anchor:", err));
       // Warms client.channels.cache with every active thread, private ones
       // included. GUILD_CREATE only ships a thread the bot is already a
       // member of, so without this a fresh boot never learns about a private

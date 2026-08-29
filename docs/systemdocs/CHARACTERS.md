@@ -354,6 +354,24 @@ live dial: set it to 120 on `/gm/dev` and every weighted role widens by 1.2×.
 `multiple: false` is deliberately **not** "1 per 100" — the Baron stays one
 Baron in a 300-player game.
 
+**Who occupies a seat** is `roleCapacity.js#seatHolderStatuses(role)`: a
+living character, normally — the holder dies and the role is offered again,
+which is right for a Bum or a Watchman. The roles in
+`PERMANENT_SEAT_ROLE_SLUGS` — Gunboat's list: Baron, Baroness, Heir,
+Successor, Hand, Meister, Diplomat, Captain, Incarn, Bishop, Esculap,
+Inquisitor, Headman, Sheriff, Innkeeper, both Brigand roles and every
+Windlands role — count DEAD holders too, so once taken they stay taken for
+the run. It is neither "the unique roles" (Sheriff is weighted; Pusher and
+Merchant are unique and deliberately absent) nor a faction — read the
+constant, not a rule. A single-seat role on the list (Diplomat, Sheriff,
+Ranger, Master of Parties at 100 players) is one-and-done for the run. "Taken"
+means "a Character row still points at this Role": a GM deleting the dead
+row from the dev panel, or moving the dead holder to another role, frees the
+seat. The GM panel never checks capacity at all, so a GM can always seat
+someone by hand. A slug list rather than a `roles.yaml` key for the same
+reason the playtest lock below is: a static rule over a fixed roster, with
+no column to migrate.
+
 A role at capacity renders disabled. That's advisory only: `createCharacter`
 re-counts inside the transaction that creates the character. A bare count
 there is **not** enough by itself — Prisma runs at READ COMMITTED, so two
@@ -374,8 +392,9 @@ menu never costs it, but an abandoned tab frees a unique seat the same
 session. `discordUserId` is `@unique`: a player can hold exactly one seat,
 and reserving a different role releases the first as part of the same
 upsert. Expiry is swept lazily wherever a taken count is read; there is no
-cron job. The picker (`/character`) counts ALIVE characters plus everyone
-else's live hold, excluding the viewer's own — so a held role reads as taken
+cron job. The picker (`/character`) counts seated characters (per
+`seatHolderStatuses`) plus everyone else's live hold, excluding the viewer's
+own — so a held role reads as taken
 to other players and available to its holder.
 
 ### The Leader Whitelist

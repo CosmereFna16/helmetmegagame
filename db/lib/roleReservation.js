@@ -9,7 +9,7 @@
 // into the @lifeweb/db barrel for the same reason: db/lib/roleCapacity.js
 // (the seat-cap math this module builds on) IS in the barrel, so requiring
 // this by path keeps the two call shapes distinct rather than colliding.
-const { roleCapacity } = require("./roleCapacity");
+const { roleCapacity, isPermanentSeat, seatHolderStatuses } = require("./roleCapacity");
 
 // 30 minutes: long enough to read the tag menu carefully, short enough that
 // an abandoned tab frees a unique seat the same session. Refreshed on every
@@ -37,7 +37,7 @@ async function reserveRole(prisma, discordUserId, roleId, playerCount) {
 
     const cap = roleCapacity(role, playerCount);
     const [aliveCount, reservedByOthers] = await Promise.all([
-      tx.character.count({ where: { roleId, status: "ALIVE" } }),
+      tx.character.count({ where: { roleId, status: { in: seatHolderStatuses(role) } } }),
       tx.roleReservation.count({ where: { roleId, discordUserId: { not: discordUserId } } }),
     ]);
     // The caller's own existing hold on THIS role doesn't count against
@@ -59,16 +59,23 @@ async function reserveRole(prisma, discordUserId, roleId, playerCount) {
   });
 }
 
-// The picker's count: ALIVE characters plus live reservations by everyone
-// EXCEPT the caller, so a player's own hold renders their role as available
-// to them and taken to everyone else.
-async function takenCounts(prisma, roleIds, excludeDiscordUserId) {
-  if (roleIds.length === 0) return new Map();
+// The picker's count: seated characters (ALIVE, plus DEAD on a permanent
+// seat — roleCapacity.js#seatHolderStatuses) plus live reservations by
+// everyone EXCEPT the caller, so a player's own hold renders their role as
+// available to them and taken to everyone else. Takes role rows ({ id, slug })
+// rather than ids because the slug decides which statuses count.
+async function takenCounts(prisma, roles, excludeDiscordUserId) {
+  if (roles.length === 0) return new Map();
+  const roleIds = roles.map((r) => r.id);
+  const permanentIds = roles.filter(isPermanentSeat).map((r) => r.id);
   await prisma.roleReservation.deleteMany({
     where: { roleId: { in: roleIds }, expiresAt: { lt: new Date() } },
   });
-  const [aliveRows, reservedRows] = await Promise.all([
+  const [aliveRows, deadRows, reservedRows] = await Promise.all([
     prisma.character.groupBy({ by: ["roleId"], where: { roleId: { in: roleIds }, status: "ALIVE" }, _count: true }),
+    permanentIds.length === 0
+      ? []
+      : prisma.character.groupBy({ by: ["roleId"], where: { roleId: { in: permanentIds }, status: "DEAD" }, _count: true }),
     prisma.roleReservation.groupBy({
       by: ["roleId"],
       where: { roleId: { in: roleIds }, discordUserId: { not: excludeDiscordUserId ?? "" } },
@@ -76,8 +83,9 @@ async function takenCounts(prisma, roleIds, excludeDiscordUserId) {
     }),
   ]);
   const counts = new Map();
-  for (const row of aliveRows) counts.set(row.roleId, (counts.get(row.roleId) ?? 0) + row._count);
-  for (const row of reservedRows) counts.set(row.roleId, (counts.get(row.roleId) ?? 0) + row._count);
+  for (const row of [...aliveRows, ...deadRows, ...reservedRows]) {
+    counts.set(row.roleId, (counts.get(row.roleId) ?? 0) + row._count);
+  }
   return counts;
 }
 

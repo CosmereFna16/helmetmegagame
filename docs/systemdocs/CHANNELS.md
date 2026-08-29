@@ -161,6 +161,45 @@ Re-applied on every bot ready (`bot/src/lib/turnsConsole.js`), at the end of
 every `db:sync-zones` (a repaired zone role has a **new** id, and the old grant
 would point at a dead one), and by the channel doctor's full scope.
 
+### 3b. The OOC report channel
+
+A fixed text channel (`REPORT_CHANNEL_ID` in `db/lib/reportChannelAccess.js`,
+hardcoded for the `roleIds.js` reason) holding one bot post — "Report an OOC
+problem." with a green **Open Ticket** button — and a private thread per
+report. Same shape as `#turns`: the bot re-asserts access at every ready
+(`bot/src/lib/reportChannel.js#ensureReportAnchor`), finds its anchor by the
+button on it rather than a tracked id, and sweeps every other message out of
+the channel. Anything typed into the channel afterwards is deleted on arrival
+(`messageCreate.js`, beside the `#turns` rule) — GMs' messages included. Send
+is neither granted nor denied: Gunboat asked that everyone keep it, and the
+deletion rule makes a lock unnecessary (buttons work without send either way,
+as `#turns` shows).
+
+Access: `@everyone` denied `ViewChannel`; the **Player** role allowed the view
+plus `SendMessagesInThreads` / `AttachFiles` / `AddReactions`; the GM role that
+plus `ManageThreads` / `ManageMessages`. Single-target PUTs, so anything else
+set by hand on the channel stays. The spectator and ghost seats get no
+overwrite: the spec is "only the Player role can view".
+
+**Open Ticket** creates a private, non-invitable thread named `Report – <Discord
+username>`, adds the reporter and every non-bot holder of the GM role, and
+posts a pinned message pinging the GM role with a red **Close** button.
+Threads auto-archive after a week (the longest Discord allows) rather than
+the parent's 24h default. A second press while that thread exists — active
+or archived — just links to it (matched by name: cache, then active, then
+archived private threads, so a cold cache after a restart can't duplicate
+one); a double-click is held by an in-flight set, and a fresh ticket within
+60 seconds of the last is refused. **Close** is honoured only inside a private thread whose
+parent is the report channel, and deletes the thread — anyone in it is the
+reporter or a GM, so there is no further gate. Both are audited
+(`ooc_report_opened` / `ooc_report_closed`, the "OOC report" family on
+`/gm/audit`).
+
+Report threads are **not** `PlayerThread` rows, and that is what keeps them
+alive: `dawnWipe`, `fullWipe`, `threadExpiryPass` and the channel doctor all
+walk zone channels, `SPECIAL_CHANNELS` or `PlayerThread`, so a thread under a
+channel none of them know about is never touched.
+
 ### The two travel twins
 
 `performTravel` does no Discord work (`MAP.md` §4); each caller runs its own

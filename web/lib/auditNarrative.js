@@ -57,6 +57,7 @@ export const AUDIT_FAMILIES = {
   faction: { label: "Faction", prefixes: ["faction_"] },
   lifeweb: { label: "Lifeweb", prefixes: [] },
   membership: { label: "Membership", prefixes: ["member_", "player_"] },
+  report: { label: "OOC report", prefixes: ["ooc_report_"] },
   system: { label: "System", prefixes: ["turn_"] },
   superadmin: { label: "Superadmin", prefixes: ["superadmin_"] },
 };
@@ -206,6 +207,10 @@ const R = {
   player_topic_created: () => [actor(), t("opened a public topic")],
   player_thread_created: () => [actor(), t("opened a private thread")],
   thread_persistence_changed: () => [actor(), t("changed a thread's persistence")],
+
+  // ---- OOC reports (bot/src/lib/reportChannel.js) ----
+  ooc_report_opened: () => [actor(), t("opened an OOC report ticket")],
+  ooc_report_closed: (d) => [actor(), t("closed an OOC report ticket"), ...(d.name ? [t("—"), em(d.name)] : [])],
 
   // ---- System (actor is "system") ----
   turn_advanced: (d) => [

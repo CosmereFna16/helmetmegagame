@@ -60,11 +60,12 @@ async function loadCreationData(discordUserId) {
     dynastyLastName(),
   ]);
 
-  // ALIVE characters plus anyone else's live wizard-in-progress hold — see
-  // db/lib/roleReservation.js. Excludes the viewer's own hold, so a role
+  // Seated characters (ALIVE, plus DEAD on a seat that never reopens — see
+  // db/lib/roleCapacity.js) plus anyone else's live wizard-in-progress hold —
+  // see db/lib/roleReservation.js. Excludes the viewer's own hold, so a role
   // they're mid-reserving on renders taken to everyone but them.
-  const roleIds = zones.flatMap((zone) => zone.factions.flatMap((faction) => faction.roles.map((r) => r.id)));
-  const takenByRole = await takenCounts(prisma, roleIds, discordUserId);
+  const roleRows = zones.flatMap((zone) => zone.factions.flatMap((faction) => faction.roles));
+  const takenByRole = await takenCounts(prisma, roleRows, discordUserId);
 
   const cursed = isCursed(member);
   // Mirrors the bypass in createCharacter so the host sees the wizard rather
