@@ -36,9 +36,12 @@ export default async function PlayerDeskPersonPage({ params }) {
   ]);
   const hasMore = recent.length > TAKE;
   const messages = recent.slice(0, TAKE).reverse();
-  if (messages.length === 0 && !character) notFound();
-
   const username = guildMembers.find((m) => m.id === discordUserId)?.username;
+  // Unknown id → 404. A guild member with no character and no conversation
+  // yet is not unknown — they are exactly who a GM opens this page to
+  // message first. Additive on purpose: listGuildMembers() returns [] when
+  // Discord is unreachable, and the old two-part test still holds then.
+  if (messages.length === 0 && !character && !username) notFound();
   const label = character?.name ?? username ?? discordUserId;
 
   // The Canon panel — everything a GM would otherwise have to hop to
