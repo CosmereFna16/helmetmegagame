@@ -647,8 +647,26 @@ export const REQUEST_EFFECTS = {
       // `added` is what actually landed, which is not `quantity` for a
       // non-stackable tag he already held — grantTagSlugs' rule, and the
       // reason Undo may only ever take back what this request really put on
-      // the sheet. The ⬢ still come back in full: he paid them either way.
-      if (tagId && added > 0) await dropCharacterTag(tx, request.characterId, tagId, added);
+      // the sheet.
+      //
+      // The goods have to still BE there. dropCharacterTag returns quietly on
+      // a missing row and takes only what remains from a short stack, so
+      // refunding unconditionally would mint ⬢: buy 5 Sweets for 25, hand 3 to
+      // a Docker, undo, and 25 ⬢ comes back for 2 units returned. Refuse
+      // instead — the same posture DEPOT_SELL takes when the proceeds are
+      // already spent. A GM who still wants it reversed can settle the
+      // difference from the Dev Panel.
+      if (tagId && added > 0) {
+        const held = await tx.characterTag.findUnique({
+          where: { characterId_tagId: { characterId: request.characterId, tagId } },
+        });
+        if ((held?.quantity ?? 0) < added) {
+          throw new UserError(
+            `${formatStack(tagName, added)} is no longer on their sheet — it has been spent, sold or handed on. Undo would refund ${total} ⬢ for goods that can't come back.`,
+          );
+        }
+        await dropCharacterTag(tx, request.characterId, tagId, added);
+      }
       await moveResources(tx, { kind: "character", id: request.characterId }, total);
       return `Returned ${formatStack(tagName, added)} to the Depot and refunded ${total} ⬢.`;
     },

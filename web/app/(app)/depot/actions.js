@@ -75,16 +75,11 @@ async function depotBuyImpl({ tagId, quantity: rawQuantity, reason: rawReason })
   const tag = await prisma.tag.findUnique({ where: { id: tagId ?? "" } });
   if (!tag || tag.depotPrice == null) throw new UserError("The Depot doesn't stock that.");
 
-  // A non-stackable ware can only ever be held once. Buying five and
-  // receiving one — or buying a second and receiving nothing, which is what
-  // addToStack does with a tag already held — would take his ⬢ for goods that
-  // never arrive. Refuse both cases up front rather than charging for air.
-  if (!tag.stackable) {
-    if (quantity > 1) throw new UserError(`You can only carry one ${tag.name}.`);
-    const alreadyHeld = await prisma.characterTag.findUnique({
-      where: { characterId_tagId: { characterId: character.id, tagId: tag.id } },
-    });
-    if (alreadyHeld) throw new UserError(`You already have a ${tag.name}, and you can only carry one.`);
+  // A non-stackable ware can only ever be held once, so buying five would
+  // charge for five and deliver one. The "already holds one" half of that is
+  // re-checked inside the transaction below, where it belongs.
+  if (!tag.stackable && quantity > 1) {
+    throw new UserError(`You can only carry one ${tag.name}.`);
   }
 
   const unitPrice = tag.depotPrice;
@@ -98,12 +93,17 @@ async function depotBuyImpl({ tagId, quantity: rawQuantity, reason: rawReason })
   await prisma.$transaction(async (tx) => {
     await moveResources(tx, { kind: "character", id: character.id }, -total);
 
-    // `added` is what actually landed on the sheet — 0 for a non-stackable
-    // ware he already held. Undo may only take back what this request really
-    // put there, so the snapshot records the truth rather than the ask.
+    // Inside the transaction, because addToStack silently no-ops on a
+    // non-stackable tag already held — which would take his ⬢ for goods that
+    // never arrive. Checking out here and buying in there leaves a window a
+    // second tab can fit through, and the @@unique index would then surface it
+    // as a raw P2002 that guarded() rethrows and Next redacts to React #441.
     const before = await tx.characterTag.findUnique({
       where: { characterId_tagId: { characterId: character.id, tagId: tag.id } },
     });
+    if (before && !tag.stackable) {
+      throw new UserError(`You already have a ${tag.name}, and you can only carry one.`);
+    }
     await addToStack(tx, character.id, tag.id, quantity, {
       source: "EVENT",
       stackable: tag.stackable,
@@ -203,13 +203,16 @@ async function depotSellImpl({ tagId, quantity: rawQuantity, reason: rawReason }
 // Draw and repay are one action because they are one ledger, and doing them
 // separately would mean two places that have to agree about the cap.
 //
-// The debt read for the cap check comes from the character loaded a moment
-// ago, so two simultaneous draws could in principle both pass it. That is
-// deliberate and bounded: the worst case overshoots the ceiling by one draw
-// and shows up on /gm/turns as two rows a GM can undo. The ⬢ half is still
-// exact, because moveResources is conditional. Making the tab itself
-// race-proof would mean a conditional update on depotDebt, which is not worth
-// the complexity for a single-holder counter.
+// The cap is enforced by a CONDITIONAL updateMany, the same shape and for the
+// same reason as moveResources: the write is the check.
+//
+// It was an absolute `set` of a debt read before the transaction, which is a
+// lost update rather than an overshoot — two draws of 30 both read 0, both set
+// 30, and he ends up holding 60 ⬢ while owing 30. Worse, it did not compose
+// with DEPOT_CREDIT's Undo, which moves the tab RELATIVELY: repaying a draw
+// and then undoing it decremented a tab already back at 0, leaving −30, which
+// creditAvailable would once have reported as 90 ⬢ of headroom. Apply and undo
+// now both move the tab by a delta, so they compose in any order.
 async function depotCreditImpl({ direction, amount: rawAmount, reason: rawReason }) {
   const { session, character } = await requireLicensedMerchant();
   const reason = requireReason(rawReason);
@@ -247,11 +250,24 @@ async function depotCreditImpl({ direction, amount: rawAmount, reason: rawReason
   const openTurn = await getOpenTurn();
 
   await prisma.$transaction(async (tx) => {
-    await moveResources(tx, { kind: "character", id: character.id }, draw ? amount : -amount);
-    await tx.character.update({
-      where: { id: character.id },
-      data: { depotDebt: debtAfter },
+    // The tab first, so a cap breach rolls back before any ⬢ move. Drawing
+    // matches only while the debt still leaves room; repaying only while the
+    // debt is still there to pay. A count of 0 means somebody else got there
+    // between the friendly check above and this write.
+    const { count } = await tx.character.updateMany({
+      where: draw
+        ? { id: character.id, depotDebt: { lte: DEPOT_CREDIT_CAP - amount } }
+        : { id: character.id, depotDebt: { gte: amount } },
+      data: { depotDebt: draw ? { increment: amount } : { decrement: amount } },
     });
+    if (!count) {
+      throw new UserError(
+        draw
+          ? `The Company won't advance that much — your balance moved. Reload and try again.`
+          : "Your balance moved. Reload and try again.",
+      );
+    }
+    await moveResources(tx, { kind: "character", id: character.id }, draw ? amount : -amount);
 
     const effect = { direction: draw ? "DRAW" : "REPAY", amount, debtBefore, debtAfter };
     await createRequest(tx, {

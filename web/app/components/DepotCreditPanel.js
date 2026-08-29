@@ -20,8 +20,11 @@ export default function DepotCreditPanel({ debt, cap, available, resources, disa
   const [error, setError] = useState(null);
 
   const drawing = mode === "DRAW";
-  const max = drawing ? available : Math.min(debt, resources);
-  const drawn = cap > 0 ? Math.round((debt / cap) * 100) : 0;
+  // Both clamped at 0: a GM correction on the Dev Panel can leave the tab
+  // negative, and neither a negative repayment ceiling nor a negative bar
+  // width ("width: -50%", which is simply invalid CSS) is a thing to render.
+  const max = Math.max(0, drawing ? available : Math.min(debt, resources));
+  const drawn = cap > 0 ? Math.max(0, Math.round((debt / cap) * 100)) : 0;
 
   function ask(next) {
     setMode(next);

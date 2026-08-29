@@ -137,7 +137,7 @@ documents:
     key: teachingskills
     public: true
     tags: []
-    description: "You can teach almost any skill. The person learning has to make a Gambit. If they roll a six, they gain the skill."
+    description: "You can teach almost any skill. The person learning has to make a Gambit, but must be in the same zone as someone who has that skill and is willing to teach them. The tutor doens't have to use a move. If student rolls a six, they gain the skill."
   - name: Producing Resources
     key: production
     public: true

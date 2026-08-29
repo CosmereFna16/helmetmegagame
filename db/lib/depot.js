@@ -28,11 +28,17 @@ const DEPOT_CREDIT_CAP = 60;
 // file a request for ten thousand vials. Well above any real purchase.
 const DEPOT_MAX_QUANTITY = 99;
 
-// How much room is left to draw. Clamped at 0 so a debt somehow over the cap
-// (a GM correction on the Dev Panel, an Undo landing out of order) reads as
-// "nothing available" rather than a negative number in the meter.
+// How much room is left to draw.
+//
+// Clamped at BOTH ends, and the upper clamp is the load-bearing one. A debt
+// over the cap (a GM correction on the Dev Panel) has to read as "nothing
+// available" rather than a negative number in the meter — but a debt BELOW
+// zero is the dangerous direction: 60 − (−30) is 90, and without the
+// Math.min that is 90 ⬢ of headroom against a 60 ⬢ ceiling. Undo decrements
+// the tab, so a reversal landing after the debt has already been repaid can
+// take it negative; this function must not turn that into free credit.
 function creditAvailable(depotDebt) {
-  return Math.max(0, DEPOT_CREDIT_CAP - (depotDebt ?? 0));
+  return Math.min(DEPOT_CREDIT_CAP, Math.max(0, DEPOT_CREDIT_CAP - (depotDebt ?? 0)));
 }
 
 // Coerce a client-supplied quantity to a whole number inside the allowed

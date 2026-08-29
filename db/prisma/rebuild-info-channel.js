@@ -146,16 +146,17 @@ async function deleteThreadCreatedMessages(channelId) {
   console.log(`  cleaned up ${systemMessages.length} "started a thread" system message(s)`);
 }
 
-const HANDBOOK_LINE = "**Handbook**: https://ravenheart.quest/handbook";
+const LINKS_LINE =
+  "[Website](http://ravenheart.quest/) | [Handbook](https://discord.com/channels/1537834545985097818/1539274486442893382/1542983900895248525)";
 
 function buildDirectoryMessage(mainMessage, linksByCategory) {
   const sections = linksByCategory.map((category) => {
     const heading = category.name ? `**${category.name}**` : null;
     const lines = category.threadIds.map((id) => `<#${id}>`);
     const body = [category.intro, lines.join("\n")].filter(Boolean).join("\n");
-    return [heading, body].filter(Boolean).join("\n\n");
+    return [heading, body].filter(Boolean).join("\n");
   });
-  return [mainMessage, ...sections, HANDBOOK_LINE].join("\n\n");
+  return [mainMessage, ...sections, LINKS_LINE].join("\n\n");
 }
 
 async function main() {

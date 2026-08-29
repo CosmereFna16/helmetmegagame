@@ -8,6 +8,14 @@ import Pager from "./Pager";
 import RequestDialog from "./RequestDialog";
 import TagChip from "./TagChip";
 
+// Module constants, not inline literals: useTableState lists both in the
+// dependency arrays of its `options` and `visible` memos, so a fresh array
+// each render would recompute the whole filter pass on every keystroke and
+// undo the deferred-value work the hook does to keep typing smooth. One
+// FILTER_DEFS serves both the hook and the FilterBar, so the two cannot drift.
+const SEARCH_FIELDS = [(r) => r.name, (r) => r.description];
+const FILTER_DEFS = [{ key: "group", label: "Kind", value: (r) => r.groupName ?? "" }];
+
 // The Depot's wholesale counter: Buy imports off the orbital station, Sell
 // Ravenheart's own goods back to it. Two tabs over one table, because they are
 // the same shape — a ware, a unit price, a quantity, a confirm.
@@ -67,8 +75,8 @@ function Counter({ buying, rows, resources, maxQuantity, disabled }) {
 
   const table = useTableState({
     rows,
-    searchFields: [(r) => r.name, (r) => r.description],
-    filterDefs: [{ key: "group", label: "Kind", value: (r) => r.groupName ?? "" }],
+    searchFields: SEARCH_FIELDS,
+    filterDefs: FILTER_DEFS,
     initialSort: { key: "price", dir: "asc" },
   });
 
@@ -111,7 +119,7 @@ function Counter({ buying, rows, resources, maxQuantity, disabled }) {
   return (
     <div className="mt-4 flex flex-col gap-3">
       <FilterBar
-        filterDefs={[{ key: "group", label: "Kind" }]}
+        filterDefs={FILTER_DEFS}
         filters={table.filters}
         setFilters={table.setFilters}
         options={table.options}

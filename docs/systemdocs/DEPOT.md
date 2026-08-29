@@ -12,8 +12,11 @@ costs is a fact about a civilisation Ravenheart cannot see. The tables below
 are the ladder — there is nothing above them to derive a price from.
 
 Unlike a brewing recipe, these numbers **are** enforced. `depotPrice` and
-`sellablePrice` are read inside the transaction by
-`web/app/(app)/depot/actions.js`, and a GM does not adjudicate a purchase.
+`sellablePrice` are read off the catalog row server-side by
+`web/app/(app)/depot/actions.js` — never taken from the client — and a GM does
+not adjudicate a purchase. The price is then snapshotted into `Request.effect`,
+so re-tuning a number here never changes what an Undo of an older trade
+reverses.
 
 ## 1. What it is
 
@@ -50,9 +53,17 @@ like anyone else; `/gm/dev` already does everything they would want here.
 
 ## 3. Buying
 
-What the station charges him, per unit. Every ware is `purchasable: false` —
-**the Merchant is the only source in the game** — with one deliberate
-exception, marked below.
+What the station charges him, per unit. Almost every ware is
+`purchasable: false` — **for those, the Merchant is the only source in the
+game**, which is the whole point of the seat.
+
+Five are also creation picks, marked in the Notes column: `jewelry` (1 pt),
+`instant-camera` (1), `surgical-equipment` (4), `poison-snooper` (4) and
+`old-45-revolver` (6). All five are `purchasableAfterStart: false`, so there is
+still no mid-game second source — you bought one on day one or you buy one off
+him. The Poison Snooper is the deliberate addition of the five: knowing which
+cup is poisoned, over and over, is worth a third of a starting budget, and its
+⬢ price stays steep so buying one mid-game is still a real decision.
 
 | Ware | ⬢ | Sells back | Notes |
 |---|---|---|---|
@@ -92,18 +103,30 @@ exception, marked below.
 Three of these need code, not just catalog data:
 
 - **`steam-automobile`** is in `FAST_TRAVEL_SLUGS`
-  (`web/lib/tagRequests.js`) alongside the two horses. Same request, same
-  once-a-day limit, same caveats — visible, and never through the caves.
-- **`coffee`** and **`soporific`** grant `caffeinated` and `asleep`, two status
-  tags that exist only for them.
+  (`web/lib/tagRequests.js`) alongside the two horses. Same request and the
+  same once-a-day limit, which `fastTravelRequestImpl` really does enforce
+  along with adjacency. "Easily visible" and "not through the caves" are
+  **adjudicated, not enforced** — exactly as they already are for the two
+  horses, whose catalog text says the same thing. Worth knowing, since he buys
+  the thing standing in the Caves.
+- **`coffee`** consumes into `caffeinated`, a status tag that exists only for
+  it. **`soporific`** does *not* consume into `asleep`, and that is on purpose:
+  you administer it to somebody else, so a self-targeting grant would put the
+  drinker to sleep instead of the victim. It is spent by a Move and a GM
+  applies `asleep` to whoever it happened to — the same "empty **Consumes
+  into**" convention `BREWING.md` documents for a thrown flask or a poison.
+  Nothing else in the catalog grants `asleep`.
 
 The rest of the caving loot table stays found-only. The Motorcycle and the
 Flamethrower are the only two artifacts the station will sell, on the reasoning
 that it has no trouble getting either — it is Ravenheart that has trouble
 hauling one up out of the Caves.
 
-**Nothing here is `craftable`.** That is the point: if Ravenheart could make it,
-importing it would be pointless.
+**Almost nothing here is `craftable`.** That is the point: if Ravenheart could
+make it, importing it would be pointless. The three exceptions are all brews —
+`alcohol`, `distilled-coca` and `phrygian-tears` — which he stocks for a
+Merchant who would rather not wait on a brewer. Each is priced well above what
+brewing one costs, and that gap is the market a brewer sells into (§4).
 
 ## 4. Selling
 
@@ -135,6 +158,31 @@ the market a brewer sells into.
 A buy price at or below a sell price would let anyone with a licence print ⬢ in
 a loop. `db/lib/syncTags.js` warns on every sync if that ever inverts.
 
+### The open hole in this, and it is a real one
+
+That warning guards the *Depot's own* two prices. It does not guard the other
+loop, which runs through crafting:
+
+> **Nothing in code charges a recipe.** `BREWING.md` says so outright — not the
+> ⬢, not the turns, not the skill, least of all the ingredient. `ADD_TAG` takes
+> `resourcesSpent` **from the client**, and there is no per-turn cap on filing
+> one.
+
+So a Merchant who also takes Brewing (Skilled) can file `ADD_TAG` for
+`ravenheart-red` declaring 0 ⬢ spent, sell it here for a code-enforced 14 ⬢,
+and repeat — unbounded within a single turn. 71 craftable tags are sellable,
+topping out at 49 ⬢ for the Gunpowder rung.
+
+Until the Merchant Update the sell side was inert data, so an uncharged recipe
+only ever produced a *tag* a GM could look at. Pricing the output in code is
+what turned it into a faucet. The only thing standing in front of it today is
+a GM reading the `ADD_TAG` queue, which is the same backstop crafting has
+always had — but it is now guarding money rather than goods.
+
+Two ways to close it, neither taken yet: charge the recipe's ⬢ in code inside
+`addTagRequestImpl`, or cap `DEPOT_SELL` per turn. The first is the real fix
+and the larger change.
+
 ## 5. The credit line
 
 The Company advances the Merchant up to **60 ⬢** against the business, tracked
@@ -143,6 +191,14 @@ on `Character.depotDebt` and drawn or repaid from the Credit panel.
 There is no interest, no schedule, and no penalty. If he takes out 60 he owes
 60. Drawing past the ceiling is refused; everything else is allowed, including
 sitting on the whole balance for the length of the game.
+
+The cap is enforced by a conditional `updateMany` — the write is the check,
+the same pattern and the same reason as `moveResources`. Both the apply and
+the Undo move the tab by a **delta**, never by an absolute value, so they
+compose in any order; an absolute write here silently lost one of two
+concurrent draws, and left the tab negative when a repaid draw was later
+undone. `creditAvailable()` clamps at both ends for the same reason: a
+negative debt must never read as headroom above the ceiling.
 
 **Nothing in code punishes a standing debt.** That is deliberate. The line is an
 asset for doing the job, not a trap, and the enforcement is social: every draw
