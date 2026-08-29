@@ -14,8 +14,7 @@ const { buildTurnAnnouncement } = require("../weather");
 const { TURNS_CONSOLE_ROW, CONSOLE_TEXT } = require("./turnsConsoleRow");
 const { docsPath } = require("./repoPaths");
 const { clearMessagesExcept } = require("./dawnWipe");
-
-const CHANNEL_TYPE_TEXT = 0;
+const { isTurnsChannel } = require("./turnsChannelAccess");
 
 // One banner per weather per phase, built by docs/assets/make-weather.py in
 // the same 2446x1122 frame as the #info banner. Returns null when the file
@@ -43,10 +42,6 @@ function weatherBannerPath(turn) {
     `${turn.weather.toLowerCase()}-${turn.phase.toLowerCase()}.jpg`,
   );
   return fs.existsSync(file) ? file : null;
-}
-
-function isTurnsChannel(channel) {
-  return channel.type === CHANNEL_TYPE_TEXT && channel.name?.toLowerCase() === "turns";
 }
 
 // #turns is ONE rolling message: the turn announcement, the weather banner and
@@ -137,4 +132,4 @@ async function postTurnsConsole(prisma, channelId, text, turn, config) {
   return sent;
 }
 
-module.exports = { postTurnsAnnouncement, postTurnsConsole, isTurnsChannel, weatherBannerPath };
+module.exports = { postTurnsAnnouncement, postTurnsConsole, weatherBannerPath };

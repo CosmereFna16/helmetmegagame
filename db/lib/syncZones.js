@@ -58,6 +58,7 @@ const { cursedRoleId, ensureCursedRoleAppearance } = require("./cursedAccess");
 const { docsPath } = require("./repoPaths");
 const { PERSISTENT_TAG_NAME, LOCATION_TAG_NAME } = require("./persistence");
 const { zoneChannelSpec, zoneRoleName } = require("./zoneChannelSpec");
+const { syncTurnsChannelAccess } = require("./turnsChannelAccess");
 const { createTopicRow, createPrivateRow } = require("./zoneAnchorRow");
 
 const CHANNEL_TYPE_CATEGORY = 4;
@@ -260,13 +261,13 @@ function buildCreateTopicBody(zone) {
   const description = (zone.description || "").trim();
   if (description) parts.push(description);
   parts.push(
-    "Use this channel to create new roleplay locations or scenes. Use /persistent to toggle whether your topic gets wiped or not.",
+    "Use this channel to create new roleplay locations or scenes. Use `/persistent` to toggle whether your topic gets wiped or not.",
   );
   return parts.join("\n\n");
 }
 
 const PRIVATE_ANCHOR_BODY =
-  "Use this channel to roleplay privately. Use /add <character> and /remove <character> to invite people to your thread.";
+  "Use this channel to roleplay privately. Use `/add <character>` and `/remove <character>` to invite people to your thread.";
 
 // The starter message of a generated Location topic: the location's name
 // and prose in bold/italic, then a compact sub-location block — one index
@@ -652,6 +653,7 @@ async function syncZonesFromYaml(prisma) {
     channelsReparented: [],
     pruned: [],
     topicsPruned: [],
+    turnsAccess: null,
   };
 
   // Pass 1a: upsert zones by slug. Parents before children, so parentZoneId
@@ -916,6 +918,16 @@ async function syncZonesFromYaml(prisma) {
     await prisma.zone.delete({ where: { id: zone.id } });
     report.pruned.push(zone.name);
   }
+
+  // Pass 5: #turns. It is outside the zone spec (nothing here creates it),
+  // but its view grants are keyed on the zone roles, and Pass 2a recreates a
+  // role with a NEW id when the old one was deleted by hand — so a sync that
+  // repaired a role would otherwise leave #turns granting a role that no
+  // longer exists.
+  report.turnsAccess = await syncTurnsChannelAccess(prisma).catch((err) => {
+    report.warnings.push(`#turns access sync failed: ${err.message}`);
+    return null;
+  });
 
   return report;
 }

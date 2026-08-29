@@ -129,6 +129,38 @@ it would list their account under the character's name and deanonymize the
 game. It exists to be `@`-mentioned (`PROXYING.md` §6) and to be the option in
 the `/add` and `/remove` pickers.
 
+### 3a. `#turns`: seen by anyone with a character
+
+`#turns` sits outside the zone spec — nothing in the repo creates it, and both
+its writers find it by exact name (`isTurnsChannel` in
+`db/lib/turnsChannelAccess.js`). Its access is still built from the zone roles,
+in `db/lib/turnsChannelAccess.js#syncTurnsChannelAccess`:
+
+- `@everyone` denied `ViewChannel` + `SendMessages` + `AttachFiles`. The
+  channel stays bot-only; the console's Travel/Move/Speak buttons are
+  components, not messages, so nobody needs send.
+- **every** zone role allowed `ViewChannel`. This is the gate. A living
+  character holds exactly one zone role from the moment `createCharacter` runs,
+  and travel only swaps it — so "has a character" and "holds some zone role"
+  are the same set, and the channel appears the instant a character exists.
+  Same trick `#intercom` uses (`roleViewZones`, §7).
+- the GM role, the spectator seat and the ghost seat, each via the helper that
+  already exists for it.
+
+It used to manage nothing but `SendMessages`, so *visibility* was whatever had
+been clicked by hand in Discord — a player finished creation and still saw
+nothing until a GM added an override. That list above is now the **complete**
+description of who may see the channel, so the sync deletes every overwrite it
+doesn't name: the per-member grants GMs added one player at a time, and the
+**Player** role's view grant, which said "approved to make a character", not
+"has one". A bot's own overwrite is the single exception, left alone so a guild
+whose bot isn't an administrator can't lock itself out of the channel it posts
+to.
+
+Re-applied on every bot ready (`bot/src/lib/turnsConsole.js`), at the end of
+every `db:sync-zones` (a repaired zone role has a **new** id, and the old grant
+would point at a dead one), and by the channel doctor's full scope.
+
 ### The two travel twins
 
 `performTravel` does no Discord work (`MAP.md` §4); each caller runs its own
@@ -324,8 +356,9 @@ Two scopes:
   pointing at a cave level. One member-list read plus a handful of requests.
 - **full** — all of the above plus the expensive halves: channel overwrites vs
   the spec, leftover per-member overwrites on zone channels, `PlayerThread`
-  rows whose threads 404, dead `PlayerThreadInvite` rows, and the special
-  channels' member overwrites vs the registry rules.
+  rows whose threads 404, dead `PlayerThreadInvite` rows, the special
+  channels' member overwrites vs the registry rules, and `#turns`'s own
+  overwrites vs `db/lib/turnsChannelAccess.js` (§3a).
 
 Where it runs: **cheap + apply on every bot ready** (`bot/src/events/ready.js`),
 after every turn advance when `GameConfig.autoReconcileEnabled` is on, as the
@@ -404,7 +437,8 @@ it is one rolling message (the turn announcement, weather banner, and player
 console) that gets deleted and reposted every turn regardless of
 `messageWipeEnabled`, so its sweep runs on that same cadence rather than the
 Dawn-only one above. It is best-effort: a sweep failure is logged but never
-costs the turn announcement that already went out.
+costs the turn announcement that already went out. Its *access* is managed
+though — see §3a.
 
 Both Dawn passes are wired into `db/index.js#advanceTurn()`'s side-effect
 thunk, so they fire identically whether Dawn came from the bot's twice-daily

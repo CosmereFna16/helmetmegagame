@@ -1,6 +1,9 @@
-const { ChannelType } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const { postTurnsConsole } = require("@lifeweb/db/lib/turnAnnouncement");
+const {
+  isTurnsChannel,
+  syncTurnsChannelAccess,
+} = require("@lifeweb/db/lib/turnsChannelAccess");
 const { CONSOLE_TEXT } = require("@lifeweb/db/lib/turnsConsoleRow");
 const { buildTurnAnnouncement } = require("@lifeweb/db/weather");
 
@@ -19,14 +22,10 @@ const { buildTurnAnnouncement } = require("@lifeweb/db/weather");
 // dawn or dusk. It reposts the console itself now — see finishGameWipe in
 // web/app/(app)/gm/dev/actions.js.
 
-// Same exact-name match db/lib/turnAnnouncement.js#isTurnsChannel uses —
-// there is only ever meant to be one, and nothing in the repo creates it.
-function isTurnsChannel(channel) {
-  return channel.type === ChannelType.GuildText && channel.name?.toLowerCase() === "turns";
-}
-
-// Locks #turns down for @everyone (the bot can still post) and makes sure the
-// console message exists, reusing it across restarts rather than reposting.
+// Re-asserts who can see and speak in #turns (db/lib/turnsChannelAccess.js:
+// @everyone denied, every zone role allowed the view, so the channel appears
+// the moment a player has a character) and makes sure the console message
+// exists, reusing it across restarts rather than reposting.
 async function ensureTurnsConsole(guild) {
   const channel = [...guild.channels.cache.values()].find(isTurnsChannel);
   if (!channel) {
@@ -37,7 +36,9 @@ async function ensureTurnsConsole(guild) {
     return;
   }
 
-  await channel.permissionOverwrites.edit(guild.roles.everyone, { SendMessages: false }).catch(() => {});
+  await syncTurnsChannelAccess(prisma, { channelId: channel.id }).catch((err) => {
+    console.error("Turns console: access sync failed:", err);
+  });
 
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
   if (config?.turnsConsoleChannelId === channel.id && config.turnsConsoleMessageId) {
