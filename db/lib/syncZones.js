@@ -253,7 +253,7 @@ async function reconcileChannelOverwrites(channelId, want, managed) {
 
 // --- Anchor + topic post bodies ----------------------------------------
 
-// The one message in the pinned, locked "Create a Topic" post: the zone's
+// The one message in the pinned "Create a Topic" post: the zone's
 // blurb, then the instructions. The button row rides on the same message.
 function buildCreateTopicBody(zone) {
   const parts = [`## ${zone.name}`];
@@ -306,7 +306,10 @@ function buildTopicBody(topic) {
 // and the Location topics — the same hard-won sequence the old description
 // posts used: unlock first (a locked thread rejects edits from everyone,
 // ManageThreads or not), lock last (never briefly reply-able mid-rebuild).
-async function rewriteForumPost(threadId, { name, chunks, appliedTags, locked, components }) {
+// `pinned` is separate from `locked` because the anchor is pinned and NOT
+// locked: a locked thread greys its own buttons out for anyone without
+// ManageThreads, which is every player.
+async function rewriteForumPost(threadId, { name, chunks, appliedTags, locked, pinned, components }) {
   await patchThread(threadId, { locked: false, archived: false });
 
   const messages = await fetchAllMessages(threadId);
@@ -322,12 +325,16 @@ async function rewriteForumPost(threadId, { name, chunks, appliedTags, locked, c
     name,
     locked,
     archived: false,
-    ...(locked ? { flags: THREAD_FLAG_PINNED } : {}),
+    ...(pinned ? { flags: THREAD_FLAG_PINNED } : {}),
     applied_tags: appliedTags,
   });
 }
 
-// The pinned, locked "Create a Topic" post at the top of a zone's forum.
+// The pinned, UNLOCKED "Create a Topic" post at the top of a zone's forum.
+// Unlocked on purpose: Discord disables a message's buttons for anyone who
+// cannot send in the thread, so a locked anchor left every player staring at
+// two dead buttons while GMs (ManageThreads) saw them work fine. Replies that
+// land in it are deleted on sight by bot/src/events/messageCreate.js.
 // Location-tagged so the wipe skips it outright; hash-gated so a no-op
 // re-sync costs one ensureForumTag read and nothing else.
 // Returns "created" | "updated" | "unchanged" | "skipped".
@@ -341,8 +348,10 @@ async function syncCreateTopicPost(prisma, zone) {
   const components = [createTopicRow(zone.id)];
   // The hash folds in the button row, not just the body — otherwise adding
   // or changing a button (like "Who's here?") would never trip the no-op
-  // guard and the anchor would keep its stale components forever.
-  const hash = hashBody(`${body} ${JSON.stringify(components)}`);
+  // guard and the anchor would keep its stale components forever. The trailing
+  // marker is the same trick for thread state: unlocking changes neither body
+  // nor components, so without it every existing anchor would stay locked.
+  const hash = hashBody(`${body} ${JSON.stringify(components)} unlocked`);
 
   let existing = null;
   if (zone.createTopicThreadId) {
@@ -374,7 +383,7 @@ async function syncCreateTopicPost(prisma, zone) {
     }
     for (const chunk of chunks.slice(1)) await postMessage(thread.id, chunk);
     await patchThread(thread.id, {
-      locked: true,
+      locked: false,
       archived: false,
       flags: THREAD_FLAG_PINNED,
       applied_tags: appliedTags,
@@ -392,7 +401,8 @@ async function syncCreateTopicPost(prisma, zone) {
     name: "Create a Topic",
     chunks,
     appliedTags,
-    locked: true,
+    locked: false,
+    pinned: true,
     components,
   });
   await prisma.zone.update({ where: { id: zone.id }, data: { createTopicHash: hash } });

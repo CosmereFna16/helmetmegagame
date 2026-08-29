@@ -21,6 +21,27 @@ const CONCEAL_PREFIX = "/conceal";
 // so an uncapped list is a fan-out anyone can trigger by pasting mentions.
 const MAX_MENTION_RELAYS = 10;
 
+// The Create-a-Topic anchor is a pinned but UNLOCKED forum post — locking it
+// would grey its own buttons out for every player (db/lib/syncZones.js). So
+// the lock's job moves here: anything typed into an anchor is deleted, and
+// never proxied or archived. The id set is cached because this runs on every
+// threaded message; anchors only change on a db:sync-zones.
+const ANCHOR_CACHE_MS = 60_000;
+let anchorIds = null;
+let anchorFetchedAt = 0;
+
+async function isCreateTopicAnchor(threadId) {
+  if (!anchorIds || Date.now() - anchorFetchedAt > ANCHOR_CACHE_MS) {
+    const zones = await prisma.zone.findMany({
+      where: { createTopicThreadId: { not: null } },
+      select: { createTopicThreadId: true },
+    });
+    anchorIds = new Set(zones.map((z) => z.createTopicThreadId));
+    anchorFetchedAt = Date.now();
+  }
+  return anchorIds.has(threadId);
+}
+
 module.exports = {
   name: "messageCreate",
   async execute(message) {
@@ -51,6 +72,14 @@ module.exports = {
     // be deleted, and no typing indicator fires under their real account.
     const channelName = message.channel.name?.toLowerCase();
     if (channelName === "turns") {
+      await message.delete().catch(() => {});
+      return;
+    }
+
+    // Same treatment as #turns, and for the same reason: the anchor is a
+    // control surface, not a scene. Runs before the character gate so a GM's
+    // stray line is swept too.
+    if (message.channel.isThread?.() && (await isCreateTopicAnchor(message.channel.id))) {
       await message.delete().catch(() => {});
       return;
     }

@@ -213,8 +213,15 @@ pass recreates it in the new forum.
 
 | Anchor | Where | What it is |
 |---|---|---|
-| **Create a Topic** | one pinned, **locked**, Location-tagged forum post at the top of every public forum (surface and cave level) | Its single message carries the zone's blurb plus instructions; the `topic:new:{zoneId}` and `zone:who:{zoneId}` buttons ride on it |
+| **Create a Topic** | one pinned, **unlocked**, Location-tagged forum post at the top of every public forum (surface and cave level) | Its single message carries the zone's blurb plus instructions; the `topic:new:{zoneId}` and `zone:who:{zoneId}` buttons ride on it |
 | **Create** | one permanent message in every surface `#private` | Carries the `priv:new:{zoneId}` button |
+
+The Create-a-Topic anchor is **unlocked on purpose**. Discord greys a message's
+buttons out for anyone who cannot send in the thread, so while it was locked
+every player saw two dead buttons and only GMs — who hold `MANAGE_THREADS` on
+the forum — could press them. The lock's tidiness job is done instead by
+`bot/src/events/messageCreate.js`, which deletes anything typed into an anchor
+before it can be proxied or archived.
 
 **Who's here?** replies privately with the names of every `ALIVE` character
 standing in the zone — plus each name's `roleTitle` for anyone who shares the
