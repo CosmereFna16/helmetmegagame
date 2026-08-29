@@ -6,7 +6,7 @@
 // pair (see Role in schema.prisma):
 //   isUnique  -> exactly 1 seat, at any game size. A single named character
 //                (Baron, Bishop, Headman) — NOT the same as "1 per 100".
-//   unlimited -> uncapped chaff roles (Peasant, Bum, Migrant).
+//   unlimited -> uncapped chaff roles (Peasant, Migrant).
 //   weight    -> seats per 100 players, scaled by GameConfig.playerCount.
 //
 // Returns Infinity for uncapped roles so callers can compare `taken < cap`
@@ -24,4 +24,67 @@ function formatCapacity(cap) {
   return cap === Infinity ? "∞" : String(cap);
 }
 
-module.exports = { roleCapacity, formatCapacity };
+// Seats that never reopen. A seat is normally held only by a LIVING character
+// — the holder dies and the picker offers the role again, which is right for
+// a Bum or a Watchman. These roles are the exception: once someone has held
+// the seat it stays taken for the rest of the run, dead holder or not, so
+// there is never a second Baron, a second Sheriff, a second Bastard. That
+// includes the roles with a single seat at 100 players (Diplomat, Sheriff,
+// Ranger, Master of Parties) — Gunboat confirmed they are one-and-done.
+//
+// A slug list rather than a roles.yaml key + Role column, the same call the
+// playtest lock made (web/lib/characterCreation.js#PLAYTEST_LOCKED_ROLE_SLUGS,
+// CHARACTERS.md "Seat caps"): a static rule over a fixed roster, and a column
+// would mean a live migration for a boolean. Keyed on Role.slug, so renaming
+// a slug in the YAML silently drops the role from this list — same caveat
+// the playtest lock carries. Every Windlands role is here; while playtest
+// mode holds the Windlands back those entries are dormant.
+const PERMANENT_SEAT_ROLE_SLUGS = [
+  // The Court
+  "baron",
+  "baroness",
+  "heir",
+  "successor",
+  "hand",
+  "meister",
+  "diplomat",
+  // The Watch
+  "captain",
+  "incarn",
+  // Town
+  "bishop",
+  "esculap",
+  "inquisitor",
+  "headman",
+  "sheriff",
+  "innkeeper",
+  "brigand-leader",
+  "brigand",
+  // Windlands
+  "bastard",
+  "champion",
+  "mother",
+  "follower",
+  "lieutenant-broken-spears-clan",
+  "master-of-parties",
+  "clansman-broken-spears-clan",
+  "lieutenant-windrider-clan",
+  "ranger",
+  "clansman-windrider-clan",
+];
+
+function isPermanentSeat(role) {
+  return PERMANENT_SEAT_ROLE_SLUGS.includes(role?.slug);
+}
+
+// Which Character.status values occupy a seat of this role. The one
+// definition behind every `taken` count — the wizard's picker, the seat
+// reservation, and createCharacter's in-transaction race check — so they
+// can never disagree about who is sitting in a chair. CURSED is in the enum
+// but nothing writes it; listing statuses explicitly rather than dropping
+// the filter keeps that true if it ever changes.
+function seatHolderStatuses(role) {
+  return isPermanentSeat(role) ? ["ALIVE", "DEAD"] : ["ALIVE"];
+}
+
+module.exports = { roleCapacity, formatCapacity, PERMANENT_SEAT_ROLE_SLUGS, isPermanentSeat, seatHolderStatuses };

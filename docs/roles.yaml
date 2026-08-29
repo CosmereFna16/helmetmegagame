@@ -33,12 +33,16 @@
 # expressed as seats allowed per 100 total players — the picker computes
 # `round(weight * GameConfig.playerCount / 100)`, so raising playerCount to
 # 120 scales every capped role by 1.2. `weight: unlimited` means no cap at
-# any scale (chaff roles like Peasant/Bum).
+# any scale (chaff roles like Peasant/Migrant).
 #
 # `multiple: false` roles get no `weight` field at all — they're a single
 # specific named character (Baron, Bishop, Headman, ...) and always stay
 # at exactly one seat no matter how large the game gets, which is not the
 # same thing as "1 per 100 players".
+#
+# A seat normally frees up when its holder dies. The roles that DON'T reopen
+# (Baron, Heir, Bishop, the Brigands, every Windlands role, ...) are listed in
+# code — db/lib/roleCapacity.js#PERMANENT_SEAT_ROLE_SLUGS, by slug — not here.
 #
 # `leader: true` / `treasurer: true` set Character.isLeader/isTreasurer at
 # creation. These were once entries in `starting_tags`, but Leader and

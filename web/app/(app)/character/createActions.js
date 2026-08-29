@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import {
   prisma,
   roleCapacity,
+  seatHolderStatuses,
   isDynastyHead,
   isDynastyMember,
   normalizeAntagonistSlugs,
@@ -303,7 +304,7 @@ export async function createCharacter(formData) {
       // The lock that actually closes the race — see the header comment.
       await tx.$queryRaw`SELECT id FROM "Role" WHERE id = ${role.id} FOR UPDATE`;
       const [taken, reservedByOthers] = await Promise.all([
-        tx.character.count({ where: { roleId: role.id, status: "ALIVE" } }),
+        tx.character.count({ where: { roleId: role.id, status: { in: seatHolderStatuses(role) } } }),
         tx.roleReservation.count({
           where: { roleId: role.id, discordUserId: { not: discordUserId }, expiresAt: { gt: new Date() } },
         }),
