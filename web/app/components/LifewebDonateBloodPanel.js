@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useConfirm } from "./ConfirmProvider";
+import Select from "./Select";
 import { donateBlood } from "../(app)/lifeweb/actions";
 
 export default function LifewebDonateBloodPanel({ characters }) {
@@ -32,7 +33,7 @@ export default function LifewebDonateBloodPanel({ characters }) {
     <div className="flex flex-wrap items-end gap-2">
       <label className="field">
         <span className="field-label">Player</span>
-        <select value={characterId} onChange={(e) => setCharacterId(e.target.value)}>
+        <Select value={characterId} onChange={(e) => setCharacterId(e.target.value)}>
           <option value="" disabled>
             Choose a player...
           </option>
@@ -41,7 +42,7 @@ export default function LifewebDonateBloodPanel({ characters }) {
               {c.name}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
       <button type="button" className="btn" disabled={!characterId || pending} onClick={handleClick}>
         Donate blood

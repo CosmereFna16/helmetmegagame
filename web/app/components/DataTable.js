@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
+import Select from "./Select";
+import { scoreMatch } from "@/lib/fuzzySearch";
 
 // The shared filter/search/sort/paginate engine behind every list surface in
 // the app — the adjudication tables, the player roster, the DM conversation
@@ -26,13 +28,26 @@ const DEFAULT_PAGE_SIZE = 50;
 // own zone; making it re-apply on prop change would drag a GM who chose "All"
 // back to their own zone on every revalidatePath, i.e. after every
 // adjudication.
+//
+// `searchMap`, when given, replaces the naive per-field substring pass with
+// the shared fuzzy engine (web/lib/fuzzySearch.js): diacritic folding,
+// typo tolerance, and field:term / @term scopes. It's a function
+// `(row) => ({ name, role, faction, username, zone, tag, status, kind,
+// text, notes, preview })` — any subset. `searchFields` stays the plain
+// substring fallback for surfaces that don't opt in (NotesList, TagCatalog,
+// DepotCounter). `rankBySearch` additionally reorders by match score while
+// a query is active — for a list with no sortable headers of its own
+// (the /gm/turns queue rail); leave it off to keep the viewer's chosen
+// column sort and use search purely as a filter (RosterTable).
 export function useTableState({
   rows,
   searchFields,
+  searchMap,
   filterDefs,
   initialSort,
   initialFilters,
   pageSize = DEFAULT_PAGE_SIZE,
+  rankBySearch = false,
 }) {
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState(initialFilters ?? {});
@@ -43,31 +58,79 @@ export function useTableState({
   // full row set trails behind at deferred priority, so typing fast into a
   // 500-row table never stutters the caret.
   const deferredQuery = useDeferredValue(query);
+  const trimmedQuery = deferredQuery.trim();
 
-  const options = useMemo(() => {
-    const out = {};
-    for (const def of filterDefs) {
-      out[def.key] = [...new Set(rows.map(def.value).filter((v) => v !== "" && v != null))].sort();
-    }
-    return out;
-  }, [rows, filterDefs]);
+  const passesSearch = useCallback(
+    (row) => {
+      if (!trimmedQuery) return { ok: true, match: null };
+      if (searchMap) {
+        const match = scoreMatch(trimmedQuery, searchMap(row));
+        return { ok: Boolean(match), match };
+      }
+      const q = trimmedQuery.toLowerCase();
+      return { ok: searchFields.some((f) => String(f(row) ?? "").toLowerCase().includes(q)), match: null };
+    },
+    [trimmedQuery, searchMap, searchFields],
+  );
 
-  const visible = useMemo(() => {
-    const q = deferredQuery.trim().toLowerCase();
-    const filtered = rows.filter((row) => {
+  const passesOtherFilters = useCallback(
+    (row, skipKey) => {
       for (const def of filterDefs) {
+        if (def.key === skipKey) continue;
         const active = filters[def.key];
         if (active && String(def.value(row)) !== active) return false;
       }
-      if (!q) return true;
-      return searchFields.some((f) => String(f(row) ?? "").toLowerCase().includes(q));
-    });
+      return true;
+    },
+    [filterDefs, filters],
+  );
 
-    if (!sort.key) return filtered;
+  // Each dropdown's option list, plus a count for every option — measured
+  // against the rows that survive every OTHER active filter and the current
+  // search, so the number on "Open (0)" describes exactly what clicking it
+  // would give you. `def.options`, when a filter def supplies one, is a
+  // fixed vocabulary (every enum value, not just ones on screen) rather than
+  // one derived from the loaded rows — so "Open" doesn't vanish from the
+  // list just because nothing is open right now.
+  const options = useMemo(() => {
+    const out = {};
+    for (const def of filterDefs) {
+      const values = def.options ?? [...new Set(rows.map(def.value).filter((v) => v !== "" && v != null))].sort();
+      const counts = {};
+      for (const row of rows) {
+        if (!passesOtherFilters(row, def.key)) continue;
+        if (!passesSearch(row).ok) continue;
+        const v = String(def.value(row));
+        counts[v] = (counts[v] ?? 0) + 1;
+      }
+      out[def.key] = values.map((value) => ({ value, count: counts[value] ?? 0 }));
+    }
+    return out;
+  }, [rows, filterDefs, passesOtherFilters, passesSearch]);
+
+  const { visible, matchByRow } = useMemo(() => {
+    const filtered = [];
+    const matches = new Map();
+    for (const row of rows) {
+      if (!passesOtherFilters(row, null)) continue;
+      const { ok, match } = passesSearch(row);
+      if (!ok) continue;
+      if (match) matches.set(row, match);
+      filtered.push(row);
+    }
+
+    const rankingBySearch = rankBySearch && trimmedQuery && searchMap;
+    if (rankingBySearch) {
+      return {
+        visible: [...filtered].sort((a, b) => (matches.get(b)?.score ?? 0) - (matches.get(a)?.score ?? 0)),
+        matchByRow: matches,
+      };
+    }
+    if (!sort.key) return { visible: filtered, matchByRow: matches };
     const dir = sort.dir === "asc" ? 1 : -1;
     // Sort a copy — filtered may be the same array identity as rows when
     // nothing is filtered out, and sorting in place would mutate props.
-    return [...filtered].sort((a, b) => {
+    const sorted = [...filtered].sort((a, b) => {
       const av = a[sort.key];
       const bv = b[sort.key];
       if (av == null && bv == null) return 0;
@@ -76,7 +139,8 @@ export function useTableState({
       if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
       return String(av).localeCompare(String(bv)) * dir;
     });
-  }, [rows, deferredQuery, filters, sort, filterDefs, searchFields]);
+    return { visible: sorted, matchByRow: matches };
+  }, [rows, sort, rankBySearch, trimmedQuery, searchMap, passesOtherFilters, passesSearch]);
 
   const total = visible.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -110,6 +174,10 @@ export function useTableState({
     [visible, safePage, pageSize],
   );
 
+  // The match-reason subtext (e.g. "· role") for a row scoreMatch picked —
+  // only meaningful when searchMap is in play and a query is active.
+  const matchFor = useCallback((row) => matchByRow.get(row) ?? null, [matchByRow]);
+
   return {
     query,
     setQuery: changeQuery,
@@ -119,6 +187,7 @@ export function useTableState({
     setSort: changeSort,
     toggleSort,
     options,
+    matchFor,
     visible,
     pageRows,
     page: safePage,
@@ -153,6 +222,7 @@ export function FilterBar({
   query,
   setQuery,
   searchLabel,
+  searchPlaceholder,
   sortOptions,
   sort,
   setSort,
@@ -165,28 +235,32 @@ export function FilterBar({
           filter row into five lines of chrome above the table at 375px. */}
       <label className="field min-w-0" style={{ flex: "1 1 12rem" }}>
         <span className="field-label">{searchLabel ?? "Search"}</span>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, text…" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={searchPlaceholder ?? "Name, text…"}
+        />
       </label>
       {filterDefs.map((def) => (
         <label className="field" key={def.key}>
           <span className="field-label">{def.label}</span>
-          <select
+          <Select
             value={filters[def.key] ?? ""}
             onChange={(e) => setFilters((f) => ({ ...f, [def.key]: e.target.value }))}
           >
             <option value="">All</option>
             {options[def.key]?.map((o) => (
-              <option key={o} value={o}>
-                {o}
+              <option key={o.value} value={o.value}>
+                {o.value} ({o.count})
               </option>
             ))}
-          </select>
+          </Select>
         </label>
       ))}
       {sortOptions && (
         <label className="field">
           <span className="field-label">Sort</span>
-          <select
+          <Select
             value={`${sort.key}:${sort.dir}`}
             onChange={(e) => {
               const [key, dir] = e.target.value.split(":");
@@ -198,7 +272,7 @@ export function FilterBar({
                 {o.label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
       )}
       {children}

@@ -3,6 +3,7 @@ import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getMyZones } from "@/lib/gmZone";
 import { getOpenTurn } from "@/lib/turn";
 import PlayerRail from "./PlayerRail";
+import DeskHeader from "@/app/components/DeskHeader";
 import InboxPoller from "./InboxPoller";
 
 // The player desk's server half. It owns the rail's data and nothing else:
@@ -73,6 +74,7 @@ export default async function PlayerDeskLayout({ children }) {
 
   const countByUser = new Map(grouped.map((g) => [g.discordUserId, g._count._all]));
   const usernameById = new Map(guildMembers.map((mem) => [mem.id, mem.username]));
+  const globalNameById = new Map(guildMembers.map((mem) => [mem.id, mem.globalName]));
 
   // Cursed is a live Discord role, not a DB field — joined in by
   // discordUserId from the guild's member list rather than included above.
@@ -127,6 +129,7 @@ export default async function PlayerDeskLayout({ children }) {
       resources: c?.resources ?? 0,
       cursed: cursedUserIds.has(discordUserId),
       username,
+      globalName: globalNameById.get(discordUserId) ?? "",
       preview: last ? `${authorLabel}${last.content}` : "",
       lastAtMs: last ? last.createdAt.getTime() : 0,
       lastDirection: last?.direction ?? null,
@@ -140,20 +143,20 @@ export default async function PlayerDeskLayout({ children }) {
 
   return (
     <div className="desk-shell">
-      <header className="desk-header">
-        <div className="flex items-center gap-3">
-          <h1 className="section-title">Players</h1>
-          <span className="chip">
-            {openTurn
-              ? `Turn ${openTurn.number} · ${openTurn.phase === "DAWN" ? "Dawn" : "Dusk"}`
-              : "No turn open"}
-          </span>
-          <span className="chip text-xs text-muted">{rows.length} tracked</span>
-          {unreadTotal > 0 && (
-            <span className="chip text-xs text-muted">{unreadTotal} unread</span>
-          )}
-        </div>
-      </header>
+      <DeskHeader
+        title="Players"
+        meta={
+          <>
+            <span className="chip">
+              {openTurn
+                ? `Turn ${openTurn.number} · ${openTurn.phase === "DAWN" ? "Dawn" : "Dusk"}`
+                : "No turn open"}
+            </span>
+            <span className="chip text-xs text-muted">{rows.length} tracked</span>
+            {unreadTotal > 0 && <span className="chip text-xs text-muted">{unreadTotal} unread</span>}
+          </>
+        }
+      />
 
       <div className="desk-body desk-body--players">
         <PlayerRail

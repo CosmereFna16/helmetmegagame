@@ -3,6 +3,7 @@
 import FormError from "@/app/components/FormError";
 import Modal from "@/app/components/Modal";
 import CheckField from "@/app/components/CheckField";
+import Select from "@/app/components/Select";
 import { useMemo, useState, useTransition } from "react";
 import {
   useTableState,
@@ -240,21 +241,21 @@ function TagDialog({ tag, groups, categories, pending, error, onCancel, onSave }
           </label>
           <label className="field">
             <span className="field-label">Category</span>
-            <select value={values.category} onChange={(e) => set("category", e.target.value)}>
+            <Select value={values.category} onChange={(e) => set("category", e.target.value)}>
               <option value="">Choose…</option>
               {categories.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="field">
             <span className="field-label">Group (colour accent only)</span>
-            <select value={values.groupId ?? ""} onChange={(e) => set("groupId", e.target.value)}>
+            <Select value={values.groupId ?? ""} onChange={(e) => set("groupId", e.target.value)}>
               <option value="">(none)</option>
               {groups.map((g) => (
                 <option key={g.id} value={g.id}>{g.name}</option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="field">
             <span className="field-label">Point cost (signed, catalog-style)</span>

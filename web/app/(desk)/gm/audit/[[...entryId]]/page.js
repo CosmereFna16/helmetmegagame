@@ -47,16 +47,7 @@ export default async function AuditPage({ params, searchParams }) {
   ]);
 
   const gmIds = gmProfiles.map((p) => p.discordUserId);
-  const ctx = await loadAuditContext({ gmIds });
-
-  // The username branch of free-text search: usernames live in Discord, not in
-  // any table, so they have to be resolved to actor ids before the WHERE.
-  if (filters.q) {
-    const lower = filters.q.toLowerCase();
-    ctx.usernameMatchIds = guildMembers
-      .filter((m) => m.username?.toLowerCase().includes(lower) || m.globalName?.toLowerCase().includes(lower))
-      .map((m) => m.id);
-  }
+  const ctx = await loadAuditContext({ gmIds, guildMembers });
 
   const where = await buildAuditWhere(filters, ctx);
 

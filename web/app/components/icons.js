@@ -189,6 +189,20 @@ export function EditIcon(props) {
   );
 }
 
+// GM inbox chime mute toggle (NavRail.js). One icon, one path added when muted.
+export function SpeakerIcon({ muted, ...props }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M4 10v4h3.5L12 17.5v-11L7.5 10H4z" strokeLinejoin="round" />
+      {muted ? (
+        <path d="M16 9.5l4.5 5M20.5 9.5L16 14.5" strokeLinecap="round" />
+      ) : (
+        <path d="M16 9.2c1.1.9 1.8 2 1.8 2.8s-.7 1.9-1.8 2.8" strokeLinecap="round" />
+      )}
+    </svg>
+  );
+}
+
 // The mobile bottom bar's "More" affordance — see NavRail.js's MOBILE_PRIMARY.
 export function MoreIcon(props) {
   return (
@@ -411,6 +425,16 @@ export function HorseIcon(props) {
         strokeLinejoin="round"
       />
       <path d="M16.2 8.2h.01" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// The Select trigger's open/close glyph — a single downward chevron, the
+// universal "this opens a list" mark.
+export function ChevronDownIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

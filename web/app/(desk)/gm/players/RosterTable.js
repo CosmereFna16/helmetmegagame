@@ -8,6 +8,7 @@ import DevCharacterButton from "@/app/components/DevCharacterButton";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import DevPanelModal from "@/app/components/DevPanelModal";
 import FactionLink from "@/app/components/FactionLink";
+import Select from "@/app/components/Select";
 import { useTableState, SortHeader, FilterBar, TableScroll } from "@/app/components/DataTable";
 import ZoneChip from "@/app/components/ZoneChip";
 import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
@@ -38,14 +39,29 @@ const COL_COUNT = 11;
 // because that is what every other GM surface means by Zone and what a GM's
 // default filter is keyed on. The physical one is "Standing in": a real and
 // different question, not a duplicate.
+// Status is a fixed CharacterStatus vocabulary — options: lists every value
+// so "Cursed" doesn't vanish from the dropdown just because nobody's cursed
+// this turn. Zone/Standing in/Faction stay derived from the loaded rows,
+// since those legitimately vary game to game.
 const FILTER_DEFS = [
   { key: "zone", label: "Zone", value: (c) => c.factionZoneName },
   { key: "locationZone", label: "Standing in", value: (c) => c.zoneName },
   { key: "faction", label: "Faction", value: (c) => c.factionName },
-  { key: "status", label: "Status", value: (c) => c.status },
+  { key: "status", label: "Status", value: (c) => c.status, options: ["ALIVE", "DEAD", "CURSED"] },
 ];
 
-const SEARCH_FIELDS = [(c) => c.name, (c) => c.roleTitle, (c) => c.factionName];
+// scoreMatch fields. Both zone concepts (faction seat and where they're
+// physically standing) share the one "zone" slot the fuzzy engine has —
+// concatenated rather than picking one, so a query matches either.
+const CHARACTER_STATUS_TEXT = { ALIVE: "Alive", DEAD: "Dead", CURSED: "Cursed" };
+const searchMapFor = (c) => ({
+  name: c.name,
+  role: c.roleTitle,
+  faction: c.factionName,
+  zone: `${c.factionZoneName ?? ""} ${c.zoneName ?? ""}`,
+  username: c.username || c.globalName,
+  status: CHARACTER_STATUS_TEXT[c.status] ?? c.status,
+});
 
 export default function RosterTable({
   characters,
@@ -77,7 +93,6 @@ export default function RosterTable({
   const [devPanel, setDevPanel] = useState(null);
 
   const filterDefs = useMemo(() => FILTER_DEFS, []);
-  const searchFields = useMemo(() => SEARCH_FIELDS, []);
   const {
     query,
     setQuery,
@@ -86,6 +101,7 @@ export default function RosterTable({
     sort,
     toggleSort,
     options,
+    matchFor,
     pageRows,
     page,
     setPage,
@@ -94,7 +110,7 @@ export default function RosterTable({
   } = useTableState({
     rows: characters,
     filterDefs,
-    searchFields,
+    searchMap: searchMapFor,
     initialSort: { key: "name", dir: "asc" },
     initialFilters: { zone: openingZoneName(myZoneNames) },
   });
@@ -159,6 +175,7 @@ export default function RosterTable({
             query={query}
             setQuery={setQuery}
             searchLabel="Search players"
+            searchPlaceholder="name, role, faction, zone, @handle…"
           >
             <ZoneScopeToggle myZoneNames={myZoneNames} filters={filters} setFilters={setFilters} />
             <button
@@ -261,7 +278,9 @@ export default function RosterTable({
               </tr>
             </thead>
             <tbody>
-              {pageRows.map((c) => (
+              {pageRows.map((c) => {
+                const match = matchFor(c);
+                return (
                 <tr key={c.id}>
                   {/* The box itself stays 16px; the padding is what makes the
                       tap target reach the 44px minimum. */}
@@ -282,6 +301,9 @@ export default function RosterTable({
                       <Link href={`/gm/players/${c.discordUserId}`} className="menu-item">
                         {c.name}
                       </Link>
+                      {match && match.matchedField !== "name" && (
+                        <span className="text-xs text-muted">· {match.matchedField}</span>
+                      )}
                       <DevCharacterButton
                         characterId={c.id}
                         name={c.name}
@@ -316,7 +338,8 @@ export default function RosterTable({
                   <td className="mono">{c.tagCount}</td>
                   <td className="mono">{c.resources} ⬢</td>
                 </tr>
-              ))}
+                );
+              })}
               {pageRows.length === 0 && (
                 <tr>
                   <td colSpan={COL_COUNT} className="text-center text-muted">
@@ -398,14 +421,14 @@ function BulkTagBar({ tags, count, characterIds, onDone }) {
           <span className="field-label">
             Tag to apply to {count} character{count === 1 ? "" : "s"}
           </span>
-          <select value={tagId} onChange={(e) => setTagId(e.target.value)}>
+          <Select value={tagId} onChange={(e) => setTagId(e.target.value)}>
             <option value="">Choose a tag…</option>
             {matches.map((t) => (
               <option key={t.id} value={t.id}>
                 [{t.category}] {t.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
       </div>
 

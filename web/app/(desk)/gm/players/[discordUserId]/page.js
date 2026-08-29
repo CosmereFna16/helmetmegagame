@@ -4,6 +4,7 @@ import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getGmProfiles } from "@/lib/gmProfiles";
 import { getOpenTurn } from "@/lib/turn";
 import { MOVE_REVIEW_LABELS, moveKindLabel, rollLabel } from "@/lib/moves";
+import { withoutDmNoise } from "@/lib/dmThread";
 import PersonShell from "./PersonShell";
 
 const TAKE = 100;
@@ -18,7 +19,7 @@ export default async function PlayerDeskPersonPage({ params }) {
   // rather than a guess, the same trick the old bounded query used.
   const [recent, guildMembers, character, aliveCharacter, gmProfiles, claim, openTurn] = await Promise.all([
     prisma.directMessage.findMany({
-      where: { discordUserId },
+      where: withoutDmNoise({ discordUserId }),
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: TAKE + 1,
     }),
@@ -76,7 +77,7 @@ export default async function PlayerDeskPersonPage({ params }) {
         ? {
             id: action.id,
             description: action.description,
-            kindLabel: moveKindLabel(action.moveKind),
+            kindLabel: moveKindLabel(action.moveKind, action.gmNotes),
             rollLabel: rollLabel(action),
             reviewLabel: MOVE_REVIEW_LABELS[action.moveReviewStatus] ?? "Open",
             resultMessage: action.resultMessage,
@@ -106,7 +107,7 @@ export default async function PlayerDeskPersonPage({ params }) {
       characterId={aliveCharacter?.id ?? character?.id ?? null}
       avatarVersion={(aliveCharacter ?? character)?.updatedAt.getTime() ?? null}
       zoneName={aliveCharacter?.zone?.name ?? null}
-      statusLabel={character && character.status !== "ALIVE" ? character.status.toLowerCase() : null}
+      status={character && character.status !== "ALIVE" ? character.status : null}
       initialMessages={messages}
       initialHasMore={hasMore}
       gmProfiles={gmProfiles}

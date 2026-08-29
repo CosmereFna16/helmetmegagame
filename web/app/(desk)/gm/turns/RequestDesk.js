@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import FormError from "@/app/components/FormError";
+import { useRefresh } from "@/app/components/useRefresh";
 import Tooltip from "@/app/components/Tooltip";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
@@ -30,7 +30,7 @@ function Line({ label, children }) {
 }
 
 export default function RequestDesk({ request, onInspect, onClose, registerEscape, onOpenDev }) {
-  const router = useRouter();
+  const [refresh] = useRefresh();
   const effect = request?.effect ?? {};
   const [edits, setEdits] = useState({
     resourcesSpent: String(effect.resourcesSpent ?? 0),
@@ -75,7 +75,7 @@ export default function RequestDesk({ request, onInspect, onClose, registerEscap
       const res = await resolveRequest({ requestId: request.id, mode, edits, gmNotes });
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
       markClean();
-      router.refresh();
+      refresh();
     });
   }
 
@@ -95,7 +95,7 @@ export default function RequestDesk({ request, onInspect, onClose, registerEscap
       const res = await killRequestTarget({ requestId: request.id });
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
       markClean();
-      router.refresh();
+      refresh();
     } finally {
       setKilling(false);
     }
@@ -122,6 +122,7 @@ export default function RequestDesk({ request, onInspect, onClose, registerEscap
             <span className="text-muted text-sm">({request.discordUsername})</span>
           </h2>
           <p className="text-xs text-muted">
+            {request.roleTitle && <>{request.roleTitle} · </>}
             {request.typeLabel} · {request.turnLabel} · {request.statusLabel}
           </p>
         </div>

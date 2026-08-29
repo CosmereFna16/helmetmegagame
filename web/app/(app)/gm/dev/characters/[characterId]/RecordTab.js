@@ -50,7 +50,7 @@ export default function RecordTab({ moves, requests, auditLog, messages, discord
           head={["Turn", "Kind", "Status", "⬢", "Move"]}
           row={(m) => [
             m.turn,
-            moveKindLabel(m.moveKind),
+            moveKindLabel(m.moveKind, m.gmNotes),
             <StatusPill
               key="status"
               tone={MOVE_REVIEW_TONES[MOVE_REVIEW_LABELS[m.status]] ?? "neutral"}

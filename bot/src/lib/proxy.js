@@ -270,10 +270,10 @@ async function deleteOriginal(message) {
 // wall.
 async function handBack(message, reason, text) {
   try {
-    await sendDm(message.author, `» *${reason}*`);
+    await sendDm(message.author, `» *${reason}*`, { source: "system_notice" });
     const body = (text ?? "").trim();
     for (let i = 0; i < body.length; i += DM_CHUNK) {
-      await sendDm(message.author, body.slice(i, i + DM_CHUNK));
+      await sendDm(message.author, body.slice(i, i + DM_CHUNK), { source: "system_notice" });
     }
   } catch (err) {
     // DMs closed. Nothing else to try — but the original is already gone,

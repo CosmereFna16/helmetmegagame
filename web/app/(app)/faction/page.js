@@ -1,4 +1,5 @@
 import SubmitButton from "@/app/components/SubmitButton";
+import Select from "@/app/components/Select";
 import ZoneChip from "@/app/components/ZoneChip";
 import EmptyState, { EmptyRow } from "@/app/components/EmptyState";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
@@ -367,13 +368,13 @@ export default async function FactionPage({ searchParams }) {
                 browser chrome and visibly breaks the theme. */}
             <label className="field">
               <span className="field-label">Faction</span>
-              <select name="factionId" defaultValue={faction.id} style={{ maxWidth: "100%" }}>
+              <Select name="factionId" defaultValue={faction.id} style={{ maxWidth: "100%" }}>
                 {allFactions.map((f) => (
                   <option key={f.id} value={f.id}>
                     {f.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <button type="submit" className="btn">
               View
@@ -481,7 +482,7 @@ export default async function FactionPage({ searchParams }) {
         <h2 className="panel-header">Add Member</h2>
         <form action={addCharacterToFaction} className="flex gap-2">
           <input type="hidden" name="factionId" value={faction.id} />
-          <select name="characterId" required defaultValue="" className="control min-w-0">
+          <Select name="characterId" required defaultValue="" className="min-w-0">
             <option value="" disabled>
               Choose a character...
             </option>
@@ -490,7 +491,7 @@ export default async function FactionPage({ searchParams }) {
                 {c.name}
               </option>
             ))}
-          </select>
+          </Select>
           <SubmitButton>Add</SubmitButton>
         </form>
       </section>

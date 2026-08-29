@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import Pager from "@/app/components/Pager";
+import Select from "@/app/components/Select";
 import ArchiveFeed from "./ArchiveFeed";
 
 const PAGE_SIZE = 100;
@@ -122,43 +123,43 @@ export default async function ArchivePage({ searchParams }) {
         </label>
         <label className="field">
           <span className="field-label">Zone</span>
-          <select name="zoneId" defaultValue={zoneId}>
+          <Select name="zoneId" defaultValue={zoneId}>
             <option value="">Anywhere</option>
             {zones.map((z) => (
               <option key={z.id} value={z.id}>
                 {z.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="field">
           <span className="field-label">Character</span>
-          <select name="characterId" defaultValue={characterId}>
+          <Select name="characterId" defaultValue={characterId}>
             <option value="">Anyone</option>
             {characters.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="field">
           <span className="field-label">Kind</span>
-          <select name="kind" defaultValue={kind}>
+          <Select name="kind" defaultValue={kind}>
             <option value="">Everything</option>
             {KIND_OPTIONS.map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="field">
           <span className="field-label">Order</span>
-          <select name="order" defaultValue={order}>
+          <Select name="order" defaultValue={order}>
             <option value="asc">Oldest first</option>
             <option value="desc">Newest first</option>
-          </select>
+          </Select>
         </label>
         <button type="submit" className="btn">
           Apply

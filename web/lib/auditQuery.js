@@ -1,5 +1,6 @@
 import { prisma } from "@lifeweb/db";
 import { DATE_PRESETS, auditFamily, familyPrefixes, knownTypesInFamily } from "@/lib/auditNarrative";
+import { parseQuery } from "@/lib/fuzzySearch";
 
 // The audit log's filter parser and WHERE builder, shared by the page and the
 // export action so a CSV can never disagree with the screen it was taken from.
@@ -60,9 +61,12 @@ export function parseAuditParams(params) {
 }
 
 // Everything the WHERE needs that is not in the URL: which Discord IDs are
-// GMs, which characters belong to which faction and zone, and where the turn
-// boundaries fall. One call, so the page and the export share the cost shape.
-export async function loadAuditContext({ gmIds }) {
+// GMs, which characters belong to which faction and zone (now also their
+// role title, for role:-scoped search), where the turn boundaries fall, and
+// the guild's Discord handles (for @handle / user:-scoped search — a
+// username lives in Discord, not in any table). One call, so the page and
+// the export share the cost shape.
+export async function loadAuditContext({ gmIds, guildMembers }) {
   const [characters, turns] = await Promise.all([
     prisma.character.findMany({
       select: {
@@ -70,6 +74,7 @@ export async function loadAuditContext({ gmIds }) {
         name: true,
         status: true,
         discordUserId: true,
+        roleTitle: true,
         faction: { select: { id: true, name: true, zoneId: true, zone: { select: { id: true, name: true } } } },
       },
     }),
@@ -77,7 +82,7 @@ export async function loadAuditContext({ gmIds }) {
     // through the boundaries.
     prisma.turn.findMany({ select: { number: true, phase: true, startedAt: true }, orderBy: { startedAt: "asc" } }),
   ]);
-  return { characters, turns, gmIds: new Set(gmIds ?? []) };
+  return { characters, turns, gmIds: new Set(gmIds ?? []), guildMembers: guildMembers ?? [] };
 }
 
 // Which turn a timestamp fell in — the last turn that had started by then.
@@ -154,6 +159,65 @@ async function detailsMatchIds(q) {
   return rows.map((r) => r.id);
 }
 
+// Discord handles a term matches — a username lives in Discord, not in any
+// table, so this is the whole reason ctx carries guildMembers.
+function matchGuildMemberIds(guildMembers, term) {
+  const lower = term.toLowerCase();
+  return guildMembers
+    .filter((m) => m.username?.toLowerCase().includes(lower) || m.globalName?.toLowerCase().includes(lower))
+    .map((m) => m.id);
+}
+
+// Characters whose `getter` field contains `term` — split into the actor
+// branch (their Discord id) and the target branch (their character id),
+// since either can carry a role:/faction:/zone: hit.
+function matchCharacterIds(characters, term, getter) {
+  const lower = term.toLowerCase();
+  const matched = characters.filter((c) => (getter(c) ?? "").toLowerCase().includes(lower));
+  return { actorIds: matched.map((c) => c.discordUserId), targetIds: matched.map((c) => c.id) };
+}
+
+const SCOPED_FIELD_GETTERS = {
+  role: (c) => c.roleTitle,
+  faction: (c) => c.faction?.name,
+  zone: (c) => c.faction?.zone?.name,
+};
+
+// One word of a parsed query (see web/lib/fuzzySearch.js#parseQuery) into a
+// Prisma OR clause. A scoped word (role:/faction:/zone:/username:) narrows to
+// that one branch; a bare word, or an explicit text:/notes: scope, gets the
+// full-breadth search every unscoped query has always run. An empty result
+// set on a scoped word (e.g. role:xyz matching nobody) correctly resolves to
+// "no rows", not "ignore the scope" — { in: [] } is a real Prisma empty set.
+async function wordWhere(word, ctx) {
+  const term = word.term;
+  if (!term) return null;
+
+  if (word.field === "username") {
+    return { actorDiscordUserId: { in: matchGuildMemberIds(ctx.guildMembers, term) } };
+  }
+  if (SCOPED_FIELD_GETTERS[word.field]) {
+    const { actorIds, targetIds } = matchCharacterIds(ctx.characters, term, SCOPED_FIELD_GETTERS[word.field]);
+    return { OR: [{ actorDiscordUserId: { in: actorIds } }, { targetCharacterId: { in: targetIds } }] };
+  }
+
+  const lower = term.toLowerCase();
+  const matchedActorIds = ctx.characters.filter((c) => c.name.toLowerCase().includes(lower)).map((c) => c.discordUserId);
+  const usernameIds = matchGuildMemberIds(ctx.guildMembers, term);
+  const detailIds = await detailsMatchIds(term);
+  return {
+    OR: [
+      { actionType: { contains: term, mode: "insensitive" } },
+      { actorDiscordUserId: { contains: term, mode: "insensitive" } },
+      { reason: { contains: term, mode: "insensitive" } },
+      { targetCharacter: { name: { contains: term, mode: "insensitive" } } },
+      ...(matchedActorIds.length ? [{ actorDiscordUserId: { in: matchedActorIds } }] : []),
+      ...(usernameIds.length ? [{ actorDiscordUserId: { in: usernameIds } }] : []),
+      ...(detailIds.length ? [{ id: { in: detailIds } }] : []),
+    ],
+  };
+}
+
 // Builds the Prisma WHERE. Async only because of the details-text branch
 // above; everything else is derived from the context the caller already
 // loaded.
@@ -215,26 +279,15 @@ export async function buildAuditWhere(filters, ctx) {
   }
 
   if (filters.q) {
-    const q = filters.q;
-    const lower = q.toLowerCase();
-    // Actors are Discord IDs in the table, so a search for a person's name has
-    // to be resolved to ids first — through their character name here, and
-    // through their Discord username in the caller's context.
-    const matchedActorIds = ctx.characters
-      .filter((c) => c.name.toLowerCase().includes(lower))
-      .map((c) => c.discordUserId);
-    const detailIds = await detailsMatchIds(q);
-    and.push({
-      OR: [
-        { actionType: { contains: q, mode: "insensitive" } },
-        { actorDiscordUserId: { contains: q, mode: "insensitive" } },
-        { reason: { contains: q, mode: "insensitive" } },
-        { targetCharacter: { name: { contains: q, mode: "insensitive" } } },
-        ...(matchedActorIds.length ? [{ actorDiscordUserId: { in: matchedActorIds } }] : []),
-        ...(ctx.usernameMatchIds?.length ? [{ actorDiscordUserId: { in: ctx.usernameMatchIds } }] : []),
-        ...(detailIds.length ? [{ id: { in: detailIds } }] : []),
-      ],
-    });
+    // Split on whitespace into bare terms (match anything) and field:term /
+    // @term scopes (match one branch only) — see parseQuery. Each word is
+    // its own AND entry, so "role:smith caves" is a real two-term AND, not
+    // one long substring the way a single `contains: q` was.
+    const { bare, scoped } = parseQuery(filters.q);
+    const words = [...bare.map((term) => ({ term, field: null })), ...scoped];
+    for (const word of words) {
+      and.push(await wordWhere(word, ctx));
+    }
   }
 
   return and.length ? { AND: and } : {};

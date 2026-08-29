@@ -220,6 +220,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       turn: m.turn ? `${m.turn.number} ${m.turn.phase}` : "—",
       description: m.description,
       moveKind: m.moveKind,
+      gmNotes: m.gmNotes,
       status: m.moveReviewStatus,
       resourceDelta: m.resourceDelta,
     })),

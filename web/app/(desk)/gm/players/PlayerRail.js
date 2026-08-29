@@ -5,9 +5,11 @@ import { useMemo, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import ZoneChip from "@/app/components/ZoneChip";
 import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
+import Select from "@/app/components/Select";
 import { openingZoneName } from "@/lib/zones";
 import usePins from "@/app/components/usePins";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
+import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { scoreMatch } from "@/lib/fuzzySearch";
 import { markConversationRead } from "./actions";
 
@@ -43,7 +45,18 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
   const [zoneFilter, setZoneFilter] = useState(openingZoneName(myZoneNames));
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const { isPinned, togglePin } = usePins();
+  // The player rail knows both id spaces — a character and/or a bare
+  // discordUserId per row — so unlike the adjudication desk it can prune both
+  // "c:" and "u:" pins, not just its own namespace.
+  const knownPinIdentities = useMemo(() => {
+    const ids = new Set();
+    for (const r of rows) {
+      if (r.characterId) ids.add(`c:${r.characterId}`);
+      if (r.discordUserId) ids.add(`u:${r.discordUserId}`);
+    }
+    return ids;
+  }, [rows]);
+  const { isPinned, togglePin } = usePins({ knownIdentities: knownPinIdentities });
 
   const zoneOptions = useMemo(
     () => [...new Set(rows.map((c) => c.factionZoneName).filter(Boolean))].sort(),
@@ -70,7 +83,7 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
             name: c.name,
             role: c.roleTitle,
             faction: c.factionName,
-            username: c.username,
+            username: [c.username, c.globalName].filter(Boolean).join(" "),
             zone: c.factionZoneName,
             preview: c.preview,
           }),
@@ -121,7 +134,7 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Name, role, faction…"
+            placeholder="name, role, faction, zone, @handle…"
           />
         </label>
         <div className="segmented" role="group" aria-label="Conversation filter">
@@ -144,14 +157,14 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
         {zoneOptions.length > 0 && (
           <label className="field">
             <span className="field-label">Zone</span>
-            <select value={zoneFilter} onChange={(e) => setZoneFilter(e.target.value)}>
+            <Select value={zoneFilter} onChange={(e) => setZoneFilter(e.target.value)}>
               <option value="">All</option>
               {zoneOptions.map((z) => (
                 <option key={z} value={z}>
                   {z}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         )}
         {unreadIds.length > 0 && (
@@ -183,16 +196,17 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
                 <div className="desk-queue-top">
                   <CharacterAvatar characterId={row.characterId} name={row.name} version={row.avatarVersion} />
                   <span className="desk-queue-name">{row.name}</span>
+                  {row.username && <span className="text-xs text-muted">@{row.username}</span>}
                   {row.factionZoneName ? <ZoneChip zoneName={row.factionZoneName} /> : null}
                   {row.status && row.status !== "ALIVE" && (
-                    <span className="chip text-xs text-muted">· {row.status.toLowerCase()}</span>
+                    <EnumPill map={CHARACTER_STATUS} value={row.status} />
                   )}
                   {row.claimedByDiscordUserId && (
                     <span
                       className="chip"
                       title={claimedByOther ? "Claimed by another GM" : "Claimed by you"}
                     >
-                      · {claimedByOther ? "claimed" : "you"}
+                      {claimedByOther ? "Claimed" : "You"}
                     </span>
                   )}
                   {row.lastAtMs > 0 && (
@@ -206,12 +220,11 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
                     </span>
                   )}
                 </div>
-                {match && match.matchedField !== "name" && (
+                {match && match.matchedField !== "name" && match.matchedField !== "username" && (
                   <div className="desk-queue-reason">
                     {match.matchedField === "role" && row.roleTitle}
                     {match.matchedField === "faction" && row.factionName}
                     {match.matchedField === "zone" && row.factionZoneName}
-                    {match.matchedField === "username" && row.username}
                     {match.matchedField === "preview" && "matched message text"}
                   </div>
                 )}

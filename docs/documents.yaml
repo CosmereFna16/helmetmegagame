@@ -389,46 +389,7 @@ documents:
   # roles, so the Dockers read it too: they are the ones hauling the goods.
   # The canonical numbers are docs/systemdocs/DEPOT.md §3-4; this is the
   # player-facing half and only carries the bands, never the full table.
-  - name: The Depot
-    key: merchant
-    public: false
-    tags: []
-    description: |-
-      Your Depot is a shuttle parked at Customs, at the bottom of the Caves, tethered to a station your sponsors keep in orbit. Your Licence opens it. Nobody else's does—and nobody else in Ravenheart can buy a single thing off it.
 
-      Go to **Depot** in the menu. You have to be standing at Customs to trade; you can read the price list from anywhere.
-
-      ## Buying
-
-      The station sells you goods at its own price, and it never runs out. Price is the only thing standing between you and any of it.
-
-      | Roughly | Costs |
-      |---|---|
-      | Tea, coffee, sweets, honey, a firecracker | 3–6 ⬢ |
-      | A boombox, a whip, a censer, jewelry | 14–18 ⬢ |
-      | A camera, a microscope, surgical equipment, a fighting hound | 30–50 ⬢ |
-      | A sleeping draught, an illusion crystal, a homunculus, antibiotics | 60–110 ⬢ |
-      | A steam automobile, a pistol, a motorcycle, a flamethrower | 180–260 ⬢ |
-
-      What you charge for any of it afterwards is entirely your business.
-
-      ## Selling
-
-      The station buys Ravenheart's own goods off you: brews, ore, cave fungus, anything the smiths beat out, and any portable valuables you come by. {tag:ravenheart-red} fetches the best price of the ordinary brews—it is the one thing on this planet an offworlder actually wants.
-
-      Your margin is the gap between what you pay a player for something and what the station pays you for it. Buy low.
-
-      ## Credit
-
-      The Company will advance you up to 60 ⬢ against the business. There's no interest and no due date: take out sixty, pay back sixty. Repay some and that much is available again.
-
-      It's capital for doing the job. Invest it in the town and nobody will trouble you. Spend it on yourself and somebody will start asking what your Licence is worth—and your Licence is also your ride off this rock.
-
-      ## Selling to people
-
-      The Depot page is only your wholesale counter. Selling to an actual person is the ordinary **Transfer Tag** and **Transfer Resources** on your character sheet, and both of you have to be standing in the same place.
-
-      That is what your Dockers are for. The customers are up in Town and you are down in the Caves.
   # The Cult of Bacchus's three briefs, replacing the old empty `cult` stub.
   # Assigned by tag, the same way the Demoness threat's brief is — a GM hands
   # the seat out and the paper arrives with the powers. The Leader holds

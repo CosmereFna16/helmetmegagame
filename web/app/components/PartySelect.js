@@ -8,11 +8,13 @@
 // Lives here rather than inside TransferResourcesButton because the Heal
 // dialog asks the same question ("who pays for this?") over a different set
 // of people.
+import Select from "./Select";
+
 export default function PartySelect({ label, value, onChange, characters, factions, hint }) {
   return (
     <label className="field">
       <span className="field-label">{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)} required>
+      <Select value={value} onChange={(e) => onChange(e.target.value)} required>
         <option value="" disabled>
           {hint}
         </option>
@@ -34,7 +36,7 @@ export default function PartySelect({ label, value, onChange, characters, factio
             ))}
           </optgroup>
         ) : null}
-      </select>
+      </Select>
     </label>
   );
 }

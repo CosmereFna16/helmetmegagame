@@ -26,7 +26,11 @@ function authorLabel(message, gmProfileById) {
 
 // Runs of ≥3 consecutive bot_auto rows collapse into one expandable "N
 // automated messages" row. staged_push never collapses — it's canon, a turn
-// result a GM needs to actually see.
+// result a GM needs to actually see. Pure UI plumbing (embeds, edit-flow
+// prompts, mention relays, proxy hand-back — source: "system_notice") never
+// reaches this component at all: @/lib/dmThread#withoutDmNoise excludes it
+// at the query. A new automated sendDm() call site needs to tag its own
+// `source` there, or it'll show up here as an uncollapsed bubble again.
 function isAutomated(message) {
   return message.source === "bot_auto" || message.meta?.embed === true;
 }

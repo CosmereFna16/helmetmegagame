@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import FormError from "@/app/components/FormError";
+import { useRefresh } from "@/app/components/useRefresh";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
@@ -40,7 +40,7 @@ export default function CavingDesk({
   registerEscape,
   onOpenDev,
 }) {
-  const router = useRouter();
+  const [refresh] = useRefresh();
   const confirm = useConfirm();
   const { markDirty, markClean, guardedClose } = useDirtyGuard();
 
@@ -68,7 +68,7 @@ export default function CavingDesk({
       const res = await resolveCavingRoll({ cavingRollId: roll.id, gmNotes });
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
       markClean();
-      router.refresh();
+      refresh();
     });
   }
 
@@ -87,7 +87,7 @@ export default function CavingDesk({
     startTransition(async () => {
       const res = await resolveRequest({ requestId: roll.lootRequestId, mode: "undo" });
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
-      router.refresh();
+      refresh();
     });
   }
 
@@ -103,6 +103,7 @@ export default function CavingDesk({
             <span className="text-muted text-sm">({roll.discordUsername})</span>
           </h2>
           <p className="text-xs text-muted">
+            {roll.roleTitle && <>{roll.roleTitle} · </>}
             {roll.factionZoneName} · ⚀ {roll.die} · {roll.kindLabel ?? CAVING_KIND_LABELS[roll.kind] ?? roll.kind}
           </p>
         </div>
@@ -187,7 +188,7 @@ export default function CavingDesk({
           presenceZones={presenceZones}
           onDone={() => {
             setComposer(null);
-            router.refresh();
+            refresh();
           }}
           onCancel={() => setComposer(null)}
         />
@@ -199,7 +200,7 @@ export default function CavingDesk({
           roster={roster}
           onDone={() => {
             setComposer(null);
-            router.refresh();
+            refresh();
           }}
           onCancel={() => setComposer(null)}
         />
@@ -210,7 +211,7 @@ export default function CavingDesk({
           zones={presenceZones}
           onDone={() => {
             setComposer(null);
-            router.refresh();
+            refresh();
           }}
           onCancel={() => setComposer(null)}
         />

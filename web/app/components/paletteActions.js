@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@lifeweb/db";
-import { getGmSession } from "@/lib/discordGuild";
+import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getOpenTurn } from "@/lib/turn";
 import { guarded } from "@/lib/actionResult";
 import { moveKindLabel } from "@/lib/moves";
@@ -58,7 +58,7 @@ async function getPaletteIndexImpl() {
   if (!gm) return { entries };
 
   const openTurn = await getOpenTurn();
-  const [characters, actions, requests, zones, factions] = await Promise.all([
+  const [characters, actions, requests, zones, factions, guildMembers] = await Promise.all([
     prisma.character.findMany({
       orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
       select: {
@@ -67,7 +67,7 @@ async function getPaletteIndexImpl() {
         status: true,
         discordUserId: true,
         roleTitle: true,
-        faction: { select: { name: true } },
+        faction: { select: { name: true, zone: { select: { name: true } } } },
       },
       take: 1000,
     }),
@@ -79,6 +79,7 @@ async function getPaletteIndexImpl() {
             id: true,
             description: true,
             moveKind: true,
+            gmNotes: true,
             character: { select: { name: true } },
           },
         })
@@ -90,9 +91,13 @@ async function getPaletteIndexImpl() {
     }),
     prisma.zone.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.faction.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    listGuildMembers(),
   ]);
 
+  const memberById = new Map(guildMembers.map((m) => [m.id, m]));
+
   for (const c of characters) {
+    const member = memberById.get(c.discordUserId);
     entries.push({
       kind: "player",
       id: c.id,
@@ -100,7 +105,12 @@ async function getPaletteIndexImpl() {
       hint: [c.roleTitle, c.faction?.name].filter(Boolean).join(" · "),
       dim: c.status !== "ALIVE",
       href: `/gm/players/${c.discordUserId}`,
-      search: { role: c.roleTitle ?? "", faction: c.faction?.name ?? "" },
+      search: {
+        role: c.roleTitle ?? "",
+        faction: c.faction?.name ?? "",
+        zone: c.faction?.zone?.name ?? "",
+        username: [member?.username, member?.globalName].filter(Boolean).join(" "),
+      },
     });
     // "What has been done to this person" is a question the palette can answer
     // in one keystroke now that the audit log takes a target filter in its URL.
@@ -132,7 +142,7 @@ async function getPaletteIndexImpl() {
     entries.push({
       kind: "move",
       id: a.id,
-      label: `${a.character?.name ?? "(deleted)"} — ${moveKindLabel(a.moveKind)}`,
+      label: `${a.character?.name ?? "(deleted)"} — ${moveKindLabel(a.moveKind, a.gmNotes)}`,
       hint: a.description ?? "",
       href: `/gm/turns/move/${a.id}`,
       search: { preview: a.description ?? "" },

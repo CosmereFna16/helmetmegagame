@@ -18,6 +18,7 @@ import { addableTags, removableTags, transferableTags, consumableTags } from "@/
 import RequestDialog from "./RequestDialog";
 import CheckField from "./CheckField";
 import PartySelect from "./PartySelect";
+import Select from "./Select";
 import ChipText from "./ChipText";
 import { useConfirm } from "./ConfirmProvider";
 import { useTags } from "./TagsProvider";
@@ -616,7 +617,7 @@ export default function RequestActionsProvider({
           <>
             <label className="field">
               <span className="field-label">Tag to remove</span>
-              <select value={tagId ?? ""} onChange={(e) => pick(e.target.value || null)} required>
+              <Select value={tagId ?? ""} onChange={(e) => pick(e.target.value || null)} required>
                 <option value="" disabled>
                   Choose a tag…
                 </option>
@@ -626,7 +627,7 @@ export default function RequestActionsProvider({
                     {t.quantity > 1 ? ` ×${t.quantity}` : ""}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             {stacking && (
               <QuantityField
@@ -644,7 +645,7 @@ export default function RequestActionsProvider({
           <>
             <label className="field">
               <span className="field-label">What are you using up?</span>
-              <select value={tagId ?? ""} onChange={(e) => pick(e.target.value || null)} required>
+              <Select value={tagId ?? ""} onChange={(e) => pick(e.target.value || null)} required>
                 <option value="" disabled>
                   Choose a tag…
                 </option>
@@ -654,7 +655,7 @@ export default function RequestActionsProvider({
                     {t.quantity > 1 ? ` ×${t.quantity}` : ""}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             {chosen && (
               <p className="text-xs text-muted">
@@ -671,7 +672,7 @@ export default function RequestActionsProvider({
           <>
             <label className="field">
               <span className="field-label">Who are you treating?</span>
-              <select
+              <Select
                 value={patientId}
                 onChange={(e) => {
                   setPatientId(e.target.value);
@@ -687,12 +688,12 @@ export default function RequestActionsProvider({
                     {t.id === selfId ? `${t.name} (you)` : t.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             {patient && (
               <label className="field">
                 <span className="field-label">What are you treating?</span>
-                <select value={tagId ?? ""} onChange={(e) => setTagId(e.target.value || null)} required>
+                <Select value={tagId ?? ""} onChange={(e) => setTagId(e.target.value || null)} required>
                   <option value="" disabled>
                     Choose an affliction…
                   </option>
@@ -702,7 +703,7 @@ export default function RequestActionsProvider({
                       {h.missingSkills.length ? ` — needs ${h.missingSkills.join("/")}` : ""}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             )}
             {affliction && (
@@ -730,7 +731,7 @@ export default function RequestActionsProvider({
           <>
             <label className="field">
               <span className="field-label">Item or Asset to hand over</span>
-              <select value={tagId ?? ""} onChange={(e) => pick(e.target.value || null)} required>
+              <Select value={tagId ?? ""} onChange={(e) => pick(e.target.value || null)} required>
                 <option value="" disabled>
                   Choose a tag…
                 </option>
@@ -740,7 +741,7 @@ export default function RequestActionsProvider({
                     {t.quantity > 1 ? ` ×${t.quantity}` : ""}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             {stacking && (
               <QuantityField
@@ -752,7 +753,7 @@ export default function RequestActionsProvider({
             )}
             <label className="field">
               <span className="field-label">Give it to</span>
-              <select value={recipient} onChange={(e) => setRecipient(e.target.value)} required>
+              <Select value={recipient} onChange={(e) => setRecipient(e.target.value)} required>
                 <option value="" disabled>
                   Choose a player…
                 </option>
@@ -761,7 +762,7 @@ export default function RequestActionsProvider({
                     {c.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           </>
         )}
@@ -812,7 +813,7 @@ export default function RequestActionsProvider({
               <>
                 <label className="field">
                   <span className="field-label">Who are you searching?</span>
-                  <select
+                  <Select
                     value={targetId}
                     onChange={(e) => {
                       setTargetId(e.target.value);
@@ -829,7 +830,7 @@ export default function RequestActionsProvider({
                         {t.name} — {targetNote(t)}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
 
                 {lootTarget && (
@@ -894,7 +895,7 @@ export default function RequestActionsProvider({
               <>
                 <label className="field">
                   <span className="field-label">Who are you moving?</span>
-                  <select value={targetId} onChange={(e) => setTargetId(e.target.value)} required>
+                  <Select value={targetId} onChange={(e) => setTargetId(e.target.value)} required>
                     <option value="" disabled>
                       Choose someone here…
                     </option>
@@ -904,11 +905,11 @@ export default function RequestActionsProvider({
                         {t.status === "DEAD" ? " — body" : ""}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
                 <label className="field">
                   <span className="field-label">Where to?</span>
-                  <select value={zoneId} onChange={(e) => setZoneId(e.target.value)} required>
+                  <Select value={zoneId} onChange={(e) => setZoneId(e.target.value)} required>
                     <option value="" disabled>
                       Choose a neighbouring zone…
                     </option>
@@ -917,7 +918,7 @@ export default function RequestActionsProvider({
                         {z.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
                 <p className="text-xs text-muted">
                   You can move someone you lead, someone you&apos;ve bound, or a body. It does not spend
@@ -957,7 +958,7 @@ export default function RequestActionsProvider({
           <>
             <label className="field">
               <span className="field-label">Where are you riding?</span>
-              <select value={zoneId} onChange={(e) => setZoneId(e.target.value)} required>
+              <Select value={zoneId} onChange={(e) => setZoneId(e.target.value)} required>
                 <option value="" disabled>
                   Choose a neighbouring zone…
                 </option>
@@ -966,7 +967,7 @@ export default function RequestActionsProvider({
                     {z.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <p className="text-xs text-muted">
               One zone over, and it does not spend your turn — you can still act when you arrive.
@@ -988,7 +989,7 @@ export default function RequestActionsProvider({
                 <span className="field-label">
                   {mode === "bind" ? "Who are you tying up?" : "Who are you cutting loose?"}
                 </span>
-                <select value={targetId} onChange={(e) => setTargetId(e.target.value)} required>
+                <Select value={targetId} onChange={(e) => setTargetId(e.target.value)} required>
                   <option value="" disabled>
                     Choose someone here…
                   </option>
@@ -997,7 +998,7 @@ export default function RequestActionsProvider({
                       {t.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             )}
             <p className="text-xs text-muted">
@@ -1016,7 +1017,7 @@ export default function RequestActionsProvider({
               <>
                 <label className="field">
                   <span className="field-label">Who are you hurting?</span>
-                  <select
+                  <Select
                     value={targetId}
                     onChange={(e) => {
                       setTargetId(e.target.value);
@@ -1032,7 +1033,7 @@ export default function RequestActionsProvider({
                         {t.name} — {t.condition ?? "Helpless"}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
 
                 <span className="field-label">What injury? (optional)</span>

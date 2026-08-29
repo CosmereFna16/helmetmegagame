@@ -70,35 +70,35 @@ cup is poisoned, over and over, is worth a third of a starting budget, and its
 | `tea` | 3 | 1 | Cures minor nerve effects — `afraid`, `panic`. Adjudicated, not automated. |
 | `coffee` | 3 | 1 | Consumes into `caffeinated` (2t) |
 | `firecracker` | 4 | 1 | |
-| `alcohol` | 6 | 4 | He stocks the local brew too |
+| `alcohol` | 5 | 4 | He stocks the local brew too |
 | `sweets` | 5 | 2 | Consumes into `ate-meal` |
 | `honey` | 5 | 2 | Consumes into `ate-meal` |
 | `sky-lantern` | 5 | 2 | |
-| `sake` | 6 | 2 | Consumes into `tipsy` |
-| `distilled-coca` | 12 | 10 | Also a Skilled brew, at 4 ⬢ — see §4 |
-| `boombox` | 14 | 5 | |
-| `whip` | 15 | 6 | Equippable |
-| `censer` | 16 | 6 | |
-| `jewelry` | 18 | 8 | Also a 1-pt creation pick |
-| `black-body-bag` | 30 | 11 | |
-| `poison-snooper` | 30 | 12 | **The exception:** also buyable at creation, 4 pt |
-| `monkey` | 30 | 11 | |
-| `instant-camera` | 35 | 14 | Also a 1-pt creation pick |
-| `microscope` | 38 | 15 | |
-| `phrygian-tears` | 40 | 20 | Also a Skilled brew, at 4 ⬢ — see §4 |
-| `surgical-equipment` | 42 | 17 | Also a 4-pt creation pick |
-| `light-infantry-armour` | 45 | 18 | Stops a bullet. Nothing forged here does. |
-| `hound` | 50 | 20 | |
-| `soporific` | 60 | 24 | Inflicts `asleep` (1t) |
-| `amoeba-vial` | 70 | 28 | |
-| `illusion-crystal` | 80 | 32 | |
-| `homunculus` | 100 | 40 | |
-| `antibiotics` | 110 | 44 | Cures every stage of infection |
-| `steam-automobile` | 180 | 72 | Fast-travels like a Horse — see below |
-| `old-45-revolver` | 180 | 72 | Neoclassic R&W10. Also a 6-pt creation pick. |
-| `ml-23` | 200 | 80 | A 9mm pistol |
-| `motorcycle` | 230 | 92 | Caving loot he also imports |
-| `flamethrower` | 260 | 104 | Caving loot he also imports |
+| `sake` | 5 | 2 | Consumes into `tipsy` |
+| `distilled-coca` | 11 | 10 | Also a Skilled brew, at 4 ⬢ — see §4 |
+| `boombox` | 13 | 5 | |
+| `whip` | 14 | 6 | Equippable |
+| `censer` | 15 | 6 | |
+| `jewelry` | 16 | 8 | Also a 1-pt creation pick |
+| `black-body-bag` | 27 | 11 | |
+| `poison-snooper` | 27 | 12 | **The exception:** also buyable at creation, 4 pt |
+| `monkey` | 27 | 11 | |
+| `instant-camera` | 32 | 14 | Also a 1-pt creation pick |
+| `microscope` | 35 | 15 | |
+| `phrygian-tears` | 36 | 20 | Also a Skilled brew, at 4 ⬢ — see §4 |
+| `surgical-equipment` | 38 | 17 | Also a 4-pt creation pick |
+| `light-infantry-armour` | 41 | 18 | Stops a bullet. Nothing forged here does. |
+| `hound` | 46 | 20 | |
+| `soporific` | 55 | 24 | Inflicts `asleep` (1t) |
+| `amoeba-vial` | 64 | 28 | |
+| `illusion-crystal` | 73 | 32 | |
+| `homunculus` | 91 | 40 | |
+| `antibiotics` | 100 | 44 | Cures every stage of infection |
+| `steam-automobile` | 164 | 72 | Fast-travels like a Horse — see below |
+| `old-45-revolver` | 164 | 72 | Neoclassic R&W10. Also a 6-pt creation pick. |
+| `ml-23` | 182 | 80 | A 9mm pistol |
+| `motorcycle` | 209 | 92 | Caving loot he also imports |
+| `flamethrower` | 237 | 104 | Caving loot he also imports |
 
 Three of these need code, not just catalog data:
 

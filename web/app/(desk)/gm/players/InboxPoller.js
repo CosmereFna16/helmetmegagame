@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { isAnyDirty } from "@/app/components/useDirtyGuard";
+import { useRefresh } from "@/app/components/useRefresh";
 
 const REFRESH_MS = 30_000;
 
@@ -12,17 +12,17 @@ const REFRESH_MS = 30_000;
 // wires a dirty guard). Conditions are read at fire time, not tracked as
 // deps, so the interval never needs tearing down and rebuilding.
 export default function InboxPoller() {
-  const router = useRouter();
+  const [refresh] = useRefresh();
 
   useEffect(() => {
     const id = setInterval(() => {
       if (document.visibilityState !== "visible") return;
       if (document.querySelector(".modal-overlay")) return;
       if (isAnyDirty()) return;
-      router.refresh();
+      refresh();
     }, REFRESH_MS);
     return () => clearInterval(id);
-  }, [router]);
+  }, [refresh]);
 
   return null;
 }

@@ -1,4 +1,5 @@
 import SubmitButton from "@/app/components/SubmitButton";
+import Select from "@/app/components/Select";
 import ZoneChip from "@/app/components/ZoneChip";
 import { EmptyRow } from "@/app/components/EmptyState";
 import { redirect } from "next/navigation";
@@ -55,11 +56,10 @@ export default async function DevFactionsPage() {
                   <ZoneChip zoneName={f.zone?.name ?? ""} />
                 </td>
                 <td>
-                  <select
+                  <Select
                     name="parentFactionId"
                     defaultValue={f.parentFactionId ?? ""}
                     form={`faction-${f.id}`}
-                    className="control"
                   >
                     <option value="">None</option>
                     {factions
@@ -69,7 +69,7 @@ export default async function DevFactionsPage() {
                           {other.name}
                         </option>
                       ))}
-                  </select>
+                  </Select>
                 </td>
                 <td>
                   <input

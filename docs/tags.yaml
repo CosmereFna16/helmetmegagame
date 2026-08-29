@@ -1393,7 +1393,7 @@ tags:
   - slug: artist
     name: Artist
     category: skills
-    description: "“Well, it’s lovely, but I’m not paying for it.” You draw, paint, sculpt, act, or pursue another creative medium inessential for survival. Perhaps you can find a patron?"
+    description: "Well, it’s lovely, but I’m not paying for it. You draw, paint, sculpt, act, or pursue another creative medium inessential for survival. Perhaps you can find a patron? The Merchant might buy these... (You can craft a {tag:painting})."
     pointCost: 1
     purchasable: true
     purchasableAfterStart: true
@@ -2726,7 +2726,7 @@ tags:
     category: health
     group: health-mind
     description: "You can't see. Good luck fighting. Requires a fresh pair of eyes to treat."
-    pointCost: -3
+    pointCost: -5
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -3345,7 +3345,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 8
-    depotPrice: 18
+    depotPrice: 16
 
   # The one thing an Artist can turn a week of work into. No depotPrice: the
   # station imports nothing Ravenheart makes itself, and a painting is the
@@ -3632,7 +3632,7 @@ tags:
     # look like the bargain it is. See docs/systemdocs/DEPOT.md §3.
     sellable: true
     sellablePrice: 72
-    depotPrice: 180
+    depotPrice: 164
 
   #Cave weapons
   - slug: cracked-bone-club
@@ -4463,7 +4463,7 @@ tags:
     tradeable: true
     sellable: true
     sellablePrice: 17
-    depotPrice: 42
+    depotPrice: 38
 
   # --- Special ------------------------------------------------------------
   # Relics, grafts and machinery. None of it is purchasable at any price and
@@ -4560,7 +4560,7 @@ tags:
     # something you have to go down and find. See docs/systemdocs/DEPOT.md §3.
     sellable: true
     sellablePrice: 104
-    depotPrice: 260
+    depotPrice: 237
 
   - slug: dark-eye-lenses
     name: Dark-Eye Lenses
@@ -4615,7 +4615,7 @@ tags:
     # The Depot imports these, and it does not have to haul them anywhere.
     sellable: true
     sellablePrice: 92
-    depotPrice: 230
+    depotPrice: 209
 
   - slug: sawn-off-double-barrel
     name: Sawn-Off Double Barrel
@@ -5009,7 +5009,7 @@ tags:
     group: items-drink
     description: "Rice wine aged in the shadow of cherry blossoms."
     pointCost: 0
-    depotPrice: 6
+    depotPrice: 5
     sellable: true
     sellablePrice: 2
     tradeable: true
@@ -5029,7 +5029,7 @@ tags:
     group: items-gear
     description: "A portable speaker."
     pointCost: 0
-    depotPrice: 14
+    depotPrice: 13
     sellable: true
     sellablePrice: 5
     tradeable: true
@@ -5044,7 +5044,7 @@ tags:
     group: items-weapons
     description: "Punish the heretics or those who have not paid their taxes."
     pointCost: 0
-    depotPrice: 15
+    depotPrice: 14
     sellable: true
     sellablePrice: 6
     tradeable: true
@@ -5060,7 +5060,7 @@ tags:
     group: items-gear
     description: "Pour a substance into it and watch as it diffuses through the room."
     pointCost: 0
-    depotPrice: 16
+    depotPrice: 15
     sellable: true
     sellablePrice: 6
     tradeable: true
@@ -5080,7 +5080,7 @@ tags:
     group: items-gear
     description: "Detects poisons. Multi-use."
     pointCost: 4
-    depotPrice: 30
+    depotPrice: 27
     sellable: true
     sellablePrice: 12
     tradeable: true
@@ -5095,7 +5095,7 @@ tags:
     group: items-gear
     description: "It muffles whatever goes on inside."
     pointCost: 0
-    depotPrice: 30
+    depotPrice: 27
     sellable: true
     sellablePrice: 11
     tradeable: true
@@ -5111,7 +5111,7 @@ tags:
     group: items-gear
     description: "What the hell are those things?!"
     pointCost: 0
-    depotPrice: 38
+    depotPrice: 35
     sellable: true
     sellablePrice: 15
     tradeable: true
@@ -5126,7 +5126,7 @@ tags:
     group: items-armor
     description: "A bulletproof vest and pad combination. Nothing forged in Ravenheart comes close, and nothing forged in Ravenheart stops a bullet."
     pointCost: 0
-    depotPrice: 45
+    depotPrice: 41
     sellable: true
     sellablePrice: 18
     tradeable: true
@@ -5143,7 +5143,7 @@ tags:
     group: assets-companions
     description: "A pet monkey! Why, how exquisite!"
     pointCost: 0
-    depotPrice: 30
+    depotPrice: 27
     sellable: true
     sellablePrice: 11
     tradeable: true
@@ -5158,7 +5158,7 @@ tags:
     group: assets-companions
     description: "A large, well-trained fighting dog awaits your commands."
     pointCost: 0
-    depotPrice: 50
+    depotPrice: 46
     sellable: true
     sellablePrice: 20
     tradeable: true
@@ -5174,7 +5174,7 @@ tags:
     group: items-drink
     description: "Give someone a few vials of this and they'll be asleep for a while. Inflicts {tag:asleep}."
     pointCost: 0
-    depotPrice: 60
+    depotPrice: 55
     sellable: true
     sellablePrice: 24
     tradeable: true
@@ -5192,7 +5192,7 @@ tags:
     group: items-gear
     description: "Let them go wherever you like—they'll eat anything. It'll even help you get rid of the tiniest traces of a crime."
     pointCost: 0
-    depotPrice: 70
+    depotPrice: 64
     sellable: true
     sellablePrice: 28
     tradeable: true
@@ -5210,7 +5210,7 @@ tags:
     group: items-gear
     description: "Creates an illusion up to human size. It lasts as long as you want."
     pointCost: 0
-    depotPrice: 80
+    depotPrice: 73
     sellable: true
     sellablePrice: 32
     tradeable: true
@@ -5225,7 +5225,7 @@ tags:
     group: items-special
     description: "A hideous little monster that will understand your simple instructions and carry them out."
     pointCost: 0
-    depotPrice: 100
+    depotPrice: 91
     sellable: true
     sellablePrice: 40
     tradeable: true
@@ -5240,7 +5240,7 @@ tags:
     group: items-drink
     description: "Immediately cures all stages of infection."
     pointCost: 0
-    depotPrice: 110
+    depotPrice: 100
     sellable: true
     sellablePrice: 44
     tradeable: true
@@ -5262,7 +5262,7 @@ tags:
     group: assets-property
     description: "Fill it with water, warm it up, and move along a straight path without any obstacles. Once per day, you may enter an adjacent zone without spending a turn, but you will be easily visible. Do not use through caves."
     pointCost: 0
-    depotPrice: 180
+    depotPrice: 164
     sellable: true
     sellablePrice: 72
     tradeable: true
@@ -5277,7 +5277,7 @@ tags:
     group: items-weapons
     description: "A 9mm pistol."
     pointCost: 0
-    depotPrice: 200
+    depotPrice: 182
     sellable: true
     sellablePrice: 80
     tradeable: true
@@ -5336,7 +5336,7 @@ tags:
     # The one local brew the Depot also sells, for a Merchant who would rather
     # not wait on a brewer. Six against a sell-back of four, so importing it
     # and dumping it straight back is a losing trade. See DEPOT.md §3.
-    depotPrice: 6
+    depotPrice: 5
 
   - slug: bliss
     name: Bliss
@@ -5585,7 +5585,7 @@ tags:
       gambit: true
     sellable: true
     sellablePrice: 20
-    depotPrice: 40
+    depotPrice: 36
 
   - slug: advanced-poppy
     name: Advanced Poppy
@@ -5743,7 +5743,7 @@ tags:
       gambit: false
     sellable: true
     sellablePrice: 10
-    depotPrice: 12
+    depotPrice: 11
 
   - slug: mindbreaker-toxin
     name: Mindbreaker Toxin
@@ -6549,7 +6549,7 @@ tags:
     removable: true
     sellable: true
     sellablePrice: 14
-    depotPrice: 35
+    depotPrice: 32
 
   - slug: ambrosia
     name: Ambrosia

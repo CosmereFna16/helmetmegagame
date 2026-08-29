@@ -42,6 +42,15 @@ desk — the two are the same tool and should read as one.
 Fleet view, then person view. With nobody selected the pane is the roster
 across its full width; picking someone splits it.
 
+Under the shared `.desk-*` mobile breakpoint (720px, `DESIGN-SYSTEM.md` §8),
+this desk is the exception to the rest of the family: the rail is the content
+here, not a queue beside the work, so `.desk-body--players` and `.desk-rail`
+are exempted from the shared single-column-stack / 45vh-cap rules
+(`globals.css`, the players-desk mobile block) and the roster just runs full
+width, full length, scrolling with the page. `/gm/turns` and `/gm/audit` keep
+the 45vh cap on their rails — there, the rail is a queue and the main pane is
+the work.
+
 Routes are keyed on **`discordUserId`, not `characterId`**: that is what
 `DirectMessage` keys on (no character FK, by design), every character has one,
 and it keeps working for a conversation whose character is gone.
@@ -57,10 +66,20 @@ Two lenses, the way the adjudication rail has Moves/Requests:
 - **Roster** — everyone with a character, alphabetically. Dead characters stay
   listed so their history is reachable.
 
-Search is `scoreMatch` (`web/lib/fuzzySearch.js` — keep that the one
-implementation) over name, role, faction, Discord username, zone and message
-preview. Zone/status filters and `ZoneScopeToggle` seed from the GM's zone seat
-the same way every other GM table does.
+Search is `scoreMatch` (`web/lib/fuzzySearch.js` — keep that the one shared
+engine) over name, role, faction, Discord username **and** global name, zone
+and message preview. `scoreMatch` tokenizes and folds diacritics, tolerates a
+typo, and takes `field:term` scopes — `role:smith`, `zone:caves`, `@handle`
+as shorthand for `username:handle` — so a bare word still matches anything
+but a scoped one narrows to that field only. Zone/status filters and
+`ZoneScopeToggle` seed from the GM's zone seat the same way every other GM
+table does.
+
+The **roster table** (§4) runs the same `scoreMatch` engine, over name, role,
+faction, both zones (seat and standing-in) and Discord handle — as a filter
+only, though: unlike the rail it keeps whatever column sort the GM chose
+rather than reordering by match score, since the roster has real sortable
+headers to preserve.
 
 **Pins are shared with the adjudication desk** (`usePins.js`). This is a merge,
 not a rename: the two desks kept separate keys in separate identity spaces —
@@ -68,6 +87,12 @@ not a rename: the two desks kept separate keys in separate identity spaces —
 `discordUserId` strings — so an entry now carries both ids and the old keys
 migrate once on first read. Identity is `characterId` when there is one,
 `discordUserId` otherwise.
+
+Both desks now prune dead pins against what each one knows, via
+`usePins({ knownIdentities })`: this desk passes both id spaces (it has
+rows keyed on both), `/gm/turns` passes characters only. A pin whose
+identity isn't in the caller's `knownIdentities` for its namespace drops
+silently on load, instead of surviving as a pin to nothing.
 
 ## 4. The roster
 
@@ -108,6 +133,14 @@ inside itself, with the composer pinned at the bottom. It used to be a 32rem
   there is no `setState` in an effect to seed it.
 - **Claim/release** is advisory (`ConversationMeta`), so five GMs don't answer
   the same player twice.
+- The thread is a **conversation**, not a raw `DirectMessage` dump: rows that
+  are pure bot/UI plumbing — inspect/dossier embeds, the ✏️ edit-flow
+  prompts, `@mention` relay notices, proxy hand-back — are tagged
+  `source: "system_notice"` at the `sendDm()` call site and excluded at the
+  query (`web/lib/dmThread.js#withoutDmNoise`), not just visually collapsed.
+  Genuinely useful automated turn notices (`bot_auto` — default-move,
+  hunger/dying, tag expiry, Caving Die) still show, and still collapse in
+  runs of 3+ (`DmThread.js`).
 - Mark-read fires from a client effect, never during RSC render — otherwise
   Next's link prefetch marks a conversation read on hover.
 

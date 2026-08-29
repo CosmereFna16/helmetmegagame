@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 // imports Prisma, and a client component reaching for one constant in it drags
 // the whole data layer into the browser bundle.
 import { AUDIT_FAMILIES, DATE_PRESETS, prettifyActionType } from "@/lib/auditNarrative";
+import Select from "@/app/components/Select";
 
 // The filter rail. Every control writes into the URL through the `set` the
 // desk passes down — nothing here holds filter state of its own, because the
@@ -82,7 +83,7 @@ export default function AuditFilters({
         <span className="field-label">Search</span>
         <input
           value={search}
-          placeholder="name, reason, anything in the details…"
+          placeholder="name, reason, @handle, role:smith, zone:caves…"
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && set({ q: search })}
           onBlur={() => search !== filters.q && set({ q: search })}
@@ -173,7 +174,7 @@ export default function AuditFilters({
       <Group label="About">
         <label className="field">
           <span className="field-label">Character</span>
-          <select
+          <Select
             value={filters.targets[0] ?? ""}
             onChange={(e) => set({ targets: e.target.value ? [e.target.value] : [] })}
           >
@@ -184,11 +185,11 @@ export default function AuditFilters({
                 {c.status !== "ALIVE" ? ` (${c.status.toLowerCase()})` : ""}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="field">
           <span className="field-label">Faction</span>
-          <select
+          <Select
             value={filters.factions[0] ?? ""}
             onChange={(e) => set({ factions: e.target.value ? [e.target.value] : [] })}
           >
@@ -198,11 +199,11 @@ export default function AuditFilters({
                 {f.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="field">
           <span className="field-label">Zone</span>
-          <select
+          <Select
             value={filters.zones[0] ?? ""}
             onChange={(e) => set({ zones: e.target.value ? [e.target.value] : [] })}
           >
@@ -212,7 +213,7 @@ export default function AuditFilters({
                 {z.name}
               </option>
             ))}
-          </select>
+          </Select>
           {/* The zone a row belongs to is its target's FACTION zone, never
               where they happen to be standing — the rule ZoneChip states. */}
           <span className="text-muted text-xs">By the character&rsquo;s faction.</span>
@@ -237,25 +238,25 @@ export default function AuditFilters({
         <div className="audit-pair">
           <label className="field">
             <span className="field-label">Turn from</span>
-            <select value={filters.turnFrom} onChange={(e) => set({ turnFrom: e.target.value })}>
+            <Select value={filters.turnFrom} onChange={(e) => set({ turnFrom: e.target.value })}>
               <option value="">—</option>
               {turnNumbers.map((n) => (
                 <option key={n} value={n}>
                   {n}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="field">
             <span className="field-label">Turn to</span>
-            <select value={filters.turnTo} onChange={(e) => set({ turnTo: e.target.value })}>
+            <Select value={filters.turnTo} onChange={(e) => set({ turnTo: e.target.value })}>
               <option value="">—</option>
               {turnNumbers.map((n) => (
                 <option key={n} value={n}>
                   {n}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         </div>
         <div className="audit-pair">

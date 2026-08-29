@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { bloodValueForTags } from "@lifeweb/db/lib/lifeweb";
 import RequestDialog from "./RequestDialog";
 import TagChip from "./TagChip";
+import Select from "./Select";
 import { useConfirm } from "./ConfirmProvider";
 import { useTags } from "./TagsProvider";
 import { donateBloodRequest, feedPersonRequest } from "../(app)/lifeweb/requestActions";
@@ -117,7 +118,7 @@ export default function LifewebRequestButtons({ characters, disabled = false }) 
         ) : (
           <label className="field">
             <span className="field-label">Who?</span>
-            <select value={targetId} onChange={(e) => setTargetId(e.target.value)} required>
+            <Select value={targetId} onChange={(e) => setTargetId(e.target.value)} required>
               <option value="" disabled>
                 Choose a person…
               </option>
@@ -126,7 +127,7 @@ export default function LifewebRequestButtons({ characters, disabled = false }) 
                   {c.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         )}
 

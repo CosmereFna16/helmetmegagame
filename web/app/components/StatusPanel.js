@@ -49,7 +49,7 @@ function ThisTurn({ currentAction, openTurn }) {
 
   return (
     <>
-      <span className="field-label">{moveKindLabel(currentAction.moveKind)}</span>
+      <span className="field-label">{moveKindLabel(currentAction.moveKind, currentAction.gmNotes)}</span>
       <ExpandableText text={currentAction.description} lines={3} />
       {stateLine}
     </>

@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import FormError from "@/app/components/FormError";
+import { useRefresh } from "@/app/components/useRefresh";
 import TagChip from "@/app/components/TagChip";
 import Tooltip from "@/app/components/Tooltip";
 import GmAvatar from "@/app/components/GmAvatar";
@@ -79,7 +79,7 @@ export default function MoveDesk({
   onOpenDev,
   gmProfiles,
 }) {
-  const router = useRouter();
+  const [refresh] = useRefresh();
   const { markDirty, markClean, guardedClose } = useDirtyGuard();
   const { locked, error: lockError } = useMoveLock(move.id);
 
@@ -120,7 +120,7 @@ export default function MoveDesk({
       const res = await resolveMove({ actionId: move.id, mode, edits });
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
       markClean();
-      router.refresh();
+      refresh();
     });
   }
 
@@ -136,7 +136,7 @@ export default function MoveDesk({
       } else {
         onClose();
       }
-      router.refresh();
+      refresh();
     });
   }
 
@@ -154,6 +154,7 @@ export default function MoveDesk({
             <span className="text-muted text-sm">({move.discordUsername})</span>
           </h2>
           <p className="text-xs text-muted">
+            {move.roleTitle && <>{move.roleTitle} · </>}
             {move.locationLabel} · {move.factionName || "No faction"} · {move.resources} ⬢ on hand
           </p>
         </div>
@@ -195,16 +196,23 @@ export default function MoveDesk({
       <div className="mt-4 flex flex-col gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
         <blockquote className="desk-move-text">» {move.description}</blockquote>
         <div className="flex flex-wrap items-end gap-4">
-          <Switch
-            label="Kind"
-            value={edits.moveKind}
-            disabled={disabled}
-            onChange={(v) => setEdit("moveKind", v)}
-            options={[
-              { value: "ROUTINE", label: "Routine" },
-              { value: "GAMBIT", label: "Gambit" },
-            ]}
-          />
+          {move.isTravel ? (
+            <div className="flex flex-col gap-1">
+              <span className="field-label">Kind</span>
+              <span className="text-sm text-muted">Travel — auto-filed, no Routine/Gambit to pick</span>
+            </div>
+          ) : (
+            <Switch
+              label="Kind"
+              value={edits.moveKind}
+              disabled={disabled}
+              onChange={(v) => setEdit("moveKind", v)}
+              options={[
+                { value: "ROUTINE", label: "Routine" },
+                { value: "GAMBIT", label: "Gambit" },
+              ]}
+            />
+          )}
           <div className="flex flex-col gap-1">
             <span className="field-label">Dice</span>
             <span className="mono text-sm">{move.rollLabel || "—"}</span>
@@ -299,7 +307,7 @@ export default function MoveDesk({
           presenceZones={presenceZones}
           onDone={() => {
             setComposer(null);
-            router.refresh();
+            refresh();
           }}
           onCancel={() => setComposer(null)}
         />
@@ -314,7 +322,7 @@ export default function MoveDesk({
           onDone={() => {
             setComposer(null);
             setMessagePrefill(null);
-            router.refresh();
+            refresh();
           }}
           onCancel={() => {
             setComposer(null);
@@ -328,7 +336,7 @@ export default function MoveDesk({
           zones={presenceZones}
           onDone={() => {
             setComposer(null);
-            router.refresh();
+            refresh();
           }}
           onCancel={() => setComposer(null)}
         />

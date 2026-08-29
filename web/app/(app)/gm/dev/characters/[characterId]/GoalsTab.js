@@ -1,6 +1,7 @@
 "use client";
 
 import FormError from "@/app/components/FormError";
+import Select from "@/app/components/Select";
 import { EnumPill, DESIRE_STATUS } from "@/app/components/StatusPill";
 import { useState, useTransition } from "react";
 import { useConfirm } from "@/app/components/ConfirmProvider";
@@ -104,11 +105,11 @@ export default function GoalsTab({ character, desires }) {
           <div className="flex flex-wrap items-end gap-2">
             <label className="field">
               <span className="field-label">Worth</span>
-              <select value={points} onChange={(e) => setPoints(Number(e.target.value))}>
+              <Select value={points} onChange={(e) => setPoints(Number(e.target.value))}>
                 {[1, 2, 3, 4, 5].map((n) => (
                   <option key={n} value={n}>{n}</option>
                 ))}
-              </select>
+              </Select>
             </label>
             <button
               type="button"

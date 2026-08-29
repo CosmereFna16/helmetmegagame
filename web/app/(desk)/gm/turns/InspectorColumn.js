@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import TagChip from "@/app/components/TagChip";
+import { useRefresh } from "@/app/components/useRefresh";
 import FactionLink from "@/app/components/FactionLink";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
 import MarkdownContent from "@/app/components/MarkdownContent";
@@ -12,6 +12,7 @@ import ArchiveContextModal from "./ArchiveContextModal";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import { getCharacterInspector, getArchiveSlice, createStagedEffects } from "./actions";
 import { getDmThreadPage, sendGmDm } from "@/app/(desk)/gm/players/actions";
+import { scoreMatch } from "@/lib/fuzzySearch";
 
 // The right-hand inspector: the "quickly pull up the guy he was talking to"
 // column. Sheet / Tags / Archive / DMs over whichever character was last
@@ -127,23 +128,25 @@ function StagedDeltaFact({ display, pendingSuffix, onStage, disabled }) {
   );
 }
 
-function SheetView({ data, tab, tagsById, currentTurnNumber, characterId, pending, router }) {
+function SheetView({ data, tab, tagsById, currentTurnNumber, characterId, pending, refresh }) {
   async function stageResources(delta) {
     const res = await createStagedEffects({ targetCharacterIds: [characterId], resources: delta });
-    if (res?.ok) router.refresh();
+    if (res?.ok) refresh();
     return res;
   }
 
   async function stageTagPoints(delta) {
     const res = await createStagedEffects({ targetCharacterIds: [characterId], tagPoints: delta });
-    if (res?.ok) router.refresh();
+    if (res?.ok) refresh();
     return res;
   }
 
-  async function removeTag(tagId) {
-    const res = await createStagedEffects({ targetCharacterIds: [characterId], tagOps: [{ tagId, op: "remove" }] });
-    if (res?.ok) router.refresh();
-    return res;
+  const [, startTagTransition] = useTransition();
+  function removeTag(tagId) {
+    startTagTransition(async () => {
+      const res = await createStagedEffects({ targetCharacterIds: [characterId], tagOps: [{ tagId, op: "remove" }] });
+      if (res?.ok) refresh();
+    });
   }
 
   if (tab === "Tags") {
@@ -330,9 +333,85 @@ function DmsView({ data, characterId, cacheKey, setCache }) {
   );
 }
 
+const SEARCH_RESULT_LIMIT = 8;
+
+// The "look someone up without leaving the desk" box, sitting above the pin
+// row. Filters the roster page.js already ships to the client (no fetch) with
+// scoreMatch — the one shared fuzzy-search implementation
+// (web/lib/fuzzySearch.js) — over name, role, faction, Discord username and
+// zone, so "innkeeper", a faction name, or a Discord handle all find someone.
+// Picking a result just calls onInspect, the same path a name click anywhere
+// else in the workspace takes; pinning stays the existing Pin/Unpin button.
+function InspectorSearch({ roster, onInspect }) {
+  const [query, setQuery] = useState("");
+
+  const results = query.trim()
+    ? roster
+        .map((c) => ({
+          character: c,
+          match: scoreMatch(query, {
+            name: c.name,
+            role: c.roleTitle,
+            faction: c.factionName,
+            username: c.username,
+            zone: c.zoneName,
+          }),
+        }))
+        .filter((r) => r.match)
+        .sort((a, b) => b.match.score - a.match.score)
+        .slice(0, SEARCH_RESULT_LIMIT)
+    : [];
+
+  const pick = (c) => {
+    onInspect(c.id, c.name);
+    setQuery("");
+  };
+
+  return (
+    <div className="desk-inspector-search">
+      <input
+        type="text"
+        className="control"
+        placeholder="Look up a character…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape" && query) {
+            e.stopPropagation();
+            setQuery("");
+          }
+        }}
+      />
+      {results.length > 0 && (
+        <ul className="desk-inspector-search-results">
+          {results.map(({ character: c, match }) => (
+            <li key={c.id}>
+              <button type="button" className="btn-quiet" onClick={() => pick(c)}>
+                <span className="truncate">{c.name}</span>
+                {match.matchedField !== "name" && (
+                  <span className="text-xs text-muted">
+                    {match.matchedField === "username" && c.username
+                      ? `@${c.username}`
+                      : match.matchedField === "role"
+                        ? c.roleTitle
+                        : match.matchedField === "faction"
+                          ? c.factionName
+                          : c.zoneName}
+                  </span>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function InspectorColumn({
   inspected,
   pinned,
+  roster,
   onInspect,
   onTogglePin,
   cache,
@@ -342,7 +421,7 @@ export default function InspectorColumn({
   pendingByCharacter,
   onOpenDev,
 }) {
-  const router = useRouter();
+  const [refresh] = useRefresh();
   const [tab, setTab] = useState("Sheet");
   const [contextEntry, setContextEntry] = useState(null);
   const { data, error, loading } = useInspectorData(inspected?.characterId ?? null, tab, cache, setCache);
@@ -350,9 +429,13 @@ export default function InspectorColumn({
   const isPinned = pinned.some((p) => p.characterId === inspected?.characterId);
   const pending = pendingByCharacter?.get(inspected?.characterId);
   const cacheKey = inspected ? `${inspected.characterId}:DMs` : null;
+  const inspectedRoster = roster?.find((c) => c.id === inspected?.characterId);
+  const inspectedUsername = inspectedRoster?.username;
+  const inspectedRole = inspectedRoster?.roleTitle;
 
   return (
     <aside className="desk-inspector">
+      {roster && <InspectorSearch roster={roster} onInspect={onInspect} />}
       {pinned.length > 0 && (
         <div className="desk-inspector-pins">
           {pinned.map((p) => (
@@ -377,7 +460,13 @@ export default function InspectorColumn({
       ) : (
         <>
           <div className="desk-inspector-head">
-            <span className="min-w-0 truncate font-medium">{inspected.name}</span>
+            <span className="min-w-0 flex flex-col">
+              <span className="truncate">
+                <span className="font-medium">{inspected.name}</span>
+                {inspectedUsername && <span className="ml-1.5 text-xs text-muted">@{inspectedUsername}</span>}
+              </span>
+              {inspectedRole && <span className="text-xs text-muted truncate">{inspectedRole}</span>}
+            </span>
             <span className="flex items-center gap-1.5">
               <button
                 type="button"
@@ -422,7 +511,7 @@ export default function InspectorColumn({
                 currentTurnNumber={currentTurnNumber}
                 characterId={inspected.characterId}
                 pending={pending}
-                router={router}
+                refresh={refresh}
               />
             )}
             {data && tab === "Archive" && <ArchiveView data={data} onOpenContext={setContextEntry} />}

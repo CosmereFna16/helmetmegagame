@@ -33,6 +33,22 @@ export const MOVE_KIND_LABELS = {
   GAMBIT: "Gambit",
 };
 
+// gmNotes markers a GM never types themselves — stamped by the auto-filed
+// paths (db/lib/travel.js, db/lib/defaultMovePass.js, db/lib/stagedPush.js)
+// to identify a Move the desk generated rather than a player submitted.
+export const AUTO_ZONE_CHANGE = "auto:zone_change";
+export const AUTO_DEFAULT_MOVE = "auto:default_move";
+export const AUTO_SILENT_CLOSE = "auto:silent_close";
+
+// A travel stub (db/lib/travel.js#performTravel) files a Move with no
+// moveKind — there's no Routine/Gambit to pick, it's just "walked to a
+// place" — which is why moveKindLabel used to fall through to the generic
+// "Move". gmNotes can carry more than one marker (stagedPush appends
+// auto:silent_close on top), so check for the substring, not equality.
+export function isTravelMove(gmNotes) {
+  return typeof gmNotes === "string" && gmNotes.includes(AUTO_ZONE_CHANGE);
+}
+
 // Tones for StatusPill. Open and Passed stay neutral: they are where most
 // Moves sit, and a table where every row is coloured reads as noise.
 export const MOVE_REVIEW_TONES = {
@@ -43,7 +59,8 @@ export const MOVE_REVIEW_TONES = {
   Solved: "good",
 };
 
-export function moveKindLabel(moveKind) {
+export function moveKindLabel(moveKind, gmNotes) {
+  if (isTravelMove(gmNotes)) return "Travel";
   return MOVE_KIND_LABELS[moveKind] ?? "Move";
 }
 

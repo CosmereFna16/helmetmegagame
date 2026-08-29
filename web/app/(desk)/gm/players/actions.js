@@ -8,6 +8,7 @@ import { getGmSession, sendDm } from "@/lib/discordGuild";
 import { UserError, guarded } from "@/lib/actionResult";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import { getOpenTurn } from "@/lib/turn";
+import { withoutDmNoise } from "@/lib/dmThread";
 
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
@@ -54,7 +55,7 @@ export async function getDmThreadPage({ discordUserId, characterId, beforeMs, be
     }
 
     const rows = await prisma.directMessage.findMany({
-      where,
+      where: withoutDmNoise(where),
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: takeN + 1,
     });

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Pager from "@/app/components/Pager";
+import DeskHeader from "@/app/components/DeskHeader";
+import { useRefresh } from "@/app/components/useRefresh";
 import AuditFeed from "./AuditFeed";
 import AuditFilters from "./AuditFilters";
 import AuditInspector from "./AuditInspector";
@@ -45,6 +47,7 @@ export default function AuditDesk({
   turnNumbers,
 }) {
   const router = useRouter();
+  const [refresh] = useRefresh();
   const [selected, setSelected] = useState(selectedId ?? null);
   const [absoluteTime, setAbsoluteTime] = useState(false);
   const [density, setDensity] = useState("comfortable");
@@ -93,10 +96,10 @@ export default function AuditDesk({
   useEffect(() => {
     if (!live) return undefined;
     const id = setInterval(() => {
-      if (document.visibilityState === "visible") router.refresh();
+      if (document.visibilityState === "visible") refresh();
     }, REFRESH_MS);
     return () => clearInterval(id);
-  }, [live, router]);
+  }, [live, refresh]);
 
   // Count what has arrived since the reader last looked at the top of the
   // list. Only meaningful on page 1 of an unfiltered-by-date view; elsewhere
@@ -152,54 +155,58 @@ export default function AuditDesk({
 
   return (
     <div className="desk-shell">
-      <header className="desk-header">
-        <div className="flex items-center gap-3 min-w-0">
-          <h1 className="text-base">Audit</h1>
-          {openTurn && (
-            <span className="chip">
-              Turn {openTurn.number} · {openTurn.phase === "DAWN" ? "Dawn" : "Dusk"}
-            </span>
-          )}
-          <span className="text-muted text-xs mono">{total.toLocaleString()} entries</span>
-          {freshCount > 0 && (
-            <button type="button" className="chip" onClick={acknowledge}>
-              {freshCount} new
+      <DeskHeader
+        title="Audit"
+        meta={
+          <>
+            {openTurn && (
+              <span className="chip">
+                Turn {openTurn.number} · {openTurn.phase === "DAWN" ? "Dawn" : "Dusk"}
+              </span>
+            )}
+            <span className="chip text-xs text-muted mono">{total.toLocaleString()} entries</span>
+            {freshCount > 0 && (
+              <button type="button" className="chip" onClick={acknowledge}>
+                {freshCount} new
+              </button>
+            )}
+          </>
+        }
+        actions={
+          <>
+            {notice && <span className="text-muted text-xs">{notice}</span>}
+            <div className="segmented" role="group" aria-label="Time format">
+              <button type="button" aria-pressed={!absoluteTime} onClick={() => setAbsoluteTime(false)}>
+                Ago
+              </button>
+              <button type="button" aria-pressed={absoluteTime} onClick={() => setAbsoluteTime(true)}>
+                Clock
+              </button>
+            </div>
+            <div className="segmented" role="group" aria-label="Density">
+              <button
+                type="button"
+                aria-pressed={density === "comfortable"}
+                onClick={() => setDensity("comfortable")}
+              >
+                Roomy
+              </button>
+              <button type="button" aria-pressed={density === "compact"} onClick={() => setDensity("compact")}>
+                Tight
+              </button>
+            </div>
+            <button type="button" className="btn-quiet" aria-pressed={live} onClick={() => setLive((v) => !v)}>
+              {live ? "Pause live" : "Go live"}
             </button>
-          )}
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {notice && <span className="text-muted text-xs">{notice}</span>}
-          <div className="segmented" role="group" aria-label="Time format">
-            <button type="button" aria-pressed={!absoluteTime} onClick={() => setAbsoluteTime(false)}>
-              Ago
+            <button type="button" className="btn-secondary" disabled={exporting} onClick={() => download("csv")}>
+              CSV
             </button>
-            <button type="button" aria-pressed={absoluteTime} onClick={() => setAbsoluteTime(true)}>
-              Clock
+            <button type="button" className="btn-quiet" disabled={exporting} onClick={() => download("json")}>
+              JSON
             </button>
-          </div>
-          <div className="segmented" role="group" aria-label="Density">
-            <button
-              type="button"
-              aria-pressed={density === "comfortable"}
-              onClick={() => setDensity("comfortable")}
-            >
-              Roomy
-            </button>
-            <button type="button" aria-pressed={density === "compact"} onClick={() => setDensity("compact")}>
-              Tight
-            </button>
-          </div>
-          <button type="button" className="btn-quiet" aria-pressed={live} onClick={() => setLive((v) => !v)}>
-            {live ? "Pause live" : "Go live"}
-          </button>
-          <button type="button" className="btn-secondary" disabled={exporting} onClick={() => download("csv")}>
-            CSV
-          </button>
-          <button type="button" className="btn-quiet" disabled={exporting} onClick={() => download("json")}>
-            JSON
-          </button>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <div className="desk-body">
         <div className="desk-rail">

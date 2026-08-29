@@ -3,7 +3,7 @@ import { listGuildMembers } from "@/lib/discordGuild";
 import { getGmProfiles } from "@/lib/gmProfiles";
 import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requests";
 import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
-import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, rollLabel } from "@/lib/moves";
+import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, isTravelMove, rollLabel } from "@/lib/moves";
 import { getOpenTurn } from "@/lib/turn";
 import { getMyZones } from "@/lib/gmZone";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
@@ -178,7 +178,14 @@ export default async function TurnsWorkspacePage({ params }) {
             orderBy: { createdAt: "desc" },
             include: {
               character: {
-                select: { id: true, name: true, discordUserId: true, updatedAt: true, faction: { include: { zone: true } } },
+                select: {
+                  id: true,
+                  name: true,
+                  discordUserId: true,
+                  updatedAt: true,
+                  roleTitle: true,
+                  faction: { include: { zone: true } },
+                },
               },
               zone: { select: { name: true } },
               lootTag: { select: { name: true } },
@@ -213,7 +220,14 @@ export default async function TurnsWorkspacePage({ params }) {
       prisma.character.findMany({
         where: { status: "ALIVE" },
         orderBy: { name: "asc" },
-        select: { id: true, name: true, faction: { select: { name: true } } },
+        select: {
+          id: true,
+          name: true,
+          roleTitle: true,
+          discordUserId: true,
+          faction: { select: { name: true } },
+          zone: { select: { name: true } },
+        },
       }),
       // Every zone picker on this desk (staged relocation, public-declaration
       // delivery) offers PRESENCE zones only — a character stands in a
@@ -266,12 +280,15 @@ export default async function TurnsWorkspacePage({ params }) {
     // so a Move can link straight to that player's conversation.
     discordUserId: a.character.discordUserId,
     discordUsername: nameFor(a.character),
+    roleTitle: a.character.roleTitle ?? "",
     factionName: a.character.faction?.name ?? "",
     factionId: a.character.factionId ?? null,
     factionZoneName: a.character.faction?.zone?.name ?? "",
     description: a.description,
-    kindLabel: moveKindLabel(a.moveKind),
+    kindLabel: moveKindLabel(a.moveKind, a.gmNotes),
     moveKind: a.moveKind ?? "ROUTINE",
+    isTravel: isTravelMove(a.gmNotes),
+    gmNotes: a.gmNotes ?? "",
     rollLabel: rollLabel(a),
     statusLabel: statusLabel(a, now),
     // Where they stand. Key name kept because MoveDesk and InspectorColumn
@@ -303,6 +320,7 @@ export default async function TurnsWorkspacePage({ params }) {
     avatarVersion: r.character.updatedAt.getTime(),
     discordUserId: r.character.discordUserId,
     discordUsername: nameFor(r.character),
+    roleTitle: r.character.roleTitle ?? "",
     factionName: r.character.faction?.name ?? "",
     factionId: r.character.factionId ?? null,
     factionZoneName: r.character.faction?.zone?.name ?? "",
@@ -328,6 +346,7 @@ export default async function TurnsWorkspacePage({ params }) {
     characterName: c.character.name,
     avatarVersion: c.character.updatedAt.getTime(),
     discordUsername: nameFor(c.character),
+    roleTitle: c.character.roleTitle ?? "",
     factionZoneName: c.character.faction?.zone?.name ?? c.zone?.name ?? "",
     die: c.die,
     kind: c.kind,
@@ -397,7 +416,15 @@ export default async function TurnsWorkspacePage({ params }) {
       myZoneNames={myZones.map((z) => z.name)}
       tagsById={tagsById}
       tagCatalog={tagCatalog}
-      roster={roster.map((c) => ({ id: c.id, name: c.name, factionName: c.faction?.name ?? "" }))}
+      roster={roster.map((c) => ({
+        id: c.id,
+        name: c.name,
+        factionName: c.faction?.name ?? "",
+        roleTitle: c.roleTitle ?? "",
+        zoneName: c.zone?.name ?? "",
+        discordUserId: c.discordUserId,
+        username: usernameById.get(c.discordUserId) ?? "",
+      }))}
       presenceZones={presenceZones}
       moves={moves}
       requests={requestRows}

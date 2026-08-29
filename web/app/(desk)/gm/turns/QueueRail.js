@@ -3,31 +3,86 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import StatusPill from "@/app/components/StatusPill";
 import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
+import Select from "@/app/components/Select";
 import { openingZoneName } from "@/lib/zones";
 import GmAvatar from "@/app/components/GmAvatar";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import { useTableState } from "@/app/components/DataTable";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
-import { MOVE_REVIEW_TONES } from "@/lib/moves";
+import { MOVE_REVIEW_TONES, MOVE_REVIEW_LABELS } from "@/lib/moves";
+import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requestLabels";
 
 // The left rail: the work queue as a compact list rather than a table.
 // useTableState is list-generic — the same filter/search/sort engine every
 // table uses, minus the table markup.
 
+// Fixed vocabularies for the enum-backed dropdowns — every value always
+// listed, even at a count of zero, so "Open" doesn't disappear from Status
+// just because nothing is open right now. Zone stays derived from the loaded
+// rows in every filterDefs list below, since which zones exist is not a
+// fixed thing. WAITING_FOR_OPPONENTS is dropped: legacy, nothing writes it
+// (see web/lib/moves.js).
+const MOVE_KIND_OPTIONS = ["Routine", "Gambit", "Travel"];
+const MOVE_STATUS_OPTIONS = Object.values(MOVE_REVIEW_LABELS).filter((l) => l !== "Waiting for Opponents");
+
+// Still-open work floats to the top of the rail; Solved (bookkept, nothing
+// left to push) and Passed (already resolved) sink toward the bottom. Ties
+// within a rank fall back to recency — see queueOrder below.
+const MOVE_STATUS_RANK = { Open: 0, "In Progress": 0, "Waiting for Opponents": 0, Solved: 1, Passed: 2 };
+const REQUEST_TYPE_OPTIONS = [...new Set(Object.values(REQUEST_TYPE_LABELS))];
+const REQUEST_STATUS_OPTIONS = Object.values(REQUEST_STATUS_LABELS);
+const REVIEWED_OPTIONS = ["Reviewed", "Unreviewed"];
+const CAVING_STATUS_OPTIONS = ["Needs attention", "Resolved"];
+
 const MOVE_FILTER_DEFS = [
   { key: "zone", label: "Zone", value: (r) => r.factionZoneName },
-  { key: "kind", label: "Kind", value: (r) => r.kindLabel },
-  { key: "status", label: "Status", value: (r) => r.statusLabel },
+  { key: "kind", label: "Kind", value: (r) => r.kindLabel, options: MOVE_KIND_OPTIONS },
+  { key: "status", label: "Status", value: (r) => r.statusLabel, options: MOVE_STATUS_OPTIONS },
 ];
-const MOVE_SEARCH_FIELDS = [(r) => r.characterName, (r) => r.discordUsername, (r) => r.description];
+// scoreMatch fields (web/lib/fuzzySearch.js) — everything already on the DTO
+// ([[...selection]]/page.js), so this costs no new query. `kind` doubles as
+// "Routine"/"Gambit"/"Travel" and `status` as Open/Solved/etc, both already
+// covered by the Kind/Status dropdowns above but useful as bare search terms
+// too ("gambit open"). A Move's `tags` only carries tagIds, so tag NAME
+// search needs the catalog lookup Workspace already threads everywhere else
+// — hence the factory rather than a plain module-level function.
+function makeMoveSearchMap(tagsById) {
+  return (r) => ({
+    name: r.characterName,
+    username: r.discordUsername,
+    role: r.roleTitle,
+    faction: r.factionName,
+    zone: `${r.factionZoneName ?? ""} ${r.locationLabel ?? ""}`,
+    tag: (r.tags ?? []).map((t) => tagsById?.[t.tagId]?.name ?? "").join(" "),
+    kind: r.kindLabel,
+    status: r.statusLabel,
+    text: r.description,
+    notes: [r.resultMessage, r.gmNotes].filter(Boolean).join(" "),
+  });
+}
 
 const REQUEST_FILTER_DEFS = [
   { key: "zone", label: "Zone", value: (r) => r.factionZoneName },
-  { key: "type", label: "Type", value: (r) => r.typeLabel },
-  { key: "status", label: "Status", value: (r) => r.statusLabel },
-  { key: "reviewed", label: "Reviewed", value: (r) => (r.reviewedByUsername ? "Reviewed" : "Unreviewed") },
+  { key: "type", label: "Type", value: (r) => r.typeLabel, options: REQUEST_TYPE_OPTIONS },
+  { key: "status", label: "Status", value: (r) => r.statusLabel, options: REQUEST_STATUS_OPTIONS },
+  {
+    key: "reviewed",
+    label: "Reviewed",
+    value: (r) => (r.reviewedByUsername ? "Reviewed" : "Unreviewed"),
+    options: REVIEWED_OPTIONS,
+  },
 ];
-const REQUEST_SEARCH_FIELDS = [(r) => r.characterName, (r) => r.discordUsername, (r) => r.reason, (r) => r.summary];
+const requestSearchMap = (r) => ({
+  name: r.characterName,
+  username: r.discordUsername,
+  role: r.roleTitle,
+  faction: r.factionName,
+  zone: r.factionZoneName,
+  kind: r.typeLabel,
+  status: r.statusLabel,
+  text: [r.reason, r.summary].filter(Boolean).join(" "),
+  notes: r.gmNotes,
+});
 
 const REQUEST_TONES = { Passed: "neutral", Edited: "neutral", Undone: "bad" };
 
@@ -37,12 +92,28 @@ const REQUEST_TONES = { Passed: "neutral", Edited: "neutral", Undone: "bad" };
 // GM ever needs to open.
 const CAVING_FILTER_DEFS = [
   { key: "zone", label: "Zone", value: (r) => r.factionZoneName },
-  { key: "status", label: "Status", value: (r) => r.statusLabel },
+  { key: "status", label: "Status", value: (r) => r.statusLabel, options: CAVING_STATUS_OPTIONS },
 ];
-const CAVING_SEARCH_FIELDS = [(r) => r.characterName, (r) => r.discordUsername, (r) => r.lootTagName];
+const cavingSearchMap = (r) => ({
+  name: r.characterName,
+  username: r.discordUsername,
+  role: r.roleTitle,
+  faction: r.factionName,
+  zone: r.factionZoneName,
+  kind: r.kindLabel,
+  status: r.statusLabel,
+  tag: r.lootTagName,
+});
 const CAVING_TONES = { "Needs attention": "bad", Resolved: "neutral" };
 
-function RailFilters({ table, filterDefs, myZoneNames }) {
+// The match-reason subtext — only worth showing when the hit came off a
+// field other than the name everyone can already see on the row.
+function MatchHint({ match }) {
+  if (!match || match.matchedField === "name") return null;
+  return <span className="text-xs text-muted"> · {match.matchedField}</span>;
+}
+
+function RailFilters({ table, filterDefs, myZoneNames, searchPlaceholder, children }) {
   return (
     <div className="desk-rail-filters">
       <label className="field">
@@ -50,34 +121,35 @@ function RailFilters({ table, filterDefs, myZoneNames }) {
         <input
           value={table.query}
           onChange={(e) => table.setQuery(e.target.value)}
-          placeholder="Name, text…"
+          placeholder={searchPlaceholder}
         />
       </label>
       <div className="flex flex-wrap gap-2">
         {filterDefs.map((def) => (
           <label className="field min-w-0" style={{ flex: "1 1 6rem" }} key={def.key}>
             <span className="field-label">{def.label}</span>
-            <select
+            <Select
               value={table.filters[def.key] ?? ""}
               onChange={(e) => table.setFilters((f) => ({ ...f, [def.key]: e.target.value }))}
             >
               <option value="">All</option>
               {table.options[def.key]?.map((o) => (
-                <option key={o} value={o}>
-                  {o}
+                <option key={o.value} value={o.value}>
+                  {o.value} ({o.count})
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         ))}
       </div>
       <ZoneScopeToggle myZoneNames={myZoneNames} filters={table.filters} setFilters={table.setFilters} />
+      {children}
     </div>
   );
 }
 
-function MoveRows({ table, stagedByMove, selected, onSelect, gmProfiles, kbdId, kbdLens }) {
-  return table.visible.map((row) => {
+function MoveRows({ rows, matchFor, stagedByMove, selected, onSelect, gmProfiles, kbdId, kbdLens }) {
+  return rows.map((row) => {
     const staged = stagedByMove.get(row.id);
     const stagedCount = (staged?.effects.length ?? 0) + (staged?.messages.length ?? 0);
     const active = selected?.type === "move" && selected.id === row.id;
@@ -87,6 +159,7 @@ function MoveRows({ table, stagedByMove, selected, onSelect, gmProfiles, kbdId, 
         type="button"
         className="desk-queue-row"
         data-active={active}
+        data-auto={row.isTravel || undefined}
         data-kbd={kbdLens === "moves" && kbdId === row.id ? "" : undefined}
         data-row-key={row.id}
         onClick={() => onSelect({ type: "move", id: row.id })}
@@ -95,6 +168,7 @@ function MoveRows({ table, stagedByMove, selected, onSelect, gmProfiles, kbdId, 
           <span className="flex items-center gap-1.5 truncate font-medium">
             <CharacterAvatar characterId={row.characterId} name={row.characterName} version={row.avatarVersion} />
             <span className="truncate">{row.characterName}</span>
+            <MatchHint match={matchFor(row)} />
           </span>
           <span className="flex items-center gap-1.5">
             {row.statusLabel === "In Progress" && (
@@ -114,8 +188,8 @@ function MoveRows({ table, stagedByMove, selected, onSelect, gmProfiles, kbdId, 
   });
 }
 
-function RequestRows({ table, selected, onSelect, kbdId, kbdLens }) {
-  return table.visible.map((row) => {
+function RequestRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens }) {
+  return rows.map((row) => {
     const active = selected?.type === "request" && selected.id === row.id;
     // Both types that can name someone to kill without killing them.
     // See killRequestTargetImpl in actions.js.
@@ -141,6 +215,7 @@ function RequestRows({ table, selected, onSelect, kbdId, kbdLens }) {
               {!row.reviewedByUsername && <span className="desk-dot" aria-label="Not yet reviewed" />}
               {row.characterName}
             </span>
+            <MatchHint match={matchFor(row)} />
           </span>
           <StatusPill tone={REQUEST_TONES[row.statusLabel] ?? "neutral"}>{row.statusLabel}</StatusPill>
         </span>
@@ -153,8 +228,8 @@ function RequestRows({ table, selected, onSelect, kbdId, kbdLens }) {
   });
 }
 
-function CavingRows({ table, selected, onSelect, kbdId, kbdLens }) {
-  return table.visible.map((row) => {
+function CavingRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens }) {
+  return rows.map((row) => {
     const active = selected?.type === "caving" && selected.id === row.id;
     return (
       <button
@@ -173,6 +248,7 @@ function CavingRows({ table, selected, onSelect, kbdId, kbdLens }) {
             <span className="truncate">
               ⚀ {row.die} — {row.characterName}
             </span>
+            <MatchHint match={matchFor(row)} />
           </span>
           <StatusPill tone={CAVING_TONES[row.statusLabel] ?? "neutral"}>{row.statusLabel}</StatusPill>
         </span>
@@ -196,30 +272,45 @@ export default function QueueRail({
   lens,
   onLens,
   gmProfiles,
+  tagsById,
 }) {
   const moveFilterDefs = useMemo(() => MOVE_FILTER_DEFS, []);
-  const moveSearchFields = useMemo(() => MOVE_SEARCH_FIELDS, []);
   const requestFilterDefs = useMemo(() => REQUEST_FILTER_DEFS, []);
-  const requestSearchFields = useMemo(() => REQUEST_SEARCH_FIELDS, []);
   const cavingFilterDefs = useMemo(() => CAVING_FILTER_DEFS, []);
-  const cavingSearchFields = useMemo(() => CAVING_SEARCH_FIELDS, []);
+  const moveSearchMap = useMemo(() => makeMoveSearchMap(tagsById), [tagsById]);
+
+  // A single numeric key so the generic engine's one-field sort can still
+  // rank by status first and recency second: status dominates (multiplied up
+  // out of recency's range) and createdAtMs is subtracted so that, within a
+  // rank, the more recent Move sorts first under the same ascending order.
+  const rankedMoves = useMemo(
+    () =>
+      moves.map((r) => ({
+        ...r,
+        queueOrder: (MOVE_STATUS_RANK[r.statusLabel] ?? 0) * 1e15 - r.createdAtMs,
+      })),
+    [moves],
+  );
 
   // All three tables mount permanently so lens flips keep each one's
   // filters; the rail just shows one at a time. Page size is effectively
   // "everything" — the rail scrolls, and an open turn caps the set at the
-  // roster size.
+  // roster size. rankBySearch: true because this list has no sortable
+  // headers of its own to preserve — a query reorders by how well it hit.
   const moveTable = useTableState({
-    rows: moves,
+    rows: rankedMoves,
     filterDefs: moveFilterDefs,
-    searchFields: moveSearchFields,
-    initialSort: { key: "createdAtMs", dir: "desc" },
+    searchMap: moveSearchMap,
+    rankBySearch: true,
+    initialSort: { key: "queueOrder", dir: "asc" },
     initialFilters: { zone: openingZoneName(myZoneNames) },
     pageSize: 1000,
   });
   const requestTable = useTableState({
     rows: requests,
     filterDefs: requestFilterDefs,
-    searchFields: requestSearchFields,
+    searchMap: requestSearchMap,
+    rankBySearch: true,
     initialSort: { key: "createdAtMs", dir: "desc" },
     initialFilters: { zone: openingZoneName(myZoneNames) },
     pageSize: 1000,
@@ -227,7 +318,8 @@ export default function QueueRail({
   const cavingTable = useTableState({
     rows: cavingRolls ?? [],
     filterDefs: cavingFilterDefs,
-    searchFields: cavingSearchFields,
+    searchMap: cavingSearchMap,
+    rankBySearch: true,
     initialSort: { key: "createdAtMs", dir: "desc" },
     // "Needs attention" only ever matches an unresolved TROUBLE row — QUIET
     // and FIND are stamped resolved at creation — so this is what keeps a
@@ -236,8 +328,19 @@ export default function QueueRail({
     pageSize: 1000,
   });
 
-  const tableForLens = { moves: moveTable, requests: requestTable, caving: cavingTable }[lens] ?? moveTable;
-  const visibleRows = tableForLens.visible;
+  // Auto-filed travel Moves are already solved and never need a GM — hidden
+  // from the list by default so they don't pad the queue, but picking
+  // "Travel" in the Kind dropdown always overrides the hide (the dropdown's
+  // own count already reflects the real total, hide or no hide).
+  const [hideTravel, setHideTravel] = useState(true);
+  const movesShown = useMemo(() => {
+    if (!hideTravel || moveTable.filters.kind === "Travel") return moveTable.visible;
+    return moveTable.visible.filter((r) => !r.isTravel);
+  }, [moveTable.visible, moveTable.filters.kind, hideTravel]);
+  const hiddenTravelCount = moveTable.visible.length - movesShown.length;
+
+  const rowsForLens = { moves: movesShown, requests: requestTable.visible, caving: cavingTable.visible };
+  const visibleRows = rowsForLens[lens] ?? movesShown;
   const [kbdIndex, setKbdIndex] = useState(-1);
   const railRef = useRef(null);
   const coarse = useIsCoarsePointer();
@@ -265,7 +368,7 @@ export default function QueueRail({
         return;
       }
 
-      const rows = { moves: moveTable.visible, requests: requestTable.visible, caving: cavingTable.visible }[lens] ?? [];
+      const rows = { moves: movesShown, requests: requestTable.visible, caving: cavingTable.visible }[lens] ?? [];
       if (!rows.length) return;
 
       if (key === "Enter") {
@@ -284,13 +387,13 @@ export default function QueueRail({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [lens, onLens, onSelect, moveTable.visible, requestTable.visible, cavingTable.visible, clampedKbdIndex, coarse]);
+  }, [lens, onLens, onSelect, movesShown, requestTable.visible, cavingTable.visible, clampedKbdIndex, coarse]);
 
   return (
     <aside className="desk-rail" ref={railRef}>
       <div className="segmented desk-rail-lens" role="group" aria-label="Queue lens">
         <button type="button" aria-pressed={lens === "moves" || !lens} onClick={() => onLens?.("moves")}>
-          Moves ({moveTable.total})
+          Moves ({movesShown.length})
         </button>
         <button type="button" aria-pressed={lens === "requests"} onClick={() => onLens?.("requests")}>
           Requests
@@ -302,26 +405,63 @@ export default function QueueRail({
 
       {lens === "requests" ? (
         <>
-          <RailFilters table={requestTable} filterDefs={requestFilterDefs} myZoneNames={myZoneNames} />
+          <RailFilters
+            table={requestTable}
+            filterDefs={requestFilterDefs}
+            myZoneNames={myZoneNames}
+            searchPlaceholder="name, @handle, reason, text:…"
+          />
           <div className="desk-queue">
-            <RequestRows table={requestTable} selected={selected} onSelect={onSelect} kbdId={kbdId} kbdLens={lens} />
+            <RequestRows
+              rows={requestTable.visible}
+              matchFor={requestTable.matchFor}
+              selected={selected}
+              onSelect={onSelect}
+              kbdId={kbdId}
+              kbdLens={lens}
+            />
             {requestTable.total === 0 && <p className="p-3 text-sm text-muted">No Requests match.</p>}
           </div>
         </>
       ) : lens === "caving" ? (
         <>
-          <RailFilters table={cavingTable} filterDefs={cavingFilterDefs} myZoneNames={myZoneNames} />
+          <RailFilters
+            table={cavingTable}
+            filterDefs={cavingFilterDefs}
+            myZoneNames={myZoneNames}
+            searchPlaceholder="name, @handle, tag:…"
+          />
           <div className="desk-queue">
-            <CavingRows table={cavingTable} selected={selected} onSelect={onSelect} kbdId={kbdId} kbdLens={lens} />
+            <CavingRows
+              rows={cavingTable.visible}
+              matchFor={cavingTable.matchFor}
+              selected={selected}
+              onSelect={onSelect}
+              kbdId={kbdId}
+              kbdLens={lens}
+            />
             {cavingTable.total === 0 && <p className="p-3 text-sm text-muted">No Caving rolls match.</p>}
           </div>
         </>
       ) : (
         <>
-          <RailFilters table={moveTable} filterDefs={moveFilterDefs} myZoneNames={myZoneNames} />
+          <RailFilters
+            table={moveTable}
+            filterDefs={moveFilterDefs}
+            myZoneNames={myZoneNames}
+            searchPlaceholder="name, role, @handle, zone:…"
+          >
+            {hiddenTravelCount > 0 && (
+              <label className="field-label flex items-center gap-1.5" style={{ fontWeight: "normal" }}>
+                <input type="checkbox" checked={!hideTravel} onChange={(e) => setHideTravel(!e.target.checked)} />
+                Show {hiddenTravelCount} travel
+              </label>
+            )}
+          </RailFilters>
           <div className="desk-queue">
             <MoveRows
-              table={moveTable}
+              rows={movesShown}
+              matchFor={moveTable.matchFor}
               stagedByMove={stagedByMove}
               selected={selected}
               onSelect={onSelect}
@@ -329,7 +469,14 @@ export default function QueueRail({
               kbdId={kbdId}
               kbdLens={lens}
             />
-            {moveTable.total === 0 && <p className="p-3 text-sm text-muted">No Moves match.</p>}
+            {movesShown.length === 0 &&
+              (hiddenTravelCount > 0 ? (
+                <p className="p-3 text-sm text-muted">
+                  No Moves match — {hiddenTravelCount} travel Move{hiddenTravelCount === 1 ? "" : "s"} hidden.
+                </p>
+              ) : (
+                <p className="p-3 text-sm text-muted">No Moves match.</p>
+              ))}
           </div>
         </>
       )}

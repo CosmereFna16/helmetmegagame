@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Modal from "@/app/components/Modal";
 import FormError from "@/app/components/FormError";
+import { scoreMatch } from "@/lib/fuzzySearch";
 import { createStagedMessage, updateStagedMessage } from "./actions";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 
@@ -35,12 +36,19 @@ export default function MessageComposer({
   const [pending, startTransition] = useTransition();
 
   const matches = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = search.trim();
     if (!q) return [];
     const chosen = new Set(recipients.map((r) => r.characterId));
     return roster
-      .filter((c) => !chosen.has(c.id) && c.name.toLowerCase().includes(q))
-      .slice(0, SEARCH_LIMIT);
+      .filter((c) => !chosen.has(c.id))
+      .map((c) => ({
+        c,
+        match: scoreMatch(q, { name: c.name, role: c.roleTitle, faction: c.factionName, zone: c.zoneName, username: c.username }),
+      }))
+      .filter((r) => r.match)
+      .sort((a, b) => b.match.score - a.match.score)
+      .slice(0, SEARCH_LIMIT)
+      .map((r) => r.c);
   }, [search, roster, recipients]);
 
   function submit() {
@@ -76,7 +84,7 @@ export default function MessageComposer({
           </div>
           <label className="field">
             <span className="field-label">Add a recipient</span>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search characters…" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="name, role, faction, zone…" />
           </label>
           {matches.length > 0 && (
             <div className="flex flex-wrap gap-1.5">

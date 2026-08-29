@@ -113,7 +113,7 @@ module.exports = {
       // exists in the catalog but nothing reads it; re-gating is one query here.
       if (!content && message.attachments.size === 0) {
         await message.delete().catch(() => {});
-        await sendDm(message.author, "» *Add a message after `/conceal`.*").catch(() => {});
+        await sendDm(message.author, "» *Add a message after `/conceal`.*", { source: "system_notice" }).catch(() => {});
         return;
       }
       conceal = { alias: concealedAlias(character) };
@@ -201,6 +201,7 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
       message.author,
       `» *That pinged ${mentioned.length} people at once, so only the first ${MAX_MENTION_RELAYS} were told. ` +
         `Not notified: ${dropped.map((t) => t.name).join(", ")}.*`,
+      { source: "system_notice" },
     ).catch(() => {});
   }
 
@@ -249,6 +250,7 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
       notHere.length === 1
         ? `» *${notHere[0]} isn't in ${where} — they're invited, and they'll see this thread when they arrive.*`
         : `» *${notHere.join(", ")} aren't in ${where} — they're invited, and they'll see this thread when they arrive.*`,
+      { source: "system_notice" },
     ).catch(() => {});
   }
 }

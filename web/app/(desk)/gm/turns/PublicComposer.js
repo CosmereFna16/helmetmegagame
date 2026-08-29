@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Modal from "@/app/components/Modal";
 import FormError from "@/app/components/FormError";
+import Select from "@/app/components/Select";
 import { createStagedMessage, updateStagedMessage } from "./actions";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 
@@ -44,14 +45,14 @@ export default function PublicComposer({ moveId = null, cavingRollId = null, exi
 
         <label className="field" style={{ width: "14rem" }}>
           <span className="field-label">Zone</span>
-          <select value={zoneId ?? ""} onChange={(e) => setZoneId(e.target.value)} required>
+          <Select value={zoneId ?? ""} onChange={(e) => setZoneId(e.target.value)} required>
             {!zoneId && <option value="">Pick a zone…</option>}
             {zones.map((z) => (
               <option key={z.id} value={z.id}>
                 {z.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
 
         <FormError>{error}</FormError>

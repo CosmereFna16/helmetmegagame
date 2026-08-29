@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { useConfirm } from "@/app/components/ConfirmProvider";
+import { useRefresh } from "@/app/components/useRefresh";
 import { StagedEffectRow, StagedMessageRow } from "./StagedItems";
 import EffectComposer from "./EffectComposer";
 import MessageComposer from "./MessageComposer";
@@ -60,7 +60,7 @@ export default function StagingTray({
   revealSignal,
   gmProfiles,
 }) {
-  const router = useRouter();
+  const [refresh] = useRefresh();
   const confirm = useConfirm();
   const [composer, setComposer] = useState(null);
   const [query, setQuery] = useState("");
@@ -150,7 +150,7 @@ export default function StagingTray({
         effectIds: missedEffects.map((e) => e.id),
         messageIds: missedMessages.map((m) => m.id),
       });
-      router.refresh();
+      refresh();
     });
   }
 
@@ -286,7 +286,7 @@ export default function StagingTray({
           presenceZones={presenceZones}
           onDone={() => {
             setComposer(null);
-            router.refresh();
+            refresh();
           }}
           onCancel={() => setComposer(null)}
         />
@@ -296,7 +296,7 @@ export default function StagingTray({
           roster={roster}
           onDone={() => {
             setComposer(null);
-            router.refresh();
+            refresh();
           }}
           onCancel={() => setComposer(null)}
         />
@@ -306,7 +306,7 @@ export default function StagingTray({
           zones={presenceZones}
           onDone={() => {
             setComposer(null);
-            router.refresh();
+            refresh();
           }}
           onCancel={() => setComposer(null)}
         />

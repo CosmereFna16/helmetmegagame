@@ -1243,6 +1243,9 @@ zones:
               - Fighting (Trained)
               - Windlander
               - Tactician
+              - Battle Axe
+              - Mail Shirt
+              - Simple Helmet
               - Sign Language
               - The Wind
               - Broken Spears Banner
@@ -1268,6 +1271,7 @@ zones:
               - Musician
               - Medical (Basic)
               - Fighting (Basic)
+              - Battle Axe
               - Salvage Plate
               - Mail Coif
               - Distilled Coca
@@ -1330,6 +1334,9 @@ zones:
               - Fighting (Trained)
               - The Wind
               - Windrider Banner
+              - Gladius
+              - Mail Shirt
+              - Simple Helmet
             doc_elements:
               - campstarting
               - windrider
@@ -1376,7 +1383,6 @@ zones:
             starting_tags:
               - Fighting (Basic)
               - Shortbow
-              - Cudgel
               - Dagger
               - Salvage Plate
               - Windlander
@@ -1400,17 +1406,17 @@ zones:
               Make your fortune buying and selling Tags.
             description:
               - >-
-                Ravenheart is a great source of business and not much else. You wouldn't dare put your heart here—the place is doomed. You are not from here, you are not staying, and you are going to make money off these people.
+                Its poor souls are a great source of business, but Ravenheart is a terrible place otherwise. You wouldn't dare put your heart here—the place is doomed. Time to make some money.
               - >-
-                Your Depot sits in Customs, down in the Caves: a shuttle tethered to your sponsors' station, somewhere above the weather. Your Licence opens it. Go there and the whole catalogue is yours—tea and coffee and sweets at the cheap end, cameras and surgical kits in the middle, and at the far end things nobody in Ravenheart has ever seen work. A pistol costs more than a house. That is not a mistake.
+                Your Depot sits in the Customs, down inside the Caverns: a shuttle with a hangar door up in the ceiling. Your Licence opens it. There's a mini-turret, almost always off. It won't shoot you, but it'll shoot anyone else, including the Dockers.
               - >-
-                Nobody else on this rock can buy any of it. You buy it at the station's price and you sell it at whatever you can talk somebody into, and the difference is your living. You buy the other way too: brews, ore, cave fungus, anything the smiths beat out—and Ravenheart Red, which fetches a fine price up there. Buy it cheap off the people who made it and sell it high to the station.
+                You can buy at the Depot's price and sell it at whatever makes sense for profit. You can also buy things from Ravenheartians and sell them to the Depot: brews, ore, cave fungus, smithing production, paintings. Ravenheart Red and paintings especially fetch a good price.
               - >-
-                The Company will advance you up to 60 ⬢ against the business. There is no interest and no schedule: take out sixty, pay back sixty. It is capital, not a wage. Put it into the town and nobody will trouble you about it. Put it into yourself and somebody will start asking what your Licence is worth.
+                The Company will advance you up to 60 ⬢ against the business. Your license will be revoked if you fail to pay it.
               - >-
-                Try your hand at usury. Lend at whatever rate you like, and call on your Dockers to collect. That's probably the easiest way to make serious bucks—and if a debtor won't pay, that is your problem, not theirs.
+                Try your hand at usury. Lend at high rates and call on your Dockers to collect. That's probably the easiest way to make serious bucks.
               - >-
-                If things ever get too dour, simply hop on your sponsor's shuttle… if you can pay for it. Trip's 30 ⬢ flat, pal. Lose the Licence and you lose that too.
+                Taking the shuttle instead of the Railroad like a normal migrant costs 30 ⬢. And you have to have your license.
             difficulty: hard
             multiple: false
             starting_resources: 10
@@ -1422,7 +1428,6 @@ zones:
               - Merchant's License
             doc_elements:
               - townstarting
-              - merchant
           - name: Docker
             slug: docker
             intro: >-

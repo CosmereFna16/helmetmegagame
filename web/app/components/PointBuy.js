@@ -23,6 +23,7 @@ import ChipText from "./ChipText";
 import ChipLabel from "./ChipLabel";
 import CheckField from "./CheckField";
 import HoverCard from "./HoverCard";
+import Select from "./Select";
 
 // The point-buy experience, shared by both stores: a catalog pane on the
 // left, "Your Build" on the right (Project Zomboid's trait screen is the
@@ -376,23 +377,23 @@ export default function PointBuy({
             </label>
             <label className="field">
               <span className="field-label">Sort</span>
-              <select value={sortMode} onChange={(e) => setSortMode(e.target.value)}>
+              <Select value={sortMode} onChange={(e) => setSortMode(e.target.value)}>
                 <option value="group">Group</option>
                 <option value="name">Name A–Z</option>
                 <option value="cost">Cost</option>
-              </select>
+              </Select>
             </label>
             {groupOptions.length > 1 && (
               <label className="field">
                 <span className="field-label">Group</span>
-                <select value={activeGroupFilter} onChange={(e) => setGroupFilter(e.target.value)}>
+                <Select value={activeGroupFilter} onChange={(e) => setGroupFilter(e.target.value)}>
                   <option value="">All</option>
                   {groupOptions.map(([slug, name]) => (
                     <option key={slug} value={slug}>
                       {name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             )}
             <CheckField

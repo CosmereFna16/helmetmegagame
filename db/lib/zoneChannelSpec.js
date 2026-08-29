@@ -57,7 +57,7 @@ const SUMMARY_TOPIC =
 const PUBLIC_TOPIC =
   "What are you doing right now? Moment-to-moment roleplay. Assign the persistent tag to prevent your location from getting removed.";
 const PRIVATE_TOPIC =
-  "What are you doing right now? Moment-to-moment private roleplay. Use /add (character name) and /remove (character name) to control who's in your thread.";
+  "What are you doing right now? Moment-to-moment private roleplay. Use `/add (character name)` and `/remove (character name)` to control who's in your thread.";
 
 // Both forum tags, no emoji on either — the ⏰/🗺 era is over.
 const FORUM_TAGS = [{ name: PERSISTENT_TAG_NAME }, { name: LOCATION_TAG_NAME }];

@@ -213,7 +213,10 @@ The one sanctioned exception is the `(desk)` route group, which holds the two
 GM workspaces: `/gm/turns` (adjudication) and `/gm/players` (the player desk).
 A workspace owns its whole screen — no PageShell, no centred max-width; the
 `.desk-*` layout family in `globals.css` is its layout — but everything inside
-it still uses the tokens and the shared control classes.
+it still uses the tokens and the shared control classes. Within that
+exception, `DeskHeader.js` is PageHeader's desk equivalent — title/meta/
+actions slots over `.desk-header`, `<h1 className="section-title">` — and all
+three desk pages use it. Don't hand-roll `.desk-header` markup in a new one.
 
 Desks **do** carry the nav rail. `(desk)/layout.js` renders the same
 `.app-shell` + `AppRail` + `.app-main` as `(app)`, so a desk is

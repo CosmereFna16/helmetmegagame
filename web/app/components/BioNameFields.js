@@ -5,6 +5,7 @@ import { earnedTitles, NAME_LIMITS, AGE_MIN, AGE_MAX, GENDER_LABELS } from "@/li
 import { randomCharacterName } from "@/lib/nameCorpus";
 import InfoIcon from "./InfoIcon";
 import RequestDialog from "./RequestDialog";
+import Select from "./Select";
 import { changeNameRequest } from "../(app)/character/requestActions";
 
 // The name half of the Bio form on /character. The four fields here are
@@ -161,7 +162,7 @@ export default function BioNameFields({ character, lastNameLocked = false }) {
             Prefix
             <InfoIcon text="Titles are earned. Your role and the tags you hold decide which ones you may be styled by." />
           </span>
-          <select
+          <Select
             value={honorific}
             onChange={(e) => setHonorific(e.target.value)}
             disabled={earned.length === 0}
@@ -172,7 +173,7 @@ export default function BioNameFields({ character, lastNameLocked = false }) {
                 {h}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="field">
           <span className="field-label">First name</span>

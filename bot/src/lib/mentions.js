@@ -65,7 +65,7 @@ async function notifyMentioned(client, character, context, link) {
 
   const user = await client.users.fetch(character.discordUserId).catch(() => null);
   if (!user) return;
-  await sendDm(user, `» *You were mentioned in ${where}.*\n${link}`).catch(() => {});
+  await sendDm(user, `» *You were mentioned in ${where}.*\n${link}`, { source: "system_notice" }).catch(() => {});
 }
 
 function isPrivateThread(channel) {

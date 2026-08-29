@@ -11,6 +11,7 @@ import EndTurnButton from "./EndTurnButton";
 import WipeGameButton from "./WipeGameButton";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import Switch from "@/app/components/Switch";
+import Select from "@/app/components/Select";
 
 const WEATHER_OPTIONS = [
   { value: "CLEAR", label: "Clear" },
@@ -85,18 +86,18 @@ export default async function DevPanelPage() {
           </label>
           <label className="field">
             <span className="field-label">Phase</span>
-            <select name="phase" defaultValue={currentPhase}>
+            <Select name="phase" defaultValue={currentPhase}>
               <option value="DAWN">DAWN</option>
               <option value="DUSK">DUSK</option>
-            </select>
+            </Select>
           </label>
           <label className="field">
             <span className="field-label">Weather</span>
-            <select name="weather" defaultValue={currentWeather}>
+            <Select name="weather" defaultValue={currentWeather}>
               {WEATHER_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
-            </select>
+            </Select>
           </label>
           <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
         </form>
@@ -120,12 +121,12 @@ export default async function DevPanelPage() {
         <form action={updateNextTurn} className="flex flex-col gap-3">
           <label className="field">
             <span className="field-label">Weather</span>
-            <select name="weather" defaultValue={config.nextWeather ?? ""} style={{ maxWidth: "12rem" }}>
+            <Select name="weather" defaultValue={config.nextWeather ?? ""} style={{ maxWidth: "12rem" }}>
               <option value="">Random</option>
               {WEATHER_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="field">
             <span className="field-label">Note (optional)</span>
@@ -254,11 +255,11 @@ export default async function DevPanelPage() {
           </label>
           <label className="field">
             <span className="field-label">Zone</span>
-            <select name="zoneId">
+            <Select name="zoneId">
               {zones.map((z) => (
                 <option key={z.id} value={z.id}>{z.name}</option>
               ))}
-            </select>
+            </Select>
           </label>
           <SubmitButton pendingLabel="Moving…">Move them</SubmitButton>
         </form>

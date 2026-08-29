@@ -271,11 +271,11 @@ export function purchasableTags({ tags, afterStartOnly, grantedNames = [] }) {
   });
 }
 
-// Cheapest first, then alphabetical — so point-granting drawbacks lead each
-// category and equal-cost tags stay in a stable, scannable order.
+// Most expensive first, then alphabetical — so point-granting drawbacks
+// trail each category and equal-cost tags stay in a stable, scannable order.
 export function sortTagsForMenu(tags) {
   return [...tags].sort(
-    (a, b) => (a.pointCost ?? 0) - (b.pointCost ?? 0) || a.name.localeCompare(b.name),
+    (a, b) => (b.pointCost ?? 0) - (a.pointCost ?? 0) || a.name.localeCompare(b.name),
   );
 }
 

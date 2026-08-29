@@ -24,13 +24,7 @@ async function exportAuditImpl({ params, format }) {
 
   const filters = parseAuditParams(params ?? {});
   const [guildMembers, gmProfiles] = await Promise.all([listGuildMembers(), getGmProfiles()]);
-  const ctx = await loadAuditContext({ gmIds: gmProfiles.map((p) => p.discordUserId) });
-  if (filters.q) {
-    const lower = filters.q.toLowerCase();
-    ctx.usernameMatchIds = guildMembers
-      .filter((m) => m.username?.toLowerCase().includes(lower) || m.globalName?.toLowerCase().includes(lower))
-      .map((m) => m.id);
-  }
+  const ctx = await loadAuditContext({ gmIds: gmProfiles.map((p) => p.discordUserId), guildMembers });
 
   const where = await buildAuditWhere(filters, ctx);
   const rows = await prisma.auditLog.findMany({

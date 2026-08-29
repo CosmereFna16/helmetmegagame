@@ -100,17 +100,38 @@ happens to match it.
   pushed; there is nothing left to do to them) and the newest Requests, as
   selectable rows. Opens filtered to the GM's zone seat
   (`GAMEMASTERS.md`), soft as ever. "In Progress" is still derived from a
-  live lock.
+  live lock. Search runs the shared `scoreMatch` engine
+  (`web/lib/fuzzySearch.js`) over name, role, faction, both zones, Discord
+  handle, tag names, Move/Request kind and status, and the free text (a
+  Move's description, a Request's reason/summary, GM notes) — a bare word
+  matches anything, `field:term` (`role:smith`, `zone:caves`) or `@handle`
+  narrows to one field, and a query reorders the list by match strength
+  instead of the default sort — Open/In Progress Moves first, Solved then
+  Passed sinking toward the bottom, newest-first within each rank. The Kind/Status/Type/Reviewed
+  dropdowns always list every value the enum has, even at `(0)`, so "Open"
+  never looks like it vanished just because nothing is open right now — Zone
+  stays derived from what's actually loaded. Auto-filed **Travel** Moves
+  (`db/lib/travel.js#performTravel`, no Routine/Gambit to review) render as
+  "Travel" and stay hidden by default behind a "Show N travel" toggle beside
+  the Kind dropdown; picking Travel from that dropdown always overrides the
+  hide.
 - **Desk** — the selected item. For a Move: situation, dice, declared
   numbers, the Result box, everything staged on it, and the three composers.
   For a Request: the old panel's sections, semantics untouched (§5). The
   90s cooperative lock, its 30s heartbeat and the `sendBeacon` release all
   carry over unchanged (`useMoveLock.js`,
-  `web/app/api/move-lock/release/route.js`).
+  `web/app/api/move-lock/release/route.js`). Every card's meta line under the
+  name leads with `roleTitle` (Move/Request/Caving desks alike), so who's
+  acting reads at a glance before you open anything.
 - **Inspector** — *"quickly pull up the guy he was talking to"*. Every
   character name in the workspace is a click target that swaps the column to
   that character: Sheet (live facts + gambit modifier), Tags, their archive
-  slice, their DM thread. Pin the ones an arbitration keeps returning to.
+  slice, their DM thread. The header carries name, `@username`, and role on
+  the line below, all from the roster DTO already on the client — no fetch
+  needed just to see who someone is. A search box above the pin row
+  (`InspectorSearch`, fuzzy-matched via `web/lib/fuzzySearch.js#scoreMatch`
+  over name/role/faction/username/zone) opens anyone the same way, not just
+  names already on screen. Pin the ones an arbitration keeps returning to.
   Fetched on demand via server actions, cached for the page view. Three quick
   edits live here too: the DMs tab carries a composer that sends immediately
   (»-prefixed, logged, not staged — `sendInspectorDm`); clicking an archived
@@ -153,7 +174,10 @@ keeps itself current and stays reachable from the keyboard:
 - **Pins survive a reload** and are **shared with the player desk**
   (`web/app/components/usePins.js`, `localStorage` read through
   `useSyncExternalStore`). Pin someone while adjudicating and they are pinned
-  when you go talk to them. A message whose push left `deliveryFailures` grows
+  when you go talk to them. They self-heal on load, though: this desk passes
+  `usePins({ knownIdentities })` with the live roster's character ids, so a
+  pin for a character a wipe or a death removed quietly drops off the list
+  instead of pointing at nothing. A message whose push left `deliveryFailures` grows
   a **Resend** button that retries only the recipients that failed
   (`resendStagedMessage`). The Result box has a **Stage as message** button
   that opens the message composer prefilled with the result text and the

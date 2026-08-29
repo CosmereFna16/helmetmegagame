@@ -20,8 +20,11 @@ import {
   SignOutIcon,
   MoreIcon,
   StoreIcon,
+  SpeakerIcon,
 } from "./icons";
 import { signOutOfDiscord } from "../actions";
+import { playChime } from "./chime";
+import useChimeMuted from "./useChimeMuted";
 
 const ICONS = {
   character: CharacterIcon,
@@ -68,6 +71,16 @@ export default function NavRail({ items }) {
 
   const isActive = (href) => pathname === href || pathname.startsWith(`${href}/`);
   const overflow = items.slice(MOBILE_PRIMARY);
+  // PLAYER_NAV carries no section at all — see SECTION_LABELS above — so this
+  // is also "is this a GM's rail", which is the only rail the chime ever fires
+  // on (a player's unread count is hardcoded 0 in loadNavItems).
+  const isGmRail = items.some((item) => item.section === "gm");
+  const [chimeMuted, setChimeMuted] = useChimeMuted();
+  const toggleChimeMuted = () => {
+    const next = !chimeMuted;
+    setChimeMuted(next);
+    if (!next) playChime();
+  };
 
   return (
     <>
@@ -117,6 +130,18 @@ export default function NavRail({ items }) {
           <span>More</span>
         </button>
 
+        {isGmRail && (
+          <button
+            type="button"
+            className="rail-item"
+            onClick={toggleChimeMuted}
+            title={chimeMuted ? "Unmute message chime" : "Mute message chime"}
+          >
+            <SpeakerIcon muted={chimeMuted} aria-hidden="true" />
+            <span>{chimeMuted ? "Unmute chime" : "Mute chime"}</span>
+          </button>
+        )}
+
         <form action={signOutOfDiscord} className="rail-signout">
           <button type="submit" className="rail-item" style={{ width: "100%" }} title="Sign out">
             <SignOutIcon aria-hidden="true" />
@@ -153,6 +178,17 @@ export default function NavRail({ items }) {
                 </Fragment>
               );
             })}
+            {isGmRail && (
+              <button
+                type="button"
+                className="menu-item nav-sheet-item"
+                style={{ width: "100%" }}
+                onClick={toggleChimeMuted}
+              >
+                <SpeakerIcon muted={chimeMuted} aria-hidden="true" />
+                <span>{chimeMuted ? "Unmute chime" : "Mute chime"}</span>
+              </button>
+            )}
             <form action={signOutOfDiscord}>
               <button type="submit" className="menu-item nav-sheet-item" style={{ width: "100%" }}>
                 <SignOutIcon aria-hidden="true" />

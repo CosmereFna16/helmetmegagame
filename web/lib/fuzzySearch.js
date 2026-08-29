@@ -8,16 +8,72 @@
 // just literal name substrings.
 
 // Field weights: name beats role beats faction beats username beats zone
-// beats message preview. Higher wins when a query matches more than one
-// field on the same row (matchedField reports the highest-weighted hit).
+// beats tag beats status/kind beats free text beats notes beats message
+// preview. Higher wins when a query matches more than one field on the same
+// row (matchedField reports the highest-weighted hit).
 const FIELD_WEIGHTS = {
   name: 100,
   role: 80,
   faction: 70,
   username: 60,
   zone: 50,
+  tag: 45,
+  status: 30,
+  kind: 30,
+  text: 25,
+  notes: 15,
   preview: 20,
 };
+
+// field:term aliases — several words for the same slot, so a GM doesn't have
+// to remember the exact key. An unrecognised prefix is deliberately NOT an
+// error (see parseQuery below): only names listed here ever get treated as a
+// field scope.
+const FIELD_ALIASES = {
+  name: "name",
+  role: "role",
+  job: "role",
+  faction: "faction",
+  zone: "zone",
+  where: "zone",
+  user: "username",
+  username: "username",
+  discord: "username",
+  handle: "username",
+  tag: "tag",
+  status: "status",
+  kind: "kind",
+  type: "kind",
+  text: "text",
+  note: "notes",
+  notes: "notes",
+};
+
+// Splits a raw query into bare terms (match any field) and scoped terms
+// (field:term, or @term as shorthand for username:term — match one field
+// only). A colon after an unrecognised word is ordinary text, not a scope —
+// "note: he lied" must not eat the rest of the query — so only a prefix
+// listed in FIELD_ALIASES is ever treated as a scope.
+export function parseQuery(query) {
+  const bare = [];
+  const scoped = [];
+  for (const raw of String(query ?? "").trim().split(/\s+/).filter(Boolean)) {
+    if (raw.startsWith("@") && raw.length > 1) {
+      scoped.push({ field: "username", term: raw.slice(1) });
+      continue;
+    }
+    const colon = raw.indexOf(":");
+    if (colon > 0 && colon < raw.length - 1) {
+      const field = FIELD_ALIASES[raw.slice(0, colon).toLowerCase()];
+      if (field) {
+        scoped.push({ field, term: raw.slice(colon + 1) });
+        continue;
+      }
+    }
+    bare.push(raw);
+  }
+  return { bare, scoped };
+}
 
 // Tier bonuses, added on top of the field weight so an exact hit on a lower
 // field can still lose to a substring hit on a higher one only when they're
@@ -95,21 +151,30 @@ function scoreTokenAgainstField(qToken, fieldTokens, fieldWhole) {
 }
 
 // scoreMatch(query, fields) — `fields` is { name, role, faction, username,
-// zone, preview }, any subset, string or null/undefined. Every query token
-// must match SOME field (AND across tokens); the row's score is the sum of
-// each token's best (field weight + tier) hit, and matchedField reports the
-// highest-weighted field any token matched, for the match-reason subtext.
+// zone, tag, status, kind, text, notes, preview }, any subset, string (or
+// array — joined for tokenizing) or null/undefined.
+//
+// `query` may mix bare words (match any field) with field:term / @term
+// scopes (match only that field) — see parseQuery. Every word in the query,
+// scoped or bare, must match SOME allowed field (AND across words); the
+// row's score is the sum of each word's best (field weight + tier) hit, and
+// matchedField reports the highest-weighted field any word matched, for the
+// match-reason subtext.
 export function scoreMatch(query, fields) {
-  const qTokens = tokenize(query);
-  if (qTokens.length === 0) return null;
+  const { bare, scoped } = parseQuery(query);
+  const words = [
+    ...bare.map((term) => ({ term, field: null })),
+    ...scoped.map(({ field, term }) => ({ term, field })),
+  ];
+  if (words.length === 0) return null;
 
   const fieldEntries = Object.entries(FIELD_WEIGHTS)
     .filter(([key]) => fields[key] != null && fields[key] !== "")
     .map(([key, weight]) => ({
       key,
       weight,
-      whole: normalize(fields[key]),
-      tokens: tokenize(fields[key]),
+      whole: normalize(Array.isArray(fields[key]) ? fields[key].join(" ") : fields[key]),
+      tokens: tokenize(Array.isArray(fields[key]) ? fields[key].join(" ") : fields[key]),
     }));
   if (fieldEntries.length === 0) return null;
 
@@ -117,23 +182,32 @@ export function scoreMatch(query, fields) {
   let bestField = null;
   let bestFieldWeight = -1;
 
-  for (const qToken of qTokens) {
-    let tokenBest = null;
-    let tokenBestField = null;
-    for (const fe of fieldEntries) {
-      const tier = scoreTokenAgainstField(qToken, fe.tokens, fe.whole);
-      if (tier == null) continue;
-      const score = fe.weight + tier;
-      if (tokenBest == null || score > tokenBest) {
-        tokenBest = score;
-        tokenBestField = fe;
+  for (const word of words) {
+    // A scoped word restricted to an unrecognised or absent field (e.g.
+    // role:x on a row with no role) simply can't match — that's a real
+    // "no", not "ignore the scope".
+    const candidates = word.field ? fieldEntries.filter((fe) => fe.key === word.field) : fieldEntries;
+    const qTokens = tokenize(word.term);
+    if (qTokens.length === 0) return null;
+
+    for (const qToken of qTokens) {
+      let tokenBest = null;
+      let tokenBestField = null;
+      for (const fe of candidates) {
+        const tier = scoreTokenAgainstField(qToken, fe.tokens, fe.whole);
+        if (tier == null) continue;
+        const score = fe.weight + tier;
+        if (tokenBest == null || score > tokenBest) {
+          tokenBest = score;
+          tokenBestField = fe;
+        }
       }
-    }
-    if (tokenBest == null) return null; // AND across tokens: every token must hit
-    total += tokenBest;
-    if (tokenBestField.weight > bestFieldWeight) {
-      bestFieldWeight = tokenBestField.weight;
-      bestField = tokenBestField.key;
+      if (tokenBest == null) return null; // AND across every token: all must hit
+      total += tokenBest;
+      if (tokenBestField.weight > bestFieldWeight) {
+        bestFieldWeight = tokenBestField.weight;
+        bestField = tokenBestField.key;
+      }
     }
   }
 

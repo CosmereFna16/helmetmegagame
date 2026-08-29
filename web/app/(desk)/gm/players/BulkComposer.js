@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "@/app/components/Modal";
 import FormError from "@/app/components/FormError";
+import Select from "@/app/components/Select";
 import { scoreMatch } from "@/lib/fuzzySearch";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import { sendGmBroadcast } from "./actions";
@@ -34,7 +35,7 @@ export default function BulkComposer({ characters, onClose }) {
     const q = query.trim();
     if (!q) return characters;
     return characters.filter((c) =>
-      scoreMatch(q, { name: c.name, role: c.roleName, faction: c.factionName, zone: c.zoneName }),
+      scoreMatch(q, { name: c.name, role: c.roleTitle, faction: c.factionName, zone: c.zoneName }),
     );
   }, [characters, query]);
 
@@ -93,27 +94,27 @@ export default function BulkComposer({ characters, onClose }) {
           {zoneOptions.length > 0 && (
             <label className="field">
               <span className="field-label">Check zone</span>
-              <select value="" onChange={(e) => checkZone(e.target.value)}>
+              <Select value="" onChange={(e) => checkZone(e.target.value)}>
                 <option value="">Pick a zone…</option>
                 {zoneOptions.map((z) => (
                   <option key={z} value={z}>
                     {z}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           )}
           {factionOptions.length > 0 && (
             <label className="field">
               <span className="field-label">Check faction</span>
-              <select value="" onChange={(e) => checkFaction(e.target.value)}>
+              <Select value="" onChange={(e) => checkFaction(e.target.value)}>
                 <option value="">Pick a faction…</option>
                 {factionOptions.map((f) => (
                   <option key={f} value={f}>
                     {f}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           )}
         </div>

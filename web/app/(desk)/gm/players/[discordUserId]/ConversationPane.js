@@ -7,6 +7,7 @@ import DevCharacterButton from "@/app/components/DevCharacterButton";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import DevPanelModal from "@/app/components/DevPanelModal";
 import ZoneChip from "@/app/components/ZoneChip";
+import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import useSubmitOnEnter from "@/app/components/useSubmitOnEnter";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import {
@@ -45,7 +46,7 @@ export default function ConversationPane({
   characterId,
   avatarVersion,
   zoneName,
-  statusLabel,
+  status,
   moveId,
   initialMessages,
   initialHasMore,
@@ -161,7 +162,7 @@ export default function ConversationPane({
           <CharacterAvatar characterId={characterId} name={label} version={avatarVersion} size={32} />
           <h2 className="section-title truncate">{label}</h2>
           {zoneName ? <ZoneChip zoneName={zoneName} /> : null}
-          {statusLabel && <span className="chip text-xs text-muted">{statusLabel}</span>}
+          {status && <EnumPill map={CHARACTER_STATUS} value={status} />}
         </div>
         <div className="flex items-center gap-2">
           {moveId && (

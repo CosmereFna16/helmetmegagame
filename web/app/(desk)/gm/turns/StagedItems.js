@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import StatusPill from "@/app/components/StatusPill";
+import { useRefresh } from "@/app/components/useRefresh";
 import GmAvatar from "@/app/components/GmAvatar";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import EffectComposer from "./EffectComposer";
@@ -18,7 +18,7 @@ import { effectSummary, effectState, messageState, tagNameLookup, truncate } fro
 // (Workspace#revealStagedRow).
 
 export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, presenceZones, onInspect, showBatch, gmProfiles }) {
-  const router = useRouter();
+  const [refresh] = useRefresh();
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -29,7 +29,7 @@ export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, presence
     const batch = showBatch && effect.batchId;
     startTransition(async () => {
       await deleteStagedEffect(batch ? { batchId: effect.batchId } : { stagedEffectId: effect.id });
-      router.refresh();
+      refresh();
     });
   }
 
@@ -81,7 +81,7 @@ export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, presence
           presenceZones={presenceZones}
           onDone={() => {
             setEditing(false);
-            router.refresh();
+            refresh();
           }}
           onCancel={() => setEditing(false)}
         />
@@ -91,7 +91,7 @@ export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, presence
 }
 
 export function StagedMessageRow({ message, roster, presenceZones, onInspect, gmProfiles }) {
-  const router = useRouter();
+  const [refresh] = useRefresh();
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
   const [resendError, setResendError] = useState(null);
@@ -106,7 +106,7 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
   function onDelete() {
     startTransition(async () => {
       await deleteStagedMessage({ stagedMessageId: message.id });
-      router.refresh();
+      refresh();
     });
   }
 
@@ -115,7 +115,7 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
     startTransition(async () => {
       const res = await resendStagedMessage({ stagedMessageId: message.id });
       if (!res?.ok) return setResendError(res?.error ?? "Something went wrong.");
-      router.refresh();
+      refresh();
     });
   }
 
@@ -183,7 +183,7 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
             zones={presenceZones}
             onDone={() => {
               setEditing(false);
-              router.refresh();
+              refresh();
             }}
             onCancel={() => setEditing(false)}
           />
@@ -193,7 +193,7 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
             roster={roster}
             onDone={() => {
               setEditing(false);
-              router.refresh();
+              refresh();
             }}
             onCancel={() => setEditing(false)}
           />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 
 // One pin list, shared by both desks. Pin someone while adjudicating and they
 // are pinned when you go talk to them.
@@ -96,19 +96,46 @@ function write(pins) {
   }
 }
 
-export default function usePins() {
-  const pins = useSyncExternalStore(subscribe, read, readServer);
+// `knownIdentities`, if given, is a Set of pinIdentity() strings this caller
+// can vouch for (e.g. the live roster). Any pin whose identity falls in the
+// SAME namespace ("c:" or "u:") as an entry in that set, but isn't actually
+// in it, is dead — most often because a game wipe deleted every Character
+// row out from under a stale localStorage chip. Such pins are dropped from
+// what's returned and the prune is written back once. A pin in a namespace
+// the caller doesn't know about (e.g. a "u:" player-only pin, seen from the
+// adjudication desk which only ever knows characters) is left alone — the
+// caller can't tell a live one from a dead one, so it stays for whichever
+// desk does know.
+export default function usePins({ knownIdentities } = {}) {
+  const rawPins = useSyncExternalStore(subscribe, read, readServer);
+
+  const pins = useMemo(() => {
+    if (!knownIdentities) return rawPins;
+    return rawPins.filter((p) => {
+      const id = pinIdentity(p);
+      const namespace = id.slice(0, 2); // "c:" or "u:"
+      const knownInNamespace = [...knownIdentities].some((k) => k.startsWith(namespace));
+      if (!knownInNamespace) return true; // caller can't judge this namespace
+      return knownIdentities.has(id);
+    });
+  }, [rawPins, knownIdentities]);
+
+  useEffect(() => {
+    if (!knownIdentities) return;
+    if (pins.length !== rawPins.length) write(pins);
+  }, [pins, rawPins, knownIdentities]);
+
   const pinnedIds = useMemo(() => new Set(pins.map(pinIdentity)), [pins]);
 
   const togglePin = useCallback(
     (entry) => {
       const id = pinIdentity(entry);
-      const next = pins.some((p) => pinIdentity(p) === id)
-        ? pins.filter((p) => pinIdentity(p) !== id)
-        : [...pins, entry];
+      const next = rawPins.some((p) => pinIdentity(p) === id)
+        ? rawPins.filter((p) => pinIdentity(p) !== id)
+        : [...rawPins, entry];
       write(next);
     },
-    [pins],
+    [rawPins],
   );
 
   const isPinned = useCallback((entry) => pinnedIds.has(pinIdentity(entry)), [pinnedIds]);

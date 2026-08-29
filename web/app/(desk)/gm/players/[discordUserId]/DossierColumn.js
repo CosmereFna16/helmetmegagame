@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import TagChip from "@/app/components/TagChip";
 import FactionLink from "@/app/components/FactionLink";
 import MarkdownContent from "@/app/components/MarkdownContent";
+import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { getCharacterInspector, getArchiveSlice } from "@/app/(desk)/gm/turns/actions";
 import CanonPanel from "./CanonPanel";
 import NotesTab from "./NotesTab";
@@ -144,7 +145,9 @@ export default function DossierColumn({
               {data.isLeader ? " · Leader" : ""}
             </Fact>
             <Fact label="Standing in">{data.locationLabel}</Fact>
-            <Fact label="Status">{data.status}</Fact>
+            <Fact label="Status">
+              <EnumPill map={CHARACTER_STATUS} value={data.status} />
+            </Fact>
             <Fact label="Resources">
               <span className="mono">{data.resources} ⬢</span>
             </Fact>

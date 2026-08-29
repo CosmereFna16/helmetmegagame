@@ -3,6 +3,7 @@
 import CheckField from "@/app/components/CheckField";
 import Switch from "@/app/components/Switch";
 import InfoIcon from "@/app/components/InfoIcon";
+import Select from "@/app/components/Select";
 import { TITLE_WORDS, NAME_LIMITS, AGE_MIN, AGE_MAX, GENDERS, GENDER_LABELS } from "@/lib/characterName";
 
 // Every scalar on the Character row a GM may set, in one tab.
@@ -30,7 +31,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
               Honorific
               <InfoIcon text="Ungated here. Players only see titles their role and tags earned them; you see all of them." />
             </span>
-            <select
+            <Select
               value={staged.honorific ?? ""}
               onChange={(e) => onField("honorific", e.target.value || null)}
               style={touched("honorific")}
@@ -39,7 +40,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
               {TITLE_WORDS.map((h) => (
                 <option key={h} value={h}>{h}</option>
               ))}
-            </select>
+            </Select>
           </label>
 
           <label className="field">
@@ -91,7 +92,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
               Gender
               <InfoIcon text="Fixed for the player at creation; only you can change it. Four seats force it — Baron and Heir are men, Baroness and Successor women — but nothing here enforces that, so a deliberate exception is yours to make." />
             </span>
-            <select
+            <Select
               value={staged.gender ?? "NEUTRAL"}
               onChange={(e) => onField("gender", e.target.value)}
               style={touched("gender")}
@@ -99,7 +100,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
               {GENDERS.map((g) => (
                 <option key={g} value={g}>{GENDER_LABELS[g]}</option>
               ))}
-            </select>
+            </Select>
           </label>
 
           <label className="field">
@@ -121,7 +122,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
 
         <label className="field">
           <span className="field-label">Role</span>
-          <select
+          <Select
             value={staged.roleId ?? ""}
             onChange={(e) => onField("roleId", e.target.value || null)}
             style={touched("roleId")}
@@ -132,7 +133,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
                 {r.factionName} / {r.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
 
         <label className="field">
@@ -147,7 +148,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="field">
             <span className="field-label">Faction</span>
-            <select
+            <Select
               value={staged.factionId ?? ""}
               onChange={(e) => onField("factionId", e.target.value || null)}
               style={touched("factionId")}
@@ -156,7 +157,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
               {factions.map((f) => (
                 <option key={f.id} value={f.id}>{f.name}</option>
               ))}
-            </select>
+            </Select>
           </label>
 
           <div className="flex flex-col justify-end gap-2 text-sm">
@@ -183,7 +184,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
             only — the Caves group is a seat, not a place anyone stands. */}
         <label className="field">
           <span className="field-label">Zone</span>
-          <select
+          <Select
             value={staged.zoneId ?? ""}
             onChange={(e) => onField("zoneId", e.target.value || null)}
             style={touched("zoneId")}
@@ -192,7 +193,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
             {zones.map((z) => (
               <option key={z.id} value={z.id}>{z.name}</option>
             ))}
-          </select>
+          </Select>
         </label>
       </section>
 

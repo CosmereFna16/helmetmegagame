@@ -27,6 +27,7 @@ export default function StatusPill({ tone = "neutral", children, className = "" 
 export const CHARACTER_STATUS = {
   ALIVE: { label: "Alive", tone: "good" },
   DEAD: { label: "Dead", tone: "bad" },
+  CURSED: { label: "Cursed", tone: "muted" },
 };
 
 export const DESIRE_STATUS = {

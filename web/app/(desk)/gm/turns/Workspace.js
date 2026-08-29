@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@/app/components/useRefresh";
 import QueueRail from "./QueueRail";
 import MoveDesk from "./MoveDesk";
 import RequestDesk from "./RequestDesk";
@@ -10,6 +10,7 @@ import InspectorColumn from "./InspectorColumn";
 import StagingTray from "./StagingTray";
 import PushPreview from "./PushPreview";
 import DevPanelModal from "@/app/components/DevPanelModal";
+import DeskHeader from "@/app/components/DeskHeader";
 import { isAnyDirty } from "@/app/components/useDirtyGuard";
 import usePins from "@/app/components/usePins";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
@@ -78,7 +79,7 @@ export default function Workspace({
   stagedMessages,
   gmProfiles,
 }) {
-  const router = useRouter();
+  const [refresh] = useRefresh();
   const [lens, setLens] = useState("moves"); // which queue the rail shows
   const [selected, setSelected] = useState(initialSelection ?? null); // { type: "move"|"request"|"caving", id }
 
@@ -96,8 +97,12 @@ export default function Workspace({
   }, []);
   const deselect = useCallback(() => select(null), [select]);
   const [inspected, setInspected] = useState(null); // { characterId, name }
-  // One pin list shared with the player desk — see usePins.js.
-  const { pins: pinned, togglePin } = usePins();
+  // One pin list shared with the player desk — see usePins.js. This desk only
+  // ever knows characters, so it prunes the "c:" namespace against the live
+  // roster (dead after a game wipe, or a character deleted outright) and
+  // leaves any "u:" player-only pin alone for the player desk to judge.
+  const knownPinIdentities = useMemo(() => new Set(roster.map((c) => `c:${c.id}`)), [roster]);
+  const { pins: pinned, togglePin } = usePins({ knownIdentities: knownPinIdentities });
   const [previewOpen, setPreviewOpen] = useState(false);
   // { characterId, name } of the Dev Panel currently open as a modal over
   // the desk, or null. Opening it never leaves /gm/turns or resets any of
@@ -245,11 +250,11 @@ export default function Workspace({
       if (document.visibilityState !== "visible") return;
       if (document.querySelector(".modal-overlay")) return;
       if (isAnyDirty()) return;
-      router.refresh();
+      refresh();
       setLastRefreshedAt(new Date());
     }, REFRESH_MS);
     return () => clearInterval(id);
-  }, [router]);
+  }, [refresh]);
 
   // Countdown to the next noon/midnight CT push, ticking every 30s.
   const [pushMinutes, setPushMinutes] = useState(() => minutesUntilNextPush());
@@ -260,28 +265,30 @@ export default function Workspace({
 
   return (
     <div className="desk-shell">
-      <header className="desk-header">
-        <div className="flex items-center gap-3">
-          <h1 className="section-title">Adjudication</h1>
-          <span className="chip">
-            {openTurn ? `Turn ${openTurn.number} · ${openTurn.phase === "DAWN" ? "Dawn" : "Dusk"}` : "No turn open"}
-          </span>
-          <span className="text-xs text-muted" title="Push fires at noon & midnight CT">
-            {formatCountdown(pushMinutes)}
-          </span>
-          <span className="chip text-xs text-muted">{solvedCount}/{moves.length} solved</span>
-          {lastRefreshedAt && (
-            <span className="text-xs text-muted">
-              updated {lastRefreshedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+      <DeskHeader
+        title="Adjudication"
+        meta={
+          <>
+            <span className="chip">
+              {openTurn ? `Turn ${openTurn.number} · ${openTurn.phase === "DAWN" ? "Dawn" : "Dusk"}` : "No turn open"}
             </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
+            <span className="chip text-xs text-muted">{solvedCount}/{moves.length} solved</span>
+            <span className="text-xs text-muted" title="Push fires at noon & midnight CT">
+              {formatCountdown(pushMinutes)}
+            </span>
+            {lastRefreshedAt && (
+              <span className="text-xs text-muted">
+                updated {lastRefreshedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
+          </>
+        }
+        actions={
           <button type="button" className="btn-quiet" onClick={() => setPreviewOpen(true)}>
             Preview push
           </button>
-        </div>
-      </header>
+        }
+      />
 
       <div className="desk-body">
         <QueueRail
@@ -295,6 +302,7 @@ export default function Workspace({
           lens={lens}
           onLens={setLens}
           gmProfiles={gmProfiles}
+          tagsById={tagsById}
         />
 
         <main className="desk-main">
@@ -352,6 +360,7 @@ export default function Workspace({
         <InspectorColumn
           inspected={inspected}
           pinned={pinned}
+          roster={roster}
           onInspect={inspect}
           onTogglePin={togglePin}
           cache={inspectorCache}

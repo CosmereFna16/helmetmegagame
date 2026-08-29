@@ -17,6 +17,7 @@ import {
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import InfoIcon from "@/app/components/InfoIcon";
 import Tooltip from "@/app/components/Tooltip";
+import Select from "@/app/components/Select";
 import {
   NAME_LIMITS,
   AGE_MIN,
@@ -425,7 +426,7 @@ export default function CreateCharacterWizard({
                   }
                 />
               </span>
-              <select
+              <Select
                 value={effectiveGender}
                 onChange={(e) => setGender(e.target.value)}
                 disabled={Boolean(lockedGender)}
@@ -437,7 +438,7 @@ export default function CreateCharacterWizard({
                     {GENDER_LABELS[g]}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <p className="self-end pb-2 text-sm text-muted">
               {lockedGender
@@ -453,7 +454,7 @@ export default function CreateCharacterWizard({
                 Title
                 <InfoIcon text="Titles are earned. Your role and the tags you took decide which ones you may be styled by — most of Ravenheart goes untitled." />
               </span>
-              <select
+              <Select
                 value={effectiveHonorific}
                 onChange={(e) => setHonorific(e.target.value)}
                 disabled={earned.length === 0}
@@ -464,7 +465,7 @@ export default function CreateCharacterWizard({
                     {h}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label className="field">
               <span className="field-label">First name</span>

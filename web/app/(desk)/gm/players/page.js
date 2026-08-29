@@ -63,6 +63,10 @@ export default async function PlayerRosterPage({ searchParams }) {
   const cursedUserIds = new Set(
     cursedRoleId ? members.filter((m) => m.roles.includes(cursedRoleId)).map((m) => m.id) : [],
   );
+  // Same map PlayerRail already builds for the rail's fuzzy search — the
+  // roster table gets it too, so it can find someone by Discord handle
+  // without a second query.
+  const memberById = new Map(members.map((m) => [m.id, m]));
 
   return (
     <main className="desk-main">
@@ -79,6 +83,8 @@ export default async function PlayerRosterPage({ searchParams }) {
           factionZoneName: c.faction?.zone?.name ?? "",
           zoneName: c.zone?.name ?? "",
           status: c.status,
+          username: memberById.get(c.discordUserId)?.username ?? "",
+          globalName: memberById.get(c.discordUserId)?.globalName ?? "",
           resources: c.resources,
           cursed: cursedUserIds.has(c.discordUserId),
           tagCount: tagCountByCharacter.get(c.id) ?? 0,

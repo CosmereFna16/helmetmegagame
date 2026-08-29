@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Modal from "@/app/components/Modal";
 import FormError from "@/app/components/FormError";
+import Select from "@/app/components/Select";
 import { mergeTagOp } from "@/lib/tagOpAlgebra";
+import { scoreMatch } from "@/lib/fuzzySearch";
 import TagChip from "@/app/components/TagChip";
 import TagCatalogBrowser from "@/app/components/TagCatalogBrowser";
 import { createStagedEffects, updateStagedEffect, getHeldTags } from "./actions";
@@ -86,12 +88,19 @@ export default function EffectComposer({
   const heldTagIds = useMemo(() => new Set((heldEntry ?? []).map((t) => t.tagId)), [heldEntry]);
 
   const targetMatches = useMemo(() => {
-    const q = targetSearch.trim().toLowerCase();
+    const q = targetSearch.trim();
     if (!q) return [];
     const chosen = new Set(targets.map((t) => t.id));
     return roster
-      .filter((c) => !chosen.has(c.id) && c.name.toLowerCase().includes(q))
-      .slice(0, SEARCH_LIMIT);
+      .filter((c) => !chosen.has(c.id))
+      .map((c) => ({
+        c,
+        match: scoreMatch(q, { name: c.name, role: c.roleTitle, faction: c.factionName, zone: c.zoneName, username: c.username }),
+      }))
+      .filter((r) => r.match)
+      .sort((a, b) => b.match.score - a.match.score)
+      .slice(0, SEARCH_LIMIT)
+      .map((r) => r.c);
   }, [targetSearch, roster, targets]);
 
   const stagedByTagId = useMemo(
@@ -204,7 +213,7 @@ export default function EffectComposer({
               <input
                 value={targetSearch}
                 onChange={(e) => setTargetSearch(e.target.value)}
-                placeholder="Search characters…"
+                placeholder="name, role, faction, zone…"
               />
             </label>
           )}
@@ -249,14 +258,14 @@ export default function EffectComposer({
           </label>
           <label className="field" style={{ width: "12rem" }}>
             <span className="field-label">Relocate to</span>
-            <select value={zoneId} onChange={(e) => setZoneId(e.target.value)}>
+            <Select value={zoneId} onChange={(e) => setZoneId(e.target.value)}>
               <option value="">— no move —</option>
               {presenceZones.map((z) => (
                 <option key={z.id} value={z.id}>
                   {z.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           {declaredDelta != null && declaredDelta !== 0 && !existing && (
             <button
