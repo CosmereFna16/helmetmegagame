@@ -3,14 +3,36 @@
 ## Table of Contents
 1. [About Bascinet](#about-bascinet)  
 2. [How Do I Play?](#how-do-i-play)  
-    -   [Turn Overview](#turn-overview)  
+    - [Turn Overview](#turn-overview)  
     - [Quick Reference](#quick-reference)  
-5. [The Game Clock](#the-game-clock)  
-6. [Character Creation](#character-creation)  
-7. [Playing A Turn](#playing-a-turn)  
-8. [Talking & Roleplay](#talking--roleplay)  
-9. [Resources & Hunger](#resources--hunger)  
-10. [Submitting A Move](#submitting-a-move)  
+3. [The Game Clock](#the-game-clock)  
+    - [The Dawn Wipe](#the-dawn-wipe)  
+4. [Character Creation](#character-creation)  
+5. [Playing A Turn](#playing-a-turn)  
+    - [Don't Ignore The Previous Turn's Results](#dont-ignore-the-previous-turns-results)  
+6. [Talking & Roleplay](#talking--roleplay)  
+    - [Channels And Locations](#channels-and-locations)  
+    - [Public Scenes](#public-scenes)  
+    - [Private Conversations](#private-conversations)  
+    - [Character Mentions](#character-mentions)  
+    - [Concealing Your Identity](#concealing-your-identity)  
+    - [Talking OOC](#talking-ooc)  
+    - [Reactions](#reactions)  
+7. [Resources & Hunger](#resources--hunger)  
+    - [Transferring Resources](#transferring-resources)  
+    - [Upkeep](#upkeep)  
+    - [Hunger](#hunger)  
+    - [The Silo](#the-silo)  
+8. [Submitting A Move](#submitting-a-move)  
+    - [Routine vs Gambit](#routine-vs-gambit)  
+    - [Labor](#labor)  
+    - [Move Submission Is Final](#move-submission-is-final)  
+9. [Tags & Tag Points](#tags--tag-points)  
+    - [Gaining, Using, and Losing Tags](#gaining-using-and-losing-tags)  
+    - [Examining Tags](#examining-tags)  
+    - [Health Tags](#health-tags)  
+10. [Character Page](#character-page)  
+11. [Death](#death)  
 
 
 ## About Bascinet
@@ -34,9 +56,13 @@ Introduce yourself, barge into conversations, make plans, offer services, beg fo
 **Decide What You're Doing**  
 Travel to another Zone, submit a description of what your character is trying to accomplish during the turn, or do neither and allow your Default Move to occur.  
 
+### Help & GMs
+
+General questions can be asked in the `#general` channel or by creating a thread in `questions`. If you ever need to contact the GMs directly, you can DM the bot to send them a message.
+
 ### Quick Reference
 
-**Reactions:**  
+#### **Reactions:**  
 🔍 Inspect Character  
 ❓ Show Bio  
 ⭐ Save message to Notes  
@@ -44,7 +70,7 @@ Travel to another Zone, submit a description of what your character is trying to
 ❌ Delete Message  
 🌬️ Ghost Haunt
 
-**Discord Commands:**
+#### **Discord Commands:**
 | Command | Effect |
 |---|---|
 | `/move` | Open the Move submission form. |
@@ -55,20 +81,23 @@ Travel to another Zone, submit a description of what your character is trying to
 | `/persistent` | Toggle whether a thread survives the Dawn wipe. |
 | `/conceal` | (Message prefix, not a command) Conceal your identity when messaging. |
 
-**Channels**  
-Summary - General description of what your character is seen doing.  
-Public - Public threads for scenes in a location (meetings, conversations, conflicts, etc.)  
-Private - Private threads for scenes with specific characters.
+#### **Channels**  
+| Channel | What it's for |
+|---|---|
+| **Summary** (text channel) | Describing, in broad terms, what other players would see your character doing. This channel has a 5 minute slowmode, not meant for conversations.|
+| **Public** (forum channel) | Public interactions. Create a topic by clicking the button on the pinned post, or check who's around. |
+| **Private** (forum channel) | Starting private conversation threads with specific people. |
 
-**Website**
+#### **Website**
 | Page | Content |
 |---|---|
-| **Character** | Your character sheet. Current Zone, Resources, Gambit modifier, Tag Points, tags and equipment, Desire, Default Move, bodies to loot, your bio and portrait, all requests functions. |
+| **Character** | Your character sheet. Current Zone, Resources, Gambit modifier, Tag Points, tags and equipment, Desire, Default Move, your bio and portrait, all requests functions. |
 | **Map** | A map of Ravenheart. Click a Zone to travel to it. |
 | **Faction** | Faction roster, Silo balance, ledger, and leadership. |
 | **Documents** | Game rules and briefs. **Assigned** has specific documents provided by your role or tags. |
 | **Notes** | Messages saved with ⭐, private to you. |
 | **Archive** | A full transcript of all roleplay channels. Hidden until after the game ends. |
+| **Handbook** | A full page version of this document. |
 
 ## The Game Clock
 Bascinet takes place over 30 days, with time passing in-game at the same rate. Every day there are two 12-hour turns.  
@@ -78,7 +107,7 @@ Bascinet takes place over 30 days, with time passing in-game at the same rate. E
 At the end of each turn the game resolves what happened during those 12 hours. Move results are posted, resources are adjusted, and travel takes effect. You can enable turn pings on your [Character](https://ravenheart.quest/character) page if you want the bot to tell you whenever a new turn begins.
 
 You can find information on the current turn in the `#turns` channel, in addition to the three main controls:  
-- **Travel** uses your Move to travel to a different Zone. You can still communicate in your current Zone until the turn ends, at which time you arrive at your chosen destination.  
+- **Travel** uses your Move to travel to a different Zone. You will arrive immediately, and can begin speaking in the Zone's channels.  
 - **Move** is used to submit your character's Move for the turn.  
 - **Speak** allows you to post as your character without typing into a channel, helping to obscure your identity.
 
@@ -96,7 +125,7 @@ If you want to remember something, use the ⭐ reaction on the message before Da
 The first thing you will do is create your character on the website by clicking the **Character** button at the top of the sidebar. Character creation takes place in 5 steps:
 
 **Choose Your Role**  
-Your role determines your character's starting location and faction. Roles may come with responsibilities, authority, or benefits. Most roles have a maximum number allowed in the game, and Leader roles can only be selected if you have been explicitly whitelisted.
+Your role determines your character's starting location and faction. Roles may come with responsibilities, authority, or benefits. The difficulty shown on the role (easy/normal/hard) is a rough indication of how much effort the role requires to play properly. Most roles have a maximum number allowed in the game, and Leader roles can only be selected if you have been explicitly whitelisted.
 
 **Tags**  
 Tags represent your character's skills, assets, injuries, and other attributes. You may have some initial tags provided by your role, and you can purchase new tags using Tag Points. In general, beneficial tags will cost points while harmful/negative tags (drawbacks) will grant points. Any unused points are saved to use later.
@@ -156,7 +185,7 @@ Each Zone's channel group has three roleplay channels which you can use to inter
 | Channel | What it's for |
 |---|---|
 | **Summary** (text channel) | Describing, in broad terms, what other players would see your character doing. This channel has a 5 minute slowmode, not meant for conversations.|
-| **Public** (forum channel) | Public interactions. Create a forum post for a scene or conversation and reply inside it, or join in one already going. |
+| **Public** (forum channel) | Public interactions. Create a topic by clicking the button on the pinned post, or check who's around. |
 | **Private** (forum channel) | Starting private conversation threads with specific people. |
 
 You may also gain access to unique roleplay channels by other means, such as acquiring a specific tag.
@@ -167,7 +196,7 @@ You may also gain access to unique roleplay channels by other means, such as acq
 
 Use the Public channel when you want to play out a scene or conversation visible to everyone in the area. It could be a meeting, a conversation or argument, starting a confrontation, or anything else your character might do that involves others.
 
-If you see someone post a description of their Character in the Summary channel and want to interact with them, you would create a thread in the Public channel to do so (or join an existing one, if someone else did so already).
+If you see someone post a description of their Character in the Summary channel and want to interact with them, do so in a Public or Private thread.
 
 ### Private Conversations
 
@@ -221,13 +250,13 @@ Resources are kept either on your character or in your faction's Silo.
 
 You can transfer Resources to or from other characters from your [Character](https://ravenheart.quest/character) page. This requires both characters to be in the same Zone.
 
-The source can by anyone within your Zone. Yes, this means **you can take ⬢ from another character**. You'll be prompted to provide a reason, which the GMs will see. This is a mugging and should be played out accordingly in the roleplay channels.
+The source can be anyone within your Zone. Yes, this means **you can take ⬢ from another character**. You'll be prompted to provide a reason, which the GMs will see. This is a mugging and should be played out accordingly in the roleplay channels.
 
 ### Upkeep
 
 Each turn your character spends 1 ⬢ on upkeep to feed yourself. You never need to account for this in your Move, it happens automatically. If you do not have at least 1 ⬢ to spend, your character becomes **hungry**.
 
-If your character has the Ate a Meal tag or the Hungerless tag, you remain fed without paying the resource cost.
+If your character has the Ate Meal tag or the Hungerless tag, you remain fed without paying the resource cost.
 
 ### Hunger
 
@@ -237,7 +266,7 @@ After 6 turns spent hungry, you receive the **Dying** tag and a GM will review y
 
 ### The Silo
 
-Resources can be stockpiled by your faction in the Silo, saving them for later use or distribution. Faction leaders and treasurers can transfer resources to or from the Silo via the [Faction](https://ravenheart.quest/faction) page.
+Resources can be stockpiled by your faction in the Silo, saving them for later use or distribution. Faction leaders and treasurers can transfer resources to or from the Silo by using the **Transfer Resources** button on the [Character](https://ravenheart.quest/character) page.
 
 Silo transfers can only take place from within the faction's Home Zone.
 
@@ -280,13 +309,132 @@ Anyone can produce ⬢ with Labor unless they're located in the Caves. Describe 
 
 | Tag | ⬢ Yield | Where |
 |---|---|---|
-| None | 0–2 | Anywhere but the Caves |
-| Laborer (Basic) | 2–5 | Anywhere but the Caves |
-| Laborer (Skilled) | 7–9 | Anywhere but the Caves |
-| Laborer (Farming) | 18–26 | Town only |
+| None | {resource:labor:base} | Anywhere but the Caves |
+| {tag:laborer-basic} | {resource:labor:basic} | Anywhere but the Caves |
+| {tag:laborer-skilled} | {resource:labor:skilled} | Anywhere but the Caves |
+| {tag:laborer-farming} | {resource:labor:farming} | Town only |
 
 Farming is how Ravenheart is fed, and as such it's taxed by the Headman. More information can be found under **Ravenheart's Economy** in the [Documents](https://ravenheart.quest/documents).
 
 ### Move Submission Is Final
 
 You cannot edit or cancel a Move after submitting it. Double check each part of your submission before confirming it.
+
+## Tags & Tag Points
+
+Tags represent your character's skills, assets, injuries, and all other attributes. You can hover over any tag on the website to see its description, cost, effects, and any requirements.
+
+Tags are shown on the website as embedded chips, color coded by their category.
+| Color | Category | Includes Tags Like |
+|---|---| --- |
+| Blue | General | Traits, Drawbacks, Beliefs |
+| Green | Skill| Cooking, Tracking, Brewing |
+| Amber | Status | Hungry, Ate Meal |
+| Red | Health | Wounds, Illnesses |
+| Teal | Items | Weapons, Armor, Ingredients |
+| Grey | Assets | Property, Animals |
+
+Tag points are used to assign tags during character creation, and any unused points are saved to use later. You can earn more points during the game by fulfilling Desires.
+
+You can spend tag points, using the option on your character sheet, to acquire new tags at any time.
+
+
+
+### Gaining, Using, and Losing Tags
+
+Tags are gained, used, and removed via options on your [Character](https://ravenheart.quest/character) page. Each is a *request*. It applies immediately, but prompts for a reason which a GM will review.
+
+- **Add Tag** gains a tag by crafting or similar actions. The cost is taken immediately, but you still need to spend your Move on it.
+- **Remove Tag** drops items or otherwise removes applicable tags.
+- **Consume** removes item tags that can be eaten, drank, or otherwise used.
+- **Transfer Tag** gives a transferrable tag to someone else in your Zone. Give only, no take.
+- **Heal** heals injuries and ailments based on your Medical skill.
+
+**Stacks:** Some tags can stack, such as meals or ammunition. A stacked chip will show the count, such as `×4`.
+
+**Equipment:** Weapons and armor must be **equipped** to use them in a fight. You have 6 slots for equippable tags. Click a tag to equip or unequip it instantly.
+
+**Durations:** Some tags run out (`· 2t` on the chip). Some get *worse* instead of running out.
+
+**Teaching:** Most skills can be taught by those that hold them without needing to use a Move. The learner submits a Gambit Move to try and pick up the skill. If they roll a 6, they successfully gain the tag.
+
+### Examining Tags
+
+When you 🔍 a character you will see tags marked as visible, such as clearly worn gear or wounds. Skills, beliefs, hidden weapons, and other non-visible tags will not be shown. Some tags allow you to see more information when examining a character, such as doctors being shown ailments they can treat.
+
+### Health Tags
+
+Health tags are your wounds, illnesses, and other ailments. Removing them typically requires someone medically skilled based on how severe it is. Removing health tags requires resources, and anything worse than a Minor tag also requires a turn spent by the person doing the removing.
+
+You can see the costs and skills required in the Medical Document: {document:medical}.
+
+**Untreated wounds often get worse.**
+
+When a health tag worsens, the bot will DM you. Find a doctor before the tag shows `· last` if you want to stay alive.
+
+Even if you don't possess the skills needed to heal an injury or ailment, you may always *attempt* something above your tier. That requires a Gambit, and you stand a very real chance of making it worse.
+
+## Character Page
+
+Your [Character](https://ravenheart.quest/character) page contains your character sheet and all mechanical options for modifying your character. The page is dense with features and information, all of which are listed below.
+
+**Header:** Your name, title (if present), role, faction, and portrait.
+
+**Status** (top-left):
+
+| Row | Meaning |
+|---|---|
+| **Zone** | The Zone you're standing in. |
+| **Resources** | Your personally held ⬢. |
+| **Gambit** | The modifier for your Gambit die. |
+| **Tag Points** | Points available to spend on new tags. |
+| **This turn** | Displays whether you've submitted a Move for this turn. If not, your Default Move will be used. |
+
+**Actions:** This is the grid of buttons next to your Status. Each button opens a dialogue that asks for your reason and applies immediately. These operate on a system of trust and verification. Your changes take effect when you submit, but are reviewed by GMs to ensure proper use.
+
+| Button | Effect | When You Can Use |
+|---|---|---|
+| **Add Tag** | Add a tag by crafting or similar means. Required resources will be subtracted automatically. | Always, but ensure you use your Move accordingly. |
+| **Remove Tag** | Removes a tag. | When holding something you could reasonably drop or remove. |
+| **Transfer Tag** | Hands an item or asset to someone else in your Zone. Giving only, no taking. | When holding something you can transfer. |
+| **Transfer Resources** | Transfer ⬢ between people or Silos within reach (same Zone for people, faction Home Zone for Silos). | Always. |
+| **Consume** | Consumes an item tag (drinking alcohol, eating food). Clicking the tag performs the same action. | When holding a consumable item. |
+| **Heal** | Treat an affliction on yourself or another person within reach, based on your medical skill. | {tag:medical-basic} or better. |
+| **Loot** | Search and take items, assets, or ⬢ from a dead or incapacitated person in your Zone. | Always, the game will reject invalid targets. |
+| **Move Player** | Carry a dead or bound person, or a member of your faction if you're the Leader, to an adjacent Zone. This doesn't spend their Move or yours. | Always. |
+| **Bind** | Tie up someone within reach. | Always. |
+| **Free** | Cut loose someone within reach. | Always. |
+| **Harm** | Injure a helpless person within reach, or finish off a Dying or bound person. This will never instantly kill, a GM will verify first. | Always. |
+| **Bury Person** | Bury a body to lift their Curse by typing the character's first name. | Always. |
+| **Fast Travel** | Ride your horse to an adjacent Zone. Everyone in the current Zone sees you leave. | Once per day, if you own a horse. |
+
+The menus will always list all characters, to avoid making it obvious when someone is dead, tied up, or otherwise nearby. Act on information your character actually has, don't guess.
+
+**Tags:** Every tag your character currently has, grouped by category. Hover over them for details, and click on an item tag to consume it.
+
+In the header:
+- **Spend Tag Points:** Opens the Tag Store to spend unused points.
+- **Equipment:** Tags that you can wear. Click up to 6 equippable tags (weapons, armor, etc.) to don them, click them again to unequip.
+
+**Desire:** Your character's current goal, which may be changed based on a cooldown. Set what your character wants and how many points it's worth. The ⓘ explains the point scale.  
+**Fulfill** it when you have achieved it, or **Cancel** it.
+
+**Default Move:** What your character does on any turn you don't submit a custom Move. Can be optionally published in the public Summary.
+
+**Bio:** Your character details
+- **Name:** Your title (if present), name, and age. Click the **Change name** button to submit a GM request.
+- **Appearance:** The description shown to anyone who 🔍s you.
+- **Profile picture:** Your character's image. **Customize Appearance** opens the portrait maker, **Clear** removes the current portrait.
+- **Ping me when the turn advances:** Receive DMs for every turn change.
+- **Disable romance content:** Marks your character as uninterested in romance roleplay.
+
+## Death
+
+Your character may die. Several of your characters may die. Luckily, that doesn't mean it's the end of your time in Bascinet.
+
+When your character dies:
+
+- Their body stays where it fell. Items, assets, and ⬢ can be **looted** and the body can be moved elsewhere or buried.
+- Your Discord account becomes **Cursed** as you now exist as a ghost. You can read what's going on in every zone, but you can no longer interact with the world of the living.
+- As a ghost, once every 12 real hours you can react 🌬️ to any message in a `#summary` or public topic, the bot will post a haunting line thereThat's your only voice, and it's a reminder to others that your body remains unburied.
+- You can create a new character at any time, but while Cursed you only have access to the **Bum** and **Migrant** roles. You also receive a 6 point penalty during character creation. The curse lifts the moment somebody buries your body (traditionally the Mortii's or the Church's job, but anyone standing over the body can do so). A buried body can no longer be looted or moved.
