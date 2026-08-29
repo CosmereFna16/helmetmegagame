@@ -388,7 +388,7 @@ zones:
               - Ravenhearter
               - Watchman
               - Tactician
-              - Fighting (Trained)
+              - Melee (Trained)
               - Dog
               - Disabler
               - Radio System (Watch)
@@ -424,7 +424,7 @@ zones:
             treasurer: true
             starting_tags:
               - Ravenhearter
-              - Fighting (Basic)
+              - Melee (Basic)
               - Radio Bracelet (Watch)
               - Pious
               - Incarn's Key
@@ -462,7 +462,7 @@ zones:
             starting_tags:
               - Ravenhearter
               - Watchman
-              - Fighting (Basic)
+              - Melee (Basic)
               - Disabler
               - Radio Bracelet (Watch)
               - Watch Badge
@@ -800,7 +800,8 @@ zones:
             starting_zone: town
             starting_tags:
               - Ravenhearter
-              - Fighting (Trained)
+              - Melee (Trained)
+              - Ranged (Basic)
               - Neoclassic R&W10
               - House
               - Sheriff's Badge
@@ -899,7 +900,7 @@ zones:
             weight: 2
             starting_resources: 2
             starting_zone: town
-            extra_starting_points: 2
+            extra_starting_points: 4
             starting_tags:
               - Ravenhearter
               - Forester
@@ -933,7 +934,7 @@ zones:
               - Ravenhearter
               - Mortus
               - Mortus Rags
-              - Fighting (Basic)
+              - Melee (Basic)
               - Cudgel
             doc_elements:
               - townstarting
@@ -1060,7 +1061,8 @@ zones:
             leader: true
             starting_tags:
               - Brigand
-              - Fighting (Trained)
+              - Melee (Trained)
+              - Ranged (Basic)
               - Brigandine
               - Simple Helm
               - Buckler
@@ -1090,7 +1092,8 @@ zones:
             starting_zone: town
             starting_tags:
               - Brigand
-              - Fighting (Basic)
+              - Melee (Basic)
+              - Ranged (Basic)
               - Dagger
               - Padded Armor
               - Mail Coif
@@ -1132,7 +1135,7 @@ zones:
             starting_zone: windlands
             leader: true
             starting_tags:
-              - Fighting (Trained)
+              - Melee (Trained)
               - Windlander
               - Tactician
               - Sabre
@@ -1164,7 +1167,8 @@ zones:
             starting_tags:
               - Musician
               - Brave
-              - Fighting (Skilled)
+              - Melee (Skilled)
+              - Ranged (Basic)
               - Knight's Helmet
               - Mail Coif
               - Mail Shirt
@@ -1210,7 +1214,7 @@ zones:
               - Windlander
               - Sign Language
               - Laborer (Basic)
-              - Fighting (Basic)
+              - Melee (Basic)
               - Dagger
               - Spear
               - Salvage Plate
@@ -1240,12 +1244,12 @@ zones:
             starting_zone: windlands
             leader: true
             starting_tags:
-              - Fighting (Trained)
+              - Melee (Trained)
               - Windlander
               - Tactician
               - Battle Axe
               - Mail Shirt
-              - Simple Helmet
+              - Simple Helm
               - Sign Language
               - The Wind
               - Broken Spears Banner
@@ -1270,7 +1274,8 @@ zones:
               - Brewing (Skilled)
               - Musician
               - Medical (Basic)
-              - Fighting (Basic)
+              - Melee (Skilled)
+              - Ranged (Basic)
               - Battle Axe
               - Salvage Plate
               - Mail Coif
@@ -1296,7 +1301,7 @@ zones:
             starting_resources: 1
             starting_zone: windlands
             starting_tags:
-              - Fighting (Basic)
+              - Melee (Basic)
               - Windlander
               - Sign Language
               - Spear
@@ -1331,12 +1336,12 @@ zones:
               - Windlander
               - Tactician
               - Sign Language
-              - Fighting (Trained)
+              - Melee (Trained)
               - The Wind
               - Windrider Banner
               - Gladius
               - Mail Shirt
-              - Simple Helmet
+              - Simple Helm
             doc_elements:
               - campstarting
               - windrider
@@ -1361,7 +1366,8 @@ zones:
               - Sign Language
               - The Wind
               - Spotter
-              - Fighting (Trained)
+              - Ranged (Skilled)
+              - Melee (Trained)
               - Mail Shirt
               - Mail Coif
               - Tracking
@@ -1381,7 +1387,8 @@ zones:
             starting_resources: 1
             starting_zone: windlands
             starting_tags:
-              - Fighting (Basic)
+              - Melee (Basic)
+              - Ranged (Basic)
               - Shortbow
               - Dagger
               - Salvage Plate
@@ -1480,7 +1487,7 @@ zones:
             starting_resources: 4
             starting_zone: caverns
             starting_tags:
-              - Fighting (Basic)
+              - Melee (Basic)
               - Dagger
               - Mace
             doc_elements: [caving]

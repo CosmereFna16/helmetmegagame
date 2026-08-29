@@ -17,29 +17,32 @@ governs. If the two ever disagree, that one is right.
 
 Every tag carries a `pointCost`. At character creation a player spends a fixed
 budget on tags; the budget is currently **12 points**, adjusted per role
-(`extraStartingPoints`) and reduced by 3 for a cursed re-roll.
+(`extraStartingPoints`) and reduced by 6 for a cursed re-roll.
 
-The scale is absolute, not relative to a category. A 3-point item and a
-3-point skill are meant to matter about equally.
+The scale is absolute, not relative to a category. A 7-point item and a
+7-point skill are meant to matter about equally.
 
 | Cost | Meaning |
 |---|---|
-| 1 | Minor. A small edge, a small possession, a narrow competence. |
-| 2 | Moderate. A real capability, one rung of a skill chain. |
-| 3 | Significant. Reliably changes how a scene goes. |
-| 4 | Good. A third of the whole budget. |
-| 5 | Very good. |
-| 6 | Character defining. A revolver; being a giant. |
+| 2 | Minor. A small edge, a small possession, a narrow competence. |
+| 5 | Moderate. A real capability, one rung of a skill chain. |
+| 7 | Significant. Reliably changes how a scene goes. |
+| 9 | Good. Three-quarters of the whole budget. |
+| 11 | Very good. |
+| 14 | Character defining. A revolver; being a giant. |
 
 Negative tags return points, on a mirrored scale:
 
 | Cost | Meaning |
 |---|---|
-| −1 | An inconvenience. |
-| −2 | A real cost, situational. |
-| −3 | A real cost, most of the time. |
-| −4 | Severe. Permanent or near-permanent. |
-| −5 | Removes a whole sense or capability, with no realistic cure. |
+| −2 | An inconvenience. |
+| −5 | A real cost, situational. |
+| −7 | A real cost, most of the time. |
+| −9 | Severe. Permanent or near-permanent. |
+| −11 | Removes a whole sense or capability, with no realistic cure. |
+
+Pilgrim is the one deliberate exception, priced at 1 — off this scale
+entirely, Gunboat's call.
 
 **You can take at most 4 negative tags.** (A GM can change that number, so
 the point-buy menu always shows the live limit next to your points.) Only
@@ -106,43 +109,53 @@ purchase restores the replaced rung exactly as it was.)
 
 Chains are **cumulative**. The cost shown for a rung is its own `pointCost`,
 but the cost to acquire it is the sum of every rung up to and including it,
-minus whatever the character already holds. Buying Fighting (Skilled) from
-nothing costs 9; buying it while holding Fighting (Trained) costs 3.
+minus whatever the character already holds. Buying Smithing (Skilled) from
+nothing costs 10; buying it while holding Smithing costs 5.
 
-The Fighting chain, at **3 points per rung** since the Combat Update:
+Medical, Building, Brewing, Cooking, Smithing and most other skills use the
+flat **5**/rung shape.
+
+Melee and Ranged, the two Combat trees, are the one exception — **7 points per
+rung**, Legendary at 14:
 
 | Rung | Own cost | Cumulative |
 |---|---|---|
-| Basic | 3 | 3 |
-| Trained | 3 | 6 |
-| Skilled | 3 | 9 |
-| Expert | 3 | 12 |
-| Legendary | 3 | 15 |
+| Basic | 7 | 7 |
+| Trained | 7 | 14 |
+| Skilled | 7 | 21 |
+| Expert | 7 | 28 |
+| Legendary | 14 | 42 |
 
-Legendary is 15 of a 12-point budget. That is intended: you climb into it in
+Legendary is 42 of a 12-point budget. That is intended: you climb into it in
 play, not at creation.
-
-Medical, Building, Brewing and Cooking use the flat **2**/rung shape with
-shorter ladders. Fighting is the exception.
 
 ### Sidegrades
 
-Six Fighting tags sit outside the ladder: **Archer**, **Guerrilla**, **Shield
-Wall**, **Grappler**, **Firearms**, **Duelist**. Each costs 3, each takes
-`requiredTag: fighting-basic`, and none has a `parentTag`.
+Melee and Ranged each carry sidegrades that sit outside the ladder:
+**Melee (Shield Wall, Duelist, Polearms, Swords, Clubs, Drunken Master)** and
+**Ranged (Archer, Firearms)**. Each costs 10, each takes `requiredTag:
+melee-basic` or `requiredTag: ranged-basic` on its own tree, and none has a
+`parentTag`.
+
+Three more sidegrades sit outside both trees entirely: **Grappler** (5,
+standalone — bare hands are not a rung of either tree, so it gates on
+nothing), **Guerrilla** (10, standalone and deliberately ungated, since a
+single `requiredTag` can't say "either tree"), and **Cavalry** (10,
+`requiredTag: windlander`).
 
 `requiredTag` is a prerequisite that is **not** replaced and **not** charged
 cumulatively. A sidegrade is bought once at its face value, on top of whatever
 rung the character holds.
 
-Sidegrades cost the same as one rung of the main ladder — deliberately, since
-they are conditional: a sidegrade applies in its own circumstances (at range,
-from cover, in formation, unarmed, with a firearm, one-on-one) and does
-nothing outside them. They stack with each other and with any rung. A
-Trained fighter who is also an Archer has spent 6 + 3 = 9.
+Sidegrades cost roughly 1.4x one rung of the main ladder — enough to be a real
+commitment, since they are conditional: a sidegrade applies in its own
+circumstances (at range, from cover, in formation, unarmed, with a firearm,
+one-on-one) and does nothing outside them. They stack with each other and
+with any rung. A Trained ranged fighter who is also an Archer has spent
+14 + 10 = 24.
 
 `requiredTag` is satisfied by **any rung of the required tag's chain**, so
-Fighting (Expert) satisfies a `fighting-basic` requirement.
+Melee (Expert) satisfies a `melee-basic` requirement.
 
 ### A third thing that is not a chain
 
@@ -279,12 +292,12 @@ A skill-chain rung. `parentTag` is the whole of what makes it a chain; note it
 carries no `group`, since the Skills category is not subdivided:
 
 ```yaml
-  - slug: fighting-trained
-    name: Fighting (Trained)
+  - slug: melee-trained
+    name: Melee (Trained)
     category: skills
-    description: "Formally trained combatant, but not particularly talented."
-    pointCost: 2
-    parentTag: fighting-basic
+    description: "You have been trained how to fight."
+    pointCost: 7
+    parentTag: melee-basic
     visible: true
     purchasable: true
     purchasableAfterStart: true
@@ -300,8 +313,8 @@ false as every item's is, and `requirement` is the craft cost:
     category: items
     group: items-weapons
     description: "A large sword. Durable and sharp, and it asks for both hands when the work gets serious."
-    pointCost: 4
-    requiredTag: fighting-basic
+    pointCost: 9
+    requiredTag: melee-basic
     equippable: true
     tradeable: true
     stackable: true

@@ -188,7 +188,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     cursed: isCursed(member),
     equipSlots: config?.equipSlots ?? 6,
     maxNegativeTags: config?.maxNegativeTags ?? DEFAULT_MAX_NEGATIVE_TAGS,
-    startingTagPoints: config?.startingTagPoints ?? 6,
+    startingTagPoints: config?.startingTagPoints ?? 12,
     openTurn: openTurn ? { id: openTurn.id, number: openTurn.number, phase: openTurn.phase } : null,
     gambitModifier: gambitModifierTotal(heldTags, { hungerStreak: character.hungerStreak }),
     stagedForPush,

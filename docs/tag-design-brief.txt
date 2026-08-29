@@ -29,7 +29,7 @@ a status effect in the videogame sense. It is a line on a character sheet that
 answers "what should the GM know before they decide what happens to this
 person?"
 
-  Fighting (Skilled)     — this person can actually fight
+  Melee (Skilled)        — this person can actually fight
   Old                    — this person is old
   Horse                  — this person has a horse
   Hungry                 — this person didn't eat and is having a bad day
@@ -60,7 +60,7 @@ THE FIVE RULES
    mechanical effect plainly, then let the flavour live in the tag's name.
 
      Good:  "+1 to the die on all Gambits. Wears off after 2 turns."
-     Good:  "When using bows, your fighting skill is two levels higher."
+     Good:  "When using bows, your ranged skill is two levels higher."
      Bad:   "A quiet confidence settles over you." (a GM cannot act on this)
 
    You do not need to specify edge cases. A GM is going to adjudicate this
@@ -97,6 +97,9 @@ THE FIVE RULES
 
 THE ECONOMY
 
+(Numbers below predate the Combat Update's price rebalance — see
+docs/tag-design.md for the current scale and the Melee/Ranged split.)
+
 A player builds their character by spending points. The default budget is 12,
 plus whatever their role grants, minus 3 if they're Cursed (a punishment role
 carried over from a dead character).
@@ -114,11 +117,11 @@ Current calibration, so new tags land in the same range:
   2 points  a real competence, or an animal. Laborer. Smithing. Forester. A
             horse. Every rung of every tiered skill ladder.
   3 points  strong, scarce, or something that unlocks a location. A Manor.
-            Fighting (Archer).
+            Ranged (Archer).
   4+        expected to be the thing the character is *about*. Insightful. The
             revolver.
 
-A tiered ladder costs 2 per rung, so Fighting (Legendary) is a 10-point
+A tiered ladder costs 2 per rung, so Melee (Legendary) is a 10-point
 commitment out of a 12-point budget. That's deliberate: being the best fighter
 in the world means being nothing else. Preserve that shape.
 
@@ -134,12 +137,12 @@ Tags can point at each other in two different ways, and the distinction matters
 more than it looks.
 
   parentTag — "this REPLACES that."
-              Fighting (Trained) replaces Fighting (Basic). It's a ladder. You
+              Melee (Trained) replaces Melee (Basic). It's a ladder. You
               stand on one rung.
 
   requiredTag — "you must already have that, and you KEEP it."
-              Fighting (Archer) requires Fighting (Basic), but sits happily
-              alongside Fighting (Legendary). It's a branch, not a rung.
+              Ranged (Archer) requires Ranged (Basic), but sits happily
+              alongside Ranged (Legendary). It's a branch, not a rung.
               Follower (Cook) requires Follower because it's describing that
               same follower.
 

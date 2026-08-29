@@ -25,7 +25,8 @@ Three levels:
 - **Group** (`TagGroup`) — optional, scoped to exactly one category, exists
   purely to color tags for display (e.g. Status's Health/Food/Buffs/Debuffs
   groups). A tag with no group renders uncolored. `TagGroup.color` is a
-  freeform hex string (e.g. `"#6fa8ab"`), rendered directly by `TagChip.js`
+  freeform hex string (e.g. `"#6fa8ab"`), rendered directly by
+  `web/app/components/ChipLabel.js` (used by `TagChip.js`)
   — not theme-aware, so pick a value that reads on both the dusk and dawn
   backgrounds. One group, `status-health`, is deliberately **empty**: the
   Health category (§5c) took every tag that used to live in it. Groups sync
@@ -56,14 +57,14 @@ diff check, same style as the zone sync's hash gate).
 
 ## 3. Two relations that look similar but aren't
 
-- **`parentTag` (tier chain)** — sequential, replacing. Fighting (Basic) ->
-  Fighting (Trained) -> Fighting (Skilled) -> ... Acquiring a tier is meant
+- **`parentTag` (tier chain)** — sequential, replacing. Melee (Basic) ->
+  Melee (Trained) -> Melee (Skilled) -> ... Acquiring a tier is meant
   to replace the previous one on the character, not stack alongside it.
   `Laborer (Skilled)` chains off `Laborer (Basic)` the same way.
 - **`requiredTag` (prerequisite)** — non-replacing. The character must
   already hold `requiredTag`, but acquiring this tag does **not** remove or
-  replace it. Example in the catalog: `Fighting (Archer)` requires
-  `Fighting (Basic)` but coexists with `Fighting (Skilled)` — a character can
+  replace it. Example in the catalog: `Ranged (Archer)` requires
+  `Ranged (Basic)` but coexists with `Ranged (Skilled)` — a character can
   hold both at once. Also the right relation for an origin/membership gate the
   gated tag doesn't consume: `Horse (Windlander)` requires `Windlander`,
   `Manor` requires `Courtier`, `House`/`Shack` require `Ravenhearter`, and
@@ -142,8 +143,8 @@ Three things make a category actually hidden rather than merely empty:
   its `/api/tags` predecessor used to be unauthenticated and complete,
   so the whole Demoness catalog was one DevTools tab away. It resolves
   the caller's own character and drops any tag whose group is gated. Gating
-  is on the **group** gate only, never a tag's own `requiredTag`: Fighting
-  (Archer) isn't a secret, and hiding it would break `{tag:fighting-archer}`
+  is on the **group** gate only, never a tag's own `requiredTag`: Ranged
+  (Archer) isn't a secret, and hiding it would break `{tag:ranged-archer}`
   in public documents for everyone who hasn't bought it.
 
 ### The Bacchus power ladder
@@ -198,8 +199,8 @@ pool*, never whether the tag is a good thing to have:
 
 | tag | `pointCost` | shown as | colour |
 |---|---|---|---|
-| Frail | `-3` | `+3 pts` | `--positive` (pool grows) |
-| Fighting (Basic) | `2` | `-2 pts` | `--accent` (pool shrinks) |
+| Frail | `-5` | `+5 pts` | `--positive` (pool grows) |
+| Melee (Basic) | `7` | `-7 pts` | `--accent` (pool shrinks) |
 | Shack | `0` | `0 pts` | `--muted` |
 
 These two functions are the only place that flip lives — every caller
@@ -212,8 +213,8 @@ Before this, the sign was catalog-style while the colour was pool-style, so
 Frail read as "`-3`, in green" — two conventions disagreeing on one line.
 
 A character's budget is
-`GameConfig.startingTagPoints` (default 5) `+ role.extra_starting_points`
-`- 3 if the player is Cursed`, computed by
+`GameConfig.startingTagPoints` (default 12) `+ role.extra_starting_points`
+`- 6 if the player is Cursed`, computed by
 `web/lib/characterCreation.js#computeBudget`. Anything unspent is kept on
 `Character.tagPoints`.
 
@@ -269,20 +270,21 @@ reason to price one at 5.
 
 | `pointCost` | Band |
 |---|---|
-| 1 | Minor. A small edge, a small possession, a narrow competence. |
-| 2 | Moderate. A real capability; one rung of a skill chain. |
-| 3 | Significant. Reliably changes how a scene goes. |
-| 4 | Good. A third of the default budget. |
-| 5 | Very good. |
-| 6 | Character defining. The revolver; Giant. |
-| −1 | An inconvenience. |
-| −2 | A real cost, situational. |
-| −3 | A real cost, most of the time. |
-| −4 | Severe. Permanent or near-permanent. |
-| −5 | Removes a whole sense or capability, with no realistic cure. |
+| 2 | Minor. A small edge, a small possession, a narrow competence. |
+| 5 | Moderate. A real capability; one rung of a skill chain. |
+| 7 | Significant. Reliably changes how a scene goes. |
+| 9 | Good. Three-quarters of the default budget. |
+| 11 | Very good. |
+| 14 | Character defining. The revolver; Giant. |
+| −2 | An inconvenience. |
+| −5 | A real cost, situational. |
+| −7 | A real cost, most of the time. |
+| −9 | Severe. Permanent or near-permanent. |
+| −11 | Removes a whole sense or capability, with no realistic cure. |
 
-6 is the ceiling and −5 the floor; nothing should be priced outside them
-without a deliberate decision recorded here.
+14 is the ceiling and −11 the floor; nothing should be priced outside them
+without a deliberate decision recorded here. **Pilgrim is the one deliberate
+exception, priced at 1** — off the scale entirely, Gunboat's call.
 
 **A character may buy at most `GameConfig.maxNegativeTags` drawbacks —
 4 by default, live on `/gm/dev`.** Only what was bought through the point-buy
@@ -311,15 +313,23 @@ no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
 
 ### Rules that follow from the scale
 
-- **Skill chains are flat 2 per rung and charged cumulatively**
+- **Skill chains are flat 5 per rung and charged cumulatively**
   (`cumulativeCost`, §3). Do not price a rung off-ladder to make a chain
   cheaper; shorten the chain.
-- **Fighting is the one exception — 3 per tag, rungs and sidegrades alike.**
-  The Combat Update raised every Fighting tag to 3. Rungs are still
-  cumulative, so Fighting (Legendary) is 15 — unreachable from a 12-point
-  creation budget by design; you climb into it in play. Sidegrades (Archer,
-  Guerrilla, Shield Wall, Grappler, Firearms, Duelist) use `requiredTag`, so
-  they are *not* cumulative and stack with each other and with any rung.
+- **Melee and Ranged are the one exception — 7 per rung, Legendary at 14.**
+  The Combat Update split the old Fighting ladder into two trees,
+  `melee-basic..melee-legendary` and `ranged-basic..ranged-legendary`, in the
+  `Combat` group. Rungs are still cumulative, so Melee (Legendary) and Ranged
+  (Legendary) are each 42 (7+7+7+7+14) — unreachable from a 12-point creation
+  budget by design; you climb into it in play. Sidegrades cost 10 (~1.4x a
+  rung) and use `requiredTag` on their tree's Basic, so they are *not*
+  cumulative and stack with each other and with any rung: Melee (Shield Wall,
+  Duelist, Polearms, Swords, Clubs) and Ranged (Archer, Firearms). Melee
+  (Drunken Master) is priced the same way but sits in the `bacchus` category.
+  Three sidegrades sit outside both trees: Grappler (5, standalone — bare
+  hands are not a rung of either tree, so it gates on nothing), Guerrilla (10,
+  standalone and deliberately ungated, since a single `requiredTag` can't say
+  "either tree"), and Cavalry (10, `requiredTag: windlander`).
 - **Combat items ride a fixed six-tier ladder.** Weapons and armor are priced
   from the tier they sit in, not by feel. See
   [`SMITHING.md`](SMITHING.md) for the table.
@@ -338,7 +348,7 @@ no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
   block, priced off the seven-rung cure ladder in §5c, which is a separate
   scale that must not be conflated with this one.
 - **A skill's price is not adjusted for how much content gates on it.**
-  `crafting` (2) gates 3 items where `smithing` (2) gates 23. Both stay at 2;
+  `crafting` (5) gates 3 items where `smithing` (5) gates 23. Both stay at 5;
   the fix for that imbalance is content, not price. Noted here so the gap
   reads as known rather than accidental.
 

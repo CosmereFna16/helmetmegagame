@@ -282,7 +282,7 @@ tags:
     category: general
     group: general-court
     description: "You were knighted, and serve the Baron directly."
-    pointCost: 3
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: false
 
@@ -291,7 +291,7 @@ tags:
     category: general
     group: general-court
     description: "Your name brings dishonor."
-    pointCost: -2
+    pointCost: -5
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -301,7 +301,7 @@ tags:
     category: general
     group: general-court
     description: "Your family has been around a long time."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: false
 
@@ -310,7 +310,7 @@ tags:
     category: general
     group: general-court
     description: "You are a fantastic dancer."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -319,7 +319,7 @@ tags:
     category: general
     group: general-court
     description: "You've never done a day's labor. It'll be harder to work."
-    pointCost: -1
+    pointCost: -2
     purchasable: true
     purchasableAfterStart: false
 
@@ -328,7 +328,7 @@ tags:
     category: general
     group: general-court
     description: "You are inwardly inconsolable if anyone outshines you."
-    pointCost: -1
+    pointCost: -2
     purchasable: true
     purchasableAfterStart: false
 
@@ -336,7 +336,7 @@ tags:
     name: Windlander
     category: skills
     description: "You know the ways of the Windlands. You may move about freely there, and you are less affected by its dangerous weather."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -360,7 +360,7 @@ tags:
     category: general
     group: general-traits
     description: "You read people well. You can use a Gambit to randomly discover 1 – 6 of a person's tags."
-    pointCost: 3
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: true
 
@@ -372,7 +372,7 @@ tags:
     category: general
     group: general-traits
     description: "You are a behemoth among humanity and struggle to fit into confined spaces. However, you could easily crush anyone."
-    pointCost: 6
+    pointCost: 14
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -382,7 +382,7 @@ tags:
     category: general
     group: general-traits
     description: "Elderly. You're slower, fight slightly worse, and don't heal as well."
-    pointCost: -2
+    pointCost: -5
     purchasable: true
     purchasableAfterStart: false
 
@@ -391,7 +391,7 @@ tags:
     category: general
     group: general-traits
     description: "You are physically weak and fragile. Mustering strength to fight back is almost impossible."
-    pointCost: -2
+    pointCost: -5
     purchasable: true
     purchasableAfterStart: false
 
@@ -433,7 +433,7 @@ tags:
     category: general
     group: general-traits
     description: "You're good at following footsteps and other signs, in the wild or in the city."
-    pointCost: 2
+    pointCost: 5
     visible: true
     purchasable: true
     purchasableAfterStart: true
@@ -443,7 +443,7 @@ tags:
     category: general
     group: general-traits
     description: "You can read and write, something most people in Ravenheart cannot do."
-    pointCost: 2
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
@@ -452,7 +452,7 @@ tags:
     category: general
     group: general-traits
     description: "You wake up to noise readily, such as footsteps in the night."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: false
 
@@ -463,7 +463,7 @@ tags:
     category: general
     group: general-traits
     description: "Not a good thing to be in Ravenheart."
-    pointCost: -1
+    pointCost: -2
     purchasable: true
     purchasableAfterStart: false
 
@@ -472,7 +472,7 @@ tags:
     category: general
     group: general-traits
     description: "A depraved way of life. You've chosen it."
-    pointCost: -2
+    pointCost: -5
     purchasable: true
     purchasableAfterStart: false
 
@@ -488,7 +488,7 @@ tags:
     category: general
     group: general-social
     description: "You can use a Gambit to figure out a person's Desire—failure on 1-3, success on 4-6. You must talk to them for a while."
-    pointCost: 4
+    pointCost: 9
     purchasable: true
     purchasableAfterStart: true
 
@@ -503,7 +503,7 @@ tags:
     category: general
     group: general-social
     description: "You are unreadable, so act like it. People with the {tag:seductive} trait can't see what your Desires are."
-    pointCost: 3
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: true
 
@@ -512,7 +512,7 @@ tags:
     category: general
     group: general-traits
     description: "Poisons and diseases have less effect on you."
-    pointCost: 2
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
@@ -545,7 +545,7 @@ tags:
     category: general
     group: general-traits
     description: "You're unusually awake on the watch. Very little gets past you."
-    pointCost: 2
+    pointCost: 5
     visible: false
     purchasable: true
     purchasableAfterStart: true
@@ -555,7 +555,7 @@ tags:
     category: general
     group: general-traits
     description: "No shelter, no problem. The hardest camp doesn't bother you."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -573,7 +573,7 @@ tags:
     category: general
     group: general-traits
     description: "You are a master at table games, and slightly better at real-life tactics."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -582,7 +582,7 @@ tags:
     category: general
     group: general-traits
     description: "Fearlessness isn't a choice. It's the natural state of your mind. It takes a lot to become {tag:afraid}, and even more to {tag:panic}."
-    pointCost: 2
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: false
 
@@ -591,7 +591,7 @@ tags:
     category: general
     group: general-traits
     description: "You can't lie no matter what—nor can you withhold the truth. A good thing to be."
-    pointCost: -1
+    pointCost: -2
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -605,7 +605,35 @@ tags:
     category: general
     group: general-traits
     description: "You think several moves ahead of everyone else in the room. A GM will tell you honestly, in confidence, whether a plan you're about to attempt is a good idea."
+    pointCost: 5
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: tactician-defending
+    name: Tactician (Defending)
+    category: general
+    group: general-traits
+    description: "Your battle plans go particularly well when you're on the defense."
     pointCost: 2
+    requiredTag: tactician
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: strong
+    name: Strong
+    category: general
+    group: general-traits
+    description: "Functional strength."
+    pointCost: 5
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: intelligent
+    name: Intelligent
+    category: general
+    group: general-traits
+    description: "Helps with tactical, gambling, knowledge-based, and other Gambits."
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
@@ -614,7 +642,7 @@ tags:
     category: general
     group: general-traits
     description: "You hear like a bat."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: false
 
@@ -623,7 +651,7 @@ tags:
     category: general
     group: general-traits
     description: "You see like a hawk. Or an eagle, you suppose."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: false
 
@@ -632,7 +660,7 @@ tags:
     category: general
     group: general-traits
     description: "Losing a hand would only be a minor inconvenience."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: false
 
@@ -641,7 +669,7 @@ tags:
     category: general
     group: general-traits
     description: "You can drink grown men under the table. Grown women, too. Even children."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -650,7 +678,7 @@ tags:
     category: general
     group: general-traits
     description: "You have a sensitive palate: you can tell when a dish is poisoned."
-    pointCost: 2
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
@@ -662,7 +690,7 @@ tags:
     category: general
     group: general-traits
     description: "People teach you skills easier. When learning a skill, you succeed on a 5 or a 6."
-    pointCost: 2
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
@@ -671,7 +699,7 @@ tags:
     category: general
     group: general-traits
     description: "You know the Undercroft and the Underquarter very well. You're hard to follow there."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -680,7 +708,7 @@ tags:
     category: general
     group: general-traits
     description: "Pain doesn't stop you."
-    pointCost: 3
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: true
 
@@ -689,7 +717,7 @@ tags:
     category: general
     group: general-traits
     description: "Blows to the head don't put you out. People frequently tell you this is your best quality."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -698,7 +726,7 @@ tags:
     category: general
     group: general-traits
     description: "You can feel when you're being watched."
-    pointCost: 2
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
@@ -707,7 +735,7 @@ tags:
     category: general
     group: general-traits
     description: "You swim better than anyone else."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -716,7 +744,7 @@ tags:
     category: general
     group: general-traits
     description: "Animals calm down around your gentle presence."
-    pointCost: 2
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
@@ -725,7 +753,7 @@ tags:
     category: general
     group: general-traits
     description: "Ropes, chains, and cells barely hold you."
-    pointCost: 2
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
@@ -738,7 +766,7 @@ tags:
     category: general
     group: general-traits
     description: "You are very pretty."
-    pointCost: 2
+    pointCost: 5
     visible: true
     purchasable: true
     purchasableAfterStart: true
@@ -748,7 +776,7 @@ tags:
     category: general
     group: general-traits
     description: "Your face and figure are divine, drawing all attention to you, for better or for worse."
-    pointCost: 4
+    pointCost: 9
     parentTag: pretty
     visible: true
     purchasable: true
@@ -761,7 +789,7 @@ tags:
     category: general
     group: general-traits
     description: "Your priority in conflicts is to run away, no matter what goals or people you trample over."
-    pointCost: -2
+    pointCost: -5
     purchasable: true
     purchasableAfterStart: false
 
@@ -770,7 +798,7 @@ tags:
     category: general
     group: general-traits
     description: "You are very short. You fight at a disadvantage and find some places less accessible."
-    pointCost: -2
+    pointCost: -5
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -781,7 +809,7 @@ tags:
     category: general
     group: general-traits
     description: "Blood and gore make you sick."
-    pointCost: -2
+    pointCost: -5
     purchasable: true
     purchasableAfterStart: false
 
@@ -790,7 +818,7 @@ tags:
     category: general
     group: general-traits
     description: "You're loud and lack grace."
-    pointCost: -2
+    pointCost: -5
     purchasable: true
     purchasableAfterStart: false
 
@@ -799,7 +827,7 @@ tags:
     category: general
     group: general-traits
     description: "You explode at people easily and struggle to keep a secret. It's a weakness."
-    pointCost: -2
+    pointCost: -5
     purchasable: true
     purchasableAfterStart: false
 
@@ -808,7 +836,7 @@ tags:
     category: general
     group: general-traits
     description: "Other people's possessions just seem to fall into your hands. There's nothing you can do about it!"
-    pointCost: -2
+    pointCost: -5
     purchasable: true
     purchasableAfterStart: false
 
@@ -817,7 +845,7 @@ tags:
     category: general
     group: general-traits
     description: "Um... er... uh... If you try to lie, embed huge hints, stutters, or other tells."
-    pointCost: -1
+    pointCost: -2
     purchasable: true
     purchasableAfterStart: false
 
@@ -826,7 +854,7 @@ tags:
     category: general
     group: general-traits
     description: "You see bad omens everywhere. You're not rational."
-    pointCost: -1
+    pointCost: -2
     purchasable: true
     purchasableAfterStart: false
 
@@ -835,7 +863,7 @@ tags:
     category: general
     group: general-traits
     description: "Things get blurry past arm's length. Forget aiming!"
-    pointCost: -2
+    pointCost: -5
     purchasable: true
     purchasableAfterStart: false
     removable: false
@@ -845,7 +873,7 @@ tags:
     category: general
     group: general-traits
     description: "Eh? What's that? You can't hear very well."
-    pointCost: -2
+    pointCost: -5
     purchasable: true
     purchasableAfterStart: false
     removable: false
@@ -855,7 +883,7 @@ tags:
     category: general
     group: general-traits
     description: "You sleep badly, and are often tired."
-    pointCost: -1
+    pointCost: -2
     purchasable: true
     purchasableAfterStart: false
 
@@ -864,7 +892,7 @@ tags:
     category: general
     group: general-traits
     description: "One good hit to the head and you're down."
-    pointCost: -1
+    pointCost: -2
     purchasable: true
     purchasableAfterStart: false
     removable: false
@@ -874,7 +902,7 @@ tags:
     category: general
     group: general-traits
     description: "You need {tag:poppy}. It stops the sweating."
-    pointCost: -3
+    pointCost: -7
     purchasable: true
     purchasableAfterStart: false
 
@@ -883,7 +911,7 @@ tags:
     category: general
     group: general-traits
     description: "You owe somebody 10 ⬢. Choose a random person in your faction and let them know of this."
-    pointCost: -1
+    pointCost: -2
     purchasable: true
     purchasableAfterStart: false
     removable: true
@@ -893,7 +921,7 @@ tags:
     category: general
     group: general-traits
     description: "You're branded from a time long past. Sometimes you still smell your own flesh, burning."
-    pointCost: -1
+    pointCost: -2
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -904,7 +932,7 @@ tags:
     category: general
     group: general-traits
     description: "You will never, ever kill. God smiles upon you; so do your enemies."
-    pointCost: -2
+    pointCost: -5
     purchasable: true
     purchasableAfterStart: false
 
@@ -913,7 +941,7 @@ tags:
     category: general
     group: general-traits
     description: "You are less mobile and more easily tired out by physical activity."
-    pointCost: -2
+    pointCost: -5
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -924,7 +952,7 @@ tags:
     category: general
     group: general-traits
     description: "You take a perverse sense of pride in scrimping and saving."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -943,7 +971,7 @@ tags:
     category: general
     group: general-traits
     description: "You don't understand why people don't want to be around you. That's why they don't want to be around you."
-    pointCost: -1
+    pointCost: -2
     purchasable: true
     purchasableAfterStart: false
 
@@ -962,7 +990,7 @@ tags:
     category: general
     group: general-traits
     description: "You need {tag:distilled-coca}, you party animal, you."
-    pointCost: -3
+    pointCost: -7
     purchasable: true
     purchasableAfterStart: false
 
@@ -971,7 +999,7 @@ tags:
     category: general
     group: general-traits
     description: "Just one more card. Just one more spin. Just one more roll. Just one more...!"
-    pointCost: -1
+    pointCost: -2
     purchasable: true
     purchasableAfterStart: false
 
@@ -980,7 +1008,7 @@ tags:
     category: general
     group: general-traits
     description: "Another character saved your life, and now it's theirs for the taking. Choose a random person in your faction and let them know of this."
-    pointCost: -3
+    pointCost: -7
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -991,7 +1019,7 @@ tags:
     category: general
     group: general-traits
     description: "You wouldn't dare raise a hand against one of your own. You're incapable of betraying your starting faction, even if it would be in your best interest."
-    pointCost: -1
+    pointCost: -2
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -1001,7 +1029,7 @@ tags:
     category: general
     group: general-traits
     description: "In your mind, you inflate minor scrapes and sicknesses into disastrous, incurable maladies. The Sanctuary is sick of hearing from you."
-    pointCost: -2
+    pointCost: -5
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -1012,7 +1040,7 @@ tags:
     category: general
     group: general-traits
     description: "You disapprove of drinking, doping, gambling, and whoring, and you intend to let everybody know. This hasn't won you many friends."
-    pointCost: -1
+    pointCost: -2
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -1023,7 +1051,7 @@ tags:
     category: general
     group: general-traits
     description: "People wonder if you were dropped on your face as a child."
-    pointCost: -1
+    pointCost: -2
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -1034,7 +1062,7 @@ tags:
     category: general
     group: general-traits
     description: "Many peasants can't bathe often. But you don't bathe, even when you have the option. You have a repellent odor."
-    pointCost: -1
+    pointCost: -2
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -1045,7 +1073,7 @@ tags:
     category: general
     group: general-traits
     description: "You have an incurable shake in your hands, making it difficult to wield writing implements, delicate weapons, or precise tools."
-    pointCost: -2
+    pointCost: -5
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -1056,7 +1084,7 @@ tags:
     category: general
     group: general-traits
     description: "Get up, get up, it's not over yet – you must get up! You won't give up in a fight, no matter what, until the Lifeweb itself swallows you: your companions will track you by the trail of blood on the floor. You may roll a Gambit to keep fighting, even in the face of incredible injury."
-    pointCost: 4
+    pointCost: 9
     visible: false
     purchasable: true
     purchasableAfterStart: true
@@ -1066,7 +1094,7 @@ tags:
     category: general
     group: general-traits
     description: "You run for fun; you run for sport; you run to flee your pursuers. Do your legs know the difference? You can outpace most anybody who doesn't have this trait."
-    pointCost: 1
+    pointCost: 2
     visible: false
     purchasable: true
     purchasableAfterStart: true
@@ -1076,7 +1104,7 @@ tags:
     category: general
     group: general-traits
     description: "You like split knuckles, cracked teeth, black eyes — though they look better on the other guy! You actively pick fights where they might not be necessary."
-    pointCost: -1
+    pointCost: -2
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -1130,7 +1158,7 @@ tags:
     category: general
     group: general-beliefs
     description: "You walk on firm ground\u2014if you can be sure of one thing, it's of your responsibility."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -1140,9 +1168,11 @@ tags:
     category: general
     group: general-beliefs
     description: "You are hardcore about your Post-Christian beliefs — perhaps more hardcore than the Church itself is."
-    pointCost: -1
+    pointCost: -2
     purchasable: true
-    purchasableAfterStart: true
+    # A drawback buyable mid-game is a point farm (TAGS.md §4) — this was the
+    # one negative tag left open after the start.
+    purchasableAfterStart: false
     removable: true
     requiredTag: post-christian
 
@@ -1163,7 +1193,7 @@ tags:
     category: general
     group: general-beliefs
     description: "The healer, the compassionate, the prolonger of life."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -1173,7 +1203,7 @@ tags:
     category: general
     group: general-beliefs
     description: "The forest was here before us. Hear the cicadas, hearkening the storm."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -1183,7 +1213,7 @@ tags:
     category: general
     group: general-beliefs
     description: "The boldness of excellence, inspiration, and artistic magnificence."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -1194,10 +1224,30 @@ tags:
     category: general
     group: general-beliefs
     description: "A distant, mostly superstitious regard for Bacchus the Fertile, Bacchus the Shameless."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
     removable: true
+
+  # Pilgrim is deliberately off the point scale at 1 — Gunboat's call.
+  - slug: pilgrim
+    name: Pilgrim
+    category: general
+    group: general-beliefs
+    description: "Going to the Cathedral for a sermon is a valid Desire for you."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: saint
+    name: Saint
+    category: general
+    group: general-beliefs
+    description: "It is clear that you are at peace. Your doctrine is unique, but your holiness is undeniable. Are you a heretic or do you know the truth? Once every day, you can instantly cure a Moderately Severe or lesser wound. Refer to the Medical document."
+    pointCost: 14
+    requiredTag: pacifist
+    purchasable: true
+    purchasableAfterStart: true
 
   # --- The Watch ------------------------------------------------------------
   - slug: watchman
@@ -1215,7 +1265,7 @@ tags:
     category: general
     group: general-watch
     description: "The good old ways. You prioritize making yourself comfortable over upholding your vows."
-    pointCost: -2
+    pointCost: -5
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -1225,7 +1275,7 @@ tags:
     category: general
     group: general-watch
     description: "You have access to the Watch's dogs and know how to command them."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -1234,7 +1284,7 @@ tags:
     category: general
     group: general-watch
     description: "You have rank, which doesn't necessarily mean much."
-    pointCost: 2
+    pointCost: 5
     visible: false
     purchasable: true
     purchasableAfterStart: true
@@ -1244,7 +1294,7 @@ tags:
     category: general
     group: general-watch
     description: "You train the Squires. Whenever one of them rolls a 5 or a 6 on a Gambit, you may raise their Fighting skill a tier."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -1253,7 +1303,7 @@ tags:
     category: general
     group: general-watch
     description: "Your Fighting skill counts one tier lower in your first real fight. Remove the tag afterwards."
-    pointCost: -1
+    pointCost: -2
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -1275,7 +1325,7 @@ tags:
     category: general
     group: general-brigand
     description: "You know how to make letters, seals, and writing appear as though another wrote it."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -1284,16 +1334,18 @@ tags:
     category: general
     group: general-brigand
     description: "Your hands lighten burdened pockets. Your thefts are very hard to detect."
-    pointCost: 2
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
+  # The new general `climbing` skill overlaps this brigand-gated trait.
+  # Gunboat to decide whether one of them should go.
   - slug: climber
     name: Climber
     category: general
     group: general-brigand
     description: "Like a cat or goat, you are more capable at climbing sheer surfaces than the average person."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -1302,7 +1354,7 @@ tags:
     category: general
     group: general-brigand
     description: "The Watch know your face and have a reward on your head."
-    pointCost: -2
+    pointCost: -5
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -1313,7 +1365,7 @@ tags:
     category: general
     group: general-windlands
     description: "You can break and raise horses for others. For 10 ⬢ and a turn, you can produce a Horse tag and give it to anyone else."
-    pointCost: 2
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
     requirement:
@@ -1325,7 +1377,7 @@ tags:
     category: general
     group: general-windlands
     description: "You can lead a group through the mountains instead of through the plains. You fight better there too, can track people, can hide. Interestingly, you can also climb walls perfectly well."
-    pointCost: 3
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: true
 
@@ -1334,7 +1386,7 @@ tags:
     category: general
     group: general-windlands
     description: "You grew up in hell. Hunger, the elements, and thirst—these don't bother you."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -1343,7 +1395,7 @@ tags:
     category: general
     group: general-windlands
     description: "Your clan is your foremost concern in life. Feuds must be settled before anything else can happen. You must act accordingly."
-    pointCost: -1
+    pointCost: -2
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -1353,7 +1405,7 @@ tags:
     category: general
     group: general-windlands
     description: "You can make simple siege engines, build ladders, and such. Useful for getting past walls."
-    pointCost: 2
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
@@ -1362,7 +1414,7 @@ tags:
     category: general
     group: general-windlands
     description: "A great keg of dynamite hauled from one of the old gunpowder clans. Can blow a hole in a wall."
-    pointCost: 5
+    pointCost: 11
     tradeable: true
     stackable: true
     visible: true
@@ -1375,7 +1427,7 @@ tags:
     category: general
     group: general-windlands
     description: "Take only if you're a Windrider. The murdered clansman was family or your best friend. Take revenge!"
-    pointCost: -3
+    pointCost: -7
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -1386,7 +1438,7 @@ tags:
     name: Sign Language
     category: skills
     description: "You know sign language, the ancestral language of the Windlanders. To speak with others in sign language when others are around, use a private thread."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -1394,7 +1446,7 @@ tags:
     name: Artist
     category: skills
     description: "Well, it’s lovely, but I’m not paying for it. You draw, paint, sculpt, act, or pursue another creative medium inessential for survival. Perhaps you can find a patron? The Merchant might buy these... (You can craft a {tag:painting})."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -1403,7 +1455,7 @@ tags:
     category: skills
     group: skills-labor
     description: "When laboring, you make {resource:labor:basic} per turn."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -1412,7 +1464,7 @@ tags:
     category: skills
     group: skills-labor
     description: "When laboring, you make {resource:labor:skilled} per turn."
-    pointCost: 2
+    pointCost: 5
     parentTag: laborer-basic
     purchasable: true
     purchasableAfterStart: true
@@ -1421,7 +1473,7 @@ tags:
     name: Laborer (Farming)
     category: skills
     description: "Specialist rates when you /farm. You know how to make black gold."
-    pointCost: 2
+    pointCost: 5
     requiredTag: laborer-skilled
     purchasable: true
     purchasableAfterStart: true
@@ -1438,7 +1490,7 @@ tags:
     name: Forester
     category: skills
     description: "You are at home in the woods, gaining an advantage in finding food, water, or shelter."
-    pointCost: 2
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
@@ -1446,7 +1498,7 @@ tags:
     name: Musician
     category: skills
     description: "You sing or play instruments. People love your musical talents."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -1458,7 +1510,7 @@ tags:
     category: skills
     group: skills-crafting
     description: "Basic smithing."
-    pointCost: 2
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
@@ -1467,7 +1519,7 @@ tags:
     category: skills
     group: skills-crafting
     description: "Skilled smithing — the Moderate and higher recipes."
-    pointCost: 2
+    pointCost: 5
     parentTag: smithing
     visible: false
     purchasable: true
@@ -1478,7 +1530,7 @@ tags:
     category: skills
     group: skills-crafting
     description: "Lets you tailor, craft, woodwork, and any other form of miscellaneous production. Also fulfills requirements for Dead Simple smithing recipes."
-    pointCost: 2
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
@@ -1486,7 +1538,7 @@ tags:
     name: Butcher
     category: skills
     description: "When butchering non-humans, you can obtain interesting organs. Also gain +2 when hunting (not calculated with /labor, make sure to write it out)."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -1494,7 +1546,31 @@ tags:
     name: Lockpicking
     category: skills
     description: "Nothing on one... little click on two... click on three... aha! You can pick locks."
-    pointCost: 3
+    pointCost: 7
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: climbing
+    name: Climbing
+    category: skills
+    description: "You used to go up the mountains as a child."
+    pointCost: 5
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: navigating
+    name: Navigating
+    category: skills
+    description: "The universally applicable ability to use compasses, maps, and in general know your location. Broadly useful, but less particular than caving or forestry skills."
+    pointCost: 5
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: stealth
+    name: Stealth
+    category: skills
+    description: "You know how to step lightly."
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
@@ -1503,138 +1579,239 @@ tags:
     category: skills
     group: skills-crafting
     description: "{tag:saltpeter} is your best friend. Requires Skilled smithing."
-    pointCost: 4
+    pointCost: 9
     requiredTag: smithing-skilled
     visible: false
     purchasable: true
     purchasableAfterStart: true
-  - slug: fighting-basic
-    name: Fighting (Basic)
+
+  # ─── Melee / Ranged ─────────────────────────────────────────
+  # The single Fighting tree is split in two, and the halves never overlap.
+  # Both run Basic -> Trained -> Skilled -> Expert -> Legendary at 7 pt a
+  # rung, Legendary at 14.
+  #
+  # Sidegrades cost 10. A sidegrade buys two tiers inside one narrow
+  # circumstance, so it is priced at roughly 1.4x a rung: two tiers for a bit
+  # less than two rungs, and nothing at all outside the circumstance.
+  #
+  # Grappler is 5 and standalone — bare hands are not a rung of either tree,
+  # so it gates on nothing. Guerrilla is ungated for a different reason: it
+  # reads "whether melee or ranged", and a single `requiredTag` cannot say
+  # "either tree". Cavalry keeps its Windlander gate.
+
+  - slug: melee-basic
+    name: Melee (Basic)
     category: skills
     group: skills-fighting
     description: "You can hold a weapon and defend yourself in a pinch."
-    pointCost: 3
+    pointCost: 7
     visible: false
     purchasable: true
     purchasableAfterStart: true
 
-  - slug: fighting-trained
-    name: Fighting (Trained)
+  - slug: melee-trained
+    name: Melee (Trained)
     category: skills
     group: skills-fighting
     description: "You have been trained how to fight."
-    pointCost: 3
-    parentTag: fighting-basic
+    pointCost: 7
+    parentTag: melee-basic
     visible: false
     purchasable: true
     purchasableAfterStart: true
 
-  - slug: fighting-skilled
-    name: Fighting (Skilled)
+  - slug: melee-skilled
+    name: Melee (Skilled)
     category: skills
     group: skills-fighting
     description: "You've actually fought before. You're a grizzled presence on the battlefield."
-    pointCost: 3
-    parentTag: fighting-trained
+    pointCost: 7
+    parentTag: melee-trained
     visible: false
     purchasable: true
     purchasableAfterStart: true
 
-  - slug: fighting-expert
-    name: Fighting (Expert)
+  - slug: melee-expert
+    name: Melee (Expert)
     category: skills
     group: skills-fighting
     description: "You have survived many fights. Almost no one matches you."
-    pointCost: 3
-    parentTag: fighting-skilled
+    pointCost: 7
+    parentTag: melee-skilled
     visible: false
     purchasable: true
     purchasableAfterStart: true
 
-  - slug: fighting-legendary
-    name: Fighting (Legendary)
+  - slug: melee-legendary
+    name: Melee (Legendary)
     category: skills
     group: skills-fighting
     description: "The peak of your generation."
-    pointCost: 6
-    parentTag: fighting-expert
+    pointCost: 14
+    parentTag: melee-expert
     visible: false
     purchasable: true
     purchasableAfterStart: true
 
-  - slug: fighting-archer
-    name: Fighting (Archer)
+  - slug: ranged-basic
+    name: Ranged (Basic)
     category: skills
     group: skills-fighting
-    description: "When using bows, your fighting skill is two levels higher."
-    pointCost: 3
-    requiredTag: fighting-basic
+    description: "You can hold a weapon and defend yourself in a pinch."
+    pointCost: 7
     visible: false
     purchasable: true
     purchasableAfterStart: true
 
-  - slug: fighting-guerrilla
-    name: Fighting (Guerrilla)
+  - slug: ranged-trained
+    name: Ranged (Trained)
     category: skills
     group: skills-fighting
-    description: "When you start a fight with a surprise attack in difficult terrain, your fighting skill is two levels higher."
-    pointCost: 3
-    requiredTag: fighting-basic
+    description: "You have been trained how to fight."
+    pointCost: 7
+    parentTag: ranged-basic
     visible: false
     purchasable: true
     purchasableAfterStart: true
 
-  - slug: fighting-shield-wall
-    name: Fighting (Shield Wall)
+  - slug: ranged-skilled
+    name: Ranged (Skilled)
     category: skills
     group: skills-fighting
-    description: "You have practiced this drill. When standing within reach of two or more other Watchmen, your fighting skill counts as two levels higher."
-    pointCost: 3
-    requiredTag: fighting-basic
+    description: "You've actually fought before. You're a grizzled presence on the battlefield."
+    pointCost: 7
+    parentTag: ranged-trained
     visible: false
     purchasable: true
     purchasableAfterStart: true
 
-  - slug: fighting-grappler
-    name: Fighting (Grappler)
+  - slug: ranged-expert
+    name: Ranged (Expert)
     category: skills
     group: skills-fighting
-    description: "Even weaponless, you can take down someone on the ground and choke them out. When grappling, your fighting skill counts as two tiers higher."
-    pointCost: 3
-    requiredTag: fighting-basic
+    description: "You have survived many fights. Almost no one matches you."
+    pointCost: 7
+    parentTag: ranged-skilled
     visible: false
     purchasable: true
     purchasableAfterStart: true
 
-  - slug: fighting-firearms
-    name: Fighting (Firearms)
+  - slug: ranged-legendary
+    name: Ranged (Legendary)
     category: skills
     group: skills-fighting
-    description: "You're a master with firearms and disablers. When using them, your fighting skill counts as two tiers higher."
-    pointCost: 3
-    requiredTag: fighting-basic
+    description: "The peak of your generation."
+    pointCost: 14
+    parentTag: ranged-expert
     visible: false
     purchasable: true
     purchasableAfterStart: true
 
-  - slug: fighting-duelist
-    name: Fighting (Duelist)
+  - slug: melee-shield-wall
+    name: Melee (Shield Wall)
     category: skills
     group: skills-fighting
-    description: "You're particularly good at fighting people one-on-one—especially with swords, rapiers, and knives. When dueling, your fighting skill counts as two tiers higher."
-    pointCost: 3
-    requiredTag: fighting-basic
+    description: "You have practiced this drill. When standing within reach of two or more other Watchmen, your melee skill counts as two levels higher."
+    pointCost: 10
+    requiredTag: melee-basic
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: melee-duelist
+    name: Melee (Duelist)
+    category: skills
+    group: skills-fighting
+    description: "You're particularly good at fighting people one-on-one—especially with swords, rapiers, and knives. When dueling, your melee skill counts as two tiers higher."
+    pointCost: 10
+    requiredTag: melee-basic
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: melee-polearms
+    name: Melee (Polearms)
+    category: skills
+    group: skills-fighting
+    description: "While using polearms, your fighting skill is two levels higher."
+    pointCost: 10
+    requiredTag: melee-basic
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: melee-swords
+    name: Melee (Swords)
+    category: skills
+    group: skills-fighting
+    description: "Versatile. You half-sword, pommel strike, shove them into visors, and, of course, cut through the unarmored. Your fighting skill is two levels higher while using swords."
+    pointCost: 10
+    requiredTag: melee-basic
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  # PLACEHOLDER: Gunboat to write
+  - slug: melee-clubs
+    name: Melee (Clubs)
+    category: skills
+    group: skills-fighting
+    description: "While using clubs, your fighting skill is two levels higher."
+    pointCost: 10
+    requiredTag: melee-basic
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: ranged-archer
+    name: Ranged (Archer)
+    category: skills
+    group: skills-fighting
+    description: "When using bows, your ranged skill is two levels higher."
+    pointCost: 10
+    requiredTag: ranged-basic
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: ranged-firearms
+    name: Ranged (Firearms)
+    category: skills
+    group: skills-fighting
+    description: "You're a master with firearms and disablers. When using them, your ranged skill counts as two tiers higher."
+    pointCost: 10
+    requiredTag: ranged-basic
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: grappler
+    name: Grappler
+    category: skills
+    group: skills-fighting
+    description: "You can grapple enemies bare handed. Useful for regular weapon fighting too—lots of fights end up on the ground."
+    pointCost: 5
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: guerrilla
+    name: Guerrilla
+    category: skills
+    group: skills-fighting
+    description: "When you start a fight with a surprise attack in difficult terrain, your fighting skill (whether melee or ranged) is two levels higher."
+    pointCost: 10
     visible: false
     purchasable: true
     purchasableAfterStart: true
 
   #Windlander only
-  - slug: fighting-cavalry
-    name: Fighting (Cavalry)
+  - slug: cavalry
+    name: Cavalry
     category: skills
     group: skills-fighting
-    description: "You fire bows and wield spears effortlessly from the back of a horse. While mounted, your fighting skill is two levels higher."
-    pointCost: 3
+    description: "You fire bows and wield spears effortlessly from the back of a horse. While mounted, your fighting skill (whether melee or ranged) is two levels higher."
+    pointCost: 10
     requiredTag: windlander
     visible: false
     purchasable: true
@@ -1646,7 +1823,7 @@ tags:
     category: skills
     group: skills-crafting
     description: "You can build more complex things than the average person, like a cart, a palisade, or a staircase."
-    pointCost: 2
+    pointCost: 5
     visible: false
     purchasable: true
     purchasableAfterStart: true
@@ -1656,7 +1833,7 @@ tags:
     category: skills
     group: skills-crafting
     description: "You have an architect's mind. You could design things as complex as a cathedral, a bridge, or a water mill."
-    pointCost: 2
+    pointCost: 5
     parentTag: builder-skilled
     visible: false
     purchasable: true
@@ -1668,7 +1845,7 @@ tags:
     category: skills
     group: skills-medical
     description: "Allows you to treat very minor and minor injuries as routine. This may include first aid, bandaging, packing a wound, or setting a simple break. Anything harder is a Gambit."
-    pointCost: 2
+    pointCost: 5
     visible: false
     purchasable: true
     purchasableAfterStart: true
@@ -1678,7 +1855,7 @@ tags:
     category: skills
     group: skills-medical
     description: "Allows you to treat moderate and severe cases as routine, and the most minor surgery, like closing a large bleed or cutting away dead flesh. Any surgery past that is a Gambit."
-    pointCost: 2
+    pointCost: 5
     parentTag: medical-basic
     visible: false
     purchasable: true
@@ -1689,7 +1866,7 @@ tags:
     category: skills
     group: skills-medical
     description: "Allows you to treat almost everything as routine, difficult surgery included. Only the most complex work counts as a Gambit."
-    pointCost: 2
+    pointCost: 5
     parentTag: medical-skilled
     visible: false
     purchasable: true
@@ -1701,7 +1878,7 @@ tags:
     category: skills
     group: skills-brewing
     description: "Can brew basic alcohol (beer, ale, mead) and basic tonics."
-    pointCost: 2
+    pointCost: 5
     visible: false
     purchasable: true
     purchasableAfterStart: true
@@ -1711,7 +1888,7 @@ tags:
     category: skills
     group: skills-brewing
     description: "Can brew advanced alcohol (wine and other refined drinks) and advanced tonics, which call for hard-to-find ingredients."
-    pointCost: 2
+    pointCost: 5
     parentTag: brewing-basic
     visible: false
     purchasable: true
@@ -1723,7 +1900,7 @@ tags:
     category: skills
     group: skills-cooking
     description: "Can cook Fine Meals — 2 ⬢ each, up to 4 in one Routine Move."
-    pointCost: 2
+    pointCost: 5
     visible: false
     purchasable: true
     purchasableAfterStart: true
@@ -1733,7 +1910,7 @@ tags:
     category: skills
     group: skills-cooking
     description: "Can cook Lavish Meals — 3 ⬢ and one exotic ingredient each, up to 3 in one Routine Move."
-    pointCost: 2
+    pointCost: 5
     parentTag: cooking-basic
     visible: false
     purchasable: true
@@ -2489,7 +2666,7 @@ tags:
     category: health
     group: health-illness
     description: "A hot pain on your lower right side since last night. What's going on?"
-    pointCost: -5
+    pointCost: -11
     purchasable: false
     purchasableAfterStart: false
     removable: true
@@ -2587,7 +2764,7 @@ tags:
     category: health
     group: health-illness
     description: "Your joints are achy and stiff. It can't be treated."
-    pointCost: -2
+    pointCost: -5
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -2598,7 +2775,7 @@ tags:
     category: health
     group: health-illness
     description: "Your cough's gotten worse over the years. It will take an expert to cure you."
-    pointCost: -4
+    pointCost: -9
     visible: false
     purchasable: false
     purchasableAfterStart: false
@@ -2726,7 +2903,7 @@ tags:
     category: health
     group: health-mind
     description: "You can't see. Good luck fighting. Requires a fresh pair of eyes to treat."
-    pointCost: -5
+    pointCost: -11
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -2742,7 +2919,7 @@ tags:
     category: health
     group: health-mind
     description: "You come off as a mess."
-    pointCost: -1
+    pointCost: -2
     purchasable: true
     purchasableAfterStart: false
     removable: false
@@ -2752,7 +2929,7 @@ tags:
     category: health
     group: health-mind
     description: "You can't speak. You may want to consider picking up sign language."
-    pointCost: -3
+    pointCost: -7
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -2787,7 +2964,7 @@ tags:
     category: health
     group: health-maiming
     description: "You have a wooden leg."
-    pointCost: -2
+    pointCost: -5
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -2799,7 +2976,7 @@ tags:
     category: health
     group: health-maiming
     description: "Your face scares children."
-    pointCost: -2
+    pointCost: -5
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -2815,7 +2992,7 @@ tags:
     category: health
     group: health-maiming
     description: "One hand is missing several fingers."
-    pointCost: -1
+    pointCost: -2
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -2826,7 +3003,7 @@ tags:
     category: health
     group: health-maiming
     description: "Your leg is in constant pain: you can hardly walk on it. Expert medical attention could fix it. Or they could just put on a wooden leg—a lot easier."
-    pointCost: -3
+    pointCost: -7
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -2842,7 +3019,7 @@ tags:
     category: health
     group: health-maiming
     description: "An old injury never healed quite right. You can walk okay, but people know you're coming."
-    pointCost: -1
+    pointCost: -2
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -2853,7 +3030,7 @@ tags:
     category: health
     group: health-maiming
     description: "Best paired with sign language."
-    pointCost: -3
+    pointCost: -7
     purchasable: true
     purchasableAfterStart: false
     removable: false
@@ -2863,7 +3040,7 @@ tags:
     category: health
     group: health-maiming
     description: "You've lost all depth perception. But at least it looks kind of cool."
-    pointCost: -2
+    pointCost: -5
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -2874,7 +3051,7 @@ tags:
     category: health
     group: health-mind
     description: "You can't see in dim or darkness."
-    pointCost: -2
+    pointCost: -5
     purchasable: true
     purchasableAfterStart: false
 
@@ -2999,7 +3176,7 @@ tags:
     category: health
     group: health-minor
     description: "Pain behind your eye and bright lights that come and go. Incurable."
-    pointCost: -1
+    pointCost: -2
     purchasable: true
     purchasableAfterStart: false
     removable: false
@@ -3078,7 +3255,7 @@ tags:
     category: assets
     group: assets-companions
     description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending a turn, but you'll be easily visible. Do not use through caves."
-    pointCost: 1
+    pointCost: 2
     requiredTag: windlander
     purchasable: true
     purchasableAfterStart: true
@@ -3088,7 +3265,7 @@ tags:
     category: assets
     group: assets-companions
     description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending a turn, but you will be easily visible. Do not use through caves. Your horse can carry yourself plus, optionally, a bound or incapacitated person."
-    pointCost: 3
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: true
 
@@ -3097,7 +3274,7 @@ tags:
     category: assets
     group: assets-companions
     description: "You have an intelligent bird: a crow from the rooftops, a pigeon from the Caves, a parrot from parts unknown. You don't have a raven, unless you are the Baron. That would look bad on you, wouldn't it, taking his heraldic animal...?"
-    pointCost: 2
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
@@ -3106,7 +3283,7 @@ tags:
     category: assets
     group: assets-companions
     description: "You have a trained rat. It's not good for much. But it does tiny tricks!"
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -3115,7 +3292,7 @@ tags:
     category: assets
     group: assets-companions
     description: "You have a cat. It may or may not be useful for anything — generally, it's the cat who decides that."
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -3124,7 +3301,7 @@ tags:
     category: assets
     group: assets-property
     description: "A household of your own within the Fortress."
-    pointCost: 3
+    pointCost: 7
     requiredTag: courtier
     purchasable: true
     purchasableAfterStart: true
@@ -3134,7 +3311,7 @@ tags:
     category: assets
     group: assets-property
     description: "Your workbench, your tools, and a place to think. You don't need this to craft, but it sure helps."
-    pointCost: 1
+    pointCost: 2
     visible: true
     purchasable: true
     purchasableAfterStart: true
@@ -3144,7 +3321,7 @@ tags:
     category: assets
     group: assets-property
     description: "A standard hand-cart to push more than you can carry. The wheels work most of the time."
-    pointCost: 1
+    pointCost: 2
     visible: true
     tradeable: true
     purchasable: true
@@ -3155,7 +3332,7 @@ tags:
     category: assets
     group: assets-companions
     description: "You have a highly-trained dog with good sense of smell. In other words, a good dog."
-    pointCost: 2
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
@@ -3164,7 +3341,7 @@ tags:
     category: assets
     group: assets-property
     description: "You own a small, one-story house in town."
-    pointCost: 1
+    pointCost: 2
     requiredTag: ravenhearter
     purchasable: true
     purchasableAfterStart: true
@@ -3222,7 +3399,7 @@ tags:
     category: items
     group: items-gear
     description: "It sends a message to all its paired Systems and Bracelets. Tuned to the Watch's frequency."
-    pointCost: 6
+    pointCost: 14
     requiredTag: watchman
     tradeable: true
     stackable: true
@@ -3248,7 +3425,7 @@ tags:
     category: items
     group: items-gear
     description: "Strong spring jaws with a pressure plate."
-    pointCost: 1
+    pointCost: 2
     tradeable: true
     stackable: true
     visible: true
@@ -3267,7 +3444,7 @@ tags:
     category: items
     group: items-gear
     description: "Can open a locked door. Afterwards, it's unusable."
-    pointCost: 2
+    pointCost: 5
     tradeable: true
     stackable: false
     visible: false
@@ -3281,7 +3458,7 @@ tags:
     category: items
     group: items-gear
     description: "A bright, bold jester outfit. Pure aura."
-    pointCost: 3
+    pointCost: 7
     equippable: true
     tradeable: true
     stackable: true
@@ -3301,7 +3478,7 @@ tags:
     category: items
     group: items-gear
     description: "You can see the deer on the mountainside."
-    pointCost: 2
+    pointCost: 5
     tradeable: true
     stackable: true
     visible: false
@@ -3314,7 +3491,7 @@ tags:
     category: items
     group: items-gear
     description: "Makeup, a change of clothes, an array of false mustaches... (Change your name temporarily. It takes a turn to apply, and lasts for three. You need the {tag:artist} trait to impersonate someone specific.)"
-    pointCost: 2
+    pointCost: 5
     tradeable: true
     stackable: true
     visible: false
@@ -3333,7 +3510,7 @@ tags:
     category: items
     group: items-gear
     description: "Shiny. Could be pawned off for your life."
-    pointCost: 1
+    pointCost: 2
     equippable: true
     tradeable: true
     # Stackable as of the Merchant Update: a trader turns up with a handful,
@@ -3516,7 +3693,7 @@ tags:
     category: items
     group: items-gear
     description: "Goods you came in with, still crated. Unpack them whenever you like. [This is a small trader's stock, should you wish to go into business. Its real value is in what you can talk somebody into paying for it.]"
-    pointCost: 6
+    pointCost: 14
     purchasable: true
     purchasableAfterStart: false
     consumable: true
@@ -3547,7 +3724,7 @@ tags:
     category: items
     group: items-gear
     description: "What were you thinking?"
-    pointCost: 3
+    pointCost: 7
     equippable: true
     tradeable: true
     stackable: true
@@ -3567,7 +3744,7 @@ tags:
     category: items
     group: items-gear
     description: "You can see clearly when you wear these, removing the downside of {tag:nearsighted}. Be careful with them: they're hard to obtain."
-    pointCost: 1
+    pointCost: 2
     tradeable: true
     stackable: true
     visible: true
@@ -3580,7 +3757,7 @@ tags:
     category: items
     group: items-gear
     description: "Why do you need these?"
-    pointCost: 1
+    pointCost: 2
     tradeable: true
     stackable: true
     visible: false
@@ -3599,7 +3776,7 @@ tags:
     category: items
     group: items-gear
     description: "You're so good that you'll win anyway: why not speed things up? Weighted and shaved dice, marked and bonus cards — whatever you need."
-    pointCost: 3
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: false
     visible: false
@@ -3620,14 +3797,14 @@ tags:
     category: items
     group: items-weapons
     description: "A classic revolver with six chambers."
-    pointCost: 6
+    pointCost: 14
     equippable: true
     tradeable: true
     stackable: true
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    requiredTag: fighting-basic
+    requiredTag: ranged-basic
     # The Depot stocks it too, at a price that makes the 6-pt creation pick
     # look like the bargain it is. See docs/systemdocs/DEPOT.md §3.
     sellable: true
@@ -3666,12 +3843,12 @@ tags:
   # ─── The Combat Update ────────────────────────────────────────────────────
   # Weapons are priced on the six-tier ladder from SMITHING.md:
   #
-  #   Dead Simple   1 pt / 3 ⬢  / 0 turns / crafting OR smithing / no Fighting
-  #   Simple        2 pt / 7 ⬢  / 1 turn  / smithing             / fighting-basic
-  #   Moderate      3 pt / 17 ⬢ / 1 turn  / smithing-skilled     / fighting-basic
-  #   High Quality  4 pt / 23 ⬢ / 1 turn  / smithing-skilled     / fighting-basic
-  #   Exceptional   6 pt / 32 ⬢ / 2 turns / smithing-skilled     / fighting-basic
-  #   Gunpowder     6 pt / 37 ⬢ / 2 turns / smithing-gunpowder   / fighting-basic
+  #   Dead Simple    2 pt / 3 ⬢  / 0 turns / crafting OR smithing / no weapon skill
+  #   Simple         5 pt / 7 ⬢  / 1 turn  / smithing             / melee-/ranged-basic
+  #   Moderate       7 pt / 17 ⬢ / 1 turn  / smithing-skilled     / melee-/ranged-basic
+  #   High Quality   9 pt / 23 ⬢ / 1 turn  / smithing-skilled     / melee-/ranged-basic
+  #   Exceptional   14 pt / 32 ⬢ / 2 turns / smithing-skilled     / melee-/ranged-basic
+  #   Gunpowder     14 pt / 37 ⬢ / 2 turns / smithing-gunpowder   / ranged-basic
   #
   # Bows / crossbows keep `crafting` in place of `smithing` at every tier —
   # wood-and-sinew is still wood-and-sinew even at High Quality.
@@ -3683,7 +3860,7 @@ tags:
     category: items
     group: items-weapons
     description: "A good knife, hard to handle in battle."
-    pointCost: 1
+    pointCost: 2
     equippable: true
     tradeable: true
     stackable: true
@@ -3705,7 +3882,7 @@ tags:
     category: items
     group: items-weapons
     description: "For cutting wood."
-    pointCost: 1
+    pointCost: 2
     equippable: true
     tradeable: true
     stackable: true
@@ -3727,7 +3904,7 @@ tags:
     category: items
     group: items-weapons
     description: "It can kill people and animals."
-    pointCost: 1
+    pointCost: 2
     equippable: true
     tradeable: true
     stackable: true
@@ -3749,7 +3926,7 @@ tags:
     category: items
     group: items-weapons
     description: "What are you gonna do with this?"
-    pointCost: 1
+    pointCost: 2
     equippable: true
     tradeable: true
     stackable: true
@@ -3771,7 +3948,7 @@ tags:
     category: items
     group: items-weapons
     description: "A stick to hit people with."
-    pointCost: 1
+    pointCost: 2
     equippable: true
     tradeable: true
     stackable: true
@@ -3793,7 +3970,7 @@ tags:
     category: items
     group: items-weapons
     description: "The traditional instrument of the discontented."
-    pointCost: 1
+    pointCost: 2
     equippable: true
     tradeable: true
     stackable: true
@@ -3815,7 +3992,7 @@ tags:
     category: items
     group: items-weapons
     description: "A small, quiet bow. It's fast to draw, but it won't do much against someone wearing armor."
-    pointCost: 1
+    pointCost: 2
     equippable: true
     tradeable: true
     stackable: true
@@ -3838,8 +4015,8 @@ tags:
     category: items
     group: items-weapons
     description: "A solid ranged melee weapon."
-    pointCost: 2
-    requiredTag: fighting-basic
+    pointCost: 5
+    requiredTag: melee-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -3861,8 +4038,8 @@ tags:
     category: items
     group: items-weapons
     description: "A short blade made for stabbing."
-    pointCost: 2
-    requiredTag: fighting-basic
+    pointCost: 5
+    requiredTag: melee-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -3884,8 +4061,8 @@ tags:
     category: items
     group: items-weapons
     description: "For the superstitious."
-    pointCost: 2
-    requiredTag: fighting-basic
+    pointCost: 5
+    requiredTag: melee-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -3907,8 +4084,8 @@ tags:
     category: items
     group: items-weapons
     description: "A short, broad stabbing sword."
-    pointCost: 2
-    requiredTag: fighting-basic
+    pointCost: 5
+    requiredTag: melee-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -3930,8 +4107,8 @@ tags:
     category: items
     group: items-weapons
     description: "A spear with a barbed end to cause more damage when pulled out."
-    pointCost: 2
-    requiredTag: fighting-basic
+    pointCost: 5
+    requiredTag: melee-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -3953,8 +4130,8 @@ tags:
     category: items
     group: items-weapons
     description: "A bow as tall as the person drawing it. It takes a strong archer to use well, but at full draw it can crack armor."
-    pointCost: 2
-    requiredTag: fighting-basic
+    pointCost: 5
+    requiredTag: ranged-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -3976,8 +4153,8 @@ tags:
     category: items
     group: items-weapons
     description: "A flanged iron head on a stout haft."
-    pointCost: 2
-    requiredTag: fighting-basic
+    pointCost: 5
+    requiredTag: melee-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -3999,8 +4176,8 @@ tags:
     category: items
     group: items-weapons
     description: "A sleek metal wedge. It has a spearhead on top."
-    pointCost: 2
-    requiredTag: fighting-basic
+    pointCost: 5
+    requiredTag: melee-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -4023,7 +4200,7 @@ tags:
     category: items
     group: items-weapons
     description: "Wrap your fingers with metal."
-    pointCost: 2
+    pointCost: 5
     equippable: true
     tradeable: true
     stackable: true
@@ -4048,8 +4225,8 @@ tags:
     category: items
     group: items-weapons
     description: "A polearm with a heavy blade and a spike. Cuts through armor and flesh alike."
-    pointCost: 3
-    requiredTag: fighting-basic
+    pointCost: 7
+    requiredTag: melee-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -4071,8 +4248,8 @@ tags:
     category: items
     group: items-weapons
     description: "A standard slashing sword."
-    pointCost: 3
-    requiredTag: fighting-basic
+    pointCost: 7
+    requiredTag: melee-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -4094,8 +4271,8 @@ tags:
     category: items
     group: items-weapons
     description: "A small head. It concentrates force better than a mace."
-    pointCost: 3
-    requiredTag: fighting-basic
+    pointCost: 7
+    requiredTag: melee-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -4118,8 +4295,8 @@ tags:
     category: items
     group: items-weapons
     description: "A large sword that requires two hands to fight effectively."
-    pointCost: 4
-    requiredTag: fighting-basic
+    pointCost: 9
+    requiredTag: melee-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -4141,8 +4318,8 @@ tags:
     category: items
     group: items-weapons
     description: "An elegant steel rapier."
-    pointCost: 4
-    requiredTag: fighting-basic
+    pointCost: 9
+    requiredTag: melee-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -4164,8 +4341,8 @@ tags:
     category: items
     group: items-weapons
     description: "A refined slashing weapon."
-    pointCost: 4
-    requiredTag: fighting-basic
+    pointCost: 9
+    requiredTag: melee-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -4187,8 +4364,8 @@ tags:
     category: items
     group: items-weapons
     description: "A curved blade folded from steel."
-    pointCost: 4
-    requiredTag: fighting-basic
+    pointCost: 9
+    requiredTag: melee-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -4210,8 +4387,8 @@ tags:
     category: items
     group: items-weapons
     description: "It might have its uses. The metal is demanding, hence its cost."
-    pointCost: 4
-    requiredTag: fighting-basic
+    pointCost: 9
+    requiredTag: melee-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -4233,8 +4410,8 @@ tags:
     category: items
     group: items-weapons
     description: "Long and mean. A pick, a hammer, and a spear all in one."
-    pointCost: 4
-    requiredTag: fighting-basic
+    pointCost: 9
+    requiredTag: melee-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -4256,8 +4433,8 @@ tags:
     category: items
     group: items-weapons
     description: "Monstrous, and of questionable use."
-    pointCost: 4
-    requiredTag: fighting-basic
+    pointCost: 9
+    requiredTag: melee-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -4279,8 +4456,8 @@ tags:
     category: items
     group: items-weapons
     description: "Bruises plate, punctures almost everything else. It's easy to point—anyone using it has their fighting skill increased by one."
-    pointCost: 4
-    requiredTag: fighting-basic
+    pointCost: 9
+    requiredTag: ranged-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -4303,8 +4480,8 @@ tags:
     category: items
     group: items-weapons
     description: "A short gun with a wide bore. It fires a heavy shot, but you only get one before you have to reload."
-    pointCost: 8
-    requiredTag: fighting-basic
+    pointCost: 18
+    requiredTag: ranged-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -4326,8 +4503,8 @@ tags:
     category: items
     group: items-weapons
     description: "A single-shot pistol. Slow to reload, but the shot hits like a bull."
-    pointCost: 6
-    requiredTag: fighting-basic
+    pointCost: 14
+    requiredTag: ranged-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -4350,7 +4527,7 @@ tags:
     group: items-weapons
     description: "A large black sphere with a menacing fuse."
     pointCost: 0
-    requiredTag: fighting-basic
+    requiredTag: ranged-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -4374,7 +4551,7 @@ tags:
     category: items
     group: items-weapons
     description: "A gentleman's cane, filled with three feet of steel."
-    pointCost: 3
+    pointCost: 7
     equippable: true
     tradeable: true
     visible: false
@@ -4455,7 +4632,7 @@ tags:
     category: items
     description: |-
       A set of advanced medical equipment. It allows for on-the-go surgery and complex procedures, and also generally increases medical outcomes across the board.
-    pointCost: 4
+    pointCost: 9
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -4518,7 +4695,7 @@ tags:
     category: items
     group: items-special
     description: "Choose a non-combat heirloom. You can sell it to the Merchant if worst comes to worst."
-    pointCost: 2
+    pointCost: 5
     requiredTag: courtier
     tradeable: true
     visible: false
@@ -4533,7 +4710,7 @@ tags:
     category: items
     group: items-special
     description: "Choose a courtier, servant, the Successor, or the Heir. Not the Hand or the Meister. You have blackmail on them."
-    pointCost: 2
+    pointCost: 5
     requiredTag: courtier
     tradeable: true
     purchasable: true
@@ -5079,7 +5256,7 @@ tags:
     category: items
     group: items-gear
     description: "Detects poisons. Multi-use."
-    pointCost: 4
+    pointCost: 9
     depotPrice: 27
     sellable: true
     sellablePrice: 12
@@ -5778,7 +5955,7 @@ tags:
     category: items
     group: items-drink
     description: "Milky but tastes like nothing. Grants a new name and appearance to those with honest regrets."
-    pointCost: 1
+    pointCost: 2
     tradeable: true
     stackable: true
     visible: false
@@ -5977,7 +6154,7 @@ tags:
     category: items
     group: items-armor
     description: "Quilted linen. Absorbs impact and blunts a cut. Can be worn under clothing."
-    pointCost: 1
+    pointCost: 2
     equippable: true
     visible: false
     tradeable: true
@@ -5996,7 +6173,7 @@ tags:
     category: items
     group: items-armor
     description: "A mail hood covering the head and neck, worn under a helmet."
-    pointCost: 1
+    pointCost: 2
     equippable: true
     visible: true
     tradeable: true
@@ -6015,7 +6192,7 @@ tags:
     category: items
     group: items-armor
     description: "A small shield held in the fist, used for blocking attacks or making your own."
-    pointCost: 1
+    pointCost: 2
     equippable: true
     visible: true
     tradeable: true
@@ -6035,7 +6212,7 @@ tags:
     category: items
     group: items-armor
     description: "An open helmet."
-    pointCost: 2
+    pointCost: 5
     equippable: true
     visible: true
     tradeable: true
@@ -6054,7 +6231,7 @@ tags:
     category: items
     group: items-armor
     description: "A shield carried on the arm. It becomes more effective when fighting alongside others with shields."
-    pointCost: 2
+    pointCost: 5
     equippable: true
     visible: true
     tradeable: true
@@ -6073,7 +6250,7 @@ tags:
     category: items
     group: items-armor
     description: "A shield tall enough to stand behind. It can be set on the ground as cover."
-    pointCost: 2
+    pointCost: 5
     equippable: true
     visible: true
     tradeable: true
@@ -6093,7 +6270,7 @@ tags:
     category: items
     group: items-armor
     description: "Interlocking rings. It cannot be cut, but blunt force or thrusts can still be deadly."
-    pointCost: 3
+    pointCost: 7
     equippable: true
     visible: true
     tradeable: true
@@ -6113,7 +6290,7 @@ tags:
     category: items
     group: items-armor
     description: "A closed helmet. Vision is obscured."
-    pointCost: 4
+    pointCost: 9
     equippable: true
     visible: true
     tradeable: true
@@ -6132,7 +6309,7 @@ tags:
     category: items
     group: items-armor
     description: "Small steel plates riveted inside a fabric coat. Protection is similar to plate without the visibility of plate."
-    pointCost: 4
+    pointCost: 9
     equippable: true
     visible: false
     tradeable: true
@@ -6151,7 +6328,7 @@ tags:
     category: items
     group: items-armor
     description: "A plate over the chest. Offers some protection of full plate while permitting mobility, and it's easy to don."
-    pointCost: 4
+    pointCost: 9
     equippable: true
     visible: true
     tradeable: true
@@ -6171,7 +6348,7 @@ tags:
     category: items
     group: items-armor
     description: "Steel over the whole body. Requires a second person and time to don."
-    pointCost: 6
+    pointCost: 14
     equippable: true
     visible: true
     tradeable: true
@@ -6192,7 +6369,7 @@ tags:
     category: items
     group: items-armor
     description: "Scrap metal strapped over the body."
-    pointCost: 1
+    pointCost: 2
     equippable: true
     visible: true
     tradeable: true
@@ -6224,7 +6401,7 @@ tags:
     category: demoness
     group: demoness
     description: "When you Break a soul, that person gains {tag:broken-enslaved} instead. They will follow your every command. You can only have two slaves at a time."
-    pointCost: 4
+    pointCost: 9
     purchasable: true
     purchasableAfterStart: true
 
@@ -6233,7 +6410,7 @@ tags:
     category: demoness
     group: demoness
     description: "You can see a person's Desire by examining them."
-    pointCost: 5
+    pointCost: 11
     purchasable: true
     purchasableAfterStart: true
 
@@ -6242,7 +6419,7 @@ tags:
     category: demoness
     group: demoness
     description: "You can switch into your true form at will: a beautiful, monstrous woman with a serpentine lower body, slitted eyes, and a tongue like a snake's. Can wrap around people, immobilizing them, and has fangs which inflict {tag:envenomated}."
-    pointCost: 3
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: true
 
@@ -6251,7 +6428,7 @@ tags:
     category: demoness
     group: demoness
     description: "You can switch into your true form at will: a beautiful woman with a hairy eight-legged abdomen. Hard to see in the dark — can inflict {tag:paralyzed} and {tag:hallucinating}."
-    pointCost: 3
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: true
 
@@ -6260,7 +6437,7 @@ tags:
     category: demoness
     group: demoness
     description: "You can switch into your true form at will — a beautiful, monstrous woman with a scaled face and a long, finned tail. Can swim expertly, and has a call that lures the weak-willed."
-    pointCost: 3
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: true
 
@@ -6269,7 +6446,7 @@ tags:
     category: demoness
     group: demoness
     description: "Give in to the carnage. You permanently become a monstrously tall woman with hands like rakes. You hide in the dark, sprint impossibly quickly, and heal from eating people. Fire and silver stop the healing. You can no longer speak. Requires a True Form, and removes almost all of your other tags."
-    pointCost: 4
+    pointCost: 9
     visible: true
     purchasable: true
     purchasableAfterStart: true
@@ -6280,7 +6457,7 @@ tags:
     category: demoness
     group: demoness
     description: "Your True Form terrifies people, either making them {tag:afraid} or {tag:panic}. Requires a True Form other than Apex — nobody is frightened of a thing they never see coming."
-    pointCost: 2
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
@@ -6289,7 +6466,7 @@ tags:
     category: demoness
     group: demoness
     description: "Once per turn you can tell your slaves anything you like, mind to mind, however far away they are."
-    pointCost: 2
+    pointCost: 5
     requiredTag: slavemaster
     purchasable: true
     purchasableAfterStart: true
@@ -6299,7 +6476,7 @@ tags:
     category: demoness
     group: demoness
     description: "You can wear the exact appearance of anyone you have ever bitten. Love bites count."
-    pointCost: 4
+    pointCost: 9
     purchasable: true
     purchasableAfterStart: true
 
@@ -6308,7 +6485,7 @@ tags:
     category: demoness
     group: demoness
     description: "People struggle to raise a hand against you. In your True Form their fighting skill drops by one rung; wearing a human face, by two."
-    pointCost: 4
+    pointCost: 9
     purchasable: true
     purchasableAfterStart: true
 
@@ -6317,7 +6494,7 @@ tags:
     category: demoness
     group: demoness
     description: "The Silver Cross disables your powers for one turn, not the rest of the day. It took decades to grow this scar."
-    pointCost: 5
+    pointCost: 11
     purchasable: true
     purchasableAfterStart: true
 
@@ -6326,7 +6503,7 @@ tags:
     category: demoness
     group: demoness
     description: "Drink a person's blood to clear up to two of your negative Health tags."
-    pointCost: 2
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
@@ -6335,7 +6512,7 @@ tags:
     category: demoness
     group: demoness
     description: "Once a day you can let loose a shriek that stuns everyone around you."
-    pointCost: 3
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: true
 
@@ -6344,7 +6521,7 @@ tags:
     category: demoness
     group: demoness
     description: "You can put out a set of dangerous claws at will, even while keeping a human face."
-    pointCost: 2
+    pointCost: 5
     visible: false
     purchasable: true
     purchasableAfterStart: true
@@ -6360,7 +6537,7 @@ tags:
     category: demoness
     group: demoness
     description: "You are the most beautiful woman in the world."
-    pointCost: 1
+    pointCost: 2
     requiredTag: beautiful
     visible: true
     purchasable: true
@@ -6394,7 +6571,7 @@ tags:
     category: bacchus
     group: bacchus
     description: "Once every two turns, touch someone else. Grant them {tag:ate-meal}. | vory ysm lechem, wa oryy"
-    pointCost: 2
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -6414,7 +6591,7 @@ tags:
     category: bacchus
     group: bacchus
     description: "Takes one turn. Turn up to three {tag:fine-meal}s into one {tag:ravenheart-red} each. | xe qorvym lys ymadv rechem"
-    pointCost: 3
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -6424,7 +6601,7 @@ tags:
     category: bacchus
     group: bacchus
     description: "Once every three turns, summon an {tag:instant-camera}. You need photos for certain spells. | bymadv lys xe oryym"
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -6444,7 +6621,7 @@ tags:
     category: bacchus
     group: bacchus
     description: "Pain doesn't bother you, nor does fear."
-    pointCost: 4
+    pointCost: 9
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -6454,7 +6631,7 @@ tags:
     category: bacchus
     group: bacchus
     description: "You can send messages to all fellow cultists, regardless of where you are."
-    pointCost: 3
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -6464,7 +6641,7 @@ tags:
     category: bacchus
     group: bacchus
     description: "You can refine {tag:bliss} into {tag:ambrosia}. It's the best substance on Earth, valid of a five point desire, but is very expensive."
-    pointCost: 2
+    pointCost: 5
     requiredTag: brewing-basic
     purchasable: true
     purchasableAfterStart: true
@@ -6476,7 +6653,7 @@ tags:
     category: bacchus
     group: bacchus
     description: "Disables electronic devices within 15 feet. | hazyq iw vorytm, xe dechem"
-    pointCost: 3
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -6486,7 +6663,7 @@ tags:
     category: bacchus
     group: bacchus
     description: "Once per day, drop someone to the ground, inflicting {tag:paralyzed}. They can still talk. | mh ryitem vorav, wa lys"
-    pointCost: 3
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -6501,13 +6678,13 @@ tags:
     removable: true
     durationTurns: 2
 
-  - slug: fighting-drunken-master
-    name: Fighting (Drunken Master)
+  - slug: melee-drunken-master
+    name: Melee (Drunken Master)
     category: bacchus
     group: bacchus
-    description: "While intoxicated, your fighting skill is two levels higher."
-    pointCost: 3
-    requiredTag: fighting-basic
+    description: "While intoxicated, your melee skill is two levels higher."
+    pointCost: 10
+    requiredTag: melee-basic
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -6517,7 +6694,7 @@ tags:
     category: bacchus
     group: bacchus
     description: "Once a turn, immediately cure a Moderate or lesser wound. | eraqylym iw xe vechem"
-    pointCost: 4
+    pointCost: 9
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -6540,7 +6717,7 @@ tags:
     category: items
     group: items-gear
     description: "An analog camera. It prints the photo out right there."
-    pointCost: 1
+    pointCost: 2
     tradeable: true
     stackable: true
     visible: true
@@ -6580,7 +6757,7 @@ tags:
     category: bacchus
     group: bacchus-ripening
     description: "Once per day, you and up to three people whose hands you hold can be teleported anywhere. This takes a turn. | wy oryym xe qarvadv lys"
-    pointCost: 3
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -6600,7 +6777,7 @@ tags:
     category: bacchus
     group: bacchus-ripening
     description: "Once per day, make someone lose the will to speak. | xe lymrav, wa vechem"
-    pointCost: 1
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -6620,7 +6797,7 @@ tags:
     category: bacchus
     group: bacchus-ripening
     description: "Carefully scrawl Bacchus's sigil. Takes one turn. A pocket dimension forms at the sigil. The gate itself is invisible—it'd take a very close eye to detect the faint shimmering on its surface. It lasts until you close it or die. You don't know what happens to anyone or anything who's in it when it closes. You can only have one active at a time. | bymadv qoryy iw xe hazym"
-    pointCost: 3
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -6630,7 +6807,7 @@ tags:
     category: bacchus
     group: bacchus-ripening
     description: "Transmute the aroma of {tag:ravenheart-red} into powerful pheromones. Requires one turn and a {tag:ravenheart-red} as the basis. Nekkers—paranoid, hungry, thin-limbed creatures from the caves—may come running out. This may not work during stormy days. Nekkers will attack anyone, including cultists. | vory nechem lys oryitm"
-    pointCost: 3
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -6640,7 +6817,7 @@ tags:
     category: bacchus
     group: bacchus-ripening
     description: "Carefully scrawl Bacchus's sigil. Set a head—animal or human—on fire. Requires one turn and a willing target—can be yourself. You can no longer examine people, but are rewarded with true power. | mh ryqadv, xe vorym rechem"
-    pointCost: 4
+    pointCost: 9
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -6650,7 +6827,7 @@ tags:
     category: bacchus
     group: bacchus-ripening
     description: "Carefully scrawl Bacchus's sigil. Place a photo of your target, a left foot, and a right foot. If target isn't {tag:pious} or {tag:ascetic}, they lose their mind. Takes one turn. | wa hazyluzar, iw xe lechem"
-    pointCost: 4
+    pointCost: 9
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -6660,7 +6837,7 @@ tags:
     category: bacchus
     group: bacchus-ripening
     description: "Once every three days, select a target (not yourself) and fulfill their desire immediately—they are convinced that it happened. | xe eraqym vory, wa oryy"
-    pointCost: 3
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -6680,7 +6857,7 @@ tags:
     category: bacchus
     group: bacchus-ripening
     description: "You can breathe underwater. Your gills are visible."
-    pointCost: 1
+    pointCost: 2
     visible: true
     purchasable: true
     purchasableAfterStart: true
@@ -6691,7 +6868,7 @@ tags:
     category: bacchus
     group: bacchus-ripening
     description: "You can smith unholy weapons and armor."
-    pointCost: 1
+    pointCost: 2
     requiredTag: smithing
     purchasable: true
     purchasableAfterStart: true
@@ -6703,7 +6880,7 @@ tags:
     category: bacchus
     group: bacchus-ripening
     description: "Carefully scrawl Bacchus's sigil. Place a human skull at the sigil's apex. Hack off the target body's former skull and implant the new one. The person's life is restored, fully healed, but they gain the {tag:disfigured} tag. You don't know what happens if the person's soul already moved on. | bymadv iw mh vechem lys"
-    pointCost: 3
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -6713,7 +6890,7 @@ tags:
     category: bacchus
     group: bacchus-ripening
     description: "Once every three turns, immediately cure a Very minor surgery wound or lesser. | vory lymechem, xe oryitm"
-    pointCost: 2
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -6798,7 +6975,7 @@ tags:
     group: items-weapons
     description: "A huge, menacing, jury-rigged rifle. It penetrates armor, but is extremely slow, inaccurate, and cumbersome. Requires {tag:saltpeter}."
     pointCost: 0
-    requiredTag: fighting-basic
+    requiredTag: ranged-basic
     equippable: true
     tradeable: true
     stackable: true
@@ -6860,7 +7037,7 @@ tags:
     category: bacchus
     group: bacchus-bountiful
     description: "Carefully scrawl Bacchus's sigil. Place a photo of your victim in the center. Pour a liter of human blood on it. If the target isn't {tag:pious} or {tag:ascetic}, their head immediately shoots off at supersonic speed. The ritual takes two turns. | mh qaravym iw xe ryitm dechem"
-    pointCost: 3
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -6870,7 +7047,7 @@ tags:
     category: bacchus
     group: bacchus-bountiful
     description: "Touch a monster. You displace its mind. One-way. | wa nechyluzar, xe vory oryy"
-    pointCost: 3
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -6903,3 +7080,19 @@ tags:
       resourceCost: 6
       skills: [medical-skilled]
       gambit: false
+
+  # --- Health: Minor Wound ------------------------------------------------
+  # Tier 2 (Minor) on the cure ladder — TAGS.md §5c.
+  - slug: minor-wound
+    name: Minor Wound
+    category: health
+    group: health-wounds
+    description: "It hurts, but it wouldn't be hard to treat."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    requirement:
+      resourceCost: 2
+      skills: [medical-basic]

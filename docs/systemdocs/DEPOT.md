@@ -57,13 +57,13 @@ What the station charges him, per unit. Almost every ware is
 `purchasable: false` — **for those, the Merchant is the only source in the
 game**, which is the whole point of the seat.
 
-Five are also creation picks, marked in the Notes column: `jewelry` (1 pt),
-`instant-camera` (1), `surgical-equipment` (4), `poison-snooper` (4) and
-`old-45-revolver` (6). All five are `purchasableAfterStart: false`, so there is
+Five are also creation picks, marked in the Notes column: `jewelry` (2 pt),
+`instant-camera` (2), `surgical-equipment` (9), `poison-snooper` (9) and
+`old-45-revolver` (14). All five are `purchasableAfterStart: false`, so there is
 still no mid-game second source — you bought one on day one or you buy one off
 him. The Poison Snooper is the deliberate addition of the five: knowing which
-cup is poisoned, over and over, is worth a third of a starting budget, and its
-⬢ price stays steep so buying one mid-game is still a real decision.
+cup is poisoned, over and over, is worth three-quarters of a starting budget,
+and its ⬢ price stays steep so buying one mid-game is still a real decision.
 
 | Ware | ⬢ | Sells back | Notes |
 |---|---|---|---|
@@ -79,14 +79,14 @@ cup is poisoned, over and over, is worth a third of a starting budget, and its
 | `boombox` | 13 | 5 | |
 | `whip` | 14 | 6 | Equippable |
 | `censer` | 15 | 6 | |
-| `jewelry` | 16 | 8 | Also a 1-pt creation pick |
+| `jewelry` | 16 | 8 | Also a 2-pt creation pick |
 | `black-body-bag` | 27 | 11 | |
-| `poison-snooper` | 27 | 12 | **The exception:** also buyable at creation, 4 pt |
+| `poison-snooper` | 27 | 12 | **The exception:** also buyable at creation, 9 pt |
 | `monkey` | 27 | 11 | |
-| `instant-camera` | 32 | 14 | Also a 1-pt creation pick |
+| `instant-camera` | 32 | 14 | Also a 2-pt creation pick |
 | `microscope` | 35 | 15 | |
 | `phrygian-tears` | 36 | 20 | Also a Skilled brew, at 4 ⬢ — see §4 |
-| `surgical-equipment` | 38 | 17 | Also a 4-pt creation pick |
+| `surgical-equipment` | 38 | 17 | Also a 9-pt creation pick |
 | `light-infantry-armour` | 41 | 18 | Stops a bullet. Nothing forged here does. |
 | `hound` | 46 | 20 | |
 | `soporific` | 55 | 24 | Inflicts `asleep` (1t) |
@@ -95,7 +95,7 @@ cup is poisoned, over and over, is worth a third of a starting budget, and its
 | `homunculus` | 91 | 40 | |
 | `antibiotics` | 100 | 44 | Cures every stage of infection |
 | `steam-automobile` | 164 | 72 | Fast-travels like a Horse — see below |
-| `old-45-revolver` | 164 | 72 | Neoclassic R&W10. Also a 6-pt creation pick. |
+| `old-45-revolver` | 164 | 72 | Neoclassic R&W10. Also a 14-pt creation pick. |
 | `ml-23` | 182 | 80 | A 9mm pistol |
 | `motorcycle` | 209 | 92 | Caving loot he also imports |
 | `flamethrower` | 237 | 104 | Caving loot he also imports |

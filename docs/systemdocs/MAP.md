@@ -123,23 +123,51 @@ a `/add` invite for a private thread lands the moment its guest arrives
 
 ## 5. The Map panel
 
-`/map` is the drawn Ravenheart plate (`/assets/Map_Basic.png`) with one
-**clickable polygon per presence zone** over it. The pointcrawl — rhombus nodes,
-roads, the Bare/Plate ground toggle and its remembered choice — is gone: a zone
-region only means anything drawn over the art it was traced from, so there is
-no second ground to switch to.
+`/map` is the drawn Ravenheart plate (`/assets/Map_Basic.png`) with a
+pointcrawl overlay: **four rhombus nodes** and the routes between them. A node
+is filled if you can move there and hollow and grey if you can't; a route is
+solid when the hop starts where you stand and dashed when it is a road on the
+map but not a road from here. A `Switch` labelled "Show routes" hides the whole
+overlay — nodes, lines and labels — leaving the bare painting, and the choice
+is remembered in `localStorage` (`lifeweb:map-routes`), read through
+`useSyncExternalStore` so nothing sets state in an effect.
 
-**The polygons are data, not code.** `map.polygon` in `docs/zones.yaml` is a
-list of `[x, y]` pairs as percentages (0–100) of the 4:3 plate, origin top-left,
-plus `map.label: {x, y}` for where the name is drawn. They sync into
-`Zone.mapPolygon` (Json), `mapLabelX` and `mapLabelY`. Retuning the map is a
-YAML edit and a re-sync. The SVG is one fixed `1000 × 750` viewBox, so a
-coordinate is a multiplication. `readPolygon` in `page.js` drops anything that
-isn't at least three pairs of numbers, rather than throwing NaN points into the
-SVG. The Caves group carries an empty polygon and only a label point — it names
-its part of the plate without being clickable.
+**Four nodes, six presence zones.** The three surface zones stand for
+themselves; the whole cave system is one node, drawn on the **`CAVE_GROUP`**
+row, because a player reads "the Caves" as one place on the drawing. Which
+level they actually mean is picked from the **depth strip** under the plate —
+a `.segmented` control, Caverns · Railroad · Aberrant Pits, each segment
+carrying its own tier and its own click-to-travel. Clicking the Caves node
+does not travel; it focuses the strip. Two things fall out of the fold:
 
-Two things carry the panel:
+- The Caves node wears the **best tier of its three levels** (`here` > `cost` >
+  `spent` > `noroad`). From the Town only the Caverns are adjacent and from the
+  Fortress or the Windlands only the Railroad, so the node reads as reachable
+  either way and the strip says which level that means. Standing on any level
+  makes the node `here`.
+- A route to the Caves node resolves against the **specific level**
+  connections: `town — caverns`, `fortress — railroad`, `windlands — railroad`
+  all fold onto one line each, and the links inside the cave system
+  (`caverns — railroad`, `railroad — aberrant-pits`) fold away entirely. A pair
+  with no underlying link gets no line at all, which is why the Fortress and
+  the Windlands are not joined. Because the fold is per level, standing in the
+  Caverns lights the Town line and leaves the Fortress and Windlands lines
+  dashed.
+
+**The node anchors are data, not code.** `map.label: {x, y}` in
+`docs/zones.yaml` is the point a Zone's rhombus is drawn on — percentages
+(0–100) of the plate art, origin top-left — synced into `Zone.mapLabelX` and
+`mapLabelY`. It used to say where a region's *name* was drawn; reusing it as
+the anchor is why the panel needs no new column. Retuning the map is a YAML
+edit and a re-sync. `.map-plate` carries the art's own **1078 / 825** aspect
+ratio rather than 4:3, so a stored percentage lands where it was measured; the
+SVG uses a `0 0 100 100` viewBox with `preserveAspectRatio="none"`, which makes
+a coordinate literally that percentage, and `vector-effect="non-scaling-stroke"`
+keeps the stretch out of the line weights. `map.polygon` survives in the YAML
+and in `Zone.mapPolygon` as **dormant data** — the clickable-region map that
+preceded this one; nothing reads it.
+
+Three things carry the panel:
 
 - **Tiers are resolved server-side** in `page.js`, against the same graph and
   the same already-acted check the server action will apply on submit — so the
@@ -150,21 +178,32 @@ Two things carry the panel:
   more; an unplaced character's whole map reads as `cost` with its own note
   ("Your first arrival — it costs you nothing").
 - **The destination list beneath the plate is the accessible path.** The
-  polygons are `aria-hidden`; the list carries the same zones as real buttons,
-  and is the keyboard and screen-reader route as well as the usable surface at
-  390px.
+  overlay is `aria-hidden` and every control in it is `tabIndex={-1}`; the list
+  carries the same zones as real buttons — the three cave levels enumerated
+  individually, not folded — and is the keyboard and screen-reader route as
+  well as the usable surface at 390px. The depth strip is the reachable twin of
+  the Caves node, so the folded node costs nothing in reach.
+- **The header is the zone's own `description`**, straight from
+  `docs/zones.yaml`, set as body text under the zone name. It replaced a "N
+  ways out" count that said less than the list directly below it already did.
+  An unplaced character gets the "hasn't been placed" line instead. Beside
+  "Where you can go" sits an `InfoIcon` whose text is the GM's plain-language
+  summary of the cave routes; it is deliberately looser than
+  `zoneConnections` — leave the wording alone.
 
-Travel is optimistic: the "you are here" region moves on confirm and reverts on
-its own if the action errors. Confirmation goes through the shared
+Travel is optimistic: the "you are here" mark moves on confirm and reverts on
+its own if the action errors. The routes still describe the old position until
+the refresh lands, which is a second. Confirmation goes through the shared
 `useConfirm()` dialog.
 
 The plate's colours are `--map-*` tokens in `globals.css` that deliberately
-**do not** flip with the theme — the regions ride on a painting, so a light
+**do not** flip with the theme — the overlay rides on a painting, so a light
 theme would put black labels on a night picture.
 
 There is no `map:check`. The old geometry checker existed to catch crossing
-roads and overlapping nodes in a pointcrawl; polygons traced onto the art have
-neither problem, so `db/prisma/check-map.js` and the script went with it.
+roads and overlapping nodes in a pointcrawl of two dozen Locations; four nodes
+placed by hand off the art have neither problem, so `db/prisma/check-map.js`
+and the script stay gone.
 
 ## 6. Where the code lives
 
@@ -175,5 +214,5 @@ neither problem, so `db/prisma/check-map.js` and the script went with it.
 | `bot/src/lib/zoneTravel.js` | The picker rows, `performMove`, `swapZoneRole`, `syncCharacterNarrowcastAccess` (gateway twins) |
 | `web/lib/discordGuild.js` | `syncCharacterZoneRole`, `syncCharacterNarrowcastAccess` (REST twins) |
 | `db/lib/threadInvites.js` | `applyPendingInvites` — replays standing `/add` invites on arrival |
-| `web/app/(app)/map/` | The panel, `page.js` tiers, `travelActions.js#travelTo` |
-| `docs/zones.yaml` | The master: zones, topics, `map:` polygons, `zoneConnections` |
+| `web/app/(app)/map/` | The panel — `page.js` tiers/nodes/edges, `MapPanel.js` overlay + depth strip, `travelActions.js#travelTo` |
+| `docs/zones.yaml` | The master: zones, topics, `map:` node anchors (and dormant polygons), `zoneConnections` |
