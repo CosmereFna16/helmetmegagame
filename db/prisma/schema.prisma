@@ -330,7 +330,7 @@ model GameConfig {
   // role's own `extra_starting_points` and the Cursed penalty are applied
   // (see web/lib/characterCreation.js#computeBudget). Editable live from
   // the Dev Panel so it can be tuned right up to launch.
-  startingTagPoints Int @default(6)
+  startingTagPoints Int @default(12)
 
   // Master switch for the game being open to players at all. While false,
   // nobody can create a character — the game has not launched. Turning it on

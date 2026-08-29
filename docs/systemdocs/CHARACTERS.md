@@ -447,9 +447,9 @@ typo can't ship characters missing part of their package.
 ## 3. The point economy
 
 ```
-budget = GameConfig.startingTagPoints      (default 5, live on /gm/dev)
-       + role.extra_starting_points        (Peasant +2, Outsider +3)
-       - 3 if the player is Cursed
+budget = GameConfig.startingTagPoints      (default 12, live on /gm/dev)
+       + role.extra_starting_points        (Outsider +4; no other role sets it)
+       - 6 if the player is Cursed
 ```
 
 `web/lib/characterCreation.js` holds this arithmetic, and is imported by the
@@ -504,7 +504,7 @@ forced. A GM can also curse someone by hand (narrative punishment) simply by
 adding the role in Discord — there's no code path needed for that.
 
 While cursed, a player may still roll a new character — but only as a
-**Migrant** or a **Bum**, and with **3 fewer points**
+**Migrant** or a **Bum**, and with **6 fewer points**
 (`web/lib/characterCreation.js`'s `CURSED_ROLE_SLUGS`/`CURSED_POINT_PENALTY`,
 enforced by `isRoleSelectable`/`computeBudget`, unchanged by this — only
 where the `cursed` boolean they're fed comes from changed).

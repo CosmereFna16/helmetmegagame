@@ -16,7 +16,7 @@ import { roleCapacity } from "@lifeweb/db/lib/roleCapacity";
 // Discord role (see web/lib/discordGuild.js#isCursed), granted automatically
 // when a character dies and cleared by a GM removing the role directly in
 // Discord once the body is buried / the rites are read.
-export const CURSED_POINT_PENALTY = 3;
+export const CURSED_POINT_PENALTY = 6;
 
 // How many negative-cost tags a character may buy through the point-buy menu,
 // when there is no GameConfig row to read it from. The live value is
@@ -86,7 +86,7 @@ export function remainingPoints({ budget, selectedTags }) {
 
 // --- Tier chains (parentTag) and prerequisites (requiredTag) ---
 //
-// A tier chain (Fighting (Basic) -> (Trained) -> (Skilled) -> ...) is
+// A tier chain (Melee (Basic) -> (Trained) -> (Skilled) -> ...) is
 // sequential and replacing: buying a tier is meant to replace whichever
 // lower tier of the same chain you already hold/have selected, not stack
 // with it. Each tag's pointCost is the incremental cost of that one hop, so
@@ -95,8 +95,8 @@ export function remainingPoints({ budget, selectedTags }) {
 // first buying Basic/Trained/Skilled as separate purchases, which the
 // point-buy UI has no way to sequence (nothing is "owned" yet mid-wizard).
 //
-// requiredTag is a non-replacing prerequisite (Fighting (Archer) requires
-// Fighting (Basic), but coexists with whatever Fighting tier you hold).
+// requiredTag is a non-replacing prerequisite (Ranged (Archer) requires
+// Ranged (Basic), but coexists with whatever Ranged tier you hold).
 // Since tiers replace rather than stack, holding *any* tier of a chain
 // satisfies a requirement pointing at a lower tier in that same chain.
 
@@ -184,8 +184,8 @@ export function holdsRequirement(requiredTagId, tagsById, heldOrSelectedIds) {
 
 // Both prerequisites a tag can carry, and the only place they're combined:
 //
-//   - `tag.requiredTagId` — the per-tag gate (Fighting (Archer) needs
-//     Fighting (Basic)).
+//   - `tag.requiredTagId` — the per-tag gate (Ranged (Archer) needs
+//     Ranged (Basic)).
 //   - `tag.group.requiredTagId` — the whole-group gate, which is the hidden
 //     category mechanism. Every Demoness tag sits behind the Demoness tag via
 //     its group rather than repeating requiredTag six times; see
@@ -328,7 +328,7 @@ export function menuCategories(tags) {
 
 // Sign AND colour both describe the player's point pool, never whether the
 // tag is a good or bad thing to have: a drawback grants points (Frail is
-// "+3", green), an advantage spends them (Fighting (Basic) is "-3", accent).
+// "+5", green), an advantage spends them (Melee (Basic) is "-7", accent).
 // The two axes used to disagree — the sign was catalog-style while the
 // colour was pool-style — which read as "Frail is worth -3 and that's good".
 //

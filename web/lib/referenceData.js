@@ -22,8 +22,8 @@ import { toDocumentPreviewText } from "@/lib/documentPreview";
 // unlocked.
 //
 // Gating is on the GROUP gate only, deliberately — never on a tag's own
-// requiredTag. Fighting (Archer) isn't a secret, and hiding it would break
-// the {tag:fighting-archer} references in public documents for everyone who
+// requiredTag. Ranged (Archer) isn't a secret, and hiding it would break
+// the {tag:ranged-archer} references in public documents for everyone who
 // hasn't bought it.
 //
 // Exactly the Tag columns TagChip (and formatTagRequirement/prerequisiteNames)

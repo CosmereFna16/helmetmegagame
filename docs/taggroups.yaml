@@ -8,10 +8,11 @@
 # Per-group fields:
 #   category    - must match one of the category slugs declared in
 #                 docs/tags.yaml's `categories:` list.
-#   color       - freeform hex color (e.g. "#6fa8ab") used to tint every tag
-#                 chip in this group (TagChip.js). Omit for an uncolored
-#                 group. Not theme-aware — pick a value that reads on both
-#                 the dusk and dawn backgrounds (see web/app/globals.css).
+#   color       - freeform hex color (e.g. "#81a4d7") used to tint every tag
+#                 chip in this group — the 3px left rule ChipLabel.js draws.
+#                 Omit for an uncolored group. Not theme-aware (the chip sits
+#                 on --field-bg, see web/app/globals.css), so it answers to
+#                 THE PALETTE below rather than to taste.
 #   requiredTag - optional slug of a Tag that gates every tag in this group
 #                 (see docs/tags.yaml's requiredTag docs for the same idea
 #                 at the single-tag level). This is the "hidden category"
@@ -21,27 +22,39 @@
 #                 required tag. Enforced in web/lib/characterCreation.js
 #                 (requirementSatisfied), and re-checked server-side by
 #                 createCharacter and addTagRequest.
+#
+# THE PALETTE — keep it, or the character sheet goes motley again:
+#   * One hue family per CATEGORY, so a sheet reads by category at a glance:
+#     General blue/indigo, Skills green, Status amber, Health red, Items teal,
+#     Bacchus violet, Demoness magenta — and Assets the one grey (stone) family.
+#   * Groups inside a category step by LIGHTNESS and SATURATION, never out of
+#     the hue. Health is the tightest on purpose: all seven read as one red.
+#   * No two categories share a hue. Status and Health both carry bad news, so
+#     amber-vs-red is the split keeping them apart; do not warm Status further.
+#   * Every value clears 3:1 (WCAG 1.4.11, non-text UI) on BOTH the dusk and
+#     dawn chip backgrounds — worst case --field-bg over --surface-raised,
+#     where the tightest here measures 3.44. Check the numbers before adding.
 groups:
   - slug: general-traits
     name: Traits
     category: general
-    color: "#6fa8ab"
+    color: "#81a4d7"
   - slug: general-social
     name: Social
     category: general
-    color: "#9c88c4"
+    color: "#8479d7"
   # What a character actually believes. Ungated on purpose — a belief is not a
   # secret the way the Demoness and Bacchus groups below are, and #info already
   # tells every player that "most people are Post-Christian, but some people
   # believe in the Old Ways".
   #
-  # Gold because General had no warm tone: Traits is teal, Social purple, the
-  # Watch blue-grey, Brigands brown. It reads at 5.4:1 on both live theme
-  # backgrounds, mid-pack among the four above.
+  # Wears the General blue like the rest of the category; what separates it
+  # from its neighbours is tone, not hue — a muted mid slate between Traits'
+  # clear steel blue and Brigands' mauve. 4.13:1 on dusk, 4.28:1 on dawn.
   - slug: general-beliefs
     name: Beliefs
     category: general
-    color: "#b5943f"
+    color: "#878fb7"
   # Two body-membership groups, gated the same way Demoness and Bacchus are
   # (see the bottom of this file). Gating here rather than repeating
   # `requiredTag` on every member is the established idiom, and it means a
@@ -51,19 +64,19 @@ groups:
   - slug: general-watch
     name: The Watch
     category: general
-    color: "#8a9bb5"
+    color: "#5e84c1"
     requiredTag: watchman
   - slug: general-brigand
     name: Brigands
     category: general
-    color: "#a87351"
+    color: "#8f7aad"
     requiredTag: brigand
   # Third body-membership group: the Baron's court, gated behind the free
   # `courtier` tag every court role starts with.
   - slug: general-court
     name: The Court
     category: general
-    color: "#b89a5e"
+    color: "#aaace4"
     requiredTag: courtier
   # Fourth body-membership group, same shape as the three above. The key is
   # `windlander` — a purchasable Skills tag every Windlands role gets free
@@ -72,7 +85,7 @@ groups:
   - slug: general-windlands
     name: The Windlands
     category: general
-    color: "#94a06a"
+    color: "#b8bed3"
     requiredTag: windlander
   # Orphaned: the Health category below took every tag that used to live
   # here. Groups sync upsert-only and are never deleted, so this row survives
@@ -80,23 +93,23 @@ groups:
   - slug: status-health
     name: Health
     category: status
-    color: "#c97a86"
+    color: "#c6af8b"
   - slug: status-food
     name: Food
     category: status
-    color: "#cf9f56"
+    color: "#d4ba67"
   - slug: status-buffs
     name: Buffs
     category: status
-    color: "#8bab76"
+    color: "#e4d6aa"
   - slug: status-debuffs
     name: Debuffs
     category: status
-    color: "#7f92a3"
+    color: "#bf9453"
   - slug: items-food
     name: Food
     category: items
-    color: "#cf9f56"
+    color: "#8bcace"
   # Tonic is its own group rather than a corner of Food: the catalog is a
   # supply chain (fungus -> Bliss, grain -> Alcohol -> the Red) and the
   # tonics above it are nothing like a meal. See the Alcohol & Drugs
@@ -104,96 +117,98 @@ groups:
   - slug: items-drink
     name: Tonic
     category: items
-    color: "#8c5566"
+    color: "#5ab3ce"
   - slug: items-gear
     name: Gear
     category: items
-    color: "#a08a70"
+    color: "#71a4a4"
   - slug: items-armor
     name: Armor
     category: items
-    color: "#7c8794"
+    color: "#8faab7"
   # The exotic tier: relics, grafts and machinery that don't belong to the
   # low-fantasy surface of the game. Kept apart from Gear so a player reading
   # their sheet can tell at a glance which of their possessions are ordinary.
   - slug: items-special
     name: Special
     category: items
-    color: "#7a6f9c"
+    color: "#a9d0e5"
   - slug: items-weapons
     name: Weapons
     category: items
-    color: "#9c6b5a"
+    color: "#56bdaf"
   # --- Health ------------------------------------------------------------
   # Every affliction a doctor might treat, split by what KIND of medicine it
   # wants rather than by severity — severity is carried by the tag's own
-  # requirement block (the cure ladder, docs/systemdocs/TAGS.md §5c). Reds
-  # and browns for damage, greens for rot and sickness, greys for what can't
-  # be undone, blues for the head, and one warm tone for convalescence.
+  # requirement block (the cure ladder, docs/systemdocs/TAGS.md §5c). The
+  # whole category is ONE red on purpose, split only by tone: blood red for
+  # wounds, rust for rot, rose for fever, dusky mauve for the head, ash for
+  # what can't be undone, pale pink for the trivial, apricot for recovery.
   - slug: health-wounds
     name: Wounds
     category: health
-    color: "#b5555f"
+    color: "#d35e64"
   - slug: health-infection
     name: Infection
     category: health
-    color: "#7d8f4e"
+    color: "#b9725f"
   - slug: health-illness
     name: Illness
     category: health
-    color: "#8d7ab5"
+    color: "#d3838c"
   - slug: health-maiming
     name: Maiming
     category: health
-    color: "#82828c"
+    color: "#bea6a8"
   - slug: health-mind
     name: Mind
     category: health
-    color: "#5f86a8"
+    color: "#aa7486"
   - slug: health-minor
     name: Ailments
     category: health
-    color: "#c0a06a"
+    color: "#e5a9b3"
   - slug: health-recovery
     name: Recovery
     category: health
-    color: "#6fa8ab"
+    color: "#d89f90"
   - slug: assets-property
     name: Property
     category: assets
-    color: "#8e94a8"
+    color: "#c9c5be"
   - slug: assets-companions
     name: Companions
     category: assets
-    color: "#7fa38b"
+    color: "#a48d7c"
   # Skill families, clustered the same way General and Status already are.
   # A handful of standalone Skills tags (sign-language, intercom, forester,
-  # musician, lockpicking, butcher) stay groupless on purpose — they don't
+  # musician, lockpicking, butcher, climbing, navigating, stealth) stay
+  # groupless on purpose — they don't
   # belong to any family and would just be noise in a one-tag group.
   - slug: skills-labor
     name: Labor
     category: skills
-    color: "#7d9b5a"
+    color: "#bed78f"
   - slug: skills-fighting
-    name: Fighting
+    name: Combat
     category: skills
-    color: "#a8515c"
+    color: "#8fd4a8"
   - slug: skills-crafting
     name: Crafting
     category: skills
-    color: "#b8834f"
+    color: "#93b261"
   - slug: skills-brewing
     name: Brewing
     category: skills
-    color: "#c2984a"
+    color: "#6eaa78"
   - slug: skills-cooking
     name: Cooking
     category: skills
-    color: "#c4703f"
+    color: "#79d070"
   - slug: skills-medical
     name: Medical
     category: skills
-    color: "#5f9a94"
+    color: "#b8d5c3"
   # --- Gated groups ------------------------------------------------------
   # These all carry `requiredTag`, which is what makes the Demoness and
   # Bacchus categories hidden. Every tag in them is gated by the group, so the
@@ -202,12 +217,12 @@ groups:
   - slug: demoness
     name: Demoness
     category: demoness
-    color: "#c98bb0"
+    color: "#d26dad"
     requiredTag: demoness
   - slug: bacchus
     name: Bacchus
     category: bacchus
-    color: "#9c6fb8"
+    color: "#d4b4da"
     requiredTag: follower-of-bacchus
   # The Cult tier ladder (Seedling -> Ripening -> Bountiful) plus the Cult
   # Leader seat. These are Meta tags — 0 points, never purchasable, granted by
@@ -226,10 +241,10 @@ groups:
   - slug: bacchus-ripening
     name: Ripening
     category: bacchus
-    color: "#9c6fb8"
+    color: "#c292d5"
     requiredTag: cult-ripening
   - slug: bacchus-bountiful
     name: Bountiful
     category: bacchus
-    color: "#9c6fb8"
+    color: "#b262cf"
     requiredTag: cult-bountiful

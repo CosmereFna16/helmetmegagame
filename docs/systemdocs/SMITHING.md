@@ -9,24 +9,24 @@ and the mention in [`TAGS.md`](TAGS.md) §4a.
 
 | Slug | Name | pt | Gate |
 |---|---|---|---|
-| `crafting` | Crafting | 2 | none |
-| `smithing` | Smithing | 2 | none |
-| `smithing-skilled` | Smithing (Skilled) | 2 | `parentTag: smithing` (cumulative, total 4) |
-| `smithing-gunpowder` | Smithing (Gunpowder) | 4 | `requiredTag: smithing-skilled` |
+| `crafting` | Crafting | 5 | none |
+| `smithing` | Smithing | 5 | none |
+| `smithing-skilled` | Smithing (Skilled) | 5 | `parentTag: smithing` (cumulative, total 10) |
+| `smithing-gunpowder` | Smithing (Gunpowder) | 9 | `requiredTag: smithing-skilled` |
 
 A full gunsmith is `smithing` + `smithing-skilled` + `smithing-gunpowder` =
-2 + 2 + 4 = **8 pt**.
+5 + 5 + 9 = **19 pt**.
 
 ## 2. Tiers
 
-| Tier | pt | ⬢ | Turns | Skill gate | Fighting gate | Purchasable at start |
+| Tier | pt | ⬢ | Turns | Skill gate | Combat gate | Purchasable at start |
 |---|---|---|---|---|---|---|
-| Dead Simple | 1 | 3 | 0 | `crafting` OR `smithing` | none | yes |
-| Simple | 2 | 7 | 1 | `smithing` | `fighting-basic` | yes |
-| Moderate | 3 | 17 | 1 | `smithing-skilled` | `fighting-basic` | yes |
-| High Quality | 4 | 23 | 1 | `smithing-skilled` | `fighting-basic` | yes |
-| Exceptional | 6 | 32 | 2 | `smithing-skilled` | `fighting-basic` | yes |
-| Gunpowder | 6 | 37 | 2 | `smithing-gunpowder` | `fighting-basic` | yes |
+| Dead Simple | 2 | 3 | 0 | `crafting` OR `smithing` | none | yes |
+| Simple | 5 | 7 | 1 | `smithing` | `melee-basic` / `ranged-basic` | yes |
+| Moderate | 7 | 17 | 1 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
+| High Quality | 9 | 23 | 1 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
+| Exceptional | 14 | 32 | 2 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
+| Gunpowder | 14 | 37 | 2 | `smithing-gunpowder` | `ranged-basic` | yes |
 
 Bows use `crafting` in place of `smithing` at every tier. The Crossbow does
 not — its steel prod and lock are `smithing-skilled` work.
@@ -57,7 +57,7 @@ their own terms rather than a rung of this table.
 | Longbow | Simple | `crafting` |
 | Mace | Simple | |
 | Battle Axe | Simple | |
-| Knuckle Duster | Moderate | `visible: false` |
+| Knuckle Duster | Moderate | `visible: false`. Priced at 5 pt, not the tier's 7 — a pre-existing outlier, not introduced by the Combat Update. |
 | Halberd (slug `bardiche`) | Moderate | Renamed in the Combat Update; slug frozen for sync. |
 | Broadsword | Moderate | |
 | War Hammer | Moderate | |
@@ -69,7 +69,7 @@ their own terms rather than a rung of this table.
 | Lucerne | High Quality | |
 | Zweihander | High Quality | |
 | Crossbow | High Quality | |
-| Musketoon | Gunpowder | |
+| Musketoon | Gunpowder | Priced at 18 pt, not the tier's 14 — a pre-existing outlier, not introduced by the Combat Update. |
 | Bore Pistol | Gunpowder | |
 | Bomb | Gunpowder | `purchasable: false` (craft-only) |
 
@@ -77,8 +77,8 @@ Off the ladder — no recipe, no smithing gate:
 
 | Weapon | pt | Notes |
 |---|---|---|
-| Sword Cane | 3 | Sold complete. `visible: false`. |
-| Neoclassic R&W10 (slug `old-45-revolver`) | 6 | Bought at creation only — not craftable. |
+| Sword Cane | 7 | Sold complete. `visible: false`. |
+| Neoclassic R&W10 (slug `old-45-revolver`) | 14 | Bought at creation only — not craftable. Requires `ranged-basic`. |
 | Cracked Bone Club | 0 | Found only. |
 | Neoclassic Duelista | 0 | Found only. |
 | Disabler | 0 | Watch-issued. |
@@ -103,5 +103,5 @@ Off the ladder:
 
 | Armor | pt | Notes |
 |---|---|---|
-| Salvage Plate | 1 | No skill gate. |
+| Salvage Plate | 2 | No skill gate. |
 | Energy Shield | 0 | GM-granted only. |

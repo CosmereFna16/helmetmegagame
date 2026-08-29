@@ -71,10 +71,16 @@
      60vh, max-h-40, and nothing at all). */
   --list-h: 70vh;
 
-  /* The Map panel's destination-list tier marks. Deliberately do NOT flip
-     with the theme, to match the drawn plate's own dark world. */
-  --map-cost: #dfa04a;
-  --map-spent: #9daca6;
+  /* The Map panel's palette — the rhombi and routes drawn over the plate, and
+     the destination list's tier marks. Deliberately do NOT flip with the
+     theme, to match the drawn plate's own dark world: the overlay rides on a
+     painting, so a light theme would put black labels on a night picture. */
+  --map-cost: #dfa04a; /* a hop you can take */
+  --map-spent: #9daca6; /* a legal hop with the Move already gone */
+  --map-here: #f2e3c2; /* where you stand */
+  --map-idle: #78867f; /* no road, and the dashed lines */
+  --map-ink: #f4ead6; /* node labels */
+  --map-casing: rgba(9, 16, 14, 0.72); /* the dark bed under a stroke or label */
 
   /* Elevation. --e-1 is border-only and intentionally has no shadow. */
   --e-2: 0 2px 6px var(--shadow-color);
@@ -2096,13 +2102,20 @@ input[type="radio"]:disabled {
 
 
 /* ---------------------------------------------------------------------------
-   Map panel (web/app/(app)/map). The drawn Ravenheart plate as a plain image;
-   the destination list below is the only way to travel.
+   Map panel (web/app/(app)/map). The drawn Ravenheart plate with four rhombus
+   nodes and the routes between them laid over it, a depth strip for the cave
+   levels beneath it, and the destination list — the accessible path — below
+   that. Colours come from the --map-* tokens above rather than from the
+   theme, for the reason stated there.
    --------------------------------------------------------------------------- */
 
+/* The plate's own ratio, not 4:3. The art is 1078 x 825, so a 4:3 box cropped
+   ~1% off the top and bottom under object-fit: cover — enough to slide every
+   node anchor off the landmark it names. Matching the ratio makes a stored
+   percentage exact. */
 .map-plate {
   position: relative;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 1078 / 825;
   width: 100%;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -2119,9 +2132,127 @@ input[type="radio"]:disabled {
   -webkit-user-drag: none;
 }
 
+/* The routes-and-nodes overlay. aria-hidden, and its buttons are tabIndex=-1:
+   the destination list and the depth strip are the reachable twins. */
+.map-overlay {
+  position: absolute;
+  inset: 0;
+}
+.map-routes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.map-route-casing { stroke: var(--map-casing); opacity: 0.65; }
+.map-route { stroke: var(--map-idle); opacity: 0.7; }
+/* Solid and lit means the hop starts where you stand; dashed and grey means
+   it is a route on the map that is not a route from here. */
+.map-route[data-adjacent="true"] { stroke: var(--map-cost); opacity: 0.95; }
+
+/* The node's anchor is the rhombus, not the label: the coordinates in
+   docs/zones.yaml name a place on the drawing, and the name hangs above it on
+   a stem. A 44px box keeps the tap target at the touch minimum however small
+   the mark is drawn. */
+.map-node {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+}
+button.map-node { cursor: pointer; }
+.map-rhomb {
+  width: 14px;
+  height: 14px;
+  transform: rotate(45deg);
+  border: 1.5px solid var(--map-ink);
+  background: var(--map-idle);
+  box-shadow: 0 0 0 2px var(--map-casing);
+  transition: transform 0.12s;
+}
+.map-stem {
+  position: absolute;
+  bottom: 60%;
+  width: 1px;
+  height: 9px;
+  background: var(--map-ink);
+  opacity: 0.7;
+}
+.map-label {
+  position: absolute;
+  bottom: 78%;
+  white-space: nowrap;
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--map-ink);
+  text-shadow: 0 1px 3px var(--map-casing), 0 0 6px var(--map-casing);
+  pointer-events: none;
+}
+/* Coloured in if you can move there, hollow and grey if not — the whole
+   point of the marks. */
+.map-node[data-tier="here"] .map-rhomb { background: var(--map-here); }
+.map-node[data-tier="cost"] .map-rhomb { background: var(--map-cost); }
+.map-node[data-tier="spent"] .map-rhomb {
+  background: transparent;
+  border-color: var(--map-spent);
+}
+.map-node[data-tier="noroad"] .map-rhomb {
+  background: transparent;
+  border-color: var(--map-idle);
+}
+.map-node[data-tier="spent"] .map-label,
+.map-node[data-tier="noroad"] .map-label { opacity: 0.6; }
+button.map-node:hover .map-rhomb,
+button.map-node:focus-visible .map-rhomb { transform: rotate(45deg) scale(1.3); }
+
+/* The depth strip. The Caves are one rhombus on the plate — "caverns should
+   just be all one" — so the three levels are told apart here instead, and
+   this is where the Caves node sends you. */
+.map-depths {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  margin-top: var(--sp-3);
+}
+.map-depths:focus { outline: none; }
+.map-depths-label {
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.map-depth-strip { flex-wrap: wrap; }
+.map-depth-strip button { min-height: 36px; }
+.map-depth-strip button:disabled { cursor: default; opacity: 0.55; }
+.map-depth-strip button[data-tier="cost"] { color: var(--map-cost); }
+.map-depth-strip button[aria-pressed="true"] { color: var(--map-here); }
+
+/* The zone's own description under its name. Body text, not a caption — it
+   replaced the "N ways out" line and runs to about sixty words. `pre-line`
+   because two of the descriptions in zones.yaml carry a real paragraph
+   break. */
+.map-zone-desc {
+  white-space: pre-line;
+  color: var(--text);
+}
+/* .switch-row is justify-content: space-between, which would push the label
+   and the track to the ends of whatever width the header row hands it. */
+.map-routes-toggle {
+  flex: none;
+  gap: var(--sp-2);
+}
+
 /* The destination list. Always rendered, never a mobile-only branch: it is
    the usable surface on a 390px screen, and the keyboard and screen-reader
-   path to travel on any screen — the regions themselves are aria-hidden. */
+   path to travel on any screen — the overlay itself is aria-hidden. */
 .map-dests {
   display: flex;
   flex-direction: column;
@@ -2162,6 +2293,13 @@ input[type="radio"]:disabled {
   letter-spacing: var(--ls-wide);
   text-transform: uppercase;
   color: var(--muted);
+}
+
+@media (max-width: 720px) {
+  /* The strip is a real travel control, so it takes the touch minimum even
+     though .segmented does not elsewhere. It wraps rather than shrinking:
+     "Aberrant Pits" plus two neighbours does not fit 390px in one line. */
+  .map-depth-strip button { min-height: 44px; }
 }
 
 @media (max-width: 640px) {
