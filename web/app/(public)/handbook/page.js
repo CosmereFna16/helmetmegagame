@@ -7,7 +7,7 @@ import { getHandbookBody } from "@/lib/handbook";
 
 export const metadata = {
   title: "Player Handbook",
-  description: "The Bascinet player handbook — how to play, turn by turn.",
+  description: "player handbook",
 };
 
 // Public, no sign-in: this is the one page in the app meant to be handed out

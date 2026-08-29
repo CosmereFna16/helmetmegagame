@@ -42,7 +42,7 @@ const display = UnifrakturMaguntia({
 
 export const metadata = {
   title: "Bascinet",
-  description: "Bascinet — a barony amid the wasteland.",
+  description: "bascinet megagame",
 };
 
 // Theme/turn state is live game state fetched per-request, not something
