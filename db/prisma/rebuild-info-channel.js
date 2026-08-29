@@ -147,7 +147,7 @@ async function deleteThreadCreatedMessages(channelId) {
 }
 
 const LINKS_LINE =
-  "[Website](http://ravenheart.quest/) | [Handbook](https://discord.com/channels/1537834545985097818/1539274486442893382/1542983900895248525)";
+  "[Website](http://ravenheart.quest/) | [Handbook](http://ravenheart.quest/handbook)";
 
 function buildDirectoryMessage(mainMessage, linksByCategory) {
   const sections = linksByCategory.map((category) => {
