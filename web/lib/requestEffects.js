@@ -1,5 +1,6 @@
 import { bumpBlood } from "@lifeweb/db";
 import { addToStack, dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
+import { moveParty, InsufficientResourcesError } from "@lifeweb/db/lib/resourceTransfer";
 import { UserError } from "@/lib/actionResult";
 
 // The per-type behaviour of a Request: how a GM's Undo reverses it, and which
@@ -37,31 +38,23 @@ import { UserError } from "@/lib/actionResult";
 // the Request row and the audit entry along with it. The friendly pre-checks
 // in the request actions are kept for their better wording; this is the
 // enforcement underneath them.
+//
+// The primitive itself lives in db/lib/resourceTransfer.js — the turn-end
+// push (CommonJS, no Next.js request context) needs the exact same clamp, so
+// this is a thin delegate that maps InsufficientResourcesError to the
+// friendlier UserError wording this surface has always used.
 export async function moveResources(tx, party, delta) {
-  if (!party || !delta) return;
-  const character = party.kind === "character";
-  if (!character && party.kind !== "faction") return;
-
-  const model = character ? tx.character : tx.faction;
-  const field = character ? "resources" : "silo";
-
-  if (delta > 0) {
-    await model.update({ where: { id: party.id }, data: { [field]: { increment: delta } } });
-    return;
+  const character = party?.kind === "character";
+  try {
+    await moveParty(tx, party, delta);
+  } catch (err) {
+    if (!(err instanceof InsufficientResourcesError)) throw err;
+    throw new UserError(
+      character
+        ? `${party.name ?? "That character"} no longer has ${err.amount} ⬢.`
+        : `The ${party?.name ?? "faction"} Silo no longer has ${err.amount} ⬢.`,
+    );
   }
-
-  const amount = -delta;
-  const { count } = await model.updateMany({
-    where: { id: party.id, [field]: { gte: amount } },
-    data: { [field]: { decrement: amount } },
-  });
-  if (count) return;
-
-  throw new UserError(
-    character
-      ? `${party.name ?? "That character"} no longer has ${amount} ⬢.`
-      : `The ${party.name ?? "faction"} Silo no longer has ${amount} ⬢.`,
-  );
 }
 
 export async function creditResources(tx, party, amount, ctx) {

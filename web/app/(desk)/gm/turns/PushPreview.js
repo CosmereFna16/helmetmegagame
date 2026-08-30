@@ -26,7 +26,12 @@ export default function PushPreview({ moves, stagedEffects, stagedMessages, tagC
     }
     for (const e of stagedEffects) {
       if (e.applied) continue;
-      entry(e.targetCharacterId, e.targetName).effects.push({ id: e.id, text: effectSummary(e, tagNames) });
+      // A Silo -> Silo transfer has no character to group under — give each
+      // one its own bucket (keyed by its own row id) rather than piling every
+      // such row into one shared "no character" entry.
+      const id = e.targetCharacterId ?? `silo:${e.id}`;
+      const name = e.targetCharacterId ? e.targetName : "Silo transfer";
+      entry(id, name).effects.push({ id: e.id, text: effectSummary(e, tagNames) });
     }
     for (const msg of stagedMessages) {
       if (msg.sent || msg.kind !== "PRIVATE") continue;
@@ -53,9 +58,13 @@ export default function PushPreview({ moves, stagedEffects, stagedMessages, tagC
         {perCharacter.map((c) => (
           <div key={c.id} className="panel p-3">
             <p className="text-sm font-medium">
-              <button type="button" className="desk-name" onClick={() => onInspect?.(c.id, c.name)}>
-                {c.name}
-              </button>
+              {c.id.startsWith("silo:") ? (
+                c.name
+              ) : (
+                <button type="button" className="desk-name" onClick={() => onInspect?.(c.id, c.name)}>
+                  {c.name}
+                </button>
+              )}
             </p>
             <ul className="mt-1 flex flex-col gap-1 text-sm">
               {c.declared ? (

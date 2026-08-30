@@ -24,6 +24,12 @@ export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, presence
 
   const state = effectState(effect);
   const frozen = effect.applied || Boolean(effect.appliedError);
+  // A Silo -> Silo transfer has no character end — targetCharacterId is null
+  // — so there's nothing for the row's name/avatar button to open in the
+  // inspector. It also isn't editable in place: it's 1:1 by nature, not a
+  // fit for EffectComposer's multi-target/multi-field form, so Delete and
+  // re-stage stands in for Edit.
+  const isTransfer = Boolean(effect.transfer);
 
   function onDelete() {
     const batch = showBatch && effect.batchId;
@@ -37,19 +43,23 @@ export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, presence
     <div className="desk-staged-row" data-kind="effect" data-row-id={effect.id}>
       <div className="min-w-0 flex-1">
         <p className="text-sm">
-          <button
-            type="button"
-            className="desk-name inline-flex items-center gap-1"
-            onClick={() => onInspect?.(effect.targetCharacterId, effect.targetName)}
-          >
-            <CharacterAvatar
-              characterId={effect.targetCharacterId}
-              name={effect.targetName}
-              version={effect.targetAvatarVersion}
-              size={16}
-            />
-            {effect.targetName}
-          </button>{" "}
+          {effect.targetCharacterId ? (
+            <button
+              type="button"
+              className="desk-name inline-flex items-center gap-1"
+              onClick={() => onInspect?.(effect.targetCharacterId, effect.targetName)}
+            >
+              <CharacterAvatar
+                characterId={effect.targetCharacterId}
+                name={effect.targetName}
+                version={effect.targetAvatarVersion}
+                size={16}
+              />
+              {effect.targetName}
+            </button>
+          ) : (
+            <span className="desk-name">Silo transfer</span>
+          )}{" "}
           <span className="mono">{effectSummary(effect, tagNames)}</span>
         </p>
         <p className="text-xs text-muted flex items-center gap-1">
@@ -64,16 +74,18 @@ export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, presence
         <StatusPill tone={state.tone}>{state.label}</StatusPill>
         {!frozen && (
           <>
-            <button type="button" className="btn-quiet" onClick={() => setEditing(true)} disabled={pending}>
-              Edit
-            </button>
+            {!isTransfer && (
+              <button type="button" className="btn-quiet" onClick={() => setEditing(true)} disabled={pending}>
+                Edit
+              </button>
+            )}
             <button type="button" className="btn-quiet" onClick={onDelete} disabled={pending}>
               Delete
             </button>
           </>
         )}
       </div>
-      {editing && (
+      {editing && !isTransfer && (
         <EffectComposer
           existing={effect}
           roster={roster}

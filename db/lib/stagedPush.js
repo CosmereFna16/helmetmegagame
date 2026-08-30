@@ -31,6 +31,7 @@
 const { Prisma } = require("@prisma/client");
 const { addResources, applyMoveEffects } = require("./moveEffects");
 const { TagOpError, validateTagOps, applyTagOpsInTx } = require("./tagOps");
+const { applyTransfer, InsufficientResourcesError } = require("./resourceTransfer");
 
 // What a quietly passed Routine gets told. sendDm writes the » prefix itself,
 // so this is raw text.
@@ -65,6 +66,32 @@ async function applyOneStagedEffect(prisma, row, turn, equipSlots) {
     const resources = Number.isInteger(row.payload?.resources) ? row.payload.resources : 0;
     if (resources) {
       snapshot.resources = await addResources(tx, row.targetCharacterId, resources);
+    }
+
+    // A party-to-party transfer, staged from the tray's own composer or the
+    // FactionsPanel's Silo control. Mutually exclusive with `resources` — see
+    // the payload comment on the schema. Applied blind from the snapshot
+    // taken at staging time (kind/id/name only), the same "never re-derive
+    // from live state" rule Request.effect follows: if a party was deleted
+    // between staging and push, InsufficientResourcesError below stands in
+    // for "that party no longer exists" and stamps the row Errored rather
+    // than silently dropping the ⬢.
+    const transfer = row.payload?.transfer ?? null;
+    if (transfer) {
+      await applyTransfer(tx, {
+        from: transfer.from,
+        to: transfer.to,
+        amount: transfer.amount,
+        ledger: {
+          actorDiscordUserId: row.createdByDiscordUserId,
+          actorCharacterId: null,
+          actorName: "GM (Adjudication)",
+          turnNumber: turn.number,
+          turnPhase: turn.phase,
+          note: `Staged transfer, turn ${turn.number}`,
+        },
+      });
+      snapshot.transfer = transfer;
     }
 
     const tagPoints = Number.isInteger(row.payload?.tagPoints) ? row.payload.tagPoints : 0;
@@ -163,12 +190,13 @@ async function runStagedPushPass(prisma, turn, config) {
         }
       }
     } catch (err) {
-      if (err instanceof TagOpError || err instanceof StagedZoneError) {
+      if (err instanceof TagOpError || err instanceof StagedZoneError || err instanceof InsufficientResourcesError) {
         // A GM staged something that no longer validates (the tag vanished
         // from the catalog, the target re-acquired an equip conflict, the
-        // zone was deleted or reworked into a group row...). Stamp it
-        // errored — payload preserved, appliedEffect says why — so the tray
-        // shows a verdict rather than an eternally-pending row.
+        // zone was deleted or reworked into a group row, a transfer's source
+        // no longer covers the amount...). Stamp it errored — payload
+        // preserved, appliedEffect says why — so the tray shows a verdict
+        // rather than an eternally-pending row.
         await prisma.stagedEffect
           .update({
             where: { id: row.id },

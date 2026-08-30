@@ -5,6 +5,8 @@ import { after } from "next/server";
 import { TURNS_PATH } from "@/lib/routes";
 import { redirect } from "next/navigation";
 import { prisma, isDynastyHead, isDynastyMember } from "@lifeweb/db";
+import { resolveParty as dbResolveParty } from "@lifeweb/db/lib/parties";
+import { applyTransfer, InsufficientResourcesError } from "@lifeweb/db/lib/resourceTransfer";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import {
@@ -109,56 +111,13 @@ function parseCount(raw, { min = 0, max = Number.MAX_SAFE_INTEGER } = {}) {
 // The bet is that you'll explain yourself afterwards, not that you can do it
 // from across the map. The zone comes back on every party so the caller can
 // ask.
-async function resolveParty(key, { allowDead = false } = {}) {
-  const [kind, id] = (key ?? "").split(":");
-  // A server action is a public endpoint, and a posted key of just
-  // "character" -- no colon, no id -- used to leave `id` undefined. Prisma
-  // DELETES an undefined field from a where clause rather than matching
-  // nothing, so "find the character with this id" quietly became "find any
-  // living character", and the transfer or the heal then ran against whoever
-  // came back first. `?? ""` matches nobody, which is the answer a malformed
-  // key deserves.
-  if (!id) return null;
-  if (kind === "character") {
-    // Looting is the one path that walks past the ALIVE filter — a corpse is
-    // still a "party" whose ⬢ someone else can pull. Every other caller (SEND
-    // transfer, healing payer, faction silo authority) leaves the flag off
-    // and gets the original ALIVE-only lookup.
-    const statusFilter = allowDead ? { in: ["ALIVE", "DEAD"] } : "ALIVE";
-    const c = await prisma.character.findFirst({
-      where: { id: id ?? "", status: statusFilter },
-      select: {
-        id: true,
-        name: true,
-        resources: true,
-        zoneId: true,
-        status: true,
-        buriedAt: true,
-        discordUserId: true,
-      },
-    });
-    return c
-      ? {
-          kind,
-          id: c.id,
-          name: c.name,
-          balance: c.resources,
-          zoneId: c.zoneId,
-          status: c.status,
-          buriedAt: c.buriedAt,
-          discordUserId: c.discordUserId,
-        }
-      : null;
-  }
-  if (kind === "faction") {
-    const f = await prisma.faction.findUnique({
-      where: { id: id ?? "" },
-      select: { id: true, name: true, silo: true, zoneId: true, zone: { select: { name: true } } },
-    });
-    if (!f || f.name === "Unaffiliated") return null;
-    return { kind, id: f.id, name: f.name, balance: f.silo, zoneId: f.zoneId, zoneName: f.zone?.name ?? null };
-  }
-  return null;
+//
+// Lives in db/lib/parties.js now, beside applyTransfer, so the turn-end push
+// and every GM transfer surface resolve the exact same key this request
+// type does. Re-exported as a local wrapper (prisma bound) since every call
+// site here already reads `resolveParty(key, opts)`.
+function resolveParty(key, opts) {
+  return dbResolveParty(prisma, key, opts);
 }
 
 async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount, direction: rawDirection, reason: rawReason }) {
@@ -232,33 +191,23 @@ async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount,
   // of them and surfacing it to that player as a generic failure. A total
   // order over the participants means both transactions queue instead.
   //
-  // The ledger still records the real direction: `delta` is carried with each
-  // party, so sorting only changes the order the two updates are issued in.
-  const legs = [
-    [from, -amount],
-    [to, amount],
-  ].sort(([a], [b]) => (a.kind === b.kind ? a.id.localeCompare(b.id) : a.kind.localeCompare(b.kind)));
-
+  // The ledger still records the real direction. applyTransfer (db/lib/
+  // resourceTransfer.js) does the sorting, the ordered legs, and the
+  // SiloTransaction rows — the same primitive the turn desk's staged
+  // transfers and every GM transfer surface use.
   await prisma.$transaction(async (tx) => {
-    for (const [party, delta] of legs) {
-      // moveResources refuses a debit the balance no longer covers, which
-      // aborts the whole transaction. The `amount > from.balance` check above
-      // is the friendly message; this is the one that two simultaneous
-      // transfers cannot both pass.
-      await moveResources(tx, party, delta);
-      if (party.kind === "faction") {
-        // Both directions get a SiloTransaction now — deposits into a silo
-        // previously left no ledger entry at all.
-        await tx.siloTransaction.create({
-          data: {
-            factionId: party.id,
-            amount: delta,
-            toCharacterId: to.kind === "character" ? to.id : null,
-            toName: to.name,
-            ...ledger,
-          },
-        });
-      }
+    // applyTransfer refuses a debit the balance no longer covers, which
+    // aborts the whole transaction. The `amount > from.balance` check above
+    // is the friendly message; this is the one that two simultaneous
+    // transfers cannot both pass. It throws InsufficientResourcesError (a
+    // bare Error, from db/lib) rather than UserError — guarded() only knows
+    // UserError, and Next redacts anything else into an opaque digest, so
+    // this is the one place that translation has to happen by hand.
+    try {
+      await applyTransfer(tx, { from, to, amount, ledger });
+    } catch (err) {
+      if (!(err instanceof InsufficientResourcesError)) throw err;
+      throw new UserError(err.message);
     }
 
     const effect = {

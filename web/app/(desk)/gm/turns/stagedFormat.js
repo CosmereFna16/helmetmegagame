@@ -5,9 +5,18 @@ export function tagNameLookup(tagCatalog) {
   return new Map(tagCatalog.map((t) => [t.id, t.name]));
 }
 
+function partyLabel(party) {
+  if (!party) return "?";
+  return party.kind === "faction" ? `${party.name} Silo` : party.name;
+}
+
 // "+3 ⬢ · +Explosion Burns · −Fine Meal ×2"
 export function effectSummary(effect, tagNames) {
   const parts = [];
+  if (effect.transfer) {
+    const { from, to, amount } = effect.transfer;
+    parts.push(`${partyLabel(from)} → ${partyLabel(to)} · ${amount} ⬢`);
+  }
   if (effect.resources) parts.push(`${effect.resources > 0 ? "+" : ""}${effect.resources} ⬢`);
   if (effect.tagPoints) parts.push(`${effect.tagPoints > 0 ? "+" : "−"}${Math.abs(effect.tagPoints)} tp`);
   for (const op of effect.tagOps ?? []) {

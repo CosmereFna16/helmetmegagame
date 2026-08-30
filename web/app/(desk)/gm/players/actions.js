@@ -10,6 +10,7 @@ import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import { getOpenTurn } from "@/lib/turn";
 import { withoutDmNoise, dmNoiseSql } from "@/lib/dmThread";
 import { MOVE_REVIEW_LABELS, moveKindLabel, rollLabel } from "@/lib/moves";
+import { gmTransferResources } from "@/lib/gmTransfer";
 
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
@@ -561,6 +562,22 @@ async function deleteGmNoteImpl({ noteId }) {
   await prisma.gmCharacterNote.delete({ where: { id: note.id } });
   revalidatePath(`/gm/players/${note.character.discordUserId}`);
   return {};
+}
+
+// FactionsPanel's "Move ⬢" control — the fix for GMs having no way to touch
+// a faction Silo at all. Full party-to-party: `fromKey`/`toKey` are each
+// "character:<id>" or "faction:<id>", so this also covers Silo -> Silo,
+// which has no staging model on the turn desk to fight and no reach gate to
+// satisfy (a GM isn't standing anywhere). See web/lib/gmTransfer.js.
+async function transferSiloResourcesImpl({ fromKey, toKey, amount, reason }) {
+  const result = await gmTransferResources({ fromKey, toKey, amount, reason });
+  revalidatePath("/gm/players", "layout");
+  revalidatePath("/faction");
+  return result;
+}
+
+export async function transferSiloResources(input) {
+  return guarded(() => transferSiloResourcesImpl(input));
 }
 
 export async function listGmNotes(input) {

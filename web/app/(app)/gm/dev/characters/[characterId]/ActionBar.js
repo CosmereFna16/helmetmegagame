@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useRefresh } from "@/app/components/useRefresh";
 import IconButton from "@/app/components/IconButton";
 import RequestDialog from "@/app/components/RequestDialog";
+import Select from "@/app/components/Select";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import {
   SkullIcon,
@@ -23,6 +24,7 @@ import {
   MealIcon,
   PointsIcon,
   MapIcon,
+  ResourcesIcon,
 } from "@/app/components/icons";
 import { computeBudget } from "@/lib/characterCreation";
 import {
@@ -34,6 +36,7 @@ import {
   resyncDiscord,
   teleportCharacter,
   deleteCharacter,
+  transferResources,
 } from "./actions";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 
@@ -57,6 +60,7 @@ export default function ActionBar({
   hasActed,
   openTurn,
   zones,
+  factions,
   tags,
   held,
   feed,
@@ -79,8 +83,11 @@ export default function ActionBar({
   // sit in a row of verbs that fire immediately, so without a line saying so
   // they read as having silently done nothing.
   const [staged, setStaged] = useState(null);
-  const [dialog, setDialog] = useState(null); // "kill" | "restore" | "spend" | "message" | "delete" | "wound"
+  const [dialog, setDialog] = useState(null); // "kill" | "restore" | "spend" | "message" | "delete" | "wound" | "transfer"
   const [draft, setDraft] = useState("");
+  const [transferFactionId, setTransferFactionId] = useState("");
+  const [transferDirection, setTransferDirection] = useState("pay");
+  const [transferAmount, setTransferAmount] = useState("");
 
   const alive = character.status === "ALIVE";
   const heldIds = new Set(held.map((h) => h.tagId));
@@ -218,6 +225,12 @@ export default function ActionBar({
             label={alive ? `Teleport ${character.name}` : "A corpse can't be moved"}
             disabled={pending || !alive}
             onClick={() => setDialog("teleport")}
+          />
+          <IconButton
+            icon={ResourcesIcon}
+            label="Transfer ⬢ with a faction Silo"
+            disabled={pending || !factions?.length}
+            onClick={() => setDialog("transfer")}
           />
         </div>
 
@@ -397,6 +410,60 @@ export default function ActionBar({
           </div>
         </Modal>
       )}
+
+      {/* Immediate, not staged — the counterparty here is a faction Silo, not
+          this character's own pending diff, so half of it Cancel-ing with
+          the sheet edit would be incoherent. See web/lib/gmTransfer.js. */}
+      <RequestDialog
+        open={dialog === "transfer"}
+        title={`Transfer ⬢ for ${character.name}`}
+        submitLabel="Transfer"
+        busy={pending}
+        canSubmit={Boolean(transferFactionId) && Number(transferAmount) > 0}
+        onCancel={() => setDialog(null)}
+        onConfirm={(reason) =>
+          run(() =>
+            transferResources({
+              characterId: character.id,
+              factionId: transferFactionId,
+              direction: transferDirection,
+              amount: transferAmount,
+              reason,
+            }),
+          )
+        }
+      >
+        <label className="field">
+          <span className="field-label">Direction</span>
+          <Select value={transferDirection} onChange={(e) => setTransferDirection(e.target.value)}>
+            <option value="pay">Silo pays {character.name}</option>
+            <option value="collect">{character.name} pays the Silo</option>
+          </Select>
+        </label>
+        <label className="field">
+          <span className="field-label">Silo</span>
+          <Select value={transferFactionId} onChange={(e) => setTransferFactionId(e.target.value)}>
+            <option value="">— pick a faction —</option>
+            {(factions ?? [])
+              .filter((f) => f.name !== "Unaffiliated")
+              .map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name} · {f.silo} ⬢
+                </option>
+              ))}
+          </Select>
+        </label>
+        <label className="field" style={{ width: "10rem" }}>
+          <span className="field-label">Amount</span>
+          <input
+            type="number"
+            min="1"
+            value={transferAmount}
+            onChange={(e) => setTransferAmount(e.target.value)}
+            placeholder="0"
+          />
+        </label>
+      </RequestDialog>
 
       {dialog === "wound" && (
         <Modal title="Inflict a wound" onClose={() => setDialog(null)}>

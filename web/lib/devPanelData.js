@@ -39,7 +39,9 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     member,
     pendingStaged,
   ] = await Promise.all([
-    prisma.faction.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    // silo rides along for the ActionBar's Transfer dialog — showing the
+    // Silo's current balance beside its name in the party picker.
+    prisma.faction.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, silo: true } }),
     // The zone picker's options: PRESENCE zones only — a character stands in
     // a surface zone or a single cave level, never on the Caves group row
     // (see Character.zoneId in schema.prisma). Authoring order, so the list
@@ -99,9 +101,21 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
 
   const openTurnAction = openTurn ? moves.find((m) => m.turnId === openTurn.id) ?? null : null;
 
+  // A staged transfer this character is the "to" end of is a pending credit;
+  // the "from" end is a pending debit. Folded into the same ⬢ figure as a
+  // plain staged `resources` mint/burn so a GM sees the whole pending change
+  // to the sheet at once.
+  function transferDelta(e) {
+    const t = e.payload?.transfer;
+    if (!t) return 0;
+    if (t.to?.kind === "character" && t.to.id === characterId) return t.amount;
+    if (t.from?.kind === "character" && t.from.id === characterId) return -t.amount;
+    return 0;
+  }
+
   const stagedForPush = pendingStaged.length
     ? {
-        resources: pendingStaged.reduce((sum, e) => sum + (e.payload?.resources ?? 0), 0),
+        resources: pendingStaged.reduce((sum, e) => sum + (e.payload?.resources ?? 0) + transferDelta(e), 0),
         tagPoints: pendingStaged.reduce((sum, e) => sum + (e.payload?.tagPoints ?? 0), 0),
         tagOps: pendingStaged.reduce((sum, e) => sum + (e.payload?.tagOps?.length ?? 0), 0),
       }

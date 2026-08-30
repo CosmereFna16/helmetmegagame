@@ -5,6 +5,7 @@ import { TURNS_PATH } from "@/lib/routes";
 import { prisma, rollDie, Prisma } from "@lifeweb/db";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { TagOpError, validateTagOps } from "@lifeweb/db/lib/tagOps";
+import { resolveParty, partyLabel } from "@lifeweb/db/lib/parties";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { getGmSession, killCharacter, listGuildMembers, sendDm } from "@/lib/discordGuild";
 import { REQUEST_EFFECTS } from "@/lib/requestEffects";
@@ -374,6 +375,68 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollI
 
   revalidatePath(TURNS_PATH, "page");
   return { count: created.length, batchId };
+}
+
+// A staged party-to-party transfer — a character or a faction Silo on either
+// end, applied by the same turn-end push as every other staged row (see
+// db/lib/stagedPush.js). Its own action rather than another
+// createStagedEffectsImpl payload shape: a transfer is 1:1 by nature (no
+// multi-target batch), and the balance check has to run against LIVE
+// balances at stage time so the composer can say "that's more than they
+// have" before the GM commits to it — createStagedEffectsImpl's resources
+// field never reads a balance at all, because a mint/burn can't overdraw.
+//
+// targetCharacterId files the row under: the character end, if exactly one
+// end is a character; the RECIPIENT, if both ends are (they're the one who
+// gets staged-diff visibility and the eventual DM); null if neither is —
+// the Silo -> Silo case, which has no per-character home in the tray.
+async function createStagedTransferImpl({ fromKey, toKey, amount: rawAmount, moveId, cavingRollId }) {
+  const session = await requireGm();
+  const amount = Number.parseInt(rawAmount, 10);
+  if (!Number.isInteger(amount) || amount < 1) throw new UserError("Amount must be a positive whole number.");
+  if (amount > MAX_STAGED_RESOURCES) {
+    throw new UserError(`That's over the ±${MAX_STAGED_RESOURCES} ⬢ sanity cap — stage it in parts if you mean it.`);
+  }
+
+  const [from, to] = await Promise.all([resolveParty(prisma, fromKey), resolveParty(prisma, toKey)]);
+  if (!from) throw new UserError("Unknown source.");
+  if (!to) throw new UserError("Unknown recipient.");
+  if (from.kind === to.kind && from.id === to.id) throw new UserError("Source and recipient are the same.");
+  if (amount > from.balance) throw new UserError(`${partyLabel(from)} only has ${from.balance} ⬢.`);
+
+  const openTurn = await requireOpenTurn();
+  const targetCharacterId = to.kind === "character" ? to.id : from.kind === "character" ? from.id : null;
+  const payload = {
+    transfer: {
+      from: { kind: from.kind, id: from.id, name: from.name },
+      to: { kind: to.kind, id: to.id, name: to.name },
+      amount,
+    },
+  };
+
+  const created = await prisma.stagedEffect.create({
+    data: {
+      turnId: openTurn.id,
+      moveId: moveId || null,
+      cavingRollId: cavingRollId || null,
+      targetCharacterId,
+      createdByDiscordUserId: session.discordUserId,
+      payload,
+    },
+    select: { id: true },
+  });
+  await retargetIfTurnClosed(prisma.stagedEffect, [created.id], openTurn.id);
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "staged_effects_created",
+      details: { targets: 1, moveId: moveId || null, payload },
+    },
+  });
+
+  revalidatePath(TURNS_PATH, "page");
+  return { id: created.id };
 }
 
 async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, tagOps, zoneId }) {
@@ -1192,6 +1255,9 @@ export async function resendStagedMessage(input) {
 }
 export async function createStagedEffects(input) {
   return guarded(() => createStagedEffectsImpl(input));
+}
+export async function createStagedTransfer(input) {
+  return guarded(() => createStagedTransferImpl(input));
 }
 export async function updateStagedEffect(input) {
   return guarded(() => updateStagedEffectImpl(input));

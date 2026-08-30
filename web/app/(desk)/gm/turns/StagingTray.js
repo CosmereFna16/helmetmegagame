@@ -5,6 +5,7 @@ import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useRefresh } from "@/app/components/useRefresh";
 import { StagedEffectRow, StagedMessageRow } from "./StagedItems";
 import EffectComposer from "./EffectComposer";
+import TransferComposer from "./TransferComposer";
 import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import { retargetMissedStaging } from "./actions";
@@ -50,6 +51,7 @@ export default function StagingTray({
   moves,
   roster,
   presenceZones,
+  factions,
   tagCatalog,
   onInspect,
   onOpenPreview,
@@ -187,6 +189,9 @@ export default function StagingTray({
             <button type="button" className="btn-quiet" onClick={() => setComposer("effect")}>
               + Effect
             </button>
+            <button type="button" className="btn-quiet" onClick={() => setComposer("transfer")}>
+              + Transfer
+            </button>
             <button type="button" className="btn-quiet" onClick={() => setComposer("message")}>
               + Message
             </button>
@@ -284,6 +289,17 @@ export default function StagingTray({
           roster={roster}
           tagCatalog={tagCatalog}
           presenceZones={presenceZones}
+          onDone={() => {
+            setComposer(null);
+            refresh();
+          }}
+          onCancel={() => setComposer(null)}
+        />
+      )}
+      {composer === "transfer" && (
+        <TransferComposer
+          roster={roster}
+          factions={factions}
           onDone={() => {
             setComposer(null);
             refresh();

@@ -134,12 +134,16 @@ export function stagedEffectRow(e, { usernameById, presenceZoneNameById, openTur
     moveId: e.moveId,
     cavingRollId: e.cavingRollId,
     batchId: e.batchId,
+    // Nullable: a Silo -> Silo transfer has no character end.
     targetCharacterId: e.targetCharacterId,
-    targetName: e.targetCharacter?.name ?? "(deleted)",
+    targetName: e.targetCharacterId ? (e.targetCharacter?.name ?? "(deleted)") : null,
     targetAvatarVersion: e.targetCharacter?.updatedAt ? e.targetCharacter.updatedAt.getTime() : null,
     resources: e.payload?.resources ?? 0,
     tagPoints: e.payload?.tagPoints ?? 0,
     tagOps: e.payload?.tagOps ?? [],
+    // { from: {kind,id,name}, to: {kind,id,name}, amount } — mutually
+    // exclusive with `resources`, see StagedEffect.payload in schema.prisma.
+    transfer: e.payload?.transfer ?? null,
     zoneId: e.payload?.zoneId ?? null,
     zoneName: e.payload?.zoneId ? (presenceZoneNameById.get(e.payload.zoneId) ?? "(deleted zone)") : null,
     applied: Boolean(e.appliedAt),

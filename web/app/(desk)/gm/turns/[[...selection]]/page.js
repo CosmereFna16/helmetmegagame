@@ -162,6 +162,7 @@ export default async function TurnsWorkspacePage({ params }) {
     myZones,
     gmProfiles,
     resolvedTurns,
+    factions,
   ] = await Promise.all([
     openTurn
       ? prisma.action.findMany({
@@ -259,6 +260,14 @@ export default async function TurnsWorkspacePage({ params }) {
     // Moves are fetched on demand by getMoveHistory when a GM actually
     // opens the lens, so the open turn's desk never pays for history it
     // isn't looking at (and neither does the 45s router.refresh()).
+    // The transfer composer's Silo picker. Unaffiliated has no Silo worth
+    // moving ⬢ into or out of — same exclusion db/lib/parties.js#resolveParty
+    // applies.
+    prisma.faction.findMany({
+      where: { name: { not: "Unaffiliated" } },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, silo: true },
+    }),
     prisma.turn.findMany({
       where: { status: "RESOLVED" },
       orderBy: { number: "desc" },
@@ -387,6 +396,7 @@ export default async function TurnsWorkspacePage({ params }) {
         username: usernameById.get(c.discordUserId) ?? "",
       }))}
       presenceZones={presenceZones}
+      factions={factions}
       moves={moves}
       requests={requestRows}
       cavingRolls={cavingRows}

@@ -144,6 +144,15 @@ at it. It stays on `/gm/dev`.
 The faction hierarchy is a view of this table rather than a separate tab, and
 `/gm/players?tab=factions` still selects it — `/faction` sends a GM here.
 
+Each faction row's Silo cell carries a **Move ⬢** control — the fix for GMs
+having no way to touch a faction Silo before this beyond `/gm/dev/factions`'s
+superadmin-only absolute-set field. It's open to any GM, applies immediately
+(no `Request` row, no Undo — the reverse transfer is the reversal), and
+covers every counterparty a Silo can trade with, including another Silo
+(`web/lib/gmTransfer.js`, `FACTIONS.md` §5). The character half of its picker
+is built from the faction rows already on the page rather than a second
+roster fetch.
+
 ## 5. The conversation
 
 A real chat pane: the transcript takes the height that's left and scrolls

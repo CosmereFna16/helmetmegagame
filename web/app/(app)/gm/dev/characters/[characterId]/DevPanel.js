@@ -201,6 +201,7 @@ export default function DevPanel({
         hasActed={Boolean(openTurnAction)}
         openTurn={openTurn}
         zones={zones}
+        factions={factions}
         tags={tags}
         held={held}
         feed={feed}

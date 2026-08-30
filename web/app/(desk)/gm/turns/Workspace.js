@@ -148,6 +148,7 @@ export default function Workspace({
   tagCatalog,
   roster,
   presenceZones,
+  factions,
   moves,
   requests,
   cavingRolls,
@@ -605,6 +606,7 @@ export default function Workspace({
         moves={moves}
         roster={roster}
         presenceZones={presenceZones}
+        factions={factions}
         tagCatalog={tagCatalog}
         onInspect={inspect}
         onOpenPreview={() => setPreviewOpen(true)}

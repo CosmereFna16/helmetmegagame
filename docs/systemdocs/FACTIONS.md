@@ -134,13 +134,14 @@ being a member of that faction does.
 
 ## 5. Moving Resources out of a Silo
 
-**There is no direct transfer UI.** `/faction` had a "Transfer from Silo" panel
-and it was removed: it was a direct mutation with an optional note and no
-`Request` row, so a GM could neither review nor undo it.
+**There is no direct player-facing transfer UI.** `/faction` had a "Transfer
+from Silo" panel and it was removed: it was a direct mutation with an
+optional note and no `Request` row, so a GM could neither review nor undo it.
 
-The one way out is the `TRANSFER_RESOURCES` request on `/character` (the ⬢
-button in the Actions grid, `RequestActionsProvider.js`), which demands a reason, appears in the Requests
-tab, and is undoable. See `REQUESTS.md`.
+The one way out for a player is the `TRANSFER_RESOURCES` request on
+`/character` (the ⬢ button in the Actions grid, `RequestActionsProvider.js`),
+which demands a reason, appears in the Requests tab, and is undoable. See
+`REQUESTS.md`.
 
 It is also gated on **reach** (§3b): the acting character has to be
 physically standing in the Silo's seat zone. `HEAL_CHARACTER`'s Silo payer is
@@ -149,6 +150,20 @@ hole the moment transfers grew a reach gate.
 
 `SiloTransaction` rows are still written on **both** directions of that
 transfer, so `/faction`'s Silo history is unchanged.
+
+**A GM has a door the player-facing one deliberately lacks.** Before this, no
+ordinary GM could move ⬢ into or out of a Silo at all — the only editor was
+`/gm/dev/factions`'s absolute "set the Silo to N" field, gated
+superadmin-only. `/gm/players`' Factions tab now carries a "Move ⬢" control
+per faction row (`FactionsPanel.js`), open to any GM, applying immediately
+rather than through a `Request` (no reason review, no one-click Undo — the
+reverse transfer is the reversal). It covers every counterparty a Silo can
+trade with, including **Silo → Silo**, and skips the reach gate (a GM isn't
+standing anywhere on the map) while keeping the balance check. See
+`web/lib/gmTransfer.js`. The adjudication desk (`/gm/turns`) has the same
+transfer as a **staged** row instead — see `ADJUDICATION.md`. The
+superadmin-only absolute field on `/gm/dev/factions` is unchanged and stays
+the blunt correction tool for when the number itself is simply wrong.
 
 ## 6. `SiloTransaction` is a ledger, not a relation
 

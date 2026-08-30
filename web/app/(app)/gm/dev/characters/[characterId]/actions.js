@@ -33,6 +33,7 @@ import {
 import { applyPendingInvites } from "@lifeweb/db/lib/threadInvites";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
 import { findOpenTurnAction, lockIsLive, deleteActionRestoringTurn } from "@/lib/moveEconomy";
+import { gmTransferResources } from "@/lib/gmTransfer";
 
 // Everything here is gated on GM membership, not superadmin: this panel is
 // reachable from every character-name link in the app and an in-game GM is
@@ -407,6 +408,25 @@ async function spendTurnImpl({ characterId, description }) {
   return { actionId: created.id };
 }
 
+// Immediate, not staged — see web/lib/gmTransfer.js's own comment for why. A
+// GM can pay this character out of a faction Silo ("pay") or pull ⬢ from
+// them into one ("collect"), without the player-side reach gate (a GM isn't
+// standing anywhere) but with the same balance check every transfer gets.
+async function transferResourcesImpl({ characterId, factionId, direction, amount, reason }) {
+  const character = await loadCharacter(characterId);
+  const characterKey = `character:${characterId}`;
+  const factionKey = `faction:${factionId}`;
+  const result = await gmTransferResources({
+    fromKey: direction === "collect" ? characterKey : factionKey,
+    toKey: direction === "collect" ? factionKey : characterKey,
+    amount,
+    reason,
+  });
+  repaint(characterId);
+  revalidatePath("/faction");
+  return { name: character.name, ...result };
+}
+
 // One recipient, so sendDm directly. sendGmBroadcast in gm/messages/actions.js
 // exists for the sequential 100-recipient fan-out and would be the wrong shape
 // here.
@@ -673,6 +693,9 @@ export async function restoreTurn(input) {
 }
 export async function spendTurn(input) {
   return guarded(() => spendTurnImpl(input));
+}
+export async function transferResources(input) {
+  return guarded(() => transferResourcesImpl(input));
 }
 export async function messageCharacter(input) {
   return guarded(() => messageCharacterImpl(input));

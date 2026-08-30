@@ -216,6 +216,31 @@ Editing a Move is **not** duplicated here. `/gm/turns` owns that, with the
 cooperative lock, the dirty guard, Solve/Reject and the dice invariant on a
 Kind switch; the Turn tab links across.
 
+## 7a. Resource transfers
+
+The Identity tab's Resources field only mints or burns ⬢ — it has no
+counterparty, because a staged edit is one character's diff. "The Watchmen
+paid Sera 8 ⬢" needs a party on both ends, which is what the **Transfer ⬢**
+button (`ActionBar.js`, `ResourcesIcon`) is for: it pins this character as
+one end and asks for a faction Silo as the other, plus a direction (the Silo
+pays them, or they pay the Silo) and an amount.
+
+It is **immediate, not staged**, unlike every other Dev Panel edit. The
+counterparty is a faction, not this panel's own subject, so having half of it
+wait on *this* character's Apply/Cancel would be incoherent — the same
+reasoning that keeps Kill, Revive, Restore turn and Spend turn off the staged
+diff. It goes through `web/lib/gmTransfer.js`, the same primitive the
+adjudication desk's staged transfers and `/gm/players`' FactionsPanel use
+(`db/lib/resourceTransfer.js#applyTransfer`), open to any GM — not just a
+superadmin — and writes an `AuditLog` row plus a `SiloTransaction` row rather
+than a `Request`, so there is no one-click Undo; the reverse transfer is the
+reversal. See `FACTIONS.md` §5.
+
+A character-to-character or Silo-to-Silo transfer isn't offered here — this
+panel is keyed to one character, so its transfer door only pairs *that*
+character with a Silo. Silo-to-Silo (and any other pairing) lives on
+`/gm/players`' FactionsPanel and the adjudication desk instead.
+
 ## 8. Custom tags
 
 `/gm/dev/tags` lists the whole catalog and lets a GM author their own. A

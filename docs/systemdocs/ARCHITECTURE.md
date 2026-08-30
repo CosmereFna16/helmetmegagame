@@ -43,6 +43,15 @@ exceptions, all requiring by path instead:
 - **`db/lib/factionPermissions.js`** — same parameter convention, with
   `web/lib/factionPermissions.js` as a thin shim binding the singleton so web
   callers keep the shorter signature.
+- **`db/lib/parties.js`** and **`db/lib/resourceTransfer.js`** — the shared
+  "move ⬢ between a character or a faction Silo" primitive
+  (`resolveParty`/`partyKey`/`partyLabel`, `moveParty`/`applyTransfer`), same
+  prisma-first-parameter convention. Promoted out of the player-facing
+  `TRANSFER_RESOURCES` request (`web/app/(app)/character/requestActions.js`,
+  `web/lib/requestEffects.js`) so the turn-end push (`db/lib/stagedPush.js`,
+  CommonJS, no Next.js request context) and every GM transfer surface
+  (`web/lib/gmTransfer.js`) share the exact same clamp and ordering. See
+  `FACTIONS.md` §5 and `ADJUDICATION.md` §1.
 
 A module reached from a **client component** must not come through the barrel
 at all — the barrel pulls in Prisma and the YAML syncs (`node:fs`), neither of

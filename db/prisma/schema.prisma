@@ -1656,8 +1656,14 @@ model StagedEffect {
   cavingRollId String?
   cavingRoll   CavingRoll? @relation(fields: [cavingRollId], references: [id], onDelete: SetNull)
 
-  targetCharacterId String
-  targetCharacter   Character @relation(fields: [targetCharacterId], references: [id], onDelete: Cascade)
+  // Nullable: a Silo -> Silo transfer has no character end. The filing rule
+  // is "the character end of this row, if any" — the recipient when both
+  // ends of a transfer are characters (they're the one who gets the DM),
+  // null when neither is. Every other staged effect (resources/tagPoints/
+  // tagOps/zone) always targets exactly one character, so this stays
+  // required in practice for every payload shape but `transfer`.
+  targetCharacterId String?
+  targetCharacter   Character? @relation(fields: [targetCharacterId], references: [id], onDelete: Cascade)
 
   // Snapshot, no FK — log-table convention.
   createdByDiscordUserId String
@@ -1670,7 +1676,10 @@ model StagedEffect {
   // (see db/lib/tagOps.js): {tagId, op: add|remove|patch, quantity?, source?,
   // expiry?, equipped?}. May also carry `zoneId?: String` — a staged
   // relocation, applied as a raw zone write at the push with the Discord
-  // half handed to db/lib/zoneMove.js in the side-effect thunk.
+  // half handed to db/lib/zoneMove.js in the side-effect thunk. May instead
+  // carry `transfer?: { from: {kind,id,name}, to: {kind,id,name}, amount }`
+  // — mutually exclusive with `resources`; a row either mints/burns ⬢ from
+  // nowhere or moves it between two named parties, never both.
   payload Json
 
   appliedAt     DateTime?
