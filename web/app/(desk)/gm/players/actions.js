@@ -8,7 +8,7 @@ import { getGmSession, sendDm } from "@/lib/discordGuild";
 import { UserError, guarded } from "@/lib/actionResult";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import { getOpenTurn } from "@/lib/turn";
-import { withoutDmNoise } from "@/lib/dmThread";
+import { withoutDmNoise, dmNoiseSql } from "@/lib/dmThread";
 import { MOVE_REVIEW_LABELS, moveKindLabel, rollLabel } from "@/lib/moves";
 
 async function requireGm() {
@@ -175,8 +175,7 @@ export async function searchConversations({ q }) {
              MAX(dm."createdAt") AS "lastAt"
       FROM "DirectMessage" dm
       WHERE dm."content" ILIKE ${pattern}
-        AND ("source" IS DISTINCT FROM 'system_notice')
-        AND (("meta"->>'embed') IS DISTINCT FROM 'true')
+        AND ${dmNoiseSql("dm")}
       GROUP BY dm."discordUserId"
       ORDER BY MAX(dm."createdAt") DESC
       LIMIT ${CONVERSATION_SEARCH_LIMIT}

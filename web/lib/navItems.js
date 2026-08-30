@@ -1,6 +1,7 @@
 import { prisma, MORTUS_SLUG, MERCHANT_LICENSE_SLUG } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
+import { dmNoiseSql } from "@/lib/dmThread";
 
 // The nav rail's item list, shared by both route groups. It used to live
 // inside (app)/layout.js, which was fine while (app) was the only group that
@@ -63,6 +64,12 @@ async function loadUnreadConversationCount(discordUserId) {
   // Distinct players with an INBOUND row newer than this GM's read cursor —
   // the same shape the messages layout uses per-conversation, collapsed to
   // one number for the rail badge.
+  //
+  // dmNoiseSql is not optional here. This query used to have no noise
+  // predicate at all, so every ✏️-edit reply bumped the badge and rang
+  // InboxChime — ~21 a day — while the desk it points at correctly counted
+  // none. A rail that says "3 unread" over a desk showing zero is worse than
+  // no badge: it trains GMs to ignore it.
   const rows = await prisma.$queryRaw`
     SELECT COUNT(DISTINCT dm."discordUserId")::int AS "count"
     FROM "DirectMessage" dm
@@ -71,6 +78,7 @@ async function loadUnreadConversationCount(discordUserId) {
       AND cr."gmDiscordUserId" = ${discordUserId}
     WHERE dm."direction" = 'INBOUND'
       AND dm."createdAt" > COALESCE(cr."lastReadAt", to_timestamp(0))
+      AND ${dmNoiseSql("dm")}
   `;
   return rows[0]?.count ?? 0;
 }

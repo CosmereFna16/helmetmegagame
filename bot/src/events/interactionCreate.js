@@ -27,6 +27,12 @@ const {
 const { resolveChannelContext } = require("../lib/channels");
 const { ack, respond, scheduleDismiss } = require("../lib/respond");
 const { handleReportOpen, handleReportClose } = require("../lib/reportChannel");
+const {
+  OPEN_PREFIX: EDIT_OPEN_PREFIX,
+  MODAL_PREFIX: EDIT_MODAL_PREFIX,
+  handleEditOpen,
+  handleEditSubmit,
+} = require("../lib/editModal");
 const { OPEN_BUTTON_ID: REPORT_OPEN_ID, CLOSE_BUTTON_ID: REPORT_CLOSE_ID } = require("@lifeweb/db/lib/reportChannelAccess");
 
 // Discord's hard cap on select-menu options, and on max_values with them.
@@ -1084,6 +1090,10 @@ module.exports = {
         if (interaction.customId === "say:open") return void (await handleSpeakOpen(interaction));
         if (interaction.customId === REPORT_OPEN_ID) return void (await handleReportOpen(interaction));
         if (interaction.customId === REPORT_CLOSE_ID) return void (await handleReportClose(interaction));
+        // Arrives in a DM, so guild/member are null — handleEditOpen resolves
+        // the author from recentProxies instead. It opens a modal, so it must
+        // NOT be acked first.
+        if (interaction.customId.startsWith(EDIT_OPEN_PREFIX)) return void (await handleEditOpen(interaction));
       } else if (interaction.isStringSelectMenu()) {
         if (interaction.customId === "zone:place") return void (await handlePlaceSelect(interaction));
         if (interaction.customId === "say:pick") return void (await handleSpeakPick(interaction));
@@ -1101,6 +1111,7 @@ module.exports = {
         if (interaction.customId.startsWith("say:send:")) {
           return void (await handleSpeakSubmit(interaction, interaction.customId.slice("say:send:".length)));
         }
+        if (interaction.customId.startsWith(EDIT_MODAL_PREFIX)) return void (await handleEditSubmit(interaction));
       }
     } catch (err) {
       console.error("interactionCreate handler failed:", err);

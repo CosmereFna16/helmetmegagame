@@ -148,6 +148,14 @@ parsed by literal `startsWith` + `slice`.
 | `say:open` | Button | Show the Speak picker |
 | `say:pick` | Select | Pick a destination, then show the Speak modal |
 | `heal:pick:{characterId}` | Select | Clear the chosen afflictions |
+| `edit:open:{messageId}` | Button | Show the Edit-message modal, prefilled |
+| `edit:send:{messageId}` | Modal | Rewrite a proxied message |
+
+**The two `edit:` ids arrive in a DM**, from the button the ✏️ reaction sends
+(`bot/src/lib/editModal.js`, `PROXYING.md` §4). `interaction.guild` and
+`.member` are null there, so both handlers resolve the author from
+`recentProxies` rather than from the guild — and `edit:open:` opens a modal, so
+it is one of the handlers that must **not** ack first.
 
 **The travel flow is `zone:`-namespaced, but the console button is still
 `loc:open`** — that id is baked into the standing `#turns` console message, so

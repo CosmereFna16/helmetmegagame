@@ -8,7 +8,7 @@ const {
   satisfiedSkillIds,
   medicallyVisibleTags,
 } = require("@lifeweb/db/lib/medicalVision");
-const { updateArchiveMessage, deleteArchiveMessage } = require("@lifeweb/db/lib/archive");
+const { deleteArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { recentProxies, webhookClientFor } = require("../lib/proxy");
 const { resolveChannelContext } = require("../lib/channels");
 const { GHOST_LINE, claimGhostWhisper } = require("@lifeweb/db/lib/ghostWhisper");
@@ -34,7 +34,7 @@ function fitDescription(value) {
   return text.length > EMBED_DESCRIPTION_LIMIT ? `${text.slice(0, EMBED_DESCRIPTION_LIMIT - 1)}…` : text;
 }
 const { sendDm } = require("../lib/dm");
-const { expectReply } = require("../lib/pendingPrompts");
+const { buildEditPrompt, stashEdit } = require("../lib/editModal");
 
 const DELETE_EMOJI = "❌"; // ❌
 const EDIT_EMOJIS = ["✏️", "📝"]; // ✏️ pencil, 📝 memo (pencil and paper)
@@ -348,43 +348,18 @@ module.exports = {
 
     if (EDIT_EMOJIS.includes(emoji)) {
       if (!isOwner) return;
-      let dm;
-      try {
-        ({ dm } = await sendDm(user, "» *Reply here with the new text for that message (60 seconds).*", {
-          source: "system_notice",
-        }));
-      } catch {
-        return;
-      }
-      // Armed only once the prompt actually went out: the reply is filed by
-      // messageCreate the moment it lands and must find this note set, but a
-      // prompt Discord refused (DMs closed) must not swallow the player's
-      // next unrelated message.
-      expectReply(user.id, "edit");
-
-      const collected = await dm
-        .awaitMessages({
-          filter: (m) => m.author.id === user.id,
-          max: 1,
-          time: 60_000,
-        })
-        .catch(() => null);
-
-      const reply = collected?.first();
-      if (!reply) {
-        await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
-        return;
-      }
-
-      const webhookClient = webhookClientFor({ id: proxy.webhookId, token: proxy.webhookToken });
-      await webhookClient
-        .editMessage(reaction.message.id, { content: reply.content, threadId: proxy.threadId })
-        // Only mirror the edit into the transcript once Discord has accepted
-        // it, or a rejected edit (too old) would leave /archive showing text
-        // that was never actually posted.
-        .then(() => updateArchiveMessage(prisma, reaction.message.id, reply.content))
-        .then(() => sendDm(user, "» *Updated.*", { source: "system_notice" }))
-        .catch(() => sendDm(user, "» *Couldn't update that message, it may be too old.*", { source: "system_notice" }));
+      // The reaction can only hand off — it carries no interaction token, so
+      // no modal can open from here. Stash the current text (the message was
+      // fetched above, so this is live even after a previous edit) and DM a
+      // button; the click is an interaction, and that opens the modal.
+      // See bot/src/lib/editModal.js for why this replaced a DM collector.
+      stashEdit(reaction.message.id, reaction.message.content);
+      // A refused DM (the player has them closed) is logged, not fatal: the
+      // reaction still comes off below, so the next press is a fresh event
+      // rather than a no-op on one that is already theirs.
+      await sendDm(user, buildEditPrompt(reaction.message.id), { source: "system_notice" }).catch((err) =>
+        console.error(`Couldn't send the edit prompt to ${user.id}:`, err),
+      );
       await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
       return;
     }

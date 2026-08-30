@@ -2,7 +2,6 @@ const { prisma, concealedAlias } = require("@lifeweb/db");
 const { sendAsCharacter } = require("../lib/proxy");
 const { isDesignatedTupperChannel, resolveChannelContext } = require("../lib/channels");
 const { sendDm } = require("../lib/dm");
-const { takeReply, PROMPT_REPLY_SOURCE } = require("../lib/pendingPrompts");
 const { REPORT_CHANNEL_ID } = require("@lifeweb/db/lib/reportChannelAccess");
 const {
   canHearPing,
@@ -52,21 +51,21 @@ module.exports = {
     if (!message.inGuild()) {
       const attachmentNames = message.attachments.size > 0 ? [...message.attachments.values()].map((a) => a.name) : null;
       const content = message.content || (attachmentNames ? `*(attachment: ${attachmentNames.join(", ")})*` : "");
-      // A reply to one of the bot's own prompts (the ✏️ edit collector) is not
-      // mail for the GMs — it's the second half of a mechanic that already
-      // consumed it. Filed under its own source so the desks can skip it
-      // instead of counting it unread. See bot/src/lib/pendingPrompts.js.
-      const prompt = takeReply(message.author.id);
-      const meta = attachmentNames ? { attachments: attachmentNames } : undefined;
+      // Every inbound DM is mail for the GMs now. The one flow that used to
+      // put non-mail here — the ✏️ edit collector, which asked the player to
+      // type the replacement text into this same DM — is a button and a modal
+      // instead (bot/src/lib/editModal.js), so nothing a player types for a
+      // mechanic travels as a DM message any more. The read side still filters
+      // the old source: "prompt_reply" rows; see web/lib/dmThread.js.
       await prisma.directMessage
         .create({
           data: {
             discordUserId: message.author.id,
             direction: "INBOUND",
             content,
-            source: prompt ? PROMPT_REPLY_SOURCE : "player",
+            source: "player",
             discordMessageId: message.id,
-            meta: prompt ? { ...meta, purpose: prompt } : meta,
+            meta: attachmentNames ? { attachments: attachmentNames } : undefined,
           },
         })
         .catch(() => {});

@@ -3,7 +3,7 @@ import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getMyZones } from "@/lib/gmZone";
 import { getOpenTurn } from "@/lib/turn";
 import { getGmProfiles } from "@/lib/gmProfiles";
-import { withoutDmNoise } from "@/lib/dmThread";
+import { withoutDmNoise, dmNoiseSql } from "@/lib/dmThread";
 import PlayerRail from "./PlayerRail";
 import DeskHeader from "@/app/components/DeskHeader";
 import InboxPoller from "./InboxPoller";
@@ -31,11 +31,11 @@ export default async function PlayerDeskLayout({ children }) {
     await Promise.all([
     prisma.directMessage.groupBy({
       by: ["discordUserId"],
-      // Same noise rule as the preview below and the pane: a count that
-      // includes embeds disagrees with both.
-      // Same rows the rail's preview and unread badge count: the pane's
-      // predicate, minus ✏️ replies (withoutDmNoise keeps those on purpose).
-      where: withoutDmNoise({ OR: [{ source: null }, { source: { not: "prompt_reply" } }] }),
+      // Same noise rule as the preview below, the unread count, the pane and
+      // the rail badge — all of them now go through withoutDmNoise/dmNoiseSql.
+      // A count that includes plumbing disagrees with every other number on
+      // screen, which is how the badge and the desk drifted apart before.
+      where: withoutDmNoise({}),
       _count: { _all: true },
       _max: { createdAt: true },
       orderBy: { _max: { createdAt: "desc" } },
@@ -105,9 +105,7 @@ export default async function PlayerDeskLayout({ children }) {
     SELECT DISTINCT ON ("discordUserId")
       "discordUserId", "id", "direction", "content", "authorDiscordUserId", "source", "createdAt"
     FROM "DirectMessage"
-    WHERE ("source" IS DISTINCT FROM 'system_notice')
-      AND ("source" IS DISTINCT FROM 'prompt_reply')
-      AND (("meta"->>'embed') IS DISTINCT FROM 'true')
+    WHERE ${dmNoiseSql()}
     ORDER BY "discordUserId", "createdAt" DESC
   `;
   const latestByUser = new Map(latestMessages.map((m) => [m.discordUserId, m]));
@@ -123,9 +121,7 @@ export default async function PlayerDeskLayout({ children }) {
       AND cr."gmDiscordUserId" = ${session.discordUserId}
     WHERE dm."direction" = 'INBOUND'
       AND dm."createdAt" > COALESCE(cr."lastReadAt", to_timestamp(0))
-      AND (dm."source" IS DISTINCT FROM 'system_notice')
-      AND (dm."source" IS DISTINCT FROM 'prompt_reply')
-      AND ((dm."meta"->>'embed') IS DISTINCT FROM 'true')
+      AND ${dmNoiseSql("dm")}
     GROUP BY dm."discordUserId"
   `;
   const unreadByUser = new Map(unreadRows.map((r) => [r.discordUserId, r.unreadCount]));

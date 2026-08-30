@@ -161,7 +161,7 @@ All in `bot/src/events/messageReactionAdd.js`, all gated on `recentProxies`.
 | Emoji | Does |
 |---|---|
 | ❌ | Deletes the message. Also deletes its `ArchiveEntry` row. Gated on `proxy.discordUserId`. |
-| ✏️ | DM-based edit. Mirrors into the archive **only after** Discord accepts the edit. Gated on `proxy.discordUserId`. |
+| ✏️ | Edit, via a DM button and a modal — see below. Mirrors into the archive **only after** Discord accepts the edit. Gated on `proxy.discordUserId`. |
 | ❓ | DMs the character's bio. |
 | 🔍 | Inspect embed — see §5 and `FACTIONS.md` §4. |
 | ⭐ | Saves a personal `Note` — see §7. |
@@ -170,18 +170,37 @@ All in `bot/src/events/messageReactionAdd.js`, all gated on `recentProxies`.
 DMs no longer carry any reaction-driven flow; the bot does not request the
 `DirectMessageReactions` intent.
 
-**A ✏️ reply is not player mail.** Every inbound DM is logged as a
-`DirectMessage` (`bot/src/events/messageCreate.js`), and the reply to the edit
-prompt was landing as `source: "player"` — so the second half of a mechanic
-that had already consumed it showed up on the GM desks as unread mail. ✏️ now
-registers the player in `bot/src/lib/pendingPrompts.js` once its prompt DM has
-gone out (60 s TTL, matching the collector; a refused DM never arms it), and the
-logger files a matching reply as `source: "prompt_reply"` with `meta.purpose`.
-The players desk's rail (unread count, preview) skips those rows; the
-conversation pane still shows them, so a real message is never hidden. The map is in memory: there is one bot process, the window
-is 60 seconds, and a restart mid-prompt degrades to `player` — the old
-behaviour, not a new failure. `/conceal`'s prompt needs none of this; it is
-already a `system_notice` and the player retypes in the channel.
+**✏️ is a button and a modal, and writes no inbound DM at all**
+(`bot/src/lib/editModal.js`). A reaction carries no interaction token, so a
+modal cannot open straight off ✏️. The path is: reaction → a DM carrying one
+"Edit text" button → the click is an interaction → modal, prefilled with the
+current text. `edit:open:<messageId>` opens it, `edit:send:<messageId>`
+submits. The prompt DM is a `system_notice`, so no GM surface shows it.
+
+`handleEditOpen` must **not** ack first — `showModal` is the acknowledgement.
+The prefill comes from an in-memory stash armed when ✏️ is pressed, not from a
+REST fetch, because a fetch could blow Discord's three-second window and there
+is no deferring your way out of it. Both handlers run in a DM, where
+`interaction.guild` and `.member` are null, so ownership is
+`interaction.user.id` against `recentProxies`.
+
+**Why it stopped being a DM collector.** ✏️ used to DM "Reply here with the
+new text (60 seconds)" and eat the answer with `awaitMessages`. Sixty seconds
+is not enough to retype a paragraph, and nothing was prefilled, so the player
+rewrote the whole post from scratch. Worse, every one of those replies was
+logged as a `DirectMessage` — about 21 a day — and a long in-character post
+sitting in the GM inbox reads exactly like mail. A first fix tagged them
+`source: "prompt_reply"` via a `pendingPrompts` map so the desks could skip
+them; the tagging worked, but the rail badge in `web/lib/navItems.js` had no
+noise predicate at all, so the chime still rang on every edit. The map and its
+source are gone now that the flow produces no DM to tag. `prompt_reply` lives
+on only as a read-side filter for the rows already in the table
+(`web/lib/dmThread.js#withoutDmNoise` and its raw-SQL twin `dmNoiseSql`, which
+every GM-facing DM query now shares precisely so they cannot drift apart
+again).
+
+`/conceal`'s prompt never needed any of this; it is already a `system_notice`
+and the player retypes in the channel.
 
 The bot needs the `MESSAGE_CONTENT` privileged intent for any of this
 (Developer Portal → Bot → Privileged Gateway Intents), alongside `GuildMembers`.
