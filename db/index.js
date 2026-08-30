@@ -275,7 +275,7 @@ async function resolveNeeds(turn, config) {
   }
   // Same split as every pass here: the deliveries are routing data for
   // runSideEffects(), not part of the turn's record.
-  const { privateDeliveries = [], publicPosts = [], zoneMoves = [], ...stagedPushSummary } = stagedPush ?? {};
+  const { privateDeliveries = [], publicPosts = [], zoneMoves = [], routineNotices = [], ...stagedPushSummary } = stagedPush ?? {};
   if (stagedPush) {
     await prisma.auditLog
       .create({
@@ -287,6 +287,7 @@ async function resolveNeeds(turn, config) {
             ...stagedPushSummary,
             privateMessages: privateDeliveries.length,
             publicPosts: publicPosts.length,
+            routineNotices: routineNotices.length,
           },
         },
       })
@@ -485,6 +486,7 @@ async function resolveNeeds(turn, config) {
     privateDeliveries,
     publicPosts,
     zoneMoves,
+    routineNotices,
   };
 }
 
@@ -528,6 +530,7 @@ async function advanceTurn() {
   let privateDeliveries = [];
   let publicPosts = [];
   let zoneMoves = [];
+  let routineNotices = [];
   if (openTurn) {
     // Close the turn FIRST, conditioned on it still being OPEN. This is the
     // guard against two advances racing — a GM double-clicking End turn, or
@@ -559,7 +562,7 @@ async function advanceTurn() {
       };
     }
 
-    ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, cavingDms, privateDeliveries, publicPosts, zoneMoves } =
+    ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, cavingDms, privateDeliveries, publicPosts, zoneMoves, routineNotices } =
       await resolveNeeds(openTurn, config));
   } else {
     // No OPEN turn, which normally means "opening the very first turn". It
@@ -624,7 +627,7 @@ async function advanceTurn() {
           },
         })
         .catch((logErr) => console.error("Failed to log turn_resume — the resume now has no record:", logErr));
-      ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, cavingDms, privateDeliveries, publicPosts, zoneMoves } =
+      ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, cavingDms, privateDeliveries, publicPosts, zoneMoves, routineNotices } =
         await resolveNeeds(unfinished, config));
     }
   }
@@ -795,6 +798,15 @@ async function advanceTurn() {
         })
         .catch((err) => console.error(`Failed to stamp staged message ${delivery.stagedMessageId} sent:`, err));
       if (failed.length) deliveryFailures.push({ stagedMessageId: delivery.stagedMessageId, failed });
+    }
+
+    // One canned DM per Routine that passed with nothing written for its
+    // player (db/lib/stagedPush.js). After the deliveries above, so a player
+    // who did get a real note never sees this one land on top of it.
+    for (const notice of routineNotices) {
+      await sendDm(prisma, notice.discordUserId, notice.content).catch((err) =>
+        console.error(`Passed-Routine DM to ${notice.discordUserId} failed:`, err),
+      );
     }
 
     for (const post of publicPosts) {

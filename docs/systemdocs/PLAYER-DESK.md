@@ -33,8 +33,9 @@ desk — the two are the same tool and should read as one.
 ┌ header: Players · turn chip · N tracked · N unread · Bulk message ──┐
 │ RAIL            │  ROSTER TABLE (nobody selected)  │  INSPECTOR     │
 │ Inbox | Roster  │  ─────────── or ─────────────────│  Sheet · Tags  │
-│ search, filters │  CONVERSATION                    │  Archive · DMs │
-│ zone scope      │  thread + composer               │  Canon · Notes │
+│ search, filters │  CONVERSATION                    │  Moves ·Archive│
+│ zone scope      │  thread + composer               │  DMs · Canon · │
+│                 │                                  │  Notes         │
 └─────────────────┴──────────────────────────────────┴────────────────┘
 ```
 
@@ -206,15 +207,17 @@ inside itself, with the composer pinned at the bottom. It used to be a 32rem
 
 ## 6. The inspector
 
-`Sheet · Tags · Archive · DMs · Canon · Notes`, fetched on demand and memoized
-per `${characterId}:${tab}` for the life of the page view.
+`Sheet · Tags · Moves · Archive · DMs · Canon · Notes`, fetched on demand and
+memoized per `${characterId}:${tab}` for the life of the page view. **Moves**
+is that person's own past turns (ADJUDICATION.md §3); Canon's header links to
+it, since Canon owns *this* turn and the two shouldn't repeat each other.
 
 This used to be `DossierColumn`, a column of the **person view** — which meant
 it did not exist on the roster at all, and every navigation between two
 players threw it away and rebuilt it. It is the adjudication desk's inspector
 now, literally: one component, `web/app/components/InspectorColumn.js`, mounted
 by both desks. There the character is context for a Move, here the Move is
-context for a character, but it is the same four base tabs over the same
+context for a character, but it is the same five base tabs over the same
 `getCharacterInspector` / `getArchiveSlice` fetchers, the same staged quick
 edits (✕ a tag to stage its removal, click Resources or Tag points to stage a
 ± delta — which is why the player desk's `layout.js` loads this turn's

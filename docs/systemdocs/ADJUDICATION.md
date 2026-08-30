@@ -56,9 +56,17 @@ tray as "unattached" for the GM to keep or drop.
   `reviewedBy`, and marks the staging complete. It applies nothing;
   Unsolve reverts nothing, because there is nothing yet to revert.
 - **Silent close.** A Move still `OPEN` at the push closes `PASSED` with
-  `auto:silent_close` appended to `gmNotes`, pays its declared numbers, and
-  sends **no DM**. That is the design: an unremarkable Move resolves
-  unremarkably.
+  `auto:silent_close` appended to `gmNotes` and pays its declared numbers.
+  It used to send **no DM** at all. A **Routine** that ends the push `PASSED`
+  now gets one canned line — "Your Routine automatically passed without any
+  special adjudication notes…" — so a player who hears nothing knows why
+  rather than wondering if they were forgotten. It is suppressed when a
+  private staged message on that Move actually went to *that* player (they
+  already have real notes), when a staged effect on the Move targets them
+  (their sheet is changing — "no notes" would be a lie), when `gmNotes`
+  carries any `auto:` marker (a default move and travel send their own),
+  and for Gambits and Solved Moves.
+  See `TURN-ENGINE.md` for where in the push it fires.
 - **The Result box is canon.** One GM-facing field (`resultMessage`) holding
   what actually happened. `gmNotes` survives as a column for the `auto:*`
   machine markers only and renders nowhere.
@@ -72,8 +80,9 @@ tokens and the shared control classes still apply; the `.desk-*` family in
 leave; `/gm/players` is its sibling in the same group.
 
 The route is `/gm/turns/[[...selection]]`, and the URL carries which row is
-open — `/gm/turns/move/<id>`, `/gm/turns/request/<id>`, `/gm/turns/caving/<id>`.
-An optional catch-all, not `[moveId]`: the desk selects one of three things, so
+open — `/gm/turns/move/<id>`, `/gm/turns/request/<id>`, `/gm/turns/caving/<id>`,
+`/gm/turns/history/<id>`.
+An optional catch-all, not `[moveId]`: the desk selects one of four things, so
 the URL has to carry both halves of `{ type, id }`. Selection changes never
 touch the server — `setSelected` is `useState` and the URL is mirrored with
 `history.replaceState`, so picking a row leaves the queue, every DTO, the
@@ -89,15 +98,14 @@ happens to match it.
 ```
 ┌ header: turn chip · push times · Preview push ─────────────────────┐
 │ QUEUE RAIL      │  ARBITRATION DESK          │  INSPECTOR          │
-│ Moves/Requests  │  the selected Move or      │  Sheet · Tags ·     │
-│ lens, zone-seat │  Request: result box,      │  Archive · DMs for  │
-│ filters, search │  staged items, composers   │  the last-clicked   │
-│                 │                            │  character + pins   │
+│ Moves/Requests/ │  the selected Move or      │  Sheet · Tags ·     │
+│ Caving/History  │  Request: result box,      │  Moves · Archive ·  │
+│ lens, zone-seat │  staged items, composers   │  DMs for the last-  │
+│ filters, search │                            │  clicked one + pins │
 ├ PUSH TRAY: counts · every staged row · missed-push banner ─────────┤
 ```
 
-- **Queue rail** — the open turn's Moves (a resolved turn's are already
-  pushed; there is nothing left to do to them) and the newest Requests, as
+- **Queue rail** — the open turn's Moves and the newest Requests, as
   selectable rows. Opens filtered to the GM's zone seat
   (`GAMEMASTERS.md`), soft as ever. "In Progress" is still derived from a
   live lock. Search runs the shared `scoreMatch` engine
@@ -115,6 +123,19 @@ happens to match it.
   "Travel" and stay hidden by default behind a "Show N travel" toggle beside
   the Kind dropdown; picking Travel from that dropdown always overrides the
   hide.
+- **History lens** — the same rail over a turn that has already been pushed,
+  one **resolved** turn at a time, picked from a Turn dropdown above the
+  filters (newest first). A GM used to have to go to `/gm/audit` to see what
+  somebody did last turn. Nothing is loaded with the page: the lens fetches
+  its turn on demand (`actions.js#getMoveHistory`) and caches it for the page
+  view, so the open turn's desk never pays for history nobody opened and the
+  45s refresh never re-sends it. Rows go through the same mappers the live
+  queue does (`web/lib/moveRows.js`) and open a **`MoveHistoryDesk`**: the
+  Move's kind, dice, what was declared, what actually **paid**
+  (`appliedEffects`), the Result, and everything that was sent on it. No lock,
+  no composers, no Solve, no Unlock — but a staged row the push never carried
+  keeps its Edit/Delete, and a failed delivery keeps its Resend, because those
+  are the two things about a past turn that can still need doing.
 - **Desk** — the selected item. For a Move: situation, dice, declared
   numbers, the Result box, everything staged on it, and the three composers.
   For a Request: the old panel's sections, semantics untouched (§5). The
@@ -125,8 +146,13 @@ happens to match it.
   acting reads at a glance before you open anything.
 - **Inspector** — *"quickly pull up the guy he was talking to"*. Every
   character name in the workspace is a click target that swaps the column to
-  that character: Sheet (live facts + gambit modifier), Tags, their archive
-  slice, their DM thread. The header carries name, `@username`, and role on
+  that character: Sheet (live facts + gambit modifier), Tags, **Moves**, their
+  archive slice, their DM thread. **Moves** is that person's own history —
+  their newest 40 Moves on **past** turns, each row linking to
+  `/gm/turns/history/<id>`. Both Move desks carry a **Past moves** button that
+  opens it (`onInspect(characterId, name, "Moves")`), and so does the player
+  desk's Canon tab, which owns *this* turn and points at the tab for
+  everything before it. The header carries name, `@username`, and role on
   the line below, all from the roster DTO already on the client — no fetch
   needed just to see who someone is. A search box above the pin row
   (`InspectorSearch`, fuzzy-matched via `web/lib/fuzzySearch.js#scoreMatch`
@@ -162,8 +188,8 @@ keeps itself current and stays reachable from the keyboard:
   mid-sentence never gets the page yanked out from under them. The header
   carries an "updated HH:MM" stamp, a **countdown** to the next noon/midnight
   CT push, and an `N/M solved` progress chip.
-- **Keyboard**: `↑↓` / `j k` walk the rail, `⏎` opens the focused row, `m`/`r`
-  flip the lens, Escape peels the layers below. All of it stands down while a
+- **Keyboard**: `↑↓` / `j k` walk the rail, `⏎` opens the focused row,
+  `m`/`r`/`c`/`h` flip the lens, Escape peels the layers below. All of it stands down while a
   field has focus or a modal is open.
 - **GM identity** shows as a small avatar (`GmAvatar.js`, roster from
   `web/lib/gmProfiles.js`) wherever a GM is named: the lock holder on an
@@ -253,14 +279,16 @@ field `applyEdit` now returns and how it drives `EDITED` vs. a plain
 | `web/app/(desk)/gm/turns/page.js` | RSC: queue, staged rows, catalog, roster — all DTOs |
 | `.../Workspace.js` | Client shell: selection, inspector context + cache, layout |
 | `.../QueueRail.js` | Lens, filters (zone-seat seeded), the queue |
+| `web/lib/moveRows.js` | The Move / staged-effect / staged-message DTO mappers, shared by `page.js` and the History fetchers so they can't drift |
 | `.../MoveDesk.js` / `RequestDesk.js` | The desks |
+| `.../MoveHistoryDesk.js` | The read-only desk for a Move on a pushed turn |
 | `.../EffectComposer.js` / `MessageComposer.js` / `PublicComposer.js` | The staging composers (create + edit) |
 | `.../StagedItems.js` / `StagingTray.js` / `PushPreview.js` | Staged-row lists, the tray, the per-recipient preview |
-| `web/app/components/InspectorColumn.js` | Sheet / Tags / Archive / DMs + pins — **shared with `/gm/players`**, which appends Canon / Notes through `extraTabs` (PLAYER-DESK.md §6) |
+| `web/app/components/InspectorColumn.js` | Sheet / Tags / Moves / Archive / DMs + pins — **shared with `/gm/players`**, which appends Canon / Notes through `extraTabs` (PLAYER-DESK.md §6) |
 | `web/app/components/ArchiveContextModal.js` | The "in context" slice behind an Archive row, moved alongside it |
 | `web/app/components/GmAvatar.js` | The small GM pfp, fed by `web/lib/gmProfiles.js` |
 | `.../useMoveLock.js` | The lock's client half |
-| `.../actions.js` | Every server action: staging CRUD, solve/save/unsolve, unlock, locks, request review, inspector fetchers, retarget |
+| `.../actions.js` | Every server action: staging CRUD, solve/save/unsolve, unlock, locks, request review, inspector fetchers, the two history fetchers (`getMoveHistory`, `getCharacterMoveHistory`), retarget |
 | `db/lib/stagedPush.js` | The push pass |
 | `db/lib/tagOps.js` | The tag-op engine (shared with the Dev Panel) |
 | `web/lib/tagOpAlgebra.js` | `mergeTagOp`, the client-side staging algebra |

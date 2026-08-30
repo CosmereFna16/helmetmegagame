@@ -4,8 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRefresh } from "@/app/components/useRefresh";
 import QueueRail from "./QueueRail";
 import MoveDesk from "./MoveDesk";
+import MoveHistoryDesk from "./MoveHistoryDesk";
 import RequestDesk from "./RequestDesk";
 import CavingDesk from "./CavingDesk";
+import { getMoveHistory } from "./actions";
 import InspectorColumn from "@/app/components/InspectorColumn";
 import StagingTray from "./StagingTray";
 import PushPreview from "./PushPreview";
@@ -77,8 +79,69 @@ function selectionHref(sel) {
   return sel ? `/gm/turns/${sel.type}/${sel.id}` : "/gm/turns";
 }
 
+// A selected history row can belong to a turn other than the one the picker is
+// on — a GM opens a Move, then changes the turn — so this looks across every
+// turn already loaded, and falls back to the one row page.js preloaded for a
+// deep link when the lens hasn't fetched anything yet.
+function findHistoryMove(historyByTurn, moveId, preloaded) {
+  for (const [turnId, entry] of historyByTurn) {
+    const move = entry.moves.find((m) => m.id === moveId);
+    if (!move) continue;
+    return {
+      turnId,
+      move,
+      effects: entry.effects.filter((e) => e.moveId === moveId),
+      messages: entry.messages.filter((m) => m.moveId === moveId),
+      tagsById: entry.tagsById,
+    };
+  }
+  return preloaded?.move?.id === moveId ? preloaded : null;
+}
+
+// The history entry’s staged rows keyed by Move, the same shape Workspace
+// builds for the open turn — a plain function rather than a useMemo because
+// its input is derived from a cache the render itself can evict.
+function groupByMove(entry) {
+  const map = new Map();
+  if (!entry) return map;
+  for (const e of entry.effects) {
+    if (!e.moveId) continue;
+    const row = map.get(e.moveId) ?? { effects: [], messages: [] };
+    row.effects.push(e);
+    map.set(e.moveId, row);
+  }
+  for (const m of entry.messages) {
+    if (!m.moveId) continue;
+    const row = map.get(m.moveId) ?? { effects: [], messages: [] };
+    row.messages.push(m);
+    map.set(m.moveId, row);
+  }
+  return map;
+}
+
+// The unapplied staged rows, as one comparable string. Only id plus the fields
+// an edit can actually change — a poll that returns the same rows produces the
+// same string, so the history cache survives it.
+function fingerprintUnapplied(effects, messages) {
+  const parts = [];
+  for (const e of effects) {
+    if (e.applied) continue;
+    parts.push(
+      `e:${e.id}:${e.resources}:${e.tagPoints}:${e.zoneId ?? ""}:${JSON.stringify(e.tagOps ?? [])}`,
+    );
+  }
+  for (const m of messages) {
+    if (m.sent) continue;
+    const to = m.recipients.map((r) => r.characterId).join(",");
+    parts.push(`m:${m.id}:${m.kind}:${m.zoneId ?? ""}:${to}:${m.content}`);
+  }
+  return parts.join("|");
+}
+
 export default function Workspace({
   initialSelection,
+  initialHistory,
+  resolvedTurns,
   openTurn,
   myZoneNames,
   tagsById,
@@ -94,8 +157,10 @@ export default function Workspace({
   moveLock,
 }) {
   const [refresh] = useRefresh();
-  const [lens, setLens] = useState("moves"); // which queue the rail shows
-  const [selected, setSelected] = useState(initialSelection ?? null); // { type: "move"|"request"|"caving", id }
+  // A /gm/turns/history/<id> link arrives with the rail already on History,
+  // so the row the URL names is in the list behind the desk it opened.
+  const [lens, setLens] = useState(initialSelection?.type === "history" ? "history" : "moves");
+  const [selected, setSelected] = useState(initialSelection ?? null); // { type: "move"|"request"|"caving"|"history", id }
 
   // The URL mirrors `selected`; it is never its source after the first paint.
   // replaceState is Next's documented escape hatch: it syncs the router
@@ -111,6 +176,7 @@ export default function Workspace({
   }, []);
   const deselect = useCallback(() => select(null), [select]);
   const [inspected, setInspected] = useState(null); // { characterId, name }
+  const [tabRequest, setTabRequest] = useState(null); // { tab, token } — see inspect()
   // One pin list shared with the player desk — see usePins.js. This desk only
   // ever knows characters, so it prunes the "c:" namespace against the live
   // roster (dead after a game wipe, or a character deleted outright) and
@@ -188,6 +254,101 @@ export default function Workspace({
   // the Map immutably — see InspectorColumn.
   const [inspectorCache, setInspectorCache] = useState(() => new Map());
 
+  // The History lens's rows, one resolved turn per entry, fetched on demand
+  // and kept for the life of the page view. State rather than a ref because
+  // it is read during render; the setCache lands AFTER the await, never
+  // synchronously in the effect body (react-hooks/set-state-in-effect).
+  const [historyByTurn, setHistoryByTurn] = useState(() => new Map());
+  const [historyTurnId, setHistoryTurnId] = useState(
+    () => initialHistory?.turnId ?? resolvedTurns?.[0]?.id ?? null,
+  );
+  const [historyError, setHistoryError] = useState(null);
+
+  // The cache has to be invalidated when a staged row on a past turn is edited
+  // or deleted from the history desk. StagedItems only knows how to router
+  // .refresh(), which re-runs page.js and never re-runs getMoveHistory — so
+  // without this, a deleted message keeps rendering on the desk and keeps
+  // inflating the rail row's staged badge until a hard reload.
+  //
+  // page.js already ships every UNAPPLIED staged row whatever turn it is on
+  // (that is what feeds the missed-push banner), and an unapplied row is
+  // exactly what the history desk is allowed to edit or delete. So a change to
+  // that set is the signal, taken during render the same way InspectorColumn
+  // takes its tab request — not from an effect. It costs nothing on the 45s
+  // poll, which leaves the fingerprint identical.
+  const stagedFingerprint = useMemo(
+    () => fingerprintUnapplied(stagedEffects, stagedMessages),
+    [stagedEffects, stagedMessages],
+  );
+  // Marked stale rather than dropped: dropping would blink the open desk
+  // through the empty state while the refetch was in flight, and this desk's
+  // whole point is that it doesn't yank things out from under a GM.
+  const [lastStagedFingerprint, setLastStagedFingerprint] = useState(stagedFingerprint);
+  let historyCache = historyByTurn;
+  if (stagedFingerprint !== lastStagedFingerprint) {
+    historyCache = new Map();
+    for (const [id, entry] of historyByTurn) historyCache.set(id, { ...entry, stale: true });
+    setLastStagedFingerprint(stagedFingerprint);
+    setHistoryByTurn(historyCache);
+  }
+
+  const historyEntry = historyTurnId ? (historyCache.get(historyTurnId) ?? null) : null;
+  const historyLoading = lens === "history" && Boolean(historyTurnId) && !historyEntry && !historyError;
+
+  useEffect(() => {
+    if (lens !== "history" || !historyTurnId) return undefined;
+    const cached = historyByTurn.get(historyTurnId);
+    if (cached && !cached.stale) return undefined;
+    let cancelled = false;
+    (async () => {
+      const res = await getMoveHistory({ turnId: historyTurnId });
+      if (cancelled) return;
+      if (!res?.ok) {
+        setHistoryError(res?.error ?? "Couldn't load that turn.");
+        return;
+      }
+      setHistoryError(null);
+      setHistoryByTurn((prev) =>
+        new Map(prev).set(historyTurnId, {
+          moves: res.moves,
+          effects: res.effects,
+          messages: res.messages,
+          tagsById: res.tagsById,
+        }),
+      );
+    })().catch(() => {
+      // guarded() only converts a UserError into a result; anything else comes
+      // back out as a rejection. Without this the rail sits on "Loading that
+      // turn…" for good.
+      if (!cancelled) setHistoryError("Couldn't load that turn.");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [lens, historyTurnId, historyByTurn]);
+
+  const pickHistoryTurn = useCallback((turnId) => {
+    setHistoryError(null);
+    setHistoryTurnId(turnId);
+  }, []);
+
+  const historyStagedByMove = groupByMove(historyEntry);
+
+  const selectedHistory =
+    selected?.type === "history" ? findHistoryMove(historyCache, selected.id, initialHistory) : null;
+
+  // Tag chips need the catalog entry for every tag on screen, and a past
+  // turn's Moves carry tags nobody on the open turn holds.
+  const allTagsById = useMemo(() => {
+    const merged = { ...tagsById };
+    if (initialHistory?.tagsById) Object.assign(merged, initialHistory.tagsById);
+    for (const entry of historyCache.values()) Object.assign(merged, entry.tagsById);
+    return merged;
+  }, [tagsById, historyCache, initialHistory]);
+
+  const historyTurnLabel =
+    resolvedTurns?.find((t) => t.id === selectedHistory?.turnId)?.label ?? null;
+
   const selectedMove = selected?.type === "move" ? moves.find((m) => m.id === selected.id) : null;
   const selectedRequest = selected?.type === "request" ? requests.find((r) => r.id === selected.id) : null;
   const selectedCaving =
@@ -262,9 +423,14 @@ export default function Workspace({
     [tagCatalog],
   );
 
-  function inspect(characterId, name) {
+  // The optional third argument is a tab REQUEST, not a controlled value: the
+  // "Past moves" buttons want to land on Moves, but a GM must still be free to
+  // click away afterwards. The token is what tells the inspector this is a new
+  // ask rather than the one it already honoured — see InspectorColumn.
+  function inspect(characterId, name, tab) {
     if (!characterId) return;
     setInspected({ characterId, name });
+    if (tab) setTabRequest((prev) => ({ tab, token: (prev?.token ?? 0) + 1 }));
   }
 
   // Live queue refresh: paused while a modal is open (an in-flight
@@ -336,7 +502,14 @@ export default function Workspace({
           lens={lens}
           onLens={setLens}
           gmProfiles={gmProfiles}
-          tagsById={tagsById}
+          tagsById={allTagsById}
+          resolvedTurns={resolvedTurns ?? []}
+          historyTurnId={historyTurnId}
+          onHistoryTurn={pickHistoryTurn}
+          historyMoves={historyEntry?.moves ?? []}
+          historyStagedByMove={historyStagedByMove}
+          historyLoading={historyLoading}
+          historyError={historyError}
         />
 
         <main className="desk-main">
@@ -365,6 +538,23 @@ export default function Workspace({
               registerEscape={registerEscape}
               onOpenDev={onOpenDev}
             />
+          ) : selectedHistory ? (
+            <MoveHistoryDesk
+              key={selectedHistory.move.id}
+              move={selectedHistory.move}
+              turnLabel={historyTurnLabel}
+              staged={{ effects: selectedHistory.effects, messages: selectedHistory.messages }}
+              tagsById={allTagsById}
+              tagCatalog={tagCatalog}
+              roster={roster}
+              presenceZones={presenceZones}
+              currentTurnNumber={openTurn?.number ?? null}
+              onInspect={inspect}
+              onClose={deselect}
+              registerEscape={registerEscape}
+              onOpenDev={onOpenDev}
+              gmProfiles={gmProfiles}
+            />
           ) : selectedCaving ? (
             <CavingDesk
               key={selectedCaving.id}
@@ -386,6 +576,7 @@ export default function Workspace({
               <p className="text-sm text-muted">
                 Pick a Move, Request or Caving roll from the queue. Everything you stage —
                 messages, effects, public declarations — goes out together when the turn ends.
+                The History lens reads back a turn that has already been pushed.
               </p>
             </div>
           )}
@@ -399,11 +590,12 @@ export default function Workspace({
           onTogglePin={togglePin}
           cache={inspectorCache}
           setCache={setInspectorCache}
-          tagsById={tagsById}
+          tagsById={allTagsById}
           currentTurnNumber={openTurn?.number ?? null}
           pendingByCharacter={pendingByCharacter}
           onOpenDev={onOpenDev}
           customTag={customTag}
+          requestedTab={tabRequest}
         />
       </div>
 

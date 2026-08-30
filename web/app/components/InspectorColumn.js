@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import TagChip from "./TagChip";
 import { useRefresh } from "./useRefresh";
@@ -15,19 +16,20 @@ import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import {
   getCharacterInspector,
   getArchiveSlice,
+  getCharacterMoveHistory,
   createStagedEffects,
 } from "@/app/(desk)/gm/turns/actions";
 import { getDmThreadPage, sendGmDm } from "@/app/(desk)/gm/players/actions";
 import { scoreMatch } from "@/lib/fuzzySearch";
 
 // The right-hand inspector: the "quickly pull up the guy he was talking to"
-// column. Sheet / Tags / Archive / DMs over whichever character was last
-// clicked anywhere in the workspace, with a pin row so the characters an
+// column. Sheet / Tags / Moves / Archive / DMs over whichever character was
+// last clicked anywhere in the workspace, with a pin row so the characters an
 // arbitration keeps returning to stay one click away.
 //
 // It lives in components/ rather than under /gm/turns because BOTH desks
 // mount it now: /gm/turns from Workspace.js, /gm/players from InspectorHost.js
-// (which is where the player desk's old DossierColumn went). The four base
+// (which is where the player desk's old DossierColumn went). The five base
 // tabs are the same on both; anything desk-specific arrives through
 // `extraTabs` — Canon and Notes only exist on the player desk, so only that
 // desk passes them.
@@ -38,7 +40,7 @@ import { scoreMatch } from "@/lib/fuzzySearch";
 // is switching tabs off and back... or the page-level refresh any staging
 // action already does.
 
-const BASE_TABS = ["Sheet", "Tags", "Archive", "DMs"];
+const BASE_TABS = ["Sheet", "Tags", "Moves", "Archive", "DMs"];
 
 function useInspectorData(characterId, tab, cache, setCache, fetched) {
   // The cache is Workspace-owned state (not a ref — entries are read during
@@ -55,7 +57,13 @@ function useInspectorData(characterId, tab, cache, setCache, fetched) {
     let cancelled = false;
     (async () => {
       const fetcher =
-        tab === "Archive" ? getArchiveSlice : tab === "DMs" ? getDmThreadPage : getCharacterInspector;
+        tab === "Archive"
+          ? getArchiveSlice
+          : tab === "DMs"
+            ? getDmThreadPage
+            : tab === "Moves"
+              ? getCharacterMoveHistory
+              : getCharacterInspector;
       const res = await fetcher({ characterId });
       if (cancelled) return;
       const value = res?.ok ? { data: res } : { error: res?.error ?? "Couldn't load that." };
@@ -290,6 +298,42 @@ function SheetView({
   );
 }
 
+// "What has this person actually been doing?" — their Moves on turns that
+// have already been pushed, newest first. PAST turns only: on the player desk
+// the Canon tab already owns this turn, and on the adjudication desk the open
+// turn is the queue itself, so this tab is the part neither of them covers.
+// Each row deep-links the read-only history desk.
+function MovesView({ data }) {
+  if (!data.rows.length) return <p className="p-3 text-sm text-muted">No Moves on any past turn.</p>;
+  return (
+    <div className="flex flex-col gap-3 p-3">
+      {data.rows.map((r) => (
+        <Link key={r.id} href={`/gm/turns/history/${r.id}`} className="desk-archive-row">
+          <p className="text-xs text-muted">
+            Turn {r.turnLabel} · {r.kindLabel} · {r.reviewLabel}
+            {r.rollLabel ? ` · ${r.rollLabel}` : ""}
+          </p>
+          {(r.declaredLabel || r.paidLabel) && (
+            <p className="mono text-xs text-muted">
+              {r.declaredLabel ? `declared ${r.declaredLabel}` : ""}
+              {r.declaredLabel && r.paidLabel ? " · " : ""}
+              {r.paidLabel ? `paid ${r.paidLabel}` : ""}
+            </p>
+          )}
+          <p className="text-sm">{r.description}</p>
+          {r.resultMessage && <p className="text-sm text-muted">Result: {r.resultMessage}</p>}
+          {r.messages.map((m) => (
+            <p key={m.id} className="text-xs text-muted">
+              » {m.content}
+              {m.recipientNames.length ? ` — to ${m.recipientNames.join(", ")}` : ""}
+            </p>
+          ))}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
 function ArchiveView({ data, onOpenContext }) {
   if (!data.entries.length) return <p className="p-3 text-sm text-muted">Nothing in the transcript.</p>;
   return (
@@ -495,9 +539,24 @@ export default function InspectorColumn({
   emptyHint,
   // { mode, categories, tags, groups } — omit to hide the custom-tag door.
   customTag = null,
+  // { tab, token } — a desk asking the column to jump to a tab ("Past moves"
+  // lands on Moves). A request, not a controlled value: it is honoured once
+  // and then the GM is free to click away.
+  requestedTab = null,
 }) {
   const [refresh] = useRefresh();
-  const [tab, setTab] = useState("Sheet");
+  // Which tab is showing, plus the token of the last request honoured — one
+  // piece of state so a new request is applied DURING render rather than from
+  // an effect (react-hooks/set-state-in-effect is an error in this repo).
+  // Same discipline InspectorHost uses for its `override`.
+  const [tabState, setTabState] = useState({ tab: "Sheet", token: null });
+  let current = tabState;
+  if (requestedTab && requestedTab.token !== tabState.token) {
+    current = { tab: requestedTab.tab, token: requestedTab.token };
+    setTabState(current);
+  }
+  const tab = current.tab;
+  const setTab = (next) => setTabState((s) => ({ ...s, tab: next }));
   const [contextEntry, setContextEntry] = useState(null);
   const extraTab = extraTabs.find((t) => t.key === tab) ?? null;
   const { data, error, loading } = useInspectorData(
@@ -602,6 +661,7 @@ export default function InspectorColumn({
                 customTag={customTag}
               />
             )}
+            {data && tab === "Moves" && <MovesView data={data} />}
             {data && tab === "Archive" && <ArchiveView data={data} onOpenContext={setContextEntry} />}
             {data && tab === "DMs" && (
               <DmsView data={data} characterId={inspected.characterId} cacheKey={cacheKey} setCache={setCache} />

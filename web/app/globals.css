@@ -2495,6 +2495,10 @@ button.map-node:focus-visible .map-rhomb { transform: rotate(45deg) scale(1.3); 
 }
 .desk-rail-lens button {
   flex: 1;
+  /* Four lenses (Moves/Requests/Caving/History) share 19rem minus margins;
+     .segmented's default padding and tracking fit three, not four. */
+  padding-inline: 6px;
+  letter-spacing: 0.02em;
 }
 
 .desk-rail-filters {
@@ -2662,6 +2666,14 @@ button.map-node:focus-visible .map-rhomb { transform: rotate(45deg) scale(1.3); 
   border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
+}
+
+/* Five base tabs plus the player desk's Canon and Notes outgrow the 22rem
+   column, and .tab-bar's scroll hides its own scrollbar — Notes would sit
+   off-screen with nothing saying so. Wrapping is scoped here so the wider
+   tab bars (Dev Panel, Documents) keep the one-row look. */
+.desk-inspector .tab-bar {
+  flex-wrap: wrap;
 }
 
 .desk-inspector-search {

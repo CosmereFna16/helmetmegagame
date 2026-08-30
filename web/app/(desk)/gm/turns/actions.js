@@ -13,6 +13,18 @@ import { UserError, guarded } from "@/lib/actionResult";
 import { deleteActionRestoringTurn, MOVE_LOCK_TTL_MS, lockIsLive } from "@/lib/moveEconomy";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
+import { MOVE_REVIEW_LABELS, moveKindLabel, rollLabel } from "@/lib/moves";
+import {
+  MOVE_INCLUDE,
+  STAGED_EFFECT_INCLUDE,
+  STAGED_MESSAGE_INCLUDE,
+  declaredLabel,
+  moveRow,
+  paidLabel,
+  stagedEffectRow,
+  stagedMessageRow,
+  tagsByIdFor,
+} from "@/lib/moveRows";
 
 // The server half of the adjudication workspace. Everything here follows the
 // staged-arbitration rule: nothing a GM does on the desk touches a player's
@@ -1029,6 +1041,128 @@ async function getArchiveContextImpl({ archiveEntryId }) {
   return { anchorId: anchor.id, channelLabel, jumpUrl, entries };
 }
 
+// ---------------------------------------------------------------------------
+// Move history — the two read-only past-turn fetchers
+// ---------------------------------------------------------------------------
+
+// The History lens, one resolved turn at a time. Loaded on demand rather than
+// with the page: the open turn's desk must not pay for history nobody is
+// looking at, and the 45s router.refresh() must not re-send it. Every row goes
+// through the same mappers page.js uses (web/lib/moveRows.js), because
+// StagedItems reads these DTOs field by field.
+async function getMoveHistoryImpl({ turnId }) {
+  await requireGm();
+  const id = turnId?.toString().trim() ?? "";
+  if (!id) throw new UserError("No turn specified.");
+
+  const turn = await prisma.turn.findUnique({ where: { id }, select: { id: true, status: true } });
+  if (!turn) throw new UserError("That turn no longer exists.");
+  if (turn.status !== "RESOLVED") throw new UserError("That turn hasn't been pushed yet.");
+
+  const [actions, members, presenceZones, openTurn] = await Promise.all([
+    prisma.action.findMany({ where: { turnId: id }, orderBy: { createdAt: "desc" }, include: MOVE_INCLUDE }),
+    // TTL-cached, so calling it from an action costs about nothing.
+    listGuildMembers(),
+    prisma.zone.findMany({ where: { kind: { not: "CAVE_GROUP" } }, select: { id: true, name: true } }),
+    prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } }),
+  ]);
+
+  const moveIds = actions.map((a) => a.id);
+  const [stagedEffects, stagedMessages] = moveIds.length
+    ? await Promise.all([
+        prisma.stagedEffect.findMany({
+          where: { moveId: { in: moveIds } },
+          orderBy: { createdAt: "asc" },
+          include: STAGED_EFFECT_INCLUDE,
+        }),
+        prisma.stagedMessage.findMany({
+          where: { moveId: { in: moveIds } },
+          orderBy: { createdAt: "asc" },
+          include: STAGED_MESSAGE_INCLUDE,
+        }),
+      ])
+    : [[], []];
+
+  const usernameById = new Map(members.map((m) => [m.id, m.username]));
+  const presenceZoneNameById = new Map(presenceZones.map((z) => [z.id, z.name]));
+  const now = new Date();
+
+  return {
+    moves: actions.map((a) => moveRow(a, { usernameById, now })),
+    effects: stagedEffects.map((e) => stagedEffectRow(e, { usernameById, presenceZoneNameById, openTurn })),
+    messages: stagedMessages.map((m) => stagedMessageRow(m, { usernameById, openTurn })),
+    tagsById: tagsByIdFor(actions),
+  };
+}
+
+// The inspector's Moves tab: one character, across turns. PAST turns only —
+// the player desk's Canon tab already owns this turn, so the two don't
+// overlap. Newest first, capped, with each Move's own sent private messages
+// so a GM can see what the player was actually told.
+const MOVE_HISTORY_LIMIT = 40;
+const MOVE_HISTORY_PREVIEW_CHARS = 140;
+
+async function getCharacterMoveHistoryImpl({ characterId }) {
+  await requireGm();
+  const id = characterId?.toString().trim() ?? "";
+  if (!id) throw new UserError("No character specified.");
+
+  const actions = await prisma.action.findMany({
+    // Confirmed Moves only, the same test the desk queue applies — a
+    // PENDING_TYPE row is a draft the player abandoned in the Discord
+    // dropdowns, not something that happened.
+    where: {
+      characterId: id,
+      status: { in: ["CONFIRMED", "ADJUDICATED"] },
+      turn: { status: "RESOLVED" },
+    },
+    orderBy: [{ turn: { number: "desc" } }, { createdAt: "desc" }],
+    take: MOVE_HISTORY_LIMIT,
+    include: {
+      turn: { select: { number: true, phase: true } },
+      stagedMessages: {
+        where: { kind: "PRIVATE", sentAt: { not: null } },
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          content: true,
+          recipients: { select: { character: { select: { id: true, name: true } } } },
+        },
+      },
+    },
+  });
+
+  // Wrapped in an object because guarded() spreads the payload — a bare array
+  // would come back as indices. Same trap getArchiveSliceImpl documents.
+  return {
+    rows: actions.map((a) => ({
+      id: a.id,
+      turnLabel: a.turn ? `${a.turn.number} · ${a.turn.phase === "DAWN" ? "Dawn" : "Dusk"}` : "—",
+      kindLabel: moveKindLabel(a.moveKind, a.gmNotes),
+      reviewLabel: MOVE_REVIEW_LABELS[a.moveReviewStatus] ?? "Open",
+      rollLabel: rollLabel(a),
+      declaredLabel: declaredLabel(a),
+      paidLabel: paidLabel(a.appliedEffects),
+      description: a.description ?? "",
+      // A preview, like the sent messages below — the full canon is one
+      // click away on the history desk.
+      resultMessage: truncateHistoryText(a.resultMessage),
+      messages: a.stagedMessages.map((m) => ({
+        id: m.id,
+        content: truncateHistoryText(m.content),
+        recipientNames: m.recipients.map((r) => r.character.name),
+      })),
+    })),
+  };
+}
+
+function truncateHistoryText(text) {
+  const clean = (text ?? "").trim();
+  return clean.length > MOVE_HISTORY_PREVIEW_CHARS
+    ? `${clean.slice(0, MOVE_HISTORY_PREVIEW_CHARS - 1)}…`
+    : clean;
+}
+
 // The composer's held-tags panel: lean rows for one character, keyed by tag,
 // so a GM can stage a remove without re-typing the name into the catalog
 // search.
@@ -1100,6 +1234,12 @@ export async function getArchiveSlice(input) {
 }
 export async function getHeldTags(input) {
   return guarded(() => getHeldTagsImpl(input));
+}
+export async function getMoveHistory(input) {
+  return guarded(() => getMoveHistoryImpl(input));
+}
+export async function getCharacterMoveHistory(input) {
+  return guarded(() => getCharacterMoveHistoryImpl(input));
 }
 export async function getArchiveContext(input) {
   return guarded(() => getArchiveContextImpl(input));
