@@ -9,8 +9,10 @@
 //      Labor payout and a GM-solved Gambit all sit with appliedEffects null
 //      until this pass. Solve is bookkeeping; the declared resourceDelta is
 //      what pays, and a GM who disagreed staged a counter-effect instead.
-//   3. Silently closes every Move no GM touched (OPEN -> PASSED, no DM —
-//      that is the design, not an oversight).
+//   3. Silently closes every Move no GM touched (OPEN -> PASSED). That stays
+//      silent for a Gambit, but a Routine that ends the push PASSED with
+//      nothing written for its player gets a short canned DM saying so —
+//      otherwise "no news" reads as a message that went missing.
 //
 // It follows the turn-pass conventions to the letter (see TURN-ENGINE.md):
 // it sends nothing itself — the DMs and the summary-channel post are handed
@@ -29,6 +31,13 @@
 const { Prisma } = require("@prisma/client");
 const { addResources, applyMoveEffects } = require("./moveEffects");
 const { TagOpError, validateTagOps, applyTagOpsInTx } = require("./tagOps");
+
+// What a quietly passed Routine gets told. sendDm writes the » prefix itself,
+// so this is raw text.
+const ROUTINE_PASSED_DM =
+  "Your Routine automatically passed without any special adjudication notes. " +
+  "Only Gambits receive adjudications, typically. If you need additional " +
+  "information or believe this was in error, message the GMs.";
 
 // Mirrors TagOpError's role for the zone half of a staged effect: thrown from
 // inside applyOneStagedEffect's transaction so the whole row (including the
@@ -183,11 +192,27 @@ async function runStagedPushPass(prisma, turn, config) {
   // travel stubs and pre-rework rows carry a snapshot (possibly {}) already.
   let movesApplied = 0;
   let movesClosed = 0;
+  // The two includes are there for the Routine notice below and nothing else:
+  // who to DM, and whether a GM already wrote this player about this Move.
   const unapplied = await prisma.action.findMany({
     where: { turnId: turn.id, status: "CONFIRMED", appliedEffects: { equals: Prisma.DbNull } },
     orderBy: { createdAt: "asc" },
+    include: {
+      character: { select: { discordUserId: true } },
+      stagedMessages: {
+        where: { kind: "PRIVATE" },
+        select: { recipients: { select: { characterId: true } } },
+      },
+      stagedEffects: { select: { targetCharacterId: true } },
+    },
   });
+  const routineNotices = [];
   for (const action of unapplied) {
+    // Decided inside the transaction, queued outside it — same convention as
+    // the zone moves above: a commit that fails after the eligibility check
+    // must not leave a "your Routine passed" DM pointing at a payout that
+    // rolled back.
+    let notice = null;
     try {
       await prisma.$transaction(async (tx) => {
         const claim = await tx.action.updateMany({
@@ -211,7 +236,39 @@ async function runStagedPushPass(prisma, turn, config) {
         });
         movesApplied += 1;
         if (silentClose) movesClosed += 1;
+
+        // Decided on the Move's END state, not the one it walked in with:
+        // saving the adjudication popup writes OPEN unconditionally, so a GM
+        // who opened a Routine, read it and clicked Save would otherwise mute
+        // the notice by accident. An "auto:" marker means another pass is
+        // already DMing this player about this row (a Default Move, a travel
+        // stub). And a private staged message IS the adjudication note — but
+        // only when it went to this player; one about them, sent to someone
+        // else, tells them nothing.
+        const alreadyTold = action.stagedMessages.some((message) =>
+          message.recipients.some((r) => r.characterId === action.characterId),
+        );
+        // A staged effect against the Move's own character is adjudication
+        // attention too — their sheet is changing in this same push, and
+        // "passed without any special adjudication notes" would be a lie.
+        const alreadyAdjudicated = action.stagedEffects.some(
+          (e) => e.targetCharacterId === action.characterId,
+        );
+        if (
+          action.moveKind === "ROUTINE" &&
+          (silentClose || action.moveReviewStatus === "PASSED") &&
+          !(action.gmNotes ?? "").includes("auto:") &&
+          !alreadyTold &&
+          !alreadyAdjudicated &&
+          action.character?.discordUserId
+        ) {
+          notice = {
+            discordUserId: action.character.discordUserId,
+            content: ROUTINE_PASSED_DM,
+          };
+        }
       });
+      if (notice) routineNotices.push(notice);
     } catch (err) {
       console.error(`Move payout for action ${action.id} failed:`, err);
       failures.push({ kind: "move", id: action.id, characterId: action.characterId, error: String(err?.message ?? err) });
@@ -274,6 +331,7 @@ async function runStagedPushPass(prisma, turn, config) {
     movesApplied,
     movesClosed,
     failures,
+    routineNotices,
     privateDeliveries,
     publicPosts,
     zoneMoves,

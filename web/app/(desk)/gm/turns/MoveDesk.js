@@ -55,16 +55,6 @@ function Switch({ label, value, options, onChange, disabled, children }) {
   );
 }
 
-// "+3 ⬢ declared" / "5–12 ⬢ declared, rolled +8"
-function declaredLine(move) {
-  const parts = [];
-  if (move.resourceRollExpression) parts.push(`rolled ${move.resourceRollExpression.replace("-", "–")} ⬢`);
-  if (move.resourceDelta != null) {
-    parts.push(`${move.resourceDelta > 0 ? "+" : ""}${move.resourceDelta} ⬢`);
-  }
-  return parts.length ? parts.join(" → ") : null;
-}
-
 export default function MoveDesk({
   move,
   staged,
@@ -140,7 +130,9 @@ export default function MoveDesk({
     });
   }
 
-  const declared = declaredLine(move);
+  // "rolled 5–12 ⬢ → +8", built server-side with the rest of the DTO
+  // (web/lib/moveRows.js) so the history desk reads the same string.
+  const declared = move.declaredLabel;
 
   return (
     <div className="desk-card">
@@ -166,6 +158,16 @@ export default function MoveDesk({
               Message →
             </Link>
           )}
+          {/* Everything they did before this turn, in the inspector's Moves
+              tab — "what did this person do last time" without leaving the
+              row you're adjudicating. */}
+          <button
+            type="button"
+            className="btn-quiet"
+            onClick={() => onInspect(move.characterId, move.characterName, "Moves")}
+          >
+            Past moves
+          </button>
           <DevCharacterButton
             characterId={move.characterId}
             name={move.characterName}

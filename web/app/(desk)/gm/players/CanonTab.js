@@ -16,7 +16,7 @@ import { writeDmDraft } from "./dmDraft";
 // person route's page load. It is an extra tab on the shared inspector now
 // (see InspectorHost), and the inspector can be pointed at anybody — so it
 // fetches per character on demand, the same discipline as the base tabs.
-export default function CanonTab({ characterId, discordUserId }) {
+export default function CanonTab({ characterId, discordUserId, onPastMoves }) {
   const [state, setState] = useState({ loading: true, canon: null, error: null });
   const [staging, setStaging] = useState(false);
   const [stageDraft, setStageDraft] = useState("");
@@ -72,13 +72,22 @@ export default function CanonTab({ characterId, discordUserId }) {
 
   return (
     <div className="flex flex-col gap-3 p-3">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="field-label">This turn</span>
-        {/* Deep-links the row, not just the desk — /gm/turns carries its
-            selection in the URL, so this lands on the Move itself. */}
-        <Link href={move ? `/gm/turns/move/${move.id}` : "/gm/turns"} className="btn-quiet">
-          Open in Adjudication →
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          {/* Canon owns this turn; everything before it is the inspector's
+              Moves tab, so point at that rather than repeating it here. */}
+          {onPastMoves && (
+            <button type="button" className="btn-quiet" onClick={onPastMoves}>
+              Past moves →
+            </button>
+          )}
+          {/* Deep-links the row, not just the desk — /gm/turns carries its
+              selection in the URL, so this lands on the Move itself. */}
+          <Link href={move ? `/gm/turns/move/${move.id}` : "/gm/turns"} className="btn-quiet">
+            Open in Adjudication →
+          </Link>
+        </div>
       </div>
 
       {move ? (

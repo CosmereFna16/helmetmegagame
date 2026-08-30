@@ -112,6 +112,17 @@ const cavingSearchMap = (r) => ({
 });
 const CAVING_TONES = { "Needs attention": "bad", Resolved: "neutral" };
 
+// The keyboard lens flips, and what ⏎ selects in each lens. History rows are
+// Moves too, but on a pushed turn — they open the read-only MoveHistoryDesk,
+// so they carry their own selection type.
+const LENS_FOR_KEY = { m: "moves", r: "requests", c: "caving", h: "history" };
+const SELECTION_TYPE_FOR_LENS = {
+  moves: "move",
+  requests: "request",
+  caving: "caving",
+  history: "history",
+};
+
 // The match-reason subtext — only worth showing when the hit came off a
 // field other than the name everyone can already see on the row.
 function MatchHint({ match }) {
@@ -119,9 +130,10 @@ function MatchHint({ match }) {
   return <span className="text-xs text-muted"> · {match.matchedField}</span>;
 }
 
-function RailFilters({ table, filterDefs, myZoneNames, searchPlaceholder, children }) {
+function RailFilters({ table, filterDefs, myZoneNames, searchPlaceholder, header, children }) {
   return (
     <div className="desk-rail-filters">
+      {header}
       <label className="field">
         <span className="field-label">Search</span>
         <input
@@ -154,11 +166,25 @@ function RailFilters({ table, filterDefs, myZoneNames, searchPlaceholder, childr
   );
 }
 
-function MoveRows({ rows, matchFor, stagedByMove, selected, onSelect, gmProfiles, kbdId, kbdLens }) {
+// `type` and `lensKey` are what let the History lens reuse this: identical
+// rows, a different selection type ("history", which opens the read-only
+// desk) and a different lens to match the keyboard cursor against.
+function MoveRows({
+  rows,
+  matchFor,
+  stagedByMove,
+  selected,
+  onSelect,
+  gmProfiles,
+  kbdId,
+  kbdLens,
+  type = "move",
+  lensKey = "moves",
+}) {
   return rows.map((row) => {
     const staged = stagedByMove.get(row.id);
     const stagedCount = (staged?.effects.length ?? 0) + (staged?.messages.length ?? 0);
-    const active = selected?.type === "move" && selected.id === row.id;
+    const active = selected?.type === type && selected.id === row.id;
     return (
       <button
         key={row.id}
@@ -166,9 +192,9 @@ function MoveRows({ rows, matchFor, stagedByMove, selected, onSelect, gmProfiles
         className="desk-queue-row"
         data-active={active}
         data-auto={row.isTravel || undefined}
-        data-kbd={kbdLens === "moves" && kbdId === row.id ? "" : undefined}
+        data-kbd={kbdLens === lensKey && kbdId === row.id ? "" : undefined}
         data-row-key={row.id}
-        onClick={() => onSelect({ type: "move", id: row.id })}
+        onClick={() => onSelect({ type, id: row.id })}
       >
         <span className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-1.5 truncate font-medium">
@@ -279,6 +305,13 @@ export default function QueueRail({
   onLens,
   gmProfiles,
   tagsById,
+  resolvedTurns,
+  historyTurnId,
+  onHistoryTurn,
+  historyMoves,
+  historyStagedByMove,
+  historyLoading,
+  historyError,
 }) {
   const moveFilterDefs = useMemo(() => MOVE_FILTER_DEFS, []);
   const requestFilterDefs = useMemo(() => REQUEST_FILTER_DEFS, []);
@@ -298,6 +331,15 @@ export default function QueueRail({
     [moves],
   );
 
+  const rankedHistoryMoves = useMemo(
+    () =>
+      (historyMoves ?? []).map((r) => ({
+        ...r,
+        queueOrder: (MOVE_STATUS_RANK[r.statusLabel] ?? 0) * 1e15 - r.createdAtMs,
+      })),
+    [historyMoves],
+  );
+
   // D25: an unresolved TROUBLE row floats to the top of the Caving lens
   // instead of being the only thing shown by default.
   const rankedCavingRolls = useMemo(
@@ -309,7 +351,7 @@ export default function QueueRail({
     [cavingRolls],
   );
 
-  // All three tables mount permanently so lens flips keep each one's
+  // All four tables mount permanently so lens flips keep each one's
   // filters; the rail just shows one at a time. Page size is effectively
   // "everything" — the rail scrolls, and an open turn caps the set at the
   // roster size. rankBySearch: true because this list has no sortable
@@ -341,6 +383,17 @@ export default function QueueRail({
     initialFilters: { zone: openingZoneName(myZoneNames) },
     pageSize: 1000,
   });
+  // The History lens is the Moves lens over a past turn: same defs, same
+  // search map, same ranking, its own filter state and its own travel toggle.
+  const historyTable = useTableState({
+    rows: rankedHistoryMoves,
+    filterDefs: moveFilterDefs,
+    searchMap: moveSearchMap,
+    rankBySearch: true,
+    initialSort: { key: "queueOrder", dir: "asc" },
+    initialFilters: { zone: openingZoneName(myZoneNames) },
+    pageSize: 1000,
+  });
 
   // Auto-filed travel Moves are already solved and never need a GM — hidden
   // from the list by default so they don't pad the queue, but picking
@@ -353,7 +406,21 @@ export default function QueueRail({
   }, [moveTable.visible, moveTable.filters.kind, hideTravel]);
   const hiddenTravelCount = moveTable.visible.length - movesShown.length;
 
-  const rowsForLens = { moves: movesShown, requests: requestTable.visible, caving: cavingTable.visible };
+  // The History lens's own pair. A past turn is mostly travel and silently
+  // closed Routines, so hiding travel matters more here, not less.
+  const [hideHistoryTravel, setHideHistoryTravel] = useState(true);
+  const historyShown = useMemo(() => {
+    if (!hideHistoryTravel || historyTable.filters.kind === "Travel") return historyTable.visible;
+    return historyTable.visible.filter((r) => !r.isTravel);
+  }, [historyTable.visible, historyTable.filters.kind, hideHistoryTravel]);
+  const hiddenHistoryTravelCount = historyTable.visible.length - historyShown.length;
+
+  const rowsForLens = {
+    moves: movesShown,
+    requests: requestTable.visible,
+    caving: cavingTable.visible,
+    history: historyShown,
+  };
   const visibleRows = rowsForLens[lens] ?? movesShown;
   const [kbdIndex, setKbdIndex] = useState(-1);
   const railRef = useRef(null);
@@ -370,24 +437,30 @@ export default function QueueRail({
     function onKey(e) {
       const key = e.key;
       const isNav = key === "ArrowDown" || key === "ArrowUp" || key === "j" || key === "k" || key === "Enter";
-      const isLensKey = key === "m" || key === "r" || key === "c";
+      const isLensKey = key === "m" || key === "r" || key === "c" || key === "h";
       if (!isNav && !isLensKey) return;
       if (document.querySelector(".modal-overlay")) return;
       const active = document.activeElement;
       if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) return;
 
       if (isLensKey) {
-        onLens?.(key === "m" ? "moves" : key === "r" ? "requests" : "caving");
+        onLens?.(LENS_FOR_KEY[key]);
         setKbdIndex(-1);
         return;
       }
 
-      const rows = { moves: movesShown, requests: requestTable.visible, caving: cavingTable.visible }[lens] ?? [];
+      const rows =
+        {
+          moves: movesShown,
+          requests: requestTable.visible,
+          caving: cavingTable.visible,
+          history: historyShown,
+        }[lens] ?? [];
       if (!rows.length) return;
 
       if (key === "Enter") {
         const row = clampedKbdIndex >= 0 ? rows[clampedKbdIndex] : null;
-        if (row) onSelect({ type: lens === "requests" ? "request" : lens === "caving" ? "caving" : "move", id: row.id });
+        if (row) onSelect({ type: SELECTION_TYPE_FOR_LENS[lens] ?? "move", id: row.id });
         return;
       }
 
@@ -401,7 +474,17 @@ export default function QueueRail({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [lens, onLens, onSelect, movesShown, requestTable.visible, cavingTable.visible, clampedKbdIndex, coarse]);
+  }, [
+    lens,
+    onLens,
+    onSelect,
+    movesShown,
+    requestTable.visible,
+    cavingTable.visible,
+    historyShown,
+    clampedKbdIndex,
+    coarse,
+  ]);
 
   return (
     <aside className="desk-rail" ref={railRef}>
@@ -415,9 +498,77 @@ export default function QueueRail({
         <button type="button" aria-pressed={lens === "caving"} onClick={() => onLens?.("caving")}>
           Caving
         </button>
+        <button type="button" aria-pressed={lens === "history"} onClick={() => onLens?.("history")}>
+          History
+        </button>
       </div>
 
-      {lens === "requests" ? (
+      {lens === "history" ? (
+        <>
+          <RailFilters
+            table={historyTable}
+            filterDefs={moveFilterDefs}
+            myZoneNames={myZoneNames}
+            searchPlaceholder="name, role, @handle, zone:…"
+            header={
+              <label className="field">
+                <span className="field-label">Turn</span>
+                <Select
+                  value={historyTurnId ?? ""}
+                  disabled={!resolvedTurns?.length}
+                  onChange={(e) => onHistoryTurn?.(e.target.value)}
+                >
+                  {resolvedTurns?.length ? (
+                    resolvedTurns.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.label}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">No resolved turns yet</option>
+                  )}
+                </Select>
+              </label>
+            }
+          >
+            {hiddenHistoryTravelCount > 0 && (
+              <label className="field-label flex items-center gap-1.5" style={{ fontWeight: "normal" }}>
+                <input
+                  type="checkbox"
+                  checked={!hideHistoryTravel}
+                  onChange={(e) => setHideHistoryTravel(!e.target.checked)}
+                />
+                Show {hiddenHistoryTravelCount} travel
+              </label>
+            )}
+          </RailFilters>
+          <div className="desk-queue">
+            <MoveRows
+              rows={historyShown}
+              matchFor={historyTable.matchFor}
+              stagedByMove={historyStagedByMove ?? new Map()}
+              selected={selected}
+              onSelect={onSelect}
+              gmProfiles={gmProfiles}
+              kbdId={kbdId}
+              kbdLens={lens}
+              type="history"
+              lensKey="history"
+            />
+            {historyError && <p className="p-3 text-sm form-error">{historyError}</p>}
+            {!historyError && historyLoading && <p className="p-3 text-sm text-muted">Loading that turn…</p>}
+            {!historyError && !historyLoading && historyShown.length === 0 && (
+              <p className="p-3 text-sm text-muted">
+                {resolvedTurns?.length
+                  ? hiddenHistoryTravelCount > 0
+                    ? `No Moves match — ${hiddenHistoryTravelCount} travel Move${hiddenHistoryTravelCount === 1 ? "" : "s"} hidden.`
+                    : "No Moves on that turn match."
+                  : "No turn has been pushed yet."}
+              </p>
+            )}
+          </div>
+        </>
+      ) : lens === "requests" ? (
         <>
           <RailFilters
             table={requestTable}
@@ -494,7 +645,7 @@ export default function QueueRail({
           </div>
         </>
       )}
-      <p className="desk-rail-hint text-xs text-muted">↑↓ / j k navigate · ⏎ open · m/r/c lens · esc close</p>
+      <p className="desk-rail-hint text-xs text-muted">↑↓ / j k navigate · ⏎ open · m/r/c/h lens · esc close</p>
     </aside>
   );
 }

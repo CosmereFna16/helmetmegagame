@@ -1,34 +1,33 @@
+import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { listGuildMembers } from "@/lib/discordGuild";
 import { getGmProfiles } from "@/lib/gmProfiles";
 import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requests";
 import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
-import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, isTravelMove, rollLabel } from "@/lib/moves";
 import { getOpenTurn } from "@/lib/turn";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { getMyZones } from "@/lib/gmZone";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
+import {
+  MOVE_INCLUDE,
+  STAGED_EFFECT_INCLUDE,
+  STAGED_MESSAGE_INCLUDE,
+  moveRow,
+  stagedEffectRow,
+  stagedMessageRow,
+  tagsByIdFor,
+} from "@/lib/moveRows";
 import Workspace from "../Workspace";
 
 // The adjudication workspace's server half: one load, all DTOs, no
 // Prisma-shaped object across the boundary. The queue is the OPEN turn's
 // Moves — under staged arbitration a resolved turn's Moves are already
-// pushed and silently closed, so there is nothing left to do to them —
-// plus the newest Requests, which keep their own review lifecycle.
+// pushed, so nothing here can still be done to them — plus the newest
+// Requests, which keep their own review lifecycle. A past turn is readable
+// through the History lens, but it fetches itself (actions.js#getMoveHistory);
+// all this file ships for it is the picker's list of resolved turns.
 
 const REQUEST_LIMIT = 300;
-
-function isConfirmed(a) {
-  return a.status === "CONFIRMED" || a.status === "ADJUDICATED";
-}
-
-// "In Progress" is DERIVED from a live lock rather than stored, so a GM whose
-// browser died can never strand a Move in that state — the lock simply lapses.
-function statusLabel(a, now) {
-  if (!isConfirmed(a)) return MOVE_PIPELINE_LABELS[a.status] ?? a.status;
-  if (a.lockExpiresAt && a.lockExpiresAt > now) return "In Progress";
-  return MOVE_REVIEW_LABELS[a.moveReviewStatus] ?? "Open";
-}
 
 function turnLabel(turn) {
   if (!turn) return "—";
@@ -125,15 +124,20 @@ function summarize(request) {
 // The route also has to exist, not just be tolerated: Workspace polls
 // router.refresh() every 45s against the CURRENT url, so a GM parked on
 // /gm/turns/move/abc would 404 on the first poll without it.
+//
+// `history` is the fourth type: a Move on a RESOLVED turn, opened read-only.
+// It never overlaps `move` — the open turn's Move is always `move`, and a
+// history URL naming one is redirected below.
 function parseSelection(segments) {
   if (!segments || segments.length !== 2) return null;
   const [type, id] = segments;
-  if (!["move", "request", "caving"].includes(type)) return null;
+  if (!["move", "request", "caving", "history"].includes(type)) return null;
   return { type, id };
 }
 
 export default async function TurnsWorkspacePage({ params }) {
   const { selection } = await params;
+  const parsedSelection = parseSelection(selection);
   const openTurn = await getOpenTurn();
 
   // The move cutoff, resolved server-side: turnClock is a db/lib module and
@@ -145,183 +149,130 @@ export default async function TurnsWorkspacePage({ params }) {
     ? moveWindow(openTurn, { autoTurnAdvanceDisabled: Boolean(gameConfig?.autoTurnAdvanceDisabled) })
     : null;
 
-  const [actions, requests, cavingRolls, stagedEffects, stagedMessages, roster, presenceZones, tagCatalog, members, myZones, gmProfiles] =
-    await Promise.all([
-      openTurn
-        ? prisma.action.findMany({
-            where: { turnId: openTurn.id },
-            orderBy: { createdAt: "desc" },
-            include: {
-              character: {
-                include: {
-                  // faction.zone is the ZONE SEAT this row answers to — a
-                  // faction always banks on a seat zone, never on a cave
-                  // level; `zone` is the PRESENCE zone, where they physically
-                  // stand, which is what the desk labels.
-                  faction: { include: { zone: true } },
-                  zone: true,
-                  tags: {
-                    select: {
-                      tagId: true,
-                      quantity: true,
-                      expiresTurn: true,
-                      tag: { select: TAG_CHIP_FIELDS },
-                    },
-                  },
-                },
+  const [
+    actions,
+    requests,
+    cavingRolls,
+    stagedEffects,
+    stagedMessages,
+    roster,
+    presenceZones,
+    tagCatalog,
+    members,
+    myZones,
+    gmProfiles,
+    resolvedTurns,
+  ] = await Promise.all([
+    openTurn
+      ? prisma.action.findMany({
+          where: { turnId: openTurn.id },
+          orderBy: { createdAt: "desc" },
+          include: MOVE_INCLUDE,
+        })
+      : [],
+    prisma.request.findMany({
+      orderBy: { createdAt: "desc" },
+      take: REQUEST_LIMIT,
+      include: { character: { include: { faction: { include: { zone: true } } } }, turn: true },
+    }),
+    // The Caving lens — every roll on the open turn. See
+    // docs/systemdocs/CAVING.md. No "strays from earlier turns" clause
+    // like stagedEffects/stagedMessages below: a CavingRoll is never
+    // "unapplied", it just sits resolved or not.
+    openTurn
+      ? prisma.cavingRoll.findMany({
+          where: { turnId: openTurn.id },
+          orderBy: { createdAt: "desc" },
+          include: {
+            character: {
+              select: {
+                id: true,
+                name: true,
+                discordUserId: true,
+                updatedAt: true,
+                roleTitle: true,
+                faction: { include: { zone: true } },
               },
             },
-          })
-        : [],
-      prisma.request.findMany({
-        orderBy: { createdAt: "desc" },
-        take: REQUEST_LIMIT,
-        include: { character: { include: { faction: { include: { zone: true } } } }, turn: true },
-      }),
-      // The Caving lens — every roll on the open turn. See
-      // docs/systemdocs/CAVING.md. No "strays from earlier turns" clause
-      // like stagedEffects/stagedMessages below: a CavingRoll is never
-      // "unapplied", it just sits resolved or not.
-      openTurn
-        ? prisma.cavingRoll.findMany({
-            where: { turnId: openTurn.id },
-            orderBy: { createdAt: "desc" },
-            include: {
-              character: {
-                select: {
-                  id: true,
-                  name: true,
-                  discordUserId: true,
-                  updatedAt: true,
-                  roleTitle: true,
-                  faction: { include: { zone: true } },
-                },
-              },
-              zone: { select: { name: true } },
-              lootTag: { select: { name: true } },
-              // A FIND's loot is undoable from the Caving desk as well as the
-              // Requests lens — both routes call the one CAVING_LOOT handler,
-              // so the desk needs the request's id and its current status.
-              lootRequest: { select: { id: true, status: true } },
-            },
-          })
-        : [],
-      // Open-turn staging plus every unapplied stray from earlier turns —
-      // the strays feed the missed-push banner.
-      prisma.stagedEffect.findMany({
-        where: openTurn ? { OR: [{ turnId: openTurn.id }, { appliedAt: null }] } : { appliedAt: null },
-        orderBy: { createdAt: "asc" },
-        include: {
-          targetCharacter: { select: { id: true, name: true, updatedAt: true } },
-          turn: { select: { id: true, number: true } },
-        },
-      }),
-      prisma.stagedMessage.findMany({
-        where: openTurn ? { OR: [{ turnId: openTurn.id }, { sentAt: null }] } : { sentAt: null },
-        orderBy: { createdAt: "asc" },
-        include: {
-          recipients: { include: { character: { select: { id: true, name: true, updatedAt: true } } } },
-          zone: { select: { id: true, name: true } },
-          turn: { select: { id: true, number: true } },
-        },
-      }),
-      // Recipient and mass-apply pickers. Living characters only — a staged
-      // message to someone who dies mid-turn keeps its recipient row anyway.
-      prisma.character.findMany({
-        where: { status: "ALIVE" },
-        orderBy: { name: "asc" },
-        select: {
-          id: true,
-          name: true,
-          roleTitle: true,
-          discordUserId: true,
-          faction: { select: { name: true } },
-          zone: { select: { name: true } },
-        },
-      }),
-      // Every zone picker on this desk (staged relocation, public-declaration
-      // delivery) offers PRESENCE zones only — a character stands in a
-      // surface zone or a single cave level, never on the abstract Caves
-      // group row (mirrors web/lib/devPanelData.js's zone query).
-      prisma.zone.findMany({
-        where: { kind: { not: "CAVE_GROUP" } },
-        orderBy: { sortOrder: "asc" },
-        select: { id: true, name: true },
-      }),
-      // The effect composer's search space: the whole catalog. TAG_CHIP_FIELDS
-      // is what TagChip/ChipLabel need to render coloured with a working
-      // tooltip (group, category, description, …) — this used to be a lean,
-      // bespoke select missing all of that, which is why chips here rendered
-      // uncoloured with an empty tooltip. See referenceData.js's own comment;
-      // this is the second time that regression happened.
-      prisma.tag.findMany({
-        orderBy: { name: "asc" },
-        select: {
-          ...TAG_CHIP_FIELDS,
-          stackable: true,
-          equippable: true,
-        },
-      }),
-      listGuildMembers(),
-      getMyZones(),
-      getGmProfiles(),
-    ]);
+            zone: { select: { name: true } },
+            lootTag: { select: { name: true } },
+            // A FIND's loot is undoable from the Caving desk as well as the
+            // Requests lens — both routes call the one CAVING_LOOT handler,
+            // so the desk needs the request's id and its current status.
+            lootRequest: { select: { id: true, status: true } },
+          },
+        })
+      : [],
+    // Open-turn staging plus every unapplied stray from earlier turns —
+    // the strays feed the missed-push banner.
+    prisma.stagedEffect.findMany({
+      where: openTurn ? { OR: [{ turnId: openTurn.id }, { appliedAt: null }] } : { appliedAt: null },
+      orderBy: { createdAt: "asc" },
+      include: STAGED_EFFECT_INCLUDE,
+    }),
+    prisma.stagedMessage.findMany({
+      where: openTurn ? { OR: [{ turnId: openTurn.id }, { sentAt: null }] } : { sentAt: null },
+      orderBy: { createdAt: "asc" },
+      include: STAGED_MESSAGE_INCLUDE,
+    }),
+    // Recipient and mass-apply pickers. Living characters only — a staged
+    // message to someone who dies mid-turn keeps its recipient row anyway.
+    prisma.character.findMany({
+      where: { status: "ALIVE" },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        roleTitle: true,
+        discordUserId: true,
+        faction: { select: { name: true } },
+        zone: { select: { name: true } },
+      },
+    }),
+    // Every zone picker on this desk (staged relocation, public-declaration
+    // delivery) offers PRESENCE zones only — a character stands in a
+    // surface zone or a single cave level, never on the abstract Caves
+    // group row (mirrors web/lib/devPanelData.js's zone query).
+    prisma.zone.findMany({
+      where: { kind: { not: "CAVE_GROUP" } },
+      orderBy: { sortOrder: "asc" },
+      select: { id: true, name: true },
+    }),
+    // The effect composer's search space: the whole catalog. TAG_CHIP_FIELDS
+    // is what TagChip/ChipLabel need to render coloured with a working
+    // tooltip (group, category, description, …) — this used to be a lean,
+    // bespoke select missing all of that, which is why chips here rendered
+    // uncoloured with an empty tooltip. See referenceData.js's own comment;
+    // this is the second time that regression happened.
+    prisma.tag.findMany({
+      orderBy: { name: "asc" },
+      select: {
+        ...TAG_CHIP_FIELDS,
+        stackable: true,
+        equippable: true,
+      },
+    }),
+    listGuildMembers(),
+    getMyZones(),
+    getGmProfiles(),
+    // The History lens's turn picker. Just the labels — a resolved turn's
+    // Moves are fetched on demand by getMoveHistory when a GM actually
+    // opens the lens, so the open turn's desk never pays for history it
+    // isn't looking at (and neither does the 45s router.refresh()).
+    prisma.turn.findMany({
+      where: { status: "RESOLVED" },
+      orderBy: { number: "desc" },
+      select: { id: true, number: true, phase: true },
+    }),
+  ]);
 
   const usernameById = new Map(members.map((m) => [m.id, m.username]));
   const nameFor = (c) => usernameById.get(c.discordUserId) ?? c.discordUserId;
   const now = new Date();
   const gmProfilesById = Object.fromEntries(gmProfiles.map((p) => [p.discordUserId, { username: p.username, avatarUrl: p.avatarUrl }]));
 
-  // One copy of each distinct held tag, for TagChip rendering — bounded by
-  // the catalog, not the row count.
-  const tagsById = {};
-  for (const action of actions) {
-    for (const ct of action.character.tags) {
-      if (!tagsById[ct.tagId]) tagsById[ct.tagId] = ct.tag;
-    }
-  }
-
-  const moves = actions.map((a) => ({
-    id: a.id,
-    characterId: a.characterId,
-    characterName: a.character.name,
-    avatarVersion: a.character.updatedAt.getTime(),
-    // The player desk keys on discordUserId, not characterId — carried here
-    // so a Move can link straight to that player's conversation.
-    discordUserId: a.character.discordUserId,
-    discordUsername: nameFor(a.character),
-    roleTitle: a.character.roleTitle ?? "",
-    factionName: a.character.faction?.name ?? "",
-    factionId: a.character.factionId ?? null,
-    factionZoneName: a.character.faction?.zone?.name ?? "",
-    description: a.description,
-    kindLabel: moveKindLabel(a.moveKind, a.gmNotes),
-    moveKind: a.moveKind ?? "ROUTINE",
-    isTravel: isTravelMove(a.gmNotes),
-    gmNotes: a.gmNotes ?? "",
-    rollLabel: rollLabel(a),
-    statusLabel: statusLabel(a, now),
-    // Where they stand. Key name kept because MoveDesk and InspectorColumn
-    // still read `locationLabel`; the value is now just the presence zone,
-    // since Locations are prose Topics and no longer a place on the sheet.
-    locationLabel: a.character.zone?.name || "Unassigned",
-    resources: a.character.resources,
-    tags: a.character.tags.map((ct) => ({
-      tagId: ct.tagId,
-      quantity: ct.quantity,
-      expiresTurn: ct.expiresTurn,
-    })),
-    resourceDelta: a.resourceDelta ?? null,
-    resourceRollExpression: a.resourceRollExpression ?? null,
-    resultMessage: a.resultMessage ?? "",
-    reviewedByUsername: a.reviewedByDiscordUserId
-      ? (usernameById.get(a.reviewedByDiscordUserId) ?? a.reviewedByDiscordUserId)
-      : null,
-    reviewedByDiscordUserId: a.reviewedByDiscordUserId ?? null,
-    reviewedAtLabel: a.reviewedAt ? a.reviewedAt.toISOString().slice(0, 16).replace("T", " ") : null,
-    lockedByDiscordUserId: a.lockExpiresAt && a.lockExpiresAt > now ? (a.lockedByDiscordUserId ?? null) : null,
-    createdAtMs: a.createdAt.getTime(),
-  }));
+  const tagsById = tagsByIdFor(actions);
+  const moves = actions.map((a) => moveRow(a, { usernameById, now }));
 
   const requestRows = requests.map((r) => ({
     id: r.id,
@@ -377,51 +328,51 @@ export default async function TurnsWorkspacePage({ params }) {
 
   const presenceZoneNameById = new Map(presenceZones.map((z) => [z.id, z.name]));
 
-  const effects = stagedEffects.map((e) => ({
-    id: e.id,
-    moveId: e.moveId,
-    cavingRollId: e.cavingRollId,
-    batchId: e.batchId,
-    targetCharacterId: e.targetCharacterId,
-    targetName: e.targetCharacter?.name ?? "(deleted)",
-    targetAvatarVersion: e.targetCharacter?.updatedAt ? e.targetCharacter.updatedAt.getTime() : null,
-    resources: e.payload?.resources ?? 0,
-    tagPoints: e.payload?.tagPoints ?? 0,
-    tagOps: e.payload?.tagOps ?? [],
-    zoneId: e.payload?.zoneId ?? null,
-    zoneName: e.payload?.zoneId ? (presenceZoneNameById.get(e.payload.zoneId) ?? "(deleted zone)") : null,
-    applied: Boolean(e.appliedAt),
-    appliedError: e.appliedEffect?.error ?? null,
-    createdByUsername: usernameById.get(e.createdByDiscordUserId) ?? e.createdByDiscordUserId,
-    createdByDiscordUserId: e.createdByDiscordUserId ?? null,
-    turnNumber: e.turn?.number ?? null,
-    missed: openTurn ? e.turnId !== openTurn.id && !e.appliedAt : !e.appliedAt,
-  }));
+  const effectCtx = { usernameById, presenceZoneNameById, openTurn };
+  const messageCtx = { usernameById, openTurn };
+  const effects = stagedEffects.map((e) => stagedEffectRow(e, effectCtx));
+  const messages = stagedMessages.map((m) => stagedMessageRow(m, messageCtx));
 
-  const messages = stagedMessages.map((m) => ({
-    id: m.id,
-    moveId: m.moveId,
-    cavingRollId: m.cavingRollId,
-    kind: m.kind,
-    content: m.content,
-    zoneId: m.zoneId,
-    zoneName: m.zone?.name ?? null,
-    recipients: m.recipients.map((r) => ({
-      characterId: r.character.id,
-      name: r.character.name,
-      avatarVersion: r.character.updatedAt.getTime(),
-    })),
-    sent: Boolean(m.sentAt),
-    deliveryFailures: m.deliveryFailures ?? null,
-    createdByUsername: usernameById.get(m.createdByDiscordUserId) ?? m.createdByDiscordUserId,
-    createdByDiscordUserId: m.createdByDiscordUserId ?? null,
-    turnNumber: m.turn?.number ?? null,
-    missed: openTurn ? m.turnId !== openTurn.id && !m.sentAt : !m.sentAt,
-  }));
+  // A /gm/turns/history/<id> deep link, so one GM can send another the exact
+  // past Move and have it open on arrival. The lens fetches the rest of that
+  // turn on its own; this is only the one row the URL names. A row that turns
+  // out to be on the OPEN turn isn't history at all — it is still live work,
+  // so the URL corrects itself to /gm/turns/move/<id>.
+  let initialHistory = null;
+  if (parsedSelection?.type === "history") {
+    const past = await prisma.action.findUnique({
+      where: { id: parsedSelection.id },
+      include: MOVE_INCLUDE,
+    });
+    if (past && openTurn && past.turnId === openTurn.id) redirect(`/gm/turns/move/${past.id}`);
+    if (past) {
+      const [pastEffects, pastMessages] = await Promise.all([
+        prisma.stagedEffect.findMany({
+          where: { moveId: past.id },
+          orderBy: { createdAt: "asc" },
+          include: STAGED_EFFECT_INCLUDE,
+        }),
+        prisma.stagedMessage.findMany({
+          where: { moveId: past.id },
+          orderBy: { createdAt: "asc" },
+          include: STAGED_MESSAGE_INCLUDE,
+        }),
+      ]);
+      initialHistory = {
+        turnId: past.turnId,
+        move: moveRow(past, { usernameById, now }),
+        effects: pastEffects.map((e) => stagedEffectRow(e, effectCtx)),
+        messages: pastMessages.map((m) => stagedMessageRow(m, messageCtx)),
+        tagsById: tagsByIdFor([past]),
+      };
+    }
+  }
 
   return (
     <Workspace
-      initialSelection={parseSelection(selection)}
+      initialSelection={parsedSelection}
+      initialHistory={initialHistory}
+      resolvedTurns={resolvedTurns.map((t) => ({ id: t.id, number: t.number, label: turnLabel(t) }))}
       openTurn={openTurn ? { id: openTurn.id, number: openTurn.number, phase: openTurn.phase } : null}
       myZoneNames={myZones.map((z) => z.name)}
       tagsById={tagsById}

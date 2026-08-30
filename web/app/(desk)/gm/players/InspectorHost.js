@@ -84,10 +84,15 @@ export default function InspectorHost({
       }
     : null;
 
+  // The third argument is an optional tab request — Canon's "Past moves →"
+  // uses it to land on the inspector's Moves tab. Token-stamped so the column
+  // can tell a fresh ask from the one it already honoured.
+  const [tabRequest, setTabRequest] = useState(null); // { tab, token }
   const onInspect = useCallback(
-    (characterId) => {
+    (characterId, name, tab) => {
       const row = rowByCharacter.get(characterId);
       if (row) setOverride({ segment, value: row });
+      if (tab) setTabRequest((prev) => ({ tab, token: (prev?.token ?? 0) + 1 }));
     },
     [rowByCharacter, segment],
   );
@@ -142,6 +147,9 @@ export default function InspectorHost({
             // only offered when the inspected person IS the open conversation
             // — a pinned someone-else must not overwrite an unrelated draft.
             discordUserId={who.discordUserId === segment ? who.discordUserId : null}
+            // Canon is this turn; the Moves tab is everything before it.
+            // Rather than repeat the history here, Canon points at it.
+            onPastMoves={() => onInspect(who.characterId, who.name, "Moves")}
           />
         ),
       },
@@ -158,7 +166,7 @@ export default function InspectorHost({
         ),
       },
     ],
-    [gmProfiles, myDiscordUserId, segment],
+    [gmProfiles, myDiscordUserId, segment, onInspect],
   );
 
   // The custom-tag door. It APPLIES here rather than staging: this desk is a
@@ -206,6 +214,7 @@ export default function InspectorHost({
         extraTabs={extraTabs}
         pinsActions={pinsActions}
         customTag={customTag}
+        requestedTab={tabRequest}
         emptyHint="Pick somebody in the rail, or look them up above, to keep their sheet beside the conversation."
       />
 

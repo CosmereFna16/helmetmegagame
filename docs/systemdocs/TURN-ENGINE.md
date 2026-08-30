@@ -44,8 +44,13 @@ each arrived at by getting them wrong first.
    the GMs queued this turn, then every confirmed Move's own declared numbers
    (nothing pays at confirm any more — a Routine, a Labor payout and a
    GM-solved Gambit all sit with `appliedEffects` null until here), and
-   silently closes untouched Moves (`OPEN → PASSED`, `auto:silent_close`, no
-   DM). Its slot is load-bearing three ways: **after** the Default Move pass
+   silently closes untouched Moves (`OPEN → PASSED`, `auto:silent_close`).
+   Silent for a Gambit, but a Routine that ends the push `PASSED` gets a short
+   canned DM saying it passed with no adjudication notes — unless a private
+   staged message on that Move already went to that player, a staged effect
+   on it targets them (their sheet is changing in this same push), or an
+   `auto:` marker says another pass is DMing them about it.
+   Its slot is load-bearing three ways: **after** the Default Move pass
    (whose rows arrive already stamped, so this one skips them), **before**
    the progression/sweep (a staged "remove Infected" must beat the
    progression, and a staged fresh grant carries `expiresTurn > N` so the
