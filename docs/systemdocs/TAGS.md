@@ -74,6 +74,21 @@ diff check, same style as the zone sync's hash gate).
   prerequisite: every tag in that group stays gated behind one required tag,
   so a whole category-of-flavor can be hidden behind a single membership tag
   without repeating `requiredTag` on every tag in it. See §3a.
+- **`Tag.exclusive`** — not a relation at all, but the third rule the same
+  callers enforce: a character may hold at most **one** tag carrying this
+  flag. Set on the nine Beliefs, which are a single answer rather than a
+  collection. Neither of the two above could express it — a `parentTag` chain
+  is priced cumulatively and walks one direction, and `requiredTag` is a
+  prerequisite rather than a conflict. The one exemption is a pair joined by
+  `requiredTag`, checked in both directions: Fundamentalist declares
+  `requiredTag: post-christian`, so the two are one belief taken to its
+  extreme. `exclusiveConflict(tag, heldOrSelectedIds, byId)` in
+  `web/lib/characterCreation.js` returns the conflicting tag or null, and
+  every caller's `select` must include `exclusive` and `requiredTagId` or the
+  rule silently stops applying. In `PointBuy` a conflict with another *pick*
+  swaps (like a chain sibling); a conflict with something already held is
+  dimmed and named. Conversion mid-game is "drop one, buy another" — Beliefs
+  stay `removable` — and the store's error says exactly that.
 
 `web/lib/characterCreation.js` is where the logic lives.
 `holdsRequirement(requiredTagId, …)` answers "is this one id satisfied by
@@ -227,8 +242,14 @@ and never through the menu.
 `purchasable` tag, while the mid-game store offers only those still marked
 `purchasableAfterStart`. That's what lets a pick like "Secretly an Android"
 exist at launch and never afterward. **Every negative-cost tag must be
-`purchasableAfterStart: false`** — a drawback buyable mid-game is a point
-farm.
+`purchasableAfterStart: false` — *unless* it is deliberately farmable, in
+which case it must also be non-removable.** A drawback that can be bought
+mid-game and then shed is a point farm, because `REMOVE_TAG` and
+`CONSUME_TAG` refund resources but never Tag Points. The four **Addictions**
+are the one deliberate exception: a Cultist is meant to be able to take one
+mid-game for the points, so they are `purchasableAfterStart: true` and
+`removable: false, consumable: false`. The flag is the whole rule — there is
+no second, hardcoded refusal behind it.
 
 That invariant has three enforcement points. `purchasableTags()` honours it
 via `PointBuy`'s `afterStartOnly` prop, which **`/store`** mounts — the
@@ -236,9 +257,12 @@ mid-game store is routed (`web/app/(app)/store/`), spends
 `Character.tagPoints`, and files each cart as one `BUY_TAGS` request
 (`REQUESTS.md`). Its server action `buyTags` re-checks the flag per tag,
 rejects a tier at or below one already held (`heldHigherTiers` /
-`effectiveCost`), replaces the held lower tier when a higher one is bought
-(§3), and refuses any negative effective cost — the store never pays the
-buyer. The **Add Tag request** is
+`effectiveCost`), and replaces the held lower tier when a higher one is
+bought (§3). It does **not** refuse a negative effective cost: it used to,
+and that belt-and-braces line was what made the Addictions unbuyable despite
+their flag. A negative cart total is credited rather than debited (the write
+guards on `totalPoints !== 0`, not `> 0`). The drawback POINT cap (§4a) is a
+creation rule only — `/store` passes no cap at all. The **Add Tag request** is
 the other mid-game path, for crafting and resource-acquisitions:
 `addableTags()` (and `addTagRequestImpl` server-side) require
 `purchasableAfterStart` on the **purchasable branch only**, because most
@@ -286,8 +310,11 @@ reason to price one at 5.
 without a deliberate decision recorded here. **Pilgrim is the one deliberate
 exception, priced at 1** — off the scale entirely, Gunboat's call.
 
-**A character may buy at most `GameConfig.maxNegativeTags` drawback
-POINTS — 8 by default, live on `/gm/dev`.** This is a cap on the sum of what
+**At character creation, a character may buy at most
+`GameConfig.maxNegativeTags` drawback POINTS — 8 by default, live on
+`/gm/dev`.** The cap belongs to the wizard and stops existing once play
+starts: `/store` passes no cap and shows no drawback readout, since the one
+drawback it can sell (an Addiction) is meant to be sellable. This is a cap on the sum of what
 drawbacks grant, not on how many drawback tags are held: one −8 drawback and
 eight −1 drawbacks spend the same slice of the cap. Only what was bought
 through the point-buy menu counts (`CharacterTag.source === "POINT_BUY"`): a
@@ -342,9 +369,12 @@ no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
 - **Combat items ride a fixed six-tier ladder.** Weapons and armor are priced
   from the tier they sit in, not by feel. See
   [`SMITHING.md`](SMITHING.md) for the table.
-- **Every negative tag is `purchasableAfterStart: false`.** Restated from §4
-  because it is the one invariant the scale can be used to violate: a
-  drawback buyable mid-game is a point farm.
+- **Every negative tag is `purchasableAfterStart: false` unless it is
+  deliberately farmable, in which case it must be non-removable.** Restated
+  from §4 because it is the one invariant the scale can be used to violate: a
+  drawback that can be bought mid-game *and* shed is a point farm. The four
+  Addictions are the deliberate exception and carry `removable: false,
+  consumable: false` to close the loop.
 - **Items are `purchasableAfterStart: false` too**, without exception. An
   object enters play by being crafted or found; its route in is `craftable`
   plus a `requirement` block, never points. 18 items violated this before the
@@ -377,6 +407,8 @@ here, change it there too** — they are meant to say the same thing.
   Like the Silo-gated Resources field, an unseen field is absent rather than
   placeholdered — a placeholder advertises that there is something to go
   after.
+- `exclusive` — at most one such tag per character. Set on the nine Beliefs;
+  see §3 for the rule, the `requiredTag` exemption, and where it is enforced.
 - `tradeable` — Items-category flag for a future trade flow; no transfer
   logic exists yet (Transfer Tag filters on `category`, not this).
 - `sellable` / `sellablePrice` — the seller's half of
@@ -739,7 +771,14 @@ finding:
 ```
 Infected ──3t──▶ Festering ──2t──▶ Feverish ──2t──▶ Sepsis ──2t──▶ Dying
                      └────2t────▶ Necrosis ──2t──▶ Missing Leg *or* Missing Arm
+
+Stuffed ──4t──▶ Exploded Chest ──2t──▶ Dying
 ```
+
+The second chain is the larva: `stuffed` is tier 5 (very minor surgery — cut
+it out while it is small), `exploded-chest` is tier 7 (the rung even Esculap
+rolls for) and runs on into Dying the same way Sepsis does. Both sit in
+`health-illness`.
 
 The YAML takes a bare slug, several slugs granted together, or an even random
 pick:

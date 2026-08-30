@@ -18,7 +18,7 @@ import { buildAuditWhere, loadAuditContext, parseAuditParams } from "@/lib/audit
 // the export is capped and says so in its own last line.
 const EXPORT_LIMIT = 10000;
 
-async function exportAuditImpl({ params, format }) {
+async function exportAuditImpl({ params }) {
   const { session, isGm } = await getGmSession();
   if (!session?.discordUserId || !isGm) throw new UserError("Not authorized.");
 
@@ -46,10 +46,7 @@ async function exportAuditImpl({ params, format }) {
     details: r.details ?? null,
   }));
 
-  const text =
-    format === "json"
-      ? JSON.stringify(shaped, null, 2)
-      : toCsv(shaped.map((r) => ({ ...r, details: r.details ? JSON.stringify(r.details) : "" })));
+  const text = toCsv(shaped.map((r) => ({ ...r, details: r.details ? JSON.stringify(r.details) : "" })));
 
   return { ok: true, text, count: rows.length, truncated: rows.length === EXPORT_LIMIT };
 }

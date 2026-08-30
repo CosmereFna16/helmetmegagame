@@ -5,6 +5,7 @@ import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requests";
 import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
 import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, isTravelMove, rollLabel } from "@/lib/moves";
 import { getOpenTurn } from "@/lib/turn";
+import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { getMyZones } from "@/lib/gmZone";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
 import Workspace from "../Workspace";
@@ -134,6 +135,15 @@ function parseSelection(segments) {
 export default async function TurnsWorkspacePage({ params }) {
   const { selection } = await params;
   const openTurn = await getOpenTurn();
+
+  // The move cutoff, resolved server-side: turnClock is a db/lib module and
+  // Workspace is a client component, so the derivation stays here and only
+  // the two numbers cross the boundary. The header ticks against cutoffAtMs
+  // itself.
+  const gameConfig = await prisma.gameConfig.findFirst({ select: { autoTurnAdvanceDisabled: true } });
+  const window_ = openTurn
+    ? moveWindow(openTurn, { autoTurnAdvanceDisabled: Boolean(gameConfig?.autoTurnAdvanceDisabled) })
+    : null;
 
   const [actions, requests, cavingRolls, stagedEffects, stagedMessages, roster, presenceZones, tagCatalog, members, myZones, gmProfiles] =
     await Promise.all([
@@ -432,6 +442,11 @@ export default async function TurnsWorkspacePage({ params }) {
       stagedEffects={effects}
       stagedMessages={messages}
       gmProfiles={gmProfilesById}
+      moveLock={
+        window_?.hasLock
+          ? { cutoffAtMs: window_.cutoffAt.getTime(), endsAtMs: window_.endsAt.getTime() }
+          : null
+      }
     />
   );
 }

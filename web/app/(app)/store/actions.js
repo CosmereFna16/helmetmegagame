@@ -12,6 +12,7 @@ import { expiryFor } from "@/lib/turnFormat";
 import {
   tagsById as buildTagsById,
   requirementSatisfied,
+  exclusiveConflict,
   chainSiblingsToRemove,
   heldHigherTiers,
   effectiveCost,
@@ -63,7 +64,16 @@ async function buyTagsImpl({ tagIds }) {
   const allTags = await prisma.tag.findMany({
     // `name` rides along for the replaced-tier snapshots below — the effect
     // names what came off the sheet so the GM ledger reads without a join.
-    select: { id: true, name: true, pointCost: true, parentTagId: true, requiredTagId: true },
+    // `exclusive` is what exclusiveConflict() reads off the held row.
+    select: {
+      id: true,
+      name: true,
+      pointCost: true,
+      parentTagId: true,
+      requiredTagId: true,
+      exclusive: true,
+      groupId: true,
+    },
   });
   const byId = buildTagsById(allTags);
   const heldOrSelectedIds = [...heldIds, ...ids];
@@ -90,15 +100,23 @@ async function buyTagsImpl({ tagIds }) {
     if (chainSiblingsToRemove(tag, byId, heldIds).length > 0 && effectiveCost(tag, byId, heldIds) <= 0) {
       throw new UserError(`You already hold that tier of ${tag.name}'s chain or better.`);
     }
-    // Belt and braces for the §4a rule that every negative tag is
-    // purchasableAfterStart: false — the store never pays the buyer.
-    if (effectiveCost(tag, byId, heldIds) < 0) {
-      throw new UserError(`${tag.name} can't be bought mid-game.`);
-    }
+    // There is deliberately NO refusal of a negative effective cost here.
+    // `purchasableAfterStart` is the one rule (TAGS.md §4): the Addictions are
+    // meant to be buyable mid-game for the points, and a hardcoded "the store
+    // never pays the buyer" made the flag unreachable for them.
+    //
     // The per-tag prerequisite and the hidden-category group gate, satisfied
     // by what's held or bought alongside.
     if (!requirementSatisfied(tag, byId, heldOrSelectedIds)) {
       throw new UserError(`You're missing a prerequisite for ${tag.name}.`);
+    }
+    // One exclusive tag at a time (the Beliefs). Conversion is still "drop
+    // one, buy another" — beliefs stay removable — so the error says so.
+    const conflict = exclusiveConflict(tag, heldOrSelectedIds, byId);
+    if (conflict) {
+      throw new UserError(
+        `You already hold ${conflict.name}; drop it first to take ${tag.name}.`,
+      );
     }
   }
 
@@ -143,7 +161,10 @@ async function buyTagsImpl({ tagIds }) {
         stackable: tag.stackable,
       });
     }
-    if (totalPoints > 0) {
+    // `!== 0`, not `> 0`: a cart of Addictions has a NEGATIVE total, and
+    // decrementing by a negative is the credit that pays the buyer. Guarding
+    // on `> 0` skipped the write entirely and gave the Cultist nothing.
+    if (totalPoints !== 0) {
       await tx.character.update({
         where: { id: character.id },
         data: { tagPoints: { decrement: totalPoints } },

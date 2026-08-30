@@ -72,7 +72,12 @@ async function postTurnsAnnouncement(prisma, newTurn, note) {
   if (!turnsChannel) return;
 
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
-  const text = [buildTurnAnnouncement(newTurn, note), CONSOLE_TEXT].join("\n");
+  // The Move-cutoff clause is omitted when auto-advance is off, since there is
+  // then no scheduled end to count back from (db/lib/turnClock.js).
+  const text = [
+    buildTurnAnnouncement(newTurn, note, { autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false }),
+    CONSOLE_TEXT,
+  ].join("\n");
 
   const sent = await postTurnsConsole(prisma, turnsChannel.id, text, newTurn, config);
   if (!sent) console.error("Turn announcement: nothing could be posted to #turns");

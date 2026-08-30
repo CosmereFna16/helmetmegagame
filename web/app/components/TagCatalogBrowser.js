@@ -4,6 +4,10 @@ import { useMemo, useState } from "react";
 import { sortForMode, menuCategories, filterTagsByQuery, formatCost, costColor } from "@/lib/characterCreation";
 import ChipText from "@/app/components/ChipText";
 import ChipLabel from "@/app/components/ChipLabel";
+import InfoIcon from "@/app/components/InfoIcon";
+
+const CUSTOM_TAG_TOOLTIP =
+  "Use this for things that would affect adjudications—not just little bracelets or something.";
 
 // The shared catalog-browsing half of the GM tag surface: search (name,
 // description, group — whole catalog once you type), category tabs,
@@ -27,6 +31,7 @@ export default function TagCatalogBrowser({
   selectActionLabel = "Add",
   renderActions,
   emptyLabel,
+  onCreateCustom,
 }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState(null);
@@ -77,8 +82,8 @@ export default function TagCatalogBrowser({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="field">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="field flex-1" style={{ minWidth: "16rem" }}>
           <span className="field-label">Search</span>
           <input
             type="search"
@@ -87,6 +92,14 @@ export default function TagCatalogBrowser({
             placeholder="Name, description, or group — searches every category"
           />
         </label>
+        {onCreateCustom && (
+          <span className="flex items-center gap-1.5">
+            <button type="button" className="btn-secondary" onClick={onCreateCustom}>
+              + Custom tag
+            </button>
+            <InfoIcon text={CUSTOM_TAG_TOOLTIP} />
+          </span>
+        )}
       </div>
 
       {!searching && (

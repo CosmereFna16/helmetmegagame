@@ -97,7 +97,7 @@ reason.
 | `REMOVE_TAG` | Drops one of their own `removable` tags, optionally paying ⬢, in a quantity if it stacks | cost | Restores the tag and its count, refunds the cost |
 | `CONSUME_TAG` | Uses up one of their own `consumable` tags — always exactly one, even from a stack — and gains whatever it `consumesInto` | — | Restores the one unit with its original expiry, takes back what it granted |
 | `TRANSFER_TAG` | Hands an Item or Asset to another player in the same zone, in a quantity if it stacks. `direction: "LOOT"` lifts one off a corpse in the same zone | — | Moves that many back |
-| `FULFILL_DESIRE` | Claims their active Desire | Tag Points awarded | Revokes the points, reopens the Desire |
+| `FULFILL_DESIRE` | Claims one of their active Desires | Tag Points awarded | Revokes the points, reopens the Desire |
 | `DONATE_BLOOD` | Mortus bleeds someone into the Lifeweb | blood added; clear Drained | Draws the blood back, clears Drained |
 | `FEED_PERSON` | Mortus feeds someone to the Lifeweb | blood added | Draws the blood back (never revives) |
 | `HEAL_CHARACTER` | Treats an affliction on anyone standing in their zone, on whoever's tab they choose | cost; put the affliction back | Restores the tag with its original expiry, refunds the payer |
@@ -346,8 +346,17 @@ still show its work instead of pretending nothing happened.
 ## 5. Desires
 
 A Desire is a self-set goal worth 1–5 Tag Points. `Desire` holds one row per
-attempt; at most one is `ACTIVE` per character, enforced in the server action
-rather than the schema (the constraint is "one ACTIVE", not "one row").
+attempt; a character may hold up to `GameConfig.maxActiveDesires` (default 3)
+`ACTIVE` at once, enforced in the server actions rather than the schema (the
+constraint is "at most N ACTIVE", not "at most N rows"). The cap is editable
+live from `/gm/dev`, and `setDesireGm` on the Dev Panel honours it too — a GM
+at the cap ends one first, rather than the set silently cancelling the
+previous Desire.
+
+Because several can run at once, `cancelDesire` and `fulfillDesireRequest`
+both take the `desireId` and re-check that it belongs to the acting character
+and is still `ACTIVE`. The `FULFILL_DESIRE` request's `effect` already carried
+`desireId`, so the re-score and Undo paths were already per-row.
 
 Setting and cancelling are **not** requests — nothing has been granted, so
 there is nothing for a GM to undo. Both go through `useConfirm()`. Only
@@ -355,9 +364,9 @@ there is nothing for a GM to undo. Both go through `useConfirm()`. Only
 review.
 
 Ending a Desire either way stamps `endedTurnNumber`, which drives a one-turn
-cooldown: a new Desire is blocked while
-`openTurn.number <= lastEnded.endedTurnNumber`. The confirm dialog warns about
-this before the player commits.
+cooldown: a *new* Desire is blocked while
+`openTurn.number <= lastEnded.endedTurnNumber`, however many are still
+running. The confirm dialog warns about this before the player commits.
 
 Undoing a fulfillment revokes the points **even if that drives the balance
 negative**. That is intended: if the player already spent them, digging out is

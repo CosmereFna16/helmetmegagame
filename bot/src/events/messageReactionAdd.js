@@ -34,6 +34,7 @@ function fitDescription(value) {
   return text.length > EMBED_DESCRIPTION_LIMIT ? `${text.slice(0, EMBED_DESCRIPTION_LIMIT - 1)}…` : text;
 }
 const { sendDm } = require("../lib/dm");
+const { expectReply } = require("../lib/pendingPrompts");
 
 const DELETE_EMOJI = "❌"; // ❌
 const EDIT_EMOJIS = ["✏️", "📝"]; // ✏️ pencil, 📝 memo (pencil and paper)
@@ -104,12 +105,15 @@ async function handleDossierReaction(reaction, proxy, user) {
   ]);
   if (!character) return;
 
-  const [action, desire] = await Promise.all([
+  const [action, desires] = await Promise.all([
     openTurn
       ? prisma.action.findFirst({ where: { characterId: character.id, turnId: openTurn.id } })
       : null,
-    prisma.desire.findFirst({
+    // A character may hold several active Desires (GameConfig.maxActiveDesires),
+    // so this reads the list; oldest first, the order the sheet shows them in.
+    prisma.desire.findMany({
       where: { characterId: character.id, status: "ACTIVE" },
+      orderBy: { createdAt: "asc" },
       select: { text: true, points: true },
     }),
   ]);
@@ -161,7 +165,12 @@ async function handleDossierReaction(reaction, proxy, user) {
       : "Has not acted.",
   });
 
-  if (desire) embed.addFields({ name: "Desire", value: `${desire.text} (+${desire.points})` });
+  if (desires.length > 0) {
+    embed.addFields({
+      name: "Desire",
+      value: fitField(desires.map((d) => `• ${d.text} (+${d.points})`).join("\n")),
+    });
+  }
 
   if (process.env.WEB_BASE_URL) {
     embed.setThumbnail(`${process.env.WEB_BASE_URL}/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`);
@@ -312,7 +321,11 @@ module.exports = {
       if (!isOwner && !(await isGm(reaction, user.id))) return;
       const webhookClient = webhookClientFor({ id: proxy.webhookId, token: proxy.webhookToken });
       const deleted = await webhookClient
-        .deleteMessage(reaction.message.id, { threadId: proxy.threadId })
+        // Positional threadId, unlike editMessage below: discord.js's
+        // Webhook#deleteMessage(message, threadId) takes a plain string, so the
+        // options object went onto the query string as
+        // `thread_id=[object Object]` and Discord 400'd every ❌ in a thread.
+        .deleteMessage(reaction.message.id, proxy.threadId ?? undefined)
         .then(() => true)
         .catch((err) => {
           // An archived thread (or any other write Discord refuses) must not
@@ -343,6 +356,11 @@ module.exports = {
       } catch {
         return;
       }
+      // Armed only once the prompt actually went out: the reply is filed by
+      // messageCreate the moment it lands and must find this note set, but a
+      // prompt Discord refused (DMs closed) must not swallow the player's
+      // next unrelated message.
+      expectReply(user.id, "edit");
 
       const collected = await dm
         .awaitMessages({
@@ -526,15 +544,22 @@ module.exports = {
         // active Desire produces. A reader can't tell the two apart, which is
         // the whole point of buying it.
         if (canSeeDesire) {
-          const desire = isInscrutable(character.tags)
-            ? null
-            : await prisma.desire.findFirst({
+          // Every active Desire, not just the first: a character may hold
+          // several (GameConfig.maxActiveDesires), and showing one of them
+          // would read as "that's all there is".
+          const desires = isInscrutable(character.tags)
+            ? []
+            : await prisma.desire.findMany({
                 where: { characterId: character.id, status: "ACTIVE" },
+                orderBy: { createdAt: "asc" },
                 select: { text: true, points: true },
               });
           embed.addFields({
             name: "Desire",
-            value: desire ? fitField(`${desire.text} (+${desire.points})`) : "Nothing you can read.",
+            value:
+              desires.length > 0
+                ? fitField(desires.map((d) => `• ${d.text} (+${d.points})`).join("\n"))
+                : "Nothing you can read.",
           });
         }
 

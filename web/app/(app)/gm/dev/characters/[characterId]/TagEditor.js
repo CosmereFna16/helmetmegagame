@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { tagsById as buildTagsById } from "@/lib/characterCreation";
 import { tagDuration, turnsLeft } from "@/lib/turnFormat";
 import ChipLabel from "@/app/components/ChipLabel";
 import TagCatalogBrowser from "@/app/components/TagCatalogBrowser";
+import CustomTagDialog from "@/app/components/CustomTagDialog";
 
 // The GM's tag surface. Not PointBuy — that is the player's rules-respecting
 // store and must stay that way. This is its sibling, sharing the same pure
@@ -30,13 +31,29 @@ import TagCatalogBrowser from "@/app/components/TagCatalogBrowser";
 // only carries the not-yet-held actions; everything that touches an existing
 // holding (remove, equip, expiry) lives in the Held section so it isn't
 // staged from two places.
-export default function TagEditor({ tags, held, ops, openTurn, equipSlots, onStage }) {
-  const tagsById = useMemo(() => buildTagsById(tags), [tags]);
+// `characterId`/`characterName` feed the custom-tag door's "Assign to" —
+// this character, preselected, so a GM inventing a one-off tag mid-sheet can
+// grant it in the same gesture. Both are optional: a caller that doesn't
+// pass them still gets the door, just without the assign-to preselection —
+// the tag lands in the catalog and a plain Grant does the rest.
+export default function TagEditor({ tags, held, ops, openTurn, equipSlots, onStage, characterId, characterName }) {
+  // A tag just created through the door, shown immediately rather than
+  // waiting on the router.refresh() CustomTagDialog already triggers.
+  const [extraTags, setExtraTags] = useState([]);
+  const [creating, setCreating] = useState(false);
+
+  const allTags = useMemo(() => [...tags, ...extraTags], [tags, extraTags]);
+  const tagsById = useMemo(() => buildTagsById(allTags), [allTags]);
+  const categories = useMemo(
+    () => [...new Set(allTags.map((t) => t.category))].sort((a, b) => a.localeCompare(b)),
+    [allTags],
+  );
   const heldTagIds = useMemo(() => new Set(held.map((h) => h.tagId)), [held]);
   const stagedByTagId = useMemo(
     () => new Map([...ops.entries()].map(([tagId, op]) => [tagId, op.op])),
     [ops],
   );
+  const assignCharacters = characterId ? [{ id: characterId, name: characterName ?? "This character" }] : null;
 
   const heldSorted = useMemo(() => {
     return [...held].sort((a, b) => {
@@ -111,14 +128,30 @@ export default function TagEditor({ tags, held, ops, openTurn, equipSlots, onSta
       </section>
 
       <TagCatalogBrowser
-        tags={tags}
+        tags={allTags}
         heldTagIds={heldTagIds}
         stagedByTagId={stagedByTagId}
         selectable
         onSelectAction={grantSelected}
         selectActionLabel="Grant"
         renderActions={renderCatalogActions}
+        onCreateCustom={() => setCreating(true)}
       />
+
+      {creating && (
+        <CustomTagDialog
+          categories={categories}
+          tags={allTags}
+          characters={assignCharacters}
+          defaultAssignIds={characterId ? [characterId] : []}
+          mode="apply"
+          onClose={() => setCreating(false)}
+          onCreated={(tag) => {
+            setExtraTags((prev) => [...prev, tag]);
+            setCreating(false);
+          }}
+        />
+      )}
     </>
   );
 }

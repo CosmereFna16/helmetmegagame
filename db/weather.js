@@ -1,3 +1,5 @@
+const { turnEndsAt, moveWindow, epochSeconds } = require("./lib/turnClock");
+
 // Base distribution used only when there's no previous turn's weather to
 // build on (the very first turn the game ever plays) — every turn after
 // that is driven by WEATHER_TRANSITIONS below. Bias toward CLEAR as the
@@ -72,81 +74,34 @@ function rollWeather(previousWeather, phase) {
 // at noon and runs until midnight the same day, a DUSK turn always opens at
 // midnight and runs until noon the same day. The announcement renders this as a
 // Discord <t:EPOCH:t>/<t:EPOCH:R> tag (per-viewer local time + relative
-// countdown), which needs an actual Unix epoch rather than a text label —
-// these two helpers do a DST-safe local-time-in-a-zone -> UTC conversion
-// using only the built-in Intl API (no date library needed for one zone).
-function getTimeZoneOffsetMs(utcMs, timeZone) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    hourCycle: "h23",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  })
-    .formatToParts(new Date(utcMs))
-    .reduce((acc, p) => {
-      acc[p.type] = p.value;
-      return acc;
-    }, {});
-  const asUTC = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
-  return asUTC - utcMs;
-}
-
-function zonedTimeToUtc(y, m, d, h, min, s, timeZone) {
-  let utc = Date.UTC(y, m - 1, d, h, min, s);
-  for (let i = 0; i < 2; i++) {
-    utc = Date.UTC(y, m - 1, d, h, min, s) - getTimeZoneOffsetMs(utc, timeZone);
-  }
-  return utc;
-}
-
-// Given the phase of the turn that just opened, returns the epoch seconds
-// (for a Discord <t:> tag) of the boundary when it closes: DAWN opens at
-// midnight and closes at noon the same Chicago day (dawn breaks somewhere in
-// that stretch), DUSK opens at noon and closes at midnight (hour 0 the next
-// calendar day) — dusk falls somewhere in that stretch.
-function turnEndEpochSeconds(phase) {
-  const timeZone = "America/Chicago";
-  const nowParts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  })
-    .formatToParts(new Date())
-    .reduce((acc, p) => {
-      acc[p.type] = p.value;
-      return acc;
-    }, {});
-  const targetHour = phase === "DAWN" ? 12 : 0;
-  const dayOffset = phase === "DAWN" ? 0 : 1;
-  const utcMs = zonedTimeToUtc(
-    Number(nowParts.year),
-    Number(nowParts.month),
-    Number(nowParts.day) + dayOffset,
-    targetHour,
-    0,
-    0,
-    timeZone,
-  );
-  return Math.round(utcMs / 1000);
-}
+// countdown), which needs an actual Unix epoch rather than a text label.
+//
+// The derivation (and the DST-safe local-time-in-a-zone -> UTC conversion it
+// needs) moved to db/lib/turnClock.js, which works off the turn's own
+// startedAt rather than off `now` — see the note there for why that matters.
 
 // Shared by the bot's cron-triggered turn advance and the GM dashboard's
 // manual "End turn" action so the announcement text (and the ping/weather
 // logic behind it) only exists in one place instead of being duplicated
 // per transport (Discord.js channel.send vs. REST postMessage).
-function buildTurnAnnouncement(turn, note) {
+function buildTurnAnnouncement(turn, note, { autoTurnAdvanceDisabled = false } = {}) {
   const day = Math.ceil(turn.number / 2);
   const phaseLabel = turn.phase === "DAWN" ? "Dawn" : "Dusk";
   const pingRoleId = process.env.DISCORD_TURN_PING_ROLE_ID;
   const ping = pingRoleId ? ` <@&${pingRoleId}>` : "";
-  const endEpoch = turnEndEpochSeconds(turn.phase);
-  const header = `» Day ${day} | ${phaseLabel}. ${WEATHER_MESSAGES[turn.weather]}${ping}\nThis turn ends at <t:${endEpoch}:t>, or <t:${endEpoch}:R>.`;
+  const { endsAt, cutoffAt, hasLock } = moveWindow(turn, { autoTurnAdvanceDisabled });
+  // A turn row without startedAt can't be dated from itself; fall back to the
+  // old now-and-phase derivation rather than rendering a broken <t:null:t>.
+  const endEpoch = epochSeconds(endsAt);
+  const cutoffEpoch = epochSeconds(cutoffAt);
+  // The Move cutoff rides on the turn announcement because that is the one
+  // place every player reliably reads — and both times are <t:> tags, so each
+  // reads them in their own timezone.
+  const clock = hasLock
+    ? `This turn ends at <t:${endEpoch}:t>, or <t:${endEpoch}:R> | Moves must be sent by <t:${cutoffEpoch}:t>, or <t:${cutoffEpoch}:R>`
+    : `This turn ends at <t:${endEpoch}:t>, or <t:${endEpoch}:R>.`;
+  const header = `» Day ${day} | ${phaseLabel}. ${WEATHER_MESSAGES[turn.weather]}${ping}\n${clock}`;
   return note ? `${header}\n\n${note}` : header;
 }
 
-module.exports = { WEATHER_WEIGHTS, WEATHER_TRANSITIONS, WEATHER_MESSAGES, rollWeather, buildTurnAnnouncement, turnEndEpochSeconds };
+module.exports = { WEATHER_WEIGHTS, WEATHER_TRANSITIONS, WEATHER_MESSAGES, rollWeather, buildTurnAnnouncement };

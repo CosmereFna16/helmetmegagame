@@ -9,6 +9,7 @@ import { UserError, guarded } from "@/lib/actionResult";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import { getOpenTurn } from "@/lib/turn";
 import { withoutDmNoise } from "@/lib/dmThread";
+import { MOVE_REVIEW_LABELS, moveKindLabel, rollLabel } from "@/lib/moves";
 
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
@@ -79,44 +80,111 @@ export async function sendGmDm({ discordUserId, characterId, content, source = "
     }
     const resolvedSource = ALLOWED_SEND_SOURCES.has(source) ? source : "gm_reply";
 
-    await sendDm(playerDiscordUserId, message, {
+    // The Discord POST stays awaited: a GM has to know if the send itself
+    // failed. Everything after it is bookkeeping the GM never waits on.
+    const sent = await sendDm(playerDiscordUserId, message, {
       authorDiscordUserId: session.discordUserId,
       source: resolvedSource,
     });
 
-    await prisma.auditLog.create({
-      data: {
-        actorDiscordUserId: session.discordUserId,
-        actionType: "gm_dm_reply",
-        details: { discordUserId: playerDiscordUserId, message },
-      },
-    });
+    // The row sendDm just wrote, read back by the Discord message id it
+    // stamped on it — never "the newest outbound row", which under a failed
+    // log write or two GMs replying at once would hand back somebody else's
+    // message to swap in for the optimistic placeholder. (sendDm returns the
+    // Discord message, not the DirectMessage row, and swallows its own
+    // create() failure — in which case `created` is null and the client
+    // keeps its placeholder.)
+    const created = sent?.id
+      ? await prisma.directMessage.findFirst({ where: { discordMessageId: sent.id, direction: "OUTBOUND" } })
+      : null;
 
-    // Sending a reply implies you've read up to now — stamp the sender's own
-    // read cursor so the thread doesn't show as unread to the GM who just
-    // answered it.
-    await prisma.conversationRead
-      .upsert({
-        where: {
-          gmDiscordUserId_playerDiscordUserId: {
-            gmDiscordUserId: session.discordUserId,
-            playerDiscordUserId,
-          },
-        },
-        update: { lastReadAt: new Date() },
-        create: {
-          gmDiscordUserId: session.discordUserId,
-          playerDiscordUserId,
-          lastReadAt: new Date(),
-        },
-      })
-      .catch(() => {});
-
+    // Revalidation has to happen inside the action, or the router never hears
+    // about it — after() runs once the response is already gone.
     revalidatePath("/gm/players", "layout");
     revalidatePath(`/gm/players/${playerDiscordUserId}`);
 
-    const page = await getDmThreadPage({ discordUserId: playerDiscordUserId });
-    return page.ok ? { messages: page.messages, hasMore: page.hasMore } : { messages: [], hasMore: false };
+    // Audit row and read cursor are deferred: neither changes what this GM
+    // sees next, and extra round trips in front of the response is what made
+    // Send feel slow. Sending a reply implies you have read up to now, so the
+    // sender's own cursor moves too — otherwise the thread they just answered
+    // shows as unread to them.
+    after(async () => {
+      await prisma.auditLog
+        .create({
+          data: {
+            actorDiscordUserId: session.discordUserId,
+            actionType: "gm_dm_reply",
+            details: { discordUserId: playerDiscordUserId, message },
+          },
+        })
+        .catch((err) => console.error("Could not record gm_dm_reply:", err));
+
+      await prisma.conversationRead
+        .upsert({
+          where: {
+            gmDiscordUserId_playerDiscordUserId: {
+              gmDiscordUserId: session.discordUserId,
+              playerDiscordUserId,
+            },
+          },
+          update: { lastReadAt: new Date() },
+          create: {
+            gmDiscordUserId: session.discordUserId,
+            playerDiscordUserId,
+            lastReadAt: new Date(),
+          },
+        })
+        .catch(() => {});
+    });
+
+    return { message: created };
+  });
+}
+
+// Content search across every conversation, for the rail's search box. The
+// fuzzy engine on the client only ever sees the ONE latest message per
+// conversation (the preview), so "search my messages for the word barley"
+// could not work at all — this is the other half of it: an ILIKE over the
+// whole DirectMessage table with the same noise predicate the rail and the
+// thread use, grouped per conversation.
+//
+// Returns counts and the newest match time per player; the rail merges these
+// under its fuzzy hits rather than replacing them.
+const CONVERSATION_SEARCH_LIMIT = 50;
+const CONVERSATION_SEARCH_MIN = 3;
+
+export async function searchConversations({ q }) {
+  return guarded(async () => {
+    await requireGm();
+    const query = String(q ?? "").trim();
+    if (query.length < CONVERSATION_SEARCH_MIN) return { hits: [] };
+
+    // LIKE metacharacters escaped so a query containing % or _ searches for
+    // those characters instead of turning into a wildcard. Backslash is
+    // Postgres's default LIKE escape character, so no ESCAPE clause is needed.
+    const pattern = `%${query.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
+
+    const rows = await prisma.$queryRaw`
+      SELECT dm."discordUserId",
+             COUNT(*)::int AS "hits",
+             MAX(dm."createdAt") AS "lastAt"
+      FROM "DirectMessage" dm
+      WHERE dm."content" ILIKE ${pattern}
+        AND ("source" IS DISTINCT FROM 'system_notice')
+        AND ("source" IS DISTINCT FROM 'prompt_reply')
+        AND (("meta"->>'embed') IS DISTINCT FROM 'true')
+      GROUP BY dm."discordUserId"
+      ORDER BY MAX(dm."createdAt") DESC
+      LIMIT ${CONVERSATION_SEARCH_LIMIT}
+    `;
+
+    return {
+      hits: rows.map((r) => ({
+        discordUserId: r.discordUserId,
+        hits: r.hits,
+        lastAtMs: r.lastAt ? new Date(r.lastAt).getTime() : 0,
+      })),
+    };
   });
 }
 
@@ -192,7 +260,80 @@ export async function releaseConversation({ playerDiscordUserId }) {
 }
 
 // ---------------------------------------------------------------------------
-// CanonPanel: stage a DM as a turn-end message instead of sending it now.
+// The Canon tab's own load. It used to arrive with the person route's page,
+// which only worked while the panel lived inside that route. The shared
+// inspector can look at anyone — including somebody who is not the open
+// conversation — so Canon fetches per character on demand, the same way the
+// inspector's Sheet/Tags/Archive/DMs tabs do.
+// ---------------------------------------------------------------------------
+
+export async function getPlayerCanon({ characterId }) {
+  return guarded(async () => {
+    await requireGm();
+    const id = String(characterId ?? "");
+    if (!id) throw new UserError("No character specified.");
+
+    const character = await prisma.character.findUnique({
+      where: { id },
+      select: { id: true, name: true },
+    });
+    if (!character) throw new UserError("That character no longer exists.");
+
+    const openTurn = await getOpenTurn();
+    const [action, pendingRecipients, pendingEffects] = await Promise.all([
+      openTurn
+        ? prisma.action.findUnique({
+            where: { characterId_turnId: { characterId: character.id, turnId: openTurn.id } },
+          })
+        : null,
+      prisma.stagedMessageRecipient.findMany({
+        where: { characterId: character.id, stagedMessage: { sentAt: null } },
+        include: { stagedMessage: true },
+        orderBy: { stagedMessage: { createdAt: "desc" } },
+      }),
+      prisma.stagedEffect.findMany({
+        where: { targetCharacterId: character.id, appliedAt: null },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
+
+    const tagIds = [
+      ...new Set(
+        pendingEffects.flatMap((e) => (e.payload?.tagOps ?? []).map((op) => op.tagId).filter(Boolean)),
+      ),
+    ];
+    const tags = tagIds.length
+      ? await prisma.tag.findMany({ where: { id: { in: tagIds } }, select: { id: true, name: true } })
+      : [];
+
+    return {
+      canon: {
+        characterId: character.id,
+        characterName: character.name,
+        move: action
+          ? {
+              id: action.id,
+              description: action.description,
+              kindLabel: moveKindLabel(action.moveKind, action.gmNotes),
+              rollLabel: rollLabel(action),
+              reviewLabel: MOVE_REVIEW_LABELS[action.moveReviewStatus] ?? "Open",
+              resultMessage: action.resultMessage,
+            }
+          : null,
+        pendingMessages: pendingRecipients.map((r) => ({
+          id: r.stagedMessage.id,
+          content: r.stagedMessage.content,
+          createdAt: r.stagedMessage.createdAt.toISOString(),
+        })),
+        pendingEffects: pendingEffects.map((e) => ({ id: e.id, payload: e.payload })),
+        tagNames: Object.fromEntries(tags.map((t) => [t.id, t.name])),
+      },
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// The Canon tab: stage a DM as a turn-end message instead of sending it now.
 // Mirrors createStagedMessageImpl's PRIVATE-kind validation shape
 // (web/app/(desk)/gm/turns/actions.js) so a message staged from the inbox
 // looks and behaves exactly like one staged from the adjudication desk.

@@ -17,7 +17,7 @@ import { buyTags } from "@/app/(app)/store/actions";
 // character sheet, so a shopping trip never leaves the sheet. `onDone` closes
 // that modal after a successful purchase — the buy action itself, and the
 // server-side re-checks behind it, are untouched (web/app/(app)/store/actions.js).
-export default function StorePanel({ tags, budget, heldTags, negativeCap, negativeHeld, onDone }) {
+export default function StorePanel({ tags, budget, heldTags, onDone }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
@@ -36,7 +36,10 @@ export default function StorePanel({ tags, budget, heldTags, negativeCap, negati
     setError("");
     const ok = await confirm({
       title: "Confirm purchase",
-      message: `Buy ${selected.length} tag${selected.length === 1 ? "" : "s"} for ${total} Tag Point${total === 1 ? "" : "s"}? It applies immediately, and a GM reviews it afterwards.`,
+      message:
+        total < 0
+          ? `Take ${selected.length} tag${selected.length === 1 ? "" : "s"} and gain ${-total} Tag Point${-total === 1 ? "" : "s"}? It applies immediately, can't be removed later, and a GM reviews it afterwards.`
+          : `Buy ${selected.length} tag${selected.length === 1 ? "" : "s"} for ${total} Tag Point${total === 1 ? "" : "s"}? It applies immediately, and a GM reviews it afterwards.`,
       confirmLabel: "Buy",
     });
     if (!ok) return;
@@ -52,10 +55,12 @@ export default function StorePanel({ tags, budget, heldTags, negativeCap, negati
     });
   };
 
-  // negativeCap/negativeHeld are read-only here: every drawback is
-  // purchasableAfterStart: false, so the shelf never offers one and the count
-  // can't move. They're passed so a player can see how many drawback slots
-  // character creation already spent.
+  // No negativeCap/negativeHeld: the drawback cap is a CHARACTER CREATION
+  // rule (TAGS.md §4a) and stops existing once play starts. The store used to
+  // pass it as a read-only readout on the assumption that no drawback was ever
+  // purchasableAfterStart; the Addictions are the deliberate exception, and a
+  // cap the store neither enforces nor can move is noise on the shelf.
+  // PointBuy renders nothing at all for a null cap.
   return (
     <PointBuy
       tags={tags}
@@ -64,8 +69,6 @@ export default function StorePanel({ tags, budget, heldTags, negativeCap, negati
       afterStartOnly
       selectedIds={selectedIds}
       onChange={setSelectedIds}
-      negativeCap={negativeCap}
-      negativeHeld={negativeHeld}
       actions={
         <div className="flex flex-col gap-2">
           <button type="button" className="btn" disabled={blocked} onClick={checkout}>

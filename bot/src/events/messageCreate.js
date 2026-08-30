@@ -2,6 +2,7 @@ const { prisma, concealedAlias } = require("@lifeweb/db");
 const { sendAsCharacter } = require("../lib/proxy");
 const { isDesignatedTupperChannel, resolveChannelContext } = require("../lib/channels");
 const { sendDm } = require("../lib/dm");
+const { takeReply, PROMPT_REPLY_SOURCE } = require("../lib/pendingPrompts");
 const { REPORT_CHANNEL_ID } = require("@lifeweb/db/lib/reportChannelAccess");
 const {
   canHearPing,
@@ -51,15 +52,21 @@ module.exports = {
     if (!message.inGuild()) {
       const attachmentNames = message.attachments.size > 0 ? [...message.attachments.values()].map((a) => a.name) : null;
       const content = message.content || (attachmentNames ? `*(attachment: ${attachmentNames.join(", ")})*` : "");
+      // A reply to one of the bot's own prompts (the ✏️ edit collector) is not
+      // mail for the GMs — it's the second half of a mechanic that already
+      // consumed it. Filed under its own source so the desks can skip it
+      // instead of counting it unread. See bot/src/lib/pendingPrompts.js.
+      const prompt = takeReply(message.author.id);
+      const meta = attachmentNames ? { attachments: attachmentNames } : undefined;
       await prisma.directMessage
         .create({
           data: {
             discordUserId: message.author.id,
             direction: "INBOUND",
             content,
-            source: "player",
+            source: prompt ? PROMPT_REPLY_SOURCE : "player",
             discordMessageId: message.id,
-            meta: attachmentNames ? { attachments: attachmentNames } : undefined,
+            meta: prompt ? { ...meta, purpose: prompt } : meta,
           },
         })
         .catch(() => {});

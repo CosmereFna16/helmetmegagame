@@ -1,40 +1,23 @@
 "use client";
 
-import { useCallback, useRef } from "react";
 import ConversationPane from "./ConversationPane";
-import DossierColumn from "./DossierColumn";
 
-// The person view: conversation on the left, dossier on the right.
+// The person view: the conversation, and only the conversation.
 //
-// The only reason this is a client component rather than the page itself is
-// the prefill wire — the dossier's "Insert into reply" buttons need to write
-// into the composer's draft, and the two are siblings. A ref rather than
-// lifted state on purpose: the draft already lives in localStorage (see
-// ConversationPane), so holding a second copy here would just be a second
-// source of truth to keep in step.
-export default function PersonShell({ canon, currentTurnNumber, ...conversationProps }) {
-  const { gmProfiles, myDiscordUserId } = conversationProps;
-  const prefillRef = useRef(null);
-  const registerPrefill = useCallback((fn) => {
-    prefillRef.current = fn;
-  }, []);
-  const onPrefill = useCallback((text) => prefillRef.current?.(text), []);
-
+// It used to split the pane with DossierColumn and wire that column's
+// "Insert into reply" buttons into the composer through a ref, which is the
+// only reason it was a client component at all. The dossier is gone — the
+// shared inspector (components/InspectorColumn.js, mounted by the desk
+// layout's InspectorHost) covers it on both desks now, and the Canon tab
+// writes the draft through localStorage (players/dmDraft.js) instead of a ref
+// across a tree the two no longer share.
+//
+// The component stays as the one place that names the person view's layout
+// class, so the route's loading.js and this render the same wrapper.
+export default function PersonShell(props) {
   return (
     <div className="desk-person">
-      <ConversationPane
-        {...conversationProps}
-        moveId={canon?.move?.id ?? null}
-        registerPrefill={registerPrefill}
-      />
-      <DossierColumn
-        characterId={canon?.characterId ?? null}
-        canon={canon}
-        onPrefill={onPrefill}
-        currentTurnNumber={currentTurnNumber}
-        gmProfiles={gmProfiles}
-        myDiscordUserId={myDiscordUserId}
-      />
+      <ConversationPane {...props} />
     </div>
   );
 }

@@ -15,6 +15,12 @@
 const { computeRate, rollRate } = require("./production");
 const { LABORER_BASIC_SLUG, LABORER_SKILLED_SLUG, LABORER_FARMING_SLUG } = require("./constants");
 
+// Butcher adds a flat +2 to both ends of a Labor roll on every tier but
+// Farming. Local rather than in constants.js because this file is the only
+// thing that has ever needed either value.
+const BUTCHER_SLUG = "butcher";
+const BUTCHER_LABOR_BONUS = 2;
+
 // Loads the current zone and held tags for one character — the only inputs
 // the rules and the tier ladder need.
 async function buildLaborContext(prisma, characterId) {
@@ -76,7 +82,21 @@ function resolveLaborRateFrom(ctx, coefficient) {
   const rate = computeRate("labor", tier, coefficient);
   if (!rate) return { ok: false, reason: "Unknown activity." };
 
-  return { ok: true, tier, min: rate.min, max: rate.max, expression: `${rate.min}-${rate.max}` };
+  // Butcher's +2, applied automatically rather than left as a line in the tag
+  // description for a GM to remember. Not on Farming: the bonus is for taking
+  // an animal apart, and Farming is the one tier that isn't hunting.
+  //
+  // Folded into min/max rather than annotated onto `expression`, deliberately:
+  // the expression is a MACHINE format, parsed back by
+  // db/lib/resourceDelta.js#rollResourceRange (`/^(\d+)-(\d+)$/`) at Move
+  // confirm and in the Default Move pass. Anything appended to it — "(+2
+  // Butcher)" — fails that regex, and a failed parse rolls null, which pays
+  // the character nothing at all.
+  const bonus = ctx.tagSlugs.has(BUTCHER_SLUG) && tier !== "farming" ? BUTCHER_LABOR_BONUS : 0;
+  const min = rate.min + bonus;
+  const max = rate.max + bonus;
+
+  return { ok: true, tier, min, max, expression: `${min}-${max}` };
 }
 
 // Async convenience for the one-character call sites (the Move modal),

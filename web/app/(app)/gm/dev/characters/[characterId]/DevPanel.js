@@ -244,6 +244,8 @@ export default function DevPanel({
 
       {tab === "Tags" && (
         <TagEditor
+          characterId={character.id}
+          characterName={character.name}
           tags={tags}
           held={held}
           ops={tagOps}

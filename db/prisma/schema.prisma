@@ -436,6 +436,14 @@ model GameConfig {
   catatonicEnabled Boolean @default(true)
   catatonicTurns   Int     @default(4)
 
+  // How many Desires a character may hold ACTIVE at once. Enforced in the
+  // server actions (setDesire, setDesireGm), not the schema — the constraint
+  // is "at most N ACTIVE", not "at most N rows", and Desire keeps every past
+  // attempt. Desires are the only Tag Point faucet in play
+  // (CHARACTERS.md), so this knob is the faucet's width; editable live from
+  // /gm/dev, same posture as equipSlots.
+  maxActiveDesires Int @default(3)
+
   // Whether the bot runs the channel doctor's cheap reconciliation pass
   // (db/lib/channelDoctor.js) automatically after every turn advance, on top
   // of its pass at ready. Off by default.
@@ -994,6 +1002,17 @@ model Tag {
   // Character.appearance. Defaults closed so identity/status tags (Mortus,
   // Drained, ...) stay hidden unless explicitly opened up.
   visibleOnInspect Boolean @default(false)
+
+  // Mutually exclusive with every other tag carrying this flag: a character
+  // may hold at most ONE of them. Set on the Beliefs (Post-Christian, Atheist,
+  // Existentialist, Fundamentalist, The Wind, the four Old Ways), which are
+  // meant to be a single answer rather than a collection. The one exception is
+  // a pair joined by requiredTag — Fundamentalist requires Post-Christian and
+  // so stacks on it. Enforced by exclusiveConflict()
+  // (web/lib/characterCreation.js), called from PointBuy, createCharacter,
+  // the store's buyTags and the Add Tag request. A GM grant ignores it,
+  // deliberately, like every other gate.
+  exclusive Boolean @default(false)
 
   // Optional grouping within a category (e.g. Status -> Health/Food/Buffs/
   // Debuffs), purely for display coloring (see TagGroup.color / TagChip.js)

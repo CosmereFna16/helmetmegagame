@@ -135,12 +135,15 @@ happens to match it.
   Fetched on demand via server actions, cached for the page view. Three quick
   edits live here too: the DMs tab carries a composer that sends immediately
   (»-prefixed, logged, not staged — `sendInspectorDm`); clicking an archived
-  line opens `ArchiveContextModal`, the ~30 messages before/after it in the
+  line opens `ArchiveContextModal` (`web/app/components/`), the ~30 messages before/after it in the
   same Discord channel/thread with a jump link when the message still exists
   (`getArchiveContext`); and the Sheet/Tags tabs stage deltas in place — ✕ a
   held tag to stage its removal, click Resources or Tag points to stage a
   ± delta. All three route through the same `createStagedEffects` the tray
-  uses, so they land at the push like any other staged effect.
+  uses, so they land at the push like any other staged effect. `EffectComposer`'s
+  own tag browser carries a "+ Custom tag" door too (`CustomTagDialog.js`,
+  `DEV-PANEL.md` §8a) for inventing a one-off tag against the composer's
+  current targets without leaving the modal.
 - **Tray** — the push, honestly: counts (including how many open Moves will
   silently close), every staged row with edit/delete, batches as one line,
   unattached and detached rows, and the composers for staging outside any
@@ -253,7 +256,8 @@ field `applyEdit` now returns and how it drives `EDITED` vs. a plain
 | `.../MoveDesk.js` / `RequestDesk.js` | The desks |
 | `.../EffectComposer.js` / `MessageComposer.js` / `PublicComposer.js` | The staging composers (create + edit) |
 | `.../StagedItems.js` / `StagingTray.js` / `PushPreview.js` | Staged-row lists, the tray, the per-recipient preview |
-| `.../InspectorColumn.js` | Sheet / Tags / Archive / DMs + pins |
+| `web/app/components/InspectorColumn.js` | Sheet / Tags / Archive / DMs + pins — **shared with `/gm/players`**, which appends Canon / Notes through `extraTabs` (PLAYER-DESK.md §6) |
+| `web/app/components/ArchiveContextModal.js` | The "in context" slice behind an Archive row, moved alongside it |
 | `web/app/components/GmAvatar.js` | The small GM pfp, fed by `web/lib/gmProfiles.js` |
 | `.../useMoveLock.js` | The lock's client half |
 | `.../actions.js` | Every server action: staging CRUD, solve/save/unsolve, unlock, locks, request review, inspector fetchers, retarget |

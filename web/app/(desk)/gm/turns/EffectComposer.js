@@ -8,6 +8,7 @@ import { mergeTagOp } from "@/lib/tagOpAlgebra";
 import { scoreMatch } from "@/lib/fuzzySearch";
 import TagChip from "@/app/components/TagChip";
 import TagCatalogBrowser from "@/app/components/TagCatalogBrowser";
+import CustomTagDialog from "@/app/components/CustomTagDialog";
 import { createStagedEffects, updateStagedEffect, getHeldTags } from "./actions";
 
 // Stage a mechanical adjustment: signed ⬢ and/or tag adds/removes, against
@@ -64,7 +65,17 @@ export default function EffectComposer({
   // the life of the modal, since a target is rarely un-picked and re-picked.
   const [heldByCharacter, setHeldByCharacter] = useState(() => new Map());
 
-  const tagById = useMemo(() => new Map(tagCatalog.map((t) => [t.id, t])), [tagCatalog]);
+  // A tag just created through the custom-tag door, shown immediately rather
+  // than waiting on the router.refresh() CustomTagDialog already triggers.
+  const [extraTags, setExtraTags] = useState([]);
+  const [creatingTag, setCreatingTag] = useState(false);
+
+  const allTagCatalog = useMemo(() => [...tagCatalog, ...extraTags], [tagCatalog, extraTags]);
+  const tagById = useMemo(() => new Map(allTagCatalog.map((t) => [t.id, t])), [allTagCatalog]);
+  const tagCategories = useMemo(
+    () => [...new Set(allTagCatalog.map((t) => t.category))].sort((a, b) => a.localeCompare(b)),
+    [allTagCatalog],
+  );
 
   // Only meaningful with exactly one target — a batch stage has no single
   // "their tags" to show.
@@ -356,15 +367,38 @@ export default function EffectComposer({
             </div>
           )}
           <TagCatalogBrowser
-            tags={tagCatalog}
+            tags={allTagCatalog}
             heldTagIds={heldTagIds}
             stagedByTagId={stagedByTagId}
             selectable
             onSelectAction={stageManyAdds}
             selectActionLabel="Add"
             renderActions={renderTagBrowserActions}
+            onCreateCustom={() => setCreatingTag(true)}
           />
         </div>
+
+        {creatingTag && (
+          <CustomTagDialog
+            categories={tagCategories}
+            tags={allTagCatalog}
+            characters={targets}
+            defaultAssignIds={targets.map((t) => t.id)}
+            mode="stage"
+            allowStage
+            onClose={() => setCreatingTag(false)}
+            onCreated={(tag) => {
+              // A staged assignment already wrote its own StagedEffect row
+              // server-side (see createCustomTagAndAssign) — it does NOT go
+              // into this composer's own `ops`, which would double it up the
+              // next time "Stage it" is pressed. An "apply now" assignment
+              // is a live grant, same story. Either way the new tag just
+              // needs to be visible in the browser and pickable from here on.
+              setExtraTags((prev) => [...prev, tag]);
+              setCreatingTag(false);
+            }}
+          />
+        )}
 
         <FormError>{error}</FormError>
 

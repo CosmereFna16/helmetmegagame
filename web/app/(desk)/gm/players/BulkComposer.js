@@ -14,10 +14,13 @@ import { sendGmBroadcast } from "./actions";
 // uses), plus two segment selects that bulk-check a whole Zone or Faction at
 // once. Selection stays editable after a segment pick — the select is a
 // one-shot "check these" action, not a live filter.
-export default function BulkComposer({ characters, onClose }) {
+// `initialSelectedIds` is how the inspector's "Message pinned" shortcut opens
+// this already pointed at the pinned characters; the picker stays fully
+// editable afterwards.
+export default function BulkComposer({ characters, initialSelectedIds, onClose }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState(new Set());
+  const [selected, setSelected] = useState(() => new Set(initialSelectedIds ?? []));
   const [message, setMessage] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();

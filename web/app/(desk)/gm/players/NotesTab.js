@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import FormError from "@/app/components/FormError";
 import GmAvatar from "@/app/components/GmAvatar";
 import useSubmitOnEnter from "@/app/components/useSubmitOnEnter";
-import { listGmNotes, addGmNote, deleteGmNote } from "../actions";
+import { listGmNotes, addGmNote, deleteGmNote } from "./actions";
 
 // What a GM knows about a player that isn't anywhere else: what they're
 // scheming, what they're owed, what they were promised three turns ago.
@@ -65,7 +65,7 @@ export default function NotesTab({ characterId, gmProfiles, myDiscordUserId }) {
   const onKeyDown = useSubmitOnEnter();
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 p-3">
       <form onSubmit={submit} className="flex flex-col gap-2">
         <label className="field">
           <span className="sr-only">Add a note</span>

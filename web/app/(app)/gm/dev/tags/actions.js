@@ -1,10 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { UserError, guarded } from "@/lib/actionResult";
 import { isSuperadmin } from "@/lib/superadmin";
-import { getGmSession } from "@/lib/discordGuild";
+import { getGmSession, syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
+import { applyTagOpsInTx } from "@/lib/characterWrite";
+import { TURNS_PATH } from "@/lib/routes";
 
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
@@ -77,30 +80,100 @@ function scalarsFrom(input) {
   };
 }
 
-async function createCustomTagImpl(input) {
+// The custom-tag dialog's door on every desk — see
+// web/app/components/CustomTagDialog.js and DEV-PANEL.md §8. One
+// transaction: create the tag (scalarsFrom + slug/name clash check), then
+// grant or stage it against whichever targets the door preselected, then one
+// audit row for the whole gesture — mirroring bulkTagCharacters' shape
+// ((app)/gm/actions.js) rather than duplicating a second convention.
+//
+// `stage` writes a StagedEffect per target instead of a live grant, built the
+// same way createStagedEffects does ((desk)/gm/turns/actions.js) — one
+// tagOps-add payload, one shared batchId across a multi-target batch — copied
+// rather than imported, since that file is itself "use server" and a
+// multi-target grant here is a GM-toolkit convenience action, not the
+// adjudication desk's own staging flow.
+async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...input }) {
   const session = await requireGm();
   const data = scalarsFrom(input);
   const slug = customSlug(data.name);
+  const targets = [...new Set((assignCharacterIds ?? []).filter(Boolean))];
 
-  const clash = await prisma.tag.findFirst({
-    where: { OR: [{ slug }, { name: data.name }] },
-    select: { name: true },
-  });
-  if (clash) throw new UserError(`A tag called "${clash.name}" already exists.`);
+  const result = await prisma.$transaction(async (tx) => {
+    const clash = await tx.tag.findFirst({
+      where: { OR: [{ slug }, { name: data.name }] },
+      select: { name: true },
+    });
+    if (clash) throw new UserError(`A tag called "${clash.name}" already exists.`);
 
-  const tag = await prisma.tag.create({ data: { ...data, slug, custom: true } });
+    const tag = await tx.tag.create({ data: { ...data, slug, custom: true } });
 
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "gm_custom_tag_created",
-      details: { tagId: tag.id, slug, name: tag.name },
-    },
-  });
+    let batchId = null;
+    if (targets.length) {
+      const found = await tx.character.findMany({ where: { id: { in: targets } }, select: { id: true } });
+      if (found.length !== targets.length) throw new UserError("One of those characters no longer exists.");
+
+      const openTurn = await tx.turn.findFirst({ where: { status: "OPEN" } });
+
+      if (stage) {
+        if (!openTurn) throw new UserError("No turn is open to stage against.");
+        batchId = targets.length > 1 ? crypto.randomUUID() : null;
+        const payload = { tagOps: [{ tagId: tag.id, op: "add", quantity: 1 }] };
+        await tx.stagedEffect.createMany({
+          data: targets.map((targetCharacterId) => ({
+            turnId: openTurn.id,
+            targetCharacterId,
+            createdByDiscordUserId: session.discordUserId,
+            batchId,
+            payload,
+          })),
+        });
+      } else {
+        const config = await tx.gameConfig.findUnique({ where: { id: 1 }, select: { equipSlots: true } });
+        const tagsById = new Map([[tag.id, tag]]);
+        for (const characterId of targets) {
+          await applyTagOpsInTx(tx, {
+            characterId,
+            ops: [{ tagId: tag.id, op: "add", quantity: 1 }],
+            tagsById,
+            openTurn,
+            equipSlots: config?.equipSlots ?? 6,
+          });
+        }
+      }
+    }
+
+    await tx.auditLog.create({
+      data: {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "gm_custom_tag_created",
+        details: { tagId: tag.id, slug, name: tag.name, characterIds: targets, staged: Boolean(stage && targets.length), batchId },
+      },
+    });
+
+    return { tagId: tag.id, name: tag.name, slug, applied: targets.length, staged: Boolean(stage && targets.length) };
+    // Many targets = many sequential grants; Prisma's default 5 s would roll
+    // back a big "Message pinned"-sized batch.
+  }, { timeout: 20_000 });
 
   revalidatePath("/gm/dev/tags");
   revalidatePath("/character");
-  return { tagId: tag.id, name: tag.name, slug };
+  revalidatePath(TURNS_PATH, "page");
+  revalidatePath("/gm/players", "layout");
+
+  // A live grant may change narrowcast access (#watch, #intercom), same as
+  // bulkTagCharacters. Sequential and after the writes, per ARCHITECTURE.md
+  // §5 — never a fan-out of REST calls at Discord's rate limiter. A staged
+  // grant hasn't touched anyone's holdings yet, so it's skipped here.
+  if (targets.length && !result.staged) {
+    after(async () => {
+      for (const characterId of targets) {
+        await syncCharacterNarrowcastAccess(characterId).catch(() => {});
+      }
+    });
+  }
+
+  return result;
 }
 
 // Editing is refused for a YAML-sourced tag rather than merely discouraged:
@@ -176,8 +249,8 @@ async function deleteCustomTagImpl({ tagId }) {
   return { name: tag.name };
 }
 
-export async function createCustomTag(input) {
-  return guarded(() => createCustomTagImpl(input));
+export async function createCustomTagAndAssign(input) {
+  return guarded(() => createCustomTagAndAssignImpl(input));
 }
 export async function updateCustomTag(input) {
   return guarded(() => updateCustomTagImpl(input));

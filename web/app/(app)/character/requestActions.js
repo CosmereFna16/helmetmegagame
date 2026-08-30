@@ -7,13 +7,20 @@ import { redirect } from "next/navigation";
 import { prisma, isDynastyHead, isDynastyMember } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
-import { createRequest, logRequest, requireReason } from "@/lib/requests";
+import {
+  createRequest,
+  logRequest,
+  requireReason,
+  isDeadSimple,
+  DEAD_SIMPLE_PER_TURN,
+} from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { expiryFor } from "@/lib/turnFormat";
 import { TRANSFERABLE_CATEGORIES, FAST_TRAVEL_SLUGS } from "@/lib/tagRequests";
 import {
   tagsById as buildTagsById,
   requirementSatisfied,
+  exclusiveConflict,
   chainSiblingsToRemove,
   heldHigherTiers,
 } from "@/lib/characterCreation";
@@ -61,6 +68,9 @@ import { propagateDynastyLastName } from "@/lib/dynasty";
 
 const DESIRE_MIN_POINTS = 1;
 const DESIRE_MAX_POINTS = 5;
+// Fallback for a missing GameConfig row only — the live cap is
+// GameConfig.maxActiveDesires, editable on /gm/dev.
+const DEFAULT_MAX_ACTIVE_DESIRES = 3;
 
 async function requireCharacter() {
   const session = await auth();
@@ -303,7 +313,12 @@ async function addTagRequestImpl({
 
   const tag = await prisma.tag.findUnique({
     where: { id: tagId },
-    include: { group: { select: { requiredTagId: true } } },
+    include: {
+      group: { select: { requiredTagId: true } },
+      // The recipe's skill gate, which is how isDeadSimple() recognises the
+      // bottom rung of the smithing ladder.
+      requirementSkills: { select: { slug: true } },
+    },
   });
   if (!tag) throw new UserError("Unknown tag.");
   // Mirrors addableTags() in web/lib/tagRequests.js — re-checked here because
@@ -323,11 +338,32 @@ async function addTagRequestImpl({
   // The whole catalog's ids/parents come down (~80 rows) so a chain walk
   // never dead-ends on an ancestor the character doesn't hold, same reason
   // createCharacter does it.
-  const chainRows = await prisma.tag.findMany({ select: { id: true, parentTagId: true } });
+  // `name`, `requiredTagId` and `exclusive` ride along for the exclusivity
+  // check below — exclusiveConflict() reads all three off the held row.
+  const chainRows = await prisma.tag.findMany({
+    select: {
+      id: true,
+      name: true,
+      parentTagId: true,
+      requiredTagId: true,
+      exclusive: true,
+      groupId: true,
+    },
+  });
   const chainById = buildTagsById(chainRows);
   const heldIds = character.tags.map((ct) => ct.tagId);
   if (!requirementSatisfied(tag, chainById, heldIds)) {
     throw new UserError("You're missing a prerequisite for that tag.");
+  }
+
+  // One exclusive tag at a time (the Beliefs) — the same rule the point-buy
+  // menu and the store enforce, re-checked here because this menu is the third
+  // door onto the catalog.
+  const conflict = exclusiveConflict(tag, heldIds, chainById);
+  if (conflict) {
+    throw new UserError(
+      `You already hold ${conflict.name}; drop it first to take ${tag.name}.`,
+    );
   }
 
   // A chain replaces upward and never re-opens downward — a tier below one
@@ -345,6 +381,50 @@ async function addTagRequestImpl({
   }
 
   const openTurn = await getOpenTurn();
+
+  // Dead Simple recipes cost 0 turns, so nothing else rations them — a player
+  // could file requests all turn and end it with twenty work knives. At most
+  // DEAD_SIMPLE_PER_TURN Dead Simple UNITS per character per turn, summed over
+  // every ADD_TAG request already filed this turn plus this one. Units rather
+  // than requests because these tags are stackable and one request can carry
+  // any quantity. See docs/systemdocs/SMITHING.md §2.
+  //
+  // Counted only when THIS tag is Dead Simple: everything else on the ladder
+  // costs turns, which is its own limit. Requests with no open turn (turnId
+  // null) are outside any turn and so outside the cap.
+  if (openTurn && isDeadSimple(tag)) {
+    const filed = await prisma.request.findMany({
+      // UNDONE excluded: an undone ADD_TAG took its tag back off the sheet
+      // (web/lib/requestEffects.js), so it should give the quota back too.
+      // EDITED still counts — the item was made, a GM only adjusted it.
+      where: {
+        characterId: character.id,
+        turnId: openTurn.id,
+        type: "ADD_TAG",
+        status: { not: "UNDONE" },
+      },
+      select: { payload: true },
+    });
+    const filedTagIds = [...new Set(filed.map((r) => r.payload?.tagId).filter(Boolean))];
+    // One query for the recipes behind the ids already filed — a request's
+    // payload records the tag, not whether it was Dead Simple at the time.
+    const filedTags = filedTagIds.length
+      ? await prisma.tag.findMany({
+          where: { id: { in: filedTagIds } },
+          select: { id: true, requirementTurns: true, requirementSkills: { select: { slug: true } } },
+        })
+      : [];
+    const deadSimpleIds = new Set(filedTags.filter(isDeadSimple).map((t) => t.id));
+    const already = filed.reduce((sum, r) => {
+      if (!deadSimpleIds.has(r.payload?.tagId)) return sum;
+      return sum + (Number(r.payload?.quantity) || 0);
+    }, 0);
+    if (already + quantity > DEAD_SIMPLE_PER_TURN) {
+      throw new UserError(
+        `You can only make ${DEAD_SIMPLE_PER_TURN} Dead Simple items per turn (${already} already this turn).`,
+      );
+    }
+  }
 
   // A chain replaces: adding a higher tier takes the held lower tier off the
   // sheet in the same transaction (TAGS.md §3). Snapshotted onto the effect
@@ -1350,14 +1430,22 @@ async function setDesireImpl({ text: rawText, points: rawPoints }) {
   if (points == null) throw new UserError(`Points must be between ${DESIRE_MIN_POINTS} and ${DESIRE_MAX_POINTS}.`);
 
   const openTurn = await getOpenTurn();
-  const [active, lastEnded] = await Promise.all([
-    prisma.desire.findFirst({ where: { characterId: character.id, status: "ACTIVE" } }),
+  const [activeCount, lastEnded, config] = await Promise.all([
+    prisma.desire.count({ where: { characterId: character.id, status: "ACTIVE" } }),
     prisma.desire.findFirst({
       where: { characterId: character.id, status: { in: ["FULFILLED", "CANCELLED"] } },
       orderBy: { updatedAt: "desc" },
     }),
+    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { maxActiveDesires: true } }),
   ]);
-  if (active) throw new UserError("You already have an active Desire.");
+  const maxActive = config?.maxActiveDesires ?? DEFAULT_MAX_ACTIVE_DESIRES;
+  if (activeCount >= maxActive) {
+    throw new UserError(
+      `You already have ${activeCount} active Desire${activeCount === 1 ? "" : "s"} (the limit is ${maxActive}).`,
+    );
+  }
+  // The cooldown is unchanged in spirit: ending ANY Desire makes the next new
+  // one wait a turn, however many are still running.
   if (openTurn && lastEnded?.endedTurnNumber != null && openTurn.number <= lastEnded.endedTurnNumber) {
     throw new UserError("You're on cooldown — you can set a new Desire next turn.");
   }
@@ -1383,11 +1471,23 @@ async function setDesireImpl({ text: rawText, points: rawPoints }) {
   return {};
 }
 
-async function cancelDesireImpl() {
+// A character can hold several ACTIVE Desires now, so ending one names it.
+// Returns null rather than throwing for a row that is gone, belongs to
+// somebody else, or has already ended — the id came off the player's own
+// sheet, and a stale one means a second tab already acted.
+async function findOwnActiveDesire(characterId, desireId) {
+  const id = desireId?.toString().trim();
+  if (!id) return null;
+  const desire = await prisma.desire.findUnique({ where: { id } });
+  if (!desire || desire.characterId !== characterId || desire.status !== "ACTIVE") return null;
+  return desire;
+}
+
+async function cancelDesireImpl({ desireId } = {}) {
   const { session, character } = await requireCharacter();
   const openTurn = await getOpenTurn();
 
-  const active = await prisma.desire.findFirst({ where: { characterId: character.id, status: "ACTIVE" } });
+  const active = await findOwnActiveDesire(character.id, desireId);
   if (!active) return {};
 
   await prisma.desire.update({
@@ -1407,13 +1507,13 @@ async function cancelDesireImpl() {
   return {};
 }
 
-async function fulfillDesireRequestImpl({ reason: rawReason }) {
+async function fulfillDesireRequestImpl({ desireId, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
   const openTurn = await getOpenTurn();
-  const active = await prisma.desire.findFirst({ where: { characterId: character.id, status: "ACTIVE" } });
-  if (!active) throw new UserError("You have no active Desire.");
+  const active = await findOwnActiveDesire(character.id, desireId);
+  if (!active) throw new UserError("That Desire is no longer active.");
 
   await prisma.$transaction(async (tx) => {
     await tx.desire.update({
@@ -1801,8 +1901,8 @@ export async function setDesire(input) {
   return guarded(() => setDesireImpl(input));
 }
 
-export async function cancelDesire() {
-  return guarded(() => cancelDesireImpl());
+export async function cancelDesire(input) {
+  return guarded(() => cancelDesireImpl(input));
 }
 
 export async function fulfillDesireRequest(input) {

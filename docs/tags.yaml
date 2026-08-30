@@ -821,15 +821,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  - slug: short-temper
-    name: Short-Tempered
-    category: general
-    group: general-traits
-    description: "You explode at people, are provoked easily, and struggle to keep a secret. It's a weakness... A few cracked teeth, maybe a broken nose or even a black eye—just so they know you’re not messing around. But what isn’t worth those few minutes of energy you feel?"
-    pointCost: -5
-    purchasable: true
-    purchasableAfterStart: false
-
   - slug: kleptomaniac
     name: Kleptomaniac
     category: general
@@ -837,6 +828,20 @@ tags:
     description: "Other people's possessions just seem to fall into your hands. There's nothing you can do about it!"
     pointCost: -3
     purchasable: true
+    purchasableAfterStart: false
+
+  - slug: honest
+    name: Honest
+    category: general
+    group: general-traits
+    description: "You can't lie no matter what—nor can you withhold the truth. A good thing to be."
+    pointCost: -2
+    visible: false
+    # Retired 2026-08-30 (Gunboat: "remove Honest, keep Bad Liar"). Kept as a
+    # row rather than deleted because db:sync-tags is upsert-only and
+    # db:prune-tags refuses a tag anyone holds — purchasable: false is what
+    # actually takes it off every menu while leaving holders untouched.
+    purchasable: false
     purchasableAfterStart: false
 
   - slug: bad-liar
@@ -962,7 +967,9 @@ tags:
     description: "Your skin is pale as milk, marking you as a recent migrant from the Caves."
     pointCost: 0
     visible: true
-    purchasable: true
+    # Role-granted only (the Migrant's starting tag). Closed to the point-buy
+    # menu because Saint gates on it — buying Pale would buy the gate.
+    purchasable: false
     purchasableAfterStart: false
 
   - slug: desperate
@@ -1017,7 +1024,7 @@ tags:
     name: Devoted Follower
     category: general
     group: general-traits
-    description: "You wouldn't dare raise a hand against one of your own. You're incapable of betraying your starting faction, even if it would be in your best interest."
+    description: "You wouldn't dare raise a hand against one of your own. You're incapable of betraying your starting faction, even if it would be in your best interest. Must be part of a faction, and not a mercenary, migrant, or bum."
     pointCost: -2
     visible: false
     purchasable: true
@@ -1098,8 +1105,21 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # Slug frozen as `combative`; renamed to Hot-Headed. A name-only change, so
+  # live holders just see the new label.
+  - slug: short-temper
+    name: Short-Tempered
+    category: general
+    group: general-traits
+    description: "You explode at people, are provoked easily, and struggle to keep a secret. It's a weakness... A few cracked teeth, maybe a broken nose or even a black eye—just so they know you’re not messing around. But what isn’t worth those few minutes of energy you feel?"
+    pointCost: -5
+    # Retired 2026-08-30 (Gunboat: "remove short tempered") — same reasoning
+    # as Honest above: purchasable: false retires it without a prune.
+    purchasable: false
+    purchasableAfterStart: false
+
   - slug: combative
-    name: Combative
+    name: Hot-Headed
     category: general
     group: general-traits
     description: "You like split knuckles, cracked teeth, black eyes — though they look better on the other guy! You actively pick fights where they might not be necessary."
@@ -1114,12 +1134,13 @@ tags:
   # Ways", the Post-Christianity document, the shrine to Thoth in the Caves —
   # and this is the first time any of it reaches a sheet.
   #
-  # NOTHING ENFORCES ONE BELIEF PER CHARACTER. A player can hold all four Old
-  # Ways at once and a GM sorts it out. That is a deliberate call, not an
-  # oversight: there is no mutual-exclusivity mechanism in the catalog to lean
-  # on. A parentTag chain is priced cumulatively and walks in one direction,
-  # which is wrong for eight peers. Building one would mean a new rule
-  # enforced at creation, at /store checkout and in the Add Tag request.
+  # ONE BELIEF PER CHARACTER, enforced by `exclusive: true` below. A character
+  # may hold at most one exclusive tag — the one exception being a pair joined
+  # by requiredTag, which is how Fundamentalist stacks on Post-Christian.
+  # Checked at creation, at /store checkout and in the Add Tag request; a GM
+  # grant bypasses it like every other gate. Pilgrim and Saint sit in this same
+  # group and are deliberately NOT exclusive: they stack on top of a belief.
+  # See docs/systemdocs/TAGS.md §5.
   #
   # These are the first tags in the file that are BOTH purchasableAfterStart
   # and removable. All 157 other removable tags are Items or Health conditions,
@@ -1141,6 +1162,7 @@ tags:
     purchasable: true
     purchasableAfterStart: true
     removable: true
+    exclusive: true
 
   - slug: atheist
     name: Atheist
@@ -1151,6 +1173,7 @@ tags:
     purchasable: true
     purchasableAfterStart: true
     removable: true
+    exclusive: true
 
   - slug: existentialist
     name: Existentialist
@@ -1161,6 +1184,7 @@ tags:
     purchasable: true
     purchasableAfterStart: true
     removable: true
+    exclusive: true
 
   - slug: fundamentalist
     name: Fundamentalist
@@ -1174,6 +1198,7 @@ tags:
     purchasableAfterStart: false
     removable: true
     requiredTag: post-christian
+    exclusive: true
 
   #Windlanders only
   - slug: the-wind
@@ -1186,6 +1211,7 @@ tags:
     purchasable: true
     purchasableAfterStart: true
     removable: true
+    exclusive: true
 
   - slug: old-ways-eusoch
     name: Old Ways (Eusoch)
@@ -1196,6 +1222,7 @@ tags:
     purchasable: true
     purchasableAfterStart: true
     removable: true
+    exclusive: true
 
   - slug: old-ways-sylvia
     name: Old Ways (Sylvia)
@@ -1206,6 +1233,7 @@ tags:
     purchasable: true
     purchasableAfterStart: true
     removable: true
+    exclusive: true
 
   - slug: old-ways-thoth
     name: Old Ways (Thoth)
@@ -1216,6 +1244,7 @@ tags:
     purchasable: true
     purchasableAfterStart: true
     removable: true
+    exclusive: true
 
   #Unrelated to the formal bacchus cult
   - slug: old-ways-bacchus
@@ -1227,6 +1256,7 @@ tags:
     purchasable: true
     purchasableAfterStart: true
     removable: true
+    exclusive: true
 
   # Pilgrim is deliberately off the point scale at 1 — Gunboat's call.
   - slug: pilgrim
@@ -1244,7 +1274,9 @@ tags:
     group: general-beliefs
     description: "It is clear that you are at peace. Your doctrine is unique, but your holiness is undeniable. Are you a heretic or do you know the truth? Once every day, you can instantly cure a Moderately Severe or lesser wound. Refer to the Medical document."
     pointCost: 14
-    requiredTag: pacifist
+    # Migrants only: Pale is the Migrant role's starting tag and is
+    # purchasable: false, so nobody else can pick it up.
+    requiredTag: pale
     purchasable: true
     purchasableAfterStart: true
 
@@ -1427,7 +1459,7 @@ tags:
     group: general-windlands
     description: "Take only if you're a Windrider. The murdered clansman was family or your best friend. Take revenge!"
     pointCost: -7
-    visible: true
+    visible: false
     purchasable: true
     purchasableAfterStart: false
 
@@ -1536,7 +1568,7 @@ tags:
   - slug: butcher
     name: Butcher
     category: skills
-    description: "When butchering non-humans, you can obtain interesting organs. Also gain +2 when hunting (not calculated with /labor, make sure to write it out)."
+    description: "When butchering non-humans, you can obtain interesting organs. Also gain +2 when hunting."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -2852,6 +2884,45 @@ tags:
     purchasableAfterStart: false
     removable: true
 
+  # Stuffed -> Exploded Chest. Tier 5 ("very minor surgery") is the rung that
+  # buys you out before the larva matures; ignore it for four turns and it
+  # becomes tier 7, the rung even Esculap rolls for, which then expires into
+  # Dying the same way Sepsis does. See TAGS.md §5c for the ladder.
+  - slug: stuffed
+    name: Stuffed
+    category: health
+    group: health-illness
+    description: "You feel bloated and full."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 4
+    expiresInto: [exploded-chest]
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [medical-skilled]
+
+  - slug: exploded-chest
+    name: Exploded Chest
+    category: health
+    group: health-illness
+    description: "Your chest exploded. A larva slithered out. No coming back from this."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    durationTurns: 2
+    expiresInto: [dying]
+    requirement:
+      turnsCost: 1
+      resourceCost: 8
+      skills: [medical-expert]
+      gambit: true
+
   # --- Mind --------------------------------------------------------------
   - slug: concussed
     name: Concussed
@@ -2986,7 +3057,7 @@ tags:
     category: health
     group: health-maiming
     description: "Your face scares children."
-    pointCost: -5
+    pointCost: -4
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -6751,9 +6822,17 @@ tags:
     pointCost: -5
     purchasable: true
     purchasableAfterStart: true
+    exclusive: true
     removable: false
     consumable: false
 
+  # The Addictions are the one deliberate exception to the TAGS.md §4 rule
+  # that a negative tag is purchasableAfterStart: false — a Cultist is meant
+  # to be able to take one mid-game for the points. That only works while they
+  # are one-way: REMOVE_TAG and CONSUME_TAG refund resources but never Tag
+  # Points, so a removable Addiction would be buy -> remove -> buy again, an
+  # unbounded point farm. All four are therefore removable: false,
+  # consumable: false.
   - slug: addiction-romantic
     name: "Addiction: Romantic"
     category: bacchus
@@ -6762,8 +6841,9 @@ tags:
     pointCost: -5
     purchasable: true
     purchasableAfterStart: true
-    removable: true
-    consumable: true
+    exclusive: true
+    removable: false
+    consumable: false
 
   - slug: addiction-cruel
     name: "Addiction: Cruel"
@@ -6773,6 +6853,7 @@ tags:
     pointCost: -5
     purchasable: true
     purchasableAfterStart: true
+    exclusive: true
     removable: false
     consumable: false
 
@@ -6784,8 +6865,9 @@ tags:
     pointCost: -5
     purchasable: true
     purchasableAfterStart: true
-    removable: true
-    consumable: true
+    exclusive: true
+    removable: false
+    consumable: false
 
   - slug: addiction-drugs
     name: "Addiction: Drugs"
@@ -6795,19 +6877,9 @@ tags:
     pointCost: -5
     purchasable: true
     purchasableAfterStart: true
-    removable: true
-    consumable: true
-
-  - slug: addiction-drugs
-    name: "Addiction: Drugs"
-    category: bacchus
-    group: bacchus
-    description: "The only valid Desires for you are related to recreational drugs. Do not take with other Addiction tags."
-    pointCost: -5
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-    consumable: true
+    exclusive: true
+    removable: false
+    consumable: false
 
   # Not cult-gated: an Instant Camera can be handed to anyone. Purchasable at
   # start like every other item (TAGS.md §4a: items are never

@@ -4,6 +4,7 @@ import FormError from "@/app/components/FormError";
 import Modal from "@/app/components/Modal";
 import CheckField from "@/app/components/CheckField";
 import Select from "@/app/components/Select";
+import CustomTagDialog from "@/app/components/CustomTagDialog";
 import { useMemo, useState, useTransition } from "react";
 import {
   useTableState,
@@ -17,7 +18,7 @@ import { useConfirm } from "@/app/components/ConfirmProvider";
 import { EditIcon, TrashIcon } from "@/app/components/icons";
 import { formatCost, costColor } from "@/lib/characterCreation";
 import TagDetailSheet from "./TagDetailSheet";
-import { createCustomTag, updateCustomTag, deleteCustomTag } from "./actions";
+import { updateCustomTag, deleteCustomTag } from "./actions";
 
 const FILTER_DEFS = [
   { key: "category", label: "Category", value: (t) => t.category },
@@ -58,17 +59,24 @@ export default function TagCatalog({ tags, groups, categories, canDelete }) {
   const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(null);
-  const [editing, setEditing] = useState(null); // null | {…tag} | "new"
+  const [editing, setEditing] = useState(null); // null | {…tag} — existing GM tag being edited
   const [viewing, setViewing] = useState(null); // null | {…tag} — the detail sheet
+  const [creating, setCreating] = useState(false); // the shared CustomTagDialog
+  // A just-created tag, shown immediately rather than waiting on the
+  // router.refresh() CustomTagDialog already triggers — same reasoning as
+  // TagEditor.js and EffectComposer.js's own doors.
+  const [extraTags, setExtraTags] = useState([]);
+
+  const allTags = useMemo(() => [...tags, ...extraTags], [tags, extraTags]);
 
   const table = useTableState({
-    rows: tags,
+    rows: allTags,
     searchFields: SEARCH_FIELDS,
     filterDefs: FILTER_DEFS,
     initialSort: { key: "name", dir: "asc" },
   });
 
-  const customCount = useMemo(() => tags.filter((t) => t.custom).length, [tags]);
+  const customCount = useMemo(() => allTags.filter((t) => t.custom).length, [allTags]);
 
   function run(fn) {
     setError(null);
@@ -102,12 +110,12 @@ export default function TagCatalog({ tags, groups, categories, canDelete }) {
           setQuery={table.setQuery}
           searchLabel="Search tags"
         >
-          <button type="button" className="btn" onClick={() => setEditing("new")}>
+          <button type="button" className="btn" onClick={() => setCreating(true)}>
             New tag
           </button>
         </FilterBar>
         <p className="text-xs text-muted">
-          {customCount} GM-created, {tags.length - customCount} from docs/tags.yaml. GM-created tags
+          {customCount} GM-created, {allTags.length - customCount} from docs/tags.yaml. GM-created tags
           exist only in the database, so <code>npm run db:sync-tags</code> and{" "}
           <code>npm run db:prune-tags</code> leave them alone. Tags from the YAML are read-only here;
           edit them in the file, since the next sync overwrites any change made here.
@@ -199,7 +207,7 @@ export default function TagCatalog({ tags, groups, categories, canDelete }) {
       {viewing && (
         <TagDetailSheet
           tag={viewing}
-          tags={tags}
+          tags={allTags}
           onOpen={setViewing}
           onClose={() => setViewing(null)}
         />
@@ -207,31 +215,40 @@ export default function TagCatalog({ tags, groups, categories, canDelete }) {
 
       {editing && (
         <TagDialog
-          tag={editing === "new" ? null : editing}
+          tag={editing}
           groups={groups}
           categories={categories}
           pending={pending}
           error={error}
           onCancel={() => setEditing(null)}
-          onSave={(values) =>
-            run(() =>
-              editing === "new"
-                ? createCustomTag(values)
-                : updateCustomTag({ tagId: editing.id, ...values }),
-            )
-          }
+          onSave={(values) => run(() => updateCustomTag({ tagId: editing.id, ...values }))}
+        />
+      )}
+
+      {creating && (
+        <CustomTagDialog
+          categories={categories}
+          groups={groups}
+          tags={allTags}
+          onClose={() => setCreating(false)}
+          onCreated={(tag) => {
+            setExtraTags((prev) => [...prev, { ...tag, held: 0, groupName: groups.find((g) => g.id === tag.groupId)?.name ?? null }]);
+            setCreating(false);
+          }}
         />
       )}
     </>
   );
 }
 
+// Edit-only now — creation moved to the shared CustomTagDialog (D11), which
+// also grew Clone-from/Assign-to/stage-toggle this simpler form never needed.
 function TagDialog({ tag, groups, categories, pending, error, onCancel, onSave }) {
-  const [values, setValues] = useState(() => (tag ? { ...BLANK, ...tag } : BLANK));
+  const [values, setValues] = useState(() => ({ ...BLANK, ...tag }));
   const set = (key, value) => setValues((v) => ({ ...v, [key]: value }));
 
   return (
-    <Modal title={tag ? `Edit ${tag.name}` : "New tag"} onClose={onCancel}>
+    <Modal title={`Edit ${tag.name}`} onClose={onCancel}>
       <div className="flex flex-col gap-3">
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -289,12 +306,10 @@ function TagDialog({ tag, groups, categories, pending, error, onCancel, onSave }
           ))}
         </div>
 
-        {tag && (
-          <p className="mono text-xs text-muted">
-            {tag.slug} — the slug cannot be changed after creation, because other tags refer to it
-            by this exact text.
-          </p>
-        )}
+        <p className="mono text-xs text-muted">
+          {tag.slug} — the slug cannot be changed after creation, because other tags refer to it
+          by this exact text.
+        </p>
 
         <FormError>{error}</FormError>
 
@@ -308,7 +323,7 @@ function TagDialog({ tag, groups, categories, pending, error, onCancel, onSave }
             disabled={pending || !values.name.trim() || !values.category}
             onClick={() => onSave(values)}
           >
-            {pending ? "Saving…" : tag ? "Save" : "Create tag"}
+            {pending ? "Saving…" : "Save"}
           </button>
         </div>
       </div>

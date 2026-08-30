@@ -2851,11 +2851,6 @@ button.map-node:focus-visible .map-rhomb { transform: rotate(45deg) scale(1.3); 
   gap: var(--sp-3);
 }
 
-.audit-feed[data-density="compact"] .audit-row {
-  padding-top: var(--sp-1);
-  padding-bottom: var(--sp-1);
-}
-
 .audit-row-time {
   font-size: var(--fs-2xs);
   color: var(--muted);
@@ -3141,32 +3136,29 @@ button.map-node:focus-visible .map-rhomb { transform: rotate(45deg) scale(1.3); 
    The second full-viewport workspace, on the .desk-* family above rather
    than a family of its own — the roster/conversation desk and the
    adjudication desk are the same tool and read as one. What is local to it:
-   a two-column body (the third column belongs to the person view, not the
-   shell), the rail's row internals, and the conversation pane. */
+   the rail's row internals and the conversation pane. The body is the same
+   three columns /gm/turns has — rail, work, inspector — because the third
+   column belongs to the SHELL now, not to the person view. It used to be the
+   per-person DossierColumn, which meant the roster had no inspector at all
+   and every navigation threw the column away. */
 .desk-body--players {
-  grid-template-columns: 19rem minmax(0, 1fr);
+  grid-template-columns: 19rem minmax(0, 1fr) 22rem;
 }
 
-/* Selecting somebody splits the pane; the roster keeps the whole width. */
+/* The person view is the conversation, full width of the middle column. It is
+   still its own element rather than .desk-convo directly, because the route's
+   loading.js paints the same wrapper. */
 .desk-person {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 22rem;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.desk-dossier {
-  border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
-.desk-dossier-body {
+.desk-person > * {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  padding: 0.75rem 1rem;
 }
 
 /* A chat pane, not a thread block in document flow: the transcript takes
@@ -3324,6 +3316,13 @@ button.map-node:focus-visible .map-rhomb { transform: rotate(45deg) scale(1.3); 
   padding: 0.5rem 0.75rem;
   font-size: var(--fs-sm);
 }
+/* An optimistic row: appended the moment Send is pressed, before the Discord
+   POST has answered. Dimmed rather than spinner'd — the message is there, it
+   just isn't confirmed, and a failed send removes it outright. */
+.dm-bubble[data-pending] {
+  opacity: 0.55;
+}
+
 .dm-bubble-out {
   background: var(--accent-solid);
   color: var(--on-accent);
@@ -3388,6 +3387,15 @@ button.map-node:focus-visible .map-rhomb { transform: rotate(45deg) scale(1.3); 
     grid-template-columns: 1fr;
   }
 
+  /* The inspector stacks and caps exactly the way /gm/turns' does (see the
+     shared .desk-* mobile block above) — same column, same component, same
+     rule. Only the rail is this desk's exception. */
+  .desk-body--players .desk-inspector {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+    max-height: 45vh;
+  }
+
   /* The rail IS this desk's content, not a queue beside the work like on
      /gm/turns or /gm/audit, so it skips the shared 45vh cap below and lets
      the page scroll it instead of scrolling inside itself. */
@@ -3404,16 +3412,10 @@ button.map-node:focus-visible .map-rhomb { transform: rotate(45deg) scale(1.3); 
      way the adjudication desk does (see the shared .desk-* mobile block
      above) — the inbox used to swap panes with a data attribute off
      usePathname(), which the shared .desk-body rule now handles by
-     stacking instead. */
+     stacking instead. The dossier half of it is gone; the inspector above
+     took its place. */
   .desk-person {
-    grid-template-columns: 1fr;
     overflow: visible;
-  }
-
-  .desk-dossier {
-    border-left: 0;
-    border-top: 1px solid var(--border);
-    max-height: 45vh;
   }
 
   /* The transcript stops being its own scroll region once the page scrolls. */

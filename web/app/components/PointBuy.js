@@ -17,6 +17,7 @@ import {
   prerequisiteNames,
   hasPrerequisite,
   negativeTagPoints,
+  exclusiveConflict,
 } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import ChipText from "./ChipText";
@@ -45,11 +46,11 @@ import Select from "./Select";
 //
 // `negativeCap` / `negativeHeld` are the drawback limit (TAGS.md §4a): at
 // most `negativeCap` drawback POINTS bought through this menu, with
-// `negativeHeld` already spent elsewhere. Creation passes the cap and 0 held;
-// the store passes the cap and the drawback points the character bought at
-// creation, and since no drawback is ever purchasableAfterStart its own sum
-// can never move — there the line is a readout, not a limit. Pass a null cap
-// to render nothing at all.
+// `negativeHeld` already spent elsewhere. It is a CHARACTER CREATION rule and
+// only creation passes it (the cap and 0 held). The store passes neither: the
+// Addictions are deliberately buyable mid-game (TAGS.md §4), so a cap the
+// store neither enforces nor moves would be a misleading readout. A null cap
+// renders nothing at all and dims nothing.
 
 // A name in one of the build pane's two lists, with the catalog row's own
 // detail on hover. The pane is deliberately narrow and its list scrolls, so
@@ -95,7 +96,7 @@ function BuildTagName({ tag }) {
   );
 }
 
-function TagRow({ tag, isSelected, cost, unaffordable, onToggle }) {
+function TagRow({ tag, isSelected, cost, unaffordable, conflictName, onToggle }) {
   return (
     <li>
       <button
@@ -136,6 +137,16 @@ function TagRow({ tag, isSelected, cost, unaffordable, onToggle }) {
           {prerequisiteNames(tag).length > 0 && (
             <span className="text-sm" style={{ color: "var(--accent-text)" }}>
               Requires: {prerequisiteNames(tag).join(", ")}
+            </span>
+          )}
+          {/* The exclusivity rule, named rather than merely dimmed — a row
+              that greys out with no reason reads as a bug. Only ever set for
+              a conflict with something ALREADY held/granted, which is the
+              case a click can't resolve; a conflict with another PICK swaps
+              instead (see toggle). */}
+          {conflictName && (
+            <span className="text-sm" style={{ color: "var(--accent-text)" }}>
+              Can&apos;t be held with {conflictName}.
             </span>
           )}
         </span>
@@ -280,6 +291,13 @@ export default function PointBuy({
       ...chainSiblingsToRemove(tag, byId, selectedIds),
       ...heldHigherTiers(tag, byId, selectedIds),
     ]);
+    // Exclusive tags (the Beliefs) swap the same way a chain does when the
+    // conflict is another PICK — a player changing their mind about which
+    // belief to take shouldn't have to untick the old one first. A conflict
+    // with something already held/granted can't be swapped away here, so
+    // that row is dimmed and named instead (rowFor below).
+    const conflict = exclusiveConflict(tag, selectedIds, byId);
+    if (conflict) siblings.add(conflict.id);
     onChange([...selectedIds.filter((id) => !siblings.has(id)), tag.id]);
   }
 
@@ -330,13 +348,17 @@ export default function PointBuy({
       capped &&
       (tag.pointCost ?? 0) < 0 &&
       negativeUsed - (tag.pointCost ?? 0) > negativeCap;
+    // Only against grantedIds: a conflict with another pick is resolved by
+    // swapping (toggle), so dimming it too would make the swap look forbidden.
+    const conflict = isSelected ? null : exclusiveConflict(tag, grantedIds, byId);
     return (
       <TagRow
         key={tag.id}
         tag={tag}
         isSelected={isSelected}
         cost={cost}
-        unaffordable={unaffordable || capBlocked}
+        unaffordable={unaffordable || capBlocked || Boolean(conflict)}
+        conflictName={conflict?.name ?? null}
         onToggle={toggle}
       />
     );
