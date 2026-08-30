@@ -1495,7 +1495,7 @@ zones:
             multiple: true
             weight: unlimited
             starting_resources: 1
-            starting_zone: railroad
+            starting_zone: caverns
             starting_tags: [Pale]
             doc_elements: [caving]
           - name: Mercenary

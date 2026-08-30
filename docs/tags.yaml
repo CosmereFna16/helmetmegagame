@@ -1476,7 +1476,7 @@ tags:
   - slug: artist
     name: Artist
     category: skills
-    description: "Well, it’s lovely, but I’m not paying for it. You draw, paint, sculpt, act, or pursue another creative medium inessential for survival. Perhaps you can find a patron? The Merchant might buy these... (You can craft a {tag:painting})."
+    description: "Well, it’s lovely, but I’m not paying for it. You draw, paint, sculpt, act, or pursue another creative medium inessential for survival. Perhaps you can find a patron? The Merchant might buy these... You can craft a {tag:painting}, but it takes 4 turns."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1503,7 +1503,7 @@ tags:
   - slug: laborer-farming
     name: Laborer (Farming)
     category: skills
-    description: "Specialist rates when you /farm. You know how to make black gold."
+    description: "When you farm, you make {resource:labor:skilled}. Only works in the Town."
     pointCost: 5
     requiredTag: laborer-skilled
     purchasable: true
@@ -3642,7 +3642,7 @@ tags:
     removable: true
     craftable: true
     requirement:
-      turnsCost: 7
+      turnsCost: 4
       resourceCost: 0
       skills: [artist]
       gambit: false
@@ -6330,6 +6330,7 @@ tags:
     visible: true
     tradeable: true
     purchasable: true
+    removable: true
     purchasableAfterStart: false
     craftable: true
     requirement:

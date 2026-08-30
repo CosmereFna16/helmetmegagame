@@ -452,6 +452,31 @@ documents:
       | We are free, so free — | Wy vory oryy, wa oryy — |
       | Behold as I reach new heights | bymadv iw xe ryitm lys rechem |
       | My progenitor, I am everlasting | mh eraqyluzar, xe vechem |
+
+  - name: Conversion
+    key: conversion
+    public: false
+    secret: true
+    tags:
+      - Cultist
+    description: |-
+      “Carefully scrawl Bacchus’s sigil on the ground. The initiate should then lose themsleves in hedonism through their chosen way—consuming alcohol, eating food, being with a lover, cruelty, fine music, or something else—while standing on the sigil. They should be watched while they indulge, violating their privacy, as a way to demonstrate their commitment to Bacchus. Chant the Verse.
+
+      There must be two people at least: the host and the initiate. The initiate should not be told everything of the Truth, but must be made to understand the nature of their new lifelong commitment and service in Bacchus. Although their desires always come first, it will always be through the Parent—so they are becoming a servant. They are no longer an independent person. However, they become Everlasting, achieving Eternal Bliss.
+
+      Finally, their blood must be drawn and spilled on the sigil.
+
+      The nature of Eternal Bliss should not be discussed, but Eternal Bliss itself should be mentioned. This would be a Routine move, as it is a party that takes a couple of hours, on both the part of the initiate and the host.
+
+      **Chant**
+
+      | English | Demonic |
+      | --- | --- |
+      | We are free, so free — | Wy vory oryy, wa oryy — |
+      | Behold as I reach new heights | bymadv iw xe ryitm lys rechem |
+      | My progenitor, I am everlasting | mh eraqyluzar, xe vechem |
+
+      For unwilling conversions, do the same, but instead, the one hosting the rite must indulge themselves. The person must be placed on the sigil the whole time, ideally bound. Their blood will still have to be spilled on the sigil. It is recommended to do this privately where no one will hear them, or at the very least, gag them.""
   - name: The Charon
     key: charon
     public: false
