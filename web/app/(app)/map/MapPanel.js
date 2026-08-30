@@ -11,7 +11,7 @@ import {
   useSyncExternalStore,
   useTransition,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@/app/components/useRefresh";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { travelTo } from "./travelActions";
 
@@ -68,7 +68,7 @@ export default function MapPanel({
   turnOpen,
 }) {
   const confirm = useConfirm();
-  const router = useRouter();
+  const [refresh] = useRefresh();
   const [pending, startTransition] = useTransition();
   // The "you are here" mark moves the moment travel is confirmed, instead of
   // waiting out the server action + refresh round trip. Reverts on its own if
@@ -142,10 +142,10 @@ export default function MapPanel({
             ? `Arrived in ${result.name}.`
             : `Travelled to ${result.name}. Your Move is spent.`,
         });
-        router.refresh();
+        refresh();
       });
     },
-    [confirm, here, pending, router, setOptimisticId, unplaced],
+    [confirm, here, pending, refresh, setOptimisticId, unplaced],
   );
 
   return (

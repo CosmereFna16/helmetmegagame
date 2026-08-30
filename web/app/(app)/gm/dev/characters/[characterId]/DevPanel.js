@@ -3,7 +3,7 @@
 import { CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@/app/components/useRefresh";
 import { PageHeader } from "@/app/components/PageShell";
 import FactionLink from "@/app/components/FactionLink";
 import TagPointsValue from "@/app/components/TagPointsValue";
@@ -74,13 +74,13 @@ export default function DevPanel({
   onMutated,
   onDeleted,
 }) {
-  const router = useRouter();
+  const [routeRefresh] = useRefresh();
   const confirm = useConfirm();
   const { markDirty, markClean, guardedClose } = useDirtyGuard();
   // In "modal" frame, a microaction's refresh has to repaint the fetched
-  // DTOs (onMutated), not the desk's own RSC — router.refresh() alone would
+  // DTOs (onMutated), not the desk's own RSC — a route refresh alone would
   // leave the modal showing stale data.
-  const refresh = onMutated ?? (() => router.refresh());
+  const refresh = onMutated ?? routeRefresh;
   const [tab, setTab] = useState("Identity");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(null);

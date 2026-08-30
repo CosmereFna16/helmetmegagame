@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@/app/components/useRefresh";
 import PointBuy from "@/app/components/PointBuy";
 import FormError from "@/app/components/FormError";
 import { useConfirm } from "@/app/components/ConfirmProvider";
@@ -22,7 +22,7 @@ export default function StorePanel({ tags, budget, heldTags, onDone }) {
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
   const confirm = useConfirm();
-  const router = useRouter();
+  const [refresh] = useRefresh();
 
   // Same arithmetic as PointBuy's own readout and the server's re-check —
   // only used to keep the Buy button honest.
@@ -50,7 +50,7 @@ export default function StorePanel({ tags, budget, heldTags, onDone }) {
         return;
       }
       setSelectedIds([]);
-      router.refresh();
+      refresh();
       onDone?.();
     });
   };

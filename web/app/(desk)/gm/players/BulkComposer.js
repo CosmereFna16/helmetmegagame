@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@/app/components/useRefresh";
 import Modal from "@/app/components/Modal";
 import FormError from "@/app/components/FormError";
 import Select from "@/app/components/Select";
@@ -18,7 +18,7 @@ import { sendGmBroadcast } from "./actions";
 // this already pointed at the pinned characters; the picker stays fully
 // editable afterwards.
 export default function BulkComposer({ characters, initialSelectedIds, onClose }) {
-  const router = useRouter();
+  const [refresh] = useRefresh();
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(() => new Set(initialSelectedIds ?? []));
   const [message, setMessage] = useState("");
@@ -81,7 +81,7 @@ export default function BulkComposer({ characters, initialSelectedIds, onClose }
         setError(res.error);
         return;
       }
-      router.refresh();
+      refresh();
       onClose();
     });
   }

@@ -5,6 +5,7 @@ import Modal from "@/app/components/Modal";
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useRefresh } from "@/app/components/useRefresh";
 import IconButton from "@/app/components/IconButton";
 import RequestDialog from "@/app/components/RequestDialog";
 import { useConfirm } from "@/app/components/ConfirmProvider";
@@ -69,7 +70,8 @@ export default function ActionBar({
 }) {
   const router = useRouter();
   const confirm = useConfirm();
-  const doRefresh = refresh ?? (() => router.refresh());
+  const [routeRefresh] = useRefresh();
+  const doRefresh = refresh ?? routeRefresh;
   const doDeleted = onDeleted ?? (() => router.push("/gm/players"));
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(null);

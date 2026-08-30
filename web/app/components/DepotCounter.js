@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "./useRefresh";
 import { depotBuy, depotSell } from "@/app/(app)/depot/actions";
 import { FilterBar, TableScroll, SortHeader, useTableState } from "./DataTable";
 import Pager from "./Pager";
@@ -67,7 +67,7 @@ export default function DepotCounter({ wares, stock, resources, maxQuantity, dis
 }
 
 function Counter({ buying, rows, resources, maxQuantity, disabled }) {
-  const router = useRouter();
+  const [refresh] = useRefresh();
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(null); // the row being confirmed
   const [quantity, setQuantity] = useState(1);
@@ -102,7 +102,7 @@ function Counter({ buying, rows, resources, maxQuantity, disabled }) {
         return;
       }
       setOpen(null);
-      router.refresh();
+      refresh();
     });
   }
 

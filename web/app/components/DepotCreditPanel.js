@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "./useRefresh";
 import { depotCredit } from "@/app/(app)/depot/actions";
 import RequestDialog from "./RequestDialog";
 
@@ -13,7 +13,7 @@ import RequestDialog from "./RequestDialog";
 // ones he writes to other players, and those are a conversation plus an
 // ordinary resource transfer. See docs/systemdocs/DEPOT.md §5.
 export default function DepotCreditPanel({ debt, cap, available, resources, disabled }) {
-  const router = useRouter();
+  const [refresh] = useRefresh();
   const [pending, startTransition] = useTransition();
   const [mode, setMode] = useState(null); // "DRAW" | "REPAY"
   const [amount, setAmount] = useState(1);
@@ -44,7 +44,7 @@ export default function DepotCreditPanel({ debt, cap, available, resources, disa
         return;
       }
       setMode(null);
-      router.refresh();
+      refresh();
     });
   }
 

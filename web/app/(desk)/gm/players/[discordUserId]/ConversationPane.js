@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import DmThread from "@/app/components/DmThread";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
@@ -9,6 +10,7 @@ import DevPanelModal from "@/app/components/DevPanelModal";
 import ZoneChip from "@/app/components/ZoneChip";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import useSubmitOnEnter from "@/app/components/useSubmitOnEnter";
+import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import {
   getDmThreadPage,
@@ -178,6 +180,37 @@ export default function ConversationPane({
     });
   }
 
+  // Escape leaves the conversation for the roster, layered topmost-first the
+  // same way the adjudication desk does it (Workspace.js):
+  //   1. An open Modal (Dev Panel, confirm) owns Escape — Modal.js handles its
+  //      own, so yield while one is on screen.
+  //   2. A focused input/textarea/select — blur it. The reply composer is a
+  //      textarea, and Escape mid-sentence must not throw the GM out of the
+  //      conversation; a second Escape then leaves.
+  //   3. Otherwise, back to /gm/players.
+  // Unlike /gm/turns, leaving here is a step back to the list rather than off
+  // the whole desk — the rail never leaves the screen — which is why this one
+  // navigates where that one deliberately doesn't. Non-destructive either way:
+  // the composer draft is already persisted per conversation (dmDraft.js).
+  const router = useRouter();
+  const coarse = useIsCoarsePointer();
+  useEffect(() => {
+    // No Escape key on a touch-primary device, and no stray navigation there.
+    if (coarse) return undefined;
+    function onKey(e) {
+      if (e.key !== "Escape") return;
+      if (document.querySelector(".modal-overlay")) return;
+      const active = document.activeElement;
+      if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) {
+        active.blur();
+        return;
+      }
+      router.push("/gm/players");
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [coarse, router]);
+
   const onKeyDown = useSubmitOnEnter();
   const over = content.length > GM_MESSAGE_MAX_LENGTH;
   const claimedByOther = claimedBy && claimedBy !== myDiscordUserId;
@@ -214,6 +247,11 @@ export default function ConversationPane({
                 : "Release claim"
               : "Claim conversation"}
           </button>
+          {/* Twin of the Escape key handler above — same destination, so the
+              keycap label doubles as the hint that the key works. */}
+          <Link href="/gm/players" className="btn-quiet" title="Back to the roster">
+            Esc
+          </Link>
         </div>
       </div>
 
