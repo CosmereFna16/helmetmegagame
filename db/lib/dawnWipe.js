@@ -21,6 +21,14 @@
 //     member list, which is the practical point of persistence there.
 // Then every special-channel registry entry with wipe: "clear".
 //
+// Every one of those rules is bounded by a CUTOFF: the moment the turn
+// advance's side effects began. Nothing newer is touched, in any target. That
+// single rule is what stops the wipe deleting the staged adjudication and the
+// Default Move summaries that the same push posted to #summary seconds
+// earlier, and what protects a player who posts while the wipe — which takes
+// a long time — is still walking toward their zone. It needs no exemption
+// list, because a Discord snowflake already carries its own creation time.
+//
 // The transcript is recorded at send time (db/lib/archive.js), so this file
 // only deletes. Entirely sequential (no Promise.all fan-out) to avoid
 // bursting Discord's rate-limit buckets. Per-zone try/catch, so one bad room
@@ -31,18 +39,37 @@ const { SPECIAL_CHANNELS } = require("./specialChannels");
 const {
   fetchAllMessages,
   bulkDeleteMessages,
+  clearThreadExceptStarter,
   listActiveThreadsForChannel,
   fetchActiveThreads,
   getChannel,
   patchThread,
-  deleteMessage,
   listArchivedPublicThreads,
   listArchivedPrivateThreads,
   deleteThread,
+  snowflakeForTimestamp,
+  messageTimestamp,
+  beginRequestMetrics,
+  readRequestMetrics,
 } = require("./discordRest");
 
-async function clearMessages(channelOrThreadId) {
-  const messages = await fetchAllMessages(channelOrThreadId);
+// The cutoff: one instant, expressed two ways. `before` is the synthetic
+// snowflake handed to Discord's message cursor; `ms` is the same moment in
+// milliseconds, for the thread ids we have to judge ourselves.
+function buildCutoff(cutoffMs) {
+  return { ms: cutoffMs, before: snowflakeForTimestamp(cutoffMs) };
+}
+
+// True for anything created after the wipe's cutoff. An id we can't parse is
+// treated as old, which is the conservative read for a blind sweep: it stays
+// under the ordinary rules rather than silently becoming immortal.
+function isAfterCutoff(snowflakeId, cutoff) {
+  const at = messageTimestamp(snowflakeId);
+  return at !== null && at >= cutoff.ms;
+}
+
+async function clearMessages(channelOrThreadId, before) {
+  const messages = await fetchAllMessages(channelOrThreadId, { before });
   if (messages.length === 0) return;
   await bulkDeleteMessages(
     channelOrThreadId,
@@ -50,22 +77,12 @@ async function clearMessages(channelOrThreadId) {
   );
 }
 
-// Everything except the starter message, whose id IS the thread id — deleting
-// that one destroys the whole post. Same guard the sync's rebuild uses.
-async function clearMessagesExceptStarter(threadId) {
-  const messages = await fetchAllMessages(threadId);
-  for (const message of messages) {
-    if (message.id === threadId) continue;
-    await deleteMessage(threadId, message.id);
-  }
-}
-
 // Everything in a channel except one message, by id. Unlike
-// clearMessagesExceptStarter above, a plain channel has no un-bulk-deletable
-// starter to route around, so this goes through bulkDeleteMessages — cheaper
-// than the one-at-a-time loop. Used by #turns' per-turn console repost
-// (db/lib/turnAnnouncement.js), not the Dawn wipe itself: #turns runs this
-// every turn, Dawn or Dusk, and isn't in SPECIAL_CHANNELS.
+// clearThreadExceptStarter, a plain channel has no un-bulk-deletable starter
+// to route around; this keeps one nominated message instead. Used by #turns'
+// per-turn console repost (db/lib/turnAnnouncement.js), not the Dawn wipe
+// itself: #turns runs this every turn, Dawn or Dusk, and isn't in
+// SPECIAL_CHANNELS — so it takes no cutoff either.
 async function clearMessagesExcept(channelId, keepId) {
   const messages = await fetchAllMessages(channelId);
   const toDelete = messages.filter((m) => m.id !== keepId).map((m) => m.id);
@@ -109,7 +126,7 @@ async function deletePlayerThread(prisma, threadId) {
   await prisma.playerThreadInvite.deleteMany({ where: { threadId } }).catch(() => {});
 }
 
-async function wipeForum(prisma, zone, rowsByThreadId, topicThreadIds, activeSnapshot) {
+async function wipeForum(prisma, zone, rowsByThreadId, topicThreadIds, activeSnapshot, cutoff) {
   if (!zone.discordPublicChannelId) return;
 
   // allow404: a channel someone deleted by hand is an ordinary state for a
@@ -128,14 +145,20 @@ async function wipeForum(prisma, zone, rowsByThreadId, topicThreadIds, activeSna
     if (thread.id === zone.createTopicThreadId) continue;
 
     if (topicThreadIds.has(thread.id)) {
-      await clearMessagesExceptStarter(thread.id);
+      await clearThreadExceptStarter(thread.id, { before: cutoff.before });
       continue;
     }
+
+    // A thread younger than the cutoff was opened while this very wipe was
+    // running. Leave it entirely — deleting it would destroy a post whose
+    // author is still looking at it. It comes under the ordinary rules next
+    // Dawn, exactly like an adopted thread.
+    if (isAfterCutoff(thread.id, cutoff)) continue;
 
     let row = rowsByThreadId.get(thread.id);
     if (!row) row = await adoptThread(prisma, thread, zone, "PUBLIC");
     if (row?.persistent) {
-      await clearMessages(thread.id);
+      await clearMessages(thread.id, cutoff.before);
       // Re-assert the mirror: the DB said it survives, so the tag should say
       // so too, whatever a hand-edit did to it.
       if (persistentTagId && !thread.applied_tags?.includes(persistentTagId)) {
@@ -150,7 +173,7 @@ async function wipeForum(prisma, zone, rowsByThreadId, topicThreadIds, activeSna
   }
 }
 
-async function wipePrivateChannel(prisma, zone, rowsByThreadId, activeSnapshot) {
+async function wipePrivateChannel(prisma, zone, rowsByThreadId, activeSnapshot, cutoff) {
   if (!zone.discordPrivateChannelId) return;
 
   const threads = await collectThreads(
@@ -159,17 +182,29 @@ async function wipePrivateChannel(prisma, zone, rowsByThreadId, activeSnapshot) 
     activeSnapshot,
   );
   for (const thread of threads) {
+    if (isAfterCutoff(thread.id, cutoff)) continue;
+
     let row = rowsByThreadId.get(thread.id);
     if (!row) row = await adoptThread(prisma, thread, zone, "PRIVATE");
     if (row?.persistent) {
-      await clearMessages(thread.id);
+      await clearMessages(thread.id, cutoff.before);
     } else {
       await deletePlayerThread(prisma, thread.id);
     }
   }
 }
 
-async function runDawnWipe(prisma) {
+// `cutoffMs` is the moment the turn advance's side effects began — see
+// db/index.js#runSideEffects. Nothing created at or after it is touched, which
+// is what keeps the wipe from eating the staged adjudication and the Default
+// Move summaries the same push just posted, and what keeps a player's message
+// safe if they send it while the (long) wipe is still walking toward their
+// zone. Defaults to "now" so a hand-run wipe still can't eat its own tail.
+async function runDawnWipe(prisma, { cutoffMs = Date.now() } = {}) {
+  const startedAt = Date.now();
+  const cutoff = buildCutoff(cutoffMs);
+  const steps = [];
+
   const [zones, config, topics, playerThreads] = await Promise.all([
     prisma.zone.findMany({
       where: { kind: { not: "CAVE_GROUP" } },
@@ -190,12 +225,33 @@ async function runDawnWipe(prisma) {
   });
 
   const failures = [];
+
+  // Each step is timed and counted, and lands in the SystemReport below. The
+  // wipe is the longest thing the bot does and nobody could say which part of
+  // it was the slow part; a per-zone request count answers that from the Dev
+  // Panel instead of from a stopwatch.
+  const timeStep = async (name, fn) => {
+    const at = Date.now();
+    const metrics = beginRequestMetrics();
+    let ok = true;
+    try {
+      await fn();
+    } catch (err) {
+      ok = false;
+      throw err;
+    } finally {
+      steps.push({ name, ok, elapsedMs: Date.now() - at, ...readRequestMetrics(metrics) });
+    }
+  };
+
   for (const zone of zones) {
     console.log(`Dawn wipe: ${zone.name}`);
     try {
-      if (zone.discordSummaryChannelId) await clearMessages(zone.discordSummaryChannelId);
-      await wipeForum(prisma, zone, rowsByThreadId, topicThreadIds, activeThreads);
-      await wipePrivateChannel(prisma, zone, rowsByThreadId, activeThreads);
+      await timeStep(zone.name, async () => {
+        if (zone.discordSummaryChannelId) await clearMessages(zone.discordSummaryChannelId, cutoff.before);
+        await wipeForum(prisma, zone, rowsByThreadId, topicThreadIds, activeThreads, cutoff);
+        await wipePrivateChannel(prisma, zone, rowsByThreadId, activeThreads, cutoff);
+      });
     } catch (err) {
       failures.push({ step: "zone", target: zone.name, message: err.message });
       console.error(`Dawn wipe: ${zone.name} failed, continuing with the rest:`, err.message);
@@ -208,7 +264,7 @@ async function runDawnWipe(prisma) {
     if (!channelId) continue;
     console.log(`Dawn wipe: #${entry.slug}`);
     try {
-      await clearMessages(channelId);
+      await timeStep(`#${entry.slug}`, () => clearMessages(channelId, cutoff.before));
     } catch (err) {
       failures.push({ step: "special", target: entry.slug, message: err.message });
       console.error(`Dawn wipe: #${entry.slug} failed:`, err.message);
@@ -219,13 +275,28 @@ async function runDawnWipe(prisma) {
     console.error(`Dawn wipe finished with ${failures.length} failures.`);
   }
 
+  const elapsedMs = Date.now() - startedAt;
+  console.log(
+    `Dawn wipe finished in ${Math.round(elapsedMs / 1000)}s over ` +
+      `${steps.reduce((n, step) => n + step.requests, 0)} Discord requests.`,
+  );
+
   await prisma.systemReport
     .create({
       data: {
         kind: "DAWN_WIPE",
+        startedAt: new Date(startedAt),
         finishedAt: new Date(),
         ok: failures.length === 0,
-        summary: { zones: zones.length },
+        summary: {
+          zones: zones.length,
+          elapsedMs,
+          requests: steps.reduce((n, step) => n + step.requests, 0),
+          sleepMs: steps.reduce((n, step) => n + step.sleepMs, 0),
+          retries: steps.reduce((n, step) => n + step.retries, 0),
+          cutoff: new Date(cutoff.ms).toISOString(),
+          steps,
+        },
         failures,
       },
     })

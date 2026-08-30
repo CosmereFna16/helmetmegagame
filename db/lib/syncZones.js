@@ -44,8 +44,7 @@ const {
   patchThread,
   editMessage,
   postMessage,
-  deleteMessage,
-  fetchAllMessages,
+  clearThreadExceptStarter,
   chunkMessage,
   THREAD_FLAG_PINNED,
   fetchActiveThreads,
@@ -313,11 +312,7 @@ function buildTopicBody(topic) {
 async function rewriteForumPost(threadId, { name, chunks, appliedTags, locked, pinned, components }) {
   await patchThread(threadId, { locked: false, archived: false });
 
-  const messages = await fetchAllMessages(threadId);
-  for (const message of messages) {
-    if (message.id === threadId) continue;
-    await deleteMessage(threadId, message.id);
-  }
+  await clearThreadExceptStarter(threadId);
 
   await editMessage(threadId, threadId, chunks[0], components);
   for (const chunk of chunks.slice(1)) await postMessage(threadId, chunk);

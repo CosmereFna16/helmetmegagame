@@ -168,6 +168,64 @@ function getInvalidResponseStats() {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// ---------------------------------------------------------------------------
+// Per-bucket rate-limit bookkeeping, and a request counter for the Dawn wipe's
+// SystemReport.
+//
+// The wrapper used to sleep the moment ANY response came back with
+// `X-RateLimit-Remaining: 0`, right where it stood. That is correct but
+// wasteful in a sequential sweep like db/lib/dawnWipe.js, which constantly
+// alternates between unrelated routes: exhausting one zone's message-delete
+// bucket stalled the next zone's channel fetch, which shares nothing with it.
+//
+// So the reset is *recorded* against the bucket instead, and paid at the start
+// of the next request that actually uses that bucket. Discord names the bucket
+// in `X-RateLimit-Bucket`, but only in the response — so the mapping is learned
+// per route and remembered. An unlearned route pays nothing up front, exactly
+// like the very first request does today; if the guess is wrong the ordinary
+// 429 retry below is still the safety net.
+const bucketByRoute = new Map();
+const resetAtByBucket = new Map();
+
+// Discord buckets by "major parameter" (the channel / guild / webhook id) plus
+// the route shape. Keeping the major id verbatim and collapsing every other id
+// is what makes two different channels two different buckets, which is the
+// whole point here.
+function routeKey(method, path) {
+  const [, top, majorId, ...rest] = path.split("?")[0].split("/");
+  const hasMajor = ["channels", "guilds", "webhooks"].includes(top);
+  const major = hasMajor ? `${top}/${majorId}` : top;
+  const tail = (hasMajor ? rest : [majorId, ...rest])
+    .filter((segment) => segment !== undefined)
+    .join("/")
+    .replace(/\d{15,}/g, ":id");
+  return `${method} ${major}/${tail}`;
+}
+
+// Counters, read by db/lib/dawnWipe.js so its report can say where the time
+// went instead of leaving us to guess. Cheap enough to leave always-on.
+let requestCount = 0;
+let sleepMsTotal = 0;
+let retryCount = 0;
+
+function beginRequestMetrics() {
+  return { requests: requestCount, sleepMs: sleepMsTotal, retries: retryCount };
+}
+
+// Pass the object beginRequestMetrics() returned to get the deltas since.
+function readRequestMetrics(since) {
+  return {
+    requests: requestCount - since.requests,
+    sleepMs: sleepMsTotal - since.sleepMs,
+    retries: retryCount - since.retries,
+  };
+}
+
+async function meteredSleep(ms) {
+  sleepMsTotal += ms;
+  await sleep(ms);
+}
+
 // Every failure this wrapper throws carries the HTTP status and Discord's own
 // JSON error code, because callers need to tell one failure from another and
 // the message text cannot do it. postAsCharacter below is the worked example:
@@ -208,6 +266,8 @@ async function discordRequest(
   // Content-Type of ours at all.
   const headers = auth ? authHeaders(contentType) : contentType;
 
+  const route = routeKey(method, path);
+
   for (let attempt = 0; attempt < 3; attempt++) {
     if (Date.now() < breakerOpenUntil) {
       throw discordError(
@@ -216,6 +276,16 @@ async function discordRequest(
       );
     }
 
+    // Pay the deferred reset, if this route's bucket is the one that ran out.
+    const knownBucket = bucketByRoute.get(route);
+    const resetAt = knownBucket ? resetAtByBucket.get(knownBucket) : undefined;
+    if (resetAt !== undefined) {
+      const waitMs = resetAt - Date.now();
+      resetAtByBucket.delete(knownBucket);
+      if (waitMs > 0) await meteredSleep(Math.min(waitMs, MAX_RETRY_AFTER_MS));
+    }
+
+    requestCount += 1;
     const res = await fetch(`${DISCORD_API}${path}`, {
       method,
       headers,
@@ -242,7 +312,8 @@ async function discordRequest(
           { status: 429, discordCode: payload.code ?? null },
         );
       }
-      await sleep(retryAfterMs);
+      retryCount += 1;
+      await meteredSleep(retryAfterMs);
       continue;
     }
     if (res.status === 404 && allow404) return null;
@@ -264,10 +335,20 @@ async function discordRequest(
     // Proactive pre-emption: without this the wrapper only ever learns about a
     // bucket by exhausting it, so every sequential run pays a guaranteed 429
     // (and a tick on the ban counter) at each bucket boundary. Spending the
-    // reset window here instead costs the same wall-clock and zero 429s.
+    // reset window costs the same wall-clock and zero 429s — but it is spent
+    // lazily, at the next request on the SAME bucket, rather than right here
+    // where it also stalls every unrelated route behind it.
+    const bucket = res.headers.get("X-RateLimit-Bucket");
+    if (bucket) bucketByRoute.set(route, bucket);
     if (res.headers.get("X-RateLimit-Remaining") === "0") {
       const resetAfterMs = (Number(res.headers.get("X-RateLimit-Reset-After")) || 0) * 1000;
-      if (resetAfterMs > 0) await sleep(Math.min(resetAfterMs, MAX_RETRY_AFTER_MS));
+      if (resetAfterMs > 0) {
+        // No bucket header (a proxy stripped it, or an endpoint that doesn't
+        // send one) means there is nothing to defer against, so fall back to
+        // the old sleep-here behaviour rather than dropping the limit.
+        if (bucket) resetAtByBucket.set(bucket, Date.now() + resetAfterMs);
+        else await meteredSleep(Math.min(resetAfterMs, MAX_RETRY_AFTER_MS));
+      }
     }
 
     if (res.status === 204) return null;
@@ -561,10 +642,15 @@ async function deleteMessage(channelId, messageId) {
 // Paginates GET .../messages (Discord returns newest-first per page) until a
 // page comes back short of the page size, then reverses to chronological
 // (oldest -> newest) order — ready for archiving in send order.
-async function fetchAllMessages(channelId) {
+//
+// `before` is Discord's own cursor, and a caller may seed it with a snowflake
+// to bound the walk to messages older than a moment in time. That is how the
+// Dawn wipe avoids deleting the very summaries the turn push just posted —
+// see snowflakeForTimestamp below and db/lib/dawnWipe.js.
+async function fetchAllMessages(channelId, { before: startBefore } = {}) {
   const pageSize = 100;
   const messages = [];
-  let before;
+  let before = startBefore;
 
   for (;;) {
     const query = new URLSearchParams({ limit: String(pageSize) });
@@ -583,6 +669,14 @@ async function fetchAllMessages(channelId) {
 // bits of a message id are milliseconds since 2015-01-01.
 const DISCORD_EPOCH = 1_420_070_400_000n;
 const BULK_DELETE_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+
+// The inverse of messageTimestamp: the smallest snowflake a message created at
+// `ms` could have. Discord accepts a synthetic one anywhere it takes a
+// before/after cursor, so "everything older than this instant" needs no stored
+// message ids at all.
+function snowflakeForTimestamp(ms) {
+  return String((BigInt(Math.floor(ms)) - DISCORD_EPOCH) << 22n);
+}
 
 // How many over-age messages a single wipe will delete one at a time before
 // giving up on the rest. Each is its own request, so an unbounded fallback on
@@ -646,6 +740,18 @@ async function bulkDeleteMessages(channelId, messageIds) {
   for (const id of deleting) {
     await deleteMessage(channelId, id);
   }
+}
+
+// Empties a forum post / thread but keeps it alive. The starter message's id
+// IS the thread id, and deleting it destroys the whole post — so it is the one
+// message always skipped. Everything else goes through bulkDeleteMessages,
+// which is 1 request per 100 rather than the per-message loop this replaces:
+// on a busy Location topic that was the single largest cost in the Dawn wipe.
+async function clearThreadExceptStarter(threadId, { before } = {}) {
+  const messages = await fetchAllMessages(threadId, { before });
+  const ids = messages.filter((m) => m.id !== threadId).map((m) => m.id);
+  if (ids.length === 0) return;
+  await bulkDeleteMessages(threadId, ids);
 }
 
 // There's no per-channel "active threads" REST endpoint — only a
@@ -960,6 +1066,10 @@ module.exports = {
   deleteMessage,
   fetchAllMessages,
   bulkDeleteMessages,
+  clearThreadExceptStarter,
+  snowflakeForTimestamp,
+  beginRequestMetrics,
+  readRequestMetrics,
   listActiveThreadsForChannel,
   fetchActiveThreads,
   listArchivedPublicThreads,

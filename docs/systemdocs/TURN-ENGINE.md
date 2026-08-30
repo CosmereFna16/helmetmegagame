@@ -146,7 +146,11 @@ The thunk performs, in narrative order:
    missed-push banner — rather than falsely delivered.
 6. The `#turns` announcement (`db/lib/turnAnnouncement.js`).
 7. The Dawn wipe, if the new phase is `DAWN` and `GameConfig.messageWipeEnabled`
-   is on (`db/lib/dawnWipe.js`; see `CHANNELS.md` §8).
+   is on (`db/lib/dawnWipe.js`; see `CHANNELS.md` §8). It is handed a
+   **cutoff** — a timestamp the thunk takes as its very first statement, before
+   any Discord call — and deletes nothing created at or after it. That is what
+   lets the slow wipe stay last in the order without eating the summaries step
+   5 just posted. Move the cutoff and you reintroduce that bug.
 8. The thread expiry pass, on **every** Dawn, unconditionally. After the wipe
    on purpose, so a thread the wipe just deleted isn't also "expired"
    (`db/lib/threadExpiryPass.js`; `CHANNELS.md` §4).

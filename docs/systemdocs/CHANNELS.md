@@ -489,7 +489,25 @@ a thread the wipe just deleted isn't also "expired".
 message content and there is no `#archive` channel. Deleting is the cheap half:
 `bulkDeleteMessages` moves 100 messages per request, and it splits by age
 because Discord rejects an entire 100-message batch if a single member is over
-14 days old.
+14 days old. Location topics go through the same batching
+(`clearThreadExceptStarter`); they used to be cleared one message per request,
+which on a busy turn was the single largest cost in the whole pass.
+
+**Every rule below is bounded by a cutoff, and that is the important part.**
+The wipe takes a `cutoffMs` — the moment `advanceTurn()`'s side-effect thunk
+began — and touches nothing created at or after it. A Discord snowflake carries
+its own creation time, so this needs no exemption list and no stored message
+ids: `fetchAllMessages` is handed a synthetic `before` snowflake, and a thread
+newer than the cutoff is skipped whole.
+
+Two things depend on it. The first is that the turn's own adjudication
+survives: the staged public declarations and the Default Move summaries are
+posted to `#summary` at the top of the same thunk that runs the wipe at the
+bottom, and before the cutoff existed they were deleted seconds after landing —
+`StagedMessage` stamped `sentAt`, so nothing showed it had happened. The second
+is that a player posting *during* the wipe keeps their message. The wipe is
+long and walks zones in order, so without a cutoff whether your post survived
+depended on where you were standing.
 
 Per target, for every zone including cave levels:
 
@@ -510,6 +528,13 @@ allows a 404 — a channel a GM deleted by hand is an ordinary state for a blind
 sweep, not a reason to stop. The whole run is entirely sequential (no
 `Promise.all` fan-out) to avoid bursting Discord's rate-limit buckets, and
 lands on a `SystemReport` row (`kind: DAWN_WIPE`) the Dev Panel shows.
+
+That report now carries a **per-step breakdown** — elapsed ms, Discord request
+count, and time spent asleep on a rate limit, one row per zone and per special
+channel, with the five slowest shown on the Dev Panel. The wipe is the longest
+thing either face does, and before this nobody could say which part of it was
+slow. Check the breakdown before optimising anything here; the answer has been
+guessed at twice already.
 
 Private-channel content **is** in the transcript. The privacy tradeoff is
 handled by `GameConfig.archiveVisible` keeping `/archive` shut to players until

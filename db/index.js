@@ -670,6 +670,12 @@ async function advanceTurn() {
   // summaries and DMs, then the tag progression DMs, then the Hunger DMs, then
   // the announcement opening the next turn, then the Dawn wipe.
   const runSideEffects = async () => {
+    // The cutoff every deletion below is bounded by. Taken before the first
+    // Discord call, so everything this thunk posts is newer than it — which is
+    // what lets the Dawn wipe stay last in the order without eating the
+    // summaries posted at the top of it. See db/lib/dawnWipe.js.
+    const sideEffectsStartedAt = Date.now();
+
     // Default Move summary posts first — they narrate the turn that just
     // closed, so they should land before the announcement opening the next.
     for (const post of defaultMovePosts) {
@@ -844,7 +850,9 @@ async function advanceTurn() {
     );
 
     if (newTurn.phase === "DAWN" && config.messageWipeEnabled) {
-      await runDawnWipe(prisma).catch((err) => console.error("Dawn message wipe failed:", err));
+      await runDawnWipe(prisma, { cutoffMs: sideEffectsStartedAt }).catch((err) =>
+        console.error("Dawn message wipe failed:", err),
+      );
     }
 
     // Inactivity expiry for player threads — independent of the wipe toggle,

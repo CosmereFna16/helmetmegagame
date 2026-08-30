@@ -23,6 +23,20 @@ const WEATHER_OPTIONS = [
   { value: "STORM", label: "Storm" },
 ];
 
+// A report's per-step breakdown is the useful half but far too long to dump
+// inline, so the JSON line drops it and the five slowest steps get their own
+// rows. That is how the Dawn wipe says which zone ate the hour.
+function summaryHead(summary) {
+  const { steps, ...rest } = summary ?? {};
+  return rest;
+}
+
+function slowestSteps(summary) {
+  const steps = summary?.steps;
+  if (!Array.isArray(steps) || steps.length === 0 || typeof steps[0] !== "object") return [];
+  return [...steps].sort((a, b) => (b.elapsedMs ?? 0) - (a.elapsedMs ?? 0)).slice(0, 5);
+}
+
 export default async function DevPanelPage() {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
@@ -344,7 +358,16 @@ export default async function DevPanelPage() {
                 </span>
               </div>
               {report.summary && Object.keys(report.summary).length > 0 ? (
-                <p className="mt-1 text-xs text-muted mono">{JSON.stringify(report.summary)}</p>
+                <p className="mt-1 text-xs text-muted mono">{JSON.stringify(summaryHead(report.summary))}</p>
+              ) : null}
+              {slowestSteps(report.summary).length > 0 ? (
+                <ul className="mt-1 text-xs text-muted mono">
+                  {slowestSteps(report.summary).map((step) => (
+                    <li key={step.name}>
+                      {Math.round(step.elapsedMs / 1000)}s · {step.requests} req · {step.name}
+                    </li>
+                  ))}
+                </ul>
               ) : null}
               {Array.isArray(report.failures) && report.failures.length > 0 ? (
                 <ul className="mt-2 list-disc pl-5 text-xs">
