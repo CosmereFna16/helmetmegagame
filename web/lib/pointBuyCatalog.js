@@ -12,11 +12,23 @@ import { prisma } from "@lifeweb/db";
 // Demoness, a crafted item) still has to reach the client's byId map, or the
 // chain walks and group gates that key off it silently stop resolving —
 // which would hide the Demoness category from the one player it exists for.
-export async function loadPointBuyCatalog(extraTagIds = []) {
+// `includeRoleStartingTags`: the creation wizard needs every role's starting
+// tag in its catalog even when that tag is not purchasable (Pale is the
+// Migrant's and nobody else may buy it) — otherwise the granted tag is
+// missing from the client's byId, the "Your tags" list can't show it, and
+// anything gated on it (Saint's requiredTag) silently vanishes from the menu.
+export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartingTags = false } = {}) {
+  const or = [{ purchasable: true }];
+  if (extraTagIds.length) or.push({ id: { in: extraTagIds } });
+  if (includeRoleStartingTags) {
+    // Despite the column name, startingTagSlugs holds tag NAMES (roles.yaml
+    // `starting_tags: [Pale]`, matched by name in sync-roles and PointBuy).
+    const roles = await prisma.role.findMany({ select: { startingTagSlugs: true } });
+    const names = [...new Set(roles.flatMap((r) => r.startingTagSlugs))];
+    if (names.length) or.push({ name: { in: names } });
+  }
   const tags = await prisma.tag.findMany({
-    where: extraTagIds.length
-      ? { OR: [{ purchasable: true }, { id: { in: extraTagIds } }] }
-      : { purchasable: true },
+    where: or.length === 1 ? or[0] : { OR: or },
     include: {
       group: {
         select: {
@@ -49,6 +61,13 @@ export async function loadPointBuyCatalog(extraTagIds = []) {
     parentTagId: t.parentTagId,
     requiredTagId: t.requiredTagId,
     requiredTag: t.requiredTag,
+    // At most one of these per character (the Beliefs). PointBuy's byId map is
+    // built from this projection, so exclusiveConflict() reads the flag off it
+    // — drop the field and the rule silently stops applying in the menu.
+    exclusive: t.exclusive,
+    // exclusiveConflict() scopes the rule to the group (one Belief, one
+    // Addiction): without the id every exclusive tag looks like one group.
+    groupId: t.groupId,
     group: t.group,
     removable: t.removable,
     craftable: t.craftable,

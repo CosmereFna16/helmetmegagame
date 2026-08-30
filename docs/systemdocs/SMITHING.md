@@ -31,6 +31,15 @@ A full gunsmith is `smithing` + `smithing-skilled` + `smithing-gunpowder` =
 Bows use `crafting` in place of `smithing` at every tier. The Crossbow does
 not — its steel prod and lock are `smithing-skilled` work.
 
+**Dead Simple is capped at 4 items per character per turn.** It is the only
+rung that costs 0 turns, so nothing else rations it. The cap counts *units*,
+not requests — these tags are stackable and one Add Tag request can carry any
+quantity — and it is summed across every Add Tag request filed in the open
+turn. Enforced in `addTagRequestImpl`; the constant is
+`DEAD_SIMPLE_PER_TURN` in `web/lib/requests.js`, which also holds
+`isDeadSimple()` — the tier has no column of its own, so it is recognised as
+"0 turns of work plus a smithing or crafting skill gate".
+
 Every combat item is `purchasable: true, purchasableAfterStart: false` — buy
 at creation or have someone craft one in play. Found-only items
 (`purchasable: false`) sit outside the ladder — as do the Bacchus craftables

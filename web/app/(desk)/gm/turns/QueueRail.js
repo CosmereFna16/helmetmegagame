@@ -29,6 +29,11 @@ const MOVE_STATUS_OPTIONS = Object.values(MOVE_REVIEW_LABELS).filter((l) => l !=
 // left to push) and Passed (already resolved) sink toward the bottom. Ties
 // within a rank fall back to recency — see queueOrder below.
 const MOVE_STATUS_RANK = { Open: 0, "In Progress": 0, "Waiting for Opponents": 0, Solved: 1, Passed: 2 };
+// Same trick for the Caving lens: an unresolved TROUBLE row ("Needs
+// attention") floats to the top, Resolved sinks — see rankedMoves below and
+// D25 (QueueRail.js's default filter used to hide everything but "Needs
+// attention" instead; the fix is ranking, not hiding).
+const CAVING_STATUS_RANK = { "Needs attention": 0, Resolved: 1 };
 const REQUEST_TYPE_OPTIONS = [...new Set(Object.values(REQUEST_TYPE_LABELS))];
 const REQUEST_STATUS_OPTIONS = Object.values(REQUEST_STATUS_LABELS);
 const REVIEWED_OPTIONS = ["Reviewed", "Unreviewed"];
@@ -88,8 +93,9 @@ const REQUEST_TONES = { Passed: "neutral", Edited: "neutral", Undone: "bad" };
 
 // The Caving lens — see docs/systemdocs/CAVING.md. Only a TROUBLE (die 1)
 // row is ever "Needs attention"; QUIET and FIND are stamped resolved at
-// creation, so that's the default filter and, in practice, the whole list a
-// GM ever needs to open.
+// creation. Every roll shows by default (D25) — unresolved TROUBLE just
+// ranks first, the same way rankedMoves ranks Open above Solved/Passed —
+// rather than defaulting the Status filter to hide QUIET/FIND outright.
 const CAVING_FILTER_DEFS = [
   { key: "zone", label: "Zone", value: (r) => r.factionZoneName },
   { key: "status", label: "Status", value: (r) => r.statusLabel, options: CAVING_STATUS_OPTIONS },
@@ -292,6 +298,17 @@ export default function QueueRail({
     [moves],
   );
 
+  // D25: an unresolved TROUBLE row floats to the top of the Caving lens
+  // instead of being the only thing shown by default.
+  const rankedCavingRolls = useMemo(
+    () =>
+      (cavingRolls ?? []).map((r) => ({
+        ...r,
+        queueOrder: (CAVING_STATUS_RANK[r.statusLabel] ?? 0) * 1e15 - r.createdAtMs,
+      })),
+    [cavingRolls],
+  );
+
   // All three tables mount permanently so lens flips keep each one's
   // filters; the rail just shows one at a time. Page size is effectively
   // "everything" — the rail scrolls, and an open turn caps the set at the
@@ -316,15 +333,12 @@ export default function QueueRail({
     pageSize: 1000,
   });
   const cavingTable = useTableState({
-    rows: cavingRolls ?? [],
+    rows: rankedCavingRolls,
     filterDefs: cavingFilterDefs,
     searchMap: cavingSearchMap,
     rankBySearch: true,
-    initialSort: { key: "createdAtMs", dir: "desc" },
-    // "Needs attention" only ever matches an unresolved TROUBLE row — QUIET
-    // and FIND are stamped resolved at creation — so this is what keeps a
-    // hundred quiet 2-5s off the rail by default.
-    initialFilters: { status: "Needs attention", zone: openingZoneName(myZoneNames) },
+    initialSort: { key: "queueOrder", dir: "asc" },
+    initialFilters: { zone: openingZoneName(myZoneNames) },
     pageSize: 1000,
   });
 

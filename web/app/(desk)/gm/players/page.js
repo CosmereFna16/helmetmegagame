@@ -39,7 +39,7 @@ export default async function PlayerRosterPage({ searchParams }) {
     searchParams,
   ]);
 
-  const [characters, members, actedCharacterIds, tagCounts] = await Promise.all([
+  const [characters, members, actedCharacterIds, heldTags] = await Promise.all([
     prisma.character.findMany({
       orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
       include: { faction: { include: { zone: true } }, zone: true },
@@ -55,10 +55,22 @@ export default async function PlayerRosterPage({ searchParams }) {
           .findMany({ where: { turnId: openTurn.id }, select: { characterId: true } })
           .then((rows) => new Set(rows.map((r) => r.characterId)))
       : Promise.resolve(new Set()),
-    prisma.characterTag.groupBy({ by: ["characterId"], _count: { _all: true } }),
+    // Ids, not a count: the roster's fuzzy search matches on tag NAMES now
+    // ("who is a smith", "who has Pale"), and the count falls out of the same
+    // rows for free. Names come from the `tags` catalog already loaded above,
+    // so this stays one query either way.
+    prisma.characterTag.findMany({ select: { characterId: true, tagId: true } }),
   ]);
 
-  const tagCountByCharacter = new Map(tagCounts.map((t) => [t.characterId, t._count._all]));
+  const tagNameById = new Map(tags.map((t) => [t.id, t.name]));
+  const tagNamesByCharacter = new Map();
+  for (const ct of heldTags) {
+    const name = tagNameById.get(ct.tagId);
+    if (!name) continue;
+    const list = tagNamesByCharacter.get(ct.characterId);
+    if (list) list.push(name);
+    else tagNamesByCharacter.set(ct.characterId, [name]);
+  }
   const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
   const cursedUserIds = new Set(
     cursedRoleId ? members.filter((m) => m.roles.includes(cursedRoleId)).map((m) => m.id) : [],
@@ -87,7 +99,8 @@ export default async function PlayerRosterPage({ searchParams }) {
           globalName: memberById.get(c.discordUserId)?.globalName ?? "",
           resources: c.resources,
           cursed: cursedUserIds.has(c.discordUserId),
-          tagCount: tagCountByCharacter.get(c.id) ?? 0,
+          tagCount: (tagNamesByCharacter.get(c.id) ?? []).length,
+          tag: (tagNamesByCharacter.get(c.id) ?? []).join(" "),
           acted: actedCharacterIds.has(c.id),
           avatarVersion: c.updatedAt.getTime(),
         }))}

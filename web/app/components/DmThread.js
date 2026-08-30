@@ -130,7 +130,13 @@ function Bubble({ message, gmProfileById, character }) {
       {isEmbed ? (
         <EmbedBubble message={message} />
       ) : (
-        <div className={outbound ? "dm-bubble dm-bubble-out" : "dm-bubble dm-bubble-in"}>
+        <div
+          className={outbound ? "dm-bubble dm-bubble-out" : "dm-bubble dm-bubble-in"}
+          // An optimistically appended row, not yet confirmed by the server
+          // (the player desk's composer — see ConversationPane). Dimmed until
+          // the real row replaces it, or removed if the send failed.
+          data-pending={message.pending || undefined}
+        >
           <MarkdownContent content={message.content} />
         </div>
       )}

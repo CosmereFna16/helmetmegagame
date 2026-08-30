@@ -37,6 +37,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     messages,
     defaultEffort,
     member,
+    pendingStaged,
   ] = await Promise.all([
     prisma.faction.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     // The zone picker's options: PRESENCE zones only — a character stands in
@@ -62,7 +63,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     prisma.characterTag.findMany({ where: { characterId }, include: { tag: true } }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     prisma.turn.findFirst({ where: { status: "OPEN" } }),
-    prisma.desire.findMany({ where: { characterId }, orderBy: { id: "desc" } }),
+    prisma.desire.findMany({ where: { characterId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] }),
     prisma.action.findMany({
       where: { characterId },
       orderBy: { id: "desc" },
@@ -85,18 +86,19 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     // Cursed is a live Discord role, not a DB field — read the account's
     // current guild roles rather than the Character row.
     getGuildMember(character.discordUserId).catch(() => null),
+    // What the adjudication workspace has queued against this sheet for the
+    // turn-end push. A GM live-editing resources here and a staged effect are
+    // additive and can't corrupt each other — but a GM WILL double-grant
+    // without the StateStrip hint this feeds. It depends on nothing above it,
+    // so it rides along here rather than costing a second round trip.
+    prisma.stagedEffect.findMany({
+      where: { targetCharacterId: characterId, appliedAt: null },
+      select: { payload: true },
+    }),
   ]);
 
   const openTurnAction = openTurn ? moves.find((m) => m.turnId === openTurn.id) ?? null : null;
 
-  // What the adjudication workspace has queued against this sheet for the
-  // turn-end push. A GM live-editing resources here and a staged effect are
-  // additive and can't corrupt each other — but a GM WILL double-grant
-  // without the StateStrip hint this feeds.
-  const pendingStaged = await prisma.stagedEffect.findMany({
-    where: { targetCharacterId: characterId, appliedAt: null },
-    select: { payload: true },
-  });
   const stagedForPush = pendingStaged.length
     ? {
         resources: pendingStaged.reduce((sum, e) => sum + (e.payload?.resources ?? 0), 0),

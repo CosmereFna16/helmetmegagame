@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Modal from "@/app/components/Modal";
 import FormError from "@/app/components/FormError";
 import MarkdownContent from "@/app/components/MarkdownContent";
-import { getArchiveContext } from "./actions";
+import { getArchiveContext } from "@/app/(desk)/gm/turns/actions";
 
 // "In context": the ~30 messages before/after one archived line, in the same
 // Discord channel/thread, so a GM clicking an old transcript row gets the

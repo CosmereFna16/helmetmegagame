@@ -490,15 +490,18 @@ async function editMessage(channelId, messageId, content, components = undefined
 // Returns the thread object; `thread.id` doubles as the starter message's id.
 async function createForumPost(
   forumChannelId,
-  { name, content, appliedTags = [], autoArchiveMinutes = 10080, components = undefined },
+  { name, content, appliedTags = [], autoArchiveMinutes = 10080, components = undefined, allowedMentions = undefined },
 ) {
+  // allowedMentions: pass one whenever `content` carries user text — Discord's
+  // default parses everything, and a character named "@everyone" would ping.
+  const message = { content, ...(components ? { components } : {}), ...(allowedMentions ? { allowed_mentions: allowedMentions } : {}) };
   return discordRequest(`/channels/${forumChannelId}/threads`, {
     method: "POST",
     body: {
       name,
       applied_tags: appliedTags,
       auto_archive_duration: autoArchiveMinutes,
-      message: components ? { content, components } : { content },
+      message,
     },
   });
 }

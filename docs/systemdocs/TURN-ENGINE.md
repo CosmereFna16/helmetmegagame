@@ -309,12 +309,47 @@ One summary `default_moves_resolved` audit row per turn. It reports
 `shareable` rather than `shared`, since the posts haven't been attempted when
 it's written and claiming a success count would be a lie.
 
+## 6a. The Move cutoff
+
+Moves close **three hours before the turn ends** (`MOVE_LOCK_HOURS` in
+`db/lib/turnClock.js`) — 9:00 AM and 9:00 PM America/Chicago on a normal turn —
+so a GM has a window to adjudicate what was filed before the push runs.
+
+Nothing stores a turn's end time, so it is derived: `turnEndsAt(turn)` is the
+first 00:00 / 12:00 Chicago boundary strictly after `turn.startedAt` — whichever
+comes first, regardless of phase, because the cron fires at both (a DUSK turn a GM
+opened by hand at 13:00 really does end at midnight) — and
+`moveCutoffAt(turn)` is that minus three hours. Deriving from `startedAt`
+rather than from *now* is what makes a manually advanced turn come out right —
+and it fixes a live bug in the announcement, which the bot rebuilds on restart
+and which used to say "ends at noon" six hours after noon.
+
+`moveWindow(turn, { now, autoTurnAdvanceDisabled })` returns
+`{ endsAt, cutoffAt, locked, hasLock }`. There is **no lock at all**
+(`hasLock: false`) in two cases: `GameConfig.autoTurnAdvanceDisabled` is on, so
+there is no scheduled end to count back from; or the turn is shorter than three
+hours, which a manual advance at, say, 11:00 produces — counting back would
+otherwise lock the whole turn the moment it opened. `locked` is true only
+*between* the cutoff and the end, so a turn that outlives its derived end (a
+missed cron) reopens rather than staying shut forever.
+
+Enforced in the bot at both `move:open` (the `#turns` button and `/move`) and
+on modal submit — a modal can sit open on screen across the cutoff — with an
+ephemeral refusal naming both times. **Travel, Speak, requests, GM edits and
+the Default Move pass are not affected**: the cutoff is about the Move queue a
+GM has to read, and a standing default files itself at the push.
+
+Surfaced to players on the `#turns` announcement (`Moves must be sent by
+<t:C:t>`, added by `buildTurnAnnouncement` when `hasLock`), in `/character`'s
+"This turn" row, and in the handbook.
+
 ## 7. Where the code lives
 
 | File | Role |
 |---|---|
 | `db/index.js` | `advanceTurn`, `resolveNeeds`, `sweepExpiredStacks` |
 | `db/weather.js` | The Markov tables and `rollWeather` |
+| `db/lib/turnClock.js` | Turn end / Move cutoff derivation (§6a) |
 | `db/lib/stagedPush.js` | The staged push pass (`ADJUDICATION.md`) |
 | `db/lib/defaultMovePass.js` | The Default Move pass |
 | `db/lib/hungerPass.js` | The Hunger pass |

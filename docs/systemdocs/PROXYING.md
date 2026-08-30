@@ -170,6 +170,19 @@ All in `bot/src/events/messageReactionAdd.js`, all gated on `recentProxies`.
 DMs no longer carry any reaction-driven flow; the bot does not request the
 `DirectMessageReactions` intent.
 
+**A ✏️ reply is not player mail.** Every inbound DM is logged as a
+`DirectMessage` (`bot/src/events/messageCreate.js`), and the reply to the edit
+prompt was landing as `source: "player"` — so the second half of a mechanic
+that had already consumed it showed up on the GM desks as unread mail. ✏️ now
+registers the player in `bot/src/lib/pendingPrompts.js` once its prompt DM has
+gone out (60 s TTL, matching the collector; a refused DM never arms it), and the
+logger files a matching reply as `source: "prompt_reply"` with `meta.purpose`.
+The players desk's rail (unread count, preview) skips those rows; the
+conversation pane still shows them, so a real message is never hidden. The map is in memory: there is one bot process, the window
+is 60 seconds, and a restart mid-prompt degrades to `player` — the old
+behaviour, not a new failure. `/conceal`'s prompt needs none of this; it is
+already a `system_notice` and the player retypes in the channel.
+
 The bot needs the `MESSAGE_CONTENT` privileged intent for any of this
 (Developer Portal → Bot → Privileged Gateway Intents), alongside `GuildMembers`.
 

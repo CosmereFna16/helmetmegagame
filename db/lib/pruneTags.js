@@ -7,7 +7,7 @@
 // tidied a YAML file — but it means the catalog only ever grows. This is the
 // deliberate, separately-invoked counterpart: `npm run db:prune-tags`.
 //
-// It is DRY-RUN BY DEFAULT. Nothing is deleted without `--yes`.
+// It is DRY-RUN BY DEFAULT. Nothing is deleted without `--apply`.
 //
 // A tag is deletable only when EVERY check below passes. Anything that fails
 // even one is reported with its reason and skipped — never cascaded, never

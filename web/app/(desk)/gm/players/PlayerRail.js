@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import ZoneChip from "@/app/components/ZoneChip";
 import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
@@ -11,7 +11,7 @@ import usePins from "@/app/components/usePins";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { scoreMatch } from "@/lib/fuzzySearch";
-import { markConversationRead } from "./actions";
+import { markConversationRead, searchConversations } from "./actions";
 
 // The player desk's queue rail, on the same .desk-rail/.desk-queue-row classes
 // as the adjudication desk's — the two are the same tool and should look it.
@@ -25,6 +25,28 @@ import { markConversationRead } from "./actions";
 //            list people who had already written.
 
 const STATUS_FILTERS = ["all", "unread", "awaiting"];
+
+// The fuzzy engine only ever sees what the layout ships to the client, and
+// that is one preview line per conversation — so "find the thread where we
+// talked about the barley" could not work at all. Anything at least this long
+// also goes to the server as an ILIKE over every message
+// (actions.js#searchConversations), debounced, and its hits are merged in
+// UNDER the fuzzy ones: a name match is still what a GM usually means.
+const CONTENT_SEARCH_MIN = 3;
+const CONTENT_SEARCH_DEBOUNCE_MS = 300;
+
+// The "why this row matched" hint for a tag hit: the tag names that contain a
+// query word, not the whole sheet joined into one line.
+function matchedTagNames(tagNames, query) {
+  const words = query
+    .toLowerCase()
+    .replace(/^tag:/, "")
+    .split(/\s+/)
+    .filter(Boolean);
+  const hits = (tagNames ?? []).filter((n) => words.some((w) => n.toLowerCase().includes(w)));
+  const shown = (hits.length ? hits : tagNames ?? []).slice(0, 3);
+  return shown.join(", ") + ((hits.length ? hits : tagNames ?? []).length > 3 ? ", …" : "");
+}
 
 function relativeTime(ms) {
   const diff = Date.now() - ms;
@@ -44,6 +66,33 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
   const [query, setQuery] = useState("");
   const [zoneFilter, setZoneFilter] = useState(openingZoneName(myZoneNames));
   const [statusFilter, setStatusFilter] = useState("all");
+  // { q, hits } — kept keyed by the query it answered, so a stale round trip
+  // is ignored during render rather than cleared from an effect (clearing
+  // state in an effect body is what react-hooks/set-state-in-effect, an error
+  // here, exists to catch). Clearing the box therefore drops the hits for
+  // free: they simply stop matching the current query.
+  const [contentHits, setContentHits] = useState(null);
+  const [, startSearchTransition] = useTransition();
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < CONTENT_SEARCH_MIN) return undefined;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      startSearchTransition(async () => {
+        const res = await searchConversations({ q });
+        if (cancelled || !res?.ok) return;
+        setContentHits({ q, hits: res.hits });
+      });
+    }, CONTENT_SEARCH_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [query]);
+
+  const activeContentHits =
+    contentHits && contentHits.q === query.trim() ? contentHits.hits : null;
 
   // The player rail knows both id spaces — a character and/or a bare
   // discordUserId per row — so unlike the adjudication desk it can prune both
@@ -85,6 +134,7 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
             faction: c.factionName,
             username: [c.username, c.globalName].filter(Boolean).join(" "),
             zone: c.factionZoneName,
+            tag: c.tag,
             preview: c.preview,
           }),
         }))
@@ -103,8 +153,23 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
       return b.row.lastAtMs - a.row.lastAtMs;
     });
 
-    return scored;
-  }, [rows, lens, query, zoneFilter, statusFilter, isPinned]);
+    if (!q || !activeContentHits) return scored;
+
+    // Content hits for people the fuzzy pass already found are redundant —
+    // they are ranked by name/role/tag and stay where they are. What is worth
+    // adding is everyone the fuzzy pass CANNOT see, because the only place
+    // the query appears is inside the transcript.
+    const alreadyShown = new Set(scored.map((entry) => entry.row.discordUserId));
+    const eligible = new Map(list.map((r) => [r.discordUserId, r]));
+    const extra = [];
+    for (const hit of activeContentHits) {
+      if (alreadyShown.has(hit.discordUserId)) continue;
+      const row = eligible.get(hit.discordUserId);
+      if (row) extra.push({ row, match: null, contentHits: hit.hits });
+    }
+    extra.sort((a, b) => b.row.lastAtMs - a.row.lastAtMs);
+    return [...scored, ...extra];
+  }, [rows, lens, query, zoneFilter, statusFilter, isPinned, activeContentHits]);
 
   const unreadIds = useMemo(
     () => rows.filter((c) => c.unreadCount > 0).map((c) => c.discordUserId),
@@ -134,7 +199,7 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="name, role, faction, zone, @handle…"
+            placeholder="name, role, faction, tag, zone, @handle, message text…"
           />
         </label>
         <div className="segmented" role="group" aria-label="Conversation filter">
@@ -175,7 +240,7 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
       </div>
 
       <div className="desk-queue">
-        {visible.map(({ row, match }) => {
+        {visible.map(({ row, match, contentHits: hitCount }) => {
           const href = `/gm/players/${row.discordUserId}`;
           const active = pathname === href;
           const pinned = isPinned(row);
@@ -225,7 +290,13 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
                     {match.matchedField === "role" && row.roleTitle}
                     {match.matchedField === "faction" && row.factionName}
                     {match.matchedField === "zone" && row.factionZoneName}
+                    {match.matchedField === "tag" && matchedTagNames(row.tagNames, query)}
                     {match.matchedField === "preview" && "matched message text"}
+                  </div>
+                )}
+                {hitCount > 0 && (
+                  <div className="desk-queue-reason">
+                    in messages · {hitCount}
                   </div>
                 )}
               </Link>

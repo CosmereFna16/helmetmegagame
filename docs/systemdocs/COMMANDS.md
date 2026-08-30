@@ -175,7 +175,9 @@ Four modals. All need discord.js >= 14.27 for the component types involved:
 
 A modal must be shown within 3 seconds of the interaction and **cannot be
 deferred first**. That is why the Move button and the two creation buttons open
-their modals directly (they read nothing, and every gate runs on submit), while
+their modals directly — the creation buttons read nothing and every gate runs
+on submit; the Move button makes the single cheap cutoff check below and falls
+through to the modal if that read fails, since submit checks it again — while
 Speak goes through a picker first (enumerating threads costs API calls).
 
 ### Move — `move:new` (`bot/src/lib/moveModal.js`)
@@ -186,9 +188,18 @@ Speak goes through a picker first (enumerating threads costs API calls).
 | Kind | `move:kind` | Radio: `ROUTINE` / `GAMBIT`, required |
 | Labor | `move:labor` | Checkbox — Routine only, refused on a Gambit |
 
+Moves close three hours before the turn ends — 9:00 AM / 9:00 PM
+America/Chicago — so a GM can adjudicate what was filed before the push
+(`TURN-ENGINE.md` §6a). Both `move:open` and the submit handler check it: the
+button refuses to open the modal after the cutoff, and submit re-checks because
+a modal can sit open on screen across it. Either way the refusal is ephemeral
+and names the cutoff and the next turn's start. Travel, Speak, requests and the
+Default Move pass are untouched.
+
 Submitting runs every gate the old `#turns` message flow ran — living
-character, open turn, hasn't already acted, non-empty body, Labor resolved
-**before** any `Action` row exists so a refusal never costs a turn — then
+character, open turn, before the cutoff, hasn't already acted, non-empty body,
+Labor resolved **before** any `Action` row exists so a refusal never costs a
+turn — then
 locks the Move in through `bot/src/lib/moveConfirm.js#confirmMove` and
 replies ephemerally. **Submit = locked**: there is no edit window, the dice
 and resource roll happen now, and the payout — like every Move payout — lands

@@ -233,6 +233,52 @@ GM-authored tag carries `Tag.custom = true` and lives only in the database.
 `db:sync-tags` is unchanged and still upsert-only. `db:prune-tags` is its new
 destructive counterpart — see `SYNC.md`.
 
+### 8a. The shared custom-tag dialog
+
+Authoring a one-off tag isn't only a `/gm/dev/tags` action — a GM chasing a
+Move or editing a sheet often wants to invent a tag on the spot and hand it to
+someone right there. `web/app/components/CustomTagDialog.js` is the one
+dialog for that, reached from several doors: the standalone catalog page's
+"New tag" button, the Dev Panel's Tags tab (`TagEditor.js`), and the
+adjudication desk's stage-an-effect modal (`EffectComposer.js`). Every door
+mounts it through `TagCatalogBrowser`'s optional `onCreateCustom` prop, which
+renders a "+ Custom tag" button in the browser's toolbar carrying the same
+tooltip everywhere: *"Use this for things that would affect adjudications —
+not just little bracelets or something."*
+
+Fields: Name, Description, Visible on inspect, Category, Group (only offered
+when the caller's tag rows carry a group id — several DTOs trim `TagGroup` to
+name/color for display and can't resolve a picker back to one), Clone from…
+(prefills every field from an existing catalog tag, then edits normally), and
+Assign to (a searchable multi-pick over whatever character list the door
+supplies — hidden entirely when the door has none to offer). New tags default
+to `purchasable: false`, `purchasableAfterStart: false`, `removable: true`,
+`visibleOnInspect: true` — a homebrew tag for solving one situation, not a
+catalog entry meant to reach the store.
+
+Doors that pass a character list also get an Apply now / Stage for turn end
+toggle (`allowStage`). "Apply now" grants live, in the same transaction as the
+tag's creation (`applyTagOpsInTx`, same engine §5 documents). "Stage for turn
+end" writes a `StagedEffect` per target instead — one shared `batchId` across
+a multi-target assignment, built the same shape `createStagedEffects` uses —
+so a GM chasing a Move can invent the tag and queue it against that Move's
+target in one gesture. Either way it's **one transaction, one audit row**
+(`gm_custom_tag_created`, mirroring `bulkTagCharacters`' details shape) for
+the tag's creation and its assignment together. The server half is
+`createCustomTagAndAssign` in `web/app/(app)/gm/dev/tags/actions.js`.
+
+The Dev Panel's own door (`TagEditor.js`) is a deliberate exception to §2's
+staged/immediate split: a custom-tag assignment from there commits through
+the dialog's own transaction immediately, rather than riding the Tags tab's
+own pending-ops/Apply-bar flow — the same posture Bulk tagging (§9) already
+takes for its own convenience action. `DevPanel.js` passes the current
+character's id and name into `TagEditor.js` so "Assign to" comes preselected.
+The same door also sits in the shared inspector's Tags tab on both desks
+(`web/app/components/InspectorColumn.js`, `customTag` prop) — staging by
+default on `/gm/turns`, applying on `/gm/players`. A multi-target grant runs
+one transaction per character (never one across the batch, for the reasons §9
+gives), refuses dead targets, caps at 200, and reports partial failure.
+
 ## 9. Bulk tagging
 
 The player desk's roster grows a "Tag selected" bar beside the message composer,
@@ -284,12 +330,12 @@ Superadmin-only, and a different page — the game-level one. Three of its
 sections are new with the zone rework, and this is the only doc that lists
 them. `LAUNCH.md` covers Restart Game itself.
 
-**Three new Game Config knobs**, all defaulting to off/5 and all reset by a
-wipe:
+**Game Config knobs documented nowhere else**, all reset by a wipe:
 
 | Knob | Does |
 |---|---|
 | `autoReconcileEnabled` | Run the channel doctor's cheap reconcile after every turn advance. It always runs on bot restart regardless |
+| `maxActiveDesires` | How many Desires a character may hold `ACTIVE` at once (default 3). Enforced in both `setDesire` and the Dev Panel's `setDesireGm`, never in the schema. Desires are the only Tag Point faucet in play, so this is the faucet's width — see `REQUESTS.md` §5 |
 
 **System Reports** shows the latest run of each operational pass — `WIPE`,
 `DOCTOR`, `DAWN_WIPE`, `BULK_MOVE` — with its summary and its failures. A

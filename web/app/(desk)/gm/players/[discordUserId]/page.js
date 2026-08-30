@@ -3,7 +3,6 @@ import { prisma } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getGmProfiles } from "@/lib/gmProfiles";
 import { getOpenTurn } from "@/lib/turn";
-import { MOVE_REVIEW_LABELS, moveKindLabel, rollLabel } from "@/lib/moves";
 import { withoutDmNoise } from "@/lib/dmThread";
 import PersonShell from "./PersonShell";
 
@@ -44,60 +43,18 @@ export default async function PlayerDeskPersonPage({ params }) {
   if (messages.length === 0 && !character && !username) notFound();
   const label = character?.name ?? username ?? discordUserId;
 
-  // The Canon panel — everything a GM would otherwise have to hop to
-  // /gm/turns to see about this player's current turn: their Move, any
-  // pending staged messages/effects. Empty (null) whenever the player has no
-  // living character, which is also when there's nothing "canon" to show.
-  let canon = null;
-  if (aliveCharacter) {
-    const [action, pendingRecipients, pendingEffects] = await Promise.all([
-      openTurn
-        ? prisma.action.findUnique({
-            where: { characterId_turnId: { characterId: aliveCharacter.id, turnId: openTurn.id } },
-          })
-        : null,
-      prisma.stagedMessageRecipient.findMany({
-        where: { characterId: aliveCharacter.id, stagedMessage: { sentAt: null } },
-        include: { stagedMessage: true },
-        orderBy: { stagedMessage: { createdAt: "desc" } },
-      }),
-      prisma.stagedEffect.findMany({
-        where: { targetCharacterId: aliveCharacter.id, appliedAt: null },
-        orderBy: { createdAt: "desc" },
-      }),
-    ]);
-
-    const tagIds = [
-      ...new Set(pendingEffects.flatMap((e) => (e.payload?.tagOps ?? []).map((op) => op.tagId).filter(Boolean))),
-    ];
-    const tags = tagIds.length ? await prisma.tag.findMany({ where: { id: { in: tagIds } }, select: { id: true, name: true } }) : [];
-    const tagNames = new Map(tags.map((t) => [t.id, t.name]));
-
-    canon = {
-      characterId: aliveCharacter.id,
-      characterName: aliveCharacter.name,
-      move: action
-        ? {
-            id: action.id,
-            description: action.description,
-            kindLabel: moveKindLabel(action.moveKind, action.gmNotes),
-            rollLabel: rollLabel(action),
-            reviewLabel: MOVE_REVIEW_LABELS[action.moveReviewStatus] ?? "Open",
-            resultMessage: action.resultMessage,
-          }
-        : null,
-      pendingMessages: pendingRecipients.map((r) => ({
-        id: r.stagedMessage.id,
-        content: r.stagedMessage.content,
-        createdAt: r.stagedMessage.createdAt.toISOString(),
-      })),
-      pendingEffects: pendingEffects.map((e) => ({
-        id: e.id,
-        payload: e.payload,
-      })),
-      tagNames: Object.fromEntries(tagNames),
-    };
-  }
+  // Everything that used to be the Canon panel's payload now loads inside the
+  // inspector's Canon tab (players/actions.js#getPlayerCanon), because the
+  // inspector can be pointed at somebody who is not this conversation. All
+  // this route still needs from the open turn is whether there is a Move to
+  // link to from the conversation header.
+  const openMove =
+    aliveCharacter && openTurn
+      ? await prisma.action.findUnique({
+          where: { characterId_turnId: { characterId: aliveCharacter.id, turnId: openTurn.id } },
+          select: { id: true },
+        })
+      : null;
 
   return (
     <PersonShell
@@ -116,8 +73,7 @@ export default async function PlayerDeskPersonPage({ params }) {
       gmProfiles={gmProfiles}
       myDiscordUserId={session.discordUserId}
       claimedByDiscordUserId={claim?.claimedByDiscordUserId ?? null}
-      canon={canon}
-      currentTurnNumber={openTurn?.number ?? null}
+      moveId={openMove?.id ?? null}
     />
   );
 }

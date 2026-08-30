@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma, roleCapacity, isDynastyMember } from "@lifeweb/db";
 import { takenCounts } from "@lifeweb/db/lib/roleReservation";
+import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
@@ -53,7 +54,7 @@ async function loadCreationData(discordUserId) {
         },
       },
     }),
-    loadPointBuyCatalog(),
+    loadPointBuyCatalog([], { includeRoleStartingTags: true }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     getGuildMember(discordUserId),
     // Shown on the (locked) last-name input if a family seat is picked.
@@ -199,7 +200,7 @@ export default async function CharacterPage() {
     factions,
     tagCatalog,
     tierRows,
-    desire,
+    activeDesires,
     lastEndedDesire,
     gameConfig,
     { action: currentAction },
@@ -257,7 +258,13 @@ export default async function CharacterPage() {
       // resolves back down its chain to the Medical (Basic) gate. Four columns
       // over a few hundred rows — cheaper than nesting three parentTag includes.
       prisma.tag.findMany({ select: { id: true, slug: true, parentTagId: true } }),
-      prisma.desire.findFirst({ where: { characterId: character.id, status: "ACTIVE" } }),
+      // Several may be ACTIVE at once (GameConfig.maxActiveDesires); oldest
+      // first, so the list doesn't reshuffle when one is set or ended.
+      prisma.desire.findMany({
+        where: { characterId: character.id, status: "ACTIVE" },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        select: { id: true, text: true, points: true, setTurnNumber: true },
+      }),
       prisma.desire.findFirst({
         where: { characterId: character.id, status: { in: ["FULFILLED", "CANCELLED"] } },
         orderBy: { updatedAt: "desc" },
@@ -273,6 +280,10 @@ export default async function CharacterPage() {
           // Read here too, for the Spend Tag Points modal folded in from the
           // old /store page — see store below.
           maxNegativeTags: true,
+          maxActiveDesires: true,
+          // The Move-cutoff row: no cron, no lock — same input the bot's gate
+          // and the announcement read, or this one surface contradicts them.
+          autoTurnAdvanceDisabled: true,
         },
       }),
       findOpenTurnAction(prisma, character.id),
@@ -289,19 +300,6 @@ export default async function CharacterPage() {
   const storeHeldTags = storeTags
     .filter((t) => heldSet.has(t.id))
     .map((t) => ({ id: t.id, name: t.name }));
-  // Drawback points already spent, for PointBuy's counter. Every negative tag
-  // is purchasableAfterStart: false, so the store can't sell one and this
-  // number can't move here — it is shown so a player knows where they stand,
-  // not to gate the cart. Only POINT_BUY counts: a GM-inflicted wound is not
-  // a choice the player made with their points. Summed as points, not
-  // counted as tags — see negativeTagPoints in lib/characterCreation.js.
-  const storeCostById = new Map(storeTags.map((t) => [t.id, t.pointCost]));
-  const storeNegativeHeld = character.tags.reduce((sum, ct) => {
-    if (ct.source !== "POINT_BUY") return sum;
-    const cost = storeCostById.get(ct.tagId) ?? 0;
-    return cost < 0 ? sum - cost : sum;
-  }, 0);
-
   // Both ends of a transfer list every Silo and every living player,
   // INCLUDING yourself — pulling ⬢ out of a Silo into your own pocket is the
   // common case, and self -> self is already refused by the same-party guard
@@ -515,17 +513,26 @@ export default async function CharacterPage() {
 
   const avatarSrc = `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`;
 
+  // The Move cutoff for StatusPanel's "This turn" row. It rides on the turn
+  // object CharacterSheet already forwards rather than becoming a prop on
+  // every layer between here and the panel — the window is a fact about this
+  // turn, and nothing else reads more than openTurn.number.
+  const openTurnWithWindow = openTurn
+    ? { ...openTurn, moveWindow: moveWindow(openTurn, { autoTurnAdvanceDisabled: gameConfig?.autoTurnAdvanceDisabled ?? false }) }
+    : openTurn;
+
   return (
     <CharacterSheet
       character={character}
       mode="self"
-      openTurn={openTurn}
+      openTurn={openTurnWithWindow}
       currentAction={currentAction}
       avatarSrc={avatarSrc}
       transferParties={transferParties}
       tagCatalog={tagCatalog}
       otherCharacters={otherCharacters}
-      desire={desire}
+      desires={activeDesires}
+      maxActiveDesires={gameConfig?.maxActiveDesires ?? 3}
       desireCooldownUntilTurn={lastEndedDesire?.endedTurnNumber ?? null}
       canHeal={canHeal}
       canFastTravel={canFastTravel}
@@ -551,8 +558,6 @@ export default async function CharacterPage() {
       lastNameLocked={isDynastyMember(character.role?.slug)}
       storeTags={storeTags}
       storeHeldTags={storeHeldTags}
-      storeNegativeCap={gameConfig?.maxNegativeTags ?? DEFAULT_MAX_NEGATIVE_TAGS}
-      storeNegativeHeld={storeNegativeHeld}
     />
   );
 }

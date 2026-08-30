@@ -211,6 +211,44 @@ export function requirementSatisfied(tag, tagsById, heldOrSelectedIds) {
   );
 }
 
+// --- Exclusive tags (Tag.exclusive) ---
+//
+// A third relation, and the simplest of the three: a character may hold at
+// most ONE tag carrying `exclusive`. It is what makes the Beliefs a single
+// answer rather than a collection — a parentTag chain is priced cumulatively
+// and walks one direction, which is wrong for nine peers, and requiredTag is
+// a prerequisite rather than a conflict.
+//
+// The one exemption is a pair joined by requiredTag, checked in BOTH
+// directions: Fundamentalist declares `requiredTag: post-christian`, so the
+// two are one belief taken to its extreme, not two beliefs. Anything else
+// pairs off.
+//
+// Returns the CONFLICTING TAG (so callers can name it) or null. Pass the same
+// `heldOrSelectedIds` every other helper here takes; `byId` rows must carry
+// `exclusive` and `requiredTagId` — a catalog projected without them silently
+// reports no conflict, so every caller's `select` has to include both.
+//
+// Deliberately not a gate on the menu: an exclusive tag stays visible and
+// dimmed, so a player can see what the alternatives are. Enforced server-side
+// in createCharacter, buyTags and addTagRequest; a GM grant bypasses it, like
+// every other gate (TAGS.md §3).
+export function exclusiveConflict(tag, heldOrSelectedIds, byId) {
+  if (!tag.exclusive) return null;
+  for (const id of heldOrSelectedIds) {
+    if (id === tag.id) continue;
+    const other = byId.get(id);
+    if (!other?.exclusive) continue;
+    // Scoped to the group: one Belief, one Addiction — a Cultist's belief and
+    // their addiction never collide. (Both are in a group; a groupless
+    // exclusive tag conflicts only with other groupless ones.)
+    if ((other.groupId ?? null) !== (tag.groupId ?? null)) continue;
+    if (tag.requiredTagId === other.id || other.requiredTagId === tag.id) continue;
+    return other;
+  }
+  return null;
+}
+
 // The tags a character may actually see and buy: everything whose gates they
 // satisfy. Menus must derive their category tabs from THIS, not from the raw
 // offer — a category whose every tag is locked has to have no tab at all, not

@@ -6,7 +6,7 @@ import QueueRail from "./QueueRail";
 import MoveDesk from "./MoveDesk";
 import RequestDesk from "./RequestDesk";
 import CavingDesk from "./CavingDesk";
-import InspectorColumn from "./InspectorColumn";
+import InspectorColumn from "@/app/components/InspectorColumn";
 import StagingTray from "./StagingTray";
 import PushPreview from "./PushPreview";
 import DevPanelModal from "@/app/components/DevPanelModal";
@@ -58,6 +58,19 @@ function formatCountdown(minutes) {
   return `Push in ${h}h ${m}m`;
 }
 
+// The last stretch of a turn, when players can no longer send a Move
+// (TURN-ENGINE.md — db/lib/turnClock.js#moveWindow is the one definition, and
+// it is resolved server-side in page.js because it lives in db/lib). Absent
+// entirely when the turn has no lock at all: auto-advance switched off, or a
+// manually advanced turn too short to carry a three-hour cutoff.
+function formatMoveLock(cutoffAtMs, nowMs) {
+  const mins = Math.round((cutoffAtMs - nowMs) / 60_000);
+  if (mins <= 0) return "moves locked";
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h <= 0 ? `moves lock in ${m}m` : `moves lock in ${h}h ${m}m`;
+}
+
 // Selection is mirrored into the URL as /gm/turns/<type>/<id>, so a refresh
 // keeps your seat and a GM can send another GM a link to the exact Move.
 function selectionHref(sel) {
@@ -78,6 +91,7 @@ export default function Workspace({
   stagedEffects,
   stagedMessages,
   gmProfiles,
+  moveLock,
 }) {
   const [refresh] = useRefresh();
   const [lens, setLens] = useState("moves"); // which queue the rail shows
@@ -234,6 +248,20 @@ export default function Workspace({
 
   const solvedCount = moves.filter((m) => m.statusLabel === "Solved").length;
 
+  // The inspector's custom-tag door. It defaults to STAGING here: this desk
+  // is mid-push, so a tag invented while chasing a Move belongs in the tray
+  // with everything else rather than landing live. Same catalog the effect
+  // composer's door uses; TAG_CHIP_FIELDS doesn't carry a group id, so the
+  // dialog drops its Group picker rather than offering one it can't resolve.
+  const customTag = useMemo(
+    () => ({
+      mode: "stage",
+      categories: [...new Set(tagCatalog.map((t) => t.category))].sort((a, b) => a.localeCompare(b)),
+      tags: tagCatalog,
+    }),
+    [tagCatalog],
+  );
+
   function inspect(characterId, name) {
     if (!characterId) return;
     setInspected({ characterId, name });
@@ -256,10 +284,15 @@ export default function Workspace({
     return () => clearInterval(id);
   }, [refresh]);
 
-  // Countdown to the next noon/midnight CT push, ticking every 30s.
+  // Countdown to the next noon/midnight CT push, ticking every 30s. The move
+  // cutoff rides the same tick.
   const [pushMinutes, setPushMinutes] = useState(() => minutesUntilNextPush());
+  const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
-    const id = setInterval(() => setPushMinutes(minutesUntilNextPush()), 30_000);
+    const id = setInterval(() => {
+      setPushMinutes(minutesUntilNextPush());
+      setNowMs(Date.now());
+    }, 30_000);
     return () => clearInterval(id);
   }, []);
 
@@ -275,6 +308,7 @@ export default function Workspace({
             <span className="chip text-xs text-muted">{solvedCount}/{moves.length} solved</span>
             <span className="text-xs text-muted" title="Push fires at noon & midnight CT">
               {formatCountdown(pushMinutes)}
+              {moveLock ? ` · ${formatMoveLock(moveLock.cutoffAtMs, nowMs)}` : ""}
             </span>
             {lastRefreshedAt && (
               <span className="text-xs text-muted">
@@ -369,6 +403,7 @@ export default function Workspace({
           currentTurnNumber={openTurn?.number ?? null}
           pendingByCharacter={pendingByCharacter}
           onOpenDev={onOpenDev}
+          customTag={customTag}
         />
       </div>
 

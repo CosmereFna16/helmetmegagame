@@ -2,9 +2,13 @@ import { prisma } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getMyZones } from "@/lib/gmZone";
 import { getOpenTurn } from "@/lib/turn";
+import { getGmProfiles } from "@/lib/gmProfiles";
+import { withoutDmNoise } from "@/lib/dmThread";
 import PlayerRail from "./PlayerRail";
 import DeskHeader from "@/app/components/DeskHeader";
 import InboxPoller from "./InboxPoller";
+import InspectorHost from "./InspectorHost";
+import BulkMessageButton from "./BulkMessageButton";
 
 // The player desk's server half. It owns the rail's data and nothing else:
 // the child route loads its own conversation, and router.refresh() re-runs
@@ -23,9 +27,15 @@ import InboxPoller from "./InboxPoller";
 export default async function PlayerDeskLayout({ children }) {
   const { session } = await getGmSession();
 
-  const [grouped, guildMembers, myZones, openTurn, characters] = await Promise.all([
+  const [grouped, guildMembers, myZones, openTurn, gmProfiles, characters, characterTags, allTags, stagedEffects] =
+    await Promise.all([
     prisma.directMessage.groupBy({
       by: ["discordUserId"],
+      // Same noise rule as the preview below and the pane: a count that
+      // includes embeds disagrees with both.
+      // Same rows the rail's preview and unread badge count: the pane's
+      // predicate, minus ✏️ replies (withoutDmNoise keeps those on purpose).
+      where: withoutDmNoise({ OR: [{ source: null }, { source: { not: "prompt_reply" } }] }),
       _count: { _all: true },
       _max: { createdAt: true },
       orderBy: { _max: { createdAt: "desc" } },
@@ -33,6 +43,7 @@ export default async function PlayerDeskLayout({ children }) {
     listGuildMembers(),
     getMyZones(),
     getOpenTurn(),
+    getGmProfiles(),
     prisma.character.findMany({
       orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
       // Two different zones, and the difference matters: faction.zone is the
@@ -43,16 +54,60 @@ export default async function PlayerDeskLayout({ children }) {
       // realistic roster size for this game (100+ players).
       take: 1000,
     }),
+    // Every held tag, ids only — the rail and the roster both search by tag
+    // name ("who is a smith", "who has Pale"), and one grouped read beats a
+    // per-character include on a 100+ roster.
+    // ALIVE only: this powers search over the roster, and it re-runs on every
+    // layout revalidation — no reason to drag a dead character's sheet along.
+    prisma.characterTag.findMany({
+      where: { character: { status: "ALIVE" } },
+      select: { characterId: true, tagId: true },
+    }),
+    // Names for the search field above, and the catalog behind the
+    // inspector's custom-tag door — one query for both rather than two.
+    prisma.tag.findMany({
+      orderBy: { name: "asc" },
+      // No description: this projection is serialised into the client
+      // InspectorHost on every layout render (every GM reply revalidates it),
+      // and its two consumers — the rail's tag search and the custom-tag
+      // dialog's Clone-from/Category lists — only need names and groups.
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        pointCost: true,
+        group: { select: { id: true, name: true } },
+      },
+    }),
+    // This turn's (and any stray) unapplied staging, so the shared inspector
+    // can dim a staged removal and suffix a staged ± on both desks rather
+    // than only on /gm/turns. Ids and payload only — cheap.
+    prisma.stagedEffect.findMany({
+      where: { appliedAt: null },
+      select: { targetCharacterId: true, payload: true },
+    }),
   ]);
 
   // Newest message per conversation, one round trip. DISTINCT ON is
   // Postgres-specific and has no Prisma equivalent — the alternative is a
   // findFirst per conversation, i.e. a query fanned out per player at once.
   // Rides @@index([discordUserId, createdAt]).
+  //
+  // The noise predicate is the same one web/lib/dmThread.js#withoutDmNoise
+  // applies to the thread, written out as SQL because this query cannot go
+  // through Prisma. Without it the rail previewed and SORTED BY rows the
+  // conversation pane hides — an inspect embed or a reply typed into the
+  // ✏️ edit prompt would sit at the top of the inbox as if the player had
+  // just written. Null-safe on purpose: `NOT (x = y)` is NULL, not true, for
+  // every row where x is NULL, and a NULL predicate drops the row — that is
+  // exactly the trap that once emptied every thread (PR #11).
   const latestMessages = await prisma.$queryRaw`
     SELECT DISTINCT ON ("discordUserId")
       "discordUserId", "id", "direction", "content", "authorDiscordUserId", "source", "createdAt"
     FROM "DirectMessage"
+    WHERE ("source" IS DISTINCT FROM 'system_notice')
+      AND ("source" IS DISTINCT FROM 'prompt_reply')
+      AND (("meta"->>'embed') IS DISTINCT FROM 'true')
     ORDER BY "discordUserId", "createdAt" DESC
   `;
   const latestByUser = new Map(latestMessages.map((m) => [m.discordUserId, m]));
@@ -68,6 +123,9 @@ export default async function PlayerDeskLayout({ children }) {
       AND cr."gmDiscordUserId" = ${session.discordUserId}
     WHERE dm."direction" = 'INBOUND'
       AND dm."createdAt" > COALESCE(cr."lastReadAt", to_timestamp(0))
+      AND (dm."source" IS DISTINCT FROM 'system_notice')
+      AND (dm."source" IS DISTINCT FROM 'prompt_reply')
+      AND ((dm."meta"->>'embed') IS DISTINCT FROM 'true')
     GROUP BY dm."discordUserId"
   `;
   const unreadByUser = new Map(unreadRows.map((r) => [r.discordUserId, r.unreadCount]));
@@ -90,6 +148,17 @@ export default async function PlayerDeskLayout({ children }) {
   for (const c of characters) {
     const existing = characterByUser.get(c.discordUserId);
     if (!existing || c.status === "ALIVE") characterByUser.set(c.discordUserId, c);
+  }
+
+  // Held-tag names per character, for the rail's fuzzy `tag` field.
+  const tagNameById = new Map(allTags.map((t) => [t.id, t.name]));
+  const tagNamesByCharacter = new Map();
+  for (const ct of characterTags) {
+    const name = tagNameById.get(ct.tagId);
+    if (!name) continue;
+    const list = tagNamesByCharacter.get(ct.characterId);
+    if (list) list.push(name);
+    else tagNamesByCharacter.set(ct.characterId, [name]);
   }
 
   const claims = await prisma.conversationMeta.findMany({
@@ -136,10 +205,28 @@ export default async function PlayerDeskLayout({ children }) {
       count: countByUser.get(discordUserId) ?? 0,
       unreadCount: unreadByUser.get(discordUserId) ?? 0,
       claimedByDiscordUserId: claimByUser.get(discordUserId) ?? null,
+      tag: c ? (tagNamesByCharacter.get(c.id) ?? []).join(" ") : "",
+      tagNames: c ? (tagNamesByCharacter.get(c.id) ?? []) : [],
     };
   });
 
   const unreadTotal = rows.filter((r) => r.unreadCount > 0).length;
+
+  // BulkComposer's recipient pool: living characters only, since a broadcast
+  // to a dead one is refused server-side anyway.
+  const bulkCharacters = rows
+    .filter((r) => r.characterId && r.status === "ALIVE")
+    .map((r) => ({
+      id: r.characterId,
+      name: r.name,
+      roleTitle: r.roleTitle,
+      factionName: r.factionName,
+      zoneName: r.zoneName,
+    }));
+
+  const gmProfilesById = Object.fromEntries(
+    gmProfiles.map((g) => [g.discordUserId, { username: g.username, avatarUrl: g.avatarUrl }]),
+  );
 
   return (
     <div className="desk-shell">
@@ -156,6 +243,7 @@ export default async function PlayerDeskLayout({ children }) {
             {unreadTotal > 0 && <span className="chip text-xs text-muted">{unreadTotal} unread</span>}
           </>
         }
+        actions={<BulkMessageButton characters={bulkCharacters} />}
       />
 
       <div className="desk-body desk-body--players">
@@ -165,6 +253,24 @@ export default async function PlayerDeskLayout({ children }) {
           myDiscordUserId={session.discordUserId}
         />
         {children}
+        {/* The third column is the shell's, not the person view's: it stays
+            put across a navigation (the roster included), which is the whole
+            point of a persistent inspector. It replaced the per-person
+            DossierColumn — Canon and Notes are extra tabs on it now. */}
+        <InspectorHost
+          rows={rows}
+          stagedEffects={stagedEffects.map((e) => ({
+            targetCharacterId: e.targetCharacterId,
+            resources: e.payload?.resources ?? 0,
+            tagPoints: e.payload?.tagPoints ?? 0,
+            tagOps: e.payload?.tagOps ?? [],
+          }))}
+          currentTurnNumber={openTurn?.number ?? null}
+          gmProfiles={gmProfilesById}
+          myDiscordUserId={session.discordUserId}
+          bulkCharacters={bulkCharacters}
+          tagCatalog={allTags}
+        />
       </div>
 
       <InboxPoller />

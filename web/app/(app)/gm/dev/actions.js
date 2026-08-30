@@ -98,6 +98,9 @@ export async function updateGameConfig(formData) {
       // 0 is a real setting here — "no drawbacks at all" is coherent, only a
       // negative cap is nonsense.
       maxNegativeTags: Math.max(0, intOrZero(formData, "maxNegativeTags")),
+      // Guarded at 1: a 0 here would close the game's only Tag Point faucet
+      // (CHARACTERS.md), which is not a setting anyone means to pick.
+      maxActiveDesires: Math.max(1, intOrNull(formData, "maxActiveDesires") ?? 3),
     },
   });
 
@@ -239,6 +242,7 @@ const DEFAULT_GAME_CONFIG = {
   playerCount: 100,
   equipSlots: 6,
   maxNegativeTags: 8,
+  maxActiveDesires: 3,
   catatonicEnabled: true,
   catatonicTurns: 4,
   autoReconcileEnabled: false,

@@ -609,6 +609,12 @@ export default function RequestActionsProvider({
           <>
             <TagPicker tags={addable} selectedId={tagId} onSelect={pick} byId={gateById} heldIds={heldIds} />
             {stacking && <QuantityField value={quantity} onChange={setQuantity} max={99} label="How many?" />}
+            {chosen?.requirementTurns === 0 &&
+              (chosen.requirementSkills ?? []).some((s) => /^(Smithing|Crafting)/.test(s.name ?? "")) && (
+                // Mirrors web/lib/requests.js#isDeadSimple (server-enforced);
+                // that module can't be imported here without dragging Prisma in.
+                <p className="text-sm text-muted">Dead Simple recipes: up to 4 items per turn, counted across your requests.</p>
+              )}
             <ResourceCostField value={spend} onChange={setSpend} max={resources} />
           </>
         )}

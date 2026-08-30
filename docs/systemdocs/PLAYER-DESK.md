@@ -30,24 +30,28 @@ viewport minus the nav rail, on the same `.desk-*` classes as the adjudication
 desk — the two are the same tool and should read as one.
 
 ```
-┌ header: Players · turn chip · N tracked · N unread ─────────────────┐
-│ RAIL            │  ROSTER TABLE (nobody selected)                   │
-│ Inbox | Roster  │  ─────────────── or ──────────────────────────────│
-│ search, filters │  CONVERSATION            │  DOSSIER               │
-│ zone scope      │  thread + composer       │  Canon · Sheet · Tags  │
-│                 │                          │  Record · Notes        │
-└─────────────────┴──────────────────────────┴────────────────────────┘
+┌ header: Players · turn chip · N tracked · N unread · Bulk message ──┐
+│ RAIL            │  ROSTER TABLE (nobody selected)  │  INSPECTOR     │
+│ Inbox | Roster  │  ─────────── or ─────────────────│  Sheet · Tags  │
+│ search, filters │  CONVERSATION                    │  Archive · DMs │
+│ zone scope      │  thread + composer               │  Canon · Notes │
+└─────────────────┴──────────────────────────────────┴────────────────┘
 ```
 
-Fleet view, then person view. With nobody selected the pane is the roster
-across its full width; picking someone splits it.
+Fleet view, then person view. The middle column is the roster with nobody
+selected and the conversation once somebody is picked. The **inspector is the
+third column of the shell**, not of the person view (§6): it is there on the
+roster too, and it does not get thrown away and rebuilt every time you open a
+different conversation.
 
 Under the shared `.desk-*` mobile breakpoint (720px, `DESIGN-SYSTEM.md` §8),
 this desk is the exception to the rest of the family: the rail is the content
 here, not a queue beside the work, so `.desk-body--players` and `.desk-rail`
 are exempted from the shared single-column-stack / 45vh-cap rules
 (`globals.css`, the players-desk mobile block) and the roster just runs full
-width, full length, scrolling with the page. `/gm/turns` and `/gm/audit` keep
+width, full length, scrolling with the page. The **inspector** is not
+exempted: it stacks and keeps the shared 45vh cap, exactly like the one on
+`/gm/turns` — same column, same component, same rule. `/gm/turns` and `/gm/audit` keep
 the 45vh cap on their rails — there, the rail is a queue and the main pane is
 the work.
 
@@ -67,13 +71,28 @@ Two lenses, the way the adjudication rail has Moves/Requests:
   listed so their history is reachable.
 
 Search is `scoreMatch` (`web/lib/fuzzySearch.js` — keep that the one shared
-engine) over name, role, faction, Discord username **and** global name, zone
-and message preview. `scoreMatch` tokenizes and folds diacritics, tolerates a
+engine) over name, role, faction, Discord username **and** global name, zone,
+**held tag names** and message preview. `scoreMatch` tokenizes and folds diacritics, tolerates a
 typo, and takes `field:term` scopes — `role:smith`, `zone:caves`, `@handle`
 as shorthand for `username:handle` — so a bare word still matches anything
 but a scoped one narrows to that field only. Zone/status filters and
 `ZoneScopeToggle` seed from the GM's zone seat the same way every other GM
 table does.
+
+**Content search is the server's half of the same box.** The fuzzy engine only
+ever sees what the layout ships to the client, and that is *one preview line
+per conversation* — so "find the thread where we talked about the barley"
+could not work at all, whatever the preview happened to be. A query of three
+characters or more is therefore also sent, debounced 300ms, to
+`searchConversations` (`actions.js`): a Postgres `ILIKE` over
+`DirectMessage.content` carrying the same noise predicate as the rest of the
+desk, grouped per `discordUserId`, newest 50. Those hits merge in **under**
+the fuzzy ones — a name match is still what a GM usually means — and only for
+people the fuzzy pass could not already see, marked `in messages · N`.
+Clearing the box drops them, because the hits are stored keyed by the query
+that produced them and simply stop matching (clearing state from an effect is
+what `react-hooks/set-state-in-effect`, an error in this repo, exists to
+catch).
 
 The **roster table** (§4) runs the same `scoreMatch` engine, over name, role,
 faction, both zones (seat and standing-in) and Discord handle — as a filter
@@ -110,6 +129,13 @@ Two bulk verbs, both GM-safe:
 | Message selected | `sendGmBroadcast` | this desk's `actions.js` (sequential, never a fan-out) |
 | Tag / untag selected | `bulkTagCharacters` | `(app)/gm/actions.js` (one transaction **per character**) |
 
+`BulkComposer` — the same modal, over the whole living roster with
+zone/faction bulk-check — has two more doors: **Bulk message** in the desk
+header, reachable from the Inbox lens where the roster's checkboxes are not,
+and **Message pinned** in the inspector's pin row, which opens it prefilled
+with the pinned characters. It was a finished component nothing imported
+until then.
+
 **Bulk zone moves are deliberately absent.** `bulkMoveCharacters` requires
 superadmin, so a button for it here would fail for most of the people looking
 at it. It stays on `/gm/dev`.
@@ -131,33 +157,91 @@ inside itself, with the composer pinned at the bottom. It used to be a 32rem
 - Drafts persist per conversation in `localStorage`, read through
   `useSyncExternalStore` — the textarea's value *is* the store's value, so
   there is no `setState` in an effect to seed it.
+- **Send is optimistic.** The row appears and the draft clears the instant you
+  press Enter, styled pending (`data-pending` on the bubble) until the server
+  answers; a failure removes the row, puts the draft back exactly as it was,
+  and shows the error, so nothing a GM typed is lost to a failed send. The
+  server half matches: `sendGmDm` awaits the Discord POST (a GM must know if
+  *that* failed) and returns the one created row instead of re-reading the
+  whole thread page, with the audit row, the read cursor and both
+  `revalidatePath`s deferred into `after()`.
 - **Claim/release** is advisory (`ConversationMeta`), so five GMs don't answer
   the same player twice.
 - The thread is a **conversation**, not a raw `DirectMessage` dump: rows that
   are pure bot/UI plumbing — inspect/dossier embeds, the ✏️ edit-flow
   prompts, `@mention` relay notices, proxy hand-back — are tagged
-  `source: "system_notice"` at the `sendDm()` call site and excluded at the
-  query (`web/lib/dmThread.js#withoutDmNoise`), not just visually collapsed.
+  `source: "system_notice"` at the `sendDm()` call site — and a player's reply
+  *into* one of those prompts is `source: "prompt_reply"`
+  (`bot/src/lib/pendingPrompts.js`), because a reply to plumbing is plumbing.
+  (Tag search covers **living** characters only — the layout's tag load is
+  bounded to `ALIVE`, since it re-runs on every revalidation; a dead
+  character is still found by name, role, faction and handle.)
+  `system_notice` is excluded at the query (`web/lib/dmThread.js#withoutDmNoise`),
+  not just visually collapsed; `prompt_reply` deliberately is **not** — the pane
+  still shows it, in case the reply was not a reply at all — but the rail's
+  unread count and preview skip it. **The rail's two raw queries carry the
+  noise predicate written out as SQL** (`layout.js`: the `DISTINCT ON` preview and
+  the unread count), which they did not before — so the rail previewed and
+  *sorted by* rows the pane hid, and an inspect embed sat at the top of the
+  inbox as if the player had just written. Written as
+  `IS DISTINCT FROM` rather than `NOT (… = …)`: a NULL predicate drops its
+  row, and almost every row has a NULL `source` or no `meta.embed` key.
   Genuinely useful automated turn notices (`bot_auto` — default-move,
   hunger/dying, tag expiry, Caving Die) still show, and still collapse in
   runs of 3+ (`DmThread.js`).
 - Mark-read fires from a client effect, never during RSC render — otherwise
   Next's link prefetch marks a conversation read on hover.
 
-## 6. The dossier
+## 6. The inspector
 
-`Canon · Sheet · Tags · Record · Notes`, fetched on demand and memoized per
-`${characterId}:${tab}` for the life of the page view. The adjudication desk's
-inspector is the same idea pointed the other way — there the character is
-context for a Move, here the Move is context for a character — so it reuses
-that desk's `getCharacterInspector` / `getArchiveSlice`. No DMs tab: the thread
-is the pane next door.
+`Sheet · Tags · Archive · DMs · Canon · Notes`, fetched on demand and memoized
+per `${characterId}:${tab}` for the life of the page view.
+
+This used to be `DossierColumn`, a column of the **person view** — which meant
+it did not exist on the roster at all, and every navigation between two
+players threw it away and rebuilt it. It is the adjudication desk's inspector
+now, literally: one component, `web/app/components/InspectorColumn.js`, mounted
+by both desks. There the character is context for a Move, here the Move is
+context for a character, but it is the same four base tabs over the same
+`getCharacterInspector` / `getArchiveSlice` fetchers, the same staged quick
+edits (✕ a tag to stage its removal, click Resources or Tag points to stage a
+± delta — which is why the player desk's `layout.js` loads this turn's
+unapplied `StagedEffect`s too), the same DM composer, the same
+`ArchiveContextModal`, and the same **`+ Custom tag`** door on the Tags tab.
+The door differs by desk and only by desk: `/gm/turns` defaults to *staging*
+the new tag because that desk is mid-push, `/gm/players` defaults to
+*applying* it because this one is a conversation.
+
+**Canon and Notes are this desk's two extras**, passed in through the
+`extraTabs` prop rather than compiled into the shared component — the
+adjudication desk has no use for either, and a tab that only one caller wants
+should not be a branch inside the thing both callers share.
+
+`InspectorHost.js` is the client half. Which person the column shows is
+**derived, never stored**:
+
+- `useSelectedLayoutSegment()` is the `[discordUserId]` the child route is on,
+  so opening a conversation points the inspector at that player with nobody
+  having to tell it;
+- a `useState` **override** holds the last person clicked in the inspector's
+  own search box or pin row, which is how a GM looks at somebody *other* than
+  the open conversation.
+
+The override remembers which segment it was set under and is ignored once the
+route moves on, so navigating to another player follows the route again
+instead of staying stuck on a stale pin. All of it is computed during render:
+there is no context, and no effect syncing state to a prop — the latter is a
+lint **error** here (`react-hooks/set-state-in-effect`).
 
 **Canon** is the player's open Move, staged messages and staged effects, with
-"Insert into reply" buttons that write into the composer's draft.
+"Insert into reply" buttons that write into the composer's draft. The wire
+used to be a ref handed down from `PersonShell` while the two were siblings;
+the inspector is a column of the shell now, so it writes the draft's
+`localStorage` key directly (`players/dmDraft.js`) and the composer — whose
+value *is* that store, read through `useSyncExternalStore` — picks it up.
 
-**Notes** is new, and is the thing that was actually missing: what a GM knows
-about a player that lives nowhere else. See §7.
+**Notes** is the thing that was actually missing: what a GM knows about a
+player that lives nowhere else. See §7.
 
 ## 7. GM notes
 
@@ -211,13 +295,16 @@ desk's own actions.
 | `PlayerRail.js` | Inbox/Roster lenses, search, filters, pins |
 | `page.js` / `RosterTable.js` | The fleet view + bulk verbs |
 | `FactionsPanel.js` | The faction hierarchy view |
-| `actions.js` | DM send/page, read cursors, claims, staging, broadcast, GM notes |
-| `[discordUserId]/page.js` | Thread + Canon load |
-| `[discordUserId]/PersonShell.js` | Splits the pane, wires dossier→composer prefill |
-| `[discordUserId]/ConversationPane.js` | Thread + composer |
-| `[discordUserId]/DossierColumn.js` | The five tabs |
-| `[discordUserId]/CanonPanel.js` | Current Move + staged items |
-| `[discordUserId]/NotesTab.js` | GM notes |
+| `actions.js` | DM send/page, content search, canon load, read cursors, claims, staging, broadcast, GM notes |
+| `[discordUserId]/page.js` | Thread load + the open Move's id |
+| `[discordUserId]/PersonShell.js` | The person view's wrapper (conversation only) |
+| `[discordUserId]/ConversationPane.js` | Thread + composer, optimistic send |
+| `InspectorHost.js` | The shared inspector's player-desk half: derived selection, pins, extra tabs |
+| `components/InspectorColumn.js` | The shared inspector itself (ADJUDICATION.md §3) |
+| `CanonTab.js` | Current Move + staged items, as an `extraTabs` entry |
+| `NotesTab.js` | GM notes, as an `extraTabs` entry |
+| `dmDraft.js` | The composer draft's `localStorage` key, shared with Canon |
+| `BulkComposer.js` / `BulkMessageButton.js` | The broadcast modal and its header door |
 | `components/usePins.js` | Pins, shared with `/gm/turns` |
 | `components/useSubmitOnEnter.js` | Enter-to-send, IME- and touch-guarded |
 | `components/CommandPalette.js` + `paletteActions.js` | ⌘K |

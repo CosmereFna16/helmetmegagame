@@ -1,10 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { UserError, guarded } from "@/lib/actionResult";
 import { isSuperadmin } from "@/lib/superadmin";
-import { getGmSession } from "@/lib/discordGuild";
+import { getGmSession, syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
+import { applyTagOpsInTx } from "@/lib/characterWrite";
+import { TURNS_PATH } from "@/lib/routes";
 
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
@@ -77,30 +80,129 @@ function scalarsFrom(input) {
   };
 }
 
-async function createCustomTagImpl(input) {
+// The custom-tag dialog's door on every desk — see
+// web/app/components/CustomTagDialog.js and DEV-PANEL.md §8. The tag is
+// created in its own small transaction, then granted or staged against
+// whichever targets the door preselected ONE TRANSACTION PER CHARACTER, then
+// one audit row for the whole gesture — bulkTagCharacters' convention
+// ((app)/gm/actions.js). Everything that can refuse (no open turn to stage
+// against, too many targets) is checked before the tag row exists, so a
+// refusal never leaves an orphan the GM can't recreate under the same name.
+//
+// `stage` writes a StagedEffect per target instead of a live grant, built the
+// same way createStagedEffects does ((desk)/gm/turns/actions.js) — one
+// tagOps-add payload, one shared batchId across a multi-target batch — copied
+// rather than imported, since that file is itself "use server" and a
+// multi-target grant here is a GM-toolkit convenience action, not the
+// adjudication desk's own staging flow.
+async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...input }) {
   const session = await requireGm();
   const data = scalarsFrom(input);
   const slug = customSlug(data.name);
+  const targets = [...new Set((assignCharacterIds ?? []).filter(Boolean))];
+  // Same cap as bulkTagCharacters (web/app/(app)/gm/actions.js).
+  if (targets.length > 200) throw new UserError("Pick at most 200 characters at once.");
 
-  const clash = await prisma.tag.findFirst({
-    where: { OR: [{ slug }, { name: data.name }] },
-    select: { name: true },
+  // Refuse BEFORE the tag exists: a thrown UserError after the create would
+  // leave a committed row behind, and every retry would then hit the clash
+  // check below with no way out short of a rename.
+  const openTurn = targets.length ? await prisma.turn.findFirst({ where: { status: "OPEN" } }) : null;
+  if (stage && targets.length && !openTurn) throw new UserError("No turn is open to stage against.");
+
+  // The tag itself: one small transaction.
+  const tag = await prisma.$transaction(async (tx) => {
+    const clash = await tx.tag.findFirst({
+      where: { OR: [{ slug }, { name: data.name }] },
+      select: { name: true },
+    });
+    if (clash) throw new UserError(`A tag called "${clash.name}" already exists.`);
+    return tx.tag.create({ data: { ...data, slug, custom: true } });
   });
-  if (clash) throw new UserError(`A tag called "${clash.name}" already exists.`);
 
-  const tag = await prisma.tag.create({ data: { ...data, slug, custom: true } });
+  // The grants: ONE TRANSACTION PER CHARACTER, never one across the batch —
+  // the rule bulkTagCharacters states, and for the same reasons: a wide
+  // transaction holds a row lock against every target's own equip toggles for
+  // its whole duration, and one bad character would roll back the rest.
+  // Living targets only: a dead sheet gets neither a live grant nor a staged
+  // one the push would apply to a corpse.
+  let batchId = null;
+  const applied = [];
+  const failed = [];
+  const living = targets.length
+    ? new Set(
+        (await prisma.character.findMany({ where: { id: { in: targets }, status: "ALIVE" }, select: { id: true } })).map(
+          (c) => c.id,
+        ),
+      )
+    : new Set();
+  for (const id of targets) if (!living.has(id)) failed.push({ characterId: id, error: "No living character." });
+  const liveTargets = targets.filter((id) => living.has(id));
 
+  if (liveTargets.length) {
+    if (stage) {
+      batchId = liveTargets.length > 1 ? crypto.randomUUID() : null;
+      const payload = { tagOps: [{ tagId: tag.id, op: "add", quantity: 1 }] };
+      await prisma.stagedEffect.createMany({
+        data: liveTargets.map((targetCharacterId) => ({
+          turnId: openTurn.id,
+          targetCharacterId,
+          createdByDiscordUserId: session.discordUserId,
+          batchId,
+          payload,
+        })),
+      });
+      applied.push(...liveTargets);
+    } else {
+      const config = await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { equipSlots: true } });
+      const tagsById = new Map([[tag.id, tag]]);
+      for (const characterId of liveTargets) {
+        try {
+          await prisma.$transaction((tx) =>
+            applyTagOpsInTx(tx, {
+              characterId,
+              ops: [{ tagId: tag.id, op: "add", quantity: 1 }],
+              tagsById,
+              openTurn,
+              equipSlots: config?.equipSlots ?? 6,
+            }),
+          );
+          applied.push(characterId);
+        } catch (err) {
+          failed.push({ characterId, error: err?.message ?? "Failed." });
+        }
+      }
+    }
+  }
+
+  const staged = Boolean(stage && applied.length);
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: session.discordUserId,
       actionType: "gm_custom_tag_created",
-      details: { tagId: tag.id, slug, name: tag.name },
+      details: { tagId: tag.id, slug, name: tag.name, characterIds: applied, failed, staged, batchId },
     },
   });
 
+  const result = { tagId: tag.id, name: tag.name, slug, applied: applied.length, failed, staged };
+
   revalidatePath("/gm/dev/tags");
   revalidatePath("/character");
-  return { tagId: tag.id, name: tag.name, slug };
+  revalidatePath(TURNS_PATH, "page");
+  revalidatePath("/gm/players", "layout");
+
+  // A live grant may change narrowcast access (#watch, #intercom), same as
+  // bulkTagCharacters. Sequential and after the writes, per ARCHITECTURE.md
+  // §5 — never a fan-out of REST calls at Discord's rate limiter. A staged
+  // grant hasn't touched anyone's holdings yet, so it's skipped here.
+  if (applied.length && !result.staged) {
+    after(async () => {
+      for (const characterId of applied) {
+        await syncCharacterNarrowcastAccess(characterId).catch(() => {});
+      }
+    });
+  }
+
+  return result;
 }
 
 // Editing is refused for a YAML-sourced tag rather than merely discouraged:
@@ -176,8 +278,8 @@ async function deleteCustomTagImpl({ tagId }) {
   return { name: tag.name };
 }
 
-export async function createCustomTag(input) {
-  return guarded(() => createCustomTagImpl(input));
+export async function createCustomTagAndAssign(input) {
+  return guarded(() => createCustomTagAndAssignImpl(input));
 }
 export async function updateCustomTag(input) {
   return guarded(() => updateCustomTagImpl(input));

@@ -38,7 +38,8 @@ export default function CharacterSheet({
   transferParties,
   tagCatalog,
   otherCharacters,
-  desire,
+  desires,
+  maxActiveDesires,
   desireCooldownUntilTurn,
   canHeal = false,
   canFastTravel = false,
@@ -64,8 +65,6 @@ export default function CharacterSheet({
   // TagsPanel.js / StorePanel.js). Absent on someone else's sheet.
   storeTags = null,
   storeHeldTags = null,
-  storeNegativeCap = null,
-  storeNegativeHeld = 0,
 }) {
   const isSelf = mode === "self";
 
@@ -129,15 +128,14 @@ export default function CharacterSheet({
                 equipSlots={equipSlots}
                 storeTags={storeTags}
                 storeHeldTags={storeHeldTags}
-                storeNegativeCap={storeNegativeCap}
-                storeNegativeHeld={storeNegativeHeld}
               />
             </div>
           </RequestActionsProvider>
 
           {isSelf && (
             <GoalsPanel
-              desire={desire ?? null}
+              desires={desires ?? []}
+              maxActiveDesires={maxActiveDesires ?? 3}
               desireCooldownUntilTurn={desireCooldownUntilTurn ?? null}
               openTurnNumber={openTurn?.number ?? null}
             />

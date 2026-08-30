@@ -17,10 +17,7 @@ import {
   claimConversation,
   releaseConversation,
 } from "../actions";
-
-function draftKey(discordUserId) {
-  return `messages-draft-${discordUserId}`;
-}
+import { dmDraftKey, writeDmDraft } from "../dmDraft";
 
 // Per-conversation draft persistence, read through useSyncExternalStore —
 // same discipline as the shared pins (usePins.js): the textarea's value IS
@@ -40,6 +37,8 @@ function serverDraft() {
 // document flow. The transcript takes the height that's left and scrolls
 // inside itself; the composer is pinned to the bottom where a composer
 // belongs.
+let optimisticSeq = 0;
+
 export default function ConversationPane({
   discordUserId,
   label,
@@ -53,7 +52,6 @@ export default function ConversationPane({
   gmProfiles,
   myDiscordUserId,
   claimedByDiscordUserId,
-  registerPrefill,
 }) {
   // The parent page keys this component on `discordUserId`, so a conversation
   // switch remounts it — that's what resets this state, rather than an effect
@@ -70,30 +68,14 @@ export default function ConversationPane({
 
   const readDraft = useCallback(() => {
     try {
-      return window.localStorage.getItem(draftKey(discordUserId)) ?? "";
+      return window.localStorage.getItem(dmDraftKey(discordUserId)) ?? "";
     } catch {
       return "";
     }
   }, [discordUserId]);
   const content = useSyncExternalStore(subscribeDraft, readDraft, serverDraft);
 
-  const writeDraft = useCallback(
-    (value) => {
-      try {
-        if (value) window.localStorage.setItem(draftKey(discordUserId), value);
-        else window.localStorage.removeItem(draftKey(discordUserId));
-        window.dispatchEvent(new Event("storage"));
-      } catch {
-        /* private window / blocked site data */
-      }
-    },
-    [discordUserId],
-  );
-
-  useEffect(() => {
-    registerPrefill?.((text) => writeDraft(text));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [discordUserId]);
+  const writeDraft = useCallback((value) => writeDmDraft(discordUserId, value), [discordUserId]);
 
   // Mark-read: fires from a client effect after mount, and again whenever a
   // new INBOUND message id appears — NEVER during RSC render, which would
@@ -102,6 +84,9 @@ export default function ConversationPane({
   useEffect(() => {
     const newest = pages.messages[pages.messages.length - 1];
     if (!newest) return;
+    // An optimistic row is not a real message yet — marking read against its
+    // temp id would burn the de-dupe slot the real one needs.
+    if (newest.pending) return;
     if (lastMarkedIdRef.current === newest.id) return;
     if (document.visibilityState !== "visible") return;
     lastMarkedIdRef.current = newest.id;
@@ -123,19 +108,61 @@ export default function ConversationPane({
     }));
   }
 
+  // Send is optimistic: the row appears and the draft clears the instant you
+  // hit Enter, because waiting on a Discord round trip for the text you just
+  // typed to appear is what made the composer feel slow. The temp row is
+  // styled pending until the server answers; a failure removes it, puts the
+  // draft back exactly as it was, and shows the error — so nothing a GM wrote
+  // is ever lost to a failed send.
   function handleSend(e) {
     e.preventDefault();
     const message = content.trim();
     if (!message || message.length > GM_MESSAGE_MAX_LENGTH) return;
     setError(null);
+
+    const tempId = `optimistic-${(optimisticSeq += 1)}`;
+    const optimistic = {
+      id: tempId,
+      discordUserId,
+      direction: "OUTBOUND",
+      // Matches what sendDm actually writes, so the row does not visibly
+      // reflow when the real one replaces it.
+      content: `» ${message}`,
+      authorDiscordUserId: myDiscordUserId,
+      source: "gm_reply",
+      createdAt: new Date().toISOString(),
+      pending: true,
+    };
+    setPages((prev) => ({ ...prev, messages: [...prev.messages, optimistic] }));
+    writeDraft("");
+
     startTransition(async () => {
       const result = await sendGmDm({ discordUserId, content: message });
       if (!result.ok) {
+        setPages((prev) => ({ ...prev, messages: prev.messages.filter((m) => m.id !== tempId) }));
+        writeDraft(message);
         setError(result.error);
         return;
       }
-      setPages({ messages: result.messages, hasMore: result.hasMore });
-      writeDraft("");
+      // The action returns the fresh tail page too — the only path that
+      // brings in what the PLAYER said since this pane mounted (state is
+      // seeded once; a poll's router.refresh can't reseed it). MERGE it: the
+      // GM may have paged back hundreds of messages with loadOlder, and
+      // replacing the array would snap them to the last 100. Rows already
+      // held keep their place; new ids are appended in server order; the
+      // optimistic row goes.
+      setPages((prev) => {
+        const kept = prev.messages.filter((m) => m.id !== tempId);
+        if (!Array.isArray(result.messages)) {
+          return {
+            ...prev,
+            messages: prev.messages.map((m) => (m.id === tempId ? (result.message ?? { ...m, pending: false }) : m)),
+          };
+        }
+        const have = new Set(kept.map((m) => m.id));
+        const fresh = result.messages.filter((m) => !have.has(m.id));
+        return { ...prev, messages: [...kept, ...fresh] };
+      });
     });
   }
 

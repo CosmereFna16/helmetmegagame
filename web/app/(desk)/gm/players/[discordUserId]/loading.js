@@ -1,8 +1,10 @@
 import { SkeletonBar } from "@/app/components/PageShell";
 
-// Renders inside the desk shell layout.js already painted — the rail doesn't
-// re-suspend when you pick a different person — so this fills the person view
-// only, not a whole page.
+// Renders inside the desk shell layout.js already painted — neither the rail
+// nor the inspector re-suspends when you pick a different person — so this
+// fills the conversation only. It lost its `desk-dossier` half when the
+// dossier folded into the shared inspector, which is a column of the shell
+// now and paints straight through a navigation.
 export default function Loading() {
   return (
     <div className="desk-person">
@@ -15,12 +17,6 @@ export default function Loading() {
           <SkeletonBar width="45%" />
         </div>
       </div>
-      <aside className="desk-dossier">
-        <div className="desk-dossier-body animate-pulse flex flex-col gap-3">
-          <SkeletonBar width="60%" />
-          <SkeletonBar width="45%" />
-        </div>
-      </aside>
     </div>
   );
 }

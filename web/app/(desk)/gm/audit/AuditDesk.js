@@ -24,9 +24,9 @@ import { exportAudit } from "./exportActions";
 //   history.replaceState so the permalink stays right without re-running the
 //   RSC tree. Same trick as the adjudication desk's Workspace.
 //
-// Presentation state (relative vs absolute time, density, whether the live
-// tail is running) is local and deliberately not in the URL: it is how one
-// person likes to read, not what they are looking at.
+// Presentation state (relative vs absolute time, whether the live tail is
+// running) is local and deliberately not in the URL: it is how one person
+// likes to read, not what they are looking at.
 
 const REFRESH_MS = 20_000;
 
@@ -50,7 +50,6 @@ export default function AuditDesk({
   const [refresh] = useRefresh();
   const [selected, setSelected] = useState(selectedId ?? null);
   const [absoluteTime, setAbsoluteTime] = useState(false);
-  const [density, setDensity] = useState("comfortable");
   const [live, setLive] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [notice, setNotice] = useState("");
@@ -126,22 +125,20 @@ export default function AuditDesk({
     return entries.find((e) => e.id === selected) ?? (pinned?.id === selected ? pinned : null);
   }, [entries, pinned, selected]);
 
-  const download = async (format) => {
+  const download = async () => {
     setExporting(true);
     setNotice("");
     try {
-      const result = await exportAudit({ params: toQueryObject(filters), format });
+      const result = await exportAudit({ params: toQueryObject(filters) });
       if (!result?.ok) {
         setNotice(result?.error ?? "Could not build that export.");
         return;
       }
-      const blob = new Blob([result.text], {
-        type: format === "json" ? "application/json" : "text/csv",
-      });
+      const blob = new Blob([result.text], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `audit-${new Date().toISOString().slice(0, 10)}.${format}`;
+      a.download = `audit-${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
       setNotice(result.truncated ? `Exported the newest ${result.count} entries.` : `Exported ${result.count} entries.`);
@@ -183,26 +180,11 @@ export default function AuditDesk({
                 Clock
               </button>
             </div>
-            <div className="segmented" role="group" aria-label="Density">
-              <button
-                type="button"
-                aria-pressed={density === "comfortable"}
-                onClick={() => setDensity("comfortable")}
-              >
-                Roomy
-              </button>
-              <button type="button" aria-pressed={density === "compact"} onClick={() => setDensity("compact")}>
-                Tight
-              </button>
-            </div>
             <button type="button" className="btn-quiet" aria-pressed={live} onClick={() => setLive((v) => !v)}>
               {live ? "Pause live" : "Go live"}
             </button>
-            <button type="button" className="btn-secondary" disabled={exporting} onClick={() => download("csv")}>
+            <button type="button" className="btn-secondary" disabled={exporting} onClick={() => download()}>
               CSV
-            </button>
-            <button type="button" className="btn-quiet" disabled={exporting} onClick={() => download("json")}>
-              JSON
             </button>
           </>
         }
@@ -229,7 +211,6 @@ export default function AuditDesk({
             selectedId={selected}
             onSelect={select}
             absoluteTime={absoluteTime}
-            density={density}
             emptyMessage="Nothing matches these filters."
           />
           <Pager page={page} totalPages={totalPages} total={total} unit="entries" onPage={goToPage} />

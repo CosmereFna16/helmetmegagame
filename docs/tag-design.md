@@ -90,8 +90,12 @@ something that happened this week, it is not.
 - **Items are always `false`.** Objects enter play by being crafted or found,
   never by being bought with points. An item's route into the game is its
   `craftable` flag and its `requirement` block.
-- **Negative tags are always `false`.** Selling a limb for points mid-game is
-  not a trade the system offers.
+- **Negative tags are always `false`**, unless the drawback is *meant* to be
+  taken for the points mid-game — in which case it must also be
+  `removable: false, consumable: false`, or buy → shed → buy again is an
+  unbounded point farm. The four Addictions are the only tags written this
+  way. Otherwise, selling a limb for points mid-game is not a trade the
+  system offers.
 - Skills and traits may be `true` where it makes sense for a character to
   develop them in play.
 
@@ -213,6 +217,7 @@ Structural fields, briefly. Full detail is in the header comment of
 | `group` | Sub-grouping within a category; drives the picker's tabs and the chip colour. |
 | `visible` | Whether another player who inspects this character can see the tag. Set it by whether a bystander could actually tell. |
 | `removable` | Whether a player can strip the tag off themselves without a GM. |
+| `exclusive` | A character may hold at most one tag carrying this per tag group. Set on the Beliefs, and on the Addictions + Death Wish. Exempt: a pair joined by `requiredTag` (Fundamentalist on Post-Christian). |
 | `stackable` | Whether a character can hold more than one. Meals, ammunition, batches. |
 | `consumable` | Whether a player can use it up from their sheet. Consuming takes exactly one unit. |
 | `consumesInto` | What being consumed turns it into. A meal becomes Ate a Meal. |

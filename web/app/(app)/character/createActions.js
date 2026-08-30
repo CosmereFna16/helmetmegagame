@@ -35,6 +35,7 @@ import {
   chainSiblingsToRemove,
   heldHigherTiers,
   requirementSatisfied,
+  exclusiveConflict,
   CURSED_ROLE_SLUGS,
 } from "@/lib/characterCreation";
 
@@ -219,7 +220,17 @@ export async function createCharacter(formData) {
   // The full catalog, not just what's selected/granted, so a chain walk
   // (parentTagId) never dead-ends on an ancestor the client didn't send.
   const allTags = await prisma.tag.findMany({
-    select: { id: true, pointCost: true, parentTagId: true, requiredTagId: true },
+    // `name` and `exclusive` ride along for the exclusivity check below —
+    // exclusiveConflict() reads both off the conflicting row.
+    select: {
+      id: true,
+      name: true,
+      pointCost: true,
+      parentTagId: true,
+      requiredTagId: true,
+      exclusive: true,
+      groupId: true,
+    },
   });
   const byId = buildTagsById(allTags);
   const grantedIds = startingTags.map((t) => t.id);
@@ -244,6 +255,17 @@ export async function createCharacter(formData) {
   for (const tag of selected) {
     if (!requirementSatisfied(tag, byId, heldOrSelectedIds)) {
       return { error: "One of those tags is missing a prerequisite." };
+    }
+  }
+
+  // One exclusive tag per character (the Beliefs). Checked against the role's
+  // starting tags too, not just the cart: several roles grant a belief for
+  // free, and picking a second one on top is exactly what this rules out.
+  // `selected` carries the full row, so tag.exclusive is present here.
+  for (const tag of selected) {
+    const conflict = exclusiveConflict(tag, heldOrSelectedIds, byId);
+    if (conflict) {
+      return { error: `${tag.name} and ${conflict.name} can't be held at the same time.` };
     }
   }
 

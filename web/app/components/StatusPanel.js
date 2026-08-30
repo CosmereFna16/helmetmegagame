@@ -21,13 +21,44 @@ function Row({ label, children, stacked = false }) {
   );
 }
 
+// Rendered on the server, so a viewer-local time isn't available — and the
+// game's clock is Chicago anyway (turns roll at 00:00/12:00 CT), which is what
+// the handbook and the Discord announcement both quote. Labelled CT so nobody
+// reads it as their own wall clock.
+const CT_TIME = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Chicago",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+// The Move cutoff (db/lib/turnClock.js), attached to the turn by
+// app/(app)/character/page.js. Absent when there is no lock this turn — a
+// manually advanced short turn, or auto-advance switched off.
+function MoveCutoff({ window: moveWindow }) {
+  if (!moveWindow?.hasLock) return null;
+  return moveWindow.locked ? (
+    <span className="text-muted">
+      Moves are locked for this turn — the next turn opens at {CT_TIME.format(new Date(moveWindow.endsAt))} CT.
+    </span>
+  ) : (
+    <span className="text-muted">Moves lock at {CT_TIME.format(new Date(moveWindow.cutoffAt))} CT.</span>
+  );
+}
+
 // The player's own read of the Move they filed this turn — the same row the
 // bot's DM confirms, just left standing where they can check it later
 // instead of scrolling Discord. Player-facing wording, not the GM workflow
 // enums (moveReviewStatus's "Passed"/"Open" mean nothing to a player).
 function ThisTurn({ currentAction, openTurn }) {
   if (!openTurn) return <span className="text-muted">No turn is open.</span>;
-  if (!currentAction) return <span className="text-muted">Not filed yet.</span>;
+  const cutoff = <MoveCutoff window={openTurn.moveWindow} />;
+  if (!currentAction)
+    return (
+      <>
+        <span className="text-muted">Not filed yet.</span>
+        {cutoff}
+      </>
+    );
 
   const { status, moveReviewStatus, resourceRollValue } = currentAction;
 
@@ -52,6 +83,7 @@ function ThisTurn({ currentAction, openTurn }) {
       <span className="field-label">{moveKindLabel(currentAction.moveKind, currentAction.gmNotes)}</span>
       <ExpandableText text={currentAction.description} lines={3} />
       {stateLine}
+      {cutoff}
     </>
   );
 }

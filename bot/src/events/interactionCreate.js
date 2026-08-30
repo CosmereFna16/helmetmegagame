@@ -13,6 +13,7 @@ const { recordArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
 const { dropCharacterTag } = require("@lifeweb/db/lib/tagWrites");
 const { HEALTH_CATEGORY } = require("@lifeweb/db/lib/medicalVision");
+const { moveWindow, epochSeconds } = require("@lifeweb/db/lib/turnClock");
 const { isPrivateThread, messageLink } = require("../lib/mentions");
 const { ensureForumTag, createForumPost, startPrivateThread, addThreadMember } = require("@lifeweb/db/lib/discordRest");
 const { PERSISTENT_TAG_NAME } = require("@lifeweb/db/lib/persistence");
@@ -544,12 +545,18 @@ async function handleTopicCreate(interaction, zoneId) {
 
   let thread;
   try {
-    // The opening mention is what puts the new topic in the creator's
-    // mentions so they can find it, and makes them a follower.
+    // The opening line names the CHARACTER, via its role (PROXYING.md §6: a
+    // name token nobody holds), not the player — a user mention pinged the
+    // person who had just pressed the button and outed them as the author.
+    // The creator finds the topic through the link in the reply below.
+    const opener = character.discordRoleId ? `<@&${character.discordRoleId}>` : character.name;
     thread = await createForumPost(zone.discordPublicChannelId, {
       name,
-      content: `<@${interaction.user.id}> opened this scene.`,
+      content: `${opener} opened this scene.`,
       appliedTags,
+      // Only the character's own role may resolve as a mention: the fallback
+      // is a player-typed name, and "@everyone" is a legal first name.
+      allowedMentions: { parse: [], roles: character.discordRoleId ? [character.discordRoleId] : [] },
     });
   } catch (err) {
     console.error(`Failed to create a topic in ${zone.name}:`, err);
@@ -558,8 +565,11 @@ async function handleTopicCreate(interaction, zoneId) {
   }
 
   await recordPlayerThread({ threadId: thread.id, kind: "PUBLIC", name, zone, character, persistent, openTurn });
+  // Not fleeting (respond() defaults to fleeting): with the opening line
+  // naming the character rather than mentioning the player, this ephemeral
+  // link is the creator's only pointer to their own topic.
   await respond(interaction, `» *Opened.*\n${messageLink(interaction.guildId, zone.discordPublicChannelId, thread.id)}`, {
-    fleeting: true,
+    fleeting: false,
   });
 }
 
@@ -599,10 +609,42 @@ async function handlePrivateCreate(interaction, zoneId) {
 // PENDING_TYPE is no longer reachable from Discord — the enum value stays for
 // rows written before this.
 
-// The button and /move both just open the modal. Nothing is read here: a
-// modal must be shown within 3 seconds and cannot be deferred first, so every
-// gate runs on submit instead.
+// Moves close MOVE_LOCK_HOURS before the turn ends (db/lib/turnClock.js) so a
+// GM has a window to adjudicate what was filed. Returns the refusal text, or
+// null when Moves are still open.
+async function moveLockNotice() {
+  const [openTurn, config] = await Promise.all([
+    prisma.turn.findFirst({ where: { status: "OPEN" } }),
+    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { autoTurnAdvanceDisabled: true } }),
+  ]);
+  if (!openTurn) return null;
+  const { locked, cutoffAt, endsAt } = moveWindow(openTurn, {
+    autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false,
+  });
+  if (!locked) return null;
+  return `» *Moves for this turn locked at <t:${epochSeconds(cutoffAt)}:t>. The next turn opens <t:${epochSeconds(endsAt)}:R>.*`;
+}
+
+// The button and /move both just open the modal. A modal must be shown within
+// 3 seconds and cannot be deferred first, so this is the only read that
+// happens here — two indexed lookups — and any failure falls through to the
+// modal rather than eating the interaction. Every other gate runs on submit,
+// which re-checks the cutoff too (a modal can sit open across it).
 async function handleMoveOpen(interaction) {
+  // Advisory only (submit re-checks), so a slow pool at 00:00/12:00 must not
+  // cost the player the modal: race the two reads against 800 ms and fall
+  // through to the modal on timeout or error.
+  const notice = await Promise.race([
+    moveLockNotice().catch((err) => {
+      console.error("Move lock check failed:", err);
+      return null;
+    }),
+    new Promise((resolve) => setTimeout(() => resolve(null), 800)),
+  ]);
+  if (notice) {
+    await respond(interaction, notice);
+    return;
+  }
   await interaction.showModal(buildMoveModal());
 }
 
@@ -628,6 +670,24 @@ async function handleMoveSubmit(interaction) {
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
   if (!openTurn) {
     await respond(interaction, "» *No turn is currently open — your submission wasn't recorded.*");
+    return;
+  }
+
+  // Re-checked here and not only at move:open: the modal can sit open on
+  // someone's screen for as long as they like, including across the cutoff.
+  // Before the Action row is created, so a refusal costs the turn nothing.
+  const config = await prisma.gameConfig.findUnique({
+    where: { id: 1 },
+    select: { autoTurnAdvanceDisabled: true },
+  });
+  const { locked, cutoffAt, endsAt } = moveWindow(openTurn, {
+    autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false,
+  });
+  if (locked) {
+    await respond(
+      interaction,
+      `» *Moves for this turn locked at <t:${epochSeconds(cutoffAt)}:t>. The next turn opens <t:${epochSeconds(endsAt)}:R>.*`,
+    );
     return;
   }
 

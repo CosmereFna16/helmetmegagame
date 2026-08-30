@@ -269,6 +269,10 @@ async function syncTagsFromYaml(prisma) {
       category: categoryNameBySlug.get(entry.category),
       pointCost: entry.pointCost ?? 0,
       visibleOnInspect: entry.visible ?? false,
+      // At most one exclusive tag per character (the Beliefs). Plain boolean
+      // mirror of `visible` above — the rule itself lives in
+      // web/lib/characterCreation.js#exclusiveConflict.
+      exclusive: entry.exclusive ?? false,
       tradeable: entry.tradeable ?? false,
       equippable: entry.equippable ?? false,
       concealsIdentity: entry.concealsIdentity ?? false,

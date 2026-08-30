@@ -50,7 +50,14 @@ async function ensureTurnsConsole(guild) {
   // open turn so a cold start still shows the current weather; with no turn
   // open the announcement line is simply omitted.
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, orderBy: { number: "desc" } });
-  const text = [openTurn ? buildTurnAnnouncement(openTurn, null) : null, CONSOLE_TEXT]
+  const text = [
+    openTurn
+      ? buildTurnAnnouncement(openTurn, null, {
+          autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false,
+        })
+      : null,
+    CONSOLE_TEXT,
+  ]
     .filter(Boolean)
     .join("\n");
 

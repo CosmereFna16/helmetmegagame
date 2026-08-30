@@ -1,16 +1,22 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import TagChip from "@/app/components/TagChip";
-import { useRefresh } from "@/app/components/useRefresh";
-import FactionLink from "@/app/components/FactionLink";
-import DevCharacterButton from "@/app/components/DevCharacterButton";
-import MarkdownContent from "@/app/components/MarkdownContent";
-import FormError from "@/app/components/FormError";
-import DmThread from "@/app/components/DmThread";
+import TagChip from "./TagChip";
+import { useRefresh } from "./useRefresh";
+import FactionLink from "./FactionLink";
+import DevCharacterButton from "./DevCharacterButton";
+import MarkdownContent from "./MarkdownContent";
+import FormError from "./FormError";
+import DmThread from "./DmThread";
 import ArchiveContextModal from "./ArchiveContextModal";
+import CustomTagDialog from "./CustomTagDialog";
+import Tooltip from "./Tooltip";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
-import { getCharacterInspector, getArchiveSlice, createStagedEffects } from "./actions";
+import {
+  getCharacterInspector,
+  getArchiveSlice,
+  createStagedEffects,
+} from "@/app/(desk)/gm/turns/actions";
 import { getDmThreadPage, sendGmDm } from "@/app/(desk)/gm/players/actions";
 import { scoreMatch } from "@/lib/fuzzySearch";
 
@@ -19,20 +25,29 @@ import { scoreMatch } from "@/lib/fuzzySearch";
 // clicked anywhere in the workspace, with a pin row so the characters an
 // arbitration keeps returning to stay one click away.
 //
+// It lives in components/ rather than under /gm/turns because BOTH desks
+// mount it now: /gm/turns from Workspace.js, /gm/players from InspectorHost.js
+// (which is where the player desk's old DossierColumn went). The four base
+// tabs are the same on both; anything desk-specific arrives through
+// `extraTabs` — Canon and Notes only exist on the player desk, so only that
+// desk passes them.
+//
 // Fetches are on-demand server actions cached in the Workspace-owned Map
 // (`${characterId}:${tab}`) for the life of the page view — an inspector is
 // a reference surface, and stale-by-minutes is fine. The refresh affordance
 // is switching tabs off and back... or the page-level refresh any staging
 // action already does.
 
-const TABS = ["Sheet", "Tags", "Archive", "DMs"];
+const BASE_TABS = ["Sheet", "Tags", "Archive", "DMs"];
 
-function useInspectorData(characterId, tab, cache, setCache) {
+function useInspectorData(characterId, tab, cache, setCache, fetched) {
   // The cache is Workspace-owned state (not a ref — entries are read during
   // render, and react-hooks/refs is an error here). The effect's only job is
   // filling a miss, and its setCache happens after the await — never
   // synchronously in the effect body (react-hooks/set-state-in-effect).
-  const key = characterId ? `${characterId}:${tab === "Tags" ? "Sheet" : tab}` : null;
+  // An extra tab (Canon, Notes) loads its own data inside its render, so it
+  // never takes a slot in this cache.
+  const key = characterId && fetched ? `${characterId}:${tab === "Tags" ? "Sheet" : tab}` : null;
   const entry = key ? (cache.get(key) ?? null) : null;
 
   useEffect(() => {
@@ -54,7 +69,7 @@ function useInspectorData(characterId, tab, cache, setCache) {
   return {
     data: entry?.data ?? null,
     error: entry?.error ?? null,
-    loading: Boolean(characterId) && !entry,
+    loading: Boolean(key) && !entry,
   };
 }
 
@@ -128,7 +143,22 @@ function StagedDeltaFact({ display, pendingSuffix, onStage, disabled }) {
   );
 }
 
-function SheetView({ data, tab, tagsById, currentTurnNumber, characterId, pending, refresh }) {
+// Gunboat's words, verbatim, on every custom-tag door.
+const CUSTOM_TAG_TOOLTIP =
+  "Use this for things that would affect adjudications—not just little bracelets or something.";
+
+function SheetView({
+  data,
+  tab,
+  tagsById,
+  currentTurnNumber,
+  characterId,
+  characterName,
+  pending,
+  refresh,
+  customTag,
+}) {
+  const [creatingTag, setCreatingTag] = useState(false);
   async function stageResources(delta) {
     const res = await createStagedEffects({ targetCharacterIds: [characterId], resources: delta });
     if (res?.ok) refresh();
@@ -152,6 +182,36 @@ function SheetView({ data, tab, tagsById, currentTurnNumber, characterId, pendin
   if (tab === "Tags") {
     return (
       <div className="flex flex-wrap gap-1.5 p-3">
+        {/* The custom-tag door. The desk decides whether it stages or grants
+            (the adjudication desk is mid-push, so it defaults to staging);
+            the dialog itself is the one shared component behind every door. */}
+        {customTag && (
+          <div className="flex w-full justify-end">
+            <Tooltip text={CUSTOM_TAG_TOOLTIP}>
+              <button type="button" className="btn-quiet" onClick={() => setCreatingTag(true)}>
+                + Custom tag
+              </button>
+            </Tooltip>
+          </div>
+        )}
+        {creatingTag && customTag && (
+          <CustomTagDialog
+            categories={customTag.categories ?? []}
+            groups={customTag.groups}
+            tags={customTag.tags ?? []}
+            characters={[{ id: characterId, name: characterName ?? "this character" }]}
+            defaultAssignIds={[characterId]}
+            mode={customTag.mode ?? "apply"}
+            allowStage
+            onClose={() => setCreatingTag(false)}
+            onCreated={() => {
+              setCreatingTag(false);
+              // The grant (or the staged row) landed server-side; the desk
+              // reload is what brings it back into this tab.
+              refresh();
+            }}
+          />
+        )}
         {data.tags.length ? (
           data.tags.map((ct) => {
             const isPendingRemove = pending?.removes?.has(ct.tagId);
@@ -300,7 +360,13 @@ function DmsView({ data, characterId, cacheKey, setCache }) {
       const res = await sendGmDm({ characterId, content, source: "gm_inspector" });
       if (res?.ok) {
         setDraft("");
-        setCache((prev) => new Map(prev).set(cacheKey, { data: res }));
+        // sendGmDm also returns a fresh tail page; the inspector's thread is a
+        // short compact view, so appending the one written row is enough here.
+        setCache((prev) =>
+          new Map(prev).set(cacheKey, {
+            data: { ...data, messages: [...data.messages, res.message].filter(Boolean) },
+          }),
+        );
       } else {
         setError(res?.error ?? "Couldn't send that.");
       }
@@ -420,11 +486,27 @@ export default function InspectorColumn({
   currentTurnNumber,
   pendingByCharacter,
   onOpenDev,
+  // Desk-specific tabs, appended after the four base ones. Each is
+  // { key, label, render(ctx) }; `render` gets the inspected person and owns
+  // its own loading, exactly like the base tabs own theirs.
+  extraTabs = [],
+  // Buttons that belong beside the pins (the player desk's "Message pinned").
+  pinsActions = null,
+  emptyHint,
+  // { mode, categories, tags, groups } — omit to hide the custom-tag door.
+  customTag = null,
 }) {
   const [refresh] = useRefresh();
   const [tab, setTab] = useState("Sheet");
   const [contextEntry, setContextEntry] = useState(null);
-  const { data, error, loading } = useInspectorData(inspected?.characterId ?? null, tab, cache, setCache);
+  const extraTab = extraTabs.find((t) => t.key === tab) ?? null;
+  const { data, error, loading } = useInspectorData(
+    inspected?.characterId ?? null,
+    tab,
+    cache,
+    setCache,
+    !extraTab,
+  );
 
   const isPinned = pinned.some((p) => p.characterId === inspected?.characterId);
   const pending = pendingByCharacter?.get(inspected?.characterId);
@@ -436,7 +518,7 @@ export default function InspectorColumn({
   return (
     <aside className="desk-inspector">
       {roster && <InspectorSearch roster={roster} onInspect={onInspect} />}
-      {pinned.length > 0 && (
+      {(pinned.length > 0 || pinsActions) && (
         <div className="desk-inspector-pins">
           {pinned.map((p) => (
             <button
@@ -449,13 +531,14 @@ export default function InspectorColumn({
               {p.name}
             </button>
           ))}
+          {pinsActions}
         </div>
       )}
 
       {!inspected ? (
         <p className="p-4 text-sm text-muted">
-          Click any character name — in the queue, on the desk, in the tray — to look them up here
-          without leaving the workspace.
+          {emptyHint ??
+            "Click any character name — in the queue, on the desk, in the tray — to look them up here without leaving the workspace."}
         </p>
       ) : (
         <>
@@ -485,17 +568,20 @@ export default function InspectorColumn({
           </div>
 
           <div className="tab-bar" role="tablist">
-            {TABS.map((t) => (
+            {[
+              ...BASE_TABS.map((t) => ({ key: t, label: t })),
+              ...extraTabs.map((t) => ({ key: t.key, label: t.label })),
+            ].map((t) => (
               <button
-                key={t}
+                key={t.key}
                 type="button"
                 role="tab"
-                aria-selected={t === tab}
-                data-active={t === tab}
+                aria-selected={t.key === tab}
+                data-active={t.key === tab}
                 className="tab-item"
-                onClick={() => setTab(t)}
+                onClick={() => setTab(t.key)}
               >
-                {t}
+                {t.label}
               </button>
             ))}
           </div>
@@ -510,14 +596,17 @@ export default function InspectorColumn({
                 tagsById={tagsById}
                 currentTurnNumber={currentTurnNumber}
                 characterId={inspected.characterId}
+                characterName={inspected.name}
                 pending={pending}
                 refresh={refresh}
+                customTag={customTag}
               />
             )}
             {data && tab === "Archive" && <ArchiveView data={data} onOpenContext={setContextEntry} />}
             {data && tab === "DMs" && (
               <DmsView data={data} characterId={inspected.characterId} cacheKey={cacheKey} setCache={setCache} />
             )}
+            {extraTab?.render({ inspected, currentTurnNumber, refresh })}
           </div>
         </>
       )}

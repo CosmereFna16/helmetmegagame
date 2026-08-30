@@ -907,6 +907,7 @@ module.exports = {
   ...require("./lib/depot"),
   ...require("./lib/formatTagRequirement"),
   ...require("./lib/turnFormat"),
+  ...require("./lib/turnClock"),
   ...require("./lib/lifeweb"),
   ...require("./lib/gambitModifier"),
   ...require("./lib/moveEffects"),

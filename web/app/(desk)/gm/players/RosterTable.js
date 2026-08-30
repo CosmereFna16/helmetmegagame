@@ -52,7 +52,10 @@ const FILTER_DEFS = [
 
 // scoreMatch fields. Both zone concepts (faction seat and where they're
 // physically standing) share the one "zone" slot the fuzzy engine has —
-// concatenated rather than picking one, so a query matches either.
+// concatenated rather than picking one, so a query matches either. `tag` is
+// every tag name the character holds, which is what makes "search by faction
+// or player" reach the sheet: role and faction were the only two proxies for
+// it before, and neither covers a Smith who took Pale.
 const CHARACTER_STATUS_TEXT = { ALIVE: "Alive", DEAD: "Dead", CURSED: "Cursed" };
 const searchMapFor = (c) => ({
   name: c.name,
@@ -61,6 +64,7 @@ const searchMapFor = (c) => ({
   zone: `${c.factionZoneName ?? ""} ${c.zoneName ?? ""}`,
   username: c.username || c.globalName,
   status: CHARACTER_STATUS_TEXT[c.status] ?? c.status,
+  tag: c.tag,
 });
 
 export default function RosterTable({

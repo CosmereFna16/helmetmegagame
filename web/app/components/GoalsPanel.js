@@ -7,11 +7,17 @@ import DesirePanel from "./DesirePanel";
 // component rather than inlining DesirePanel into CharacterSheet, since a
 // second goal is plausible again later and this is the natural place for it
 // to slot back in.
-export default function GoalsPanel({ desire, desireCooldownUntilTurn, openTurnNumber }) {
+export default function GoalsPanel({
+  desires,
+  maxActiveDesires,
+  desireCooldownUntilTurn,
+  openTurnNumber,
+}) {
   return (
     <section className="panel p-4">
       <DesirePanel
-        desire={desire}
+        desires={desires}
+        maxActiveDesires={maxActiveDesires}
         cooldownUntilTurn={desireCooldownUntilTurn}
         openTurnNumber={openTurnNumber}
       />

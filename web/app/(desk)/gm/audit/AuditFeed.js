@@ -42,7 +42,6 @@ export default function AuditFeed({
   selectedId,
   onSelect,
   absoluteTime,
-  density,
   emptyMessage,
 }) {
   const [kbdIndex, setKbdIndex] = useState(-1);
@@ -113,7 +112,7 @@ export default function AuditFeed({
   }
 
   return (
-    <div className="audit-feed" data-density={density} ref={listRef}>
+    <div className="audit-feed" ref={listRef}>
       {rows.map(({ entry, heading, described }, i) => {
         const { familyLabel, tone, segments } = described;
         const stamp = new Date(entry.createdAt);

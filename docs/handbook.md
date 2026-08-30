@@ -322,6 +322,8 @@ Farming is how Ravenheart is fed, and as such it's taxed by the Headman. More in
 
 You cannot edit or cancel a Move after submitting it. Double check each part of your submission before confirming it.
 
+Moves must also be sent **three hours before the turn ends** — 9:00 AM and 9:00 PM Chicago time — so the Gamemasters have time to read and resolve them. After that the Move button will refuse you until the next turn opens. Traveling, Speaking, and requests are not affected.
+
 ## Tags & Tag Points
 
 Tags represent your character's skills, assets, injuries, and all other attributes. You can hover over any tag on the website to see its description, cost, effects, and any requirements.
@@ -346,7 +348,7 @@ You can spend tag points, using the option on your character sheet, to acquire n
 
 Tags are gained, used, and removed via options on your [Character](https://ravenheart.quest/character) page. Each is a *request*. It applies immediately, but prompts for a reason which a GM will review.
 
-- **Add Tag** gains a tag by crafting or similar actions. The cost is taken immediately, but you still need to spend your Move on it.
+- **Add Tag** gains a tag by crafting or similar actions. The cost is taken immediately, but you still need to spend your Move on it. **Dead Simple** recipes take no turns to make, so they are capped instead: at most **4 Dead Simple items per turn**.
 - **Remove Tag** drops items or otherwise removes applicable tags.
 - **Consume** removes item tags that can be eaten, drank, or otherwise used.
 - **Transfer Tag** gives a transferrable tag to someone else in your Zone. Give only, no take.
@@ -418,8 +420,8 @@ In the header:
 - **Spend Tag Points:** Opens the Tag Store to spend unused points.
 - **Equipment:** Tags that you can wear. Click up to 6 equippable tags (weapons, armor, etc.) to don them, click them again to unequip.
 
-**Desire:** Your character's current goal, which may be changed based on a cooldown. Set what your character wants and how many points it's worth. The ⓘ explains the point scale.  
-**Fulfill** it when you have achieved it, or **Cancel** it.
+**Desires:** Your character's current goals. You can hold up to three at once, and ending one puts you on a cooldown before you can set another. Set what your character wants and how many points it's worth. The ⓘ explains the point scale.  
+**Fulfill** one when you have achieved it, or **Cancel** it.
 
 **Default Move:** What your character does on any turn you don't submit a custom Move. Can be optionally published in the public Summary.
 
