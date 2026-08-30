@@ -2,8 +2,9 @@
 //
 // Nothing stores a turn's end time: turns advance at 0:00 and 12:00
 // America/Chicago (bot/src/events/ready.js's cron), strictly alternating
-// DAWN/DUSK, so the end is derivable — a DAWN turn opens at noon and closes at
-// midnight, a DUSK turn opens at midnight and closes at noon. The old helper
+// DAWN/DUSK, so the end is derivable — a DAWN turn opens at midnight and closes
+// at noon, a DUSK turn opens at noon and closes at midnight (and this module
+// does not even need to know which: the next boundary is the next boundary). The old helper
 // (weather.js#turnEndEpochSeconds) derived it from *now* and the phase, which
 // is only correct at the instant the turn opens: the bot rebuilds the #turns
 // announcement on restart, so a restart at 18:00 posted "ends at noon, six
