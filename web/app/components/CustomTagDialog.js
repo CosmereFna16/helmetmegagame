@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@/app/components/useRefresh";
 import Modal from "@/app/components/Modal";
 import FormError from "@/app/components/FormError";
 import CheckField from "@/app/components/CheckField";
@@ -56,7 +56,7 @@ export default function CustomTagDialog({
   allowStage = false,
   onCreated,
 }) {
-  const router = useRouter();
+  const [refresh] = useRefresh();
   const [values, setValues] = useState(BLANK);
   const [cloneFromId, setCloneFromId] = useState("");
   const [assignIds, setAssignIds] = useState(() => new Set(defaultAssignIds));
@@ -126,7 +126,10 @@ export default function CustomTagDialog({
         setError(res?.error ?? "Something went wrong.");
         return;
       }
-      router.refresh();
+      // Through useRefresh: this dialog closes itself via onCreated below, so
+      // a transition it owned would be orphaned and drop the desk underneath
+      // to its loading skeleton.
+      refresh();
       if (res.failed?.length) {
         // The tag exists (say so — a retry would clash on the name), but some
         // targets weren't tagged. Stay open so the GM actually reads it; the

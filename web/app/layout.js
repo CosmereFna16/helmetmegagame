@@ -13,6 +13,7 @@ import ProductionRatesProvider from "./components/ProductionRatesProvider";
 import PartySizeProvider from "./components/PartySizeProvider";
 import DocumentsProvider from "./components/DocumentsProvider";
 import ConfirmProvider from "./components/ConfirmProvider";
+import { RefreshProvider } from "./components/useRefresh";
 
 // Body/UI face. Pairs with Source Serif 4 as a designed superfamily.
 const sans = Source_Sans_3({
@@ -82,15 +83,21 @@ export default async function RootLayout({ children }) {
             dashboard. */}
         <div className="grain" />
         <div className="vignette" />
-        <ConfirmProvider>
-          <TagsProvider tagsPromise={tagsPromise}>
-            <ProductionRatesProvider ratesPromise={ratesPromise}>
-              <PartySizeProvider sizesPromise={sizesPromise}>
-                <DocumentsProvider docsPromise={docsPromise}>{children}</DocumentsProvider>
-              </PartySizeProvider>
-            </ProductionRatesProvider>
-          </TagsProvider>
-        </ConfirmProvider>
+        {/* RefreshProvider sits above every loading.js boundary on purpose —
+            it owns the one transition router.refresh() runs in, so a modal or
+            a staged row that removes itself in the same handler can't orphan
+            it and drop a desk to its skeleton. See useRefresh.js. */}
+        <RefreshProvider>
+          <ConfirmProvider>
+            <TagsProvider tagsPromise={tagsPromise}>
+              <ProductionRatesProvider ratesPromise={ratesPromise}>
+                <PartySizeProvider sizesPromise={sizesPromise}>
+                  <DocumentsProvider docsPromise={docsPromise}>{children}</DocumentsProvider>
+                </PartySizeProvider>
+              </ProductionRatesProvider>
+            </TagsProvider>
+          </ConfirmProvider>
+        </RefreshProvider>
       </body>
     </html>
   );

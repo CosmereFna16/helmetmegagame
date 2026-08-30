@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@/app/components/useRefresh";
 import Modal from "@/app/components/Modal";
 import DevPanel from "@/app/(app)/gm/dev/characters/[characterId]/DevPanel";
 import { getDevPanelData } from "./devPanelActions";
@@ -19,7 +19,7 @@ import { getDevPanelData } from "./devPanelActions";
 // lives inside it and closing has to route through the same guard
 // Apply/Cancel use.
 export default function DevPanelModal({ characterId, name, onClose }) {
-  const router = useRouter();
+  const [refresh] = useRefresh();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
 
@@ -48,8 +48,9 @@ export default function DevPanelModal({ characterId, name, onClose }) {
     if (res?.ok) setData(res.props);
     // The desk's own RSC data (queue rows, staged hints) can be stale too —
     // a microaction here (kill, revive, resync…) can change what the desk
-    // shows for this character elsewhere on the page.
-    router.refresh();
+    // shows for this character elsewhere on the page. Through useRefresh, so
+    // the desk under this modal doesn't blink through its loading skeleton.
+    refresh();
   }
 
   if (!data) {
@@ -72,7 +73,7 @@ export default function DevPanelModal({ characterId, name, onClose }) {
       onMutated={reload}
       onDeleted={() => {
         onClose();
-        router.refresh();
+        refresh();
       }}
     />
   );
