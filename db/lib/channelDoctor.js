@@ -49,7 +49,10 @@ const {
 
 // See db/prisma/prune-orphan-roles.js for the signature's provenance:
 // mentionable and coloured by a hash of its own name is something nothing
-// else in the guild reproduces by accident.
+// else in the guild reproduces by accident. A Catatonic character's role
+// ("<name> • Catatonic", flat grey — db/lib/characterRoleAppearance.js)
+// fails this on purpose; it's protected anyway, because a claimed role is
+// skipped before the signature is ever tested.
 function looksLikeCharacterRole(role) {
   return role.mentionable === true && role.color === hashNameToColor(role.name);
 }

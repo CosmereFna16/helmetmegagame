@@ -30,7 +30,7 @@ const { runStagedPushPass } = require("./lib/stagedPush");
 // why there are three same-named sendDm exports with three signatures.
 const { sendDm } = require("./lib/dm");
 const { recordArchiveMessage, recordArchiveEvent } = require("./lib/archive");
-const { postAsCharacter, postMessage, attachBreakerStore } = require("./lib/discordRest");
+const { postAsCharacter, postMessage, attachBreakerStore, patchGuildRole } = require("./lib/discordRest");
 const { bumpBlood } = require("./lib/lifeweb");
 const { runFullChannelWipe } = require("./lib/fullWipe");
 const { syncZonesFromYaml } = require("./lib/syncZones");
@@ -164,13 +164,14 @@ async function sweepExpiredStacks(turn) {
 // automated one actually resolving Needs.
 //
 // Returns { lifewebBlood, starvedNotices, defaultMovePosts,
-// defaultMoveDms, tagExpiryDms, catatonicDms, cavingDms }. Everything after
+// defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates,
+// cavingDms }. Everything after
 // the first is Discord work this function deliberately does NOT perform —
 // the Hunger pass's DM list (one notice per starved character: discordUserId,
 // streak, justDied), the Default Move pass's summary posts and DMs, the tag
-// progression pass's DMs, the Catatonic pass's one-DM-per-newly-flagged list,
-// and the Caving Die's one-DM-per-1-or-6 list. See advanceTurn() below for
-// why.
+// progression pass's DMs, the Catatonic pass's one-DM-per-newly-flagged list
+// and its personal-role renames, and the Caving Die's one-DM-per-1-or-6
+// list. See advanceTurn() below for why.
 // Every pass this turn owes, by the name markDone records it under. The
 // needsResolvedAt stamp at the bottom is written only when `done` covers all
 // of them, which is what makes the resume machinery mean anything.
@@ -357,7 +358,9 @@ async function resolveNeeds(turn, config) {
     });
     if (catatonic) await markDone("catatonic");
   }
-  const { dms: catatonicDms = [], ...catatonicSummary } = catatonic ?? {};
+  // roleUpdates is pulled out alongside the DMs so neither lands in the
+  // audit row's details — the summary is counts, not a Discord work list.
+  const { dms: catatonicDms = [], roleUpdates: catatonicRoleUpdates = [], ...catatonicSummary } = catatonic ?? {};
   if (catatonic) {
     await prisma.auditLog
       .create({
@@ -482,6 +485,7 @@ async function resolveNeeds(turn, config) {
     defaultMoveDms,
     tagExpiryDms,
     catatonicDms,
+    catatonicRoleUpdates,
     cavingDms,
     privateDeliveries,
     publicPosts,
@@ -526,6 +530,7 @@ async function advanceTurn() {
   let defaultMoveDms = [];
   let tagExpiryDms = [];
   let catatonicDms = [];
+  let catatonicRoleUpdates = [];
   let cavingDms = [];
   let privateDeliveries = [];
   let publicPosts = [];
@@ -562,7 +567,7 @@ async function advanceTurn() {
       };
     }
 
-    ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, cavingDms, privateDeliveries, publicPosts, zoneMoves, routineNotices } =
+    ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, cavingDms, privateDeliveries, publicPosts, zoneMoves, routineNotices } =
       await resolveNeeds(openTurn, config));
   } else {
     // No OPEN turn, which normally means "opening the very first turn". It
@@ -627,7 +632,7 @@ async function advanceTurn() {
           },
         })
         .catch((logErr) => console.error("Failed to log turn_resume — the resume now has no record:", logErr));
-      ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, cavingDms, privateDeliveries, publicPosts, zoneMoves, routineNotices } =
+      ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, cavingDms, privateDeliveries, publicPosts, zoneMoves, routineNotices } =
         await resolveNeeds(unfinished, config));
     }
   }
@@ -725,6 +730,17 @@ async function advanceTurn() {
     for (const dm of catatonicDms) {
       await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
         console.error(`Catatonic DM to ${dm.discordUserId} failed:`, err),
+      );
+    }
+
+    // The personal-role renames the Catatonic pass owes — "<name> • Catatonic"
+    // in grey going down, bare name + hash colour coming back (see
+    // db/lib/characterRoleAppearance.js). Best-effort like the DMs: a failed
+    // rename leaves a stale role name, which the next flag/clear or profile
+    // save corrects, so it never blocks the advance.
+    for (const update of catatonicRoleUpdates) {
+      await patchGuildRole(update.roleId, { name: update.name, color: update.color }).catch((err) =>
+        console.error(`Catatonic role rename for ${update.name} failed:`, err),
       );
     }
 
@@ -915,6 +931,7 @@ module.exports = {
   ...require("./lib/constants"),
   ...require("./lib/roleIds"),
   ...require("./lib/roleColor"),
+  ...require("./lib/characterRoleAppearance"),
   ...require("./lib/characterName"),
   ...require("./lib/titles"),
   ...require("./lib/nameCorpus"),

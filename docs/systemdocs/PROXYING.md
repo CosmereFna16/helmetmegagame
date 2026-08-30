@@ -290,7 +290,13 @@ which is why `archiveVisible` is meant to stay shut until the game ends
 
 A character's personal Discord role is a **mentionable name token and nothing
 else** — held by nobody, granting nothing (`CHANNELS.md` §3). `Character.discordRoleId`
-is `@unique`, so a mentioned role id resolves straight back to one character. Mentioning a GM/spectator/player role resolves to nothing
+is `@unique`, so a mentioned role id resolves straight back to one character.
+While the character is Catatonic (AFK), the token itself says so: the role
+reads `<name> • Catatonic` in flat grey, renamed by the turn pass and
+restored the moment they act — composed only by
+`db/lib/characterRoleAppearance.js`, which is also what `ensureCharacterRole`
+uses, so a profile save mid-catatonia keeps the suffix. Mentioning the
+renamed role still resolves normally; the id never changes. Mentioning a GM/spectator/player role resolves to nothing
 and is silently ignored.
 
 `bot/src/lib/mentions.js` owns both things a mention does;

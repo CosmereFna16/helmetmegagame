@@ -971,7 +971,18 @@ is also the only tag in the game that a pass both grants **and** clears
 itself — it carries no `durationTurns`, deliberately, because there is no
 sweep to hand the clear to; see `TURN-ENGINE.md` §2 for why that's the
 correct exception to "every grant must stamp `expiresTurn`" rather than a
-repeat of the Paralyzed bug. The Health chain (§5c) is another such system,
+repeat of the Paralyzed bug. Because its whole purpose is broadcasting
+"this player is AFK", it surfaces further than any other tag: a chip on the
+`/faction` member roster (visible to ordinary members — the deliberate
+exception to that roster's no-fate rule), a Catatonic column on
+`/gm/players`, a muted dot on `CharacterAvatar` across the GM desks, a
+Condition row on the player's own `/character` sheet, and the character's
+personal Discord role renamed to `<name> • Catatonic` in flat grey. The
+role's name/colour are composed only by
+`db/lib/characterRoleAppearance.js` — shared by `ensureCharacterRole` and
+the pass's returned `roleUpdates` — so a profile save can't strip the
+suffix, and the doctor/pruner skip claimed roles before their signature
+test ever sees the grey. The Health chain (§5c) is another such system,
 and it
 deliberately holds **no** slugs in `constants.js`: the whole chain is catalog
 data, so `tagExpiryPass.js` never names a tag and a new chain needs no code

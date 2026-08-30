@@ -259,7 +259,12 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
               </button>
               <Link href={href} className="desk-queue-link">
                 <div className="desk-queue-top">
-                  <CharacterAvatar characterId={row.characterId} name={row.name} version={row.avatarVersion} />
+                  <CharacterAvatar
+                    characterId={row.characterId}
+                    name={row.name}
+                    version={row.avatarVersion}
+                    catatonic={row.catatonic}
+                  />
                   <span className="desk-queue-name">{row.name}</span>
                   {row.username && <span className="text-xs text-muted">@{row.username}</span>}
                   {row.factionZoneName ? <ZoneChip zoneName={row.factionZoneName} /> : null}

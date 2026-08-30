@@ -2,8 +2,9 @@ import { cache } from "react";
 import { auth } from "@/lib/auth";
 import {
   prisma,
-  hashNameToColor,
+  characterRoleAppearance,
   formatBareName,
+  CATATONIC_SLUG,
   buildNarrowcastContext,
   computeNarrowcastAccess,
   PLAYER_ROLE_ID,
@@ -78,7 +79,7 @@ async function fetchLocationChannelIds() {
 }
 
 // Pass the result to isSummaryChannel/isTupperChannel's second argument.
-export const getLocationChannelIds = cache(async () => {
+const getLocationChannelIds = cache(async () => {
   const cached = locationChannelCache.get("all");
   if (cached !== undefined) return cached;
   const value = await fetchLocationChannelIds();
@@ -439,12 +440,17 @@ export async function removeCursedRole(discordUserId) {
 }
 
 // Personal Discord role titled after this character's name, colored
-// deterministically by db/lib/roleColor.js#hashNameToColor from that same
-// bare name. Creates the role the first time a character gets a name; every later call
+// deterministically from that same bare name. Creates the role the first
+// time a character gets a name; every later call
 // (idempotent, safe to call on every profile save) renames/recolors it to
 // match the character's current name. Called as a best-effort side effect
 // from updateCharacterProfile and updateCharacterRaw, same convention as
 // syncCharacterNickname above.
+//
+// Composition goes through db/lib/characterRoleAppearance.js, never straight
+// to hashNameToColor: while a character is Catatonic the Catatonic pass has
+// this role reading "<name> • Catatonic" in grey, and a profile save that
+// composed bare-name-plus-hash here would silently strip that.
 export async function ensureCharacterRole(character) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const token = process.env.DISCORD_TOKEN;
@@ -455,13 +461,17 @@ export async function ensureCharacterRole(character) {
   const bare = formatBareName(character);
   if (!guildId || !token || !bare) return character.discordRoleId ?? null;
 
-  const color = hashNameToColor(bare);
+  const catatonic =
+    (await prisma.characterTag.count({
+      where: { characterId: character.id, tag: { slug: CATATONIC_SLUG } },
+    })) > 0;
+  const { name, color } = characterRoleAppearance(bare, { catatonic });
 
   try {
     if (!character.discordRoleId) {
       const role = await discordRequest(`/guilds/${guildId}/roles`, {
         method: "POST",
-        body: { name: bare, color, hoist: false, mentionable: true },
+        body: { name, color, hoist: false, mentionable: true },
       });
 
       // The role is deliberately assigned to NOBODY. It exists to be
@@ -477,7 +487,7 @@ export async function ensureCharacterRole(character) {
 
     await discordRequest(`/guilds/${guildId}/roles/${character.discordRoleId}`, {
       method: "PATCH",
-      body: { name: bare, color },
+      body: { name, color },
     });
     return character.discordRoleId;
   } catch (err) {
@@ -642,27 +652,6 @@ export async function killCharacter(character, reason = null) {
     content: `${character.name} died.`,
   });
 }
-
-const CHANNEL_TYPE_CATEGORY = 4;
-
-// Generic channel/category creation for the GM provisioning paths in
-// web/app/(app)/gm/dev/actions.js — a category is just this with type 4 and
-// no parent_id.
-export async function createGuildChannel(payload) {
-  const guildId = process.env.DISCORD_GUILD_ID;
-  const token = process.env.DISCORD_TOKEN;
-  if (!guildId || !token) throw new Error("Discord guild is not configured.");
-
-  return discordRequest(`/guilds/${guildId}/channels`, { method: "POST", body: payload });
-}
-
-export { CHANNEL_TYPE_CATEGORY };
-
-// sortLocationCategories used to live here, re-ordering one Discord category
-// per Location. The zone rework retired per-Location channels entirely — a
-// zone's category is created once by the YAML sync in Zone.sortOrder order
-// (db/lib/syncZones.js), so there is nothing left to re-sort from the web
-// side.
 
 // Applies the `»` prefix (CLAUDE.md, "Bot message style") and logs the DM, so
 // /gm/messages keeps the whole conversation.

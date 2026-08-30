@@ -117,7 +117,11 @@ silently on load, instead of surviving as a pin to nothing.
 ## 4. The roster
 
 Everything the old table had, plus the columns a GM actually asks about
-mid-turn: **Acted this turn** and **tag count**. Selection is a `Set` of
+mid-turn: **Acted this turn** and **tag count**. A **Catatonic** column sits
+beside Cursed, same shape (word or dash), computed from the `catatonic` tag
+rows the page already loads — the same AFK state the rail avatars mark with
+a muted dot (`CharacterAvatar`'s `catatonic` prop; see `TAGS.md` §7 for
+every surface the tag reaches). Selection is a `Set` of
 character ids, so it survives paging, filtering and sorting. Select-all covers
 the **filtered page**, not the whole roster — a header checkbox that quietly
 picks up a hundred people you cannot see is how a broadcast goes to the wrong

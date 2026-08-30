@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import FactionLink from "@/app/components/FactionLink";
 import CharacterLink from "@/app/components/CharacterLink";
-import { prisma } from "@lifeweb/db";
+import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import { getMyFactionRole, getSiloAccess } from "@/lib/factionPermissions";
@@ -45,6 +45,12 @@ async function loadFaction(factionId) {
           // Only ever rendered behind a Silo-access check (viewCanManageSilo
           // below, or the GM branch) — a plain member never sees the column.
           resources: true,
+          // Just the AFK marker, not the sheet: rows only when the member
+          // holds the catatonic tag, so `tags.length > 0` is the whole read.
+          tags: {
+            where: { tag: { slug: CATATONIC_SLUG } },
+            select: { id: true },
+          },
         },
       },
     },
@@ -286,7 +292,11 @@ export default async function FactionPage({ searchParams }) {
                   fiction (a DEATH archive entry, an in-character message)
                   rather than a broadcast every faction member reads on
                   login. GMs still see the Fate column on the GM branch
-                  below, and the corpse's owner already knows. */}
+                  below, and the corpse's owner already knows.
+
+                  Catatonic is the deliberate exception: it's a visible tag
+                  whose whole purpose is telling the rest of the faction this
+                  player is AFK, so the chip renders for everyone. */}
               {faction.characters.map((c) => {
                 const treasurer = c.isTreasurer;
                 return (
@@ -295,6 +305,9 @@ export default async function FactionPage({ searchParams }) {
                       <CharacterLink characterId={c.id} name={c.name} isGm={gm} />
                       {c.isLeader ? " (Leader)" : ""}
                       {treasurer ? " (Treasurer)" : ""}
+                      {c.tags.length > 0 && (
+                        <span className="chip text-xs text-muted ml-2">Catatonic</span>
+                      )}
                     </td>
                     <td>{c.roleTitle ?? "—"}</td>
                     {viewCanManageSilo && <td>{c.resources} ⬢</td>}
@@ -420,6 +433,9 @@ export default async function FactionPage({ searchParams }) {
                     <CharacterLink characterId={c.id} name={c.name} isGm />
                     {c.isLeader ? " (Leader)" : ""}
                     {treasurer ? " (Treasurer)" : ""}
+                    {c.tags.length > 0 && (
+                      <span className="chip text-xs text-muted ml-2">Catatonic</span>
+                    )}
                   </td>
                   <td>
                       <EnumPill map={CHARACTER_STATUS} value={c.status} />

@@ -33,7 +33,7 @@ import useSubmitOnEnter from "@/app/components/useSubmitOnEnter";
 // Bulk zone moves stay a superadmin verb on /gm/dev, so a button for it here
 // would fail for most of the people looking at it.
 
-const COL_COUNT = 12;
+const COL_COUNT = 13;
 
 // The key "zone" means the zone SEAT — the zone their faction is keyed to —
 // because that is what every other GM surface means by Zone and what a GM's
@@ -256,9 +256,9 @@ export default function RosterTable({
             </form>
           )}
 
-          {/* Twelve columns. Without a minWidth they compress to one word per
-              line at 375px instead of scrolling inside the frame. */}
-          <TableScroll minWidth="1140px">
+          {/* Thirteen columns. Without a minWidth they compress to one word
+              per line at 375px instead of scrolling inside the frame. */}
+          <TableScroll minWidth="1230px">
             <thead>
               <tr>
                 <th scope="col" className="col-fit">
@@ -277,6 +277,7 @@ export default function RosterTable({
                 <SortHeader label="Standing in" sortKey="zoneName" sort={sort} onSort={toggleSort} />
                 <SortHeader label="Status" sortKey="status" sort={sort} onSort={toggleSort} />
                 <th scope="col">Cursed</th>
+                <th scope="col">Catatonic</th>
                 <SortHeader label="Acted" sortKey="acted" sort={sort} onSort={toggleSort} />
                 <SortHeader label="Tags" sortKey="tagCount" sort={sort} onSort={toggleSort} />
                 <SortHeader label="Resources" sortKey="resources" sort={sort} onSort={toggleSort} />
@@ -299,7 +300,12 @@ export default function RosterTable({
                   </td>
                   <td>
                     <div className="flex items-center gap-2">
-                      <CharacterAvatar characterId={c.id} name={c.name} version={c.avatarVersion} />
+                      <CharacterAvatar
+                        characterId={c.id}
+                        name={c.name}
+                        version={c.avatarVersion}
+                        catatonic={c.catatonic}
+                      />
                       {/* Straight into their conversation — the verb this desk
                           exists for. The Dev Panel is one click further, off
                           the name itself. */}
@@ -334,6 +340,11 @@ export default function RosterTable({
                   </td>
                   <td style={{ color: c.cursed ? "var(--accent-text)" : "var(--muted)" }}>
                     {c.cursed ? "Cursed" : "-"}
+                  </td>
+                  {/* AFK, from the catatonic tag — the auto-granted marker
+                      (db/lib/catatonicPass.js), not a CharacterStatus. */}
+                  <td style={{ color: c.catatonic ? "var(--accent-text)" : "var(--muted)" }}>
+                    {c.catatonic ? "Catatonic" : "-"}
                   </td>
                   <td
                     className="mono"

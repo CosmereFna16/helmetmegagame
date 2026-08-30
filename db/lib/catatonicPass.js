@@ -15,10 +15,14 @@
 // removable: false.
 //
 // Shaped for 100+ players: one read, one bulk write pair, no network call —
-// the per-player DM is returned as a list for advanceTurn() to send later.
+// the per-player DM and the personal-role rename (to "<name> • Catatonic" in
+// grey, and back — see db/lib/characterRoleAppearance.js) are both returned
+// as lists for advanceTurn() to apply later.
 //
 // Takes `prisma` as a parameter — see db/lib/dm.js for why.
 const { CATATONIC_SLUG } = require("./constants");
+const { formatBareName } = require("./characterName");
+const { characterRoleAppearance } = require("./characterRoleAppearance");
 
 function catatonicDm(turns) {
   return (
@@ -34,7 +38,7 @@ async function runCatatonicPass(prisma, turn) {
   // "did not run, retry it forever," and would wedge the turn permanently on
   // a game that has this switched off on purpose.
   if (!config?.catatonicEnabled) {
-    return { turnNumber: turn.number, enabled: false, flagged: 0, cleared: 0, dms: [] };
+    return { turnNumber: turn.number, enabled: false, flagged: 0, cleared: 0, dms: [], roleUpdates: [] };
   }
 
   const catatonicTag = await prisma.tag.findUnique({
@@ -57,6 +61,11 @@ async function runCatatonicPass(prisma, turn) {
       id: true,
       discordUserId: true,
       lastActivityTurn: true,
+      // For the returned roleUpdates: the personal role to rename, and the
+      // name parts characterRoleAppearance composes from.
+      discordRoleId: true,
+      firstName: true,
+      lastName: true,
       // Only the one gating tag comes back, not the whole tag set — the same
       // shape hungerPass.js uses to stay flat at 100+ characters.
       tags: { where: { tagId: catatonicTag.id }, select: { tagId: true } },
@@ -75,7 +84,7 @@ async function runCatatonicPass(prisma, turn) {
     const held = character.tags.length > 0;
 
     if (stale && !held) toFlag.push(character);
-    else if (!stale && held) toClear.push(character.id);
+    else if (!stale && held) toClear.push(character);
   }
 
   // One transaction so a character can never be left flagged-and-cleared out
@@ -102,9 +111,23 @@ async function runCatatonicPass(prisma, turn) {
       skipDuplicates: true,
     }),
     prisma.characterTag.deleteMany({
-      where: { characterId: { in: toClear }, tagId: catatonicTag.id },
+      where: { characterId: { in: toClear.map((character) => character.id) }, tagId: catatonicTag.id },
     }),
   ]);
+
+  // The personal-role renames this pass owes Discord — suffixed grey for the
+  // newly flagged, bare name + hash colour back for the cleared. Returned,
+  // not performed: advanceTurn() applies them next to the DMs, keeping this
+  // pass network-free.
+  const roleUpdate = (character, catatonic) => {
+    const bare = formatBareName(character);
+    if (!character.discordRoleId || !bare) return null;
+    return { roleId: character.discordRoleId, ...characterRoleAppearance(bare, { catatonic }) };
+  };
+  const roleUpdates = [
+    ...toFlag.map((character) => roleUpdate(character, true)),
+    ...toClear.map((character) => roleUpdate(character, false)),
+  ].filter(Boolean);
 
   return {
     turnNumber: turn.number,
@@ -115,6 +138,7 @@ async function runCatatonicPass(prisma, turn) {
       discordUserId: character.discordUserId,
       content: catatonicDm(turns),
     })),
+    roleUpdates,
   };
 }
 

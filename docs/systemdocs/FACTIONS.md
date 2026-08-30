@@ -132,6 +132,12 @@ being a member of that faction does.
   it lists every name in the zone, appending `, {roleTitle}` only for a
   character sharing the viewer's `factionId` (neither Unaffiliated).
 
+One more thing the player roster shows that fate never is: a **Catatonic**
+chip next to an AFK member's name. Death stays hidden there on purpose (the
+comment in `faction/page.js` explains the no-fate rule), but Catatonic is a
+visible tag whose entire job is telling the faction a player is away
+(`TAGS.md` §7), so the chip renders for ordinary members too.
+
 ## 5. Moving Resources out of a Silo
 
 **There is no direct player-facing transfer UI.** `/faction` had a "Transfer

@@ -41,7 +41,10 @@ const {
 } = require("../lib/roleIds");
 const { hashNameToColor } = require("../lib/roleColor");
 
-// See the header: mentionable, and coloured by a hash of its own name.
+// See the header: mentionable, and coloured by a hash of its own name. A
+// Catatonic character's role ("<name> • Catatonic", flat grey —
+// db/lib/characterRoleAppearance.js) fails this on purpose; it's safe anyway,
+// because a claimed role is never a candidate.
 function looksLikeCharacterRole(role) {
   return role.mentionable === true && role.color === hashNameToColor(role.name);
 }

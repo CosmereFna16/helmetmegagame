@@ -1,4 +1,4 @@
-import { prisma } from "@lifeweb/db";
+import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getMyZones } from "@/lib/gmZone";
 import { getOpenTurn } from "@/lib/turn";
@@ -74,6 +74,8 @@ export default async function PlayerDeskLayout({ children }) {
       select: {
         id: true,
         name: true,
+        // For the rail's AFK badge — the one slug this layout reads.
+        slug: true,
         category: true,
         pointCost: true,
         group: { select: { id: true, name: true } },
@@ -165,6 +167,12 @@ export default async function PlayerDeskLayout({ children }) {
     if (!existing || c.status === "ALIVE") characterByUser.set(c.discordUserId, c);
   }
 
+  // Who's AFK, from rows already in hand — feeds the rail avatar's badge.
+  const catatonicTagId = allTags.find((t) => t.slug === CATATONIC_SLUG)?.id ?? null;
+  const catatonicCharacterIds = new Set(
+    characterTags.filter((ct) => ct.tagId === catatonicTagId).map((ct) => ct.characterId),
+  );
+
   // Held-tag names per character, for the rail's fuzzy `tag` field.
   const tagNameById = new Map(allTags.map((t) => [t.id, t.name]));
   const tagNamesByCharacter = new Map();
@@ -213,6 +221,7 @@ export default async function PlayerDeskLayout({ children }) {
       status: c?.status ?? null,
       resources: c?.resources ?? 0,
       cursed: cursedUserIds.has(discordUserId),
+      catatonic: c ? catatonicCharacterIds.has(c.id) : false,
       username,
       globalName: globalNameById.get(discordUserId) ?? "",
       preview: genuine ? `${authorLabel}${genuine.content}` : "",

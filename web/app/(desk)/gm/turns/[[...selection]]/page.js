@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { prisma } from "@lifeweb/db";
+import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { listGuildMembers } from "@/lib/discordGuild";
 import { getGmProfiles } from "@/lib/gmProfiles";
 import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requests";
@@ -161,8 +161,9 @@ export default async function TurnsWorkspacePage({ params }) {
     members,
     myZones,
     gmProfiles,
-    resolvedTurns,
     factions,
+    resolvedTurns,
+    catatonicTagRows,
   ] = await Promise.all([
     openTurn
       ? prisma.action.findMany({
@@ -273,12 +274,22 @@ export default async function TurnsWorkspacePage({ params }) {
       orderBy: { number: "desc" },
       select: { id: true, number: true, phase: true },
     }),
+    // Who's AFK right now, for the queue rows' avatar badge — one indexed
+    // read rather than a tags include bolted onto the request and caving
+    // queries above. (Moves don't need it: MOVE_INCLUDE already carries the
+    // held tags, and moveRow reads the slug straight off them.)
+    prisma.characterTag.findMany({
+      where: { tag: { slug: CATATONIC_SLUG }, character: { status: "ALIVE" } },
+      select: { characterId: true },
+    }),
   ]);
 
   const usernameById = new Map(members.map((m) => [m.id, m.username]));
   const nameFor = (c) => usernameById.get(c.discordUserId) ?? c.discordUserId;
   const now = new Date();
   const gmProfilesById = Object.fromEntries(gmProfiles.map((p) => [p.discordUserId, { username: p.username, avatarUrl: p.avatarUrl }]));
+
+  const catatonicIds = new Set(catatonicTagRows.map((row) => row.characterId));
 
   const tagsById = tagsByIdFor(actions);
   const moves = actions.map((a) => moveRow(a, { usernameById, now }));
@@ -288,6 +299,7 @@ export default async function TurnsWorkspacePage({ params }) {
     characterId: r.characterId,
     characterName: r.character.name,
     avatarVersion: r.character.updatedAt.getTime(),
+    catatonic: catatonicIds.has(r.characterId),
     discordUserId: r.character.discordUserId,
     discordUsername: nameFor(r.character),
     roleTitle: r.character.roleTitle ?? "",
@@ -315,6 +327,7 @@ export default async function TurnsWorkspacePage({ params }) {
     characterId: c.characterId,
     characterName: c.character.name,
     avatarVersion: c.character.updatedAt.getTime(),
+    catatonic: catatonicIds.has(c.characterId),
     discordUsername: nameFor(c.character),
     roleTitle: c.character.roleTitle ?? "",
     factionZoneName: c.character.faction?.zone?.name ?? c.zone?.name ?? "",

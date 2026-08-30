@@ -1,4 +1,4 @@
-import { prisma } from "@lifeweb/db";
+import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { listGuildMembers } from "@/lib/discordGuild";
 import { getMyZones } from "@/lib/gmZone";
 import { getOpenTurn } from "@/lib/turn";
@@ -21,6 +21,8 @@ export default async function PlayerRosterPage({ searchParams }) {
       select: {
         id: true,
         name: true,
+        // For the roster's Catatonic column — the one slug this page reads.
+        slug: true,
         category: true,
         description: true,
         pointCost: true,
@@ -71,6 +73,12 @@ export default async function PlayerRosterPage({ searchParams }) {
     if (list) list.push(name);
     else tagNamesByCharacter.set(ct.characterId, [name]);
   }
+  // Who's AFK, from rows already in hand — heldTags is the full CharacterTag
+  // table and the catalog is loaded above, so this costs no extra query.
+  const catatonicTagId = tags.find((t) => t.slug === CATATONIC_SLUG)?.id ?? null;
+  const catatonicCharacterIds = new Set(
+    heldTags.filter((ct) => ct.tagId === catatonicTagId).map((ct) => ct.characterId),
+  );
   const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
   const cursedUserIds = new Set(
     cursedRoleId ? members.filter((m) => m.roles.includes(cursedRoleId)).map((m) => m.id) : [],
@@ -99,6 +107,7 @@ export default async function PlayerRosterPage({ searchParams }) {
           globalName: memberById.get(c.discordUserId)?.globalName ?? "",
           resources: c.resources,
           cursed: cursedUserIds.has(c.discordUserId),
+          catatonic: catatonicCharacterIds.has(c.id),
           tagCount: (tagNamesByCharacter.get(c.id) ?? []).length,
           tag: (tagNamesByCharacter.get(c.id) ?? []).join(" "),
           acted: actedCharacterIds.has(c.id),

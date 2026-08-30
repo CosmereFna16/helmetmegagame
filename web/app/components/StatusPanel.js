@@ -1,4 +1,5 @@
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
+import { CATATONIC_SLUG } from "@lifeweb/db/lib/constants";
 import { moveKindLabel, rollLabel } from "@/lib/moves";
 import TagPointsValue from "./TagPointsValue";
 import ActionGrid from "./ActionGrid";
@@ -94,6 +95,12 @@ export default function StatusPanel({ character, isSelf, currentAction, openTurn
   // exactly what gets applied.
   const total = gambitModifierTotal(character.tags, { hungerStreak: character.hungerStreak });
 
+  // Same shape tolerance as gambitModifierTotal above: CharacterTag[] with a
+  // joined tag. The catatonic tag is granted/cleared only by the turn pass
+  // (db/lib/catatonicPass.js), so this row explains itself rather than
+  // leaving the player to find one grey chip among their tags.
+  const catatonic = character.tags?.some((ct) => (ct?.tag?.slug ?? ct?.slug) === CATATONIC_SLUG);
+
   return (
     <section className="panel p-4">
       <h2 className="panel-header">Status</h2>
@@ -108,6 +115,14 @@ export default function StatusPanel({ character, isSelf, currentAction, openTurn
           className="grid min-w-0 flex-1 gap-x-4 gap-y-2"
           style={{ gridTemplateColumns: "auto minmax(0, 1fr)", margin: 0 }}
         >
+          {catatonic && (
+            <Row label="Condition">
+              <span className="text-muted">
+                Catatonic — lifts the moment {isSelf ? "you" : "they"} act or speak in character.
+              </span>
+            </Row>
+          )}
+
           <Row label="Zone">{character.zone?.name ?? "Unassigned"}</Row>
 
           <Row label="Resources">{character.resources} ⬢</Row>
