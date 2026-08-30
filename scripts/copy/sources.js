@@ -93,7 +93,6 @@ const IGNORE_FILES = [
   "db/lib/persistence.js",
   "db/lib/roleIds.js",
   "web/lib/superadmin.js",
-  "web/app/confirm-test/page.js",
 ];
 
 // JSX props whose string value is always copy, however short.

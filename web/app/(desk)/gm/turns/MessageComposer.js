@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Modal from "@/app/components/Modal";
 import FormError from "@/app/components/FormError";
+import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { scoreMatch } from "@/lib/fuzzySearch";
 import { createStagedMessage, updateStagedMessage } from "./actions";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
@@ -34,6 +35,7 @@ export default function MessageComposer({
   const [search, setSearch] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
+  const { markDirty, markClean, guardedClose } = useDirtyGuard();
 
   const matches = useMemo(() => {
     const q = search.trim();
@@ -54,17 +56,27 @@ export default function MessageComposer({
   function submit() {
     setError(null);
     startTransition(async () => {
-      const recipientCharacterIds = recipients.map((r) => r.characterId);
-      const res = existing
-        ? await updateStagedMessage({ stagedMessageId: existing.id, content, recipientCharacterIds })
-        : await createStagedMessage({ kind: "PRIVATE", content, recipientCharacterIds, moveId, cavingRollId });
-      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
-      onDone();
+      try {
+        const recipientCharacterIds = recipients.map((r) => r.characterId);
+        const res = existing
+          ? await updateStagedMessage({ stagedMessageId: existing.id, content, recipientCharacterIds })
+          : await createStagedMessage({ kind: "PRIVATE", content, recipientCharacterIds, moveId, cavingRollId });
+        if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
+        markClean();
+        onDone();
+      } catch {
+        setError("Something went wrong on the server — your change may not have saved. Try again.");
+      }
     });
   }
 
+  const atCap = content.length >= GM_MESSAGE_MAX_LENGTH;
+
   return (
-    <Modal title={existing ? "Edit staged message" : "Stage a message"} onClose={() => !pending && onCancel()}>
+    <Modal
+      title={existing ? "Edit staged message" : "Stage a message"}
+      onClose={() => !pending && guardedClose(onCancel)}
+    >
       <div className="mt-3 flex flex-col gap-4">
         <div className="flex flex-col gap-2">
           <span className="field-label">To</span>
@@ -74,7 +86,10 @@ export default function MessageComposer({
                 key={r.characterId}
                 type="button"
                 className="chip"
-                onClick={() => setRecipients((prev) => prev.filter((p) => p.characterId !== r.characterId))}
+                onClick={() => {
+                  setRecipients((prev) => prev.filter((p) => p.characterId !== r.characterId));
+                  markDirty();
+                }}
                 title="Remove recipient"
               >
                 {r.name} ✕
@@ -96,6 +111,7 @@ export default function MessageComposer({
                   onClick={() => {
                     setRecipients((prev) => [...prev, { characterId: c.id, name: c.name }]);
                     setSearch("");
+                    markDirty();
                   }}
                 >
                   + {c.name}
@@ -111,18 +127,27 @@ export default function MessageComposer({
             Message <span className="text-muted">({content.length}/{GM_MESSAGE_MAX_LENGTH})</span>
           </span>
           <textarea
+            data-autofocus
             rows={5}
             value={content}
             maxLength={GM_MESSAGE_MAX_LENGTH}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e) => {
+              setContent(e.target.value);
+              markDirty();
+            }}
             placeholder="Lands in their DMs when the turn ends, prefixed »"
           />
+          {atCap && (
+            <span className="text-xs text-accent">
+              At the {GM_MESSAGE_MAX_LENGTH}-character cap — a longer paste gets cut off here.
+            </span>
+          )}
         </label>
 
         <FormError>{error}</FormError>
 
         <div className="modal-actions">
-          <button type="button" className="btn-quiet" onClick={onCancel} disabled={pending}>
+          <button type="button" className="btn-quiet" onClick={() => guardedClose(onCancel)} disabled={pending}>
             Cancel
           </button>
           <button type="button" className="btn" onClick={submit} disabled={pending}>

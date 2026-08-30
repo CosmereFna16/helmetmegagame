@@ -102,4 +102,4 @@ function buildTurnAnnouncement(turn, note, { autoTurnAdvanceDisabled = false } =
   return note ? `${header}\n\n${note}` : header;
 }
 
-module.exports = { WEATHER_WEIGHTS, WEATHER_TRANSITIONS, WEATHER_MESSAGES, rollWeather, buildTurnAnnouncement };
+module.exports = { WEATHER_WEIGHTS, WEATHER_MESSAGES, rollWeather, buildTurnAnnouncement };

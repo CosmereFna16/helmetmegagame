@@ -233,8 +233,8 @@ which fixes drift by diffing rather than by a script per symptom.
 | `db:prune-orphan-roles` | Dry-run by default (`-- --apply`): deletes Discord character roles no living character claims. Only touches roles carrying the character-role signature (mentionable + `hashNameToColor` colour), so zone, divider and GM cosmetic roles are never candidates. Guards the 250-role guild cap. |
 | `db:backfill-roles` | Creates the personal Discord role for characters that predate it. Does not assign it — nobody holds these. |
 | `db:backfill-name-parts` | Repair pass for the four-part character name; also the drift check on the denormalized `Character.name`. |
-| `db:backfill-tag-rework` | One-off tag catalog cleanup. No Discord. |
-| `db:backfill-medical-expert` | Retires the old `medical-excellent` Tag row after the slug rename, moving its holders, cure requirements and child tiers onto `medical-expert`. Run **after** `db:sync-tags`, since it needs the new row to exist. No Discord. |
+| `db:backfill-fighting-split` | One-off: retires the `fighting-*` tag tree in favour of `melee-*`/`ranged-*` and rescales the point economy. No Discord. |
+| `db:prune-tags` | Dry-run by default (`-- --apply`): the destructive counterpart to `db:sync-tags` — deletes any Tag row absent from `docs/tags.yaml`, skipping GM-created and referenced tags. |
 | `db:sync-narrowcast-channels` | Provisions **and reconciles** the `radio` category and its `#watch`/`#intercom` channels from the special-channels registry. Run after `db:sync-zones`. |
 | `db:rebuild-info-channel` | Destructive rebuild of `#info` from `infochannel.yaml` (`INFOCHANNEL.md`). |
 

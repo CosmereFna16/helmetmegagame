@@ -39,6 +39,13 @@ const DEFAULT_PAGE_SIZE = 50;
 // a query is active — for a list with no sortable headers of its own
 // (the /gm/turns queue rail); leave it off to keep the viewer's chosen
 // column sort and use search purely as a filter (RosterTable).
+// `filters` + `onFiltersChange`, given together, put filters in CONTROLLED
+// mode: the caller owns the value (e.g. a sessionStorage-backed store — see
+// QueueRail.js's rail-state persistence) and this hook never keeps its own
+// copy. Omit both and filters behave exactly as before — an internal
+// `initialFilters`-seeded useState. The two never mix: a caller in
+// controlled mode has no use for `initialFilters`, since the controlled
+// value is authoritative from the first render.
 export function useTableState({
   rows,
   searchFields,
@@ -46,11 +53,14 @@ export function useTableState({
   filterDefs,
   initialSort,
   initialFilters,
+  filters: controlledFilters,
+  onFiltersChange,
   pageSize = DEFAULT_PAGE_SIZE,
   rankBySearch = false,
 }) {
   const [query, setQuery] = useState("");
-  const [filters, setFilters] = useState(initialFilters ?? {});
+  const [uncontrolledFilters, setUncontrolledFilters] = useState(initialFilters ?? {});
+  const filters = controlledFilters ?? uncontrolledFilters;
   const [sort, setSort] = useState(initialSort ?? { key: null, dir: "desc" });
   const [page, setPage] = useState(1);
 
@@ -153,10 +163,19 @@ export function useTableState({
     setQuery(v);
     setPage(1);
   }, []);
-  const changeFilters = useCallback((v) => {
-    setFilters(v);
-    setPage(1);
-  }, []);
+  // `v` may be a plain value or an updater function (every call site uses
+  // the latter: `setFilters((f) => ({ ...f, [key]: value }))`) — resolved
+  // against THIS render's `filters`, controlled or not, before handing the
+  // final value to whichever store actually owns it.
+  const changeFilters = useCallback(
+    (v) => {
+      const next = typeof v === "function" ? v(filters) : v;
+      if (onFiltersChange) onFiltersChange(next);
+      else setUncontrolledFilters(next);
+      setPage(1);
+    },
+    [filters, onFiltersChange],
+  );
   const changeSort = useCallback((v) => {
     setSort(v);
     setPage(1);

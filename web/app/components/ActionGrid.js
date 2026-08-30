@@ -32,9 +32,7 @@ import {
 // Order is by how often it gets used, reading left to right: the tag verbs
 // first, then the things you do to other people, then the rarest.
 
-// --- the metagaming rule --------------------------------------------------
-//
-// A button is greyed out ONLY for a fact about your own sheet — nothing to
+// The metagaming rule: a button is greyed out ONLY for a fact about your own sheet — nothing to
 // remove, nothing to hand over, no Medical training. It is NEVER greyed for a
 // fact about who is standing near you.
 //

@@ -10,7 +10,7 @@ import StagedItems from "./StagedItems";
 
 // One Move on a turn that has already been pushed. The same card as MoveDesk,
 // minus everything that would change something: no lock, no composers, no
-// Solve, no Unlock. What is left is the record — what they declared, what
+// Solve, no Reject. What is left is the record — what they declared, what
 // actually paid, the Result a GM wrote, and what the player was told.
 //
 // Not quite read-only, though, and deliberately so: StagedItems keeps Edit and

@@ -224,7 +224,7 @@ groups:
     category: bacchus
     color: "#d4b4da"
     requiredTag: follower-of-bacchus
-  # The Cult tier ladder (Seedling -> Ripening -> Bountiful) plus the Cult
+  # The Cult tier ladder (Ripening -> Bountiful) plus the Cult
   # Leader seat. These are Meta tags — 0 points, never purchasable, granted by
   # a GM — but they live in a gated group rather than groupless like the rest
   # of Meta, because /api/tags withholds a tag only when its GROUP carries a

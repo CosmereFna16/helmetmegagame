@@ -110,7 +110,6 @@ async function resolveLaborRate(prisma, characterId) {
 }
 
 module.exports = {
-  buildLaborContext,
   computeLaborAccess,
   resolveLaborTier,
   resolveLaborRateFrom,

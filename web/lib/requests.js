@@ -77,8 +77,3 @@ export function logRequest(tx, { actorDiscordUserId, actionType, targetCharacter
     },
   });
 }
-
-export async function getOpenTurnId() {
-  const turn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
-  return turn ?? null;
-}

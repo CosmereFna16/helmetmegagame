@@ -92,7 +92,7 @@ reason.
 | Type | What the player does | GM can edit | Undo |
 |---|---|---|---|
 | `TRANSFER_RESOURCES` | Moves ⬢ between any two parties in reach. `direction: "LOOT"` pulls ⬢ off a corpse in the same room | — | Reverses the movement |
-| `ADD_TAG` | Takes a Purchasable or Craftable tag, optionally paying ⬢. Stackable tags take a quantity and stay on the menu once held | cost; remove what this request added | Drops what it added, refunds the cost |
+| `ADD_TAG` | Takes a Purchasable tag you hold the use-gate for, or a Craftable tag you hold the recipe skill for, optionally paying ⬢. Stackable tags take a quantity and stay on the menu once held | cost; remove what this request added | Drops what it added, refunds the cost |
 | `BUY_TAGS` | Checks out a whole `/store` cart with Tag Points — one request per cart, `effect.items` listing every tag | — | Returns every tag in the cart, refunds the points |
 | `REMOVE_TAG` | Drops one of their own `removable` tags, optionally paying ⬢, in a quantity if it stacks | cost | Restores the tag and its count, refunds the cost |
 | `CONSUME_TAG` | Uses up one of their own `consumable` tags — always exactly one, even from a stack — and gains whatever it `consumesInto` | — | Restores the one unit with its original expiry, takes back what it granted |
@@ -189,6 +189,12 @@ Three notes on deliberate choices:
   exists and would be more precise, but it is set on exactly one tag in
   `docs/tags.yaml` today, so Items/Assets is the honest signal. Revisit once
   the catalog populates it (`web/lib/tagRequests.js`).
+- **Add Tag gates a craftable on the recipe, not the item's combat tag.**
+  A Longbow's `requiredTag: ranged-basic` says who can *shoot* it; its
+  `requirement.skills: [crafting]` says who can *make* it. Creation and
+  `/store` enforce the former; Add Tag enforces the latter, via
+  `addRequirementSatisfied()` in `web/lib/tagRequests.js` — see `TAGS.md`
+  §3b. A smith with no combat skill at all can still forge weapons to sell.
 - **Undo never re-syncs Discord.** `resolveRequest` (`gm/turns/actions.js`)
   runs a request's `undo()` entirely inside one transaction, and no network
   call may run inside a `$transaction` (`ARCHITECTURE.md` §5) — so undoing
@@ -442,6 +448,12 @@ kept has to keep other people out of the room, which is a fiction problem
 rather than a permissions one. The reason field and the GM's review are the
 anti-abuse mechanism, exactly as everywhere else.
 
+**Binding someone also cancels their standing Default Move.** All four
+`INCAPACITATING_SLUGS` are read on the *afflicted* character's own side too:
+`db/lib/defaultMovePass.js#runDefaultMovePass` silently skips filing a Default
+Move for anyone holding one, so a bound target loses their next turn, not just
+their ability to defend themselves (TURN-ENGINE.md §6).
+
 **Harm is Wound and Finish in one request**, because they are one act: you
 stand over someone who can't stop you and decide how far to take it. Either
 half alone is valid — a beating that leaves them alive, a clean kill with no
@@ -573,6 +585,29 @@ promised in the catalog — "Once per day, you may enter an adjacent zone withou
 spending a turn, but you'll be easily visible" — and nothing read either slug
 until this. No Action means no Move spent *and* no block from having already
 acted: riding is not acting.
+
+**Fast Travel can carry passengers, and any co-present character qualifies.**
+`web/lib/tagRequests.js#fastTravelCapacity` reads the rider's held tags for a
+seat count (rider included): a horse or Wild Horse alone seats 2; `cart`
+upgrades that pair to 6 (it does nothing without a horse — it upgrades one,
+it isn't one); `steam-automobile` is inherently a 6-seat vehicle by itself and
+does not stack further with Cart. There is deliberately **no authority check**
+on who can be brought along — not the Bound/Led/corpse gate
+`MOVE_CHARACTER` enforces, just presence in the rider's zone at submit time.
+That is a design choice, not an oversight: it is the same bet the rest of the
+Requests system already makes (a player can pull ⬢ out of someone else's
+pocket with `TRANSFER_RESOURCES` on nothing but a reason), and a GM reviews
+and can Undo it after. A passenger who has wandered off between the rider
+opening the dialog and submitting fails the **whole** request rather than
+being silently dropped, so the rider re-picks instead of finding out later
+that a friend didn't come along. Passengers move inside the same transaction
+as the rider — one `updateMany`, since every passenger shares the rider's
+`fromZoneId`/`toZoneId` — and get the same post-commit Discord fan-out
+(zone role, narrowcast access, pending invites, the Caving arrival roll), plus
+a DM telling them they were brought along, since they didn't ask for the
+ride. They do **not** claim their own `fastTravelTurnId`: being carried today
+doesn't stop a passenger from riding under their own power again later the
+same day. Undo restores every passenger's zone alongside the rider's.
 
 **The once-a-day limit is a claim, not a count.** `Character.fastTravelTurnId`
 is written by a conditional `updateMany` whose `WHERE` is the check, as the

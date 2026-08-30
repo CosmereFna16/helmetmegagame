@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import Modal from "@/app/components/Modal";
 import FormError from "@/app/components/FormError";
 import Select from "@/app/components/Select";
+import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { mergeTagOp } from "@/lib/tagOpAlgebra";
 import { scoreMatch } from "@/lib/fuzzySearch";
 import TagChip from "@/app/components/TagChip";
@@ -60,10 +61,33 @@ export default function EffectComposer({
   const [targetSearch, setTargetSearch] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
+  const { markDirty, markClean, guardedClose } = useDirtyGuard();
+
+  // Tags ticked in the catalog browser but not yet folded into `ops` — a GM
+  // who checks boxes and presses "Stage it" directly (skipping "Add N
+  // selected") still gets them, via `submit()` below. Lifted out of
+  // TagCatalogBrowser, which otherwise owns this as purely internal state.
+  const [checkedTagIds, setCheckedTagIds] = useState(() => new Set());
+
+  // A quantity box's in-progress text, kept separate from the committed
+  // `op.quantity` so Backspace-then-retype doesn't snap to 1 mid-edit
+  // (Number.parseInt("") is NaN, which the old code coerced immediately).
+  // Committed on blur by commitQuantity.
+  const [quantityDrafts, setQuantityDrafts] = useState(() => new Map());
+
+  // "Add cancelled the staged Remove" (or vice versa) — set by stageOp when
+  // mergeTagOp returns null and the row silently disappears from "Tag
+  // changes"; otherwise that has no explanation at all.
+  const [cancelNotice, setCancelNotice] = useState(null);
 
   // Held-tags cache, one entry per character seen so far — cheap to keep for
   // the life of the modal, since a target is rarely un-picked and re-picked.
+  // Only a successful fetch is cached; a failure is never stored as "[]",
+  // which used to be indistinguishable from a character who truly holds
+  // nothing (see the effect below).
   const [heldByCharacter, setHeldByCharacter] = useState(() => new Map());
+  const [heldFetchFailed, setHeldFetchFailed] = useState(false);
+  const [heldFetchRetry, setHeldFetchRetry] = useState(0);
 
   // A tag just created through the custom-tag door, shown immediately rather
   // than waiting on the router.refresh() CustomTagDialog already triggers.
@@ -86,15 +110,19 @@ export default function EffectComposer({
     if (!soleTargetId || heldEntry) return undefined;
     let cancelled = false;
     (async () => {
+      setHeldFetchFailed(false);
       const res = await getHeldTags({ characterId: soleTargetId });
       if (cancelled) return;
-      const value = res?.ok ? res.tags : [];
-      setHeldByCharacter((prev) => (prev.has(soleTargetId) ? prev : new Map(prev).set(soleTargetId, value)));
+      if (!res?.ok) {
+        setHeldFetchFailed(true);
+        return;
+      }
+      setHeldByCharacter((prev) => (prev.has(soleTargetId) ? prev : new Map(prev).set(soleTargetId, res.tags)));
     })();
     return () => {
       cancelled = true;
     };
-  }, [soleTargetId, heldEntry]);
+  }, [soleTargetId, heldEntry, heldFetchRetry]);
 
   const heldTagIds = useMemo(() => new Set((heldEntry ?? []).map((t) => t.tagId)), [heldEntry]);
 
@@ -120,27 +148,55 @@ export default function EffectComposer({
   );
 
   function stageOp(tagId, op) {
+    // `cancelledName` is computed OUT HERE, not read inside the functional
+    // updater below — React may invoke that updater twice, and the notice is
+    // a side effect (same discipline QueueRail's own key handler follows).
+    let cancelledName = null;
     setOps((prev) => {
       const next = new Map(prev);
       const merged = mergeTagOp(next.get(tagId), { tagId, op, quantity: 1 });
-      if (merged == null) next.delete(tagId);
-      else next.set(tagId, merged);
+      if (merged == null) {
+        next.delete(tagId);
+        cancelledName = tagById.get(tagId)?.name ?? "that tag";
+      } else {
+        next.set(tagId, merged);
+      }
       return next;
     });
+    setCancelNotice(
+      cancelledName ? `${cancelledName}: the new op exactly cancelled what was already staged, so nothing is staged for it now.` : null,
+    );
+    markDirty();
   }
 
-  function setQuantity(tagId, raw) {
-    const quantity = Number.parseInt(raw, 10);
+  function commitQuantity(tagId, raw) {
+    const trimmed = raw.trim();
     setOps((prev) => {
       const next = new Map(prev);
       const op = next.get(tagId);
-      if (op) next.set(tagId, { ...op, quantity: Number.isInteger(quantity) && quantity > 0 ? quantity : 1 });
+      if (!op) return prev;
+      let quantity;
+      if (trimmed === "") {
+        // Blanking the box means "the whole holding" — the same null the Dev
+        // Panel's own Remove uses (lib/tagOpAlgebra.js).
+        quantity = null;
+      } else {
+        const parsed = Number.parseInt(trimmed, 10);
+        quantity = Number.isInteger(parsed) && parsed > 0 ? parsed : op.quantity;
+      }
+      next.set(tagId, { ...op, quantity });
+      return next;
+    });
+    setQuantityDrafts((prev) => {
+      const next = new Map(prev);
+      next.delete(tagId);
       return next;
     });
   }
 
   function stageManyAdds(tagIds) {
     for (const tagId of tagIds) stageOp(tagId, "add");
+    setCheckedTagIds(new Set());
   }
 
   function renderTagBrowserActions(tag, { held: isHeld, staged }) {
@@ -158,13 +214,14 @@ export default function EffectComposer({
           <button
             type="button"
             className="btn-quiet"
-            onClick={() =>
+            onClick={() => {
               setOps((prev) => {
                 const next = new Map(prev);
                 next.delete(tag.id);
                 return next;
-              })
-            }
+              });
+              markDirty();
+            }}
           >
             Unstage
           </button>
@@ -176,27 +233,44 @@ export default function EffectComposer({
   function submit() {
     setError(null);
     startTransition(async () => {
-      const tagOps = [...ops.values()];
-      const res = existing
-        ? await updateStagedEffect({ stagedEffectId: existing.id, resources, tagPoints, tagOps, zoneId })
-        : await createStagedEffects({
-            targetCharacterIds: targets.map((t) => t.id),
-            moveId,
-            cavingRollId,
-            resources,
-            tagPoints,
-            tagOps,
-            zoneId,
-          });
-      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
-      onDone();
+      try {
+        // Fold in any tags still ticked in the catalog browser but never
+        // folded into `ops` via "Add N selected" — checking a box should be
+        // enough, without also pressing a second button.
+        let tagOps = [...ops.values()];
+        if (checkedTagIds.size) {
+          const merged = new Map(ops);
+          for (const tagId of checkedTagIds) {
+            const next = mergeTagOp(merged.get(tagId), { tagId, op: "add", quantity: 1 });
+            if (next == null) merged.delete(tagId);
+            else merged.set(tagId, next);
+          }
+          tagOps = [...merged.values()];
+        }
+        const res = existing
+          ? await updateStagedEffect({ stagedEffectId: existing.id, resources, tagPoints, tagOps, zoneId })
+          : await createStagedEffects({
+              targetCharacterIds: targets.map((t) => t.id),
+              moveId,
+              cavingRollId,
+              resources,
+              tagPoints,
+              tagOps,
+              zoneId,
+            });
+        if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
+        markClean();
+        onDone();
+      } catch {
+        setError("Something went wrong on the server — your change may not have saved. Try again.");
+      }
     });
   }
 
   return (
     <Modal
       title={existing ? "Edit staged effect" : "Stage an effect"}
-      onClose={() => !pending && onCancel()}
+      onClose={() => !pending && guardedClose(onCancel)}
       width="widest"
     >
       <div className="mt-3 flex flex-col gap-4">
@@ -209,7 +283,10 @@ export default function EffectComposer({
                 type="button"
                 className="chip"
                 disabled={Boolean(existing)}
-                onClick={() => setTargets((prev) => prev.filter((p) => p.id !== t.id))}
+                onClick={() => {
+                  setTargets((prev) => prev.filter((p) => p.id !== t.id));
+                  markDirty();
+                }}
                 title={existing ? undefined : "Remove target"}
               >
                 {t.name}
@@ -238,6 +315,7 @@ export default function EffectComposer({
                   onClick={() => {
                     setTargets((prev) => [...prev, { id: c.id, name: c.name }]);
                     setTargetSearch("");
+                    markDirty();
                   }}
                 >
                   + {c.name}
@@ -254,7 +332,11 @@ export default function EffectComposer({
             <input
               type="number"
               value={resources}
-              onChange={(e) => setResources(e.target.value)}
+              onChange={(e) => {
+                setResources(e.target.value);
+                markDirty();
+              }}
+              onWheel={(e) => e.currentTarget.blur()}
               placeholder="±0"
             />
           </label>
@@ -263,13 +345,23 @@ export default function EffectComposer({
             <input
               type="number"
               value={tagPoints}
-              onChange={(e) => setTagPoints(e.target.value)}
+              onChange={(e) => {
+                setTagPoints(e.target.value);
+                markDirty();
+              }}
+              onWheel={(e) => e.currentTarget.blur()}
               placeholder="±0"
             />
           </label>
           <label className="field" style={{ width: "12rem" }}>
             <span className="field-label">Relocate to</span>
-            <Select value={zoneId} onChange={(e) => setZoneId(e.target.value)}>
+            <Select
+              value={zoneId}
+              onChange={(e) => {
+                setZoneId(e.target.value);
+                markDirty();
+              }}
+            >
               <option value="">— no move —</option>
               {presenceZones.map((z) => (
                 <option key={z.id} value={z.id}>
@@ -282,7 +374,10 @@ export default function EffectComposer({
             <button
               type="button"
               className="btn-quiet"
-              onClick={() => setResources(String(-declaredDelta))}
+              onClick={() => {
+                setResources(String(-declaredDelta));
+                markDirty();
+              }}
             >
               Offset declared ({declaredDelta > 0 ? "−" : "+"}
               {Math.abs(declaredDelta)})
@@ -292,6 +387,7 @@ export default function EffectComposer({
 
         <div className="flex flex-col gap-2">
           <span className="field-label">Tag changes</span>
+          {cancelNotice && <p className="text-xs text-muted">{cancelNotice}</p>}
           {[...ops.values()].map((op) => {
             const tag = tagById.get(op.tagId);
             return (
@@ -303,21 +399,28 @@ export default function EffectComposer({
                     type="number"
                     min="1"
                     className="desk-qty"
-                    value={op.quantity ?? 1}
-                    onChange={(e) => setQuantity(op.tagId, e.target.value)}
-                    aria-label="Quantity"
+                    value={quantityDrafts.has(op.tagId) ? quantityDrafts.get(op.tagId) : (op.quantity ?? "")}
+                    placeholder={op.quantity == null ? "all" : undefined}
+                    onChange={(e) => {
+                      setQuantityDrafts((prev) => new Map(prev).set(op.tagId, e.target.value));
+                      markDirty();
+                    }}
+                    onBlur={(e) => commitQuantity(op.tagId, e.target.value)}
+                    aria-label="Quantity — blank means the whole holding"
                   />
                 )}
                 <button
                   type="button"
                   className="btn-quiet"
-                  onClick={() =>
+                  onClick={() => {
                     setOps((prev) => {
                       const next = new Map(prev);
                       next.delete(op.tagId);
                       return next;
-                    })
-                  }
+                    });
+                    setCancelNotice(null);
+                    markDirty();
+                  }}
                 >
                   Unstage
                 </button>
@@ -327,7 +430,18 @@ export default function EffectComposer({
           {soleTargetId && (
             <div className="flex flex-col gap-1">
               <span className="field-label">Their tags</span>
-              {!heldEntry ? (
+              {heldFetchFailed ? (
+                <span className="text-sm text-accent flex items-center gap-2">
+                  Couldn&apos;t load their tags.
+                  <button
+                    type="button"
+                    className="btn-quiet"
+                    onClick={() => setHeldFetchRetry((n) => n + 1)}
+                  >
+                    Retry
+                  </button>
+                </span>
+              ) : !heldEntry ? (
                 <span className="text-sm text-muted">Loading their tags…</span>
               ) : heldEntry.length === 0 ? (
                 <span className="text-sm text-muted">They hold nothing.</span>
@@ -371,6 +485,11 @@ export default function EffectComposer({
             heldTagIds={heldTagIds}
             stagedByTagId={stagedByTagId}
             selectable
+            selected={checkedTagIds}
+            onSelectedChange={(next) => {
+              setCheckedTagIds(next);
+              markDirty();
+            }}
             onSelectAction={stageManyAdds}
             selectActionLabel="Add"
             renderActions={renderTagBrowserActions}
@@ -387,7 +506,7 @@ export default function EffectComposer({
             mode="stage"
             allowStage
             onClose={() => setCreatingTag(false)}
-            onCreated={(tag) => {
+            onCreated={(tag, { assignedIds, staged } = {}) => {
               // A staged assignment already wrote its own StagedEffect row
               // server-side (see createCustomTagAndAssign) — it does NOT go
               // into this composer's own `ops`, which would double it up the
@@ -396,6 +515,16 @@ export default function EffectComposer({
               // needs to be visible in the browser and pickable from here on.
               setExtraTags((prev) => [...prev, tag]);
               setCreatingTag(false);
+              // An "apply now" grant changed a target's actual held tags —
+              // drop the cached "Their tags" entry so the next render
+              // refetches instead of showing the pre-grant snapshot.
+              if (!staged && assignedIds?.length) {
+                setHeldByCharacter((prev) => {
+                  const next = new Map(prev);
+                  for (const id of assignedIds) next.delete(id);
+                  return next;
+                });
+              }
             }}
           />
         )}
@@ -403,7 +532,7 @@ export default function EffectComposer({
         <FormError>{error}</FormError>
 
         <div className="modal-actions">
-          <button type="button" className="btn-quiet" onClick={onCancel} disabled={pending}>
+          <button type="button" className="btn-quiet" onClick={() => guardedClose(onCancel)} disabled={pending}>
             Cancel
           </button>
           <button type="button" className="btn" onClick={submit} disabled={pending}>

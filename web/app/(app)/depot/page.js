@@ -45,14 +45,19 @@ export default async function DepotPage() {
   });
   if (!character) redirect("/character");
 
-  const [wareTags, held] = await Promise.all([
+  const [wareTags, sellableTags, held] = await Promise.all([
     // The shelf: everything the station stocks. Infinite supply — price is the
     // only limiter, which is the whole design (DEPOT.md §1).
     prisma.tag.findMany({ where: { depotPrice: { not: null } }, ...TAG_SELECT }),
-    // His own inventory, narrowed to what the station will actually buy.
+    // The whole price list, not just what he happens to be carrying — a
+    // Merchant needs to know what everything is worth before he goes and
+    // gets it.
+    prisma.tag.findMany({ where: { sellable: true, sellablePrice: { not: null } }, ...TAG_SELECT }),
+    // His own inventory, so the price list can be split into what he can
+    // sell right now and what he'd have to go get first.
     prisma.characterTag.findMany({
       where: { characterId: character.id, tag: { sellable: true } },
-      include: { tag: TAG_SELECT },
+      select: { tagId: true, quantity: true },
     }),
   ]);
 
@@ -66,16 +71,24 @@ export default async function DepotPage() {
     tag,
   }));
 
-  const stock = held.map((ct) => ({
-    id: ct.tag.id,
-    name: ct.tag.name,
-    description: ct.tag.description ?? "",
-    groupName: ct.tag.group?.name ?? "",
-    price: ct.tag.sellablePrice,
-    stackable: ct.tag.stackable,
-    held: ct.quantity,
-    tag: ct.tag,
-  }));
+  const heldByTagId = new Map(held.map((ct) => [ct.tagId, ct.quantity]));
+
+  // Sorted held-first here, rather than left to the table's default sort,
+  // because SORT is stable: pre-ordering by price within each half means the
+  // default "held desc" view reads as two price-ordered lists, not one
+  // shuffled by insertion order.
+  const stock = sellableTags
+    .map((tag) => ({
+      id: tag.id,
+      name: tag.name,
+      description: tag.description ?? "",
+      groupName: tag.group?.name ?? "",
+      price: tag.sellablePrice,
+      stackable: tag.stackable,
+      held: heldByTagId.get(tag.id) ?? 0,
+      tag,
+    }))
+    .sort((a, b) => a.price - b.price);
 
   // The second gate, and the same one the Lifeweb applies at the tower: the
   // Depot is a shuttle parked at Customs. He can read the price list from

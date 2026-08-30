@@ -4,10 +4,12 @@ import { useTags } from "./TagsProvider";
 import { useProductionRates } from "./ProductionRatesProvider";
 import { usePartySizes } from "./PartySizeProvider";
 import { useDocuments } from "./DocumentsProvider";
+import { useCharacterMentions } from "./CharacterMentionsProvider";
 import TagChip from "./TagChip";
 import ResourceChip from "./ResourceChip";
 import PartySizeChip from "./PartySizeChip";
 import DocumentChip from "./DocumentChip";
+import CharacterAvatar from "./CharacterAvatar";
 import { splitTokens } from "./richTokens";
 
 function TagToken({ payload, fallback }) {
@@ -47,11 +49,33 @@ function DocumentToken({ payload, fallback }) {
   return doc ? <DocumentChip doc={doc} /> : fallback;
 }
 
+// Payload is a Character.id. The lookup map comes from
+// CharacterMentionsProvider, mounted only by /notes — its default is an
+// empty Map, so a {char:…} anywhere else in the app just falls back to
+// literal text like any other unresolved reference.
+function CharToken({ payload, fallback }) {
+  const mentionsById = useCharacterMentions();
+  const character = mentionsById.get(payload.trim());
+  if (!character) return fallback;
+  return (
+    <span className="inline-flex items-center gap-1 align-middle">
+      <CharacterAvatar
+        characterId={character.id}
+        name={character.name}
+        version={character.updatedAt}
+        size={16}
+      />
+      <span>{character.name}</span>
+    </span>
+  );
+}
+
 const BUBBLE_KINDS = {
   tag: TagToken,
   resource: ResourceToken,
   partysize: PartySizeToken,
   document: DocumentToken,
+  char: CharToken,
 };
 
 // Renders plain text, except any {kind:payload} token (e.g. {tag:slug} or

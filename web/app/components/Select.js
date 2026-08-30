@@ -215,6 +215,15 @@ export default function Select({
 
   function handleTriggerKeyDown(e) {
     if (disabled) return;
+    // A modifier combo (⌘K, ⌘C, browser back on ⌘←…) is never this control's
+    // to own — let it bubble untouched. Everything else, while the trigger
+    // has focus, IS this control's: without stopPropagation the desk's own
+    // window-level shortcuts (QueueRail's j/k/arrows/m/r/c/h, Workspace's
+    // Escape) saw the same keystroke, since this trigger is a <button>, not
+    // one of the tag names those listeners allowlisted. Typing "m" in a
+    // filter dropdown used to flip the whole rail to the Moves lens.
+    if (e.metaKey || e.ctrlKey) return;
+    e.stopPropagation();
     if (!open) {
       if (e.key === "ArrowDown" && e.altKey) {
         e.preventDefault();

@@ -217,9 +217,4 @@ function zoneRoleName(zone) {
 module.exports = {
   zoneChannelSpec,
   zoneRoleName,
-  mergeOverwrite,
-  SUMMARY_SLOWMODE_SECONDS,
-  SUMMARY_TOPIC,
-  PUBLIC_TOPIC,
-  PRIVATE_TOPIC,
 };

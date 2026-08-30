@@ -66,4 +66,4 @@ function docsPath(...segments) {
   return dir ? path.join(dir, ...segments) : null;
 }
 
-module.exports = { docsPath, docsDir };
+module.exports = { docsPath };

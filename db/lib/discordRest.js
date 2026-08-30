@@ -18,7 +18,7 @@ function authHeaders(extra) {
 // and temporarily IP-bans a token that emits 10,000 of them inside a rolling
 // 10 minutes. The ban lands on the container's egress IP and lasts about an
 // hour. 404 is NOT counted, which is why the deliberately-blind sweeps in
-// db/lib/locationAccess.js (allow404, ~58 of every 62 calls hitting nothing)
+// db/lib/accessSweep.js (allow404 on most calls, most of which hit nothing)
 // are free rather than dangerous.
 //
 // Reaching 10,000 needs ~17 invalid responses per second sustained, which no
@@ -40,8 +40,6 @@ const MAX_RETRY_AFTER_MS = 30_000;
 const invalidTimestamps = [];
 let breakerOpenUntil = 0;
 
-// --- persistence ---------------------------------------------------------
-//
 // The counters above are module-level JS, and that was the hole: the breaker's
 // stated purpose is to stop a crash-restart loop, and a restart zeroes them.
 // Cloudflare's count is keyed on the egress IP and does not reset, so the one
@@ -168,7 +166,6 @@ function getInvalidResponseStats() {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// ---------------------------------------------------------------------------
 // Per-bucket rate-limit bookkeeping, and a request counter for the Dawn wipe's
 // SystemReport.
 //
@@ -598,30 +595,14 @@ async function startPrivateThread(channelId, name, autoArchiveMinutes = 10080) {
   });
 }
 
-// Thread membership — the REST half of /add and /remove, and what
-// applyPendingInvites uses when a character walks into a zone holding
-// invites. Adding via this endpoint sends no DM and no ping (unlike
-// mentioning someone into the thread). allow404 on both: the thread may have
-// been wiped between the invite and the arrival, and removing an absent
-// member is a no-op, not an error.
+// Adds silently — /add and applyPendingInvites use this rather than
+// channel.members.add, which would ping-mention the target. allow404: the
+// thread may have been wiped between the invite and the arrival.
 async function addThreadMember(threadId, userId) {
   return discordRequest(`/channels/${threadId}/thread-members/${userId}`, {
     method: "PUT",
     allow404: true,
   });
-}
-
-async function removeThreadMember(threadId, userId) {
-  return discordRequest(`/channels/${threadId}/thread-members/${userId}`, {
-    method: "DELETE",
-    allow404: true,
-  });
-}
-
-async function listThreadMembers(threadId) {
-  return (
-    (await discordRequest(`/channels/${threadId}/thread-members?limit=100`, { allow404: true })) ?? []
-  );
 }
 
 // A thread is a channel as far as the API is concerned, so this is patchChannel
@@ -633,6 +614,19 @@ const THREAD_FLAG_PINNED = 2;
 
 async function patchThread(threadId, payload) {
   return patchChannel(threadId, payload);
+}
+
+// Pins a MESSAGE inside its channel/thread — the ordinary Discord "pinned
+// messages" list, via the real /pins endpoint. Not to be confused with
+// THREAD_FLAG_PINNED above, which pins a forum POST to the top of its
+// forum's listing; the two features share a name and nothing else.
+// Idempotent — Discord's PUT returns 204 whether or not the message was
+// already pinned, so this is safe to call unconditionally.
+async function pinMessage(channelId, messageId) {
+  return discordRequest(`/channels/${channelId}/pins/${messageId}`, {
+    method: "PUT",
+    allow404: true,
+  });
 }
 
 async function deleteMessage(channelId, messageId) {
@@ -948,8 +942,6 @@ async function postAsCharacterOnce(channelId, content, character) {
 
 // Replaces a single permission overwrite on a channel. `type` is 0 for a
 // role, 1 for a member; allow/deny are decimal permission bit strings.
-// --- Guild roles and member roles ------------------------------------
-//
 // The zone-access model: one guild role per presence zone, held by every
 // character standing there. These are the primitives the travel twins, the
 // channel doctor and the wipe all share — routed through discordRequest so
@@ -1063,6 +1055,7 @@ module.exports = {
   createForumPost,
   patchThread,
   THREAD_FLAG_PINNED,
+  pinMessage,
   deleteMessage,
   fetchAllMessages,
   bulkDeleteMessages,
@@ -1080,8 +1073,6 @@ module.exports = {
   startThread,
   startPrivateThread,
   addThreadMember,
-  removeThreadMember,
-  listThreadMembers,
   getGuildRoles,
   createGuildRole,
   patchGuildRole,

@@ -52,10 +52,7 @@ function concealedLine(alias) {
 }
 
 module.exports = {
-  YOUNG_UNDER,
-  OLD_FROM,
   concealedAlias,
   concealedLine,
   genderWord,
-  ageWord,
 };

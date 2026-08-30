@@ -3,6 +3,8 @@
 // none of these menus involve a budget, the tier chain, or point costs — they
 // route through the Requests system instead (docs/systemdocs/REQUESTS.md §3).
 
+import { holdsRequirement } from "./characterCreation";
+
 // Only Items and Assets can be handed to another player. Tag.tradeable exists
 // and would be the more precise filter, but it is currently set on exactly one
 // tag in docs/tags.yaml, so category is the honest signal today. Revisit once
@@ -31,6 +33,58 @@ export function addableTags(tags, heldTagIds = []) {
       ((tag.purchasable && tag.purchasableAfterStart) || tag.craftable) &&
       (tag.stackable || !held.has(tag.id)),
   );
+}
+
+// Does the character hold a skill this recipe accepts? `requirementSkills` is
+// an OR list, not an AND list — every multi-skill recipe in docs/tags.yaml is
+// a Dead Simple item written `[smithing, crafting]` (formatTagRequirement
+// joins it with "/", SMITHING.md §2 spells the rung's gate as "crafting OR
+// smithing"), and that list is also where Crafting's promise to cover Dead
+// Simple smithing recipes actually lives — it's data, deliberately not a code
+// special case, so there's exactly one place to change it.
+//
+// holdsRequirement() is the chain walk from characterCreation.js, so Smithing
+// (Skilled) satisfies a plain `smithing` recipe without the recipe needing to
+// name every rung below it. A recipe with no skills at all (Cave Fungus,
+// Salvage Plate) is unskilled work and passes automatically.
+//
+// `tag.requirementSkills` must be selected with `{ id }` or this silently
+// reads every recipe as unskilled and opens the whole craft catalog.
+export function recipeSkillsHeld(tag, tagsById, heldTagIds) {
+  const skills = tag.requirementSkills ?? [];
+  if (skills.length === 0) return true;
+  return skills.some((skill) => holdsRequirement(skill.id, tagsById, heldTagIds));
+}
+
+// The Add Tag menu's real gate — the only place the two routes onto a tag are
+// combined. Two ways in, either suffices:
+//
+//   - BUY it: purchasable after start, and you hold its requiredTag (the
+//     combat/use gate — Ranged (Basic) to carry a Longbow).
+//   - MAKE it: craftable, and you hold a skill its recipe names (the
+//     workshop gate — Crafting to build one). A craftable's requiredTag is
+//     NOT checked on this route: a smith with no Melee (Basic) still knows
+//     how to forge a sword, they just can't swing it well. Gating the forge
+//     on the combat tag was the bug this predicate exists to fix — no
+//     crafter without a fighting skill could make anything to sell.
+//
+// The GROUP gate is unconditional and applies to BOTH routes — it's the
+// hidden-category mechanism (Demoness, Bacchus; TAGS.md §3a) and is never
+// bypassed by either one.
+//
+// Character creation and /store deliberately do NOT use this — they keep
+// calling requirementSatisfied() in characterCreation.js, because buying a
+// Longbow at creation should still require Ranged (Basic).
+export function addRequirementSatisfied(tag, tagsById, heldTagIds) {
+  if (!holdsRequirement(tag.group?.requiredTagId, tagsById, heldTagIds)) return false;
+  if (
+    tag.purchasable &&
+    tag.purchasableAfterStart &&
+    holdsRequirement(tag.requiredTagId, tagsById, heldTagIds)
+  ) {
+    return true;
+  }
+  return Boolean(tag.craftable) && recipeSkillsHeld(tag, tagsById, heldTagIds);
 }
 
 // Both of these carry the held count onto the tag they return, so the menus
@@ -68,3 +122,17 @@ export function consumableTags(characterTags = []) {
 // getting a near-identical one of its own. Its description carries the same
 // caveats, the caves included. See docs/systemdocs/DEPOT.md §3.
 export const FAST_TRAVEL_SLUGS = new Set(["horse", "horse-windlander", "steam-automobile"]);
+
+// How many people (the rider included) a Fast Travel can carry, from the tags
+// the rider holds. The Steam Automobile is inherently a 6-seat vehicle and
+// does not need Cart — holding both still caps at 6, it does not stack
+// further. A horse (or Wild Horse) alone seats 2; Cart upgrades that pair to
+// 6. Holding Cart with no vehicle tag grants nothing on its own — per its own
+// catalog text, it upgrades a horse, it isn't one, so this returns 0 exactly
+// like the caller having no FAST_TRAVEL_SLUGS tag at all.
+export function fastTravelCapacity(heldSlugs) {
+  if (heldSlugs.has("steam-automobile")) return 6;
+  const hasHorse = heldSlugs.has("horse") || heldSlugs.has("horse-windlander");
+  if (!hasHorse) return 0;
+  return heldSlugs.has("cart") ? 6 : 2;
+}

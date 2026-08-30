@@ -32,10 +32,20 @@ export default function TagCatalogBrowser({
   renderActions,
   emptyLabel,
   onCreateCustom,
+  // Optional controlled selection. A caller that wants the checked set even
+  // when the GM never presses the mass-action button (EffectComposer folds
+  // any still-checked tags into the staged ops on submit) passes both of
+  // these; every other caller (TagEditor) leaves them undefined and the
+  // browser keeps managing its own Set as before.
+  selected: controlledSelected,
+  onSelectedChange,
 }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState(null);
-  const [selected, setSelected] = useState(new Set());
+  const [internalSelected, setInternalSelected] = useState(new Set());
+  const isControlled = controlledSelected !== undefined;
+  const selected = isControlled ? controlledSelected : internalSelected;
+  const setSelected = isControlled ? onSelectedChange : setInternalSelected;
 
   const tagsById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
   const sorted = useMemo(() => sortForMode(tags, "group", tagsById), [tags, tagsById]);

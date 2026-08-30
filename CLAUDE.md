@@ -47,15 +47,15 @@ Haiku task contract: return verifiable evidence (file:line, matched text, counts
 Prefer Sonnet subagents for tasks that do not require higher-level reasoning or advanced coding skills, including routine bounded work such as:
 - project-context gathering
 - repository investigation
-- verification (use verifier when what to run must be determined; use haiku-batch when the exact commands are already known)
+- verification — both the kind where the exact commands are already known and the kind where working out what to run is part of the job
 - code review, including first-pass branch reviews
 - research into existing implementation
-- bounded, fully specified implementation below the Codex threshold (implementer)
+- bounded, fully specified implementation
 - straightforward isolated tasks
 
-Prefer Opus subagents for more complex planning tasks, comprehensive code reviews, or situations where Sonnet has failed to arrive at a solution. This includes overriding branch-reviewer or implementer subagents to utilize Opus where warranted: for reviews, generally when the change spans multiple subsystems, touches concurrency, persistence, or security-sensitive paths, or is the final pre-merge review of substantial work.
+Prefer Opus subagents for more complex planning tasks, comprehensive code reviews, or situations where Sonnet has failed to arrive at a solution. This includes putting a reviewer or an implementer on Opus rather than Sonnet where warranted: for reviews, generally when the change spans multiple subsystems, touches concurrency, persistence, or security-sensitive paths, or is the final pre-merge review of substantial work.
 
-Fable subagents: only for peer-review of Fable-authored designs at gate time, as one competitor on expensive-to-reverse design problems, or as the escalation terminus when opus-advisor has failed. Never for routine delegation.
+Fable subagents: only for peer-review of Fable-authored designs at gate time, as one competitor on expensive-to-reverse design problems, or as the escalation terminus when an Opus subagent has failed. Never for routine delegation.
 
 No subagent may run on a Fable-class model without explicit approval in the current session. When one seems warranted, say why and ask; if proceeding without a response, substitute Opus and flag the substitution.
 
@@ -65,13 +65,24 @@ Dispatch posture by tier (deliberate gradient):
 - Opus: deliberate, for complex planning/review.
 - Fable: approval-gated per the rules above.
 
-Prefer an existing specialized agent when its defined role applies; otherwise create an ad-hoc subagent. Roster agents take precedence over the built-in Explore, Plan, and general-purpose agents when roles overlap; use Explore for broad read-only exploration no roster agent covers, and general-purpose as the base for ad-hoc workers. Pass an explicit model when dispatching ad-hoc workers so they do not silently inherit a Fable-class session model.
+There is no custom agent roster in this repo — `.claude/agents/` is empty on
+purpose, and the tiers above are about which **model** to dispatch on, not which
+named agent to pick. Use `Explore` for broad read-only sweeps, `Plan` for design
+work, and `general-purpose` for everything else, including anything that writes.
+Always pass an explicit model, so a worker never silently inherits a Fable-class
+session model.
 
 For a side task that genuinely requires the full current conversation context, use a fork subagent (subagent_type: fork) rather than restating that context in a dispatch prompt. Do not fork routine exploration or bounded work — fresh context is the point of a normal subagent, and forks inherit the session model (Fable-gate approval applies).
 
 Give each subagent a clear objective, scope, modification authority, and expected output.
 
-File-modifying work goes only to the implementer agent, an ad-hoc subagent explicitly granted write authority, or Codex, every other roster agent is read-only or non-modifying by contract. Never run concurrent writers against the same working tree: parallel implementation shards require per-worker isolation (pass isolation: worktree at dispatch); otherwise serialize writers.
+Grant write authority explicitly in the dispatch prompt, and only to a
+`general-purpose` worker — `Explore` and `Plan` cannot edit files at all. Never
+run concurrent writers against the same working tree: parallel implementation
+shards require per-worker isolation (pass `isolation: worktree` at dispatch);
+otherwise serialize writers. That matters more here than in most repos, because
+several sessions share this one checkout — see the local verification note under
+**Commands** for how quickly it moves underneath you.
 
 ## What this file is
 
@@ -156,8 +167,6 @@ Other reference docs, outside `systemdocs/`:
 - `docs/lore.md` — the setting.
 - `docs/threats.md` — the antagonist seats. It briefs 6 of them, while
   `db/lib/antagonists.js` ships 12 opt-in entries.
-- `docs/tag-design.md` — the player-facing version of the tag point scale and
-  the YAML format. `TAGS.md` §4a is the one that governs; keep the two in step.
 - `docs/handbook.md` — the player handbook, read at runtime by the web app
   (`web/lib/handbook.js`) rather than repo-only reference. It renders on two
   live surfaces: the pinned "Player Handbook" card on `/documents` and the
@@ -241,8 +250,7 @@ npm run db:doctor                    # the channel doctor: diffs Discord roles/
 # Repair / one-off scripts. See SYNC.md §4 for what each is for.
 npm run db:backfill-roles
 npm run db:backfill-name-parts
-npm run db:backfill-tag-rework
-npm run db:backfill-medical-expert    # after db:sync-tags; retires medical-excellent
+npm run db:backfill-fighting-split    # one-off; retires the fighting-* tag tree
 npm run db:prune-orphan-roles          # deletes Discord character roles no living
                                        #   character claims. DRY RUN unless given
                                        #   `-- --apply`. Only touches roles carrying
@@ -256,6 +264,38 @@ npm run lint --workspace=web         # eslint over the web app
 npm run audit:contrast --workspace=web   # AA gate over globals.css themes
 npm run assets:letters --workspace=web   # regenerate default letter-plaque avatars
 ```
+
+### Verifying a change locally
+
+The app signs in only through Discord, so `next dev` starts fine but every page
+redirects — which used to mean UI work could be compiled but never actually
+looked at. Two dev-only scripts close that, and **neither touches application
+code**: sessions here are JWTs signed with the `AUTH_SECRET` already in
+`web/.env.local`, so a valid cookie can just be minted.
+
+```
+npm run dev:session -- --gm               # print a session cookie for a superadmin
+npm run dev:session -- --character "Ada"  # ...or for a named ALIVE character
+npm run dev:check                         # load every route as the right persona
+npm run dev:check -- --gm /gm/turns       # load named routes as a superadmin
+npm run dev:check -- --anon /character    # no cookie, to confirm a gate still shuts
+```
+
+`npm run dev:web` must already be running. `dev:check` also asserts the negative
+cases — that a player is still bounced off `/gm/*` — so loosening a gate by
+accident fails the run.
+
+Two things it knows that a plain `curl` does not. A `redirect()` called from a
+page rather than a layout arrives as a **200** with `NEXT_REDIRECT` buried in the
+streamed payload, and a server component that throws also answers **200**, with
+the error encoded as a flight row. Status alone is not a verdict, so the body is
+what's judged.
+
+If a route reports `PrismaClientValidationError` on a field that plainly exists
+in `schema.prisma`, the running dev server is holding a stale generated client:
+run `npm run db:generate` **and restart `dev:web`** — regenerating alone does not
+reach the process that already imported it. This happens most often right after
+someone else's commit lands, since several sessions share this one checkout.
 
 Environment variables (see `.env.example`): `DATABASE_URL`, `DISCORD_TOKEN`,
 `DISCORD_GUILD_ID`, `DISCORD_GM_ROLE_ID`, `DISCORD_CLIENT_ID`,
@@ -620,10 +660,13 @@ global CLIs. To make one able to build, run, and deploy:
   version-specific Next.js guidance and are separate from this file.
 - The bot has no ESLint config yet; the web app's linting is scoped to
   `web/`.
-- **Waiting for Opponents** (`MoveReviewStatus.WAITING_FOR_OPPONENTS`) and
-  `ActionStatus.PENDING_OPPOSED` are legacy values from the removed Opposed
-  flag. Nothing writes either any more; they're kept in their Postgres enums
-  rather than dropped, same as `ActionStatus.ADJUDICATED`.
+- **Waiting for Opponents** (`MoveReviewStatus.WAITING_FOR_OPPONENTS`),
+  `MoveReviewStatus.IN_PROGRESS`, and `ActionStatus.PENDING_OPPOSED` are legacy
+  values from the removed Opposed flag. Nothing writes any of them any more;
+  they're kept in their Postgres enums rather than dropped, same as
+  `ActionStatus.ADJUDICATED`. `TagSource.DESIRE_REWARD` and
+  `TagSource.LEADER_GRANT` are the same shape from an earlier tag-sourcing
+  design — declared in the enum, written and read nowhere.
 - The **mid-game tag store is `/store`**: the shared `PointBuy.js` experience
   mounted with `afterStartOnly`, spending `Character.tagPoints`, each cart
   filed as one `BUY_TAGS` request. What's still open is the rules for earning

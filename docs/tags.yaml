@@ -6,6 +6,15 @@
 # entries in this file happen to cost. docs/tag-design.md restates the same
 # scale for players, along with the YAML format and worked examples.
 #
+# NUMBERS IN A `description`: digits for anything a player counts, tracks, or
+# computes with (a turn cost, a frequency limiter, a skill-tier shift, a die
+# face or range, a headcount, a resource amount). Words only for idiom
+# ("Almost no one matches you"), hyphenated compounds ("one-shot", "one-on-
+# one"), or pure flavour with no mechanical weight ("six chambers"). A skill
+# tier shift always reads "counts as N tiers higher/lower" — not "levels",
+# not "rungs". A flat time cost always reads "Takes N turns."; a repeating
+# one always reads "Once per day/turn" or "Once every N turns/days."
+#
 # This file is hand-edited and is the ONLY thing that writes the catalog.
 # There is deliberately no automated sync from anywhere else — drafted
 # entries get added here by hand, one at a time, so the fields that only
@@ -184,32 +193,26 @@ tags:
   # withholds them from anyone who isn't already a Cultist — see the note on
   # that group in docs/taggroups.yaml.
   #
-  # Seedling -> Ripening -> Bountiful is a replacing tier chain, so a cult
-  # holds exactly one rung at a time. `follower-of-bacchus` is deliberately
-  # NOT part of the chain — a Cultist keeps it while climbing, since it is
-  # what keeps the Bacchus category unlocked.
+  # Ripening -> Bountiful is a replacing tier chain, so a cult holds at most
+  # one rung at a time. There is no base rung: a young cult simply holds no
+  # tier tag (the old Cult: Seedling granted nothing and was removed).
+  # `follower-of-bacchus` is deliberately NOT part of the chain — a Cultist
+  # keeps it while climbing, since it is what keeps the Bacchus category
+  # unlocked.
   - slug: cult-leader
     name: Cult Leader
     category: meta
     group: meta-cult
-    description: "You understand Bacchus's plan. Every two days, you can send a telepathic message to every cultist in Ravenheart to help organize."
+    description: "You understand Bacchus's plan. Every 2 days, you can send a telepathic message to every cultist in Ravenheart to help organize."
     pointCost: 0
     purchasable: false
 
-  - slug: cult-seedling
-    name: "Cult: Seedling"
-    category: meta
-    group: meta-cult
-    description: "Your cult is growing."
-    pointCost: 0
-    purchasable: false
   - slug: cult-ripening
     name: "Cult: Ripening"
     category: meta
     group: meta-cult
     description: "Your cult is maturing. Unlocks the Ripening tags."
     pointCost: 0
-    parentTag: cult-seedling
     purchasable: false
   - slug: cult-bountiful
     name: "Cult: Bountiful"
@@ -238,7 +241,7 @@ tags:
   - slug: demoness
     name: Demoness
     category: general
-    description: "“Pleasure is so painful—ah~! I don’t care!” You can Break souls ({tag:broken}), turning their owners into walking, empty shells, by making them fall in love with you—and then sealing it with a (voluntary) kiss. If people want more after that, that’s your business, not mine."
+    description: "\"Pleasure is so painful—ah~! I don't care!\" You can Break souls ({tag:broken}), turning their owners into walking, empty shells, by making them fall in love with you—and then sealing it with a (voluntary) kiss. If people want more after that, that's your business, not mine."
     pointCost: 0
     purchasable: false
 
@@ -359,7 +362,7 @@ tags:
     name: Insightful
     category: general
     group: general-traits
-    description: "You read people well. You can use a Gambit to randomly discover 1 – 6 of a person's tags."
+    description: "You read people well. You can use a Gambit to randomly discover 1-6 of a person's tags."
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -420,7 +423,7 @@ tags:
     name: Time Stop
     category: general
     group: general-traits
-    description: "Once a day, you can stop time in a 10-foot radius around you. This lasts 10 seconds."
+    description: "Once per day, you can stop time in a 10-foot radius around you. This lasts 10 seconds."
     pointCost: 0
     visible: false
     purchasable: false
@@ -688,7 +691,7 @@ tags:
     name: Quick Learner
     category: general
     group: general-traits
-    description: "People teach you skills easier. When learning a skill, you succeed on a 5 or a 6."
+    description: "People teach you skills easier. When learning a skill, you succeed on a 5 or 6."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -1111,7 +1114,7 @@ tags:
     name: Short-Tempered
     category: general
     group: general-traits
-    description: "You explode at people, are provoked easily, and struggle to keep a secret. It's a weakness... A few cracked teeth, maybe a broken nose or even a black eye—just so they know you’re not messing around. But what isn’t worth those few minutes of energy you feel?"
+    description: "You explode at people, are provoked easily, and struggle to keep a secret. It's a weakness... A few cracked teeth, maybe a broken nose or even a black eye—just so they know you're not messing around. But what isn't worth those few minutes of energy you feel?"
     pointCost: -5
     # Retired 2026-08-30 (Gunboat: "remove short tempered") — same reasoning
     # as Honest above: purchasable: false retires it without a prune.
@@ -1122,7 +1125,7 @@ tags:
     name: Hot-Headed
     category: general
     group: general-traits
-    description: "You like split knuckles, cracked teeth, black eyes — though they look better on the other guy! You actively pick fights where they might not be necessary."
+    description: "You like split knuckles, cracked teeth, black eyes—though they look better on the other guy! You actively pick fights where they might not be necessary."
     pointCost: -2
     visible: true
     purchasable: true
@@ -1190,7 +1193,7 @@ tags:
     name: Fundamentalist
     category: general
     group: general-beliefs
-    description: "You are hardcore about your Post-Christian beliefs — perhaps more hardcore than the Church itself is."
+    description: "You are hardcore about your Post-Christian beliefs—perhaps more hardcore than the Church itself is."
     pointCost: -2
     purchasable: true
     # A drawback buyable mid-game is a point farm (TAGS.md §4) — this was the
@@ -1272,7 +1275,7 @@ tags:
     name: Saint
     category: general
     group: general-beliefs
-    description: "It is clear that you are at peace. Your doctrine is unique, but your holiness is undeniable. Are you a heretic or do you know the truth? Once every day, you can instantly cure a Moderately Severe or lesser wound. Refer to the Medical document."
+    description: "It is clear that you are at peace. Your doctrine is unique, but your holiness is undeniable. Are you a heretic or do you know the truth? Once per day, you can instantly cure a Moderately Severe or lesser wound. Refer to the Medical document."
     pointCost: 14
     # Migrants only: Pale is the Migrant role's starting tag and is
     # purchasable: false, so nobody else can pick it up.
@@ -1324,7 +1327,7 @@ tags:
     name: Drillmaster
     category: general
     group: general-watch
-    description: "You train the Squires. Whenever one of them rolls a 5 or a 6 on a Gambit, you may raise their Fighting skill a tier."
+    description: "You train the Squires. Whenever one of them rolls a 5 or 6 on a Gambit, you may raise their Fighting skill a tier."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1333,7 +1336,7 @@ tags:
     name: Green
     category: general
     group: general-watch
-    description: "Your Fighting skill counts one tier lower in your first real fight. Remove the tag afterwards."
+    description: "Your Fighting skill counts as 1 tier lower in your first real fight. Remove the tag afterwards."
     pointCost: -2
     visible: false
     purchasable: true
@@ -1391,18 +1394,6 @@ tags:
     purchasableAfterStart: false
 
   # --- The Windlands ----------------------------------------------------
-  - slug: horse-trainer
-    name: Horse Trainer
-    category: general
-    group: general-windlands
-    description: "You can break and raise horses for others. For 10 ⬢ and a turn, you can produce a Horse tag and give it to anyone else."
-    pointCost: 5
-    purchasable: true
-    purchasableAfterStart: true
-    requirement:
-      resourceCost: 5
-      turnsCost: 1
-
   - slug: mountaineer
     name: Mountaineer
     category: general
@@ -1476,7 +1467,7 @@ tags:
   - slug: artist
     name: Artist
     category: skills
-    description: "Well, it’s lovely, but I’m not paying for it. You draw, paint, sculpt, act, or pursue another creative medium inessential for survival. Perhaps you can find a patron? The Merchant might buy these... You can craft a {tag:painting}, but it takes 4 turns."
+    description: "Well, it's lovely, but I'm not paying for it. You draw, paint, sculpt, act, or pursue another creative medium inessential for survival. Perhaps you can find a patron? The Merchant might buy these... You can craft a {tag:painting}, but it takes 4 turns."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1508,6 +1499,38 @@ tags:
     requiredTag: laborer-skilled
     purchasable: true
     purchasableAfterStart: true
+
+  # Two rungs on the same trade, priced apart rather than chained: a
+  # Windlander grows up around horses, so their training costs what the
+  # trade has always cost (5 pts); anyone else has to pay to pick it up from
+  # scratch, at 1.75x that (5 * 1.75 = 8.75, rounded to the nearest point).
+  # Deliberately NOT a parentTag chain — a Windlander doesn't "upgrade" out
+  # of the open version, they were just never charged the outsider's price
+  # for it, so both can exist as flatly separate purchases.
+  - slug: horse-trainer-windlander
+    name: Wild Horse Trainer
+    category: skills
+    group: skills-labor
+    description: "You grew up around horses, wild ones included—the trick every outsider stableman never learned. For 25 ⬢ and 1 turn, you can produce a Horse tag and give it to anyone else."
+    pointCost: 5
+    requiredTag: windlander
+    purchasable: true
+    purchasableAfterStart: true
+    requirement:
+      resourceCost: 25
+      turnsCost: 1
+
+  - slug: horse-trainer
+    name: Horse Trainer
+    category: skills
+    group: skills-labor
+    description: "You can break and raise horses for others. For 25 ⬢ and 1 turn, you can produce a Horse tag and give it to anyone else."
+    pointCost: 9
+    purchasable: true
+    purchasableAfterStart: true
+    requirement:
+      resourceCost: 25
+      turnsCost: 1
 
   - slug: intercom
     name: Intercom
@@ -1549,7 +1572,7 @@ tags:
     name: Smithing (Skilled)
     category: skills
     group: skills-crafting
-    description: "Skilled smithing — the Moderate and higher recipes."
+    description: "Skilled smithing—the Moderate and higher recipes."
     pointCost: 5
     parentTag: smithing
     visible: false
@@ -1720,7 +1743,7 @@ tags:
     name: Ranged (Expert)
     category: skills
     group: skills-fighting
-    description: "You have survived many fights. Almost no one matches you."
+    description: "You've survived many fights. Almost no one matches you."
     pointCost: 7
     parentTag: ranged-skilled
     visible: false
@@ -1742,7 +1765,7 @@ tags:
     name: Melee (Shield Wall)
     category: skills
     group: skills-fighting
-    description: "You have practiced this drill. When standing within reach of two or more other Watchmen, your melee skill counts as two levels higher."
+    description: "You have practiced this drill. When standing within reach of 2 or more other Watchmen, your melee skill counts as 2 tiers higher."
     pointCost: 10
     requiredTag: melee-basic
     visible: false
@@ -1753,7 +1776,7 @@ tags:
     name: Melee (Duelist)
     category: skills
     group: skills-fighting
-    description: "You're particularly good at fighting people one-on-one—especially with swords, rapiers, and knives. When dueling, your melee skill counts as two tiers higher."
+    description: "You're particularly good at fighting people one-on-one—especially with swords, rapiers, and knives. When dueling, your melee skill counts as 2 tiers higher."
     pointCost: 10
     requiredTag: melee-basic
     visible: false
@@ -1764,7 +1787,7 @@ tags:
     name: Melee (Polearms)
     category: skills
     group: skills-fighting
-    description: "While using polearms, your fighting skill is two levels higher."
+    description: "While using polearms, your fighting skill counts as 2 tiers higher."
     pointCost: 10
     requiredTag: melee-basic
     visible: false
@@ -1775,7 +1798,7 @@ tags:
     name: Melee (Swords)
     category: skills
     group: skills-fighting
-    description: "Versatile. You half-sword, pommel strike, shove them into visors, and, of course, cut through the unarmored. Your fighting skill is two levels higher while using swords."
+    description: "Versatile. You half-sword, pommel strike, shove them into visors, and, of course, cut through the unarmored. Your fighting skill counts as 2 tiers higher while using swords."
     pointCost: 10
     requiredTag: melee-basic
     visible: false
@@ -1787,7 +1810,7 @@ tags:
     name: Melee (Clubs)
     category: skills
     group: skills-fighting
-    description: "While using clubs, your fighting skill is two levels higher."
+    description: "While using clubs, your fighting skill counts as 2 tiers higher."
     pointCost: 10
     requiredTag: melee-basic
     visible: false
@@ -1798,7 +1821,7 @@ tags:
     name: Melee (Flamboyant)
     category: skills
     group: skills-fighting
-    description: "While fighting without armor, your melee skill counts as two tiers higher."
+    description: "While fighting without armor, your melee skill counts as 2 tiers higher."
     pointCost: 7
     requiredTag: melee-basic
     visible: false
@@ -1809,7 +1832,7 @@ tags:
     name: Ranged (Archer)
     category: skills
     group: skills-fighting
-    description: "When using bows, your ranged skill is two levels higher."
+    description: "When using bows, your ranged skill counts as 2 tiers higher."
     pointCost: 10
     requiredTag: ranged-basic
     visible: false
@@ -1820,7 +1843,7 @@ tags:
     name: Ranged (Firearms)
     category: skills
     group: skills-fighting
-    description: "You're a master with firearms and disablers. When using them, your ranged skill counts as two tiers higher."
+    description: "You're a master with firearms and disablers. When using them, your ranged skill counts as 2 tiers higher."
     pointCost: 10
     requiredTag: ranged-basic
     visible: false
@@ -1841,7 +1864,7 @@ tags:
     name: Guerrilla
     category: skills
     group: skills-fighting
-    description: "When you start a fight with a surprise attack in difficult terrain, your fighting skill (whether melee or ranged) is two levels higher."
+    description: "When you start a fight with a surprise attack in difficult terrain, your fighting skill (whether melee or ranged) counts as 2 tiers higher."
     pointCost: 10
     visible: false
     purchasable: true
@@ -1852,7 +1875,7 @@ tags:
     name: Cavalry
     category: skills
     group: skills-fighting
-    description: "You fire bows and wield spears effortlessly from the back of a horse. While mounted, your fighting skill (whether melee or ranged) is two levels higher."
+    description: "You fire bows and wield spears effortlessly from the back of a horse. While mounted, your fighting skill (whether melee or ranged) counts as 2 tiers higher."
     pointCost: 10
     requiredTag: windlander
     visible: false
@@ -1941,7 +1964,7 @@ tags:
     name: Cooking (Basic)
     category: skills
     group: skills-cooking
-    description: "Can cook Fine Meals — 2 ⬢ each, up to 4 in one Routine Move."
+    description: "Can cook Fine Meals—2 ⬢ each, up to 4 in one Routine Move."
     pointCost: 5
     visible: false
     purchasable: true
@@ -1951,7 +1974,7 @@ tags:
     name: Cooking (Skilled)
     category: skills
     group: skills-cooking
-    description: "Can cook Lavish Meals — 3 ⬢ and one exotic ingredient each, up to 3 in one Routine Move."
+    description: "Can cook Lavish Meals—3 ⬢ and 1 exotic ingredient each, up to 3 in one Routine Move."
     pointCost: 5
     parentTag: cooking-basic
     visible: false
@@ -1994,7 +2017,7 @@ tags:
     name: Bound
     category: status
     group: status-debuffs
-    description: "Restrained — can't act, can be looted or moved by whoever bound them."
+    description: "Restrained—can't act, can be looted or moved by whoever bound them."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2005,7 +2028,7 @@ tags:
     name: Tipsy
     category: status
     group: status-debuffs
-    description: "You count as having one fighting level lower than you would otherwise."
+    description: "Your Fighting skill counts as 1 tier lower."
     pointCost: 0
     purchasable: false
     durationTurns: 3
@@ -2038,7 +2061,7 @@ tags:
     name: Opium High
     category: status
     group: status-debuffs
-    description: "You can't feel pain and can't think clearly. Your fighting skill level acts as though it was one lower."
+    description: "You can't feel pain and can't think clearly. Your Fighting skill counts as 1 tier lower."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2110,7 +2133,7 @@ tags:
     name: Mindreading
     category: status
     group: status-buffs
-    description: "You can read a person's Desire on a Gambit. Failure on 1-3, success on 4-6. You must exchange at least ten words with them."
+    description: "You can read a person's Desire on a Gambit. Failure on 1-3, success on 4-6. You must exchange at least 10 words with them."
     pointCost: 0
     visible: false
     purchasable: false
@@ -2134,7 +2157,7 @@ tags:
     name: Aberrant Luck
     category: status
     group: status-buffs
-    description: "Every Gambit you roll is an automatic six."
+    description: "Every Gambit you roll is an automatic 6."
     pointCost: 0
     visible: false
     purchasable: false
@@ -3332,22 +3355,24 @@ tags:
 
   # --- assets -------------------------------------------------------
   - slug: horse-windlander
-    name: Horse (Windlander)
+    name: Wild Horse
     category: assets
     group: assets-companions
-    description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending a turn, but you'll be easily visible. Do not use through caves."
-    pointCost: 2
+    description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending a turn, but you'll be easily visible. Do not use through caves. Can carry 2 people."
+    pointCost: 6
     requiredTag: windlander
     purchasable: true
+    visible: true
     purchasableAfterStart: true
 
   - slug: horse
     name: Horse
     category: assets
     group: assets-companions
-    description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending a turn, but you will be easily visible. Do not use through caves. Your horse can carry yourself plus, optionally, a bound or incapacitated person."
-    pointCost: 7
+    description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending a turn, but you'll be easily visible. Do not use through caves. Can carry 2 people."
+    pointCost: 9
     purchasable: true
+    visible: true
     purchasableAfterStart: true
 
   - slug: bird
@@ -3372,7 +3397,7 @@ tags:
     name: Kitty Cat
     category: assets
     group: assets-companions
-    description: "You have a cat. It may or may not be useful for anything — generally, it's the cat who decides that."
+    description: "You have a cat. It may or may not be useful for anything—generally, it's the cat who decides that."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -3401,12 +3426,18 @@ tags:
     name: Cart
     category: assets
     group: assets-property
-    description: "A standard hand-cart to push more than you can carry. The wheels work most of the time."
-    pointCost: 2
+    description: "A standard hand-cart to push more than you can carry. The wheels work most of the time. Upgrades the horse, allowing you to carry up to 6 people total on fast travel."
+    pointCost: 5
     visible: true
     tradeable: true
     purchasable: true
     purchasableAfterStart: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 25
+      skills: [builder-skilled]
+      gambit: false
 
   - slug: dog
     name: Dog
@@ -3580,7 +3611,7 @@ tags:
     name: Disguise Kit
     category: items
     group: items-gear
-    description: "Makeup, a change of clothes, an array of false mustaches... (Change your name temporarily. It takes a turn to apply, and lasts for three. You need the {tag:artist} trait to impersonate someone specific.)"
+    description: "Makeup, a change of clothes, an array of false mustaches... (Change your name temporarily. Takes 1 turn to apply, and lasts 3. You need the {tag:artist} trait to impersonate someone specific.)"
     pointCost: 5
     tradeable: true
     stackable: true
@@ -3849,7 +3880,7 @@ tags:
     name: Suspicious Game Set
     category: items
     group: items-gear
-    description: "You're so good that you'll win anyway: why not speed things up? Weighted and shaved dice, marked and bonus cards — whatever you need."
+    description: "You're so good that you'll win anyway: why not speed things up? Weighted and shaved dice, marked and bonus cards—whatever you need."
     pointCost: 7
     purchasable: true
     purchasableAfterStart: false
@@ -4368,7 +4399,7 @@ tags:
     name: Bastard Sword
     category: items
     group: items-weapons
-    description: "A large sword that requires two hands to fight effectively."
+    description: "A large sword that requires 2 hands to fight effectively."
     pointCost: 9
     requiredTag: melee-basic
     equippable: true
@@ -4529,7 +4560,7 @@ tags:
     name: Crossbow
     category: items
     group: items-weapons
-    description: "Bruises plate, punctures almost everything else. It's easy to point—anyone using it has their fighting skill increased by one."
+    description: "Bruises plate, punctures almost everything else. It's easy to point—anyone using it has their fighting skill count as 1 tier higher."
     pointCost: 9
     requiredTag: ranged-basic
     equippable: true
@@ -4684,7 +4715,7 @@ tags:
     name: Lavish Meal
     category: items
     group: items-food
-    description: "A worthy meal! Makes anyone happy, Nobility included, and can be used as a Desire. Needs one hard-to-get exotic ingredient on top of the resource cost."
+    description: "A worthy meal! Makes anyone happy, Nobility included, and can be used as a Desire. Needs 1 hard-to-get exotic ingredient on top of the resource cost."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4818,7 +4849,7 @@ tags:
     name: Dark-Eye Lenses
     category: items
     group: items-special
-    description: "Wear these to see heat through solid stone — from flames, bodies, or anything else. Bright light will blind you."
+    description: "Wear these to see heat through solid stone—from flames, bodies, or anything else. Bright light will blind you."
     pointCost: 0
     equippable: true
     tradeable: true
@@ -4831,7 +4862,7 @@ tags:
     name: Stepstone
     category: items
     group: items-special
-    description: "Swallow this stone and be somewhere else — anywhere else. Single use. DM the GMs with where you went."
+    description: "Swallow this stone and be somewhere else—anywhere else. Single use. DM the GMs with where you went."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4845,7 +4876,7 @@ tags:
     name: Quickened Nerve-Braid
     category: items
     group: items-special
-    description: "Grafted into your neck, it sends electric spasms through you. Once a Day, attain the speed of a galloping horse. But watch out: you don't have a horse's circulation."
+    description: "Grafted into your neck, it sends electric spasms through you. Once per day, attain the speed of a galloping horse. But watch out: you don't have a horse's circulation."
     pointCost: 0
     tradeable: false
     visible: false
@@ -5687,7 +5718,7 @@ tags:
     name: Cleaning Powder
     category: items
     group: items-drink
-    description: "Cures a minor infection outright, but does not help against {tag:festering}. Slow to make: one turn yields two."
+    description: "Cures a minor infection outright, but does not help against {tag:festering}. Slow to make: 1 turn yields 2."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -5709,7 +5740,7 @@ tags:
     name: Cat
     category: items
     group: items-drink
-    description: "Distilled with alcohol until it turns pale. Drink it and your eyes flash yellow: gain {tag:night-vision} for one turn."
+    description: "Distilled with alcohol until it turns pale. Drink it and your eyes flash yellow: gain {tag:night-vision} for 1 turn."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -5777,7 +5808,7 @@ tags:
     name: Nightshade
     category: items
     group: items-drink
-    description: "Refined from a common forest herb. Whoever takes it dies frothing in public — it inflicts {tag:choking}."
+    description: "Refined from a common forest herb. Whoever takes it dies frothing in public—it inflicts {tag:choking}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -5820,7 +5851,7 @@ tags:
     name: Phrygian Tears
     category: items
     group: items-drink
-    description: "The perfect silent killer. Requires two turns and a gambit to make. Failures are dangerous. Inflicts {tag:phrygian-toxin}."
+    description: "The perfect silent killer. Requires 2 turns and a gambit to make. Failures are dangerous. Inflicts {tag:phrygian-toxin}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -5866,7 +5897,7 @@ tags:
     name: Graga Sweat
     category: items
     group: items-drink
-    description: "Made with rendered {tag:graga-sac}. Grants two turns of {tag:brutish-strength}."
+    description: "Made with rendered {tag:graga-sac}. Grants 2 turns of {tag:brutish-strength}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -5931,7 +5962,7 @@ tags:
     name: Deadeye Drops
     category: items
     group: items-drink
-    description: "Eye drops refined from {tag:cave-fungus}. {tag:increased-accuracy} for two turns."
+    description: "Eye drops refined from {tag:cave-fungus}. {tag:increased-accuracy} for 2 turns."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6044,7 +6075,7 @@ tags:
     name: Invisibility Potion
     category: items
     group: items-drink
-    description: "Distilled from a {tag:graga-sac}. Grants {tag:invisible} for two turns."
+    description: "Distilled from a {tag:graga-sac}. Grants {tag:invisible} for 2 turns."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6134,7 +6165,7 @@ tags:
     name: Pure Luck
     category: items
     group: items-drink
-    description: "Made with the heart of an Aberrant. For three turns straight all your Gambits are sixes — {tag:aberrant-luck}."
+    description: "Made with the heart of an Aberrant. For 3 turns straight, every Gambit you roll is a 6 — {tag:aberrant-luck}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6181,7 +6212,7 @@ tags:
     name: Forgiveness
     category: items
     group: items-drink
-    description: "Requires someone's tears. Whoever drinks it forgets the last three days."
+    description: "Requires someone's tears. Whoever drinks it forgets the last 3 days."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6202,7 +6233,7 @@ tags:
     name: Flawless Skin
     category: items
     group: items-drink
-    description: "Needs a lock of hair from {tag:nobility}. You are granted supreme beauty for three turns."
+    description: "Needs a lock of hair from {tag:nobility}. You are granted supreme beauty for 3 turns."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6506,7 +6537,7 @@ tags:
     name: Slavemaster
     category: demoness
     group: demoness
-    description: "When you Break a soul, that person gains {tag:broken-enslaved} instead. They will follow your every command. You can only have two slaves at a time."
+    description: "When you Break a soul, that person gains {tag:broken-enslaved} instead. They will follow your every command. You can only have 2 slaves at a time."
     pointCost: 9
     purchasable: true
     purchasableAfterStart: true
@@ -6533,7 +6564,7 @@ tags:
     name: "True Form: Spider"
     category: demoness
     group: demoness
-    description: "You can switch into your true form at will: a beautiful woman with a hairy eight-legged abdomen. Hard to see in the dark — can inflict {tag:paralyzed} and {tag:hallucinating}."
+    description: "You can switch into your true form at will: a beautiful woman with a hairy eight-legged abdomen. Hard to see in the dark—can inflict {tag:paralyzed} and {tag:hallucinating}."
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -6542,7 +6573,7 @@ tags:
     name: "True Form: Siren"
     category: demoness
     group: demoness
-    description: "You can switch into your true form at will — a beautiful, monstrous woman with a scaled face and a long, finned tail. Can swim expertly, and has a call that lures the weak-willed."
+    description: "You can switch into your true form at will—a beautiful, monstrous woman with a scaled face and a long, finned tail. Can swim expertly, and has a call that lures the weak-willed."
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -6562,7 +6593,7 @@ tags:
     name: Terrifying
     category: demoness
     group: demoness
-    description: "Your True Form terrifies people, either making them {tag:afraid} or {tag:panic}. Requires a True Form other than Apex — nobody is frightened of a thing they never see coming."
+    description: "Your True Form terrifies people, either making them {tag:afraid} or {tag:panic}. Requires a True Form other than Apex—nobody is frightened of a thing they never see coming."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -6590,7 +6621,7 @@ tags:
     name: Beguiling
     category: demoness
     group: demoness
-    description: "People struggle to raise a hand against you. In your True Form their fighting skill drops by one rung; wearing a human face, by two."
+    description: "People struggle to raise a hand against you. In your True Form their fighting skill counts as 1 tier lower; wearing a human face, 2 tiers lower."
     pointCost: 9
     purchasable: true
     purchasableAfterStart: true
@@ -6599,7 +6630,7 @@ tags:
     name: Silver Callus
     category: demoness
     group: demoness
-    description: "The Silver Cross disables your powers for one turn, not the rest of the day. It took decades to grow this scar."
+    description: "The Silver Cross disables your powers for 1 turn, not the rest of the day. It took decades to grow this scar."
     pointCost: 11
     purchasable: true
     purchasableAfterStart: true
@@ -6608,7 +6639,7 @@ tags:
     name: Heal
     category: demoness
     group: demoness
-    description: "Drink a person's blood to clear up to two of your negative Health tags."
+    description: "Drink a person's blood to clear up to 2 of your negative Health tags."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -6676,7 +6707,7 @@ tags:
     name: "Spell: Nourishment"
     category: bacchus
     group: bacchus
-    description: "Once every two turns, touch someone else. Grant them {tag:ate-meal}. | vory ysm lechem, wa oryy"
+    description: "Once every 2 turns, touch someone else. Grant them {tag:ate-meal}. | vory ysm lechem, wa oryy"
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -6696,7 +6727,7 @@ tags:
     name: "Rite: Transmutation"
     category: bacchus
     group: bacchus
-    description: "Takes one turn. Turn up to three {tag:fine-meal}s into one {tag:ravenheart-red} each. | xe qorvym lys ymadv rechem"
+    description: "Takes 1 turn. Turn up to 3 {tag:fine-meal}s into 1 {tag:ravenheart-red} each. | xe qorvym lys ymadv rechem"
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -6706,7 +6737,7 @@ tags:
     name: "Spell: Summon Camera"
     category: bacchus
     group: bacchus
-    description: "Once every three turns, summon an {tag:instant-camera}. You need photos for certain spells. | bymadv lys xe oryym"
+    description: "Once every 3 turns, summon an {tag:instant-camera}. You need photos for certain spells. | bymadv lys xe oryym"
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -6746,7 +6777,7 @@ tags:
     name: Brewing (Ambrosia)
     category: bacchus
     group: bacchus
-    description: "You can refine {tag:bliss} into {tag:ambrosia}. It's the best substance on Earth, valid of a five point desire, but is very expensive."
+    description: "You can refine {tag:bliss} into {tag:ambrosia}. It's the best substance on Earth, valid of a 5-point Desire, but is very expensive."
     pointCost: 5
     requiredTag: brewing-basic
     purchasable: true
@@ -6788,7 +6819,7 @@ tags:
     name: Melee (Drunken Master)
     category: bacchus
     group: bacchus
-    description: "While intoxicated, your melee skill is two levels higher."
+    description: "While intoxicated, your melee skill counts as 2 tiers higher."
     pointCost: 10
     requiredTag: melee-basic
     purchasable: true
@@ -6799,7 +6830,7 @@ tags:
     name: "Spell: Soothe"
     category: bacchus
     group: bacchus
-    description: "Once a turn, immediately cure a Moderate or lesser wound. | eraqylym iw xe vechem"
+    description: "Once per turn, immediately cure a Moderate or lesser wound. | eraqylym iw xe vechem"
     pointCost: 9
     purchasable: true
     purchasableAfterStart: true
@@ -6905,7 +6936,7 @@ tags:
     name: Ambrosia
     category: items
     group: items-drink
-    description: "Bacchus's own choice, valid of a five point desire."
+    description: "Bacchus's own choice, valid of a 5-point Desire."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6929,7 +6960,7 @@ tags:
     name: "Rite: Teleport"
     category: bacchus
     group: bacchus-ripening
-    description: "Once per day, you and up to three people whose hands you hold can be teleported anywhere. This takes a turn. | wy oryym xe qarvadv lys"
+    description: "Once per day, you and up to 3 people whose hands you hold can be teleported anywhere. This takes 1 turn. | wy oryym xe qarvadv lys"
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -6969,7 +7000,7 @@ tags:
     name: "Rite: Den"
     category: bacchus
     group: bacchus-ripening
-    description: "Carefully scrawl Bacchus's sigil. Takes one turn. A pocket dimension forms at the sigil. The gate itself is invisible—it'd take a very close eye to detect the faint shimmering on its surface. It lasts until you close it or die. You don't know what happens to anyone or anything who's in it when it closes. You can only have one active at a time. | bymadv qoryy iw xe hazym"
+    description: "Carefully scrawl Bacchus's sigil. Takes 1 turn. A pocket dimension forms at the sigil. The gate itself is invisible—it'd take a very close eye to detect the faint shimmering on its surface. It lasts until you close it or die. You don't know what happens to anyone or anything who's in it when it closes. You can only have one active at a time. | bymadv qoryy iw xe hazym"
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -6979,7 +7010,7 @@ tags:
     name: "Rite: Summon Nekker"
     category: bacchus
     group: bacchus-ripening
-    description: "Transmute the aroma of {tag:ravenheart-red} into powerful pheromones. Requires one turn and a {tag:ravenheart-red} as the basis. Nekkers—paranoid, hungry, thin-limbed creatures from the caves—may come running out. This may not work during stormy days. Nekkers will attack anyone, including cultists. | vory nechem lys oryitm"
+    description: "Transmute the aroma of {tag:ravenheart-red} into powerful pheromones. Requires 1 turn and a {tag:ravenheart-red} as the basis. Nekkers—paranoid, hungry, thin-limbed creatures from the caves—may come running out. This may not work during stormy days. Nekkers will attack anyone, including cultists. | vory nechem lys oryitm"
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -6989,7 +7020,7 @@ tags:
     name: "Rite: Rage"
     category: bacchus
     group: bacchus-ripening
-    description: "Carefully scrawl Bacchus's sigil. Set a head—animal or human—on fire. Requires one turn and a willing target—can be yourself. You can no longer examine people, but are rewarded with true power. | mh ryqadv, xe vorym rechem"
+    description: "Carefully scrawl Bacchus's sigil. Set a head—animal or human—on fire. Requires 1 turn and a willing target—can be yourself. You can no longer examine people, but are rewarded with true power. | mh ryqadv, xe vorym rechem"
     pointCost: 9
     purchasable: true
     purchasableAfterStart: true
@@ -6999,7 +7030,7 @@ tags:
     name: "Rite: Overwhelm"
     category: bacchus
     group: bacchus-ripening
-    description: "Carefully scrawl Bacchus's sigil. Place a photo of your target, a left foot, and a right foot. If target isn't {tag:pious} or {tag:ascetic}, they lose their mind. Takes one turn. | wa hazyluzar, iw xe lechem"
+    description: "Carefully scrawl Bacchus's sigil. Place a photo of your target, a left foot, and a right foot. If target isn't {tag:pious} or {tag:ascetic}, they lose their mind. Takes 1 turn. | wa hazyluzar, iw xe lechem"
     pointCost: 9
     purchasable: true
     purchasableAfterStart: true
@@ -7009,7 +7040,7 @@ tags:
     name: "Spell: Fulfill"
     category: bacchus
     group: bacchus-ripening
-    description: "Once every three days, select a target (not yourself) and fulfill their desire immediately—they are convinced that it happened. | xe eraqym vory, wa oryy"
+    description: "Once every 3 days, select a target (not yourself) and fulfill their desire immediately—they are convinced that it happened. | xe eraqym vory, wa oryy"
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -7062,7 +7093,7 @@ tags:
     name: "Spell: Cure"
     category: bacchus
     group: bacchus-ripening
-    description: "Once every three turns, immediately cure a Very minor surgery wound or lesser. | vory lymechem, xe oryitm"
+    description: "Once every 3 turns, immediately cure a Very minor surgery wound or lesser. | vory lymechem, xe oryitm"
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -7209,7 +7240,7 @@ tags:
     name: "Rite: Judgement"
     category: bacchus
     group: bacchus-bountiful
-    description: "Carefully scrawl Bacchus's sigil. Place a photo of your victim in the center. Pour a liter of human blood on it. If the target isn't {tag:pious} or {tag:ascetic}, their head immediately shoots off at supersonic speed. The ritual takes two turns. | mh qaravym iw xe ryitm dechem"
+    description: "Carefully scrawl Bacchus's sigil. Place a photo of your victim in the center. Pour a liter of human blood on it. If the target isn't {tag:pious} or {tag:ascetic}, their head immediately shoots off at supersonic speed. The ritual takes 2 turns. | mh qaravym iw xe ryitm dechem"
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -7242,7 +7273,7 @@ tags:
     name: Grievous Wound
     category: health
     group: health-wounds
-    description: "No… It can't be—"
+    description: "No... It can't be—"
     pointCost: 0
     visible: true
     purchasable: false

@@ -4,6 +4,12 @@
 // docs/tags.yaml; each is either a health affliction that already means
 // "can't act" (dying, paralyzed) or the AFK/status equivalent (catatonic,
 // bound).
+//
+// Also read on the afflicted character's own side: db/lib/defaultMovePass.js
+// skips filing a standing Default Move for anyone holding one of these. That
+// is why "can't act" has to stay literally true of every slug added here —
+// adding one without checking that it belongs on the acting side too would
+// silently cancel someone's default for the wrong reason.
 const INCAPACITATING_SLUGS = new Set(["dying", "catatonic", "paralyzed", "bound"]);
 
 // The narrower set HARM_CHARACTER's lethal half needs. Being Paralyzed for a

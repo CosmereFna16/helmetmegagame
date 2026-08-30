@@ -31,7 +31,7 @@ function one(raw) {
 // Invalid Date that Prisma rejects, which used to throw inside the page render
 // and — with no error boundary in the app — take the whole route to a raw
 // digest screen.
-export function parseDateParam(raw, timeSuffix) {
+function parseDateParam(raw, timeSuffix) {
   const text = one(raw);
   if (!text) return null;
   const parsed = new Date(`${text}${timeSuffix}`);
@@ -291,34 +291,6 @@ export async function buildAuditWhere(filters, ctx) {
   }
 
   return and.length ? { AND: and } : {};
-}
-
-// Every filter back into a query string, dropping the empties so a default
-// view is a bare /gm/audit rather than a wall of `&type=&actor=`.
-export function auditHref(filters, overrides = {}) {
-  const f = { ...filters, ...overrides };
-  const params = new URLSearchParams();
-  const put = (key, value) => {
-    if (value) params.append(key, value);
-  };
-  put("q", f.q);
-  for (const v of f.families) put("family", v);
-  for (const v of f.types) put("type", v);
-  for (const v of f.actors) put("actor", v);
-  put("actorKind", f.actorKind);
-  for (const v of f.targets) put("target", v);
-  for (const v of f.factions) put("faction", v);
-  for (const v of f.zones) put("zone", v);
-  put("turnFrom", f.turnFrom);
-  put("turnTo", f.turnTo);
-  put("preset", f.preset);
-  // The normalized strings, not the Date objects — a Date in a
-  // URLSearchParams stringifies to a full RFC date the next parse rejects.
-  put("from", f.from ? f.from.toISOString().slice(0, 10) : "");
-  put("to", f.to ? f.to.toISOString().slice(0, 10) : "");
-  if (f.page > 1) put("page", String(f.page));
-  const qs = params.toString();
-  return qs ? `/gm/audit?${qs}` : "/gm/audit";
 }
 
 export { auditFamily, DATE_PRESETS };

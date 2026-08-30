@@ -1,3 +1,7 @@
+// The bare constants module, not the @lifeweb/db barrel — MoveDesk.js (a
+// client component) imports moveStatusLabel from this file, and the barrel
+// would drag the Prisma client into that bundle.
+import { CATATONIC_SLUG } from "@lifeweb/db/lib/constants";
 import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, isTravelMove, rollLabel } from "@/lib/moves";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
 
@@ -49,11 +53,15 @@ function isConfirmed(a) {
   return a.status === "CONFIRMED" || a.status === "ADJUDICATED";
 }
 
-// "In Progress" is DERIVED from a live lock rather than stored, so a GM whose
-// browser died can never strand a Move in that state — the lock simply lapses.
+// The label is always the review-status label — a live lock never masks it.
+// It used to render "In Progress" for any Move under a live lock, which let a
+// GM's OWN lock on a Move they had just Solved make the desk they were
+// sitting in read back `solved = false` (moveStatusLabel(a, now) === "Solved"
+// was the desk's test) and offer Save/Solve on a row that was already SOLVED
+// in the DB — the incident this rework fixes. The lock renders separately, as
+// presence (a GmAvatar chip — see QueueRail.js), never as a status.
 export function moveStatusLabel(a, now) {
   if (!isConfirmed(a)) return MOVE_PIPELINE_LABELS[a.status] ?? a.status;
-  if (a.lockExpiresAt && a.lockExpiresAt > now) return "In Progress";
   return MOVE_REVIEW_LABELS[a.moveReviewStatus] ?? "Open";
 }
 
@@ -87,6 +95,9 @@ export function moveRow(a, { usernameById, now }) {
     characterId: a.characterId,
     characterName: a.character.name,
     avatarVersion: a.character.updatedAt.getTime(),
+    // AFK marker for the queue row's avatar badge — read straight off the
+    // tags MOVE_INCLUDE already loads, so the History lens gets it too.
+    catatonic: a.character.tags.some((ct) => ct.tag?.slug === CATATONIC_SLUG),
     // The player desk keys on discordUserId, not characterId — carried here
     // so a Move can link straight to that player's conversation.
     discordUserId: a.character.discordUserId,
@@ -102,10 +113,17 @@ export function moveRow(a, { usernameById, now }) {
     gmNotes: a.gmNotes ?? "",
     rollLabel: rollLabel(a),
     statusLabel: moveStatusLabel(a, now),
+    // The enum itself, alongside the display label — clients branch on this,
+    // not on the string, so a locale/wording change to the label can never
+    // silently break a `solved` check (MoveDesk.js).
+    reviewStatus: a.moveReviewStatus,
     // Where they stand. Key name kept because MoveDesk and InspectorColumn
     // still read `locationLabel`; the value is now just the presence zone,
     // since Locations are prose Topics and no longer a place on the sheet.
     locationLabel: a.character.zone?.name || "Unassigned",
+    // The bare zoneId alongside the label above — PublicComposer needs the
+    // id to preselect the Move's own zone, not just its name.
+    zoneId: a.character.zone?.id ?? null,
     resources: a.character.resources,
     tags: a.character.tags.map((ct) => ({
       tagId: ct.tagId,

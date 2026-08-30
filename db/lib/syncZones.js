@@ -47,6 +47,7 @@ const {
   clearThreadExceptStarter,
   chunkMessage,
   THREAD_FLAG_PINNED,
+  pinMessage,
   fetchActiveThreads,
   listActiveThreadsForChannel,
   listArchivedPublicThreads,
@@ -202,8 +203,6 @@ function collectTopics(zone, zoneSlug, topicEntries, problems) {
     });
   }
 }
-
-// --- Overwrite reconciliation ------------------------------------------
 
 // The overwrite targets this sync may DELETE. Everything else on a zone
 // channel belongs to somebody else and must never be touched here. The zone
@@ -493,6 +492,16 @@ async function syncTopicPost(prisma, topic, zone) {
     const adopted = await findExistingTopicThread(zone.discordPublicChannelId, title);
     if (adopted) {
       await rewriteForumPost(adopted.id, { name: title, chunks, appliedTags, locked: false, components });
+      // The DB is only now learning this Location has a live post at all —
+      // from the player's perspective this is a creation moment even though
+      // Discord itself just saw an edit, so it earns the same starter pin a
+      // true create gets below. (channelId, messageId) = (adopted.id,
+      // adopted.id) because a forum post's thread is its own channel for API
+      // purposes, the same shape rewriteForumPost's own editMessage calls
+      // use. Best-effort: a pin failure must never abort the sync.
+      await pinMessage(adopted.id, adopted.id).catch((err) =>
+        console.error(`Location topic pin failed for ${topic.slug} (adopted ${adopted.id}):`, err),
+      );
       await prisma.locationTopic.update({
         where: { id: topic.id },
         data: { discordThreadId: adopted.id, postHash: hash, componentsHash },
@@ -523,6 +532,16 @@ async function syncTopicPost(prisma, topic, zone) {
       });
       await editMessage(thread.id, thread.id, chunks[0], components);
     }
+    // Pin the description — the starter message's id is the thread's own id
+    // (LocationTopic.discordThreadId), and (channelId, messageId) =
+    // (thread.id, thread.id) for the same reason the editMessage call above
+    // uses that shape: a forum post's thread is its own channel for API
+    // purposes, not the parent forum's id. Best-effort: a pin failure (a
+    // rate limit, a permission hiccup) must never block the topic from
+    // being created.
+    await pinMessage(thread.id, thread.id).catch((err) =>
+      console.error(`Location topic pin failed for ${topic.slug} (${thread.id}):`, err),
+    );
     for (const chunk of chunks.slice(1)) await postMessage(thread.id, chunk);
     await patchThread(thread.id, { archived: false, applied_tags: appliedTags });
     await prisma.locationTopic.update({
@@ -559,8 +578,6 @@ async function syncTopicPost(prisma, topic, zone) {
   topic.componentsHash = componentsHash;
   return "updated";
 }
-
-// --- Ordering ----------------------------------------------------------
 
 // Zone categories in YAML order (sortOrder, then name), zipped onto the
 // position slots those categories already hold so non-zone categories keep
@@ -624,8 +641,6 @@ async function sortZoneChannels(prisma) {
   await patchGuildChannelPositions(intended.map(({ id, position }) => ({ id, position })));
   return { ordered: intended.length, reparented };
 }
-
-// --- The sync ----------------------------------------------------------
 
 async function syncZonesFromYaml(prisma) {
   const yamlPath = requireDocsPath("zones.yaml");
@@ -929,9 +944,6 @@ async function syncZonesFromYaml(prisma) {
 
 module.exports = {
   syncZonesFromYaml,
-  parseZonesYaml,
   reconcileChannelOverwrites,
   managedOverwriteIds,
-  buildTopicBody,
-  buildCreateTopicBody,
 };

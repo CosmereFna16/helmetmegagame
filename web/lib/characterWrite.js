@@ -86,7 +86,6 @@ export async function normalizeCoreEdits({ prisma, existing, core }) {
 
   const data = {};
 
-  // ── names ───────────────────────────────────────────────────────────────
   // Length-capped and allowlisted exactly like the player forms. The caps are
   // what keep the composed name inside Discord's 80-character webhook
   // username limit, so they are not cosmetic.
@@ -109,7 +108,6 @@ export async function normalizeCoreEdits({ prisma, existing, core }) {
     data.gender = value;
   }
 
-  // ── role, and the dynasty lock that rides on it ─────────────────────────
   // Deliberately NO roleCapacity() check here, unlike createActions.js and
   // reserveRoleAction — a GM hand-assigning a role is treated as an override
   // of the seat cap, not a request subject to it. It also does not see or
@@ -132,7 +130,6 @@ export async function normalizeCoreEdits({ prisma, existing, core }) {
   // Baron — which propagates — never by typing a surname onto the Baroness.
   if (isDynastyMember(role?.slug)) data.lastName = await dynastyLastName();
 
-  // ── the denormalised composed name ──────────────────────────────────────
   // Character.name has a fixed set of writers, all of which must go through
   // the formatter (schema.prisma). This is the GM one.
   const merged = {
@@ -143,7 +140,6 @@ export async function normalizeCoreEdits({ prisma, existing, core }) {
   };
   data.name = formatCharacterName(merged);
 
-  // ── everything else ─────────────────────────────────────────────────────
   if ("age" in picked) {
     const age = intOrNull(picked.age);
     if (age != null && (age < AGE_MIN || age > AGE_MAX)) {
@@ -226,8 +222,6 @@ export async function setLeaderInTx(tx, { characterId, factionId, isLeader }) {
   await tx.character.update({ where: { id: characterId }, data: { isLeader: true } });
 }
 
-// ── tag ops ────────────────────────────────────────────────────────────────
-//
 // The engine itself lives in @lifeweb/db/lib/tagOps now — the staged-push
 // pass applies the same ops at turn end, and db/ cannot import web/. These
 // wrappers exist to translate its plain TagOpError into the UserError that
@@ -255,8 +249,6 @@ export async function applyTagOpsInTx(tx, args) {
   }
 }
 
-// ── the Discord plan ───────────────────────────────────────────────────────
-//
 // One plan object, built from the diff, executed in order after the
 // transaction commits. Written as a plan rather than a run of independent
 // `if` blocks specifically so that a dead character can't fall through into a

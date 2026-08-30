@@ -28,17 +28,14 @@ export const MOVE_REVIEW_LABELS = {
   SOLVED: "Solved",
 };
 
-export const MOVE_KIND_LABELS = {
+const MOVE_KIND_LABELS = {
   ROUTINE: "Routine",
   GAMBIT: "Gambit",
 };
 
-// gmNotes markers a GM never types themselves — stamped by the auto-filed
-// paths (db/lib/travel.js, db/lib/defaultMovePass.js, db/lib/stagedPush.js)
+// A gmNotes marker a GM never types themselves — stamped by db/lib/travel.js
 // to identify a Move the desk generated rather than a player submitted.
 export const AUTO_ZONE_CHANGE = "auto:zone_change";
-export const AUTO_DEFAULT_MOVE = "auto:default_move";
-export const AUTO_SILENT_CLOSE = "auto:silent_close";
 
 // A travel stub (db/lib/travel.js#performTravel) files a Move with no
 // moveKind — there's no Routine/Gambit to pick, it's just "walked to a

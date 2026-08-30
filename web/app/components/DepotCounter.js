@@ -73,11 +73,15 @@ function Counter({ buying, rows, resources, maxQuantity, disabled }) {
   const [quantity, setQuantity] = useState(1);
   const [error, setError] = useState(null);
 
+  // Buy defaults to cheapest first. Sell defaults to what he can actually
+  // hand over first — `held desc` — with price ascending inside each half
+  // because `rows` already arrives pre-sorted by price and this sort is
+  // stable.
   const table = useTableState({
     rows,
     searchFields: SEARCH_FIELDS,
     filterDefs: FILTER_DEFS,
-    initialSort: { key: "price", dir: "asc" },
+    initialSort: buying ? { key: "price", dir: "asc" } : { key: "held", dir: "desc" },
   });
 
   // A non-stackable ware can only ever be held once, so the stepper is a
@@ -111,7 +115,7 @@ function Counter({ buying, rows, resources, maxQuantity, disabled }) {
       <p className="mt-4 text-sm text-muted">
         {buying
           ? "The Depot has nothing on its shelf. Run npm run db:sync-tags."
-          : "You have nothing the Depot will buy."}
+          : "The Depot doesn't buy anything."}
       </p>
     );
   }
@@ -145,25 +149,32 @@ function Counter({ buying, rows, resources, maxQuantity, disabled }) {
           </tr>
         </thead>
         <tbody>
-          {table.pageRows.map((row) => (
-            <tr key={row.id}>
-              <td>
-                <TagChip tag={row.tag} />
-              </td>
-              {!buying && <td className="mono">{row.held}</td>}
-              <td className="mono">{row.price} ⬢</td>
-              <td style={{ textAlign: "right" }}>
-                <button
-                  type="button"
-                  className="btn-quiet"
-                  disabled={disabled || pending || (buying && row.price > resources)}
-                  onClick={() => ask(row)}
-                >
-                  {buying ? "Buy" : "Sell"}
-                </button>
-              </td>
-            </tr>
-          ))}
+          {table.pageRows.map((row) => {
+            // Sell rows for something he isn't carrying still show the
+            // price the station pays — that's the point, a Merchant needs
+            // to know what's worth going and getting — but read as a
+            // dimmer, un-actionable line next to what's ready to hand over.
+            const unavailable = !buying && !row.held;
+            return (
+              <tr key={row.id} className={unavailable ? "text-muted" : !buying ? "text-accent" : undefined}>
+                <td>
+                  <TagChip tag={row.tag} />
+                </td>
+                {!buying && <td className="mono">{row.held}</td>}
+                <td className="mono">{row.price} ⬢</td>
+                <td style={{ textAlign: "right" }}>
+                  <button
+                    type="button"
+                    className="btn-quiet"
+                    disabled={disabled || pending || unavailable || (buying && row.price > resources)}
+                    onClick={() => ask(row)}
+                  >
+                    {buying ? "Buy" : "Sell"}
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </TableScroll>
 

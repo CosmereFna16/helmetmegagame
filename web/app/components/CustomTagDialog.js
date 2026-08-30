@@ -176,8 +176,10 @@ export default function CustomTagDialog({
             <input value={values.name} maxLength={60} onChange={(e) => set("name", e.target.value)} />
           </label>
           <label className="field">
-            <span className="field-label">Category</span>
-            <Select value={values.category} onChange={(e) => set("category", e.target.value)}>
+            <span className="field-label">
+              Category <span className="text-accent">*</span>
+            </span>
+            <Select value={values.category} onChange={(e) => set("category", e.target.value)} required>
               <option value="">Choose…</option>
               {categories.map((c) => (
                 <option key={c} value={c}>{c}</option>
@@ -258,6 +260,15 @@ export default function CustomTagDialog({
         )}
 
         <FormError>{error}</FormError>
+        {!pending && (!values.name.trim() || !values.category) && (
+          <p className="text-xs text-muted">
+            {!values.name.trim() && !values.category
+              ? "Name and category are required."
+              : !values.name.trim()
+                ? "Name is required."
+                : "Category is required."}
+          </p>
+        )}
 
         <div className="modal-actions">
           <button type="button" className="btn-quiet" onClick={onClose} disabled={pending}>

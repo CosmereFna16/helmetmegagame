@@ -46,6 +46,15 @@ export default function Modal({
 }) {
   const panelRef = useRef(null);
   const restoreTo = useRef(null);
+  // Whether the mouse actually WENT DOWN on the backdrop, not just came up
+  // there. A drag-select of text that starts inside the panel and ends past
+  // its edge (dragging out of a textarea, say) fires a `click` whose target
+  // is the nearest common ancestor of the mousedown/mouseup targets — the
+  // overlay itself — even though the panel's own stopPropagation() ran. That
+  // used to close the dialog and drop whatever was mid-edit. Requiring the
+  // press to have started on the backdrop fixes it without changing any
+  // legitimate backdrop-click dismissal.
+  const pressedBackdrop = useRef(false);
   const autoId = useId();
   const headingId = labelledBy ?? `modal-title-${autoId}`;
 
@@ -83,7 +92,13 @@ export default function Modal({
     // to fill in, and Tooltip wraps its content in a `tabIndex={0}` span that
     // would otherwise win the querySelector and pop its tooltip open.
     const candidates = [...(panel?.querySelectorAll(FOCUSABLE) ?? [])];
-    const initial = candidates.find((el) => !el.closest(".modal-header")) ?? candidates[0];
+    // A caller can mark the one field it actually wants focus to land on
+    // (`data-autofocus`) — otherwise the fallback below picks the first
+    // focusable, which in a composer with prefilled chips is often a chip
+    // whose click handler REMOVES it. Space or Enter right after opening
+    // would silently drop it.
+    const named = candidates.find((el) => el.hasAttribute("data-autofocus"));
+    const initial = named ?? candidates.find((el) => !el.closest(".modal-header")) ?? candidates[0];
     (initial ?? panel)?.focus?.();
 
     const onKey = (e) => {
@@ -127,7 +142,17 @@ export default function Modal({
   if (!open) return null;
 
   return (
-    <div className="modal-overlay" onClick={() => onClose?.()}>
+    <div
+      className="modal-overlay"
+      onMouseDown={(e) => {
+        pressedBackdrop.current = e.target === e.currentTarget;
+      }}
+      onClick={(e) => {
+        if (e.target !== e.currentTarget || !pressedBackdrop.current) return;
+        pressedBackdrop.current = false;
+        onClose?.();
+      }}
+    >
       <div
         ref={panelRef}
         className={panelClassName}

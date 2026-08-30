@@ -93,4 +93,4 @@ async function releaseRole(prisma, discordUserId) {
   await prisma.roleReservation.deleteMany({ where: { discordUserId } });
 }
 
-module.exports = { reserveRole, takenCounts, releaseRole, RESERVATION_TTL_MS };
+module.exports = { reserveRole, takenCounts, releaseRole };

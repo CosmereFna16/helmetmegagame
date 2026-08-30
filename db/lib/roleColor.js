@@ -82,4 +82,4 @@ function hashNameToColor(name) {
   return hslToRgbInt(h, clamp(s + sJitter, 6, 30), clamp(l + lJitter, 22, 50));
 }
 
-module.exports = { GRADIENT_STOPS, hashNameToColor };
+module.exports = { hashNameToColor };

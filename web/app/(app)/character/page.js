@@ -20,7 +20,7 @@ import { loadPointBuyCatalog } from "@/lib/pointBuyCatalog";
 import { findOpenTurnAction } from "@/lib/moveEconomy";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
-import { TRANSFERABLE_CATEGORIES, FAST_TRAVEL_SLUGS } from "@/lib/tagRequests";
+import { TRANSFERABLE_CATEGORIES, FAST_TRAVEL_SLUGS, fastTravelCapacity } from "@/lib/tagRequests";
 import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { parseSelection } from "@/lib/portrait/catalog";
 import {
@@ -238,7 +238,7 @@ export default async function CharacterPage() {
           stackable: true,
           // Both gates the Add Tag menu enforces — the per-tag prerequisite and
           // the whole-group one behind a hidden category. parentTagId comes
-          // along because requirementSatisfied walks the tier chain.
+          // along because the gate walks the tier chain.
           parentTagId: true,
           requiredTagId: true,
           // The gates' NAMES, for the picker's "Requires: …" line. Safe:
@@ -252,6 +252,12 @@ export default async function CharacterPage() {
               requiredTag: { select: { name: true } },
             },
           },
+          // The recipe's skill gate — tagRequests.js#addRequirementSatisfied's
+          // craft route matches on id, and the picker's "To make: …" line and
+          // the Dead Simple hint both name it. Without `id` a recipe silently
+          // reads as unskilled and the whole craft catalog opens for anyone.
+          requirementSkills: { select: { id: true, name: true, slug: true } },
+          requirementTurns: true,
         },
       }),
       // id -> parentTagId for the whole catalog, so a held Medical (Expert)
@@ -323,7 +329,12 @@ export default async function CharacterPage() {
   // Owning a horse is a fact about your OWN sheet, so this one may grey the
   // button out — ActionGrid.js's rule only forbids greying for facts about who
   // is standing near you. The server re-derives it anyway.
+  const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
   const canFastTravel = character.tags.some((ct) => FAST_TRAVEL_SLUGS.has(ct.tag.slug));
+  // Rider included — a solo horse trip is "1 seat used, 2 available", not
+  // "0 passengers". 0 means no vehicle tag at all (fastTravelCapacity),
+  // which canFastTravel above already gates the button on.
+  const fastTravelSeats = fastTravelCapacity(heldSlugs);
 
   // Skipped entirely for the great majority who aren't medics, and for anyone
   // a GM hasn't placed yet. Character.zoneId is the authoritative "where are
@@ -459,6 +470,11 @@ export default async function CharacterPage() {
   // a readout of who is tied up — the server's own gate rejects the rest with
   // wording that explains itself.
   const moveTargets = zoneRoster.map(({ id, name, status }) => ({ id, name, status }));
+  // Fast Travel passengers, unlike Move Player's target, ARE filtered — the
+  // whole point of the "anyone co-present" rule is that riding along is a
+  // friendly act, not something done to a body or someone tied up, so a
+  // corpse or a Bound person never appears on this particular menu.
+  const fastTravelTargets = moveTargets.filter((c) => c.status === "ALIVE");
   const moveZones = character.zoneId
     ? (
         await prisma.zone.findUnique({
@@ -536,6 +552,8 @@ export default async function CharacterPage() {
       desireCooldownUntilTurn={lastEndedDesire?.endedTurnNumber ?? null}
       canHeal={canHeal}
       canFastTravel={canFastTravel}
+      fastTravelSeats={fastTravelSeats}
+      fastTravelTargets={fastTravelTargets}
       equipSlots={gameConfig?.equipSlots ?? 6}
       avatarUploadsEnabled={gameConfig?.avatarUploadsEnabled ?? false}
       portraitMakerEnabled={gameConfig?.portraitMakerEnabled ?? false}

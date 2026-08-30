@@ -55,4 +55,4 @@ function isInscrutable(characterTags = []) {
   return slugSet(characterTags).has(INSCRUTABLE_SLUG);
 }
 
-module.exports = { DESIRE_SIGHT_SLUGS, inspectVision, isInscrutable };
+module.exports = { inspectVision, isInscrutable };

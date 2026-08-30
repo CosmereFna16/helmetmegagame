@@ -29,4 +29,4 @@ function factionSiloSeed(totalWeight, playerCount) {
   return Math.max(SILO_SEED_FLOOR, Math.round(totalWeight * SILO_SEED_K * playerCount / 100));
 }
 
-module.exports = { SILO_SEED_K, SILO_SEED_FLOOR, roleWeight, factionSiloSeed };
+module.exports = { roleWeight, factionSiloSeed };

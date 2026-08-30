@@ -72,10 +72,14 @@ export default function RequestDesk({ request, onInspect, onClose, registerEscap
   function run(mode) {
     setError(null);
     startTransition(async () => {
-      const res = await resolveRequest({ requestId: request.id, mode, edits, gmNotes });
-      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
-      markClean();
-      refresh();
+      try {
+        const res = await resolveRequest({ requestId: request.id, mode, edits, gmNotes });
+        if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
+        markClean();
+        refresh();
+      } catch {
+        setError("Something went wrong on the server — your change may not have saved. Try again.");
+      }
     });
   }
 

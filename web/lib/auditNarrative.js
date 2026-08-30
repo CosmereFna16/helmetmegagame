@@ -21,9 +21,6 @@
 //
 // No Prisma, no server imports: AuditFeed is a client component.
 
-// ---------------------------------------------------------------------------
-// Segments
-// ---------------------------------------------------------------------------
 
 const t = (v) => ({ k: "t", v });
 const em = (v) => ({ k: "em", v });
@@ -41,9 +38,6 @@ const res = (n) => (Number.isFinite(Number(n)) ? { k: "res", v: Number(n) } : nu
 // is noise on every single tag line.
 const qty = (n) => (Number(n) > 1 ? { k: "qty", v: Number(n) } : null);
 
-// ---------------------------------------------------------------------------
-// Families
-// ---------------------------------------------------------------------------
 
 // `prefix` is what the fallback matches on, so the order here matters: the
 // first prefix that matches wins, and "superadmin_" has to beat nothing while
@@ -62,8 +56,6 @@ export const AUDIT_FAMILIES = {
   superadmin: { label: "Superadmin", prefixes: ["superadmin_"] },
 };
 
-export const AUDIT_FAMILY_KEYS = Object.keys(AUDIT_FAMILIES);
-
 // The quick date ranges. Here rather than beside the WHERE that consumes them
 // (web/lib/auditQuery.js) because the filter rail is a client component, and
 // that module imports Prisma — one shared constant would otherwise drag the
@@ -75,10 +67,6 @@ export const DATE_PRESETS = {
   "7d": "Last 7 days",
 };
 
-// ---------------------------------------------------------------------------
-// The registry
-// ---------------------------------------------------------------------------
-//
 // `d` is entry.details ?? {}. Every accessor below has to survive a null,
 // a missing key and an old row written before a key existed — this table is
 // read against years of history, not against today's call sites.
@@ -245,9 +233,6 @@ const R = {
 // beyond the two spelled out above arrive here as strings this file never saw.
 // The fallback handles them; these are only the ones worth phrasing.
 
-// ---------------------------------------------------------------------------
-// Tone
-// ---------------------------------------------------------------------------
 
 // Rows a GM scanning for "what went wrong" needs to find. Everything else is
 // routine, and marking routine work as alarming would defeat the point.
@@ -276,20 +261,13 @@ const WARNING = new Set([
   "access_revoke_incomplete",
 ]);
 
-export function auditTone(actionType) {
+function auditTone(actionType) {
   if (DESTRUCTIVE.has(actionType)) return "bad";
   if (WARNING.has(actionType)) return "warn";
   if (actionType?.startsWith("superadmin_")) return "accent";
   return "neutral";
 }
 
-export function isDestructive(actionType) {
-  return DESTRUCTIVE.has(actionType) || WARNING.has(actionType);
-}
-
-// ---------------------------------------------------------------------------
-// Families, including for types this file has never heard of
-// ---------------------------------------------------------------------------
 
 // Explicit overrides for the handful whose name does not carry their family.
 const FAMILY_OVERRIDES = {
@@ -327,9 +305,6 @@ export function familyPrefixes(family) {
   return AUDIT_FAMILIES[family]?.prefixes ?? [];
 }
 
-// ---------------------------------------------------------------------------
-// The entry point
-// ---------------------------------------------------------------------------
 
 // `entry` is the flat DTO built in the audit page — see that file. It carries
 // `names`, a plain id -> name object covering tags, factions and zones, so a
@@ -374,9 +349,6 @@ function fallback(type, entry) {
   return entry?.target ? [...head, t("on"), target()] : head;
 }
 
-// ---------------------------------------------------------------------------
-// Small shared shapes
-// ---------------------------------------------------------------------------
 
 function joinChips(list) {
   const out = [];

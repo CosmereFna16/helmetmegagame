@@ -3,6 +3,8 @@
 import { useMemo, useState, useTransition } from "react";
 import StatusPill from "@/app/components/StatusPill";
 import { useRefresh } from "@/app/components/useRefresh";
+import { useConfirm } from "@/app/components/ConfirmProvider";
+import FormError from "@/app/components/FormError";
 import GmAvatar from "@/app/components/GmAvatar";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import EffectComposer from "./EffectComposer";
@@ -17,10 +19,22 @@ import { effectSummary, effectState, messageState, tagNameLookup, truncate } fro
 // how the interactive push preview scrolls a row into view and flashes it
 // (Workspace#revealStagedRow).
 
-export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, presenceZones, onInspect, showBatch, gmProfiles }) {
+export function StagedEffectRow({
+  effect,
+  tagNames,
+  tagCatalog,
+  roster,
+  presenceZones,
+  onInspect,
+  showBatch,
+  batchCount,
+  gmProfiles,
+}) {
   const [refresh] = useRefresh();
+  const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [deleteError, setDeleteError] = useState(null);
 
   const state = effectState(effect);
   const frozen = effect.applied || Boolean(effect.appliedError);
@@ -31,11 +45,26 @@ export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, presence
   // re-stage stands in for Edit.
   const isTransfer = Boolean(effect.transfer);
 
-  function onDelete() {
+  async function onDelete() {
+    setDeleteError(null);
     const batch = showBatch && effect.batchId;
+    const ok = await confirm({
+      title: batch ? "Delete this mass apply?" : "Delete this staged effect?",
+      message: batch
+        ? `Drops the effect for all ${batchCount ?? "its"} targets — ${effectSummary(effect, tagNames)}.`
+        : `${effect.targetName ?? "Silo transfer"} — ${effectSummary(effect, tagNames)}. It won't apply at the push.`,
+      confirmLabel: "Delete",
+      cancelLabel: "Keep it",
+    });
+    if (!ok) return;
     startTransition(async () => {
-      await deleteStagedEffect(batch ? { batchId: effect.batchId } : { stagedEffectId: effect.id });
-      refresh();
+      try {
+        const res = await deleteStagedEffect(batch ? { batchId: effect.batchId } : { stagedEffectId: effect.id });
+        if (!res?.ok) return setDeleteError(res?.error ?? "Something went wrong.");
+        refresh();
+      } catch {
+        setDeleteError("Something went wrong on the server — your change may not have saved. Try again.");
+      }
     });
   }
 
@@ -69,6 +98,7 @@ export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, presence
           {effect.turnNumber != null ? ` · turn ${effect.turnNumber}` : ""}
           {effect.appliedError ? ` · ${effect.appliedError}` : ""}
         </p>
+        {deleteError && <FormError>{deleteError}</FormError>}
       </div>
       <div className="flex items-center gap-2">
         <StatusPill tone={state.tone}>{state.label}</StatusPill>
@@ -80,7 +110,7 @@ export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, presence
               </button>
             )}
             <button type="button" className="btn-quiet" onClick={onDelete} disabled={pending}>
-              Delete
+              {pending ? "Working…" : "Delete"}
             </button>
           </>
         )}
@@ -104,9 +134,11 @@ export function StagedEffectRow({ effect, tagNames, tagCatalog, roster, presence
 
 export function StagedMessageRow({ message, roster, presenceZones, onInspect, gmProfiles }) {
   const [refresh] = useRefresh();
+  const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
   const [resendError, setResendError] = useState(null);
+  const [deleteError, setDeleteError] = useState(null);
 
   const state = messageState(message);
   const frozen = message.sent;
@@ -115,19 +147,41 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
   const failureCount = Array.isArray(message.deliveryFailures) ? message.deliveryFailures.length : 0;
   const canResend = message.sent && failureCount > 0;
 
-  function onDelete() {
+  const recipientNames =
+    message.kind === "PUBLIC"
+      ? `the ${message.zoneName ?? "zone's"} summary channel`
+      : message.recipients.map((r) => r.name).join(", ") || "nobody";
+
+  async function onDelete() {
+    setDeleteError(null);
+    const ok = await confirm({
+      title: message.kind === "PUBLIC" ? "Delete this public declaration?" : "Delete this staged message?",
+      message: `To ${recipientNames}. It won't go out at the push.`,
+      confirmLabel: "Delete",
+      cancelLabel: "Keep it",
+    });
+    if (!ok) return;
     startTransition(async () => {
-      await deleteStagedMessage({ stagedMessageId: message.id });
-      refresh();
+      try {
+        const res = await deleteStagedMessage({ stagedMessageId: message.id });
+        if (!res?.ok) return setDeleteError(res?.error ?? "Something went wrong.");
+        refresh();
+      } catch {
+        setDeleteError("Something went wrong on the server — your change may not have saved. Try again.");
+      }
     });
   }
 
   function onResend() {
     setResendError(null);
     startTransition(async () => {
-      const res = await resendStagedMessage({ stagedMessageId: message.id });
-      if (!res?.ok) return setResendError(res?.error ?? "Something went wrong.");
-      refresh();
+      try {
+        const res = await resendStagedMessage({ stagedMessageId: message.id });
+        if (!res?.ok) return setResendError(res?.error ?? "Something went wrong.");
+        refresh();
+      } catch {
+        setResendError("Something went wrong on the server — your change may not have saved. Try again.");
+      }
     });
   }
 
@@ -169,6 +223,7 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
             : ""}
         </p>
         {resendError && <p className="form-error">{resendError}</p>}
+        {deleteError && <FormError>{deleteError}</FormError>}
       </div>
       <div className="flex items-center gap-2">
         <StatusPill tone={state.tone}>{state.label}</StatusPill>
@@ -183,7 +238,7 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
               Edit
             </button>
             <button type="button" className="btn-quiet" onClick={onDelete} disabled={pending}>
-              Delete
+              {pending ? "Working…" : "Delete"}
             </button>
           </>
         )}

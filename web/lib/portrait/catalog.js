@@ -82,14 +82,12 @@ export const SHEET_DIR = "/assets/portrait";
 // frame drawn over a full-bleed head reads as a scratch, not a frame.
 export const PLATE_SRC = `${SHEET_DIR}/plate.webp`;
 
-// ---------------------------------------------------------------------------
 // Palettes
 //
 // The source art is painted in flat placeholder ramps that the original tool
 // swapped through a shader; we do the same swap in a pixel loop. Every ramp
 // below is keyed positionally, so entry N of a target ramp replaces entry N of
 // its source ramp — never by name, never by luminance.
-// ---------------------------------------------------------------------------
 
 // Skin, 8 tones. Slot 1 is the cranium (the shadowed crown, seen only when
 // bald or under thin hair) and slots 6-7 are small highlights.
@@ -116,7 +114,7 @@ const PUPIL_SRC = ["#1e3c5a", "#3c5a78", "#5a7896"];
 // the real values to within a few units per channel, which is why it's trusted
 // for the other three. Ordered light to dark; no names, because a swatch says
 // it better than a word and nothing here needs a label.
-export const SKIN_TONES = [
+const SKIN_TONES = [
   { id: "porcelain", ramp: ["#f5d9c6", "#decec9", "#d3adb7", "#d8b2ab", "#9a616a", "#f3c8c2", "#edc6ad", "#fde9d5"] },
   { id: "rose", ramp: ["#f9c2ad", "#d9b7b2", "#d196a2", "#de9692", "#a76363", "#f7aea8", "#f8af93", "#ffdfda"] },
   { id: "fair", ramp: SKIN_SRC },
@@ -128,7 +126,7 @@ export const SKIN_TONES = [
 
 // All thirteen hair ramps are the artist's, taken from the same sheet. The
 // three unnatural ones carry `fantasy` — see the gating note further down.
-export const HAIR_COLORS = [
+const HAIR_COLORS = [
   { id: "black", label: "Black", ramp: ["#252528", "#323037", "#221b1e", "#1b130f", "#52575f", "#2a2a2f", "#b3b4bf"] },
   { id: "dark-brown", label: "Dark brown", ramp: ["#49301b", "#634222", "#322217", "#261a14", "#865d3b", "#342b24", "#d19e6a"] },
   { id: "brown", label: "Brown", ramp: HAIR_SRC },
@@ -147,7 +145,7 @@ export const HAIR_COLORS = [
 // Eye ramps are ours rather than the artist's: their sheet demonstrates the
 // swap with magenta, cyan and red, which is exactly the register this setting
 // isn't in. Same three-slot shape (shadow, iris, catchlight).
-export const EYE_COLORS = [
+const EYE_COLORS = [
   { id: "dark-brown", label: "Dark brown", ramp: ["#2e2119", "#46301f", "#6b4a2e"] },
   { id: "brown", label: "Brown", ramp: ["#4a3220", "#6b4a2b", "#94693c"] },
   { id: "amber", label: "Amber", ramp: ["#6b4413", "#a06a1c", "#c99340"] },
@@ -160,7 +158,6 @@ export const EYE_COLORS = [
   { id: "crimson", label: "Crimson", fantasy: true, ramp: ["#6b1414", "#a81c1c", "#d64a4a"] },
 ];
 
-// ---------------------------------------------------------------------------
 // Layers
 //
 // Draw order, bottom to top — the artist's, verbatim, from
@@ -170,7 +167,6 @@ export const EYE_COLORS = [
 //
 // `tints` names which palettes touch a sheet, and exists purely so the browser
 // can re-tint four sheets when hair colour changes instead of all fifteen.
-// ---------------------------------------------------------------------------
 export const LAYERS = [
   { key: "cranium", file: "cranium.png", group: null, tints: ["skin"] },
   { key: "accessoryBack", file: "accessory-back.png", group: "accessory", tints: [] },
@@ -189,7 +185,6 @@ export const LAYERS = [
   { key: "hairFront", file: "hair-front.png", group: "hair", tints: ["hair"] },
 ];
 
-// ---------------------------------------------------------------------------
 // Groups — what the player actually picks.
 //
 // A group drives one or two layers at the same index: a hairstyle is a
@@ -201,7 +196,6 @@ export const LAYERS = [
 // GameConfig.portraitFantasyPartsEnabled is on. Ravenheart is low fantasy and
 // human-only, so pointed ears, horns and antlers are off by default rather
 // than deleted — a GM running something stranger can flip one switch.
-// ---------------------------------------------------------------------------
 export const GROUPS = [
   { key: "face", label: "Face", count: 26, optional: false },
   { key: "eyes", label: "Eyes", count: 26, optional: false },
@@ -229,7 +223,7 @@ export const COLOR_GROUPS = [
 ];
 
 // A plain, unremarkable human — what an unset portrait opens on.
-export const DEFAULT_SELECTION = Object.freeze({
+const DEFAULT_SELECTION = Object.freeze({
   face: 0,
   eyes: 0,
   brows: 0,
@@ -246,7 +240,7 @@ export const DEFAULT_SELECTION = Object.freeze({
 });
 
 /** Whether an option in a part group is allowed right now. */
-export function isPartAllowed(groupKey, index, allowFantasy) {
+function isPartAllowed(groupKey, index, allowFantasy) {
   const group = GROUP_BY_KEY.get(groupKey);
   if (!group) return false;
   if (!Number.isInteger(index) || index < 0 || index >= group.count) return false;
@@ -310,10 +304,6 @@ export function randomSelection({ allowFantasy = false, random = Math.random } =
   }
   return out;
 }
-
-// ---------------------------------------------------------------------------
-// The palette map
-// ---------------------------------------------------------------------------
 
 /** "#rrggbb" -> the 24-bit integer 0xrrggbb, the key both pixel loops use. */
 function packHex(hex) {

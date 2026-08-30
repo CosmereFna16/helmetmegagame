@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import Modal from "@/app/components/Modal";
 import FormError from "@/app/components/FormError";
 import Select from "@/app/components/Select";
+import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { createStagedTransfer } from "./actions";
 
 // Stage a party-to-party ⬢ transfer — a character or a faction Silo on
@@ -17,6 +18,7 @@ export default function TransferComposer({ roster, factions, defaultFromKey = ""
   const [amount, setAmount] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
+  const { markDirty, markClean, guardedClose } = useDirtyGuard();
 
   const parties = useMemo(
     () => ({
@@ -48,29 +50,49 @@ export default function TransferComposer({ roster, factions, defaultFromKey = ""
     );
   }
 
+  const amountValid = Number.isInteger(Number.parseInt(amount, 10)) && Number(amount) > 0;
+
   function submit() {
     setError(null);
     if (!fromKey || !toKey) return setError("Pick both ends of the transfer.");
     if (fromKey === toKey) return setError("Source and recipient are the same.");
+    if (!amountValid) return setError("Amount must be a positive whole number.");
     startTransition(async () => {
-      const res = await createStagedTransfer({ fromKey, toKey, amount });
-      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
-      onDone();
+      try {
+        const res = await createStagedTransfer({ fromKey, toKey, amount });
+        if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
+        markClean();
+        onDone();
+      } catch {
+        setError("Something went wrong on the server — your change may not have saved. Try again.");
+      }
     });
   }
 
   return (
-    <Modal title="Stage a transfer" onClose={() => !pending && onCancel()}>
+    <Modal title="Stage a transfer" onClose={() => !pending && guardedClose(onCancel)}>
       <div className="mt-3 flex flex-col gap-4">
         <label className="field">
           <span className="field-label">From</span>
-          <Select value={fromKey} onChange={(e) => setFromKey(e.target.value)}>
+          <Select
+            value={fromKey}
+            onChange={(e) => {
+              setFromKey(e.target.value);
+              markDirty();
+            }}
+          >
             {partyOptions()}
           </Select>
         </label>
         <label className="field">
           <span className="field-label">To</span>
-          <Select value={toKey} onChange={(e) => setToKey(e.target.value)}>
+          <Select
+            value={toKey}
+            onChange={(e) => {
+              setToKey(e.target.value);
+              markDirty();
+            }}
+          >
             {partyOptions()}
           </Select>
         </label>
@@ -80,7 +102,11 @@ export default function TransferComposer({ roster, factions, defaultFromKey = ""
             type="number"
             min="1"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={(e) => {
+              setAmount(e.target.value);
+              markDirty();
+            }}
+            onWheel={(e) => e.currentTarget.blur()}
             placeholder="0"
           />
         </label>
@@ -88,7 +114,7 @@ export default function TransferComposer({ roster, factions, defaultFromKey = ""
         <FormError>{error}</FormError>
 
         <div className="modal-actions">
-          <button type="button" className="btn-quiet" onClick={onCancel} disabled={pending}>
+          <button type="button" className="btn-quiet" onClick={() => guardedClose(onCancel)} disabled={pending}>
             Cancel
           </button>
           <button type="button" className="btn" onClick={submit} disabled={pending}>

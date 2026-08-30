@@ -31,7 +31,7 @@
 // web/lib/discordGuild.js#isCursed, grantCursedRole, removeCursedRole. Every
 // helper here no-ops when it is unset rather than throwing, so a guild without
 // the var configured simply has no ghosts.
-const { putChannelOverwrite, deleteChannelOverwrite, patchGuildRole } = require("./discordRest");
+const { putChannelOverwrite, patchGuildRole } = require("./discordRest");
 
 const PERM_VIEW_CHANNEL = 1024n;
 const PERM_ADD_REACTIONS = 64n;
@@ -80,14 +80,6 @@ async function applyCursedOverwrite(channelId) {
   return true;
 }
 
-// The undo, for a channel that should never have had one. Tolerates a channel
-// that has no cursed overwrite, so it is safe to call broadly.
-async function removeCursedOverwrite(channelId) {
-  const roleId = cursedRoleId();
-  if (!channelId || !roleId) return false;
-  await deleteChannelOverwrite(channelId, roleId).catch(() => {});
-  return true;
-}
 
 // Pins the cursed role's appearance: color 0 (Discord renders the holder with
 // the default name color, no tint), never hoisted. One PATCH, idempotent,
@@ -103,7 +95,6 @@ module.exports = {
   cursedRoleId,
   cursedOverwrite,
   applyCursedOverwrite,
-  removeCursedOverwrite,
   ensureCursedRoleAppearance,
   CURSED_ALLOW,
   CURSED_DENY,

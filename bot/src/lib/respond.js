@@ -99,4 +99,4 @@ async function respond(interaction, payload, { fleeting = true } = {}) {
   if (fleeting) scheduleDismiss(interaction);
 }
 
-module.exports = { ack, respond, scheduleDismiss, clampContent, DISCORD_MESSAGE_LIMIT, FLEETING_DELETE_DELAY_MS };
+module.exports = { ack, respond, scheduleDismiss, DISCORD_MESSAGE_LIMIT };

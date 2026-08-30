@@ -45,4 +45,4 @@ async function claimGhostWhisper(prisma, discordUserId) {
   return { ok: true };
 }
 
-module.exports = { GHOST_COOLDOWN_MS, GHOST_LINE, claimGhostWhisper };
+module.exports = { GHOST_LINE, claimGhostWhisper };

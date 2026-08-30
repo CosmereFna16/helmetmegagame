@@ -99,7 +99,7 @@ export default async function MapPage() {
     ...tiers.get(zone.id),
   }));
 
-  // --- The nodes drawn on the plate -------------------------------------
+  // The nodes drawn on the plate.
   //
   // Four, not six: the three surface zones stand for themselves, and the
   // whole cave system is one node — the CAVE_GROUP row — because a player

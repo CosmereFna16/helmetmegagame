@@ -765,15 +765,27 @@ export const REQUEST_EFFECTS = {
   // happened must not have burnt the once-a-day, so fastTravelTurnId goes back
   // to whatever it was before rather than to null, which would hand a free
   // second ride to someone who had already used one earlier the same turn.
+  // Every passenger goes back too — they share the rider's fromZoneId, so one
+  // updateMany covers all of them; they never had their own fastTravelTurnId
+  // to restore in the first place (see fastTravelRequestImpl).
   FAST_TRAVEL: {
     editableFields: [],
     async undo(tx, request) {
-      const { fromZoneId, fromZoneName, previousFastTravelTurnId } = request.effect;
+      const { fromZoneId, fromZoneName, previousFastTravelTurnId, passengers } = request.effect;
       await tx.character.update({
         where: { id: request.characterId },
         data: { zoneId: fromZoneId ?? null, fastTravelTurnId: previousFastTravelTurnId ?? null },
       });
-      return `Sent back to ${fromZoneName ?? "where they started"}, and the ride is theirs again. Discord access is not re-synced by Undo — it catches up on their next Move.`;
+      if (passengers?.length) {
+        await tx.character.updateMany({
+          where: { id: { in: passengers.map((p) => p.id) } },
+          data: { zoneId: fromZoneId ?? null },
+        });
+      }
+      const passengerNote = passengers?.length
+        ? ` ${passengers.map((p) => p.name).join(" and ")} went back too.`
+        : "";
+      return `Sent back to ${fromZoneName ?? "where they started"}, and the ride is theirs again.${passengerNote} Discord access is not re-synced by Undo — it catches up on their next Move.`;
     },
   },
 

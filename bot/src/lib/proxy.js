@@ -194,10 +194,10 @@ async function postAsCharacterTo(channel, character, { content, files = [], disc
     webhookId: id,
     webhookToken: token,
     threadId,
-    // Read by messageReactionAdd.js: 🔍 swaps to the anonymous embed, ⭐ files
-    // the alias rather than the real name, and ❓ refuses outright. Because
-    // recentProxies is in-memory and capped, a bot restart makes an old
-    // concealed message inert to every reaction — which is the safe direction.
+    // Read by messageReactionAdd.js: 🔍 swaps to the anonymous embed, and ⭐
+    // files the alias rather than the real name. Because recentProxies is
+    // in-memory and capped, a bot restart makes an old concealed message
+    // inert to every reaction — which is the safe direction.
     concealed: Boolean(conceal),
     alias: conceal?.alias ?? null,
   });

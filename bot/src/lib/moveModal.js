@@ -65,4 +65,4 @@ function buildMoveModal() {
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(MOVE_HELP));
 }
 
-module.exports = { buildMoveModal, MOVE_MODAL_ID };
+module.exports = { buildMoveModal };

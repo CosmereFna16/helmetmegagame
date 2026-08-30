@@ -44,9 +44,13 @@ tray as "unattached" for the GM to keep or drop.
 
 - **Submit = locked.** The Move modal is one shot ("Lock In Your Move");
   there is no draft window and no player edit. The GM-side escape hatch is
-  **Unlock** (the old Reject): deletes the Action, frees the turn, DMs the
-  reason immediately — the one thing the desk sends in real time, because a
-  freed turn the player doesn't know about is a wasted day.
+  **Reject**: deletes the Action, frees the turn, DMs the player "Your Move
+  was returned to you — you can act again this turn." plus the reason,
+  immediately — the one thing the desk sends in real time, because a freed
+  turn the player doesn't know about is a wasted day. (The stored
+  `source: "move_unlock"` / `actionType: "move_rejected"` values predate the
+  rename and are kept — renaming them would orphan old audit rows and DM
+  log entries.)
 - **Declared numbers always pay.** Every confirmed Move's own
   `resourceDelta` (now only ever machine-written — the Labor roll; players
   can no longer type a delta at all) applies at the push, solved or not. A GM
@@ -108,22 +112,33 @@ happens to match it.
 
 - **Queue rail** — the open turn's Moves and the newest Requests, as
   selectable rows. Opens filtered to the GM's zone seat
-  (`GAMEMASTERS.md`), soft as ever. "In Progress" is still derived from a
-  live lock. Search runs the shared `scoreMatch` engine
-  (`web/lib/fuzzySearch.js`) over name, role, faction, both zones, Discord
-  handle, tag names, Move/Request kind and status, and the free text (a
-  Move's description, a Request's reason/summary, GM notes) — a bare word
-  matches anything, `field:term` (`role:smith`, `zone:caves`) or `@handle`
-  narrows to one field, and a query reorders the list by match strength
-  instead of the default sort — Open/In Progress Moves first, Solved then
-  Passed sinking toward the bottom, newest-first within each rank. The Kind/Status/Type/Reviewed
-  dropdowns always list every value the enum has, even at `(0)`, so "Open"
-  never looks like it vanished just because nothing is open right now — Zone
-  stays derived from what's actually loaded. Auto-filed **Travel** Moves
-  (`db/lib/travel.js#performTravel`, no Routine/Gambit to review) render as
-  "Travel" and stay hidden by default behind a "Show N travel" toggle beside
-  the Kind dropdown; picking Travel from that dropdown always overrides the
-  hide.
+  (`GAMEMASTERS.md`), soft as ever. A live lock renders as a small `GmAvatar`
+  chip beside the row's real status pill — **never as a status of its own**.
+  It used to be: a Move under a live lock displayed "In Progress" regardless
+  of its actual `moveReviewStatus`, which let a GM's OWN lock on a Move they
+  had just Solved make the desk they were sitting in read back
+  `solved = false` and offer Save/Solve on a row already SOLVED in the DB —
+  the incident this section's model fixes. Search runs the shared
+  `scoreMatch` engine (`web/lib/fuzzySearch.js`) over name, role, faction,
+  both zones, Discord handle, tag names, Move/Request kind and status, and
+  the free text (a Move's description, a Request's reason/summary, GM notes)
+  — a bare word matches anything, `field:term` (`role:smith`, `zone:caves`)
+  or `@handle` narrows to one field, and a query reorders the list by match
+  strength instead of the default sort — Open Moves first, Solved then
+  Passed sinking toward the bottom (a locked-but-Solved row sinks too — the
+  avatar is just riding along), newest-first within each rank. The
+  Kind/Status/Type/Reviewed dropdowns always list every value the enum has,
+  even at `(0)`, so "Open" never looks like it vanished just because nothing
+  is open right now — Zone stays derived from what's actually loaded. Filters
+  (per lens), the two travel toggles and the active lens survive a reload —
+  `sessionStorage` under one key (`gm-turns-rail`), read through
+  `useSyncExternalStore` the same way pins are (`web/app/components/
+  useSessionState.js`) — because every deploy hard-reloads this desk and this
+  repo deploys several times a day. Search text itself stays ephemeral.
+  Auto-filed **Travel** Moves (`db/lib/travel.js#performTravel`, no
+  Routine/Gambit to review) render as "Travel" and stay hidden by default
+  behind a "Show N travel" toggle beside the Kind dropdown; picking Travel
+  from that dropdown always overrides the hide.
 - **History lens** — the same rail over a turn that has already been pushed,
   one **resolved** turn at a time, picked from a Turn dropdown above the
   filters (newest first). A GM used to have to go to `/gm/audit` to see what
@@ -134,12 +149,18 @@ happens to match it.
   queue does (`web/lib/moveRows.js`) and open a **`MoveHistoryDesk`**: the
   Move's kind, dice, what was declared, what actually **paid**
   (`appliedEffects`), the Result, and everything that was sent on it. No lock,
-  no composers, no Solve, no Unlock — but a staged row the push never carried
+  no composers, no Solve, no Reject — but a staged row the push never carried
   keeps its Edit/Delete, and a failed delivery keeps its Resend, because those
   are the two things about a past turn that can still need doing.
 - **Desk** — the selected item. For a Move: situation, dice, declared
   numbers, the Result box, everything staged on it, and the three composers.
-  For a Request: the old panel's sections, semantics untouched (§5). The
+  Every button derives from `moveReviewStatus`, never from a display label or
+  a lock: **Save · Solve · Reject** on an open Move, **Save · Reopen ·
+  Reject** once it's Solved — Save stays live on a Solved Move (it edits
+  freely; the status guard that used to block it protected nothing, since
+  Solve is bookkeeping and nothing pays until the push), so fixing a Result
+  after Solving no longer needs the Reopen → edit → re-Solve dance. For a
+  Request: the old panel's sections, semantics untouched (§5). The
   90s cooperative lock, its 30s heartbeat and the `sendBeacon` release all
   carry over unchanged (`useMoveLock.js`,
   `web/app/api/move-lock/release/route.js`). Every card's meta line under the
@@ -288,6 +309,7 @@ field `applyEdit` now returns and how it drives `EDITED` vs. a plain
 | `web/app/components/InspectorColumn.js` | Sheet / Tags / Moves / Archive / DMs + pins — **shared with `/gm/players`**, which appends Canon / Notes through `extraTabs` (PLAYER-DESK.md §6) |
 | `web/app/components/ArchiveContextModal.js` | The "in context" slice behind an Archive row, moved alongside it |
 | `web/app/components/GmAvatar.js` | The small GM pfp, fed by `web/lib/gmProfiles.js` |
+| `web/app/components/useSessionState.js` | The generic `sessionStorage` hook behind rail-state persistence — one key (`gm-turns-rail`) shared by `QueueRail.js`'s filters/toggles and `Workspace.js`'s `lens` |
 | `.../useMoveLock.js` | The lock's client half |
 | `.../actions.js` | Every server action: staging CRUD, solve/save/unsolve, unlock, locks, request review, inspector fetchers, the two history fetchers (`getMoveHistory`, `getCharacterMoveHistory`), retarget |
 | `db/lib/stagedPush.js` | The push pass |

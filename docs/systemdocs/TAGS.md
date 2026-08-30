@@ -66,10 +66,15 @@ diff check, same style as the zone sync's hash gate).
   replace it. Example in the catalog: `Ranged (Archer)` requires
   `Ranged (Basic)` but coexists with `Ranged (Skilled)` — a character can
   hold both at once. Also the right relation for an origin/membership gate the
-  gated tag doesn't consume: `Horse (Windlander)` requires `Windlander`,
-  `Manor` requires `Courtier`, `House`/`Shack` require `Ravenhearter`, and
+  gated tag doesn't consume: `Wild Horse` (`horse-windlander`) requires
+  `Windlander`, `Manor` requires `Courtier`, `House`/`Shack` require
+  `Ravenhearter`, and
   `Laborer (Farming)` requires `Laborer (Skilled)` — a sidegrade that coexists
   with the tier it builds on.
+
+  One exception: on a **craftable** item, `requiredTag` is a combat/use
+  gate, not a workshop gate, and the Add Tag menu's craft route does not
+  check it — see §3b.
 - **`TagGroup.requiredTag`** — the group-level version of the same
   prerequisite: every tag in that group stays gated behind one required tag,
   so a whole category-of-flavor can be hidden behind a single membership tag
@@ -110,17 +115,56 @@ this), and every purchase path rejects a tier below one already held. The
 removed tier is snapshotted onto the request's `effect.replaced`, so a GM
 Undo restores exactly what came off — see `web/lib/requestEffects.js`.
 
-Enforced in five places, all reading those same helpers: `PointBuy.js`
-(creation and `/store`), the Add Tag picker in `RequestActionsProvider.js`
-(mid-game), `createActions.js` and `requestActions.js#addTagRequest` (the
-server-side re-checks, since both menus are advisory), and
-`web/lib/referenceData.js#getVisibleTags` (§3a). **A GM grant still ignores
-both, deliberately** — a GM handing out a tag is the one path that should
-never be second-guessed.
+Enforced in these places, all reading those same helpers: `PointBuy.js`
+(creation and `/store`), `createActions.js#createCharacter` and
+`store/actions.js#buyTags` (the server-side re-checks, since the menu is
+advisory), and `web/lib/referenceData.js#getVisibleTags` (§3a). **A GM grant
+still ignores both, deliberately** — a GM handing out a tag is the one path
+that should never be second-guessed.
+
+The Add Tag picker in `RequestActionsProvider.js` and its server re-check,
+`requestActions.js#addTagRequest`, are the **exception** — see §3b, which
+covers a different question (can you make this, not can you use it) with a
+different predicate.
 
 Every caller must select `group.requiredTagId` alongside `requiredTagId`.
 Miss it and a hidden category silently opens for everyone, with nothing to
 show that it has.
+
+## 3b. The Add Tag menu asks a different question
+
+`requirementSatisfied()` answers "can you **use** this" — the right question
+for creation and `/store`, where the whole catalog is bought outright. The
+Add Tag menu is the crafting path (§4), and crafting asks "can you **make**
+this" instead — a smith with no Melee (Basic) still knows how to forge a
+sword, they just can't swing it well.
+
+So the Add Tag picker and `addTagRequest` don't call `requirementSatisfied`.
+They call `addRequirementSatisfied(tag, tagsById, heldTagIds)` in
+`web/lib/tagRequests.js`, two routes onto a tag, either sufficing:
+
+- **Buy it** — `purchasable && purchasableAfterStart`, gated on the item's
+  own `requiredTagId` exactly as before (unchanged from the purchase gate).
+- **Make it** — `craftable`, gated on `recipeSkillsHeld()`: does the
+  character hold **any one** of the recipe's `requirementSkills`
+  (`web/lib/tagRequests.js`), chain-aware via the same `holdsRequirement()`
+  walk. The item's own `requiredTagId` is **not** checked on this route.
+
+The **group gate applies to both routes, unconditionally** — same as
+everywhere else, it's the hidden-category mechanism and is never bypassed.
+
+`requirementSkills` is an **OR** list, not an AND: every multi-skill recipe
+in `docs/tags.yaml` is a Dead Simple item written `[smithing, crafting]`
+specifically so either skill qualifies (`db/lib/formatTagRequirement.js`
+joins the list with `/`; SMITHING.md §2 spells the rung's gate as "`crafting`
+OR `smithing`"). This is also where Crafting's own catalog text — "fulfills
+requirements for Dead Simple smithing recipes" — actually gets enforced: it
+is data (every 0-turn recipe names `crafting`), not a code special case.
+
+Every Add Tag caller must select `requirementSkills { id }` alongside the
+usual `group.requiredTagId`/`requiredTagId` pair, or every recipe silently
+reads as unskilled and the whole craft catalog opens for anyone — the same
+failure mode as the group-gate warning above.
 
 ## 3a. Hidden categories, and gated groups
 
@@ -172,8 +216,8 @@ Where the `bacchus` category's own tags live is a further split, since the
 cult's progression isn't one group but three: `bacchus` (gated by
 `follower-of-bacchus`), `bacchus-ripening` (gated by `cult-ripening`) and
 `bacchus-bountiful` (gated by `cult-bountiful`) — one for each rung of the
-`cult-seedling` → `cult-ripening` → `cult-bountiful` chain (`docs/tags.yaml`'s
-`# --- Cult ---` block). Same rule as above: none of the member tags repeat
+`cult-ripening` → `cult-bountiful` chain (`docs/tags.yaml`'s
+`# --- Cult ---` block; a young cult holds no rung at all). Same rule as above: none of the member tags repeat
 `requiredTag` for that gate.
 
 Two further conventions, specific to this category:
@@ -272,14 +316,15 @@ the other mid-game path, for crafting and resource-acquisitions:
 `purchasableAfterStart` on the **purchasable branch only**, because most
 craftables are deliberately `purchasableAfterStart: false` (43 of 58 — meals,
 tonics, explosives): they are made rather than bought, and their gate is the
-`requirement` block instead. No drawback is craftable, so nothing slips
-through that seam.
+`requirement` block's skills — enforced, since §3b, by
+`addRequirementSatisfied()` rather than `requiredTag`. No drawback is
+craftable, so nothing slips through that seam.
 
 The two mid-game paths deal in different currencies and coexist on purpose:
 the store spends Tag Points against catalog prices with no GM in the loop
 until review; Add Tag spends turns, skills and ⬢ against a `requirement`
-block. Armor and weapons showing up under Add Tag is the crafting economy,
-not a store leak.
+block, and the skills are now the real gate. Armor and weapons showing up
+under Add Tag is the crafting economy, not a store leak.
 
 Full writeup of creation, roles, and the wizard: `CHARACTERS.md`.
 
@@ -499,14 +544,18 @@ them).
   `resourceCost` / `gambit` / `skills`) — what it costs a character to add
   or remove this tag in play (e.g. curing Arthritis needs Medical (Skilled)
   and some turns; forging the revolver tag costs turns, resources, and
-  Smithing). `requirementSkills` is a many-to-many self-relation onto `Tag`
+  Smithing; the `cart` tag costs turns, resources, and `Builder (Skilled)` —
+  there is no "Basic" rung of that family, it starts at Skilled).
+  `requirementSkills` is a many-to-many self-relation onto `Tag`
   (multiple skill tags accepted), resolved in `syncTags.js`'s pass 5. This
-  is mostly a GM adjudication reference, shown to players, with one
-  exception: the Heal request (`HEAL_CHARACTER`, REQUESTS.md §5c) enforces
+  is mostly a GM adjudication reference, shown to players, with two
+  exceptions: the Heal request (`HEAL_CHARACTER`, REQUESTS.md §5c) enforces
   the *removal* direction on `Status` tags — `requirementResources` is the ⬢
   it charges and `requirementSkills` is what the medic must hold (any
-  equal-or-higher tier up the `parentTag` chain counts). Turns and Gambit
-  stay reference-only everywhere, as do all four in the adding direction.
+  equal-or-higher tier up the `parentTag` chain counts) — and, since §3b, the
+  Add Tag request enforces `requirementSkills` in the *adding* direction for
+  any `craftable` tag (any ONE of the listed skills, not all). Turns, ⬢ and
+  Gambit stay reference-only everywhere.
   One shared block covers whichever direction (add or remove) is
   narratively relevant to a given tag, rather than separate blocks per
   direction. Rendered everywhere a tag's description already renders, in a

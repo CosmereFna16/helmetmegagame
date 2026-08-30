@@ -400,9 +400,14 @@ export const SECTIONS = {
         <Line label="Rode">
           {effect.fromZoneName ?? "—"} → {effect.toZoneName ?? "—"}
         </Line>
+        {effect.passengers?.length > 0 && (
+          <Line label="Carrying">{effect.passengers.map((p) => p.name).join(", ")}</Line>
+        )}
         <p className="text-xs text-muted">
-          A horse hop: one zone, no Move spent, once a day. Undo puts them back and returns the
-          ride. It does not re-sync Discord access — that catches up on their next ordinary Move.
+          A horse hop: one zone, no Move spent, once a day, up to 6 seats with a Cart or a Steam
+          Automobile. A passenger needed no permission to come along — anyone standing there could.
+          Undo puts everyone back and returns the ride. It does not re-sync Discord access — that
+          catches up on their next ordinary Move.
         </p>
       </>
     ),

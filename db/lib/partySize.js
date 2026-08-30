@@ -43,4 +43,4 @@ function formatPartySize(value) {
 // re-declares the length of the table.
 const PARTY_SIZE_TIERS = PARTY_SIZES_PER_HUNDRED.map((_, i) => i + 1);
 
-module.exports = { PARTY_SIZES_PER_HUNDRED, PARTY_SIZE_TIERS, partySize, formatPartySize };
+module.exports = { PARTY_SIZE_TIERS, partySize, formatPartySize };

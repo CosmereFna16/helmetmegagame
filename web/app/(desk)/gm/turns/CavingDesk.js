@@ -39,6 +39,7 @@ export default function CavingDesk({
   onClose,
   registerEscape,
   onOpenDev,
+  gmProfiles,
 }) {
   const [refresh] = useRefresh();
   const confirm = useConfirm();
@@ -65,10 +66,14 @@ export default function CavingDesk({
   function resolve() {
     setError(null);
     startTransition(async () => {
-      const res = await resolveCavingRoll({ cavingRollId: roll.id, gmNotes });
-      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
-      markClean();
-      refresh();
+      try {
+        const res = await resolveCavingRoll({ cavingRollId: roll.id, gmNotes });
+        if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
+        markClean();
+        refresh();
+      } catch {
+        setError("Something went wrong on the server — your change may not have saved. Try again.");
+      }
     });
   }
 
@@ -85,9 +90,17 @@ export default function CavingDesk({
     if (!ok) return;
 
     startTransition(async () => {
-      const res = await resolveRequest({ requestId: roll.lootRequestId, mode: "undo" });
-      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
-      refresh();
+      try {
+        const res = await resolveRequest({ requestId: roll.lootRequestId, mode: "undo" });
+        if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
+        // Same as resolve() above: GM notes typed but never marked clean
+        // would otherwise leave isAnyDirty() stuck true for the rest of the
+        // session, silently pausing the desk's 45s poll.
+        markClean();
+        refresh();
+      } catch {
+        setError("Something went wrong on the server — your change may not have saved. Try again.");
+      }
     });
   }
 
@@ -175,6 +188,7 @@ export default function CavingDesk({
           roster={roster}
           presenceZones={presenceZones}
           onInspect={onInspect}
+          gmProfiles={gmProfiles}
           empty="Nothing staged yet."
         />
       </div>

@@ -122,4 +122,4 @@ function drawLoot(zoneSlug) {
   return { tier, slug };
 }
 
-module.exports = { TIERS, WEIGHTS_BY_ZONE, LOOT_TABLE, validateCavingLoot, drawLoot };
+module.exports = { LOOT_TABLE, validateCavingLoot, drawLoot };

@@ -94,9 +94,9 @@ _You either love Bacchus and believe in their message, or love-hate them._
 
 The Cultist tag unlocks the Bacchus tag category, and carries the `cultist`
 and `bacchuslore` documents; the Leader additionally holds Cult Leader, which
-carries `cultistleader`. As the cult grows, a GM moves it up the
-Cult: Seedling -> Ripening -> Bountiful ladder, each rung unlocking a further
-gated group of Bacchus tags. See `docs/tags.yaml`, `docs/taggroups.yaml` and
+carries `cultistleader`. As the cult grows, a GM grants Cult: Ripening and
+then Cult: Bountiful, each rung unlocking a further gated group of Bacchus
+tags (a young cult holds no tier tag at all). See `docs/tags.yaml`, `docs/taggroups.yaml` and
 `docs/documents.yaml`.
 
 The four party thresholds are **not** fixed numbers — they are 4, 8, 12 and 16

@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import FormError from "@/app/components/FormError";
 import { useRefresh } from "@/app/components/useRefresh";
 import TagChip from "@/app/components/TagChip";
@@ -23,11 +23,11 @@ import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 // Result box is the canon of what happened (GM-facing, one field — gmNotes
 // carries machine markers only and never renders), the composers queue
 // messages and effects, and Solve marks the staging complete. Nothing
-// touches the player until the turn-end push. The two exceptions are Unlock
-// (the old Reject — deletes the Move, frees the turn, tells them now) and
-// the lock this desk claims so two GMs don't work the same row.
+// touches the player until the turn-end push. The two exceptions are Reject
+// (deletes the Move, frees the turn, tells them now) and the lock this desk
+// claims so two GMs don't work the same row.
 
-const UNLOCK_HELP =
+const REJECT_HELP =
   "Deletes the Move and frees up their turn — the misclick escape hatch, or a Move that shouldn't have been one. They're DM'd the reason immediately.";
 
 function Switch({ label, value, options, onChange, disabled, children }) {
@@ -70,6 +70,7 @@ export default function MoveDesk({
   gmProfiles,
 }) {
   const [refresh] = useRefresh();
+  const router = useRouter();
   const { markDirty, markClean, guardedClose } = useDirtyGuard();
   const { locked, error: lockError } = useMoveLock(move.id);
 
@@ -89,11 +90,14 @@ export default function MoveDesk({
   // LOCAL (possibly unsaved) Result text. The plain "+ Message" button
   // leaves this null, so the composer opens blank as before.
   const [messagePrefill, setMessagePrefill] = useState(null);
-  const [unlocking, setUnlocking] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
 
-  const solved = move.statusLabel === "Solved";
+  // Read off the enum, not the display label — a live lock never masks this
+  // any more (moveRows.js), but the enum is still the one thing that can't
+  // drift if the label's wording ever does.
+  const solved = move.reviewStatus === "SOLVED";
   const disabled = pending || !locked;
 
   const setEdit = useCallback(
@@ -107,26 +111,34 @@ export default function MoveDesk({
   function run(mode) {
     setError(null);
     startTransition(async () => {
-      const res = await resolveMove({ actionId: move.id, mode, edits });
-      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
-      markClean();
-      refresh();
+      try {
+        const res = await resolveMove({ actionId: move.id, mode, edits });
+        if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
+        markClean();
+        refresh();
+      } catch {
+        setError("Something went wrong on the server — your change may not have saved. Try again.");
+      }
     });
   }
 
-  function submitUnlock(reason) {
+  function submitReject(reason) {
     setError(null);
     startTransition(async () => {
-      const res = await rejectMove({ actionId: move.id, reason });
-      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
-      markClean();
-      setUnlocking(false);
-      if (res.deliveryFailed) {
-        setError("Move unlocked — but they weren't told. Let them know they can act again.");
-      } else {
-        onClose();
+      try {
+        const res = await rejectMove({ actionId: move.id, reason });
+        if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
+        markClean();
+        setRejecting(false);
+        if (res.deliveryFailed) {
+          setError("Move rejected — but they weren't told. Let them know they can act again.");
+        } else {
+          onClose();
+        }
+        refresh();
+      } catch {
+        setError("Something went wrong on the server — your change may not have saved. Try again.");
       }
-      refresh();
     });
   }
 
@@ -154,9 +166,13 @@ export default function MoveDesk({
           {/* Straight to their conversation on the player desk. The reverse
               link lives on that desk's Canon tab, so the two are one loop. */}
           {move.discordUserId && (
-            <Link href={`/gm/players/${move.discordUserId}`} className="btn-quiet">
+            <button
+              type="button"
+              className="btn-quiet"
+              onClick={() => guardedClose(() => router.push(`/gm/players/${move.discordUserId}`))}
+            >
               Message →
-            </Link>
+            </button>
           )}
           {/* Everything they did before this turn, in the inspector's Moves
               tab — "what did this person do last time" without leaving the
@@ -335,6 +351,7 @@ export default function MoveDesk({
       {composer === "public" && (
         <PublicComposer
           moveId={move.id}
+          defaultZoneId={move.zoneId}
           zones={presenceZones}
           onDone={() => {
             setComposer(null);
@@ -356,42 +373,46 @@ export default function MoveDesk({
       <FormError>{error ?? lockError}</FormError>
 
       <div className="mt-4 flex flex-wrap justify-end gap-3">
-        <Tooltip text={UNLOCK_HELP}>
+        <Tooltip text={REJECT_HELP}>
           <button
             type="button"
             className="btn-danger"
-            onClick={() => setUnlocking(true)}
+            onClick={() => setRejecting(true)}
             disabled={disabled}
           >
-            Unlock
+            Reject
           </button>
         </Tooltip>
 
+        {/* Save is always here — a solved Move stays freely editable, since
+            the status guard it used to sit behind protected nothing (Solve is
+            bookkeeping; nothing pays until the push). That's what stranded
+            last night's edit: Save refused to touch a Solved row, and the
+            only way out was Reopen, which the desk's own lock-masked status
+            was hiding the button for. */}
+        <button type="button" className="btn-quiet" onClick={() => run("save")} disabled={disabled}>
+          {pending ? "Working…" : "Save"}
+        </button>
         {solved ? (
           <button type="button" className="btn" onClick={() => run("unsolve")} disabled={disabled}>
             {pending ? "Working…" : "Reopen"}
           </button>
         ) : (
-          <>
-            <button type="button" className="btn-quiet" onClick={() => run("save")} disabled={disabled}>
-              Save
+          <Tooltip text="Marks the staging complete. Nothing applies until the push.">
+            <button type="button" className="btn" onClick={() => run("solve")} disabled={disabled}>
+              {pending ? "Working…" : "Solve"}
             </button>
-            <Tooltip text="Marks the staging complete. Nothing applies until the push.">
-              <button type="button" className="btn" onClick={() => run("solve")} disabled={disabled}>
-                {pending ? "Working…" : "Solve"}
-              </button>
-            </Tooltip>
-          </>
+          </Tooltip>
         )}
       </div>
 
       <RequestDialog
-        open={unlocking}
-        title={`Unlock ${move.characterName}'s Move`}
-        submitLabel="Unlock it"
+        open={rejecting}
+        title={`Reject ${move.characterName}'s Move`}
+        submitLabel="Reject it"
         busy={pending}
-        onCancel={() => !pending && setUnlocking(false)}
-        onConfirm={submitUnlock}
+        onCancel={() => !pending && setRejecting(false)}
+        onConfirm={submitReject}
       >
         <p className="text-xs text-muted">
           The Move is deleted and their turn frees up. They&apos;re DM&apos;d this reason right away.

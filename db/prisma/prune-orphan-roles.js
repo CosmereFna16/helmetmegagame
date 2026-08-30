@@ -8,8 +8,8 @@
 // a roster of ~120, and past it `ensureCharacterRole` silently stops creating
 // them: new characters become unmentionable with no error anyone sees.
 //
-// Dry-run by default with an --apply flag, matching db:prune-tags and
-// db:prune-orphan-categories — the other destructive scripts here.
+// Dry-run by default with an --apply flag, matching db:prune-tags — the
+// other destructive script here.
 //
 // Conservative by construction. A role is only a candidate when ALL of:
 //   - it carries the character-role SIGNATURE (see below),

@@ -1,15 +1,20 @@
 // The Caving Die — see docs/systemdocs/CAVING.md.
 //
 // Two triggers share the one primitive, rollCaving(): the turn-start pass
-// below (runCavingPass, called from db/index.js#resolveNeeds()) rolls for
-// every ALIVE character currently standing in a CAVE_LEVEL zone, and
-// rollCavingOnArrival() rolls once more the moment anything lands a
-// character in one — player travel (db/lib/travel.js#performTravel) and the
-// raw GM relocations alike (the Dev Panel's zone edit, Bulk Move), so being
-// dropped into the Depths by a GM is never a free walk in. The
-// @@unique([characterId, turnId]) constraint on CavingRoll is what makes
-// firing both in the same turn safe — whichever gets there first wins the
-// row, and rollCaving swallows the other's P2002 as "already rolled".
+// below (runCavingPass, called from db/index.js#advanceTurn() against the
+// turn it just opened) rolls for every ALIVE character already standing in a
+// CAVE_LEVEL zone, and rollCavingOnArrival() rolls again the moment anything
+// lands a character in one — player travel (db/lib/travel.js#performTravel)
+// and the raw GM relocations alike (the Dev Panel's zone edit, Bulk Move,
+// fast travel), so being dropped into the Depths by a GM is never a free
+// walk in. Arrival is a BONUS roll on top of the turn-start one, not a
+// substitute for it: someone standing in the Depths when the turn opens gets
+// the pass's roll, and someone who walks in mid-turn gets a second one. The
+// @@unique([characterId, turnId, trigger]) constraint on CavingRoll caps each
+// trigger at one hit per character per turn — rollCaving swallows its own
+// trigger's repeat P2002 as "already rolled", which is what stops a
+// bounced-around character (free travel, a GM's Bulk Move) from farming more
+// than the two.
 //
 // Flat 1d6, no Gambit modifier — reuses rollDie() from moveEffects.js so
 // there is exactly one d6 in the codebase.
@@ -47,12 +52,15 @@ function findDm(die, tagName) {
 // CAVE_LEVEL row ({ id, slug }); callers are responsible for that check —
 // this function does not re-verify it, since travel.js already knows the
 // target zone's kind and the turn pass already filtered its query on it.
+// `trigger` is "TURN_START" or "ARRIVAL" (CavingTrigger) — see the module
+// header for what separates them.
 //
 // Returns { roll, dm } where `roll` is the created CavingRoll (or null if
-// this character already rolled this turn — the P2002 race both triggers can
-// hit) and `dm` is `{ discordUserId, content } | null` for the caller's own
+// this trigger already rolled for this character this turn — the P2002 a
+// retried pass, two racing advances, or a bounced-around arrival can hit)
+// and `dm` is `{ discordUserId, content } | null` for the caller's own
 // side-effect half to send. Never sends anything itself.
-async function rollCaving(prisma, character, turn, zone) {
+async function rollCaving(prisma, character, turn, zone, trigger) {
   const die = rollDie(6);
   const kind = die === 1 ? "TROUBLE" : die === 6 ? "FIND" : "QUIET";
 
@@ -63,6 +71,7 @@ async function rollCaving(prisma, character, turn, zone) {
           data: {
             turnId: turn.id,
             characterId: character.id,
+            trigger,
             zoneId: zone.id,
             die,
             kind,
@@ -86,7 +95,7 @@ async function rollCaving(prisma, character, turn, zone) {
         // Caving lens for a GM to notice, rather than vanishing silently.
         console.error(`Caving pass: loot tier "${tier}" drew unknown tag "${slug}" — run npm run db:sync-tags.`);
         const row = await tx.cavingRoll.create({
-          data: { turnId: turn.id, characterId: character.id, zoneId: zone.id, die, kind: "TROUBLE" },
+          data: { turnId: turn.id, characterId: character.id, trigger, zoneId: zone.id, die, kind: "TROUBLE" },
         });
         return {
           roll: row,
@@ -111,6 +120,7 @@ async function rollCaving(prisma, character, turn, zone) {
         data: {
           turnId: turn.id,
           characterId: character.id,
+          trigger,
           zoneId: zone.id,
           die,
           kind: "FIND",
@@ -124,20 +134,26 @@ async function rollCaving(prisma, character, turn, zone) {
       return { roll: row, dm: { discordUserId: character.discordUserId, content: findDm(die, tag.name) } };
     });
   } catch (err) {
-    // P2002 on @@unique([characterId, turnId]) — the other trigger (arrival
-    // vs. turn-start) already rolled for this character this turn. Not an
-    // error; the caller should simply have nothing to report.
+    // P2002 on @@unique([characterId, turnId, trigger]) — THIS trigger already
+    // rolled for this character this turn (a retried pass, two advances
+    // racing, or a character bounced between zones by the same trigger more
+    // than once). Not an error; the caller should simply have nothing to
+    // report. The other trigger firing the same turn is fine and expected —
+    // that's the bonus-roll design, not a race to guard against.
     if (err?.code === "P2002") return { roll: null, dm: null };
     throw err;
   }
 }
 
 // The arrival trigger, for every path that lands a character in a zone —
-// player travel (db/lib/travel.js#performTravel) and the raw GM relocations
-// alike (the Dev Panel's zone edit, Bulk Move). Not the staged "Relocate to":
-// stagedPush runs before the caving pass inside the same resolveNeeds(), so a
-// character pushed into the Depths is already caught by the pass that turn,
-// and rollCaving can't open its transaction inside the row's own one anyway.
+// player travel (db/lib/travel.js#performTravel), fast travel
+// (web/app/(app)/character/requestActions.js), and the raw GM relocations
+// alike (the Dev Panel's zone edit, Bulk Move). A bonus roll on top of
+// whatever the turn-start pass already gave this character this turn — see
+// the module header. Not the staged "Relocate to": the pass re-reads live
+// zones after the new turn opens, so a character pushed into the Depths is
+// caught by the *next* turn's pass, and rollCaving can't open its transaction
+// inside the row's own one anyway.
 //
 // Bails quietly on a non-cave zone, on no open turn (mid-restart — the next
 // turn's pass or the next arrival catches them), and on any error: a caving
@@ -150,7 +166,7 @@ async function rollCavingOnArrival(prisma, character, zone) {
   if (!turn) return null;
 
   try {
-    const { dm } = await rollCaving(prisma, character, turn, zone);
+    const { dm } = await rollCaving(prisma, character, turn, zone, "ARRIVAL");
     return dm;
   } catch (err) {
     console.error(`Caving arrival roll failed for character ${character.id}:`, err);
@@ -158,13 +174,15 @@ async function rollCavingOnArrival(prisma, character, zone) {
   }
 }
 
-// The turn-start pass. Every ALIVE character standing in a CAVE_LEVEL zone
-// gets one roll, unless the arrival trigger already claimed their row this
-// turn. One query, then one rollCaving() per character (each its own small
-// transaction — see the comment on rollCaving for why the P2002 race is
-// harmless). Zero Discord calls; DMs are returned for advanceTurn()'s
-// side-effect thunk to send sequentially, same discipline as every other
-// pass.
+// The turn-start pass, run by advanceTurn() (db/index.js) against the turn it
+// just opened — NOT the one being closed. Every ALIVE character already
+// standing in a CAVE_LEVEL zone gets one roll; an arrival roll made earlier
+// this same turn does not block it, since the two triggers no longer share a
+// dedupe key (see the module header). One query, then one rollCaving() per
+// character (each its own small transaction — see the comment on rollCaving
+// for why a repeat P2002 is harmless). Zero Discord calls; DMs are returned
+// for advanceTurn()'s side-effect thunk to send sequentially, same discipline
+// as every other pass.
 async function runCavingPass(prisma, turn) {
   const characters = await prisma.character.findMany({
     where: { status: "ALIVE", zone: { kind: "CAVE_LEVEL" } },
@@ -178,7 +196,7 @@ async function runCavingPass(prisma, turn) {
   const dms = [];
 
   for (const character of characters) {
-    const { roll, dm } = await rollCaving(prisma, character, turn, character.zone);
+    const { roll, dm } = await rollCaving(prisma, character, turn, character.zone, "TURN_START");
     if (!roll) {
       alreadyRolled += 1;
       continue;

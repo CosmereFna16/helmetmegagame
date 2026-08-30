@@ -31,6 +31,16 @@ A full gunsmith is `smithing` + `smithing-skilled` + `smithing-gunpowder` =
 Bows use `crafting` in place of `smithing` at every tier. The Crossbow does
 not — its steel prod and lock are `smithing-skilled` work.
 
+**The two gate columns mean different things and are enforced on different
+surfaces.** The Skill gate is what it takes to *make* the item; the Combat
+gate is what it takes to *use* it. Character creation and `/store` enforce
+the Combat gate (`requiredTag`) — you can't buy a Crossbow at creation
+without Ranged (Basic). The **Add Tag menu enforces the Skill gate instead**,
+via `addRequirementSatisfied()` (`web/lib/tagRequests.js`,
+[`TAGS.md`](TAGS.md) §3b) — a smith with `Smithing (Skilled)` and no
+`Melee (Basic)` can still forge a sword, they just can't swing it. The Combat
+gate never blocks the workshop.
+
 **Dead Simple is capped at 4 items per character per turn.** It is the only
 rung that costs 0 turns, so nothing else rations it. The cap counts *units*,
 not requests — these tags are stackable and one Add Tag request can carry any
@@ -38,7 +48,10 @@ quantity — and it is summed across every Add Tag request filed in the open
 turn. Enforced in `addTagRequestImpl`; the constant is
 `DEAD_SIMPLE_PER_TURN` in `web/lib/requests.js`, which also holds
 `isDeadSimple()` — the tier has no column of its own, so it is recognised as
-"0 turns of work plus a smithing or crafting skill gate".
+"0 turns of work plus a smithing or crafting skill gate". The Skill gate
+itself (a recipe's `requirementSkills`) is an **OR list** — `crafting` OR
+`smithing` on Dead Simple items — enforced by `recipeSkillsHeld()` in the
+same module.
 
 Every combat item is `purchasable: true, purchasableAfterStart: false` — buy
 at creation or have someone craft one in play. Found-only items

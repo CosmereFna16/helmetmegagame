@@ -18,10 +18,9 @@ import {
 } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { expiryFor } from "@/lib/turnFormat";
-import { TRANSFERABLE_CATEGORIES, FAST_TRAVEL_SLUGS } from "@/lib/tagRequests";
+import { TRANSFERABLE_CATEGORIES, fastTravelCapacity, addRequirementSatisfied } from "@/lib/tagRequests";
 import {
   tagsById as buildTagsById,
-  requirementSatisfied,
   exclusiveConflict,
   chainSiblingsToRemove,
   heldHigherTiers,
@@ -290,9 +289,10 @@ async function addTagRequestImpl({
     where: { id: tagId },
     include: {
       group: { select: { requiredTagId: true } },
-      // The recipe's skill gate, which is how isDeadSimple() recognises the
-      // bottom rung of the smithing ladder.
-      requirementSkills: { select: { slug: true } },
+      // The recipe's skill gate. `slug` is how isDeadSimple() recognises the
+      // bottom rung of the smithing ladder; `id`/`name` are what
+      // addRequirementSatisfied's craft route matches and reports below.
+      requirementSkills: { select: { id: true, slug: true, name: true } },
     },
   });
   if (!tag) throw new UserError("Unknown tag.");
@@ -305,10 +305,12 @@ async function addTagRequestImpl({
     throw new UserError("That tag can't be added this way.");
   }
 
-  // Both prerequisites the point-buy menu enforces, enforced here too: the
-  // per-tag requiredTag, and the group gate that hides a whole category
-  // (Demoness, Bacchus). Without this the menu's filtering is decorative —
-  // a hand-posted request would walk straight into a hidden category.
+  // The Add Tag menu's own gate, re-checked here because the client's
+  // filtering is decorative — a hand-posted request would otherwise walk
+  // straight past it. Two routes, either suffices: buy it (purchasable +
+  // requiredTag) or make it (craftable + a recipe skill). The group gate
+  // (hides a whole category — Demoness, Bacchus) applies to both routes
+  // unconditionally. See tagRequests.js#addRequirementSatisfied.
   //
   // The whole catalog's ids/parents come down (~80 rows) so a chain walk
   // never dead-ends on an ancestor the character doesn't hold, same reason
@@ -328,8 +330,15 @@ async function addTagRequestImpl({
   });
   const chainById = buildTagsById(chainRows);
   const heldIds = character.tags.map((ct) => ct.tagId);
-  if (!requirementSatisfied(tag, chainById, heldIds)) {
-    throw new UserError("You're missing a prerequisite for that tag.");
+  if (!addRequirementSatisfied(tag, chainById, heldIds)) {
+    // Two ways to fail this, and they read completely differently to a
+    // player: not knowing the trade, versus a hidden-category/purchase gate.
+    const skillNames = (tag.requirementSkills ?? []).map((s) => s.name).join(" or ");
+    throw new UserError(
+      tag.craftable && skillNames
+        ? `You need ${skillNames} to make that.`
+        : "You're missing a prerequisite for that tag.",
+    );
   }
 
   // One exclusive tag at a time (the Beliefs) — the same rule the point-buy
@@ -1727,14 +1736,24 @@ async function buryCharacterRequestImpl({ firstName: rawFirstName, reason: rawRe
 // same way moveCharacterRequestImpl above does, because performTravel runs its
 // own transaction and always files the Move, and createRequest has to sit
 // inside the same transaction as its effect (REQUESTS.md §2).
-async function fastTravelRequestImpl({ targetZoneId, reason: rawReason }) {
+async function fastTravelRequestImpl({ targetZoneId, passengerIds: rawPassengerIds, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
   if (!character.zoneId) throw new UserError("You aren't anywhere you could ride from.");
   // Re-derived from the database. The greyed-out button is a hint, not a lock.
-  if (!character.tags.some((ct) => FAST_TRAVEL_SLUGS.has(ct.tag.slug))) {
-    throw new UserError("You have no horse.");
+  const heldSlugs = heldSlugsOf(character.tags);
+  const seats = fastTravelCapacity(heldSlugs);
+  if (seats === 0) throw new UserError("You have no horse.");
+
+  // Deduped, self excluded (bringing "yourself" as a passenger is just
+  // riding), and capped against what the vehicle actually seats — the
+  // dialog caps the same way client-side, this is the real enforcement.
+  const passengerIds = [...new Set((rawPassengerIds ?? []).filter((id) => id && id !== character.id))];
+  if (1 + passengerIds.length > seats) {
+    throw new UserError(
+      seats === 1 ? "Your horse can't carry anyone else." : `Your vehicle only seats ${seats}.`,
+    );
   }
 
   const openTurn = await getOpenTurn();
@@ -1754,6 +1773,22 @@ async function fastTravelRequestImpl({ targetZoneId, reason: rawReason }) {
     throw new UserError("You can't get there directly from here.");
   }
 
+  // Passengers ride along by nobody's leave but their own presence — see the
+  // dialog's own note. The only real requirement is that they're actually
+  // still standing where the rider is: someone who wandered off between
+  // opening the dialog and submitting fails the WHOLE request rather than
+  // quietly being dropped, so the rider re-picks instead of being surprised
+  // later that a friend didn't come along.
+  const passengers = passengerIds.length
+    ? await prisma.character.findMany({
+        where: { id: { in: passengerIds }, status: "ALIVE", zoneId: fromZoneId },
+        select: { id: true, name: true, discordUserId: true },
+      })
+    : [];
+  if (passengers.length !== passengerIds.length) {
+    throw new UserError("They're not here anymore.");
+  }
+
   await prisma.$transaction(async (tx) => {
     // The claim comes FIRST, and its WHERE is the check. Read the column in
     // one statement and write it in another and two tabs both pass, which is
@@ -1770,12 +1805,24 @@ async function fastTravelRequestImpl({ targetZoneId, reason: rawReason }) {
     if (claimed.count === 0) throw new UserError("Your horse has already carried you today.");
 
     await tx.character.update({ where: { id: character.id }, data: { zoneId: targetZone.id } });
+    // One batch update for every passenger: they all share the same
+    // fromZoneId/toZoneId as the rider, so there's nothing per-passenger to
+    // branch on here. Unlike the rider, a passenger does NOT claim their own
+    // fastTravelTurnId — they're being carried, not riding their own horse,
+    // so this doesn't stop them from fast-traveling under their own power
+    // again later the same day.
+    if (passengers.length) {
+      await tx.character.updateMany({
+        where: { id: { in: passengers.map((p) => p.id) } },
+        data: { zoneId: targetZone.id },
+      });
+    }
     await createRequest(tx, {
       characterId: character.id,
       turnId: openTurn.id,
       type: "FAST_TRAVEL",
       reason,
-      payload: { targetZoneId: targetZone.id },
+      payload: { targetZoneId: targetZone.id, passengerIds: passengers.map((p) => p.id) },
       effect: {
         fromZoneId,
         fromZoneName: currentZone.name,
@@ -1784,6 +1831,10 @@ async function fastTravelRequestImpl({ targetZoneId, reason: rawReason }) {
         // So Undo can hand the ride back rather than leaving the day burnt on
         // a hop that no longer happened.
         previousFastTravelTurnId: character.fastTravelTurnId ?? null,
+        // Snapshotted names, not just ids — Undo's confirmation and the GM
+        // desk's display both read this rather than re-deriving from live
+        // state, the same Request.effect rule everywhere else follows.
+        passengers: passengers.map((p) => ({ id: p.id, name: p.name })),
       },
     });
     await logRequest(tx, {
@@ -1791,7 +1842,7 @@ async function fastTravelRequestImpl({ targetZoneId, reason: rawReason }) {
       actionType: "request_fast_travel",
       targetCharacterId: character.id,
       reason,
-      details: { fromZoneId, toZoneId: targetZone.id },
+      details: { fromZoneId, toZoneId: targetZone.id, passengerIds: passengers.map((p) => p.id) },
     });
   });
 
@@ -1800,30 +1851,46 @@ async function fastTravelRequestImpl({ targetZoneId, reason: rawReason }) {
   // same reason: a pending server action blocks App Router navigation, and the
   // database write has already committed.
   after(async () => {
-    await syncCharacterZoneRole(character.discordUserId, fromZoneId, targetZone.id).catch((err) =>
-      console.error("Fast travel: zone role sync failed:", err),
-    );
-    await syncCharacterNarrowcastAccess(character.id).catch((err) =>
-      console.error("Fast travel: narrowcast access sync failed:", err),
-    );
-    // The second half of the /add contract: standing invites for private
-    // threads in this zone land the moment their guest arrives.
-    await applyPendingInvites(prisma, { ...character, zoneId: targetZone.id }).catch((err) =>
-      console.error("Fast travel: pending thread invites failed:", err),
-    );
-    // The Caving Die's "on arrival" trigger, exactly as an ordinary hop fires
-    // it (db/lib/travel.js, CAVING.md). @@unique([characterId, turnId]) on
-    // CavingRoll makes a second roll this turn a no-op rather than an error.
-    if (targetZone.kind === "CAVE_LEVEL") {
-      const { dm } = await rollCaving(prisma, character, openTurn, targetZone).catch((err) => {
-        console.error("Fast travel: caving arrival roll failed:", err);
-        return { dm: null };
-      });
-      if (dm) {
-        await sendDm(dm.discordUserId, dm.content).catch((err) =>
-          console.error("Fast travel: caving arrival DM failed:", err),
-        );
+    // The rider's own fan-out, then each passenger's — sequential, same
+    // shape moveCharacterRequestImpl already uses for its one target, just
+    // run once per rider-or-passenger here since there can be up to six.
+    const riders = [character, ...passengers];
+    for (const rider of riders) {
+      await syncCharacterZoneRole(rider.discordUserId, fromZoneId, targetZone.id).catch((err) =>
+        console.error(`Fast travel: zone role sync failed for ${rider.id}:`, err),
+      );
+      await syncCharacterNarrowcastAccess(rider.id).catch((err) =>
+        console.error(`Fast travel: narrowcast access sync failed for ${rider.id}:`, err),
+      );
+      // The second half of the /add contract: standing invites for private
+      // threads in this zone land the moment their guest arrives.
+      await applyPendingInvites(prisma, { ...rider, zoneId: targetZone.id }).catch((err) =>
+        console.error(`Fast travel: pending thread invites failed for ${rider.id}:`, err),
+      );
+      // The Caving Die's "on arrival" trigger, exactly as an ordinary hop
+      // fires it (db/lib/travel.js, CAVING.md) — a bonus roll on top of
+      // whatever the turn-start pass already gave this rider this turn.
+      // @@unique([characterId, turnId, trigger]) on CavingRoll makes a SECOND
+      // ARRIVAL roll this turn a no-op rather than an error.
+      if (targetZone.kind === "CAVE_LEVEL") {
+        const { dm } = await rollCaving(prisma, rider, openTurn, targetZone, "ARRIVAL").catch((err) => {
+          console.error(`Fast travel: caving arrival roll failed for ${rider.id}:`, err);
+          return { dm: null };
+        });
+        if (dm) {
+          await sendDm(dm.discordUserId, dm.content).catch((err) =>
+            console.error(`Fast travel: caving arrival DM failed for ${rider.id}:`, err),
+          );
+        }
       }
+    }
+    // A passenger didn't ask for this ride — they should hear about it, the
+    // same way Move Player notifies its target.
+    for (const passenger of passengers) {
+      notifyCharacter(
+        passenger,
+        `${character.name} brought you along to ${targetZone.name}.`,
+      );
     }
   });
 
@@ -1831,12 +1898,15 @@ async function fastTravelRequestImpl({ targetZoneId, reason: rawReason }) {
   // (GameConfig.archiveTravelEvents) because it is two rows per character per
   // turn; this one is unconditional, because "you'll be easily visible" is the
   // price the tag charges for the free hop and nothing else collects it.
+  const passengerClause = passengers.length
+    ? `, carrying ${passengers.map((p) => p.name).join(" and ")}`
+    : "";
   await recordArchiveEvent({
     kind: "TRAVEL",
     character,
     zoneId: targetZone.id,
     zoneName: targetZone.name,
-    content: `${character.name} rode from ${currentZone.name} into ${targetZone.name}.`,
+    content: `${character.name} rode from ${currentZone.name} into ${targetZone.name}${passengerClause}.`,
   }).catch((err) => console.error("Fast travel: archive entry failed:", err));
 
   revalidatePath("/map");

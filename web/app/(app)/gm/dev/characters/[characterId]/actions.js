@@ -98,9 +98,7 @@ function notifyCharacter(session, character, text) {
   });
 }
 
-// ───────────────────────────────────────────────────────────────────────────
 // The one staged-apply action.
-// ───────────────────────────────────────────────────────────────────────────
 
 // Everything the GM edited in the panel, committed together: one transaction,
 // one audit row, one repaint. Tag changes ride along in the same payload so
@@ -255,10 +253,8 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
   return { name: data.name ?? existing.name, applied: diff, tags: appliedTags, discord: steps };
 }
 
-// ───────────────────────────────────────────────────────────────────────────
 // Microactions. Each is a verb, fires on its own, and is idempotency-checked
 // against live state rather than trusting the UI to have disabled its button.
-// ───────────────────────────────────────────────────────────────────────────
 
 // killCharacter is the canonical death path: revoke every channel overwrite,
 // delete the personal Discord role and null the (unique) id, clear the
@@ -591,8 +587,6 @@ async function deleteCharacterImpl({ characterId, confirmName }) {
   return { name: character.name };
 }
 
-// ── goals ──────────────────────────────────────────────────────────────────
-
 // At most GameConfig.maxActiveDesires ACTIVE Desires per character is an
 // action-level invariant, not a schema one — so it is re-checked here rather
 // than left to the player-side action. A GM at the cap cancels one first;
@@ -676,8 +670,6 @@ async function endDesireGmImpl({ characterId, desireId, mode }) {
   repaint(characterId);
   return { points: fulfilling ? desire.points : 0 };
 }
-
-// ── exported wrappers ──────────────────────────────────────────────────────
 
 export async function applyCharacterEdits(input) {
   return guarded(() => applyCharacterEditsImpl(input));

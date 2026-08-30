@@ -263,13 +263,9 @@ export async function releaseConversation({ playerDiscordUserId }) {
   });
 }
 
-// ---------------------------------------------------------------------------
-// The Canon tab's own load. It used to arrive with the person route's page,
-// which only worked while the panel lived inside that route. The shared
-// inspector can look at anyone — including somebody who is not the open
-// conversation — so Canon fetches per character on demand, the same way the
-// inspector's Sheet/Tags/Archive/DMs tabs do.
-// ---------------------------------------------------------------------------
+// The Canon tab's own load, per character on demand — the shared inspector
+// can look at anyone, including somebody who is not the open conversation, the
+// same way its Sheet/Tags/Archive/DMs tabs do.
 
 export async function getPlayerCanon({ characterId }) {
   return guarded(async () => {
@@ -336,12 +332,10 @@ export async function getPlayerCanon({ characterId }) {
   });
 }
 
-// ---------------------------------------------------------------------------
 // The Canon tab: stage a DM as a turn-end message instead of sending it now.
 // Mirrors createStagedMessageImpl's PRIVATE-kind validation shape
 // (web/app/(desk)/gm/turns/actions.js) so a message staged from the inbox
 // looks and behaves exactly like one staged from the adjudication desk.
-// ---------------------------------------------------------------------------
 
 export async function stageDmAsMessage({ characterId, content }) {
   return guarded(async () => {
@@ -399,12 +393,9 @@ export async function stageDmAsMessage({ characterId, content }) {
   });
 }
 
-// ---------------------------------------------------------------------------
-// BulkComposer broadcast — consolidated here from web/app/(app)/gm/actions.js
-// (sendGmMessage/deliverGmMessage), same delivery discipline: sequential
-// sends deferred to after() per ARCHITECTURE.md §5, never a fan-out against
-// Discord's rate limiter.
-// ---------------------------------------------------------------------------
+// BulkComposer broadcast. Same delivery discipline as the rest of the desk:
+// sequential sends deferred to after() per ARCHITECTURE.md §5, never a
+// fan-out against Discord's rate limiter.
 
 async function deliverGmBroadcast(actorDiscordUserId, recipients, message) {
   const failed = [];
@@ -487,9 +478,7 @@ export async function sendGmBroadcast({ characterIds, message }) {
   });
 }
 
-// ── GM notes on a player ────────────────────────────────────────────────
-//
-// Append-only, attributed, delete-your-own. See the GmCharacterNote model for
+// GM notes on a player: append-only, attributed, delete-your-own. See the GmCharacterNote model for
 // why this isn't one shared editable field.
 
 const GM_NOTE_MAX_LENGTH = 2000;

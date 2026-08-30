@@ -244,14 +244,11 @@ model GameConfig {
   lifewebDecayPerTurn        Int      @default(10)
   nextWeather                Weather?
   nextTurnNote               String?
+  // No longer written or read (TURN-ENGINE.md) — the rolling-replace
+  // announcement these three backed has been retired. Kept until a
+  // post-wipe cleanup migration.
   turnsAnnouncementChannelId String?
   turnsAnnouncementMessageId String?
-
-  // The weather banner posted immediately above the announcement each turn
-  // (docs/assets/weather/, built by make-weather.py). Tracked separately
-  // because Discord renders an attachment below its own message content, so
-  // the image cannot ride on the announcement and still appear above it —
-  // it is its own message, and the rolling replace has to delete both.
   turnsBannerMessageId String?
 
   // Gates the whole Dawn message-wipe system (db/lib/dawnWipe.js) — off by
@@ -1207,7 +1204,6 @@ model Tag {
   // yet, same posture as removable/tradeable.
   craftable Boolean @default(false)
 
-  // --- Requirement to add or remove this tag in play -------------------
   // What it costs a character to gain or shed this tag through play (e.g.
   // curing Arthritis needs Medical (Skilled), some turns, and resources;
   // forging a sword tag costs turns, resources, Smithing, no Gambit). One
@@ -1701,9 +1697,9 @@ model DefaultEffort {
   description      String
   zoneId           String?
   zone             Zone?      @relation(fields: [zoneId], references: [id])
-  // Vestigial: never written any more (the +N/range grammar it stored is
-  // gone), only ever selected — dropping it now would throw against an
-  // old-code instance mid-deploy. Kept until a post-wipe cleanup migration.
+  // Vestigial: never written or read any more (the +N/range grammar it
+  // stored is gone). Dropping it now would throw against an old-code
+  // instance mid-deploy, so it stays until a post-wipe cleanup migration.
   resourceDelta    Int?
   // The Labor checkbox — the single flavor-free flag that replaces the old
   // "/hunt"-style shorthand embedded in the description text.
@@ -1811,6 +1807,29 @@ model Note {
   @@index([zoneId])
 }
 
+// A player's personal journal entry — the /notes page's Journal tab, distinct
+// from Note (a starred Discord message) above. Keyed on discordUserId only,
+// same reasoning as Note and GhostWhisper: it is a player's own writing, never
+// a shared or GM-visible surface. `body` may embed `{char:<characterId>}`
+// mention tokens (web/app/components/richTokens.js); there is no FK to
+// Character on purpose — a deleted or renamed character just degrades the
+// mention to a letter-plaque / raw token, the token pipeline's existing
+// behaviour for an unresolvable reference, rather than cascading a delete
+// into someone's private writing.
+model JournalEntry {
+  id            String   @id @default(cuid())
+  discordUserId String
+  title         String
+  body          String
+  pinned        Boolean  @default(false)
+  turnNumber    Int?
+  labels        String[] @default([])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([discordUserId])
+}
+
 // One row per change to a Faction's Silo — deposits, manual Dev Panel
 // corrections, and Leader/Treasurer transfers to a member — so the faction
 // panel can show a plain-language "who took what, when, how much, to whom"
@@ -1862,11 +1881,22 @@ enum CavingRollKind {
   FIND
 }
 
-// One roll per character per turn while standing in a CAVE_LEVEL zone —
-// rolled by db/lib/cavingPass.js, both at turn start (every character
-// currently in the Depths) and on arrival (db/lib/travel.js#performTravel).
-// The @@unique below is what makes both triggers safe to fire in the same
-// turn: whichever runs first wins the row, the other is a no-op.
+// Which of the two triggers in db/lib/cavingPass.js produced a roll. The
+// turn-start pass rolls for everyone already standing in the Depths when the
+// new turn opens; an arrival (travel, a GM relocation, fast travel) rolls
+// again for whoever just walked in. See the @@unique below.
+enum CavingTrigger {
+  TURN_START
+  ARRIVAL
+}
+
+// Up to two rolls per character per turn while standing in a CAVE_LEVEL zone —
+// one for TURN_START, one for ARRIVAL — rolled by db/lib/cavingPass.js. A
+// character already in the Depths when the turn opens gets the pass's roll; one
+// who arrives mid-turn gets a bonus roll on top. The @@unique below is what
+// caps each trigger at one hit per character per turn, so neither a retried
+// pass nor a character bounced in and out (free travel, a GM's Bulk Move) can
+// farm more than the two.
 //
 // Shaped like a Move on purpose — it is adjudicated the same way, on the
 // same /gm/turns desk, with the same staging attachments. See
@@ -1877,6 +1907,9 @@ model CavingRoll {
   turn        Turn      @relation(fields: [turnId], references: [id])
   characterId String
   character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  // Which trigger produced this roll. Load-bearing in the @@unique below.
+  trigger CavingTrigger @default(TURN_START)
 
   // The presence zone the character stood in when it rolled. Snapshot,
   // because they may have moved since.
@@ -1911,7 +1944,7 @@ model CavingRoll {
   stagedMessages StagedMessage[]
   stagedEffects  StagedEffect[]
 
-  @@unique([characterId, turnId])
+  @@unique([characterId, turnId, trigger])
   @@index([turnId, resolvedAt])
 }
 

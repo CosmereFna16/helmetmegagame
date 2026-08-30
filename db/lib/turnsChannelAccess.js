@@ -158,5 +158,4 @@ module.exports = {
   findTurnsChannelId,
   turnsChannelOverwrites,
   syncTurnsChannelAccess,
-  zoneRoleIdsFor,
 };

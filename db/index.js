@@ -164,14 +164,21 @@ async function sweepExpiredStacks(turn) {
 // automated one actually resolving Needs.
 //
 // Returns { lifewebBlood, starvedNotices, defaultMovePosts,
-// defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates,
-// cavingDms }. Everything after
+// defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates }.
+// Everything after
 // the first is Discord work this function deliberately does NOT perform —
 // the Hunger pass's DM list (one notice per starved character: discordUserId,
 // streak, justDied), the Default Move pass's summary posts and DMs, the tag
-// progression pass's DMs, the Catatonic pass's one-DM-per-newly-flagged list
-// and its personal-role renames, and the Caving Die's one-DM-per-1-or-6
-// list. See advanceTurn() below for why.
+// progression pass's DMs, and the Catatonic pass's one-DM-per-newly-flagged
+// list and its personal-role renames. See advanceTurn() below for why.
+//
+// The Caving Die is NOT one of this function's passes — it used to be, but
+// resolveNeeds() only ever runs against the turn being CLOSED, and the die is
+// meant to roll for the turn that's OPENING. Rolling it here meant an arrival
+// roll made earlier in the very turn being closed had already claimed that
+// turn's row, so the pass itself rolled nothing (see db/lib/cavingPass.js and
+// docs/systemdocs/CAVING.md §2). advanceTurn() below runs it directly against
+// the newly created turn instead.
 // Every pass this turn owes, by the name markDone records it under. The
 // needsResolvedAt stamp at the bottom is written only when `done` covers all
 // of them, which is what makes the resume machinery mean anything.
@@ -181,7 +188,6 @@ const TURN_PASSES = [
   "tagExpiry",
   "expirySweep",
   "catatonic",
-  "caving",
   "hunger",
   "lifewebDecay",
 ];
@@ -369,29 +375,6 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Catatonic audit log failed:", err));
   }
 
-  // The Caving Die — every ALIVE character standing in the Depths gets one
-  // roll for the turn that's opening. Slotted after expirySweep (loot
-  // granted just now must not be swept THIS turn) and before hunger (a
-  // Skinned Cave Rat eaten last turn needs to be swept before Hunger reads
-  // it — same ordering reason as tagExpiry -> expirySweep -> hunger below).
-  // See db/lib/cavingPass.js and docs/systemdocs/CAVING.md.
-  let caving = null;
-  if (!done.has("caving")) {
-    caving = await runCavingPass(prisma, turn).catch(async (err) => {
-      await passFailed("Caving", err);
-      return null;
-    });
-    if (caving) await markDone("caving");
-  }
-  const { dms: cavingDms = [], ...cavingSummary } = caving ?? {};
-  if (caving) {
-    await prisma.auditLog
-      .create({
-        data: { actorDiscordUserId: "system", actionType: "caving_resolved", details: cavingSummary },
-      })
-      .catch((err) => console.error("Caving audit log failed:", err));
-  }
-
   // Hunger upkeep runs AFTER the sweep, deliberately: a Hunger granted while
   // closing turn N-1 carries expiresTurn N, so the sweep is what clears it a
   // moment before this pass may grant a fresh one. In the other order a
@@ -486,7 +469,6 @@ async function resolveNeeds(turn, config) {
     tagExpiryDms,
     catatonicDms,
     catatonicRoleUpdates,
-    cavingDms,
     privateDeliveries,
     publicPosts,
     zoneMoves,
@@ -567,7 +549,7 @@ async function advanceTurn() {
       };
     }
 
-    ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, cavingDms, privateDeliveries, publicPosts, zoneMoves, routineNotices } =
+    ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, privateDeliveries, publicPosts, zoneMoves, routineNotices } =
       await resolveNeeds(openTurn, config));
   } else {
     // No OPEN turn, which normally means "opening the very first turn". It
@@ -632,7 +614,7 @@ async function advanceTurn() {
           },
         })
         .catch((logErr) => console.error("Failed to log turn_resume — the resume now has no record:", logErr));
-      ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, cavingDms, privateDeliveries, publicPosts, zoneMoves, routineNotices } =
+      ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, privateDeliveries, publicPosts, zoneMoves, routineNotices } =
         await resolveNeeds(unfinished, config));
     }
   }
@@ -669,6 +651,48 @@ async function advanceTurn() {
       .filter(Boolean)
       .join("\n"),
   });
+
+  // The Caving Die — every ALIVE character already standing in the Depths
+  // gets one roll for the turn that JUST opened (newTurn, not the one this
+  // function is closing). It used to run inside resolveNeeds() against the
+  // closing turn, which meant an arrival roll made earlier that same turn had
+  // already claimed the row and the pass rolled nothing — see
+  // db/lib/cavingPass.js and docs/systemdocs/CAVING.md §2. Placed after the
+  // TURN_START archive row rather than straight after turn.create: the
+  // weather/note reset and that row are facts about the turn opening, and a
+  // roster-wide pass is a run of small transactions that shouldn't sit in
+  // front of them. Still database-only — nothing below this comment talks to
+  // Discord until runSideEffects.
+  //
+  // Own try/catch, and it must never rethrow: passFailed/markDone are
+  // resolveNeeds()'s closures and don't reach here, and a throw escaping this
+  // block would abort advanceTurn() after newTurn already exists — no
+  // runSideEffects, no turn announcement, for the sake of one missed die.
+  try {
+    const caving = await runCavingPass(prisma, newTurn);
+    const { dms, ...cavingSummary } = caving;
+    cavingDms = dms;
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "caving_resolved",
+          details: { turnNumber: newTurn.number, ...cavingSummary },
+        },
+      })
+      .catch((err) => console.error("Caving audit log failed:", err));
+  } catch (err) {
+    console.error("Caving pass failed:", err);
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "turn_pass_failed",
+          details: { turnNumber: newTurn.number, pass: "caving", error: String(err?.message ?? err) },
+        },
+      })
+      .catch((logErr) => console.error("Failed to log turn_pass_failed for caving:", logErr));
+  }
 
   // Everything below this line talks to Discord and nothing above it does, so
   // the turn is fully committed by the time the caller gets this back. This is

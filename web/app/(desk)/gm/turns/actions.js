@@ -664,6 +664,15 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
   // Solve no longer pays anyone twice. It still stops two GMs from silently
   // overwriting each other's verdicts.
   const result = await prisma.$transaction(async (tx) => {
+    // Every branch below RENEWS the lock rather than clearing it — save,
+    // solve and unsolve all leave the desk open on this same Move, and used
+    // to null the lock out from under the GM still sitting on it. The
+    // heartbeat (useMoveLock.js) would then fail its next 30s beat against a
+    // row it no longer holds, and the desk greyed out mid-edit with "Your
+    // hold on this Move expired." Release still happens the normal ways —
+    // unmount, the pagehide beacon, or the TTL lapsing (moveEconomy.js).
+    const renewedLock = { lockedByDiscordUserId: session.discordUserId, lockExpiresAt: new Date(Date.now() + MOVE_LOCK_TTL_MS) };
+
     if (mode === "unsolve") {
       const claimed = await tx.action.updateMany({
         where: { id: actionId ?? "", moveReviewStatus: "SOLVED" },
@@ -671,8 +680,7 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
           moveReviewStatus: "OPEN",
           reviewedAt: null,
           reviewedByDiscordUserId: null,
-          lockedByDiscordUserId: null,
-          lockExpiresAt: null,
+          ...renewedLock,
         },
       });
       if (!claimed.count) throw new UserError("That Move isn't solved.");
@@ -682,25 +690,40 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
     const data = normalizeEdits(action, edits, action.character.tags, action.character.hungerStreak);
 
     if (mode === "save") {
-      const claimed = await tx.action.updateMany({
-        where: { id: actionId ?? "", moveReviewStatus: { not: "SOLVED" } },
-        data: { moveReviewStatus: "OPEN" },
-      });
-      if (!claimed.count) throw new UserError("That Move is solved — reopen it before editing.");
+      // No status claim, no forced OPEN — Save just keeps the edits and
+      // leaves the status exactly where it was, solved or not. The guard
+      // that used to sit here protected nothing (Solve is bookkeeping;
+      // nothing pays until the push) and was the direct cause of last
+      // night's incident: a GM whose own live lock masked the desk's status
+      // as "In Progress" got "That Move is solved — reopen it before
+      // editing." on a row they had already solved, with no Reopen button
+      // on screen because the desk thought it was still open.
       await tx.action.update({
         where: { id: actionId },
-        data: { ...data, lockedByDiscordUserId: null, lockExpiresAt: null },
+        data: { ...data, ...renewedLock },
       });
-      return { status: "OPEN", note: "Saved." };
+      return { status: action.moveReviewStatus, note: "Saved." };
     }
 
     // Solve — staging complete. Nothing applies here; the declared numbers
-    // and every staged row land together at the push.
+    // and every staged row land together at the push. Still a conditional
+    // claim: it stops two GMs racing from a stale view, a rare thing now
+    // that the desk's own status display can no longer lie to the GM
+    // sitting on it.
     const claimed = await tx.action.updateMany({
       where: { id: actionId ?? "", moveReviewStatus: { not: "SOLVED" } },
       data: { moveReviewStatus: "SOLVED" },
     });
-    if (!claimed.count) throw new UserError("Another GM already solved that Move.");
+    if (!claimed.count) {
+      // Named the actual condition rather than a generic "Another GM" —
+      // the stale-view race can just as easily be the same GM's own earlier
+      // click landing twice.
+      const fresh = await tx.action.findUnique({ where: { id: actionId } });
+      if (fresh?.reviewedByDiscordUserId === session.discordUserId) {
+        throw new UserError("You already solved this Move — it's marked and will push.");
+      }
+      throw new UserError(`${await lockHolderName(fresh?.reviewedByDiscordUserId)} already solved this Move.`);
+    }
 
     await tx.action.update({
       where: { id: actionId },
@@ -708,8 +731,7 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
         ...data,
         reviewedAt: new Date(),
         reviewedByDiscordUserId: session.discordUserId,
-        lockedByDiscordUserId: null,
-        lockExpiresAt: null,
+        ...renewedLock,
       },
     });
     return { status: "SOLVED", note: "Staged for the push." };
@@ -764,7 +786,7 @@ async function resolveCavingRollImpl({ cavingRollId, gmNotes: rawNotes }) {
   return { status: "RESOLVED" };
 }
 
-// "Unlock" on the desk. Deletes the Action outright — the turn-economy checks
+// "Reject" on the desk. Deletes the Action outright — the turn-economy checks
 // all look for ANY Action on the open turn, so only a deletion actually frees
 // the player to act again. Pre-push there is nothing to claw back
 // (appliedEffects is null until the push claims it); staged rows linked to
@@ -803,11 +825,14 @@ async function rejectMoveImpl({ actionId, reason: rawReason }) {
   try {
     await sendDm(
       action.character.discordUserId,
-      `Your Move was unlocked and returned to you — you can act again this turn.\n${reason}`,
+      `Your Move was returned to you — you can act again this turn.\n${reason}`,
+      // source/actionType stay "move_unlock"/"move_rejected" — stored data,
+      // not UI text; renaming them would orphan every old audit row and DM
+      // log entry under a value nothing writes any more.
       { authorDiscordUserId: session.discordUserId, source: "move_unlock" },
     );
   } catch (err) {
-    console.error(`Failed to DM the unlock to ${action.character.discordUserId}:`, err);
+    console.error(`Failed to DM the reject reason to ${action.character.discordUserId}:`, err);
     deliveryFailed = true;
   }
 

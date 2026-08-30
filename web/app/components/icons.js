@@ -438,3 +438,19 @@ export function ChevronDownIcon(props) {
     </svg>
   );
 }
+
+// A drawing-pin, angled — the Journal's "pin to top" toggle. Deliberately not
+// a star: this page already uses ★ for a starred message, and the Starred
+// tab's [★] means "unstar/delete" — a star meaning "pinned" on one tab and
+// "delete" on the other would overload the same glyph two ways on one page.
+export function PinIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path
+        d="M14.5 3.5l6 6-3 3-1-.3-3.9 3.9.4 3.4-1.4 1.4-4.6-4.6-4.6 4.6-1-1 4.6-4.6-4.6-4.6 1.4-1.4 3.4.4 3.9-3.9-.3-1z"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}

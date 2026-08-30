@@ -16,7 +16,7 @@ import { docsPath } from "@lifeweb/db/lib/repoPaths";
 // show up. cache() re-reads per request (cheap — one file, one page) while
 // still deduping the two callers (the /documents card and /handbook) within
 // a single request.
-export const getHandbookText = cache(() => {
+const getHandbookText = cache(() => {
   const p = docsPath("handbook.md");
   if (!p) return null;
   try {

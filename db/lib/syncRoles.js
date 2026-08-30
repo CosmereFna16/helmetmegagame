@@ -308,4 +308,4 @@ async function syncRolesFromYaml(prisma, { seedSilos = false } = {}) {
   return stats;
 }
 
-module.exports = { syncRolesFromYaml, parseRolesYaml };
+module.exports = { syncRolesFromYaml };

@@ -88,7 +88,6 @@ module.exports = {
   BLOOD_MAX,
   bumpBlood,
   FEED_PERSON_AMOUNT,
-  DONATE_BLOOD_BASE,
   DONATE_BLOOD_BY_TAG,
   bloodValueForTags,
   applyBlood,

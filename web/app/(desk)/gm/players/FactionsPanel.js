@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import FactionLink from "@/app/components/FactionLink";
 import CharacterLink from "@/app/components/CharacterLink";
@@ -13,10 +14,11 @@ import { transferSiloResources } from "./actions";
 // The all-factions overview, the Factions tab of the Players panel.
 //
 // It used to be the GM branch of /faction. That page now redirects a GM here,
-// so this is the only copy. /faction still has the per-faction detail view a
-// player reaches by clicking a faction name; a GM stays in this desk
-// instead — highlightFactionId/onSelectFaction (RosterTable.js) mark and
-// scroll to a row here rather than opening that page.
+// so this is the only copy. Clicking a faction's name stays in this desk —
+// highlightFactionId/onSelectFaction (RosterTable.js) mark and scroll to its
+// row here instead of navigating away. Its Manage link is the door back to
+// /faction's still-live per-faction detail view (member roles, add/remove,
+// Silo history) — this table only ever shows a member count, not the roster.
 
 // Same tint the desk uses for a claimed conversation row — color-mix over
 // --accent-text rather than a dedicated background token, since none exists
@@ -60,6 +62,11 @@ function FactionRows({ factions, childrenMap, depth, showSilo, highlightFactionI
             <IconButton icon={ResourcesIcon} label={`Move ⬢ for ${f.name}`} onClick={() => onTransfer(f.id)} />
           </td>
         )}
+        <td>
+          <Link href={`/faction?factionId=${f.id}`} className="btn-quiet">
+            Manage &rarr;
+          </Link>
+        </td>
       </tr>,
       ...FactionRows({
         factions: children,
@@ -191,6 +198,7 @@ export default function FactionsPanel({ factions, highlightFactionId, onSelectFa
             <th>Members</th>
             <th>Leader</th>
             <th>Silo</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -224,6 +232,11 @@ export default function FactionsPanel({ factions, highlightFactionId, onSelectFa
                 {/* Unaffiliated has no Silo — db/lib/parties.js#resolveParty
                     rejects it as a transfer party, so no button here. */}
                 <td>{f.silo} ⬢</td>
+                <td>
+                  <Link href={`/faction?factionId=${f.id}`} className="btn-quiet">
+                    Manage &rarr;
+                  </Link>
+                </td>
               </tr>
             );
           })}

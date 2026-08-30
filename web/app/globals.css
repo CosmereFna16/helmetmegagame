@@ -1306,6 +1306,44 @@ input[type="radio"]:disabled {
 .modal-panel[data-width="wide"] { max-width: 40rem; }
 .modal-panel[data-width="widest"] { max-width: 46rem; }
 
+/* The Journal composer's @ mention dropdown — a small popover pinned under
+   the textarea, one level lighter than the modal it sits inside so it reads
+   as floating rather than as the next form field. */
+.mention-menu {
+  position: absolute;
+  z-index: 1;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 2px;
+  max-height: 12rem;
+  overflow-y: auto;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  box-shadow: var(--e-3);
+  padding: 0.25rem;
+}
+
+.mention-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.35rem 0.5rem;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: var(--fs-sm);
+}
+
+.mention-row[data-active="true"] {
+  background: var(--field-bg);
+}
+
 /* The Dev Character Panel, mounted as a modal over /gm/turns
    (DevPanelModal.js). It carries the whole standalone page's width — five
    tabs, a state strip, an action bar — so it overrides width/max-width
@@ -1575,6 +1613,13 @@ input[type="radio"]:disabled {
 .icon-btn:disabled {
   cursor: default;
   opacity: 0.4;
+}
+
+/* A toggle icon-btn (Journal's pin) in its "on" state — same accent
+   .desk-queue-pin already uses for a pinned GM-desk row. */
+.icon-btn[aria-pressed="true"] {
+  color: var(--accent-text);
+  border-color: var(--accent-text);
 }
 
 /* A small group of mutually exclusive options, drawn as one joined pill. Used

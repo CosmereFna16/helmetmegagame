@@ -26,46 +26,59 @@ it's public so anyone else can find it too.
 
 ## 2. The Caving Die
 
-Every `ALIVE` character standing in a `CAVE_LEVEL` zone gets one roll per
-turn — a flat `1d6`, no Gambit modifier, rolled by `db/lib/cavingPass.js`'s
-`rollCaving(prisma, character, turn, zone)`. Written to a `CavingRoll` row.
+Every `ALIVE` character standing in a `CAVE_LEVEL` zone gets one roll at turn
+start, and anyone who arrives mid-turn gets a **bonus** roll on top — a flat
+`1d6`, no Gambit modifier, rolled by `db/lib/cavingPass.js`'s `rollCaving(prisma,
+character, turn, zone, trigger)`. Written to a `CavingRoll` row.
 
 Two triggers share that one primitive:
 
 - **Turn start** — `runCavingPass(prisma, turn)`, called from
-  `db/index.js#resolveNeeds()`, rolls for every qualifying character in one
-  pass. Registered in `TURN_PASSES` as `"caving"`, slotted **after
-  `expirySweep`, before `hunger`**: loot granted just now must not be swept
-  this same turn, and a Skinned Cave Rat eaten last turn needs to be swept
-  before Hunger reads whether the character ate.
+  `db/index.js#advanceTurn()` immediately after the new turn is created (right
+  after the `TURN_START` archive row, before `runSideEffects`), rolls for every
+  qualifying character in one pass, against the turn that just **opened** —
+  not the one being closed. It is deliberately **not** one of
+  `resolveNeeds()`'s `TURN_PASSES`: that function only ever operates on the
+  closing turn, and rolling the die there meant an arrival roll made earlier
+  that same turn had already claimed the row, so the pass itself rolled
+  nothing. Ordering against the sweep and Hunger doesn't matter — a caving
+  grant carries no `expiresTurn` (so the sweep can never touch it) and grants
+  no food or Hunger-gate tag (so Hunger reads nothing it wrote).
 - **On arrival** — `rollCavingOnArrival(prisma, character, zone)`, in the same
   file, rolls once more the moment *anything* lands a character in a
   `CAVE_LEVEL` zone. It owns the whole gate: not a cave level, or no open turn
   (mid-restart), or any error at all, and it quietly returns `null` — a caving
   roll must never fail the move that caused it. It sends nothing; the DM comes
   back for the caller's own side-effect half, the same split `performTravel`
-  already uses for the zone-role swap. Four callers:
+  already uses for the zone-role swap. Five callers:
 
   - `db/lib/travel.js#performTravel` — player travel, including a first
     placement (Migrant and Mercenary start in the Depths). Returns the DM as
     `cavingDm` for `bot/src/lib/zoneTravel.js` and
     `web/app/(app)/map/travelActions.js` to send.
+  - Fast travel (`web/app/(app)/character/requestActions.js`) — calls
+    `rollCaving` directly per rider/passenger with `trigger: "ARRIVAL"`, same
+    rule as an ordinary hop.
   - The Dev Panel's zone edit and **Bulk Move** — the raw GM relocations.
     They roll too, on purpose: being *dropped* into the Depths by a GM used to
     be the one free walk in, which is exactly how the die first looked broken.
     Both send the DM plainly rather than through the Dev Panel's
     `notifyCharacter()`, since the die is the game speaking, not the GM.
   - The staged **"Relocate to"** on `/gm/turns` is the one zone write that
-    does *not* call it, and needs no equivalent: `stagedPush` runs before
-    `caving` in `TURN_PASSES`, so a character pushed into the Depths is
-    already caught by the turn pass later in that same `resolveNeeds()`.
+    does *not* call it, and needs no equivalent: `stagedPush` moves the
+    character while closing turn N, and the turn-start pass re-reads live
+    zones a moment later when it rolls for turn N+1 — so the character is
+    caught by the *next* turn's pass rather than the one being closed.
     `rollCaving` could not run there anyway — it opens its own transaction,
     and `applyOneStagedEffect` is already inside one.
 
-`CavingRoll.@@unique([characterId, turnId])` is what makes firing both
-triggers in the same turn safe: whichever gets there first wins the row, and
-`rollCaving` swallows the loser's `P2002` as "already rolled this turn" —
-never a second roll, never an error surfaced to the player.
+`CavingRoll.@@unique([characterId, turnId, trigger])` is what caps each
+trigger at one hit per character per turn: a turn-start roll and an arrival
+roll in the same turn are both meant to land (that's the bonus), but a repeat
+of the *same* trigger (a retried pass, two advances racing, a character
+bounced in and out by the same trigger twice) is not. `rollCaving` swallows
+that repeat's `P2002` as "already rolled" — never a third roll, never an error
+surfaced to the player.
 
 ### What each face means
 
@@ -238,7 +251,7 @@ script's own header for the exact order.
 |---|---|
 | The die, both triggers | `db/lib/cavingPass.js` |
 | The loot table | `db/lib/cavingLoot.js` |
-| Turn-start registration | `db/index.js` — `TURN_PASSES`, `resolveNeeds()` |
+| Turn-start registration | `db/index.js#advanceTurn()`, run against the newly created turn — deliberately not in `TURN_PASSES`/`resolveNeeds()` |
 | Arrival trigger | `db/lib/cavingPass.js#rollCavingOnArrival` |
 | Its callers | `db/lib/travel.js#performTravel`, the Dev Panel's `teleportCharacterImpl`, `web/app/(app)/gm/dev/actions.js#bulkMoveCharacters` |
 | Arrival DM senders | `bot/src/lib/zoneTravel.js`, `web/app/(app)/map/travelActions.js` (travel); the two GM paths send their own |

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import StatusPill from "@/app/components/StatusPill";
 import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
 import Select from "@/app/components/Select";
@@ -8,7 +8,9 @@ import { openingZoneName } from "@/lib/zones";
 import GmAvatar from "@/app/components/GmAvatar";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import { useTableState } from "@/app/components/DataTable";
+import useSessionState from "@/app/components/useSessionState";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
+import { isFieldFocused, hasModifier } from "@/lib/deskKeyGuard";
 import { MOVE_REVIEW_TONES, MOVE_REVIEW_LABELS } from "@/lib/moves";
 import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requestLabels";
 
@@ -20,15 +22,23 @@ import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requestLabels"
 // listed, even at a count of zero, so "Open" doesn't disappear from Status
 // just because nothing is open right now. Zone stays derived from the loaded
 // rows in every filterDefs list below, since which zones exist is not a
-// fixed thing. WAITING_FOR_OPPONENTS is dropped: legacy, nothing writes it
-// (see web/lib/moves.js).
+// fixed thing. WAITING_FOR_OPPONENTS and IN_PROGRESS are both dropped: the
+// first is legacy (nothing writes it), and the second is no longer a status
+// value the mapper can produce at all — a lock is presence now, never a
+// status (moveRows.js#moveStatusLabel) — though both stay in
+// MOVE_REVIEW_LABELS/MOVE_REVIEW_TONES for old stored rows (web/lib/moves.js).
 const MOVE_KIND_OPTIONS = ["Routine", "Gambit", "Travel"];
-const MOVE_STATUS_OPTIONS = Object.values(MOVE_REVIEW_LABELS).filter((l) => l !== "Waiting for Opponents");
+const MOVE_STATUS_OPTIONS = Object.values(MOVE_REVIEW_LABELS).filter(
+  (l) => l !== "Waiting for Opponents" && l !== "In Progress",
+);
 
 // Still-open work floats to the top of the rail; Solved (bookkept, nothing
 // left to push) and Passed (already resolved) sink toward the bottom. Ties
-// within a rank fall back to recency — see queueOrder below.
-const MOVE_STATUS_RANK = { Open: 0, "In Progress": 0, "Waiting for Opponents": 0, Solved: 1, Passed: 2 };
+// within a rank fall back to recency — see queueOrder below. No "In
+// Progress" entry any more: a locked-but-solved row now ranks as Solved,
+// which is the honest state — it sinks like any other solved row even while
+// someone's looking at it.
+const MOVE_STATUS_RANK = { Open: 0, "Waiting for Opponents": 0, Solved: 1, Passed: 2 };
 // Same trick for the Caving lens: an unresolved TROUBLE row ("Needs
 // attention") floats to the top, Resolved sinks — see rankedMoves below and
 // D25 (QueueRail.js's default filter used to hide everything but "Needs
@@ -90,6 +100,23 @@ const requestSearchMap = (r) => ({
 });
 
 const REQUEST_TONES = { Passed: "neutral", Edited: "neutral", Undone: "bad" };
+
+// One sessionStorage key for every bit of rail VIEW state that should survive
+// a reload — every deploy hard-reloads this desk (build-id change -> failed
+// RSC fetch -> full navigation), several times a day. Search text is left out
+// on purpose (see useSessionState.js / ADJUDICATION.md): useTableState's
+// query lives in plain internal state, and threading it through here too
+// would mean either a controlled-query mode this hook doesn't have yet, or a
+// second storage round-trip on every keystroke. Workspace.js reads the same
+// key for `lens`, sharing this one store the same way two usePins() callers
+// already share "gm-pins".
+export const RAIL_STORAGE_KEY = "gm-turns-rail";
+export const RAIL_STORAGE_DEFAULT = {
+  lens: "moves",
+  filters: {}, // { moves, requests, caving, history } — each an initialFilters-shaped object
+  hideTravel: true,
+  hideHistoryTravel: true,
+};
 
 // The Caving lens — see docs/systemdocs/CAVING.md. Only a TROUBLE (die 1)
 // row is ever "Needs attention"; QUIET and FIND are stamped resolved at
@@ -198,14 +225,14 @@ function MoveRows({
       >
         <span className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-1.5 truncate font-medium">
-            <CharacterAvatar characterId={row.characterId} name={row.characterName} version={row.avatarVersion} />
+            <CharacterAvatar characterId={row.characterId} name={row.characterName} version={row.avatarVersion} catatonic={row.catatonic} />
             <span className="truncate">{row.characterName}</span>
             <MatchHint match={matchFor(row)} />
           </span>
           <span className="flex items-center gap-1.5">
-            {row.statusLabel === "In Progress" && (
-              <GmAvatar profile={gmProfiles?.[row.lockedByDiscordUserId]} size={14} />
-            )}
+            {/* Presence, not status — a GM looking at a Solved Move still
+                shows the avatar beside "Solved", which is the honest state. */}
+            {row.lockedByDiscordUserId && <GmAvatar profile={gmProfiles?.[row.lockedByDiscordUserId]} size={14} />}
             <StatusPill tone={MOVE_REVIEW_TONES[row.statusLabel] ?? "neutral"}>{row.statusLabel}</StatusPill>
           </span>
         </span>
@@ -241,7 +268,7 @@ function RequestRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens }) {
       >
         <span className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-1.5 truncate font-medium">
-            <CharacterAvatar characterId={row.characterId} name={row.characterName} version={row.avatarVersion} />
+            <CharacterAvatar characterId={row.characterId} name={row.characterName} version={row.avatarVersion} catatonic={row.catatonic} />
             <span className="truncate">
               {killPending ? "☠ " : ""}
               {!row.reviewedByUsername && <span className="desk-dot" aria-label="Not yet reviewed" />}
@@ -276,7 +303,7 @@ function CavingRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens }) {
       >
         <span className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-1.5 truncate font-medium">
-            <CharacterAvatar characterId={row.characterId} name={row.characterName} version={row.avatarVersion} />
+            <CharacterAvatar characterId={row.characterId} name={row.characterName} version={row.avatarVersion} catatonic={row.catatonic} />
             <span className="truncate">
               ⚀ {row.die} — {row.characterName}
             </span>
@@ -317,6 +344,20 @@ export default function QueueRail({
   const requestFilterDefs = useMemo(() => REQUEST_FILTER_DEFS, []);
   const cavingFilterDefs = useMemo(() => CAVING_FILTER_DEFS, []);
   const moveSearchMap = useMemo(() => makeMoveSearchMap(tagsById), [tagsById]);
+
+  // The rail's persisted view state (filters + travel toggles; `lens` is
+  // Workspace.js's own read of the same key). Each table's filters live
+  // under their own sub-key, written back through `onFiltersChange` below —
+  // useTableState's controlled mode (DataTable.js), so there's no separate
+  // internal copy to fall out of sync with sessionStorage.
+  const [rail, setRail] = useSessionState(RAIL_STORAGE_KEY, RAIL_STORAGE_DEFAULT);
+  const makeFiltersProps = useCallback(
+    (key) => ({
+      filters: rail.filters[key] ?? { zone: openingZoneName(myZoneNames) },
+      onFiltersChange: (next) => setRail((r) => ({ ...r, filters: { ...r.filters, [key]: next } })),
+    }),
+    [rail.filters, myZoneNames, setRail],
+  );
 
   // A single numeric key so the generic engine's one-field sort can still
   // rank by status first and recency second: status dominates (multiplied up
@@ -362,8 +403,8 @@ export default function QueueRail({
     searchMap: moveSearchMap,
     rankBySearch: true,
     initialSort: { key: "queueOrder", dir: "asc" },
-    initialFilters: { zone: openingZoneName(myZoneNames) },
     pageSize: 1000,
+    ...makeFiltersProps("moves"),
   });
   const requestTable = useTableState({
     rows: requests,
@@ -371,8 +412,8 @@ export default function QueueRail({
     searchMap: requestSearchMap,
     rankBySearch: true,
     initialSort: { key: "createdAtMs", dir: "desc" },
-    initialFilters: { zone: openingZoneName(myZoneNames) },
     pageSize: 1000,
+    ...makeFiltersProps("requests"),
   });
   const cavingTable = useTableState({
     rows: rankedCavingRolls,
@@ -380,8 +421,8 @@ export default function QueueRail({
     searchMap: cavingSearchMap,
     rankBySearch: true,
     initialSort: { key: "queueOrder", dir: "asc" },
-    initialFilters: { zone: openingZoneName(myZoneNames) },
     pageSize: 1000,
+    ...makeFiltersProps("caving"),
   });
   // The History lens is the Moves lens over a past turn: same defs, same
   // search map, same ranking, its own filter state and its own travel toggle.
@@ -391,15 +432,16 @@ export default function QueueRail({
     searchMap: moveSearchMap,
     rankBySearch: true,
     initialSort: { key: "queueOrder", dir: "asc" },
-    initialFilters: { zone: openingZoneName(myZoneNames) },
     pageSize: 1000,
+    ...makeFiltersProps("history"),
   });
 
   // Auto-filed travel Moves are already solved and never need a GM — hidden
   // from the list by default so they don't pad the queue, but picking
   // "Travel" in the Kind dropdown always overrides the hide (the dropdown's
   // own count already reflects the real total, hide or no hide).
-  const [hideTravel, setHideTravel] = useState(true);
+  const hideTravel = rail.hideTravel ?? true;
+  const setHideTravel = useCallback((v) => setRail((r) => ({ ...r, hideTravel: v })), [setRail]);
   const movesShown = useMemo(() => {
     if (!hideTravel || moveTable.filters.kind === "Travel") return moveTable.visible;
     return moveTable.visible.filter((r) => !r.isTravel);
@@ -408,7 +450,8 @@ export default function QueueRail({
 
   // The History lens's own pair. A past turn is mostly travel and silently
   // closed Routines, so hiding travel matters more here, not less.
-  const [hideHistoryTravel, setHideHistoryTravel] = useState(true);
+  const hideHistoryTravel = rail.hideHistoryTravel ?? true;
+  const setHideHistoryTravel = useCallback((v) => setRail((r) => ({ ...r, hideHistoryTravel: v })), [setRail]);
   const historyShown = useMemo(() => {
     if (!hideHistoryTravel || historyTable.filters.kind === "Travel") return historyTable.visible;
     return historyTable.visible.filter((r) => !r.isTravel);
@@ -422,13 +465,18 @@ export default function QueueRail({
     history: historyShown,
   };
   const visibleRows = rowsForLens[lens] ?? movesShown;
-  const [kbdIndex, setKbdIndex] = useState(-1);
+  // The keyboard cursor is tracked by ROW ID, not position — a Move going
+  // Open → Solved re-sorts to the bottom of the rail (MOVE_STATUS_RANK), and
+  // an index-based cursor used to stay pinned to whatever row happened to
+  // land in its old slot instead of following the row it was actually on.
+  const [kbdCursorId, setKbdCursorId] = useState(null);
   const railRef = useRef(null);
   const coarse = useIsCoarsePointer();
 
-  // Filter/lens changes invalidate any prior focus position — clamped rather
-  // than reset-in-an-effect, since this is a plain derived value at read time.
-  const clampedKbdIndex = visibleRows.length ? Math.min(kbdIndex, visibleRows.length - 1) : -1;
+  // Re-derived every render against the CURRENT rows — if the cursor's row
+  // moved, this just finds its new position; if it's gone (filtered out,
+  // deleted), it falls back to -1 the same as before.
+  const clampedKbdIndex = kbdCursorId ? visibleRows.findIndex((r) => r.id === kbdCursorId) : -1;
   const kbdId = clampedKbdIndex >= 0 ? visibleRows[clampedKbdIndex]?.id : null;
 
   useEffect(() => {
@@ -439,13 +487,13 @@ export default function QueueRail({
       const isNav = key === "ArrowDown" || key === "ArrowUp" || key === "j" || key === "k" || key === "Enter";
       const isLensKey = key === "m" || key === "r" || key === "c" || key === "h";
       if (!isNav && !isLensKey) return;
+      if (hasModifier(e)) return; // ⌘C, ⌘K, etc. — never ours to intercept
       if (document.querySelector(".modal-overlay")) return;
-      const active = document.activeElement;
-      if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) return;
+      if (isFieldFocused(document.activeElement)) return;
 
       if (isLensKey) {
         onLens?.(LENS_FOR_KEY[key]);
-        setKbdIndex(-1);
+        setKbdCursorId(null);
         return;
       }
 
@@ -469,7 +517,7 @@ export default function QueueRail({
       // updater twice, and scrolling is a side effect.
       const delta = key === "ArrowDown" || key === "j" ? 1 : -1;
       const next = Math.max(0, Math.min(rows.length - 1, clampedKbdIndex + delta));
-      setKbdIndex(next);
+      setKbdCursorId(rows[next].id);
       railRef.current?.querySelector(`[data-row-key="${rows[next].id}"]`)?.scrollIntoView({ block: "nearest" });
     }
     window.addEventListener("keydown", onKey);

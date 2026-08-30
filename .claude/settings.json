@@ -4,11 +4,11 @@
       "Bash(git *)",
       "Bash(railway *)",
       "Bash(npx prisma *)",
-      "Bash(npm run db:* *)",
+      "Bash(npm run db:*)",
       "Bash(node db/prisma/*)",
       "Bash(DATABASE_URL=* npx prisma *)",
       "Bash(DATABASE_URL=* node db/prisma/*)",
-      "Bash(DATABASE_URL=* npm run db:* *)"
+      "Bash(DATABASE_URL=* npm run db*)"
     ]
   },
   "autoMode": {
@@ -16,11 +16,11 @@
       "$defaults",
       "Bash(railway *)",
       "Bash(npx prisma *)",
-      "Bash(npm run db:* *)",
+      "Bash(npm run db:*)",
       "Bash(node db/prisma/*)",
       "Bash(DATABASE_URL=* npx prisma *)",
       "Bash(DATABASE_URL=* node db/prisma/*)",
-      "Bash(DATABASE_URL=* npm run db:* *)"
+      "Bash(DATABASE_URL=* npm run db*)"
     ]
   }
 }

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRefresh } from "@/app/components/useRefresh";
-import QueueRail from "./QueueRail";
+import useSessionState from "@/app/components/useSessionState";
+import QueueRail, { RAIL_STORAGE_KEY, RAIL_STORAGE_DEFAULT } from "./QueueRail";
 import MoveDesk from "./MoveDesk";
 import MoveHistoryDesk from "./MoveHistoryDesk";
 import RequestDesk from "./RequestDesk";
@@ -14,8 +15,10 @@ import PushPreview from "./PushPreview";
 import DevPanelModal from "@/app/components/DevPanelModal";
 import DeskHeader from "@/app/components/DeskHeader";
 import { isAnyDirty } from "@/app/components/useDirtyGuard";
+import { useConfirm } from "@/app/components/ConfirmProvider";
 import usePins from "@/app/components/usePins";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
+import { isFieldFocused } from "@/lib/deskKeyGuard";
 
 // The adjudication workspace's client shell — mission control. It owns three
 // pieces of state and nothing else:
@@ -158,9 +161,29 @@ export default function Workspace({
   moveLock,
 }) {
   const [refresh] = useRefresh();
+  // The rail's lens, persisted under the same sessionStorage key QueueRail.js
+  // reads its filters and travel toggles from (RAIL_STORAGE_KEY) — a hard
+  // reload restores whichever lens a GM was on, the same way filters do.
+  const [rail, setRail] = useSessionState(RAIL_STORAGE_KEY, RAIL_STORAGE_DEFAULT);
   // A /gm/turns/history/<id> link arrives with the rail already on History,
-  // so the row the URL names is in the list behind the desk it opened.
-  const [lens, setLens] = useState(initialSelection?.type === "history" ? "history" : "moves");
+  // so the row the URL names is in the list behind the desk it opened — that
+  // has to win over whatever lens was persisted from an earlier session. This
+  // is a one-shot correction, not a perpetual override (the same render-time
+  // "adjust state when a prop changes" pattern StagingTray.js's revealSignal
+  // uses — never an effect, react-hooks/set-state-in-effect is an error
+  // here): once seen, a GM is free to flip lenses while this History row
+  // stays open, same as any other selection.
+  const [seenDeepLinkId, setSeenDeepLinkId] = useState(null);
+  if (
+    typeof window !== "undefined" &&
+    initialSelection?.type === "history" &&
+    seenDeepLinkId !== initialSelection.id
+  ) {
+    setSeenDeepLinkId(initialSelection.id);
+    if (rail.lens !== "history") setRail((r) => ({ ...r, lens: "history" }));
+  }
+  const lens = rail.lens ?? "moves";
+  const setLens = useCallback((l) => setRail((r) => ({ ...r, lens: l })), [setRail]);
   const [selected, setSelected] = useState(initialSelection ?? null); // { type: "move"|"request"|"caving"|"history", id }
 
   // The URL mirrors `selected`; it is never its source after the first paint.
@@ -171,10 +194,28 @@ export default function Workspace({
   //
   // replaceState, not pushState, so Back leaves the desk rather than walking
   // your selection history — and so nothing has to listen for popstate.
-  const select = useCallback((sel) => {
-    setSelected(sel);
-    window.history.replaceState(null, "", selectionHref(sel));
-  }, []);
+  const confirm = useConfirm();
+  // Picking a different rail row (click OR the keyboard's Enter) used to
+  // unmount the open desk unconditionally — MoveDesk/RequestDesk/CavingDesk
+  // are keyed by id, so their own useDirtyGuard covers Close and Escape but
+  // never a fresh `select`. isAnyDirty() is the same cross-component flag
+  // the 45s poll already reads (useDirtyGuard.js).
+  const select = useCallback(
+    async (sel) => {
+      if (isAnyDirty()) {
+        const ok = await confirm({
+          title: "Discard your changes?",
+          message: "This panel has unsaved edits. Switching rows reverts every change you've made.",
+          confirmLabel: "Discard",
+          cancelLabel: "Keep editing",
+        });
+        if (!ok) return;
+      }
+      setSelected(sel);
+      window.history.replaceState(null, "", selectionHref(sel));
+    },
+    [confirm],
+  );
   const deselect = useCallback(() => select(null), [select]);
   const [inspected, setInspected] = useState(null); // { characterId, name }
   const [tabRequest, setTabRequest] = useState(null); // { tab, token } — see inspect()
@@ -206,7 +247,7 @@ export default function Workspace({
   }, []);
 
   // Escape is layered, topmost-first, and this is the bottom layer:
-  //   1. An open Modal (confirm, composer, unlock dialog) — Modal.js handles
+  //   1. An open Modal (confirm, composer, reject dialog) — Modal.js handles
   //      its own Escape; we just yield when one is on screen.
   //   2. A focused input/textarea/select — blur it, don't blow away the desk.
   //   3. A selected Move/Request — deselect through the desk's own dirty
@@ -237,8 +278,12 @@ export default function Workspace({
       if (e.key !== "Escape") return;
       if (document.querySelector(".modal-overlay")) return;
       const active = document.activeElement;
-      if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) {
-        active.blur();
+      // A Select's own Escape (Select.js) already closes its popup and
+      // stopPropagation()s — so reaching here with a combobox/listbox
+      // focused means there was no popup open, and this Escape is free to
+      // fall through to the desk's own layer, same as any other field.
+      if (isFieldFocused(active)) {
+        active.blur?.();
         return;
       }
       if (selectedRef.current) {
@@ -408,7 +453,7 @@ export default function Workspace({
     return map;
   }, [stagedEffects, stagedMessages]);
 
-  const solvedCount = moves.filter((m) => m.statusLabel === "Solved").length;
+  const solvedCount = moves.filter((m) => m.reviewStatus === "SOLVED").length;
 
   // The inspector's custom-tag door. It defaults to STAGING here: this desk
   // is mid-push, so a tag invented while chasing a Move belongs in the tray
@@ -482,6 +527,13 @@ export default function Workspace({
                 updated {lastRefreshedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               </span>
             )}
+            {/* isAnyDirty() is a plain module counter, not React state — read
+                at render time the same way the poll interval reads it at fire
+                time. It drifts by at most one 30s tick, which is fine for a
+                status line: without this, a Result box left mid-sentence
+                silently froze the queue, tray counts and missed-push banner
+                for the rest of the session with no on-screen sign of it. */}
+            {isAnyDirty() && <span className="text-xs text-accent">paused — unsaved edits</span>}
           </>
         }
         actions={
@@ -574,11 +626,18 @@ export default function Workspace({
             />
           ) : (
             <div className="desk-empty">
-              <p className="text-sm text-muted">
-                Pick a Move, Request or Caving roll from the queue. Everything you stage —
-                messages, effects, public declarations — goes out together when the turn ends.
-                The History lens reads back a turn that has already been pushed.
-              </p>
+              {selected ? (
+                <p className="text-sm text-muted">
+                  That row isn&apos;t in the open turn&apos;s queue any more — the turn just pushed, or
+                  another GM Rejected the Move. Pick another from the rail.
+                </p>
+              ) : (
+                <p className="text-sm text-muted">
+                  Pick a Move, Request or Caving roll from the queue. Everything you stage —
+                  messages, effects, public declarations — goes out together when the turn ends.
+                  The History lens reads back a turn that has already been pushed.
+                </p>
+              )}
             </div>
           )}
         </main>

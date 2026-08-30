@@ -121,8 +121,6 @@ export default function ActionBar({
     run(fn);
   }
 
-  // ── staging helpers ──────────────────────────────────────────────────────
-
   // Every affliction they currently hold, dropped. `healable` is precomputed
   // on the server from the shared isHealable predicate, so the picker and the
   // server action can't disagree about what counts as one.

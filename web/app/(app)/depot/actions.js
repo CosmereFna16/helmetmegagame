@@ -58,7 +58,6 @@ function revalidateAll() {
   revalidatePath("/gm/audit");
 }
 
-// --- buy --------------------------------------------------------------
 
 // The price is read from the catalog INSIDE the action, never taken from the
 // client — the quantity is the only thing a caller gets to choose, and even
@@ -136,7 +135,6 @@ async function depotBuyImpl({ tagId, quantity: rawQuantity, reason: rawReason })
   return { tagName: tag.name, quantity, total };
 }
 
-// --- sell -------------------------------------------------------------
 
 // Selling snapshots the CharacterTag row before dropping it, so an Undo puts
 // the goods back with the source and expiry they had rather than a fresh full
@@ -198,7 +196,6 @@ async function depotSellImpl({ tagId, quantity: rawQuantity, reason: rawReason }
   return { tagName: tag.name, quantity, total };
 }
 
-// --- credit -----------------------------------------------------------
 
 // Draw and repay are one action because they are one ledger, and doing them
 // separately would mean two places that have to agree about the cap.
@@ -291,7 +288,6 @@ async function depotCreditImpl({ direction, amount: rawAmount, reason: rawReason
   return { direction: draw ? "DRAW" : "REPAY", amount, debtAfter };
 }
 
-// --- public surface ---------------------------------------------------
 
 // Validation comes back as { ok: false, error } rather than thrown — a
 // production Next.js build redacts anything thrown out of a Server Action.

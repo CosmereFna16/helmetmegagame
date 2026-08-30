@@ -64,7 +64,6 @@ General questions can be asked in the `#general` channel or by creating a thread
 
 #### **Reactions:**  
 🔍 Inspect Character  
-❓ Show Bio  
 ⭐ Save message to Notes  
 ✏️ Edit Message  
 ❌ Delete Message  
@@ -95,7 +94,7 @@ General questions can be asked in the `#general` channel or by creating a thread
 | **Map** | A map of Ravenheart. Click a Zone to travel to it. |
 | **Faction** | Faction roster, Silo balance, ledger, and leadership. |
 | **Documents** | Game rules and briefs. **Assigned** has specific documents provided by your role or tags. |
-| **Notes** | Messages saved with ⭐, private to you. |
+| **Notes** | Your private Journal, plus messages saved with ⭐. Both are visible only to you. |
 | **Archive** | A full transcript of all roleplay channels. Hidden until after the game ends. |
 | **Handbook** | A full page version of this document. |
 
@@ -236,7 +235,6 @@ You can interact with messages posted in roleplay channels by adding a Reaction.
 | React | Used By | What It Does |
 |---|---|---|
 | 🔍 / 🔎 | Anyone | DMs you their appearance and visible gear or wounds. A doctor will also see afflictions they can treat. |
-| ❓ | Anyone | DMs you their bio. |
 | ⭐ | Anyone | Saves the message to your personal [Notes](https://ravenheart.quest/notes) page. |
 | ✏️ / 📝 | The author | Edit your message (the bot DMs you). |
 | ❌ | The author | Delete your message. |

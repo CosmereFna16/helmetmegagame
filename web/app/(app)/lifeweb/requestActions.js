@@ -197,8 +197,6 @@ async function feedPersonRequestImpl({ targetCharacterId, reason: rawReason }) {
   return { targetName: target.name, amount: blood.delta };
 }
 
-// --- public surface ---------------------------------------------------
-
 // Validation comes back as { ok: false, error } rather than thrown — a
 // production Next.js build redacts anything thrown out of a Server Action.
 // See web/lib/actionResult.js.

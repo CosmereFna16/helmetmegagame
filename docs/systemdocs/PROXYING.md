@@ -162,7 +162,6 @@ All in `bot/src/events/messageReactionAdd.js`, all gated on `recentProxies`.
 |---|---|
 | ❌ | Deletes the message. Also deletes its `ArchiveEntry` row. Gated on `proxy.discordUserId`. |
 | ✏️ | Edit, via a DM button and a modal — see below. Mirrors into the archive **only after** Discord accepts the edit. Gated on `proxy.discordUserId`. |
-| ❓ | DMs the character's bio. |
 | 🔍 | Inspect embed — see §5 and `FACTIONS.md` §4. |
 | ⭐ | Saves a personal `Note` — see §7. |
 | 🌫️ | GM-only fog. |
@@ -368,7 +367,12 @@ add needs `MANAGE_THREADS`, which comes from the bot's own role and is not
 granted by `zoneChannelSpec` — `/remove` reports that failure rather than
 silently timing out.
 
-## 7. Notes (⭐)
+## 7. Notes (⭐) and the Journal
+
+`/notes` has two tabs, `NotesBoard.js`: **Starred** (this section) and
+**Journal** — a player's own written entries, unrelated to proxying and
+covered here only because it shares the page. Neither tab is ever
+GM-visible or shared between players; see below.
 
 Reacting ⭐ to a proxied message in any zone channel saves it as a personal
 `Note` for whoever reacted. `handleStarReaction` upserts a row keyed on
@@ -380,14 +384,45 @@ reaction.
 (`reaction.users.remove(user.id)`), for any user, on any message — so Discord
 never shows an accumulating star count, and the note on `/notes` is the only
 lasting record. There's no "react again to unstar"; unstarring is the web UI's
-delete button (`unstarNote` in `web/app/(app)/notes/actions.js`), which just
+`[★]` button (`unstarNote` in `web/app/(app)/notes/actions.js`), which just
 deletes the row.
 
+A starred card shows the speaker's face (`CharacterAvatar`) beside their name —
+**gated**. `Note.characterId` is stored unconditionally even when the message
+was concealed (`characterName` becomes the alias instead — see §6 above), so
+`notes/page.js` only passes `characterId` through when the stored name still
+matches the character's current real name; on a mismatch it ships `null`,
+which `CharacterAvatar` renders as a letter plaque. This fails safe in both
+directions: a merely-renamed character just loses its face, and a concealed
+one never gains one. The check happens server-side, so a concealed
+character's id never reaches the client at all.
+
 `/notes` is **strictly personal and identical for both roles**: every signed-in
-user, GM or player, only ever sees `Note` rows matching their own
-`discordUserId`. There is no shared or all-players view. Notes render as
-sortable-by-time, filterable-by-zone cards over the shared list shell
-(`DESIGN-SYSTEM.md` §7), not a table.
+user, GM or player, only ever sees `Note` and `JournalEntry` rows matching
+their own `discordUserId`. There is no shared or all-players view. Both tabs
+render as sortable-by-time, filterable cards over the shared list shell
+(`DESIGN-SYSTEM.md` §7), not a table — each tab holds its own independent
+filter/sort/paging state, since the two row shapes are never interleaved.
+
+**The Journal** (`JournalList.js` / `JournalComposer.js` / `journalActions.js`)
+is a private, freeform record: a title, a body, an optional pin-to-top, the
+open turn number at the time it was written, and up to a handful of
+free-text labels. A body can `@`-mention a character, which is stored as a
+`{char:<characterId>}` token (the same `{kind:payload}` grammar `RichText.js`
+already uses for `{tag:…}` and friends) and renders inline as a face + name.
+
+The mention roster and the mention *resolver* are the same query — every
+character `ALIVE`, or `DEAD` and not yet buried (mirroring
+`character/page.js`'s own zone-roster precedent) — passed once to
+`CharacterMentionsProvider.js`, mounted only by this page. There is
+deliberately no second, narrower lookup keyed off whatever ids a body happens
+to contain: an entry can only ever mention a character its author was allowed
+to see in the autocomplete in the first place, so a second lookup could only
+ever widen what a pasted-in id could reveal (a buried character's name and
+portrait, for instance) — never narrow it usefully. A mention of a character
+outside that roster (buried, or simply invented) just fails to resolve and
+renders as the raw token, the token pipeline's existing behaviour for any
+unresolvable reference.
 
 ## 8. Nickname sync
 
@@ -440,4 +475,5 @@ title off itself.
 | Nickname | `bot/src/lib/nickname.js`, `web/lib/discordGuild.js` |
 | Avatar route | `web/app/api/avatar/[characterId]/route.js` |
 | Plaque generator | `web/scripts/generate-letters.js` |
-| Notes UI | `web/app/(app)/notes/` |
+| Notes UI (Starred + Journal) | `web/app/(app)/notes/` |
+| `{char:…}` mention token | `web/app/components/RichText.js`, `CharacterMentionsProvider.js` |

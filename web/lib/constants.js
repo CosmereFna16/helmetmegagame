@@ -15,3 +15,11 @@ export const MAX_REASON_LENGTH = 500;
 // limit at all, the send failed, and .catch(() => null) reported the Move
 // solved with the player never told.
 export const GM_MESSAGE_MAX_LENGTH = 1990;
+
+// A player's private Journal entry (/notes) — generous, since it's a personal
+// record rather than something read aloud, but capped so a runaway paste
+// can't bloat a single row indefinitely.
+export const JOURNAL_TITLE_MAX_LENGTH = 120;
+export const JOURNAL_BODY_MAX_LENGTH = 8000;
+export const JOURNAL_LABEL_MAX_LENGTH = 24;
+export const JOURNAL_MAX_LABELS = 8;

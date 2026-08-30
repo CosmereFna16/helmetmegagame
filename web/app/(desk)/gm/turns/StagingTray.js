@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useRefresh } from "@/app/components/useRefresh";
+import FormError from "@/app/components/FormError";
 import { StagedEffectRow, StagedMessageRow } from "./StagedItems";
 import EffectComposer from "./EffectComposer";
 import TransferComposer from "./TransferComposer";
@@ -68,6 +69,21 @@ export default function StagingTray({
   const [query, setQuery] = useState("");
   const [kindFilter, setKindFilter] = useState("all"); // "all" | "effects" | "messages" | "public"
   const [pending, startTransition] = useTransition();
+  const [retargetError, setRetargetError] = useState(null);
+
+  // The interactive push preview's click-through can name a row the tray's
+  // own search/kind filter is hiding from an earlier session — the row never
+  // mounts and the click silently did nothing. Clearing the filters is a
+  // render-time reaction to a new revealSignal (the React-documented pattern
+  // for "reset state when a prop changes" — a ref isn't safe to read during
+  // render, so the previous token is tracked in state instead), so the row
+  // is already in the DOM by the time the scroll effect below runs.
+  const [seenRevealToken, setSeenRevealToken] = useState(null);
+  if (revealSignal && revealSignal.token !== seenRevealToken) {
+    setSeenRevealToken(revealSignal.token);
+    if (query) setQuery("");
+    if (kindFilter !== "all") setKindFilter("all");
+  }
 
   const tagNames = useMemo(() => tagNameLookup(tagCatalog), [tagCatalog]);
   const normalizedQuery = query.trim().toLowerCase();
@@ -81,10 +97,11 @@ export default function StagingTray({
   }
 
   // The interactive push preview's click-through: Workspace flips open+
-  // expanded and bumps revealSignal in one go, so by the time this effect
-  // runs the row is in the DOM. Pure DOM work (scroll + a class toggled off
-  // by its own timeout) — no state, so it's safe past the mount that just
-  // opened the tray.
+  // expanded and bumps revealSignal in one go. Any filter clearing the
+  // render-time reset above needed has already landed by the time this
+  // commits, so the row is in the DOM here. Pure DOM work (scroll + a class
+  // toggled off by its own timeout) — no state, so it's safe past the mount
+  // that just opened the tray.
   useEffect(() => {
     if (!revealSignal?.id) return undefined;
     const el = document.querySelector(`[data-row-id="${revealSignal.id}"]`);
@@ -101,7 +118,7 @@ export default function StagingTray({
   const missedEffects = stagedEffects.filter((e) => e.missed);
   const missedMessages = stagedMessages.filter((m) => m.missed);
 
-  const solvedCount = moves.filter((m) => m.statusLabel === "Solved").length;
+  const solvedCount = moves.filter((m) => m.reviewStatus === "SOLVED").length;
   const openCount = moves.filter((m) => m.statusLabel === "Open").length;
 
   // Batches collapse to one line each; singles render as themselves.
@@ -140,6 +157,7 @@ export default function StagingTray({
   const filtering = Boolean(normalizedQuery) || kindFilter !== "all";
 
   async function retargetAll() {
+    setRetargetError(null);
     const ok = await confirm({
       title: "Carry the missed staging forward?",
       message: `${missedEffects.length + missedMessages.length} row(s) move onto the current turn and go out with the next push.`,
@@ -148,11 +166,16 @@ export default function StagingTray({
     });
     if (!ok) return;
     startTransition(async () => {
-      await retargetMissedStaging({
-        effectIds: missedEffects.map((e) => e.id),
-        messageIds: missedMessages.map((m) => m.id),
-      });
-      refresh();
+      try {
+        const res = await retargetMissedStaging({
+          effectIds: missedEffects.map((e) => e.id),
+          messageIds: missedMessages.map((m) => m.id),
+        });
+        if (!res?.ok) return setRetargetError(res?.error ?? "Something went wrong.");
+        refresh();
+      } catch {
+        setRetargetError("Something went wrong on the server — your change may not have saved. Try again.");
+      }
     });
   }
 
@@ -203,10 +226,11 @@ export default function StagingTray({
             </button>
             {missedEffects.length + missedMessages.length > 0 && (
               <button type="button" className="btn" onClick={retargetAll} disabled={pending}>
-                Carry missed rows forward
+                {pending ? "Working…" : "Carry missed rows forward"}
               </button>
             )}
           </div>
+          {retargetError && <FormError>{retargetError}</FormError>}
 
           <div className="flex flex-wrap items-center gap-3">
             <label className="field" style={{ width: "14rem" }}>
@@ -250,6 +274,7 @@ export default function StagingTray({
                 onInspect={onInspect}
                 gmProfiles={gmProfiles}
                 showBatch
+                batchCount={group.length}
               />
             </div>
           ))}

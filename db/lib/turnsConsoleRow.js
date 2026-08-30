@@ -33,4 +33,4 @@ const TURNS_CONSOLE_ROW = {
 const CONSOLE_TEXT =
   "-# Moves take effect next turn • Traveling spends your turn • Speaking sends a message in a channel without showing you typing.";
 
-module.exports = { TURNS_CONSOLE_ROW, CONSOLE_TEXT, MOVE_EMOJI };
+module.exports = { TURNS_CONSOLE_ROW, CONSOLE_TEXT };

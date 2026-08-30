@@ -275,8 +275,9 @@ player that lives nowhere else. See §7.
 
 `GmCharacterNote` — **not** to be confused with `Note`, which is a *player's*
 own list of messages they starred with a reaction in a location channel
-(`/notes`, keyed to the reacting user). That page is unchanged and is still on
-every user's rail.
+(`/notes`'s Starred tab, keyed to the reacting user — `/notes` also carries a
+private Journal now, see `PROXYING.md` §7). Both stay on every user's rail and
+neither is ever GM-visible.
 
 Append-only, attributed, delete-your-own. Not one shared editable field:
 five GMs editing a single textarea race each other, and the loser's paragraph

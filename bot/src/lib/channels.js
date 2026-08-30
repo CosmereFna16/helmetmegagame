@@ -108,15 +108,10 @@ function isDesignatedTupperChannel(channel) {
   return false;
 }
 
-function getSummaryChannels(guild) {
-  return [...guild.channels.cache.values()].filter(isSummaryChannel);
-}
-
 module.exports = {
   isSummaryChannel,
   isTupperChannel,
   isDesignatedTupperChannel,
-  getSummaryChannels,
   refreshLocationChannels,
   resolveChannelContext,
 };

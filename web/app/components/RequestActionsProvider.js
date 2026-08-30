@@ -9,12 +9,17 @@ import {
   costColor,
   filterTagsByQuery,
   tagsById as buildTagsById,
-  unlockedTags,
   heldHigherTiers,
   prerequisiteNames,
   hasPrerequisite,
 } from "@/lib/characterCreation";
-import { addableTags, removableTags, transferableTags, consumableTags } from "@/lib/tagRequests";
+import {
+  addableTags,
+  removableTags,
+  transferableTags,
+  consumableTags,
+  addRequirementSatisfied,
+} from "@/lib/tagRequests";
 import RequestDialog from "./RequestDialog";
 import CheckField from "./CheckField";
 import PartySelect from "./PartySelect";
@@ -85,8 +90,13 @@ function TagPicker({ tags, selectedId, onSelect, byId = null, heldIds = null, em
   // Same rule as PointBuy: gate first, derive the tabs from what survived. A
   // hidden category (Demoness, Bacchus) must have no tab at all rather than
   // an empty one, which would advertise that there's something there.
+  //
+  // This is the ADD gate, not requirementSatisfied()/unlockedTags() — the Add
+  // Tag menu offers two routes onto a tag (buy it, or make it) and a
+  // craftable's own requiredTag is a combat/use gate, not a workshop gate.
+  // See tagRequests.js#addRequirementSatisfied.
   const unlocked = useMemo(
-    () => (byId ? unlockedTags(offered, byId, heldIds ?? []) : offered),
+    () => (byId ? offered.filter((t) => addRequirementSatisfied(t, byId, heldIds ?? [])) : offered),
     [offered, byId, heldIds],
   );
   // "Unlocked by your tags", same as PointBuy's checkbox: everything shown
@@ -186,6 +196,16 @@ function TagPicker({ tags, selectedId, onSelect, byId = null, heldIds = null, em
                     Requires: {prerequisiteNames(tag).join(", ")}
                   </span>
                 )}
+                {/* The Add menu's craft route reads a different gate than
+                    "Requires:" above (which is the combat/use requiredTag) —
+                    a crafter can see this row via its recipe skill alone, so
+                    say so, or "Requires: Ranged (Basic)" reads as a lie on a
+                    row they can actually act on. Add-menu only (byId). */}
+                {byId && tag.craftable && (tag.requirementSkills ?? []).length > 0 && (
+                  <span className="mt-1 block text-xs" style={{ color: "var(--accent-text)" }}>
+                    To make: {tag.requirementSkills.map((s) => s.name).join(" or ")}
+                  </span>
+                )}
               </span>
             </button>
           );
@@ -245,7 +265,8 @@ export const ACTION_HELP = {
     "To save the GMs time, you can add or remove tags at will, but you're " +
     "expected to subtract the appropriate amount of resources / spend the " +
     "amount of turns. They'll review the action later, but it'll push " +
-    "immediately.",
+    "immediately. This is for crafting. Do not use this to buy tags. " +
+    "Instead, use the Spend Tag Points button.",
   heal: "Works on others nearby too. Gated by your Medical skill.",
   consume: "Use something up. You can also just click on the tag on your sheet.",
   loot: "Search someone. Only works on Bound, Dying, or Catatonic people.",
@@ -262,7 +283,8 @@ export const ACTION_HELP = {
     "roll a full character again. Type their first name — there is no list.",
   fasttravel:
     "Ride to a neighbouring zone without spending your turn. Once a day, and " +
-    "everyone sees you go.",
+    "everyone sees you go. A horse carries two; a Cart or a Steam Automobile " +
+    "carries six. Anyone standing where you are can come along.",
   resources: (
     <>
       <p>Both ends have to be within reach of you.</p>
@@ -326,6 +348,8 @@ export default function RequestActionsProvider({
   harmTargets = [],
   harmTags = [],
   canFastTravel = false,
+  fastTravelSeats = 0,
+  fastTravelTargets = [],
 }) {
   const [mode, setMode] = useState(null);
   const [tagId, setTagId] = useState(null);
@@ -342,6 +366,10 @@ export default function RequestActionsProvider({
   // wholesale, never mutated (react-hooks/immutability is an error here).
   const [picks, setPicks] = useState({});
   const [zoneId, setZoneId] = useState("");
+  // Fast Travel passengers. A Set, same shape BulkComposer.js uses for its
+  // multi-character selection — the first of its kind in the player-facing
+  // app, so it borrows the GM desk's own pattern rather than inventing one.
+  const [passengerIds, setPassengerIds] = useState(() => new Set());
   const [lethal, setLethal] = useState(false);
   // Bury is the only request that types its target instead of picking it —
   // a dropdown here would be a list of the dead. See REQUESTS.md §5d.
@@ -433,6 +461,25 @@ export default function RequestActionsProvider({
     setQuantity("1");
   }
 
+  // The number of passengers a seat count allows, rider excluded. A 0-seat
+  // fastTravelSeats (no vehicle at all) floors at 0 rather than -1 — the
+  // fasttravel dialog is unreachable without a seat anyway (canFastTravel
+  // gates the button), but this keeps the math honest if it's ever reached.
+  const passengerCap = Math.max(0, fastTravelSeats - 1);
+
+  // Fast Travel's passenger picker. Capped client-side at what the rider's
+  // vehicle actually seats — the server re-derives the same cap and is the
+  // real enforcement, same as every other greyed-button/capped-menu pair in
+  // this file.
+  function togglePassenger(id) {
+    setPassengerIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else if (next.size < passengerCap) next.add(id);
+      return next;
+    });
+  }
+
   // Loot takes a mix, so its picks are a checkbox set rather than one choice.
   function togglePick(id, held) {
     setPicks((prev) => {
@@ -463,6 +510,7 @@ export default function RequestActionsProvider({
       setAmount("1");
       setPicks({});
       setZoneId("");
+      setPassengerIds(new Set());
       setLethal(false);
       setBuryName("");
       setError(null);
@@ -535,7 +583,7 @@ export default function RequestActionsProvider({
       case "bury":
         return buryCharacterRequest({ firstName: buryName, reason });
       case "fasttravel":
-        return fastTravelRequest({ targetZoneId: zoneId, reason });
+        return fastTravelRequest({ targetZoneId: zoneId, passengerIds: [...passengerIds], reason });
       default:
         return Promise.resolve({ ok: false, error: "Nothing to do." });
     }
@@ -610,9 +658,13 @@ export default function RequestActionsProvider({
             <TagPicker tags={addable} selectedId={tagId} onSelect={pick} byId={gateById} heldIds={heldIds} />
             {stacking && <QuantityField value={quantity} onChange={setQuantity} max={99} label="How many?" />}
             {chosen?.requirementTurns === 0 &&
-              (chosen.requirementSkills ?? []).some((s) => /^(Smithing|Crafting)/.test(s.name ?? "")) && (
-                // Mirrors web/lib/requests.js#isDeadSimple (server-enforced);
-                // that module can't be imported here without dragging Prisma in.
+              (chosen.requirementSkills ?? []).some(
+                (s) => s.slug === "crafting" || (s.slug ?? "").startsWith("smithing"),
+              ) && (
+                // Mirrors web/lib/requests.js#isDeadSimple's DEAD_SIMPLE_SKILL_SLUGS
+                // (server-enforced); that module can't be imported here without
+                // dragging Prisma in, and matching on slug rather than the
+                // display name keeps this from silently drifting from it.
                 <p className="text-sm text-muted">Dead Simple recipes: up to 4 items per turn, counted across your requests.</p>
               )}
             <ResourceCostField value={spend} onChange={setSpend} max={resources} />
@@ -975,9 +1027,38 @@ export default function RequestActionsProvider({
                 ))}
               </Select>
             </label>
+            {passengerCap > 0 && (
+              <div className="flex flex-col gap-2">
+                <span className="field-label">
+                  Bring anyone? ({passengerIds.size + 1} / {fastTravelSeats} seats)
+                </span>
+                {fastTravelTargets.length === 0 ? (
+                  <p className="text-xs text-muted">Nobody else is standing here.</p>
+                ) : (
+                  fastTravelTargets.map((t) => {
+                    const checked = passengerIds.has(t.id);
+                    const full = !checked && passengerIds.size >= passengerCap;
+                    return (
+                      <CheckField
+                        key={t.id}
+                        checked={checked}
+                        disabled={full}
+                        onChange={() => togglePassenger(t.id)}
+                      >
+                        {t.name}
+                        {full ? " — seats full" : ""}
+                      </CheckField>
+                    );
+                  })
+                )}
+              </div>
+            )}
             <p className="text-xs text-muted">
-              One zone over, and it does not spend your turn — you can still act when you arrive.
-              Your horse will carry you once a day. Everyone sees you ride.
+              {passengerCap > 0
+                ? `Bring up to ${passengerCap} more people, if they're standing here. They don't ` +
+                  "need to be tied up or led — anyone can ride along, and a GM can undo it if it " +
+                  "needs a look."
+                : "One zone over, and it does not spend your turn — you can still act when you arrive."}
             </p>
           </>
         )}

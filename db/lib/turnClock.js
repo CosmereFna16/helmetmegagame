@@ -124,11 +124,9 @@ function epochSeconds(date) {
 }
 
 module.exports = {
-  TIME_ZONE,
   MOVE_LOCK_HOURS,
   turnEndsAt,
   moveCutoffAt,
   moveWindow,
   epochSeconds,
-  zonedTimeToUtc,
 };

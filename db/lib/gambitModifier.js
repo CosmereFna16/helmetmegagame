@@ -56,9 +56,6 @@ function formatGambitModifiers(modifiers = []) {
 }
 
 module.exports = {
-  HUNGER_LABEL,
-  hasHunger,
-  hungerModifier,
   gambitModifiers,
   gambitModifierTotal,
   formatGambitModifiers,

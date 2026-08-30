@@ -52,12 +52,5 @@ export default function useMoveLock(actionId, { enabled = true } = {}) {
     };
   }, [actionId, enabled]);
 
-  // For callers that finish a mutation themselves (Solve releases the lock
-  // server-side) and must stop the heartbeat from reclaiming it.
-  const dropLocal = () => {
-    lockedRef.current = false;
-    setLocked(false);
-  };
-
-  return { locked, error, dropLocal };
+  return { locked, error };
 }

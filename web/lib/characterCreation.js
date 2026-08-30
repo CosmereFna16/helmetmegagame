@@ -87,13 +87,10 @@ export function computeBudget({ startingTagPoints, role, cursed }) {
 // Positive pointCost spends budget; negative GRANTS it (drawbacks like Frail
 // and Old). Summing signed costs means both directions fall out of the same
 // arithmetic, and `remaining >= 0` is the single completion rule.
-export function totalCost(tags) {
+function totalCost(tags) {
   return tags.reduce((sum, tag) => sum + (tag.pointCost ?? 0), 0);
 }
 
-export function remainingPoints({ budget, selectedTags }) {
-  return budget - totalCost(selectedTags);
-}
 
 // --- Tier chains (parentTag) and prerequisites (requiredTag) ---
 //
@@ -301,9 +298,6 @@ export function isRoleSelectable({ role, cursed, leaderWhitelisted, playtestLock
   return CURSED_ROLE_SLUGS.includes(role.slug);
 }
 
-export function isRoleFull({ role, taken, playerCount }) {
-  return taken >= roleCapacity(role, playerCount);
-}
 
 // Which catalog tags the point-buy menu offers. `afterStartOnly` is the one
 // difference between the two menus: creation shows every purchasable tag,
@@ -365,8 +359,16 @@ export function prerequisiteNames(tag) {
 // Whether the tag has any prerequisite gate at all — the "unlocked by your
 // tags" filter. On an already-gate-checked list this is exactly "tags
 // something I hold unlocked", since anything unmet was filtered out earlier.
+//
+// A craftable's recipe skills count too: the Add Tag menu's craft route
+// (tagRequests.js#addRequirementSatisfied) can unlock a tag purely on
+// requirementSkills, with the tag's own requiredTag never checked — without
+// this, a gated-by-recipe-only tag (every brewing tonic) would read as
+// ungated and vanish from this filter.
 export function hasPrerequisite(tag) {
-  return Boolean(tag.requiredTagId || tag.group?.requiredTagId);
+  return Boolean(
+    tag.requiredTagId || tag.group?.requiredTagId || (tag.craftable && tag.requirementSkills?.length),
+  );
 }
 
 // Distinct categories in menu order, derived from the tags actually on offer

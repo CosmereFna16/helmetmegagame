@@ -96,7 +96,18 @@ each arrived at by getting them wrong first.
 11. **Write the `TURN_START` archive row** — here, where the turn is created,
    rather than in the side effects, so a failed announcement can't leave two
    days with no boundary in the transcript.
-12. **Return `runSideEffects`** — see §3. Nothing above this line talks to
+12. **The Caving Die** (`db/lib/cavingPass.js#runCavingPass`) — every ALIVE
+   character standing in a `CAVE_LEVEL` zone rolls, against the turn that just
+   opened at step 10, **not** the one every pass above this closed. It is
+   deliberately not one of `TURN_PASSES` / steps 2–9: those all operate on the
+   closing turn, and the die is supposed to roll for the turn a player is about
+   to spend in the Depths. It used to be step 5.5 (after the sweep, before
+   Hunger) and ran against the closing turn — which meant an arrival roll made
+   earlier that same turn had already claimed the row, so the pass itself
+   rolled nothing. Own try/catch that never rethrows, since a throw here would
+   abort the turn announcement below it for the sake of one missed die. See
+   `docs/systemdocs/CAVING.md` §2.
+13. **Return `runSideEffects`** — see §3. Nothing above this line talks to
    Discord; nothing below it touches the database.
 
 **`needsResolvedAt` is stamped only when every pass in `TURN_PASSES` has been
@@ -288,7 +299,9 @@ The "Default Move" panel on `/character` (`DefaultEffortPanel.js` →
 a turn a player never files anything on.
 `db/lib/defaultMovePass.js#runDefaultMovePass` finds every `ALIVE` character
 holding one with **no `Action` at all** on the closing turn — an auto-resolved
-zone change counts as acting — and files one.
+zone change counts as acting — and files one, unless they hold one of
+`db/lib/incapacitation.js`'s `INCAPACITATING_SLUGS` (`dying`, `catatonic`,
+`paralyzed`, `bound`), in which case nothing is filed for them that turn.
 
 What it files is always a **Routine**: `CONFIRMED`/`PASSED`, resources pushed
 via `applyMoveEffects` and snapshotted onto `appliedEffects`. This pass runs
@@ -298,7 +311,7 @@ tells the staged push pass, one step later, to skip these rows. **Never a
 Gambit** — a Gambit is a deliberate risk and nobody's there to take it. Marked
 `gmNotes: "auto:default_move"`.
 
-Three details:
+Four details:
 
 - Laboring is the `DefaultEffort.labor` column, not text: the description is
   stored and filed verbatim, and the rate resolves **at resolution time**
@@ -313,6 +326,13 @@ Three details:
   moves where their default gets narrated. A cave level has no `#summary`, so a
   Default Move down there simply isn't narrated (the stored id is the fallback,
   and it's normally null).
+- The incapacitation skip is **silent**: no Move is filed, no Resources move,
+  no DM, no summary post. Unlike the labor gate above, this isn't "tried and
+  failed" — a character who's Bound, Dying, Paralyzed or Catatonic didn't get
+  a turn to try. The tag itself is the explanation; there is nothing to tell
+  them that the tag doesn't already say. This is why binding someone actually
+  costs them their next turn, not just their ability to defend themselves
+  (REQUESTS.md §5b).
 
 One summary `default_moves_resolved` audit row per turn. It reports
 `shareable` rather than `shared`, since the posts haven't been attempted when

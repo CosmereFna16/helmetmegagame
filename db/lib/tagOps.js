@@ -129,4 +129,4 @@ async function applyTagOpsInTx(tx, { characterId, ops, tagsById, openTurn, equip
   return applied;
 }
 
-module.exports = { TagOpError, validateTagOps, applyTagOpsInTx, expiresTurnFor };
+module.exports = { TagOpError, validateTagOps, applyTagOpsInTx };

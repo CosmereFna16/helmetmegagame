@@ -11,6 +11,7 @@ import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import { getMyFactionRole, getSiloAccess } from "@/lib/factionPermissions";
+import { canReachSilo } from "@/lib/transferReach";
 import {
   setFactionLeader,
   setTreasurer,
@@ -96,7 +97,11 @@ async function getDescendantFactions(rootId) {
 // isGm defaults to false because this table renders on the player branch
 // too, and CharacterLink targets /gm/dev/characters/… — a member name must
 // stay plain text for a player.
-function FactionTable({ factions, showSilo, isGm = false }) {
+// `reachableIds`, when given, restricts the Silo figure to factions the
+// viewer can currently physically reach (canReachSilo) — null means
+// unrestricted, which is what the GM branch passes: a GM isn't standing
+// anywhere on the map, so reach doesn't apply to them.
+function FactionTable({ factions, showSilo, isGm = false, reachableIds = null }) {
   return (
     <div className="panel overflow-x-auto">
       <table className="data-table">
@@ -122,7 +127,9 @@ function FactionTable({ factions, showSilo, isGm = false }) {
                 <td>
                   <CharacterLink characterId={leader?.id} name={leader?.name ?? "-"} isGm={isGm} />
                 </td>
-                {showSilo && <td>{f.silo} ⬢</td>}
+                {showSilo && (
+                  <td>{!reachableIds || reachableIds.has(f.id) ? `${f.silo} ⬢` : "-"}</td>
+                )}
               </tr>
             );
           })}
@@ -178,7 +185,7 @@ export default async function FactionPage({ searchParams }) {
     getGmSession(),
     prisma.character.findFirst({
       where: { discordUserId: session.discordUserId, status: "ALIVE" },
-      select: { id: true, factionId: true, resources: true },
+      select: { id: true, factionId: true, resources: true, zoneId: true },
     }),
     prisma.faction.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
@@ -228,7 +235,15 @@ export default async function FactionPage({ searchParams }) {
     }
 
     const leader = faction.characters.find((c) => c.isLeader);
-    const siloHistory = viewCanManageSilo ? await loadSiloHistory(faction.id) : [];
+
+    // Authority says who MAY see the Silo; this is whether they can right
+    // now — physically standing in its seat zone, the same reach
+    // TRANSFER_RESOURCES already requires to spend it. Applies to the
+    // headline figure for every member, not just Leader/Treasurer: knowing
+    // the faction's total from anywhere on the map is the leak this closes.
+    const canSeeSilo = await canReachSilo(myCharacter, faction);
+    const canSeeSiloDetail = viewCanManageSilo && canSeeSilo;
+    const siloHistory = canSeeSiloDetail ? await loadSiloHistory(faction.id) : [];
 
     // Membership administration (Assign/Revoke Treasurer) never extends to
     // subject factions — only Silo access does.
@@ -236,6 +251,13 @@ export default async function FactionPage({ searchParams }) {
 
     const subjectFactions =
       !viewingSubject && ownRole.isLeader ? await getDescendantFactions(myCharacter.factionId) : [];
+    const subjectReachableIds = new Set(
+      (
+        await Promise.all(
+          subjectFactions.map(async (f) => ((await canReachSilo(myCharacter, f)) ? f.id : null)),
+        )
+      ).filter(Boolean),
+    );
 
     return (
       <PageShell width="narrow">
@@ -262,7 +284,12 @@ export default async function FactionPage({ searchParams }) {
             <li>
               Leader: <CharacterLink characterId={leader?.id} name={leader?.name ?? "None"} isGm={gm} />
             </li>
-            <li>Faction Silo: {faction.silo} ⬢</li>
+            <li>
+              Faction Silo:{" "}
+              {canSeeSilo
+                ? `${faction.silo} ⬢`
+                : `you have to be in ${faction.zone?.name ?? "its zone"} to see it.`}
+            </li>
             {!viewingSubject && <li>Your Resources: {myCharacter.resources} ⬢</li>}
           </ul>
         </section>
@@ -280,8 +307,10 @@ export default async function FactionPage({ searchParams }) {
                 <th>Role</th>
                 {/* Silo authority — a faction's Leader/Treasurer, or an
                     ancestor faction's — is exactly who may see what each
-                    member is holding, same gate as the Silo panels below. */}
-                {viewCanManageSilo && <th>Resources</th>}
+                    member is holding, same gate as the Silo panels below.
+                    Reach applies here too: standing outside the seat zone
+                    hides it same as the headline figure above. */}
+                {canSeeSiloDetail && <th>Resources</th>}
                 {canManageMembers && <th></th>}
               </tr>
             </thead>
@@ -310,7 +339,7 @@ export default async function FactionPage({ searchParams }) {
                       )}
                     </td>
                     <td>{c.roleTitle ?? "—"}</td>
-                    {viewCanManageSilo && <td>{c.resources} ⬢</td>}
+                    {canSeeSiloDetail && <td>{c.resources} ⬢</td>}
                     {canManageMembers && (
                       <td>
                         <form action={setTreasurer}>
@@ -330,12 +359,12 @@ export default async function FactionPage({ searchParams }) {
           </table>
         </section>
 
-        {viewCanManageSilo && <SiloHistoryPanel history={siloHistory} />}
+        {canSeeSiloDetail && <SiloHistoryPanel history={siloHistory} />}
 
         {subjectFactions.length > 0 && (
           <div>
             <h2 className="panel-header">Subject Factions</h2>
-            <FactionTable factions={subjectFactions} showSilo />
+            <FactionTable factions={subjectFactions} showSilo reachableIds={subjectReachableIds} />
           </div>
         )}
       </PageShell>

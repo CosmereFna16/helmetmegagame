@@ -230,7 +230,5 @@ module.exports = {
   listSpeakTargets,
   canSpeakInTarget,
   canSpeakInChannel,
-  canSpeakInThread,
   isNavValue,
-  NAV_PREFIX,
 };

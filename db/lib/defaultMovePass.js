@@ -24,6 +24,7 @@
 const { applyMoveEffects, describeMoveEffects } = require("./moveEffects");
 const { resolveLaborRateFrom } = require("./laborAccess");
 const { rollResourceRange } = require("./resourceDelta");
+const { INCAPACITATING_SLUGS } = require("./incapacitation");
 
 // Reproduces the #turns submission pipeline's Labor resolution, so a Default
 // Move with the checkbox ticked pays exactly what the same submission by hand
@@ -120,18 +121,19 @@ async function runDefaultMovePass(prisma, turn) {
   });
   const actedIds = new Set(acted.map((a) => a.characterId));
 
-  // Only Labor-ticked defaults need tags loaded, and they're loaded in one
-  // query for all of them rather than per character — same bulk-read posture
-  // as the `acted` query above. Most turns this set is empty and the query
-  // never runs.
-  const laborIds = defaults.filter((d) => d.labor === true && !actedIds.has(d.characterId)).map((d) => d.characterId);
+  // Every un-acted default needs its tags loaded now, not just the
+  // Labor-ticked ones: the incapacitation check below runs on all of them.
+  // Still one bulk query for the whole set rather than one per character —
+  // same posture as the `acted` query above. Most turns this set is small,
+  // but it's no longer ever empty just because nobody has Labor ticked.
+  const candidateIds = defaults.filter((d) => !actedIds.has(d.characterId)).map((d) => d.characterId);
 
   const tagsByCharacter = new Map();
   let coefficient = 1;
-  if (laborIds.length > 0) {
+  if (candidateIds.length > 0) {
     const [tagRows, config] = await Promise.all([
       prisma.characterTag.findMany({
-        where: { characterId: { in: laborIds } },
+        where: { characterId: { in: candidateIds } },
         select: { characterId: true, tag: { select: { slug: true } } },
       }),
       prisma.gameConfig.findUnique({ where: { id: 1 }, select: { productionCoefficient: true } }),
@@ -142,18 +144,25 @@ async function runDefaultMovePass(prisma, turn) {
     }
     coefficient = config?.productionCoefficient ?? 1;
   }
-  const laborSet = new Set(laborIds);
 
   const filed = [];
 
   for (const def of defaults) {
     if (actedIds.has(def.characterId)) continue;
 
-    const ctx = laborSet.has(def.characterId)
+    const tagSlugs = tagsByCharacter.get(def.characterId) ?? new Set();
+
+    // Tied to a chair, bleeding out, stunned or long gone quiet — a Default
+    // Move is "what I'd have done if I couldn't be here", not "what I'd have
+    // done if I couldn't act". Silent on purpose: they didn't ask for this
+    // turn, and the tag itself is the explanation.
+    if ([...tagSlugs].some((slug) => INCAPACITATING_SLUGS.has(slug))) continue;
+
+    const ctx = def.labor === true
       ? {
           zoneSlug: def.character.zone?.slug ?? null,
           seatZoneSlug: def.character.zone?.seatZone?.slug ?? def.character.zone?.slug ?? null,
-          tagSlugs: tagsByCharacter.get(def.characterId) ?? new Set(),
+          tagSlugs,
         }
       : null;
     const resolved = resolveDefaultMove(def, ctx, coefficient);

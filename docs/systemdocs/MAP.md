@@ -78,12 +78,12 @@ web map, or two map clicks) end with one `P2002` that rolls the second move back
 Filing after moving is how a player once ended up two hops away having spent one
 Move.
 
-**The one exception is a horse.** The `horse` and `horse-windlander` tags buy a
-single free hop a day — one zone, no `Action` filed, and therefore no Move
-spent and no block from having already acted. It is a **Request**
-(`FAST_TRAVEL`), not a route through `performTravel`: `performTravel` always
-files the Move, and a Request has to write its effect and its `Request` row in
-the same transaction, so `fastTravelRequestImpl`
+**The one exception is a horse.** The `horse` and `horse-windlander` ("Wild
+Horse") tags buy a single free hop a day — one zone, no `Action` filed, and
+therefore no Move spent and no block from having already acted. It is a
+**Request** (`FAST_TRAVEL`), not a route through `performTravel`:
+`performTravel` always files the Move, and a Request has to write its effect
+and its `Request` row in the same transaction, so `fastTravelRequestImpl`
 (`web/app/(app)/character/requestActions.js`) re-derives the same adjacency
 rules instead of calling it. Everything else about the hop matches an ordinary
 one — the zone-role swap, the narrowcast sync, the standing thread invites and
@@ -92,6 +92,20 @@ the Caving Die's on-arrival roll all run after the commit, exactly as
 claim token written by a conditional `updateMany` whose `WHERE` is the check —
 the same lesson as the `Action` unique above, since counting the rider's
 Requests afterwards would let two tabs put them two zones away.
+
+**A horse doesn't ride alone.** `web/lib/tagRequests.js#fastTravelCapacity`
+reads the rider's own tags for how many people (rider included) the trip can
+carry: a horse or Wild Horse alone seats **2**; the `cart` tag upgrades that
+pair to **6** (Cart does nothing without a horse — it upgrades one, it isn't
+one); the `steam-automobile` tag is inherently a **6**-seat vehicle by itself
+and does not need Cart to stack further. Any character standing in the
+rider's zone can be picked as a passenger — no Bound/Led/corpse authority
+check like `MOVE_CHARACTER`'s, the same "self-attest, a GM can review and
+Undo" bet the rest of the Requests system already makes. Passengers move in
+the same transaction as the rider (one `updateMany`, since they all share the
+same from/to zone) and get the same post-commit Discord fan-out, but they do
+**not** claim their own `fastTravelTurnId` — being carried today doesn't stop
+them riding under their own power again later the same day.
 See `REQUESTS.md` §5d.
 
 Travel cost is also what a **tax run** costs. Moving ⬢ into or out of a

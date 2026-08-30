@@ -607,13 +607,9 @@ async function handlePrivateCreate(interaction, zoneId) {
   });
 }
 
-// --- Move ------------------------------------------------------------
-//
-// One modal, submitted once. The old flow (a message in #turns became a
-// PENDING_TYPE Action, the bot deleted it and DMed two select menus plus a
-// Confirm button) is gone: it leaked identity twice and cost four round trips.
-// PENDING_TYPE is no longer reachable from Discord — the enum value stays for
-// rows written before this.
+// One modal, submitted once — avoids the identity leak and round trips a
+// multi-step message/DM flow would cost. PENDING_TYPE is no longer reachable
+// from Discord; the enum value stays only for rows written before this.
 
 // Moves close MOVE_LOCK_HOURS before the turn ends (db/lib/turnClock.js) so a
 // GM has a window to adjudicate what was filed. Returns the refusal text, or
@@ -797,8 +793,6 @@ async function handleMoveSubmit(interaction) {
   // typing, and did so AFTER the Move was already committed and paid out.
   await respond(interaction, lines.join("\n"));
 }
-
-// --- Speak -----------------------------------------------------------
 
 // A modal field that is setRequired(false) may be absent from the submitted
 // payload entirely, and every fields.getX() throws on a component it cannot

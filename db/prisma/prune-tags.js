@@ -1,8 +1,8 @@
 // The destructive counterpart to `npm run db:sync-tags`. Run with
 // `npm run db:prune-tags` to see what would go, and
 // `npm run db:prune-tags -- --apply` to actually delete it. Dry-run-by-default
-// with an --apply flag matches db:prune-orphan-categories, the other
-// destructive script in this directory.
+// with an --apply flag matches db:prune-orphan-roles, the other destructive
+// script in this directory.
 //
 // Deliberately terminal-only, and deliberately NOT wired into wipeGameData's
 // "Restart Game" flow: a wipe clears every CharacterTag first, so a prune
