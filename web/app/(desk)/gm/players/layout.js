@@ -3,7 +3,7 @@ import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getMyZones } from "@/lib/gmZone";
 import { getOpenTurn } from "@/lib/turn";
 import { getGmProfiles } from "@/lib/gmProfiles";
-import { withoutDmNoise, dmNoiseSql } from "@/lib/dmThread";
+import { withoutDmNoise, dmNoiseSql, genuineConversationSql } from "@/lib/dmThread";
 import PlayerRail from "./PlayerRail";
 import DeskHeader from "@/app/components/DeskHeader";
 import InboxPoller from "./InboxPoller";
@@ -110,6 +110,25 @@ export default async function PlayerDeskLayout({ children }) {
   `;
   const latestByUser = new Map(latestMessages.map((m) => [m.discordUserId, m]));
 
+  // The rail's PREVIEW TEXT is a second, stricter query — genuineConversationSql
+  // additionally drops bot/effect noise (a resource grant, a dev-panel
+  // microaction summary, a Move-unlock notice) that isn't a real
+  // conversational turn. Deliberately separate from latestMessages above:
+  // the row's TIMESTAMP and its "awaiting reply" status still key off ANY
+  // DM (latestByUser), so an automated notification still bumps the
+  // relative-time chip — only the preview snippet skips past it to the last
+  // thing a person actually said. Without this split, a resource grant sent
+  // after a player's real question would show "Bot: You were given 1 ⬢." in
+  // the rail, burying the question it's supposed to surface.
+  const genuineMessages = await prisma.$queryRaw`
+    SELECT DISTINCT ON ("discordUserId")
+      "discordUserId", "direction", "content", "authorDiscordUserId"
+    FROM "DirectMessage"
+    WHERE ${genuineConversationSql()}
+    ORDER BY "discordUserId", "createdAt" DESC
+  `;
+  const genuineByUser = new Map(genuineMessages.map((m) => [m.discordUserId, m]));
+
   // Per-GM unread counts: INBOUND rows newer than this GM's read cursor for
   // that conversation (epoch when no cursor row exists yet). Rides the same
   // @@index([direction, discordUserId, createdAt]).
@@ -170,13 +189,14 @@ export default async function PlayerDeskLayout({ children }) {
   const rows = [...userIds].map((discordUserId) => {
     const c = characterByUser.get(discordUserId) ?? null;
     const last = latestByUser.get(discordUserId) ?? null;
+    const genuine = genuineByUser.get(discordUserId) ?? null;
     const username = usernameById.get(discordUserId) ?? "";
-    const authorLabel = !last
+    const authorLabel = !genuine
       ? ""
-      : last.direction === "INBOUND"
+      : genuine.direction === "INBOUND"
         ? ""
-        : last.authorDiscordUserId
-          ? last.authorDiscordUserId === session.discordUserId
+        : genuine.authorDiscordUserId
+          ? genuine.authorDiscordUserId === session.discordUserId
             ? "You: "
             : "GM: "
           : "Bot: ";
@@ -195,7 +215,7 @@ export default async function PlayerDeskLayout({ children }) {
       cursed: cursedUserIds.has(discordUserId),
       username,
       globalName: globalNameById.get(discordUserId) ?? "",
-      preview: last ? `${authorLabel}${last.content}` : "",
+      preview: genuine ? `${authorLabel}${genuine.content}` : "",
       lastAtMs: last ? last.createdAt.getTime() : 0,
       lastDirection: last?.direction ?? null,
       count: countByUser.get(discordUserId) ?? 0,

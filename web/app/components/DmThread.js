@@ -4,15 +4,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import MarkdownContent from "./MarkdownContent";
 import GmAvatar from "./GmAvatar";
 import CharacterAvatar from "./CharacterAvatar";
+import { AUTOMATED_EFFECT_SOURCES } from "@/lib/dmSources";
 
-// Quiet source labels for machine-authored rows — a GM should be able to
-// tell a turn result from an automated nudge at a glance, without it
-// competing with the actual message text.
+// Quiet source labels for the machine-authored rows that still render as a
+// full Bubble — bot_auto/player_event/gm_dev/move_unlock never reach this map
+// any more, since Bubble routes them to SystemLine before it's read (see
+// AUTOMATED_EFFECT_SOURCES in @/lib/dmSources). staged_push and gm_broadcast
+// are the two GM-authored sources that still need a "what kind of GM message
+// is this" hint next to a normal bubble.
 const SOURCE_LABELS = {
   staged_push: "turn result",
-  bot_auto: "automated",
   gm_broadcast: "broadcast",
-  move_unlock: "unlock",
 };
 
 function authorLabel(message, gmProfileById) {
@@ -24,15 +26,35 @@ function authorLabel(message, gmProfileById) {
   return { name: "Bascinet", profile: null };
 }
 
-// Runs of ≥3 consecutive bot_auto rows collapse into one expandable "N
-// automated messages" row. staged_push never collapses — it's canon, a turn
-// result a GM needs to actually see. Pure UI plumbing (embeds, edit-flow
-// prompts, mention relays, proxy hand-back — source: "system_notice") never
-// reaches this component at all: @/lib/dmThread#withoutDmNoise excludes it
-// at the query. A new automated sendDm() call site needs to tag its own
-// `source` there, or it'll show up here as an uncollapsed bubble again.
+// Runs of ≥3 consecutive automated/effect rows (see AUTOMATED_EFFECT_SOURCES
+// in @/lib/dmSources — bot_auto, player_event, gm_dev, move_unlock) collapse
+// into one expandable "N automated messages" row. staged_push never
+// collapses — it's canon, a turn result a GM needs to actually see. Pure UI
+// plumbing (embeds, edit-flow prompts, mention relays, proxy hand-back —
+// source: "system_notice", plus the historical inbound source:
+// "prompt_reply") never reaches this component at all:
+// @/lib/dmThread#withoutDmNoise excludes it at the query. A new automated
+// sendDm() call site needs to add its `source` to dmSources.js, or it'll
+// show up here as an uncollapsed, unstyled bubble.
 function isAutomated(message) {
-  return message.source === "bot_auto" || message.meta?.embed === true;
+  return (
+    message.meta?.embed === true ||
+    (message.direction === "OUTBOUND" && AUTOMATED_EFFECT_SOURCES.includes(message.source))
+  );
+}
+
+// Usually the thread owns its own scroll (dm-thread's `overflow-y: auto`).
+// In the GM player desk, `.desk-convo-thread .dm-thread` sets overflow-y:
+// visible instead — the parent pane owns the scroll there — so scrollTop on
+// this component's own root would silently no-op. Walk up to whichever
+// element actually scrolls.
+function getScrollEl(el) {
+  let node = el;
+  while (node) {
+    if (/(auto|scroll)/.test(window.getComputedStyle(node).overflowY)) return node;
+    node = node.parentElement;
+  }
+  return el;
 }
 
 function groupMessages(messages) {
@@ -119,11 +141,31 @@ function EmbedBubble({ message }) {
   );
 }
 
+// A bot/effect notification (resource grant, dev-panel microaction summary,
+// Move-unlock notice) — read as background texture, not a conversational
+// turn. Deliberately not another dm-bubble variant: no avatar, no author
+// name, no bubble shape at all. A GM scanning the thread for what a PERSON
+// said should be able to skip these without reading them, the same way
+// nobody reads Discord's own "X pinned a message" lines.
+function SystemLine({ message }) {
+  return (
+    <div className="dm-system-line-row">
+      <div className="dm-system-line">
+        <MarkdownContent content={message.content} />
+        <time className="dm-system-line-time">{new Date(message.createdAt).toLocaleString()}</time>
+      </div>
+    </div>
+  );
+}
+
 function Bubble({ message, gmProfileById, character }) {
   const outbound = message.direction === "OUTBOUND";
   const author = authorLabel(message, gmProfileById);
   const sourceLabel = outbound ? SOURCE_LABELS[message.source] : null;
   const isEmbed = message.meta?.embed === true;
+  const isEffect = outbound && !isEmbed && AUTOMATED_EFFECT_SOURCES.includes(message.source);
+
+  if (isEffect) return <SystemLine message={message} />;
 
   return (
     <div className="flex flex-col" style={{ alignItems: isEmbed ? "flex-start" : outbound ? "flex-end" : "flex-start" }}>
@@ -205,14 +247,15 @@ export default function DmThread({ messages, gmProfiles = [], onLoadOlder, hasMo
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+    const scrollEl = getScrollEl(el);
 
     const wasPrepend = prevFirstIdRef.current && firstId && firstId !== prevFirstIdRef.current && lastId === prevLastIdRef.current;
     const wasAppend = lastId && lastId !== prevLastIdRef.current;
 
     if (wasPrepend && anchorHeightRef.current != null) {
-      el.scrollTop = el.scrollHeight - anchorHeightRef.current;
+      scrollEl.scrollTop = scrollEl.scrollHeight - anchorHeightRef.current;
     } else if (wasAppend || prevLastIdRef.current == null) {
-      el.scrollTop = el.scrollHeight;
+      scrollEl.scrollTop = scrollEl.scrollHeight;
     }
 
     prevFirstIdRef.current = firstId;
@@ -222,7 +265,7 @@ export default function DmThread({ messages, gmProfiles = [], onLoadOlder, hasMo
 
   function handleLoadOlder() {
     const el = containerRef.current;
-    anchorHeightRef.current = el ? el.scrollHeight : null;
+    anchorHeightRef.current = el ? getScrollEl(el).scrollHeight : null;
     onLoadOlder?.();
   }
 

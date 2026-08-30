@@ -1,4 +1,5 @@
 import { Prisma } from "@lifeweb/db";
+import { AUTOMATED_EFFECT_SOURCES } from "./dmSources";
 
 // Excludes bot/UI plumbing that happens to go out as a DM but isn't part of
 // a GM<->player conversation: embeds (meta.embed === true), anything tagged
@@ -49,4 +50,18 @@ export function dmNoiseSql(alias) {
   return Prisma.sql`(${col("source")} IS DISTINCT FROM 'system_notice')
     AND (${col("source")} IS DISTINCT FROM 'prompt_reply')
     AND ((${col("meta")}->>'embed') IS DISTINCT FROM 'true')`;
+}
+
+// dmNoiseSql, plus excluding bot/effect noise that reads like conversation
+// but isn't one — a resource grant, a dev-panel microaction summary, a
+// Move-unlock notice (see dmSources.js for the exact list and why
+// staged_push is not in it). For the rail's "last genuine message" preview
+// only: unread counts, the nav badge, and the "awaiting" status filter all
+// keep using dmNoiseSql/withoutDmNoise unchanged, so recency and unread
+// state still reflect any DM, automated or not. Only the preview TEXT should
+// skip past bot noise to the last thing a person actually said.
+export function genuineConversationSql(alias) {
+  const col = (c) => Prisma.raw(alias ? `${alias}."${c}"` : `"${c}"`);
+  const exclusions = AUTOMATED_EFFECT_SOURCES.map((s) => Prisma.sql`(${col("source")} IS DISTINCT FROM ${s})`);
+  return Prisma.sql`${dmNoiseSql(alias)} AND ${Prisma.join(exclusions, " AND ")}`;
 }

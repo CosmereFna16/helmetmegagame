@@ -168,27 +168,39 @@ inside itself, with the composer pinned at the bottom. It used to be a 32rem
 - **Claim/release** is advisory (`ConversationMeta`), so five GMs don't answer
   the same player twice.
 - The thread is a **conversation**, not a raw `DirectMessage` dump: rows that
-  are pure bot/UI plumbing — inspect/dossier embeds, the ✏️ edit-flow
-  prompts, `@mention` relay notices, proxy hand-back — are tagged
-  `source: "system_notice"` at the `sendDm()` call site — and a player's reply
-  *into* one of those prompts is `source: "prompt_reply"`
-  (`bot/src/lib/pendingPrompts.js`), because a reply to plumbing is plumbing.
+  are pure bot/UI plumbing — inspect/dossier embeds, the ✏️ edit-flow prompt
+  (`bot/src/lib/editModal.js`), `@mention` relay notices, proxy hand-back —
+  are tagged `source: "system_notice"` at the `sendDm()` call site. The old
+  ✏️ DM-collector's replies were `source: "prompt_reply"`; nothing writes
+  that any more (✏️ is a button and a modal now, so editing produces no
+  inbound DM at all), but the historical rows stay filtered.
   (Tag search covers **living** characters only — the layout's tag load is
   bounded to `ALIVE`, since it re-runs on every revalidation; a dead
   character is still found by name, role, faction and handle.)
-  `system_notice` is excluded at the query (`web/lib/dmThread.js#withoutDmNoise`),
-  not just visually collapsed; `prompt_reply` deliberately is **not** — the pane
-  still shows it, in case the reply was not a reply at all — but the rail's
-  unread count and preview skip it. **The rail's two raw queries carry the
-  noise predicate written out as SQL** (`layout.js`: the `DISTINCT ON` preview and
-  the unread count), which they did not before — so the rail previewed and
-  *sorted by* rows the pane hid, and an inspect embed sat at the top of the
-  inbox as if the player had just written. Written as
+  `system_notice` and `prompt_reply` are excluded at the query
+  (`web/lib/dmThread.js#withoutDmNoise`), not just visually collapsed.
+  **The rail's raw queries carry the noise predicate written out as SQL**
+  (`layout.js`: the `DISTINCT ON` preview and the unread count, via
+  `dmThread.js#dmNoiseSql`), which they did not before — so the rail
+  previewed and *sorted by* rows the pane hid, and an inspect embed sat at
+  the top of the inbox as if the player had just written. Written as
   `IS DISTINCT FROM` rather than `NOT (… = …)`: a NULL predicate drops its
   row, and almost every row has a NULL `source` or no `meta.embed` key.
-  Genuinely useful automated turn notices (`bot_auto` — default-move,
-  hunger/dying, tag expiry, Caving Die) still show, and still collapse in
-  runs of 3+ (`DmThread.js`).
+  - **The preview snippet goes one step further than the noise filter.**
+    A *third* query (`layout.js`, `genuineConversationSql`) additionally
+    excludes `bot_auto`/`player_event`/`gm_dev`/`move_unlock` — canned
+    bot/effect text ("You were given 1 ⬢.", a dev-panel edit summary, a
+    Move-unlock notice) that would otherwise win the "last message" slot and
+    bury a player's actual last line. This is **preview text only** — the
+    row's relative-time chip and its "awaiting reply" status still key off
+    the ordinary noise-filtered latest DM, automated or not, so recency
+    doesn't silently change meaning depending on who or what sent the most
+    recent thing. `staged_push` (turn-result prose) is deliberately **not**
+    in this bucket — it's GM-authored content, just delivered in bulk. In
+    the pane, these same four sources render as a centered, bubble-less
+    `SystemLine` (`DmThread.js`, `.dm-system-line` in `globals.css`) instead
+    of an ordinary bubble, and still collapse in runs of 3+ the way
+    `bot_auto` alone used to.
 - Mark-read fires from a client effect, never during RSC render — otherwise
   Next's link prefetch marks a conversation read on hover.
 
