@@ -360,7 +360,8 @@ function DmsView({ data, characterId, cacheKey, setCache }) {
       const res = await sendGmDm({ characterId, content, source: "gm_inspector" });
       if (res?.ok) {
         setDraft("");
-        // sendGmDm returns the one row it wrote, not a page — append it.
+        // sendGmDm also returns a fresh tail page; the inspector's thread is a
+        // short compact view, so appending the one written row is enough here.
         setCache((prev) =>
           new Map(prev).set(cacheKey, {
             data: { ...data, messages: [...data.messages, res.message].filter(Boolean) },

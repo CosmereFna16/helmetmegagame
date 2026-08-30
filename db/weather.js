@@ -96,7 +96,7 @@ function buildTurnAnnouncement(turn, note, { autoTurnAdvanceDisabled = false } =
   // place every player reliably reads — and both times are <t:> tags, so each
   // reads them in their own timezone.
   const clock = hasLock
-    ? `This turn ends at <t:${endEpoch}:t>, or <t:${endEpoch}:R> | Moves must be sent by <t:${cutoffEpoch}:t>, or <t:${cutoffEpoch}:R>`
+    ? `This turn ends at <t:${endEpoch}:t>, or <t:${endEpoch}:R> | Moves must be sent by <t:${cutoffEpoch}:t>, or <t:${cutoffEpoch}:R>.`
     : `This turn ends at <t:${endEpoch}:t>, or <t:${endEpoch}:R>.`;
   const header = `» Day ${day} | ${phaseLabel}. ${WEATHER_MESSAGES[turn.weather]}${ping}\n${clock}`;
   return note ? `${header}\n\n${note}` : header;

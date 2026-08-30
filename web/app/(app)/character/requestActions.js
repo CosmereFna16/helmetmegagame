@@ -374,6 +374,7 @@ async function addTagRequestImpl({
       requiredTagId: true,
       exclusive: true,
       groupId: true,
+      removable: true,
     },
   });
   const chainById = buildTagsById(chainRows);
@@ -388,7 +389,9 @@ async function addTagRequestImpl({
   const conflict = exclusiveConflict(tag, heldIds, chainById);
   if (conflict) {
     throw new UserError(
-      `You already hold ${conflict.name}; drop it first to take ${tag.name}.`,
+      conflict.removable
+        ? `You already hold ${conflict.name}; drop it first to take ${tag.name}.`
+        : `${tag.name} can't be held with ${conflict.name}.`,
     );
   }
 

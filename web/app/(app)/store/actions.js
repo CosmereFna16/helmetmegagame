@@ -123,7 +123,9 @@ async function buyTagsImpl({ tagIds }) {
     const conflict = exclusiveConflict(tag, heldOrSelectedIds, byId);
     if (conflict) {
       throw new UserError(
-        `You already hold ${conflict.name}; drop it first to take ${tag.name}.`,
+        conflict.removable
+          ? `You already hold ${conflict.name}; drop it first to take ${tag.name}.`
+          : `${tag.name} can't be held with ${conflict.name}.`,
       );
     }
   }
@@ -148,6 +150,10 @@ async function buyTagsImpl({ tagIds }) {
   const replaced = [];
 
   await prisma.$transaction(async (tx) => {
+    // Same row lock, taken first, as the Add Tag and Desire paths: every
+    // per-character write door locks Character before touching CharacterTag,
+    // so two doors on one character serialise instead of deadlocking.
+    await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
     for (const tag of selected) {
       for (const lowerId of chainSiblingsToRemove(tag, byId, heldIds)) {
         const row = character.tags.find((ct) => ct.tagId === lowerId);

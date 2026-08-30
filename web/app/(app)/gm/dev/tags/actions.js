@@ -81,11 +81,13 @@ function scalarsFrom(input) {
 }
 
 // The custom-tag dialog's door on every desk — see
-// web/app/components/CustomTagDialog.js and DEV-PANEL.md §8. One
-// transaction: create the tag (scalarsFrom + slug/name clash check), then
-// grant or stage it against whichever targets the door preselected, then one
-// audit row for the whole gesture — mirroring bulkTagCharacters' shape
-// ((app)/gm/actions.js) rather than duplicating a second convention.
+// web/app/components/CustomTagDialog.js and DEV-PANEL.md §8. The tag is
+// created in its own small transaction, then granted or staged against
+// whichever targets the door preselected ONE TRANSACTION PER CHARACTER, then
+// one audit row for the whole gesture — bulkTagCharacters' convention
+// ((app)/gm/actions.js). Everything that can refuse (no open turn to stage
+// against, too many targets) is checked before the tag row exists, so a
+// refusal never leaves an orphan the GM can't recreate under the same name.
 //
 // `stage` writes a StagedEffect per target instead of a live grant, built the
 // same way createStagedEffects does ((desk)/gm/turns/actions.js) — one
@@ -100,6 +102,12 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
   const targets = [...new Set((assignCharacterIds ?? []).filter(Boolean))];
   // Same cap as bulkTagCharacters (web/app/(app)/gm/actions.js).
   if (targets.length > 200) throw new UserError("Pick at most 200 characters at once.");
+
+  // Refuse BEFORE the tag exists: a thrown UserError after the create would
+  // leave a committed row behind, and every retry would then hit the clash
+  // check below with no way out short of a rename.
+  const openTurn = targets.length ? await prisma.turn.findFirst({ where: { status: "OPEN" } }) : null;
+  if (stage && targets.length && !openTurn) throw new UserError("No turn is open to stage against.");
 
   // The tag itself: one small transaction.
   const tag = await prisma.$transaction(async (tx) => {
@@ -131,9 +139,7 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
   const liveTargets = targets.filter((id) => living.has(id));
 
   if (liveTargets.length) {
-    const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
     if (stage) {
-      if (!openTurn) throw new UserError("No turn is open to stage against.");
       batchId = liveTargets.length > 1 ? crypto.randomUUID() : null;
       const payload = { tagOps: [{ tagId: tag.id, op: "add", quantity: 1 }] };
       await prisma.stagedEffect.createMany({

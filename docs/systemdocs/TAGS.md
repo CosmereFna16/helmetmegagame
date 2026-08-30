@@ -77,9 +77,10 @@ diff check, same style as the zone sync's hash gate).
 - **`Tag.exclusive`** — not a relation at all, but the third rule the same
   callers enforce: a character may hold at most **one** tag carrying this
   flag **per tag group**. Set on the nine Beliefs (`general-beliefs`), which
-  are a single answer rather than a collection, and on the four Addictions and
-  Death Wish (`bacchus`), whose own text says "do not take with other
-  Addiction tags" — so a Cultist holds one belief and one addiction. Neither of the two above could express it — a `parentTag` chain
+  are a single answer rather than a collection, and on the five Bacchus
+  drawbacks — the four Addictions ("do not take with other Addiction tags")
+  and Death Wish, which rewrites what a valid Desire is the same way — so a
+  Cultist holds one belief and one of those five. Neither of the two above could express it — a `parentTag` chain
   is priced cumulatively and walks one direction, and `requiredTag` is a
   prerequisite rather than a conflict. The one exemption is a pair joined by
   `requiredTag`, checked in both directions: Fundamentalist declares

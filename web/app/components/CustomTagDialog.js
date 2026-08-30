@@ -79,7 +79,7 @@ export default function CustomTagDialog({
       name: t.name,
       description: t.description ?? "",
       category: t.category,
-      groupId: t.groupId ?? "",
+      groupId: t.groupId ?? t.group?.id ?? "",
       visibleOnInspect: Boolean(t.visibleOnInspect),
     }));
   }
@@ -127,6 +127,18 @@ export default function CustomTagDialog({
         return;
       }
       router.refresh();
+      if (res.failed?.length) {
+        // The tag exists (say so — a retry would clash on the name), but some
+        // targets weren't tagged. Stay open so the GM actually reads it; the
+        // catalog lists pick the tag up from the refresh.
+        const who = res.failed
+          .map((f) => `${characters?.find((c) => c.id === f.characterId)?.name ?? f.characterId}: ${f.error}`)
+          .join("; ");
+        setError(
+          `Created "${res.name}", but ${res.failed.length} of ${assignCharacterIds.length} weren't tagged — ${who}. Assign it to them from their sheet.`,
+        );
+        return;
+      }
       onCreated?.(
         {
           id: res.tagId,
@@ -142,7 +154,7 @@ export default function CustomTagDialog({
           custom: true,
           pointCost: 0,
         },
-        { assignedIds: assignCharacterIds, staged: stage },
+        { assignedIds: assignCharacterIds, staged: Boolean(res.staged) },
       );
     });
   }

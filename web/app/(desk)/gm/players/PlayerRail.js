@@ -35,6 +35,19 @@ const STATUS_FILTERS = ["all", "unread", "awaiting"];
 const CONTENT_SEARCH_MIN = 3;
 const CONTENT_SEARCH_DEBOUNCE_MS = 300;
 
+// The "why this row matched" hint for a tag hit: the tag names that contain a
+// query word, not the whole sheet joined into one line.
+function matchedTagNames(tagNames, query) {
+  const words = query
+    .toLowerCase()
+    .replace(/^tag:/, "")
+    .split(/\s+/)
+    .filter(Boolean);
+  const hits = (tagNames ?? []).filter((n) => words.some((w) => n.toLowerCase().includes(w)));
+  const shown = (hits.length ? hits : tagNames ?? []).slice(0, 3);
+  return shown.join(", ") + ((hits.length ? hits : tagNames ?? []).length > 3 ? ", …" : "");
+}
+
 function relativeTime(ms) {
   const diff = Date.now() - ms;
   const mins = Math.round(diff / 60_000);
@@ -277,7 +290,7 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
                     {match.matchedField === "role" && row.roleTitle}
                     {match.matchedField === "faction" && row.factionName}
                     {match.matchedField === "zone" && row.factionZoneName}
-                    {match.matchedField === "tag" && (row.tag.length > 60 ? `${row.tag.slice(0, 57)}…` : row.tag)}
+                    {match.matchedField === "tag" && matchedTagNames(row.tagNames, query)}
                     {match.matchedField === "preview" && "matched message text"}
                   </div>
                 )}

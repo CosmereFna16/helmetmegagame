@@ -33,7 +33,9 @@ export default async function PlayerDeskLayout({ children }) {
       by: ["discordUserId"],
       // Same noise rule as the preview below and the pane: a count that
       // includes embeds disagrees with both.
-      where: withoutDmNoise({}),
+      // Same rows the rail's preview and unread badge count: the pane's
+      // predicate, minus ✏️ replies (withoutDmNoise keeps those on purpose).
+      where: withoutDmNoise({ OR: [{ source: null }, { source: { not: "prompt_reply" } }] }),
       _count: { _all: true },
       _max: { createdAt: true },
       orderBy: { _max: { createdAt: "desc" } },
@@ -65,10 +67,13 @@ export default async function PlayerDeskLayout({ children }) {
     // inspector's custom-tag door — one query for both rather than two.
     prisma.tag.findMany({
       orderBy: { name: "asc" },
+      // No description: this projection is serialised into the client
+      // InspectorHost on every layout render (every GM reply revalidates it),
+      // and its two consumers — the rail's tag search and the custom-tag
+      // dialog's Clone-from/Category lists — only need names and groups.
       select: {
         id: true,
         name: true,
-        description: true,
         category: true,
         pointCost: true,
         group: { select: { id: true, name: true } },
@@ -201,6 +206,7 @@ export default async function PlayerDeskLayout({ children }) {
       unreadCount: unreadByUser.get(discordUserId) ?? 0,
       claimedByDiscordUserId: claimByUser.get(discordUserId) ?? null,
       tag: c ? (tagNamesByCharacter.get(c.id) ?? []).join(" ") : "",
+      tagNames: c ? (tagNamesByCharacter.get(c.id) ?? []) : [],
     };
   });
 

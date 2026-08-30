@@ -262,7 +262,7 @@ export default async function CharacterPage() {
       // first, so the list doesn't reshuffle when one is set or ended.
       prisma.desire.findMany({
         where: { characterId: character.id, status: "ACTIVE" },
-        orderBy: { createdAt: "asc" },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         select: { id: true, text: true, points: true, setTurnNumber: true },
       }),
       prisma.desire.findFirst({
@@ -281,6 +281,9 @@ export default async function CharacterPage() {
           // old /store page — see store below.
           maxNegativeTags: true,
           maxActiveDesires: true,
+          // The Move-cutoff row: no cron, no lock — same input the bot's gate
+          // and the announcement read, or this one surface contradicts them.
+          autoTurnAdvanceDisabled: true,
         },
       }),
       findOpenTurnAction(prisma, character.id),

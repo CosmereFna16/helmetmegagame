@@ -173,6 +173,9 @@ inside itself, with the composer pinned at the bottom. It used to be a 32rem
   `source: "system_notice"` at the `sendDm()` call site — and a player's reply
   *into* one of those prompts is `source: "prompt_reply"`
   (`bot/src/lib/pendingPrompts.js`), because a reply to plumbing is plumbing.
+  (Tag search covers **living** characters only — the layout's tag load is
+  bounded to `ALIVE`, since it re-runs on every revalidation; a dead
+  character is still found by name, role, faction and handle.)
   `system_notice` is excluded at the query (`web/lib/dmThread.js#withoutDmNoise`),
   not just visually collapsed; `prompt_reply` deliberately is **not** — the pane
   still shows it, in case the reply was not a reply at all — but the rail's

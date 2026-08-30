@@ -144,18 +144,25 @@ export default function ConversationPane({
         setError(result.error);
         return;
       }
-      // The action returns the fresh page too — the only path that brings in
-      // what the PLAYER said since this pane mounted (state is seeded once;
-      // a poll's router.refresh can't reseed it). Prefer it; fall back to the
-      // single-row swap if the page didn't come back.
-      setPages((prev) =>
-        Array.isArray(result.messages)
-          ? { messages: result.messages, hasMore: result.hasMore ?? prev.hasMore }
-          : {
-              ...prev,
-              messages: prev.messages.map((m) => (m.id === tempId ? (result.message ?? { ...m, pending: false }) : m)),
-            },
-      );
+      // The action returns the fresh tail page too — the only path that
+      // brings in what the PLAYER said since this pane mounted (state is
+      // seeded once; a poll's router.refresh can't reseed it). MERGE it: the
+      // GM may have paged back hundreds of messages with loadOlder, and
+      // replacing the array would snap them to the last 100. Rows already
+      // held keep their place; new ids are appended in server order; the
+      // optimistic row goes.
+      setPages((prev) => {
+        const kept = prev.messages.filter((m) => m.id !== tempId);
+        if (!Array.isArray(result.messages)) {
+          return {
+            ...prev,
+            messages: prev.messages.map((m) => (m.id === tempId ? (result.message ?? { ...m, pending: false }) : m)),
+          };
+        }
+        const have = new Set(kept.map((m) => m.id));
+        const fresh = result.messages.filter((m) => !have.has(m.id));
+        return { ...prev, messages: [...kept, ...fresh] };
+      });
     });
   }
 
