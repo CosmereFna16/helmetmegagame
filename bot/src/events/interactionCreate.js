@@ -554,6 +554,9 @@ async function handleTopicCreate(interaction, zoneId) {
       name,
       content: `${opener} opened this scene.`,
       appliedTags,
+      // Only the character's own role may resolve as a mention: the fallback
+      // is a player-typed name, and "@everyone" is a legal first name.
+      allowedMentions: { parse: [], roles: character.discordRoleId ? [character.discordRoleId] : [] },
     });
   } catch (err) {
     console.error(`Failed to create a topic in ${zone.name}:`, err);
@@ -562,10 +565,12 @@ async function handleTopicCreate(interaction, zoneId) {
   }
 
   await recordPlayerThread({ threadId: thread.id, kind: "PUBLIC", name, zone, character, persistent, openTurn });
-  // Not fleeting: with the opening line naming the character rather than
-  // mentioning the player, this ephemeral link is the creator's only pointer
-  // to their own topic.
-  await respond(interaction, `» *Opened.*\n${messageLink(interaction.guildId, zone.discordPublicChannelId, thread.id)}`);
+  // Not fleeting (respond() defaults to fleeting): with the opening line
+  // naming the character rather than mentioning the player, this ephemeral
+  // link is the creator's only pointer to their own topic.
+  await respond(interaction, `» *Opened.*\n${messageLink(interaction.guildId, zone.discordPublicChannelId, thread.id)}`, {
+    fleeting: false,
+  });
 }
 
 async function handlePrivateCreate(interaction, zoneId) {

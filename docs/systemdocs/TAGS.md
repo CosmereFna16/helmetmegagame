@@ -76,16 +76,19 @@ diff check, same style as the zone sync's hash gate).
   without repeating `requiredTag` on every tag in it. See §3a.
 - **`Tag.exclusive`** — not a relation at all, but the third rule the same
   callers enforce: a character may hold at most **one** tag carrying this
-  flag. Set on the nine Beliefs, which are a single answer rather than a
-  collection. Neither of the two above could express it — a `parentTag` chain
+  flag **per tag group**. Set on the nine Beliefs (`general-beliefs`), which
+  are a single answer rather than a collection, and on the four Addictions and
+  Death Wish (`bacchus`), whose own text says "do not take with other
+  Addiction tags" — so a Cultist holds one belief and one addiction. Neither of the two above could express it — a `parentTag` chain
   is priced cumulatively and walks one direction, and `requiredTag` is a
   prerequisite rather than a conflict. The one exemption is a pair joined by
   `requiredTag`, checked in both directions: Fundamentalist declares
   `requiredTag: post-christian`, so the two are one belief taken to its
   extreme. `exclusiveConflict(tag, heldOrSelectedIds, byId)` in
   `web/lib/characterCreation.js` returns the conflicting tag or null, and
-  every caller's `select` must include `exclusive` and `requiredTagId` or the
-  rule silently stops applying. In `PointBuy` a conflict with another *pick*
+  every caller's `select` must include `exclusive`, `groupId` and
+  `requiredTagId` or the rule silently stops applying (or, missing `groupId`,
+  applies across groups). In `PointBuy` a conflict with another *pick*
   swaps (like a chain sibling); a conflict with something already held is
   dimmed and named. Conversion mid-game is "drop one, buy another" — Beliefs
   stay `removable` — and the store's error says exactly that.
@@ -407,7 +410,7 @@ here, change it there too** — they are meant to say the same thing.
   Like the Silo-gated Resources field, an unseen field is absent rather than
   placeholdered — a placeholder advertises that there is something to go
   after.
-- `exclusive` — at most one such tag per character. Set on the nine Beliefs;
+- `exclusive` — at most one such tag per character *per group*. Set on the nine Beliefs and the five Bacchus drawbacks;
   see §3 for the rule, the `requiredTag` exemption, and where it is enforced.
 - `tradeable` — Items-category flag for a future trade flow; no transfer
   logic exists yet (Transfer Tag filters on `category`, not this).

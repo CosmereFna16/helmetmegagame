@@ -217,7 +217,7 @@ Structural fields, briefly. Full detail is in the header comment of
 | `group` | Sub-grouping within a category; drives the picker's tabs and the chip colour. |
 | `visible` | Whether another player who inspects this character can see the tag. Set it by whether a bystander could actually tell. |
 | `removable` | Whether a player can strip the tag off themselves without a GM. |
-| `exclusive` | A character may hold at most one tag carrying this. Set on the Beliefs. Exempt: a pair joined by `requiredTag` (Fundamentalist on Post-Christian). |
+| `exclusive` | A character may hold at most one tag carrying this per tag group. Set on the Beliefs, and on the Addictions + Death Wish. Exempt: a pair joined by `requiredTag` (Fundamentalist on Post-Christian). |
 | `stackable` | Whether a character can hold more than one. Meals, ammunition, batches. |
 | `consumable` | Whether a player can use it up from their sheet. Consuming takes exactly one unit. |
 | `consumesInto` | What being consumed turns it into. A meal becomes Ate a Meal. |

@@ -144,10 +144,18 @@ export default function ConversationPane({
         setError(result.error);
         return;
       }
-      setPages((prev) => ({
-        ...prev,
-        messages: prev.messages.map((m) => (m.id === tempId ? (result.message ?? { ...m, pending: false }) : m)),
-      }));
+      // The action returns the fresh page too — the only path that brings in
+      // what the PLAYER said since this pane mounted (state is seeded once;
+      // a poll's router.refresh can't reseed it). Prefer it; fall back to the
+      // single-row swap if the page didn't come back.
+      setPages((prev) =>
+        Array.isArray(result.messages)
+          ? { messages: result.messages, hasMore: result.hasMore ?? prev.hasMore }
+          : {
+              ...prev,
+              messages: prev.messages.map((m) => (m.id === tempId ? (result.message ?? { ...m, pending: false }) : m)),
+            },
+      );
     });
   }
 

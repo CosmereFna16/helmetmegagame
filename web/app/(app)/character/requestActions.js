@@ -299,6 +299,32 @@ async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount,
 
 // --- Tags -------------------------------------------------------------
 
+// Dead Simple units a character has already filed this turn (web/lib/requests.js
+// DEAD_SIMPLE_PER_TURN). UNDONE excluded: an undone ADD_TAG took its tag back
+// off the sheet (web/lib/requestEffects.js), so it gives the quota back too.
+// EDITED still counts — the item was made, a GM only adjusted it. `db` is
+// prisma or a transaction client.
+async function deadSimpleUnitsThisTurn(db, characterId, turnId) {
+  const filed = await db.request.findMany({
+    where: { characterId, turnId, type: "ADD_TAG", status: { not: "UNDONE" } },
+    select: { payload: true },
+  });
+  const filedTagIds = [...new Set(filed.map((r) => r.payload?.tagId).filter(Boolean))];
+  // One query for the recipes behind the ids already filed — a request's
+  // payload records the tag, not whether it was Dead Simple at the time.
+  const filedTags = filedTagIds.length
+    ? await db.tag.findMany({
+        where: { id: { in: filedTagIds } },
+        select: { id: true, requirementTurns: true, requirementSkills: { select: { slug: true } } },
+      })
+    : [];
+  const deadSimpleIds = new Set(filedTags.filter(isDeadSimple).map((t) => t.id));
+  return filed.reduce((sum, r) => {
+    if (!deadSimpleIds.has(r.payload?.tagId)) return sum;
+    return sum + (Number(r.payload?.quantity) || 0);
+  }, 0);
+}
+
 async function addTagRequestImpl({
   tagId,
   quantity: rawQuantity,
@@ -392,33 +418,15 @@ async function addTagRequestImpl({
   // Counted only when THIS tag is Dead Simple: everything else on the ladder
   // costs turns, which is its own limit. Requests with no open turn (turnId
   // null) are outside any turn and so outside the cap.
-  if (openTurn && isDeadSimple(tag)) {
-    const filed = await prisma.request.findMany({
-      // UNDONE excluded: an undone ADD_TAG took its tag back off the sheet
-      // (web/lib/requestEffects.js), so it should give the quota back too.
-      // EDITED still counts — the item was made, a GM only adjusted it.
-      where: {
-        characterId: character.id,
-        turnId: openTurn.id,
-        type: "ADD_TAG",
-        status: { not: "UNDONE" },
-      },
-      select: { payload: true },
-    });
-    const filedTagIds = [...new Set(filed.map((r) => r.payload?.tagId).filter(Boolean))];
-    // One query for the recipes behind the ids already filed — a request's
-    // payload records the tag, not whether it was Dead Simple at the time.
-    const filedTags = filedTagIds.length
-      ? await prisma.tag.findMany({
-          where: { id: { in: filedTagIds } },
-          select: { id: true, requirementTurns: true, requirementSkills: { select: { slug: true } } },
-        })
-      : [];
-    const deadSimpleIds = new Set(filedTags.filter(isDeadSimple).map((t) => t.id));
-    const already = filed.reduce((sum, r) => {
-      if (!deadSimpleIds.has(r.payload?.tagId)) return sum;
-      return sum + (Number(r.payload?.quantity) || 0);
-    }, 0);
+  // Checked twice: here, outside the transaction, so a plain over-cap request
+  // fails fast with a readable message — and again INSIDE the transaction
+  // below behind a row lock on the character, because two Dead Simple
+  // requests fired in the same instant would otherwise both read the same
+  // count and both pass (they spend no turns, so nothing else serialises
+  // them).
+  const deadSimple = Boolean(openTurn && isDeadSimple(tag));
+  if (deadSimple) {
+    const already = await deadSimpleUnitsThisTurn(prisma, character.id, openTurn.id);
     if (already + quantity > DEAD_SIMPLE_PER_TURN) {
       throw new UserError(
         `You can only make ${DEAD_SIMPLE_PER_TURN} Dead Simple items per turn (${already} already this turn).`,
@@ -440,6 +448,17 @@ async function addTagRequestImpl({
     }));
 
   await prisma.$transaction(async (tx) => {
+    if (deadSimple) {
+      // Serialise concurrent Dead Simple requests from one character: the
+      // lock holds until commit, so the recount sees the other's row.
+      await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
+      const already = await deadSimpleUnitsThisTurn(tx, character.id, openTurn.id);
+      if (already + quantity > DEAD_SIMPLE_PER_TURN) {
+        throw new UserError(
+          `You can only make ${DEAD_SIMPLE_PER_TURN} Dead Simple items per turn (${already} already this turn).`,
+        );
+      }
+    }
     for (const snapshot of replaced) {
       await dropCharacterTag(tx, character.id, snapshot.tagId);
     }
@@ -1430,8 +1449,7 @@ async function setDesireImpl({ text: rawText, points: rawPoints }) {
   if (points == null) throw new UserError(`Points must be between ${DESIRE_MIN_POINTS} and ${DESIRE_MAX_POINTS}.`);
 
   const openTurn = await getOpenTurn();
-  const [activeCount, lastEnded, config] = await Promise.all([
-    prisma.desire.count({ where: { characterId: character.id, status: "ACTIVE" } }),
+  const [lastEnded, config] = await Promise.all([
     prisma.desire.findFirst({
       where: { characterId: character.id, status: { in: ["FULFILLED", "CANCELLED"] } },
       orderBy: { updatedAt: "desc" },
@@ -1439,24 +1457,31 @@ async function setDesireImpl({ text: rawText, points: rawPoints }) {
     prisma.gameConfig.findUnique({ where: { id: 1 }, select: { maxActiveDesires: true } }),
   ]);
   const maxActive = config?.maxActiveDesires ?? DEFAULT_MAX_ACTIVE_DESIRES;
-  if (activeCount >= maxActive) {
-    throw new UserError(
-      `You already have ${activeCount} active Desire${activeCount === 1 ? "" : "s"} (the limit is ${maxActive}).`,
-    );
-  }
   // The cooldown is unchanged in spirit: ending ANY Desire makes the next new
   // one wait a turn, however many are still running.
   if (openTurn && lastEnded?.endedTurnNumber != null && openTurn.number <= lastEnded.endedTurnNumber) {
     throw new UserError("You're on cooldown — you can set a new Desire next turn.");
   }
 
-  await prisma.desire.create({
-    data: {
-      characterId: character.id,
-      text: text.slice(0, 300),
-      points,
-      setTurnNumber: openTurn?.number ?? null,
-    },
+  // Count and create under a row lock on the character: the cap is the only
+  // rationing on the game's one Tag Point faucet, and two posts fired
+  // together would otherwise both count N-1 and both land.
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
+    const activeCount = await tx.desire.count({ where: { characterId: character.id, status: "ACTIVE" } });
+    if (activeCount >= maxActive) {
+      throw new UserError(
+        `You already have ${activeCount} active Desire${activeCount === 1 ? "" : "s"} (the limit is ${maxActive}).`,
+      );
+    }
+    await tx.desire.create({
+      data: {
+        characterId: character.id,
+        text: text.slice(0, 300),
+        points,
+        setTurnNumber: openTurn?.number ?? null,
+      },
+    });
   });
   await prisma.auditLog.create({
     data: {

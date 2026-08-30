@@ -98,63 +98,86 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
   const data = scalarsFrom(input);
   const slug = customSlug(data.name);
   const targets = [...new Set((assignCharacterIds ?? []).filter(Boolean))];
+  // Same cap as bulkTagCharacters (web/app/(app)/gm/actions.js).
+  if (targets.length > 200) throw new UserError("Pick at most 200 characters at once.");
 
-  const result = await prisma.$transaction(async (tx) => {
+  // The tag itself: one small transaction.
+  const tag = await prisma.$transaction(async (tx) => {
     const clash = await tx.tag.findFirst({
       where: { OR: [{ slug }, { name: data.name }] },
       select: { name: true },
     });
     if (clash) throw new UserError(`A tag called "${clash.name}" already exists.`);
+    return tx.tag.create({ data: { ...data, slug, custom: true } });
+  });
 
-    const tag = await tx.tag.create({ data: { ...data, slug, custom: true } });
+  // The grants: ONE TRANSACTION PER CHARACTER, never one across the batch —
+  // the rule bulkTagCharacters states, and for the same reasons: a wide
+  // transaction holds a row lock against every target's own equip toggles for
+  // its whole duration, and one bad character would roll back the rest.
+  // Living targets only: a dead sheet gets neither a live grant nor a staged
+  // one the push would apply to a corpse.
+  let batchId = null;
+  const applied = [];
+  const failed = [];
+  const living = targets.length
+    ? new Set(
+        (await prisma.character.findMany({ where: { id: { in: targets }, status: "ALIVE" }, select: { id: true } })).map(
+          (c) => c.id,
+        ),
+      )
+    : new Set();
+  for (const id of targets) if (!living.has(id)) failed.push({ characterId: id, error: "No living character." });
+  const liveTargets = targets.filter((id) => living.has(id));
 
-    let batchId = null;
-    if (targets.length) {
-      const found = await tx.character.findMany({ where: { id: { in: targets } }, select: { id: true } });
-      if (found.length !== targets.length) throw new UserError("One of those characters no longer exists.");
-
-      const openTurn = await tx.turn.findFirst({ where: { status: "OPEN" } });
-
-      if (stage) {
-        if (!openTurn) throw new UserError("No turn is open to stage against.");
-        batchId = targets.length > 1 ? crypto.randomUUID() : null;
-        const payload = { tagOps: [{ tagId: tag.id, op: "add", quantity: 1 }] };
-        await tx.stagedEffect.createMany({
-          data: targets.map((targetCharacterId) => ({
-            turnId: openTurn.id,
-            targetCharacterId,
-            createdByDiscordUserId: session.discordUserId,
-            batchId,
-            payload,
-          })),
-        });
-      } else {
-        const config = await tx.gameConfig.findUnique({ where: { id: 1 }, select: { equipSlots: true } });
-        const tagsById = new Map([[tag.id, tag]]);
-        for (const characterId of targets) {
-          await applyTagOpsInTx(tx, {
-            characterId,
-            ops: [{ tagId: tag.id, op: "add", quantity: 1 }],
-            tagsById,
-            openTurn,
-            equipSlots: config?.equipSlots ?? 6,
-          });
+  if (liveTargets.length) {
+    const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
+    if (stage) {
+      if (!openTurn) throw new UserError("No turn is open to stage against.");
+      batchId = liveTargets.length > 1 ? crypto.randomUUID() : null;
+      const payload = { tagOps: [{ tagId: tag.id, op: "add", quantity: 1 }] };
+      await prisma.stagedEffect.createMany({
+        data: liveTargets.map((targetCharacterId) => ({
+          turnId: openTurn.id,
+          targetCharacterId,
+          createdByDiscordUserId: session.discordUserId,
+          batchId,
+          payload,
+        })),
+      });
+      applied.push(...liveTargets);
+    } else {
+      const config = await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { equipSlots: true } });
+      const tagsById = new Map([[tag.id, tag]]);
+      for (const characterId of liveTargets) {
+        try {
+          await prisma.$transaction((tx) =>
+            applyTagOpsInTx(tx, {
+              characterId,
+              ops: [{ tagId: tag.id, op: "add", quantity: 1 }],
+              tagsById,
+              openTurn,
+              equipSlots: config?.equipSlots ?? 6,
+            }),
+          );
+          applied.push(characterId);
+        } catch (err) {
+          failed.push({ characterId, error: err?.message ?? "Failed." });
         }
       }
     }
+  }
 
-    await tx.auditLog.create({
-      data: {
-        actorDiscordUserId: session.discordUserId,
-        actionType: "gm_custom_tag_created",
-        details: { tagId: tag.id, slug, name: tag.name, characterIds: targets, staged: Boolean(stage && targets.length), batchId },
-      },
-    });
+  const staged = Boolean(stage && applied.length);
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "gm_custom_tag_created",
+      details: { tagId: tag.id, slug, name: tag.name, characterIds: applied, failed, staged, batchId },
+    },
+  });
 
-    return { tagId: tag.id, name: tag.name, slug, applied: targets.length, staged: Boolean(stage && targets.length) };
-    // Many targets = many sequential grants; Prisma's default 5 s would roll
-    // back a big "Message pinned"-sized batch.
-  }, { timeout: 20_000 });
+  const result = { tagId: tag.id, name: tag.name, slug, applied: applied.length, failed, staged };
 
   revalidatePath("/gm/dev/tags");
   revalidatePath("/character");
@@ -165,9 +188,9 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
   // bulkTagCharacters. Sequential and after the writes, per ARCHITECTURE.md
   // §5 — never a fan-out of REST calls at Discord's rate limiter. A staged
   // grant hasn't touched anyone's holdings yet, so it's skipped here.
-  if (targets.length && !result.staged) {
+  if (applied.length && !result.staged) {
     after(async () => {
-      for (const characterId of targets) {
+      for (const characterId of applied) {
         await syncCharacterNarrowcastAccess(characterId).catch(() => {});
       }
     });

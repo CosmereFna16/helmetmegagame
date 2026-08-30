@@ -55,7 +55,12 @@ export default async function PlayerDeskLayout({ children }) {
     // Every held tag, ids only — the rail and the roster both search by tag
     // name ("who is a smith", "who has Pale"), and one grouped read beats a
     // per-character include on a 100+ roster.
-    prisma.characterTag.findMany({ select: { characterId: true, tagId: true } }),
+    // ALIVE only: this powers search over the roster, and it re-runs on every
+    // layout revalidation — no reason to drag a dead character's sheet along.
+    prisma.characterTag.findMany({
+      where: { character: { status: "ALIVE" } },
+      select: { characterId: true, tagId: true },
+    }),
     // Names for the search field above, and the catalog behind the
     // inspector's custom-tag door — one query for both rather than two.
     prisma.tag.findMany({

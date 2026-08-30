@@ -81,7 +81,7 @@ export async function sendGmDm({ discordUserId, characterId, content, source = "
     const resolvedSource = ALLOWED_SEND_SOURCES.has(source) ? source : "gm_reply";
 
     // The Discord POST stays awaited: a GM has to know if the send itself
-    // failed. Everything after it is bookkeeping the GM never waits on.
+    // failed.
     const sent = await sendDm(playerDiscordUserId, message, {
       authorDiscordUserId: session.discordUserId,
       source: resolvedSource,
@@ -98,28 +98,22 @@ export async function sendGmDm({ discordUserId, characterId, content, source = "
       ? await prisma.directMessage.findFirst({ where: { discordMessageId: sent.id, direction: "OUTBOUND" } })
       : null;
 
-    // Revalidation has to happen inside the action, or the router never hears
-    // about it — after() runs once the response is already gone.
-    revalidatePath("/gm/players", "layout");
-    revalidatePath(`/gm/players/${playerDiscordUserId}`);
-
-    // Audit row and read cursor are deferred: neither changes what this GM
-    // sees next, and extra round trips in front of the response is what made
-    // Send feel slow. Sending a reply implies you have read up to now, so the
-    // sender's own cursor moves too — otherwise the thread they just answered
-    // shows as unread to them.
-    after(async () => {
-      await prisma.auditLog
-        .create({
-          data: {
-            actorDiscordUserId: session.discordUserId,
-            actionType: "gm_dm_reply",
-            details: { discordUserId: playerDiscordUserId, message },
-          },
-        })
-        .catch((err) => console.error("Could not record gm_dm_reply:", err));
-
-      await prisma.conversationRead
+    // Not deferred: the audit row is what /gm/audit exists for (a DM that
+    // reached a player with no record of who sent it is the gap the log is
+    // there to close), and the read cursor has to land BEFORE the layout
+    // revalidation below or the thread the GM just answered flickers unread.
+    // Sending a reply implies you have read up to now. Both are one indexed
+    // write; the slowness was the Discord round trip plus a serial re-read,
+    // and the client no longer waits on the latter to paint.
+    await Promise.all([
+      prisma.auditLog.create({
+        data: {
+          actorDiscordUserId: session.discordUserId,
+          actionType: "gm_dm_reply",
+          details: { discordUserId: playerDiscordUserId, message },
+        },
+      }),
+      prisma.conversationRead
         .upsert({
           where: {
             gmDiscordUserId_playerDiscordUserId: {
@@ -134,10 +128,21 @@ export async function sendGmDm({ discordUserId, characterId, content, source = "
             lastReadAt: new Date(),
           },
         })
-        .catch(() => {});
-    });
+        .catch(() => {}),
+    ]);
 
-    return { message: created };
+    // Revalidation has to happen inside the action, or the router never hears
+    // about it — after() runs once the response is already gone.
+    revalidatePath("/gm/players", "layout");
+    revalidatePath(`/gm/players/${playerDiscordUserId}`);
+
+    // The fresh page rides along with the one new row: it is the only path
+    // that pulls in whatever the PLAYER said since the pane mounted (the
+    // pane's state is seeded once, and a poll's router.refresh can't reseed
+    // it), so a live back-and-forth keeps showing both sides.
+    const page = await getDmThreadPage({ discordUserId: playerDiscordUserId });
+
+    return { message: created, messages: page?.messages ?? null, hasMore: page?.hasMore ?? null };
   });
 }
 
@@ -171,7 +176,6 @@ export async function searchConversations({ q }) {
       FROM "DirectMessage" dm
       WHERE dm."content" ILIKE ${pattern}
         AND ("source" IS DISTINCT FROM 'system_notice')
-        AND ("source" IS DISTINCT FROM 'prompt_reply')
         AND (("meta"->>'embed') IS DISTINCT FROM 'true')
       GROUP BY dm."discordUserId"
       ORDER BY MAX(dm."createdAt") DESC

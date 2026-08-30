@@ -316,8 +316,9 @@ Moves close **three hours before the turn ends** (`MOVE_LOCK_HOURS` in
 so a GM has a window to adjudicate what was filed before the push runs.
 
 Nothing stores a turn's end time, so it is derived: `turnEndsAt(turn)` is the
-first 00:00 / 12:00 Chicago boundary strictly after `turn.startedAt` matching
-the phase's closing hour (DAWN closes at midnight, DUSK at noon), and
+first 00:00 / 12:00 Chicago boundary strictly after `turn.startedAt` — whichever
+comes first, regardless of phase, because the cron fires at both (a DUSK turn a GM
+opened by hand at 13:00 really does end at midnight) — and
 `moveCutoffAt(turn)` is that minus three hours. Deriving from `startedAt`
 rather than from *now* is what makes a manually advanced turn come out right —
 and it fixes a live bug in the announcement, which the bot rebuilds on restart

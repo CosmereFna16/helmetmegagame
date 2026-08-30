@@ -65,6 +65,9 @@ export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartin
     // built from this projection, so exclusiveConflict() reads the flag off it
     // — drop the field and the rule silently stops applying in the menu.
     exclusive: t.exclusive,
+    // exclusiveConflict() scopes the rule to the group (one Belief, one
+    // Addiction): without the id every exclusive tag looks like one group.
+    groupId: t.groupId,
     group: t.group,
     removable: t.removable,
     craftable: t.craftable,

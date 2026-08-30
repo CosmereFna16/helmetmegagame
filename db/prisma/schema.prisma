@@ -1003,10 +1003,12 @@ model Tag {
   // Drained, ...) stay hidden unless explicitly opened up.
   visibleOnInspect Boolean @default(false)
 
-  // Mutually exclusive with every other tag carrying this flag: a character
-  // may hold at most ONE of them. Set on the Beliefs (Post-Christian, Atheist,
-  // Existentialist, Fundamentalist, The Wind, the four Old Ways), which are
-  // meant to be a single answer rather than a collection. The one exception is
+  // Mutually exclusive with every other tag carrying this flag IN THE SAME
+  // GROUP: a character may hold at most one of them per group. Set on the
+  // Beliefs (Post-Christian, Atheist, Existentialist, Fundamentalist, The
+  // Wind, the four Old Ways), which are meant to be a single answer rather
+  // than a collection, and on the Bacchus drawbacks (the four Addictions and
+  // Death Wish), which say "do not take with other Addiction tags". The one exception is
   // a pair joined by requiredTag — Fundamentalist requires Post-Christian and
   // so stacks on it. Enforced by exclusiveConflict()
   // (web/lib/characterCreation.js), called from PointBuy, createCharacter,

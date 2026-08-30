@@ -277,7 +277,7 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
                     {match.matchedField === "role" && row.roleTitle}
                     {match.matchedField === "faction" && row.factionName}
                     {match.matchedField === "zone" && row.factionZoneName}
-                    {match.matchedField === "tag" && row.tag}
+                    {match.matchedField === "tag" && (row.tag.length > 60 ? `${row.tag.slice(0, 57)}…` : row.tag)}
                     {match.matchedField === "preview" && "matched message text"}
                   </div>
                 )}

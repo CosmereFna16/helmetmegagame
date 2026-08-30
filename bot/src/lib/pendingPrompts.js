@@ -16,13 +16,14 @@
 // prompt it belongs to.
 const PROMPT_TTL_MS = 60_000;
 
-// DirectMessage.source written for a reply to one of these prompts. Web's
-// withoutDmNoise excludes it, which is the whole point.
+// DirectMessage.source written for a reply to one of these prompts. The
+// players desk's rail (unread count, preview) skips it — the conversation
+// pane still shows it, so a reply that wasn't one is never hidden.
 const PROMPT_REPLY_SOURCE = "prompt_reply";
 
 const pending = new Map();
 
-// Call BEFORE sending the prompt DM: the reply can't exist until the prompt
+// Call once the prompt DM has gone out (a refused DM must not arm it): the reply can't exist until the prompt
 // does, but the reply and the send racing is exactly the bug this avoids.
 function expectReply(userId, purpose) {
   pending.set(userId, { purpose, expiresAt: Date.now() + PROMPT_TTL_MS });

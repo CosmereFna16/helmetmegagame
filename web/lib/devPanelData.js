@@ -63,7 +63,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     prisma.characterTag.findMany({ where: { characterId }, include: { tag: true } }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     prisma.turn.findFirst({ where: { status: "OPEN" } }),
-    prisma.desire.findMany({ where: { characterId }, orderBy: { createdAt: "desc" } }),
+    prisma.desire.findMany({ where: { characterId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] }),
     prisma.action.findMany({
       where: { characterId },
       orderBy: { id: "desc" },

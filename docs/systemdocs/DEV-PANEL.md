@@ -271,11 +271,13 @@ The Dev Panel's own door (`TagEditor.js`) is a deliberate exception to §2's
 staged/immediate split: a custom-tag assignment from there commits through
 the dialog's own transaction immediately, rather than riding the Tags tab's
 own pending-ops/Apply-bar flow — the same posture Bulk tagging (§9) already
-takes for its own convenience action. `TagEditor.js` needs the current
-character's id and name to preselect "Assign to"; wiring `characterId`/
-`characterName` from `DevPanel.js`'s `<TagEditor>` call is a one-line follow-up
-outside this pass's scope — until then the door still creates and lists the
-tag, just without the preselected assignment.
+takes for its own convenience action. `DevPanel.js` passes the current
+character's id and name into `TagEditor.js` so "Assign to" comes preselected.
+The same door also sits in the shared inspector's Tags tab on both desks
+(`web/app/components/InspectorColumn.js`, `customTag` prop) — staging by
+default on `/gm/turns`, applying on `/gm/players`. A multi-target grant runs
+one transaction per character (never one across the batch, for the reasons §9
+gives), refuses dead targets, caps at 200, and reports partial failure.
 
 ## 9. Bulk tagging
 

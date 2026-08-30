@@ -90,8 +90,6 @@ function buildTurnAnnouncement(turn, note, { autoTurnAdvanceDisabled = false } =
   const pingRoleId = process.env.DISCORD_TURN_PING_ROLE_ID;
   const ping = pingRoleId ? ` <@&${pingRoleId}>` : "";
   const { endsAt, cutoffAt, hasLock } = moveWindow(turn, { autoTurnAdvanceDisabled });
-  // A turn row without startedAt can't be dated from itself; fall back to the
-  // old now-and-phase derivation rather than rendering a broken <t:null:t>.
   const endEpoch = epochSeconds(endsAt);
   const cutoffEpoch = epochSeconds(cutoffAt);
   // The Move cutoff rides on the turn announcement because that is the one

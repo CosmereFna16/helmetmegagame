@@ -73,6 +73,8 @@ async function buyTagsImpl({ tagIds }) {
       requiredTagId: true,
       exclusive: true,
       groupId: true,
+      removable: true,
+      consumable: true,
     },
   });
   const byId = buildTagsById(allTags);
@@ -100,10 +102,16 @@ async function buyTagsImpl({ tagIds }) {
     if (chainSiblingsToRemove(tag, byId, heldIds).length > 0 && effectiveCost(tag, byId, heldIds) <= 0) {
       throw new UserError(`You already hold that tier of ${tag.name}'s chain or better.`);
     }
-    // There is deliberately NO refusal of a negative effective cost here.
-    // `purchasableAfterStart` is the one rule (TAGS.md §4): the Addictions are
-    // meant to be buyable mid-game for the points, and a hardcoded "the store
-    // never pays the buyer" made the flag unreachable for them.
+    // A tag the store PAYS for (the Addictions) must be one the player can
+    // never hand back: remove/consume refund ⬢ but not Tag Points, so a
+    // removable negative tag is buy → remove → buy again, forever. This is
+    // the real invariant behind TAGS.md §4 — checked here rather than trusted
+    // to the YAML, because a GM-authored custom tag or a future YAML edit can
+    // set the flags either way, and because the live catalog is only as
+    // current as the last db:sync-tags.
+    if (effectiveCost(tag, byId, heldIds) < 0 && (tag.removable || tag.consumable)) {
+      throw new UserError(`${tag.name} can't be bought mid-game.`);
+    }
     //
     // The per-tag prerequisite and the hidden-category group gate, satisfied
     // by what's held or bought alongside.

@@ -173,9 +173,11 @@ inside itself, with the composer pinned at the bottom. It used to be a 32rem
   `source: "system_notice"` at the `sendDm()` call site — and a player's reply
   *into* one of those prompts is `source: "prompt_reply"`
   (`bot/src/lib/pendingPrompts.js`), because a reply to plumbing is plumbing.
-  Both are excluded at the query (`web/lib/dmThread.js#withoutDmNoise`), not
-  just visually collapsed. **The rail's two raw queries carry the same
-  predicate written out as SQL** (`layout.js`: the `DISTINCT ON` preview and
+  `system_notice` is excluded at the query (`web/lib/dmThread.js#withoutDmNoise`),
+  not just visually collapsed; `prompt_reply` deliberately is **not** — the pane
+  still shows it, in case the reply was not a reply at all — but the rail's
+  unread count and preview skip it. **The rail's two raw queries carry the
+  noise predicate written out as SQL** (`layout.js`: the `DISTINCT ON` preview and
   the unread count), which they did not before — so the rail previewed and
   *sorted by* rows the pane hid, and an inspect embed sat at the top of the
   inbox as if the player had just written. Written as

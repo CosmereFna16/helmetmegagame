@@ -588,20 +588,24 @@ async function setDesireGmImpl({ characterId, text, points }) {
     throw new UserError("A desire is worth between 1 and 5 points.");
   }
 
-  const [openTurn, activeCount, config] = await Promise.all([
+  const [openTurn, config] = await Promise.all([
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
-    prisma.desire.count({ where: { characterId, status: "ACTIVE" } }),
     prisma.gameConfig.findUnique({ where: { id: 1 }, select: { maxActiveDesires: true } }),
   ]);
   const maxActive = config?.maxActiveDesires ?? 3;
-  if (activeCount >= maxActive) {
-    throw new UserError(
-      `${character.name} already holds ${activeCount} active Desire${activeCount === 1 ? "" : "s"} (the limit is ${maxActive}). Fulfil or cancel one first.`,
-    );
-  }
 
-  const desire = await prisma.desire.create({
-    data: { characterId, text: body, points: value, status: "ACTIVE", setTurnNumber: openTurn?.number ?? null },
+  // Same row lock as the player's setDesire: count and create together.
+  const desire = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${characterId} FOR UPDATE`;
+    const activeCount = await tx.desire.count({ where: { characterId, status: "ACTIVE" } });
+    if (activeCount >= maxActive) {
+      throw new UserError(
+        `${character.name} already holds ${activeCount} active Desire${activeCount === 1 ? "" : "s"} (the limit is ${maxActive}). Fulfil or cancel one first.`,
+      );
+    }
+    return tx.desire.create({
+      data: { characterId, text: body, points: value, status: "ACTIVE", setTurnNumber: openTurn?.number ?? null },
+    });
   });
 
   await audit(session, "gm_desire_set", characterId, { desireId: desire.id, points: value });
