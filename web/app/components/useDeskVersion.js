@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { readSession, writeSession } from "./useSessionState";
+import { RefreshGate } from "./useRefresh";
 
 // The client half of the desk's deploy awareness (deployVersion.js is the
 // server half). The adjudication desk used to reload out from under a GM
@@ -75,6 +76,36 @@ export default function useDeskVersion() {
 
 function getServerSnapshot() {
   return false;
+}
+
+// Wraps a desk in a RefreshGate keyed on the stale latch, so EVERY
+// useRefresh() under it — the post-mutation ones included — skips rather
+// than refreshing across a deploy boundary (which is a hard reload). A
+// component rather than a bare prop because server layouts can't pass a
+// function to a client component; this one imports its own guard.
+export function DeskStaleRefreshGate({ children }) {
+  return <RefreshGate skipWhen={isDeskStale}>{children}</RefreshGate>;
+}
+
+// The header chip both desks show once a deploy has latched `stale`: the
+// desk has stopped auto-refreshing (see DeskStaleRefreshGate above), and
+// this is the GM's own door to the new build. Renders nothing until then.
+// Accent goes on an inner span: .btn-quiet is unlayered CSS and outranks
+// Tailwind's layered .text-accent on the same element (the .panel trap
+// globals.css documents).
+export function DeskStaleChip() {
+  const stale = useDeskVersion();
+  if (!stale) return null;
+  return (
+    <button
+      type="button"
+      className="btn-quiet"
+      onClick={() => window.location.reload()}
+      title="A new version deployed. This desk has stopped auto-refreshing; reload picks the new version up — filters, search, scroll and selection all come back."
+    >
+      <span className="text-accent">Updated — reload when ready</span>
+    </button>
+  );
 }
 
 // The catch-path error for every desk mutation. A stale build's server

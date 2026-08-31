@@ -8,6 +8,7 @@ import PlayerRail from "./PlayerRail";
 import DeskHeader from "@/app/components/DeskHeader";
 import InboxPoller from "./InboxPoller";
 import { deployVersion } from "@/lib/deployVersion";
+import { DeskStaleRefreshGate, DeskStaleChip } from "@/app/components/useDeskVersion";
 import InspectorHost from "./InspectorHost";
 import BulkMessageButton from "./BulkMessageButton";
 
@@ -255,6 +256,10 @@ export default async function PlayerDeskLayout({ children }) {
   );
 
   return (
+    // Once a deploy latches the desk-version stale flag, every refresh under
+    // this gate (reply sends, note saves, the inbox poll) skips instead of
+    // hard-reloading across the build boundary — same as /gm/turns.
+    <DeskStaleRefreshGate>
     <div className="desk-shell">
       <DeskHeader
         title="Players"
@@ -269,7 +274,12 @@ export default async function PlayerDeskLayout({ children }) {
             {unreadTotal > 0 && <span className="chip text-xs text-muted">{unreadTotal} unread</span>}
           </>
         }
-        actions={<BulkMessageButton characters={bulkCharacters} />}
+        actions={
+          <>
+            <DeskStaleChip />
+            <BulkMessageButton characters={bulkCharacters} />
+          </>
+        }
       />
 
       <div className="desk-body desk-body--players">
@@ -301,5 +311,6 @@ export default async function PlayerDeskLayout({ children }) {
 
       <InboxPoller deployVersion={deployVersion()} />
     </div>
+    </DeskStaleRefreshGate>
   );
 }

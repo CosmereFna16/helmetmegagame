@@ -37,6 +37,26 @@ export function RefreshProvider({ children }) {
   return <RefreshContext.Provider value={value}>{children}</RefreshContext.Provider>;
 }
 
+// A nested provider that intercepts every useRefresh() beneath it with a
+// guard, while keeping the ROOT provider's transition (the whole point of
+// RefreshProvider — see the header comment). The GM desks mount this with
+// isDeskStale: once a deploy has landed under an open desk, ANY
+// router.refresh() — the post-Solve one included, not just the poll — would
+// fetch a flight from the new build, trip Next's mismatch check, and
+// hard-reload the page mid-work. Guarded, the refresh is simply skipped:
+// the mutation is already committed server-side, the header chip is already
+// showing "Updated — reload when ready", and the reload the GM chooses
+// brings the staged work back with the rest of the restored view state.
+export function RefreshGate({ skipWhen, children }) {
+  const [refresh, refreshing] = useRefresh();
+  const guarded = useCallback(() => {
+    if (skipWhen()) return;
+    refresh();
+  }, [refresh, skipWhen]);
+  const value = useMemo(() => [guarded, refreshing], [guarded, refreshing]);
+  return <RefreshContext.Provider value={value}>{children}</RefreshContext.Provider>;
+}
+
 // Returns [refresh, refreshing]. Prefers the shared provider's transition;
 // the local one is only a fallback for a tree mounted outside the provider.
 export function useRefresh() {

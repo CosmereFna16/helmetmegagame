@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSessionState from "@/app/components/useSessionState";
-import useDeskVersion from "@/app/components/useDeskVersion";
+import { DeskStaleRefreshGate, DeskStaleChip } from "@/app/components/useDeskVersion";
 import useGatedRefreshPoll from "@/app/components/useGatedRefreshPoll";
 import useReloadTelemetry from "@/app/components/useReloadTelemetry";
 import QueueRail, { RAIL_STORAGE_KEY, RAIL_STORAGE_DEFAULT } from "./QueueRail";
@@ -556,7 +556,6 @@ export default function Workspace({
   // navigation — so a deploy latches the reload chip below instead, and a
   // switchover 5xx is just a skipped tick.
   const lastRefreshedAt = useGatedRefreshPoll(REFRESH_MS, deployVersion);
-  const stale = useDeskVersion();
 
   // Every document load beacons the PREVIOUS page's death report (nav type,
   // console tail, version crumb) into the server logs — the desk keeps
@@ -577,6 +576,11 @@ export default function Workspace({
   }, []);
 
   return (
+    // Once a deploy latches `stale`, every refresh under this gate — the
+    // post-Solve/staging ones included — skips instead of hard-reloading
+    // the desk across the build boundary. The chip in the header is the way
+    // forward from there.
+    <DeskStaleRefreshGate>
     <div className="desk-shell">
       <DeskHeader
         title="Adjudication"
@@ -606,19 +610,7 @@ export default function Workspace({
         }
         actions={
           <>
-            {stale && (
-              <button
-                type="button"
-                className="btn-quiet"
-                onClick={() => window.location.reload()}
-                title="A new version deployed. The queue has stopped auto-refreshing; reload picks the new version up — filters, search, scroll and selection all come back."
-              >
-                {/* Accent on an inner span: .btn-quiet is unlayered CSS and
-                    outranks Tailwind's layered .text-accent on the same
-                    element (the .panel trap globals.css documents). */}
-                <span className="text-accent">Updated — reload when ready</span>
-              </button>
-            )}
+            <DeskStaleChip />
             <button type="button" className="btn-quiet" onClick={() => setPreviewOpen(true)}>
               Preview push
             </button>
@@ -780,5 +772,6 @@ export default function Workspace({
         />
       )}
     </div>
+    </DeskStaleRefreshGate>
   );
 }
