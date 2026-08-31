@@ -91,7 +91,11 @@ the Caving Die's on-arrival roll all run after the commit, exactly as
 `travelTo` runs them. The once-a-day limit is `Character.fastTravelTurnId`, a
 claim token written by a conditional `updateMany` whose `WHERE` is the check —
 the same lesson as the `Action` unique above, since counting the rider's
-Requests afterwards would let two tabs put them two zones away.
+Requests afterwards would let two tabs put them two zones away. The field
+name is a misnomer worth flagging: it holds the in-game **day** number
+(`describeTurn(openTurn).day`), not a turn id — Bascinet runs two turns a
+day, and an earlier version keyed the claim on `openTurn.id`, which let a
+rider claim a free hop in both Dawn and Dusk of the same day.
 
 **A horse doesn't ride alone.** `web/lib/tagRequests.js#fastTravelCapacity`
 reads the rider's own tags for how many people (rider included) the trip can

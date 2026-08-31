@@ -610,7 +610,13 @@ tabs would both pass — which is precisely the bug `db/lib/travel.js` documents
 above its `Action` create, where a player ended up two hops away on one Move.
 Undo restores the previous value rather than nulling it, so an undone hop hands
 the ride back without minting a second one for someone who had already ridden
-earlier that turn.
+earlier that day.
+
+Despite the name, the column holds the in-game **day** number
+(`describeTurn(openTurn).day`), not the open turn's id — Bascinet runs two
+turns a day (Dawn/Dusk), and keying the claim on `openTurn.id` let a rider
+claim a free hop in both turns of the same day, twice what "once per day"
+promises. Fixed in `fastTravelRequestImpl`.
 
 It re-derives `performTravel`'s adjacency rules instead of calling it, the same
 way `MOVE_CHARACTER` does and for the same reason: `performTravel` runs its own

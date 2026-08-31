@@ -874,14 +874,18 @@ model Character {
   // GM-revived character is never a live person marked buried.
   buriedAt DateTime?
 
-  // The turn a FAST_TRAVEL was last claimed in. The horse tags promise "once
-  // per day" and a day is a turn, so this column IS the claim: it is written
-  // by a conditional updateMany whose WHERE is the check, the same structural
-  // shape the hunger decrement uses. Counting the character's Requests
-  // afterwards would let two tabs both pass and put the rider two zones away,
-  // which is exactly the bug db/lib/travel.js documents above its Action
-  // create. Not a foreign key on purpose — it is a claim token, and a turn
-  // being deleted should never cascade into a character row.
+  // The in-game DAY a FAST_TRAVEL was last claimed on — despite the name,
+  // NOT a turn id. A day is TWO turns (Dawn/Dusk), so this stores
+  // String(describeTurn(openTurn).day) (web/lib/turnFormat.js), written by a
+  // conditional updateMany whose WHERE is the check, the same structural
+  // shape the hunger decrement uses. (An earlier version keyed this on the
+  // turn's own id, which let a rider claim a free hop in both turns of one
+  // day — fixed in web/app/(app)/character/requestActions.js.) Counting the
+  // character's Requests afterwards would let two tabs both pass and put the
+  // rider two zones away, which is exactly the bug db/lib/travel.js
+  // documents above its Action create. Not a foreign key on purpose — it is
+  // a claim token, and a turn being deleted should never cascade into a
+  // character row.
   fastTravelTurnId String?
 
   // Consecutive turns this character has closed hungry — written only by

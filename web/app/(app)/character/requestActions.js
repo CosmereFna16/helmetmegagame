@@ -17,7 +17,7 @@ import {
   DEAD_SIMPLE_PER_TURN,
 } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
-import { expiryFor } from "@/lib/turnFormat";
+import { expiryFor, describeTurn } from "@/lib/turnFormat";
 import { TRANSFERABLE_CATEGORIES, fastTravelCapacity, addRequirementSatisfied } from "@/lib/tagRequests";
 import {
   tagsById as buildTagsById,
@@ -1765,6 +1765,14 @@ async function fastTravelRequestImpl({ targetZoneId, passengerIds: rawPassengerI
     throw new UserError("They're not here anymore.");
   }
 
+  // fastTravelTurnId holds the in-game DAY number, not a turn id — despite
+  // its name. Bascinet runs two turns per day (Dawn/Dusk, describeTurn's own
+  // day = Math.ceil(turn.number / 2)), so comparing against openTurn.id let a
+  // rider claim a free hop in Dawn AND another in Dusk of the same day, twice
+  // what the tag promises ("once per day") and what this action's own error
+  // message below says. describeTurn() is the one place that formula lives.
+  const dayKey = String(describeTurn(openTurn).day);
+
   await prisma.$transaction(async (tx) => {
     // The claim comes FIRST, and its WHERE is the check. Read the column in
     // one statement and write it in another and two tabs both pass, which is
@@ -1774,9 +1782,9 @@ async function fastTravelRequestImpl({ targetZoneId, passengerIds: rawPassengerI
     const claimed = await tx.character.updateMany({
       where: {
         id: character.id,
-        OR: [{ fastTravelTurnId: null }, { fastTravelTurnId: { not: openTurn.id } }],
+        OR: [{ fastTravelTurnId: null }, { fastTravelTurnId: { not: dayKey } }],
       },
-      data: { fastTravelTurnId: openTurn.id },
+      data: { fastTravelTurnId: dayKey },
     });
     if (claimed.count === 0) throw new UserError("Your horse has already carried you today.");
 

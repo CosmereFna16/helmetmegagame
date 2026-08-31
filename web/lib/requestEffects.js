@@ -764,7 +764,7 @@ export const REQUEST_EFFECTS = {
   // A horse ride. Undo returns the rider AND the ride: a hop that no longer
   // happened must not have burnt the once-a-day, so fastTravelTurnId goes back
   // to whatever it was before rather than to null, which would hand a free
-  // second ride to someone who had already used one earlier the same turn.
+  // second ride to someone who had already used one earlier the same day.
   // Every passenger goes back too — they share the rider's fromZoneId, so one
   // updateMany covers all of them; they never had their own fastTravelTurnId
   // to restore in the first place (see fastTravelRequestImpl).
