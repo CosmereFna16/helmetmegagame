@@ -3391,6 +3391,7 @@ tags:
     purchasable: true
     visible: true
     purchasableAfterStart: true
+    removable: true
 
   - slug: horse
     name: Horse
@@ -3401,6 +3402,7 @@ tags:
     purchasable: true
     visible: true
     purchasableAfterStart: true
+    removable: true
 
   - slug: bird
     name: Bird
@@ -3410,6 +3412,7 @@ tags:
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
+    removable: true
 
   - slug: rat
     name: Rat
@@ -3419,6 +3422,7 @@ tags:
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
+    removable: true
 
   - slug: kitty-cat
     name: Kitty Cat
@@ -3428,6 +3432,7 @@ tags:
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
+    removable: true
 
   - slug: manor
     name: Manor
@@ -3438,6 +3443,7 @@ tags:
     requiredTag: courtier
     purchasable: true
     purchasableAfterStart: true
+    removable: true
 
   - slug: workshop
     name: Workshop
@@ -3448,6 +3454,7 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: true
+    removable: true
 
   - slug: cart
     name: Cart
@@ -3459,6 +3466,7 @@ tags:
     tradeable: true
     purchasable: true
     purchasableAfterStart: true
+    removable: true
     craftable: true
     requirement:
       turnsCost: 1
@@ -3474,6 +3482,7 @@ tags:
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
+    removable: true
 
   - slug: drone
     name: Drone
@@ -3483,6 +3492,7 @@ tags:
     pointCost: 0
     purchasable: false
     visible: false
+    removable: true
 
   - slug: house
     name: House
@@ -3493,6 +3503,7 @@ tags:
     requiredTag: ravenhearter
     purchasable: true
     purchasableAfterStart: true
+    removable: true
 
   - slug: shack
     name: Shack
@@ -3503,6 +3514,7 @@ tags:
     requiredTag: ravenhearter
     purchasable: true
     purchasableAfterStart: true
+    removable: true
 
   # --- Items --------------------------------------------------------------
   # Portable things a character owns, carries, hands over, and (where
@@ -3978,8 +3990,8 @@ tags:
   #   Dead Simple    2 pt / 3 ⬢  / 0 turns / crafting OR smithing / no weapon skill
   #   Simple         5 pt / 7 ⬢  / 1 turn  / smithing             / melee-/ranged-basic
   #   Moderate       7 pt / 17 ⬢ / 1 turn  / smithing-skilled     / melee-/ranged-basic
-  #   High Quality   9 pt / 23 ⬢ / 1 turn  / smithing-skilled     / melee-/ranged-basic
-  #   Exceptional   14 pt / 32 ⬢ / 2 turns / smithing-skilled     / melee-/ranged-basic
+  #   High Quality   9 pt / 30 ⬢ / 2 turns / smithing-skilled     / melee-/ranged-basic
+  #   Exceptional   14 pt / 40 ⬢ / 3 turns / smithing-skilled     / melee-/ranged-basic
   #   Gunpowder     14 pt / 37 ⬢ / 2 turns / smithing-gunpowder   / ranged-basic
   #
   # Bows / crossbows keep `crafting` in place of `smithing` at every tier —
@@ -4438,12 +4450,12 @@ tags:
     removable: true
     craftable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 23
+      turnsCost: 2
+      resourceCost: 30
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 30
+    sellablePrice: 42
 
   - slug: rapier
     name: Rapier
@@ -4461,12 +4473,12 @@ tags:
     removable: true
     craftable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 23
+      turnsCost: 2
+      resourceCost: 30
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 30
+    sellablePrice: 42
 
   - slug: sabre
     name: Sabre
@@ -4484,12 +4496,12 @@ tags:
     removable: true
     craftable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 23
+      turnsCost: 2
+      resourceCost: 30
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 30
+    sellablePrice: 42
 
   - slug: katana
     name: Katana
@@ -4507,12 +4519,12 @@ tags:
     removable: true
     craftable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 23
+      turnsCost: 2
+      resourceCost: 30
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 30
+    sellablePrice: 42
 
   - slug: silver-spear
     name: Silver Spear
@@ -4530,12 +4542,12 @@ tags:
     removable: true
     craftable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 23
+      turnsCost: 2
+      resourceCost: 30
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 30
+    sellablePrice: 42
 
   - slug: lucerne
     name: Lucerne
@@ -4553,12 +4565,12 @@ tags:
     removable: true
     craftable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 23
+      turnsCost: 2
+      resourceCost: 30
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 30
+    sellablePrice: 42
 
   - slug: zweihander
     name: Zweihander
@@ -4576,12 +4588,12 @@ tags:
     removable: true
     craftable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 23
+      turnsCost: 2
+      resourceCost: 30
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 30
+    sellablePrice: 42
 
   - slug: crossbow
     name: Crossbow
@@ -4599,12 +4611,12 @@ tags:
     removable: true
     craftable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 23
+      turnsCost: 2
+      resourceCost: 30
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 30
+    sellablePrice: 42
 
   # ─── Gunpowder ─────────────────────────────────────────────────────────────
   - slug: musketoon
@@ -4628,7 +4640,7 @@ tags:
       skills: [smithing-gunpowder]
       gambit: false
     sellable: true
-    sellablePrice: 49
+    sellablePrice: 59
 
   - slug: bore-pistol
     name: Bore Pistol
@@ -4651,7 +4663,7 @@ tags:
       skills: [smithing-gunpowder]
       gambit: false
     sellable: true
-    sellablePrice: 49
+    sellablePrice: 45
 
   - slug: bomb
     name: Bomb
@@ -4674,7 +4686,7 @@ tags:
       skills: [smithing-gunpowder]
       gambit: false
     sellable: true
-    sellablePrice: 49
+    sellablePrice: 59
 
   # ─── Special / concealed ───────────────────────────────────────────────────
   # A gentleman's sidearm, sold complete — no smithing recipe attached.
@@ -6437,7 +6449,7 @@ tags:
     sellable: true
     sellablePrice: 22
 
-  # ─── High Quality (4 pt / 23 ⬢ / 1 turn, skilled smithing) ───
+  # ─── High Quality (4 pt / 30 ⬢ / 2 turns, skilled smithing) ───
   - slug: knights-helmet
     name: Knight's Helmet
     category: items
@@ -6451,11 +6463,11 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 23
+      turnsCost: 2
+      resourceCost: 30
       skills: [smithing-skilled]
     sellable: true
-    sellablePrice: 30
+    sellablePrice: 42
 
   - slug: brigandine
     name: Brigandine
@@ -6470,11 +6482,11 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 23
+      turnsCost: 2
+      resourceCost: 30
       skills: [smithing-skilled]
     sellable: true
-    sellablePrice: 30
+    sellablePrice: 42
 
   - slug: breastplate
     name: Breastplate
@@ -6489,13 +6501,13 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 23
+      turnsCost: 2
+      resourceCost: 30
       skills: [smithing-skilled]
     sellable: true
-    sellablePrice: 30
+    sellablePrice: 42
 
-  # ─── Exceptional (6 pt / 32 ⬢ / 2 turns, skilled smithing) ───
+  # ─── Exceptional (6 pt / 40 ⬢ / 3 turns, skilled smithing) ───
   - slug: plate-armor
     name: Plate Armor
     category: items
@@ -6509,11 +6521,11 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 2
-      resourceCost: 32
+      turnsCost: 3
+      resourceCost: 40
       skills: [smithing-skilled]
     sellable: true
-    sellablePrice: 42
+    sellablePrice: 61
 
   # --- Setting-specific --------------------------------------------------
 
