@@ -658,10 +658,15 @@ the same transaction as its effect (§2). The four side effects after the commit
 on-arrival roll — are the same four `map/travelActions.js#travelTo` defers, for
 the same reason it defers them.
 
-One thing it does *not* share with an ordinary hop: the `TRAVEL` archive entry
-is written **unconditionally**, ignoring `GameConfig.archiveTravelEvents`.
-"Easily visible" is the price the tag charges for the free hop, and nothing else
-collects it.
+One thing it does *not* share with an ordinary hop: "easily visible" is the
+price the tag charges for the free hop, and it is collected twice. The
+departure zone's `#summary` gets a bot-posted line the room sees live —
+"*[rider] is seen leaving the area on horseback, carrying [passengers].*",
+with "in a steam automobile" when the rider holds no horse — skipped only
+where there is no summary channel to post to (a cave level). And the `TRAVEL`
+archive entry is written **unconditionally**, ignoring
+`GameConfig.archiveTravelEvents`, as the transcript half of the same
+visibility.
 
 **Bury's button carries no gate; Fast Travel's does.** Both follow §6's rule
 rather than bending it. Owning a horse is a fact about your own sheet, so the
