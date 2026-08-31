@@ -132,7 +132,10 @@ export default function ActionBar({
 
   function openTransferDialog() {
     setTransferFromKey("");
-    setTransferToKey(`character:${character.id}`);
+    // The roster options are ALIVE-only, so preselecting a dead character
+    // would render a blank <select> that still passes canSubmit. A dead
+    // character's panel just starts with both ends empty.
+    setTransferToKey(alive ? `character:${character.id}` : "");
     setTransferAmount("");
     setDialog("transfer");
   }

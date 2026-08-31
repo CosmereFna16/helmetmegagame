@@ -32,6 +32,11 @@ const prefetched = new Map();
 
 export function prefetchDevPanel(characterId) {
   if (!characterId) return;
+  // Sweep expired entries — a pointerdown that never became a click would
+  // otherwise hold its full DTO for the life of the page.
+  for (const [id, entry] of prefetched) {
+    if (Date.now() - entry.at >= PREFETCH_TTL_MS) prefetched.delete(id);
+  }
   const hit = prefetched.get(characterId);
   if (hit && Date.now() - hit.at < PREFETCH_TTL_MS) return;
   // A rejection is swallowed here and re-observed by whoever awaits the

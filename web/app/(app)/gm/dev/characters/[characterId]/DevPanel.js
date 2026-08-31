@@ -77,8 +77,14 @@ export default function DevPanel({
   const { markDirty, markClean, guardedClose } = useDirtyGuard();
   // In "modal" frame, a microaction's refresh has to repaint the fetched
   // DTOs (onMutated), not the desk's own RSC — a route refresh alone would
-  // leave the modal showing stale data.
-  const refresh = onMutated ?? routeRefresh;
+  // leave the modal showing stale data. Either way the lazily-fetched Record
+  // tab is client state neither path can reach, so it invalidates here.
+  // (invalidateRecord is a function declaration below — hoisted, so this
+  // closure may reference it before its line.)
+  const refresh = () => {
+    invalidateRecord();
+    (onMutated ?? routeRefresh)();
+  };
   const [tab, setTab] = useState("Identity");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(null);
@@ -92,10 +98,12 @@ export default function DevPanel({
   const [recordError, setRecordError] = useState(null);
   const recordLoading = useRef(false);
 
-  function openTab(next) {
-    setTab(next);
-    if (next !== "Record" || record || recordLoading.current) return;
+  function loadRecord() {
+    if (recordLoading.current) return;
     recordLoading.current = true;
+    // Clear a previous failure up front, so a retry that succeeds doesn't
+    // leave the old error rendered above the loaded tables.
+    setRecordError(null);
     getDevPanelRecord({ characterId: character.id })
       .then((res) => {
         if (res?.ok) setRecord(res.record);
@@ -105,6 +113,19 @@ export default function DevPanel({
       .finally(() => {
         recordLoading.current = false;
       });
+  }
+
+  function openTab(next) {
+    setTab(next);
+    if (next === "Record" && !record) loadRecord();
+  }
+
+  // Every microaction writes an audit row (and some a DM), so a Record tab
+  // fetched before the action is stale the moment it lands. Refetch if the
+  // GM is looking at it; otherwise just drop it so the next click refetches.
+  function invalidateRecord() {
+    setRecord(null);
+    if (tab === "Record") loadRecord();
   }
 
   // Staged core fields, keyed the same as the server's EDITABLE_FIELDS. Only
