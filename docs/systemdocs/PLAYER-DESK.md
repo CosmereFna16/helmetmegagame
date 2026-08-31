@@ -34,8 +34,7 @@ desk — the two are the same tool and should read as one.
 │ RAIL            │  ROSTER TABLE (nobody selected)  │  INSPECTOR     │
 │ Inbox | Roster  │  ─────────── or ─────────────────│  Sheet · Tags  │
 │ search, filters │  CONVERSATION                    │  Moves ·Archive│
-│ zone scope      │  thread + composer               │  DMs · Canon · │
-│                 │                                  │  Notes         │
+│ zone scope      │  thread + composer               │  DMs · Canon   │
 └─────────────────┴──────────────────────────────────┴────────────────┘
 ```
 
@@ -220,7 +219,7 @@ inside itself, with the composer pinned at the bottom. It used to be a 32rem
 
 ## 6. The inspector
 
-`Sheet · Tags · Moves · Archive · DMs · Canon · Notes`, fetched on demand and
+`Sheet · Tags · Moves · Archive · DMs · Canon`, fetched on demand and
 memoized per `${characterId}:${tab}` for the life of the page view. **Moves**
 is that person's own past turns (ADJUDICATION.md §3); Canon's header links to
 it, since Canon owns *this* turn and the two shouldn't repeat each other.
@@ -240,10 +239,10 @@ The door differs by desk and only by desk: `/gm/turns` defaults to *staging*
 the new tag because that desk is mid-push, `/gm/players` defaults to
 *applying* it because this one is a conversation.
 
-**Canon and Notes are this desk's two extras**, passed in through the
-`extraTabs` prop rather than compiled into the shared component — the
-adjudication desk has no use for either, and a tab that only one caller wants
-should not be a branch inside the thing both callers share.
+**Canon is this desk's one extra**, passed in through the `extraTabs` prop
+rather than compiled into the shared component — the adjudication desk has no
+use for it, and a tab that only one caller wants should not be a branch inside
+the thing both callers share.
 
 `InspectorHost.js` is the client half. Which person the column shows is
 **derived, never stored**:
@@ -268,27 +267,13 @@ the inspector is a column of the shell now, so it writes the draft's
 `localStorage` key directly (`players/dmDraft.js`) and the composer — whose
 value *is* that store, read through `useSyncExternalStore` — picks it up.
 
-**Notes** is the thing that was actually missing: what a GM knows about a
-player that lives nowhere else. See §7.
+## 7. GM notes (removed)
 
-## 7. GM notes
-
-`GmCharacterNote` — **not** to be confused with `Note`, which is a *player's*
-own list of messages they starred with a reaction in a location channel
-(`/notes`'s Starred tab, keyed to the reacting user — `/notes` also carries a
-private Journal now, see `PROXYING.md` §7). Both stay on every user's rail and
-neither is ever GM-visible.
-
-Append-only, attributed, delete-your-own. Not one shared editable field:
-five GMs editing a single textarea race each other, and the loser's paragraph
-vanishes with no trace of who ate it. Delete-your-own is enforced server-side
-— a GM tidying away another's read on a player is how a shared record stops
-being worth trusting.
-
-It is a real relation with `onDelete: Cascade`, unlike the log tables
-(`DirectMessage`, `AuditLog`) that store snapshot columns on purpose. A note is
-live data *about* a character rather than a record of something that happened,
-and it means nothing once the character is gone.
+The GM-notes tab (`NotesTab.js`, and the `listGmNotes`/`addGmNote`/
+`deleteGmNote` actions) was removed from the desk on 2026-08-31. The
+`GmCharacterNote` table still exists in the schema — nothing reads or writes
+it any more — and stays orphaned on purpose. Dropping the table is a later,
+deliberate migration, not a side effect of this removal.
 
 ## 8. Getting between the desks
 
@@ -324,14 +309,13 @@ desk's own actions.
 | `PlayerRail.js` | Inbox/Roster lenses, search, filters, pins |
 | `page.js` / `RosterTable.js` | The fleet view + bulk verbs |
 | `FactionsPanel.js` | The faction hierarchy view |
-| `actions.js` | DM send/page, content search, canon load, read cursors, claims, staging, broadcast, GM notes |
+| `actions.js` | DM send/page, content search, canon load, read cursors, claims, staging, broadcast |
 | `[discordUserId]/page.js` | Thread load + the open Move's id |
 | `[discordUserId]/PersonShell.js` | The person view's wrapper (conversation only) |
 | `[discordUserId]/ConversationPane.js` | Thread + composer, optimistic send |
 | `InspectorHost.js` | The shared inspector's player-desk half: derived selection, pins, extra tabs |
 | `components/InspectorColumn.js` | The shared inspector itself (ADJUDICATION.md §3) |
 | `CanonTab.js` | Current Move + staged items, as an `extraTabs` entry |
-| `NotesTab.js` | GM notes, as an `extraTabs` entry |
 | `dmDraft.js` | The composer draft's `localStorage` key, shared with Canon |
 | `BulkComposer.js` / `BulkMessageButton.js` | The broadcast modal and its header door |
 | `components/usePins.js` | Pins, shared with `/gm/turns` |

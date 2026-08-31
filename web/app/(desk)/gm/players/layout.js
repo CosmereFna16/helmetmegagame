@@ -2,7 +2,6 @@ import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getMyZones } from "@/lib/gmZone";
 import { getOpenTurn } from "@/lib/turn";
-import { getGmProfiles } from "@/lib/gmProfiles";
 import { withoutDmNoise, dmNoiseSql, genuineConversationSql } from "@/lib/dmThread";
 import PlayerRail from "./PlayerRail";
 import DeskHeader from "@/app/components/DeskHeader";
@@ -29,7 +28,7 @@ import BulkMessageButton from "./BulkMessageButton";
 export default async function PlayerDeskLayout({ children }) {
   const { session } = await getGmSession();
 
-  const [grouped, guildMembers, myZones, openTurn, gmProfiles, characters, characterTags, allTags, stagedEffects] =
+  const [grouped, guildMembers, myZones, openTurn, characters, characterTags, allTags, stagedEffects] =
     await Promise.all([
     prisma.directMessage.groupBy({
       by: ["discordUserId"],
@@ -45,7 +44,6 @@ export default async function PlayerDeskLayout({ children }) {
     listGuildMembers(),
     getMyZones(),
     getOpenTurn(),
-    getGmProfiles(),
     prisma.character.findMany({
       orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
       // Two different zones, and the difference matters: faction.zone is the
@@ -251,10 +249,6 @@ export default async function PlayerDeskLayout({ children }) {
       zoneName: r.zoneName,
     }));
 
-  const gmProfilesById = Object.fromEntries(
-    gmProfiles.map((g) => [g.discordUserId, { username: g.username, avatarUrl: g.avatarUrl }]),
-  );
-
   return (
     // Once a deploy latches the desk-version stale flag, every refresh under
     // this gate (reply sends, note saves, the inbox poll) skips instead of
@@ -292,7 +286,7 @@ export default async function PlayerDeskLayout({ children }) {
         {/* The third column is the shell's, not the person view's: it stays
             put across a navigation (the roster included), which is the whole
             point of a persistent inspector. It replaced the per-person
-            DossierColumn — Canon and Notes are extra tabs on it now. */}
+            DossierColumn — Canon is an extra tab on it now. */}
         <InspectorHost
           rows={rows}
           stagedEffects={stagedEffects.map((e) => ({
@@ -302,8 +296,6 @@ export default async function PlayerDeskLayout({ children }) {
             tagOps: e.payload?.tagOps ?? [],
           }))}
           currentTurnNumber={openTurn?.number ?? null}
-          gmProfiles={gmProfilesById}
-          myDiscordUserId={session.discordUserId}
           bulkCharacters={bulkCharacters}
           tagCatalog={allTags}
         />

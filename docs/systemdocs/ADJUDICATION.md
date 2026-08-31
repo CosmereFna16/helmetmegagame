@@ -268,8 +268,7 @@ keeps itself current and stays reachable from the keyboard:
   `web/lib/gmProfiles.js`) wherever a GM is named: the lock holder on an
   In Progress row, a staged row's author, a Move's solver, and the actor
   column on `/gm/audit`. The player desk's conversations get none —
-  `DirectMessage` records the player, not which GM typed the reply — though
-  its GM notes do (`GmCharacterNote.authorDiscordUserId`).
+  `DirectMessage` records the player, not which GM typed the reply.
 - The **push preview is a way in**, not just a readout: a character name
   swaps the inspector to them, and a staged line closes the preview, opens
   and expands the tray, and scrolls to that row with a brief flash.

@@ -7,7 +7,6 @@ import DevPanelModal from "@/app/components/DevPanelModal";
 import usePins from "@/app/components/usePins";
 import BulkComposer from "./BulkComposer";
 import CanonTab from "./CanonTab";
-import NotesTab from "./NotesTab";
 
 // The player desk's half of the shared inspector (the other is
 // /gm/turns/Workspace.js). It is mounted by layout.js, so it survives every
@@ -33,8 +32,6 @@ export default function InspectorHost({
   rows,
   stagedEffects,
   currentTurnNumber,
-  gmProfiles,
-  myDiscordUserId,
   bulkCharacters,
   tagCatalog,
 }) {
@@ -131,9 +128,8 @@ export default function InspectorHost({
     return map;
   }, [stagedEffects]);
 
-  // Canon and Notes are the two tabs the adjudication desk has no use for —
-  // there the character is context for a Move; here the Move is context for a
-  // character, and the notes are about the person.
+  // Canon is the one tab the adjudication desk has no use for — there the
+  // character is context for a Move; here the Move is context for a character.
   const extraTabs = useMemo(
     () => [
       {
@@ -153,20 +149,8 @@ export default function InspectorHost({
           />
         ),
       },
-      {
-        key: "Notes",
-        label: "Notes",
-        render: ({ inspected: who }) => (
-          <NotesTab
-            key={who.characterId}
-            characterId={who.characterId}
-            gmProfiles={gmProfiles}
-            myDiscordUserId={myDiscordUserId}
-          />
-        ),
-      },
     ],
-    [gmProfiles, myDiscordUserId, segment, onInspect],
+    [segment, onInspect],
   );
 
   // The custom-tag door. It APPLIES here rather than staging: this desk is a
