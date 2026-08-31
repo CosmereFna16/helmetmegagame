@@ -1,9 +1,5 @@
 const { prisma } = require("@lifeweb/db");
-const {
-  gambitModifiers,
-  gambitModifierTotal,
-  formatGambitModifiers,
-} = require("@lifeweb/db/lib/gambitModifier");
+const { gambitModifiers, gambitModifierTotal } = require("@lifeweb/db/lib/gambitModifier");
 const { rollDie } = require("@lifeweb/db/lib/moveEffects");
 const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 
@@ -15,8 +11,13 @@ const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 // else a Move is worth, land at the turn-end staged push
 // (db/lib/stagedPush.js). The dice and the resource roll (the Labor
 // checkbox's tag-scaled range, resolved at submit — see
-// db/lib/laborAccess.js) still happen NOW, so the player sees their numbers
-// the moment they lock in; only the payout defers.
+// db/lib/laborAccess.js) both still happen NOW, but only the resource roll
+// is shown now. The Gambit die is rolled and stored here so the GM desk has
+// it from the moment of submit, but it's withheld from the player until
+// Moves lock (web/app/(app)/character/page.js, gated on moveWindow.locked) —
+// finding out how the die fell shouldn't color how the rest of the turn gets
+// played. The reveal itself is a DM sent from the turn-end staged push
+// (db/lib/stagedPush.js's gambitRollNotices).
 //
 // `action` must come in with its character, that character's tags, AND
 // hungerStreak loaded: Hunger is an ordinary Status tag, but its penalty
@@ -79,13 +80,9 @@ async function confirmMove(action, actorDiscordUserId) {
     `Kind: **${action.moveKind === "GAMBIT" ? "Gambit" : "Routine"}**`,
   ];
   if (diceRoll != null) {
-    lines.push(
-      // Keyed on modifiers.length, not diceModifier, so a contributor worth 0
-      // would still show its work rather than pretend nothing applied.
-      modifiers.length
-        ? `🎲 **${diceRoll}** ${formatGambitModifiers(modifiers)} → **${diceRoll + diceModifier}**`
-        : `🎲 **${diceRoll}**`,
-    );
+    // No number here on purpose — see the header comment. The DM at Moves-lock
+    // is the reveal.
+    lines.push("🎲 *The die is cast. You'll see how it fell once Moves lock.*");
   }
   if (rollResult) {
     lines.push(

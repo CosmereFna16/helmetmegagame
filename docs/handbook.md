@@ -299,9 +299,11 @@ Choose **Routine** when your Move is assumed to be successful and without any ri
 
 Choose **Gambit** when the results may affect the overall narrative and are uncertain or up to chance. Fighting a duel, stealing something, spying on someone, and similar actions would all be Gambits.
 
-When you submit a Gambit, the bot will roll a d6 die. The GMs adjudicating your action will take this result into account when determining the results, with the number rolled helping determine your Move results. The die result is not an outright indicator of success/failure, but rather a measure of how fortunate your character was while attempting it.  
+When you submit a Gambit, the bot rolls a d6 die immediately — but doesn't tell you the result yet. The GMs adjudicating your action can see it and take it into account when determining the results, with the number rolled helping determine your Move results. The die result is not an outright indicator of success/failure, but rather a measure of how fortunate your character was while attempting it.  
 **Roll a 1:** Things went worse than you feared.  
 **Roll a 6:** Things went better than you hoped.
+
+You'll find out how your die fell once Moves lock for the turn (three hours before it ends) — the bot DMs you the result then. Playing the rest of the turn without knowing is the point: your character doesn't know how it went either.
 
 The choice between Routine or Gambit is left to you because you know what your character is attempting with your Move. It's not a mechanism to choose whether you succeed, and Moves submitted using the wrong option may be adjusted by the GMs. 
 

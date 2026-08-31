@@ -279,7 +279,7 @@ player walking out of the room.
 ## 6. Reactions
 
 All in `bot/src/events/messageReactionAdd.js`, all gated on `recentProxies`
-except 🌫️ and 🌬️. Each is stripped back off after being processed.
+except 🌫️, 🌬️ and ⭐. Each is stripped back off after being processed.
 
 | Emoji | Who | Does |
 |---|---|---|
@@ -287,7 +287,7 @@ except 🌫️ and 🌬️. Each is stripped back off after being processed.
 | ✏️ / 📝 | Owner | DM-based edit |
 | 🔍 / 🔎 | Anyone | Inspect embed, gated by the viewer's own tags |
 | ❓ | Anyone | DM the character's bio |
-| ⭐ | Anyone | Save a personal `Note` |
+| ⭐ | Anyone | Save a personal `Note` — works on any bot- or webhook-authored message, not just a tracked proxy (`PROXYING.md` §7) |
 | ⚜️ | GM | Full dossier on the speaking character |
 | 🌫️ | GM | Delete and repost as the bot, de-attributing it |
 | 🌬️ | Cursed (a ghost) | Bascinet posts one haunting line in that channel or forum post |

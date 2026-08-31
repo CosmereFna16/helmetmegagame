@@ -98,10 +98,11 @@ indicator, since you are already in the channel, but it does stop the message
 existing in plain sight before the proxy removes it.
 
 **`recentProxies`** is the in-memory map tying a proxied message back to its
-player and character — last 500, single bot process, no sharding, wiped on
-restart. Every reaction below reads it, so a bot restart makes older messages
-inert to all of them. That is the safe direction: a stale mapping would let the
-wrong person delete someone's message.
+player and character — last 20,000, single bot process, no sharding, wiped on
+restart. Every reaction except ⭐ reads it, so a bot restart makes older
+messages inert to all of them. That is the safe direction: a stale mapping
+would let the wrong person delete someone's message. ⭐ is the exception — see
+§7.
 
 ## 3. Avatars and letter plaques
 
@@ -374,11 +375,23 @@ silently timing out.
 covered here only because it shares the page. Neither tab is ever
 GM-visible or shared between players; see below.
 
-Reacting ⭐ to a proxied message in any zone channel saves it as a personal
-`Note` for whoever reacted. `handleStarReaction` upserts a row keyed on
-`(discordMessageId, discordUserId)` with the sending character, a zone
-snapshot, content, and `sentAt`. Same `recentProxies` constraint as every other
-reaction.
+Reacting ⭐ to any guild message saves it as a personal `Note` for whoever
+reacted — not just a proxied one. `handleStarReaction` upserts a row keyed on
+`(discordMessageId, discordUserId)` with a speaker, a zone snapshot, content,
+and `sentAt`. Unlike every other reaction here, ⭐ is exempt from the
+`recentProxies` gate (`messageReactionAdd.js`'s dispatcher), and resolves the
+speaker in three tiers:
+
+1. **Still-tracked proxy** — the common case for a message sent this bot
+   process; character and concealment resolve exactly as for ✏️/❌ above.
+2. **No live proxy, but `ArchiveEntry.discordMessageId` has it** — a character
+   message whose `recentProxies` entry was lost to a bot restart. `ArchiveEntry`
+   is durable (`db/lib/archive.js`), so this repairs starring for any character
+   message ever sent, restart or not.
+3. **Neither** — a bot-as-itself post (turn announcement, GM declaration,
+   `/gm`, ghost whisper) or another webhook's message. Filed under the
+   poster's display name with `characterId: null`; a real player's own message
+   still isn't starrable.
 
 **The bot always strips the reaction back off** right after processing
 (`reaction.users.remove(user.id)`), for any user, on any message — so Discord

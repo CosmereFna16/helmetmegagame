@@ -120,8 +120,10 @@ export default function RosterTable({
 
   const onComposerKeyDown = useSubmitOnEnter();
 
-  // Every FactionLink in this desk routes here rather than to /faction —
-  // switch to the Factions tab and highlight the row, instead of leaving.
+  // A FactionLink clicked from the Players tab routes here rather than to
+  // /faction — switch to the Factions tab and highlight the row, instead of
+  // leaving. The Factions tab itself no longer uses this: its own faction
+  // names are plain FactionLinks straight out to /faction.
   function goToFaction(factionId) {
     setHighlightFactionId(factionId);
     setView("factions");
@@ -163,11 +165,7 @@ export default function RosterTable({
       </div>
 
       {view === "factions" ? (
-        <FactionsPanel
-          factions={factions}
-          highlightFactionId={highlightFactionId}
-          onSelectFaction={goToFaction}
-        />
+        <FactionsPanel factions={factions} highlightFactionId={highlightFactionId} />
       ) : (
         <>
           <FilterBar

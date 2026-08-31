@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import FactionLink from "@/app/components/FactionLink";
 import CharacterLink from "@/app/components/CharacterLink";
@@ -14,11 +13,12 @@ import { transferSiloResources } from "./actions";
 // The all-factions overview, the Factions tab of the Players panel.
 //
 // It used to be the GM branch of /faction. That page now redirects a GM here,
-// so this is the only copy. Clicking a faction's name stays in this desk —
-// highlightFactionId/onSelectFaction (RosterTable.js) mark and scroll to its
-// row here instead of navigating away. Its Manage link is the door back to
+// so this is the only copy. Clicking a faction's name is the door out to
 // /faction's still-live per-faction detail view (member roles, add/remove,
 // Silo history) — this table only ever shows a member count, not the roster.
+// highlightFactionId comes from outside this tab (the Dossier column's
+// `?faction=` param, or a FactionLink clicked from the Players tab) and just
+// marks and scrolls to the row; it is not fed by anything in this panel.
 
 // Same tint the desk uses for a claimed conversation row — color-mix over
 // --accent-text rather than a dedicated background token, since none exists
@@ -38,7 +38,7 @@ function buildChildrenMap(factions) {
 // Renders a faction row plus its subject factions indented beneath it,
 // recursively — keeps the hierarchy visible in the flat overview table
 // instead of needing a separate page per level.
-function FactionRows({ factions, childrenMap, depth, showSilo, highlightFactionId, onSelectFaction, onTransfer }) {
+function FactionRows({ factions, childrenMap, depth, showSilo, highlightFactionId, onTransfer }) {
   return factions.flatMap((f) => {
     const leader = f.characters.find((c) => c.isLeader);
     const children = childrenMap.get(f.id) ?? [];
@@ -50,7 +50,7 @@ function FactionRows({ factions, childrenMap, depth, showSilo, highlightFactionI
       >
         <td style={{ paddingLeft: `calc(10px + ${depth * 1.25}rem)` }}>
           {depth > 0 ? "↳ " : ""}
-          <FactionLink factionId={f.id} name={f.name} onSelect={onSelectFaction} />
+          <FactionLink factionId={f.id} name={f.name} />
         </td>
         <td>{f.characters.length}</td>
         <td>
@@ -62,11 +62,6 @@ function FactionRows({ factions, childrenMap, depth, showSilo, highlightFactionI
             <IconButton icon={ResourcesIcon} label={`Move ⬢ for ${f.name}`} onClick={() => onTransfer(f.id)} />
           </td>
         )}
-        <td>
-          <Link href={`/faction?factionId=${f.id}`} className="btn-quiet">
-            Manage &rarr;
-          </Link>
-        </td>
       </tr>,
       ...FactionRows({
         factions: children,
@@ -74,7 +69,6 @@ function FactionRows({ factions, childrenMap, depth, showSilo, highlightFactionI
         depth: depth + 1,
         showSilo,
         highlightFactionId,
-        onSelectFaction,
         onTransfer,
       }),
     ];
@@ -155,7 +149,7 @@ function TransferDialog({ faction, otherFactions, characters, onClose }) {
   );
 }
 
-export default function FactionsPanel({ factions, highlightFactionId, onSelectFaction }) {
+export default function FactionsPanel({ factions, highlightFactionId }) {
   const unaffiliated = factions.filter((f) => f.name === "Unaffiliated");
   const rest = factions.filter((f) => f.name !== "Unaffiliated");
   const childrenMap = buildChildrenMap(rest);
@@ -198,7 +192,6 @@ export default function FactionsPanel({ factions, highlightFactionId, onSelectFa
             <th>Members</th>
             <th>Leader</th>
             <th>Silo</th>
-            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -208,7 +201,6 @@ export default function FactionsPanel({ factions, highlightFactionId, onSelectFa
             depth: 0,
             showSilo: true,
             highlightFactionId,
-            onSelectFaction,
             onTransfer: setTransferFactionId,
           })}
           {unaffiliated.map((f) => {
@@ -223,7 +215,7 @@ export default function FactionsPanel({ factions, highlightFactionId, onSelectFa
                 }}
               >
                 <td>
-                  <FactionLink factionId={f.id} name={f.name} onSelect={onSelectFaction} />
+                  <FactionLink factionId={f.id} name={f.name} />
                 </td>
                 <td>{f.characters.length}</td>
                 <td>
@@ -232,11 +224,6 @@ export default function FactionsPanel({ factions, highlightFactionId, onSelectFa
                 {/* Unaffiliated has no Silo — db/lib/parties.js#resolveParty
                     rejects it as a transfer party, so no button here. */}
                 <td>{f.silo} ⬢</td>
-                <td>
-                  <Link href={`/faction?factionId=${f.id}`} className="btn-quiet">
-                    Manage &rarr;
-                  </Link>
-                </td>
               </tr>
             );
           })}

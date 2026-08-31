@@ -45,11 +45,14 @@ each arrived at by getting them wrong first.
    (nothing pays at confirm any more — a Routine, a Labor payout and a
    GM-solved Gambit all sit with `appliedEffects` null until here), and
    silently closes untouched Moves (`OPEN → PASSED`, `auto:silent_close`).
-   Silent for a Gambit, but a Routine that ends the push `PASSED` gets a short
-   canned DM saying it passed with no adjudication notes — unless a private
-   staged message on that Move already went to that player, a staged effect
-   on it targets them (their sheet is changing in this same push), or an
-   `auto:` marker says another pass is DMing them about it.
+   Silent for a Gambit's *adjudication*, but a Routine that ends the push
+   `PASSED` gets a short canned DM saying it passed with no adjudication
+   notes — unless a private staged message on that Move already went to that
+   player, a staged effect on it targets them (their sheet is changing in
+   this same push), or an `auto:` marker says another pass is DMing them
+   about it. Every Gambit gets its own DM regardless: the d6 is rolled and
+   stored at submit (`bot/src/lib/moveConfirm.js`) but withheld from the
+   player until Moves lock, so this is where they find out how it fell.
    Its slot is load-bearing three ways: **after** the Default Move pass
    (whose rows arrive already stamped, so this one skips them), **before**
    the progression/sweep (a staged "remove Infected" must beat the

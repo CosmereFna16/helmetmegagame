@@ -5,6 +5,10 @@ item off this table, not by feel. If you change a number here, also change
 the price-scale comment at the top of the weapons block in `docs/tags.yaml`
 and the mention in [`TAGS.md`](TAGS.md) §4a.
 
+Changing `Turns` here also changes what a merchant pays for the finished item —
+[`DEPOT.md`](DEPOT.md) §4 derives the Merchant's sell price from this table's
+`⬢` and `Turns` columns plus the skill gate, not by feel either.
+
 ## 1. Skills
 
 | Slug | Name | pt | Gate |
@@ -24,8 +28,8 @@ A full gunsmith is `smithing` + `smithing-skilled` + `smithing-gunpowder` =
 | Dead Simple | 2 | 3 | 0 | `crafting` OR `smithing` | none | yes |
 | Simple | 5 | 7 | 1 | `smithing` | `melee-basic` / `ranged-basic` | yes |
 | Moderate | 7 | 17 | 1 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
-| High Quality | 9 | 23 | 1 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
-| Exceptional | 14 | 32 | 2 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
+| High Quality | 9 | 30 | 2 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
+| Exceptional | 14 | 40 | 3 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
 | Gunpowder | 14 | 37 | 2 | `smithing-gunpowder` | `ranged-basic` | yes |
 
 Bows use `crafting` in place of `smithing` at every tier. The Crossbow does
@@ -94,7 +98,7 @@ their own terms rather than a rung of this table.
 | Zweihander | High Quality | |
 | Crossbow | High Quality | |
 | Musketoon | Gunpowder | Priced at 18 pt, not the tier's 14 — a pre-existing outlier, not introduced by the Combat Update. |
-| Bore Pistol | Gunpowder | |
+| Bore Pistol | Gunpowder | Materials cost 23 ⬢, not the tier's 37 — a pre-existing outlier, not introduced by the Combat Update. Priced accordingly in `DEPOT.md` §4. |
 | Bomb | Gunpowder | `purchasable: false` (craft-only) |
 
 Off the ladder — no recipe, no smithing gate:

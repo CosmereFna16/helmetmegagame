@@ -48,30 +48,70 @@ const DOSSIER_EMOJI = "⚜️"; // ⚜️ fleur-de-lis, GM only — also the Mov
                             // emoji on the #turns console, which is fine:
                             // buttons and reactions share no namespace.
 
-// Starring a proxied tupper message saves it to the reacting user's personal
-// Notes list (web/app/(app)/notes) — a private note, not a shared archive,
-// so it's keyed on (message, starrer). Every reaction handled below (🔍/❌/
-// ✏️/⭐) is stripped back off right after being processed, so none of them
-// show as an accumulating count on the message; ⭐ is the one that also
-// persists a Note, and unstarring happens on /notes (a delete button), not
-// by reacting again.
+// Starring a message saves it to the reacting user's personal Notes list
+// (web/app/(app)/notes) — a private note, not a shared archive, so it's keyed
+// on (message, starrer). Every reaction handled below (🔍/❌/✏️/⭐) is stripped
+// back off right after being processed, so none of them show as an
+// accumulating count on the message; ⭐ is the one that also persists a Note,
+// and unstarring happens on /notes (a delete button), not by reacting again.
+//
+// `proxy` is the live-tracked entry from recentProxies, or null. Identity
+// resolves in three tiers, cheapest and most common first:
+//   a. proxy present — a character message still tracked since it was sent.
+//   b. no proxy, but ArchiveEntry.discordMessageId knows it — a character
+//      message whose tracking was lost to a bot restart (recentProxies is
+//      in-memory only). ArchiveEntry carries the same fields a live proxy
+//      would, written at send time (db/lib/archive.js), so this repairs
+//      starring for any character message ever sent, not just recent ones.
+//   c. neither — a genuine bot-as-itself post (turn announcement, GM
+//      declaration, /gm, ghost whisper, a webhook post). Filed under the
+//      poster's display name with no character behind it; /notes already
+//      renders a null characterId as a letter plaque.
 async function handleStarReaction(reaction, proxy, user) {
-  const character = await prisma.character.findUnique({ where: { id: proxy.characterId } });
-  if (!character) return;
+  const message = reaction.message;
+
+  let characterId = null;
+  let characterName = null;
+  let zoneId = null;
+
+  if (proxy) {
+    const character = await prisma.character.findUnique({ where: { id: proxy.characterId } });
+    if (!character) return;
+    characterId = character.id;
+    // A concealed message is filed under the alias it was posted as. The
+    // note is already private to the starrer, but recording the real name
+    // would quietly hand them the answer the concealment was hiding.
+    characterName = proxy.concealed ? (proxy.alias ?? "Unknown") : character.name;
+    zoneId = character.zoneId ?? null;
+  } else {
+    const archived = await prisma.archiveEntry.findUnique({ where: { discordMessageId: message.id } });
+    if (archived && archived.characterId) {
+      characterId = archived.characterId;
+      characterName = archived.concealedAlias ?? archived.characterName ?? "Unknown";
+      zoneId = archived.zoneId ?? null;
+    } else {
+      characterName = message.member?.displayName ?? message.author?.displayName ?? message.author?.username ??
+        "Bascinet";
+      zoneId = resolveChannelContext(message.channel).zoneId;
+    }
+  }
+
+  // Plain content covers every bot-as-itself post (none of them are embed-
+  // only). The fallback is only for the 🌫️ fog repost, which can carry a
+  // relayed embed instead of content.
+  const content = message.content || message.embeds?.[0]?.description || message.embeds?.[0]?.title || "";
+  if (!content && message.attachments?.size === 0) return;
 
   await prisma.note.upsert({
-    where: { discordMessageId_discordUserId: { discordMessageId: reaction.message.id, discordUserId: user.id } },
+    where: { discordMessageId_discordUserId: { discordMessageId: message.id, discordUserId: user.id } },
     create: {
-      discordMessageId: reaction.message.id,
-      discordChannelId: reaction.message.channelId,
-      characterId: character.id,
-      // A concealed message is filed under the alias it was posted as. The
-      // note is already private to the starrer, but recording the real name
-      // would quietly hand them the answer the concealment was hiding.
-      characterName: proxy.concealed ? (proxy.alias ?? "Unknown") : character.name,
-      zoneId: character.zoneId ?? null,
-      content: reaction.message.content ?? "",
-      sentAt: reaction.message.createdAt,
+      discordMessageId: message.id,
+      discordChannelId: message.channelId,
+      characterId,
+      characterName,
+      zoneId,
+      content,
+      sentAt: message.createdAt,
       discordUserId: user.id,
     },
     update: {},
@@ -266,10 +306,19 @@ module.exports = {
     // guildId rather than guild: a partial message has the former, not always
     // the latter.
     if (!reaction.message.guildId) return;
-    // 🌬️ joins 🌫️ as an emoji that works on ANY guild message. Every other
-    // reaction below needs a tracked proxy, and a ghost has to be able to
-    // haunt whatever is on screen — including a plain bot post.
-    if (emojiName !== FOG_EMOJI && !isWindEmoji(emojiName) && !recentProxies.has(reaction.message.id)) return;
+    // 🌬️ and ⭐ join 🌫️ as emoji that work on ANY guild message. A ghost has
+    // to be able to haunt whatever is on screen, and ⭐ has to be able to star
+    // a bot-as-itself post (turn announcement, GM declaration, /gm) that was
+    // never a tracked proxy to begin with — every other reaction below still
+    // needs one.
+    if (
+      emojiName !== FOG_EMOJI &&
+      !isWindEmoji(emojiName) &&
+      emojiName !== STAR_EMOJI &&
+      !recentProxies.has(reaction.message.id)
+    ) {
+      return;
+    }
 
     if (reaction.partial) await reaction.fetch().catch(() => null);
     if (reaction.message.partial) await reaction.message.fetch().catch(() => null);
@@ -290,10 +339,30 @@ module.exports = {
       return;
     }
 
-    const proxy = recentProxies.get(reaction.message.id);
-    if (!proxy) return;
+    const proxy = recentProxies.get(reaction.message.id) ?? null;
 
     const emoji = reaction.emoji.name;
+
+    // Unlike every other branch below, ⭐ doesn't require proxy — see the gate
+    // above and handleStarReaction's three identity tiers. It has to come
+    // before the `if (!proxy) return` bail that every other reaction needs.
+    if (emoji === STAR_EMOJI) {
+      // Only a bot-authored or webhook-authored message can be starred when
+      // there's no tracked proxy behind it; a real player's own message stays
+      // a no-op, same as before this reaction ever worked on non-proxies.
+      if (proxy || reaction.message.author?.id === reaction.client.user.id || reaction.message.webhookId) {
+        await handleStarReaction(reaction, proxy, user).catch(() => {});
+        // Universal rule: a ⭐ reaction is always stripped back off right
+        // after being processed, for any user, on any message — so the star
+        // lives on the reactor's Notes list, not as a visible, accumulating
+        // reaction.
+        await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
+      }
+      return;
+    }
+
+    if (!proxy) return;
+
     const isOwner = user.id === proxy.discordUserId;
 
     if (emoji === DOSSIER_EMOJI) {
@@ -301,15 +370,6 @@ module.exports = {
       await handleDossierReaction(reaction, proxy, user).catch((err) =>
         console.error("Dossier reaction failed:", err),
       );
-      await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
-      return;
-    }
-
-    if (emoji === STAR_EMOJI) {
-      await handleStarReaction(reaction, proxy, user).catch(() => {});
-      // Universal rule: a ⭐ reaction is always stripped back off right after
-      // being processed, for any user, on any message — so the star lives on
-      // the reactor's Notes list, not as a visible, accumulating reaction.
       await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
       return;
     }

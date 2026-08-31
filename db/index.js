@@ -285,7 +285,14 @@ async function resolveNeeds(turn, config) {
   }
   // Same split as every pass here: the deliveries are routing data for
   // runSideEffects(), not part of the turn's record.
-  const { privateDeliveries = [], publicPosts = [], zoneMoves = [], routineNotices = [], ...stagedPushSummary } = stagedPush ?? {};
+  const {
+    privateDeliveries = [],
+    publicPosts = [],
+    zoneMoves = [],
+    routineNotices = [],
+    gambitRollNotices = [],
+    ...stagedPushSummary
+  } = stagedPush ?? {};
   if (stagedPush) {
     await prisma.auditLog
       .create({
@@ -298,6 +305,7 @@ async function resolveNeeds(turn, config) {
             privateMessages: privateDeliveries.length,
             publicPosts: publicPosts.length,
             routineNotices: routineNotices.length,
+            gambitRollNotices: gambitRollNotices.length,
           },
         },
       })
@@ -477,6 +485,7 @@ async function resolveNeeds(turn, config) {
     publicPosts,
     zoneMoves,
     routineNotices,
+    gambitRollNotices,
   };
 }
 
@@ -523,6 +532,7 @@ async function advanceTurn() {
   let publicPosts = [];
   let zoneMoves = [];
   let routineNotices = [];
+  let gambitRollNotices = [];
   if (openTurn) {
     // Close the turn FIRST, conditioned on it still being OPEN. This is the
     // guard against two advances racing — a GM double-clicking End turn, or
@@ -554,7 +564,7 @@ async function advanceTurn() {
       };
     }
 
-    ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, privateDeliveries, publicPosts, zoneMoves, routineNotices } =
+    ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices } =
       await resolveNeeds(openTurn, config));
   } else {
     // No OPEN turn, which normally means "opening the very first turn". It
@@ -619,7 +629,7 @@ async function advanceTurn() {
           },
         })
         .catch((logErr) => console.error("Failed to log turn_resume — the resume now has no record:", logErr));
-      ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, privateDeliveries, publicPosts, zoneMoves, routineNotices } =
+      ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices } =
         await resolveNeeds(unfinished, config));
     }
   }
@@ -862,6 +872,15 @@ async function advanceTurn() {
     for (const notice of routineNotices) {
       await sendDm(prisma, notice.discordUserId, notice.content).catch((err) =>
         console.error(`Passed-Routine DM to ${notice.discordUserId} failed:`, err),
+      );
+    }
+
+    // The Gambit reveal (db/lib/stagedPush.js): the die was withheld from the
+    // player from submit until Moves locked, and this is where they finally
+    // learn how it fell.
+    for (const notice of gambitRollNotices) {
+      await sendDm(prisma, notice.discordUserId, notice.content).catch((err) =>
+        console.error(`Gambit roll DM to ${notice.discordUserId} failed:`, err),
       );
     }
 

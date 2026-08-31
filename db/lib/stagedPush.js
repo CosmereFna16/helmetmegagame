@@ -40,6 +40,21 @@ const ROUTINE_PASSED_DM =
   "Only Gambits receive adjudications, typically. If you need additional " +
   "information or believe this was in error, message the GMs.";
 
+// The Gambit reveal. The die is rolled and stored at submit (bot/src/lib/
+// moveConfirm.js) but withheld from the player until Moves lock — this DM at
+// the turn-end push is where they actually find out. Raw + modifier + total
+// only, not the per-contributor breakdown (that needs the character's tags,
+// which this pass doesn't load) — matches what rollLabel (web/lib/moves.js)
+// shows the GM desk, just without the "why".
+function formatGambitRollDm(turn, action) {
+  const { diceRoll, diceModifier } = action;
+  const mod = diceModifier ?? 0;
+  const roll = mod
+    ? `**${diceRoll}** (${mod > 0 ? `+${mod}` : mod}) → **${diceRoll + mod}**`
+    : `**${diceRoll}**`;
+  return `🎲 Your Gambit for turn ${turn.number}: ${roll}.`;
+}
+
 // Mirrors TagOpError's role for the zone half of a staged effect: thrown from
 // inside applyOneStagedEffect's transaction so the whole row (including the
 // appliedAt claim) rolls back clean, then caught by runStagedPushPass and
@@ -235,6 +250,20 @@ async function runStagedPushPass(prisma, turn, config) {
     },
   });
   const routineNotices = [];
+  // Independent of the routine-closing logic below, and of whether the payout
+  // itself succeeds: the die was already decided at submit, this pass just
+  // delivers the news. Every CONFIRMED Gambit still unpaid this turn qualifies
+  // — which, since diceRoll is written at confirm and appliedEffects stays
+  // null until here, is every Gambit filed this turn.
+  const gambitRollNotices = [];
+  for (const action of unapplied) {
+    if (action.moveKind === "GAMBIT" && action.diceRoll != null && action.character?.discordUserId) {
+      gambitRollNotices.push({
+        discordUserId: action.character.discordUserId,
+        content: formatGambitRollDm(turn, action),
+      });
+    }
+  }
   for (const action of unapplied) {
     // Decided inside the transaction, queued outside it — same convention as
     // the zone moves above: a commit that fails after the eligibility check
@@ -360,6 +389,7 @@ async function runStagedPushPass(prisma, turn, config) {
     movesClosed,
     failures,
     routineNotices,
+    gambitRollNotices,
     privateDeliveries,
     publicPosts,
     zoneMoves,
