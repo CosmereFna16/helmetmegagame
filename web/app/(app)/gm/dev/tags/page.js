@@ -73,6 +73,7 @@ export default async function DevTagsPage() {
           requiredTagId: t.requiredTagId,
           consumesInto: t.consumesInto,
           expiresInto: t.expiresInto,
+          removesInto: t.removesInto,
           requirementTurns: t.requirementTurns,
           requirementResources: t.requirementResources,
           requirementGambit: t.requirementGambit,

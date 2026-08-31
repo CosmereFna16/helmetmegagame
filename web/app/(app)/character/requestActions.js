@@ -55,6 +55,7 @@ import {
   sendDm,
 } from "@/lib/discordGuild";
 import { applyPendingInvites } from "@lifeweb/db/lib/threadInvites";
+import { rollTagChain } from "@lifeweb/db/lib/tagShapes";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { rollCaving } from "@lifeweb/db/lib/cavingPass";
@@ -491,8 +492,16 @@ async function removeTagRequestImpl({
     quantity,
   };
 
+  // The aftermath (Tag.removesInto): shedding an affliction through play
+  // leaves its treated form behind — Broken Bone comes off as Splinted. The
+  // oneOf picks are rolled up front so the transaction commits exactly what
+  // the snapshot records. Fires once per request regardless of quantity.
+  const aftermathSlugs = rollTagChain(held.tag.removesInto);
+
+  let granted = [];
   await prisma.$transaction(async (tx) => {
     await dropCharacterTag(tx, character.id, tagId, quantity);
+    granted = await grantTagSlugs(tx, character.id, aftermathSlugs, openTurn?.number ?? null);
     if (resourcesSpent) {
       await moveResources(tx, { kind: "character", id: character.id, name: character.name }, -resourcesSpent);
     }
@@ -502,14 +511,20 @@ async function removeTagRequestImpl({
       type: "REMOVE_TAG",
       reason,
       payload: { tagId, quantity, resourcesSpent },
-      effect: { tagId, tagName: held.tag.name, quantity, resourcesSpent, restore },
+      effect: { tagId, tagName: held.tag.name, quantity, resourcesSpent, restore, granted },
     });
     await logRequest(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_remove_tag",
       targetCharacterId: character.id,
       reason,
-      details: { tagId, tagName: held.tag.name, quantity, resourcesSpent },
+      details: {
+        tagId,
+        tagName: held.tag.name,
+        quantity,
+        resourcesSpent,
+        granted: granted.map((g) => g.tagName),
+      },
     });
   });
 
@@ -907,10 +922,15 @@ async function healCharacterRequestImpl({
     },
   };
 
+  // The aftermath (Tag.removesInto), rolled up front like REMOVE_TAG's: the
+  // treatment ends the danger, its treated form lingers on the PATIENT.
+  const aftermathSlugs = rollTagChain(held.tag.removesInto);
+
   await prisma.$transaction(async (tx) => {
     // A spend, not a transfer: the cost leaves the payer and goes nowhere.
     await debitResources(tx, payer, cost, ledger);
     await dropCharacterTag(tx, target.id, held.tagId);
+    effect.granted = await grantTagSlugs(tx, target.id, aftermathSlugs, openTurn?.number ?? null);
     await createRequest(tx, {
       characterId: character.id, // the medic
       turnId: openTurn?.id ?? null,

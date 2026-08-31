@@ -75,6 +75,7 @@ General questions can be asked in the `#general` channel or by creating a thread
 | `/move` | Open the Move submission form. |
 | `/location` | Open the Travel picker. |
 | `/message` | Speak as your character directly into a channel. |
+| `/roll` | Roll a 1d6 into the channel, for everyone to see. |
 | `/add` | Invite a character to the thread. |
 | `/remove` | Remove a character from the thread. |
 | `/persistent` | Toggle whether a thread survives the Dawn wipe. |

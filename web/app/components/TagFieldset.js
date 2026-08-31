@@ -21,9 +21,10 @@ import { filterTagsByQuery } from "@/lib/characterCreation";
 // requiredTagId, exclusive, depotPrice and the consumesInto family stay out —
 // they wire tags to each other, which is catalog structure that belongs in a
 // reviewed, version-controlled file (see the note on scalarsFrom in
-// gm/dev/tags/actions.js). expiresInto is the deliberate exception: an
-// untreated wound getting worse is the whole point of a homebrew injury, and
-// it points at existing tags rather than restructuring them.
+// gm/dev/tags/actions.js). The two chains — expiresInto and removesInto —
+// are the deliberate exception: an untreated wound getting worse (and a
+// treated one leaving its aftermath) is the whole point of a homebrew
+// injury, and both point at existing tags rather than restructuring them.
 
 // Tag.inspectVisibility — the one tag setting that is not a boolean, since a
 // stowed dagger and a drawn one are different things to look at. WORN needs
@@ -62,6 +63,7 @@ export const BLANK_TAG = {
   pointCost: 0,
   defaultDurationTurns: "",
   expiresInto: [],
+  removesInto: [],
   stackable: false,
   equippable: false,
   concealsIdentity: false,
@@ -98,6 +100,7 @@ export function tagToFormValues(tag) {
   return {
     ...values,
     expiresInto: Array.isArray(tag?.expiresInto) ? tag.expiresInto : [],
+    removesInto: Array.isArray(tag?.removesInto) ? tag.removesInto : [],
     defaultDurationTurns: tag?.defaultDurationTurns ?? "",
     requirementTurns: tag?.requirementTurns ?? "",
     requirementResources: tag?.requirementResources ?? "",
@@ -179,16 +182,60 @@ export default function TagFieldset({
     [tags, selfId],
   );
 
-  function setRow(index, slugs) {
+  // Both chains (expiresInto, removesInto) share one row shape and these
+  // helpers — `field` picks which list a row edit lands on.
+  function setRow(field, index, slugs) {
     set(
-      "expiresInto",
-      values.expiresInto.map((row, i) => (i === index ? { oneOf: slugs } : row)),
+      field,
+      values[field].map((row, i) => (i === index ? { oneOf: slugs } : row)),
     );
   }
 
-  function toggleInRow(index, slug) {
-    const current = values.expiresInto[index]?.oneOf ?? [];
-    setRow(index, current.includes(slug) ? current.filter((s) => s !== slug) : [...current, slug]);
+  function toggleInRow(field, index, slug) {
+    const current = values[field][index]?.oneOf ?? [];
+    setRow(field, index, current.includes(slug) ? current.filter((s) => s !== slug) : [...current, slug]);
+  }
+
+  // The outcome rows + "+ Outcome" button one chain renders — shared by the
+  // expiry chain and the removal chain, which differ only in their gate and
+  // caption.
+  function chainRows(field) {
+    return (
+      <>
+        {values[field].map((row, i) => (
+          <div key={i} className="panel flex flex-col gap-1.5 p-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted">
+                {(row.oneOf ?? []).length > 1
+                  ? `Outcome ${i + 1} — even pick between ${row.oneOf.length}`
+                  : `Outcome ${i + 1}`}
+              </span>
+              <button
+                type="button"
+                className="btn-quiet"
+                onClick={() => set(field, values[field].filter((_, j) => j !== i))}
+              >
+                Remove
+              </button>
+            </div>
+            <TagPicker
+              tags={otherTags}
+              selected={row.oneOf ?? []}
+              onToggle={(slug) => toggleInRow(field, i, slug)}
+              field="slug"
+              emptyLabel="No tag matches that."
+            />
+          </div>
+        ))}
+        <button
+          type="button"
+          className="btn-quiet self-start"
+          onClick={() => set(field, [...values[field], { oneOf: [] }])}
+        >
+          + Outcome
+        </button>
+      </>
+    );
   }
 
   function toggleSkill(id) {
@@ -320,44 +367,21 @@ export default function TagFieldset({
                   Set a duration first — with no clock, nothing would ever fire these.
                 </p>
               )}
-              {canPickSlugs &&
-                hasDuration &&
-                values.expiresInto.map((row, i) => (
-                  <div key={i} className="panel flex flex-col gap-1.5 p-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted">
-                        {(row.oneOf ?? []).length > 1
-                          ? `Outcome ${i + 1} — even pick between ${row.oneOf.length}`
-                          : `Outcome ${i + 1}`}
-                      </span>
-                      <button
-                        type="button"
-                        className="btn-quiet"
-                        onClick={() =>
-                          set("expiresInto", values.expiresInto.filter((_, j) => j !== i))
-                        }
-                      >
-                        Remove
-                      </button>
-                    </div>
-                    <TagPicker
-                      tags={otherTags}
-                      selected={row.oneOf ?? []}
-                      onToggle={(slug) => toggleInRow(i, slug)}
-                      field="slug"
-                      emptyLabel="No tag matches that."
-                    />
-                  </div>
-                ))}
-              {canPickSlugs && hasDuration && (
-                <button
-                  type="button"
-                  className="btn-quiet self-start"
-                  onClick={() => set("expiresInto", [...values.expiresInto, { oneOf: [] }])}
-                >
-                  + Outcome
-                </button>
+              {canPickSlugs && hasDuration && chainRows("expiresInto")}
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <span className="field-label flex items-center gap-1.5">
+                When treated or removed, it becomes…
+                <InfoIcon text="The aftermath of a cure: Broken Bone treated becomes Splinted rather than simply vanishing. Fires when a player removes the tag or a medic heals it — never on a GM removal. Each outcome row grants one tag; pick two or more in a row for an even coin-flip. How long the aftermath lasts is set by its own duration." />
+              </span>
+              {!canPickSlugs && (
+                <p className="text-xs text-muted">
+                  Set this from the Tag Catalog — this door doesn&apos;t carry the tag slugs a chain
+                  points at.
+                </p>
               )}
+              {canPickSlugs && chainRows("removesInto")}
             </div>
           </section>
 

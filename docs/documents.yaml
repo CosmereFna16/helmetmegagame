@@ -331,11 +331,11 @@ documents:
       | Tier | ⬢ | Turns | Skill |
       |---|---|---|---|
       | Dead Simple | 3 | 0 | Crafting or Smithing |
-      | Simple | 7 | 1 | Smithing |
-      | Moderate | 17 | 1 | Smithing (Skilled) |
-      | High Quality | 23 | 1 | Smithing (Skilled) |
-      | Exceptional | 32 | 2 | Smithing (Skilled) |
-      | Gunpowder | 37 | 2 | Smithing (Gunpowder) |
+      | Simple | 6 | 1 | Smithing |
+      | Moderate | 14 | 1 | Smithing (Skilled) |
+      | High Quality | 26 | 2 | Smithing (Skilled) |
+      | Exceptional | 34 | 3 | Smithing (Skilled) |
+      | Gunpowder | 31 | 2 | Smithing (Gunpowder) |
 
       **Dead Simple — 3 ⬢, no turn**
 
@@ -345,7 +345,7 @@ documents:
       - Padded Armor and Padded Cap need Crafting. Everything else here takes
         either skill.
 
-      **Simple — 7 ⬢, 1 turn**
+      **Simple — 6 ⬢, 1 turn**
 
       - Weapons: {tag:spear}, {tag:dagger}, {tag:silver-knife}, {tag:gladius},
         {tag:phrygian-spear}, {tag:mace}, {tag:battle-axe}
@@ -353,22 +353,22 @@ documents:
       - Mail Coif needs Smithing. Crafting instead of Smithing: {tag:longbow},
         {tag:shield}, {tag:pavise}
 
-      **Moderate — 17 ⬢, 1 turn**
+      **Moderate — 14 ⬢, 1 turn**
 
       - Weapons: {tag:bardiche}, {tag:broadsword}, {tag:war-hammer}, {tag:knuckle-duster}
       - Armor: {tag:mail-shirt}
 
-      **High Quality — 23 ⬢, 1 turn**
+      **High Quality — 26 ⬢, 2 turns**
 
       - Weapons: {tag:bastard-sword}, {tag:rapier}, {tag:sabre}, {tag:katana},
         {tag:silver-spear}, {tag:lucerne}, {tag:zweihander}, {tag:crossbow}
       - Armor: {tag:knights-helmet}, {tag:breastplate}, {tag:brigandine} (hidden under clothes)
 
-      **Exceptional — 32 ⬢, 2 turns**
+      **Exceptional — 34 ⬢, 3 turns**
 
       - Armor: {tag:plate-armor}.
 
-      **Gunpowder — 37 ⬢, 2 turns**
+      **Gunpowder — 31 ⬢, 2 turns**
 
       - Weapons: {tag:musketoon}, {tag:bore-pistol}
       - {tag:bomb}
@@ -520,7 +520,7 @@ documents:
       |---|---|---|---|
       | {tag:bliss} | 0 | — | cave fungus |
       | {tag:feces} | 0 | — | feces |
-      | {tag:alcohol} | 2 | — | — |
+      | {tag:alcohol} | 2 | 0 (up to 3 a turn) | — |
       | {tag:miasma} | 2 | — | a corpse |
       | {tag:poppy} | 2 | — | — |
       | {tag:molotov-cocktail} | 2 | — | alcohol |

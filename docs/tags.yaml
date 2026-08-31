@@ -2408,6 +2408,7 @@ tags:
     removable: true
     durationTurns: 1
     expiresInto: [feverish, necrosis]
+    removesInto: [recovering]
     requirement:
       turnsCost: 1
       resourceCost: 4
@@ -2425,6 +2426,7 @@ tags:
     removable: true
     durationTurns: 1
     expiresInto: [sepsis]
+    removesInto: [recovering]
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -2443,6 +2445,7 @@ tags:
     durationTurns: 2
     expiresInto:
       - oneOf: [missing-leg, missing-arm]
+    removesInto: [cauterized]
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -2460,6 +2463,7 @@ tags:
     removable: true
     durationTurns: 1
     expiresInto: [dying]
+    removesInto: [recovering, drained]
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -2476,6 +2480,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
+    removesInto: [recovering, drained]
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -2509,6 +2514,7 @@ tags:
     purchasableAfterStart: false
     removable: true
     durationTurns: 4
+    removesInto: [recovering]
     requirement:
       resourceCost: 2
       skills: [medical-basic]
@@ -2526,6 +2532,7 @@ tags:
     durationTurns: 2
     expiresInto:
       - oneOf: [infected, scarred]
+    removesInto: [bandaged]
     requirement:
       resourceCost: 2
       skills: [medical-basic]
@@ -2542,6 +2549,7 @@ tags:
     removable: true
     durationTurns: 2
     expiresInto: [infected]
+    removesInto: [bandaged, scarred]
     requirement:
       turnsCost: 1
       resourceCost: 4
@@ -2575,6 +2583,7 @@ tags:
     removable: true
     durationTurns: 2
     expiresInto: [infected]
+    removesInto: [stitched-up]
     requirement:
       turnsCost: 1
       resourceCost: 2
@@ -2592,6 +2601,7 @@ tags:
     removable: true
     durationTurns: 3
     expiresInto: [dying]
+    removesInto: [stitched-up, drained]
     requirement:
       turnsCost: 1
       resourceCost: 3
@@ -2609,6 +2619,7 @@ tags:
     removable: true
     durationTurns: 1
     expiresInto: [dying]
+    removesInto: [stitched-up, drained]
     requirement:
       turnsCost: 1
       resourceCost: 3
@@ -2624,6 +2635,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
+    removesInto: [splinted]
     requirement:
       turnsCost: 1
       resourceCost: 2
@@ -2638,6 +2650,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
+    removesInto: [recovering]
     requirement:
       turnsCost: 1
       resourceCost: 2
@@ -2654,6 +2667,7 @@ tags:
     purchasableAfterStart: false
     removable: true
     durationTurns: 4
+    removesInto: [recovering]
     requirement:
       turnsCost: 1
       resourceCost: 2
@@ -2685,6 +2699,7 @@ tags:
     removable: true
     durationTurns: 2
     expiresInto: [necrosis]
+    removesInto: [bandaged]
     requirement:
       turnsCost: 0
       resourceCost: 2
@@ -2702,6 +2717,7 @@ tags:
     removable: true
     durationTurns: 2
     expiresInto: [dying]
+    removesInto: [stitched-up, recovering]
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -2719,6 +2735,7 @@ tags:
     removable: true
     durationTurns: 2
     expiresInto: [sepsis]
+    removesInto: [stitched-up, recovering]
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -2734,6 +2751,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
+    removesInto: [wired-jaw]
     requirement:
       turnsCost: 1
       resourceCost: 4
@@ -2751,6 +2769,7 @@ tags:
     removable: true
     durationTurns: 2
     expiresInto: [missing-fingers]
+    removesInto: [splinted]
     requirement:
       turnsCost: 1
       resourceCost: 4
@@ -2768,6 +2787,7 @@ tags:
     removable: true
     durationTurns: 2
     expiresInto: [sepsis]
+    removesInto: [stitched-up]
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -2783,6 +2803,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
+    removesInto: [persistent-cough]
     requirement:
       turnsCost: 1
       resourceCost: 4
@@ -2799,6 +2820,7 @@ tags:
     removable: true
     durationTurns: 3
     expiresInto: [drained]
+    removesInto: [drained]
     requirement:
       turnsCost: 1
       resourceCost: 3
@@ -2816,6 +2838,7 @@ tags:
     removable: true
     durationTurns: 2
     expiresInto: [drained]
+    removesInto: [drained]
     requirement:
       turnsCost: 1
       resourceCost: 2
@@ -2833,6 +2856,7 @@ tags:
     removable: true
     durationTurns: 2
     expiresInto: [sepsis]
+    removesInto: [drained]
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -2850,6 +2874,7 @@ tags:
     removable: true
     durationTurns: 3
     expiresInto: [scarred]
+    removesInto: [scarred]
     requirement:
       turnsCost: 1
       resourceCost: 4
@@ -2876,6 +2901,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
+    removesInto: [persistent-cough]
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -2908,6 +2934,7 @@ tags:
     removable: true
     durationTurns: 2
     expiresInto: [drained]
+    removesInto: [drained]
     requirement:
       turnsCost: 1
       resourceCost: 2
@@ -2954,6 +2981,7 @@ tags:
     removable: true
     durationTurns: 4
     expiresInto: [exploded-chest]
+    removesInto: [stitched-up]
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -2971,6 +2999,7 @@ tags:
     removable: true
     durationTurns: 2
     expiresInto: [dying]
+    removesInto: [stitched-up, recovering]
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -3043,6 +3072,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     removable: true
+    removesInto: [night-blind]
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -3116,6 +3146,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     removable: true
+    removesInto: [scarred]
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -3143,6 +3174,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
+    removesInto: [limp]
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -3289,6 +3321,7 @@ tags:
     removable: true
     durationTurns: 1
     expiresInto: [dying]
+    removesInto: [drained]
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -3383,6 +3416,30 @@ tags:
     purchasableAfterStart: false
     removable: false
     durationTurns: 2
+
+  - slug: bandaged
+    name: Bandaged
+    category: health
+    group: health-recovery
+    description: "Your wound is wrapped. It hurts."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 3
+
+  - slug: wired-jaw
+    name: Wired Jaw
+    category: health
+    group: health-recovery
+    description: "You can barely speak."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    durationTurns: 4
 
   # --- assets -------------------------------------------------------
   # `tradeable` decides what can be handed over OR lifted off a body, so every
@@ -4013,11 +4070,11 @@ tags:
   # Weapons are priced on the six-tier ladder from SMITHING.md:
   #
   #   Dead Simple    2 pt / 3 ⬢  / 0 turns / crafting OR smithing / no weapon skill
-  #   Simple         5 pt / 7 ⬢  / 1 turn  / smithing             / melee-/ranged-basic
-  #   Moderate       7 pt / 17 ⬢ / 1 turn  / smithing-skilled     / melee-/ranged-basic
-  #   High Quality   9 pt / 30 ⬢ / 2 turns / smithing-skilled     / melee-/ranged-basic
-  #   Exceptional   14 pt / 40 ⬢ / 3 turns / smithing-skilled     / melee-/ranged-basic
-  #   Gunpowder     14 pt / 37 ⬢ / 2 turns / smithing-gunpowder   / ranged-basic
+  #   Simple         5 pt / 6 ⬢  / 1 turn  / smithing             / melee-/ranged-basic
+  #   Moderate       7 pt / 14 ⬢ / 1 turn  / smithing-skilled     / melee-/ranged-basic
+  #   High Quality   9 pt / 26 ⬢ / 2 turns / smithing-skilled     / melee-/ranged-basic
+  #   Exceptional   14 pt / 34 ⬢ / 3 turns / smithing-skilled     / melee-/ranged-basic
+  #   Gunpowder     14 pt / 31 ⬢ / 2 turns / smithing-gunpowder   / ranged-basic
   #
   # Bows / crossbows keep `crafting` in place of `smithing` at every tier —
   # wood-and-sinew is still wood-and-sinew even at High Quality.
@@ -4196,7 +4253,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 7
+      resourceCost: 6
       skills: [smithing]
       gambit: false
     sellable: true
@@ -4219,7 +4276,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 7
+      resourceCost: 6
       skills: [smithing]
       gambit: false
     sellable: true
@@ -4242,7 +4299,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 7
+      resourceCost: 6
       skills: [smithing]
       gambit: false
     sellable: true
@@ -4265,7 +4322,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 7
+      resourceCost: 6
       skills: [smithing]
       gambit: false
     sellable: true
@@ -4288,7 +4345,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 7
+      resourceCost: 6
       skills: [smithing]
       gambit: false
     sellable: true
@@ -4311,7 +4368,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 7
+      resourceCost: 6
       skills: [crafting]
       gambit: false
     sellable: true
@@ -4334,7 +4391,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 7
+      resourceCost: 6
       skills: [smithing]
       gambit: false
     sellable: true
@@ -4357,7 +4414,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 7
+      resourceCost: 6
       skills: [smithing]
       gambit: false
     sellable: true
@@ -4380,7 +4437,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 17
+      resourceCost: 14
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -4406,7 +4463,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 17
+      resourceCost: 14
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -4429,7 +4486,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 17
+      resourceCost: 14
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -4452,7 +4509,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 17
+      resourceCost: 14
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -4476,7 +4533,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 30
+      resourceCost: 26
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -4499,7 +4556,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 30
+      resourceCost: 26
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -4522,7 +4579,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 30
+      resourceCost: 26
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -4545,7 +4602,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 30
+      resourceCost: 26
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -4568,7 +4625,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 30
+      resourceCost: 26
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -4591,7 +4648,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 30
+      resourceCost: 26
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -4614,7 +4671,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 30
+      resourceCost: 26
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -4637,7 +4694,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 30
+      resourceCost: 26
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -4661,7 +4718,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 37
+      resourceCost: 31
       skills: [smithing-gunpowder]
       gambit: false
     sellable: true
@@ -4684,7 +4741,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 23
+      resourceCost: 20
       skills: [smithing-gunpowder]
       gambit: false
     sellable: true
@@ -4707,7 +4764,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 37
+      resourceCost: 31
       skills: [smithing-gunpowder]
       gambit: false
     sellable: true
@@ -6384,7 +6441,7 @@ tags:
     sellable: true
     sellablePrice: 4
 
-  # ─── Simple (2 pt / 7 ⬢ / 1 turn) ───
+  # ─── Simple (2 pt / 6 ⬢ / 1 turn) ───
   - slug: simple-helm
     name: Simple Helm
     category: items
@@ -6399,7 +6456,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 7
+      resourceCost: 6
       skills: [smithing]
     sellable: true
     sellablePrice: 9
@@ -6418,7 +6475,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 7
+      resourceCost: 6
       skills: [smithing]
     sellable: true
     sellablePrice: 9
@@ -6438,7 +6495,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 7
+      resourceCost: 6
       skills: [crafting]
     sellable: true
     sellablePrice: 9
@@ -6457,12 +6514,12 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 7
+      resourceCost: 6
       skills: [crafting]
     sellable: true
     sellablePrice: 9
 
-  # ─── Moderate (3 pt / 17 ⬢ / 1 turn, skilled smithing) ───
+  # ─── Moderate (3 pt / 14 ⬢ / 1 turn, skilled smithing) ───
   - slug: mail-shirt
     name: Mail Shirt
     category: items
@@ -6477,12 +6534,12 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 17
+      resourceCost: 14
       skills: [smithing-skilled]
     sellable: true
     sellablePrice: 22
 
-  # ─── High Quality (4 pt / 30 ⬢ / 2 turns, skilled smithing) ───
+  # ─── High Quality (4 pt / 26 ⬢ / 2 turns, skilled smithing) ───
   - slug: knights-helmet
     name: Knight's Helmet
     category: items
@@ -6497,7 +6554,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 30
+      resourceCost: 26
       skills: [smithing-skilled]
     sellable: true
     sellablePrice: 42
@@ -6516,7 +6573,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 30
+      resourceCost: 26
       skills: [smithing-skilled]
     sellable: true
     sellablePrice: 42
@@ -6535,12 +6592,12 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 30
+      resourceCost: 26
       skills: [smithing-skilled]
     sellable: true
     sellablePrice: 42
 
-  # ─── Exceptional (6 pt / 40 ⬢ / 3 turns, skilled smithing) ───
+  # ─── Exceptional (6 pt / 34 ⬢ / 3 turns, skilled smithing) ───
   - slug: plate-armor
     name: Plate Armor
     category: items
@@ -6555,7 +6612,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 3
-      resourceCost: 40
+      resourceCost: 34
       skills: [smithing-skilled]
     sellable: true
     sellablePrice: 61
@@ -7353,6 +7410,7 @@ tags:
     removable: true
     durationTurns: 2
     expiresInto: [infected]
+    removesInto: [stitched-up]
     requirement:
       turnsCost: 1
       resourceCost: 6

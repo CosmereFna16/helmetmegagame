@@ -1269,6 +1269,22 @@ model Tag {
   // list itself (the grant would be undone by the sweep one statement later).
   expiresInto Json?
 
+  // What this tag turns INTO when it leaves the sheet through a PLAYER-DRIVEN
+  // removal — the Remove Tag request and the Heal request, both of which grant
+  // it inside their own transaction. This is the treated-wound aftermath: a
+  // Broken Bone cured is a Splinted limb for four turns, so medicine ends the
+  // danger without erasing the injury. Distinct from expiresInto (the clock)
+  // and consumesInto (using a tag up); a GM removal (/heal, the Dev Panel
+  // revoke) stays godmode and never fires it.
+  //
+  // Same Json shape as expiresInto — entries normalized to { oneOf: [...] } —
+  // and validated by the same db/lib/tagShapes.js pair on both authoring
+  // doors. No durationTurns requirement: the removal fires it, not a clock.
+  // The granted tag's own defaultDurationTurns (or permanence) decides how
+  // long the aftermath lingers. A successor the character already holds is
+  // left alone, matching the expiry pass.
+  removesInto Json?
+
   // Whether a player can remove this tag from themselves mid-game without a
   // GM. Live, unlike tradeable above: it fills the Remove Tag menu
   // (web/lib/tagRequests.js#removableTags) and removeTagRequest re-checks it

@@ -21,7 +21,12 @@
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
-const { normalizeExpiresInto, validateExpiresInto } = require("./tagShapes");
+const {
+  normalizeExpiresInto,
+  validateExpiresInto,
+  normalizeRemovesInto,
+  validateRemovesInto,
+} = require("./tagShapes");
 
 // `visible:` in docs/tags.yaml -> Tag.inspectVisibility. The YAML side stays
 // readable (`visible: worn` next to `equippable: true`) while the column is a
@@ -229,6 +234,12 @@ async function syncTagsFromYaml(prisma) {
       knownSlugs: allTagSlugs,
       durationTurns: t.durationTurns,
     });
+    // removesInto — the treated-wound aftermath — same shape, same shared
+    // rules, minus the duration requirement (the removal fires it, no clock).
+    validateRemovesInto(normalizeRemovesInto(t.removesInto), {
+      selfSlug: t.slug,
+      knownSlugs: allTagSlugs,
+    });
   }
 
   let groupsCreated = 0;
@@ -293,6 +304,7 @@ async function syncTagsFromYaml(prisma) {
       consumable: entry.consumable ?? false,
       consumesIntoResources: entry.consumesIntoResources ?? null,
       expiresInto: normalizeExpiresInto(entry.expiresInto),
+      removesInto: normalizeRemovesInto(entry.removesInto),
       requirementTurns: entry.requirement?.turnsCost ?? null,
       requirementResources: entry.requirement?.resourceCost ?? null,
       requirementGambit: entry.requirement?.gambit ?? false,

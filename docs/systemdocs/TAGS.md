@@ -964,6 +964,48 @@ month-long game with no human in the loop is not a trade this game wants —
 still on the table. A GM confirms the death by hand through the existing path
 (`web/app/(app)/gm/turns/actions.js`).
 
+### `removesInto`
+
+`expiresInto` is what ignoring a wound costs; `removesInto` is what **curing
+one still costs**. A tag carrying it turns into its treated form when it
+leaves the sheet through a player-driven removal — a Broken Bone treated is a
+Splinted limb for four turns, not a clean slate. It fires on exactly two
+paths, inside each one's own transaction:
+
+- the **Remove Tag** request (`REQUESTS.md`) — self-removal from `/character`;
+- the **Heal** request (`HEAL_CHARACTER`) — the aftermath lands on the
+  *patient*, and the "treatment didn't take" GM edit takes it back off along
+  with restoring the affliction.
+
+A GM removal is godmode and never fires it: not the `/heal` slash command,
+not a Dev Panel revoke. Expiry doesn't either — that is `expiresInto`'s job,
+and the two chains on one tag answer different questions (Deep Wound ignored
+goes `infected`; Deep Wound treated goes `stitched-up`).
+
+Same YAML shape as `expiresInto` — a bare slug, several at once, or an
+`oneOf:` coin flip — normalised and validated by the same
+`db/lib/tagShapes.js` pair on both authoring doors (the sync and the GM tag
+form). Two differences: no `durationTurns` requirement, because the removal
+fires it rather than any clock, and the self-reference error is its own
+("removing it would grant it right back"). How long the aftermath lingers is
+the granted tag's **own** `durationTurns` — Splinted's 4, Drained's 3 — or
+forever for a permanent one (Scarred, Limp).
+
+The grants go through `grantTagSlugs` (`web/lib/requestEffects.js`), so the
+rules match consuming and the expiry pass: a successor the character already
+holds is left completely alone (`added: 0` in the snapshot), and Undo takes
+back only what the request really added, off the `effect.granted` snapshot
+rather than today's catalog. The `oneOf` picks are rolled once, up front
+(`rollTagChain`), so the snapshot records exactly what happened.
+
+The `health-recovery` group is where the aftermaths live — its header comment
+has said "what good treatment leaves behind" since before anything granted
+them mechanically. Which afflictions carry `removesInto` (34 as of the
+introduction) is authored in `docs/tags.yaml`; the deliberate *non*-carriers
+are the trivial cures (a bruise, a popped shoulder, a Heimlich), where an
+aftermath would make cheap medicine pointless. TagChip and the Tag Catalog's
+detail sheet both show the chain as a **Treated** row beside **Becomes**.
+
 ### Visibility, and the doctor's eye
 
 `visible` on a Health tag is a question about **realism, not severity**: could

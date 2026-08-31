@@ -14,6 +14,7 @@ const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
 const { dropCharacterTag } = require("@lifeweb/db/lib/tagWrites");
 const { HEALTH_CATEGORY } = require("@lifeweb/db/lib/medicalVision");
 const { moveWindow, epochSeconds } = require("@lifeweb/db/lib/turnClock");
+const { rollDie } = require("@lifeweb/db/lib/moveEffects");
 const { isPrivateThread, messageLink } = require("../lib/mentions");
 const { ensureForumTag, createForumPost, startPrivateThread, addThreadMember } = require("@lifeweb/db/lib/discordRest");
 const { PERSISTENT_TAG_NAME } = require("@lifeweb/db/lib/persistence");
@@ -1046,6 +1047,24 @@ async function handleHealPick(interaction, characterId) {
   });
 }
 
+// The one die a player rolls for themselves. Every other die in the game is
+// rolled by the engine — the Move d6, the Caving Die, production rates — so
+// this reuses rollDie() rather than adding a second source of randomness.
+//
+// The result is posted as a plain bot message rather than as a public
+// interaction reply, because a public reply carries Discord's "@account used
+// /roll" header. That names the PLAYER, not the character, which is exactly
+// the leak the proxy pipeline exists to prevent (PROXYING.md). So the roll
+// goes out anonymous: the number is the point, not who asked for it. The
+// ephemeral confirmation is only so the roller knows which one was theirs
+// when several people roll at once.
+async function handleRollCommand(interaction) {
+  await ack(interaction);
+  const value = rollDie(6);
+  const posted = await interaction.channel?.send(`» *A die is cast* — **${value}**`).catch(() => null);
+  await respond(interaction, posted ? `» *You rolled a ${value}.*` : "» *Could not post a roll here.*");
+}
+
 module.exports = {
   name: "interactionCreate",
   async execute(interaction) {
@@ -1064,6 +1083,7 @@ module.exports = {
         if (interaction.commandName === "move") return void (await handleMoveOpen(interaction));
         if (interaction.commandName === "location") return void (await handleOpen(interaction));
         if (interaction.commandName === "message") return void (await handleMessageCommand(interaction));
+        if (interaction.commandName === "roll") return void (await handleRollCommand(interaction));
         // Stub only — see handleLaborStub. Delete once the deregistration
         // has propagated (up to 1h after deploy).
         if (interaction.commandName === "labor") return void (await handleLaborStub(interaction));

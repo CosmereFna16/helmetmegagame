@@ -403,7 +403,12 @@ export const REQUEST_EFFECTS = {
       return { effect, note, changed: true };
     },
     async undo(tx, request) {
-      const { restore, tagName, resourcesSpent } = request.effect;
+      const { restore, tagName, resourcesSpent, granted = [] } = request.effect;
+      // The removal's aftermath (Tag.removesInto) comes back off first —
+      // same `added: 0 means it was already theirs` rule as CONSUME_TAG.
+      for (const g of granted) {
+        if (g.tagId && g.added > 0) await dropCharacterTag(tx, request.characterId, g.tagId, g.added);
+      }
       if (restore?.tagId) await restoreCharacterTag(tx, request.characterId, restore);
       if (resourcesSpent) {
         await tx.character.update({
@@ -563,7 +568,12 @@ export const REQUEST_EFFECTS = {
 
       // "The treatment didn't take" — the affliction comes back but the
       // medicine was still bought. Flagged so Undo doesn't restore it twice.
+      // The aftermath the treatment granted (Tag.removesInto) comes off with
+      // it — no cure, no cast — behind the same flag.
       if (edits.restoreHealedTag && effect.restore?.tagId && !effect.tagRestoredByGm) {
+        for (const g of effect.granted ?? []) {
+          if (g.tagId && g.added > 0) await dropCharacterTag(tx, effect.targetCharacterId, g.tagId, g.added);
+        }
         await restoreCharacterTag(tx, effect.targetCharacterId, effect.restore);
         notes.push(`Put ${effect.tagName ?? "the affliction"} back on ${effect.targetName ?? "the patient"}.`);
         effect.tagRestoredByGm = true;
@@ -572,12 +582,17 @@ export const REQUEST_EFFECTS = {
       return { effect, note: notes.join(" ") || "No changes.", changed: notes.length > 0 };
     },
     async undo(tx, request, ctx) {
-      const { resourcesSpent, payer, restore, targetCharacterId, targetName, tagName, tagRestoredByGm } =
+      const { resourcesSpent, payer, restore, targetCharacterId, targetName, tagName, tagRestoredByGm, granted = [] } =
         request.effect;
       if (resourcesSpent) {
         await creditResources(tx, payer, resourcesSpent, { ...ctx, note: `Undo of heal request ${request.id}` });
       }
       if (restore?.tagId && targetCharacterId && !tagRestoredByGm) {
+        // The aftermath the treatment granted comes off before the affliction
+        // goes back on — same `added: 0` rule as CONSUME_TAG.
+        for (const g of granted) {
+          if (g.tagId && g.added > 0) await dropCharacterTag(tx, targetCharacterId, g.tagId, g.added);
+        }
         await restoreCharacterTag(tx, targetCharacterId, restore);
       }
       return `Put ${tagName ?? "the affliction"} back on ${targetName ?? "the patient"} and refunded ${resourcesSpent ?? 0} ⬢ to ${payer?.name ?? "the payer"}.`;

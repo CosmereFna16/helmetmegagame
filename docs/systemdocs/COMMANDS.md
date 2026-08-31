@@ -40,6 +40,7 @@ Each command declares its contexts:
 | `/move` | — | Living character | Guild, DM | `handleMoveOpen` |
 | `/location` | — | Living character | Guild, DM | `handleOpen` — the **zone** picker (§4) |
 | `/message` | — | Living character | Guild, DM | `handleMessageCommand` |
+| `/roll` | — | Anyone | Guild | `handleRollCommand` |
 | `/add` | `character` (role) | Thread member or GM | Guild | `handleThreadMemberCommand` |
 | `/remove` | `character` (role) | Thread member or GM | Guild | `handleThreadMemberCommand` |
 | `/persistent` | — | Living character or GM | Guild | `handlePersistentCommand` |
@@ -54,6 +55,14 @@ Notes:
 - `/message` run inside a channel the player can already speak in skips the
   destination picker and posts there. Anywhere else — including a DM — it asks
   where first. See `PROXYING.md`.
+- `/roll` is one flat 1d6, with no options and no game effect — it settles
+  things at the table, nothing more. It reuses `rollDie()` from
+  `db/lib/moveEffects.js` rather than adding a second source of randomness.
+  Guild-only, because a die rolled in a DM has no audience. The result is
+  posted as a **plain bot message**, not as a public interaction reply: a
+  public reply carries Discord's "@account used /roll" header, which names the
+  player behind the character (`PROXYING.md`). So the roll goes out anonymous,
+  and the roller gets a separate ephemeral telling them which one was theirs.
 - `/labor` is retired too — laboring is now the **Labor checkbox** on the
   Move modal (`PRODUCTION.md` §3). A stub handler answers the stale picker
   entry during the propagation hour; delete it once the hour is past.

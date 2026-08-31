@@ -7,7 +7,12 @@ import { UserError, guarded } from "@/lib/actionResult";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getGmSession, syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
 import { applyTagOpsInTx } from "@/lib/characterWrite";
-import { normalizeExpiresInto, validateExpiresInto } from "@lifeweb/db/lib/tagShapes";
+import {
+  normalizeExpiresInto,
+  validateExpiresInto,
+  normalizeRemovesInto,
+  validateRemovesInto,
+} from "@lifeweb/db/lib/tagShapes";
 import { TURNS_PATH } from "@/lib/routes";
 
 async function requireGm() {
@@ -173,13 +178,25 @@ async function relationsFrom(input, { selfId, selfSlug, durationTurns }) {
     throw new UserError(err.message);
   }
 
+  // removesInto — the treated-wound aftermath — same shared pair, same
+  // empty-row tolerance, minus the duration requirement.
+  let removesInto = null;
+  try {
+    removesInto = normalizeRemovesInto(input.removesInto, "This tag");
+    removesInto = removesInto?.filter((row) => row.oneOf.length > 0) ?? null;
+    if (removesInto?.length === 0) removesInto = null;
+    validateRemovesInto(removesInto, { selfSlug, knownSlugs, label: "This tag" });
+  } catch (err) {
+    throw new UserError(err.message);
+  }
+
   const skillTagIds = [...new Set((input.skillTagIds ?? []).filter(Boolean))];
   for (const id of skillTagIds) {
     if (!knownIds.has(id)) throw new UserError("One of those skill tags no longer exists.");
     if (id === selfId) throw new UserError("A tag can't be its own cure requirement.");
   }
 
-  return { expiresInto, skillTagIds };
+  return { expiresInto, removesInto, skillTagIds };
 }
 
 // The custom-tag dialog's door on every desk — see
@@ -203,7 +220,7 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
   const slug = customSlug(data.name);
   // Validated before the tag row exists, like everything else that can refuse
   // below — a bad expiry chain must not leave an orphan behind.
-  const { expiresInto, skillTagIds } = await relationsFrom(input, {
+  const { expiresInto, removesInto, skillTagIds } = await relationsFrom(input, {
     selfId: null,
     selfSlug: slug,
     durationTurns: data.defaultDurationTurns,
@@ -231,6 +248,7 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
         slug,
         custom: true,
         expiresInto,
+        removesInto,
         // `connect`, not `set` — Prisma rejects `set` inside a create.
         requirementSkills: { connect: skillTagIds.map((id) => ({ id })) },
       },
@@ -335,7 +353,7 @@ async function updateCustomTagImpl({ tagId, ...input }) {
   }
 
   const data = scalarsFrom(input);
-  const { expiresInto, skillTagIds } = await relationsFrom(input, {
+  const { expiresInto, removesInto, skillTagIds } = await relationsFrom(input, {
     selfId: tagId,
     selfSlug: existing.slug,
     durationTurns: data.defaultDurationTurns,
@@ -352,6 +370,7 @@ async function updateCustomTagImpl({ tagId, ...input }) {
     data: {
       ...data,
       expiresInto,
+      removesInto,
       // `set`, not `connect` — emptying the picker has to actually detach the
       // old skills, and `connect` only ever adds.
       requirementSkills: { set: skillTagIds.map((id) => ({ id })) },

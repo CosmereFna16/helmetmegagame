@@ -294,7 +294,7 @@ It opens on **Basics** — Name, Category, Group, Description, Seen by others on
 🔍 — with everything else folded into a collapsed `Advanced` disclosure in four
 blocks: **Behaviour** (`stackable`, `equippable`, `concealsIdentity`,
 `consumable`, `removable`, `tradeable`), **Lifespan** (`defaultDurationTurns`,
-`expiresInto`), **Economy** (`pointCost`, `purchasable`,
+`expiresInto`, `removesInto`), **Economy** (`pointCost`, `purchasable`,
 `purchasableAfterStart`, `sellable`, `sellablePrice`) and **Requirement**
 (`requirementTurns`, `requirementResources`, `requirementGambit`,
 `requirementSkills`). The edit dialog opens that disclosure, since a GM there
@@ -302,9 +302,12 @@ came to change a field; the quick door leaves it shut.
 
 Group is still offered only when the caller's tag rows carry a group id —
 several DTOs trim `TagGroup` to name/color for display and can't resolve a
-picker back to one. The **expiry chain** takes the same posture for the same
-reason: it addresses tags by `slug`, so a door whose rows carry none hides it
-rather than offering a picker whose selections would never match.
+picker back to one. The **two chains** — expiry (`expiresInto`) and removal
+(`removesInto`, the treated-wound aftermath, `TAGS.md` §5c) — take the same
+posture for the same reason: they address tags by `slug`, so a door whose
+rows carry none hides them rather than offering a picker whose selections
+would never match. They share one row editor; only the expiry chain is gated
+on a duration, since the removal chain is fired by the removal itself.
 
 Three pairings are mirrored as disabled controls and re-checked on the server:
 `concealsIdentity` and `WORN` visibility need `equippable`, `sellablePrice`
@@ -316,12 +319,13 @@ two or more an even coin-flip, the `{ oneOf: [...] }` shape
 The **structural** fields stay out on purpose — `parentTagId`,
 `requiredTagId`, `exclusive`, `depotPrice` and the `consumesInto` family wire
 tags to each other, which is catalog structure for `docs/tags.yaml` to hold
-under review. `expiresInto` is the deliberate exception: an untreated wound
-getting worse is most of the point of a homebrew injury, and it points at
-existing tags rather than restructuring them. Its rules
-(`normalizeExpiresInto` / `validateExpiresInto`) live in `db/lib/tagShapes.js`
-so this form and `db:sync-tags` enforce one rule set — otherwise the form would
-accept chains the next sync rejects.
+under review. The two chains are the deliberate exception: an untreated wound
+getting worse — and a treated one leaving its aftermath — is most of the
+point of a homebrew injury, and both point at existing tags rather than
+restructuring them. Their rules (`normalizeExpiresInto` /
+`validateExpiresInto` and the `removesInto` pair) live in
+`db/lib/tagShapes.js` so this form and `db:sync-tags` enforce one rule set —
+otherwise the form would accept chains the next sync rejects.
 
 The door's own fields, around that fieldset: Clone from… (prefills **every**
 field from an existing catalog tag, its duration and expiry chain included,

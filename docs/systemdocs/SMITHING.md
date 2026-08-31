@@ -23,14 +23,18 @@ A full gunsmith is `smithing` + `smithing-skilled` + `smithing-gunpowder` =
 
 ## 2. Tiers
 
+Materials cost (the ⬢ column) was cut ~15% across the ladder as a rebalance
+pass. Dead Simple's 3 ⬢ is unchanged — 15% off 3 rounds back to 3 — every
+other rung actually moved. `pt`, `Turns`, and every gate are untouched.
+
 | Tier | pt | ⬢ | Turns | Skill gate | Combat gate | Purchasable at start |
 |---|---|---|---|---|---|---|
 | Dead Simple | 2 | 3 | 0 | `crafting` OR `smithing` | none | yes |
-| Simple | 5 | 7 | 1 | `smithing` | `melee-basic` / `ranged-basic` | yes |
-| Moderate | 7 | 17 | 1 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
-| High Quality | 9 | 30 | 2 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
-| Exceptional | 14 | 40 | 3 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
-| Gunpowder | 14 | 37 | 2 | `smithing-gunpowder` | `ranged-basic` | yes |
+| Simple | 5 | 6 | 1 | `smithing` | `melee-basic` / `ranged-basic` | yes |
+| Moderate | 7 | 14 | 1 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
+| High Quality | 9 | 26 | 2 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
+| Exceptional | 14 | 34 | 3 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
+| Gunpowder | 14 | 31 | 2 | `smithing-gunpowder` | `ranged-basic` | yes |
 
 Bows use `crafting` in place of `smithing` at every tier. The Crossbow does
 not — its steel prod and lock are `smithing-skilled` work.
@@ -98,7 +102,7 @@ their own terms rather than a rung of this table.
 | Zweihander | High Quality | |
 | Crossbow | High Quality | |
 | Musketoon | Gunpowder | Priced at 18 pt, not the tier's 14 — a pre-existing outlier, not introduced by the Combat Update. |
-| Bore Pistol | Gunpowder | Materials cost 23 ⬢, not the tier's 37 — a pre-existing outlier, not introduced by the Combat Update. Priced accordingly in `DEPOT.md` §4. |
+| Bore Pistol | Gunpowder | Materials cost 20 ⬢, not the tier's 31 — a pre-existing outlier, not introduced by the Combat Update. Priced accordingly in `DEPOT.md` §4. |
 | Bomb | Gunpowder | `purchasable: false` (craft-only) |
 
 Off the ladder — no recipe, no smithing gate:

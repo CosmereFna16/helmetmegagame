@@ -17,10 +17,10 @@ import { formatTagRequirement } from "@/lib/formatTagRequirement";
 // view. Editing stays where it was — the pencil for custom tags, the YAML
 // for everything else.
 
-// Tag.expiresInto entries are normalised to { oneOf: [...] } by
-// db/lib/syncTags.js — same rendering TagChip gives them.
-function expiresIntoTokens(expiresInto) {
-  const entries = Array.isArray(expiresInto) ? expiresInto : null;
+// Tag.expiresInto / Tag.removesInto entries are normalised to
+// { oneOf: [...] } by db/lib/syncTags.js — same rendering TagChip gives them.
+function chainTokens(chain) {
+  const entries = Array.isArray(chain) ? chain : null;
   if (!entries?.length) return null;
   return entries
     .map((entry) => (entry?.oneOf ?? []).map((slug) => `{tag:${slug}}`).join(" or "))
@@ -108,7 +108,8 @@ export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
   const consumesInto = (tag.consumesInto ?? [])
     .map((slug) => bySlug.get(slug))
     .filter(Boolean);
-  const becomes = expiresIntoTokens(tag.expiresInto);
+  const becomes = chainTokens(tag.expiresInto);
+  const treated = chainTokens(tag.removesInto);
   const flags = [
     ...FLAG_LABELS.filter(([key]) => tag[key]).map(([, label]) => label),
     VISIBILITY_CHIP[tag.inspectVisibility],
@@ -162,6 +163,11 @@ export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
           {becomes && (
             <Row label="Becomes">
               <ChipText text={becomes} as="span" />
+            </Row>
+          )}
+          {treated && (
+            <Row label="Treated">
+              <ChipText text={treated} as="span" />
             </Row>
           )}
           {(ancestors.length > 0 || children.length > 0) && (

@@ -93,6 +93,12 @@ const commandDefinitions = [
     .setName("message")
     .setDescription("Say something as your character, without anyone seeing you type.")
     .setContexts(ANYWHERE),
+  // Guild-only: a die rolled in a DM has no audience, which is the whole
+  // point of it. No options either — it is one 1d6 and nothing else.
+  new SlashCommandBuilder()
+    .setName("roll")
+    .setDescription("Roll a die in this channel, for everyone to see.")
+    .setContexts(GUILD_ONLY),
 ].map((builder) => builder.toJSON());
 
 // Global, not per-guild: a guild command is invisible in DMs no matter what

@@ -5,14 +5,15 @@ import ChipLabel from "./ChipLabel";
 import ChipText from "./ChipText";
 import HoverCard from "./HoverCard";
 
-// Tag.expiresInto as a {tag:…} token string for ChipText to resolve — the
-// same machinery the description below already goes through, which is why
-// this needs no catalog of its own and keeps working wherever TagChip renders.
-// Entries are normalised to { oneOf: [...] } by db/lib/syncTags.js, so a bare
-// slug is just a pick of one; several entries all land at once ("and"), while
-// a multi-slug oneOf is a roll between them ("or").
-function expiresIntoTokens(expiresInto) {
-  const entries = Array.isArray(expiresInto) ? expiresInto : null;
+// Tag.expiresInto / Tag.removesInto as a {tag:…} token string for ChipText to
+// resolve — the same machinery the description below already goes through,
+// which is why this needs no catalog of its own and keeps working wherever
+// TagChip renders. Entries are normalised to { oneOf: [...] } by
+// db/lib/syncTags.js, so a bare slug is just a pick of one; several entries
+// all land at once ("and"), while a multi-slug oneOf is a roll between them
+// ("or").
+function chainTokens(chain) {
+  const entries = Array.isArray(chain) ? chain : null;
   if (!entries?.length) return null;
   return entries
     .map((entry) => (entry?.oneOf ?? []).map((slug) => `{tag:${slug}}`).join(" or "))
@@ -56,7 +57,9 @@ export default function TagChip({
   const duration = tagDuration(left, tag.defaultDurationTurns);
 
   // What it turns into when that runs out, rather than simply going away.
-  const becomes = expiresIntoTokens(tag.expiresInto);
+  const becomes = chainTokens(tag.expiresInto);
+  // And what its treated form is — the aftermath a removal or Heal leaves.
+  const treated = chainTokens(tag.removesInto);
 
   const panel = (
     <>
@@ -94,6 +97,11 @@ export default function TagChip({
         {becomes && (
           <Meta label="Becomes">
             <ChipText text={becomes} inTooltip />
+          </Meta>
+        )}
+        {treated && (
+          <Meta label="Treated">
+            <ChipText text={treated} inTooltip />
           </Meta>
         )}
         {/* Labelled, not bare: formatTagRequirement's leading "1t" is turns of

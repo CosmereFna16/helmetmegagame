@@ -187,8 +187,11 @@ Instead it keeps a flat token markup (+1 ⬢), and its rationing stays the 4-uni
 with the ladder above it, so it does not need to clear the same per-turn bar.
 
 Two items break from their tier's baseline `resourceCost` and price accordingly: Bore
-Pistol (23 ⬢ to make, cheaper than Musketoon/Bomb's 37) prices to 45, not 59 — same
-9 ⬢/turn-rate curve, applied to its own cheaper cost, not the tier's.
+Pistol (20 ⬢ to make, cheaper than Musketoon/Bomb's 31) still prices to 45, not 59 —
+same relative gap as the tier. A materials-cost rebalance dropped the Gunpowder tier's
+`resourceCost` ~15% (37→31, 23→20) without re-deriving `sellablePrice` off the formula,
+so both sit a little above what a fresh `resourceCost + rate × turnsCost^1.3` run would
+give today — a slightly wider margin for the smith, on purpose, not drift.
 
 `ravenheart-red` is the top of the ordinary brews on purpose. It costs 4 ⬢ and
 needs no ingredient at all, so a Skilled brewer with nothing else going on can
