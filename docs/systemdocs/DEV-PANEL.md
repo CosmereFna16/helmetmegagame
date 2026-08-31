@@ -283,15 +283,54 @@ renders a "+ Custom tag" button in the browser's toolbar carrying the same
 tooltip everywhere: *"Use this for things that would affect adjudications —
 not just little bracelets or something."*
 
-Fields: Name, Description, Visible on inspect, Category, Group (only offered
-when the caller's tag rows carry a group id — several DTOs trim `TagGroup` to
-name/color for display and can't resolve a picker back to one), Clone from…
-(prefills every field from an existing catalog tag, then edits normally), and
-Assign to (a searchable multi-pick over whatever character list the door
-supplies — hidden entirely when the door has none to offer). New tags default
-to `purchasable: false`, `purchasableAfterStart: false`, `removable: true`,
-and visible on 🔍 — a homebrew tag for solving one situation, not a
-catalog entry meant to reach the store.
+**The tag's own fields are `web/app/components/TagFieldset.js`**, shared with
+the catalog page's *edit* dialog. The two used to be different forms — this
+quick door sent five fields while the edit form sent sixteen — so a tag
+invented mid-adjudication couldn't expire, stack or be worn until someone
+walked to `/gm/dev/tags` and edited it. One component means they can't drift
+again.
+
+It opens on **Basics** — Name, Category, Group, Description, Seen by others on
+🔍 — with everything else folded into a collapsed `Advanced` disclosure in four
+blocks: **Behaviour** (`stackable`, `equippable`, `concealsIdentity`,
+`consumable`, `removable`, `tradeable`), **Lifespan** (`defaultDurationTurns`,
+`expiresInto`), **Economy** (`pointCost`, `purchasable`,
+`purchasableAfterStart`, `sellable`, `sellablePrice`) and **Requirement**
+(`requirementTurns`, `requirementResources`, `requirementGambit`,
+`requirementSkills`). The edit dialog opens that disclosure, since a GM there
+came to change a field; the quick door leaves it shut.
+
+Group is still offered only when the caller's tag rows carry a group id —
+several DTOs trim `TagGroup` to name/color for display and can't resolve a
+picker back to one. The **expiry chain** takes the same posture for the same
+reason: it addresses tags by `slug`, so a door whose rows carry none hides it
+rather than offering a picker whose selections would never match.
+
+Three pairings are mirrored as disabled controls and re-checked on the server:
+`concealsIdentity` and `WORN` visibility need `equippable`, `sellablePrice`
+needs `sellable`, and an `expiresInto` chain needs a duration. The chain itself
+is a list of outcome rows, each a multi-pick — one tag means "becomes this",
+two or more an even coin-flip, the `{ oneOf: [...] }` shape
+`db/lib/tagExpiryPass.js` reads.
+
+The **structural** fields stay out on purpose — `parentTagId`,
+`requiredTagId`, `exclusive`, `depotPrice` and the `consumesInto` family wire
+tags to each other, which is catalog structure for `docs/tags.yaml` to hold
+under review. `expiresInto` is the deliberate exception: an untreated wound
+getting worse is most of the point of a homebrew injury, and it points at
+existing tags rather than restructuring them. Its rules
+(`normalizeExpiresInto` / `validateExpiresInto`) live in `db/lib/tagShapes.js`
+so this form and `db:sync-tags` enforce one rule set — otherwise the form would
+accept chains the next sync rejects.
+
+The door's own fields, around that fieldset: Clone from… (prefills **every**
+field from an existing catalog tag, its duration and expiry chain included,
+then edits normally) and Assign to (a searchable multi-pick over whatever
+character list the door supplies — hidden entirely when the door has none to
+offer). New tags default to `purchasable: false`,
+`purchasableAfterStart: false`, `removable: true`, and visible on 🔍 — a
+homebrew tag for solving one situation, not a catalog entry meant to reach the
+store.
 
 Doors that pass a character list also get an Apply now / Stage for turn end
 toggle (`allowStage`). "Apply now" grants live, in the same transaction as the
@@ -444,6 +483,8 @@ sequentially in `after()` and lands on a `BULK_MOVE` report.
 | Custom tag catalog | `web/app/(app)/gm/dev/tags/` |
 | Bulk tagging | `web/app/(app)/gm/actions.js#bulkTagCharacters` |
 | Shared tag search | `web/lib/characterCreation.js#filterTagsByQuery` |
+| The shared tag form body (both custom-tag doors) | `web/app/components/TagFieldset.js` |
+| `expiresInto`'s shape + rules, shared with `db:sync-tags` | `db/lib/tagShapes.js` |
 | Shared catalog browser (categories, search, grouping, multi-select) | `web/app/components/TagCatalogBrowser.js` |
 | Panel styling | `.dev-state-strip`, `.dev-state-group`, `.dev-bar-sep`, `.dev-apply-bar`, `.dev-tag-row`, `.dev-tag-group-head`, `.dev-modal-panel` in `globals.css` |
 | Desk modal mount (shared by turns/players desks) + `prefetchDevPanel`, and its server actions (`getDevPanelData`, `getDevPanelRecord`) | `web/app/components/DevPanelModal.js`, `devPanelActions.js` |

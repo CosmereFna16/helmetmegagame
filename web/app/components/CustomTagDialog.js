@@ -7,6 +7,7 @@ import FormError from "@/app/components/FormError";
 import CheckField from "@/app/components/CheckField";
 import Select from "@/app/components/Select";
 import InfoIcon from "@/app/components/InfoIcon";
+import TagFieldset, { BLANK_TAG, tagToFormValues } from "@/app/components/TagFieldset";
 import { createCustomTagAndAssign } from "@/app/(app)/gm/dev/tags/actions";
 
 // The one custom-tag dialog, reached from several doors across the GM
@@ -33,20 +34,16 @@ import { createCustomTagAndAssign } from "@/app/(app)/gm/dev/tags/actions";
 const TOOLTIP_TEXT =
   "Use this for things that would affect adjudications—not just little bracelets or something.";
 
-const BLANK = {
-  name: "",
-  description: "",
-  category: "",
-  groupId: "",
-  // A plain yes/no here, mapped to Tag.inspectVisibility's ALWAYS/HIDDEN on
-  // submit. The third state, worn-only, needs `equippable`, which this quick
-  // dialog has no field for at all — offering it would make a checkbox that
-  // silently does nothing. Set it from /gm/dev/tags instead.
-  visible: true,
-  purchasable: false,
-  purchasableAfterStart: false,
-  removable: true,
-};
+// The tag's own fields are TagFieldset's now, shared with /gm/dev/tags' edit
+// dialog — this door used to send five of them, so a tag invented here could
+// not expire, stack or be worn until someone walked to the catalog page and
+// edited it. What stays local is the chrome around them: Clone from…,
+// Assign to, and the Apply/Stage toggle.
+//
+// Two defaults still differ from a bare BLANK_TAG, and deliberately: a
+// homebrew tag for solving one situation is visible and droppable, not a
+// catalog entry meant to reach the store.
+const BLANK = { ...BLANK_TAG, inspectVisibility: "ALWAYS", removable: true };
 
 export default function CustomTagDialog({
   open = true,
@@ -78,16 +75,17 @@ export default function CustomTagDialog({
     if (!tagId) return;
     const t = tagsById.get(tagId);
     if (!t) return;
-    setValues((v) => ({
-      ...v,
-      name: t.name,
-      description: t.description ?? "",
-      category: t.category,
-      groupId: t.groupId ?? t.group?.id ?? "",
-      // A worn-only source clones as plainly visible — see BLANK above for why
-      // this dialog can't carry the third state.
-      visible: t.inspectVisibility !== "HIDDEN",
-    }));
+    // Every field, including the ones behind Advanced — cloning Infected to
+    // build a variant wound should carry its duration and its expiry chain,
+    // which is most of why a GM clones rather than starts blank.
+    //
+    // A clone only carries what the door's own tag rows hold: the Dev Panel's
+    // and the player desk's catalogs trim requirementSkills (and the player
+    // desk's trims most of the rest), so a clone there arrives with those
+    // boxes empty rather than wrong. tagToFormValues falls back to BLANK_TAG
+    // for anything absent, so a thin row can't write a field as blank that it
+    // simply never carried.
+    setValues(tagToFormValues({ ...t, groupId: t.groupId ?? t.group?.id ?? "" }));
   }
 
   function toggleAssign(id) {
@@ -116,18 +114,11 @@ export default function CustomTagDialog({
     startTransition(async () => {
       const stage = allowStage && submitMode === "stage";
       const assignCharacterIds = characters ? [...assignIds] : [];
-      const res = await createCustomTagAndAssign({
-        name: values.name,
-        description: values.description,
-        inspectVisibility: values.visible ? "ALWAYS" : "HIDDEN",
-        category: values.category,
-        groupId: values.groupId,
-        purchasable: values.purchasable,
-        purchasableAfterStart: values.purchasableAfterStart,
-        removable: values.removable,
-        assignCharacterIds,
-        stage,
-      });
+      // `values` carries exactly the keys the server reads (TagFieldset's
+      // BLANK_TAG), so it goes through whole rather than being re-listed here
+      // — the old hand-written list is how this door fell five fields behind
+      // the catalog page's in the first place.
+      const res = await createCustomTagAndAssign({ ...values, assignCharacterIds, stage });
       if (!res?.ok) {
         setError(res?.error ?? "Something went wrong.");
         return;
@@ -150,18 +141,13 @@ export default function CustomTagDialog({
       }
       onCreated?.(
         {
+          ...values,
           id: res.tagId,
           name: res.name,
           slug: res.slug,
-          category: values.category,
           groupId: values.groupId || null,
           description: values.description?.trim() || null,
-          inspectVisibility: values.visible ? "ALWAYS" : "HIDDEN",
-          purchasable: values.purchasable,
-          purchasableAfterStart: values.purchasableAfterStart,
-          removable: values.removable,
           custom: true,
-          pointCost: 0,
         },
         { assignedIds: assignCharacterIds, staged: Boolean(res.staged) },
       );
@@ -176,52 +162,23 @@ export default function CustomTagDialog({
       actions={<InfoIcon text={TOOLTIP_TEXT} />}
     >
       <div className="flex flex-col gap-3">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="field">
-            <span className="field-label">Name</span>
-            <input value={values.name} maxLength={60} onChange={(e) => set("name", e.target.value)} />
-          </label>
-          <label className="field">
-            <span className="field-label">
-              Category <span className="text-accent">*</span>
-            </span>
-            <Select value={values.category} onChange={(e) => set("category", e.target.value)} required>
-              <option value="">Choose…</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </Select>
-          </label>
-          {groups && groups.length > 0 && (
-            <label className="field">
-              <span className="field-label">Group (colour accent only)</span>
-              <Select value={values.groupId ?? ""} onChange={(e) => set("groupId", e.target.value)}>
-                <option value="">(none)</option>
-                {groups.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
-                ))}
-              </Select>
-            </label>
-          )}
-          <label className="field">
-            <span className="field-label">Clone from…</span>
-            <Select value={cloneFromId} onChange={(e) => applyClone(e.target.value)}>
-              <option value="">(start blank)</option>
-              {tags.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </Select>
-          </label>
-        </div>
-
         <label className="field">
-          <span className="field-label">Description</span>
-          <textarea rows={3} value={values.description} onChange={(e) => set("description", e.target.value)} />
+          <span className="field-label">Clone from…</span>
+          <Select value={cloneFromId} onChange={(e) => applyClone(e.target.value)}>
+            <option value="">(start blank)</option>
+            {tags.map((t) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </Select>
         </label>
 
-        <CheckField checked={values.visible} onChange={(e) => set("visible", e.target.checked)}>
-          Visible on inspect
-        </CheckField>
+        <TagFieldset
+          values={values}
+          set={set}
+          categories={categories}
+          groups={groups}
+          tags={tags}
+        />
 
         {characters && characters.length > 0 && (
           <div className="flex flex-col gap-1.5">

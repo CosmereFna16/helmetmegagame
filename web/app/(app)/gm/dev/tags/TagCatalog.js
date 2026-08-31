@@ -2,10 +2,8 @@
 
 import FormError from "@/app/components/FormError";
 import Modal from "@/app/components/Modal";
-import CheckField from "@/app/components/CheckField";
-import Select from "@/app/components/Select";
 import CustomTagDialog from "@/app/components/CustomTagDialog";
-import InfoIcon from "@/app/components/InfoIcon";
+import TagFieldset, { tagToFormValues } from "@/app/components/TagFieldset";
 import { useMemo, useState, useTransition } from "react";
 import {
   useTableState,
@@ -28,47 +26,8 @@ const FILTER_DEFS = [
 
 const SEARCH_FIELDS = [(t) => t.name, (t) => t.slug, (t) => t.description, (t) => t.groupName];
 
-const BOOLEAN_FIELDS = [
-  ["purchasable", "Purchasable at creation"],
-  ["purchasableAfterStart", "Still purchasable mid-game"],
-  ["stackable", "Stackable"],
-  ["equippable", "Equippable (takes a slot)"],
-  ["consumable", "Consumable"],
-  ["removable", "Player can drop it"],
-  // Spelled out because it is easy to leave unchecked and then wonder why a
-  // custom sword can't be handed over — it defaults off, and for an Item or an
-  // Asset that is almost never what the GM meant.
-  ["tradeable", "Tradeable (can be handed over, or looted off a body)"],
-  ["sellable", "Sellable at Merchant's Depot"],
-];
-
-// Tag.inspectVisibility, the one tag setting that is not a boolean — a stowed
-// dagger and a drawn one are different things to look at. WORN needs the tag
-// to be equippable, which the server action re-checks (actions.js#scalarsFrom).
-const VISIBILITY_OPTIONS = [
-  ["HIDDEN", "Never"],
-  ["ALWAYS", "Always"],
-  ["WORN", "Only while equipped"],
-];
-
-const BLANK = {
-  name: "",
-  description: "",
-  category: "",
-  groupId: "",
-  pointCost: 0,
-  defaultDurationTurns: "",
-  purchasable: false,
-  purchasableAfterStart: false,
-  stackable: false,
-  equippable: false,
-  consumable: false,
-  removable: false,
-  tradeable: false,
-  inspectVisibility: "HIDDEN",
-  sellable: false,
-  sellablePrice: null,
-};
+// The field set itself lives in TagFieldset — shared with the quick
+// CustomTagDialog, which used to carry a much smaller one of its own.
 
 export default function TagCatalog({ tags, groups, categories, canDelete }) {
   const confirm = useConfirm();
@@ -230,6 +189,7 @@ export default function TagCatalog({ tags, groups, categories, canDelete }) {
       {editing && (
         <TagDialog
           tag={editing}
+          tags={allTags}
           groups={groups}
           categories={categories}
           pending={pending}
@@ -255,93 +215,29 @@ export default function TagCatalog({ tags, groups, categories, canDelete }) {
   );
 }
 
-// Edit-only now — creation moved to the shared CustomTagDialog (D11), which
-// also grew Clone-from/Assign-to/stage-toggle this simpler form never needed.
-function TagDialog({ tag, groups, categories, pending, error, onCancel, onSave }) {
-  const [values, setValues] = useState(() => ({ ...BLANK, ...tag }));
+// Edit-only — creation moved to the shared CustomTagDialog (D11), which also
+// grew Clone-from/Assign-to/stage-toggle this simpler form never needed. Both
+// now render the same TagFieldset, so the two doors can't drift on which
+// fields a GM can reach.
+function TagDialog({ tag, tags, groups, categories, pending, error, onCancel, onSave }) {
+  const [values, setValues] = useState(() => tagToFormValues(tag));
   const set = (key, value) => setValues((v) => ({ ...v, [key]: value }));
 
   return (
     <Modal title={`Edit ${tag.name}`} onClose={onCancel}>
       <div className="flex flex-col gap-3">
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="field">
-            <span className="field-label">Name</span>
-            <input value={values.name} maxLength={60} onChange={(e) => set("name", e.target.value)} />
-          </label>
-          <label className="field">
-            <span className="field-label">Category</span>
-            <Select value={values.category} onChange={(e) => set("category", e.target.value)}>
-              <option value="">Choose…</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </Select>
-          </label>
-          <label className="field">
-            <span className="field-label">Group (colour accent only)</span>
-            <Select value={values.groupId ?? ""} onChange={(e) => set("groupId", e.target.value)}>
-              <option value="">(none)</option>
-              {groups.map((g) => (
-                <option key={g.id} value={g.id}>{g.name}</option>
-              ))}
-            </Select>
-          </label>
-          <label className="field">
-            <span className="field-label">Point cost (signed, catalog-style)</span>
-            <input
-              type="number"
-              value={values.pointCost}
-              onChange={(e) => set("pointCost", Number(e.target.value))}
-            />
-          </label>
-          <label className="field">
-            <span className="field-label">Lasts (turns, blank for permanent)</span>
-            <input
-              type="number"
-              min="1"
-              value={values.defaultDurationTurns ?? ""}
-              onChange={(e) => set("defaultDurationTurns", e.target.value)}
-            />
-          </label>
-          <label className="field">
-            <span className="field-label">Seen by others on 🔍</span>
-            <Select
-              value={values.inspectVisibility ?? "HIDDEN"}
-              onChange={(e) => set("inspectVisibility", e.target.value)}
-            >
-              {VISIBILITY_OPTIONS.map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </Select>
-          </label>
-          <label className="field">
-            <span className="field-label flex items-center gap-1.5">
-              Sellable price
-              <InfoIcon text="Reference: a painting (4 turns to craft) sells for 60 ⬢. A flamethrower sells for 104 ⬢." />
-            </span>
-            <input
-              type="number"
-              min="1"
-              value={values.sellablePrice ?? ""}
-              onChange={(e) => set("sellablePrice", e.target.value)}
-            />
-          </label>
-        </div>
-
-        <label className="field">
-          <span className="field-label">Description</span>
-          <textarea rows={3} value={values.description ?? ""} onChange={(e) => set("description", e.target.value)} />
-        </label>
-
-        <div className="grid gap-1 sm:grid-cols-2">
-          {BOOLEAN_FIELDS.map(([key, label]) => (
-            <CheckField key={key} checked={Boolean(values[key])} onChange={(e) => set(key, e.target.checked)}>
-              {label}
-            </CheckField>
-          ))}
-        </div>
+        <TagFieldset
+          values={values}
+          set={set}
+          categories={categories}
+          groups={groups}
+          tags={tags}
+          // A GM here came specifically to change a field, so the advanced
+          // block starts open — unlike the quick dialog, where most tags are
+          // simple and the disclosure keeps the modal short.
+          advancedOpen
+          selfId={tag.id}
+        />
 
         <p className="mono text-xs text-muted">
           {tag.slug} — the slug cannot be changed after creation, because other tags refer to it

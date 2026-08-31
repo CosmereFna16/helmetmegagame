@@ -203,7 +203,7 @@ tags:
     name: Cult Leader
     category: meta
     group: meta-cult
-    description: "You understand Bacchus's plan. Every 2 days, you can send a telepathic message to every cultist in Ravenheart to help organize."
+    description: "You understand Bacchus's plan. Every 2 days, you can send a telepathic message to every cultist in Ravenheart with orders (DM the GM's)."
     pointCost: 0
     purchasable: false
 

@@ -21,6 +21,7 @@
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
+const { normalizeExpiresInto, validateExpiresInto } = require("./tagShapes");
 
 // `visible:` in docs/tags.yaml -> Tag.inspectVisibility. The YAML side stays
 // readable (`visible: worn` next to `equippable: true`) while the column is a
@@ -92,26 +93,9 @@ function consumesIntoScalars(entries) {
   };
 }
 
-// An expiresInto entry is either a bare slug ("festering") or an even random
-// pick between several ({ oneOf: ["missing-leg", "missing-arm"] }). Both
-// normalise to { oneOf: [...] } here — a bare slug is simply a pick of one —
-// so validation, the stored Json, and db/lib/tagExpiryPass.js all handle one
-// shape instead of two. Null stays null: most tags don't turn into anything.
-function normalizeExpiresInto(entries) {
-  if (entries == null) return null;
-  if (!Array.isArray(entries)) {
-    throw new Error(`docs/tags.yaml: expiresInto must be a list`);
-  }
-  return entries.map((entry) => {
-    if (typeof entry === "string") return { oneOf: [entry] };
-    if (!Array.isArray(entry?.oneOf) || entry.oneOf.length === 0) {
-      throw new Error(
-        `docs/tags.yaml: an expiresInto entry is neither a slug nor a non-empty { oneOf: [...] }`,
-      );
-    }
-    return { oneOf: [...entry.oneOf] };
-  });
-}
+// normalizeExpiresInto and its three rules moved to db/lib/tagShapes.js when
+// the GM tag form grew an expiry-chain picker of its own — one rule set, two
+// authoring surfaces, so the form can't accept a shape this sync rejects.
 
 // docsPath() is null only when docs/ cannot be found at all, which for a YAML
 // master is fatal — a sync with no master would read as "everything was
@@ -238,31 +222,13 @@ async function syncTagsFromYaml(prisma) {
       );
     }
     // expiresInto, same posture and the same reason: every slug is known from
-    // this document, so a typo fails before anything is written. Three rules,
-    // each of which is a silent no-op rather than an error if it slips
-    // through — which is exactly why they're checked here.
-    for (const { oneOf } of normalizeExpiresInto(t.expiresInto) ?? []) {
-      for (const slug of oneOf) {
-        if (!allTagSlugs.has(slug)) {
-          throw new Error(`docs/tags.yaml: tag "${t.slug}" expiresInto references unknown tag "${slug}"`);
-        }
-        // The grant happens one statement before the sweep that deletes the
-        // expired row, and the sweep matches on tag id — so a tag that
-        // expires into itself would be re-granted and then immediately
-        // deleted, doing nothing at all. Recurring conditions are written as
-        // a two-tag loop instead (migraine <-> no-migraine).
-        if (slug === t.slug) {
-          throw new Error(
-            `docs/tags.yaml: tag "${t.slug}" expiresInto itself — the sweep would delete the fresh grant. Use a two-tag loop instead.`,
-          );
-        }
-      }
-    }
-    if (t.expiresInto && !(t.durationTurns > 0)) {
-      throw new Error(
-        `docs/tags.yaml: tag "${t.slug}" sets expiresInto but has no durationTurns — nothing would ever fire it`,
-      );
-    }
+    // this document, so a typo fails before anything is written. The three
+    // rules live in db/lib/tagShapes.js, shared with the GM tag form.
+    validateExpiresInto(normalizeExpiresInto(t.expiresInto), {
+      selfSlug: t.slug,
+      knownSlugs: allTagSlugs,
+      durationTurns: t.durationTurns,
+    });
   }
 
   let groupsCreated = 0;

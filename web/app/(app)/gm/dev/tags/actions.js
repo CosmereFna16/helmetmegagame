@@ -7,6 +7,7 @@ import { UserError, guarded } from "@/lib/actionResult";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getGmSession, syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
 import { applyTagOpsInTx } from "@/lib/characterWrite";
+import { normalizeExpiresInto, validateExpiresInto } from "@lifeweb/db/lib/tagShapes";
 import { TURNS_PATH } from "@/lib/routes";
 
 async function requireGm() {
@@ -35,10 +36,26 @@ function customSlug(name) {
   return `custom-${base}`;
 }
 
+// A nullable, non-negative whole number out of a form field, where an empty
+// box means "not set" rather than zero — the shape every optional number on
+// the tag form takes.
+function optionalCount(raw, label) {
+  if (raw === "" || raw == null) return null;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isInteger(n) || n < 0) {
+    throw new UserError(`${label} must be a whole number of at least 0, or blank.`);
+  }
+  return n;
+}
+
 // The subset of Tag a GM may set from the UI. Everything absent from this
-// list — parentTagId, requiredTagId, requirementSkills, consumesInto — is
+// list — parentTagId, requiredTagId, exclusive, depotPrice, consumesInto — is
 // catalog structure that belongs in docs/tags.yaml, where it can be reviewed
 // and version-controlled alongside the tags it wires together.
+//
+// Two fields the form DOES carry are handled outside this function, because
+// neither is a scalar: expiresInto needs every other tag's slug to validate
+// against, and requirementSkills is a Prisma relation. See relationsFrom.
 function scalarsFrom(input) {
   const name = (input.name ?? "").toString().trim();
   if (!name) throw new UserError("A tag needs a name.");
@@ -105,7 +122,64 @@ function scalarsFrom(input) {
     sellable,
     sellablePrice,
     defaultDurationTurns: duration,
+    // This used to be validated above and then quietly dropped here, so a GM
+    // could tick "conceals identity", pass the check, and get a tag with the
+    // column still false. The check was real; the write was missing.
+    concealsIdentity: Boolean(input.concealsIdentity),
+    // What it costs to shed the tag. Mostly an adjudication reference, with
+    // one exception that makes it worth authoring: HEAL_CHARACTER enforces
+    // requirementResources and requirementSkills on a Status tag (TAGS.md
+    // §5c), so a custom affliction without them is curable for free.
+    requirementTurns: optionalCount(input.requirementTurns, "Requirement turns"),
+    requirementResources: optionalCount(input.requirementResources, "Requirement resources"),
+    requirementGambit: Boolean(input.requirementGambit),
   };
+}
+
+// The two fields that can't be scalars, resolved against the live catalog.
+//
+// expiresInto is stored as normalized JSON and validated by the same pair
+// db:sync-tags uses (db/lib/tagShapes.js), so the form cannot accept a chain
+// the YAML sync would reject. requirementSkills is a many-to-many self
+// relation, so this returns the validated id list and each call site builds
+// its own nested write — `connect` on create, `set` on update. They are not
+// interchangeable: Prisma rejects `set` inside a create, and `connect` on an
+// update would only ever add, so emptying the picker would silently keep the
+// old skills attached.
+async function relationsFrom(input, { selfId, selfSlug, durationTurns }) {
+  const catalog = await prisma.tag.findMany({ select: { id: true, slug: true } });
+  const knownSlugs = new Set(catalog.map((t) => t.slug));
+  const knownIds = new Set(catalog.map((t) => t.id));
+
+  let expiresInto = null;
+  try {
+    expiresInto = normalizeExpiresInto(input.expiresInto, "This tag");
+    // An outcome row the GM added but never picked a tag for would be an
+    // empty oneOf, which tagExpiryPass would roll over nothing. Drop them
+    // rather than refusing — an empty row is an unfinished thought, not an
+    // error, and the sync's own shape check would reject it.
+    expiresInto = expiresInto?.filter((row) => row.oneOf.length > 0) ?? null;
+    if (expiresInto?.length === 0) expiresInto = null;
+    validateExpiresInto(expiresInto, {
+      selfSlug,
+      knownSlugs,
+      durationTurns,
+      label: "This tag",
+    });
+  } catch (err) {
+    // tagShapes throws plain Errors, since its other caller is a CLI script.
+    // On this side they are a GM's form mistake, so they have to arrive as a
+    // UserError for guarded() to render them in the dialog.
+    throw new UserError(err.message);
+  }
+
+  const skillTagIds = [...new Set((input.skillTagIds ?? []).filter(Boolean))];
+  for (const id of skillTagIds) {
+    if (!knownIds.has(id)) throw new UserError("One of those skill tags no longer exists.");
+    if (id === selfId) throw new UserError("A tag can't be its own cure requirement.");
+  }
+
+  return { expiresInto, skillTagIds };
 }
 
 // The custom-tag dialog's door on every desk — see
@@ -127,6 +201,13 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
   const session = await requireGm();
   const data = scalarsFrom(input);
   const slug = customSlug(data.name);
+  // Validated before the tag row exists, like everything else that can refuse
+  // below — a bad expiry chain must not leave an orphan behind.
+  const { expiresInto, skillTagIds } = await relationsFrom(input, {
+    selfId: null,
+    selfSlug: slug,
+    durationTurns: data.defaultDurationTurns,
+  });
   const targets = [...new Set((assignCharacterIds ?? []).filter(Boolean))];
   // Same cap as bulkTagCharacters (web/app/(app)/gm/actions.js).
   if (targets.length > 200) throw new UserError("Pick at most 200 characters at once.");
@@ -144,7 +225,16 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
       select: { name: true },
     });
     if (clash) throw new UserError(`A tag called "${clash.name}" already exists.`);
-    return tx.tag.create({ data: { ...data, slug, custom: true } });
+    return tx.tag.create({
+      data: {
+        ...data,
+        slug,
+        custom: true,
+        expiresInto,
+        // `connect`, not `set` — Prisma rejects `set` inside a create.
+        requirementSkills: { connect: skillTagIds.map((id) => ({ id })) },
+      },
+    });
   });
 
   // The grants: ONE TRANSACTION PER CHARACTER, never one across the batch —
@@ -245,6 +335,11 @@ async function updateCustomTagImpl({ tagId, ...input }) {
   }
 
   const data = scalarsFrom(input);
+  const { expiresInto, skillTagIds } = await relationsFrom(input, {
+    selfId: tagId,
+    selfSlug: existing.slug,
+    durationTurns: data.defaultDurationTurns,
+  });
   if (data.name !== existing.name) {
     const clash = await prisma.tag.findFirst({ where: { name: data.name, id: { not: tagId } } });
     if (clash) throw new UserError(`A tag called "${data.name}" already exists.`);
@@ -252,7 +347,16 @@ async function updateCustomTagImpl({ tagId, ...input }) {
 
   // The slug stays fixed after creation: Document.tagSlugs and every other
   // slug reference is a plain string with no foreign key to follow.
-  const tag = await prisma.tag.update({ where: { id: tagId }, data });
+  const tag = await prisma.tag.update({
+    where: { id: tagId },
+    data: {
+      ...data,
+      expiresInto,
+      // `set`, not `connect` — emptying the picker has to actually detach the
+      // old skills, and `connect` only ever adds.
+      requirementSkills: { set: skillTagIds.map((id) => ({ id })) },
+    },
+  });
 
   await prisma.auditLog.create({
     data: {

@@ -21,7 +21,10 @@ export default async function DevTagsPage() {
       orderBy: [{ category: "asc" }, { name: "asc" }],
       include: {
         group: { select: { id: true, name: true, color: true } },
-        requirementSkills: { select: { name: true } },
+        // id as well as name: the detail sheet only needs the name, but the
+        // edit dialog's cure-ladder picker has to resolve the relation back
+        // to the ids it posts.
+        requirementSkills: { select: { id: true, name: true } },
       },
     }),
     prisma.tagGroup.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, category: true } }),
@@ -52,6 +55,7 @@ export default async function DevTagsPage() {
           inspectVisibility: t.inspectVisibility,
           stackable: t.stackable,
           equippable: t.equippable,
+          concealsIdentity: t.concealsIdentity,
           consumable: t.consumable,
           removable: t.removable,
           tradeable: t.tradeable,

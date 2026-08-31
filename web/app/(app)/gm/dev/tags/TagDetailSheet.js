@@ -59,6 +59,7 @@ const FLAG_LABELS = [
   ["craftable", "Craftable"],
   ["stackable", "Stackable"],
   ["equippable", "Equippable"],
+  ["concealsIdentity", "Conceals identity"],
   ["consumable", "Consumable"],
   ["removable", "Removable"],
   ["tradeable", "Tradeable"],
