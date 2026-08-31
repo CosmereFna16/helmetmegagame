@@ -12,6 +12,7 @@ async function main() {
   if (stats.provisioned.length > 0) console.log(`provisioned: ${stats.provisioned.join(", ")}`);
   if (stats.reparented.length > 0) console.log(`reparented: ${stats.reparented.join(", ")}`);
   console.log(`zone-role view grants applied: ${stats.roleGrants}`);
+  if (stats.roleRevokes > 0) console.log(`zone-role view grants revoked: ${stats.roleRevokes}`);
   console.log("special channels reconciled");
 }
 

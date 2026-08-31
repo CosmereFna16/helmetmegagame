@@ -428,7 +428,7 @@ two access twins and the wipe.
 | Channel | Who sees it | Who speaks |
 |---|---|---|
 | `#watch` | **Radio Bracelet (Watch)** or **Radio System (Watch)** holders (per-member overwrite) | Radio System (Watch) holders only |
-| `#intercom` | **every zone role** — all six presence zones, a static `roleViewZones` grant | a character holding the **Intercom** tag *and* standing in the **Fortress** zone (per-member overwrite) |
+| `#intercom` | **every zone role except the Windlands** — five presence zones, a static `roleViewZones` grant; the hurricane winds drown the PA out there | a character holding the **Intercom** tag *and* standing in the **Fortress** zone (per-member overwrite) |
 | `#mindlink` | any **Cultist of Bacchus** (`follower-of-bacchus`) holder (per-member overwrite) | **Mindlink** tag holders only |
 
 Both tags are transferable, so possession is what matters — a bracelet handed
@@ -436,10 +436,14 @@ to a non-Watch character still opens `#watch`.
 
 `#intercom`'s role-based view is the fix for a real scaling problem: its old
 per-member view overwrite spanned a whole Zone and was drifting toward
-Discord's ~100-overwrite-per-channel ceiling. Six role entries replace ~100
+Discord's ~100-overwrite-per-channel ceiling. Five role entries replace ~100
 member entries. The speak half stays per-member, and its gate moved from
 "standing in the Keep" to "standing in the Fortress zone" because the Keep is
-prose now.
+prose now. The Windlands is deliberately off the list — the hurricane winds
+drown the PA out, so a character standing there can't hear `#intercom` at
+all. The sync enforces both halves: it grants the listed zone roles view
+*and* deletes any zone-role grant the registry no longer lists, so dropping a
+zone from `roleViewZones` really silences the channel there on the next run.
 
 `#mindlink` is Bacchus's own telepathy — every Cultist reads it, but only a
 Cultist holding the **Mindlink** tag can post. It carries a `slowmode` of

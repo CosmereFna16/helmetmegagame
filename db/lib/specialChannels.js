@@ -61,15 +61,16 @@ const SPECIAL_CHANNELS = [
     slug: "intercom",
     configKey: "intercomChannelId",
     categoryConfigKey: "radioCategoryId",
-    topic: "Ravenheart's PA system. Audible everywhere. Accessed from the Fortress.",
+    topic: "Ravenheart's PA system. Audible everywhere but the Windlands, where the hurricane winds drown it out. Accessed from the Fortress.",
     tupper: true,
     wipe: "clear",
     ghostsMaySee: true,
-    // Audible by everyone with a character, wherever they stand — the PA
-    // reaches the whole map. Granting view to the zone ROLES (rather than a
-    // per-member overwrite each) is also what retired the ~100-overwrite
-    // ceiling this channel used to be drifting toward.
-    roleViewZones: ["town", "fortress", "windlands", "caverns", "railroad", "aberrant-pits"],
+    // Audible by everyone with a character, wherever they stand — except the
+    // Windlands, where the hurricane winds drown the PA out. Granting view to
+    // the zone ROLES (rather than a per-member overwrite each) is also what
+    // retired the ~100-overwrite ceiling this channel used to be drifting
+    // toward.
+    roleViewZones: ["town", "fortress", "caverns", "railroad", "aberrant-pits"],
     // Speaking needs the Intercom tag and boots on Fortress ground. The old
     // rule said "standing in the Keep"; the Keep is prose now, so the
     // Fortress zone is the gate.

@@ -18,6 +18,7 @@ const {
   createChannel,
   patchChannel,
   putChannelOverwrite,
+  deleteChannelOverwrite,
 } = require("./discordRest");
 const { applySpectatorOverwrite } = require("./spectatorAccess");
 const { applyCursedOverwrite } = require("./cursedAccess");
@@ -58,7 +59,7 @@ async function syncSpecialChannels(prisma) {
 
   const config = await prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
   const guildChannels = await getGuildChannels();
-  const stats = { provisioned: [], reparented: [], roleGrants: 0 };
+  const stats = { provisioned: [], reparented: [], roleGrants: 0, roleRevokes: 0 };
 
   // Zone roles for the static roleView grants, resolved once by slug.
   const zones = await prisma.zone.findMany({
@@ -66,12 +67,13 @@ async function syncSpecialChannels(prisma) {
     select: { slug: true, discordRoleId: true },
   });
   const roleBySlug = new Map(zones.map((z) => [z.slug, z.discordRoleId]));
+  const slugByRole = new Map(zones.map((z) => [z.discordRoleId, z.slug]));
 
   for (const entry of SPECIAL_CHANNELS) {
     const categoryId = await ensureCategory(prisma, config, guildChannels, entry.categoryConfigKey);
 
     let channelId = config[entry.configKey];
-    const known = channelId ? guildChannels.find((c) => c.id === channelId) : null;
+    let known = channelId ? guildChannels.find((c) => c.id === channelId) : null;
 
     if (!known) {
       // Recover an unparented same-name channel from a rebuilt DB before
@@ -81,6 +83,7 @@ async function syncSpecialChannels(prisma) {
       );
       if (existing) {
         channelId = existing.id;
+        known = existing;
       } else {
         const created = await createChannel({
           name: entry.slug,
@@ -120,11 +123,25 @@ async function syncSpecialChannels(prisma) {
     if (entry.ghostsMaySee) await applyCursedOverwrite(channelId);
 
     // The static zone-role floor: every listed zone's role hears the channel.
-    for (const slug of entry.roleViewZones ?? []) {
+    const wantedZones = new Set(entry.roleViewZones ?? []);
+    for (const slug of wantedZones) {
       const roleId = roleBySlug.get(slug);
       if (!roleId) continue;
       await putChannelOverwrite(channelId, roleId, { allow: PERM_VIEW_CHANNEL.toString() });
       stats.roleGrants += 1;
+    }
+
+    // ...and the floor's other half: a zone dropped from roleViewZones must
+    // actually go deaf, so any zone-role overwrite the registry no longer
+    // lists comes off. Scoped to known zone roles — GM/spectator/cursed
+    // overwrites are never candidates.
+    for (const overwrite of known?.permission_overwrites ?? []) {
+      if (overwrite.type !== 0) continue;
+      const slug = slugByRole.get(overwrite.id);
+      if (!slug || wantedZones.has(slug)) continue;
+      await deleteChannelOverwrite(channelId, overwrite.id);
+      stats.roleRevokes += 1;
+      console.log(`revoked ${slug}'s view of #${entry.slug}`);
     }
   }
 
