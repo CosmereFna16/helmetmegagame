@@ -35,11 +35,13 @@ not — its steel prod and lock are `smithing-skilled` work.
 surfaces.** The Skill gate is what it takes to *make* the item; the Combat
 gate is what it takes to *use* it. Character creation and `/store` enforce
 the Combat gate (`requiredTag`) — you can't buy a Crossbow at creation
-without Ranged (Basic). The **Add Tag menu enforces the Skill gate instead**,
-via `addRequirementSatisfied()` (`web/lib/tagRequests.js`,
-[`TAGS.md`](TAGS.md) §3b) — a smith with `Smithing (Skilled)` and no
-`Melee (Basic)` can still forge a sword, they just can't swing it. The Combat
-gate never blocks the workshop.
+without Ranged (Basic). The **Add Tag menu enforces neither** — it's the
+honor-system door (`addRequirementSatisfied()`, `web/lib/tagRequests.js`,
+[`TAGS.md`](TAGS.md) §3b): the picker's "To make: …" line shows the Skill
+gate as guidance, and the GM reviewing the pushed request holds players to
+it. A smith with `Smithing (Skilled)` and no `Melee (Basic)` can forge a
+sword they can't swing; a fighter pulling a sword from their clan's armoury
+files the same request with the fiction as their justification.
 
 **Dead Simple is capped at 4 items per character per turn.** It is the only
 rung that costs 0 turns, so nothing else rations it. The cap counts *units*,
@@ -50,8 +52,8 @@ turn. Enforced in `addTagRequestImpl`; the constant is
 `isDeadSimple()` — the tier has no column of its own, so it is recognised as
 "0 turns of work plus a smithing or crafting skill gate". The Skill gate
 itself (a recipe's `requirementSkills`) is an **OR list** — `crafting` OR
-`smithing` on Dead Simple items — enforced by `recipeSkillsHeld()` in the
-same module.
+`smithing` on Dead Simple items — shown to the player, not enforced
+([`TAGS.md`](TAGS.md) §3b).
 
 Every combat item is `purchasable: true, purchasableAfterStart: false` — buy
 at creation or have someone craft one in play. Found-only items

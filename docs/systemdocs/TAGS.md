@@ -135,20 +135,25 @@ show that it has.
 
 `requirementSatisfied()` answers "can you **use** this" — the right question
 for creation and `/store`, where the whole catalog is bought outright. The
-Add Tag menu is the crafting path (§4), and crafting asks "can you **make**
-this" instead — a smith with no Melee (Basic) still knows how to forge a
-sword, they just can't swing it well.
+Add Tag menu is the **honor-system** door instead: crafting, and taking gear
+the fiction already puts in a character's hands (a clan armoury, a found
+cache) — situations no skill check can see. So it asks almost nothing, and
+the pushed request's GM review is the real enforcement.
 
-So the Add Tag picker and `addTagRequest` don't call `requirementSatisfied`.
-They call `addRequirementSatisfied(tag, tagsById, heldTagIds)` in
+The Add Tag picker and `addTagRequest` therefore don't call
+`requirementSatisfied`. They call
+`addRequirementSatisfied(tag, tagsById, heldTagIds)` in
 `web/lib/tagRequests.js`, two routes onto a tag, either sufficing:
 
 - **Buy it** — `purchasable && purchasableAfterStart`, gated on the item's
   own `requiredTagId` exactly as before (unchanged from the purchase gate).
-- **Make it** — `craftable`, gated on `recipeSkillsHeld()`: does the
-  character hold **any one** of the recipe's `requirementSkills`
-  (`web/lib/tagRequests.js`), chain-aware via the same `holdsRequirement()`
-  walk. The item's own `requiredTagId` is **not** checked on this route.
+- **Make it** — `craftable`, and that's the whole test. Neither the recipe's
+  `requirementSkills` nor the item's own `requiredTagId` is checked. The
+  picker's "To make: …" line shows what the recipe formally expects, and the
+  GM reviewing the pushed request holds players to it — the skills are
+  advice on this surface, not a gate. (An enforced version existed briefly
+  and locked non-crafters out of the armoury play entirely; it was removed
+  on purpose.)
 
 The **group gate applies to both routes, unconditionally** — same as
 everywhere else, it's the hidden-category mechanism and is never bypassed.
@@ -157,14 +162,10 @@ everywhere else, it's the hidden-category mechanism and is never bypassed.
 in `docs/tags.yaml` is a Dead Simple item written `[smithing, crafting]`
 specifically so either skill qualifies (`db/lib/formatTagRequirement.js`
 joins the list with `/`; SMITHING.md §2 spells the rung's gate as "`crafting`
-OR `smithing`"). This is also where Crafting's own catalog text — "fulfills
-requirements for Dead Simple smithing recipes" — actually gets enforced: it
-is data (every 0-turn recipe names `crafting`), not a code special case.
-
-Every Add Tag caller must select `requirementSkills { id }` alongside the
-usual `group.requiredTagId`/`requiredTagId` pair, or every recipe silently
-reads as unskilled and the whole craft catalog opens for anyone — the same
-failure mode as the group-gate warning above.
+OR `smithing`"). The picker's "To make:" line renders the list joined with
+"or", and `isDeadSimple()` (`web/lib/requests.js`) reads the slugs for the
+4-per-turn cap — so callers still select `requirementSkills { name, slug }`,
+just no longer as a gate.
 
 ## 3a. Hidden categories, and gated groups
 
@@ -315,10 +316,9 @@ the other mid-game path, for crafting and resource-acquisitions:
 `addableTags()` (and `addTagRequestImpl` server-side) require
 `purchasableAfterStart` on the **purchasable branch only**, because most
 craftables are deliberately `purchasableAfterStart: false` (43 of 58 — meals,
-tonics, explosives): they are made rather than bought, and their gate is the
-`requirement` block's skills — enforced, since §3b, by
-`addRequirementSatisfied()` rather than `requiredTag`. No drawback is
-craftable, so nothing slips through that seam.
+tonics, explosives): they are made rather than bought, and their `requirement`
+block is honor-system guidance the GM review holds players to, not a code
+gate (§3b). No drawback is craftable, so nothing slips through that seam.
 
 The two mid-game paths deal in different currencies and coexist on purpose:
 the store spends Tag Points against catalog prices with no GM in the loop
@@ -548,14 +548,14 @@ them).
   there is no "Basic" rung of that family, it starts at Skilled).
   `requirementSkills` is a many-to-many self-relation onto `Tag`
   (multiple skill tags accepted), resolved in `syncTags.js`'s pass 5. This
-  is mostly a GM adjudication reference, shown to players, with two
-  exceptions: the Heal request (`HEAL_CHARACTER`, REQUESTS.md §5c) enforces
+  is mostly a GM adjudication reference, shown to players, with one
+  exception: the Heal request (`HEAL_CHARACTER`, REQUESTS.md §5c) enforces
   the *removal* direction on `Status` tags — `requirementResources` is the ⬢
   it charges and `requirementSkills` is what the medic must hold (any
-  equal-or-higher tier up the `parentTag` chain counts) — and, since §3b, the
-  Add Tag request enforces `requirementSkills` in the *adding* direction for
-  any `craftable` tag (any ONE of the listed skills, not all). Turns, ⬢ and
-  Gambit stay reference-only everywhere.
+  equal-or-higher tier up the `parentTag` chain counts). In the *adding*
+  direction the Add Tag menu shows the skills as its "To make: …" hint but
+  does not enforce them (§3b). Turns, ⬢ and Gambit stay reference-only
+  everywhere.
   One shared block covers whichever direction (add or remove) is
   narratively relevant to a given tag, rather than separate blocks per
   direction. Rendered everywhere a tag's description already renders, in a

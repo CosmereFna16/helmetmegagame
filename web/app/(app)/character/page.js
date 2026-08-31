@@ -252,11 +252,10 @@ export default async function CharacterPage() {
               requiredTag: { select: { name: true } },
             },
           },
-          // The recipe's skill gate — tagRequests.js#addRequirementSatisfied's
-          // craft route matches on id, and the picker's "To make: …" line and
-          // the Dead Simple hint both name it. Without `id` a recipe silently
-          // reads as unskilled and the whole craft catalog opens for anyone.
-          requirementSkills: { select: { id: true, name: true, slug: true } },
+          // The recipe's skills are advice here, not a gate (TAGS.md §3b):
+          // `name` feeds the picker's "To make: …" line, `slug` the Dead
+          // Simple 4-per-turn hint.
+          requirementSkills: { select: { name: true, slug: true } },
           requirementTurns: true,
         },
       }),

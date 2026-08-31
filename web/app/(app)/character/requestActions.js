@@ -287,10 +287,10 @@ async function addTagRequestImpl({
     where: { id: tagId },
     include: {
       group: { select: { requiredTagId: true } },
-      // The recipe's skill gate. `slug` is how isDeadSimple() recognises the
-      // bottom rung of the smithing ladder; `id`/`name` are what
-      // addRequirementSatisfied's craft route matches and reports below.
-      requirementSkills: { select: { id: true, slug: true, name: true } },
+      // `slug` is how isDeadSimple() recognises the bottom rung of the
+      // smithing ladder for the per-turn cap below. The skills are not a
+      // gate here — Add Tag is honor-system (TAGS.md §3b).
+      requirementSkills: { select: { slug: true } },
     },
   });
   if (!tag) throw new UserError("Unknown tag.");
@@ -306,9 +306,10 @@ async function addTagRequestImpl({
   // The Add Tag menu's own gate, re-checked here because the client's
   // filtering is decorative — a hand-posted request would otherwise walk
   // straight past it. Two routes, either suffices: buy it (purchasable +
-  // requiredTag) or make it (craftable + a recipe skill). The group gate
-  // (hides a whole category — Demoness, Bacchus) applies to both routes
-  // unconditionally. See tagRequests.js#addRequirementSatisfied.
+  // requiredTag) or make it (any craftable — the recipe's skills are advice,
+  // not a gate). The group gate (hides a whole category — Demoness, Bacchus)
+  // applies to both routes unconditionally. See
+  // tagRequests.js#addRequirementSatisfied.
   //
   // The whole catalog's ids/parents come down (~80 rows) so a chain walk
   // never dead-ends on an ancestor the character doesn't hold, same reason
@@ -329,14 +330,7 @@ async function addTagRequestImpl({
   const chainById = buildTagsById(chainRows);
   const heldIds = character.tags.map((ct) => ct.tagId);
   if (!addRequirementSatisfied(tag, chainById, heldIds)) {
-    // Two ways to fail this, and they read completely differently to a
-    // player: not knowing the trade, versus a hidden-category/purchase gate.
-    const skillNames = (tag.requirementSkills ?? []).map((s) => s.name).join(" or ");
-    throw new UserError(
-      tag.craftable && skillNames
-        ? `You need ${skillNames} to make that.`
-        : "You're missing a prerequisite for that tag.",
-    );
+    throw new UserError("You're missing a prerequisite for that tag.");
   }
 
   // One exclusive tag at a time (the Beliefs) — the same rule the point-buy
@@ -1426,6 +1420,17 @@ async function setDesireImpl({ text: rawText, points: rawPoints }) {
   if (!text) throw new UserError("Describe your Desire.");
   const points = parseCount(rawPoints, { min: DESIRE_MIN_POINTS, max: DESIRE_MAX_POINTS });
   if (points == null) throw new UserError(`Points must be between ${DESIRE_MIN_POINTS} and ${DESIRE_MAX_POINTS}.`);
+
+  // Missing config row means the default (true) applies — same "=== false"
+  // idiom as leaderWhitelistEnabled (character/page.js). Only setting a NEW
+  // Desire is gated; an already-ACTIVE one can still be fulfilled/cancelled.
+  const config = await prisma.gameConfig.findUnique({
+    where: { id: 1 },
+    select: { desiresEnabled: true },
+  });
+  if (config?.desiresEnabled === false) {
+    throw new UserError("Temporary disabled.");
+  }
 
   const openTurn = await getOpenTurn();
   const lastEnded = await prisma.desire.findFirst({

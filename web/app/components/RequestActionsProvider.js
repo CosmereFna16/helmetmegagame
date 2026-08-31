@@ -92,8 +92,9 @@ function TagPicker({ tags, selectedId, onSelect, byId = null, heldIds = null, em
   // an empty one, which would advertise that there's something there.
   //
   // This is the ADD gate, not requirementSatisfied()/unlockedTags() — the Add
-  // Tag menu offers two routes onto a tag (buy it, or make it) and a
-  // craftable's own requiredTag is a combat/use gate, not a workshop gate.
+  // Tag menu is honor-system, so a craftable shows for everyone regardless of
+  // its recipe skills or its requiredTag (that's a combat/use gate, not a
+  // workshop gate). What survives here is really the hidden-category filter.
   // See tagRequests.js#addRequirementSatisfied.
   const unlocked = useMemo(
     () => (byId ? offered.filter((t) => addRequirementSatisfied(t, byId, heldIds ?? [])) : offered),
@@ -196,11 +197,10 @@ function TagPicker({ tags, selectedId, onSelect, byId = null, heldIds = null, em
                     Requires: {prerequisiteNames(tag).join(", ")}
                   </span>
                 )}
-                {/* The Add menu's craft route reads a different gate than
-                    "Requires:" above (which is the combat/use requiredTag) —
-                    a crafter can see this row via its recipe skill alone, so
-                    say so, or "Requires: Ranged (Basic)" reads as a lie on a
-                    row they can actually act on. Add-menu only (byId). */}
+                {/* Honor-system guidance, not a gate: the Add menu never
+                    blocks on recipe skills, so this line is how a player
+                    knows what the recipe formally expects of them before
+                    they file the request. Add-menu only (byId). */}
                 {byId && tag.craftable && (tag.requirementSkills ?? []).length > 0 && (
                   <span className="mt-1 block text-xs" style={{ color: "var(--accent-text)" }}>
                     To make: {tag.requirementSkills.map((s) => s.name).join(" or ")}
@@ -265,8 +265,9 @@ export const ACTION_HELP = {
     "To save the GMs time, you can add or remove tags at will, but you're " +
     "expected to subtract the appropriate amount of resources / spend the " +
     "amount of turns. They'll review the action later, but it'll push " +
-    "immediately. This is for crafting. Do not use this to buy tags. " +
-    "Instead, use the Spend Tag Points button.",
+    "immediately. This is for crafting, or for taking gear the fiction " +
+    "already puts in your hands. Do not use it to dodge the point buy — " +
+    "that's the Spend Tag Points button.",
   heal: "Works on others nearby too. Gated by your Medical skill.",
   consume: "Use something up. You can also just click on the tag on your sheet.",
   loot: "Search someone. Only works on Bound, Dying, or Catatonic people.",

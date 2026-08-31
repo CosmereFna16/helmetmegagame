@@ -35,38 +35,19 @@ export function addableTags(tags, heldTagIds = []) {
   );
 }
 
-// Does the character hold a skill this recipe accepts? `requirementSkills` is
-// an OR list, not an AND list — every multi-skill recipe in docs/tags.yaml is
-// a Dead Simple item written `[smithing, crafting]` (formatTagRequirement
-// joins it with "/", SMITHING.md §2 spells the rung's gate as "crafting OR
-// smithing"), and that list is also where Crafting's promise to cover Dead
-// Simple smithing recipes actually lives — it's data, deliberately not a code
-// special case, so there's exactly one place to change it.
-//
-// holdsRequirement() is the chain walk from characterCreation.js, so Smithing
-// (Skilled) satisfies a plain `smithing` recipe without the recipe needing to
-// name every rung below it. A recipe with no skills at all (Cave Fungus,
-// Salvage Plate) is unskilled work and passes automatically.
-//
-// `tag.requirementSkills` must be selected with `{ id }` or this silently
-// reads every recipe as unskilled and opens the whole craft catalog.
-export function recipeSkillsHeld(tag, tagsById, heldTagIds) {
-  const skills = tag.requirementSkills ?? [];
-  if (skills.length === 0) return true;
-  return skills.some((skill) => holdsRequirement(skill.id, tagsById, heldTagIds));
-}
-
 // The Add Tag menu's real gate — the only place the two routes onto a tag are
 // combined. Two ways in, either suffices:
 //
 //   - BUY it: purchasable after start, and you hold its requiredTag (the
 //     combat/use gate — Ranged (Basic) to carry a Longbow).
-//   - MAKE it: craftable, and you hold a skill its recipe names (the
-//     workshop gate — Crafting to build one). A craftable's requiredTag is
-//     NOT checked on this route: a smith with no Melee (Basic) still knows
-//     how to forge a sword, they just can't swing it well. Gating the forge
-//     on the combat tag was the bug this predicate exists to fix — no
-//     crafter without a fighting skill could make anything to sell.
+//   - MAKE it: craftable, full stop. The recipe's skills are deliberately
+//     NOT enforced here — Add Tag is the honor-system door (the help text
+//     says so: spend the ⬢ and the turns yourself, a GM reviews the pushed
+//     request), and it also covers taking gear the fiction already puts in
+//     a character's hands (a clan armoury), which no skill check can see.
+//     The picker's "To make: …" line still shows what the recipe expects.
+//     A craftable's requiredTag isn't checked either — that's a combat/use
+//     gate, not a workshop gate.
 //
 // The GROUP gate is unconditional and applies to BOTH routes — it's the
 // hidden-category mechanism (Demoness, Bacchus; TAGS.md §3a) and is never
@@ -84,7 +65,7 @@ export function addRequirementSatisfied(tag, tagsById, heldTagIds) {
   ) {
     return true;
   }
-  return Boolean(tag.craftable) && recipeSkillsHeld(tag, tagsById, heldTagIds);
+  return Boolean(tag.craftable);
 }
 
 // Both of these carry the held count onto the tag they return, so the menus

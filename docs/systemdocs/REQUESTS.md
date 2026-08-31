@@ -189,12 +189,14 @@ Three notes on deliberate choices:
   exists and would be more precise, but it is set on exactly one tag in
   `docs/tags.yaml` today, so Items/Assets is the honest signal. Revisit once
   the catalog populates it (`web/lib/tagRequests.js`).
-- **Add Tag gates a craftable on the recipe, not the item's combat tag.**
+- **Add Tag gates a craftable on nothing but its hidden-category group.**
   A Longbow's `requiredTag: ranged-basic` says who can *shoot* it; its
   `requirement.skills: [crafting]` says who can *make* it. Creation and
-  `/store` enforce the former; Add Tag enforces the latter, via
-  `addRequirementSatisfied()` in `web/lib/tagRequests.js` — see `TAGS.md`
-  §3b. A smith with no combat skill at all can still forge weapons to sell.
+  `/store` enforce the former; Add Tag enforces neither — it's honor-system
+  (`addRequirementSatisfied()` in `web/lib/tagRequests.js`, `TAGS.md` §3b),
+  with the recipe shown as the picker's "To make: …" hint and the GM review
+  as the backstop. A smith with no combat skill can forge weapons to sell; a
+  fighter can pull one from the clan armoury the fiction gives them.
 - **Undo never re-syncs Discord.** `resolveRequest` (`gm/turns/actions.js`)
   runs a request's `undo()` entirely inside one transaction, and no network
   call may run inside a `$transaction` (`ARCHITECTURE.md` §5) — so undoing
