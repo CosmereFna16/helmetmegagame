@@ -7,6 +7,7 @@ import { withoutDmNoise, dmNoiseSql, genuineConversationSql } from "@/lib/dmThre
 import PlayerRail from "./PlayerRail";
 import DeskHeader from "@/app/components/DeskHeader";
 import InboxPoller from "./InboxPoller";
+import { deployVersion } from "@/lib/deployVersion";
 import InspectorHost from "./InspectorHost";
 import BulkMessageButton from "./BulkMessageButton";
 
@@ -298,7 +299,7 @@ export default async function PlayerDeskLayout({ children }) {
         />
       </div>
 
-      <InboxPoller />
+      <InboxPoller deployVersion={deployVersion()} />
     </div>
   );
 }

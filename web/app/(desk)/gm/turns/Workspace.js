@@ -1,13 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRefresh } from "@/app/components/useRefresh";
 import useSessionState from "@/app/components/useSessionState";
-import useDeskVersion, {
-  checkDeskVersion,
-  isDeskStale,
-  readVersionCrumb,
-} from "@/app/components/useDeskVersion";
+import useDeskVersion from "@/app/components/useDeskVersion";
+import useGatedRefreshPoll from "@/app/components/useGatedRefreshPoll";
+import useReloadTelemetry from "@/app/components/useReloadTelemetry";
 import QueueRail, { RAIL_STORAGE_KEY, RAIL_STORAGE_DEFAULT } from "./QueueRail";
 import MoveDesk from "./MoveDesk";
 import MoveHistoryDesk from "./MoveHistoryDesk";
@@ -179,7 +176,6 @@ export default function Workspace({
   moveLock,
   deployVersion,
 }) {
-  const [refresh] = useRefresh();
   // Click-frequency view state that survives a reload — see
   // DESK_STORAGE_DEFAULT above for what lives here.
   const [desk, setDesk] = useSessionState(DESK_STORAGE_KEY, DESK_STORAGE_DEFAULT);
@@ -553,44 +549,20 @@ export default function Workspace({
     if (tab) setTabRequest((prev) => ({ tab, token: (prev?.token ?? 0) + 1 }));
   }
 
-  // Live queue refresh: paused while a modal is open (an in-flight
-  // composer/dialog shouldn't be yanked from under a GM) or while any panel
-  // has unsaved edits (isAnyDirty), and skipped entirely while the tab isn't
-  // visible. Conditions are read at fire time, not tracked as deps, so the
-  // interval never needs to be torn down and rebuilt.
-  //
-  // The version check is the anti-yank half (useDeskVersion.js): a
-  // router.refresh() against a build other than the one this page rendered
-  // from trips Next's mismatch fallback — a full browser navigation, the
-  // exact reload this desk kept suffering on every deploy. So the poll asks
-  // /api/desk-version first and refreshes only on a same-version "ok"; a
-  // deploy latches the stale flag (reload chip in the header), a switchover
-  // 5xx or a dropped connection is just a skipped tick.
-  const [lastRefreshedAt, setLastRefreshedAt] = useState(null);
+  // Live queue refresh — the shared gated poll (visible / no modal / not
+  // dirty / same build, see useGatedRefreshPoll.js). The version half is the
+  // anti-yank guard: a router.refresh() against a build other than the one
+  // this page rendered from trips Next's mismatch fallback — a full browser
+  // navigation — so a deploy latches the reload chip below instead, and a
+  // switchover 5xx is just a skipped tick.
+  const lastRefreshedAt = useGatedRefreshPoll(REFRESH_MS, deployVersion);
   const stale = useDeskVersion();
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (document.visibilityState !== "visible") return;
-      if (document.querySelector(".modal-overlay")) return;
-      if (isAnyDirty()) return;
-      if (isDeskStale()) return;
-      (async () => {
-        if ((await checkDeskVersion(deployVersion)) !== "ok") return;
-        refresh();
-        setLastRefreshedAt(new Date());
-      })();
-    }, REFRESH_MS);
-    return () => clearInterval(id);
-  }, [refresh, deployVersion]);
 
-  // One structured line per mount, so a prod console can tell the reload
-  // stories apart: nav "reload" + a crumb that saw a new build = deploy
-  // skew; + an "unreachable" crumb = switchover 5xx; + a clean crumb = the
-  // GM's own ⌘R. Costs nothing, answers "why did my page just refresh".
-  useEffect(() => {
-    const nav = performance.getEntriesByType("navigation")[0]?.type ?? "unknown";
-    console.log("[desk]", JSON.stringify({ nav, version: deployVersion, crumb: readVersionCrumb() }));
-  }, [deployVersion]);
+  // Every document load beacons the PREVIOUS page's death report (nav type,
+  // console tail, version crumb) into the server logs — the desk keeps
+  // hard-reloading in ways only classifiable from the client's last words.
+  // Temporary; see useReloadTelemetry.js.
+  useReloadTelemetry("turns", deployVersion);
 
   // Countdown to the next noon/midnight CT push, ticking every 30s. The move
   // cutoff rides the same tick.
