@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request) {
   try {
-    const text = (await request.text()).slice(0, 4096);
+    const text = (await request.text()).slice(0, 8192);
     console.log("[desk-telemetry]", text);
   } catch {
     /* a malformed beacon is not worth an error */

@@ -4,26 +4,40 @@ import { useEffect } from "react";
 import { readSession, writeSession } from "./useSessionState";
 import { readVersionCrumb } from "./useDeskVersion";
 
-// TEMPORARY DIAGNOSTIC — the desks keep hard-reloading for every GM, and
-// production evidence (Railway HTTP logs, 2026-08-30) shows a *successful*,
-// same-build RSC refresh being followed ~300ms later by a full browser
-// navigation. The remaining suspects are all inside Next's client-side
-// flight processing, and they differ in exactly one observable: the loud
-// branch console.error()s "Failed to fetch RSC payload … Falling back to
-// browser navigation." right before navigating, the silent branches don't.
+// TEMPORARY DIAGNOSTIC, v2 — the desks keep hard-reloading for every GM.
+// Round-2 forensics (Railway edge logs, 2026-08-31) showed the healthy cycle
+// everywhere (action POST → flight GET → applied), but on each captured
+// reload the expected flight fetch NEVER REACHED THE EDGE: the failure is
+// inside the browser, and it is silent (no console.error — v1's tail came
+// back empty).
 //
-// So: tap console.error into a small sessionStorage ring buffer, and on the
-// NEXT page load beacon the previous page's death report — navigation type,
-// the console tail, and the version-check crumb — to /api/desk-telemetry,
-// which just console.logs it into Railway's logs. A reload with a captured
-// fallback message = the decode/apply branch (with the underlying error!);
-// a reload with an empty tail = one of the silent branches. Remove this
-// whole file once the reloads are classified and fixed.
+// So v2 records what only the browser can see, into a sessionStorage ring
+// buffer that survives the reload and is beaconed to /api/desk-telemetry on
+// the next document load:
+//   - every same-origin fetch's fate: path, RSC-ish markers, status or the
+//     exact exception it died with, duration
+//   - window "error" and "unhandledrejection" events
+//   - console.error text (kept from v1)
+//   - at beacon time, the browser's own resource-timing tail as a
+//     cross-check (a failed fetch shows up with transferSize 0)
+//
+// Remove this file (and /api/desk-telemetry) once the reloads are classified
+// and fixed.
 
 const TAIL_KEY = "gm-desk-console-tail";
+const MAX_EVENTS = 14;
 
-let tapInstalled = false;
+let tapsInstalled = false;
 let landedSent = false;
+
+function pushEvent(entry) {
+  try {
+    const tail = readSession(TAIL_KEY, null) ?? [];
+    writeSession(TAIL_KEY, [...tail.slice(-(MAX_EVENTS - 1)), entry]);
+  } catch {
+    /* diagnostics must never throw */
+  }
+}
 
 function formatArg(a) {
   try {
@@ -35,22 +49,98 @@ function formatArg(a) {
   }
 }
 
-function installTap() {
-  if (tapInstalled) return;
-  tapInstalled = true;
-  const original = console.error.bind(console);
+// Best-effort: is this fetch part of Next's RSC machinery? Header shapes
+// vary (Headers, array, plain object) and the input may be a Request.
+function rscMarker(input, init) {
+  try {
+    const h = init?.headers ?? (input instanceof Request ? input.headers : null);
+    if (!h) return "";
+    const get = (name) =>
+      typeof h.get === "function"
+        ? h.get(name)
+        : Array.isArray(h)
+          ? (h.find(([k]) => k.toLowerCase() === name)?.[1] ?? null)
+          : (h[name] ?? h[name.toUpperCase()] ?? h[name.replace(/(^|-)./g, (s) => s.toUpperCase())] ?? null);
+    const marks = [];
+    if (get("rsc")) marks.push("rsc");
+    if (get("next-action")) marks.push("action");
+    if (get("next-router-prefetch")) marks.push("prefetch");
+    return marks.join("+");
+  } catch {
+    return "";
+  }
+}
+
+function installTaps() {
+  if (tapsInstalled) return;
+  tapsInstalled = true;
+
+  // 1. console.error (v1) — the loud fallback path would land here.
+  const originalError = console.error.bind(console);
   console.error = (...args) => {
-    try {
-      const text = args.map(formatArg).join(" ").slice(0, 400);
-      if (text) {
-        const tail = readSession(TAIL_KEY, null) ?? [];
-        writeSession(TAIL_KEY, [...tail.slice(-4), { at: Date.now(), text }]);
-      }
-    } catch {
-      /* never let the tap break the console */
-    }
-    original(...args);
+    const text = args.map(formatArg).join(" ").slice(0, 300);
+    if (text) pushEvent({ k: "err", at: Date.now(), text });
+    originalError(...args);
   };
+
+  // 2. Every same-origin fetch's fate. Wrap-and-passthrough only: same
+  // arguments, same return, body untouched, throws rethrown.
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = (input, init) => {
+    let url = "";
+    try {
+      url = typeof input === "string" ? input : (input?.url ?? String(input));
+    } catch {
+      /* leave url empty */
+    }
+    const local = url.startsWith("/") || url.startsWith(window.location.origin);
+    const skip = !local || url.includes("/api/desk-telemetry") || url.includes("/api/avatar/");
+    if (skip) return originalFetch(input, init);
+
+    const path = url.replace(window.location.origin, "").slice(0, 80);
+    const mark = rscMarker(input, init);
+    const started = Date.now();
+    return originalFetch(input, init).then(
+      (res) => {
+        pushEvent({ k: "fetch", at: started, ms: Date.now() - started, path, mark, status: res.status, redirected: res.redirected || undefined, type: res.type });
+        return res;
+      },
+      (err) => {
+        pushEvent({ k: "fetchfail", at: started, ms: Date.now() - started, path, mark, error: `${err?.name ?? "?"}: ${String(err?.message ?? err).slice(0, 160)}` });
+        throw err;
+      },
+    );
+  };
+
+  // 3. Uncaught errors and unhandled rejections — paths that never touch
+  // console.error directly.
+  window.addEventListener("error", (e) => {
+    pushEvent({ k: "uncaught", at: Date.now(), text: String(e.message ?? "").slice(0, 200) });
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    const r = e.reason;
+    pushEvent({ k: "rejection", at: Date.now(), text: `${r?.name ?? ""}: ${String(r?.message ?? r).slice(0, 200)}` });
+  });
+}
+
+// The browser's own record of recent fetch/XHR activity — an independent
+// cross-check on the tap (a request that failed mid-flight appears with
+// transferSize 0 and a truncated duration).
+function resourceTail() {
+  try {
+    return performance
+      .getEntriesByType("resource")
+      .filter((e) => e.initiatorType === "fetch" || e.initiatorType === "xmlhttprequest")
+      .slice(-8)
+      .map((e) => ({
+        path: e.name.replace(window.location.origin, "").slice(0, 80),
+        start: Math.round(e.startTime),
+        ms: Math.round(e.duration),
+        bytes: e.transferSize,
+      }));
+  } catch {
+    return [];
+  }
 }
 
 function beacon(payload) {
@@ -66,13 +156,11 @@ function beacon(payload) {
 
 export default function useReloadTelemetry(surface, deployVersion) {
   useEffect(() => {
-    installTap();
+    installTaps();
 
-    // One "landed" report per DOCUMENT (not per mount — a soft navigation
-    // back onto the desk re-mounts this hook but describes the same load):
-    // how this document arrived, what the previous page's console said
-    // before it died, and what the version poll last saw. sessionStorage
-    // carries both across the reload.
+    // One "landed" report per DOCUMENT (not per mount): how this document
+    // arrived, and everything the PREVIOUS document recorded before it died
+    // — sessionStorage carries the buffer across the reload.
     if (!landedSent) {
       landedSent = true;
       const nav = performance.getEntriesByType("navigation")[0]?.type ?? "unknown";
@@ -81,12 +169,16 @@ export default function useReloadTelemetry(surface, deployVersion) {
       beacon({ kind: "landed", surface, nav, deployVersion, crumb: readVersionCrumb(), tail });
     }
 
-    // Best-effort exit report too — catches the case where the next page
-    // isn't ours (or never loads) and includes anything console.error'd in
-    // this document's final moments.
+    // Exit report: always send now (v1 skipped when the console tail was
+    // empty — and the empty tail turned out to be the interesting case).
     const onPageHide = () => {
-      const tail = readSession(TAIL_KEY, null) ?? [];
-      if (tail.length) beacon({ kind: "leaving", surface, deployVersion, tail });
+      beacon({
+        kind: "leaving",
+        surface,
+        deployVersion,
+        tail: readSession(TAIL_KEY, null) ?? [],
+        resources: resourceTail(),
+      });
     };
     window.addEventListener("pagehide", onPageHide);
     return () => window.removeEventListener("pagehide", onPageHide);
