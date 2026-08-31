@@ -29,13 +29,13 @@ export default function RecordTab({ record, error, discordUserId }) {
   return (
     <>
       <div className="panel flex flex-wrap items-center justify-between gap-2 p-3">
-        <div className="flex flex-wrap gap-2">
+        <div className="segmented" role="group" aria-label="Record section">
           {SECTIONS.map((s) => (
             <button
               key={s}
               type="button"
+              aria-pressed={s === section}
               onClick={() => setSection(s)}
-              className={s === section ? "btn" : "btn-quiet"}
             >
               {s}
             </button>

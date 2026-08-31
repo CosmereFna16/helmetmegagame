@@ -225,6 +225,11 @@ bare, and the only ways out were a hand-placed "Exit" link and an Escape
 keypress that navigated away from an empty selection. With two desks, the way
 between them cannot be a link each one remembers to carry.
 
+`.desk-queue-row` has two shapes sharing one class name: the adjudication
+desk's (and `/gm/audit`'s) plain-button row is the unscoped default, and the
+player desk's link-plus-affordances row is scoped under
+`.desk-body--players .desk-queue-row` so its layout only applies there.
+
 `.desk-shell` is deliberately **not positioned and carries no z-index**.
 `Modal.js` renders `.modal-overlay` in-tree rather than through a portal, so a
 stacking context on the shell traps every desk modal at that element's level —

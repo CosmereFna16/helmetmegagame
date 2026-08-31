@@ -211,6 +211,26 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
         {searching && (
           <span className="text-xs text-muted">Searching everyone — filters paused.</span>
         )}
+        {zoneOptions.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            <label className="field min-w-0" style={{ flex: "1 1 6rem" }}>
+              <span className="field-label">Zone</span>
+              <Select value={zoneFilter} onChange={(e) => setZoneFilter(e.target.value)}>
+                <option value="">All</option>
+                {zoneOptions.map((z) => (
+                  <option key={z} value={z}>
+                    {z}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          </div>
+        )}
+        <ZoneScopeToggle
+          myZoneNames={myZoneNames}
+          filters={{ zone: zoneFilter }}
+          setFilters={(fn) => setZoneFilter((prev) => fn({ zone: prev }).zone)}
+        />
         <div className="segmented" role="group" aria-label="Reply filter">
           <button
             type="button"
@@ -220,24 +240,6 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
             Needs reply
           </button>
         </div>
-        <ZoneScopeToggle
-          myZoneNames={myZoneNames}
-          filters={{ zone: zoneFilter }}
-          setFilters={(fn) => setZoneFilter((prev) => fn({ zone: prev }).zone)}
-        />
-        {zoneOptions.length > 0 && (
-          <label className="field">
-            <span className="field-label">Zone</span>
-            <Select value={zoneFilter} onChange={(e) => setZoneFilter(e.target.value)}>
-              <option value="">All</option>
-              {zoneOptions.map((z) => (
-                <option key={z} value={z}>
-                  {z}
-                </option>
-              ))}
-            </Select>
-          </label>
-        )}
         {unreadIds.length > 0 && (
           <button type="button" className="btn-quiet" onClick={markAllRead}>
             Mark all read

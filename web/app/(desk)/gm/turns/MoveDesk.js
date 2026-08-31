@@ -38,12 +38,11 @@ function Switch({ label, value, options, onChange, disabled, children }) {
         {label}
         {children}
       </span>
-      <div className="flex flex-wrap gap-2">
+      <div className="segmented" role="group" aria-label={label}>
         {options.map((o) => (
           <button
             key={String(o.value)}
             type="button"
-            className={o.value === value ? "btn" : "btn-quiet"}
             aria-pressed={o.value === value}
             disabled={disabled}
             onClick={() => onChange(o.value)}
