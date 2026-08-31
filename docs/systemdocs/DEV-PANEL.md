@@ -412,6 +412,7 @@ covers Restart Game itself.
 | Knob | Does |
 |---|---|
 | `autoReconcileEnabled` | Run the channel doctor's cheap reconcile after every turn advance. It always runs on bot restart regardless |
+| `desiresEnabled` | Let players set a NEW Desire on `/character`. Off greys that form with "Temporary disabled." An already-ACTIVE Desire can still be fulfilled or cancelled, and GMs are unaffected (`REQUESTS.md` §5) |
 
 **System Reports** shows the latest run of each operational pass — `WIPE`,
 `DOCTOR`, `DAWN_WIPE`, `BULK_MOVE` — with its summary and its failures. A

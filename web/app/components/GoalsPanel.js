@@ -11,6 +11,7 @@ export default function GoalsPanel({
   desire,
   desireCooldownUntilTurn,
   openTurnNumber,
+  desiresEnabled = true,
 }) {
   return (
     <section className="panel p-4">
@@ -18,6 +19,7 @@ export default function GoalsPanel({
         desire={desire}
         cooldownUntilTurn={desireCooldownUntilTurn}
         openTurnNumber={openTurnNumber}
+        desiresEnabled={desiresEnabled}
       />
     </section>
   );

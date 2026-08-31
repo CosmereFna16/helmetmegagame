@@ -356,6 +356,12 @@ export default async function DevPanelPage({ searchParams }) {
                     <InfoIcon text={CONFIG_HELP.catatonicEnabled} />
                   </div>
                   <div className="ops-toggle">
+                    <Switch name="desiresEnabled" defaultChecked={config.desiresEnabled}>
+                      Desire system
+                    </Switch>
+                    <InfoIcon text={CONFIG_HELP.desiresEnabled} />
+                  </div>
+                  <div className="ops-toggle">
                     <Switch name="autoReconcileEnabled" defaultChecked={config.autoReconcileEnabled}>
                       Auto-reconcile after turn advance
                     </Switch>

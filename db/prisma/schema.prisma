@@ -437,6 +437,15 @@ model GameConfig {
   // (db/lib/channelDoctor.js) automatically after every turn advance, on top
   // of its pass at ready. Off by default.
   autoReconcileEnabled Boolean @default(false)
+
+  // Master switch for players setting a NEW Desire on /character
+  // (docs/systemdocs/REQUESTS.md §5). Off greys the form and shows
+  // "Temporary disabled." An already-ACTIVE Desire can still be fulfilled or
+  // cancelled — this only closes the faucet, it doesn't freeze what's in
+  // flight. GMs are unaffected: setDesireGm/endDesireGm on the Dev Panel are
+  // host access, same split as the rest of the Discord permission model. On
+  // by default, since Desires are the only way Tag Points are earned in play.
+  desiresEnabled Boolean @default(true)
 }
 
 // Master-sourced from docs/roles.yaml's zones[].factions[]

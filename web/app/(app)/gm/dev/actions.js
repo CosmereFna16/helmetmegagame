@@ -89,6 +89,7 @@ export async function updateGameConfig(formData) {
       catatonicEnabled: formData.get("catatonicEnabled") === "on",
       catatonicTurns: Math.max(1, intOrNull(formData, "catatonicTurns") ?? 4),
       autoReconcileEnabled: formData.get("autoReconcileEnabled") === "on",
+      desiresEnabled: formData.get("desiresEnabled") === "on",
       productionCoefficient: floatOrDefault(formData, "productionCoefficient", 1),
       startingTagPoints: intOrZero(formData, "startingTagPoints"),
       // Guarded at 1 because it's the denominator of every weighted role's
@@ -242,6 +243,7 @@ const DEFAULT_GAME_CONFIG = {
   catatonicEnabled: true,
   catatonicTurns: 4,
   autoReconcileEnabled: false,
+  desiresEnabled: true,
 };
 
 // Full game restart for dev/testing: wipes every player- and turn-scoped

@@ -32,7 +32,7 @@ const POINTS_HELP = (
   </>
 );
 
-export default function DesirePanel({ desire, cooldownUntilTurn, openTurnNumber }) {
+export default function DesirePanel({ desire, cooldownUntilTurn, openTurnNumber, desiresEnabled = true }) {
   const confirm = useConfirm();
   const [text, setText] = useState("");
   const [points, setPoints] = useState("1");
@@ -110,6 +110,8 @@ export default function DesirePanel({ desire, cooldownUntilTurn, openTurnNumber 
             </button>
           </div>
         </div>
+      ) : !desiresEnabled ? (
+        <p className="text-sm text-muted">Temporary disabled.</p>
       ) : onCooldown ? (
         <p className="text-sm text-muted">
           You just ended a Desire — you can set a new one next turn.

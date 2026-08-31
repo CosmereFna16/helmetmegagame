@@ -279,6 +279,7 @@ export default async function CharacterPage() {
           avatarUploadsEnabled: true,
           portraitMakerEnabled: true,
           portraitFantasyPartsEnabled: true,
+          desiresEnabled: true,
           // Read here too, for the Spend Tag Points modal folded in from the
           // old /store page — see store below.
           maxNegativeTags: true,
@@ -532,18 +533,30 @@ export default async function CharacterPage() {
     ? { ...openTurn, moveWindow: moveWindow(openTurn, { autoTurnAdvanceDisabled: gameConfig?.autoTurnAdvanceDisabled ?? false }) }
     : openTurn;
 
+  // A Gambit's die is rolled at submit (so the GM desk has it immediately)
+  // but withheld from the player until Moves lock — knowing the roll shouldn't
+  // color how the rest of the turn gets played. Strip it here, server-side,
+  // rather than just not rendering it: currentAction crosses into a client
+  // component below, so anything left on it reaches the browser regardless.
+  // Delivered instead by a DM at the turn-end staged push once it's safe to
+  // know (db/lib/stagedPush.js's gambitRollNotices).
+  const rollRevealed = Boolean(openTurnWithWindow?.moveWindow?.locked);
+  const sheetAction =
+    currentAction && !rollRevealed ? { ...currentAction, diceRoll: null, diceModifier: null } : currentAction;
+
   return (
     <CharacterSheet
       character={character}
       mode="self"
       openTurn={openTurnWithWindow}
-      currentAction={currentAction}
+      currentAction={sheetAction}
       avatarSrc={avatarSrc}
       transferParties={transferParties}
       tagCatalog={tagCatalog}
       otherCharacters={otherCharacters}
       desire={desire}
       desireCooldownUntilTurn={lastEndedDesire?.endedTurnNumber ?? null}
+      desiresEnabled={gameConfig?.desiresEnabled ?? true}
       canHeal={canHeal}
       canFastTravel={canFastTravel}
       fastTravelSeats={fastTravelSeats}

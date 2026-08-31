@@ -400,6 +400,16 @@ The 1–5 ladder is shown in an `InfoIcon` beside the points field:
 5. Win back your lover.                            Extraordinary.
 ```
 
+`GameConfig.desiresEnabled` is the Dev Panel switch that closes the faucet
+without freezing what's already in flight: off blocks `setDesire` (checked
+server-side in `setDesireImpl`, not just hidden in the UI) so nobody can start
+a **new** Desire, but an already-`ACTIVE` one can still be fulfilled or
+cancelled — the system drains out rather than stopping mid-goal. `/character`
+greys the "set a new Desire" form and shows "Temporary disabled." in its
+place. Unaffected: `setDesireGm`/`endDesireGm` on the Dev Panel (host access,
+not game permission — same split `/lifeweb`'s GM panel uses) and the Discord
+🔍/⚜️ inspect surfaces, which stay read-only regardless.
+
 ## 5a. The Lifeweb
 
 `/lifeweb` is gated on the `mortus` tag. Its two buttons are Requests like any

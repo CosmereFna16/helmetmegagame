@@ -26,4 +26,6 @@ export const CONFIG_HELP = {
     "Effectively one-way: shows every location regardless of where a character stood, and names the character behind every /conceal. Meant for after the game ends.",
   archiveTravelEvents: "Record arrivals/departures in the archive.",
   lifewebBlood: "0-100, raw override.",
+  desiresEnabled:
+    "Let players set new Desires on /character. Turning this off greys the form and shows “Temporary disabled.” A Desire already ACTIVE can still be fulfilled or cancelled, and GMs can still set one from a character's Dev Panel.",
 };

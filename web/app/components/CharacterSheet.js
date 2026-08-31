@@ -40,6 +40,7 @@ export default function CharacterSheet({
   otherCharacters,
   desire,
   desireCooldownUntilTurn,
+  desiresEnabled = true,
   canHeal = false,
   canFastTravel = false,
   fastTravelSeats = 0,
@@ -140,6 +141,7 @@ export default function CharacterSheet({
               desire={desire ?? null}
               desireCooldownUntilTurn={desireCooldownUntilTurn ?? null}
               openTurnNumber={openTurn?.number ?? null}
+              desiresEnabled={desiresEnabled}
             />
           )}
 
