@@ -12,6 +12,7 @@ import DmThread from "./DmThread";
 import ArchiveContextModal from "./ArchiveContextModal";
 import CustomTagDialog from "./CustomTagDialog";
 import Tooltip from "./Tooltip";
+import useSubmitOnEnter from "./useSubmitOnEnter";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import {
   getCharacterInspector,
@@ -333,10 +334,36 @@ function MovesView({ data }) {
   );
 }
 
-function ArchiveView({ data, onOpenContext }) {
+function ArchiveView({ data, onOpenContext, characterId, cacheKey, setCache }) {
+  const [pending, startTransition] = useTransition();
+
+  function loadOlder() {
+    const oldest = data.entries[0];
+    if (!oldest) return;
+    startTransition(async () => {
+      const res = await getArchiveSlice({
+        characterId,
+        beforeMs: new Date(oldest.sentAt).getTime(),
+        beforeId: oldest.id,
+      });
+      if (res?.ok) {
+        setCache((prev) =>
+          new Map(prev).set(cacheKey, {
+            data: { entries: [...res.entries, ...data.entries], hasMore: res.hasMore },
+          }),
+        );
+      }
+    });
+  }
+
   if (!data.entries.length) return <p className="p-3 text-sm text-muted">Nothing in the transcript.</p>;
   return (
     <div className="flex flex-col gap-3 p-3">
+      {data.hasMore && (
+        <button type="button" className="btn-quiet self-center" disabled={pending} onClick={loadOlder}>
+          {pending ? "Loading…" : "Load older"}
+        </button>
+      )}
       {data.entries.map((e) => {
         const row = (
           <>
@@ -376,6 +403,9 @@ function DmsView({ data, characterId, cacheKey, setCache }) {
   const draftOver = draft.length > GM_MESSAGE_MAX_LENGTH;
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
+  // Not inside a <form> — the hook's callback form fires `send` directly
+  // instead of calling requestSubmit() on a form that doesn't exist here.
+  const onKeyDown = useSubmitOnEnter(send);
 
   function loadOlder() {
     const oldest = data.messages[0];
@@ -397,6 +427,9 @@ function DmsView({ data, characterId, cacheKey, setCache }) {
   }
 
   function send() {
+    // Same guards as the Send button's own `disabled` — Enter must not be
+    // able to do what the button refuses.
+    if (pending || draftOver) return;
     const content = draft.trim();
     if (!content) return;
     setError(null);
@@ -431,6 +464,7 @@ function DmsView({ data, characterId, cacheKey, setCache }) {
           placeholder="Write a message…"
           disabled={pending}
           onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={onKeyDown}
         />
         <FormError>{error}</FormError>
         <div className="mt-1 flex items-center justify-between gap-2">
@@ -571,6 +605,7 @@ export default function InspectorColumn({
   const isPinned = pinned.some((p) => p.characterId === inspected?.characterId);
   const pending = pendingByCharacter?.get(inspected?.characterId);
   const cacheKey = inspected ? `${inspected.characterId}:DMs` : null;
+  const archiveCacheKey = inspected ? `${inspected.characterId}:Archive` : null;
   const inspectedRoster = roster?.find((c) => c.id === inspected?.characterId);
   const inspectedUsername = inspectedRoster?.username;
   const inspectedRole = inspectedRoster?.roleTitle;
@@ -663,7 +698,15 @@ export default function InspectorColumn({
               />
             )}
             {data && tab === "Moves" && <MovesView data={data} />}
-            {data && tab === "Archive" && <ArchiveView data={data} onOpenContext={setContextEntry} />}
+            {data && tab === "Archive" && (
+              <ArchiveView
+                data={data}
+                onOpenContext={setContextEntry}
+                characterId={inspected.characterId}
+                cacheKey={archiveCacheKey}
+                setCache={setCache}
+              />
+            )}
             {data && tab === "DMs" && (
               <DmsView data={data} characterId={inspected.characterId} cacheKey={cacheKey} setCache={setCache} />
             )}

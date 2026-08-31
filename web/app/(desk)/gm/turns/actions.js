@@ -1028,27 +1028,44 @@ async function getCharacterInspectorImpl({ characterId }) {
 
 const ARCHIVE_SLICE = 30;
 
-async function getArchiveSliceImpl({ characterId }) {
+// Keyset-paged, same shape as getDmThreadPage: newest-first cursor, then
+// reversed to reading order. The first call (from useInspectorData) passes
+// only { characterId } and gets the tail; ArchiveView's "Load older" bumps
+// beforeMs/beforeId back through history a page at a time.
+async function getArchiveSliceImpl({ characterId, beforeMs, beforeId }) {
   await requireGm();
+  const where = { characterId: characterId ?? "" };
+  if (beforeMs) {
+    const beforeDate = new Date(Number(beforeMs));
+    where.OR = [
+      { sentAt: { lt: beforeDate } },
+      beforeId ? { sentAt: beforeDate, id: { lt: String(beforeId) } } : undefined,
+    ].filter(Boolean);
+  }
   const rows = await prisma.archiveEntry.findMany({
-    where: { characterId: characterId ?? "" },
+    where,
     orderBy: [{ sentAt: "desc" }, { id: "desc" }],
-    take: ARCHIVE_SLICE,
+    take: ARCHIVE_SLICE + 1,
   });
+  const hasMore = rows.length > ARCHIVE_SLICE;
   // Newest-last, the way a transcript reads. Wrapped in an object because
   // guarded() spreads the payload — a bare array would come back as indices.
   return {
-    entries: rows.reverse().map((e) => ({
-      id: e.id,
-      kind: e.kind,
-      content: e.content,
-      characterName: e.characterName,
-      concealedAlias: e.concealedAlias,
-      zoneName: e.zoneName,
-      turnNumber: e.turnNumber,
-      turnPhase: e.turnPhase,
-      sentAt: e.sentAt.toISOString(),
-    })),
+    entries: rows
+      .slice(0, ARCHIVE_SLICE)
+      .reverse()
+      .map((e) => ({
+        id: e.id,
+        kind: e.kind,
+        content: e.content,
+        characterName: e.characterName,
+        concealedAlias: e.concealedAlias,
+        zoneName: e.zoneName,
+        turnNumber: e.turnNumber,
+        turnPhase: e.turnPhase,
+        sentAt: e.sentAt.toISOString(),
+      })),
+    hasMore,
   };
 }
 
