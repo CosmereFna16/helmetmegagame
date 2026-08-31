@@ -56,7 +56,15 @@ module.exports = {
     );
 
     client.user.setPresence({
-      activities: [{ name: "status", type: ActivityType.Custom, state: "» Message me to contact the GMs." }],
+      // Discord renders no markdown and makes no links in a custom status, so
+      // the Handbook is written as a bare URL players can read and type.
+      activities: [
+        {
+          name: "status",
+          type: ActivityType.Custom,
+          state: "#questions | ravenheart.quest/handbook",
+        },
+      ],
       status: "online",
     });
 
