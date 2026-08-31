@@ -57,7 +57,7 @@ export default function DefaultEffortPanel({ characterId, defaultEffort, zone })
       <h2 className="panel-header panel-header--with-icon">
         Default Move
         <InfoIcon
-          text={<p>You can set a default move so that it&apos;s sent if you don&apos;t act on a given turn.</p>}
+          text={<p>You can set a default move (Routine) so that it&apos;s sent if you don&apos;t act on a given turn. Cannot be a Gambit.</p>}
         />
       </h2>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
