@@ -252,10 +252,22 @@ export default async function DevPanelPage({ searchParams }) {
               </div>
               <form action={updateGameConfig} className="flex flex-col gap-4">
                 <div className="ops-grid">
-                  <label className="field">
-                    <span className="field-label">Lifeweb Blood</span>
-                    <input type="number" name="lifewebBlood" min="0" max="100" defaultValue={config.lifewebBlood} />
-                  </label>
+                  <div className="field">
+                    <span className="flex items-center gap-2">
+                      <label htmlFor="config-lifewebBlood" className="field-label">
+                        Lifeweb Blood
+                      </label>
+                      <InfoIcon text={CONFIG_HELP.lifewebBlood} />
+                    </span>
+                    <input
+                      type="number"
+                      id="config-lifewebBlood"
+                      name="lifewebBlood"
+                      min="0"
+                      max="100"
+                      defaultValue={config.lifewebBlood}
+                    />
+                  </div>
                   <label className="field">
                     <span className="field-label">Lifeweb decay / turn</span>
                     <input type="number" name="lifewebDecayPerTurn" defaultValue={config.lifewebDecayPerTurn} />

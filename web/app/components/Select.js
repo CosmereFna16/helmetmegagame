@@ -71,6 +71,7 @@ export default function Select({
   disabled,
   className = "",
   style,
+  form,
   "aria-label": ariaLabel,
 }) {
   const items = useMemo(() => optionsFromChildren(children), [children]);
@@ -314,7 +315,7 @@ export default function Select({
         </span>
         <ChevronDownIcon className="select-chevron" aria-hidden="true" />
       </button>
-      {name && <input type="hidden" name={name} value={currentValue ?? ""} required={required} />}
+      {name && <input type="hidden" name={name} value={currentValue ?? ""} required={required} form={form} />}
       {open &&
         createPortal(
           <ul
