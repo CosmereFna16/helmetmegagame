@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
+import DevSubNav from "../DevSubNav";
 import TagCatalog from "./TagCatalog";
 
 // The tag catalog, with a Create dialog for GM-authored tags.
@@ -35,12 +35,7 @@ export default async function DevTagsPage() {
       <PageHeader
         title="Tag Catalog"
         subtitle="Everything in the catalog, plus the tags GMs have written themselves."
-        actions={
-          <nav className="flex gap-4 text-sm">
-            <Link href="/gm/dev" className="menu-item">Dev</Link>
-            <Link href="/gm/players" className="menu-item">Players</Link>
-          </nav>
-        }
+        actions={<DevSubNav current="tags" />}
       />
 
       <TagCatalog

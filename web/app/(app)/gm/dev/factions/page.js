@@ -1,17 +1,10 @@
-import SubmitButton from "@/app/components/SubmitButton";
-import Select from "@/app/components/Select";
-import ZoneChip from "@/app/components/ZoneChip";
-import { EmptyRow } from "@/app/components/EmptyState";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
-import { updateFaction, deleteFaction } from "../actions";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
-
-// Name, Parent, Silo, and the two action columns.
-const COL_COUNT = 6;
+import DevSubNav from "../DevSubNav";
+import FactionsTable from "./FactionsTable";
 
 export default async function DevFactionsPage() {
   const session = await auth();
@@ -23,90 +16,21 @@ export default async function DevFactionsPage() {
     include: { zone: { select: { name: true } } },
   });
 
+  // Flat DTO for the client table — flat strings/numbers only.
+  const rows = factions.map((f) => ({
+    id: f.id,
+    name: f.name,
+    zoneName: f.zone?.name ?? "",
+    parentFactionId: f.parentFactionId,
+    silo: f.silo,
+    deletable: f.name !== "Unaffiliated",
+  }));
+
   return (
     <PageShell>
-      <Link href="/gm/dev" className="btn-quiet">&larr; Back to Dev Panel</Link>
-      <PageHeader title={`Factions (${factions.length})`} />
+      <PageHeader title={`Factions (${factions.length})`} actions={<DevSubNav current="factions" />} />
 
-      <div className="panel overflow-x-auto">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Zone</th>
-              <th>Parent</th>
-              <th>Silo</th>
-              <th></th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {factions.map((f) => (
-              <tr key={f.id}>
-                <td>
-                  <form action={updateFaction} id={`faction-${f.id}`} className="contents">
-                    <input type="hidden" name="factionId" value={f.id} />
-                  </form>
-                  <input name="name" defaultValue={f.name} form={`faction-${f.id}`} className="control" />
-                </td>
-                {/* Read-only: a faction's zone is owned by docs/roles.yaml and
-                    written by db:sync-roles, so editing it here would be
-                    overwritten on the next sync. */}
-                <td>
-                  <ZoneChip zoneName={f.zone?.name ?? ""} />
-                </td>
-                <td>
-                  <Select
-                    name="parentFactionId"
-                    defaultValue={f.parentFactionId ?? ""}
-                    form={`faction-${f.id}`}
-                  >
-                    <option value="">None</option>
-                    {factions
-                      .filter((other) => other.id !== f.id)
-                      .map((other) => (
-                        <option key={other.id} value={other.id}>
-                          {other.name}
-                        </option>
-                      ))}
-                  </Select>
-                </td>
-                <td>
-                  <input
-                    type="number"
-                    name="silo"
-                    defaultValue={f.silo}
-                    form={`faction-${f.id}`}
-                    className="control"
-                    style={{ width: "6rem" }}
-                  />
-                </td>
-                <td>
-                  {/* Outside its <form> (wired by form={...}), so useFormStatus
-                      cannot see it — SubmitButton reads the nearest ENCLOSING
-                      form, and there isn't one. Stays a plain button. */}
-                  <button type="submit" form={`faction-${f.id}`} className="btn-quiet">
-                    Save
-                  </button>
-                </td>
-                <td>
-                  {f.name !== "Unaffiliated" && (
-                    <form action={deleteFaction}>
-                      <input type="hidden" name="factionId" value={f.id} />
-                      <SubmitButton className="btn-quiet" pendingLabel="Deleting…">
-                        Delete
-                      </SubmitButton>
-                    </form>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {factions.length === 0 && (
-              <EmptyRow cols={COL_COUNT}>No factions yet.</EmptyRow>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <FactionsTable rows={rows} />
     </PageShell>
   );
 }

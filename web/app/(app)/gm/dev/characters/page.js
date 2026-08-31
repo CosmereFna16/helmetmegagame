@@ -1,16 +1,10 @@
-import { EmptyRow } from "@/app/components/EmptyState";
-import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
-import FactionLink from "@/app/components/FactionLink";
-import CharacterAvatar from "@/app/components/CharacterAvatar";
-
-// Name, Faction, Zone, Status, Resources — kept beside the <thead> it counts.
-const COL_COUNT = 5;
+import DevSubNav from "../DevSubNav";
+import CharactersTable from "./CharactersTable";
 
 export default async function DevCharactersPage() {
   const session = await auth();
@@ -25,47 +19,24 @@ export default async function DevCharactersPage() {
     take: 1000,
   });
 
+  // Flat DTO for the client table — no Date objects across the boundary, so
+  // updatedAt travels as the epoch CharacterAvatar's `version` prop wants.
+  const rows = characters.map((c) => ({
+    id: c.id,
+    name: c.name,
+    avatarVersion: c.updatedAt.getTime(),
+    factionId: c.factionId,
+    factionName: c.faction?.name ?? "-",
+    zoneName: c.zone?.name ?? "-",
+    status: c.status,
+    resources: c.resources,
+  }));
+
   return (
     <PageShell>
-      <Link href="/gm/dev" className="btn-quiet">&larr; Back to Dev Panel</Link>
-      <PageHeader title={`Characters (${characters.length})`} />
+      <PageHeader title={`Characters (${characters.length})`} actions={<DevSubNav current="characters" />} />
 
-      <div className="panel overflow-x-auto">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Faction</th>
-              <th>Zone</th>
-              <th>Status</th>
-              <th>Resources</th>
-            </tr>
-          </thead>
-          <tbody>
-            {characters.map((c) => (
-              <tr key={c.id}>
-                <td>
-                  <Link href={`/gm/dev/characters/${c.id}`} className="menu-item inline-flex items-center gap-2">
-                    <CharacterAvatar characterId={c.id} name={c.name} version={c.updatedAt.getTime()} />
-                    {c.name}
-                  </Link>
-                </td>
-                <td>
-                  <FactionLink factionId={c.factionId} name={c.faction?.name ?? "-"} />
-                </td>
-                <td>{c.zone?.name ?? "-"}</td>
-                <td>
-                  <EnumPill map={CHARACTER_STATUS} value={c.status} />
-                </td>
-                <td>{c.resources} ⬢</td>
-              </tr>
-            ))}
-            {characters.length === 0 && (
-              <EmptyRow cols={COL_COUNT}>No characters yet.</EmptyRow>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <CharactersTable rows={rows} />
     </PageShell>
   );
 }
