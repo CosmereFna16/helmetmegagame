@@ -212,6 +212,22 @@ export default function ConversationPane({
   }, [coarse, router]);
 
   const onKeyDown = useSubmitOnEnter();
+
+  // Focus the composer the moment a conversation opens, so clicking a rail
+  // row means you can just type. Mount-only is right: the parent keys this
+  // component on discordUserId, and the InboxPoller's refresh doesn't
+  // remount it, so a poll tick can't steal focus mid-sentence. Skipped on
+  // touch — popping the keyboard over the thread would be worse than a tap.
+  const composerRef = useRef(null);
+  useEffect(() => {
+    if (coarse) return;
+    const el = composerRef.current;
+    if (!el) return;
+    el.focus({ preventScroll: true });
+    // After a restored draft, the caret belongs at the end, not position 0.
+    el.setSelectionRange(el.value.length, el.value.length);
+  }, [coarse]);
+
   const over = content.length > GM_MESSAGE_MAX_LENGTH;
   const claimedByOther = claimedBy && claimedBy !== myDiscordUserId;
 
@@ -275,6 +291,7 @@ export default function ConversationPane({
         <label className="field">
           <span className="sr-only">Reply</span>
           <textarea
+            ref={composerRef}
             rows={3}
             value={content}
             onChange={(e) => writeDraft(e.target.value)}
