@@ -184,6 +184,7 @@ function JournalComposerBody({ entry, roster, currentTurnNumber, onClose }) {
             <textarea
               ref={taRef}
               rows={6}
+              className="w-full"
               value={value}
               maxLength={JOURNAL_BODY_MAX_LENGTH}
               onChange={handleChange}

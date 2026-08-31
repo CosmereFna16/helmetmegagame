@@ -79,7 +79,7 @@ export default async function NotesPage() {
     <PageShell width="narrow">
       <PageHeader
         title="Notes"
-        subtitle="Your private Journal, and the messages you've starred with ⭐ in a location channel."
+        subtitle="Your private Journal, and the messages you've reacted ⭐ to in a location channel."
       />
       <NotesBoard
         starred={starred}
