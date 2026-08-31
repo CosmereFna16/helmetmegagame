@@ -30,11 +30,11 @@ viewport minus the nav rail, on the same `.desk-*` classes as the adjudication
 desk — the two are the same tool and should read as one.
 
 ```
-┌ header: Players · turn chip · N tracked · N unread · Bulk message ──┐
+┌ header: Players · turn chip · N tracked · N unread · N awaiting · Bulk message ┐
 │ RAIL            │  ROSTER TABLE (nobody selected)  │  INSPECTOR     │
-│ Inbox | Roster  │  ─────────── or ─────────────────│  Sheet · Tags  │
-│ search, filters │  CONVERSATION                    │  Moves ·Archive│
-│ zone scope      │  thread + composer               │  DMs           │
+│ search, filters │  ─────────── or ─────────────────│  Sheet · Tags  │
+│ zone scope      │  CONVERSATION                    │  Moves ·Archive│
+│                 │  thread + composer                │  DMs           │
 └─────────────────┴──────────────────────────────────┴────────────────┘
 ```
 
@@ -66,21 +66,46 @@ with no SEO to protect and a real chance of another reshuffle).
 
 ## 3. The rail
 
-Two lenses, the way the adjudication rail has Moves/Requests:
+One lens. The rail is the inbox: with no search query it lists only players
+with a conversation, sorted pinned → unread → recency, showing the last
+message with a `You:` / `GM:` / `Bot:` prefix. There used to be a second,
+Roster lens — everyone with a character, alphabetically — as the only way to
+reach someone who had never written. It's gone: a search query does that job
+instead (below), and it did not earn a whole second lens, a segmented toggle
+and a sort-order tie-break of its own.
 
-- **Inbox** — only players with a conversation, sorted pinned → unread →
-  recency, showing the last message with a `You:` / `GM:` / `Bot:` prefix.
-- **Roster** — everyone with a character, alphabetically. Dead characters stay
-  listed so their history is reachable.
+Typing a query widens the candidate set from "has a conversation" to "has a
+conversation **or** a character" — that's what makes a first message
+possible at all, since a character with no DM history still has a working
+`href` to an empty thread. A query also **pauses** the zone filter and the
+Needs-reply toggle rather than composing with them: the zone filter seeds
+from the GM's own zone seat, and without the pause it would silently hide a
+cross-zone search hit, which is exactly the case search exists for. The rail
+shows a small "Searching everyone — filters paused." line under the search
+box while a query is active. Sort while searching is match score, then
+conversation-havers before non-havers, then recency — a name hit with a
+thread still usually outranks a name hit with none.
 
 Search is `scoreMatch` (`web/lib/fuzzySearch.js` — keep that the one shared
 engine) over name, role, faction, Discord username **and** global name, zone,
 **held tag names** and message preview. `scoreMatch` tokenizes and folds diacritics, tolerates a
 typo, and takes `field:term` scopes — `role:smith`, `zone:caves`, `@handle`
 as shorthand for `username:handle` — so a bare word still matches anything
-but a scoped one narrows to that field only. Zone/status filters and
+but a scoped one narrows to that field only. The zone filter and
 `ZoneScopeToggle` seed from the GM's zone seat the same way every other GM
 table does.
+
+The old All/Unread/Awaiting three-way toggle is one **Needs reply** button
+now, filtering to rows where `unreadCount > 0` or the player wrote last
+(`lastDirection === "INBOUND"`). Two of the three old lenses were sort orders
+wearing a filter's clothes; a 100-player inbox needs "who is waiting on me",
+not three mutually exclusive views of it. What used to be the "Awaiting"
+filter is a row-level mark instead: any row where the player wrote last and
+it's already read (`lastDirection === "INBOUND" && unreadCount === 0`) gets a
+small muted "awaiting" chip next to its time chip — the unread badge already
+says as much when there's an unread count, so the chip only shows when there
+isn't one. The desk header's meta row totals the same predicate as an
+"N awaiting" chip beside "N unread".
 
 **Content search is the server's half of the same box.** The fuzzy engine only
 ever sees what the layout ships to the client, and that is *one preview line
@@ -138,10 +163,10 @@ Two bulk verbs, both GM-safe:
 
 `BulkComposer` — the same modal, over the whole living roster with
 zone/faction bulk-check — has two more doors: **Bulk message** in the desk
-header, reachable from the Inbox lens where the roster's checkboxes are not,
-and **Message pinned** in the inspector's pin row, which opens it prefilled
-with the pinned characters. It was a finished component nothing imported
-until then.
+header, reachable from the rail where the roster's checkboxes are not, and
+**Message pinned** in the inspector's pin row, which opens it prefilled with
+the pinned characters. It was a finished component nothing imported until
+then.
 
 **Bulk zone moves are deliberately absent.** `bulkMoveCharacters` requires
 superadmin, so a button for it here would fail for most of the people looking
@@ -323,7 +348,7 @@ desk's own actions.
 | File | Role |
 |---|---|
 | `(desk)/gm/players/layout.js` | Desk shell + all rail data (the union query) |
-| `PlayerRail.js` | Inbox/Roster lenses, search, filters, pins |
+| `PlayerRail.js` | The inbox rail: search (widens to the roster, pauses filters), zone filter, Needs-reply toggle, pins |
 | `page.js` / `RosterTable.js` | The fleet view + bulk verbs |
 | `FactionsPanel.js` | The faction hierarchy view |
 | `actions.js` | DM send/page, content search, canon load, read cursors, claims, staging, broadcast |

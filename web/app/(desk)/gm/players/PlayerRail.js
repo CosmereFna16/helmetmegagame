@@ -16,15 +16,12 @@ import { markConversationRead, searchConversations } from "./actions";
 // The player desk's queue rail, on the same .desk-rail/.desk-queue-row classes
 // as the adjudication desk's — the two are the same tool and should look it.
 //
-// Two lenses, the way the other rail has Moves/Requests:
-//
-//   Inbox  — only players with a conversation, sorted pinned → unread →
-//            recency, showing the last message.
-//   Roster — everyone with a character, alphabetically. This is the lens that
-//            makes a first message possible at all; the old inbox could only
-//            list people who had already written.
-
-const STATUS_FILTERS = ["all", "unread", "awaiting"];
+// One lens: the rail is the inbox. With no search query it lists only players
+// with a conversation, sorted pinned → unread → recency, showing the last
+// message. Typing a query widens the candidate set to everyone with a
+// character too — that's what makes a first message possible at all — and
+// pauses the zone and needs-reply filters, since the seat-seeded zone filter
+// would otherwise silently hide a cross-zone search hit.
 
 // The fuzzy engine only ever sees what the layout ships to the client, and
 // that is one preview line per conversation — so "find the thread where we
@@ -62,10 +59,12 @@ function relativeTime(ms) {
 export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
   const pathname = usePathname();
   const [, startTransition] = useTransition();
-  const [lens, setLens] = useState("inbox");
   const [query, setQuery] = useState("");
   const [zoneFilter, setZoneFilter] = useState(openingZoneName(myZoneNames));
-  const [statusFilter, setStatusFilter] = useState("all");
+  // "Who is waiting on me": unread, or they wrote last and it's been read.
+  // A 100-player inbox still needs this one lens; it did not need three
+  // mutually exclusive ones where two were sort orders in disguise.
+  const [needsReplyOnly, setNeedsReplyOnly] = useState(false);
   // { q, hits } — kept keyed by the query it answered, so a stale round trip
   // is ignored during render rather than cleared from an effect (clearing
   // state in an effect body is what react-hooks/set-state-in-effect, an error
@@ -114,14 +113,21 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
 
   const visible = useMemo(() => {
     const q = query.trim();
-    // Inbox is "has a conversation"; Roster is "has a character". A player
-    // with neither is not a row at all, and a dead character stays visible in
-    // the roster so their history is still reachable.
-    let list = rows.filter((r) => (lens === "inbox" ? r.count > 0 : r.characterId));
+    // With no query, the rail is the inbox: only players with a conversation.
+    // A query widens the net to everyone with a character too — that's the
+    // only way to reach someone who has never written, since their href
+    // already works for an empty thread.
+    let list = q ? rows.filter((r) => r.count > 0 || r.characterId) : rows.filter((r) => r.count > 0);
 
-    if (zoneFilter) list = list.filter((c) => c.factionZoneName === zoneFilter);
-    if (statusFilter === "unread") list = list.filter((c) => c.unreadCount > 0);
-    if (statusFilter === "awaiting") list = list.filter((c) => c.lastDirection === "INBOUND");
+    // A query pauses the zone and needs-reply filters rather than composing
+    // with them — otherwise the seat-seeded zone filter would silently hide
+    // a cross-zone search hit, which is exactly the case search exists for.
+    if (!q) {
+      if (zoneFilter) list = list.filter((c) => c.factionZoneName === zoneFilter);
+      if (needsReplyOnly) {
+        list = list.filter((c) => c.unreadCount > 0 || c.lastDirection === "INBOUND");
+      }
+    }
 
     let scored = list.map((c) => ({ row: c, match: null }));
     if (q) {
@@ -142,11 +148,16 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
     }
 
     scored.sort((a, b) => {
-      if (q) return b.match.score - a.match.score;
+      if (q) {
+        if (b.match.score !== a.match.score) return b.match.score - a.match.score;
+        const aHasThread = a.row.count > 0;
+        const bHasThread = b.row.count > 0;
+        if (aHasThread !== bHasThread) return aHasThread ? -1 : 1;
+        return b.row.lastAtMs - a.row.lastAtMs;
+      }
       const aPinned = isPinned(a.row);
       const bPinned = isPinned(b.row);
       if (aPinned !== bPinned) return aPinned ? -1 : 1;
-      if (lens === "roster") return a.row.name.localeCompare(b.row.name);
       const aUnread = a.row.unreadCount > 0;
       const bUnread = b.row.unreadCount > 0;
       if (aUnread !== bUnread) return aUnread ? -1 : 1;
@@ -169,7 +180,7 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
     }
     extra.sort((a, b) => b.row.lastAtMs - a.row.lastAtMs);
     return [...scored, ...extra];
-  }, [rows, lens, query, zoneFilter, statusFilter, isPinned, activeContentHits]);
+  }, [rows, query, zoneFilter, needsReplyOnly, isPinned, activeContentHits]);
 
   const unreadIds = useMemo(
     () => rows.filter((c) => c.unreadCount > 0).map((c) => c.discordUserId),
@@ -182,17 +193,10 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
     });
   }
 
+  const searching = query.trim().length > 0;
+
   return (
     <div className="desk-rail">
-      <div className="desk-rail-lens segmented" role="group" aria-label="Rail lens">
-        <button type="button" aria-pressed={lens === "inbox"} onClick={() => setLens("inbox")}>
-          Inbox
-        </button>
-        <button type="button" aria-pressed={lens === "roster"} onClick={() => setLens("roster")}>
-          Roster
-        </button>
-      </div>
-
       <div className="desk-rail-filters">
         <label className="field min-w-0">
           <span className="field-label">Search</span>
@@ -202,17 +206,17 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
             placeholder="name, role, faction, tag, zone, @handle, message text…"
           />
         </label>
-        <div className="segmented" role="group" aria-label="Conversation filter">
-          {STATUS_FILTERS.map((f) => (
-            <button
-              key={f}
-              type="button"
-              aria-pressed={statusFilter === f}
-              onClick={() => setStatusFilter(f)}
-            >
-              {f === "all" ? "All" : f === "unread" ? "Unread" : "Awaiting"}
-            </button>
-          ))}
+        {searching && (
+          <span className="text-xs text-muted">Searching everyone — filters paused.</span>
+        )}
+        <div className="segmented" role="group" aria-label="Reply filter">
+          <button
+            type="button"
+            aria-pressed={needsReplyOnly}
+            onClick={() => setNeedsReplyOnly((v) => !v)}
+          >
+            Needs reply
+          </button>
         </div>
         <ZoneScopeToggle
           myZoneNames={myZoneNames}
@@ -282,6 +286,9 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
                   {row.lastAtMs > 0 && (
                     <span className="desk-queue-time mono">{relativeTime(row.lastAtMs)}</span>
                   )}
+                  {row.lastDirection === "INBOUND" && row.unreadCount === 0 && (
+                    <span className="chip text-xs text-muted">awaiting</span>
+                  )}
                 </div>
                 <div className="desk-queue-preview">
                   {row.preview || (
@@ -316,9 +323,8 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
 
       <div className="desk-rail-hint">
         <span className="text-xs text-muted">
-          {lens === "inbox"
-            ? "Inbox lists players you have a thread with. Switch to Roster to message anyone."
-            : "Roster lists every character. Pick one to open a reply box, even with no history."}
+          Everyone you have a thread with. Search finds any character, including ones you&apos;ve
+          never messaged.
         </span>
       </div>
     </div>

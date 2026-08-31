@@ -236,6 +236,9 @@ export default async function PlayerDeskLayout({ children }) {
   });
 
   const unreadTotal = rows.filter((r) => r.unreadCount > 0).length;
+  // Read but still theirs to answer: they wrote last, and it's not sitting in
+  // the unread count any more. Same predicate the rail's row mark uses.
+  const awaitingTotal = rows.filter((r) => r.unreadCount === 0 && r.lastDirection === "INBOUND").length;
 
   // BulkComposer's recipient pool: living characters only, since a broadcast
   // to a dead one is refused server-side anyway.
@@ -266,6 +269,9 @@ export default async function PlayerDeskLayout({ children }) {
             </span>
             <span className="chip text-xs text-muted">{rows.length} tracked</span>
             {unreadTotal > 0 && <span className="chip text-xs text-muted">{unreadTotal} unread</span>}
+            {awaitingTotal > 0 && (
+              <span className="chip text-xs text-muted">{awaitingTotal} awaiting</span>
+            )}
           </>
         }
         actions={
