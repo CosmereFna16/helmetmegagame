@@ -838,7 +838,7 @@ tags:
     category: general
     group: general-traits
     description: "You can't lie no matter what—nor can you withhold the truth. A good thing to be."
-    pointCost: -2
+    pointCost: -1
     visible: false
     # Retired 2026-08-30 (Gunboat: "remove Honest, keep Bad Liar"). Kept as a
     # row rather than deleted because db:sync-tags is upsert-only and
@@ -939,7 +939,7 @@ tags:
     category: general
     group: general-traits
     description: "You will never, ever attack someone except in self defense. And even in self defense, you won't kill. Fighting disgusts you, but God smiles upon you."
-    pointCost: -5
+    pointCost: -3
     purchasable: true
     purchasableAfterStart: false
 
@@ -1028,7 +1028,7 @@ tags:
     category: general
     group: general-traits
     description: "You wouldn't dare raise a hand against one of your own. You're incapable of betraying your starting faction, even if it would be in your best interest. Must be part of a faction, and not a mercenary, migrant, or bum."
-    pointCost: -2
+    pointCost: -1
     visible: false
     purchasable: true
     purchasableAfterStart: false
