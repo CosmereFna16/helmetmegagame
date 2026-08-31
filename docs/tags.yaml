@@ -2382,13 +2382,13 @@ tags:
     name: Infected
     category: health
     group: health-infection
-    description: "The wound is hot and draining pus. Amputation would work, or {tag:cleaning-powder}."
+    description: "The wound is hot and draining pus. Left alone it goes {tag:festering}. Amputation would work, or {tag:cleaning-powder}."
     pointCost: 0
     visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    durationTurns: 3
+    durationTurns: 2
     expiresInto: [festering]
     requirement:
       resourceCost: 2
@@ -2404,7 +2404,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [feverish, necrosis]
     requirement:
       turnsCost: 1
@@ -2421,7 +2421,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [sepsis]
     requirement:
       turnsCost: 1
@@ -2456,7 +2456,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [dying]
     requirement:
       turnsCost: 1
@@ -2515,13 +2515,15 @@ tags:
     name: Burned
     category: health
     group: health-wounds
-    description: "Bubbling skin from a burn. If you don't treat it, it'll get worse."
+    description: "Bubbling skin from a burn. Left untreated it either turns {tag:infected} or heals badly and scars."
     pointCost: 0
     visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    durationTurns: 3
+    durationTurns: 2
+    expiresInto:
+      - oneOf: [infected, scarred]
     requirement:
       resourceCost: 2
       skills: [medical-basic]
@@ -2536,7 +2538,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    durationTurns: 3
+    durationTurns: 2
     expiresInto: [infected]
     requirement:
       turnsCost: 1
@@ -2569,7 +2571,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    durationTurns: 3
+    durationTurns: 2
     expiresInto: [infected]
     requirement:
       turnsCost: 1
@@ -2586,7 +2588,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    durationTurns: 4
+    durationTurns: 3
     expiresInto: [dying]
     requirement:
       turnsCost: 1
@@ -2603,7 +2605,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [dying]
     requirement:
       turnsCost: 1
@@ -2679,7 +2681,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    durationTurns: 3
+    durationTurns: 2
     expiresInto: [necrosis]
     requirement:
       turnsCost: 0
@@ -2696,7 +2698,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    durationTurns: 3
+    durationTurns: 2
     expiresInto: [dying]
     requirement:
       turnsCost: 1
@@ -2745,7 +2747,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    durationTurns: 3
+    durationTurns: 2
     expiresInto: [missing-fingers]
     requirement:
       turnsCost: 1
@@ -2762,7 +2764,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    durationTurns: 3
+    durationTurns: 2
     expiresInto: [sepsis]
     requirement:
       turnsCost: 1
@@ -2793,7 +2795,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    durationTurns: 4
+    durationTurns: 3
     expiresInto: [drained]
     requirement:
       turnsCost: 1
@@ -2810,7 +2812,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    durationTurns: 3
+    durationTurns: 2
     expiresInto: [drained]
     requirement:
       turnsCost: 1
@@ -2827,7 +2829,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    durationTurns: 3
+    durationTurns: 2
     expiresInto: [sepsis]
     requirement:
       turnsCost: 1
@@ -2844,7 +2846,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    durationTurns: 4
+    durationTurns: 3
     expiresInto: [scarred]
     requirement:
       turnsCost: 1
@@ -2902,7 +2904,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    durationTurns: 3
+    durationTurns: 2
     expiresInto: [drained]
     requirement:
       turnsCost: 1
@@ -7341,12 +7343,14 @@ tags:
     name: Grievous Wound
     category: health
     group: health-wounds
-    description: "No... It can't be—"
+    description: "No... It can't be— Without treatment it will turn {tag:infected}."
     pointCost: 0
     visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
+    durationTurns: 2
+    expiresInto: [infected]
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -7359,12 +7363,15 @@ tags:
     name: Minor Wound
     category: health
     group: health-wounds
-    description: "It hurts, but it wouldn't be hard to treat."
+    description: "It hurts, but it wouldn't be hard to treat. Left alone it may turn {tag:infected}."
     pointCost: 0
     visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
+    durationTurns: 3
+    expiresInto:
+      - oneOf: [infected, recovering]
     requirement:
       resourceCost: 2
       skills: [medical-basic]

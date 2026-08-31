@@ -854,11 +854,31 @@ the untreated-wound chain, and it is the thing that makes a doctor worth
 finding:
 
 ```
-Infected ──3t──▶ Festering ──2t──▶ Feverish ──2t──▶ Sepsis ──2t──▶ Dying
-                     └────2t────▶ Necrosis ──2t──▶ Missing Leg *or* Missing Arm
+Infected ──2t──▶ Festering ──1t──▶ Feverish ──1t──▶ Sepsis ──1t──▶ Dying
+                     └────1t────▶ Necrosis ──2t──▶ Missing Leg *or* Missing Arm
 
 Stuffed ──4t──▶ Exploded Chest ──2t──▶ Dying
 ```
+
+Five turns from Infected to Dying, and five to a lost limb — the two branches
+land together on purpose. It used to be nine, which was long enough that a
+player could ignore an infection for a week and a half and still find a doctor
+in time. Five is short enough to be a real problem and long enough that a
+doctor two zones away is still a plan.
+
+**Five wounds feed the chain, and three of them are a coin flip.** `deep-wound`,
+`severe-burns` and `grievous-wound` go septic for certain; `burned` splits
+`oneOf: [infected, scarred]` and `minor-wound` splits
+`oneOf: [infected, recovering]`, so an untreated lesser wound is a gamble rather
+than a sentence. `scarred` and `recovering` are ordinary catalog tags doing duty
+as the lucky outcome — nothing special marks them as "the good branch."
+
+Closed injuries deliberately have **no** `expiresInto`: a bruise, a sprain, a
+dislocated shoulder, cracked ribs, a broken bone or jaw. Note what that means
+for their `durationTurns` — with no successor, the duration is how long you
+*suffer*, so shortening one makes medicine **easier**, not harder. The two
+fields pull in opposite directions and it is worth stopping to check which
+kind of tag you are holding before you touch a number.
 
 The second chain is the larva: `stuffed` is tier 5 (very minor surgery — cut
 it out while it is small), `exploded-chest` is tier 7 (the rung even Esculap
