@@ -62,6 +62,17 @@ function scalarsFrom(input) {
     throw new UserError("Only an equippable tag can conceal identity.");
   }
 
+  // Three states, not a checkbox (Tag.inspectVisibility). A missing or unknown
+  // value reads as HIDDEN, which is the safe direction for a vision gate.
+  const inspectVisibility = ["HIDDEN", "ALWAYS", "WORN"].includes(input.inspectVisibility)
+    ? input.inspectVisibility
+    : "HIDDEN";
+  // Same pairing as concealsIdentity above, and as syncTags.js enforces on the
+  // YAML: a tag nobody can equip could never be seen under a worn-only rule.
+  if (inspectVisibility === "WORN" && !equippable) {
+    throw new UserError("Only an equippable tag can be seen just while it's worn.");
+  }
+
   const sellable = Boolean(input.sellable);
   const sellablePrice = input.sellablePrice === "" || input.sellablePrice == null
     ? null
@@ -83,7 +94,7 @@ function scalarsFrom(input) {
     category,
     pointCost: Number.isInteger(pointCost) ? pointCost : 0,
     groupId: (input.groupId ?? "").toString().trim() || null,
-    visibleOnInspect: Boolean(input.visibleOnInspect),
+    inspectVisibility,
     stackable: Boolean(input.stackable),
     equippable,
     consumable: Boolean(input.consumable),

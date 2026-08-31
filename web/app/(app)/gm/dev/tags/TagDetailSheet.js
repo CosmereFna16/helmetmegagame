@@ -62,8 +62,16 @@ const FLAG_LABELS = [
   ["consumable", "Consumable"],
   ["removable", "Removable"],
   ["tradeable", "Tradeable"],
-  ["visibleOnInspect", "Visible on 🔍"],
 ];
+
+// Tag.inspectVisibility isn't a flag, so it can't ride in FLAG_LABELS — but it
+// belongs in the same chip row, since a reader scanning for "who can see this"
+// shouldn't have to look in two places. HIDDEN renders nothing, same as an
+// unset flag.
+const VISIBILITY_CHIP = {
+  ALWAYS: "Visible on 🔍",
+  WORN: "Visible on 🔍 while worn",
+};
 
 export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
   const byId = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
@@ -100,7 +108,10 @@ export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
     .map((slug) => bySlug.get(slug))
     .filter(Boolean);
   const becomes = expiresIntoTokens(tag.expiresInto);
-  const flags = FLAG_LABELS.filter(([key]) => tag[key]).map(([, label]) => label);
+  const flags = [
+    ...FLAG_LABELS.filter(([key]) => tag[key]).map(([, label]) => label),
+    VISIBILITY_CHIP[tag.inspectVisibility],
+  ].filter(Boolean);
   const requirement = formatTagRequirement(tag);
 
   return (

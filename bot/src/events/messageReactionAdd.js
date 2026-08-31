@@ -6,6 +6,7 @@ const {
   HEALTH_CATEGORY,
   buildSkillAncestry,
   satisfiedSkillIds,
+  seenByBystander,
   medicallyVisibleTags,
 } = require("@lifeweb/db/lib/medicalVision");
 const { deleteArchiveMessage } = require("@lifeweb/db/lib/archive");
@@ -464,7 +465,7 @@ module.exports = {
                   tag: {
                     select: {
                       name: true,
-                      visibleOnInspect: true,
+                      inspectVisibility: true,
                       category: true,
                     },
                   },
@@ -474,7 +475,14 @@ module.exports = {
           });
           if (!concealedChar) return;
 
-          const seen = concealedChar.tags.filter((ct) => ct.tag.visibleOnInspect);
+          // seenByBystander IS the gate now, and the two buckets below only
+          // sort what it let through. It used to be the other way round by
+          // accident: the filter here asked "visible?", and an item that was
+          // visible but not equipped then landed in neither bucket — not an
+          // ailment, not worn — and fell on the floor. Right outcome for a
+          // stowed dagger, reached for no reason, and wrong for the greatsword
+          // across somebody's back, which a stranger can obviously see.
+          const seen = concealedChar.tags.filter((ct) => seenByBystander(ct.tag, ct));
           // Health is its own category now, so it IS the ailment set and the
           // category is the right thing to test — this used to have to reach for
           // the status-health group slug to avoid dragging Hungry and the other
@@ -483,7 +491,10 @@ module.exports = {
           const ailments = seen
             .filter((ct) => ct.tag.category === HEALTH_CATEGORY)
             .map((ct) => ct.tag.name);
-          const worn = seen.filter((ct) => ct.equipped).map((ct) => ct.tag.name);
+          // Everything else the gate passed. Not `ct.equipped`: a worn-only tag
+          // is already equipped or it wouldn't be here, and an always-visible
+          // one is gear a stranger can see whether it's readied or slung.
+          const worn = seen.filter((ct) => ct.tag.category !== HEALTH_CATEGORY).map((ct) => ct.tag.name);
 
           const hidden = new EmbedBuilder().setDescription(concealedLine(proxy.alias));
           if (ailments.length > 0) hidden.addFields({ name: "Ailments", value: fitField(ailments.join(", ")) });

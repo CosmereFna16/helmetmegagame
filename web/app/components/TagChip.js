@@ -105,10 +105,14 @@ export default function TagChip({
         {requirement && (
           <Meta label={tag.craftable ? "Recipe" : "Cure"}>{requirement}</Meta>
         )}
-        {/* Tag.visibleOnInspect — whether another player sees this on the 🔍
+        {/* Tag.inspectVisibility — whether another player sees this on the 🔍
             inspect embed. Only the affirmative renders; hidden is the default,
-            so a "No" on most of the catalog would be noise. */}
-        {tag.visibleOnInspect && <Meta label="Seen by others">Yes</Meta>}
+            so a "No" on most of the catalog would be noise. "Only while worn"
+            is the concealable middle state, and it is worth spelling out: it
+            is the difference between a dagger in a pocket and a drawn one. */}
+        {tag.inspectVisibility && tag.inspectVisibility !== "HIDDEN" && (
+          <Meta label="Seen by others">{tag.inspectVisibility === "WORN" ? "Only while worn" : "Yes"}</Meta>
+        )}
         {/* The prerequisite gate (requiredTag, or the group's) — what marks
             role/faction kit as designed-for-you. Reads straight off the tag
             prop, no hooks, so the chip keeps rendering on the server; a

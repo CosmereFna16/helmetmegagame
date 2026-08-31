@@ -243,7 +243,7 @@ Two further conventions, specific to this category:
 **A status a Bacchus power inflicts on someone else is never gated.** The
 target is usually not a cultist: a gated group renders as literal
 `{tag:slug}` text to its own holder (per the `getVisibleTags` rule above), and
-`visibleOnInspect` would be silently withheld from a bystander's 🔍. So
+its `visible` setting would be silently withheld from a bystander's 🔍. So
 `Rage`, `Lunatic`, `Silence` and the rest sit in ordinary `status`/`health`
 groups; only the caster-facing `Spell:`/`Rite:` tag itself is gated. The same
 goes for anything craftable — `Nailgun`, `Armor Robes` — which get traded to
@@ -447,15 +447,39 @@ here, change it there too** — they are meant to say the same thing.
 
 ## 5. Other fields
 
-- `visibleOnInspect` — shown to another player who 🔍-reacts to this
-  character's proxied messages (`bot/src/events/messageReactionAdd.js`).
-  Defaults closed. Note it is a property of the tag being *seen*. The tag
-  that widens what an inspect shows is read off the **inspector**
-  instead: Seductive reveals the subject's active Desire, resolved by
-  `db/lib/inspectVision.js`, which also accepts the discounted Demoness twin.
-  Like the Silo-gated Resources field, an unseen field is absent rather than
-  placeholdered — a placeholder advertises that there is something to go
-  after.
+- `visible` (`Tag.inspectVisibility`) — whether another player who 🔍-reacts
+  to this character's proxied messages sees the tag
+  (`bot/src/events/messageReactionAdd.js`). **Three states**, and the YAML
+  says them in words:
+
+  | `visible:` | Column | Means |
+  |---|---|---|
+  | `false` (default) | `HIDDEN` | Never seen. |
+  | `true` | `ALWAYS` | Seen whether it is equipped or not. |
+  | `worn` | `WORN` | Seen **only while `CharacterTag.equipped`**. |
+
+  `worn` is the concealable middle: a dagger in a pocket is nobody's
+  business, a drawn one is, and a badge left at home is a badge you are not
+  displaying. It only means anything on an `equippable` tag, so
+  `syncTagsFromYaml` **throws** if it is set without one — the same pairing
+  discipline as `concealsIdentity`, and for the same reason. See the
+  `equippable` section below for the item-by-item rule of thumb.
+
+  Read it through `seenByBystander()` (`db/lib/medicalVision.js`), never by
+  comparing the enum at a call site: both of the bot's embeds route through
+  that one predicate so they can't drift on what "visible" means. The column
+  was renamed off `visibleOnInspect` on purpose when the third state landed —
+  a tri-state under the old name would have been *truthy* for `worn`, so every
+  surviving `if (tag.visibleOnInspect)` would have leaked every stowed weapon
+  the day the migration ran. Under a new name a missed read site gets
+  `undefined` and the tag stays hidden. A vision gate should fail closed.
+
+  Note it is a property of the tag being *seen*. The tag that widens what an
+  inspect shows is read off the **inspector** instead: Seductive reveals the
+  subject's active Desire, resolved by `db/lib/inspectVision.js`, which also
+  accepts the discounted Demoness twin. Like the Silo-gated Resources field,
+  an unseen field is absent rather than placeholdered — a placeholder
+  advertises that there is something to go after.
 - `exclusive` — at most one such tag per character *per group*. Set on the nine Beliefs and the five Bacchus drawbacks;
   see §3 for the rule, the `requiredTag` exemption, and where it is enforced.
 - `tradeable` — **live**: whether the tag can change hands at all. One flag
@@ -936,15 +960,17 @@ still on the table. A GM confirms the death by hand through the existing path
 
 ### Visibility, and the doctor's eye
 
-`visibleOnInspect` on a Health tag is a question about **realism, not
-severity**: could a bystander tell? A gaping wound, a missing arm, Paralyzed
-and Severe Burns are obvious. Appendicitis, cracked ribs, parasites, chronic
-pain and Shell Shocked are not, and are `visible: false`.
+`visible` on a Health tag is a question about **realism, not severity**: could
+a bystander tell? A gaping wound, a missing arm, Paralyzed and Severe Burns
+are obvious. Appendicitis, cracked ribs, parasites, chronic pain and Shell
+Shocked are not, and are `visible: false`. Only `true` or `false` here —
+nobody wears appendicitis, so no Health tag is `equippable` and `worn` never
+applies to the category.
 
 That would make the internal cases invisible to the one person who should
 notice them, so there is a second rule: **if you could treat it as routine,
 you can see it.** `db/lib/medicalVision.js#medicallyVisibleTags` unions the
-subject's `visibleOnInspect` tags with the Health tags the *inspector* is
+subject's visible tags with the Health tags the *inspector* is
 qualified for, and the 🔍 embed marks the second kind `· your diagnosis` —
 because the patient isn't showing it to the room, and a medic who repeats it
 as common knowledge has said something nobody else could know.
@@ -992,8 +1018,8 @@ a YAML tag and clobbering every field. The prefix also guarantees a custom slug
 can never appear in the prune script's YAML slug set by accident.
 
 What a GM can set is the tag's own behaviour — cost, category, group,
-description, and the `stackable`/`equippable`/`consumable`/`removable`/
-`purchasable`/`visibleOnInspect` flags plus a duration. What they cannot set is
+description, the `stackable`/`equippable`/`consumable`/`removable`/
+`purchasable` flags, the three-state "seen by others on 🔍", plus a duration. What they cannot set is
 catalog *structure*: `parentTag`, `requiredTag`, `requirementSkills` and
 `consumesInto` all wire tags to each other, and that belongs in the YAML where
 it can be reviewed alongside the tags it connects.
@@ -1112,10 +1138,30 @@ alongside `equippable`, and `syncTagsFromYaml` **throws** if it is set without
 it rather than syncing a tag that could never do anything — the kind of quiet
 failure that is miserable to debug from inside the game.
 
-Neither field interacts with `visible` (`Tag.visibleOnInspect`), which does
-double duty here: a concealed character's 🔍 embed lists only their
-`visibleOnInspect` equipped gear and their `visibleOnInspect` health statuses,
-so a hidden cuirass stays hidden even while worn.
+`equippable` **does** interact with `visible`, through its third state. A tag
+authored `visible: worn` is shown to a bystander's 🔍 only while
+`CharacterTag.equipped` is true — see §5 for the table and the throw. What
+gets it is a question about size, not secrecy: anything small enough to keep
+out of sight when you aren't using it.
+
+- **`worn`** — the sidearms and short blades (Dagger, Silver Knife, Work
+  Knife, Knuckle Duster, Sling, Sword Cane, Bomb, and every pistol including
+  the Sawn-Off), armor that goes under clothes (Padded Armor, Brigandine), and
+  the small worn signals: Watch Badge, Sheriff's Badge, Hand's Pin, Incarn's
+  Key, Bishop's Mitre, Headman's Cap, Esculap's Vest, Jewelry, Spectacles,
+  Radio Bracelet, Dark-Eye Lenses. The badges are the interesting half — an
+  officer can now go about unmarked, and displaying the thing is a choice,
+  which is what the Watch Badge's own description always claimed.
+- **`true`** — everything you cannot hide by not holding it: swords,
+  polearms, bows, shields, plate, banners, the Baron's Scepter, the Power
+  Fist, the Flamethrower, and all the garb and robes. Carrying one reads the
+  same as wearing one.
+
+A concealed character's 🔍 embed applies the same gate through the same
+predicate, so a hidden cuirass stays hidden even while worn, and a stowed
+dagger stays hidden even from someone standing next to it. What conceal takes
+away is the *identity* — name, appearance, Desire, Resources — not the
+inventory.
 
 ### The equipment panel
 

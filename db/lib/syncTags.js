@@ -22,6 +22,16 @@ const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
 
+// `visible:` in docs/tags.yaml -> Tag.inspectVisibility. The YAML side stays
+// readable (`visible: worn` next to `equippable: true`) while the column is a
+// real enum, so a read site that forgets the field gets undefined rather than
+// a truthy "worn" — see the schema comment on inspectVisibility.
+const VISIBILITY_BY_YAML = new Map([
+  [true, "ALWAYS"],
+  [false, "HIDDEN"],
+  ["worn", "WORN"],
+]);
+
 // A consumesInto entry is a bare slug ("ate-meal"), an object carrying a
 // condition and/or an expiry override ({ slug: "night-vision", unlessTags:
 // ["blind"] }, { slug: "high", durationTurns: 3 }), or — added for the Caves
@@ -152,6 +162,23 @@ async function syncTagsFromYaml(prisma) {
         `docs/tags.yaml: tag "${t.slug}" sets concealsIdentity but not equippable — it could never be equipped, so it could never conceal anything`,
       );
     }
+    // `visible` is three-state: true, false, or the string "worn" for gear
+    // that only a bystander who can see it ON you should know about. Anything
+    // else is a typo, and a typo here reads as `false` and quietly hides a tag
+    // that was meant to be seen, so say so instead of syncing it.
+    if (!VISIBILITY_BY_YAML.has(t.visible ?? false)) {
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" has visible: ${JSON.stringify(t.visible)} — say true, false, or worn`,
+      );
+    }
+    // Same pairing guard as concealsIdentity above, for the same reason: a tag
+    // nobody can equip can never BE equipped, so "visible only while equipped"
+    // would sync happily and then hide it from everyone forever.
+    if (t.visible === "worn" && !t.equippable) {
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" sets visible: worn but not equippable — it could never be equipped, so it could never be seen`,
+      );
+    }
     // `tradeable` decides whether a tag can be handed over or lifted off a body
     // (web/lib/tagRequests.js#isTradeable), and it reads as `?? false` below —
     // so a new item that forgets the field syncs as unmovable and nobody finds
@@ -280,10 +307,10 @@ async function syncTagsFromYaml(prisma) {
       description: entry.description ?? null,
       category: categoryNameBySlug.get(entry.category),
       pointCost: entry.pointCost ?? 0,
-      visibleOnInspect: entry.visible ?? false,
-      // At most one exclusive tag per character (the Beliefs). Plain boolean
-      // mirror of `visible` above — the rule itself lives in
-      // web/lib/characterCreation.js#exclusiveConflict.
+      inspectVisibility: VISIBILITY_BY_YAML.get(entry.visible ?? false),
+      // At most one exclusive tag per character (the Beliefs). A plain YAML
+      // boolean, unlike the three-state `visible` above — the rule itself
+      // lives in web/lib/characterCreation.js#exclusiveConflict.
       exclusive: entry.exclusive ?? false,
       tradeable: entry.tradeable ?? false,
       equippable: entry.equippable ?? false,

@@ -362,6 +362,8 @@ Tags are gained, used, and removed via options on your [Character](https://raven
 
 **Equipment:** Weapons and armor must be **equipped** to use them in a fight. You have 6 slots for equippable tags. Click a tag to equip or unequip it instantly.
 
+Equipping is also a public act. Some gear — a dagger, a pistol, a badge — is small enough to keep out of sight, and other people only see it while you have it equipped. A tag's tooltip says which: **Seen by others · Only while worn**. Big things (a sword, a shield, plate, a banner) are seen whether you have them equipped or not, because you cannot hide them.
+
 **Durations:** Some tags run out (`· 2t` on the chip). Some get *worse* instead of running out.
 
 **Teaching:** Most skills can be taught by those that hold them without needing to use a Move. The learner submits a Gambit Move to try and pick up the skill. If they roll a 6, they successfully gain the tag.

@@ -290,7 +290,7 @@ name/color for display and can't resolve a picker back to one), Clone from…
 Assign to (a searchable multi-pick over whatever character list the door
 supplies — hidden entirely when the door has none to offer). New tags default
 to `purchasable: false`, `purchasableAfterStart: false`, `removable: true`,
-`visibleOnInspect: true` — a homebrew tag for solving one situation, not a
+and visible on 🔍 — a homebrew tag for solving one situation, not a
 catalog entry meant to reach the store.
 
 Doors that pass a character list also get an Apply now / Stage for turn end

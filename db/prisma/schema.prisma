@@ -118,6 +118,17 @@ enum Weather {
   STORM
 }
 
+// How much of a tag a 🔍 inspect shows to somebody else. HIDDEN is the
+// default and the common case; ALWAYS is worn-or-not; WORN is the concealable
+// middle — a dagger in a pocket, a badge left at home. WORN is only meaningful
+// on an `equippable` tag, and db/lib/syncTags.js throws if it is set on one
+// that isn't. See docs/systemdocs/TAGS.md §5.
+enum TagVisibility {
+  HIDDEN
+  ALWAYS
+  WORN
+}
+
 enum TagSource {
   POINT_BUY
   DESIRE_REWARD
@@ -1012,11 +1023,22 @@ model Tag {
   // after an existing YAML tag can't collide with it and get upserted over.
   custom Boolean @default(false)
 
-  // Shown to other players who 🔍-react to this character's proxied
-  // messages (see bot/src/events/messageReactionAdd.js), alongside
-  // Character.appearance. Defaults closed so identity/status tags (Mortus,
+  // Whether other players who 🔍-react to this character's proxied messages
+  // see this tag, alongside Character.appearance (see
+  // bot/src/events/messageReactionAdd.js). Three states, authored in
+  // docs/tags.yaml as `visible: true | false | worn` — WORN means the tag is
+  // shown only while CharacterTag.equipped, so a stowed dagger stays hidden
+  // and a drawn one doesn't. Defaults closed so identity/status tags (Mortus,
   // Drained, ...) stay hidden unless explicitly opened up.
-  visibleOnInspect Boolean @default(false)
+  //
+  // This replaced a `visibleOnInspect Boolean`, and the RENAME was the point:
+  // a tri-state kept under the old name would have been truthy for WORN, so
+  // every surviving `if (tag.visibleOnInspect)` would have leaked every stowed
+  // weapon on the day of the migration. Under a new name a missed read site
+  // gets `undefined` instead, and the tag stays hidden — a vision gate should
+  // fail closed. Read it through seenByBystander() (db/lib/medicalVision.js)
+  // rather than comparing the enum by hand.
+  inspectVisibility TagVisibility @default(HIDDEN)
 
   // Mutually exclusive with every other tag carrying this flag IN THE SAME
   // GROUP: a character may hold at most one of them per group. Set on the

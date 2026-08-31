@@ -70,9 +70,10 @@ export const TAG_CHIP_FIELDS = {
   // untreated-wound chain. TagChip renders it as a "Becomes" line, so a
   // player can see the threat before the timer teaches them.
   expiresInto: true,
-  // Drives TagChip's "Visible" line — whether a 🔍 inspect shows this
-  // tag to another player.
-  visibleOnInspect: true,
+  // Drives TagChip's "Seen by others" line — whether a 🔍 inspect shows this
+  // tag to another player, and whether it does so only while the tag is
+  // equipped (Tag.inspectVisibility).
+  inspectVisibility: true,
 };
 
 // Session-dependent, so it must never be cached across callers.

@@ -49,7 +49,7 @@ export default async function DevTagsPage() {
           custom: t.custom,
           groupId: t.groupId,
           groupName: t.group?.name ?? null,
-          visibleOnInspect: t.visibleOnInspect,
+          inspectVisibility: t.inspectVisibility,
           stackable: t.stackable,
           equippable: t.equippable,
           consumable: t.consumable,

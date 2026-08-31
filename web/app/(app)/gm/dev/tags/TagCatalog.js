@@ -39,8 +39,16 @@ const BOOLEAN_FIELDS = [
   // custom sword can't be handed over — it defaults off, and for an Item or an
   // Asset that is almost never what the GM meant.
   ["tradeable", "Tradeable (can be handed over, or looted off a body)"],
-  ["visibleOnInspect", "Visible when 🔍-inspected"],
   ["sellable", "Sellable at Merchant's Depot"],
+];
+
+// Tag.inspectVisibility, the one tag setting that is not a boolean — a stowed
+// dagger and a drawn one are different things to look at. WORN needs the tag
+// to be equippable, which the server action re-checks (actions.js#scalarsFrom).
+const VISIBILITY_OPTIONS = [
+  ["HIDDEN", "Never"],
+  ["ALWAYS", "Always"],
+  ["WORN", "Only while equipped"],
 ];
 
 const BLANK = {
@@ -57,7 +65,7 @@ const BLANK = {
   consumable: false,
   removable: false,
   tradeable: false,
-  visibleOnInspect: false,
+  inspectVisibility: "HIDDEN",
   sellable: false,
   sellablePrice: null,
 };
@@ -296,6 +304,17 @@ function TagDialog({ tag, groups, categories, pending, error, onCancel, onSave }
               value={values.defaultDurationTurns ?? ""}
               onChange={(e) => set("defaultDurationTurns", e.target.value)}
             />
+          </label>
+          <label className="field">
+            <span className="field-label">Seen by others on 🔍</span>
+            <Select
+              value={values.inspectVisibility ?? "HIDDEN"}
+              onChange={(e) => set("inspectVisibility", e.target.value)}
+            >
+              {VISIBILITY_OPTIONS.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </Select>
           </label>
           <label className="field">
             <span className="field-label flex items-center gap-1.5">

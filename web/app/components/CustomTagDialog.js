@@ -38,7 +38,11 @@ const BLANK = {
   description: "",
   category: "",
   groupId: "",
-  visibleOnInspect: true,
+  // A plain yes/no here, mapped to Tag.inspectVisibility's ALWAYS/HIDDEN on
+  // submit. The third state, worn-only, needs `equippable`, which this quick
+  // dialog has no field for at all — offering it would make a checkbox that
+  // silently does nothing. Set it from /gm/dev/tags instead.
+  visible: true,
   purchasable: false,
   purchasableAfterStart: false,
   removable: true,
@@ -80,7 +84,9 @@ export default function CustomTagDialog({
       description: t.description ?? "",
       category: t.category,
       groupId: t.groupId ?? t.group?.id ?? "",
-      visibleOnInspect: Boolean(t.visibleOnInspect),
+      // A worn-only source clones as plainly visible — see BLANK above for why
+      // this dialog can't carry the third state.
+      visible: t.inspectVisibility !== "HIDDEN",
     }));
   }
 
@@ -113,7 +119,7 @@ export default function CustomTagDialog({
       const res = await createCustomTagAndAssign({
         name: values.name,
         description: values.description,
-        visibleOnInspect: values.visibleOnInspect,
+        inspectVisibility: values.visible ? "ALWAYS" : "HIDDEN",
         category: values.category,
         groupId: values.groupId,
         purchasable: values.purchasable,
@@ -150,7 +156,7 @@ export default function CustomTagDialog({
           category: values.category,
           groupId: values.groupId || null,
           description: values.description?.trim() || null,
-          visibleOnInspect: values.visibleOnInspect,
+          inspectVisibility: values.visible ? "ALWAYS" : "HIDDEN",
           purchasable: values.purchasable,
           purchasableAfterStart: values.purchasableAfterStart,
           removable: values.removable,
@@ -213,7 +219,7 @@ export default function CustomTagDialog({
           <textarea rows={3} value={values.description} onChange={(e) => set("description", e.target.value)} />
         </label>
 
-        <CheckField checked={values.visibleOnInspect} onChange={(e) => set("visibleOnInspect", e.target.checked)}>
+        <CheckField checked={values.visible} onChange={(e) => set("visible", e.target.checked)}>
           Visible on inspect
         </CheckField>
 

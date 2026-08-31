@@ -85,7 +85,7 @@ their own terms rather than a rung of this table.
 | Longbow | Simple | `crafting` |
 | Mace | Simple | |
 | Battle Axe | Simple | |
-| Knuckle Duster | Moderate | `visible: false`. Priced at 5 pt, not the tier's 7 — a pre-existing outlier, not introduced by the Combat Update. |
+| Knuckle Duster | Moderate | `visible: worn` — pocketable. Priced at 5 pt, not the tier's 7 — a pre-existing outlier, not introduced by the Combat Update. |
 | Halberd (slug `bardiche`) | Moderate | Renamed in the Combat Update; slug frozen for sync. |
 | Broadsword | Moderate | |
 | War Hammer | Moderate | |
@@ -105,7 +105,7 @@ Off the ladder — no recipe, no smithing gate:
 
 | Weapon | pt | Notes |
 |---|---|---|
-| Sword Cane | 7 | Sold complete. `visible: false`. |
+| Sword Cane | 7 | Sold complete. `visible: worn` — it reads as a cane until it's drawn. |
 | Neoclassic R&W10 (slug `old-45-revolver`) | 14 | Bought at creation only — not craftable. Requires `ranged-basic`. |
 | Cracked Bone Club | 0 | Found only. |
 | Neoclassic Duelista | 0 | Found only. |
@@ -124,7 +124,7 @@ Off the ladder — no recipe, no smithing gate:
 | Pavise | Simple | `crafting` |
 | Mail Shirt | Moderate | |
 | Knight's Helmet | High Quality | |
-| Brigandine | High Quality | `visible: false` — concealed. |
+| Brigandine | High Quality | `visible: worn` — plates inside a coat, so it shows only while worn. |
 | Breastplate | High Quality | |
 | Plate Armor | Exceptional | |
 

@@ -223,7 +223,7 @@ tags:
     parentTag: cult-ripening
     purchasable: false
     # A cult that reaches its prime can no longer hide: this is the tag whose
-    # rung makes a bystander's 🔍 read "Cult: Bountiful" (visibleOnInspect).
+    # rung makes a bystander's 🔍 read "Cult: Bountiful".
     # Seedling and Ripening stay concealed.
     visible: true
 
@@ -3595,7 +3595,7 @@ tags:
     pointCost: 0
     tradeable: true
     stackable: true
-    visible: true
+    visible: worn
     equippable: true
     purchasable: false
     purchasableAfterStart: false
@@ -3697,7 +3697,7 @@ tags:
     # Starting Wares grants two, and the Depot's Sell counter takes a stack in
     # one go. Equippable + stackable is already how the revolver works.
     stackable: true
-    visible: true
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     sellable: true
@@ -3928,7 +3928,7 @@ tags:
     pointCost: 2
     tradeable: true
     stackable: true
-    visible: true
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     removable: true
@@ -3968,7 +3968,7 @@ tags:
     equippable: true
     tradeable: true
     stackable: true
-    visible: false
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     requiredTag: ranged-basic
@@ -4002,7 +4002,7 @@ tags:
     equippable: true
     tradeable: true
     stackable: true
-    visible: false
+    visible: worn
     purchasable: false
     purchasableAfterStart: false
     removable: true
@@ -4031,7 +4031,7 @@ tags:
     equippable: true
     tradeable: true
     stackable: true
-    visible: false
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     removable: true
@@ -4075,7 +4075,7 @@ tags:
     equippable: true
     tradeable: true
     stackable: true
-    visible: false
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     removable: true
@@ -4210,7 +4210,7 @@ tags:
     equippable: true
     tradeable: true
     stackable: true
-    visible: false
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     removable: true
@@ -4233,7 +4233,7 @@ tags:
     equippable: true
     tradeable: true
     stackable: true
-    visible: false
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     removable: true
@@ -4371,7 +4371,7 @@ tags:
     equippable: true
     tradeable: true
     stackable: true
-    visible: false
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     removable: true
@@ -4675,7 +4675,7 @@ tags:
     equippable: true
     tradeable: true
     stackable: true
-    visible: true
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     removable: true
@@ -4698,7 +4698,7 @@ tags:
     equippable: true
     tradeable: true
     stackable: true
-    visible: false
+    visible: worn
     purchasable: false
     purchasableAfterStart: false
     removable: true
@@ -4722,7 +4722,7 @@ tags:
     depotPrice: 28
     equippable: true
     tradeable: true
-    visible: false
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     removable: true
@@ -4915,7 +4915,7 @@ tags:
     pointCost: 0
     equippable: true
     tradeable: true
-    visible: true
+    visible: worn
     purchasable: false
     purchasableAfterStart: false
     removable: true
@@ -4971,7 +4971,7 @@ tags:
     equippable: true
     tradeable: true
     stackable: true
-    visible: false
+    visible: worn
     purchasable: false
     purchasableAfterStart: false
     removable: true
@@ -5038,7 +5038,7 @@ tags:
     description: "The holy headwear of Ravenheart's Bishop. Recognizable from a distance."
     pointCost: 0
     equippable: true
-    visible: true
+    visible: worn
     tradeable: true
     purchasable: false
     purchasableAfterStart: false
@@ -5062,7 +5062,7 @@ tags:
     description: "A badge of your service in the Watch, emblazoned with the image of a swooping raven. Technically, you are supposed to display this at all times."
     pointCost: 0
     equippable: true
-    visible: true
+    visible: worn
     tradeable: true
     purchasable: false
     purchasableAfterStart: false
@@ -5117,7 +5117,7 @@ tags:
     description: "A elegant silver key worn around the Incarn's neck. It unlocks the Silver Cross's display case."
     pointCost: 0
     equippable: true
-    visible: true
+    visible: worn
     tradeable: true
     purchasable: false
     purchasableAfterStart: false
@@ -5129,7 +5129,7 @@ tags:
     description: "The icon of the town's Sheriff: a badge shaped like a six-pointed star. Don't confuse this with a {tag:watch-badge}."
     pointCost: 0
     equippable: true
-    visible: true
+    visible: worn
     tradeable: true
     purchasable: false
     purchasableAfterStart: false
@@ -5141,7 +5141,7 @@ tags:
     description: "A feathered cap for the head of the Headman."
     pointCost: 0
     equippable: true
-    visible: true
+    visible: worn
     tradeable: true
     purchasable: false
     purchasableAfterStart: false
@@ -5153,7 +5153,7 @@ tags:
     description: "A patterned vest, freshly pressed. A serpent-shaped brooch nests atop its lapel."
     pointCost: 0
     equippable: true
-    visible: true
+    visible: worn
     tradeable: true
     purchasable: false
     purchasableAfterStart: false
@@ -5165,7 +5165,7 @@ tags:
     description: "A golden pin of a wielded dagger. Nobody wears this but the Hand."
     pointCost: 0
     equippable: true
-    visible: true
+    visible: worn
     tradeable: true
     purchasable: false
     purchasableAfterStart: false
@@ -5635,7 +5635,7 @@ tags:
     sellablePrice: 80
     tradeable: true
     equippable: true
-    visible: true
+    visible: worn
     purchasable: false
     purchasableAfterStart: false
     removable: true
@@ -6332,7 +6332,7 @@ tags:
     description: "Quilted linen. Absorbs impact and blunts a cut. Can be worn under clothing."
     pointCost: 2
     equippable: true
-    visible: false
+    visible: worn
     tradeable: true
     purchasable: true
     purchasableAfterStart: false
@@ -6507,7 +6507,7 @@ tags:
     description: "Small steel plates riveted inside a fabric coat. Protection is similar to plate without the visibility of plate."
     pointCost: 9
     equippable: true
-    visible: false
+    visible: worn
     tradeable: true
     purchasable: true
     purchasableAfterStart: false

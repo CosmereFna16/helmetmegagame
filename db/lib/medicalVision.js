@@ -48,6 +48,22 @@ function satisfiedSkillIds(heldTagIds, ancestry) {
 // concealed-inspect filter used to sidestep by testing a group slug).
 const HEALTH_CATEGORY = "Health";
 
+// Can a bystander see this tag on this character at all?
+//
+// The plain vision gate, before any of the medical reasoning below layers
+// exceptions on top of it. Three states (Tag.inspectVisibility): never, always,
+// or only while it is equipped — a dagger in a pocket is nobody's business, a
+// drawn one is. Both of the bot's 🔍 embeds route through here rather than
+// testing the enum by hand, so the concealed read and the ordinary one can't
+// drift on what "visible" means.
+//
+// `tag` needs inspectVisibility; `characterTag` needs equipped.
+function seenByBystander(tag, characterTag) {
+  if (tag?.inspectVisibility === "ALWAYS") return true;
+  if (tag?.inspectVisibility === "WORN") return Boolean(characterTag?.equipped);
+  return false;
+}
+
 // "Could this character treat that affliction without rolling for it?"
 //
 // Routine is the whole point of the word: a Gambit is by definition NOT
@@ -78,12 +94,14 @@ function medicallyVisibleTags(characterTags = [], satisfied = new Set()) {
   for (const ct of characterTags) {
     const tag = ct?.tag;
     if (!tag) continue;
-    if (tag.visibleOnInspect) {
+    if (seenByBystander(tag, ct)) {
       out.push({ characterTag: ct, viaSkill: false });
       continue;
     }
     // Only afflictions. A doctor's training says nothing about whether
-    // somebody is secretly a Demoness.
+    // somebody is secretly a Demoness — and nothing below needs to think about
+    // equip state either, since a Health tag is never `equippable`. Nobody
+    // wears appendicitis.
     if (tag.category !== HEALTH_CATEGORY) continue;
     if (canTreatAsRoutine(tag, satisfied)) out.push({ characterTag: ct, viaSkill: true });
   }
@@ -95,5 +113,6 @@ module.exports = {
   buildSkillAncestry,
   satisfiedSkillIds,
   canTreatAsRoutine,
+  seenByBystander,
   medicallyVisibleTags,
 };
