@@ -617,7 +617,7 @@ row — until somebody buries them. `Character.buriedAt`, set by a
 `BURY_CHARACTER` request, takes the body out of the world: it stops being
 lootable, draggable and bindable, and it drops out of every zone target menu.
 Revive clears it, so a revived character is never a live person marked buried. Anyone standing in the zone the character died in can `TRANSFER_TAG`
-or `TRANSFER_RESOURCES` **in the `LOOT` direction** to lift Items/Assets or ⬢
+or `TRANSFER_RESOURCES` **in the `LOOT` direction** to lift `tradeable` tags or ⬢
 off the corpse — see `REQUESTS.md` §5. The `/character` page shows a "Bodies
 here" panel to any living character in a zone that has a corpse; that
 panel is the **only** player-facing surface that spells out that someone

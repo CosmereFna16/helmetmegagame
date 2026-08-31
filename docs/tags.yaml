@@ -3381,6 +3381,11 @@ tags:
     durationTurns: 2
 
   # --- assets -------------------------------------------------------
+  # `tradeable` decides what can be handed over OR lifted off a body, so every
+  # entry here states it outright (db/lib/syncTags.js enforces that). Mounts,
+  # vehicles and ordinary animals travel: they are standing right there and
+  # anyone can lead them away. Real property does not — you cannot carry a house
+  # off a corpse — and neither does the Drone, which belongs to itself.
   - slug: horse-windlander
     name: Wild Horse
     category: assets
@@ -3388,6 +3393,7 @@ tags:
     description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending a turn, but you'll be easily visible. Do not use through caves. Can carry 2 people."
     pointCost: 6
     requiredTag: windlander
+    tradeable: true
     purchasable: true
     visible: true
     purchasableAfterStart: true
@@ -3399,6 +3405,7 @@ tags:
     group: assets-companions
     description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending a turn, but you'll be easily visible. Do not use through caves. Can carry 2 people."
     pointCost: 9
+    tradeable: true
     purchasable: true
     visible: true
     purchasableAfterStart: true
@@ -3410,6 +3417,7 @@ tags:
     group: assets-companions
     description: "You have an intelligent bird: a crow from the rooftops, a pigeon from the Caves, a parrot from parts unknown. You don't have a raven, unless you are the Baron. That would look bad on you, wouldn't it, taking his heraldic animal...?"
     pointCost: 5
+    tradeable: true
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -3420,6 +3428,7 @@ tags:
     group: assets-companions
     description: "You have a trained rat. It's not good for much. But it does tiny tricks!"
     pointCost: 2
+    tradeable: true
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -3430,6 +3439,7 @@ tags:
     group: assets-companions
     description: "You have a cat. It may or may not be useful for anything—generally, it's the cat who decides that."
     pointCost: 2
+    tradeable: true
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -3441,6 +3451,7 @@ tags:
     description: "A household of your own within the Fortress."
     pointCost: 7
     requiredTag: courtier
+    tradeable: false
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -3452,6 +3463,7 @@ tags:
     description: "Your workbench, your tools, and a place to think. You don't need this to craft, but it sure helps."
     pointCost: 2
     visible: true
+    tradeable: false
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -3480,6 +3492,7 @@ tags:
     group: assets-companions
     description: "You have a highly-trained dog with good sense of smell. In other words, a good dog."
     pointCost: 5
+    tradeable: true
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -3490,6 +3503,9 @@ tags:
     group: assets-companions
     description: "Normally, it fits in the palm of your hand, but lately it's taken the disguise of a bird and spends most of its time in the forest. Neither of you like each other—it seems to wish it was back with the other Minds. It is relatively human, but its intelligence and abilities are completely beyond you. It doesn't seem to have any combat abilities. You could assign it to collect information or similar, but it might not always listen."
     pointCost: 0
+    # Its own creature, and it doesn't much like you as it is. Killing the
+    # holder doesn't hand you the leash — the Drone just goes back to the Minds.
+    tradeable: false
     purchasable: false
     visible: false
     removable: true
@@ -3501,6 +3517,7 @@ tags:
     description: "You own a small, one-story house in town."
     pointCost: 2
     requiredTag: ravenhearter
+    tradeable: false
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -3512,6 +3529,7 @@ tags:
     description: "You own a shanty house in the Underquarter."
     pointCost: 0
     requiredTag: ravenhearter
+    tradeable: false
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -3854,6 +3872,7 @@ tags:
     group: items-gear
     description: "Goods you came in with, still crated. Unpack them whenever you like. [This is a small trader's stock, should you wish to go into business. Its real value is in what you can talk somebody into paying for it.]"
     pointCost: 14
+    tradeable: true
     purchasable: true
     purchasableAfterStart: false
     consumable: true
@@ -3922,6 +3941,7 @@ tags:
     group: items-gear
     description: "You're so good that you'll win anyway: why not speed things up? Weighted and shaved dice, marked and bonus cards—whatever you need."
     pointCost: 7
+    tradeable: true
     purchasable: true
     purchasableAfterStart: false
     visible: false
@@ -4986,6 +5006,14 @@ tags:
       - time-stop
 
   # --- Role items ---------------------------------------------------------
+  # The regalia below is `tradeable: true`, which is a deliberate call rather
+  # than an oversight. These used to say false, back when nothing read the
+  # field; the badges and mitres were freely lootable anyway, and taking the
+  # Sheriff's badge off the Sheriff's body is exactly the kind of thing this
+  # game is for. `tradeable` is one flag covering both directions, so keeping
+  # them lootable also keeps them giftable — the same as it has always behaved.
+  # If handing an office over by dropdown ever becomes the problem, that is a
+  # second field and a migration, not a change here. See TAGS.md §5.
 
   - slug: bastards-garb
     name: "Bastard's Garb"
@@ -5009,7 +5037,7 @@ tags:
     pointCost: 0
     equippable: true
     visible: true
-    tradeable: false
+    tradeable: true
     purchasable: false
     purchasableAfterStart: false
 
@@ -5021,7 +5049,7 @@ tags:
     pointCost: 0
     equippable: true
     visible: true
-    tradeable: false
+    tradeable: true
     purchasable: false
     purchasableAfterStart: false
 
@@ -5033,7 +5061,7 @@ tags:
     pointCost: 0
     equippable: true
     visible: true
-    tradeable: false
+    tradeable: true
     purchasable: false
     purchasableAfterStart: false
 
@@ -5045,7 +5073,7 @@ tags:
     pointCost: 0
     equippable: true
     visible: true
-    tradeable: false
+    tradeable: true
     purchasable: false
     purchasableAfterStart: false
 
@@ -5057,7 +5085,7 @@ tags:
     pointCost: 0
     equippable: true
     visible: true
-    tradeable: false
+    tradeable: true
     purchasable: false
     purchasableAfterStart: false
 
@@ -5088,7 +5116,7 @@ tags:
     pointCost: 0
     equippable: true
     visible: true
-    tradeable: false
+    tradeable: true
     purchasable: false
     purchasableAfterStart: false
 
@@ -5100,7 +5128,7 @@ tags:
     pointCost: 0
     equippable: true
     visible: true
-    tradeable: false
+    tradeable: true
     purchasable: false
     purchasableAfterStart: false
 
@@ -5112,7 +5140,7 @@ tags:
     pointCost: 0
     equippable: true
     visible: true
-    tradeable: false
+    tradeable: true
     purchasable: false
     purchasableAfterStart: false
 
@@ -5124,7 +5152,7 @@ tags:
     pointCost: 0
     equippable: true
     visible: true
-    tradeable: false
+    tradeable: true
     purchasable: false
     purchasableAfterStart: false
 
@@ -5136,7 +5164,7 @@ tags:
     pointCost: 0
     equippable: true
     visible: true
-    tradeable: false
+    tradeable: true
     purchasable: false
     purchasableAfterStart: false
 
@@ -5148,7 +5176,7 @@ tags:
     pointCost: 0
     equippable: true
     visible: true
-    tradeable: false
+    tradeable: true
     purchasable: false
     purchasableAfterStart: false
 
@@ -5160,7 +5188,7 @@ tags:
     pointCost: 0
     equippable: true
     visible: true
-    tradeable: false
+    tradeable: true
     purchasable: false
     purchasableAfterStart: false
 
@@ -5172,7 +5200,7 @@ tags:
     pointCost: 0
     equippable: true
     visible: true
-    tradeable: false
+    tradeable: true
     purchasable: false
     purchasableAfterStart: false
 
@@ -5184,7 +5212,7 @@ tags:
     pointCost: 0
     equippable: true
     visible: true
-    tradeable: false
+    tradeable: true
     purchasable: false
     purchasableAfterStart: false
 

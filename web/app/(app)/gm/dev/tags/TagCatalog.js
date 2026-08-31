@@ -35,7 +35,10 @@ const BOOLEAN_FIELDS = [
   ["equippable", "Equippable (takes a slot)"],
   ["consumable", "Consumable"],
   ["removable", "Player can drop it"],
-  ["tradeable", "Tradeable"],
+  // Spelled out because it is easy to leave unchecked and then wonder why a
+  // custom sword can't be handed over — it defaults off, and for an Item or an
+  // Asset that is almost never what the GM meant.
+  ["tradeable", "Tradeable (can be handed over, or looted off a body)"],
   ["visibleOnInspect", "Visible when 🔍-inspected"],
   ["sellable", "Sellable at Merchant's Depot"],
 ];

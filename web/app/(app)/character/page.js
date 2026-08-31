@@ -20,7 +20,7 @@ import { loadPointBuyCatalog } from "@/lib/pointBuyCatalog";
 import { findOpenTurnAction } from "@/lib/moveEconomy";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
-import { TRANSFERABLE_CATEGORIES, FAST_TRAVEL_SLUGS, fastTravelCapacity } from "@/lib/tagRequests";
+import { isTradeable, FAST_TRAVEL_SLUGS, fastTravelCapacity } from "@/lib/tagRequests";
 import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { parseSelection } from "@/lib/portrait/catalog";
 import {
@@ -426,7 +426,7 @@ export default async function CharacterPage() {
             select: {
               tagId: true,
               quantity: true,
-              tag: { select: { name: true, slug: true, category: true, stackable: true } },
+              tag: { select: { name: true, slug: true, category: true, stackable: true, tradeable: true } },
             },
           },
         },
@@ -441,8 +441,9 @@ export default async function CharacterPage() {
   }
   const helpless = zoneRoster.filter((c) => c.status === "DEAD" || conditionOf(c));
 
-  // A body, or anyone who can't stop you. Only Items and Assets come off —
-  // the same category gate the transfer system enforces. Someone carrying
+  // A body, or anyone who can't stop you. Only `tradeable` tags come off — the
+  // same per-tag gate the transfer system enforces, so a corpse's House, its
+  // Drone and the thing grafted into its neck all stay put. Someone carrying
   // nothing still appears: the dialog says so, and hiding them would make an
   // empty menu mean two different things.
   const lootTargets = helpless.map((c) => ({
@@ -452,7 +453,7 @@ export default async function CharacterPage() {
     condition: conditionOf(c),
     resources: c.resources,
     tags: c.tags
-      .filter((ct) => TRANSFERABLE_CATEGORIES.includes(ct.tag.category))
+      .filter((ct) => isTradeable(ct.tag))
       .map((ct) => ({
         tagId: ct.tagId,
         tagName: ct.tag.name,

@@ -1058,8 +1058,18 @@ model Tag {
   requiredTag   Tag?    @relation("TagPrerequisite", fields: [requiredTagId], references: [id])
   unlocks       Tag[]   @relation("TagPrerequisite")
 
-  // Items-category flag for a future trade flow — no transfer logic exists
-  // yet, this just marks which tags are candidates for it.
+  // Live: whether this tag can change hands at all. It gates BOTH directions —
+  // handing it to someone in your zone (TRANSFER_TAG) and lifting it off a
+  // corpse or a helpless body (LOOT_CHARACTER) — via
+  // web/lib/tagRequests.js#isTradeable, which every one of those menus filters
+  // on and both server actions re-check. This used to be a category test
+  // (Items + Assets), which was wrong in both directions: it let a corpse be
+  // stripped of its House and its Drone, and it ignored the graft in somebody's
+  // neck that already said false right here. One flag on purpose; splitting
+  // give from take would be a second field. See docs/systemdocs/TAGS.md §5.
+  //
+  // db/lib/syncTags.js THROWS if an items/assets tag omits it, so the `false`
+  // default below can never silently make new gear unmovable.
   tradeable Boolean @default(false)
 
   // Whether this tag is a thing a character can wear or carry readied, and so

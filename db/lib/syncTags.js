@@ -152,6 +152,18 @@ async function syncTagsFromYaml(prisma) {
         `docs/tags.yaml: tag "${t.slug}" sets concealsIdentity but not equippable — it could never be equipped, so it could never conceal anything`,
       );
     }
+    // `tradeable` decides whether a tag can be handed over or lifted off a body
+    // (web/lib/tagRequests.js#isTradeable), and it reads as `?? false` below —
+    // so a new item that forgets the field syncs as unmovable and nobody finds
+    // out until a player can't hand over the sword they just forged. Silence is
+    // the wrong default for a live gate, so items and assets have to say it out
+    // loud. Every other category keeps defaulting to false, which is right:
+    // a skill or an injury is not a thing you carry.
+    if ((t.category === "items" || t.category === "assets") && typeof t.tradeable !== "boolean") {
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" is in category "${t.category}" but does not set tradeable — say true or false explicitly, since it decides whether the tag can be handed over or looted off a body`,
+      );
+    }
     // consumesInto is validated up here rather than in a late pass like
     // parentTag/requiredTag: every slug is already known from the document
     // itself, so a typo can fail cleanly instead of half-applying. Both halves

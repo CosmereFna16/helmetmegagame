@@ -404,11 +404,11 @@ Your [Character](https://ravenheart.quest/character) page contains your characte
 |---|---|---|
 | **Add Tag** | Add a tag by crafting or similar means. Required resources will be subtracted automatically. | Always, but ensure you use your Move accordingly. |
 | **Remove Tag** | Removes a tag. | When holding something you could reasonably drop or remove. |
-| **Transfer Tag** | Hands an item or asset to someone else in your Zone. Giving only, no taking. | When holding something you can transfer. |
+| **Transfer Tag** | Hands something you're carrying to someone else in your Zone. Giving only, no taking. Not everything can change hands — a house isn't portable, and some things are part of you. | When holding something you can transfer. |
 | **Transfer Resources** | Transfer ⬢ between people or Silos within reach (same Zone for people, faction Home Zone for Silos). | Always. |
 | **Consume** | Consumes an item tag (drinking alcohol, eating food). Clicking the tag performs the same action. | When holding a consumable item. |
 | **Heal** | Treat an affliction on yourself or another person within reach, based on your medical skill. | {tag:medical-basic} or better. |
-| **Loot** | Search and take items, assets, or ⬢ from a dead or incapacitated person in your Zone. | Always, the game will reject invalid targets. |
+| **Loot** | Search a dead or incapacitated person in your Zone and take their ⬢ and whatever they were carrying that can be carried off. Their property, and anything grafted or bound to them, stays with them. | Always, the game will reject invalid targets. |
 | **Move Player** | Carry a dead or bound person, or a member of your faction if you're the Leader, to an adjacent Zone. This doesn't spend their Move or yours. | Always. |
 | **Bind** | Tie up someone within reach. | Always. |
 | **Free** | Cut loose someone within reach. | Always. |
@@ -442,7 +442,7 @@ Your character may die. Several of your characters may die. Luckily, that doesn'
 
 When your character dies:
 
-- Their body stays where it fell. Items, assets, and ⬢ can be **looted** and the body can be moved elsewhere or buried.
+- Their body stays where it fell. Their ⬢ and anything portable they carried can be **looted**, and the body can be moved elsewhere or buried. What can't be carried off a corpse — a house, a workshop, something grafted into them — stays with them.
 - Your Discord account becomes **Cursed** as you now exist as a ghost. You can read what's going on in every zone, but you can no longer interact with the world of the living.
 - As a ghost, once every 12 real hours you can react 🌬️ to any message in a `#summary` or public topic and the bot will post a haunting line there. That's your only voice, and it's a reminder to others that your body remains unburied.
 - You can create a new character at any time, but while Cursed you only have access to the **Bum** and **Migrant** roles. You also receive a 6 point penalty during character creation.

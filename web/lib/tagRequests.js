@@ -5,11 +5,23 @@
 
 import { holdsRequirement } from "./characterCreation";
 
-// Only Items and Assets can be handed to another player. Tag.tradeable exists
-// and would be the more precise filter, but it is currently set on exactly one
-// tag in docs/tags.yaml, so category is the honest signal today. Revisit once
-// tradeable is populated across the catalog.
-export const TRANSFERABLE_CATEGORIES = ["Items", "Assets"];
+// `Tag.tradeable` is what decides whether a tag can change hands — both handing
+// it over and lifting it off a body. This used to be a category test
+// (`["Items", "Assets"]`), which was the honest signal back when tradeable was
+// set on almost nothing. It no longer is: the catalog now answers per tag, and
+// the category test was actively wrong in both directions. It let a corpse be
+// stripped of its House and its Drone, and it ignored the 16 items that already
+// said `tradeable: false` — the Quickened Nerve Braid is grafted into a neck.
+//
+// One flag covers both directions on purpose. Prying the Bishop's Mitre off the
+// Bishop's corpse and being handed it are the same permission here; if they ever
+// need to differ, that is a second field and a migration. See TAGS.md §5.
+//
+// db/lib/syncTags.js REQUIRES an explicit tradeable on every items/assets tag,
+// so a new item can't quietly default to false and become unmovable.
+export function isTradeable(tag) {
+  return Boolean(tag?.tradeable);
+}
 
 // Per the brief, Add Tag offers Purchasable or Craftable tags only — the
 // point-buy drawbacks and the GM/system-only statuses (Drained, Hungry,
@@ -78,7 +90,7 @@ export function removableTags(characterTags = []) {
 
 export function transferableTags(characterTags = []) {
   return characterTags
-    .filter((ct) => ct.tag && TRANSFERABLE_CATEGORIES.includes(ct.tag.category))
+    .filter((ct) => isTradeable(ct.tag))
     .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1 }));
 }
 

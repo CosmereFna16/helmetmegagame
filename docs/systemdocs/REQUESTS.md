@@ -185,10 +185,13 @@ Three notes on deliberate choices:
   cost ⬢ to make and the Hunger pass charges its own upkeep, so a third
   charge here would be the same meal paid for three times; and taking one
   unit at a time is the point of a stack. See `TAGS.md` §5b.
-- **Transfer Tag filters on `category`, not `tradeable`.** `Tag.tradeable`
-  exists and would be more precise, but it is set on exactly one tag in
-  `docs/tags.yaml` today, so Items/Assets is the honest signal. Revisit once
-  the catalog populates it (`web/lib/tagRequests.js`).
+- **Transfer Tag and Loot both filter on `tradeable`.** Not on `category`,
+  which is what they used to do and which was wrong in both directions — it
+  let a corpse be stripped of its House and its Drone, and it ignored the
+  Items that already said `tradeable: false`. One flag covers handing over and
+  taking off a body alike. `web/lib/tagRequests.js#isTradeable` is the only
+  reader, so the menus and the server-side re-checks can't disagree. See
+  `TAGS.md` §5.
 - **Add Tag gates a craftable on nothing but its hidden-category group.**
   A Longbow's `requiredTag: ranged-basic` says who can *shoot* it; its
   `requirement.skills: [crafting]` says who can *make* it. Creation and

@@ -458,8 +458,40 @@ here, change it there too** — they are meant to say the same thing.
   after.
 - `exclusive` — at most one such tag per character *per group*. Set on the nine Beliefs and the five Bacchus drawbacks;
   see §3 for the rule, the `requiredTag` exemption, and where it is enforced.
-- `tradeable` — Items-category flag for a future trade flow; no transfer
-  logic exists yet (Transfer Tag filters on `category`, not this).
+- `tradeable` — **live**: whether the tag can change hands at all. One flag
+  covers both directions — handing it to someone standing with you
+  (`TRANSFER_TAG`) and lifting it off a corpse or a helpless body
+  (`LOOT_CHARACTER`). `web/lib/tagRequests.js#isTradeable` is the single
+  reader; the Hand Over menu, the Loot dialog's per-target tag list, and both
+  server actions all go through it, so the menu and the gate can't drift.
+
+  It used to be a category test — `["Items", "Assets"]` — from back when the
+  field was set on almost nothing. That was wrong in both directions at once.
+  It let a corpse be stripped of its **House**, its **Workshop** and its
+  **Drone**, none of which are things you carry away from a body; and it
+  ignored the sixteen Items that already said `tradeable: false`, including the
+  Quickened Nerve Braid, which is *grafted into the holder's neck*. The catalog
+  had been carrying the right answer for months and nothing read it.
+
+  Office regalia (the Bishop's Mitre, the Sheriff's Badge, the clan banners) is
+  deliberately `true`. Prying a badge off the body of the man who held the
+  office is exactly the kind of thing the game is for, and because this is one
+  flag, that also leaves it giftable — which is how it has always behaved, so
+  nothing regressed. Splitting give from take would be a second field and a
+  migration; do that only if handing an office over by dropdown turns out to be
+  a real problem in play.
+
+  `syncTags.js` **throws** if a tag in `items` or `assets` omits the field.
+  It reads as `?? false`, so silence would sync a new sword as unmovable and
+  nobody would find out until a player couldn't hand over the thing they had
+  just forged. Every other category still defaults to `false` — a skill or an
+  injury is not a thing you carry. The same trap exists for GM-made tags on
+  `/gm/dev/tags`, where the checkbox defaults off; its label spells out the
+  consequence rather than relying on the GM knowing.
+
+  One tag outside Items/Assets sets it: `detonation-charge`, a keg of dynamite
+  filed under `general`. The old category test blocked it; it is transferable
+  now, which is correct.
 - `sellable` / `sellablePrice` — the seller's half of
   `purchasable`/`purchasableAfterStart`: whether the Merchant's Depot will
   buy this tag off him, and for how many ⬢. Added for the Caves Update

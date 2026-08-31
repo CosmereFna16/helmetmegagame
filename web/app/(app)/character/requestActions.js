@@ -18,7 +18,7 @@ import {
 } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { expiryFor, describeTurn } from "@/lib/turnFormat";
-import { TRANSFERABLE_CATEGORIES, fastTravelCapacity, addRequirementSatisfied } from "@/lib/tagRequests";
+import { isTradeable, fastTravelCapacity, addRequirementSatisfied } from "@/lib/tagRequests";
 import {
   tagsById as buildTagsById,
   exclusiveConflict,
@@ -621,9 +621,9 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
   return {};
 }
 
-// SEND is the ordinary path — the initiator hands their own Item/Asset to
-// someone in the same zone. LOOT is its inverse: the counterparty is a corpse
-// lying in that same zone, and the initiator pulls the item off it.
+// SEND is the ordinary path — the initiator hands one of their own `tradeable`
+// tags to someone in the same zone. LOOT is its inverse: the counterparty is a
+// corpse lying in that same zone, and the initiator pulls the item off it.
 // There is still no "request a tag from a living someone" — that direction
 // stays send-only, so browsing another live player's inventory is never a
 // menu the game hands you.
@@ -648,7 +648,7 @@ async function transferTagRequestImpl({
 
   // In SEND the initiator IS the source; in LOOT the counterparty is. Both
   // roles need the eager-loaded tag row so we can size the stack, look at
-  // expiry, and read the category gate off the catalog side.
+  // expiry, and read `tradeable` off the catalog side.
   let source;
   if (isLoot) {
     // A corpse in the same zone. Folded into the WHERE clause the same way
@@ -667,7 +667,7 @@ async function transferTagRequestImpl({
             quantity: true,
             source: true,
             expiresTurn: true,
-            tag: { select: { name: true, category: true, stackable: true } },
+            tag: { select: { name: true, category: true, stackable: true, tradeable: true } },
           },
         },
       },
@@ -697,9 +697,11 @@ async function transferTagRequestImpl({
     };
   }
 
-  if (!TRANSFERABLE_CATEGORIES.includes(source.tag.category)) {
+  if (!isTradeable(source.tag)) {
     throw new UserError(
-      isLoot ? "Only Items and Assets can be taken." : "Only Items and Assets can be handed over.",
+      isLoot
+        ? "That isn't something you can take off a body."
+        : "That isn't yours to hand over.",
     );
   }
 
@@ -963,7 +965,7 @@ async function lootCharacterRequestImpl({
     where: { id: targetCharacterId ?? "", status: { in: ["ALIVE", "DEAD"] }, zoneId: character.zoneId },
     include: {
       tags: {
-        include: { tag: { select: { name: true, category: true, stackable: true, slug: true } } },
+        include: { tag: { select: { name: true, category: true, stackable: true, slug: true, tradeable: true } } },
       },
     },
   });
@@ -988,8 +990,8 @@ async function lootCharacterRequestImpl({
   const takenTags = [];
   for (const pick of picks) {
     const held = target.tags.find((ct) => ct.tagId === pick.tagId);
-    if (!held || !TRANSFERABLE_CATEGORIES.includes(held.tag.category)) {
-      throw new UserError("Only Items and Assets can be taken.");
+    if (!held || !isTradeable(held.tag)) {
+      throw new UserError("That isn't something you can take off a body.");
     }
     const quantity = held.tag.stackable
       ? (parseCount(pick.quantity, { min: 1, max: held.quantity }) ?? null)
