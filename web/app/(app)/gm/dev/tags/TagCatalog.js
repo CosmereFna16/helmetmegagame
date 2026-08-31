@@ -149,8 +149,7 @@ export default function TagCatalog({ tags, groups, categories, canDelete }) {
                       onClick so the keyboard reaches it. */}
                   <button
                     type="button"
-                    className="text-left font-[inherit]"
-                    style={{ cursor: "pointer" }}
+                    className="text-left font-[inherit] cursor-pointer"
                     onClick={() => setViewing(t)}
                   >
                     {t.name}

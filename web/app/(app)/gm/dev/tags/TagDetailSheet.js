@@ -47,7 +47,7 @@ function withGroupColor(tag) {
 
 function TagButton({ tag, onOpen }) {
   return (
-    <button type="button" className="btn-quiet" style={{ cursor: "pointer" }} onClick={() => onOpen(tag)}>
+    <button type="button" className="btn-quiet" onClick={() => onOpen(tag)}>
       <ChipLabel tag={withGroupColor(tag)} />
     </button>
   );

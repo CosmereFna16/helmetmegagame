@@ -342,7 +342,7 @@ export default function ActionBar({
 
         <FormError>{error}</FormError>
         {!error && staged && pendingCount > 0 && (
-          <p className="w-full text-sm" style={{ color: "var(--accent-text)" }}>
+          <p className="w-full text-sm text-accent">
             Staged {staged} — press <strong>Apply</strong> below to commit it.
           </p>
         )}
@@ -512,7 +512,7 @@ export default function ActionBar({
             {transferPartyOptions()}
           </Select>
         </label>
-        <label className="field" style={{ width: "10rem" }}>
+        <label className="field w-40">
           <span className="field-label">Amount</span>
           <input
             type="number"

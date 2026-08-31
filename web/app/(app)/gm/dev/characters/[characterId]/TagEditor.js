@@ -156,19 +156,6 @@ export default function TagEditor({ tags, held, ops, openTurn, equipSlots, onSta
   );
 }
 
-// The staged outline, shared by the Held and catalog rows so the difference
-// between "they have this" and "they will have this once you press Apply"
-// reads the same everywhere.
-function stagedOutline(staged) {
-  return staged === "add"
-    ? "1px solid var(--positive)"
-    : staged === "remove"
-      ? "1px solid var(--accent-text)"
-      : staged
-        ? "1px dashed var(--accent-text)"
-        : undefined;
-}
-
 // One line in the Holds section — every action that touches an existing
 // holding lives here: Remove/Take one, Add one, Equip toggle, Make
 // permanent, and Unstage. `tag` is the catalog row (for stackable/equippable/
@@ -180,8 +167,8 @@ function HeldRow({ tag, holding, op, openTurn, onStage }) {
 
   return (
     <li
-      className="dev-tag-row"
-      style={{ outline: stagedOutline(staged) }}
+      className={`dev-tag-row${staged ? " staged-row" : ""}`}
+      data-staged={staged ?? undefined}
     >
       <span className="flex flex-wrap items-baseline gap-2 flex-1 min-w-0">
         {/* ChipLabel carries its own left edge in tag.group.color, so the
@@ -200,7 +187,7 @@ function HeldRow({ tag, holding, op, openTurn, onStage }) {
           </span>
         )}
         {staged && (
-          <span className="text-xs" style={{ color: "var(--accent-text)" }}>
+          <span className="text-xs text-accent">
             staged: {staged}
           </span>
         )}

@@ -95,7 +95,7 @@ export default function GoalsTab({ character, desires }) {
           <p className="text-sm text-muted">No active desire.</p>
         )}
 
-        <div className="flex flex-col gap-2 border-t pt-3" style={{ borderColor: "var(--border)" }}>
+        <div className="flex flex-col gap-2 border-t border-hairline pt-3">
           <label className="field">
             <span className="field-label">
               {active ? "Replace with a new desire (cancels the current one)" : "Set a desire"}

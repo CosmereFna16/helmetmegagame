@@ -15,7 +15,7 @@ import { TITLE_WORDS, NAME_LIMITS, AGE_MIN, AGE_MAX, GENDERS, GENDER_LABELS } fr
 // A touched field is outlined so the GM can see at a glance what Apply is
 // about to write; `edits` is the staged diff from DevPanel.
 export default function IdentityTab({ staged, lastNameLocked, factions, zones, roles, edits, onField }) {
-  const touched = (key) => (Object.hasOwn(edits, key) ? { outline: "1px solid var(--accent-text)" } : undefined);
+  const touched = (key) => (Object.hasOwn(edits, key) ? "field-dirty" : "");
 
   return (
     <>
@@ -34,7 +34,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
             <Select
               value={staged.honorific ?? ""}
               onChange={(e) => onField("honorific", e.target.value || null)}
-              style={touched("honorific")}
+              className={touched("honorific")}
             >
               <option value="">(none)</option>
               {TITLE_WORDS.map((h) => (
@@ -49,7 +49,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
               value={staged.firstName ?? ""}
               maxLength={NAME_LIMITS.firstName}
               onChange={(e) => onField("firstName", e.target.value)}
-              style={touched("firstName")}
+              className={touched("firstName")}
             />
           </label>
 
@@ -62,7 +62,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
               maxLength={NAME_LIMITS.title}
               placeholder={'renders as "the Blind"'}
               onChange={(e) => onField("title", e.target.value)}
-              style={touched("title")}
+              className={touched("title")}
             />
           </label>
 
@@ -78,7 +78,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
               maxLength={NAME_LIMITS.lastName}
               disabled={lastNameLocked}
               onChange={(e) => onField("lastName", e.target.value)}
-              style={touched("lastName")}
+              className={touched("lastName")}
             />
           </label>
 
@@ -95,7 +95,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
             <Select
               value={staged.gender ?? "NEUTRAL"}
               onChange={(e) => onField("gender", e.target.value)}
-              style={touched("gender")}
+              className={touched("gender")}
             >
               {GENDERS.map((g) => (
                 <option key={g} value={g}>{GENDER_LABELS[g]}</option>
@@ -111,7 +111,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
               max={AGE_MAX}
               value={staged.age ?? ""}
               onChange={(e) => onField("age", e.target.value === "" ? null : Number(e.target.value))}
-              style={touched("age")}
+              className={touched("age")}
             />
           </label>
         </div>
@@ -125,7 +125,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
           <Select
             value={staged.roleId ?? ""}
             onChange={(e) => onField("roleId", e.target.value || null)}
-            style={touched("roleId")}
+            className={touched("roleId")}
           >
             <option value="">(none — keeps the free-text title below)</option>
             {roles.map((r) => (
@@ -141,7 +141,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
           <input
             value={staged.roleTitle ?? ""}
             onChange={(e) => onField("roleTitle", e.target.value)}
-            style={touched("roleTitle")}
+            className={touched("roleTitle")}
           />
         </label>
 
@@ -151,7 +151,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
             <Select
               value={staged.factionId ?? ""}
               onChange={(e) => onField("factionId", e.target.value || null)}
-              style={touched("factionId")}
+              className={touched("factionId")}
             >
               <option value="">(none)</option>
               {factions.map((f) => (
@@ -187,7 +187,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
           <Select
             value={staged.zoneId ?? ""}
             onChange={(e) => onField("zoneId", e.target.value || null)}
-            style={touched("zoneId")}
+            className={touched("zoneId")}
           >
             <option value="">(nowhere — grants no zone channel access)</option>
             {zones.map((z) => (
@@ -206,7 +206,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
               type="number"
               value={staged.resources ?? 0}
               onChange={(e) => onField("resources", Number(e.target.value))}
-              style={touched("resources")}
+              className={touched("resources")}
             />
           </label>
           <label className="field">
@@ -218,7 +218,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
               type="number"
               value={staged.tagPoints ?? 0}
               onChange={(e) => onField("tagPoints", Number(e.target.value))}
-              style={touched("tagPoints")}
+              className={touched("tagPoints")}
             />
           </label>
         </div>
@@ -232,7 +232,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
             rows={4}
             value={staged.appearance ?? ""}
             onChange={(e) => onField("appearance", e.target.value)}
-            style={touched("appearance")}
+            className={touched("appearance")}
           />
         </label>
         <Switch

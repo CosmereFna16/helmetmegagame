@@ -416,7 +416,7 @@ function StateStrip({
         ["Equipment", `${equipped} / ${equipSlots}`],
         [
           "Drawbacks",
-          <span key="db" style={overDrawbackCap ? { color: "var(--danger)" } : undefined}>
+          <span key="db" className={overDrawbackCap ? "text-danger" : undefined}>
             −{drawbackPoints} / {maxNegativeTags}
           </span>,
         ],
