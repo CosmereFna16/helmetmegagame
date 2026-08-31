@@ -18,7 +18,7 @@ import PublicComposer from "./PublicComposer";
 import StagedItems from "./StagedItems";
 import { resolveMove, rejectMove } from "./actions";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
-import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
+import { RESULT_BOX_MAX_LENGTH } from "@/lib/constants";
 
 // The arbitration desk for one Move. Everything a GM does here STAGES: the
 // Result box is the canon of what happened (GM-facing, one field — gmNotes
@@ -263,7 +263,7 @@ export default function MoveDesk({
             rows={4}
             value={edits.resultMessage}
             disabled={disabled}
-            maxLength={GM_MESSAGE_MAX_LENGTH}
+            maxLength={RESULT_BOX_MAX_LENGTH}
             onChange={(e) => setEdit("resultMessage", e.target.value)}
             placeholder="What actually happened here. GM-facing — tell the players with staged messages below."
           />

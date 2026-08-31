@@ -350,13 +350,17 @@ export default function ActionBar({
         <Modal title={`Message ${character.name}`} onClose={() => setDialog(null)}>
           <div className="flex flex-col gap-3">
             <label className="field">
-              <span className="field-label">Sent from Bascinet as a DM</span>
-              <textarea
-                rows={4}
-                value={draft}
-                maxLength={GM_MESSAGE_MAX_LENGTH}
-                onChange={(e) => setDraft(e.target.value)}
-              />
+              <span className="field-label">
+                Sent from Bascinet as a DM{" "}
+                {draft.length > GM_MESSAGE_MAX_LENGTH && (
+                  <span className="text-danger">
+                    ({draft.length}/{GM_MESSAGE_MAX_LENGTH})
+                  </span>
+                )}
+              </span>
+              {/* No maxLength: a long paste stays visible and trimmable
+                  rather than being silently cut. */}
+              <textarea rows={4} value={draft} onChange={(e) => setDraft(e.target.value)} />
             </label>
             <FormError>{error}</FormError>
             <div className="modal-actions">
@@ -366,7 +370,7 @@ export default function ActionBar({
               <button
                 type="button"
                 className="btn"
-                disabled={pending || !draft.trim()}
+                disabled={pending || !draft.trim() || draft.length > GM_MESSAGE_MAX_LENGTH}
                 onClick={() => run(() => messageCharacter({ characterId: character.id, message: draft }))}
               >
                 Send

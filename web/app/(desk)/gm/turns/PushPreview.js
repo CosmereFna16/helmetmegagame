@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import Modal from "@/app/components/Modal";
-import { effectSummary, tagNameLookup, truncate } from "./stagedFormat";
+import { chunkCount, effectSummary, tagNameLookup, truncate } from "./stagedFormat";
 
 // What the push will actually do, grouped by recipient character — every DM
 // they'll get, the net staged deltas, their own Move's declared numbers —
@@ -36,7 +36,11 @@ export default function PushPreview({ moves, stagedEffects, stagedMessages, tagC
     for (const msg of stagedMessages) {
       if (msg.sent || msg.kind !== "PRIVATE") continue;
       for (const r of msg.recipients) {
-        entry(r.characterId, r.name).messages.push({ id: msg.id, text: truncate(msg.content, 80) });
+        entry(r.characterId, r.name).messages.push({
+          id: msg.id,
+          text: truncate(msg.content, 80),
+          chunks: chunkCount(msg.content),
+        });
       }
     }
     return [...map.entries()]
@@ -84,6 +88,7 @@ export default function PushPreview({ moves, stagedEffects, stagedMessages, tagC
                 <li key={`${m.id}-${i}`}>
                   <button type="button" className="desk-preview-line text-muted" onClick={() => onReveal?.(m.id)}>
                     ✉ » {m.text}
+                    {m.chunks > 1 && <span className="chip ml-1">{m.chunks} msgs</span>}
                   </button>
                 </li>
               ))}
@@ -100,6 +105,7 @@ export default function PushPreview({ moves, stagedEffects, stagedMessages, tagC
                 <li key={p.id}>
                   <button type="button" className="desk-preview-line" onClick={() => onReveal?.(p.id)}>
                     {p.zoneName ? <span className="chip">{p.zoneName}</span> : null} {truncate(p.content, 120)}
+                    {chunkCount(p.content) > 1 && <span className="chip ml-1">{chunkCount(p.content)} msgs</span>}
                   </button>
                 </li>
               ))}

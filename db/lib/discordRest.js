@@ -4,6 +4,10 @@
 // db/index.js, which imports those two). Single-guild (DISCORD_GUILD_ID),
 // same convention as web/lib/discordGuild.js and db/prisma/sync-locations.js.
 
+// The pure chunker lives in its own file so client components can import it;
+// re-exported below so every caller of discordRest keeps its import path.
+const { DISCORD_MESSAGE_LIMIT, chunkMessage } = require("./chunkText");
+
 const DISCORD_API = "https://discord.com/api/v10";
 
 function authHeaders(extra) {
@@ -463,35 +467,16 @@ async function postMessage(channelId, content, components = undefined) {
   });
 }
 
-const DISCORD_MESSAGE_LIMIT = 2000;
-
-// Splits text into as few ≤2000-char chunks as possible, preferring to
-// break on paragraph boundaries (blank lines) and falling back to a hard
-// split for any single paragraph that alone exceeds the cap.
-function chunkMessage(text) {
-  const paragraphs = text.split("\n\n");
-  const chunks = [];
-  let current = "";
-
-  for (const paragraph of paragraphs) {
-    for (let i = 0; i < paragraph.length; i += DISCORD_MESSAGE_LIMIT) {
-      const piece = paragraph.slice(i, i + DISCORD_MESSAGE_LIMIT);
-      const candidate = current ? `${current}\n\n${piece}` : piece;
-      if (candidate.length > DISCORD_MESSAGE_LIMIT) {
-        if (current) chunks.push(current);
-        current = piece;
-      } else {
-        current = candidate;
-      }
-    }
-  }
-  if (current) chunks.push(current);
-  return chunks;
-}
-
 // Posts text as one message, or as several in order if it exceeds Discord's
 // 2000-char limit — used for #info's directory message and thread bodies,
-// which are hand-authored and occasionally run long.
+// and for a GM's staged public declaration on /gm/turns.
+//
+// Sequential, and it throws on the first chunk that fails. A partial send is
+// therefore possible: chunks 1-2 land, chunk 3 throws, and a caller that
+// retries the whole body duplicates 1-2. That is rare by construction — a 429
+// is already retried below, so the realistic failure is a channel that is gone
+// or forbidden, which fails on chunk 1 and leaves nothing partial. Not worth
+// per-chunk bookkeeping; see ADJUDICATION.md.
 async function postMessageBatched(channelId, text) {
   for (const chunk of chunkMessage(text)) {
     await postMessage(channelId, chunk);

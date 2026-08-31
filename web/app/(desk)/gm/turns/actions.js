@@ -5,7 +5,7 @@ import { prisma, rollDie, Prisma } from "@lifeweb/db";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { TagOpError, validateTagOps } from "@lifeweb/db/lib/tagOps";
 import { resolveParty, partyLabel } from "@lifeweb/db/lib/parties";
-import { postMessage } from "@lifeweb/db/lib/discordRest";
+import { postMessageBatched } from "@lifeweb/db/lib/discordRest";
 import { getGmSession, killCharacter, listGuildMembers, sendDm } from "@/lib/discordGuild";
 import { REQUEST_EFFECTS } from "@/lib/requestEffects";
 import { requireReason } from "@/lib/requests";
@@ -238,7 +238,10 @@ async function resendStagedMessageImpl({ stagedMessageId }) {
     const channelId = existing.zone?.discordSummaryChannelId;
     if (!channelId) throw new UserError("That zone has no summary channel configured.");
     try {
-      await postMessage(channelId, existing.content);
+      // Batched like the push's own loop. A body over 2000 characters
+      // re-posts as several messages; if the original push failed partway,
+      // the chunks that did land are posted again (ADJUDICATION.md §1).
+      await postMessageBatched(channelId, existing.content);
       resent += 1;
     } catch (err) {
       stillFailing = [{ error: String(err?.message ?? err) }];

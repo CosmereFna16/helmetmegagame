@@ -374,6 +374,7 @@ function ArchiveView({ data, onOpenContext }) {
 // bespoke second implementation.
 function DmsView({ data, characterId, cacheKey, setCache }) {
   const [draft, setDraft] = useState("");
+  const draftOver = draft.length > GM_MESSAGE_MAX_LENGTH;
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
 
@@ -423,9 +424,10 @@ function DmsView({ data, characterId, cacheKey, setCache }) {
         <DmThread messages={data.messages} onLoadOlder={loadOlder} hasMore={data.hasMore} compact />
       </div>
       <div className="field border-t p-3" style={{ borderColor: "var(--border)" }}>
+        {/* No maxLength: a long paste stays visible and trimmable rather than
+            being silently cut. Over the cap, Send just refuses. */}
         <textarea
           rows={2}
-          maxLength={GM_MESSAGE_MAX_LENGTH}
           value={draft}
           placeholder="Write a message…"
           disabled={pending}
@@ -433,8 +435,12 @@ function DmsView({ data, characterId, cacheKey, setCache }) {
         />
         <FormError>{error}</FormError>
         <div className="mt-1 flex items-center justify-between gap-2">
-          <span className="text-xs text-muted">Sends now, » prefixed — not staged.</span>
-          <button type="button" className="btn" disabled={pending || !draft.trim()} onClick={send}>
+          <span className={draftOver ? "text-xs text-danger" : "text-xs text-muted"}>
+            {draftOver
+              ? `${draft.length} / ${GM_MESSAGE_MAX_LENGTH} — too long to send.`
+              : "Sends now, » prefixed — not staged."}
+          </span>
+          <button type="button" className="btn" disabled={pending || !draft.trim() || draftOver} onClick={send}>
             {pending ? "Sending…" : "Send"}
           </button>
         </div>

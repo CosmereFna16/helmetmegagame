@@ -15,7 +15,6 @@ import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
 import { openingZoneName } from "@/lib/zones";
 import FactionsPanel from "./FactionsPanel";
 import Pager from "@/app/components/Pager";
-import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import { filterTagsByQuery, sortForMode, tagsById as buildTagsById } from "@/lib/characterCreation";
 // bulkTagCharacters stays in (app) — it is shared GM plumbing, not this
 // desk's own, so it keeps its home rather than following the table here.
@@ -241,13 +240,10 @@ export default function RosterTable({
                   Message ({selected.size} recipient{selected.size === 1 ? "" : "s"}, sent from
                   Bascinet)
                 </span>
-                <textarea
-                  name="message"
-                  rows={3}
-                  required
-                  maxLength={GM_MESSAGE_MAX_LENGTH}
-                  onKeyDown={onComposerKeyDown}
-                />
+                {/* No maxLength: this is an uncontrolled form field, and a cap
+                    here silently truncated a long paste. Over the cap,
+                    sendGmBroadcast rejects and the error shows below. */}
+                <textarea name="message" rows={3} required onKeyDown={onComposerKeyDown} />
               </label>
               <FormError>{composerError}</FormError>
               <button type="submit" className="btn self-start" disabled={sending}>

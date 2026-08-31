@@ -1,6 +1,16 @@
 // Human forms of staged rows, shared by the desk, the tray and the preview.
 // Pure functions over DTOs — no server imports, safe in client components.
 
+import { chunkMessage } from "@lifeweb/db/lib/chunkText";
+
+// How many Discord messages a staged body will arrive as. chunkText.js is the
+// dependency-free half of the REST layer, so importing it here keeps this
+// module client-safe — never import from discordRest.js, which reads
+// DISCORD_TOKEN and calls fetch.
+export function chunkCount(content) {
+  return chunkMessage((content ?? "").trim()).length;
+}
+
 export function tagNameLookup(tagCatalog) {
   return new Map(tagCatalog.map((t) => [t.id, t.name]));
 }

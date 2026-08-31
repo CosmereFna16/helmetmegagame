@@ -30,7 +30,7 @@ const { runStagedPushPass } = require("./lib/stagedPush");
 // why there are three same-named sendDm exports with three signatures.
 const { sendDm } = require("./lib/dm");
 const { recordArchiveMessage, recordArchiveEvent } = require("./lib/archive");
-const { postAsCharacter, postMessage, attachBreakerStore, patchGuildRole } = require("./lib/discordRest");
+const { postAsCharacter, postMessage, postMessageBatched, attachBreakerStore, patchGuildRole } = require("./lib/discordRest");
 const { bumpBlood } = require("./lib/lifeweb");
 const { runFullChannelWipe } = require("./lib/fullWipe");
 const { syncZonesFromYaml } = require("./lib/syncZones");
@@ -866,7 +866,11 @@ async function advanceTurn() {
         continue;
       }
       try {
-        await postMessage(targetChannelId, post.content);
+        // Batched: a declaration over 2000 characters arrives as several
+        // messages in order rather than being rejected outright. A failure
+        // partway leaves the earlier chunks posted, and Resend re-posts the
+        // whole body — see ADJUDICATION.md §1.
+        await postMessageBatched(targetChannelId, post.content);
         await prisma.stagedMessage
           .update({
             where: { id: post.stagedMessageId },

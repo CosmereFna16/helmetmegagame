@@ -8,6 +8,7 @@ import { scoreMatch } from "@/lib/fuzzySearch";
 import { createStagedMessage, updateStagedMessage } from "./actions";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
+import { chunkMessage } from "@lifeweb/db/lib/chunkText";
 
 // Stage a private message: text plus a set of recipient characters. Sent as
 // DMs at the push — you need to tell different people different things, so a
@@ -71,7 +72,10 @@ export default function MessageComposer({
     });
   }
 
-  const atCap = content.length >= GM_MESSAGE_MAX_LENGTH;
+  // No maxLength on the textarea: a paste that runs long stays whole and
+  // visible so the GM can trim it, rather than being silently cut at the cap.
+  const over = content.length > GM_MESSAGE_MAX_LENGTH;
+  const chunkCount = useMemo(() => chunkMessage(content.trim()).length, [content]);
 
   return (
     <Modal
@@ -125,24 +129,28 @@ export default function MessageComposer({
 
         <label className="field">
           <span className="field-label">
-            Message <span className="text-muted">({content.length}/{GM_MESSAGE_MAX_LENGTH})</span>
+            Message{" "}
+            <span className={over ? "text-danger" : "text-muted"}>
+              ({content.length}/{GM_MESSAGE_MAX_LENGTH})
+            </span>
           </span>
           <textarea
             data-autofocus
             rows={5}
             value={content}
-            maxLength={GM_MESSAGE_MAX_LENGTH}
             onChange={(e) => {
               setContent(e.target.value);
               markDirty();
             }}
             placeholder="Lands in their DMs when the turn ends, prefixed »"
           />
-          {atCap && (
-            <span className="text-xs text-accent">
-              At the {GM_MESSAGE_MAX_LENGTH}-character cap — a longer paste gets cut off here.
+          {over ? (
+            <span className="text-xs text-danger">
+              Over the {GM_MESSAGE_MAX_LENGTH}-character cap — trim it before staging.
             </span>
-          )}
+          ) : chunkCount > 1 ? (
+            <span className="text-xs text-muted">Arrives as {chunkCount} messages, split on blank lines.</span>
+          ) : null}
         </label>
 
         <FormError>{error}</FormError>
@@ -151,7 +159,7 @@ export default function MessageComposer({
           <button type="button" className="btn-quiet" onClick={() => guardedClose(onCancel)} disabled={pending}>
             Cancel
           </button>
-          <button type="button" className="btn" onClick={submit} disabled={pending}>
+          <button type="button" className="btn" onClick={submit} disabled={pending || over}>
             {pending ? "Working…" : existing ? "Save" : "Stage it"}
           </button>
         </div>

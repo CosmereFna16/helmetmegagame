@@ -24,6 +24,36 @@ day of work survives a refresh):
 | **Mechanical adjustments** | `StagedEffect` — `payload` `{ resources?, tagPoints?, tagOps?, zoneId? }` per target character | Resources through `addResources`' clamp, tag ops through `db/lib/tagOps.js` — the same engine the Dev Panel applies with. `tagPoints` is an unclamped increment (a GM may take points back, and negative is legal). `appliedEffect` snapshots what actually moved (the payload-vs-effect rule from `REQUESTS.md` §2). |
 | **Transfers** | `StagedEffect` — `payload` `{ transfer: { from, to, amount } }`, mutually exclusive with `resources` | A party-to-party ⬢ move, not a mint/burn from nowhere — either end may be a character or a faction Silo, via `db/lib/parties.js` and `db/lib/resourceTransfer.js#applyTransfer` (the same primitive the player's `TRANSFER_RESOURCES` request and every GM transfer surface use). `targetCharacterId` is nullable to allow **Silo → Silo**: it files the row under the character end if there's exactly one, the recipient if both ends are characters, and null otherwise. Staged from the tray's own "+ Transfer" button (`TransferComposer.js`), separate from the multi-target Effect composer because a transfer is 1:1 by nature. |
 
+### Long messages split; they are never truncated
+
+Both kinds cap at **6000 characters** (`GM_MESSAGE_MAX_LENGTH`), which is about
+three Discord messages, not one. Anything over Discord's own 2000-character
+limit is split by `chunkMessage` (`db/lib/chunkText.js`) and sent as several
+messages in order — DMs through `postDmBatched`, public declarations through
+`postMessageBatched`. The split prefers blank lines, so paragraphs stay intact;
+only a single paragraph that alone exceeds 2000 is cut mid-sentence. The `»`
+prefix lands on the first chunk only, which is what the prefix rule means
+anyway.
+
+The composers show the count and refuse to stage over the cap, leaving a long
+paste **visible and trimmable**. They deliberately carry no `maxLength`: that
+attribute silently truncated a long paste at 1990 with no error and the Stage
+button still enabled, so a GM could post two thirds of a declaration and never
+find out. Anything that shows a character counter in this app should block
+rather than cut, for the same reason.
+
+Two consequences worth knowing:
+
+- **A multi-chunk declaration still survives the Dawn wipe.** The wipe's cutoff
+  is the side-effect thunk's start time, and the public-post loop runs earlier
+  in that same thunk, so every chunk postdates the cutoff.
+- **Resend re-posts the whole body.** `postMessageBatched` and `postDmBatched`
+  are sequential and throw on the first chunk that fails, so a failure partway
+  leaves the earlier chunks delivered. Resending then duplicates them. This is
+  rare by construction — a 429 is already retried, so the realistic failure is a
+  channel that is gone or forbidden, which fails on chunk 1 and leaves nothing
+  partial. It is not worth per-chunk bookkeeping; just delete the duplicate.
+
 A staged message takes a *set* of recipients — you need to tell different
 people different things, so a Move carries as many messages as the truth
 requires, and a message needn't belong to any Move at all (the tray's

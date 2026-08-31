@@ -12,7 +12,7 @@ import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import { deleteStagedEffect, deleteStagedMessage, resendStagedMessage } from "./actions";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
-import { effectSummary, effectState, messageState, tagNameLookup, truncate } from "./stagedFormat";
+import { chunkCount, effectSummary, effectState, messageState, tagNameLookup, truncate } from "./stagedFormat";
 
 // The staged-row lists the desk and the tray share: every row shows what it
 // will do at the push, who queued it, and edit/delete — which stay live right
@@ -212,7 +212,12 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
             </span>
           )}
         </p>
-        <p className="mt-1 text-sm">» {truncate(message.content)}</p>
+        <p className="mt-1 text-sm">
+          » {truncate(message.content)}
+          {chunkCount(message.content) > 1 && (
+            <span className="chip ml-1">{chunkCount(message.content)} msgs</span>
+          )}
+        </p>
         <p className="text-xs text-muted flex items-center gap-1">
           <GmAvatar profile={gmProfiles?.[message.createdByDiscordUserId]} size={13} />
           by {message.createdByUsername}
