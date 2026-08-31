@@ -1494,7 +1494,7 @@ tags:
   - slug: laborer-farming
     name: Laborer (Farming)
     category: skills
-    description: "When you farm, you make {resource:labor:skilled}. Only works in the Town."
+    description: "When you farm, you make {resource:labor:farming}. Only works in the Town."
     pointCost: 5
     requiredTag: laborer-skilled
     purchasable: true
