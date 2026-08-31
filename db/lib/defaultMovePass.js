@@ -23,7 +23,7 @@
 // therefore tier and the depths gate) can change between saves.
 const { applyMoveEffects, describeMoveEffects } = require("./moveEffects");
 const { resolveLaborRateFrom, formatLaborBonusNote } = require("./laborAccess");
-const { rollResourceRange } = require("./resourceDelta");
+const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
 
 // Reproduces the #turns submission pipeline's Labor resolution, so a Default
@@ -253,6 +253,15 @@ async function runDefaultMovePass(prisma, turn) {
       // told.
       ...(gateNote ? [`*${gateNote} No Resources were gained.*`] : []),
       ...(effects ? [`**Applied:** ${effects}`] : []),
+      // Same line the confirm DM writes (bot/src/lib/moveConfirm.js). Without
+      // it the bonus subtext below explained a number that was never in the
+      // message — the only place a defaulting player could read their payout
+      // was the /character panel.
+      ...(action.resourceRollValue != null
+        ? [
+            `**Resource roll (${formatRangeExpression(action.resourceRollExpression)}):** ${action.resourceRollValue > 0 ? "+" : ""}${action.resourceRollValue} ⬢`,
+          ]
+        : []),
       // Same reason as the confirm DM: the paid range had the bonus folded in
       // silently, so a Butcher couldn't tell it had applied.
       ...(bonusNote ? [bonusNote] : []),

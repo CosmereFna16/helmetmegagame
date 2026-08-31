@@ -62,7 +62,7 @@ function ThisTurn({ currentAction, openTurn }) {
       </>
     );
 
-  const { status, moveReviewStatus, resourceRollValue } = currentAction;
+  const { status, moveReviewStatus, resourceRollValue, resourceRollExpression } = currentAction;
 
   let stateLine;
   if (status === "PENDING_TYPE" || status === "PENDING" || status === "PENDING_OPPOSED") {
@@ -71,7 +71,18 @@ function ThisTurn({ currentAction, openTurn }) {
     stateLine = <span className="text-positive">Solved.</span>;
   } else {
     const roll = rollLabel(currentAction);
-    const payout = resourceRollValue != null ? `${resourceRollValue > 0 ? "+" : ""}${resourceRollValue} ⬢` : null;
+    // The range, not just the number. A bare "+7 ⬢" is unreadable: the roll's
+    // floor moves with GameConfig.productionCoefficient and with the Butcher
+    // +2 folded into it (PRODUCTION.md), so a player who knows their tier's
+    // written rate can't tell a low roll from a missing bonus — which is
+    // exactly how "Butcher isn't applying" got reported. The stored expression
+    // is already a plain "min-max" string; en-dash it here rather than import
+    // formatRangeExpression, which would drag @lifeweb/db into this bundle.
+    const range = /^\d+-\d+$/.test(resourceRollExpression ?? "")
+      ? resourceRollExpression.replace("-", "–")
+      : null;
+    const amount = resourceRollValue != null ? `${resourceRollValue > 0 ? "+" : ""}${resourceRollValue} ⬢` : null;
+    const payout = amount && range ? `${range} → ${amount}` : amount;
     stateLine = (
       <span className="text-muted">
         Locked in{roll ? ` — ${roll}` : ""}

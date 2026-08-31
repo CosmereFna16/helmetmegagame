@@ -52,6 +52,26 @@ applying". So `resolveLaborRateFrom` also returns `bonus` on its own, and
 since the Action row stores only the finished range) and the Default Move DM
 (`db/lib/defaultMovePass.js`).
 
+Both DMs print the **range** alongside the value —
+`**Resource roll (9–11):** +9 ⬢` — and so does the `/character` status panel
+(`web/app/components/StatusPanel.js`, which en-dashes the stored expression
+itself rather than importing `formatRangeExpression` into a client bundle).
+The range has to be there, because two invisible things move the floor: the
+Butcher +2 folded in here, and `productionCoefficient` (§1a). A bare `+7 ⬢`
+gives a player no way to tell a low roll from a missing bonus, which is the
+second time that got reported as "Butcher isn't applying".
+
+### 1a. The coefficient moves the whole ladder
+
+`GameConfig.productionCoefficient` is a live GM dial on `/gm/dev`, and
+`computeRate` scales **the tier rate only** — the Butcher +2 is added after,
+so it never scales. At `0.7`, a skilled Butcher gets `7–9 ×0.7 = 5–6`, then
+`+2`, and rolls **7-8**, not 9–11. Nothing announces the dial to players: the
+`{resource:labor:tier}` bubbles in tag descriptions are coefficient-aware
+(`web/lib/referenceData.js#getProductionRates`) but carry no Butcher bonus, so
+the printed rate is never quite the number anyone actually rolls. That is why
+the roll line quotes its own range.
+
 Basic→Skilled is a `parentTag` tier chain (holding Skilled replaces Basic);
 Farming is a `requiredTag` sidegrade. `resolveLaborTier` checks highest-first
 and re-runs the ladder without the farming rung when Skilled isn't actually
