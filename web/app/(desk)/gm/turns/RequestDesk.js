@@ -11,6 +11,7 @@ import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useTags } from "@/app/components/TagsProvider";
 import { resolveRequest, killRequestTarget } from "./actions";
+import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 import { SECTIONS } from "./RequestSections";
 
 // A Request on the desk. Semantics unchanged from the old tab — Requests are
@@ -78,7 +79,7 @@ export default function RequestDesk({ request, onInspect, onClose, registerEscap
         markClean();
         refresh();
       } catch {
-        setError("Something went wrong on the server — your change may not have saved. Try again.");
+        setError(mutationErrorMessage());
       }
     });
   }

@@ -6,6 +6,7 @@ import FormError from "@/app/components/FormError";
 import Select from "@/app/components/Select";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { createStagedTransfer } from "./actions";
+import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 
 // Stage a party-to-party ⬢ transfer — a character or a faction Silo on
 // either end, including Silo -> Silo, which EffectComposer's mint/burn
@@ -64,7 +65,7 @@ export default function TransferComposer({ roster, factions, defaultFromKey = ""
         markClean();
         onDone();
       } catch {
-        setError("Something went wrong on the server — your change may not have saved. Try again.");
+        setError(mutationErrorMessage());
       }
     });
   }

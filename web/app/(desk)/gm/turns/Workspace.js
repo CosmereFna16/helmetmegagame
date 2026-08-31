@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRefresh } from "@/app/components/useRefresh";
 import useSessionState from "@/app/components/useSessionState";
+import useDeskVersion, {
+  checkDeskVersion,
+  isDeskStale,
+  readVersionCrumb,
+} from "@/app/components/useDeskVersion";
 import QueueRail, { RAIL_STORAGE_KEY, RAIL_STORAGE_DEFAULT } from "./QueueRail";
 import MoveDesk from "./MoveDesk";
 import MoveHistoryDesk from "./MoveHistoryDesk";
@@ -33,6 +38,19 @@ import { isFieldFocused } from "@/lib/deskKeyGuard";
 // deviation) — tokens and shared control classes still apply.
 
 const REFRESH_MS = 45_000;
+
+// Click-frequency view state that should survive a reload, sibling to
+// QueueRail's RAIL_STORAGE_KEY under the same useSessionState store. Split
+// from the rail key so the two subscriber sets stay independent, and split
+// from QueueRail's keystroke/scroll-frequency "gm-turns-view" key (which is
+// deliberately UNsubscribed — see useSessionState.js#readSession).
+const DESK_STORAGE_KEY = "gm-turns-desk";
+const DESK_STORAGE_DEFAULT = {
+  trayOpen: false,
+  trayExpanded: false,
+  inspected: null, // { characterId, name }
+  historyTurnId: null,
+};
 
 const CT_PARTS = new Intl.DateTimeFormat("en-US", {
   timeZone: "America/Chicago",
@@ -159,8 +177,12 @@ export default function Workspace({
   stagedMessages,
   gmProfiles,
   moveLock,
+  deployVersion,
 }) {
   const [refresh] = useRefresh();
+  // Click-frequency view state that survives a reload — see
+  // DESK_STORAGE_DEFAULT above for what lives here.
+  const [desk, setDesk] = useSessionState(DESK_STORAGE_KEY, DESK_STORAGE_DEFAULT);
   // The rail's lens, persisted under the same sessionStorage key QueueRail.js
   // reads its filters and travel toggles from (RAIL_STORAGE_KEY) — a hard
   // reload restores whichever lens a GM was on, the same way filters do.
@@ -181,6 +203,11 @@ export default function Workspace({
   ) {
     setSeenDeepLinkId(initialSelection.id);
     if (rail.lens !== "history") setRail((r) => ({ ...r, lens: "history" }));
+    // The deep link names a turn too — it beats whatever turn the persisted
+    // desk state still remembers, by the same one-shot rule as the lens.
+    if (initialHistory?.turnId && desk.historyTurnId !== initialHistory.turnId) {
+      setDesk((d) => ({ ...d, historyTurnId: initialHistory.turnId }));
+    }
   }
   const lens = rail.lens ?? "moves";
   const setLens = useCallback((l) => setRail((r) => ({ ...r, lens: l })), [setRail]);
@@ -217,7 +244,21 @@ export default function Workspace({
     [confirm],
   );
   const deselect = useCallback(() => select(null), [select]);
-  const [inspected, setInspected] = useState(null); // { characterId, name }
+  // Who the inspector column is looking at — persisted (gm-turns-desk) so a
+  // deploy-forced reload doesn't blank the person you were cross-referencing.
+  // Deliberately NOT validated against the roster: the roster is ALIVE-only,
+  // and inspecting the dead is a feature (a History-lens actor, a character
+  // killed this turn). An id a game wipe deleted outright just renders the
+  // column's own "Couldn't load that." and the next click replaces it.
+  const setInspected = useCallback(
+    (v) =>
+      setDesk((d) => ({
+        ...d,
+        inspected: typeof v === "function" ? v(d.inspected ?? null) : v,
+      })),
+    [setDesk],
+  );
+  const inspected = desk.inspected ?? null;
   const [tabRequest, setTabRequest] = useState(null); // { tab, token } — see inspect()
   // One pin list shared with the player desk — see usePins.js. This desk only
   // ever knows characters, so it prunes the "c:" namespace against the live
@@ -234,17 +275,37 @@ export default function Workspace({
 
   // The push tray's open/expanded state is lifted here (rather than local to
   // StagingTray) so the interactive push preview can force it open and
-  // scroll to a row (revealStagedRow below).
-  const [trayOpen, setTrayOpen] = useState(false);
-  const [trayExpanded, setTrayExpanded] = useState(false);
+  // scroll to a row (revealStagedRow below) — and persisted (gm-turns-desk)
+  // so a reload hands back the tray the way you left it.
+  const trayOpen = desk.trayOpen ?? false;
+  const trayExpanded = desk.trayExpanded ?? false;
+  const setTrayOpen = useCallback(
+    (v) =>
+      setDesk((d) => ({
+        ...d,
+        trayOpen: typeof v === "function" ? v(d.trayOpen ?? false) : v,
+      })),
+    [setDesk],
+  );
+  const setTrayExpanded = useCallback(
+    (v) =>
+      setDesk((d) => ({
+        ...d,
+        trayExpanded: typeof v === "function" ? v(d.trayExpanded ?? false) : v,
+      })),
+    [setDesk],
+  );
   const [revealSignal, setRevealSignal] = useState(null); // { id, token }
 
-  const revealStagedRow = useCallback((id) => {
-    setPreviewOpen(false);
-    setTrayOpen(true);
-    setTrayExpanded(true);
-    setRevealSignal({ id, token: Date.now() });
-  }, []);
+  const revealStagedRow = useCallback(
+    (id) => {
+      setPreviewOpen(false);
+      setTrayOpen(true);
+      setTrayExpanded(true);
+      setRevealSignal({ id, token: Date.now() });
+    },
+    [setTrayOpen, setTrayExpanded],
+  );
 
   // Escape is layered, topmost-first, and this is the bottom layer:
   //   1. An open Modal (confirm, composer, reject dialog) — Modal.js handles
@@ -305,8 +366,18 @@ export default function Workspace({
   // it is read during render; the setCache lands AFTER the await, never
   // synchronously in the effect body (react-hooks/set-state-in-effect).
   const [historyByTurn, setHistoryByTurn] = useState(() => new Map());
-  const [historyTurnId, setHistoryTurnId] = useState(
-    () => initialHistory?.turnId ?? resolvedTurns?.[0]?.id ?? null,
+  // The History lens's turn — persisted (gm-turns-desk), validated against
+  // the turns that still exist, deep link wins via the one-shot above. The
+  // fallbacks are the old useState seed: the preloaded deep-link turn, else
+  // the newest resolved turn.
+  const storedHistoryTurnId = desk.historyTurnId ?? null;
+  const historyTurnId =
+    storedHistoryTurnId && resolvedTurns?.some((t) => t.id === storedHistoryTurnId)
+      ? storedHistoryTurnId
+      : (initialHistory?.turnId ?? resolvedTurns?.[0]?.id ?? null);
+  const setHistoryTurnId = useCallback(
+    (turnId) => setDesk((d) => ({ ...d, historyTurnId: turnId })),
+    [setDesk],
   );
   const [historyError, setHistoryError] = useState(null);
 
@@ -373,10 +444,13 @@ export default function Workspace({
     };
   }, [lens, historyTurnId, historyByTurn]);
 
-  const pickHistoryTurn = useCallback((turnId) => {
-    setHistoryError(null);
-    setHistoryTurnId(turnId);
-  }, []);
+  const pickHistoryTurn = useCallback(
+    (turnId) => {
+      setHistoryError(null);
+      setHistoryTurnId(turnId);
+    },
+    [setHistoryTurnId],
+  );
 
   const historyStagedByMove = groupByMove(historyEntry);
 
@@ -484,17 +558,39 @@ export default function Workspace({
   // has unsaved edits (isAnyDirty), and skipped entirely while the tab isn't
   // visible. Conditions are read at fire time, not tracked as deps, so the
   // interval never needs to be torn down and rebuilt.
+  //
+  // The version check is the anti-yank half (useDeskVersion.js): a
+  // router.refresh() against a build other than the one this page rendered
+  // from trips Next's mismatch fallback — a full browser navigation, the
+  // exact reload this desk kept suffering on every deploy. So the poll asks
+  // /api/desk-version first and refreshes only on a same-version "ok"; a
+  // deploy latches the stale flag (reload chip in the header), a switchover
+  // 5xx or a dropped connection is just a skipped tick.
   const [lastRefreshedAt, setLastRefreshedAt] = useState(null);
+  const stale = useDeskVersion();
   useEffect(() => {
     const id = setInterval(() => {
       if (document.visibilityState !== "visible") return;
       if (document.querySelector(".modal-overlay")) return;
       if (isAnyDirty()) return;
-      refresh();
-      setLastRefreshedAt(new Date());
+      if (isDeskStale()) return;
+      (async () => {
+        if ((await checkDeskVersion(deployVersion)) !== "ok") return;
+        refresh();
+        setLastRefreshedAt(new Date());
+      })();
     }, REFRESH_MS);
     return () => clearInterval(id);
-  }, [refresh]);
+  }, [refresh, deployVersion]);
+
+  // One structured line per mount, so a prod console can tell the reload
+  // stories apart: nav "reload" + a crumb that saw a new build = deploy
+  // skew; + an "unreachable" crumb = switchover 5xx; + a clean crumb = the
+  // GM's own ⌘R. Costs nothing, answers "why did my page just refresh".
+  useEffect(() => {
+    const nav = performance.getEntriesByType("navigation")[0]?.type ?? "unknown";
+    console.log("[desk]", JSON.stringify({ nav, version: deployVersion, crumb: readVersionCrumb() }));
+  }, [deployVersion]);
 
   // Countdown to the next noon/midnight CT push, ticking every 30s. The move
   // cutoff rides the same tick.
@@ -537,9 +633,24 @@ export default function Workspace({
           </>
         }
         actions={
-          <button type="button" className="btn-quiet" onClick={() => setPreviewOpen(true)}>
-            Preview push
-          </button>
+          <>
+            {stale && (
+              <button
+                type="button"
+                className="btn-quiet"
+                onClick={() => window.location.reload()}
+                title="A new version deployed. The queue has stopped auto-refreshing; reload picks the new version up — filters, search, scroll and selection all come back."
+              >
+                {/* Accent on an inner span: .btn-quiet is unlayered CSS and
+                    outranks Tailwind's layered .text-accent on the same
+                    element (the .panel trap globals.css documents). */}
+                <span className="text-accent">Updated — reload when ready</span>
+              </button>
+            )}
+            <button type="button" className="btn-quiet" onClick={() => setPreviewOpen(true)}>
+              Preview push
+            </button>
+          </>
         }
       />
 

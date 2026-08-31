@@ -95,10 +95,13 @@ inspector cache and the tray untouched.
 
 Two consequences worth knowing. The route file has to genuinely exist, because
 the desk polls `router.refresh()` against the *current* URL and a GM parked on
-a selection would otherwise 404 on the first poll. And every
-`revalidatePath("/gm/turns")` became `revalidatePath(TURNS_PATH, "page")`
-(`web/lib/routes.js`) — a dynamic route needs its pattern, not a path that
-happens to match it.
+a selection would otherwise 404 on the first poll. And a revalidation of this
+page must be `revalidatePath(TURNS_PATH, "page")` (`web/lib/routes.js`) — a
+dynamic route needs its pattern, not a path that happens to match it. Only
+the **cross-page** actions carry that call now (depot, store, dev panel,
+player desk…); the desk's own actions dropped theirs, because every desk
+call site follows success with `refresh()` and the pair meant rendering
+`page.js` twice per mutation (see the header note in `actions.js`).
 
 ```
 ┌ header: turn chip · push times · Preview push ─────────────────────┐
@@ -129,12 +132,15 @@ happens to match it.
   avatar is just riding along), newest-first within each rank. The
   Kind/Status/Type/Reviewed dropdowns always list every value the enum has,
   even at `(0)`, so "Open" never looks like it vanished just because nothing
-  is open right now — Zone stays derived from what's actually loaded. Filters
-  (per lens), the two travel toggles and the active lens survive a reload —
-  `sessionStorage` under one key (`gm-turns-rail`), read through
-  `useSyncExternalStore` the same way pins are (`web/app/components/
-  useSessionState.js`) — because every deploy hard-reloads this desk and this
-  repo deploys several times a day. Search text itself stays ephemeral.
+  is open right now — Zone stays derived from what's actually loaded. The
+  whole view survives a reload, split across three `sessionStorage` keys by
+  write frequency (`web/app/components/useSessionState.js`): `gm-turns-rail`
+  (filters per lens, the two travel toggles, the active lens — subscribed,
+  click-frequency), `gm-turns-desk` (tray open/expanded, the inspected
+  character, the History turn — Workspace.js's half), and `gm-turns-view`
+  (search text and queue scroll position per lens — unsubscribed
+  `readSession`/`writeSession`, debounced with a `pagehide` flush, restored
+  by a post-hydration one-shot in `QueueRail.js`).
   Auto-filed **Travel** Moves (`db/lib/travel.js#performTravel`, no
   Routine/Gambit to review) render as "Travel" and stay hidden by default
   behind a "Show N travel" toggle beside the Kind dropdown; picking Travel
@@ -210,6 +216,21 @@ keeps itself current and stays reachable from the keyboard:
   mid-sentence never gets the page yanked out from under them. The header
   carries an "updated HH:MM" stamp, a **countdown** to the next noon/midnight
   CT push, and an `N/M solved` progress chip.
+- The poll is **version-aware** (`useDeskVersion.js` + `/api/desk-version` +
+  `web/lib/deployVersion.js`): it only calls `router.refresh()` after the
+  server answers with the same build the page rendered from. Refreshing
+  across a deploy trips Next's build-mismatch fallback — a full browser
+  navigation that destroys all view state — and this repo deploys many times
+  a day, which is exactly how the desk used to "refresh for no reason". Now
+  a deploy latches a quiet **"Updated — reload when ready"** chip in the
+  header (auto-refresh stands down until the GM clicks it), a switchover 5xx
+  or dropped connection is a silently skipped tick, and once the flag has
+  latched, a mutation that fails from the stale build says to reload
+  (`mutationErrorMessage`) instead of "something went wrong". The one window
+  left uncovered is a mutation inside the ≤45s between the deploy landing
+  and the next poll noticing it — that can still fail generic, or succeed
+  and have its `refresh()` trip the reload; the persisted view state is what
+  makes that survivable.
 - **Keyboard**: `↑↓` / `j k` walk the rail, `⏎` opens the focused row,
   `m`/`r`/`c`/`h` flip the lens, Escape peels the layers below. All of it stands down while a
   field has focus or a modal is open.
@@ -309,7 +330,8 @@ field `applyEdit` now returns and how it drives `EDITED` vs. a plain
 | `web/app/components/InspectorColumn.js` | Sheet / Tags / Moves / Archive / DMs + pins — **shared with `/gm/players`**, which appends Canon / Notes through `extraTabs` (PLAYER-DESK.md §6) |
 | `web/app/components/ArchiveContextModal.js` | The "in context" slice behind an Archive row, moved alongside it |
 | `web/app/components/GmAvatar.js` | The small GM pfp, fed by `web/lib/gmProfiles.js` |
-| `web/app/components/useSessionState.js` | The generic `sessionStorage` hook behind rail-state persistence — one key (`gm-turns-rail`) shared by `QueueRail.js`'s filters/toggles and `Workspace.js`'s `lens` |
+| `web/app/components/useSessionState.js` | The generic `sessionStorage` hook behind rail-state persistence — one key (`gm-turns-rail`) shared by `QueueRail.js`'s filters/toggles and `Workspace.js`'s `lens`, plus the unsubscribed `readSession`/`writeSession` pair behind `gm-turns-view` |
+| `web/app/components/useDeskVersion.js` / `web/lib/deployVersion.js` / `web/app/api/desk-version/route.js` | The deploy-awareness triad: the 45s poll refreshes only on a same-build answer, a deploy shows the reload chip instead of letting Next's build-mismatch fallback hard-reload the desk |
 | `.../useMoveLock.js` | The lock's client half |
 | `.../actions.js` | Every server action: staging CRUD, solve/save/unsolve, unlock, locks, request review, inspector fetchers, the two history fetchers (`getMoveHistory`, `getCharacterMoveHistory`), retarget |
 | `db/lib/stagedPush.js` | The push pass |

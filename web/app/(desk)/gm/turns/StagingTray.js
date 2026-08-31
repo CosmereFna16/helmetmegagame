@@ -10,6 +10,7 @@ import TransferComposer from "./TransferComposer";
 import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import { retargetMissedStaging } from "./actions";
+import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 import { tagNameLookup } from "./stagedFormat";
 
 // The bottom tray: everything queued for the push, in one honest list —
@@ -89,11 +90,13 @@ export default function StagingTray({
   const normalizedQuery = query.trim().toLowerCase();
 
   function toggleExpand() {
-    setExpanded((e) => {
-      const next = !e;
-      if (next) setOpen(true);
-      return next;
-    });
+    // Sequential, never nested: both setters now write the same
+    // sessionStorage-backed object (Workspace's gm-turns-desk), and a
+    // setOpen fired from INSIDE setExpanded's updater gets clobbered when
+    // the outer read-modify-write completes with its pre-nested snapshot.
+    const next = !expanded;
+    if (next) setOpen(true);
+    setExpanded(next);
   }
 
   // The interactive push preview's click-through: Workspace flips open+
@@ -174,7 +177,7 @@ export default function StagingTray({
         if (!res?.ok) return setRetargetError(res?.error ?? "Something went wrong.");
         refresh();
       } catch {
-        setRetargetError("Something went wrong on the server — your change may not have saved. Try again.");
+        setRetargetError(mutationErrorMessage());
       }
     });
   }

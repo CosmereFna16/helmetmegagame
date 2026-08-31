@@ -71,6 +71,22 @@ function write(key, value) {
   for (const callback of subscribers(key)) callback();
 }
 
+// The plain, unsubscribed door to the same store, for state that changes too
+// often to be React state — a search box mirrored per keystroke, a scroll
+// position written per frame (QueueRail.js's view persistence). readSession
+// during render is only hydration-safe if the value doesn't shape the
+// hydrated output; to RESTORE something visible, read after hydration (see
+// QueueRail.js's one-shot) or use the hook. writeSession still notifies any
+// hook subscribed to the key, so keep high-frequency writers on keys nothing
+// subscribes to.
+export function readSession(key, fallback) {
+  return read(key, fallback);
+}
+
+export function writeSession(key, value) {
+  write(key, value);
+}
+
 // `fallback` doubles as the server snapshot AND the value before anything has
 // ever been written — pass a stable reference (a module-level constant, the
 // same discipline useTableState's own `initialFilters` follows) so

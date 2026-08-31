@@ -13,6 +13,7 @@ import StagedItems from "./StagedItems";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
 import { resolveCavingRoll, resolveRequest } from "./actions";
+import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 
 // The arbitration desk for one Caving Die roll — see
 // docs/systemdocs/CAVING.md. Only a TROUBLE (die 1) row is ever unresolved;
@@ -72,7 +73,7 @@ export default function CavingDesk({
         markClean();
         refresh();
       } catch {
-        setError("Something went wrong on the server — your change may not have saved. Try again.");
+        setError(mutationErrorMessage());
       }
     });
   }
@@ -99,7 +100,7 @@ export default function CavingDesk({
         markClean();
         refresh();
       } catch {
-        setError("Something went wrong on the server — your change may not have saved. Try again.");
+        setError(mutationErrorMessage());
       }
     });
   }

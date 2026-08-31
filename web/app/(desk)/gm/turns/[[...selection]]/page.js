@@ -8,6 +8,7 @@ import { getOpenTurn } from "@/lib/turn";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { getMyZones } from "@/lib/gmZone";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
+import { deployVersion } from "@/lib/deployVersion";
 import {
   MOVE_INCLUDE,
   STAGED_EFFECT_INCLUDE,
@@ -421,6 +422,7 @@ export default async function TurnsWorkspacePage({ params }) {
           ? { cutoffAtMs: window_.cutoffAt.getTime(), endsAtMs: window_.endsAt.getTime() }
           : null
       }
+      deployVersion={deployVersion()}
     />
   );
 }

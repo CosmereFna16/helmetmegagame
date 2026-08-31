@@ -11,6 +11,7 @@ import EffectComposer from "./EffectComposer";
 import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import { deleteStagedEffect, deleteStagedMessage, resendStagedMessage } from "./actions";
+import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 import { effectSummary, effectState, messageState, tagNameLookup, truncate } from "./stagedFormat";
 
 // The staged-row lists the desk and the tray share: every row shows what it
@@ -63,7 +64,7 @@ export function StagedEffectRow({
         if (!res?.ok) return setDeleteError(res?.error ?? "Something went wrong.");
         refresh();
       } catch {
-        setDeleteError("Something went wrong on the server — your change may not have saved. Try again.");
+        setDeleteError(mutationErrorMessage());
       }
     });
   }
@@ -167,7 +168,7 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
         if (!res?.ok) return setDeleteError(res?.error ?? "Something went wrong.");
         refresh();
       } catch {
-        setDeleteError("Something went wrong on the server — your change may not have saved. Try again.");
+        setDeleteError(mutationErrorMessage());
       }
     });
   }
@@ -180,7 +181,7 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
         if (!res?.ok) return setResendError(res?.error ?? "Something went wrong.");
         refresh();
       } catch {
-        setResendError("Something went wrong on the server — your change may not have saved. Try again.");
+        setResendError(mutationErrorMessage());
       }
     });
   }

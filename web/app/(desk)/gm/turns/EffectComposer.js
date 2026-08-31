@@ -11,6 +11,7 @@ import TagChip from "@/app/components/TagChip";
 import TagCatalogBrowser from "@/app/components/TagCatalogBrowser";
 import CustomTagDialog from "@/app/components/CustomTagDialog";
 import { createStagedEffects, updateStagedEffect, getHeldTags } from "./actions";
+import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 
 // Stage a mechanical adjustment: signed ⬢ and/or tag adds/removes, against
 // one target or many at once (the "Explosion Burns ×4 players" case — one
@@ -262,7 +263,7 @@ export default function EffectComposer({
         markClean();
         onDone();
       } catch {
-        setError("Something went wrong on the server — your change may not have saved. Try again.");
+        setError(mutationErrorMessage());
       }
     });
   }

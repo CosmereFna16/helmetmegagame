@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import StatusPill from "@/app/components/StatusPill";
 import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
 import Select from "@/app/components/Select";
@@ -8,7 +8,7 @@ import { openingZoneName } from "@/lib/zones";
 import GmAvatar from "@/app/components/GmAvatar";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import { useTableState } from "@/app/components/DataTable";
-import useSessionState from "@/app/components/useSessionState";
+import useSessionState, { readSession, writeSession } from "@/app/components/useSessionState";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { isFieldFocused, hasModifier } from "@/lib/deskKeyGuard";
 import { MOVE_REVIEW_TONES, MOVE_REVIEW_LABELS } from "@/lib/moves";
@@ -101,15 +101,12 @@ const requestSearchMap = (r) => ({
 
 const REQUEST_TONES = { Passed: "neutral", Edited: "neutral", Undone: "bad" };
 
-// One sessionStorage key for every bit of rail VIEW state that should survive
-// a reload — every deploy hard-reloads this desk (build-id change -> failed
-// RSC fetch -> full navigation), several times a day. Search text is left out
-// on purpose (see useSessionState.js / ADJUDICATION.md): useTableState's
-// query lives in plain internal state, and threading it through here too
-// would mean either a controlled-query mode this hook doesn't have yet, or a
-// second storage round-trip on every keystroke. Workspace.js reads the same
-// key for `lens`, sharing this one store the same way two usePins() callers
-// already share "gm-pins".
+// One sessionStorage key for every CLICK-frequency bit of rail VIEW state —
+// a reload restores it (deploys used to hard-reload this desk constantly;
+// the version-aware poll in Workspace.js has since tamed that, but a reload
+// still has to come back lossless). Workspace.js reads the same key for
+// `lens`, sharing this one store the same way two usePins() callers already
+// share "gm-pins".
 export const RAIL_STORAGE_KEY = "gm-turns-rail";
 export const RAIL_STORAGE_DEFAULT = {
   lens: "moves",
@@ -117,6 +114,34 @@ export const RAIL_STORAGE_DEFAULT = {
   hideTravel: true,
   hideHistoryTravel: true,
 };
+
+// The KEYSTROKE/SCROLL-frequency state lives apart, under a key nothing
+// subscribes to (useSessionState.js#readSession/#writeSession): search text
+// per lens and the queue's scroll position per lens. Writing it can't wake
+// Workspace or this component, which is what makes persisting it affordable
+// — the old comment here ruled search-text persistence out precisely because
+// controlled mode meant a subscribed storage round-trip per keystroke. The
+// writes are debounced besides, with a pagehide flush for the tail.
+const VIEW_STORAGE_KEY = "gm-turns-view";
+const VIEW_STORAGE_DEFAULT = { query: {}, scroll: {} };
+
+// Read-merge-write so the query writer and the scroll writer can never
+// clobber each other's half of the key.
+function mergeView(patch) {
+  const current = readSession(VIEW_STORAGE_KEY, VIEW_STORAGE_DEFAULT) ?? VIEW_STORAGE_DEFAULT;
+  writeSession(VIEW_STORAGE_KEY, {
+    ...current,
+    ...(patch.query ? { query: { ...current.query, ...patch.query } } : null),
+    ...(patch.scroll ? { scroll: { ...current.scroll, ...patch.scroll } } : null),
+  });
+}
+
+// Hydration signal for the one-shot view restore below: false on the server
+// and during the hydration render (where storage-derived state would
+// mismatch the server HTML), true from the first client-only render on.
+const subscribeNever = () => () => {};
+const getTrue = () => true;
+const getFalse = () => false;
 
 // The Caving lens — see docs/systemdocs/CAVING.md. Only a TROUBLE (die 1)
 // row is ever "Needs attention"; QUIET and FIND are stamped resolved at
@@ -436,6 +461,46 @@ export default function QueueRail({
     ...makeFiltersProps("history"),
   });
 
+  // Restore the persisted search text, once, on the first post-hydration
+  // render — the same render-time one-shot Workspace.js uses for the History
+  // deep link, never an effect (react-hooks/set-state-in-effect is an error
+  // here). It can't run during hydration itself: the server rendered every
+  // search box empty, and storage-derived state in that render would
+  // mismatch the HTML being hydrated.
+  const hydrated = useSyncExternalStore(subscribeNever, getTrue, getFalse);
+  const [viewRestored, setViewRestored] = useState(false);
+  if (hydrated && !viewRestored) {
+    setViewRestored(true);
+    const storedQuery = readSession(VIEW_STORAGE_KEY, VIEW_STORAGE_DEFAULT).query ?? {};
+    if (storedQuery.moves) moveTable.setQuery(storedQuery.moves);
+    if (storedQuery.requests) requestTable.setQuery(storedQuery.requests);
+    if (storedQuery.caving) cavingTable.setQuery(storedQuery.caving);
+    if (storedQuery.history) historyTable.setQuery(storedQuery.history);
+  }
+
+  // Mirror the search text back out — debounced so a burst of typing is one
+  // write, with a pagehide flush so a reload mid-burst still keeps the tail.
+  // Gated on viewRestored so the first render can't overwrite the stored
+  // queries with the empty strings the tables mount with.
+  useEffect(() => {
+    if (!viewRestored) return undefined;
+    const write = () =>
+      mergeView({
+        query: {
+          moves: moveTable.query,
+          requests: requestTable.query,
+          caving: cavingTable.query,
+          history: historyTable.query,
+        },
+      });
+    const id = setTimeout(write, 400);
+    window.addEventListener("pagehide", write);
+    return () => {
+      clearTimeout(id);
+      window.removeEventListener("pagehide", write);
+    };
+  }, [viewRestored, moveTable.query, requestTable.query, cavingTable.query, historyTable.query]);
+
   // Auto-filed travel Moves are already solved and never need a GM — hidden
   // from the list by default so they don't pad the queue, but picking
   // "Travel" in the Kind dropdown always overrides the hide (the dropdown's
@@ -472,6 +537,74 @@ export default function QueueRail({
   const [kbdCursorId, setKbdCursorId] = useState(null);
   const railRef = useRef(null);
   const coarse = useIsCoarsePointer();
+
+  // The queue's scroll position, per lens — saved (debounced) into the same
+  // unsubscribed view key the search text uses, restored once per lens
+  // activation. `.desk-queue` is the actual scroller (globals.css), one per
+  // lens branch below, so a single ref + handler covers whichever is
+  // mounted. Restoring assigns scrollTop directly — a DOM side effect, not
+  // setState.
+  const queueRef = useRef(null);
+  const scrollWriteTimer = useRef(0);
+  const pendingScroll = useRef(null); // { lens, top }
+  // Flush-not-discard: the debounce timer is shared across lenses, and the
+  // restore below assigns scrollTop programmatically — which fires a scroll
+  // event of its own. Discarding the pending write on every event (a plain
+  // clearTimeout debounce) let a lens flip inside the 200ms window eat the
+  // departing lens's position: scroll Moves, press `r`, the restore's
+  // scrollTop=0 event lands under the Requests lens and killed the Moves
+  // write. So a pending write for a DIFFERENT lens flushes instead of dying.
+  const flushScroll = useCallback(() => {
+    clearTimeout(scrollWriteTimer.current);
+    const pending = pendingScroll.current;
+    if (!pending) return;
+    pendingScroll.current = null;
+    mergeView({ scroll: { [pending.lens]: pending.top } });
+  }, []);
+  const onQueueScroll = useCallback(
+    (e) => {
+      const top = e.currentTarget.scrollTop;
+      const key = lens ?? "moves";
+      if (pendingScroll.current && pendingScroll.current.lens !== key) flushScroll();
+      pendingScroll.current = { lens: key, top };
+      clearTimeout(scrollWriteTimer.current);
+      scrollWriteTimer.current = setTimeout(flushScroll, 200);
+    },
+    [lens, flushScroll],
+  );
+  // The same pagehide flush the query mirror gets — a scroll in the last
+  // 200ms before a reload would otherwise be lost (cleanups don't run on
+  // unload). Unmount flushes too, rather than just clearing.
+  useEffect(() => {
+    window.addEventListener("pagehide", flushScroll);
+    return () => {
+      window.removeEventListener("pagehide", flushScroll);
+      flushScroll();
+    };
+  }, [flushScroll]);
+
+  const restoredScrollLens = useRef(null);
+  useEffect(() => {
+    if (!viewRestored) return;
+    if (restoredScrollLens.current === lens) return;
+    const el = queueRef.current;
+    if (!el) return;
+    const top = readSession(VIEW_STORAGE_KEY, VIEW_STORAGE_DEFAULT).scroll?.[lens ?? "moves"];
+    if (typeof top === "number" && top > 0) {
+      // The History lens's rows arrive async — restoring against an empty
+      // list clamps to 0, so hold off (the visibleRows.length dep re-runs
+      // this when they land) and only then mark the lens restored.
+      if (visibleRows.length === 0) return;
+      el.scrollTop = top;
+    } else {
+      // No remembered position for this lens — start it at the top. The
+      // browser reuses this div across lens flips (same element, same
+      // position), so without this a fresh lens inherits the previous
+      // lens's scroll offset.
+      el.scrollTop = 0;
+    }
+    restoredScrollLens.current = lens;
+  }, [viewRestored, lens, visibleRows.length]);
 
   // Re-derived every render against the CURRENT rows — if the cursor's row
   // moved, this just finds its new position; if it's gone (filtered out,
@@ -590,7 +723,7 @@ export default function QueueRail({
               </label>
             )}
           </RailFilters>
-          <div className="desk-queue">
+          <div className="desk-queue" ref={queueRef} onScroll={onQueueScroll}>
             <MoveRows
               rows={historyShown}
               matchFor={historyTable.matchFor}
@@ -624,7 +757,7 @@ export default function QueueRail({
             myZoneNames={myZoneNames}
             searchPlaceholder="name, @handle, reason, text:…"
           />
-          <div className="desk-queue">
+          <div className="desk-queue" ref={queueRef} onScroll={onQueueScroll}>
             <RequestRows
               rows={requestTable.visible}
               matchFor={requestTable.matchFor}
@@ -644,7 +777,7 @@ export default function QueueRail({
             myZoneNames={myZoneNames}
             searchPlaceholder="name, @handle, tag:…"
           />
-          <div className="desk-queue">
+          <div className="desk-queue" ref={queueRef} onScroll={onQueueScroll}>
             <CavingRows
               rows={cavingTable.visible}
               matchFor={cavingTable.matchFor}
@@ -671,7 +804,7 @@ export default function QueueRail({
               </label>
             )}
           </RailFilters>
-          <div className="desk-queue">
+          <div className="desk-queue" ref={queueRef} onScroll={onQueueScroll}>
             <MoveRows
               rows={movesShown}
               matchFor={moveTable.matchFor}

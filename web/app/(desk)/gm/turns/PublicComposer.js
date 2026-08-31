@@ -6,6 +6,7 @@ import FormError from "@/app/components/FormError";
 import Select from "@/app/components/Select";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { createStagedMessage, updateStagedMessage } from "./actions";
+import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 
 // Stage a public declaration. Posts to the declaration's zone's #summary
@@ -40,7 +41,7 @@ export default function PublicComposer({
         markClean();
         onDone();
       } catch {
-        setError("Something went wrong on the server — your change may not have saved. Try again.");
+        setError(mutationErrorMessage());
       }
     });
   }

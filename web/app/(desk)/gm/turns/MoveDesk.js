@@ -17,6 +17,7 @@ import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import StagedItems from "./StagedItems";
 import { resolveMove, rejectMove } from "./actions";
+import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 
 // The arbitration desk for one Move. Everything a GM does here STAGES: the
@@ -117,7 +118,7 @@ export default function MoveDesk({
         markClean();
         refresh();
       } catch {
-        setError("Something went wrong on the server — your change may not have saved. Try again.");
+        setError(mutationErrorMessage());
       }
     });
   }
@@ -137,7 +138,7 @@ export default function MoveDesk({
         }
         refresh();
       } catch {
-        setError("Something went wrong on the server — your change may not have saved. Try again.");
+        setError(mutationErrorMessage());
       }
     });
   }
