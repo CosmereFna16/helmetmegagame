@@ -208,9 +208,9 @@ call site follows success with `refresh()` and the pair meant rendering
   archive slice, their DM thread. **Moves** is that person's own history —
   their newest 40 Moves on **past** turns, each row linking to
   `/gm/turns/history/<id>`. Both Move desks carry a **Past moves** button that
-  opens it (`onInspect(characterId, name, "Moves")`), and so does the player
-  desk's Canon tab, which owns *this* turn and points at the tab for
-  everything before it. The header carries name, `@username`, and role on
+  opens it (`onInspect(characterId, name, "Moves")`). On `/gm/players` the
+  same tab carries that desk's Canon section above the list, so this turn sits
+  over everything before it (PLAYER-DESK.md §6). The header carries name, `@username`, and role on
   the line below, all from the roster DTO already on the client — no fetch
   needed just to see who someone is. A search box above the pin row
   (`InspectorSearch`, fuzzy-matched via `web/lib/fuzzySearch.js#scoreMatch`
@@ -356,7 +356,7 @@ field `applyEdit` now returns and how it drives `EDITED` vs. a plain
 | `.../MoveHistoryDesk.js` | The read-only desk for a Move on a pushed turn |
 | `.../EffectComposer.js` / `MessageComposer.js` / `PublicComposer.js` | The staging composers (create + edit) |
 | `.../StagedItems.js` / `StagingTray.js` / `PushPreview.js` | Staged-row lists, the tray, the per-recipient preview |
-| `web/app/components/InspectorColumn.js` | Sheet / Tags / Moves / Archive / DMs + pins — **shared with `/gm/players`**, which appends Canon / Notes through `extraTabs` (PLAYER-DESK.md §6) |
+| `web/app/components/InspectorColumn.js` | Sheet / Tags / Moves / Archive / DMs + pins — **shared with `/gm/players`**, which puts its Canon section above the Moves tab through `tabPreludes` (PLAYER-DESK.md §6) |
 | `web/app/components/ArchiveContextModal.js` | The "in context" slice behind an Archive row, moved alongside it |
 | `web/app/components/GmAvatar.js` | The small GM pfp, fed by `web/lib/gmProfiles.js` |
 | `web/app/components/useSessionState.js` | The generic `sessionStorage` hook behind rail-state persistence — one key (`gm-turns-rail`) shared by `QueueRail.js`'s filters/toggles and `Workspace.js`'s `lens`, plus the unsubscribed `readSession`/`writeSession` pair behind `gm-turns-view` |

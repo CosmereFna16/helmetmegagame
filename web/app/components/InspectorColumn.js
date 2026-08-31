@@ -29,10 +29,10 @@ import { scoreMatch } from "@/lib/fuzzySearch";
 //
 // It lives in components/ rather than under /gm/turns because BOTH desks
 // mount it now: /gm/turns from Workspace.js, /gm/players from InspectorHost.js
-// (which is where the player desk's old DossierColumn went). The five base
-// tabs are the same on both; anything desk-specific arrives through
-// `extraTabs` — Canon and Notes only exist on the player desk, so only that
-// desk passes them.
+// (which is where the player desk's old DossierColumn went). The tab list is
+// the same five on both; anything desk-specific arrives through
+// `tabPreludes` — a section rendered ABOVE a base tab's own body, not a tab of
+// its own.
 //
 // Fetches are on-demand server actions cached in the Workspace-owned Map
 // (`${characterId}:${tab}`) for the life of the page view — an inspector is
@@ -42,14 +42,12 @@ import { scoreMatch } from "@/lib/fuzzySearch";
 
 const BASE_TABS = ["Sheet", "Tags", "Moves", "Archive", "DMs"];
 
-function useInspectorData(characterId, tab, cache, setCache, fetched) {
+function useInspectorData(characterId, tab, cache, setCache) {
   // The cache is Workspace-owned state (not a ref — entries are read during
   // render, and react-hooks/refs is an error here). The effect's only job is
   // filling a miss, and its setCache happens after the await — never
   // synchronously in the effect body (react-hooks/set-state-in-effect).
-  // An extra tab (Canon, Notes) loads its own data inside its render, so it
-  // never takes a slot in this cache.
-  const key = characterId && fetched ? `${characterId}:${tab === "Tags" ? "Sheet" : tab}` : null;
+  const key = characterId ? `${characterId}:${tab === "Tags" ? "Sheet" : tab}` : null;
   const entry = key ? (cache.get(key) ?? null) : null;
 
   useEffect(() => {
@@ -300,13 +298,14 @@ function SheetView({
 
 // "What has this person actually been doing?" — their Moves on turns that
 // have already been pushed, newest first. PAST turns only: on the player desk
-// the Canon tab already owns this turn, and on the adjudication desk the open
-// turn is the queue itself, so this tab is the part neither of them covers.
-// Each row deep-links the read-only history desk.
+// the Canon prelude above already owns this turn, and on the adjudication desk
+// the open turn is the queue itself, so this view is the part neither of them
+// covers. Each row deep-links the read-only history desk.
 function MovesView({ data }) {
-  if (!data.rows.length) return <p className="p-3 text-sm text-muted">No Moves on any past turn.</p>;
   return (
     <div className="flex flex-col gap-3 p-3">
+      <p className="field-label">Past turns</p>
+      {!data.rows.length && <p className="text-sm text-muted">Nothing on any past turn.</p>}
       {data.rows.map((r) => (
         <Link key={r.id} href={`/gm/turns/history/${r.id}`} className="desk-archive-row">
           <p className="text-xs text-muted">
@@ -536,10 +535,13 @@ export default function InspectorColumn({
   currentTurnNumber,
   pendingByCharacter,
   onOpenDev,
-  // Desk-specific tabs, appended after the four base ones. Each is
-  // { key, label, render(ctx) }; `render` gets the inspected person and owns
-  // its own loading, exactly like the base tabs own theirs.
-  extraTabs = [],
+  // Desk-specific sections rendered ABOVE a base tab's own body:
+  // { [tabKey]: (ctx) => node }, ctx being { inspected, currentTurnNumber,
+  // refresh }. A prelude owns its own fetching and its own freshness, and
+  // never takes a slot in the shared per-(character, tab) cache — because the
+  // only thing a desk wants above a tab is the part that changes. The player
+  // desk's Canon sits above Moves that way: this turn over past turns.
+  tabPreludes = {},
   // Buttons that belong beside the pins (the player desk's "Message pinned").
   pinsActions = null,
   emptyHint,
@@ -564,14 +566,7 @@ export default function InspectorColumn({
   const tab = current.tab;
   const setTab = (next) => setTabState((s) => ({ ...s, tab: next }));
   const [contextEntry, setContextEntry] = useState(null);
-  const extraTab = extraTabs.find((t) => t.key === tab) ?? null;
-  const { data, error, loading } = useInspectorData(
-    inspected?.characterId ?? null,
-    tab,
-    cache,
-    setCache,
-    !extraTab,
-  );
+  const { data, error, loading } = useInspectorData(inspected?.characterId ?? null, tab, cache, setCache);
 
   const isPinned = pinned.some((p) => p.characterId === inspected?.characterId);
   const pending = pendingByCharacter?.get(inspected?.characterId);
@@ -633,25 +628,25 @@ export default function InspectorColumn({
           </div>
 
           <div className="tab-bar" role="tablist">
-            {[
-              ...BASE_TABS.map((t) => ({ key: t, label: t })),
-              ...extraTabs.map((t) => ({ key: t.key, label: t.label })),
-            ].map((t) => (
+            {BASE_TABS.map((t) => (
               <button
-                key={t.key}
+                key={t}
                 type="button"
                 role="tab"
-                aria-selected={t.key === tab}
-                data-active={t.key === tab}
+                aria-selected={t === tab}
+                data-active={t === tab}
                 className="tab-item"
-                onClick={() => setTab(t.key)}
+                onClick={() => setTab(t)}
               >
-                {t.label}
+                {t}
               </button>
             ))}
           </div>
 
           <div className="desk-inspector-body">
+            {/* Above the branches on purpose: a prelude paints straight away
+                instead of waiting on the base tab's fetch. */}
+            {tabPreludes[tab]?.({ inspected, currentTurnNumber, refresh })}
             {loading && <p className="p-3 text-sm text-muted">Loading…</p>}
             {error && <p className="p-3 text-sm form-error">{error}</p>}
             {data && (tab === "Sheet" || tab === "Tags") && (
@@ -672,7 +667,6 @@ export default function InspectorColumn({
             {data && tab === "DMs" && (
               <DmsView data={data} characterId={inspected.characterId} cacheKey={cacheKey} setCache={setCache} />
             )}
-            {extraTab?.render({ inspected, currentTurnNumber, refresh })}
           </div>
         </>
       )}

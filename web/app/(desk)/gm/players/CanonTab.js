@@ -13,10 +13,15 @@ import { writeDmDraft } from "./dmDraft";
 // plus a box to stage one more.
 //
 // This was the player desk's Canon dossier tab, which arrived with the
-// person route's page load. It is an extra tab on the shared inspector now
-// (see InspectorHost), and the inspector can be pointed at anybody — so it
-// fetches per character on demand, the same discipline as the base tabs.
-export default function CanonTab({ characterId, discordUserId, onPastMoves }) {
+// person route's page load. It is a *prelude* on the shared inspector now
+// (see InspectorHost): the "This turn" section above the Moves tab's own
+// "Past turns" list, so one tab reads as this turn over everything before it.
+//
+// Caching: Canon deliberately refetches on every mount, and takes no slot in
+// the inspector's per-(character, tab) cache. Staged rows and the open Move
+// change under the GM all day, so the section above the tab has to be live;
+// past moves are settled history and stay cached for the page view.
+export default function CanonTab({ characterId, discordUserId }) {
   const [state, setState] = useState({ loading: true, canon: null, error: null });
   const [staging, setStaging] = useState(false);
   const [stageDraft, setStageDraft] = useState("");
@@ -71,17 +76,12 @@ export default function CanonTab({ characterId, discordUserId, onPastMoves }) {
   const allPendingMessages = [...pendingMessages, ...justStaged];
 
   return (
-    <div className="flex flex-col gap-3 p-3">
+    // The bottom border is what makes "This turn" and "Past turns" read as two
+    // sections of one tab rather than one run-on list.
+    <div className="flex flex-col gap-3 border-b p-3" style={{ borderColor: "var(--border)" }}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="field-label">This turn</span>
         <div className="flex flex-wrap gap-2">
-          {/* Canon owns this turn; everything before it is the inspector's
-              Moves tab, so point at that rather than repeating it here. */}
-          {onPastMoves && (
-            <button type="button" className="btn-quiet" onClick={onPastMoves}>
-              Past moves →
-            </button>
-          )}
           {/* Deep-links the row, not just the desk — /gm/turns carries its
               selection in the URL, so this lands on the Move itself. */}
           <Link href={move ? `/gm/turns/move/${move.id}` : "/gm/turns"} className="btn-quiet">

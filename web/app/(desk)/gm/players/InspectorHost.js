@@ -81,9 +81,11 @@ export default function InspectorHost({
       }
     : null;
 
-  // The third argument is an optional tab request — Canon's "Past moves →"
-  // uses it to land on the inspector's Moves tab. Token-stamped so the column
-  // can tell a fresh ask from the one it already honoured.
+  // The third argument is an optional tab request — "look them up AND land on
+  // that tab", the way the adjudication desk's "Past moves" button does it.
+  // Token-stamped so the column can tell a fresh ask from the one it already
+  // honoured. Nothing on this desk asks yet; the wire stays because the
+  // column's contract is shared.
   const [tabRequest, setTabRequest] = useState(null); // { tab, token }
   const onInspect = useCallback(
     (characterId, name, tab) => {
@@ -128,29 +130,24 @@ export default function InspectorHost({
     return map;
   }, [stagedEffects]);
 
-  // Canon is the one tab the adjudication desk has no use for — there the
+  // Canon is the one section the adjudication desk has no use for — there the
   // character is context for a Move; here the Move is context for a character.
-  const extraTabs = useMemo(
-    () => [
-      {
-        key: "Canon",
-        label: "Canon",
-        render: ({ inspected: who }) => (
-          <CanonTab
-            key={who.characterId}
-            characterId={who.characterId}
-            // Insert-into-reply writes the open conversation's draft, so it is
-            // only offered when the inspected person IS the open conversation
-            // — a pinned someone-else must not overwrite an unrelated draft.
-            discordUserId={who.discordUserId === segment ? who.discordUserId : null}
-            // Canon is this turn; the Moves tab is everything before it.
-            // Rather than repeat the history here, Canon points at it.
-            onPastMoves={() => onInspect(who.characterId, who.name, "Moves")}
-          />
-        ),
-      },
-    ],
-    [segment, onInspect],
+  // It rides ABOVE the Moves tab rather than taking a tab of its own: this
+  // turn, then everything before it, in the order a GM asks about them.
+  const tabPreludes = useMemo(
+    () => ({
+      Moves: ({ inspected: who }) => (
+        <CanonTab
+          key={who.characterId}
+          characterId={who.characterId}
+          // Insert-into-reply writes the open conversation's draft, so it is
+          // only offered when the inspected person IS the open conversation
+          // — a pinned someone-else must not overwrite an unrelated draft.
+          discordUserId={who.discordUserId === segment ? who.discordUserId : null}
+        />
+      ),
+    }),
+    [segment],
   );
 
   // The custom-tag door. It APPLIES here rather than staging: this desk is a
@@ -195,7 +192,7 @@ export default function InspectorHost({
         currentTurnNumber={currentTurnNumber}
         pendingByCharacter={pendingByCharacter}
         onOpenDev={(characterId, name) => setDevPanel({ characterId, name })}
-        extraTabs={extraTabs}
+        tabPreludes={tabPreludes}
         pinsActions={pinsActions}
         customTag={customTag}
         requestedTab={tabRequest}
