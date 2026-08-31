@@ -888,13 +888,26 @@ model Character {
   // character row.
   fastTravelTurnId String?
 
-  // Consecutive turns this character has closed hungry — written only by
-  // db/lib/hungerPass.js. Any turn they're fed (paid, Ate Meal, or
-  // Hungerless) resets it to 0; each hungry turn increments it, scaling the
-  // Gambit penalty (db/lib/gambitModifier.js). At 6 the pass grants `dying`
-  // and leaves it there — a GM confirms the death by hand, same as every
-  // other terminal chain (tagExpiryPass.js).
+  // Consecutive turns' worth of hunger this character is carrying — written
+  // only by db/lib/hungerPass.js. Each hungry turn increments it; a fed turn
+  // (paid or Ate Meal) only sheds ONE tick, not the whole streak, so it takes
+  // as many fed turns to climb back down as it took starved turns to climb
+  // up. Hungerless resets it to 0 outright (immunity, not eating). It scales
+  // the Gambit penalty (db/lib/gambitModifier.js). At 6 the pass grants
+  // `dying` and leaves it there — a GM confirms the death by hand, same as
+  // every other terminal chain (tagExpiryPass.js).
   hungerStreak Int @default(0)
+
+  // Consecutive turn closes without a Fine/Lavish Meal — written only by
+  // db/lib/hungerPass.js, and only ever moved for characters holding
+  // `nobility` (everyone else stays at 0, so granting the tag mid-game
+  // starts the count fresh). At DISAPPOINTMENT_THRESHOLD the pass grants
+  // `disappointed` (flat −1 Gambit, gambitModifier.js); a fed turn resets
+  // the count to 0 outright — unlike hungerStreak there is no slow climb
+  // back down, one proper meal settles the matter. Eating also clears the
+  // tag on the spot (web/app/(app)/character/requestActions.js); the pass's
+  // reset is the backstop for GM-granted meals.
+  missedMealStreak Int @default(0)
 
   // Turn number this character last acted or spoke in character — a
   // player-filed Action (never an auto one; defaultMovePass.js does not

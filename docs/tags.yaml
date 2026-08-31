@@ -248,7 +248,7 @@ tags:
   - slug: nobility
     name: Nobility
     category: general
-    description: "You are a person of noble breeding, accustomed to comfort in all aspects. You may not set standard elements of your lifestyle, like {tag:fine-meal}s, as Desires."
+    description: "You are a person of noble breeding, accustomed to comfort in all aspects. You must eat a {tag:fine-meal} or better each day, or you wake {tag:disappointed}. You may not set standard elements of your lifestyle, like {tag:fine-meal}s, as Desires."
     pointCost: 0
     purchasable: false
     visible: false
@@ -1986,7 +1986,7 @@ tags:
     name: Ate Meal
     category: status
     group: status-food
-    description: "You don't consume any resources today, because you ate a proper meal."
+    description: "You don't consume any resources today, because you ate a proper meal. Sheds one turn of Hunger."
     pointCost: 0
     purchasable: false
 
@@ -1994,12 +1994,26 @@ tags:
     name: Hungry
     category: status
     group: status-debuffs
-    description: "-1 to the die on all Gambits. You went without food this turn."
+    description: "-1 to the die on all Gambits per turn gone hungry. Eating removes one turn's worth."
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
     removable: false
     durationTurns: 1
+
+  # Nobility upkeep: granted at turn close by db/lib/hungerPass.js to any
+  # noble who didn't eat a Fine/Lavish Meal that turn, cleared the moment
+  # they consume one (anything that consumesInto ate-meal).
+  - slug: disappointed
+    name: Disappointed
+    category: status
+    group: status-debuffs
+    description: "You're not energized. You're worse at everything you do and come off as a mope. -1 to the die on all Gambits. A {tag:fine-meal} or better will fix it."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
 
   - slug: catatonic
     name: Catatonic (AFK)

@@ -422,7 +422,7 @@ export const REQUEST_EFFECTS = {
   CONSUME_TAG: {
     editableFields: [],
     async undo(tx, request) {
-      const { restore, tagName, granted = [], resourcesGranted } = request.effect;
+      const { restore, tagName, granted = [], resourcesGranted, cleared } = request.effect;
       for (const g of granted) {
         // `added: 0` means the character already held that tag and this
         // request left it alone — taking it away now would confiscate
@@ -430,6 +430,10 @@ export const REQUEST_EFFECTS = {
         if (g.tagId && g.added > 0) await dropCharacterTag(tx, request.characterId, g.tagId, g.added);
       }
       if (restore?.tagId) await restoreCharacterTag(tx, request.characterId, restore);
+      // Eating a proper meal clears a noble's Disappointed on the spot
+      // (requestActions.js#consumeTagRequestImpl) — so undoing the meal puts
+      // it back, off the same kind of snapshot `restore` uses.
+      if (cleared?.tagId) await restoreCharacterTag(tx, request.characterId, cleared);
       // The Resources half (Purse, Supply Kit) — debited back off the exact
       // snapshot, never re-derived from the tag's current catalog value.
       if (resourcesGranted) {
@@ -440,6 +444,7 @@ export const REQUEST_EFFECTS = {
       const took = granted.filter((g) => g.added > 0).map((g) => formatStack(g.tagName, g.added));
       const notes = [];
       if (took.length) notes.push(`took back ${took.join(", ")}`);
+      if (cleared?.tagId) notes.push(`re-applied ${cleared.tagName ?? "Disappointed"}`);
       if (resourcesGranted) notes.push(`took back ${resourcesGranted} ⬢`);
       return notes.length
         ? `Restored ${tagName ?? "the tag"} and ${notes.join(", ")}.`

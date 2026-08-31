@@ -11,6 +11,7 @@ const LABORER_BASIC_SLUG = "laborer-basic";
 const LABORER_SKILLED_SLUG = "laborer-skilled";
 const LABORER_FARMING_SLUG = "laborer-farming";
 const CATATONIC_SLUG = "catatonic";
+const DISAPPOINTED_SLUG = "disappointed";
 
 // The one "read someone else's sheet" tag — see db/lib/inspectVision.js, the
 // only reader. This is the Demoness Seductive, not its general-category cousin
@@ -47,6 +48,7 @@ module.exports = {
   LABORER_SKILLED_SLUG,
   LABORER_FARMING_SLUG,
   CATATONIC_SLUG,
+  DISAPPOINTED_SLUG,
   SEDUCTIVE_DEMONESS_SLUG,
   INSCRUTABLE_SLUG,
   RAGE_SLUG,

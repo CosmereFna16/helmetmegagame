@@ -262,6 +262,8 @@ If your character has the Ate Meal tag or the Hungerless tag, you remain fed wit
 
 Hunger gives a penalty to Gambit rolls. The first turn you spend hungry causes a -1 penalty, worsening by 1 every turn you remain hungry.
 
+Eating removes **one turn's worth** of Hunger, not all of it. If you've gone several turns without eating, one meal only brings the penalty down by 1 — you need to eat every turn to fully recover, the same number of turns it took you to build the penalty up.
+
 After 6 turns spent hungry, you receive the **Dying** tag and a GM will review your situation to determine what happens next.
 
 ### The Silo

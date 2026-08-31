@@ -150,7 +150,9 @@ The thunk performs, in narrative order:
 3. Tag progression DMs — one per player whose condition worsened, listing each
    step (`» Festering → Feverish and Necrosis`). Before the Hunger DMs purely
    so the two arrive in severity order.
-4. Hunger DMs — one per starved player. A quiet −1 ⬢ sends nothing.
+4. Hunger DMs — one per player who starved, or who ate and still carries some
+   of the streak, or who just cleared the last of it. A quiet −1 ⬢, or a fed
+   character whose streak was already 0, sends nothing.
 5. **The staged deliveries** — every unsent `StagedMessage` for the closing
    turn. PRIVATE rows fan out one DM per recipient (per-recipient try/catch,
    failures collected onto the row's `deliveryFailures` and into one
@@ -266,31 +268,65 @@ Per character, at the close of every turn:
 
 | State | Outcome |
 |---|---|
-| Holds `hungerless` | Skipped entirely; streak resets to 0. |
-| Holds `ate-meal` | **Shielded**, tag consumed, **owes nothing**, streak resets to 0 — the meal was already paid for when it was cooked (2 ⬢ Fine, 3 ⬢ Lavish), so billing upkeep on top made eating strictly worse than the 1 ⬢ it saves. |
+| Holds `hungerless` | Skipped entirely; streak resets to 0 (immunity, not eating — a full reset). |
+| Holds `ate-meal` | **Shielded**, tag consumed, **owes nothing**, streak drops by **one tick** — the meal was already paid for when it was cooked (2 ⬢ Fine, 3 ⬢ Lavish), so billing upkeep on top made eating strictly worse than the 1 ⬢ it saves. |
 | Has 0 ⬢ | Goes Hungry, owes nothing, streak **+1**. |
-| Has 1+ ⬢ | Pays 1 ⬢, stays fed, streak resets to 0. |
+| Has 1+ ⬢ | Pays 1 ⬢, stays fed, streak drops by **one tick**. |
 
-So **1 ⬢ always buys a fed turn** — and clears the streak — and
-`Character.resources` can never go negative without a `Math.max` — the clamp
-is a `resources: { gte: 1 }` on the decrement's own `where`, so the check and
-the payment are one statement. They used to be two, with the whole pass
-between them, and anyone who spent their last ⬢ in that window went to −1. A
-Hunger granted while closing turn N carries `expiresTurn = N + 1`, so it bites
-for exactly turn N+1 — which is what makes `ate-meal`'s "won't go hungry next
-turn" literally true.
+So **1 ⬢ always buys a fed turn**, and `Character.resources` can never go
+negative without a `Math.max` — the clamp is a `resources: { gte: 1 }` on the
+decrement's own `where`, so the check and the payment are one statement. They
+used to be two, with the whole pass between them, and anyone who spent their
+last ⬢ in that window went to −1.
+
+A single fed turn only clears **one tick** of the streak, not the whole thing
+— a character six turns deep in Hunger needs six fed turns to climb back to
+0, the same way it took six starved turns to get there. The `hunger` tag
+itself is re-granted for as long as the streak is above 0 after eating, not
+only on a turn actually spent starving — so its meaning is "carrying hunger
+damage", not "starved this turn". A Hunger granted while closing turn N
+carries `expiresTurn = N + 1`, so it bites for exactly turn N+1; eating on
+turn N is what decides whether it's re-granted for N+1, at one point lower
+than it was.
 
 The streak itself has no `expiresTurn` of its own — it's a plain Int column,
-computed in the pass off the value it already read, not off a DB `increment`
-return (which wouldn't hand back the new total in time to decide who crosses
-the cap this turn). It keeps counting past 6 if nobody intervenes; the penalty
-just stays floored there, and re-granting `dying` on a later starved turn is a
-harmless `skipDuplicates` no-op.
+computed in the pass off the value it already read, not off a DB
+`increment`/`decrement` return (neither hands back the new total in time to
+decide who crosses the cap, or who still carries Hunger after eating, this
+turn). Only starving ever pushes it up; eating only ever brings it down, one
+tick per turn, floored at 0 the same structural way the resource decrement is
+floored — a `hungerStreak: { gt: 0 }` where-guard, not a `Math.max`. It keeps
+counting past 6 if nobody intervenes; the penalty just stays floored there,
+and re-granting `dying` on a later starved turn is a harmless `skipDuplicates`
+no-op.
 
 One summary `hunger_resolved` audit row per turn, not one per character: at
 100+ players the latter would drown `/gm/audit`.
 
 Full writeup: `REQUESTS.md` §4.
+
+### 5a. Nobility upkeep (Disappointed)
+
+The same pass runs a parallel track for characters holding `nobility`: each
+turn close **without** the `ate-meal` shield ticks `Character.missedMealStreak`
+up — paying the 1 ⬢ upkeep is commoner food and does not count. At
+**3 missed days** (`DISAPPOINTMENT_THRESHOLD` in `db/lib/hungerPass.js`) the
+pass grants `disappointed`: a flat **−1 to Gambits**
+(`db/lib/gambitModifier.js`), no expiry. A warning DM goes out at 2 missed
+days, one more DM when the tag lands, and nothing in between.
+
+Unlike the hunger streak there is no slow climb back down: **one Fine or
+Lavish Meal settles the whole count.** Consuming anything that becomes
+`ate-meal` clears the tag **on the spot** and the pass resets the count to 0
+at the next close (`web/app/(app)/character/requestActions.js`; the pass's
+shielded-branch delete is only the backstop for meals a GM granted directly).
+Undoing the CONSUME_TAG request puts the Disappointment back off the
+`cleared` snapshot on the request effect.
+
+Hungerless and Dying nobles are exempt — a hungerless noble's count freezes
+where it is. The player-facing tracker is the **Dinner row** on the sheet's
+Status panel (`web/app/components/StatusPanel.js`), which counts missed days
+against the threshold and flips to a Condition row once the tag lands.
 
 ## 6. Default Moves
 

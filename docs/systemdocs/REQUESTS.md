@@ -252,37 +252,47 @@ what it leads to — there is no request type, no picker entry, no
 writer of all three, called from `resolveNeeds()` at the close of every turn:
 
 1. Holds `hungerless` → **skipped entirely**. No resource taken, no Hunger,
-   streak reset to 0.
+   streak reset to 0 — this is immunity, not eating, so it's still a full
+   reset rather than the one-tick rule below.
 2. Holds `ate-meal` → **shielded** from Hunger, the tag is consumed whether or
-   not they were broke, **no ⬢ is taken**, and the streak resets to 0. The
-   meal was already paid for when it was cooked (2 ⬢ a Fine, 3 ⬢ a Lavish), so
-   charging the upkeep on top of that made eating strictly worse than the 1 ⬢
-   it saves. Eating *settles* the turn's upkeep and the streak; neither comes
-   on top of it.
+   not they were broke, **no ⬢ is taken**, and the streak drops by **one
+   tick**. The meal was already paid for when it was cooked (2 ⬢ a Fine, 3 ⬢ a
+   Lavish), so charging the upkeep on top of that made eating strictly worse
+   than the 1 ⬢ it saves. Eating *settles* the turn's upkeep; the streak it
+   took several starved turns to climb takes that many fed turns to climb back
+   down.
 3. **Check first, then pay**: at `resources === 0` you go Hungry, owe nothing,
    and the streak **increments**; at 1+ ⬢ you pay 1, stay fed, and the streak
-   resets to 0.
+   drops by **one tick**.
 
-So 1 ⬢ always buys a fed turn — and clears the streak — a meal buys one
-outright, and `Character.resources` can never go negative — the clamp is
-structural, not a `Math.max`, and it lives on step 3, the only branch that
-still pays. Structural means the check and the payment are the *same
-statement*: the decrement carries `resources: { gte: 1 }` in its own `where`.
-Read the balance in one query and decrement in another and a player who spends
-in between goes to −1, which is what used to happen, and turn rollover is
-exactly when players are most active.
+So 1 ⬢ always buys a fed turn, and `Character.resources` can never go
+negative — the clamp is structural, not a `Math.max`, and it lives on step 3,
+the only branch that still pays. Structural means the check and the payment
+are the *same statement*: the decrement carries `resources: { gte: 1 }` in its
+own `where`. Read the balance in one query and decrement in another and a
+player who spends in between goes to −1, which is what used to happen, and
+turn rollover is exactly when players are most active.
+
+A single fed turn only sheds **one tick**, not the whole streak — a character
+six turns deep needs six fed turns to reach 0, the same as it took six starved
+turns to get there. So the `hunger` tag no longer means "starved this turn";
+it's re-granted for as long as the streak is above 0 after eating, meaning
+"still carrying hunger damage." The floor is the same structural posture as
+the resources clamp above: `hungerStreak: { gt: 0 }` in the decrement's own
+`where`, not a `Math.max` on a value read moments earlier.
 
 **The streak and the cap.** Each consecutive hungry turn is worth an
 additional −1 to the die, floored at **−6** (`HUNGER_STREAK_CAP`). Reaching the
 cap grants `dying` — permanently, like every other terminal tag chain (see
 `TURN-ENGINE.md` §3's "NOTHING HERE KILLS ANYONE") — and a GM confirms the
 death by hand from there. The streak is computed in the pass off the value it
-already read for the resource check, not off a database `increment`'s return
-value, because that wouldn't hand back the new total in time to decide who
-just crossed the cap this turn or what to put in their DM. It's allowed to
-keep counting past 6 if nobody intervenes; the penalty simply stays floored,
-and trying to re-grant `dying` on a later starved turn is a harmless
-`skipDuplicates` no-op, not an error.
+already read for the resource check, not off a database `increment`/
+`decrement`'s return value, because neither would hand back the new total in
+time to decide who just crossed the cap this turn, who still carries Hunger
+after eating, or what to put in their DM. Only starving pushes it up; eating
+only ever brings it down. It's allowed to keep counting past 6 if nobody
+intervenes; the penalty simply stays floored, and trying to re-grant `dying`
+on a later starved turn is a harmless `skipDuplicates` no-op, not an error.
 
 **The expiry arithmetic**, and why the pass runs *after* the sweep:
 
@@ -293,8 +303,9 @@ and trying to re-grant `dying` on a later starved turn is a harmless
 | turn **N+1** open | tag is live; every Gambit rolled this turn takes the −1 |
 | close of turn **N+1** | sweep (`lte: N+1`) deletes it |
 
-Exactly one turn of bite, and it is the *next* turn — which is also what makes
-`ate-meal`'s "won't go hungry next turn" copy literally true. Run the pass
+Exactly one turn of bite, and it is the *next* turn. Eating on turn N decides
+whether the tag is re-granted for N+1 at all — and if the streak was more than
+1, it's re-granted one tick lower than it was, not cleared. Run the pass
 *before* the sweep instead and a still-broke character's re-grant collides with
 `@@unique([characterId, tagId])` and is silently dropped, leaving them holding
 a tag that expires immediately.
@@ -304,14 +315,20 @@ Going hungry sends one DM naming the *actual* penalty in effect
 REST twin that exists so this fires from both the bot's cron and the Dev
 Panel's End-turn button. Crossing the streak cap sends a second, distinct DM
 about Dying, right after the Hunger one — so a player who's about to see
-Dying on their sheet already knows why. A quiet −1 ⬢ sends nothing.
+Dying on their sheet already knows why. Eating sends its own DM too, unless
+the streak was already 0: one naming the smaller-but-still-there penalty
+(`» You ate, but you're still weak from hunger. −4 to Gambits.`) while any
+streak remains, or a short "back to full strength" line the turn it finally
+clears. A quiet −1 ⬢ sends nothing.
 
-`runHungerPass` does not send either DM itself. It returns `starvedNotices`
-on its summary — one entry per starved character, carrying `discordUserId`,
-the already-clamped `streak`, and `justDied` — and the sending happens in
-`advanceTurn()`'s `runSideEffects()` thunk, alongside the turn announcement and
-the Dawn wipe. The pass is therefore two reads and several bulk writes with no
-network call in it at all — which matters because at 100+ players the DMs are
+`runHungerPass` does not send any of these DMs itself. It returns
+`hungerNotices` on its summary — one entry per character who starved or whose
+streak changed from eating, carrying `discordUserId`, a `kind` (`starved` /
+`recovering` / `recovered`), the already-clamped `streak`, and `justDied` —
+and the sending happens in `advanceTurn()`'s `runSideEffects()` thunk,
+alongside the turn announcement and the Dawn wipe. The pass is therefore two
+reads and several bulk writes with no network call in it at all — which
+matters because at 100+ players the DMs are
 sequential Discord round-trips *per starving character*, and awaiting that
 inside the Dev Panel's server action used to hold the request open long enough
 to freeze the web app's navigation. The list is split back off the summary in

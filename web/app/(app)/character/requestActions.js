@@ -58,6 +58,7 @@ import { applyPendingInvites } from "@lifeweb/db/lib/threadInvites";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { rollCaving } from "@lifeweb/db/lib/cavingPass";
 import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
+import { ATE_MEAL_SLUG, DISAPPOINTED_SLUG } from "@lifeweb/db/lib/constants";
 import { NAME_LIMITS, formatCharacterName, formatBareName, normalizeEarnedHonorific } from "@/lib/characterName";
 import { propagateDynastyLastName } from "@/lib/dynasty";
 
@@ -564,8 +565,27 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
     resources: resourcesGranted,
   } = resolveConsumeGrants(held.tag, heldSlugsOf(character.tags));
 
+  // A proper meal lifts a noble's Disappointment on the spot — keyed off the
+  // ate-meal grant rather than the item eaten, so anything that becomes Ate
+  // Meal counts. (The turn pass in db/lib/hungerPass.js is only the backstop
+  // for meals a GM granted directly.) Snapshotted like `restore` so Undo can
+  // put the mope back along with the meal.
+  const disappointedHeld = grantSlugs.includes(ATE_MEAL_SLUG)
+    ? character.tags.find((ct) => ct.tag.slug === DISAPPOINTED_SLUG)
+    : null;
+  const cleared = disappointedHeld
+    ? {
+        tagId: disappointedHeld.tagId,
+        tagName: disappointedHeld.tag.name,
+        source: disappointedHeld.source,
+        expiresTurn: disappointedHeld.expiresTurn,
+        quantity: 1,
+      }
+    : null;
+
   await prisma.$transaction(async (tx) => {
     await dropCharacterTag(tx, character.id, tagId, 1);
+    if (cleared) await dropCharacterTag(tx, character.id, cleared.tagId, 1);
     const granted = await grantTagSlugs(
       tx,
       character.id,
@@ -584,7 +604,7 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
       type: "CONSUME_TAG",
       reason,
       payload: { tagId },
-      effect: { tagId, tagName: held.tag.name, restore, granted, resourcesGranted },
+      effect: { tagId, tagName: held.tag.name, restore, granted, resourcesGranted, cleared },
     });
     await logRequest(tx, {
       actorDiscordUserId: session.discordUserId,
@@ -596,6 +616,7 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
         tagName: held.tag.name,
         granted: granted.map((g) => g.tagName),
         resourcesGranted,
+        cleared: cleared?.tagName,
       },
     });
   });

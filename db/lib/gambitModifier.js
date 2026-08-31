@@ -1,23 +1,30 @@
-// The single source of the summed Gambit die modifier. Hunger is the only
-// contributor: -1 * min(hungerStreak, cap).
+// The single source of the summed Gambit die modifier. Two contributors:
+// Hunger at -1 * min(hungerStreak, cap), and Disappointed (the Nobility
+// upkeep tag, granted/cleared around db/lib/hungerPass.js) at a flat -1.
 //
 // It stays a list-returning module rather than collapsing to one number,
 // because Action.diceModifier is one Int and the confirm DM still wants the
 // contribution NAMED ("−2 Hungry"). Keeping the shape also means a second
 // contributor is an append here rather than a rewrite of five call sites —
 // which is what happened when Mood was removed and this went from two
-// contributors to one.
+// contributors to one, and again when Disappointed brought it back to two.
 //
 // No prisma import, so both bot/ and web/ import it by subpath.
-const { HUNGER_SLUG } = require("./constants");
+const { HUNGER_SLUG, DISAPPOINTED_SLUG } = require("./constants");
 const { HUNGER_STREAK_CAP } = require("./hungerPass");
 
 const HUNGER_LABEL = "Hungry";
+const DISAPPOINTED_LABEL = "Disappointed";
+const DISAPPOINTED_MODIFIER = -1;
 
 // Accepts the CharacterTag[] shape used everywhere else in the app
 // (`{ tag: { slug } }`), and tolerates a bare Tag[].
 function hasHunger(characterTags = []) {
   return characterTags.some((ct) => (ct?.tag?.slug ?? ct?.slug) === HUNGER_SLUG);
+}
+
+function hasDisappointed(characterTags = []) {
+  return characterTags.some((ct) => (ct?.tag?.slug ?? ct?.slug) === DISAPPOINTED_SLUG);
 }
 
 // The escalating half of the Hunger penalty: -1 per consecutive hungry turn
@@ -41,6 +48,10 @@ function gambitModifiers(characterTags = [], { hungerStreak = 0 } = {}) {
   const out = [];
 
   if (hasHunger(characterTags)) out.push({ label: HUNGER_LABEL, value: hungerModifier(hungerStreak) });
+
+  if (hasDisappointed(characterTags)) {
+    out.push({ label: DISAPPOINTED_LABEL, value: DISAPPOINTED_MODIFIER });
+  }
 
   return out;
 }

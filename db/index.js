@@ -21,7 +21,7 @@ const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 const { runDawnWipe } = require("./lib/dawnWipe");
 const { runThreadExpiry } = require("./lib/threadExpiryPass");
-const { runHungerPass, hungerDm, DYING_DM } = require("./lib/hungerPass");
+const { runHungerPass, hungerDm, disappointedDm, DYING_DM } = require("./lib/hungerPass");
 const { runCatatonicPass } = require("./lib/catatonicPass");
 const { runCavingPass } = require("./lib/cavingPass");
 const { runDefaultMovePass } = require("./lib/defaultMovePass");
@@ -163,12 +163,15 @@ async function sweepExpiredStacks(turn) {
 // close-turn override, so both paths behave identically instead of only the
 // automated one actually resolving Needs.
 //
-// Returns { lifewebBlood, starvedNotices, defaultMovePosts,
+// Returns { lifewebBlood, hungerNotices, disappointedNotices,
+// defaultMovePosts,
 // defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates }.
 // Everything after
 // the first is Discord work this function deliberately does NOT perform —
-// the Hunger pass's DM list (one notice per starved character: discordUserId,
-// streak, justDied), the Default Move pass's summary posts and DMs, the tag
+// the Hunger pass's DM list (one notice per character who starved or whose
+// streak changed from eating: discordUserId, kind, streak, justDied), its
+// Nobility sibling (kind: warned | disappointed), the
+// Default Move pass's summary posts and DMs, the tag
 // progression pass's DMs, and the Catatonic pass's one-DM-per-newly-flagged
 // list and its personal-role renames. See advanceTurn() below for why.
 //
@@ -399,7 +402,7 @@ async function resolveNeeds(turn, config) {
   // The DM list is split off the summary before it's logged: it's routing
   // data for runSideEffects(), not part of the turn's record, so the audit
   // details stay exactly the shape they've always been.
-  const { starvedNotices = [], ...summary } = hunger ?? {};
+  const { hungerNotices = [], disappointedNotices = [], ...summary } = hunger ?? {};
   if (hunger) {
     await prisma.auditLog
       .create({
@@ -463,7 +466,8 @@ async function resolveNeeds(turn, config) {
 
   return {
     lifewebBlood,
-    starvedNotices,
+    hungerNotices,
+    disappointedNotices,
     defaultMovePosts,
     defaultMoveDms,
     tagExpiryDms,
@@ -507,7 +511,8 @@ async function advanceTurn() {
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
 
   let lifewebBlood = config.lifewebBlood;
-  let starvedNotices = [];
+  let hungerNotices = [];
+  let disappointedNotices = [];
   let defaultMovePosts = [];
   let defaultMoveDms = [];
   let tagExpiryDms = [];
@@ -549,7 +554,7 @@ async function advanceTurn() {
       };
     }
 
-    ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, privateDeliveries, publicPosts, zoneMoves, routineNotices } =
+    ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, privateDeliveries, publicPosts, zoneMoves, routineNotices } =
       await resolveNeeds(openTurn, config));
   } else {
     // No OPEN turn, which normally means "opening the very first turn". It
@@ -614,7 +619,7 @@ async function advanceTurn() {
           },
         })
         .catch((logErr) => console.error("Failed to log turn_resume — the resume now has no record:", logErr));
-      ({ lifewebBlood, starvedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, privateDeliveries, publicPosts, zoneMoves, routineNotices } =
+      ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, privateDeliveries, publicPosts, zoneMoves, routineNotices } =
         await resolveNeeds(unfinished, config));
     }
   }
@@ -777,14 +782,15 @@ async function advanceTurn() {
       );
     }
 
-    // One or two DMs per hungry player, sequential (discordRequest already
-    // backs off on 429) and individually caught. No DM for a quiet -1 ⬢ —
-    // hungerDm() always names the actual penalty, escalating with the streak.
+    // One or two DMs per notice, sequential (discordRequest already backs off
+    // on 429) and individually caught. No DM for a quiet -1 ⬢, or for a fed
+    // character whose streak was already 0 — hungerDm() covers starved,
+    // still-recovering (a meal only sheds one tick), and just-recovered.
     // The Dying DM (once, on the turn the streak crosses the cap) is sent
     // second, so a player who's about to see "Dying" on their sheet already
     // knows why.
-    for (const notice of starvedNotices) {
-      await sendDm(prisma, notice.discordUserId, hungerDm(notice.streak)).catch((err) =>
+    for (const notice of hungerNotices) {
+      await sendDm(prisma, notice.discordUserId, hungerDm(notice)).catch((err) =>
         console.error(`Hunger DM to ${notice.discordUserId} failed:`, err),
       );
       if (notice.justDied) {
@@ -792,6 +798,16 @@ async function advanceTurn() {
           console.error(`Dying DM to ${notice.discordUserId} failed:`, err),
         );
       }
+    }
+
+    // The Nobility track (db/lib/hungerPass.js): the eve-of warning and the
+    // one DM on the close their Disappointment lands. Nothing on the quiet
+    // days in between, and nothing when it clears — the player just ate; they
+    // know.
+    for (const notice of disappointedNotices) {
+      await sendDm(prisma, notice.discordUserId, disappointedDm(notice)).catch((err) =>
+        console.error(`Disappointed DM to ${notice.discordUserId} failed:`, err),
+      );
     }
 
     // Staged-relocation Discord side effects, before the private deliveries:
