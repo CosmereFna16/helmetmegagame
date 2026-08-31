@@ -170,7 +170,7 @@ export default async function DevPanelPage({ searchParams }) {
         <OpsNav section={section} />
         <main className="ops-main">
           {section === "turn" ? (
-            <>
+            <div className="flex flex-col gap-8">
               <section className="ops-section">
                 <div className="ops-section-head">
                   <h2 className="section-title">Current Turn</h2>
@@ -242,7 +242,7 @@ export default async function DevPanelPage({ searchParams }) {
                   Applies on next turn (via End turn above or the bot&apos;s automatic dawn/dusk cron).
                 </p>
               </section>
-            </>
+            </div>
           ) : null}
 
           {section === "config" ? (
@@ -418,6 +418,9 @@ export default async function DevPanelPage({ searchParams }) {
                 </label>
                 <SubmitButton pendingLabel="Moving…">Move them</SubmitButton>
               </form>
+              <p className="ops-lede">
+                Their zone roles resync in the background; the report lands under System Reports.
+              </p>
             </section>
           ) : null}
 
@@ -427,7 +430,8 @@ export default async function DevPanelPage({ searchParams }) {
                 <h2 className="section-title">System Reports</h2>
                 <p className="ops-lede">
                   The last run of each operational pass. A report without a finish time means the container
-                  died mid-pass — re-run the pass or the doctor.
+                  died mid-pass — re-run the pass or the doctor. Failures listed here are live problems,
+                  not history.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -465,14 +469,14 @@ export default async function DevPanelPage({ searchParams }) {
                       </ul>
                     ) : null}
                     {Array.isArray(report.failures) && report.failures.length > 0 ? (
-                      <ul className="ops-report-detail list-disc pl-5">
+                      <ul className="text-xs list-disc pl-5">
                         {report.failures.slice(0, 25).map((f, i) => (
                           <li key={i}>
                             {[f.check ?? f.step, f.target].filter(Boolean).join(" · ")}: {f.message}
                           </li>
                         ))}
                         {report.failures.length > 25 ? (
-                          <li>…and {report.failures.length - 25} more.</li>
+                          <li className="text-muted">…and {report.failures.length - 25} more.</li>
                         ) : null}
                       </ul>
                     ) : null}
