@@ -606,7 +606,7 @@ tags:
     name: Tactician
     category: general
     group: general-traits
-    description: "You think several moves ahead of everyone else in the room. A GM will tell you honestly, in confidence, whether a plan you're about to attempt is a good idea."
+    description: "You are good at laying out plans and leading people into battle."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -1477,7 +1477,7 @@ tags:
     category: skills
     group: skills-labor
     description: "When laboring, you make {resource:labor:basic} per turn."
-    pointCost: 2
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: true
 
