@@ -85,6 +85,10 @@ path, and Cancel undoes them like anything else.
   one. Sticky rather than fixed so it stays in the page column and can't cover
   the nav rail on a narrow screen.
 
+A staged edit's own affordance is the shared pair from `DESIGN-SYSTEM.md` §5:
+`.field-dirty` outlines a single control with an unsaved edit, `.staged-row`
+outlines a whole row, toned by `data-staged` for a staged add versus remove.
+
 ## 4. `applyCharacterEdits`
 
 One payload, one transaction, one audit row. In order:
@@ -379,9 +383,29 @@ and refreshes the desk, instead of the page's own navigation away.
 
 ## 11. The other Dev Panel: `/gm/dev`
 
-Superadmin-only, and a different page — the game-level one. Three of its
-sections are new with the zone rework, and this is the only doc that lists
-them. `LAUNCH.md` covers Restart Game itself.
+Superadmin-only, and a different page — the game-level one, not this doc's
+character panel. It is the fourth page in the `(desk)` family (`DESIGN-
+SYSTEM.md` §6): a two-column settings workspace, `OpsNav.js` picking one
+section down the left over a validated `?s=` param (`turn` when absent or
+unrecognised), one settings surface on the right. Each section fetches only
+its own data — `listGuildMembers()` and the whole tag catalog only load for
+`?s=antagonists`, instead of on every visit regardless of which section a GM
+actually opens.
+
+The split across two route groups is deliberate. `page.js` and `OpsNav.js`
+live in `(desk)/gm/dev/`, because the `(app)` layout's fixed `TurnChip` would
+float over a desk shell (same reason no desk carries one — `DESIGN-SYSTEM.md`
+§6). The server actions and the other sections (`characters/`, `factions/`,
+`tags/`) stay in `(app)/gm/dev/`, since only the top page needed to move. The
+superadmin gate lives in `page.js` itself rather than the layout, because
+`(desk)/layout.js` only checks GM membership — `/gm/players` and `/gm/turns`
+share that layout and are meant to stay GM-open.
+
+Six sections: **Turn** and **Configuration** under "Game"; **Bulk move**,
+**System reports** and **Antagonist roster** under "Operations"; **Restart
+game** on its own under "Danger". The last three are the ones that arrived
+with the zone rework, and this is the only doc that lists them. `LAUNCH.md`
+covers Restart Game itself.
 
 **Game Config knobs documented nowhere else**, all reset by a wipe:
 
@@ -422,5 +446,8 @@ sequentially in `after()` and lands on a `BULK_MOVE` report.
 | Shared catalog browser (categories, search, grouping, multi-select) | `web/app/components/TagCatalogBrowser.js` |
 | Panel styling | `.dev-state-strip`, `.dev-state-group`, `.dev-bar-sep`, `.dev-apply-bar`, `.dev-tag-row`, `.dev-tag-group-head`, `.dev-modal-panel` in `globals.css` |
 | Desk modal mount (shared by turns/players desks) + `prefetchDevPanel`, and its server actions (`getDevPanelData`, `getDevPanelRecord`) | `web/app/components/DevPanelModal.js`, `devPanelActions.js` |
-| The game-level panel (§11) | `web/app/(app)/gm/dev/page.js`, `actions.js` |
+| The game-level panel (§11) — page shell + section rail | `web/app/(desk)/gm/dev/page.js`, `web/app/(desk)/gm/dev/OpsNav.js` |
+| The game-level panel's server actions | `web/app/(app)/gm/dev/actions.js` |
+| The game-level panel's toggle help text, read through `InfoIcon` | `web/app/(app)/gm/dev/devHelp.js` |
+| The game-level panel's styling | `.desk-body--ops`, `.ops-nav`, `.ops-nav-group`, `.ops-nav-title`, `.ops-nav-item`, `.ops-main`, `.ops-section`, `.ops-section-head`, `.ops-lede`, `.ops-grid`, `.ops-toggles`, `.ops-toggle`, `.ops-toggle-note`, `.ops-actions`, `.ops-report`, `.ops-report-head`, `.ops-report-detail` in `globals.css` |
 | The channel doctor it runs | `db/lib/channelDoctor.js` |

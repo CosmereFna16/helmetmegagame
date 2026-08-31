@@ -135,6 +135,9 @@ Use these instead of rolling one-off markup.
 | `.empty-state` | "Nothing here" text. |
 | `.form-error` | Something went wrong. Always `--danger`. |
 | `.modal-overlay` / `.modal-panel` | Modals — **always** via `Modal`, usually via `useConfirm()`. |
+| `.field-dirty` | A control carrying a staged/unsaved edit. |
+| `.staged-row` | A staged row, toned by `data-staged` (add vs. remove). |
+| `.panel-danger` | A destructive-area card border — `--danger`. |
 
 Three of these carry a trap:
 
@@ -179,6 +182,11 @@ Four things about these are load-bearing:
 - **`Switch` keeps a real named `<input type="checkbox">`**, visually hidden
   rather than replaced, because a server `<form action>` reads its `name` on
   submit. A `<button role="switch">` looks identical and posts nothing.
+- **Never put `InfoIcon`/`Tooltip` inside the `<label>` `Switch` or
+  `CheckField` renders.** `HoverCard` pins its panel open on click, and that
+  click also bubbles to the label — toggling the control the icon was only
+  meant to explain. Place the icon as a sibling of `Switch`/`CheckField`, not
+  a child.
 - **`StatusPill` takes a tone, not a colour.** Callers say what a state *means*
   and the stylesheet decides how that looks, so a status cannot reach for a
   colour the themes have not solved. Per-domain label maps stay local — a
@@ -209,14 +217,18 @@ slot takes anything belonging beside the title: a sub-nav, a faction switcher.
 was a documented convention for months and drifted anyway, which is why it is
 now a component.
 
-The one sanctioned exception is the `(desk)` route group, which holds the two
-GM workspaces: `/gm/turns` (adjudication) and `/gm/players` (the player desk).
-A workspace owns its whole screen — no PageShell, no centred max-width; the
-`.desk-*` layout family in `globals.css` is its layout — but everything inside
-it still uses the tokens and the shared control classes. Within that
+The one sanctioned exception is the `(desk)` route group, which now holds
+four GM workspaces: `/gm/turns` (adjudication), `/gm/players` (the player
+desk), `/gm/audit`, and `/gm/dev` (the game-level Dev Panel, `DEV-PANEL.md`
+§11). A workspace owns its whole screen — no PageShell, no centred max-width;
+the `.desk-*` layout family in `globals.css` is its layout — but everything
+inside it still uses the tokens and the shared control classes. Within that
 exception, `DeskHeader.js` is PageHeader's desk equivalent — title/meta/
 actions slots over `.desk-header`, `<h1 className="section-title">` — and all
-three desk pages use it. Don't hand-roll `.desk-header` markup in a new one.
+four desk pages use it, `/gm/dev` included. Don't hand-roll `.desk-header`
+markup in a new one. `/gm/dev`'s own left rail (`OpsNav.js`) is the
+`.ops-*` family, the same idea as `.audit-*` for the audit desk — a nav rail
+styled to its own page rather than shared across desks.
 
 Desks **do** carry the nav rail. `(desk)/layout.js` renders the same
 `.app-shell` + `AppRail` + `.app-main` as `(app)`, so a desk is
