@@ -95,7 +95,15 @@ export default function EffectComposer({
   const [extraTags, setExtraTags] = useState([]);
   const [creatingTag, setCreatingTag] = useState(false);
 
-  const allTagCatalog = useMemo(() => [...tagCatalog, ...extraTags], [tagCatalog, extraTags]);
+  // Dedupe by id: CustomTagDialog both appends the new tag here (so it shows
+  // immediately) and triggers router.refresh(), after which the same tag
+  // arrives again through the tagCatalog prop. Catalog wins; extraTags only
+  // cover the pre-refresh window.
+  const allTagCatalog = useMemo(() => {
+    const byId = new Map(tagCatalog.map((t) => [t.id, t]));
+    for (const t of extraTags) if (!byId.has(t.id)) byId.set(t.id, t);
+    return [...byId.values()];
+  }, [tagCatalog, extraTags]);
   const tagById = useMemo(() => new Map(allTagCatalog.map((t) => [t.id, t])), [allTagCatalog]);
   const tagCategories = useMemo(
     () => [...new Set(allTagCatalog.map((t) => t.category))].sort((a, b) => a.localeCompare(b)),

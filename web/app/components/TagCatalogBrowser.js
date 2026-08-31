@@ -47,8 +47,12 @@ export default function TagCatalogBrowser({
   const selected = isControlled ? controlledSelected : internalSelected;
   const setSelected = isControlled ? onSelectedChange : setInternalSelected;
 
+  // Dedupe by id: callers can hand us a catalog merged from more than one
+  // source (server props plus a just-created custom tag), and a duplicate
+  // entry here renders as two identical rows with one checkbox each.
   const tagsById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
-  const sorted = useMemo(() => sortForMode(tags, "group", tagsById), [tags, tagsById]);
+  const uniqueTags = useMemo(() => [...tagsById.values()], [tagsById]);
+  const sorted = useMemo(() => sortForMode(uniqueTags, "group", tagsById), [uniqueTags, tagsById]);
   const categories = useMemo(() => menuCategories(sorted), [sorted]);
   const active = categories.includes(category) ? category : categories[0];
 
