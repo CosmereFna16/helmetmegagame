@@ -433,14 +433,6 @@ model GameConfig {
   catatonicEnabled Boolean @default(true)
   catatonicTurns   Int     @default(4)
 
-  // How many Desires a character may hold ACTIVE at once. Enforced in the
-  // server actions (setDesire, setDesireGm), not the schema — the constraint
-  // is "at most N ACTIVE", not "at most N rows", and Desire keeps every past
-  // attempt. Desires are the only Tag Point faucet in play
-  // (CHARACTERS.md), so this knob is the faucet's width; editable live from
-  // /gm/dev, same posture as equipSlots.
-  maxActiveDesires Int @default(3)
-
   // Whether the bot runs the channel doctor's cheap reconciliation pass
   // (db/lib/channelDoctor.js) automatically after every turn advance, on top
   // of its pass at ready. Off by default.

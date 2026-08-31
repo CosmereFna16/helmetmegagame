@@ -587,11 +587,10 @@ async function deleteCharacterImpl({ characterId, confirmName }) {
   return { name: character.name };
 }
 
-// At most GameConfig.maxActiveDesires ACTIVE Desires per character is an
-// action-level invariant, not a schema one — so it is re-checked here rather
-// than left to the player-side action. A GM at the cap cancels one first;
-// setting no longer silently ends the previous Desire, which would be a hidden
-// loss now that several can run at once.
+// At most one ACTIVE Desire per character is an action-level invariant, not
+// a schema one — so it is re-checked here as well as in the player action.
+// Setting a new one cancels the current ACTIVE row first, in the same
+// transaction, same as the pre-multi-desire behaviour.
 async function setDesireGmImpl({ characterId, text, points }) {
   const session = await requireGm();
   const character = await loadCharacter(characterId);
@@ -602,21 +601,16 @@ async function setDesireGmImpl({ characterId, text, points }) {
     throw new UserError("A desire is worth between 1 and 5 points.");
   }
 
-  const [openTurn, config] = await Promise.all([
-    prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
-    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { maxActiveDesires: true } }),
-  ]);
-  const maxActive = config?.maxActiveDesires ?? 3;
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } });
 
-  // Same row lock as the player's setDesire: count and create together.
+  // Same row lock as the player's setDesire: cancel-if-active and create
+  // together.
   const desire = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${characterId} FOR UPDATE`;
-    const activeCount = await tx.desire.count({ where: { characterId, status: "ACTIVE" } });
-    if (activeCount >= maxActive) {
-      throw new UserError(
-        `${character.name} already holds ${activeCount} active Desire${activeCount === 1 ? "" : "s"} (the limit is ${maxActive}). Fulfil or cancel one first.`,
-      );
-    }
+    await tx.desire.updateMany({
+      where: { characterId, status: "ACTIVE" },
+      data: { status: "CANCELLED", endedTurnNumber: openTurn?.number ?? null },
+    });
     return tx.desire.create({
       data: { characterId, text: body, points: value, status: "ACTIVE", setTurnNumber: openTurn?.number ?? null },
     });

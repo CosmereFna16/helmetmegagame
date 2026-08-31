@@ -491,11 +491,11 @@ the full rule.
 Leftover points are kept, not lost: they land on `Character.tagPoints`.
 
 Fulfilling a Desire is the only way points are *earned* in play, and a
-character may hold up to `GameConfig.maxActiveDesires` (default 3) at once —
-so that knob on `/gm/dev` is the width of the faucet. Spending
-happens through the `/store`'s point-buy purchases (`BUY_TAGS`), which check
-the balance up front and refuse a cart that would take it below 0 — so unlike
-`Character.tagPoints` at creation, the in-play balance never goes negative.
+character may hold at most one Desire `ACTIVE` at a time (`REQUESTS.md` §5).
+Spending happens through the `/store`'s point-buy purchases (`BUY_TAGS`),
+which check the balance up front and refuse a cart that would take it below
+0 — so unlike `Character.tagPoints` at creation, the in-play balance never
+goes negative.
 
 ### Two menus, one component
 

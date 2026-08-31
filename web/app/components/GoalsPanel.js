@@ -8,16 +8,14 @@ import DesirePanel from "./DesirePanel";
 // second goal is plausible again later and this is the natural place for it
 // to slot back in.
 export default function GoalsPanel({
-  desires,
-  maxActiveDesires,
+  desire,
   desireCooldownUntilTurn,
   openTurnNumber,
 }) {
   return (
     <section className="panel p-4">
       <DesirePanel
-        desires={desires}
-        maxActiveDesires={maxActiveDesires}
+        desire={desire}
         cooldownUntilTurn={desireCooldownUntilTurn}
         openTurnNumber={openTurnNumber}
       />

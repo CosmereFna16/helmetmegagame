@@ -105,15 +105,12 @@ async function handleDossierReaction(reaction, proxy, user) {
   ]);
   if (!character) return;
 
-  const [action, desires] = await Promise.all([
+  const [action, desire] = await Promise.all([
     openTurn
       ? prisma.action.findFirst({ where: { characterId: character.id, turnId: openTurn.id } })
       : null,
-    // A character may hold several active Desires (GameConfig.maxActiveDesires),
-    // so this reads the list; oldest first, the order the sheet shows them in.
-    prisma.desire.findMany({
+    prisma.desire.findFirst({
       where: { characterId: character.id, status: "ACTIVE" },
-      orderBy: { createdAt: "asc" },
       select: { text: true, points: true },
     }),
   ]);
@@ -165,10 +162,10 @@ async function handleDossierReaction(reaction, proxy, user) {
       : "Has not acted.",
   });
 
-  if (desires.length > 0) {
+  if (desire) {
     embed.addFields({
       name: "Desire",
-      value: fitField(desires.map((d) => `• ${d.text} (+${d.points})`).join("\n")),
+      value: fitField(`${desire.text} (+${desire.points})`),
     });
   }
 
@@ -519,22 +516,15 @@ module.exports = {
         // active Desire produces. A reader can't tell the two apart, which is
         // the whole point of buying it.
         if (canSeeDesire) {
-          // Every active Desire, not just the first: a character may hold
-          // several (GameConfig.maxActiveDesires), and showing one of them
-          // would read as "that's all there is".
-          const desires = isInscrutable(character.tags)
-            ? []
-            : await prisma.desire.findMany({
+          const desire = isInscrutable(character.tags)
+            ? null
+            : await prisma.desire.findFirst({
                 where: { characterId: character.id, status: "ACTIVE" },
-                orderBy: { createdAt: "asc" },
                 select: { text: true, points: true },
               });
           embed.addFields({
             name: "Desire",
-            value:
-              desires.length > 0
-                ? fitField(desires.map((d) => `• ${d.text} (+${d.points})`).join("\n"))
-                : "Nothing you can read.",
+            value: desire ? fitField(`${desire.text} (+${desire.points})`) : "Nothing you can read.",
           });
         }
 

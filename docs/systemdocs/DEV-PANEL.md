@@ -360,7 +360,6 @@ them. `LAUNCH.md` covers Restart Game itself.
 | Knob | Does |
 |---|---|
 | `autoReconcileEnabled` | Run the channel doctor's cheap reconcile after every turn advance. It always runs on bot restart regardless |
-| `maxActiveDesires` | How many Desires a character may hold `ACTIVE` at once (default 3). Enforced in both `setDesire` and the Dev Panel's `setDesireGm`, never in the schema. Desires are the only Tag Point faucet in play, so this is the faucet's width — see `REQUESTS.md` §5 |
 
 **System Reports** shows the latest run of each operational pass — `WIPE`,
 `DOCTOR`, `DAWN_WIPE`, `BULK_MOVE` — with its summary and its failures. A

@@ -418,7 +418,7 @@ In the header:
 - **Spend Tag Points:** Opens the Tag Store to spend unused points.
 - **Equipment:** Tags that you can wear. Click up to 6 equippable tags (weapons, armor, etc.) to don them, click them again to unequip.
 
-**Desires:** Your character's current goals. You can hold up to three at once, and ending one puts you on a cooldown before you can set another. Set what your character wants and how many points it's worth. The ⓘ explains the point scale.  
+**Desires:** Your character's current goal. You can only hold one at a time, and ending it puts you on a cooldown before you can set another. Set what your character wants and how many points it's worth. The ⓘ explains the point scale.  
 **Fulfill** one when you have achieved it, or **Cancel** it.
 
 **Default Move:** What your character does on any turn you don't submit a custom Move. Can be optionally published in the public Summary.

@@ -21,10 +21,7 @@ export default function GoalsTab({ character, desires }) {
   const [text, setText] = useState("");
   const [points, setPoints] = useState(3);
 
-  // Several may run at once now (GameConfig.maxActiveDesires); devPanelData
-  // hands the list back newest-first, so reverse for the order the player's
-  // own sheet shows.
-  const actives = desires.filter((d) => d.status === "ACTIVE").slice().reverse();
+  const active = desires.find((d) => d.status === "ACTIVE") ?? null;
   const past = desires.filter((d) => d.status !== "ACTIVE");
 
   function run(fn) {
@@ -48,64 +45,60 @@ export default function GoalsTab({ character, desires }) {
   return (
     <>
       <section className="panel flex flex-col gap-3 p-4">
-        <h2 className="panel-header">Desires</h2>
+        <h2 className="panel-header">Desire</h2>
 
-        {actives.length > 0 ? (
-          <ul className="flex flex-col gap-3">
-            {actives.map((active) => (
-              <li key={active.id} className="flex flex-col gap-2">
-                <p className="text-sm">» {active.text}</p>
-                <p className="text-sm text-muted mono">
-                  worth {active.points} · set turn {active.setTurnNumber ?? "—"}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    className="btn"
-                    disabled={pending}
-                    onClick={() =>
-                      confirmThenRun(
-                        {
-                          title: "Fulfil this desire?",
-                          message: `${character.name} gains ${active.points} tag point${active.points === 1 ? "" : "s"}.`,
-                          confirmLabel: "Fulfil",
-                        },
-                        () => endDesireGm({ characterId: character.id, desireId: active.id, mode: "fulfill" }),
-                      )
-                    }
-                  >
-                    Fulfil (+{active.points})
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-quiet"
-                    disabled={pending}
-                    onClick={() =>
-                      confirmThenRun(
-                        {
-                          title: "Cancel this desire?",
-                          message: "It ends with no points awarded.",
-                          confirmLabel: "Cancel it",
-                          cancelLabel: "Keep it",
-                        },
-                        () => endDesireGm({ characterId: character.id, desireId: active.id, mode: "cancel" }),
-                      )
-                    }
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
+        {active ? (
+          <>
+            <p className="text-sm">» {active.text}</p>
+            <p className="text-sm text-muted mono">
+              worth {active.points} · set turn {active.setTurnNumber ?? "—"}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="btn"
+                disabled={pending}
+                onClick={() =>
+                  confirmThenRun(
+                    {
+                      title: "Fulfil this desire?",
+                      message: `${character.name} gains ${active.points} tag point${active.points === 1 ? "" : "s"}.`,
+                      confirmLabel: "Fulfil",
+                    },
+                    () => endDesireGm({ characterId: character.id, desireId: active.id, mode: "fulfill" }),
+                  )
+                }
+              >
+                Fulfil (+{active.points})
+              </button>
+              <button
+                type="button"
+                className="btn-quiet"
+                disabled={pending}
+                onClick={() =>
+                  confirmThenRun(
+                    {
+                      title: "Cancel this desire?",
+                      message: "It ends with no points awarded.",
+                      confirmLabel: "Cancel it",
+                      cancelLabel: "Keep it",
+                    },
+                    () => endDesireGm({ characterId: character.id, desireId: active.id, mode: "cancel" }),
+                  )
+                }
+              >
+                Cancel
+              </button>
+            </div>
+          </>
         ) : (
-          <p className="text-sm text-muted">No active desires.</p>
+          <p className="text-sm text-muted">No active desire.</p>
         )}
 
         <div className="flex flex-col gap-2 border-t pt-3" style={{ borderColor: "var(--border)" }}>
           <label className="field">
             <span className="field-label">
-              {actives.length > 0 ? "Set another desire" : "Set a desire"}
+              {active ? "Replace with a new desire (cancels the current one)" : "Set a desire"}
             </span>
             <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} />
           </label>

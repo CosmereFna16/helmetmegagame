@@ -200,7 +200,7 @@ export default async function CharacterPage() {
     factions,
     tagCatalog,
     tierRows,
-    activeDesires,
+    desire,
     lastEndedDesire,
     gameConfig,
     { action: currentAction },
@@ -264,11 +264,8 @@ export default async function CharacterPage() {
       // resolves back down its chain to the Medical (Basic) gate. Four columns
       // over a few hundred rows — cheaper than nesting three parentTag includes.
       prisma.tag.findMany({ select: { id: true, slug: true, parentTagId: true } }),
-      // Several may be ACTIVE at once (GameConfig.maxActiveDesires); oldest
-      // first, so the list doesn't reshuffle when one is set or ended.
-      prisma.desire.findMany({
+      prisma.desire.findFirst({
         where: { characterId: character.id, status: "ACTIVE" },
-        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         select: { id: true, text: true, points: true, setTurnNumber: true },
       }),
       prisma.desire.findFirst({
@@ -286,7 +283,6 @@ export default async function CharacterPage() {
           // Read here too, for the Spend Tag Points modal folded in from the
           // old /store page — see store below.
           maxNegativeTags: true,
-          maxActiveDesires: true,
           // The Move-cutoff row: no cron, no lock — same input the bot's gate
           // and the announcement read, or this one surface contradicts them.
           autoTurnAdvanceDisabled: true,
@@ -547,8 +543,7 @@ export default async function CharacterPage() {
       transferParties={transferParties}
       tagCatalog={tagCatalog}
       otherCharacters={otherCharacters}
-      desires={activeDesires}
-      maxActiveDesires={gameConfig?.maxActiveDesires ?? 3}
+      desire={desire}
       desireCooldownUntilTurn={lastEndedDesire?.endedTurnNumber ?? null}
       canHeal={canHeal}
       canFastTravel={canFastTravel}

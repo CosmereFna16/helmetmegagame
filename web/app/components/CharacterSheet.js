@@ -38,8 +38,7 @@ export default function CharacterSheet({
   transferParties,
   tagCatalog,
   otherCharacters,
-  desires,
-  maxActiveDesires,
+  desire,
   desireCooldownUntilTurn,
   canHeal = false,
   canFastTravel = false,
@@ -138,8 +137,7 @@ export default function CharacterSheet({
 
           {isSelf && (
             <GoalsPanel
-              desires={desires ?? []}
-              maxActiveDesires={maxActiveDesires ?? 3}
+              desire={desire ?? null}
               desireCooldownUntilTurn={desireCooldownUntilTurn ?? null}
               openTurnNumber={openTurn?.number ?? null}
             />

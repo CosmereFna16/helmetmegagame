@@ -69,9 +69,6 @@ import { propagateDynastyLastName } from "@/lib/dynasty";
 
 const DESIRE_MIN_POINTS = 1;
 const DESIRE_MAX_POINTS = 5;
-// Fallback for a missing GameConfig row only — the live cap is
-// GameConfig.maxActiveDesires, editable on /gm/dev.
-const DEFAULT_MAX_ACTIVE_DESIRES = 3;
 
 async function requireCharacter() {
   const session = await auth();
@@ -1410,31 +1407,22 @@ async function setDesireImpl({ text: rawText, points: rawPoints }) {
   if (points == null) throw new UserError(`Points must be between ${DESIRE_MIN_POINTS} and ${DESIRE_MAX_POINTS}.`);
 
   const openTurn = await getOpenTurn();
-  const [lastEnded, config] = await Promise.all([
-    prisma.desire.findFirst({
-      where: { characterId: character.id, status: { in: ["FULFILLED", "CANCELLED"] } },
-      orderBy: { updatedAt: "desc" },
-    }),
-    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { maxActiveDesires: true } }),
-  ]);
-  const maxActive = config?.maxActiveDesires ?? DEFAULT_MAX_ACTIVE_DESIRES;
-  // The cooldown is unchanged in spirit: ending ANY Desire makes the next new
-  // one wait a turn, however many are still running.
+  const lastEnded = await prisma.desire.findFirst({
+    where: { characterId: character.id, status: { in: ["FULFILLED", "CANCELLED"] } },
+    orderBy: { updatedAt: "desc" },
+  });
+  // Ending a Desire either way makes the next new one wait a turn.
   if (openTurn && lastEnded?.endedTurnNumber != null && openTurn.number <= lastEnded.endedTurnNumber) {
     throw new UserError("You're on cooldown — you can set a new Desire next turn.");
   }
 
-  // Count and create under a row lock on the character: the cap is the only
-  // rationing on the game's one Tag Point faucet, and two posts fired
-  // together would otherwise both count N-1 and both land.
+  // Check-then-create under a row lock on the character: only one ACTIVE
+  // Desire is allowed, and two posts fired together would otherwise both see
+  // "none active" and both land.
   await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
-    const activeCount = await tx.desire.count({ where: { characterId: character.id, status: "ACTIVE" } });
-    if (activeCount >= maxActive) {
-      throw new UserError(
-        `You already have ${activeCount} active Desire${activeCount === 1 ? "" : "s"} (the limit is ${maxActive}).`,
-      );
-    }
+    const active = await tx.desire.findFirst({ where: { characterId: character.id, status: "ACTIVE" } });
+    if (active) throw new UserError("You already have an active Desire.");
     await tx.desire.create({
       data: {
         characterId: character.id,
@@ -1457,23 +1445,11 @@ async function setDesireImpl({ text: rawText, points: rawPoints }) {
   return {};
 }
 
-// A character can hold several ACTIVE Desires now, so ending one names it.
-// Returns null rather than throwing for a row that is gone, belongs to
-// somebody else, or has already ended — the id came off the player's own
-// sheet, and a stale one means a second tab already acted.
-async function findOwnActiveDesire(characterId, desireId) {
-  const id = desireId?.toString().trim();
-  if (!id) return null;
-  const desire = await prisma.desire.findUnique({ where: { id } });
-  if (!desire || desire.characterId !== characterId || desire.status !== "ACTIVE") return null;
-  return desire;
-}
-
-async function cancelDesireImpl({ desireId } = {}) {
+async function cancelDesireImpl() {
   const { session, character } = await requireCharacter();
   const openTurn = await getOpenTurn();
 
-  const active = await findOwnActiveDesire(character.id, desireId);
+  const active = await prisma.desire.findFirst({ where: { characterId: character.id, status: "ACTIVE" } });
   if (!active) return {};
 
   await prisma.desire.update({
@@ -1493,13 +1469,13 @@ async function cancelDesireImpl({ desireId } = {}) {
   return {};
 }
 
-async function fulfillDesireRequestImpl({ desireId, reason: rawReason }) {
+async function fulfillDesireRequestImpl({ reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
   const openTurn = await getOpenTurn();
-  const active = await findOwnActiveDesire(character.id, desireId);
-  if (!active) throw new UserError("That Desire is no longer active.");
+  const active = await prisma.desire.findFirst({ where: { characterId: character.id, status: "ACTIVE" } });
+  if (!active) throw new UserError("You have no active Desire.");
 
   await prisma.$transaction(async (tx) => {
     await tx.desire.update({

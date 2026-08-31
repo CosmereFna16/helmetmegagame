@@ -32,27 +32,16 @@ const POINTS_HELP = (
   </>
 );
 
-// A character may hold several Desires at once, up to
-// GameConfig.maxActiveDesires — so this is a list with per-row Fulfill/Cancel
-// and one shared form underneath. The cooldown is unchanged: ending ANY Desire
-// makes the next NEW one wait a turn, while the ones still running stay
-// fulfillable.
-export default function DesirePanel({
-  desires = [],
-  maxActiveDesires = 3,
-  cooldownUntilTurn,
-  openTurnNumber,
-}) {
+export default function DesirePanel({ desire, cooldownUntilTurn, openTurnNumber }) {
   const confirm = useConfirm();
   const [text, setText] = useState("");
   const [points, setPoints] = useState("1");
-  const [fulfilling, setFulfilling] = useState(null);
+  const [fulfilling, setFulfilling] = useState(false);
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
 
-  const atCap = desires.length >= maxActiveDesires;
   const onCooldown =
-    cooldownUntilTurn != null && openTurnNumber != null && openTurnNumber <= cooldownUntilTurn;
+    !desire && cooldownUntilTurn != null && openTurnNumber != null && openTurnNumber <= cooldownUntilTurn;
 
   async function submitNew(e) {
     e.preventDefault();
@@ -72,7 +61,7 @@ export default function DesirePanel({
     });
   }
 
-  async function onCancel(desire) {
+  async function onCancel() {
     setError(null);
     const ok = await confirm({
       title: "Cancel this Desire?",
@@ -82,19 +71,17 @@ export default function DesirePanel({
     });
     if (!ok) return;
     startTransition(async () => {
-      const res = await cancelDesire({ desireId: desire.id });
+      const res = await cancelDesire();
       if (!res?.ok) setError(res?.error ?? "Something went wrong.");
     });
   }
 
   function submitFulfill(reason) {
-    const desire = fulfilling;
-    if (!desire) return;
     setError(null);
     startTransition(async () => {
-      const res = await fulfillDesireRequest({ desireId: desire.id, reason });
+      const res = await fulfillDesireRequest({ reason });
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
-      setFulfilling(null);
+      setFulfilling(false);
     });
   }
 
@@ -103,47 +90,26 @@ export default function DesirePanel({
     // this.
     <div className="flex flex-col gap-3">
       <h3 className="field-label panel-header--with-icon">
-        Desires
+        Desire
         <InfoIcon text={DESIRE_HELP} />
       </h3>
 
-      {desires.length > 0 && (
-        <ul className="flex flex-col gap-3">
-          {desires.map((desire) => (
-            <li key={desire.id} className="flex flex-col gap-2">
-              <p className="text-sm">{desire.text}</p>
-              <p className="text-sm text-muted">
-                Worth {desire.points} Tag Point{desire.points === 1 ? "" : "s"}
-                {desire.setTurnNumber != null ? ` — set on turn ${desire.setTurnNumber}` : ""}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => setFulfilling(desire)}
-                  disabled={pending}
-                >
-                  Fulfill
-                </button>
-                <button
-                  type="button"
-                  className="btn-quiet"
-                  onClick={() => onCancel(desire)}
-                  disabled={pending}
-                >
-                  Cancel
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {atCap ? (
-        <p className="text-sm text-muted">
-          You&apos;re holding all {maxActiveDesires} of your Desires — fulfill or cancel one to
-          set another.
-        </p>
+      {desire ? (
+        <div className="flex flex-col gap-3">
+          <p className="text-sm">{desire.text}</p>
+          <p className="text-sm text-muted">
+            Worth {desire.points} Tag Point{desire.points === 1 ? "" : "s"}
+            {desire.setTurnNumber != null ? ` — set on turn ${desire.setTurnNumber}` : ""}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="btn" onClick={() => setFulfilling(true)} disabled={pending}>
+              Fulfill
+            </button>
+            <button type="button" className="btn-quiet" onClick={onCancel} disabled={pending}>
+              Cancel
+            </button>
+          </div>
+        </div>
       ) : onCooldown ? (
         <p className="text-sm text-muted">
           You just ended a Desire — you can set a new one next turn.
@@ -175,9 +141,7 @@ export default function DesirePanel({
             />
           </label>
           <button type="submit" className="btn self-start" disabled={pending || !text.trim()}>
-            {desires.length > 0
-              ? `Set another (${desires.length}/${maxActiveDesires})`
-              : "Set Desire"}
+            Set Desire
           </button>
         </form>
       )}
@@ -185,16 +149,15 @@ export default function DesirePanel({
       <FormError>{error}</FormError>
 
       <RequestDialog
-        open={Boolean(fulfilling)}
+        open={fulfilling}
         title="Fulfill Desire"
         submitLabel="Fulfill"
         busy={pending}
-        onCancel={() => !pending && setFulfilling(null)}
+        onCancel={() => !pending && setFulfilling(false)}
         onConfirm={submitFulfill}
       >
         <p className="text-sm">
-          {fulfilling?.text} — {fulfilling?.points} Tag Point
-          {fulfilling?.points === 1 ? "" : "s"}
+          {desire?.text} — {desire?.points} Tag Point{desire?.points === 1 ? "" : "s"}
         </p>
         <p className="text-xs text-muted">
           You get the points immediately, but tell the GMs how you pulled it off.

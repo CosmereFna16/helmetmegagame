@@ -228,16 +228,6 @@ export default async function DevPanelPage() {
               defaultValue={config.maxNegativeTags}
             />
           </label>
-          <label className="field">
-            <span className="field-label">Active Desires per character</span>
-            <input
-              type="number"
-              name="maxActiveDesires"
-              min="1"
-              max="10"
-              defaultValue={config.maxActiveDesires}
-            />
-          </label>
           <Switch name="openToPlayers" defaultChecked={config.openToPlayers} className="col-span-full">
             Open to players
           </Switch>
