@@ -1503,7 +1503,9 @@ tags:
   # Two rungs on the same trade, priced apart rather than chained: a
   # Windlander grows up around horses, so their training costs what the
   # trade has always cost (5 pts); anyone else has to pay to pick it up from
-  # scratch, at 1.75x that (5 * 1.75 = 8.75, rounded to the nearest point).
+  # scratch. The outsider price opened at 1.75x (5 * 1.75 = 8.75 -> 9) and
+  # was repriced down ~15% to the scale's 7 band in 2026-08; the Windlander
+  # rung was deliberately left at 5 rather than discounted below it.
   # Deliberately NOT a parentTag chain — a Windlander doesn't "upgrade" out
   # of the open version, they were just never charged the outsider's price
   # for it, so both can exist as flatly separate purchases.
@@ -1511,25 +1513,25 @@ tags:
     name: Wild Horse Trainer
     category: skills
     group: skills-labor
-    description: "You grew up around horses, wild ones included—the trick every outsider stableman never learned. For 25 ⬢ and 1 turn, you can produce a Horse tag and give it to anyone else."
+    description: "You grew up around horses, wild ones included—the trick every outsider stableman never learned. For 21 ⬢ and 1 turn, you can produce a Horse tag and give it to anyone else."
     pointCost: 5
     requiredTag: windlander
     purchasable: true
     purchasableAfterStart: true
     requirement:
-      resourceCost: 25
+      resourceCost: 21
       turnsCost: 1
 
   - slug: horse-trainer
     name: Horse Trainer
     category: skills
     group: skills-labor
-    description: "You can break and raise horses for others. For 25 ⬢ and 1 turn, you can produce a Horse tag and give it to anyone else."
-    pointCost: 9
+    description: "You can break and raise horses for others. For 21 ⬢ and 1 turn, you can produce a Horse tag and give it to anyone else."
+    pointCost: 7
     purchasable: true
     purchasableAfterStart: true
     requirement:
-      resourceCost: 25
+      resourceCost: 21
       turnsCost: 1
 
   - slug: intercom
