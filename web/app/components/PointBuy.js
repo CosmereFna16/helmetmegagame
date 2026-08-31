@@ -70,9 +70,9 @@ function BuildTagName({ tag }) {
           </span>
         )}
       </div>
-      {/* ChipText rather than RichText, same as TagRow and TagChip: a chip
-          nested inside a tooltip could never be hovered to reach its own. */}
-      {tag.description && <ChipText text={tag.description} as="p" />}
+      {/* inTooltip, same as TagChip's description: this is a HoverCard panel,
+          so a nested {tag:…} becomes a real chip, reachable once pinned. */}
+      {tag.description && <ChipText text={tag.description} as="p" inTooltip />}
       {formatTagRequirement(tag) && (
         <p className="text-muted">{formatTagRequirement(tag)}</p>
       )}

@@ -73,10 +73,11 @@ export default function TagChip({
           </span>
         )}
       </div>
-      {/* ChipText, not RichText: a {tag:…} in here resolves to a plain label,
-          since a chip nested inside a tooltip could never be hovered to reach
-          its own tooltip. */}
-      {tag.description && <ChipText text={tag.description} as="p" />}
+      {/* inTooltip: this text renders inside this HoverCard's panel, so a
+          {tag:…} in it can be a real, hoverable TagChip — pinning the panel
+          makes it reachable. Nesting stops there: the nested chip renders its
+          own description without the flag (see ChipText.js). */}
+      {tag.description && <ChipText text={tag.description} as="p" inTooltip />}
       {consumeHint && <p className="text-accent">{consumeHint}</p>}
       {typeof onConsume === "function" && (
         <button type="button" className="btn-quiet" onClick={onConsume}>
