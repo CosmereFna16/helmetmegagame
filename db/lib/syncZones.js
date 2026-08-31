@@ -604,7 +604,8 @@ async function sortZoneCategories(prisma) {
 }
 
 // Channels within each category: summary, public, private for a surface
-// zone; cave-level forums in level order under the group's category. One
+// zone; each cave level's forum + private pair, interleaved in level order
+// under the group's category. One
 // bulk position PATCH; `parent_id` must NOT ride along in it (Discord 400
 // code 40009 — reparenting is one channel at a time), so drifted channels
 // are repaired separately first.
@@ -618,12 +619,18 @@ async function sortZoneChannels(prisma) {
         .forEach((id, position) => {
           if (id) intended.push({ id, position, parentId: zone.discordCategoryId });
         });
-    } else if (zone.kind === "CAVE_LEVEL" && zone.discordPublicChannelId) {
+    } else if (zone.kind === "CAVE_LEVEL") {
+      // Interleaved under the shared Caves category: caverns,
+      // caverns-private, railroad, railroad-private, …
       const parent = zones.find((z) => z.id === zone.parentZoneId);
-      intended.push({
-        id: zone.discordPublicChannelId,
-        position: zone.sortOrder,
-        parentId: parent?.discordCategoryId ?? null,
+      [zone.discordPublicChannelId, zone.discordPrivateChannelId].forEach((id, offset) => {
+        if (id) {
+          intended.push({
+            id,
+            position: zone.sortOrder * 2 + offset,
+            parentId: parent?.discordCategoryId ?? null,
+          });
+        }
       });
     }
   }

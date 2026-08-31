@@ -10,8 +10,12 @@
 //   #private  text — no top-level messages, no player-created threads; the
 //             bot spawns private threads from the Create button
 // CAVE_GROUP: the category only ("Caves").
-// CAVE_LEVEL: one forum named after the level, parented to the group's
-//   category, with the same forum rules as a surface #public.
+// CAVE_LEVEL: a forum named after the level plus a "{level}-private" text
+//   channel, both parented to the group's category, with the same rules as a
+//   surface #public / #private. The private channel carries the level's slug
+//   in its name because all three levels share one category — three channels
+//   all named "private" would be indistinguishable in the sidebar. No
+//   #summary.
 //
 // ACCESS: the zone's own "Zone: {Name}" role carries the allow; @everyone
 // carries the deny. Every target states its own privacy in full — nothing is
@@ -144,12 +148,41 @@ function forumSpec(name, zoneRoleId, base, gmRoleId, guildId) {
   };
 }
 
+// The text-channel payload for private scenes — identical for a surface
+// #private and a cave level's "{level}-private"; only the name differs.
+function privateSpec(name, zoneRoleId, base, gmRoleId, guildId) {
+  return {
+    name,
+    type: CHANNEL_TYPE_TEXT,
+    topic: PRIVATE_TOPIC,
+    permission_overwrites: [
+      ...roleAllow(gmRoleId, GM_PRIVATE_PERMS),
+      ...roleAllow(
+        zoneRoleId,
+        PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES_IN_THREADS | PERM_ADD_REACTIONS,
+      ),
+      // No top-level messages, and — the rework's point — no player-created
+      // threads of either kind. The bot spawns every private thread.
+      {
+        id: guildId,
+        type: 0,
+        deny: (
+          PERM_SEND_MESSAGES |
+          PERM_CREATE_PUBLIC_THREADS |
+          PERM_CREATE_PRIVATE_THREADS
+        ).toString(),
+      },
+    ].reduce(mergeOverwrite, base),
+  };
+}
+
 // The intended layout for one zone, as create payloads minus parent_id
 // (which only exists once the category has been made). Which keys are
 // present depends on zone.kind:
 //   SURFACE     { category, summary, public, private }
 //   CAVE_GROUP  { category }
-//   CAVE_LEVEL  { public }   (parented to the group's category by the sync)
+//   CAVE_LEVEL  { public, private }   (parented to the group's category by
+//                                      the sync)
 function zoneChannelSpec(zone) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
@@ -163,7 +196,10 @@ function zoneChannelSpec(zone) {
   }
 
   if (zone.kind === "CAVE_LEVEL") {
-    return { public: forumSpec(zone.slug, zoneRoleId, base, gmRoleId, guildId) };
+    return {
+      public: forumSpec(zone.slug, zoneRoleId, base, gmRoleId, guildId),
+      private: privateSpec(`${zone.slug}-private`, zoneRoleId, base, gmRoleId, guildId),
+    };
   }
 
   return {
@@ -182,29 +218,7 @@ function zoneChannelSpec(zone) {
       ].reduce(mergeOverwrite, base),
     },
     public: forumSpec("public", zoneRoleId, base, gmRoleId, guildId),
-    private: {
-      name: "private",
-      type: CHANNEL_TYPE_TEXT,
-      topic: PRIVATE_TOPIC,
-      permission_overwrites: [
-        ...roleAllow(gmRoleId, GM_PRIVATE_PERMS),
-        ...roleAllow(
-          zoneRoleId,
-          PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES_IN_THREADS | PERM_ADD_REACTIONS,
-        ),
-        // No top-level messages, and — the rework's point — no player-created
-        // threads of either kind. The bot spawns every private thread.
-        {
-          id: guildId,
-          type: 0,
-          deny: (
-            PERM_SEND_MESSAGES |
-            PERM_CREATE_PUBLIC_THREADS |
-            PERM_CREATE_PRIVATE_THREADS
-          ).toString(),
-        },
-      ].reduce(mergeOverwrite, base),
-    },
+    private: privateSpec("private", zoneRoleId, base, gmRoleId, guildId),
   };
 }
 

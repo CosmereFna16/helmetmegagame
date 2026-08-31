@@ -21,7 +21,7 @@ marker, and channel names are otherwise meaningless to this system.
 | A surface zone's `#summary` | yes | yes — adjudication results and Default Move summaries post here |
 | A surface zone's `#public` (forum) | yes | no |
 | A cave level's forum | yes | no |
-| A surface zone's `#private` | yes | no |
+| A `#private` (surface zone or cave level) | yes | no |
 | `#watch`, `#intercom` | yes | no — neither is tied to a place, so there is no adjudication result to post there |
 
 Two independent implementations check this: `bot/src/lib/channels.js`
@@ -52,10 +52,14 @@ build from it, so the two can never disagree.
 | `#private` | text | Private scenes, as threads. | No top-level messages and **no player-created threads of either kind**. One permanent anchor message carries a Create button (§4). |
 
 **Caves** — the `CAVE_GROUP` row owns the shared category and nothing else.
-Each `CAVE_LEVEL` (Caverns, Railroad, Aberrant Pits) is **one forum**, named
-after the level, parented to that category, with exactly the same forum rules
-as a surface `#public` — including its own Create-a-Topic anchor. Cave levels
-have no `#summary` and no `#private`.
+Each `CAVE_LEVEL` (Caverns, Railroad, Aberrant Pits) gets **two channels**,
+both parented to that category: a forum named after the level, with exactly
+the same forum rules as a surface `#public` — including its own Create-a-Topic
+anchor — and a `#{level}-private` text channel with the same rules and Create
+anchor as a surface `#private`. The private channel carries the level's slug
+in its name because all three levels share one category; the pairs are
+interleaved in level order (caverns, caverns-private, railroad, …). Cave
+levels have no `#summary`.
 
 **Creation is one-time; a lot is reconciled every run.** The sync only creates
 channels whose id column is null, and channel *names* are never touched again —
@@ -285,7 +289,7 @@ pass recreates it in the new forum.
 | Anchor | Where | What it is |
 |---|---|---|
 | **Create a Topic** | one pinned, **unlocked**, Location-tagged forum post at the top of every public forum (surface and cave level) | Its single message carries the zone's blurb plus instructions; the `topic:new:{zoneId}` and `zone:who:{zoneId}` buttons ride on it |
-| **Create** | one permanent message in every surface `#private` | Carries the `priv:new:{zoneId}` button |
+| **Create** | one permanent message in every `#private` (surface and cave level) | Carries the `priv:new:{zoneId}` button |
 
 The Create-a-Topic anchor is **unlocked on purpose**. Discord greys a message's
 buttons out for anyone who cannot send in the thread, so while it was locked
