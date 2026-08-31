@@ -404,23 +404,24 @@ async function spendTurnImpl({ characterId, description }) {
   return { actionId: created.id };
 }
 
-// Immediate, not staged — see web/lib/gmTransfer.js's own comment for why. A
-// GM can pay this character out of a faction Silo ("pay") or pull ⬢ from
-// them into one ("collect"), without the player-side reach gate (a GM isn't
+// Immediate, not staged — see web/lib/gmTransfer.js's own comment for why.
+// Generic party-to-party: fromKey/toKey are each "character:<id>" or
+// "faction:<id>", same shape TransferComposer stages on the adjudication
+// desk. This panel just preselects one end (usually this character), it
+// doesn't restrict which pairings are legal — gmTransferResources/
+// resolveParty already reject a malformed or unknown key, so there's nothing
+// to re-validate here. Without the player-side reach gate (a GM isn't
 // standing anywhere) but with the same balance check every transfer gets.
-async function transferResourcesImpl({ characterId, factionId, direction, amount, reason }) {
-  const character = await loadCharacter(characterId);
-  const characterKey = `character:${characterId}`;
-  const factionKey = `faction:${factionId}`;
-  const result = await gmTransferResources({
-    fromKey: direction === "collect" ? characterKey : factionKey,
-    toKey: direction === "collect" ? factionKey : characterKey,
-    amount,
-    reason,
-  });
-  repaint(characterId);
-  revalidatePath("/faction");
-  return { name: character.name, ...result };
+async function transferResourcesImpl({ fromKey, toKey, amount, reason }) {
+  const result = await gmTransferResources({ fromKey, toKey, amount, reason });
+  for (const key of [fromKey, toKey]) {
+    const [kind, id] = (key ?? "").split(":");
+    if (kind === "character" && id) repaint(id);
+  }
+  if (fromKey?.startsWith("faction:") || toKey?.startsWith("faction:")) {
+    revalidatePath("/faction");
+  }
+  return result;
 }
 
 // One recipient, so sendDm directly. sendGmBroadcast in gm/messages/actions.js

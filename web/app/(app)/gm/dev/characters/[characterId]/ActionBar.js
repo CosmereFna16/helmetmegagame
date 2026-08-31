@@ -2,7 +2,7 @@
 
 import FormError from "@/app/components/FormError";
 import Modal from "@/app/components/Modal";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRefresh } from "@/app/components/useRefresh";
@@ -61,6 +61,7 @@ export default function ActionBar({
   openTurn,
   zones,
   factions,
+  transferRoster,
   tags,
   held,
   feed,
@@ -85,12 +86,61 @@ export default function ActionBar({
   const [staged, setStaged] = useState(null);
   const [dialog, setDialog] = useState(null); // "kill" | "restore" | "spend" | "message" | "delete" | "wound" | "transfer"
   const [draft, setDraft] = useState("");
-  const [transferFactionId, setTransferFactionId] = useState("");
-  const [transferDirection, setTransferDirection] = useState("pay");
+  const [transferFromKey, setTransferFromKey] = useState("");
+  const [transferToKey, setTransferToKey] = useState("");
   const [transferAmount, setTransferAmount] = useState("");
 
   const alive = character.status === "ALIVE";
   const heldIds = new Set(held.map((h) => h.tagId));
+
+  // The Transfer dialog's party picker: this character plus every other
+  // ALIVE character, and every faction's Silo (Unaffiliated excluded — it
+  // isn't a real counterparty, same as resolveParty's own filter). Any
+  // party can be either end now — this panel just preselects the "To" side
+  // as this character.
+  const transferParties = useMemo(
+    () => ({
+      characters: (transferRoster ?? []).map((c) => ({ key: `character:${c.id}`, label: c.name })),
+      silos: (factions ?? [])
+        .filter((f) => f.name !== "Unaffiliated")
+        .map((f) => ({ key: `faction:${f.id}`, label: `${f.name} Silo · ${f.silo} ⬢` })),
+    }),
+    [transferRoster, factions],
+  );
+
+  function transferPartyOptions() {
+    return (
+      <>
+        <option value="">— Select… —</option>
+        <optgroup label="Characters">
+          {transferParties.characters.map((p) => (
+            <option key={p.key} value={p.key}>
+              {p.label}
+            </option>
+          ))}
+        </optgroup>
+        <optgroup label="Silos">
+          {transferParties.silos.map((p) => (
+            <option key={p.key} value={p.key}>
+              {p.label}
+            </option>
+          ))}
+        </optgroup>
+      </>
+    );
+  }
+
+  function openTransferDialog() {
+    setTransferFromKey("");
+    setTransferToKey(`character:${character.id}`);
+    setTransferAmount("");
+    setDialog("transfer");
+  }
+
+  function swapTransferEnds() {
+    setTransferFromKey(transferToKey);
+    setTransferToKey(transferFromKey);
+  }
 
   function run(fn) {
     setError(null);
@@ -226,9 +276,9 @@ export default function ActionBar({
           />
           <IconButton
             icon={ResourcesIcon}
-            label="Transfer ⬢ with a faction Silo"
-            disabled={pending || !factions?.length}
-            onClick={() => setDialog("transfer")}
+            label="Transfer ⬢"
+            disabled={pending || (!transferRoster?.length && !factions?.length)}
+            onClick={openTransferDialog}
           />
         </div>
 
@@ -413,22 +463,29 @@ export default function ActionBar({
         </Modal>
       )}
 
-      {/* Immediate, not staged — the counterparty here is a faction Silo, not
-          this character's own pending diff, so half of it Cancel-ing with
-          the sheet edit would be incoherent. See web/lib/gmTransfer.js. */}
+      {/* Immediate, not staged — the counterparty usually isn't this
+          character's own pending diff, so half of it Cancel-ing with the
+          sheet edit would be incoherent. See web/lib/gmTransfer.js. Any
+          party can sit on either end (character or Silo); this panel just
+          preselects "To" as this character. */}
       <RequestDialog
         open={dialog === "transfer"}
         title={`Transfer ⬢ for ${character.name}`}
         submitLabel="Transfer"
         busy={pending}
-        canSubmit={Boolean(transferFactionId) && Number(transferAmount) > 0}
+        canSubmit={
+          Boolean(transferFromKey) &&
+          Boolean(transferToKey) &&
+          transferFromKey !== transferToKey &&
+          Number.isInteger(Number(transferAmount)) &&
+          Number(transferAmount) > 0
+        }
         onCancel={() => setDialog(null)}
         onConfirm={(reason) =>
           run(() =>
             transferResources({
-              characterId: character.id,
-              factionId: transferFactionId,
-              direction: transferDirection,
+              fromKey: transferFromKey,
+              toKey: transferToKey,
               amount: transferAmount,
               reason,
             }),
@@ -436,23 +493,23 @@ export default function ActionBar({
         }
       >
         <label className="field">
-          <span className="field-label">Direction</span>
-          <Select value={transferDirection} onChange={(e) => setTransferDirection(e.target.value)}>
-            <option value="pay">Silo pays {character.name}</option>
-            <option value="collect">{character.name} pays the Silo</option>
+          <span className="field-label">From</span>
+          <Select value={transferFromKey} onChange={(e) => setTransferFromKey(e.target.value)}>
+            {transferPartyOptions()}
           </Select>
         </label>
+        <button
+          type="button"
+          className="btn-quiet"
+          aria-label="Swap From and To"
+          onClick={swapTransferEnds}
+        >
+          ⇄
+        </button>
         <label className="field">
-          <span className="field-label">Silo</span>
-          <Select value={transferFactionId} onChange={(e) => setTransferFactionId(e.target.value)}>
-            <option value="">— pick a faction —</option>
-            {(factions ?? [])
-              .filter((f) => f.name !== "Unaffiliated")
-              .map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name} · {f.silo} ⬢
-                </option>
-              ))}
+          <span className="field-label">To</span>
+          <Select value={transferToKey} onChange={(e) => setTransferToKey(e.target.value)}>
+            {transferPartyOptions()}
           </Select>
         </label>
         <label className="field" style={{ width: "10rem" }}>

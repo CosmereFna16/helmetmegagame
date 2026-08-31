@@ -46,6 +46,7 @@ export default function DevPanel({
   lastNameLocked,
   canDelete,
   factions,
+  transferRoster,
   zones,
   roles,
   tags,
@@ -223,6 +224,7 @@ export default function DevPanel({
         openTurn={openTurn}
         zones={zones}
         factions={factions}
+        transferRoster={transferRoster}
         tags={tags}
         held={held}
         feed={feed}

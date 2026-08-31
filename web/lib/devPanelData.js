@@ -37,6 +37,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     defaultEffort,
     member,
     pendingStaged,
+    transferRoster,
   ] = await Promise.all([
     // silo rides along for the ActionBar's Transfer dialog — showing the
     // Silo's current balance beside its name in the party picker.
@@ -120,6 +121,14 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       where: { targetCharacterId: characterId, appliedAt: null },
       select: { payload: true },
     }),
+    // The "Characters" side of the Transfer dialog's party picker — every
+    // other ALIVE character, so a GM can move ⬢ between any two parties, not
+    // just this one and a Silo. Same ALIVE filter resolveParty applies.
+    prisma.character.findMany({
+      where: { status: "ALIVE" },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
   ]);
 
   // A staged transfer this character is the "to" end of is a pending credit;
@@ -184,6 +193,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     lastNameLocked: isDynastyMember(character.role?.slug),
     canDelete: isSuperadmin(actingDiscordUserId),
     factions,
+    transferRoster,
     zones,
     roles: roles.map((r) => ({ id: r.id, name: r.name, factionName: r.faction?.name ?? null })),
     tags: allTags.map((t) => ({
