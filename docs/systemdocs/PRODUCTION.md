@@ -35,12 +35,19 @@ held — so a hand-granted Farming with no Skilled behind it doesn't overpay.
 
 ## 2. The gate
 
-`db/lib/laborAccess.js`, same pure-rules/async-context split. One rule:
-**nothing can be produced in the depths** — the seat-zone test
-(`seatZoneSlug === "caves"`) folds all three cave levels into one equality.
-Everywhere else works, including an unknown zone (the old "can't herd from
-nowhere" rule died with herding; a null zone simply isn't Town, so Farming
-falls back to Skilled on its own).
+`db/lib/laborAccess.js`, same pure-rules/async-context split. Two rules:
+
+- **Nothing can be produced in the depths** — the seat-zone test
+  (`seatZoneSlug === "caves"`) folds all three cave levels into one equality.
+  Everywhere else works, including an unknown zone (the old "can't herd from
+  nowhere" rule died with herding; a null zone simply isn't Town, so Farming
+  falls back to Skilled on its own).
+- **One Labor per day** — the payout grants the `exhausted` tag
+  (`durationTurns: 1`, the `exhausted` entry in `db/lib/moveEffects.js`'s
+  `MOVE_EFFECTS`), and the gate refuses anyone holding it. Both payout paths
+  run while the labored turn closes, so the tag blocks exactly the next turn
+  (one turn is half a day) and the expiry sweep clears it at that turn's
+  close. A GM Unsolve reverts the exhaustion along with the ⬢.
 
 A refusal always returns **before** `action.create`, so laboring from the
 wrong place never costs the player their turn.
@@ -59,6 +66,8 @@ Rules enforced at submit, each refusing before the Action row exists:
 - Labor + Gambit refuses — laboring is Routine work, and stacking guaranteed
   income on a die roll would make the risk free.
 - Labor in the depths refuses (§2).
+- Labor while Exhausted refuses (§2) — the tag from yesterday's labor is
+  still on the sheet.
 - Labor + Opposed is legal; Opposed is orthogonal.
 
 On success the resolved range goes into `Action.resourceRollExpression`;

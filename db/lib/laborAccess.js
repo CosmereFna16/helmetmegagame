@@ -13,7 +13,12 @@
 // bot/src/events/interactionCreate.js#handleMoveSubmit) and
 // db/lib/defaultMovePass.js (a Default Move with `labor: true`).
 const { computeRate, rollRate } = require("./production");
-const { LABORER_BASIC_SLUG, LABORER_SKILLED_SLUG, LABORER_FARMING_SLUG } = require("./constants");
+const {
+  EXHAUSTED_SLUG,
+  LABORER_BASIC_SLUG,
+  LABORER_SKILLED_SLUG,
+  LABORER_FARMING_SLUG,
+} = require("./constants");
 
 // Butcher adds a flat +2 to both ends of a Labor roll on every tier but
 // Farming. Local rather than in constants.js because this file is the only
@@ -42,11 +47,16 @@ async function buildLaborContext(prisma, characterId) {
   };
 }
 
-// { ok: true } or { ok: false, reason }. One rule: nothing can be produced in
-// the depths. A null/unknown zone is allowed — the old "can't herd from
-// nowhere" carve-out dies with herding, since there's no longer a field whose
-// absence of a zone was ambiguous.
+// { ok: true } or { ok: false, reason }. Two rules: nothing can be produced in
+// the depths, and one Labor per day — the payout itself grants Exhausted
+// (db/lib/moveEffects.js), which this gate reads back until the expiry sweep
+// clears it a turn later. A null/unknown zone is allowed — the old "can't herd
+// from nowhere" carve-out dies with herding, since there's no longer a field
+// whose absence of a zone was ambiguous.
 function computeLaborAccess(ctx) {
+  if (ctx.tagSlugs.has(EXHAUSTED_SLUG)) {
+    return { ok: false, reason: "You are still Exhausted from your last labor." };
+  }
   if (ctx.seatZoneSlug === "caves") {
     return { ok: false, reason: "Nothing can be produced in the depths." };
   }

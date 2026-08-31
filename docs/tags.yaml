@@ -2307,6 +2307,19 @@ tags:
     purchasable: false
     durationTurns: 4
 
+  # Granted automatically by a Labor payout (db/lib/moveEffects.js), and read
+  # back by the Labor gate (db/lib/laborAccess.js) — one Labor per day, i.e.
+  # every other turn. durationTurns: 1 is what makes the clock work: granted
+  # while turn T closes, it blocks turn T+1 and is swept when T+1 closes.
+  - slug: exhausted
+    name: Exhausted
+    category: status
+    group: status-debuffs
+    description: "You are tired. You can't Labor again."
+    pointCost: 0
+    purchasable: false
+    durationTurns: 1
+
   # Two effects the Merchant's imported goods produce (docs/systemdocs/DEPOT.md
   # §3). Neither is bought or brewed: Caffeinated is what a cup of Coffee
   # consumes into, and Asleep is what a Soporific does to whoever drinks it —

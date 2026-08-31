@@ -6,6 +6,7 @@ const COURTIER_SLUG = "courtier";
 const ATE_MEAL_SLUG = "ate-meal";
 const MORTUS_SLUG = "mortus";
 const DRAINED_SLUG = "drained";
+const EXHAUSTED_SLUG = "exhausted";
 const LABORER_BASIC_SLUG = "laborer-basic";
 const LABORER_SKILLED_SLUG = "laborer-skilled";
 const LABORER_FARMING_SLUG = "laborer-farming";
@@ -41,6 +42,7 @@ module.exports = {
   ATE_MEAL_SLUG,
   MORTUS_SLUG,
   DRAINED_SLUG,
+  EXHAUSTED_SLUG,
   LABORER_BASIC_SLUG,
   LABORER_SKILLED_SLUG,
   LABORER_FARMING_SLUG,

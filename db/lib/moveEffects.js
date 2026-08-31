@@ -48,6 +48,8 @@ async function addResources(tx, characterId, amount) {
   return after - before;
 }
 
+const { EXHAUSTED_SLUG } = require("./constants");
+
 // One entry per pushable thing. `read` decides what this Move would push right
 // now; `apply` pushes it and returns WHAT ACTUALLY MOVED; `revert` takes back
 // exactly what was snapshotted.
@@ -56,6 +58,50 @@ const MOVE_EFFECTS = {
     read: (action) => action.resourceDelta ?? 0,
     apply: (tx, action, value) => addResources(tx, action.characterId, value),
     revert: (tx, action, value) => addResources(tx, action.characterId, -value),
+  },
+
+  // One Labor per day. A non-null resourceRollExpression means the Labor gate
+  // passed and the character labored — even a roll of 0 ⬢ spent the day — so
+  // the payout grants Exhausted, and db/lib/laborAccess.js#computeLaborAccess
+  // refuses the next one until the expiry sweep clears it. Both payout paths
+  // (db/lib/stagedPush.js §2, db/lib/defaultMovePass.js) run while the
+  // action's own turn closes, so `turn.number + durationTurns` blocks exactly
+  // the following turn — the same clock arithmetic as the Hunger grant in
+  // db/lib/hungerPass.js. An Unsolve reverts the exhaustion along with the
+  // payout; if the tag already expired by then, the delete is a no-op.
+  exhausted: {
+    read: (action) => (action.resourceRollExpression ? 1 : 0),
+    apply: async (tx, action) => {
+      const [tag, turn] = await Promise.all([
+        tx.tag.findUnique({
+          where: { slug: EXHAUSTED_SLUG },
+          select: { id: true, defaultDurationTurns: true },
+        }),
+        tx.turn.findUnique({ where: { id: action.turnId }, select: { number: true } }),
+      ]);
+      if (!tag || !turn) {
+        if (!tag) console.error(`Labor payout: no "${EXHAUSTED_SLUG}" tag — run npm run db:sync-tags. Labor won't be limited.`);
+        return 0;
+      }
+      // skipDuplicates: an existing Exhausted keeps its own clock, the same
+      // "already holds it" rule as db/lib/tagExpiryPass.js.
+      await tx.characterTag.createMany({
+        data: [{
+          characterId: action.characterId,
+          tagId: tag.id,
+          source: "EVENT",
+          expiresTurn: turn.number + (tag.defaultDurationTurns ?? 1),
+        }],
+        skipDuplicates: true,
+      });
+      return 1;
+    },
+    revert: async (tx, action) => {
+      const tag = await tx.tag.findUnique({ where: { slug: EXHAUSTED_SLUG }, select: { id: true } });
+      if (tag) {
+        await tx.characterTag.deleteMany({ where: { characterId: action.characterId, tagId: tag.id } });
+      }
+    },
   },
 };
 
@@ -96,6 +142,7 @@ function describeMoveEffects(applied) {
   for (const [key, value] of Object.entries(applied ?? {})) {
     if (!value) continue;
     if (key === "resources") parts.push(`${value > 0 ? "+" : ""}${value} ⬢`);
+    else if (key === "exhausted") parts.push("Exhausted");
     else parts.push(`${key}: ${value}`);
   }
   return parts.join(", ");

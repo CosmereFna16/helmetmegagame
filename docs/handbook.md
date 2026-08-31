@@ -307,6 +307,8 @@ The choice between Routine or Gambit is left to you because you know what your c
 
 Anyone can produce ⬢ with Labor unless they're located in the Caves. Describe the Move however fits best for your character: hunting, fishing, foraging, herding, or similar work. The yield you receive depends on your tags.
 
+Laboring is hard work: it leaves you with the {tag:exhausted} tag, and you can't Labor again until it wears off the following turn — one Labor per day.
+
 | Tag | ⬢ Yield | Where |
 |---|---|---|
 | None | {resource:labor:base} | Anywhere but the Caves |
