@@ -139,13 +139,16 @@ function parseSelection(segments) {
 export default async function TurnsWorkspacePage({ params }) {
   const { selection } = await params;
   const parsedSelection = parseSelection(selection);
-  const openTurn = await getOpenTurn();
-
-  // The move cutoff, resolved server-side: turnClock is a db/lib module and
-  // Workspace is a client component, so the derivation stays here and only
-  // the two numbers cross the boundary. The header ticks against cutoffAtMs
-  // itself.
-  const gameConfig = await prisma.gameConfig.findFirst({ select: { autoTurnAdvanceDisabled: true } });
+  // The move cutoff needs both of these, and neither needs the other, so they
+  // go out together rather than one after the other. (turnClock is a db/lib
+  // module and Workspace is a client component, so the derivation stays
+  // server-side here and only the two numbers cross the boundary. The header
+  // ticks against cutoffAtMs itself.) The big batch below still waits on
+  // openTurn — it filters by turn id.
+  const [openTurn, gameConfig] = await Promise.all([
+    getOpenTurn(),
+    prisma.gameConfig.findFirst({ select: { autoTurnAdvanceDisabled: true } }),
+  ]);
   const window_ = openTurn
     ? moveWindow(openTurn, { autoTurnAdvanceDisabled: Boolean(gameConfig?.autoTurnAdvanceDisabled) })
     : null;

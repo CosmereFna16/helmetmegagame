@@ -2,7 +2,7 @@ import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getMyZones } from "@/lib/gmZone";
 import { getOpenTurn } from "@/lib/turn";
-import { withoutDmNoise, dmNoiseSql, genuineConversationSql } from "@/lib/dmThread";
+import { dmNoiseSql, genuineConversationSql } from "@/lib/dmThread";
 import PlayerRail from "./PlayerRail";
 import DeskHeader from "@/app/components/DeskHeader";
 import InboxPoller from "./InboxPoller";
@@ -28,19 +28,8 @@ import BulkMessageButton from "./BulkMessageButton";
 export default async function PlayerDeskLayout({ children }) {
   const { session } = await getGmSession();
 
-  const [grouped, guildMembers, myZones, openTurn, characters, characterTags, allTags, stagedEffects] =
+  const [guildMembers, myZones, openTurn, characters, characterTags, allTags, stagedEffects] =
     await Promise.all([
-    prisma.directMessage.groupBy({
-      by: ["discordUserId"],
-      // Same noise rule as the preview below, the unread count, the pane and
-      // the rail badge — all of them now go through withoutDmNoise/dmNoiseSql.
-      // A count that includes plumbing disagrees with every other number on
-      // screen, which is how the badge and the desk drifted apart before.
-      where: withoutDmNoise({}),
-      _count: { _all: true },
-      _max: { createdAt: true },
-      orderBy: { _max: { createdAt: "desc" } },
-    }),
     listGuildMembers(),
     getMyZones(),
     getOpenTurn(),
@@ -103,16 +92,15 @@ export default async function PlayerDeskLayout({ children }) {
   // just written. Null-safe on purpose: `NOT (x = y)` is NULL, not true, for
   // every row where x is NULL, and a NULL predicate drops the row — that is
   // exactly the trap that once emptied every thread (PR #11).
-  const latestMessages = await prisma.$queryRaw`
-    SELECT DISTINCT ON ("discordUserId")
-      "discordUserId", "id", "direction", "content", "authorDiscordUserId", "source", "createdAt"
-    FROM "DirectMessage"
-    WHERE ${dmNoiseSql()}
-    ORDER BY "discordUserId", "createdAt" DESC
-  `;
-  const latestByUser = new Map(latestMessages.map((m) => [m.discordUserId, m]));
-
-  // The rail's PREVIEW TEXT is a second, stricter query — genuineConversationSql
+  //
+  // Kept as two DISTINCT ON queries rather than folded into one window-function
+  // scan (two ROW_NUMBER()s over different filters in a single pass). That
+  // would save one table scan, but this is the desk's hottest path and the two
+  // predicates mean different things — one drives recency and unread state, the
+  // other only the preview snippet. A deliberate choice for clarity: they run
+  // in parallel below, so the saved scan buys no wall-clock time either.
+  //
+  // The rail's PREVIEW TEXT is the second, stricter query — genuineConversationSql
   // additionally drops bot/effect noise (a resource grant, a dev-panel
   // microaction summary, a Move-unlock notice) that isn't a real
   // conversational turn. Deliberately separate from latestMessages above:
@@ -122,32 +110,49 @@ export default async function PlayerDeskLayout({ children }) {
   // thing a person actually said. Without this split, a resource grant sent
   // after a player's real question would show "Bot: You were given 1 ⬢." in
   // the rail, burying the question it's supposed to surface.
-  const genuineMessages = await prisma.$queryRaw`
-    SELECT DISTINCT ON ("discordUserId")
-      "discordUserId", "direction", "content", "authorDiscordUserId"
-    FROM "DirectMessage"
-    WHERE ${genuineConversationSql()}
-    ORDER BY "discordUserId", "createdAt" DESC
-  `;
+  //
+  // These four depend on nothing above them and on nothing in each other, so
+  // they go out in one batch rather than four round trips in a row. The maps
+  // are built afterwards.
+  const [latestMessages, genuineMessages, unreadRows, claims] = await Promise.all([
+    prisma.$queryRaw`
+      SELECT DISTINCT ON ("discordUserId")
+        "discordUserId", "id", "direction", "content", "authorDiscordUserId", "source", "createdAt"
+      FROM "DirectMessage"
+      WHERE ${dmNoiseSql()}
+      ORDER BY "discordUserId", "createdAt" DESC
+    `,
+    prisma.$queryRaw`
+      SELECT DISTINCT ON ("discordUserId")
+        "discordUserId", "direction", "content", "authorDiscordUserId"
+      FROM "DirectMessage"
+      WHERE ${genuineConversationSql()}
+      ORDER BY "discordUserId", "createdAt" DESC
+    `,
+    // Per-GM unread counts: INBOUND rows newer than this GM's read cursor for
+    // that conversation (epoch when no cursor row exists yet). Rides the same
+    // @@index([direction, discordUserId, createdAt]).
+    prisma.$queryRaw`
+      SELECT dm."discordUserId", COUNT(*)::int AS "unreadCount"
+      FROM "DirectMessage" dm
+      LEFT JOIN "ConversationRead" cr
+        ON cr."playerDiscordUserId" = dm."discordUserId"
+        AND cr."gmDiscordUserId" = ${session.discordUserId}
+      WHERE dm."direction" = 'INBOUND'
+        AND dm."createdAt" > COALESCE(cr."lastReadAt", to_timestamp(0))
+        AND ${dmNoiseSql("dm")}
+      GROUP BY dm."discordUserId"
+    `,
+    prisma.conversationMeta.findMany({
+      where: { claimedByDiscordUserId: { not: null } },
+    }),
+  ]);
+
+  const latestByUser = new Map(latestMessages.map((m) => [m.discordUserId, m]));
   const genuineByUser = new Map(genuineMessages.map((m) => [m.discordUserId, m]));
-
-  // Per-GM unread counts: INBOUND rows newer than this GM's read cursor for
-  // that conversation (epoch when no cursor row exists yet). Rides the same
-  // @@index([direction, discordUserId, createdAt]).
-  const unreadRows = await prisma.$queryRaw`
-    SELECT dm."discordUserId", COUNT(*)::int AS "unreadCount"
-    FROM "DirectMessage" dm
-    LEFT JOIN "ConversationRead" cr
-      ON cr."playerDiscordUserId" = dm."discordUserId"
-      AND cr."gmDiscordUserId" = ${session.discordUserId}
-    WHERE dm."direction" = 'INBOUND'
-      AND dm."createdAt" > COALESCE(cr."lastReadAt", to_timestamp(0))
-      AND ${dmNoiseSql("dm")}
-    GROUP BY dm."discordUserId"
-  `;
   const unreadByUser = new Map(unreadRows.map((r) => [r.discordUserId, r.unreadCount]));
+  const claimByUser = new Map(claims.map((c) => [c.playerDiscordUserId, c.claimedByDiscordUserId]));
 
-  const countByUser = new Map(grouped.map((g) => [g.discordUserId, g._count._all]));
   const usernameById = new Map(guildMembers.map((mem) => [mem.id, mem.username]));
   const globalNameById = new Map(guildMembers.map((mem) => [mem.id, mem.globalName]));
 
@@ -184,15 +189,14 @@ export default async function PlayerDeskLayout({ children }) {
     else tagNamesByCharacter.set(ct.characterId, [name]);
   }
 
-  const claims = await prisma.conversationMeta.findMany({
-    where: { claimedByDiscordUserId: { not: null } },
-  });
-  const claimByUser = new Map(claims.map((c) => [c.playerDiscordUserId, c.claimedByDiscordUserId]));
-
   // The union: every player who has a conversation, plus every player who has
   // a character. A row can have one, the other, or both — a character with no
   // DM history is exactly the case the old inbox could not reach.
-  const userIds = new Set([...countByUser.keys(), ...characterByUser.keys()]);
+  //
+  // "Has a conversation" comes off latestByUser, which is the same noise
+  // predicate a per-user COUNT would have used — so the union is identical,
+  // one query cheaper.
+  const userIds = new Set([...latestByUser.keys(), ...characterByUser.keys()]);
 
   const rows = [...userIds].map((discordUserId) => {
     const c = characterByUser.get(discordUserId) ?? null;
@@ -227,7 +231,10 @@ export default async function PlayerDeskLayout({ children }) {
       preview: genuine ? `${authorLabel}${genuine.content}` : "",
       lastAtMs: last ? last.createdAt.getTime() : 0,
       lastDirection: last?.direction ?? null,
-      count: countByUser.get(discordUserId) ?? 0,
+      // Whether there is a thread at all, not how long it is — the rail only
+      // ever asked "count > 0", and a per-user COUNT groupBy is a whole extra
+      // scan of DirectMessage to answer a boolean.
+      hasConversation: latestByUser.has(discordUserId),
       unreadCount: unreadByUser.get(discordUserId) ?? 0,
       claimedByDiscordUserId: claimByUser.get(discordUserId) ?? null,
       tag: c ? (tagNamesByCharacter.get(c.id) ?? []).join(" ") : "",

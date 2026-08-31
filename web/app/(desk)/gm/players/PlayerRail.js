@@ -117,7 +117,9 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
     // A query widens the net to everyone with a character too — that's the
     // only way to reach someone who has never written, since their href
     // already works for an empty thread.
-    let list = q ? rows.filter((r) => r.count > 0 || r.characterId) : rows.filter((r) => r.count > 0);
+    let list = q
+      ? rows.filter((r) => r.hasConversation || r.characterId)
+      : rows.filter((r) => r.hasConversation);
 
     // A query pauses the zone and needs-reply filters rather than composing
     // with them — otherwise the seat-seeded zone filter would silently hide
@@ -150,8 +152,8 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
     scored.sort((a, b) => {
       if (q) {
         if (b.match.score !== a.match.score) return b.match.score - a.match.score;
-        const aHasThread = a.row.count > 0;
-        const bHasThread = b.row.count > 0;
+        const aHasThread = a.row.hasConversation;
+        const bHasThread = b.row.hasConversation;
         if (aHasThread !== bHasThread) return aHasThread ? -1 : 1;
         return b.row.lastAtMs - a.row.lastAtMs;
       }

@@ -8,8 +8,10 @@ import { HUNGER_SLUG, ATE_MEAL_SLUG } from "@lifeweb/db/lib/constants";
 // The whole data-assembly behind the Dev Character Panel, extracted so it can
 // be shared by the standalone page (/gm/dev/characters/[characterId]) and the
 // modal mount over /gm/turns (web/app/(desk)/gm/turns/devPanelActions.js).
-// Everything the panel could need is loaded here, in one Promise.all, and
-// handed back as plain DTOs. DevPanel is a client component (it holds the
+// Everything the panel needs to OPEN is loaded here, in one Promise.all, and
+// handed back as plain DTOs. The Record tab's four history lists are the
+// exception — they live in loadDevPanelRecord below and are fetched only when
+// a GM opens that tab. DevPanel is a client component (it holds the
 // staged-edit state), so nothing Prisma-shaped may cross the boundary: dates
 // become ISO strings and only the columns actually rendered come along.
 //
@@ -31,10 +33,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     config,
     openTurn,
     desires,
-    moves,
-    requests,
-    auditLog,
-    messages,
+    openTurnAction,
     defaultEffort,
     member,
     pendingStaged,
@@ -60,29 +59,53 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     // withholds nothing — including the hidden Demoness and Bacchus groups.
     prisma.tag.findMany({
       orderBy: [{ category: "asc" }, { name: "asc" }],
-      include: { group: { select: { name: true, color: true } }, requirementSkills: { select: { id: true, name: true } } },
+      // An explicit select, not an include: this is the whole catalog, and
+      // every column fetched is a column serialised across to a client
+      // component. These are exactly the fields the projection below maps,
+      // plus the four the isHealable predicate reads (it only checks
+      // requirementSkills for length, hence ids alone).
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        category: true,
+        description: true,
+        pointCost: true,
+        stackable: true,
+        equippable: true,
+        consumable: true,
+        removable: true,
+        custom: true,
+        defaultDurationTurns: true,
+        parentTagId: true,
+        requiredTagId: true,
+        requirementTurns: true,
+        requirementResources: true,
+        requirementGambit: true,
+        requirementSkills: { select: { id: true } },
+        group: { select: { name: true, color: true } },
+      },
     }),
     prisma.characterTag.findMany({ where: { characterId }, include: { tag: true } }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     prisma.turn.findFirst({ where: { status: "OPEN" } }),
     prisma.desire.findMany({ where: { characterId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] }),
-    prisma.action.findMany({
-      where: { characterId },
-      orderBy: { id: "desc" },
-      take: 100,
-      include: { turn: { select: { number: true, phase: true } } },
-    }),
-    prisma.request.findMany({
-      where: { characterId },
-      orderBy: { id: "desc" },
-      take: 100,
-      include: { turn: { select: { number: true, phase: true } } },
-    }),
-    prisma.auditLog.findMany({ where: { targetCharacterId: characterId }, orderBy: { createdAt: "desc" }, take: 100 }),
-    prisma.directMessage.findMany({
-      where: { discordUserId: character.discordUserId },
-      orderBy: { createdAt: "desc" },
-      take: 50,
+    // This turn's Move, for the state strip's "Acted" fact and the Turn tab.
+    // It used to be found inside the 100-row Moves list — but that list moved
+    // to loadDevPanelRecord, and refetching 100 rows to read one is not worth
+    // it. Only the columns the DTO below actually maps.
+    prisma.action.findFirst({
+      where: { characterId, turn: { status: "OPEN" } },
+      select: {
+        id: true,
+        description: true,
+        moveKind: true,
+        moveReviewStatus: true,
+        resourceDelta: true,
+        diceRoll: true,
+        diceModifier: true,
+        gmNotes: true,
+      },
     }),
     prisma.defaultEffort.findFirst({ where: { characterId } }),
     // Cursed is a live Discord role, not a DB field — read the account's
@@ -98,8 +121,6 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       select: { payload: true },
     }),
   ]);
-
-  const openTurnAction = openTurn ? moves.find((m) => m.turnId === openTurn.id) ?? null : null;
 
   // A staged transfer this character is the "to" end of is a pending credit;
   // the "from" end is a pending debit. Folded into the same ⬢ figure as a
@@ -231,6 +252,41 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       setTurnNumber: d.setTurnNumber,
       endedTurnNumber: d.endedTurnNumber,
     })),
+  };
+}
+
+// The Record tab's four history lists, split out of loadDevPanelProps above.
+// They are 350 rows nobody sees until a GM clicks the fifth tab — and most
+// visits to the panel are "grant a tag, close it", so they were the biggest
+// thing the panel paid for and the least likely thing it used. DevPanel fetches
+// this on the first switch to Record and caches it for the life of the mount.
+//
+// `discordUserId` is passed in rather than derived here, so the DM list keys
+// off a value the caller resolved from the character row server-side — never
+// off anything the client sent alongside the id.
+export async function loadDevPanelRecord(characterId, discordUserId) {
+  const [moves, requests, auditLog, messages] = await Promise.all([
+    prisma.action.findMany({
+      where: { characterId },
+      orderBy: { id: "desc" },
+      take: 100,
+      include: { turn: { select: { number: true, phase: true } } },
+    }),
+    prisma.request.findMany({
+      where: { characterId },
+      orderBy: { id: "desc" },
+      take: 100,
+      include: { turn: { select: { number: true, phase: true } } },
+    }),
+    prisma.auditLog.findMany({ where: { targetCharacterId: characterId }, orderBy: { createdAt: "desc" }, take: 100 }),
+    prisma.directMessage.findMany({
+      where: { discordUserId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
+  ]);
+
+  return {
     moves: moves.map((m) => ({
       id: m.id,
       turn: m.turn ? `${m.turn.number} ${m.turn.phase}` : "—",

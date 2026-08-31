@@ -16,10 +16,15 @@ import { TableScroll } from "@/app/components/DataTable";
 // Server-capped at 100 rows each (50 for DMs) and rendered as-is: a table
 // this short doesn't need useTableState, and paging it would imply a
 // completeness this deliberately doesn't claim.
+//
+// `record` arrives null and fills in: DevPanel fetches these four lists on the
+// first click of this tab rather than loading them with the rest of the panel,
+// since most visits never open Record at all.
 const SECTIONS = ["Moves", "Requests", "Audit", "Messages"];
 
-export default function RecordTab({ moves, requests, auditLog, messages, discordUserId }) {
+export default function RecordTab({ record, error, discordUserId }) {
   const [section, setSection] = useState("Moves");
+  const { moves, requests, auditLog, messages } = record ?? {};
 
   return (
     <>
@@ -43,7 +48,11 @@ export default function RecordTab({ moves, requests, auditLog, messages, discord
         )}
       </div>
 
-      {section === "Moves" && (
+      {error && <p className="form-error" role="alert">{error}</p>}
+
+      {!record && !error && <p className="text-sm text-muted">Loading…</p>}
+
+      {record && section === "Moves" && (
         <Table
           empty="No Moves filed yet."
           rows={moves}
@@ -63,7 +72,7 @@ export default function RecordTab({ moves, requests, auditLog, messages, discord
         />
       )}
 
-      {section === "Requests" && (
+      {record && section === "Requests" && (
         <Table
           empty="No Requests made yet."
           rows={requests}
@@ -79,7 +88,7 @@ export default function RecordTab({ moves, requests, auditLog, messages, discord
         />
       )}
 
-      {section === "Audit" && (
+      {record && section === "Audit" && (
         <Table
           empty="Nothing recorded against this character."
           rows={auditLog}
@@ -88,7 +97,7 @@ export default function RecordTab({ moves, requests, auditLog, messages, discord
         />
       )}
 
-      {section === "Messages" && (
+      {record && section === "Messages" && (
         <Table
           empty="No DMs either way."
           rows={messages}

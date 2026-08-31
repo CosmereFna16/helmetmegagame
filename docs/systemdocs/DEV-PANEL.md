@@ -326,13 +326,25 @@ edit) state lives inside it — closing has to go through the same
 before the modal closes.
 
 The data assembly is shared, not duplicated: `web/lib/devPanelData.js`
-exports `loadDevPanelProps(characterId, actingDiscordUserId)`, the exact
-24-prop DTO bundle `<DevPanel/>` needs, and both the standalone page and the
-desk call it. The desk reaches it through its own server action,
-`getDevPanelData` in `web/app/(desk)/gm/turns/devPanelActions.js` — a
+exports `loadDevPanelProps(characterId, actingDiscordUserId)`, the DTO bundle
+`<DevPanel/>` needs to **open**, and both the standalone page and the desk
+call it. The desk reaches it through its own server action,
+`getDevPanelData` in `web/app/components/devPanelActions.js` — a
 separate file from the desk's `actions.js` because that file is itself
 `"use server"` and can't export a plain loader function, and because its
 `requireGm` isn't importable from another `"use server"` module.
+
+**The Record tab is not in that bundle.** Its four history lists (100 Moves,
+100 Requests, 100 audit rows, 50 DMs) were the largest thing the panel loaded
+and the least likely thing it used — most visits are "grant a tag, close it".
+They live in a second export, `loadDevPanelRecord(characterId,
+discordUserId)`, behind the `getDevPanelRecord` server action, and `DevPanel`
+fetches them from the tab button's own **click handler** on the first switch
+to Record — not from an effect, since `react-hooks/set-state-in-effect` is an
+error in this repo. `RecordTab` renders a "Loading…" line until they land,
+and the result is cached for the life of the mount. `openTurnAction` used to
+be found inside that 100-row Moves list; it is now its own small `findFirst`
+in the main batch.
 
 `DevCharacterButton` (`web/app/components/DevCharacterButton.js`) is the
 shared jump button everywhere a `CharacterLink` might want one. Given an
@@ -340,6 +352,14 @@ shared jump button everywhere a `CharacterLink` might want one. Given an
 page — the desk's `Workspace.js` owns the open/closed state and passes
 `onOpenDev` down through `MoveDesk`, `RequestDesk`, and `InspectorColumn`.
 Without `onOpen` it falls back to the plain `Link`, used everywhere else.
+
+In the `onOpen` branch it also **prefetches at click time**: `onPointerDown`
+calls `prefetchDevPanel(characterId)`, exported from `DevPanelModal.js`,
+which starts `getDevPanelData` and parks the promise in a module-level map.
+The modal's mount effect consumes an entry younger than 20s instead of firing
+its own fetch, so the round trip overlaps the mount rather than following it.
+`reload()` (the `onMutated` path) drops the map entry first — a microaction
+just changed the sheet, so any parked promise is stale by definition.
 
 A microaction's refresh (Kill, Revive, resync, the staging buttons…) flows
 through an `onMutated` prop rather than a bare `router.refresh()`: in the
@@ -380,7 +400,7 @@ sequentially in `after()` and lands on a `BULK_MOVE` report.
 | Concern | File |
 |---|---|
 | Page shell | `web/app/(app)/gm/dev/characters/[characterId]/page.js` |
-| Shared DTO assembly (page + desk modal) | `web/lib/devPanelData.js` |
+| Shared DTO assembly (page + desk modal) — `loadDevPanelProps` to open, `loadDevPanelRecord` for the deferred Record tab | `web/lib/devPanelData.js` |
 | Staged state, tabs, Apply bar, the "modal" frame | `DevPanel.js` |
 | Microaction row and its dialogs | `ActionBar.js` |
 | Tabs | `IdentityTab.js`, `TagEditor.js`, `TurnTab.js`, `GoalsTab.js`, `RecordTab.js` |
@@ -393,6 +413,6 @@ sequentially in `after()` and lands on a `BULK_MOVE` report.
 | Shared tag search | `web/lib/characterCreation.js#filterTagsByQuery` |
 | Shared catalog browser (categories, search, grouping, multi-select) | `web/app/components/TagCatalogBrowser.js` |
 | Panel styling | `.dev-state-strip`, `.dev-state-group`, `.dev-bar-sep`, `.dev-apply-bar`, `.dev-tag-row`, `.dev-tag-group-head`, `.dev-modal-panel` in `globals.css` |
-| Desk modal mount (shared by turns/players desks), its server action | `web/app/components/DevPanelModal.js`, `devPanelActions.js` |
+| Desk modal mount (shared by turns/players desks) + `prefetchDevPanel`, and its server actions (`getDevPanelData`, `getDevPanelRecord`) | `web/app/components/DevPanelModal.js`, `devPanelActions.js` |
 | The game-level panel (§11) | `web/app/(app)/gm/dev/page.js`, `actions.js` |
 | The channel doctor it runs | `db/lib/channelDoctor.js` |

@@ -1,7 +1,7 @@
 "use client";
 
 import { CHARACTER_STATUS } from "@/app/components/StatusPill";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRefresh } from "@/app/components/useRefresh";
 import { PageHeader } from "@/app/components/PageShell";
@@ -16,6 +16,7 @@ import TurnTab from "./TurnTab";
 import GoalsTab from "./GoalsTab";
 import RecordTab from "./RecordTab";
 import { applyCharacterEdits } from "./actions";
+import { getDevPanelRecord } from "@/app/components/devPanelActions";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 // The staged-op merge algebra, shared with the adjudication workspace's
@@ -60,10 +61,6 @@ export default function DevPanel({
   openTurnAction,
   defaultEffort,
   desires,
-  moves,
-  requests,
-  auditLog,
-  messages,
   // "page" is the standalone /gm/dev/characters/[characterId] route (the
   // default, unchanged). "modal" is the mount over /gm/turns
   // (DevPanelModal.js) — DevPanel owns the Modal itself rather than the
@@ -84,6 +81,30 @@ export default function DevPanel({
   const [tab, setTab] = useState("Identity");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(null);
+
+  // The Record tab's 350 history rows are not in the props: they load on the
+  // first click of that tab, from the tab button's own handler. Deliberately
+  // NOT an effect — react-hooks/set-state-in-effect is an error in this repo,
+  // and a click is the honest trigger anyway. null means "not asked for yet",
+  // so the guard below also stops a second click re-fetching.
+  const [record, setRecord] = useState(null);
+  const [recordError, setRecordError] = useState(null);
+  const recordLoading = useRef(false);
+
+  function openTab(next) {
+    setTab(next);
+    if (next !== "Record" || record || recordLoading.current) return;
+    recordLoading.current = true;
+    getDevPanelRecord({ characterId: character.id })
+      .then((res) => {
+        if (res?.ok) setRecord(res.record);
+        else setRecordError(res?.error ?? "Something went wrong.");
+      })
+      .catch((err) => setRecordError(err?.message ?? "Something went wrong."))
+      .finally(() => {
+        recordLoading.current = false;
+      });
+  }
 
   // Staged core fields, keyed the same as the server's EDITABLE_FIELDS. Only
   // keys actually touched are sent, so an untouched field can never be
@@ -223,7 +244,7 @@ export default function DevPanel({
             aria-selected={t === tab}
             data-active={t === tab}
             className="tab-item"
-            onClick={() => setTab(t)}
+            onClick={() => openTab(t)}
           >
             {t}
             {t === "Tags" && ops.length > 0 && <> ({ops.length})</>}
@@ -271,10 +292,8 @@ export default function DevPanel({
 
       {tab === "Record" && (
         <RecordTab
-          moves={moves}
-          requests={requests}
-          auditLog={auditLog}
-          messages={messages}
+          record={record}
+          error={recordError}
           discordUserId={character.discordUserId}
         />
       )}
