@@ -62,6 +62,21 @@ function scalarsFrom(input) {
     throw new UserError("Only an equippable tag can conceal identity.");
   }
 
+  const sellable = Boolean(input.sellable);
+  const sellablePrice = input.sellablePrice === "" || input.sellablePrice == null
+    ? null
+    : Number.parseInt(input.sellablePrice, 10);
+  // Same pairing invariant syncTags.js enforces on docs/tags.yaml
+  // (sellable/sellablePrice travel together, DEPOT.md §4) — a typo on one
+  // side would either buy nothing off a player or silently never offer a
+  // sale.
+  if (sellable && !(Number.isInteger(sellablePrice) && sellablePrice > 0)) {
+    throw new UserError("A sellable tag needs a positive sellable price.");
+  }
+  if (sellablePrice != null && !sellable) {
+    throw new UserError("Check Sellable before setting a sellable price.");
+  }
+
   return {
     name,
     description: (input.description ?? "").toString().trim() || null,
@@ -76,6 +91,8 @@ function scalarsFrom(input) {
     tradeable: Boolean(input.tradeable),
     purchasable: Boolean(input.purchasable),
     purchasableAfterStart: Boolean(input.purchasableAfterStart),
+    sellable,
+    sellablePrice,
     defaultDurationTurns: duration,
   };
 }

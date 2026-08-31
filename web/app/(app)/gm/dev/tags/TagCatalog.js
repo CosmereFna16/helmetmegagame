@@ -5,6 +5,7 @@ import Modal from "@/app/components/Modal";
 import CheckField from "@/app/components/CheckField";
 import Select from "@/app/components/Select";
 import CustomTagDialog from "@/app/components/CustomTagDialog";
+import InfoIcon from "@/app/components/InfoIcon";
 import { useMemo, useState, useTransition } from "react";
 import {
   useTableState,
@@ -36,6 +37,7 @@ const BOOLEAN_FIELDS = [
   ["removable", "Player can drop it"],
   ["tradeable", "Tradeable"],
   ["visibleOnInspect", "Visible when 🔍-inspected"],
+  ["sellable", "Sellable at Merchant's Depot"],
 ];
 
 const BLANK = {
@@ -53,6 +55,8 @@ const BLANK = {
   removable: false,
   tradeable: false,
   visibleOnInspect: false,
+  sellable: false,
+  sellablePrice: null,
 };
 
 export default function TagCatalog({ tags, groups, categories, canDelete }) {
@@ -289,6 +293,18 @@ function TagDialog({ tag, groups, categories, pending, error, onCancel, onSave }
               min="1"
               value={values.defaultDurationTurns ?? ""}
               onChange={(e) => set("defaultDurationTurns", e.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span className="field-label flex items-center gap-1.5">
+              Sellable price
+              <InfoIcon text="Reference: a painting (4 turns to craft) sells for 60 ⬢. A flamethrower sells for 104 ⬢." />
+            </span>
+            <input
+              type="number"
+              min="1"
+              value={values.sellablePrice ?? ""}
+              onChange={(e) => set("sellablePrice", e.target.value)}
             />
           </label>
         </div>

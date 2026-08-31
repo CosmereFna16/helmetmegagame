@@ -64,6 +64,8 @@ export default async function DevTagsPage() {
           purchasable: t.purchasable,
           purchasableAfterStart: t.purchasableAfterStart,
           defaultDurationTurns: t.defaultDurationTurns,
+          sellable: t.sellable,
+          sellablePrice: t.sellablePrice,
           // Everything below feeds the read-only detail sheet: the tier chain
           // and prerequisite links (walked client-side over this same list),
           // the consume/expiry targets, and the requirement block.
