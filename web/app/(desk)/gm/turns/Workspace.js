@@ -366,11 +366,35 @@ export default function Workspace({
   // the turns that still exist, deep link wins via the one-shot above. The
   // fallbacks are the old useState seed: the preloaded deep-link turn, else
   // the newest resolved turn.
+  //
+  // The dropdown's list: the OPEN turn first, then every resolved turn
+  // newest-first. Labels come from page.js's one turnLabel() for both halves
+  // — the only thing added here is the "· open" suffix, so a GM can tell the
+  // live turn from a pushed one at a glance.
+  const historyTurnOptions = useMemo(() => {
+    const opts = openTurn ? [{ id: openTurn.id, label: `${openTurn.label} · open` }] : [];
+    for (const t of resolvedTurns ?? []) opts.push({ id: t.id, label: t.label });
+    return opts;
+  }, [openTurn, resolvedTurns]);
   const storedHistoryTurnId = desk.historyTurnId ?? null;
+  // Validated against the whole option list, open turn included — otherwise a
+  // GM parked on the open turn would have the selection thrown away on every
+  // reload and land back on the newest resolved turn.
   const historyTurnId =
-    storedHistoryTurnId && resolvedTurns?.some((t) => t.id === storedHistoryTurnId)
+    storedHistoryTurnId && historyTurnOptions.some((t) => t.id === storedHistoryTurnId)
       ? storedHistoryTurnId
       : (initialHistory?.turnId ?? resolvedTurns?.[0]?.id ?? null);
+  // When the picker is on the open turn the lens reads the LIVE props this
+  // page already ships instead of the history cache — no fetch, no second
+  // copy of the same rows to drift.
+  //
+  // When the turn advances under a GM sitting here, this just flips false on
+  // the next poll: the id it holds is by then a RESOLVED turn, so it passes
+  // the validation above unchanged and the effect below fetches it like any
+  // other past turn. A row that was selected as a live `move` falls out of
+  // `moves` at the same moment and the desk shows its "that row isn't in the
+  // open turn's queue any more" empty state, which is exactly what happened.
+  const historyIsOpenTurn = Boolean(openTurn && historyTurnId === openTurn.id);
   const setHistoryTurnId = useCallback(
     (turnId) => setDesk((d) => ({ ...d, historyTurnId: turnId })),
     [setDesk],
@@ -405,10 +429,22 @@ export default function Workspace({
     setHistoryByTurn(historyCache);
   }
 
-  const historyEntry = historyTurnId ? (historyCache.get(historyTurnId) ?? null) : null;
-  const historyLoading = lens === "history" && Boolean(historyTurnId) && !historyEntry && !historyError;
+  // The open turn's rows are the live ones page.js already shipped — the same
+  // arrays the Moves lens, the tray and the push preview render from, so the
+  // two lenses can never disagree. Every other turn comes out of the cache.
+  const historyEntry = historyIsOpenTurn
+    ? { moves, effects: stagedEffects, messages: stagedMessages, tagsById }
+    : historyTurnId
+      ? (historyCache.get(historyTurnId) ?? null)
+      : null;
+  const historyLoading =
+    !historyIsOpenTurn && lens === "history" && Boolean(historyTurnId) && !historyEntry && !historyError;
 
   useEffect(() => {
+    // getMoveHistory guards on RESOLVED (actions.js) and would refuse the open
+    // turn anyway — but the point is that it is never asked: the live props are
+    // already here.
+    if (historyIsOpenTurn) return undefined;
     if (lens !== "history" || !historyTurnId) return undefined;
     const cached = historyByTurn.get(historyTurnId);
     if (cached && !cached.stale) return undefined;
@@ -438,7 +474,7 @@ export default function Workspace({
     return () => {
       cancelled = true;
     };
-  }, [lens, historyTurnId, historyByTurn]);
+  }, [lens, historyTurnId, historyByTurn, historyIsOpenTurn]);
 
   const pickHistoryTurn = useCallback(
     (turnId) => {
@@ -448,6 +484,9 @@ export default function Workspace({
     [setHistoryTurnId],
   );
 
+  // Identical shape either way: on the open turn `historyEntry` already holds
+  // the live stagedEffects/stagedMessages, so this rebuilds exactly what
+  // stagedByMove below builds.
   const historyStagedByMove = groupByMove(historyEntry);
 
   const selectedHistory =
@@ -631,7 +670,8 @@ export default function Workspace({
           onLens={setLens}
           gmProfiles={gmProfiles}
           tagsById={allTagsById}
-          resolvedTurns={resolvedTurns ?? []}
+          historyTurnOptions={historyTurnOptions}
+          historyIsOpenTurn={historyIsOpenTurn}
           historyTurnId={historyTurnId}
           onHistoryTurn={pickHistoryTurn}
           historyMoves={historyEntry?.moves ?? []}

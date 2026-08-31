@@ -391,12 +391,20 @@ export default async function TurnsWorkspacePage({ params }) {
     }
   }
 
+  // `label` is built by the same turnLabel() the resolved turns are, so the
+  // History lens can list the open turn in its Turn dropdown alongside them
+  // with no second formatting rule to keep in sync (Workspace.js only appends
+  // the "· open" suffix).
+  const openTurnDto = openTurn
+    ? { id: openTurn.id, number: openTurn.number, phase: openTurn.phase, label: turnLabel(openTurn) }
+    : null;
+
   return (
     <Workspace
       initialSelection={parsedSelection}
       initialHistory={initialHistory}
       resolvedTurns={resolvedTurns.map((t) => ({ id: t.id, number: t.number, label: turnLabel(t) }))}
-      openTurn={openTurn ? { id: openTurn.id, number: openTurn.number, phase: openTurn.phase } : null}
+      openTurn={openTurnDto}
       myZoneNames={myZones.map((z) => z.name)}
       tagsById={tagsById}
       tagCatalog={tagCatalog}

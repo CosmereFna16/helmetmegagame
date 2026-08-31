@@ -175,14 +175,21 @@ call site follows success with `refresh()` and the pair meant rendering
   Routine/Gambit to review) render as "Travel" and stay hidden by default
   behind a "Show N travel" toggle beside the Kind dropdown; picking Travel
   from that dropdown always overrides the hide.
-- **History lens** — the same rail over a turn that has already been pushed,
-  one **resolved** turn at a time, picked from a Turn dropdown above the
-  filters (newest first). A GM used to have to go to `/gm/audit` to see what
-  somebody did last turn. Nothing is loaded with the page: the lens fetches
-  its turn on demand (`actions.js#getMoveHistory`) and caches it for the page
-  view, so the open turn's desk never pays for history nobody opened and the
-  45s refresh never re-sends it. Rows go through the same mappers the live
-  queue does (`web/lib/moveRows.js`) and open a **`MoveHistoryDesk`**: the
+- **History lens** — the same rail over any turn, the open one included,
+  picked from a Turn dropdown above the filters (the open turn first, marked
+  `· open`, then the resolved ones newest first). A GM used to have to go to
+  `/gm/audit` to see what somebody did last turn. Nothing is loaded with the
+  page: for a **resolved** turn the lens fetches on demand
+  (`actions.js#getMoveHistory`) and caches it for the page view, so the open
+  turn's desk never pays for history nobody opened and the 45s refresh never
+  re-sends it. The **open turn** costs nothing at all — its rows come straight
+  from the live queue data `page.js` already ships, so the two lenses can't
+  disagree, and picking a row opens the ordinary **live** desk rather than the
+  read-only one. (That also means `MoveHistoryDesk` never renders for an
+  unpushed turn, so a declared-vs-paid or unsent-message display can't be
+  incoherent, and `getMoveHistory`'s RESOLVED guard stays intact.) Rows go
+  through the same mappers the live queue does (`web/lib/moveRows.js`); on a
+  pushed turn they open a **`MoveHistoryDesk`**: the
   Move's kind, dice, what was declared, what actually **paid**
   (`appliedEffects`), the Result, and everything that was sent on it. No lock,
   no composers, no Solve, no Reject — but a staged row the push never carried

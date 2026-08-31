@@ -166,7 +166,9 @@ const CAVING_TONES = { "Needs attention": "bad", Resolved: "neutral" };
 
 // The keyboard lens flips, and what ⏎ selects in each lens. History rows are
 // Moves too, but on a pushed turn — they open the read-only MoveHistoryDesk,
-// so they carry their own selection type.
+// so they carry their own selection type. The one exception is the History
+// lens pointed at the OPEN turn, which selects a live "move" instead — see
+// historyIsOpenTurn below.
 const LENS_FOR_KEY = { m: "moves", r: "requests", c: "caving", h: "history" };
 const SELECTION_TYPE_FOR_LENS = {
   moves: "move",
@@ -357,7 +359,8 @@ export default function QueueRail({
   onLens,
   gmProfiles,
   tagsById,
-  resolvedTurns,
+  historyTurnOptions,
+  historyIsOpenTurn,
   historyTurnId,
   onHistoryTurn,
   historyMoves,
@@ -641,7 +644,11 @@ export default function QueueRail({
 
       if (key === "Enter") {
         const row = clampedKbdIndex >= 0 ? rows[clampedKbdIndex] : null;
-        if (row) onSelect({ type: SELECTION_TYPE_FOR_LENS[lens] ?? "move", id: row.id });
+        // Same rule as the rows themselves: History over the open turn selects
+        // a live `move`, not a read-only `history` row.
+        const type =
+          lens === "history" && historyIsOpenTurn ? "move" : (SELECTION_TYPE_FOR_LENS[lens] ?? "move");
+        if (row) onSelect({ type, id: row.id });
         return;
       }
 
@@ -665,6 +672,7 @@ export default function QueueRail({
     historyShown,
     clampedKbdIndex,
     coarse,
+    historyIsOpenTurn,
   ]);
 
   return (
@@ -696,17 +704,17 @@ export default function QueueRail({
                 <span className="field-label">Turn</span>
                 <Select
                   value={historyTurnId ?? ""}
-                  disabled={!resolvedTurns?.length}
+                  disabled={!historyTurnOptions?.length}
                   onChange={(e) => onHistoryTurn?.(e.target.value)}
                 >
-                  {resolvedTurns?.length ? (
-                    resolvedTurns.map((t) => (
+                  {historyTurnOptions?.length ? (
+                    historyTurnOptions.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.label}
                       </option>
                     ))
                   ) : (
-                    <option value="">No resolved turns yet</option>
+                    <option value="">No turns yet</option>
                   )}
                 </Select>
               </label>
@@ -733,18 +741,30 @@ export default function QueueRail({
               gmProfiles={gmProfiles}
               kbdId={kbdId}
               kbdLens={lens}
-              type="history"
+              // On the open turn a History row is still LIVE work, so it opens
+              // the ordinary MoveDesk. `lensKey` stays "history" regardless, so
+              // the keyboard cursor and this lens's own filter/search/scroll
+              // state remain separate from the Moves lens.
+              //
+              // Consequence: MoveHistoryDesk never renders for an unpushed
+              // turn. That is what keeps it honest — it shows what a Move
+              // actually PAID (appliedEffects) and what was SENT, both of which
+              // are empty until the push, so on an open turn it could only
+              // contradict the declared numbers sitting next to them. It also
+              // keeps getMoveHistory's RESOLVED guard intact instead of forcing
+              // a hole in it.
+              type={historyIsOpenTurn ? "move" : "history"}
               lensKey="history"
             />
             {historyError && <p className="p-3 text-sm form-error">{historyError}</p>}
             {!historyError && historyLoading && <p className="p-3 text-sm text-muted">Loading that turn…</p>}
             {!historyError && !historyLoading && historyShown.length === 0 && (
               <p className="p-3 text-sm text-muted">
-                {resolvedTurns?.length
+                {historyTurnOptions?.length
                   ? hiddenHistoryTravelCount > 0
                     ? `No Moves match — ${hiddenHistoryTravelCount} travel Move${hiddenHistoryTravelCount === 1 ? "" : "s"} hidden.`
                     : "No Moves on that turn match."
-                  : "No turn has been pushed yet."}
+                  : "No turn to read back yet."}
               </p>
             )}
           </div>
