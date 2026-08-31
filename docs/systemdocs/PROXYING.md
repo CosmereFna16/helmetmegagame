@@ -150,7 +150,9 @@ header. An accented, non-Latin, numeric or empty initial falls through to
 
 Every successful proxy (and `/speak`) also touches
 `Character.lastActivityTurn` via `db/lib/characterActivity.js#touchCharacterActivity`
-— the clock `db/lib/catatonicPass.js` reads to lift the Catatonic (AFK) tag.
+— the clock `db/lib/catatonicPass.js` reads to lift the Catatonic (AFK) tag
+(and, since the guild-leave rework, to stop the death countdown that runs
+while it's held — `TURN-ENGINE.md` §2 7b).
 It's a separate write from the `ArchiveEntry` above on purpose: the archive
 row is best-effort and a ❌ reaction deletes it outright, neither of which
 should un-flag the activity that already happened.
@@ -293,8 +295,10 @@ which is why `archiveVisible` is meant to stay shut until the game ends
 A character's personal Discord role is a **mentionable name token and nothing
 else** — held by nobody, granting nothing (`CHANNELS.md` §3). `Character.discordRoleId`
 is `@unique`, so a mentioned role id resolves straight back to one character.
-While the character is Catatonic (AFK), the token itself says so: the role
-reads `<name> • Catatonic` in flat grey, renamed by the turn pass and
+While the character is Catatonic (AFK, or their player left the guild —
+`CHARACTERS.md` §5), the token itself says so: the role
+reads `<name> • Catatonic` in flat grey, renamed by the turn pass (or the
+leave handler, on the spot) and
 restored the moment they act — composed only by
 `db/lib/characterRoleAppearance.js`, which is also what `ensureCharacterRole`
 uses, so a profile save mid-catatonia keeps the suffix. Mentioning the

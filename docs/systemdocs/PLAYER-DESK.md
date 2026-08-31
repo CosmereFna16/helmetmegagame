@@ -148,7 +148,9 @@ mid-turn: **Acted this turn** and **tag count**. A **Catatonic** column sits
 beside Cursed, same shape (word or dash), computed from the `catatonic` tag
 rows the page already loads — the same AFK state the rail avatars mark with
 a muted dot (`CharacterAvatar`'s `catatonic` prop; see `TAGS.md` §7 for
-every surface the tag reaches). Selection is a `Set` of
+every surface the tag reaches). Since the guild-leave rework, a Catatonic
+mark can also mean the player has left the server and the character is on
+the death countdown (`CHARACTERS.md` §5). Selection is a `Set` of
 character ids, so it survives paging, filtering and sorting. Select-all covers
 the **filtered page**, not the whole roster — a header checkbox that quietly
 picks up a hundred people you cannot see is how a broadcast goes to the wrong

@@ -88,6 +88,9 @@ export async function updateGameConfig(formData) {
       archiveTravelEvents: formData.get("archiveTravelEvents") === "on",
       catatonicEnabled: formData.get("catatonicEnabled") === "on",
       catatonicTurns: Math.max(1, intOrNull(formData, "catatonicTurns") ?? 4),
+      // Floored at 0, not 1 — 0 is the off switch for the death pass, the
+      // engine's one auto-kill (db/lib/catatonicDeathPass.js).
+      catatonicDeathTurns: Math.max(0, intOrNull(formData, "catatonicDeathTurns") ?? 4),
       autoReconcileEnabled: formData.get("autoReconcileEnabled") === "on",
       desiresEnabled: formData.get("desiresEnabled") === "on",
       productionCoefficient: floatOrDefault(formData, "productionCoefficient", 1),
@@ -242,6 +245,7 @@ const DEFAULT_GAME_CONFIG = {
   maxNegativeTags: 8,
   catatonicEnabled: true,
   catatonicTurns: 4,
+  catatonicDeathTurns: 4,
   autoReconcileEnabled: false,
   desiresEnabled: true,
 };

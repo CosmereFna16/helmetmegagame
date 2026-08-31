@@ -3,7 +3,10 @@
 // MOVE_CHARACTER (REQUESTS.md, TAGS.md §5c). Slugs here must exist in
 // docs/tags.yaml; each is either a health affliction that already means
 // "can't act" (dying, paralyzed) or the AFK/status equivalent (catatonic,
-// bound).
+// bound). Catatonic also carries a death countdown now — held for
+// GameConfig.catatonicDeathTurns turns straight, the character dies at turn
+// close (db/lib/catatonicDeathPass.js) — and covers players who left the
+// guild, not just the idle (db/lib/playerDeparture.js).
 //
 // Also read on the afflicted character's own side: db/lib/defaultMovePass.js
 // skips filing a standing Default Move for anyone holding one of these. That

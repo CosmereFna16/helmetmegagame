@@ -210,6 +210,10 @@ const R = {
   hunger_resolved: () => [t("Hunger was charged for the turn")],
   default_moves_resolved: () => [t("Default Moves were filed for everyone who did not act")],
   catatonic_resolved: () => [t("Catatonic characters were resolved for the turn")],
+  catatonic_deaths_resolved: (d) =>
+    (d.killed ?? 0) > 0
+      ? [t("Catatonic death claimed"), em((d.names ?? []).join(", ") || String(d.killed))]
+      : [t("The Catatonic death pass ran — nobody died")],
   caving_resolved: () => [t("The Caving Die was rolled for everyone in the Depths")],
   tag_expiry_resolved: () => [t("Expiring tags were retired for the turn")],
   access_revoke_incomplete: () => [t("A channel access revoke did not complete")],
@@ -281,6 +285,7 @@ const FAMILY_OVERRIDES = {
   hunger_resolved: "system",
   default_moves_resolved: "system",
   catatonic_resolved: "system",
+  catatonic_deaths_resolved: "system",
   caving_resolved: "system",
   tag_expiry_resolved: "system",
   access_revoke_incomplete: "system",

@@ -444,6 +444,13 @@ model GameConfig {
   catatonicEnabled Boolean @default(true)
   catatonicTurns   Int     @default(4)
 
+  // Consecutive turns holding `catatonic` before db/lib/catatonicDeathPass.js
+  // kills the character outright at turn close. This is the ONE thing in the
+  // engine that ends a character without a GM (TURN-ENGINE.md §2 pass 7b), so
+  // it gets its own off switch: 0 disables the death pass entirely, without a
+  // deploy, while leaving the flagging pass above untouched.
+  catatonicDeathTurns Int @default(4)
+
   // Whether the bot runs the channel doctor's cheap reconciliation pass
   // (db/lib/channelDoctor.js) automatically after every turn advance, on top
   // of its pass at ready. Off by default.
@@ -939,8 +946,30 @@ model Character {
   // db/lib/characterActivity.js#touchCharacterActivity. Read by
   // db/lib/catatonicPass.js. Null only before this column's own backfill
   // migration and for a character created after — the pass treats null as
-  // "as of right now", never as stale.
+  // "as of right now", never as stale. (The debouncing writer's `not:` guard
+  // used to exclude NULL rows — Prisma's `not: N` is SQL `<>`, NULL-false —
+  // so this column never got stamped at all for the game's first six turns;
+  // characterActivity.js carries the fix and the note.)
   lastActivityTurn Int?
+
+  // Turn number this character was flagged `catatonic` — the death countdown's
+  // clock, read only by db/lib/catatonicDeathPass.js. Written by
+  // db/lib/catatonicPass.js when it grants the tag and by
+  // db/lib/playerDeparture.js when the player leaves the guild; nulled when
+  // the pass clears the tag and when the death pass kills them. Kept separate
+  // from lastActivityTurn so a GM moving GameConfig.catatonicTurns mid-game
+  // doesn't retroactively move everybody's execution date. Null while holding
+  // the tag means "no countdown" (a GM hand-grant), which fails safe.
+  catatonicSinceTurn Int?
+
+  // Set when guildMemberRemove (or the startup reconcile in
+  // bot/src/lib/leaveReconcile.js) sees this character's player is gone;
+  // cleared by guildMemberAdd on rejoin. Three readers: the catatonic pass
+  // never clears the tag off a character carrying this (a departed player's
+  // activity clock can't move, and a NULL clock reads as "active now"); the
+  // death pass's reason text; and the reconcile's idempotency guard, which is
+  // what stops a restart loop re-alerting #leave.
+  leftGuildAt DateTime?
 
   // Unspent point-buy points. Seeded at creation with whatever the player
   // didn't spend in the wizard (budget minus purchases) and drawn down by

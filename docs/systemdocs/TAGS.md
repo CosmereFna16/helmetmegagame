@@ -919,10 +919,10 @@ expiresInto:
   - oneOf: [missing-leg, missing-arm]       # a coin flip
 ```
 
-`syncTags.js` normalises every entry to `{ oneOf: [...] }` — a bare slug is a
-pick of one — so the stored `Tag.expiresInto` Json, the pass, and `TagChip`'s
-"Becomes" row all handle a single shape. It validates three things **before
-writing anything**:
+`normalizeExpiresInto` normalises every entry to `{ oneOf: [...] }` — a bare
+slug is a pick of one — so the stored `Tag.expiresInto` Json, the pass, and
+`TagChip`'s "Becomes" row all handle a single shape. It validates three things
+**before writing anything**:
 
 - every slug exists in `docs/tags.yaml`;
 - the tag has `durationTurns` ≥ 1, or nothing would ever fire it;
@@ -932,6 +932,12 @@ writing anything**:
   **two-tag loop** instead: Migraine expires into No Migraine, which expires
   back into Migraine, forever. That cycle is deliberate and there is no
   cycle detection beyond the self check.
+
+Those rules live in `db/lib/tagShapes.js`, not in `syncTags.js`, because the
+YAML is no longer the only door: a GM can author an expiry chain from the tag
+form too (`DEV-PANEL.md` §8a). Both surfaces call the same
+`normalizeExpiresInto` / `validateExpiresInto` pair, so a chain the form
+accepts is one the next `db:sync-tags` would accept as well.
 
 `db/lib/tagExpiryPass.js` applies it, inside `resolveNeeds()` and **before**
 the sweep — the sweep is a blind `deleteMany`, so afterwards there is nothing
@@ -1092,8 +1098,12 @@ handed renders inert rather than either vanishing or leaking.
 by automatic game logic rather than by a player, a GM, or a starting package —
 `db/lib/hungerPass.js` is their only writer, and `db/lib/gambitModifier.js`
 their only reader. `db/lib/constants.js` holds the slugs so neither file
-hardcodes a string. `catatonic` is a third: `db/lib/catatonicPass.js` is its
-only writer, gated on `GameConfig.catatonicEnabled`/`catatonicTurns`, and it
+hardcodes a string. `catatonic` is a third: `db/lib/catatonicPass.js` (gated on
+`GameConfig.catatonicEnabled`/`catatonicTurns`) and
+`db/lib/playerDeparture.js` (a guild leave, ungated — departure is a fact,
+not a dial) are its two writers, it now carries a consequence — held for
+`GameConfig.catatonicDeathTurns` turns straight, the character dies at close
+(`TURN-ENGINE.md` §2 7b, the engine's one auto-kill) — and it
 is also the only tag in the game that a pass both grants **and** clears
 itself — it carries no `durationTurns`, deliberately, because there is no
 sweep to hand the clear to; see `TURN-ENGINE.md` §2 for why that's the

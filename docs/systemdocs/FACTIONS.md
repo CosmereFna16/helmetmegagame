@@ -136,7 +136,10 @@ One more thing the player roster shows that fate never is: a **Catatonic**
 chip next to an AFK member's name. Death stays hidden there on purpose (the
 comment in `faction/page.js` explains the no-fate rule), but Catatonic is a
 visible tag whose entire job is telling the faction a player is away
-(`TAGS.md` §7), so the chip renders for ordinary members too.
+(`TAGS.md` §7), so the chip renders for ordinary members too. Since the
+guild-leave rework the chip can also mean the player has **left the server**
+and their character is on the death countdown (`CHARACTERS.md` §5) — the
+roster deliberately doesn't distinguish the two.
 
 ## 5. Moving Resources out of a Silo
 

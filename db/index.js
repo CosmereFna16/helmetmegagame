@@ -23,6 +23,10 @@ const { runDawnWipe } = require("./lib/dawnWipe");
 const { runThreadExpiry } = require("./lib/threadExpiryPass");
 const { runHungerPass, hungerDm, disappointedDm, DYING_DM } = require("./lib/hungerPass");
 const { runCatatonicPass } = require("./lib/catatonicPass");
+const { runCatatonicDeathPass } = require("./lib/catatonicDeathPass");
+// By path, not the barrel — see the note at the top of db/lib/accessSweep.js.
+const { revokeAllCharacterAccess } = require("./lib/accessSweep");
+const { LEAVE_ANNOUNCE_CHANNEL_ID } = require("./lib/constants");
 const { runCavingPass } = require("./lib/cavingPass");
 const { runDefaultMovePass } = require("./lib/defaultMovePass");
 const { runStagedPushPass } = require("./lib/stagedPush");
@@ -30,7 +34,7 @@ const { runStagedPushPass } = require("./lib/stagedPush");
 // why there are three same-named sendDm exports with three signatures.
 const { sendDm } = require("./lib/dm");
 const { recordArchiveMessage, recordArchiveEvent } = require("./lib/archive");
-const { postAsCharacter, postMessage, postMessageBatched, attachBreakerStore, patchGuildRole } = require("./lib/discordRest");
+const { postAsCharacter, postMessage, postMessageBatched, attachBreakerStore, patchGuildRole, deleteGuildRole, addMemberRole, getGuildMember, setGuildNickname } = require("./lib/discordRest");
 const { bumpBlood } = require("./lib/lifeweb");
 const { runFullChannelWipe } = require("./lib/fullWipe");
 const { syncZonesFromYaml } = require("./lib/syncZones");
@@ -165,7 +169,8 @@ async function sweepExpiredStacks(turn) {
 //
 // Returns { lifewebBlood, hungerNotices, disappointedNotices,
 // defaultMovePosts,
-// defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates }.
+// defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates,
+// catatonicDeaths, catatonicDeathWarnings }.
 // Everything after
 // the first is Discord work this function deliberately does NOT perform —
 // the Hunger pass's DM list (one notice per character who starved or whose
@@ -191,6 +196,7 @@ const TURN_PASSES = [
   "tagExpiry",
   "expirySweep",
   "catatonic",
+  "catatonicDeath",
   "hunger",
   "lifewebDecay",
 ];
@@ -386,6 +392,39 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Catatonic audit log failed:", err));
   }
 
+  // Catatonic death — pass 7b, the engine's one auto-kill (see
+  // db/lib/catatonicDeathPass.js for the reversal of the "nothing automatic
+  // ends a character" rule, and for why it is its own pass rather than a
+  // branch of the one above: it must run strictly AFTER the clear branch, so
+  // a character who woke this close can never be killed by it, and a
+  // destructive pass gets its own resolvedPasses marker so a resume can't
+  // half-kill). DB writes happen in the pass; the Discord teardown — access
+  // revoke, role delete, conditional Cursed grant, DMs, the #leave alert —
+  // rides back on `deaths` for runSideEffects().
+  let catatonicDeath = null;
+  if (!done.has("catatonicDeath")) {
+    catatonicDeath = await runCatatonicDeathPass(prisma, turn).catch(async (err) => {
+      await passFailed("Catatonic death", err);
+      return null;
+    });
+    if (catatonicDeath) await markDone("catatonicDeath");
+  }
+  const {
+    deaths: catatonicDeaths = [],
+    warnings: catatonicDeathWarnings = [],
+    ...catatonicDeathSummary
+  } = catatonicDeath ?? {};
+  if (catatonicDeath) {
+    // One summary row per turn like every pass — but names ride in the
+    // details, because this is the one pass whose per-character outcome a GM
+    // must be able to reconstruct from the log alone.
+    await prisma.auditLog
+      .create({
+        data: { actorDiscordUserId: "system", actionType: "catatonic_deaths_resolved", details: catatonicDeathSummary },
+      })
+      .catch((err) => console.error("Catatonic death audit log failed:", err));
+  }
+
   // Hunger upkeep runs AFTER the sweep, deliberately: a Hunger granted while
   // closing turn N-1 carries expiresTurn N, so the sweep is what clears it a
   // moment before this pass may grant a fresh one. In the other order a
@@ -481,6 +520,8 @@ async function resolveNeeds(turn, config) {
     tagExpiryDms,
     catatonicDms,
     catatonicRoleUpdates,
+    catatonicDeaths,
+    catatonicDeathWarnings,
     privateDeliveries,
     publicPosts,
     zoneMoves,
@@ -527,6 +568,8 @@ async function advanceTurn() {
   let tagExpiryDms = [];
   let catatonicDms = [];
   let catatonicRoleUpdates = [];
+  let catatonicDeaths = [];
+  let catatonicDeathWarnings = [];
   let cavingDms = [];
   let privateDeliveries = [];
   let publicPosts = [];
@@ -564,7 +607,7 @@ async function advanceTurn() {
       };
     }
 
-    ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices } =
+    ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices } =
       await resolveNeeds(openTurn, config));
   } else {
     // No OPEN turn, which normally means "opening the very first turn". It
@@ -629,7 +672,7 @@ async function advanceTurn() {
           },
         })
         .catch((logErr) => console.error("Failed to log turn_resume — the resume now has no record:", logErr));
-      ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices } =
+      ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices } =
         await resolveNeeds(unfinished, config));
     }
   }
@@ -781,6 +824,76 @@ async function advanceTurn() {
       await patchGuildRole(update.roleId, { name: update.name, color: update.color }).catch((err) =>
         console.error(`Catatonic role rename for ${update.name} failed:`, err),
       );
+    }
+
+    // The eve-of-death warnings, before the deaths so the two kinds of news
+    // arrive in the order they escalate.
+    for (const warning of catatonicDeathWarnings) {
+      await sendDm(prisma, warning.discordUserId, warning.content).catch((err) =>
+        console.error(`Catatonic death warning DM to ${warning.discordUserId} failed:`, err),
+      );
+    }
+
+    // The Catatonic deaths' Discord teardown — the same steps
+    // web/lib/discordGuild.js#killCharacter performs, in the same order
+    // (revoke while both ids are still known, then the role delete), plus
+    // one membership check up front: the Cursed grant, the nickname clear
+    // and the death DM only make sense for a player still in the guild, and
+    // for a departed one each would just 403 into the REST breaker's tally.
+    // Sequential and individually caught like every loop here — never
+    // Promise.all.
+    for (const death of catatonicDeaths) {
+      const member = await getGuildMember(death.discordUserId).catch((err) => {
+        console.error(`Membership check for ${death.name} failed:`, err);
+        return null;
+      });
+
+      const revoked = await revokeAllCharacterAccess(prisma, death).catch((err) => {
+        console.error(`Failed to revoke access for ${death.name} on catatonic death:`, err);
+        return null;
+      });
+      if (!revoked || revoked.failed > 0) {
+        await prisma.auditLog
+          .create({
+            data: {
+              actorDiscordUserId: "system",
+              actionType: "access_revoke_incomplete",
+              targetCharacterId: death.characterId,
+              targetName: death.name,
+              details: { failed: revoked?.failed ?? null, attempted: revoked?.attempted ?? null },
+            },
+          })
+          .catch((err) => console.error("Failed to log an incomplete access revoke:", err));
+      }
+
+      if (death.discordRoleId) {
+        await deleteGuildRole(death.discordRoleId).catch((err) =>
+          console.error(`Failed to delete ${death.name}'s role on catatonic death:`, err.message),
+        );
+      }
+
+      if (member) {
+        if (process.env.DISCORD_CURSED_ROLE_ID) {
+          await addMemberRole(death.discordUserId, process.env.DISCORD_CURSED_ROLE_ID).catch((err) =>
+            console.error(`Failed to grant Cursed to ${death.discordUserId}:`, err.message),
+          );
+        }
+        await setGuildNickname(death.discordUserId, null).catch((err) =>
+          console.error(`Failed to clear ${death.name}'s nickname:`, err.message),
+        );
+        await sendDm(prisma, death.discordUserId, `You have died. ${death.reason}`).catch((err) =>
+          console.error(`Death DM to ${death.discordUserId} failed:`, err),
+        );
+      }
+    }
+    // One #leave post covering every death this turn, not one per death — a
+    // GM alert should read at a glance, and a single message keeps the
+    // rate-limit budget flat however bad the turn was.
+    if (catatonicDeaths.length > 0) {
+      await postMessage(
+        LEAVE_ANNOUNCE_CHANNEL_ID,
+        catatonicDeaths.map((death) => `${death.name} has died — ${death.reason}`).join("\n"),
+      ).catch((err) => console.error("Catatonic-death alert to #leave failed:", err));
     }
 
     // One DM per Caving Die roll of 1 or 6 — nothing for a quiet 2-5, which

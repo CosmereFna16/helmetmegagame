@@ -18,6 +18,7 @@
     "db:generate": "npm run generate --workspace=db",
     "db:migrate": "npm run migrate --workspace=db",
     "db:migrate:deploy": "npm run migrate:deploy --workspace=db",
+    "db:backfill-activity-clock": "node db/prisma/backfill-activity-clock.js",
     "db:backfill-roles": "node db/prisma/backfill-roles.js",
     "db:backfill-name-parts": "node db/prisma/backfill-name-parts.js",
     "db:backfill-fighting-split": "node db/prisma/backfill-fighting-split.js",

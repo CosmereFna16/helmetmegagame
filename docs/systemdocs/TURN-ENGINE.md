@@ -74,7 +74,9 @@ each arrived at by getting them wrong first.
    a blind `deleteMany`, so once it has run there is nothing left to read. This
    pass grants and never deletes; the sweep removes exactly the rows it just
    read. **Nothing here kills anyone** — the terminal chains land on the
-   `dying` tag and stop, and a GM confirms the death by hand.
+   `dying` tag and stop, and a GM confirms the death by hand. (The Catatonic
+   death pass at 7b is the engine's one exception to that rule, gated on its
+   own `catatonicDeathTurns` dial.)
 5. **Expiry sweep** — delete non-stackable `CharacterTag`s whose `expiresTurn`
    has come due.
 6. **Stackable sweep** (`sweepExpiredStacks`) — a stack is one row carrying a
@@ -87,8 +89,33 @@ each arrived at by getting them wrong first.
    table. Unlike every other pass here, it also **clears** its own tag —
    there is no `durationTurns` on `catatonic`, so nothing sweeps it; the pass
    grants it when a character goes stale and deletes it the moment their
-   clock moves again. Ordering against Caving/Hunger doesn't matter; it
-   touches neither resources nor the Hunger streak.
+   clock moves again. A character whose player **left the guild**
+   (`Character.leftGuildAt`, set by `db/lib/playerDeparture.js`) reads as
+   stale whatever their clock says — their clock can never move again, and
+   without the override the tag granted at leave time would be cleared at
+   the very next close. The pass also stamps `Character.catatonicSinceTurn`
+   when it grants and nulls it when it clears — the death countdown below.
+   Ordering against Caving/Hunger doesn't matter; it touches neither
+   resources nor the Hunger streak.
+7b. **Catatonic death pass** (`db/lib/catatonicDeathPass.js`) — **the one
+   deliberate exception to "nothing automatic kills anyone."** A character
+   who has held `catatonic` for `GameConfig.catatonicDeathTurns` consecutive
+   turns (default 4; **0 is the off switch**, a Dev Panel dial needing no
+   deploy) dies at this close, outright: the DB half of death runs here via
+   `db/lib/characterDeath.js#applyDeathToRow` (shared with
+   `killCharacter` so the two death paths can't drift — conditional
+   `status: "ALIVE"` claim, so a resumed turn can never kill twice), and the
+   Discord teardown — access revoke, role delete, Cursed grant **only if
+   the player is still in the guild**, death DM, one combined `#leave`
+   alert — rides back on `deaths` for the thunk. A separate pass rather
+   than a branch of 7, deliberately: it must run strictly **after** 7's
+   clear branch so a character who woke this close can never be killed by
+   it, and a destructive pass gets its own `resolvedPasses` marker. The
+   countdown clock is `catatonicSinceTurn`, not `lastActivityTurn`, so a GM
+   moving `catatonicTurns` mid-game doesn't move anyone's execution date; a
+   GM hand-grant with no stamp never counts down at all. Players one close
+   from death get a warning DM (`warnings`), same posture as the
+   Disappointed track's.
 8. **Hunger pass** (`db/lib/hungerPass.js`) — **after** the sweep, never
    before. Last turn's Hunger carries `expiresTurn` equal to the closing turn's
    number, so the sweep clears it a moment before a fresh one may be granted.
@@ -153,6 +180,12 @@ The thunk performs, in narrative order:
 3. Tag progression DMs — one per player whose condition worsened, listing each
    step (`» Festering → Feverish and Necrosis`). Before the Hunger DMs purely
    so the two arrive in severity order.
+3b. The Catatonic DMs and role renames, then the death pass's work: the
+   eve-of-death warning DMs, and per death the Discord teardown — membership
+   check first (Cursed grant, nickname clear and death DM go only to a
+   player **still in the guild**; for a departed one each would just 403
+   into the REST breaker's tally), then access revoke, role delete, and one
+   combined `#leave` post naming everyone who died this turn.
 4. Hunger DMs — one per player who starved, or who ate and still carries some
    of the streak, or who just cleared the last of it. A quiet −1 ⬢, or a fed
    character whose streak was already 0, sends nothing.
@@ -263,7 +296,8 @@ turn gone hungry**, read off `Character.hungerStreak` and floored at **−6**
 (`HUNGER_STREAK_CAP` in `db/lib/hungerPass.js`) — see `db/lib/gambitModifier.js`
 for how the streak and Mood combine into one number. Reaching the cap grants
 `dying`, permanently; nothing here kills anyone, same as every other terminal
-tag chain (§3). Nothing player-initiated ever grants or removes Hunger, the
+tag chain (§3) — the Catatonic death pass (§2 7b) being the engine's one
+exception. Nothing player-initiated ever grants or removes Hunger, the
 streak, or Dying via this path — no request type, no picker entry.
 `db/lib/hungerPass.js#runHungerPass` is the only writer of all three.
 
@@ -421,6 +455,10 @@ Surfaced to players on the `#turns` announcement (`Moves must be sent by
 | `db/lib/stagedPush.js` | The staged push pass (`ADJUDICATION.md`) |
 | `db/lib/defaultMovePass.js` | The Default Move pass |
 | `db/lib/hungerPass.js` | The Hunger pass |
+| `db/lib/catatonicPass.js` | The Catatonic (AFK) flagging pass |
+| `db/lib/catatonicDeathPass.js` | The Catatonic death pass (§2 7b) |
+| `db/lib/characterDeath.js` | The shared DB half of death (`applyDeathToRow`) |
+| `db/lib/playerDeparture.js` | Guild-leave marking, shared by the live handler and the startup reconcile |
 | `db/lib/tagExpiryPass.js` | The tag progression pass (`Tag.expiresInto`) |
 | `db/lib/turnAnnouncement.js` | The rolling `#turns` announcement |
 | `db/lib/dawnWipe.js` | The Dawn wipe (`CHANNELS.md` §8) |

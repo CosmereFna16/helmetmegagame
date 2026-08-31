@@ -17,6 +17,8 @@ export const CONFIG_HELP = {
     "The transcript is already recorded at send time, this only deletes (see docs/systemdocs/CHANNELS.md).",
   catatonicEnabled:
     "Idle turns before a character goes Catatonic (AFK). Flags a character Catatonic (AFK) after that many turns with no move filed and nothing said in character — clears the moment they act or speak again.",
+  catatonicDeathTurns:
+    "The one automatic death in the game: a character who stays Catatonic this many turns straight dies at turn close — full cleanup, no GM confirm. Covers AFK players and players who left the server (their characters go Catatonic on the spot instead of dying). 0 turns it off; the player gets a warning DM one turn before.",
   autoReconcileEnabled:
     "Run the channel doctor's cheap reconcile (roles vs. the database) automatically after every turn advance — it always runs when the bot restarts.",
   tupperAutocorrectEnabled: "Capitalize sentence starts in Tupper messages before proxying.",

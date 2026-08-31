@@ -11,7 +11,7 @@ import {
   LEADER_WHITELIST_ROLE_ID,
   SPECIAL_CHANNELS,
 } from "@lifeweb/db";
-import { recordArchiveEvent } from "@lifeweb/db/lib/archive";
+import { applyDeathToRow } from "@lifeweb/db/lib/characterDeath";
 import {
   revokeAllCharacterAccess as revokeAllCharacterAccessShared,
   revokeAccessForCharacters as revokeAccessForCharactersShared,
@@ -625,32 +625,25 @@ export async function killCharacter(character, reason = null) {
 
   if (character.discordRoleId) {
     await deleteCharacterRole(character.discordRoleId).catch(() => {});
-    await prisma.character
-      .update({ where: { id: character.id }, data: { discordRoleId: null } })
-      .catch(() => {});
   }
 
   await updateGuildNickname(character.discordUserId, null).catch(() => {});
 
-  // A corpse doesn't wield things. Clearing `equipped` frees the equip slots
-  // so a Revive walks back in without gear locked to slots that may have
-  // moved, and the loot panel doesn't render items as if they're still worn.
-  await prisma.characterTag
-    .updateMany({ where: { characterId: character.id, equipped: true }, data: { equipped: false } })
-    .catch((err) => console.error(`Failed to unequip on death for ${character.id}:`, err));
+  // The database half — discordRoleId nulled, every equipped tag cleared (a
+  // corpse doesn't wield things), the DEATH archive row — is shared with the
+  // turn engine's catatonic death pass (db/lib/characterDeath.js) so the two
+  // death paths can't drift. expectStatus DEAD: every caller here writes the
+  // status first and calls this for the cleanup.
+  await applyDeathToRow(prisma, character, {
+    expectStatus: "DEAD",
+    content: `${character.name} died.`,
+  }).catch((err) => console.error(`Death row cleanup failed for ${character.id}:`, err));
 
   await grantCursedRole(character.discordUserId);
 
   await sendDm(character.discordUserId, `You have died.${reason?.trim() ? `\n${reason.trim()}` : ""}`, {
     source: "player_event",
   }).catch((err) => console.error(`Death DM failed for ${character.id}:`, err));
-
-  await recordArchiveEvent(prisma, {
-    kind: "DEATH",
-    character,
-    zoneId: character.zoneId ?? null,
-    content: `${character.name} died.`,
-  });
 }
 
 // Applies the `»` prefix (CLAUDE.md, "Bot message style") and logs the DM, so

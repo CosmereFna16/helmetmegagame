@@ -19,7 +19,14 @@ async function touchCharacterActivity(prisma, characterId) {
   if (!openTurn) return; // between turns; the next activity after open catches up
   await prisma.character
     .updateMany({
-      where: { id: characterId, lastActivityTurn: { not: openTurn.number } },
+      // The OR is load-bearing: Prisma's `not: N` compiles to SQL `<>`, which
+      // is NULL-false — so the guard alone silently excluded every character
+      // whose clock had never been stamped, which at launch was ALL of them.
+      // The whole AFK system sat inert for six turns because of this line.
+      where: {
+        id: characterId,
+        OR: [{ lastActivityTurn: null }, { lastActivityTurn: { not: openTurn.number } }],
+      },
       data: { lastActivityTurn: openTurn.number },
     })
     .catch((err) => console.error(`touchCharacterActivity failed for ${characterId}:`, err));

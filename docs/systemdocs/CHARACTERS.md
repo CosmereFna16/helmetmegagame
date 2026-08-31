@@ -625,11 +625,36 @@ died. Every other list (faction roster, transfer target picker) renders a
 DEAD character as a normal row with no status pill, and every GM surface
 still shows the raw `status`.
 
-Guild-leave takes the same soft-kill path: `guildMemberRemove.js` no longer
-calls `deleteCharacterRow`. It writes `status = DEAD`, unequips, and archives
-a `DEATH` entry, so a departing player's gear stays lootable exactly as if
-they had died in-game. The Cursed grant is skipped for that path — the
-account has left the guild and the grant would 404.
+### Guild-leave is no longer a death — it's a countdown
+
+A player leaving the guild no longer kills their character on the spot.
+`guildMemberRemove.js` calls `db/lib/playerDeparture.js#markPlayerDeparted`:
+the character goes **Catatonic** immediately (the same tag the AFK pass
+grants), `Character.leftGuildAt` and `catatonicSinceTurn` are stamped, the
+personal role is renamed grey (`<name> • Catatonic`) but **kept** — it's held
+by nobody, so it leaks nothing, and `@`-mentions keep resolving while the
+body still stands — and the alert posts to `#leave`. Then the clock runs:
+after `GameConfig.catatonicDeathTurns` turns (default 4) the Catatonic death
+pass (`TURN-ENGINE.md` §2 7b) kills them at close with the full §5 cleanup.
+The Cursed grant is **conditional** there, not skipped-by-rule: granted if
+the player is somehow back in the guild, silently skipped if not.
+
+Rejoining in time is a real rescue: `guildMemberAdd.js` clears
+`leftGuildAt`, re-grants the Player and zone roles and the narrowcast
+overwrites (Discord stripped everything with the membership), and posts a
+rejoin note to `#leave` — but the character stays Catatonic until they
+**act or speak in character**, at which point the flagging pass's clear
+branch wakes them and nulls the countdown.
+
+Leaves the bot sleeps through are caught at the next startup by
+`bot/src/lib/leaveReconcile.js`, which diffs the living roster against
+actual guild membership and runs the same departure path (alerts prefixed
+`[caught at startup]`). It carries a hard rail — an empty or suspiciously
+thin member fetch aborts loudly rather than flagging the roster.
+
+Until the countdown runs out, a departed player's character is **ALIVE
+everywhere**: rosters, transfer pickers, their zone. They're incapacitated
+(no Default Move) and lootable-while-alive like any Catatonic character.
 
 ## 5b. Killing and reviving from the GM panel
 
@@ -651,8 +676,9 @@ with nothing to move away from — then `syncCharacterNarrowcastAccess`.
 
 **Deleting** a character is a separate, superadmin-only action, and is not the
 same thing as killing them. It removes the row and everything pointing at it
-through `db/lib/deleteCharacter.js`, which is shared with the
-`guildMemberRemove` handler so both agree on the foreign-key order. Two
+through `db/lib/deleteCharacter.js`. (The `guildMemberRemove` handler used
+to share it, then soft-killed instead, and now doesn't touch the row's
+existence at all — leaving is a Catatonic countdown, §5.) Two
 dependents are detached rather than deleted: `AuditLog.targetCharacterId` and
 `Note.characterId` are nulled, because the audit trail must outlive its subject
 and `Note.characterName` is already a snapshot.

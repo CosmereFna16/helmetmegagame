@@ -971,6 +971,26 @@ async function removeMemberRole(userId, roleId) {
   });
 }
 
+// One member, or null if they've left — the turn engine's "is this player
+// still in the guild" test before it grants Cursed or DMs a corpse's owner
+// (a DM-channel create for a departed user 403s straight into the REST
+// breaker's tally, so the check is cheaper than the failure).
+async function getGuildMember(userId) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  return discordRequest(`/guilds/${guildId}/members/${userId}`, { allow404: true });
+}
+
+// nick: null clears it. allow404 for the same reason as the role calls: a
+// member who left mid-loop is a fact, not an abort.
+async function setGuildNickname(userId, nick) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  return discordRequest(`/guilds/${guildId}/members/${userId}`, {
+    method: "PATCH",
+    body: { nick },
+    allow404: true,
+  });
+}
+
 // Paginates the full member list (1000 per page — one request for this
 // guild's size, but paged anyway so a bigger game doesn't silently truncate).
 // Each entry carries { user: { id, ... }, roles: [roleId, ...] }, which is
@@ -1064,6 +1084,8 @@ module.exports = {
   deleteGuildRole,
   addMemberRole,
   removeMemberRole,
+  getGuildMember,
+  setGuildNickname,
   listGuildMembers,
   messageTimestamp,
   putChannelOverwrite,

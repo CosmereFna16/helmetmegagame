@@ -33,8 +33,17 @@ const RAGE_SLUG = "rage";
 // system, so two separate rules gate on standing there.
 const FORTRESS_SLUG = "fortress";
 
+// #leave — the GM-only channel departure alerts and catatonic deaths post to.
+// A channel ID, hardcoded for the same reason db/lib/roleIds.js hardcodes its
+// role IDs: Bascinet runs in a single guild, the ID is not a secret, and a
+// missing env var here would fail silently — a leave nobody hears about.
+// Lives in db/ rather than the bot because the turn engine's side-effect
+// thunk (db/index.js) posts death alerts to it too.
+const LEAVE_ANNOUNCE_CHANNEL_ID = "1540014692926361651";
+
 module.exports = {
   FORTRESS_SLUG,
+  LEAVE_ANNOUNCE_CHANNEL_ID,
   HUNGER_SLUG,
   HUNGERLESS_SLUG,
   DYING_SLUG,

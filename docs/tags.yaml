@@ -2019,7 +2019,7 @@ tags:
     name: Catatonic (AFK)
     category: status
     group: status-debuffs
-    description: "The stresses of Ravenheart have proven too much for this one. They have an empty look."
+    description: "The stresses of Ravenheart have proven too much for this one. They have an empty look. If nothing stirs them, they will not last long."
     pointCost: 0
     visible: true
     purchasable: false

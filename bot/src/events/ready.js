@@ -96,6 +96,19 @@ module.exports = {
 
     for (const guild of client.guilds.cache.values()) {
       await syncNicknamesForGuild(guild).catch((err) => console.error("Failed to sync nicknames:", err));
+      // Departures the bot slept through: guildMemberRemove only fires while
+      // the gateway is up, so this diff against live membership is the ONLY
+      // thing that catches a player who left during a restart. Deliberately
+      // after the channel doctor above — its REST burst finishes before this
+      // posts anything, and the two can't fight over a leaver in either
+      // order (the doctor skips users absent from the member map). See
+      // bot/src/lib/leaveReconcile.js for the mass-flag safety rail.
+      {
+        const { reconcileDepartures } = require("../lib/leaveReconcile");
+        await reconcileDepartures(client, guild).catch((err) =>
+          console.error("Leave reconcile failed:", err),
+        );
+      }
       await ensureTurnsConsole(guild).catch((err) => console.error("Failed to ensure turns console:", err));
       await ensureReportAnchor(guild).catch((err) => console.error("Failed to ensure report anchor:", err));
       // Warms client.channels.cache with every active thread, private ones

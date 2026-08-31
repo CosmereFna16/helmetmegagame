@@ -296,6 +296,10 @@ export default async function DevPanelPage({ searchParams }) {
                     <span className="field-label">Catatonic after N idle turns</span>
                     <input type="number" name="catatonicTurns" min="1" max="60" defaultValue={config.catatonicTurns} />
                   </label>
+                  <label className="field">
+                    <span className="field-label">Death after N Catatonic turns (0 = off)</span>
+                    <input type="number" name="catatonicDeathTurns" min="0" max="60" defaultValue={config.catatonicDeathTurns} />
+                  </label>
                 </div>
 
                 <div className="ops-toggles">
