@@ -49,7 +49,11 @@ is a decision worth being able to make, and it is why the gate is the tag and
 never the role: a role check would quietly break the trade.
 
 There is no GM half to this page. A GM with no licensed character is redirected
-like anyone else; `/gm/dev` already does everything they would want here.
+like anyone else; `/gm/dev` already does everything they would want here. The
+one exception is a **superadmin**: they get the page read-only — the live
+price lists, no held counts, no credit line, every control disabled — and the
+Depot rail item so they can reach it. Every trade action still re-checks the
+licence server-side, so the view grants nothing.
 
 ## 3. Buying
 
@@ -142,9 +146,49 @@ Four bands, about 106 tags in total:
 | Band | Priced at | Examples |
 |---|---|---|
 | Brews | build cost + margin; the batch recipes get a thinner one | `ravenheart-red` 14, `ambrosia` 40, `bliss` 3 |
-| Smithed gear | its `SMITHING.md` §2 tier + ~1/3 | Dead Simple 4, Simple 9, Moderate 22, High Quality 30, Exceptional 42, Gunpowder 49 |
+| Smithed gear | its own `resourceCost` + a turn-scaled markup — see below | Dead Simple 4, Simple 9, Moderate 22, High Quality 42, Exceptional 61, Gunpowder 59 (Bore Pistol 45) |
 | Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3 |
 | Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1 |
+
+**Smithed gear's markup is `resourceCost + round(rate(skill) × turnsCost^1.3)`, per item —
+not a flat multiplier of the tier.** A flat "+1/3 of the tier" markup used to make
+Exceptional (3 turns, `smithing-skilled`) pay out *worse* per turn than Moderate or High
+Quality (1–2 turns, the same skill gate), and made Dead Simple's turn-free 4-a-turn cap
+look like a strictly better business than ever touching the higher rungs. Two things now
+have to be paid for on purpose, not by accident: the skill it took to unlock the tier, and
+the turns sunk into one item once you're there.
+
+`rate(skill)` scales with the cumulative point cost of the skill chain a tier is gated
+behind:
+
+| Skill gate | Cumulative pt | Rate | Why |
+|---|---|---|---|
+| `crafting` / `smithing` | 5 | 2 ⬢/turn | Dead Simple and Simple both sit here |
+| `smithing-skilled` | 10 | 5 ⬢/turn | Moderate, High Quality, Exceptional |
+| `smithing-gunpowder` | 19 | 9 ⬢/turn | Gunpowder — nearly double the skill investment, so nearly double the rate |
+
+The `turnsCost^1.3` exponent is what makes rate-per-turn climb *inside* a skill bracket
+too, not just jump between brackets — a deliberate, mild superlinear curve so tying up
+more turns in one item is rewarded a little more than proportionally, not just
+proportionally. Within `smithing-skilled` alone: Moderate (1 turn) nets 5 ⬢/turn, High
+Quality (2 turns) nets 6, Exceptional (3 turns) nets 7 — strictly increasing, never flat
+and never falling, the way the old linear version let Exceptional under-pay Moderate.
+Across the whole ladder the curve reads 2 → 5 → 6 → 7 → 11 ⬢/turn, so every rung —
+whether the jump is more skill or more turns — pays strictly better than the one before
+it. 1.3 is a judgment call, not a derived constant: high enough to feel like a real
+reward for committing turns, low enough that Exceptional (21 ⬢ profit) doesn't dwarf
+Moderate (5 ⬢ profit) the way a steeper exponent would. Re-tune it here first if a tier
+ever needs adjusting, rather than hand-editing one item's `sellablePrice`.
+
+**Dead Simple is the one exception, kept outside the formula on purpose.** It costs 0
+turns, so `rate × 0^1.3` would price it at raw material cost with no margin at all.
+Instead it keeps a flat token markup (+1 ⬢), and its rationing stays the 4-unit/turn cap
+(`SMITHING.md` §2) rather than a turn cost — it was never meant to compete turn-for-turn
+with the ladder above it, so it does not need to clear the same per-turn bar.
+
+Two items break from their tier's baseline `resourceCost` and price accordingly: Bore
+Pistol (23 ⬢ to make, cheaper than Musketoon/Bomb's 37) prices to 45, not 59 — same
+9 ⬢/turn-rate curve, applied to its own cheaper cost, not the tier's.
 
 `ravenheart-red` is the top of the ordinary brews on purpose. It costs 4 ⬢ and
 needs no ingredient at all, so a Skilled brewer with nothing else going on can

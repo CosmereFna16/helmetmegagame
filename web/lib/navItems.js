@@ -52,9 +52,10 @@ const DEV_NAV_ITEM = { href: "/gm/dev", label: "Dev", icon: "dev", section: "gm"
 const LIFEWEB_NAV_ITEM = { href: "/lifeweb", label: "Lifeweb", icon: "lifeweb", section: "player" };
 const ARCHIVE_NAV_ITEM = { href: "/archive", label: "Archive", icon: "archive", section: "player" };
 // Conditional on the licence tag, exactly like Lifeweb's Mortus check below —
-// and, like it, NOT extended to every GM. A GM has no counter to trade at, and
-// /depot redirects them; putting a dead link on their rail would only puzzle
-// them. See docs/systemdocs/DEPOT.md §2.
+// and NOT extended to every GM. A GM has no counter to trade at, and /depot
+// redirects them; putting a dead link on their rail would only puzzle them.
+// A superadmin is the one exception: /depot answers them with a read-only
+// price list, so the link is live. See docs/systemdocs/DEPOT.md §2.
 const DEPOT_NAV_ITEM = { href: "/depot", label: "Depot", icon: "store", section: "player" };
 
 // Streamed separately from the nav shell (see the Suspense boundary in
@@ -113,10 +114,11 @@ export async function loadNavItems(discordUserId) {
   // /character's creation gate.
   const withArchive =
     gm || config?.archiveVisible ? [...withLifeweb, ARCHIVE_NAV_ITEM] : withLifeweb;
-  const withDepot = hasLicenceTag ? [...withArchive, DEPOT_NAV_ITEM] : withArchive;
+  const superadmin = isSuperadmin(discordUserId);
+  const withDepot = hasLicenceTag || superadmin ? [...withArchive, DEPOT_NAV_ITEM] : withArchive;
   // Dev is appended last and carries section "gm", so on a GM's rail it lands
   // after the player group. That is one more divider than the two groups
   // suggest, which is correct: Dev is not the same job as Players/Adjudicate
   // and reads better as its own mark at the bottom.
-  return isSuperadmin(discordUserId) ? [...withDepot, DEV_NAV_ITEM] : withDepot;
+  return superadmin ? [...withDepot, DEV_NAV_ITEM] : withDepot;
 }

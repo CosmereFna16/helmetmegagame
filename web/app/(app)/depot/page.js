@@ -8,6 +8,7 @@ import {
   creditAvailable,
 } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
+import { isSuperadmin } from "@/lib/superadmin";
 import DepotCounter from "@/app/components/DepotCounter";
 import DepotCreditPanel from "@/app/components/DepotCreditPanel";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
@@ -19,7 +20,9 @@ import PageShell, { PageHeader } from "@/app/components/PageShell";
 // is tradeable, so handing it over really does hand over the Depot, and a role
 // check would quietly break that. Unlike /lifeweb there is no GM half — a GM
 // with no licensed character has nothing to do here that /gm/dev cannot
-// already do, so they are redirected like anyone else.
+// already do, so they are redirected like anyone else. A superadmin without
+// the licence gets a read-only price list instead: no counters, no credit,
+// and every trade action still re-checks the licence server-side.
 
 // TagChip renders from the catalog row, so ask for the whole tag rather than
 // picking fields off it — the chip's hover card wants the description, the
@@ -43,7 +46,11 @@ export default async function DepotPage() {
       zone: { select: { slug: true } },
     },
   });
-  if (!character) redirect("/character");
+  // A superadmin with no licensed character reads the shelf; everyone else
+  // is bounced. `spectating` shapes the whole render below: no held counts,
+  // no credit line, every control disabled.
+  const spectating = !character;
+  if (spectating && !isSuperadmin(session.discordUserId)) redirect("/character");
 
   const [wareTags, sellableTags, held] = await Promise.all([
     // The shelf: everything the station stocks. Infinite supply — price is the
@@ -55,10 +62,12 @@ export default async function DepotPage() {
     prisma.tag.findMany({ where: { sellable: true, sellablePrice: { not: null } }, ...TAG_SELECT }),
     // His own inventory, so the price list can be split into what he can
     // sell right now and what he'd have to go get first.
-    prisma.characterTag.findMany({
-      where: { characterId: character.id, tag: { sellable: true } },
-      select: { tagId: true, quantity: true },
-    }),
+    spectating
+      ? []
+      : prisma.characterTag.findMany({
+          where: { characterId: character.id, tag: { sellable: true } },
+          select: { tagId: true, quantity: true },
+        }),
   ]);
 
   const wares = wareTags.map((tag) => ({
@@ -93,8 +102,8 @@ export default async function DepotPage() {
   // The second gate, and the same one the Lifeweb applies at the tower: the
   // Depot is a shuttle parked at Customs. He can read the price list from
   // anywhere; trading needs his boots on that ground.
-  const atDepot = character.zone?.slug === DEPOT_ZONE_SLUG;
-  const debt = character.depotDebt ?? 0;
+  const atDepot = !spectating && character.zone?.slug === DEPOT_ZONE_SLUG;
+  const debt = spectating ? 0 : (character.depotDebt ?? 0);
 
   return (
     <PageShell width="narrow">
@@ -103,11 +112,18 @@ export default async function DepotPage() {
         subtitle="An automated shuttle at the Customs. It flies to a nearby city at supersonic speeds—the roundtrip is a few hours. It's small, but it fits a person; you could hitch a ride if necessary. Beats the trains…"
       />
 
-      {!atDepot && (
+      {spectating ? (
         <p className="text-sm text-muted">
-          You are not at Customs. The list is current, but the shuttle will not open its hold for
-          someone who isn&apos;t standing in front of it.
+          Read-only view — you hold no Merchant&apos;s License. The prices are live; the counter is
+          not yours.
         </p>
+      ) : (
+        !atDepot && (
+          <p className="text-sm text-muted">
+            You are not at Customs. The list is current, but the shuttle will not open its hold for
+            someone who isn&apos;t standing in front of it.
+          </p>
+        )
       )}
 
       <section className="panel p-5">
@@ -115,7 +131,7 @@ export default async function DepotPage() {
         <DepotCounter
           wares={wares}
           stock={stock}
-          resources={character.resources}
+          resources={spectating ? 0 : character.resources}
           maxQuantity={DEPOT_MAX_QUANTITY}
           disabled={!atDepot}
         />
@@ -125,16 +141,19 @@ export default async function DepotPage() {
         </p>
       </section>
 
-      <section className="panel p-5">
-        <h2 className="panel-header">Credit</h2>
-        <DepotCreditPanel
-          debt={debt}
-          cap={DEPOT_CREDIT_CAP}
-          available={creditAvailable(debt)}
-          resources={character.resources}
-          disabled={!atDepot}
-        />
-      </section>
+      {/* Credit is a personal debt line, so a spectator has none to show. */}
+      {!spectating && (
+        <section className="panel p-5">
+          <h2 className="panel-header">Credit</h2>
+          <DepotCreditPanel
+            debt={debt}
+            cap={DEPOT_CREDIT_CAP}
+            available={creditAvailable(debt)}
+            resources={character.resources}
+            disabled={!atDepot}
+          />
+        </section>
+      )}
     </PageShell>
   );
 }
