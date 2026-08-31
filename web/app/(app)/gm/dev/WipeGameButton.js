@@ -55,12 +55,12 @@ export default function WipeGameButton() {
             type="text"
             name="confirm"
             autoComplete="off"
-            style={{ width: "10rem" }}
+            className="w-40"
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
           />
         </label>
-        <button type="submit" className="btn" style={{ borderColor: "var(--accent)" }} disabled={pending}>
+        <button type="submit" className="btn-danger" disabled={pending}>
           {pending ? "Wiping…" : "Wipe & restart game"}
         </button>
       </div>
