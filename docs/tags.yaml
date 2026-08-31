@@ -928,7 +928,7 @@ tags:
     category: general
     group: general-traits
     description: "You're branded from a time long past. Sometimes you still smell your own flesh, burning."
-    pointCost: -2
+    pointCost: -1
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -1060,7 +1060,7 @@ tags:
     category: general
     group: general-traits
     description: "People wonder if you were dropped on your face as a child."
-    pointCost: -2
+    pointCost: -1
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -1071,7 +1071,7 @@ tags:
     category: general
     group: general-traits
     description: "Many peasants can't bathe often. But you don't bathe, even when you have the option. You have a repellent odor."
-    pointCost: -2
+    pointCost: -1
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -1468,7 +1468,7 @@ tags:
     name: Artist
     category: skills
     description: "Well, it's lovely, but I'm not paying for it. You draw, paint, sculpt, act, or pursue another creative medium inessential for survival. Perhaps you can find a patron? The Merchant might buy these... You can craft a {tag:painting}, but it takes 4 turns."
-    pointCost: 2
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
@@ -3107,7 +3107,7 @@ tags:
     category: health
     group: health-maiming
     description: "Your face scares children."
-    pointCost: -4
+    pointCost: -2
     visible: true
     purchasable: true
     purchasableAfterStart: false
