@@ -55,6 +55,7 @@ import {
   sendDm,
 } from "@/lib/discordGuild";
 import { applyPendingInvites } from "@lifeweb/db/lib/threadInvites";
+import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { rollCaving } from "@lifeweb/db/lib/cavingPass";
 import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
@@ -1858,11 +1859,35 @@ async function fastTravelRequestImpl({ targetZoneId, passengerIds: rawPassengerI
     });
   });
 
+  // Built once, shared by the public departure line and the archive entry
+  // below so the two can't drift apart on who was aboard.
+  const passengerClause = passengers.length
+    ? `, carrying ${passengers.map((p) => p.name).join(" and ")}`
+    : "";
+  // "You'll be easily visible" is the price the tag charges for the free hop —
+  // this is the half the room actually sees (the archive entry below is the
+  // other half). Which vehicle is named follows what the rider holds: a horse
+  // (either kind) reads as horseback, and only the Steam Automobile's
+  // horseless ride falls through to its own wording.
+  const rideClause =
+    heldSlugs.has("horse") || heldSlugs.has("horse-windlander")
+      ? "on horseback"
+      : "in a steam automobile";
+
   // Deferred, not awaited in the request — the same handful of sequential
   // Discord calls web/app/(app)/map/travelActions.js#travelTo defers, for the
   // same reason: a pending server action blocks App Router navigation, and the
   // database write has already committed.
   after(async () => {
+    // The departure zone's room sees the ride leave. Posted as the bot into
+    // the zone's #summary; a cave level has no summary channel of its own, so
+    // a ride out of the depths simply has nowhere to announce itself.
+    if (currentZone.discordSummaryChannelId) {
+      await postMessage(
+        currentZone.discordSummaryChannelId,
+        `*${character.name} is seen leaving the area ${rideClause}${passengerClause}.*`,
+      ).catch((err) => console.error("Fast travel: departure post failed:", err));
+    }
     // The rider's own fan-out, then each passenger's — sequential, same
     // shape moveCharacterRequestImpl already uses for its one target, just
     // run once per rider-or-passenger here since there can be up to six.
@@ -1908,11 +1933,8 @@ async function fastTravelRequestImpl({ targetZoneId, passengerIds: rawPassengerI
 
   // Riding is loud. The ordinary TRAVEL archive entry is off by default
   // (GameConfig.archiveTravelEvents) because it is two rows per character per
-  // turn; this one is unconditional, because "you'll be easily visible" is the
-  // price the tag charges for the free hop and nothing else collects it.
-  const passengerClause = passengers.length
-    ? `, carrying ${passengers.map((p) => p.name).join(" and ")}`
-    : "";
+  // turn; this one is unconditional — the transcript half of the same
+  // visibility the departure post above collects live.
   await recordArchiveEvent({
     kind: "TRAVEL",
     character,

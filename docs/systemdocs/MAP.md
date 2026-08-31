@@ -110,7 +110,10 @@ the same transaction as the rider (one `updateMany`, since they all share the
 same from/to zone) and get the same post-commit Discord fan-out, but they do
 **not** claim their own `fastTravelTurnId` — being carried today doesn't stop
 them riding under their own power again later the same day.
-See `REQUESTS.md` §5d.
+
+**"Easily visible" is real:** the departure zone's `#summary` gets a
+bot-posted line naming the rider (and passengers) as they leave, and the
+`TRAVEL` archive entry is unconditional. See `REQUESTS.md` §5d for both.
 
 Travel cost is also what a **tax run** costs. Moving ⬢ into or out of a
 faction's Silo requires standing in its zone, and handing ⬢ or an item to a
