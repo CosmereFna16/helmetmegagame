@@ -28,6 +28,30 @@ descriptions, the Producing Resources document) render live
 coefficient-adjusted chips with no web changes, and it is the cheapest place
 to add a second production kind later.
 
+### The Butcher bonus
+
+One tag modifies the ladder. Holding `butcher` adds a flat **+2 to both ends**
+of the range, on `base`, `basic` and `skilled` but **not** `farming` — the
+bonus is for taking an animal apart, and Farming is the one tier that isn't.
+It is applied automatically in `resolveLaborRateFrom`, not left as a line in
+the tag description for a GM to remember, so a skilled Butcher rolls 9–11
+rather than 7–9.
+
+The +2 is folded into `min`/`max` and **never annotated onto `expression`**.
+That string is a machine format, parsed back by
+`db/lib/resourceDelta.js#rollResourceRange` against `/^(\d+)-(\d+)$/`; anything
+appended to it — `"9-11 (+2 Butcher)"` — fails the regex, and a failed parse
+rolls null, which pays the character nothing at all.
+
+Because it is folded in silently, the range alone can't be told apart from a
+plain one — which is exactly what once got reported as "Butcher isn't
+applying". So `resolveLaborRateFrom` also returns `bonus` on its own, and
+`formatLaborBonusNote` renders the one shared `-#` subtext line
+(`Includes +2 ⬢ from Butcher.`) that both Labor DMs append: the confirm DM
+(`bot/src/lib/moveConfirm.js`, passed `laborBonus` by the submit handler,
+since the Action row stores only the finished range) and the Default Move DM
+(`db/lib/defaultMovePass.js`).
+
 Basic→Skilled is a `parentTag` tier chain (holding Skilled replaces Basic);
 Farming is a `requiredTag` sidegrade. `resolveLaborTier` checks highest-first
 and re-runs the ladder without the farming rung when Skilled isn't actually
@@ -72,7 +96,8 @@ Rules enforced at submit, each refusing before the Action row exists:
 
 On success the resolved range goes into `Action.resourceRollExpression`;
 `confirmMove` rolls it and replies `**Resource roll (min–max):** +N ⬢` — the
-same pattern as the Gambit die line.
+same pattern as the Gambit die line — followed by the Butcher subtext line
+when that bonus is in the range (§1).
 
 ## 4. Default Moves
 

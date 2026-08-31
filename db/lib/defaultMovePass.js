@@ -22,7 +22,7 @@
 // only thing resolved per turn is the Labor rate itself, since zone (and
 // therefore tier and the depths gate) can change between saves.
 const { applyMoveEffects, describeMoveEffects } = require("./moveEffects");
-const { resolveLaborRateFrom } = require("./laborAccess");
+const { resolveLaborRateFrom, formatLaborBonusNote } = require("./laborAccess");
 const { rollResourceRange } = require("./resourceDelta");
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
 
@@ -43,7 +43,14 @@ function resolveDefaultMove(def, ctx, coefficient) {
   const description = def.description;
 
   if (!def.labor) {
-    return { description, resourceRollExpression: null, resourceRollValue: null, resourceDelta: null, gateNote: null };
+    return {
+      description,
+      resourceRollExpression: null,
+      resourceRollValue: null,
+      resourceDelta: null,
+      gateNote: null,
+      laborBonus: 0,
+    };
   }
 
   const rate = ctx ? resolveLaborRateFrom(ctx, coefficient) : { ok: false, reason: null };
@@ -54,6 +61,7 @@ function resolveDefaultMove(def, ctx, coefficient) {
       resourceRollValue: null,
       resourceDelta: null,
       gateNote: rate.reason ?? "You couldn't labor from where you were standing.",
+      laborBonus: 0,
     };
   }
 
@@ -66,6 +74,8 @@ function resolveDefaultMove(def, ctx, coefficient) {
     resourceRollValue: rollResult?.value ?? null,
     resourceDelta: rollResult?.value ?? null,
     gateNote: null,
+    // Inside `rate.expression` already — carried out so the DM can name it.
+    laborBonus: rate.bonus ?? 0,
   };
 }
 
@@ -190,7 +200,7 @@ async function runDefaultMovePass(prisma, turn) {
         return tx.action.update({ where: { id: row.id }, data: { appliedEffects: applied } });
       });
 
-      filed.push({ def, action, gateNote: resolved.gateNote });
+      filed.push({ def, action, gateNote: resolved.gateNote, laborBonus: resolved.laborBonus });
     } catch (err) {
       console.error(`Default Move for character ${def.characterId} failed:`, err);
     }
@@ -231,8 +241,9 @@ async function runDefaultMovePass(prisma, turn) {
 
   // One DM each: the player needs to know a turn passed and something was
   // filed for them, since they weren't there to see it.
-  const dms = filed.map(({ def, action, gateNote }) => {
+  const dms = filed.map(({ def, action, gateNote, laborBonus }) => {
     const effects = describeMoveEffects(action.appliedEffects);
+    const bonusNote = formatLaborBonusNote(laborBonus);
     // sendDm applies the `»` prefix to the first line itself — don't write
     // one here or it doubles up.
     const lines = [
@@ -242,6 +253,9 @@ async function runDefaultMovePass(prisma, turn) {
       // told.
       ...(gateNote ? [`*${gateNote} No Resources were gained.*`] : []),
       ...(effects ? [`**Applied:** ${effects}`] : []),
+      // Same reason as the confirm DM: the paid range had the bonus folded in
+      // silently, so a Butcher couldn't tell it had applied.
+      ...(bonusNote ? [bonusNote] : []),
     ];
     return { discordUserId: def.character.discordUserId, content: lines.join("\n") };
   });

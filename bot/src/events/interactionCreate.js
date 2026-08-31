@@ -731,6 +731,9 @@ async function handleMoveSubmit(interaction) {
   // one grammar — a plain range — ever reaches the database.
   let resourceRollExpression = null;
   let laborTier = null;
+  // The Butcher +2 is already inside `expression`; kept separately only so the
+  // confirm DM can name it (db/lib/laborAccess.js#formatLaborBonusNote).
+  let laborBonus = 0;
   if (labor) {
     const rate = await resolveLaborRate(prisma, character.id);
     if (!rate.ok) {
@@ -739,6 +742,7 @@ async function handleMoveSubmit(interaction) {
     }
     resourceRollExpression = rate.expression;
     laborTier = rate.tier;
+    laborBonus = rate.bonus ?? 0;
   }
 
   // @@unique([characterId, turnId]) is the real gate; the earlier openTurn/
@@ -786,7 +790,7 @@ async function handleMoveSubmit(interaction) {
     include: { character: { include: { tags: { include: { tag: true } } } } },
   });
 
-  const { lines } = await confirmMove(loaded, interaction.user.id);
+  const { lines } = await confirmMove(loaded, interaction.user.id, { laborBonus });
   // respond() clamps to 2000. It has to: the first line echoes the player's
   // description, the modal allows 1800 characters, and the Kind, dice and
   // resource-roll lines go on top — so the reply could exceed the limit by

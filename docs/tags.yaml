@@ -1591,7 +1591,7 @@ tags:
   - slug: butcher
     name: Butcher
     category: skills
-    description: "When butchering non-humans, you can obtain interesting organs. Also gain +2 when hunting."
+    description: "When butchering non-humans, you can obtain interesting organs. Also gain +2 ⬢ when Laboring, unless you are Farming."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true

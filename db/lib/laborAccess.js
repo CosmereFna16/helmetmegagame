@@ -102,11 +102,26 @@ function resolveLaborRateFrom(ctx, coefficient) {
   // confirm and in the Default Move pass. Anything appended to it — "(+2
   // Butcher)" — fails that regex, and a failed parse rolls null, which pays
   // the character nothing at all.
+  //
+  // It IS returned separately, though, so the two Labor DMs
+  // (bot/src/lib/moveConfirm.js and db/lib/defaultMovePass.js) can say the
+  // bonus out loud in a subtext line. Folded in silently, a Butcher had no way
+  // to tell it had applied — which is exactly what got reported as a bug.
   const bonus = ctx.tagSlugs.has(BUTCHER_SLUG) && tier !== "farming" ? BUTCHER_LABOR_BONUS : 0;
   const min = rate.min + bonus;
   const max = rate.max + bonus;
 
-  return { ok: true, tier, min, max, expression: `${min}-${max}` };
+  return { ok: true, tier, min, max, bonus, expression: `${min}-${max}` };
+}
+
+// The one wording for "your roll already includes Butcher", shared so the
+// Move-confirm DM (bot/) and the Default Move DM (db/) can't drift apart.
+// Discord `-#` subtext: it explains a number rather than competing with it.
+// Returns null when there is no bonus, so a caller can spread it straight into
+// a lines array.
+function formatLaborBonusNote(bonus) {
+  if (!bonus) return null;
+  return `-# Includes +${bonus} ⬢ from Butcher.`;
 }
 
 // Async convenience for the one-character call sites (the Move modal),
@@ -121,6 +136,7 @@ async function resolveLaborRate(prisma, characterId) {
 
 module.exports = {
   computeLaborAccess,
+  formatLaborBonusNote,
   resolveLaborTier,
   resolveLaborRateFrom,
   resolveLaborRate,
