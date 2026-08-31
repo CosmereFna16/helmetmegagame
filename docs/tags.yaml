@@ -3911,6 +3911,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     removable: true
+    equippable: true
     sellable: true
     sellablePrice: 13
     depotPrice: 30
