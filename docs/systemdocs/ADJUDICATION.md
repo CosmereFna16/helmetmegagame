@@ -102,6 +102,13 @@ tray as "unattached" for the GM to keep or drop.
   carries any `auto:` marker (a default move and travel send their own),
   and for Gambits and Solved Moves.
   See `TURN-ENGINE.md` for where in the push it fires.
+- **A Gambit's die is revealed by the push, and only by the push.** The d6 is
+  rolled and stored at submit so the desk has it immediately, but the player
+  reads it in one DM at the turn close (`formatGambitRollDm`,
+  `db/lib/stagedPush.js`) — landing beside the staged private messages that
+  say what it actually did. Nothing else shows a player their own roll: not
+  the confirm DM, not `/character`. Every confirmed Gambit gets the DM
+  regardless of what else the push sent them.
 - **The Result box is canon.** One GM-facing field (`resultMessage`) holding
   what actually happened. `gmNotes` survives as a column for the `auto:*`
   machine markers only and renders nowhere.

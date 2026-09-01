@@ -304,7 +304,7 @@ When you submit a Gambit, the bot rolls a d6 immediately — but doesn't tell yo
 **Roll a 1:** Things went worse than you feared.  
 **Roll a 6:** Things went better than you hoped.
 
-You'll find out how your die fell once Moves lock for the turn (three hours before it ends) — the bot DMs you the result then. Playing the rest of the turn without knowing is the point: your character doesn't know how it went either.
+You'll find out how your die fell when the turn ends — the bot DMs you the number alongside whatever the GMs decided it did. Playing the turn without knowing is the point: your character doesn't know how it went either.
 
 The choice between Routine or Gambit is left to you because you know what your character is attempting with your Move. It's not a mechanism to choose whether you succeed, and Moves submitted using the wrong option may be adjusted by the GMs. 
 

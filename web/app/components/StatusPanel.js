@@ -70,6 +70,10 @@ function ThisTurn({ currentAction, openTurn }) {
   } else if (moveReviewStatus === "SOLVED") {
     stateLine = <span className="text-positive">Solved.</span>;
   } else {
+    // Always empty for a Gambit now: app/(app)/character/page.js strips the
+    // die server-side, and this panel's only mount is that page. Kept rather
+    // than deleted so the panel stays honest about whatever it is handed —
+    // a Routine has never had a die either, and this is the same branch.
     const roll = rollLabel(currentAction);
     // The range, not just the number. A bare "+7 ⬢" is unreadable: the roll's
     // floor moves with GameConfig.productionCoefficient and with the Butcher
@@ -83,10 +87,15 @@ function ThisTurn({ currentAction, openTurn }) {
       : null;
     const amount = resourceRollValue != null ? `${resourceRollValue > 0 ? "+" : ""}${resourceRollValue} ⬢` : null;
     const payout = amount && range ? `${range} → ${amount}` : amount;
+    // Without this the line just loses its middle and reads as if nothing was
+    // rolled. Same words the confirm DM uses (bot/src/lib/moveConfirm.js), so
+    // the two surfaces promise the same moment.
+    const pending = !roll && currentAction.moveKind === "GAMBIT";
     stateLine = (
       <span className="text-muted">
         Locked in{roll ? ` — ${roll}` : ""}
-        {payout ? ` (${payout})` : ""}. Results land when the turn ends.
+        {payout ? ` (${payout})` : ""}.{" "}
+        {pending ? "🎲 The die is cast — you'll see how it fell when the turn ends." : "Results land when the turn ends."}
       </span>
     );
   }

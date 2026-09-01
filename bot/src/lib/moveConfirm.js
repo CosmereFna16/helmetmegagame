@@ -87,9 +87,12 @@ async function confirmMove(action, actorDiscordUserId, { laborBonus = 0 } = {}) 
     `Kind: **${action.moveKind === "GAMBIT" ? "Gambit" : "Routine"}**`,
   ];
   if (diceRoll != null) {
-    // No number here on purpose — see the header comment. The DM at Moves-lock
-    // is the reveal.
-    lines.push("🎲 *The die is cast. You'll see how it fell once Moves lock.*");
+    // No number here on purpose — see the header comment. The reveal is the DM
+    // at the turn-end staged push (db/lib/stagedPush.js's gambitRollNotices),
+    // which lands beside the adjudication DMs that say what the roll did. Not
+    // at Moves lock, which this line used to promise: that is three hours
+    // early, and a roll with no outcome attached is worse than no roll.
+    lines.push("🎲 *The die is cast. You'll see how it fell when the turn ends.*");
   }
   if (rollResult) {
     lines.push(
