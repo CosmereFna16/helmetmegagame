@@ -22,6 +22,7 @@
     "db:backfill-roles": "node db/prisma/backfill-roles.js",
     "db:backfill-name-parts": "node db/prisma/backfill-name-parts.js",
     "db:backfill-fighting-split": "node db/prisma/backfill-fighting-split.js",
+    "db:backfill-desires": "node db/prisma/backfill-desires.js",
     "db:doctor": "node db/prisma/doctor.js",
     "db:report-inactive-characters": "node db/prisma/report-inactive-characters.js",
     "db:prune-orphan-roles": "node db/prisma/prune-orphan-roles.js",
