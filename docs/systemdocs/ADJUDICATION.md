@@ -92,15 +92,17 @@ tray as "unattached" for the GM to keep or drop.
   Unsolve reverts nothing, because there is nothing yet to revert.
 - **Silent close.** A Move still `OPEN` at the push closes `PASSED` with
   `auto:silent_close` appended to `gmNotes` and pays its declared numbers.
-  It used to send **no DM** at all. A **Routine** that ends the push `PASSED`
-  now gets one canned line — "Your Routine automatically passed without any
-  special adjudication notes…" — so a player who hears nothing knows why
-  rather than wondering if they were forgotten. It is suppressed when a
-  private staged message on that Move actually went to *that* player (they
-  already have real notes), when a staged effect on the Move targets them
-  (their sheet is changing — "no notes" would be a lie), when `gmNotes`
-  carries any `auto:` marker (a default move and travel send their own),
-  and for Gambits and Solved Moves.
+- **Every Routine gets a close DM**, whatever its review status, built to
+  match the Default Move DM: the description, `**Applied:** …`, and the
+  resource roll. This is the *only* place a hand-filed Routine's payout is
+  reported — nothing pays at confirm — so a player who declared used to learn
+  less about their turn than one who slept through it. A **tail** ("passed
+  without any special adjudication notes…") is appended only when nothing else
+  spoke for the Move; a private staged message that actually went to *that*
+  player, or a staged effect targeting them, drops the tail and keeps the
+  summary. The one skip is `gmNotes` carrying any `auto:` marker — a default
+  move and a travel stub send their own DM, and this would double it. Gambits
+  are excluded here and get their die reveal instead.
   See `TURN-ENGINE.md` for where in the push it fires.
 - **A Gambit's die is revealed by the push, and only by the push.** The d6 is
   rolled and stored at submit so the desk has it immediately, but the player

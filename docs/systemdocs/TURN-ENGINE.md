@@ -45,12 +45,15 @@ each arrived at by getting them wrong first.
    (nothing pays at confirm any more — a Routine, a Labor payout and a
    GM-solved Gambit all sit with `appliedEffects` null until here), and
    silently closes untouched Moves (`OPEN → PASSED`, `auto:silent_close`).
-   Silent for a Gambit's *adjudication*, but a Routine that ends the push
-   `PASSED` gets a short canned DM saying it passed with no adjudication
-   notes — unless a private staged message on that Move already went to that
-   player, a staged effect on it targets them (their sheet is changing in
-   this same push), or an `auto:` marker says another pass is DMing them
-   about it. Every Gambit gets its own DM regardless: the d6 is rolled and
+   Silent for a Gambit's *adjudication*, but every Routine gets a close DM
+   shaped like the Default Move's — description, `**Applied:**`, resource
+   roll — because this push is the only place a hand-filed Routine's payout is
+   ever reported. It carries a "no adjudication notes" tail unless a private
+   staged message on that Move already went to that player or a staged effect
+   on it targets them, in which case the summary stands alone. The only Routine
+   skipped outright is one whose `gmNotes` carry an `auto:` marker, meaning
+   another pass is already DMing them about it. Every Gambit gets its own DM
+   regardless: the d6 is rolled and
    stored at submit (`bot/src/lib/moveConfirm.js`) and shown to the player
    nowhere else, so this is where they find out how it fell. `/character`
    used to reveal it at Moves lock — three hours early

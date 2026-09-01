@@ -29,16 +29,45 @@
 // Position in TURN_PASSES is load-bearing, see resolveNeeds().
 
 const { Prisma } = require("@prisma/client");
-const { addResources, applyMoveEffects } = require("./moveEffects");
+const { addResources, applyMoveEffects, describeMoveEffects } = require("./moveEffects");
+const { formatRangeExpression } = require("./resourceDelta");
 const { TagOpError, validateTagOps, applyTagOpsInTx } = require("./tagOps");
 const { applyTransfer, InsufficientResourcesError } = require("./resourceTransfer");
 
-// What a quietly passed Routine gets told. sendDm writes the » prefix itself,
-// so this is raw text.
-const ROUTINE_PASSED_DM =
-  "Your Routine automatically passed without any special adjudication notes. " +
-  "Only Gambits receive adjudications, typically. If you need additional " +
-  "information or believe this was in error, message the GMs.";
+// The tail on a Routine nothing else spoke for. Left off when a GM staged a
+// message or an effect on the Move — that IS the adjudication, and "no notes"
+// would contradict the DM the player just read.
+const NO_NOTES_TAIL =
+  "*Your Routine passed without any special adjudication notes. Only Gambits " +
+  "receive adjudications, typically. If you need additional information or " +
+  "believe this was in error, message the GMs.*";
+
+// The Routine close DM. Deliberately mirrors the Default Move DM
+// (db/lib/defaultMovePass.js): a player who declared should never learn less
+// about their turn than one who slept through it, and this is the only place
+// a hand-filed Routine's payout is ever reported — nothing pays at confirm,
+// so the ⬢ land here. sendDm writes the » prefix on the first line, so don't
+// write one here.
+//
+// No labor bonus note: laborBonus is computed at confirm and never stored on
+// Action, so it would cost a labor-context query per move. The stored
+// resourceRollExpression already has the bonus folded into its range, and the
+// confirm DM said so.
+function formatRoutineCloseDm(turn, action, applied, adjudicated) {
+  const effects = describeMoveEffects(applied);
+  const lines = [
+    `*Your Routine for turn ${turn.number}.*`,
+    `» ${action.description}`,
+    ...(effects ? [`**Applied:** ${effects}`] : []),
+    ...(action.resourceRollValue != null
+      ? [
+          `**Resource roll (${formatRangeExpression(action.resourceRollExpression)}):** ${action.resourceRollValue > 0 ? "+" : ""}${action.resourceRollValue} ⬢`,
+        ]
+      : []),
+    ...(adjudicated ? [] : [NO_NOTES_TAIL]),
+  ];
+  return lines.join("\n");
+}
 
 // The Gambit reveal. The die is rolled and stored at submit (bot/src/lib/
 // moveConfirm.js) but withheld from the player until Moves lock — this DM at
@@ -296,34 +325,36 @@ async function runStagedPushPass(prisma, turn, config) {
         movesApplied += 1;
         if (silentClose) movesClosed += 1;
 
-        // Decided on the Move's END state, not the one it walked in with:
-        // saving the adjudication popup writes OPEN unconditionally, so a GM
-        // who opened a Routine, read it and clicked Save would otherwise mute
-        // the notice by accident. An "auto:" marker means another pass is
-        // already DMing this player about this row (a Default Move, a travel
-        // stub). And a private staged message IS the adjudication note — but
-        // only when it went to this player; one about them, sent to someone
-        // else, tells them nothing.
+        // A private staged message IS the adjudication note — but only when it
+        // went to this player; one about them, sent to someone else, tells
+        // them nothing.
         const alreadyTold = action.stagedMessages.some((message) =>
           message.recipients.some((r) => r.characterId === action.characterId),
         );
         // A staged effect against the Move's own character is adjudication
-        // attention too — their sheet is changing in this same push, and
-        // "passed without any special adjudication notes" would be a lie.
+        // attention too — their sheet is changing in this same push.
         const alreadyAdjudicated = action.stagedEffects.some(
           (e) => e.targetCharacterId === action.characterId,
         );
+        // Neither of those suppresses the DM any more, only its "no notes"
+        // tail: the mechanical summary is exactly what a GM-touched Routine
+        // used to be missing. The Move's review status doesn't gate it either,
+        // so a SOLVED Routine reports its payout like any other.
+        //
+        // The one remaining skip is the "auto:" family, and it's about double
+        // sends: a Default Move (auto:default_move) and a travel stub
+        // (auto:zone_change) each write their own DM. This reads the
+        // pre-update gmNotes, so the auto:silent_close appended a few lines
+        // above can't mute the very notice it's meant to accompany — leave it
+        // reading `action`, not the updated row.
         if (
           action.moveKind === "ROUTINE" &&
-          (silentClose || action.moveReviewStatus === "PASSED") &&
           !(action.gmNotes ?? "").includes("auto:") &&
-          !alreadyTold &&
-          !alreadyAdjudicated &&
           action.character?.discordUserId
         ) {
           notice = {
             discordUserId: action.character.discordUserId,
-            content: ROUTINE_PASSED_DM,
+            content: formatRoutineCloseDm(turn, action, applied, alreadyTold || alreadyAdjudicated),
           };
         }
       });
