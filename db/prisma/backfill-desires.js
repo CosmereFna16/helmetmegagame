@@ -31,6 +31,11 @@
 // holders every call, so the second conversion correctly treats characters
 // already moved by the first as a collision (dropped, not double-moved).
 //
+// Safe to re-run, including a re-run after a partial/failed prior run: the
+// CONVERSIONS loop runs UNCONDITIONALLY every invocation (it is NOT gated on
+// a single "already done" marker — see main()'s comment for why that would
+// be unsafe here) and each conversion is independently idempotent per slug.
+//
 // Free removals (step 3): five tags absorbed into the flat rebalance with no
 // replacement Desire-catalog concept behind them. Their point cost is gone
 // with them — tagPoints is left untouched, an accepted free lunch (same as
@@ -49,13 +54,12 @@ const CONVERSIONS = [
   { oldSlug: "death-wish", newSlug: "death-wish-interest" },
 ];
 
-// The marker slug: whichever converting old tag we check FIRST, before any
-// writes. coca-habit is picked because it is the very first conversion in
-// docs/tags.yaml's own retirement notes and every run of this script does
-// all six conversions in one pass — so "does anyone still hold coca-habit"
-// is a reliable stand-in for "has this script's conversion step ever run
-// to completion", the same way backfill-fighting-split.js reads a single
-// representative slug (fighting-basic) rather than checking all thirteen.
+// The marker slug read FIRST, before any writes, for an INFORMATIONAL log
+// line only — it does NOT gate the conversions loop (see main()'s comment
+// for why: a partial prior run can't be told apart from "not started" by
+// any single slug, since the old rows are never deleted). coca-habit is
+// picked as the one slug worth printing because it's the first conversion
+// in docs/tags.yaml's own retirement notes.
 const MARKER_OLD_SLUG = "coca-habit";
 
 const FREE_REMOVAL_SLUGS = ["squeamish", "cheap", "honest", "addiction-romantic", "honorbound"];
@@ -223,29 +227,44 @@ async function verifyDesireSlotIndex() {
 }
 
 async function main() {
-  // Idempotency marker for the CONVERSIONS step, read FIRST, before any
-  // write anywhere in this script. See MARKER_OLD_SLUG's comment for why
-  // coca-habit specifically. Note this checks HOLDINGS, not the Tag row —
-  // the old rows are retired in place, never deleted, so `prisma.tag
-  // .findUnique({ where: { slug: oldSlug } })` would return truthy forever
-  // and make a poor marker.
+  // Marker read FIRST, before any write anywhere in this script — but
+  // INFORMATIONAL ONLY. It does not gate the CONVERSIONS loop below.
+  //
+  // Earlier draft of this script gated the whole loop on this boolean, on
+  // the fighting-split precedent. That was wrong here, and the fix is on
+  // purpose NOT symmetric with fighting-split's rescale gate: fighting-split
+  // deletes each old Tag row as it converts it, so a partial run leaves an
+  // unambiguous trail (the still-undeleted rows ARE the "not done yet"
+  // list) and its single boolean only ever gates a one-time point rescale,
+  // not per-slug conversion work. Here the old rows are never deleted, so a
+  // run that fails after converting coca-habit but before blood-debt would
+  // leave coca-habit's holdings moved and blood-debt's not — and a single
+  // boolean derived from ONE slug can't tell "everything is converted" from
+  // "coca-habit happened to convert but five other slugs didn't". Gating
+  // the loop on it would silently strand any conversion after the first
+  // failure, forever, with no error and no distinguishing log line from a
+  // completed run. So CONVERSIONS runs UNCONDITIONALLY every invocation;
+  // each backfillOne() call is independently idempotent per slug (it
+  // re-queries current holders every time, and a converged target like
+  // poppy-habit collision-drops rather than double-moving). The marker is
+  // kept only to print an informational line.
   const markerTag = await prisma.tag.findUnique({ where: { slug: MARKER_OLD_SLUG } });
-  const firstRun = Boolean(
+  const markerHolderExists = Boolean(
     markerTag && (await prisma.characterTag.findFirst({ where: { tagId: markerTag.id } })),
   );
+  console.log(
+    markerHolderExists
+      ? `"${MARKER_OLD_SLUG}" still has holders — running conversions`
+      : `no "${MARKER_OLD_SLUG}" holdings found (already converted, or a fresh database) —` +
+          ` running conversions anyway, per-slug, since this marker only covers one of six slugs`,
+  );
 
-  if (firstRun) {
-    for (const { oldSlug, newSlug } of CONVERSIONS) {
-      await backfillOne(oldSlug, newSlug);
-    }
-  } else {
-    console.log(
-      `no "${MARKER_OLD_SLUG}" holdings found — conversions already ran (or a fresh database), skipped`,
-    );
+  for (const { oldSlug, newSlug } of CONVERSIONS) {
+    await backfillOne(oldSlug, newSlug);
   }
 
   // Free removals are independently idempotent (see removeFreeHoldings'
-  // comment) and always attempted, regardless of the conversions marker.
+  // comment) and always attempted.
   await removeFreeHoldings();
 
   // Desire.slotIndex — read-only verification, see the function's comment.
