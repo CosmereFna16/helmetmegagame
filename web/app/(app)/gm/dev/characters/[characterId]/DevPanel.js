@@ -62,6 +62,10 @@ export default function DevPanel({
   openTurnAction,
   defaultEffort,
   desires,
+  desireSlots,
+  desireCatalog,
+  desireFamilies,
+  desireCooldowns,
   // "page" is the standalone /gm/dev/characters/[characterId] route (the
   // default, unchanged). "modal" is the mount over /gm/turns
   // (DevPanelModal.js) — DevPanel owns the Modal itself rather than the
@@ -310,7 +314,14 @@ export default function DevPanel({
       )}
 
       {tab === "Goals" && (
-        <GoalsTab character={character} desires={desires} />
+        <GoalsTab
+          character={character}
+          desires={desires}
+          desireSlots={desireSlots}
+          desireCatalog={desireCatalog}
+          desireFamilies={desireFamilies}
+          desireCooldowns={desireCooldowns}
+        />
       )}
 
       {tab === "Record" && (

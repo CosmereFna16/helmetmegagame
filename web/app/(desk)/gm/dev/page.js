@@ -289,6 +289,13 @@ export default async function DevPanelPage({ searchParams }) {
                     <input type="number" name="equipSlots" min="1" max="20" defaultValue={config.equipSlots} />
                   </label>
                   <label className="field">
+                    <span className="field-label panel-header--with-icon">
+                      Desire slots
+                      <InfoIcon text={CONFIG_HELP.desireSlots} />
+                    </span>
+                    <input type="number" name="desireSlots" min="1" max="5" defaultValue={config.desireSlots} />
+                  </label>
+                  <label className="field">
                     <span className="field-label">Max drawback tags</span>
                     <input type="number" name="maxDrawbackTags" min="0" max="20" defaultValue={config.maxDrawbackTags} />
                   </label>

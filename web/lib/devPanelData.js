@@ -1,8 +1,11 @@
 import { prisma, isDynastyMember, gambitModifierTotal } from "@lifeweb/db";
+import { evaluateDesireCatalog } from "@lifeweb/db/lib/desireGates";
+import { desireFamilies } from "@lifeweb/db/lib/desireFamilies";
 import { getGuildMember, isCursed } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import { isHealable } from "@/lib/healRequests";
 import { DEFAULT_MAX_DRAWBACK_TAGS } from "@/lib/characterCreation";
+import { projectDesireTemplateForGates } from "@/lib/desireProjection";
 import { HUNGER_SLUG, ATE_MEAL_SLUG } from "@lifeweb/db/lib/constants";
 
 // The whole data-assembly behind the Dev Character Panel, extracted so it can
@@ -35,6 +38,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     desires,
     openTurnAction,
     defaultEffort,
+    desireTemplates,
     member,
     pendingStaged,
     transferRoster,
@@ -90,7 +94,11 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     prisma.characterTag.findMany({ where: { characterId }, include: { tag: true } }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     prisma.turn.findFirst({ where: { status: "OPEN" } }),
-    prisma.desire.findMany({ where: { characterId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] }),
+    prisma.desire.findMany({
+      where: { characterId },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      include: { template: { select: { name: true, tier: true, slug: true } } },
+    }),
     // This turn's Move, for the state strip's "Acted" fact and the Turn tab.
     // It used to be found inside the 100-row Moves list — but that list moved
     // to loadDevPanelRecord, and refetching 100 rows to read one is not worth
@@ -109,6 +117,28 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       },
     }),
     prisma.defaultEffort.findFirst({ where: { characterId } }),
+    // The full catalog for the GM's picker — retired rows included AND
+    // marked (a GM grant bypasses gates entirely, see setDesireGmImpl), so
+    // this is a separate, wider select than the player-facing one in
+    // character/page.js.
+    prisma.desireTemplate.findMany({
+      orderBy: { sortOrder: "asc" },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        description: true,
+        tier: true,
+        families: true,
+        onceEver: true,
+        cooldownTurns: true,
+        retired: true,
+        requiresAnyRoleSlugs: true,
+        requiresNotRoleSlugs: true,
+        requiresAnyTags: { select: { id: true, name: true } },
+        requiresNotTags: { select: { id: true, name: true } },
+      },
+    }),
     // Cursed is a live Discord role, not a DB field — read the account's
     // current guild roles rather than the Character row.
     getGuildMember(character.discordUserId).catch(() => null),
@@ -150,6 +180,45 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
         tagOps: pendingStaged.reduce((sum, e) => sum + (e.payload?.tagOps?.length ?? 0), 0),
       }
     : null;
+
+  // The GM-facing Desire read-outs for GoalsTab. Two different shapes off the
+  // same `desireTemplates` fetch:
+  //   - desireCatalog: the full picker list, retired rows included and
+  //     flagged — a GM grant bypasses every gate (see setDesireGmImpl below),
+  //     so nothing here is filtered the way the player catalog is.
+  //   - desireCooldowns: the read-only "what is this character locked out
+  //     of" list, run through the SAME evaluator the player catalog uses.
+  //     hiddenTagIds is an empty Set on purpose — this is a superadmin-only
+  //     page, so nothing is withheld from the GM's own view (constraint:
+  //     never let this projection reach a player payload).
+  const desireSlotsConfig = config?.desireSlots ?? 2;
+  const projectedDesireTemplates = await Promise.all(
+    desireTemplates.map((t) => projectDesireTemplateForGates(prisma, t)),
+  );
+  const { visible: desireStatesEvaluated } = evaluateDesireCatalog({
+    templates: projectedDesireTemplates,
+    heldTags: heldTags.map((ct) => ct.tag),
+    hiddenTagIds: new Set(),
+    roleSlug: character.role?.slug ?? null,
+    history: desires,
+    openTurnNumber: openTurn?.number ?? 0,
+  });
+  const desireCooldowns = desireStatesEvaluated
+    .filter((e) => e.state === "cooldown" || e.state === "spent")
+    .map((e) => ({
+      slug: e.template.slug,
+      name: e.template.name,
+      tier: e.template.tier,
+      state: e.state,
+      availableFromTurn: e.availableFromTurn,
+    }));
+  const desireCatalog = desireTemplates.map((t) => ({
+    slug: t.slug,
+    name: t.name,
+    tier: t.tier,
+    families: t.families,
+    retired: t.retired,
+  }));
 
   return {
     character: {
@@ -261,7 +330,15 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       status: d.status,
       setTurnNumber: d.setTurnNumber,
       endedTurnNumber: d.endedTurnNumber,
+      templateId: d.templateId,
+      slotIndex: d.slotIndex,
+      templateName: d.template?.name ?? null,
+      templateTier: d.template?.tier ?? null,
     })),
+    desireSlots: desireSlotsConfig,
+    desireCatalog,
+    desireFamilies: desireFamilies(),
+    desireCooldowns,
   };
 }
 

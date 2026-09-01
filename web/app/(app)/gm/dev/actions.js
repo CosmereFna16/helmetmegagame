@@ -103,6 +103,9 @@ export async function updateGameConfig(formData) {
       // 0 is a real setting here — "no drawbacks at all" is coherent, only a
       // negative cap is nonsense.
       maxDrawbackTags: Math.max(0, intOrZero(formData, "maxDrawbackTags")),
+      // Same floor-at-1 posture as equipSlots — a zero-slot Desire economy
+      // isn't a coherent state, unlike zero drawbacks above.
+      desireSlots: Math.max(1, intOrZero(formData, "desireSlots")),
     },
   });
 
@@ -244,6 +247,7 @@ const DEFAULT_GAME_CONFIG = {
   playerCount: 100,
   equipSlots: 6,
   maxDrawbackTags: 5,
+  desireSlots: 2,
   catatonicEnabled: true,
   catatonicTurns: 4,
   catatonicDeathTurns: 4,

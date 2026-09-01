@@ -588,36 +588,76 @@ async function deleteCharacterImpl({ characterId, confirmName }) {
   return { name: character.name };
 }
 
-// At most one ACTIVE Desire per character is an action-level invariant, not
-// a schema one — so it is re-checked here as well as in the player action.
-// Setting a new one cancels the current ACTIVE row first, in the same
-// transaction, same as the pre-multi-desire behaviour.
-async function setDesireGmImpl({ characterId, text, points }) {
+// At most one ACTIVE Desire per SLOT is an action-level invariant, not a
+// schema one — so it is re-checked here as well as in the player action.
+// Setting a new one cancels that slot's current ACTIVE row first, in the
+// same transaction (occupied-slot cancel path, same shape as
+// setDesireImpl/cancelDesireImpl in character/requestActions.js, now
+// slot-scoped rather than whole-character).
+//
+// Two branches, chosen by which fields the caller sends:
+//   - Catalog: { characterId, slotIndex, slug } — gates are BYPASSED. A GM
+//     grant ignores requires/held-tag locks/cooldowns/onceEver entirely, and
+//     a RETIRED template is still selectable — none of that is re-checked
+//     here, unlike the player path in requestActions.js.
+//   - Free-text: { characterId, slotIndex, text, points } — templateId stays
+//     null, and points may run 1..7 (a GM may exceed the player-facing 1-5
+//     ladder; see docs/desires.yaml's own tier ceiling).
+async function setDesireGmImpl({ characterId, slotIndex: rawSlotIndex, slug, text, points }) {
   const session = await requireGm();
   const character = await loadCharacter(characterId);
-  const body = (text ?? "").trim();
-  if (!body) throw new UserError("A desire needs some text.");
-  const value = Number.parseInt(points, 10);
-  if (!Number.isInteger(value) || value < 1 || value > 5) {
-    throw new UserError("A desire is worth between 1 and 5 points.");
+
+  const config = await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { desireSlots: true } });
+  const desireSlots = config?.desireSlots ?? 2;
+  const slotIndex = Number.parseInt(rawSlotIndex, 10);
+  if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= desireSlots) {
+    throw new UserError("That Desire slot doesn't exist.");
+  }
+
+  const catalogSlug = slug?.toString().trim();
+  let body;
+  let value;
+  let templateId = null;
+
+  if (catalogSlug) {
+    const template = await prisma.desireTemplate.findUnique({ where: { slug: catalogSlug } });
+    if (!template) throw new UserError("Unknown Desire template.");
+    templateId = template.id;
+    body = template.name;
+    value = template.tier;
+  } else {
+    body = (text ?? "").trim();
+    if (!body) throw new UserError("A desire needs some text.");
+    value = Number.parseInt(points, 10);
+    if (!Number.isInteger(value) || value < 1 || value > 7) {
+      throw new UserError("A desire is worth between 1 and 7 points.");
+    }
   }
 
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } });
 
-  // Same row lock as the player's setDesire: cancel-if-active and create
-  // together.
+  // Same row lock as the player's setDesireImpl: cancel-if-active-in-this-slot
+  // and create together.
   const desire = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${characterId} FOR UPDATE`;
     await tx.desire.updateMany({
-      where: { characterId, status: "ACTIVE" },
+      where: { characterId, status: "ACTIVE", slotIndex },
       data: { status: "CANCELLED", endedTurnNumber: openTurn?.number ?? null },
     });
     return tx.desire.create({
-      data: { characterId, text: body, points: value, status: "ACTIVE", setTurnNumber: openTurn?.number ?? null },
+      data: {
+        characterId,
+        templateId,
+        slotIndex,
+        text: body,
+        points: value,
+        status: "ACTIVE",
+        setTurnNumber: openTurn?.number ?? null,
+      },
     });
   });
 
-  await audit(session, "gm_desire_set", characterId, { desireId: desire.id, points: value });
+  await audit(session, "gm_desire_set", characterId, { desireId: desire.id, points: value, slotIndex, templateId });
   notifyCharacter(session, character, `New Desire (worth ${value} pt${value === 1 ? "" : "s"}):\n${body}`);
   repaint(characterId);
   return { desireId: desire.id };
