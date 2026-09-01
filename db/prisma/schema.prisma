@@ -1864,6 +1864,12 @@ model ConversationMeta {
   // as handled while it is at or after the conversation's last message, so the
   // next inbound DM puts the row back in the awaiting pile with no cleanup.
   handledAt              DateTime?
+  // When a GM muted this conversation. Desk-side only — nothing about the
+  // bot's behaviour toward the player changes, and their DMs still arrive.
+  // A muted row leaves the rail (behind a "Show muted" toggle), renders
+  // greyed when shown, and stops counting toward unread/awaiting. Unlike
+  // handledAt above this does NOT expire: it holds until a GM unmutes.
+  mutedAt                DateTime?
 }
 
 // A player's personal note on a message in a Location channel — created by

@@ -11,7 +11,12 @@ import usePins from "@/app/components/usePins";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { scoreMatch } from "@/lib/fuzzySearch";
-import { markConversationRead, searchConversations, setConversationHandled } from "./actions";
+import {
+  markConversationRead,
+  searchConversations,
+  setConversationHandled,
+  setConversationMuted,
+} from "./actions";
 
 // The player desk's queue rail, on the same .desk-rail/.desk-queue-row classes
 // as the adjudication desk's — the two are the same tool and should look it.
@@ -77,6 +82,13 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
   // time as well as the id, so the entry stops matching — and the server's
   // answer takes back over — the moment a new message lands on that row.
   const [handledOverride, setHandledOverride] = useState({});
+  // Muted conversations are out of the rail by default. This reveals them,
+  // greyed, in place — hiding them outright is the point, but a GM still has
+  // to be able to find someone they muted a week ago.
+  const [showMuted, setShowMuted] = useState(false);
+  // Same optimistic trick as the ✓, minus the timestamp in the key: a mute is
+  // standing, so nothing about a new message should take it back.
+  const [mutedOverride, setMutedOverride] = useState({});
 
   useEffect(() => {
     const q = query.trim();
@@ -123,6 +135,28 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
     return `${row.discordUserId}:${row.lastAtMs}`;
   }
 
+  const isMuted = useCallback(
+    (row) => {
+      const override = mutedOverride[row.discordUserId];
+      return override === undefined ? Boolean(row.muted) : override;
+    },
+    [mutedOverride],
+  );
+
+  function toggleMuted(row) {
+    const next = !isMuted(row);
+    setMutedOverride((prev) => ({ ...prev, [row.discordUserId]: next }));
+    startTransition(async () => {
+      const res = await setConversationMuted({
+        playerDiscordUserId: row.discordUserId,
+        muted: next,
+      });
+      if (!res?.ok) {
+        setMutedOverride((prev) => ({ ...prev, [row.discordUserId]: !next }));
+      }
+    });
+  }
+
   function toggleHandled(row) {
     const next = !isHandled(row);
     setHandledOverride((prev) => ({ ...prev, [handledKey(row)]: next }));
@@ -151,6 +185,11 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
     let list = q
       ? rows.filter((r) => r.hasConversation || r.characterId)
       : rows.filter((r) => r.hasConversation);
+
+    // Unlike the zone and needs-reply filters, a query does NOT lift this one
+    // on its own — a mute is a standing decision about a person, not a lens
+    // over the inbox, so it takes the toggle to see them again.
+    if (!showMuted) list = list.filter((r) => !isMuted(r));
 
     // A query pauses the zone and needs-reply filters rather than composing
     // with them — otherwise the seat-seeded zone filter would silently hide
@@ -190,6 +229,9 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
         if (aHasThread !== bHasThread) return aHasThread ? -1 : 1;
         return b.row.lastAtMs - a.row.lastAtMs;
       }
+      const aMuted = isMuted(a.row);
+      const bMuted = isMuted(b.row);
+      if (aMuted !== bMuted) return aMuted ? 1 : -1;
       const aPinned = isPinned(a.row);
       const bPinned = isPinned(b.row);
       if (aPinned !== bPinned) return aPinned ? -1 : 1;
@@ -215,7 +257,22 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
     }
     extra.sort((a, b) => b.row.lastAtMs - a.row.lastAtMs);
     return [...scored, ...extra];
-  }, [rows, query, zoneFilter, needsReplyOnly, isPinned, activeContentHits, isHandled]);
+  }, [
+    rows,
+    query,
+    zoneFilter,
+    needsReplyOnly,
+    isPinned,
+    activeContentHits,
+    isHandled,
+    isMuted,
+    showMuted,
+  ]);
+
+  const mutedCount = useMemo(
+    () => rows.filter((r) => r.hasConversation && isMuted(r)).length,
+    [rows, isMuted],
+  );
 
   const unreadIds = useMemo(
     () => rows.filter((c) => c.unreadCount > 0).map((c) => c.discordUserId),
@@ -278,6 +335,11 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
             Mark all read
           </button>
         )}
+        {mutedCount > 0 && (
+          <button type="button" className="btn-quiet" onClick={() => setShowMuted((v) => !v)}>
+            {showMuted ? `Hide muted (${mutedCount})` : `Show muted (${mutedCount})`}
+          </button>
+        )}
       </div>
 
       <div className="desk-queue">
@@ -286,10 +348,16 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
           const active = pathname === href;
           const pinned = isPinned(row);
           const handled = isHandled(row);
+          const muted = isMuted(row);
           const claimedByOther =
             row.claimedByDiscordUserId && row.claimedByDiscordUserId !== myDiscordUserId;
           return (
-            <div key={row.discordUserId} className="desk-queue-row" data-active={active ? "true" : "false"}>
+            <div
+              key={row.discordUserId}
+              className="desk-queue-row"
+              data-active={active ? "true" : "false"}
+              data-muted={muted ? "true" : undefined}
+            >
               <div className="desk-queue-marks">
                 <button
                   type="button"
@@ -313,6 +381,16 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
                   onClick={() => toggleHandled(row)}
                 >
                   ✓
+                </button>
+                <button
+                  type="button"
+                  className="desk-queue-mute"
+                  aria-pressed={muted}
+                  aria-label={muted ? `Unmute ${row.name}` : `Mute ${row.name}`}
+                  title={muted ? "Unmute — back in the inbox" : "Mute — out of the inbox"}
+                  onClick={() => toggleMuted(row)}
+                >
+                  ⊘
                 </button>
               </div>
               <Link href={href} className="desk-queue-link">

@@ -145,7 +145,11 @@ export default async function PlayerDeskLayout({ children }) {
     `,
     prisma.conversationMeta.findMany({
       where: {
-        OR: [{ claimedByDiscordUserId: { not: null } }, { handledAt: { not: null } }],
+        OR: [
+          { claimedByDiscordUserId: { not: null } },
+          { handledAt: { not: null } },
+          { mutedAt: { not: null } },
+        ],
       },
     }),
   ]);
@@ -154,6 +158,7 @@ export default async function PlayerDeskLayout({ children }) {
   const genuineByUser = new Map(genuineMessages.map((m) => [m.discordUserId, m]));
   const unreadByUser = new Map(unreadRows.map((r) => [r.discordUserId, r.unreadCount]));
   const claimByUser = new Map(claims.map((c) => [c.playerDiscordUserId, c.claimedByDiscordUserId]));
+  const mutedUserIds = new Set(claims.filter((c) => c.mutedAt).map((c) => c.playerDiscordUserId));
   const handledAtByUser = new Map(
     claims.filter((c) => c.handledAt).map((c) => [c.playerDiscordUserId, c.handledAt.getTime()]),
   );
@@ -248,16 +253,19 @@ export default async function PlayerDeskLayout({ children }) {
       handled:
         handledAtByUser.has(discordUserId) &&
         handledAtByUser.get(discordUserId) >= (last ? last.createdAt.getTime() : 0),
+      // Desk-side only, and standing rather than self-expiring: a muted row
+      // is out of the rail and out of both counts until a GM lifts it.
+      muted: mutedUserIds.has(discordUserId),
       tag: c ? (tagNamesByCharacter.get(c.id) ?? []).join(" ") : "",
       tagNames: c ? (tagNamesByCharacter.get(c.id) ?? []) : [],
     };
   });
 
-  const unreadTotal = rows.filter((r) => r.unreadCount > 0).length;
+  const unreadTotal = rows.filter((r) => !r.muted && r.unreadCount > 0).length;
   // Read but still theirs to answer: they wrote last, and it's not sitting in
   // the unread count any more. Same predicate the rail's row mark uses.
   const awaitingTotal = rows.filter(
-    (r) => !r.handled && r.unreadCount === 0 && r.lastDirection === "INBOUND",
+    (r) => !r.muted && !r.handled && r.unreadCount === 0 && r.lastDirection === "INBOUND",
   ).length;
 
   // BulkComposer's recipient pool: living characters only, since a broadcast

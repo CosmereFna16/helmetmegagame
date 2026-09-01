@@ -266,6 +266,30 @@ export async function setConversationHandled({ playerDiscordUserId, handled }) {
   });
 }
 
+// The desk-side mute. Purely a view on this desk: the player is not blocked,
+// silenced or told anything, and their DMs still arrive and still read
+// normally. A muted conversation leaves the rail (behind its "Show muted"
+// toggle), renders greyed when shown, and stops counting toward unread and
+// awaiting. Unlike setConversationHandled above this does not expire — a
+// mute is a standing decision, so it holds until a GM lifts it.
+export async function setConversationMuted({ playerDiscordUserId, muted }) {
+  return guarded(async () => {
+    await requireGm();
+    const id = playerDiscordUserId?.toString().trim();
+    if (!id) throw new UserError("No conversation specified.");
+
+    const mutedAt = muted ? new Date() : null;
+
+    await prisma.conversationMeta.upsert({
+      where: { playerDiscordUserId: id },
+      update: { mutedAt },
+      create: { playerDiscordUserId: id, mutedAt },
+    });
+
+    revalidatePath("/gm/players", "layout");
+  });
+}
+
 export async function claimConversation({ playerDiscordUserId }) {
   return guarded(async () => {
     const session = await requireGm();
