@@ -660,7 +660,7 @@ desires:
   - slug: sell-stolen-jewelry
     name: Sell stolen {tag:jewelry} to the Merchant
     tier: 4
-    families: [theft, wealth]
+    families: [theft]
     requires:
       anyRoles: [servant]
 
@@ -1238,7 +1238,7 @@ desires:
   - slug: pocket-60
     name: Hold 60 ⬢ that was never yours ‡
     tier: 4
-    families: [wealth, theft]
+    families: [theft]
     requires:
       anyTags: [corrupt]
       anyRoles: [watchman, sheriff]

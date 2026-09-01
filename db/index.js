@@ -41,6 +41,7 @@ const { syncZonesFromYaml } = require("./lib/syncZones");
 const { syncTagsFromYaml } = require("./lib/syncTags");
 const { deleteCharacterRow } = require("./lib/deleteCharacter");
 const { syncRolesFromYaml } = require("./lib/syncRoles");
+const { syncDesiresFromYaml } = require("./lib/syncDesires");
 const { syncDocumentsFromYaml } = require("./lib/syncDocuments");
 const { SPECIAL_CHANNELS, NARROWCAST_SLUGS, buildNarrowcastContext, computeNarrowcastAccess } = require("./lib/specialChannels");
 const { syncSpecialChannels } = require("./lib/syncSpecialChannels");
@@ -1095,6 +1096,7 @@ module.exports = {
   syncTagsFromYaml,
   deleteCharacterRow,
   syncRolesFromYaml,
+  syncDesiresFromYaml,
   syncDocumentsFromYaml,
   SPECIAL_CHANNELS,
   NARROWCAST_SLUGS,

@@ -991,7 +991,6 @@ tags:
     desires:
       locks:
         - families: [wealth]
-          exceptFamilies: [theft]
 
   - slug: honest
     name: Honest

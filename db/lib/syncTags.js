@@ -6,7 +6,7 @@
 // from either YAML just leaves its existing DB row untouched (same contract
 // as syncLocations.js).
 //
-// Five passes, since tags/groups can reference each other by slug before
+// Six passes, since tags/groups can reference each other by slug before
 // every row necessarily exists yet:
 //   1. Upsert every TagGroup's scalar fields (slug/name/category/color).
 //   2. Upsert every Tag's scalar fields + groupId (groups exist from pass 1).
@@ -16,8 +16,14 @@
 //   5. Resolve each Tag's requirement.skills slug list (requirementSkills,
 //      a many-to-many self-relation) now that every Tag row exists — same
 //      reason this can't happen in pass 2, alongside pass 3/4.
+//   6. Resolve each Tag's conflictsWith slug list (self-referential m2m),
+//      symmetrized so a caller only ever has to check one side.
 // Each pass only writes when something actually changed, same
 // needsUpdate-style diff check as syncLocationsFromYaml.
+//
+// desireLocks (Tag.desires.locks in the YAML) is validated and written as a
+// plain scalar in pass 2 — it needs no cross-tag resolution, just the
+// desire-family vocabulary from db/lib/desireFamilies.js.
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
@@ -27,6 +33,8 @@ const {
   normalizeRemovesInto,
   validateRemovesInto,
 } = require("./tagShapes");
+const { normalizeDesireLocks, validateDesireLocks } = require("./desireShapes");
+const { desireFamilyKeys } = require("./desireFamilies");
 
 // `visible:` in docs/tags.yaml -> Tag.inspectVisibility. The YAML side stays
 // readable (`visible: worn` next to `equippable: true`) while the column is a
@@ -240,6 +248,28 @@ async function syncTagsFromYaml(prisma) {
       selfSlug: t.slug,
       knownSlugs: allTagSlugs,
     });
+    // desires.locks — what holding this tag does to the Desire catalog.
+    // Validated at parse time via the shared desireShapes rules (same shape
+    // db:sync-desires' desireGates will later consume). A MISSING
+    // docs/desires.yaml yields an empty family set from desireFamilies.js,
+    // so this only throws when a tag actually names a family — a repo with
+    // no desires.yaml yet must still be able to sync tags (risk 11).
+    validateDesireLocks(normalizeDesireLocks(t.desires?.locks), {
+      slug: t.slug,
+      families: desireFamilyKeys(),
+    });
+    // conflictsWith — validated against this document's own slug set, same
+    // posture as requirement.skills below. A tag cannot conflict with
+    // itself; that would just mean "cannot hold this tag", which is what
+    // simply not listing it already means.
+    for (const other of t.conflictsWith ?? []) {
+      if (other === t.slug) {
+        throw new Error(`docs/tags.yaml: tag "${t.slug}" lists itself in conflictsWith`);
+      }
+      if (!allTagSlugs.has(other)) {
+        throw new Error(`docs/tags.yaml: tag "${t.slug}" conflictsWith references unknown tag "${other}"`);
+      }
+    }
   }
 
   let groupsCreated = 0;
@@ -309,6 +339,7 @@ async function syncTagsFromYaml(prisma) {
       requirementResources: entry.requirement?.resourceCost ?? null,
       requirementGambit: entry.requirement?.gambit ?? false,
       ...consumesIntoScalars(entry.consumesInto),
+      desireLocks: normalizeDesireLocks(entry.desires?.locks),
       groupId,
     };
 
@@ -405,6 +436,40 @@ async function syncTagsFromYaml(prisma) {
       await prisma.tag.update({
         where: { id: tagId },
         data: { requirementSkills: { set: skillIds.map((id) => ({ id })) } },
+      });
+      linksUpdated += 1;
+    }
+  }
+
+  // Pass 6: conflictsWith -> Tag.conflictsWith (self-referential m2m,
+  // written in BOTH directions so a caller only ever has to check one side).
+  // Symmetrize first: union every declared edge with its reverse into a
+  // slug -> Set(slugs) map, so a tag that's only named FROM the other side
+  // (A lists B, B doesn't list A) still gets the edge written on both rows.
+  const conflictSlugsBySlug = new Map(tagEntries.map((t) => [t.slug, new Set()]));
+  for (const entry of tagEntries) {
+    for (const other of entry.conflictsWith ?? []) {
+      conflictSlugsBySlug.get(entry.slug).add(other);
+      conflictSlugsBySlug.get(other).add(entry.slug);
+    }
+  }
+  for (const entry of tagEntries) {
+    const tagId = tagIdBySlug.get(entry.slug);
+    const desiredIds = [...conflictSlugsBySlug.get(entry.slug)]
+      .map((slug) => tagIdBySlug.get(slug))
+      .sort();
+
+    const current = await prisma.tag.findUnique({
+      where: { id: tagId },
+      select: { conflictsWith: { select: { id: true } } },
+    });
+    const currentIds = current.conflictsWith.map((t) => t.id).sort();
+    const changed =
+      currentIds.length !== desiredIds.length || currentIds.some((id, i) => id !== desiredIds[i]);
+    if (changed) {
+      await prisma.tag.update({
+        where: { id: tagId },
+        data: { conflictsWith: { set: desiredIds.map((id) => ({ id })) } },
       });
       linksUpdated += 1;
     }
