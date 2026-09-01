@@ -60,6 +60,7 @@ import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { rollCaving } from "@lifeweb/db/lib/cavingPass";
 import { evaluateDesireCatalog, slotStates } from "@lifeweb/db/lib/desireGates";
+import { projectDesireTemplateForGates } from "@/lib/desireProjection";
 import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { ATE_MEAL_SLUG, DISAPPOINTED_SLUG } from "@lifeweb/db/lib/constants";
 import { NAME_LIMITS, formatCharacterName, formatBareName, normalizeEarnedHonorific } from "@/lib/characterName";
@@ -1491,62 +1492,66 @@ async function setDesireImpl({ slotIndex: rawSlotIndex, slug: rawSlug }) {
   });
   if (!template || template.retired) throw new UserError(DESIRE_NOT_AVAILABLE);
 
-  const roleSlugsNeeded = [
-    ...(template.requiresAnyRoleSlugs ?? []),
-    ...(template.requiresNotRoleSlugs ?? []),
-  ];
-  const roleRows = roleSlugsNeeded.length
-    ? await prisma.role.findMany({ where: { slug: { in: roleSlugsNeeded } }, select: { slug: true, name: true } })
-    : [];
-  const roleBySlug = new Map(roleRows.map((r) => [r.slug, r]));
-  const projectedTemplate = {
-    ...template,
-    requiresAnyRoles: (template.requiresAnyRoleSlugs ?? []).map((s) => roleBySlug.get(s)).filter(Boolean),
-    requiresNotRoles: (template.requiresNotRoleSlugs ?? []).map((s) => roleBySlug.get(s)).filter(Boolean),
-  };
+  const projectedTemplate = await projectDesireTemplateForGates(prisma, template);
 
   const heldTags = character.tags.map((ct) => ct.tag);
   const heldTagIds = new Set(heldTags.map((t) => t.id));
   const hiddenTagIds = await computeHiddenTagIds(heldTagIds);
+  const roleSlug = character.role?.slug ?? null;
 
   const openTurn = await getOpenTurn();
   const openTurnNumber = openTurn?.number ?? 0;
-  const history = await prisma.desire.findMany({
+
+  // Runs the exact same pure checks (evaluateDesireCatalog availability incl.
+  // onceEver/per-desire cooldown, and the slot cooldown) against whatever
+  // `history` is passed. Called once outside the transaction as a cheap
+  // pre-check (so a plainly-unavailable request fails fast without ever
+  // taking the row lock), then again INSIDE the transaction on a fresh read
+  // after the FOR UPDATE lock — closing the TOCTOU window between the
+  // pre-check and the row lock (a fulfil/cancel racing this set could move
+  // `history` in between).
+  function assertAvailable(history) {
+    const { visible, hidden } = evaluateDesireCatalog({
+      templates: [projectedTemplate],
+      heldTags,
+      hiddenTagIds,
+      roleSlug,
+      history,
+      openTurnNumber,
+    });
+    if (hidden.length > 0) throw new UserError(DESIRE_NOT_AVAILABLE);
+    const evaluated = visible[0];
+    if (!evaluated || evaluated.state !== "available") throw new UserError(DESIRE_NOT_AVAILABLE);
+
+    // Slot cooldown: available again strictly the turn after the slot's last
+    // ended row, whether that row ended by cancel or by fulfil.
+    const slots = slotStates({ history, openTurnNumber, desireSlots });
+    const slot = slots[slotIndex];
+    if (slot?.lockedUntilTurn != null) {
+      throw new UserError("That slot is on cooldown — it opens up again next turn.");
+    }
+  }
+
+  const historyPreCheck = await prisma.desire.findMany({
     where: { characterId: character.id },
     select: { id: true, templateId: true, slotIndex: true, status: true, endedTurnNumber: true },
   });
-
-  const { visible, hidden } = evaluateDesireCatalog({
-    templates: [projectedTemplate],
-    heldTags,
-    hiddenTagIds,
-    roleSlug: character.role?.slug ?? null,
-    history,
-    openTurnNumber,
-  });
-  if (hidden.length > 0) throw new UserError(DESIRE_NOT_AVAILABLE);
-  const evaluated = visible[0];
-  if (!evaluated || evaluated.state !== "available") throw new UserError(DESIRE_NOT_AVAILABLE);
-
-  // Slot cooldown: available again strictly the turn after the slot's last
-  // ended row, whether that row ended by cancel or by fulfil.
-  const slots = slotStates({ history, openTurnNumber, desireSlots });
-  const slot = slots[slotIndex];
-  if (slot?.lockedUntilTurn != null) {
-    throw new UserError("That slot is on cooldown — it opens up again next turn.");
-  }
+  assertAvailable(historyPreCheck);
 
   // Check-then-create under a row lock on the character: two posts fired
-  // together would otherwise both see "slot empty" and both land.
+  // together would otherwise both see "slot empty"/"available" and both
+  // land, so the pure checks above are re-run on a fresh read taken AFTER
+  // the lock, not trusted from the pre-check.
   await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
-    const occupant = await tx.desire.findFirst({
-      where: { characterId: character.id, status: "ACTIVE", slotIndex },
+    const historyInTx = await tx.desire.findMany({
+      where: { characterId: character.id },
+      select: { id: true, templateId: true, slotIndex: true, status: true, endedTurnNumber: true },
     });
+    assertAvailable(historyInTx);
+    const occupant = historyInTx.find((h) => h.status === "ACTIVE" && h.slotIndex === slotIndex);
     if (occupant) throw new UserError("That slot already has an active Desire.");
-    const duplicate = await tx.desire.findFirst({
-      where: { characterId: character.id, status: "ACTIVE", templateId: template.id },
-    });
+    const duplicate = historyInTx.find((h) => h.status === "ACTIVE" && h.templateId === template.id);
     if (duplicate) throw new UserError(DESIRE_NOT_AVAILABLE);
     await tx.desire.create({
       data: {
@@ -1581,15 +1586,23 @@ async function cancelDesireImpl({ slotIndex: rawSlotIndex }) {
   const slotIndex = parseCount(rawSlotIndex, { min: 0 });
   if (slotIndex == null) throw new UserError("That Desire slot doesn't exist.");
 
-  const active = await prisma.desire.findFirst({
-    where: { characterId: character.id, status: "ACTIVE", slotIndex },
+  // Same character-row lock as setDesireImpl/fulfillDesireRequestImpl, so a
+  // Cancel racing a Set (or another Cancel) on the same slot serializes
+  // instead of both reading "still ACTIVE" before either writes.
+  const active = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
+    const row = await tx.desire.findFirst({
+      where: { characterId: character.id, status: "ACTIVE", slotIndex },
+    });
+    if (!row) return null;
+    await tx.desire.update({
+      where: { id: row.id },
+      data: { status: "CANCELLED", endedTurnNumber: openTurn?.number ?? null },
+    });
+    return row;
   });
   if (!active) return {};
 
-  await prisma.desire.update({
-    where: { id: active.id },
-    data: { status: "CANCELLED", endedTurnNumber: openTurn?.number ?? null },
-  });
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: session.discordUserId,
@@ -1620,10 +1633,19 @@ async function fulfillDesireRequestImpl({ desireId: rawDesireId, reason: rawReas
   if (!active) throw new UserError("You have no active Desire.");
 
   await prisma.$transaction(async (tx) => {
-    await tx.desire.update({
-      where: { id: active.id },
+    // Same character-row lock as setDesireImpl/cancelDesireImpl, so a Fulfil
+    // racing a Set/Cancel on the same slot serializes.
+    await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
+    // Guarded update: two concurrent Fulfils of the same desireId would both
+    // pass the findFirst above before either writes. Scoping the write to
+    // `status: "ACTIVE"` and checking the affected count means only the
+    // first one actually flips the row and pays out; the second aborts with
+    // no writes at all instead of double-incrementing tagPoints.
+    const { count } = await tx.desire.updateMany({
+      where: { id: active.id, characterId: character.id, status: "ACTIVE" },
       data: { status: "FULFILLED", endedTurnNumber: openTurn?.number ?? null },
     });
+    if (count === 0) throw new UserError("You have no active Desire.");
     await tx.character.update({
       where: { id: character.id },
       data: { tagPoints: { increment: active.points } },

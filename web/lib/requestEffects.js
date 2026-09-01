@@ -279,33 +279,37 @@ export const REQUEST_EFFECTS = {
         });
       }
       if (desireId) {
+        // A pre-rework effect (filed before this deploy) never wrote
+        // `slotIndex` into the effect payload — but the Desire ROW it points
+        // at still has one, defaulted to 0 by the column. Reading it off the
+        // row rather than trusting its absence in the effect is what keeps
+        // this branch from unconditionally reopening into a slot 0 that a
+        // newer Desire already occupies (two ACTIVE rows in the same slot).
+        let effectiveSlotIndex = slotIndex;
+        if (effectiveSlotIndex == null) {
+          const row = await tx.desire.findUnique({ where: { id: desireId }, select: { slotIndex: true } });
+          effectiveSlotIndex = row?.slotIndex ?? 0;
+        }
+
         // The slot may have been refilled since this Desire was fulfilled —
         // reopening it to ACTIVE would then collide with whatever's sitting
         // in that slot now. Reopen only if the slot is still free; otherwise
         // the row stays CANCELLED (the points are still revoked above).
+        const occupant = await tx.desire.findFirst({
+          where: { characterId: request.characterId, status: "ACTIVE", slotIndex: effectiveSlotIndex, id: { not: desireId } },
+        });
         let reopened = false;
-        if (slotIndex != null) {
-          const occupant = await tx.desire.findFirst({
-            where: { characterId: request.characterId, status: "ACTIVE", slotIndex, id: { not: desireId } },
-          });
-          if (!occupant) {
-            await tx.desire.updateMany({
-              where: { id: desireId },
-              data: { status: "ACTIVE", endedTurnNumber: null },
-            });
-            reopened = true;
-          } else {
-            await tx.desire.updateMany({
-              where: { id: desireId },
-              data: { status: "CANCELLED" },
-            });
-          }
-        } else {
+        if (!occupant) {
           await tx.desire.updateMany({
             where: { id: desireId },
             data: { status: "ACTIVE", endedTurnNumber: null },
           });
           reopened = true;
+        } else {
+          await tx.desire.updateMany({
+            where: { id: desireId },
+            data: { status: "CANCELLED" },
+          });
         }
         if (!reopened) {
           return `Revoked ${pointsAwarded} Tag Point(s). The slot was already refilled, so the Desire was closed rather than reopened.`;
