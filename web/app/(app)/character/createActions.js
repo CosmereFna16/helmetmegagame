@@ -13,6 +13,7 @@ import {
 import { auth } from "@/lib/auth";
 import { dynastyLastName, propagateDynastyLastName } from "@/lib/dynasty";
 import { isSuperadmin } from "@/lib/superadmin";
+import { expiryFor } from "@/lib/turnFormat";
 import {
   syncCharacterNickname,
   ensureCharacterRole,
@@ -300,16 +301,13 @@ export async function createCharacter(formData) {
   // fetched without a `select`, so defaultDurationTurns is already on them.
   // Before the game opens there is no turn to count from, so nothing
   // expires.
-  const expiryFor = (tag) =>
-    tag.defaultDurationTurns != null && openTurn ? openTurn.number + tag.defaultDurationTurns : null;
-
   const tagIdsToGrant = new Map();
   for (const tag of startingTags) {
-    tagIdsToGrant.set(tag.id, { source: "GM_GRANT", expiresTurn: expiryFor(tag) });
+    tagIdsToGrant.set(tag.id, { source: "GM_GRANT", expiresTurn: expiryFor(tag, openTurn) });
   }
   for (const tag of selected) {
     if (!tagIdsToGrant.has(tag.id)) {
-      tagIdsToGrant.set(tag.id, { source: "POINT_BUY", expiresTurn: expiryFor(tag) });
+      tagIdsToGrant.set(tag.id, { source: "POINT_BUY", expiresTurn: expiryFor(tag, openTurn) });
     }
     // A purchased higher tier replaces a role-granted lower tier of the same
     // chain — the plain union would seat both rungs on the new sheet. The

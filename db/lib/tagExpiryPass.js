@@ -27,6 +27,8 @@
 //
 // Takes `prisma` as a parameter — see db/lib/dm.js for why.
 
+const { expiryFrom } = require("./turnFormat");
+
 // Stackable tags are deliberately out of scope. A stack doesn't expire, it
 // SHEDS (sweepExpiredStacks in db/index.js), so "what does it turn into" has
 // no single answer — and nothing stackable is an affliction anyway.
@@ -98,9 +100,7 @@ async function runTagExpiryPass(prisma, turn) {
         // what Dying, Missing Leg and Scarred all want. Nothing granted here
         // can fire again this pass: every duration is at least 1, and the
         // sweep matches expiresTurn <= turn.number.
-        expiresTurn: successor.defaultDurationTurns
-          ? turn.number + successor.defaultDurationTurns
-          : null,
+        expiresTurn: expiryFrom(turn.number + 1, successor.defaultDurationTurns),
       });
       gained.push(successor.name);
     }

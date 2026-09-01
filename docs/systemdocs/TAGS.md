@@ -538,8 +538,21 @@ here, change it there too** — they are meant to say the same thing.
   number, computed from this default at grant time), swept by
   `resolveNeeds()` in `db/index.js` once the closing turn's number reaches
   it. Live code reads this — Hunger (1) and every tonic effect compute their
-  `expiresTurn` as `turn.number + defaultDurationTurns` — so it is no longer
-  catalog-only. Note the ordering it implies: `resolveNeeds()` sweeps *before*
+  `expiresTurn` through `expiryFrom` — so it is no longer catalog-only.
+
+  **N turns means N turns, counting the one it was granted in.** The expiry
+  turn is itself a turn the tag is live for, because the sweep runs while that
+  turn *closes* — so the arithmetic is `firstLiveTurn + duration - 1`, not
+  `+ duration`. It used to be the latter, which quietly gave every timed tag
+  an extra turn on the sheet and made a 2-turn tag count down "2 left, 1 left,
+  last turn": three states for what the catalog called two turns.
+
+  **Which turn is the first live one depends on when you grant.** Mid-turn
+  (a request, a GM grant, a purchase) it is the open turn, which is what
+  `expiryFor(tag, openTurn)` assumes. A pass that grants while *closing* a
+  turn — Hunger, the wound progression, Exhausted, a stack rerolling its
+  clock, the staged push — grants for the turn about to open, so it passes
+  `turn.number + 1` to `expiryFrom`. Note the ordering it implies: `resolveNeeds()` sweeps *before*
   the Hunger pass grants, so a still-broke character's Hunger is cleared and
   re-granted rather than colliding with `@@unique([characterId, tagId])`. See
   `REQUESTS.md` §4.
@@ -547,9 +560,10 @@ here, change it there too** — they are meant to say the same thing.
   **Every grant path must stamp `expiresTurn`.** The sweep matches
   `expiresTurn <= turn.number`, and `null` never matches — so a timed tag
   granted without a stamp is *permanent*, no matter what `durationTurns` says
-  in the YAML. `web/lib/turnFormat.js#expiryFor(tag, openTurn)` is the one
-  place that arithmetic lives; use it rather than open-coding
-  `turn.number + defaultDurationTurns` again. This was a real bug: `grantTag`
+  in the YAML. `db/lib/turnFormat.js#expiryFrom(firstLiveTurn, duration)` —
+  and its mid-turn wrapper `expiryFor(tag, openTurn)`, re-exported from
+  `web/lib/turnFormat.js` — is the one place that arithmetic lives; use it
+  rather than open-coding a turn number plus a duration again. This was a real bug: `grantTag`
   on `/gm/dev` and `addTagRequest` both left it null, so a GM-granted
   Paralyzed sat on the sheet forever while its tooltip advertised "Lasts 1
   turn".
@@ -563,10 +577,16 @@ bare catalog reference (a `{tag:…}` in prose has no `CharacterTag` behind it).
 
 | State | Tooltip row | Chip badge |
 |---|---|---|
-| Held, counting down | `2 turns left` | `· 2t` |
+| Held, 2+ turns to run | `2 turns left` | `· 2t` |
 | Held, final turn | `Expires this turn` | `· last` |
 | Catalog reference | `Lasts 1 turn once granted` | `· 1t` |
 | No duration at all | *(row omitted)* | *(none)* |
+
+`turnsLeft()` counts **inclusively** — the open turn is one of the turns left —
+so the final turn arrives here as `1` and takes the wording rather than a bare
+`1t`. A 2-turn tag therefore shows exactly two states, one per turn: `2 turns
+left`, then `Expires this turn`. There is no state that says "1 turn left" and
+means "and one more after that".
 
 Two details are deliberate. **"once granted"** is what separates a catalog fact
 from a live countdown — without it the same tag read two different ways

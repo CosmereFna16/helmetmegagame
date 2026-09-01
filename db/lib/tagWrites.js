@@ -11,6 +11,7 @@
 // parameter rather than reaching for the singleton, so a caller can compose
 // it into a larger transaction. That is the db/lib/dm.js convention.
 const { ROMANCE_DISABLED_SLUG } = require("./constants");
+const { expiryFrom } = require("./turnFormat");
 
 // Adds `quantity` of a tag, creating the row or incrementing an existing
 // one. Non-stackable tags are pinned at 1 no matter what is asked for, so a
@@ -101,15 +102,15 @@ async function grantTagSlugs(tx, characterId, slugs, turnNumber, durations = nul
     if (!existing) {
       // A granted tag with its own duration starts its clock now, which is
       // what makes a chain work (meal -> Ate Meal that the sweep clears).
-      // Same absolute-turn expression as db/lib/hungerPass.js.
+      // expiryFrom counts `turnNumber` itself as the tag's first live turn,
+      // so a 1-turn grant runs out when this turn closes.
       //
       // A per-grant override (Tag.consumesIntoDurations, resolved by
       // web/lib/consumeGrants.js) wins over the tag's own duration, so one
       // status can outlast itself depending on what produced it — Bliss
       // leaves you High a turn longer than the raw fungus does.
       const durationTurns = durations?.[slug] ?? tag.defaultDurationTurns;
-      const expiresTurn =
-        turnNumber != null && durationTurns != null ? turnNumber + durationTurns : null;
+      const expiresTurn = expiryFrom(turnNumber, durationTurns);
       await tx.characterTag.create({
         data: {
           characterId,

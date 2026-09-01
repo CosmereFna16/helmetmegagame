@@ -18,6 +18,7 @@ const databaseUrl = normalizedDatabaseUrl();
 const { PrismaClient, Prisma } = require("@prisma/client");
 const { rollWeather, buildTurnAnnouncement } = require("./weather");
 const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
+const { expiryFrom } = require("./lib/turnFormat");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 const { runDawnWipe } = require("./lib/dawnWipe");
 const { runThreadExpiry } = require("./lib/threadExpiryPass");
@@ -144,7 +145,7 @@ async function sweepExpiredStacks(turn) {
     }
     // Same absolute-turn expression as db/lib/hungerPass.js, so both writers
     // derive expiry identically.
-    const next = turn.number + (ct.tag.defaultDurationTurns ?? 1);
+    const next = expiryFrom(turn.number + 1, ct.tag.defaultDurationTurns ?? 1);
     if (!rescheduled.has(next)) rescheduled.set(next, []);
     rescheduled.get(next).push(ct.id);
   }

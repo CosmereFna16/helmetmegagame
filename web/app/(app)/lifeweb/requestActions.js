@@ -14,6 +14,7 @@ import {
 } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
+import { expiryFor } from "@/lib/turnFormat";
 import { createRequest, logRequest, requireReason } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { notifyCharacter } from "@/lib/notifyCharacter";
@@ -96,10 +97,7 @@ async function donateBloodRequestImpl({ targetCharacterId, reason: rawReason }) 
   if (!drainedTag) throw new UserError("The Drained tag is missing — run npm run db:sync-tags.");
 
   const { amount, tier } = bloodValueForTags(target.tags);
-  const expiresTurn =
-    openTurn && drainedTag.defaultDurationTurns != null
-      ? openTurn.number + drainedTag.defaultDurationTurns
-      : null;
+  const expiresTurn = expiryFor(drainedTag, openTurn);
 
   // `blood` is now produced INSIDE the transaction rather than from a read
   // taken before it. The snapshot written to Request.effect below is what Undo

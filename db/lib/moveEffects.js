@@ -49,6 +49,7 @@ async function addResources(tx, characterId, amount) {
 }
 
 const { EXHAUSTED_SLUG } = require("./constants");
+const { expiryFrom } = require("./turnFormat");
 
 // One entry per pushable thing. `read` decides what this Move would push right
 // now; `apply` pushes it and returns WHAT ACTUALLY MOVED; `revert` takes back
@@ -90,7 +91,7 @@ const MOVE_EFFECTS = {
           characterId: action.characterId,
           tagId: tag.id,
           source: "EVENT",
-          expiresTurn: turn.number + (tag.defaultDurationTurns ?? 1),
+          expiresTurn: expiryFrom(turn.number + 1, tag.defaultDurationTurns ?? 1),
         }],
         skipDuplicates: true,
       });

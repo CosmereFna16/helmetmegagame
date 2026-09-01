@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma, DRAINED_SLUG, bloodValueForTags, bumpBlood, FEED_PERSON_AMOUNT } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
+import { expiryFor } from "@/lib/turnFormat";
 
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
@@ -33,10 +34,7 @@ export async function donateBlood(characterId) {
 
   const { amount, tier } = bloodValueForTags(character.tags);
   const drainedTag = openTurn ? await prisma.tag.findUnique({ where: { slug: DRAINED_SLUG } }) : null;
-  const expiresTurn =
-    openTurn && drainedTag?.defaultDurationTurns != null
-      ? openTurn.number + drainedTag.defaultDurationTurns
-      : null;
+  const expiresTurn = expiryFor(drainedTag, openTurn);
 
   // Credit and mark in ONE transaction, same as the player-facing twin in
   // requestActions.js#donateBloodRequestImpl. Split apart, a throw between the

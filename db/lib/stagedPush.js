@@ -132,14 +132,16 @@ async function applyOneStagedEffect(prisma, row, turn, equipSlots) {
       // whole row back clean (including the claim). The one late thrower is
       // applyTagOpsInTx's equip-cap check — also inside this tx, also clean.
       validateTagOps(ops, tagsById, new Set(heldRows.map((r) => r.tagId)));
-      // openTurn is the CLOSING turn on purpose: a 1-turn tag granted here
-      // gets expiresTurn = turn.number + 1 and survives this rollover's own
-      // expiry sweep, exactly like a tag granted five minutes earlier.
+      // The turn handed down is the NEXT one, not the closing one: these tags
+      // land as that turn opens, so it is their first live turn. A 1-turn tag
+      // granted here therefore runs through it and survives this rollover's
+      // own expiry sweep, exactly like a tag granted five minutes earlier.
+      // (Only `number` is read downstream — expiryFrom and grantTagSlugs.)
       snapshot.tags = await applyTagOpsInTx(tx, {
         characterId: row.targetCharacterId,
         ops,
         tagsById,
-        openTurn: turn,
+        openTurn: { ...turn, number: turn.number + 1 },
         equipSlots,
       });
     }

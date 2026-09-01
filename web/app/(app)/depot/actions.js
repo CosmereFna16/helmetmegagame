@@ -12,6 +12,7 @@ import {
 } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
+import { expiryFor } from "@/lib/turnFormat";
 import { TURNS_PATH } from "@/lib/routes";
 import { createRequest, logRequest, requireReason } from "@/lib/requests";
 import { addToStack, dropCharacterTag, moveResources } from "@/lib/requestEffects";
@@ -106,10 +107,7 @@ async function depotBuyImpl({ tagId, quantity: rawQuantity, reason: rawReason })
     await addToStack(tx, character.id, tag.id, quantity, {
       source: "EVENT",
       stackable: tag.stackable,
-      expiresTurn:
-        openTurn && tag.defaultDurationTurns != null
-          ? openTurn.number + tag.defaultDurationTurns
-          : null,
+      expiresTurn: expiryFor(tag, openTurn),
     });
     const added = tag.stackable ? quantity : before ? 0 : 1;
 

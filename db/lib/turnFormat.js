@@ -10,16 +10,24 @@
 
 // Null when either side is unknown, so a tag that never expires (or a caller
 // with no open turn) renders no expiry line at all rather than "0".
+//
+// The count is INCLUSIVE of the open turn: `expiresTurn` is the last turn the
+// tag is live for, because the sweep runs while that turn CLOSES. So a tag
+// expiring on the open turn has one turn left, not zero. Counting exclusively
+// is what made a two-turn tag read "2 left, 1 left, last turn" — three states
+// for two turns, which is what players actually complained about.
 function turnsLeft(expiresTurn, currentTurn) {
   if (expiresTurn == null || currentTurn == null) return null;
-  return Math.max(0, expiresTurn - currentTurn);
+  return Math.max(0, expiresTurn - currentTurn + 1);
 }
 
-// "2 turns left" / "1 turn left" / "expires this turn".
+// "2 turns left" / "expires this turn". A 1 means this turn is the last one,
+// so it takes the wording rather than the number; 0 only happens to a row the
+// sweep has not reached yet, and reads the same.
 function formatTurnsLeft(n) {
   if (n == null) return null;
-  if (n === 0) return "expires this turn";
-  return `${n} turn${n === 1 ? "" : "s"} left`;
+  if (n <= 1) return "expires this turn";
+  return `${n} turns left`;
 }
 
 
@@ -34,14 +42,18 @@ function formatTurnsLeft(n) {
 //   catalog reference    -> { "Lasts 1 turn once granted","1t"  }
 //   neither              -> null
 //
+// turnsLeft() counts the open turn, so the final turn arrives here as 1 and
+// takes the wording instead of a bare "1t" — the whole sequence for a 2-turn
+// tag is now "2 turns left" then "Expires this turn", one state per turn.
+//
 // "once granted" is load-bearing: it is the entire difference between a live
 // countdown and a catalog fact, and its absence is why the same tag read two
 // different ways depending on how it was granted.
 function tagDuration(left, defaultDurationTurns) {
   if (left != null) {
-    return left === 0
+    return left <= 1
       ? { label: "Expires this turn", badge: "last" }
-      : { label: `${left} turn${left === 1 ? "" : "s"} left`, badge: `${left}t` };
+      : { label: `${left} turns left`, badge: `${left}t` };
   }
   if (defaultDurationTurns) {
     const n = defaultDurationTurns;
@@ -53,16 +65,35 @@ function tagDuration(left, defaultDurationTurns) {
   return null;
 }
 
-// The absolute turn a tag granted right now should expire on, or null when it
-// has no catalog duration (and so never expires). Every grant path must use
-// this: resolveNeeds()'s sweep matches `expiresTurn <= turn.number`, so a row
-// left null is permanent no matter what durationTurns says in the YAML.
-// Before the game opens there is no turn to count from, so nothing expires.
+// The last turn a tag is live for, counted from the FIRST turn it is live for.
+// `N turns` means N turns, inclusive of that first one — so a 1-turn tag
+// granted mid-turn runs out when this turn closes, and a 2-turn tag survives
+// one more. Null for a duration of 0/null (the tag never expires) so callers
+// can hand the result straight to `expiresTurn`.
+//
+// The "-1" is the whole fix for a long-standing off-by-one: the sweep matches
+// `expiresTurn <= turn.number` while CLOSING that turn, so the expiry turn is
+// itself a turn the tag is live for. Adding the raw duration gave every timed
+// tag N+1 turns on the sheet.
+//
+// A pass that grants at turn end must pass `turn.number + 1` — the tag's first
+// live turn is the one about to open, not the one being swept. db/index.js's
+// stack reroll, hungerPass, tagExpiryPass, moveEffects and stagedPush all do.
+function expiryFrom(firstLiveTurnNumber, durationTurns) {
+  if (!durationTurns || firstLiveTurnNumber == null) return null;
+  return firstLiveTurnNumber + durationTurns - 1;
+}
+
+// The same thing for the common case: a tag granted during the open turn, so
+// the open turn is its first live one. Every mid-turn grant path must use it:
+// resolveNeeds()'s sweep matches on expiresTurn, so a row left null is
+// permanent no matter what durationTurns says in the YAML. Before the game
+// opens there is no turn to count from, so nothing expires.
 // Moved down from web/lib/turnFormat.js (which re-exports it) so the
 // staged-push pass can grant timed tags at turn end.
 function expiryFor(tag, openTurn) {
-  if (!tag?.defaultDurationTurns || !openTurn) return null;
-  return openTurn.number + tag.defaultDurationTurns;
+  if (!openTurn) return null;
+  return expiryFrom(openTurn.number, tag?.defaultDurationTurns);
 }
 
-module.exports = { turnsLeft, formatTurnsLeft, tagDuration, expiryFor };
+module.exports = { turnsLeft, formatTurnsLeft, tagDuration, expiryFrom, expiryFor };

@@ -67,6 +67,7 @@ const {
   NOBILITY_SLUG,
   DISAPPOINTED_SLUG,
 } = require("./constants");
+const { expiryFrom } = require("./turnFormat");
 
 const HUNGER_STREAK_CAP = 6;
 
@@ -214,7 +215,9 @@ async function runHungerPass(prisma, turn) {
   // N+1 closes. That's also what makes Ate Meal's "won't go hungry next turn"
   // copy literally true: eaten during turn N, consumed at N's close, it
   // suppresses the tag that would have bitten during N+1.
-  const expiresTurn = turn.number + (hungerTag.defaultDurationTurns ?? 1);
+  // turn.number + 1: this closes turn N, and the Hunger's first live turn
+  // is N+1, the one about to open.
+  const expiresTurn = expiryFrom(turn.number + 1, hungerTag.defaultDurationTurns ?? 1);
 
   // Computed in JS off the streak already loaded above, not off a DB return
   // value — an `increment`/`decrement` in the same transaction wouldn't hand

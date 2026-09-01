@@ -8,7 +8,7 @@
 // deep path instead, which resolves without the barrel (and so without Prisma)
 // because @lifeweb/db declares no `exports` map. Everything below is genuinely
 // web-only: themes, weather labels, the turn label a page renders.
-export { turnsLeft, formatTurnsLeft, tagDuration, expiryFor } from "@lifeweb/db/lib/turnFormat";
+export { turnsLeft, formatTurnsLeft, tagDuration, expiryFrom, expiryFor } from "@lifeweb/db/lib/turnFormat";
 
 const WEATHER_LABELS = {
   CLEAR: "Clear",
@@ -67,6 +67,8 @@ export function formatTurnLabel(turnNumber, phase) {
 //   held, final turn     -> { "Expires this turn",       "last" }
 //   catalog reference    -> { "Lasts 1 turn once granted","1t"  }
 //   neither              -> null
+//
+// turnsLeft() counts the open turn, so the final turn arrives here as 1.
 //
 
 // expiryFor moved to db/lib/turnFormat.js (re-exported above) — the
