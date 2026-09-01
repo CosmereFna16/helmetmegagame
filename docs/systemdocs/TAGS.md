@@ -82,10 +82,11 @@ diff check, same style as the zone sync's hash gate).
 - **`Tag.exclusive`** — not a relation at all, but the third rule the same
   callers enforce: a character may hold at most **one** tag carrying this
   flag **per tag group**. Set on the nine Beliefs (`general-beliefs`), which
-  are a single answer rather than a collection, and on the five Bacchus
-  drawbacks — the four Addictions ("do not take with other Addiction tags")
-  and Death Wish, which rewrites what a valid Desire is the same way — so a
-  Cultist holds one belief and one of those five. Neither of the two above could express it — a `parentTag` chain
+  are a single answer rather than a collection, and on the drawbacks in
+  `general-addictions` and `general-restrictions` (the Desires rework's
+  replacement for the old Bacchus-only Death Wish mechanic — see below) — so
+  a character holds at most one belief, at most one Addiction, and at most
+  one Restriction, all independently. Neither of the two above could express it — a `parentTag` chain
   is priced cumulatively and walks one direction, and `requiredTag` is a
   prerequisite rather than a conflict. The one exemption is a pair joined by
   `requiredTag`, checked in both directions: Fundamentalist declares
@@ -98,6 +99,22 @@ diff check, same style as the zone sync's hash gate).
   swaps (like a chain sibling); a conflict with something already held is
   dimmed and named. Conversion mid-game is "drop one, buy another" — Beliefs
   stay `removable` — and the store's error says exactly that.
+- **`Tag.conflictsWith`** — a named pairwise conflict, distinct from
+  `exclusive`'s at-most-one-per-group rule: it isn't scoped to a group and
+  isn't carved out for a `requiredTag` pair, so it's the right tool for a
+  conflict that crosses groups or crosses the belief/drawback line — every
+  Addiction and Restriction lists `conflictsWith: [depressed, ascetic, ...]`
+  so, say, Alcoholic and Depressed can't stack. Authored one-directional in
+  `docs/tags.yaml` and symmetrized by `db:sync-tags` (pass 6, §2), so a
+  caller only ever has to check one side; a **custom** GM tag's edge is not
+  guaranteed symmetric, which is why `db:prune-tags`'s blocker check reads
+  both directions. `conflictingTag(tag, heldOrSelectedIds, byId)` in
+  `web/lib/characterCreation.js` is the enforcement predicate, same
+  shape/bypass posture as `exclusiveConflict` above — every caller's `select`
+  must include `conflictsWith`/`conflictsWithIds`. The one-per-group rule the
+  Addiction and Restriction groups themselves enforce (at most one of each)
+  is plain `exclusive`, not this field — `conflictsWith` is only for the
+  cross-group edges.
 
 `web/lib/characterCreation.js` is where the logic lives.
 `holdsRequirement(requiredTagId, …)` answers "is this one id satisfied by
@@ -130,6 +147,13 @@ different predicate.
 Every caller must select `group.requiredTagId` alongside `requiredTagId`.
 Miss it and a hidden category silently opens for everyone, with nothing to
 show that it has.
+
+### `desires:` locks
+
+A fourth field, `Tag.desireLocks` (YAML: `desires: { locks: [...] }`), is
+**not** a relation onto another tag at all — it locks parts of the *Desire
+catalog* shut for whoever holds it. Full writeup, including the clause
+grammar and how several held tags' locks union together: `DESIRES.md` §3.
 
 ## 3b. The Add Tag menu asks a different question
 
@@ -360,33 +384,36 @@ without a deliberate decision recorded here. **Pilgrim is the one deliberate
 exception, priced at 1** — off the scale entirely, Gunboat's call.
 
 **At character creation, a character may buy at most
-`GameConfig.maxNegativeTags` drawback POINTS — 8 by default, live on
+`GameConfig.maxDrawbackTags` drawback TAGS — 5 by default, live on
 `/gm/dev`.** The cap belongs to the wizard and stops existing once play
 starts: `/store` passes no cap and shows no drawback readout, since the one
-drawback it can sell (an Addiction) is meant to be sellable. This is a cap on the sum of what
-drawbacks grant, not on how many drawback tags are held: one −8 drawback and
-eight −1 drawbacks spend the same slice of the cap. Only what was bought
-through the point-buy menu counts (`CharacterTag.source === "POINT_BUY"`): a
-role's free drawback (the Meister's Frail, the Headman's Old) arrives as
-`GM_GRANT`, and so does anything a GM or a turn effect inflicts, so neither
-eats into a player's points. A GM grant can still push someone past the cap,
-deliberately — the same bypass every other gate has (§3). The field is still
-named `maxNegativeTags` even though it now caps points, not tags — renaming
-the column would be a migration for no behavioural gain.
+drawback it can sell (an Addiction) is meant to be sellable. This is a cap on
+the **count** of drawback tags held, not on their combined point value: a
+character with one −8 drawback and one with eight −1 drawbacks now spend a
+different slice of the cap (the field replaced the old `maxNegativeTags`,
+which — despite its name — summed points; `maxDrawbackTags` does what the
+old name always claimed to, for real; the `drawback_tag_cap` migration,
+Desires rework). Only what was bought through the point-buy menu counts
+(`CharacterTag.source === "POINT_BUY"`): a role's free drawback (the
+Meister's Frail, the Headman's Old) arrives as `GM_GRANT`, and so does
+anything a GM or a turn effect inflicts, so neither eats into a player's
+count. A GM grant can still push someone past the cap, deliberately — the
+same bypass every other gate has (§3). `0` is a real setting: no drawbacks
+at all.
 
 The cap has three surfaces. `PointBuy.js` sums it live in the build pane
-(`negativeCap` / `negativeHeld`), shown in red once the total is over the cap
-(`−{used} / {cap} drawback points spent`), dims a drawback that would push
-the total past the limit the same way it dims an unaffordable tag, and — like
+(`negativeCap` / `negativeHeld`), shown in red once the count is over the
+cap (`{used} / {cap} drawbacks taken`), dims a drawback that would push the
+count past the limit the same way it dims an unaffordable tag, and — like
 the budget — lets the click through so the pane can say why the build isn't
 legal. `CreateCharacterWizard` folds it into `canAdvance` beside
 `remaining >= 0`. `createCharacter` re-checks it server-side, because a
 server action is a public endpoint. `/store` shows the same line as a
 **readout only**: every drawback is `purchasableAfterStart: false`, so the
-shelf never offers one and the total can't move there. `negativeTagPoints()`
-in `web/lib/characterCreation.js` is the shared predicate, over raw
-`pointCost` rather than `effectiveCost` — a drawback never sits in a tier
-chain, so there is nothing to discount.
+shelf never offers one and the total can't move there. `negativeTagCount()`
+in `web/lib/characterCreation.js` is the shared predicate, counting tags
+with a negative `pointCost` rather than summing `effectiveCost` — a drawback
+never sits in a tier chain, so there is nothing to discount.
 
 **0 is a real price, not a missing one**, and it is the most common value in
 the file (142 of 268). Everything unpurchasable — injuries, statuses, meals,
@@ -395,6 +422,17 @@ no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
 
 ### Rules that follow from the scale
 
+- **Addictions, Restrictions and Interests (`general-addictions`,
+  `general-restrictions`, `general-interests`) run their own bands, off the
+  same scale.** Addictions −2…−7, Restrictions −1…−8, Interests +2 or +5. ‡
+  The rationale is income-based, not severity-based: an Addiction's price
+  tracks how much of the Desire catalog it still leaves open (Alcoholic,
+  which still has tiers 5 and 7 open everywhere, costs less than Glutton,
+  which is locked to `food` at every tier); a Restriction's price tracks how
+  much it closes with no compensating unlock (Depressed, closing
+  everything, sits at the floor); an Interest costs points because it's pure
+  upside, widening the catalog with no lock attached. See `DESIRES.md` §5
+  for the full mechanic these tags drive.
 - **Skill chains are flat 5 per rung and charged cumulatively**
   (`cumulativeCost`, §3). Do not price a rung off-ladder to make a chain
   cheaper; shorten the chain.

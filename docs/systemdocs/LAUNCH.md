@@ -23,7 +23,7 @@ and that constant sets `openToPlayers: false` and `leaderWhitelistEnabled:
 true`. So the natural opening move — wipe to a clean slate — leaves a game
 nobody can join, with the Leader roles re-locked. It also resets **every
 balance knob**: `playerCount`, `startingTagPoints`, `equipSlots`,
-`maxNegativeTags`, `productionCoefficient`, and the feature switches
+`maxDrawbackTags`, `desireSlots`, `productionCoefficient`, and the feature switches
 (`playtestModeEnabled`, `nicknameSyncEnabled`, `archiveVisible`,
 `avatarUploadsEnabled`, `portraitMakerEnabled`, `messageWipeEnabled`,
 `autoReconcileEnabled`).
@@ -81,8 +81,8 @@ The order, and why:
 | 5 | **`#turns` console repost** | After the wipe, never before: step 4 bulk-deletes every message in `#turns`, including this one if it were posted first. Turn 1 is opened by a plain `turn.create`, so `runSideEffects()` never fires and the announcement that normally rides it never went out |
 | 6 | **Zone sync** (`syncZonesFromYaml`) | Regenerates every category, channel, zone role, anchor and Location topic from `docs/zones.yaml` |
 | 7 | **Special channels sync** | Right after zones, because `#intercom`'s view grants name the zone roles step 6 may have just recreated |
-| 8 | **Tag sync** → 9. **Role sync** → 10. **Document sync** | Dependency order: roles resolve a `starting_zone` and validate `starting_tags`; documents validate against tags, roles and factions |
-| 11 | **Channel doctor** (cheap, apply) | The structural backstop: whatever a retry above still missed, the doctor finds by diffing Discord against the now-empty roster and repairs. Not a bigger retry count — a different mechanism |
+| 8 | **Tag sync** → 9. **Role sync** → 10. **Desire sync** → 11. **Document sync** | Dependency order: roles resolve a `starting_zone` and validate `starting_tags`; desires validate `requires.anyRoles`/`notRoles` against roles and `requires.anyTags`/`notTags` against tags (`SYNC.md` §1, `DESIRES.md` §10); documents validate against tags, roles and factions |
+| 12 | **Channel doctor** (cheap, apply) | The structural backstop: whatever a retry above still missed, the doctor finds by diffing Discord against the now-empty roster and repairs. Not a bigger retry count — a different mechanism |
 
 ## 3. The runbook
 

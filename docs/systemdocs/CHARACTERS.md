@@ -481,17 +481,19 @@ both directions fall out of one subtraction, and `remaining >= 0` is the only
 completion rule. Every negative-cost tag is `purchasableAfterStart: false` —
 a drawback you could buy mid-game would be a point farm.
 
-At most `GameConfig.maxNegativeTags` drawback **points** (default 8, live on
-`/gm/dev`) may be **bought** — a cap on the sum of what drawbacks grant, not
-on how many drawback tags are held. The role's own starting tags land as
+At most `GameConfig.maxDrawbackTags` drawback **tags** (default 5, live on
+`/gm/dev`) may be **bought** — a cap on the count of drawback tags held, not
+on the sum of what they grant. The role's own starting tags land as
 `GM_GRANT` and never pass through the purchase path, so the Meister's free
-Frail and the Headman's Old cost nobody a point of the cap. `TAGS.md` §4a is
+Frail and the Headman's Old cost nobody a slot of the cap. `TAGS.md` §4a is
 the full rule.
 
 Leftover points are kept, not lost: they land on `Character.tagPoints`.
 
-Fulfilling a Desire is the only way points are *earned* in play, and a
-character may hold at most one Desire `ACTIVE` at a time (`REQUESTS.md` §5).
+Fulfilling a Desire is the only way points are *earned* in play. A
+character may hold up to `GameConfig.desireSlots` Desires `ACTIVE` at once
+(default 2), one per slot, each independently set/cancelled/fulfilled
+(`DESIRES.md`, `REQUESTS.md` §5).
 Spending happens through the `/store`'s point-buy purchases (`BUY_TAGS`),
 which check the balance up front and refuse a cart that would take it below
 0 — so unlike `Character.tagPoints` at creation, the in-play balance never

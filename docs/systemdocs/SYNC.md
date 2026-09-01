@@ -1,7 +1,7 @@
 # YAML masters and the sync scripts
 
-Four hand-edited YAML files under `docs/` are the sole source of truth for
-their tables. Each has a sync that reconciles the database to it. The four look
+Five hand-edited YAML files under `docs/` are the sole source of truth for
+their tables. Each has a sync that reconciles the database to it. The five look
 alike and **differ on every axis that matters**, which is the reason for this
 page.
 
@@ -15,13 +15,16 @@ running the sync is the only way these rows change.
 | `docs/zones.yaml` | `db:sync-zones` | `Zone`, `LocationTopic` | `slug` | **Destructive** — a dropped Zone loses its DB row, its Discord category/channels *and* its `Zone: {Name}` role; a dropped topic loses its forum post |
 | `docs/tags.yaml` + `docs/taggroups.yaml` | `db:sync-tags` | `Tag`, `TagGroup` | `slug` | **Upsert-only** — never deletes; a removed entry just stops receiving updates. `db:prune-tags` is the opt-in destructive half (§3b) |
 | `docs/roles.yaml` | `db:sync-roles` | `Faction`, `Role` | `slug` | **Prunes only if unreferenced** — a Faction with members, roles, or a non-zero silo is left in place and reported |
+| `docs/desires.yaml` | `db:sync-desires` | `DesireTemplate` | `slug` | **Soft-retire** — a dropped slug is never deleted, only marked `retired: true` (hidden from every picker; existing `Desire` rows referencing it keep running). A slug that comes back has it cleared. See `DESIRES.md` §10 |
 | `docs/documents.yaml` | `db:sync-documents` | `Document` | `key` | **Destructive** — pure reference content, no player state to preserve |
 
-**Run order matters:** zones → tags → roles → documents. Roles resolve a
-`starting_zone` by slug and a Faction's zone by name, and validate
-`starting_tags` against the tag catalog; documents validate against tags, roles
-*and* factions. Running them out of order throws on a reference that would have
-existed.
+**Run order matters:** zones → tags → roles → desires → documents. Roles
+resolve a `starting_zone` by slug and a Faction's zone by name, and validate
+`starting_tags` against the tag catalog; desires validate `requires.anyRoles`/
+`notRoles` against the Role catalog and `requires.anyTags`/`notTags` against
+the Tag catalog, so it runs after both; documents validate against tags,
+roles *and* factions. Running them out of order throws on a reference that
+would have existed.
 
 `db:sync-narrowcast-channels` (§4) belongs right after `db:sync-zones`, because
 `#intercom`'s static view grants name the zone roles the zone sync creates.
@@ -171,8 +174,8 @@ Two implementation details in pass 3 are load-bearing:
 `wipeGameData` (`web/app/(app)/gm/dev/actions.js`, superadmin only) is the one
 caller that runs the syncs together, from a retrying step runner. The full
 order — and why each step sits where it does — is in `LAUNCH.md`; the sync half
-is zones → special channels → tags → roles → documents, then the channel
-doctor.
+is zones → special channels → tags → roles → desires → documents, then the
+channel doctor.
 
 **This flow has been bitten by foreign-key ordering before.** Anything deleted
 there has to come out in dependency order, and it's the main reason new log-ish
@@ -208,6 +211,11 @@ because a prune that skips silently is worse than one that deletes:
   is the hidden-category gate, and dropping it would silently open Demoness to
   everyone;
 - nothing consumes into it (`Tag.consumesInto`);
+- no other tag lists it in `conflictsWith` (checked in both directions —
+  `db:sync-tags` writes the edge symmetrically, but a custom tag's edge isn't
+  guaranteed symmetric, so the blocker check reads both `conflictsWith` and
+  `conflictedBy`);
+- no `DesireTemplate` gates on it via `requiresAnyTags`/`requiresNotTags`;
 - no `Role.startingTagSlugs` grants it and no `Document.tagSlugs` is assigned
   by it. Note `Role.startingTagSlugs` is misnamed and holds tag **names**,
   while `Document.tagSlugs` really does hold slugs.
@@ -234,14 +242,15 @@ which fixes drift by diffing rather than by a script per symptom.
 | `db:backfill-roles` | Creates the personal Discord role for characters that predate it. Does not assign it — nobody holds these. |
 | `db:backfill-name-parts` | Repair pass for the four-part character name; also the drift check on the denormalized `Character.name`. |
 | `db:backfill-fighting-split` | One-off: retires the `fighting-*` tag tree in favour of `melee-*`/`ranged-*` and rescales the point economy. No Discord. |
+| `db:backfill-desires` | One-off (Desires rework): moves live holdings off six retired-in-place drawback tags onto their catalog-era replacements, and drops five tags absorbed into the flat rebalance with no replacement concept. Run after `db:sync-tags` and `db:sync-desires` — see `DESIRES.md` §11 and the script's own header. No Discord. |
 | `db:prune-tags` | Dry-run by default (`-- --apply`): the destructive counterpart to `db:sync-tags` — deletes any Tag row absent from `docs/tags.yaml`, skipping GM-created and referenced tags. |
 | `db:sync-narrowcast-channels` | Provisions **and reconciles** the `radio` category and its `#watch`/`#intercom` channels from the special-channels registry. Run after `db:sync-zones`. |
 | `db:rebuild-info-channel` | Destructive rebuild of `#info` from `infochannel.yaml` (`INFOCHANNEL.md`). |
 
 ## 5. Where the code lives
 
-`db/lib/syncZones.js`, `syncTags.js`, `syncRoles.js`, `syncDocuments.js`,
-`syncSpecialChannels.js`, each with a thin `db/prisma/sync-*.js` terminal
-wrapper. `db/lib/zoneChannelSpec.js` is the one description of a zone's Discord
-layout; `db/lib/channelDoctor.js` is the reconciler; `db/lib/fullWipe.js` is
-the Restart Game nuke.
+`db/lib/syncZones.js`, `syncTags.js`, `syncRoles.js`, `syncDesires.js`,
+`syncDocuments.js`, `syncSpecialChannels.js`, each with a thin
+`db/prisma/sync-*.js` terminal wrapper. `db/lib/zoneChannelSpec.js` is the
+one description of a zone's Discord layout; `db/lib/channelDoctor.js` is the
+reconciler; `db/lib/fullWipe.js` is the Restart Game nuke.

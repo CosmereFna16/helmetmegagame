@@ -97,7 +97,7 @@ reason.
 | `REMOVE_TAG` | Drops one of their own `removable` tags, optionally paying ⬢, in a quantity if it stacks. A tag with `removesInto` leaves its treated form behind (`TAGS.md` §5c) | cost | Restores the tag and its count, takes back the aftermath it granted, refunds the cost |
 | `CONSUME_TAG` | Uses up one of their own `consumable` tags — always exactly one, even from a stack — and gains whatever it `consumesInto` | — | Restores the one unit with its original expiry, takes back what it granted |
 | `TRANSFER_TAG` | Hands an Item or Asset to another player in the same zone, in a quantity if it stacks. `direction: "LOOT"` lifts one off a corpse in the same zone | — | Moves that many back |
-| `FULFILL_DESIRE` | Claims their active Desire | Tag Points awarded | Revokes the points, reopens the Desire |
+| `FULFILL_DESIRE` | Claims one active, slotted Desire (`desireId`, not "the" active one — a character can hold several at once, one per slot) | Tag Points awarded | Revokes the points and reopens the *row*. Because a GM Fulfil/Cancel operates on a specific `desireId` rather than "whatever's in the slot now," an Undo is safe even after a new Desire has since been set in that same slot — it only ever touches the row it snapshotted, never the slot's current occupant |
 | `DONATE_BLOOD` | Mortus bleeds someone into the Lifeweb | blood added; clear Drained | Draws the blood back, clears Drained |
 | `FEED_PERSON` | Mortus feeds someone to the Lifeweb | blood added | Draws the blood back (never revives) |
 | `HEAL_CHARACTER` | Treats an affliction on anyone standing in their zone, on whoever's tab they choose. An affliction with `removesInto` leaves its treated form on the patient (`TAGS.md` §5c) | cost; put the affliction back (which also takes the aftermath off) | Restores the tag with its original expiry, takes back the aftermath, refunds the payer |
@@ -373,45 +373,57 @@ still show its work instead of pretending nothing happened.
 
 ## 5. Desires
 
-A Desire is a self-set goal worth 1–5 Tag Points. `Desire` holds one row per
-attempt; at most one is `ACTIVE` per character, enforced in the server action
-rather than the schema (the constraint is "one ACTIVE", not "one row").
-Setting a new one while one is already active — from `setDesireGm` on the Dev
-Panel — cancels the current one first, in the same transaction.
+A Desire is now picked from a catalog (`DesireTemplate`, sourced from
+`docs/desires.yaml`) rather than typed as free text on a fixed ladder — the
+1–5 points-and-ladder system is gone. Full writeup of the catalog, its
+gates, cooldowns and the tag-group lock mechanism:
+[`DESIRES.md`](DESIRES.md). This section covers only the request-level
+mechanics.
 
-Setting and cancelling are **not** requests — nothing has been granted, so
-there is nothing for a GM to undo. Both go through `useConfirm()`. Only
-**fulfilling** moves Tag Points, so only fulfilling needs a reason and a
-review.
+`Desire` holds one row per set/cancel/fulfil attempt, `slotIndex`-scoped: a
+character can hold up to `GameConfig.desireSlots` (default 2) `ACTIVE` rows
+at once, one per slot, each independent of the others. At most one `ACTIVE`
+row per slot is enforced in the server action rather than the schema (the
+constraint is "one ACTIVE per slot", not "one row"). Setting a new one in an
+already-occupied slot — from the player's `setDesire` or the Dev Panel's
+`setDesireGm` — cancels that slot's current one first, in the same
+transaction.
 
-Ending a Desire either way stamps `endedTurnNumber`, which drives a one-turn
-cooldown: a new Desire is blocked while
-`openTurn.number <= lastEnded.endedTurnNumber`. The confirm dialog warns about
-this before the player commits.
+**Setting and cancelling are still not requests** — nothing has been
+granted, so there is nothing for a GM to undo. Both go through
+`useConfirm()`. Only **fulfilling** moves Tag Points, so only fulfilling is
+a `Request` (`FULFILL_DESIRE`) with a reason and a review.
+
+Ending a Desire either way (cancel or fulfil) stamps `endedTurnNumber`,
+which drives two independent cooldowns, not one — see `DESIRES.md` §2 for
+the full mechanics:
+
+- the **slot** locks until the next turn regardless of which template
+  ended, so a slot can't be cancelled and immediately refilled in the same
+  turn;
+- the specific **template**, once fulfilled, is unavailable again for its
+  own tier-length (or `cooldownTurns`-overridden) cooldown, independent of
+  the slot.
+
+The confirm dialog warns about the slot lock before the player commits.
 
 Undoing a fulfillment revokes the points **even if that drives the balance
-negative**. That is intended: if the player already spent them, digging out is
-their problem, not a GM's.
-
-The 1–5 ladder is shown in an `InfoIcon` beside the points field:
-
-```
-1. Have a drink at the bar.                        Trivial.
-2. Convert the depressed bum to Christianity.      Regular.
-3. Humiliate your rival in front of the court.     Moderate.
-4. Break your comrade out of jail.                 Difficult.
-5. Win back your lover.                            Extraordinary.
-```
+negative**. That is intended: if the player already spent them, digging out
+is their problem, not a GM's. The same "even into negative" posture applies
+by adjudication, not code, to curing an Addiction or Restriction tag —
+`DESIRES.md` §7's clawback rule.
 
 `GameConfig.desiresEnabled` is the Dev Panel switch that closes the faucet
 without freezing what's already in flight: off blocks `setDesire` (checked
-server-side in `setDesireImpl`, not just hidden in the UI) so nobody can start
-a **new** Desire, but an already-`ACTIVE` one can still be fulfilled or
-cancelled — the system drains out rather than stopping mid-goal. `/character`
-greys the "set a new Desire" form and shows "Temporary disabled." in its
-place. Unaffected: `setDesireGm`/`endDesireGm` on the Dev Panel (host access,
-not game permission — same split `/lifeweb`'s GM panel uses) and the Discord
-🔍/⚜️ inspect surfaces, which stay read-only regardless.
+server-side in `setDesireImpl`, not just hidden in the UI) so nobody can
+start a **new** Desire, but an already-`ACTIVE` one in any slot can still be
+fulfilled or cancelled — the system drains out rather than stopping
+mid-goal. `/character` greys the "set a new Desire" form and shows
+"Temporary disabled." in its place. Unaffected: `setDesireGm`/`endDesireGm`
+on the Dev Panel (host access, not game permission — same split
+`/lifeweb`'s GM panel uses; a GM grant also bypasses every catalog gate, per
+`DESIRES.md` §6) and the Discord 🔍/⚜️ inspect surfaces, which stay
+read-only regardless.
 
 ## 5a. The Lifeweb
 
@@ -758,7 +770,7 @@ of a transfer. Deposits into a Silo previously left no ledger entry at all.
 | One end of a resource movement (Silo or player) | `web/app/components/PartySelect.js` |
 | Reach gate — same zone / same Silo seat zone | `web/lib/transferReach.js` |
 | Tags panel + click-a-chip-to-consume | `web/app/components/TagsPanel.js`, `TagChip.js` |
-| Desires | `web/app/components/GoalsPanel.js` (panel shell), `DesirePanel.js` |
+| Desires — panel shell, catalog picker, GM surface, gate evaluator | `web/app/components/GoalsPanel.js`, `DesirePanel.js`, `DesireCatalog.js`; `gm/dev/characters/[characterId]/GoalsTab.js`; `db/lib/desireGates.js`. Full file map: `DESIRES.md` §11 |
 | Lifeweb blood tiers + cap, shared bot/web | `db/lib/lifeweb.js` |
 | Lifeweb requests, GM bypass panel | `web/app/(app)/lifeweb/requestActions.js`, `actions.js` |
 | Lifeweb player buttons | `web/app/components/LifewebRequestButtons.js` |
