@@ -15,15 +15,24 @@
 // silently cancel someone's default for the wrong reason.
 const INCAPACITATING_SLUGS = new Set(["dying", "catatonic", "paralyzed", "bound"]);
 
-// The narrower set HARM_CHARACTER's lethal half needs. Being Paralyzed for a
-// turn is a moment's stumble — you can rob someone in that state, but they
-// are not someone a player may finish off. Dying, Bound and
-// Catatonic all are: the first two are the classic helpless body, and a
-// Catatonic character is either long gone from the guild or has been silent
-// for turns on end, with their own death countdown already running. This set
-// is what makes the kill safe: HARM_CHARACTER's lethal half kills outright now
-// (REQUESTS.md §5b), so what stands between a player and another player's
-// character is this gate, not a GM's later confirmation.
-const FINISHABLE_SLUGS = new Set(["dying", "bound", "catatonic"]);
+// The narrower set HARM_CHARACTER's lethal half needs, and the reason it is
+// narrower matters more than it used to: that half kills outright now
+// (REQUESTS.md §5b), so this gate is the whole of what stands between a player
+// and another player's character. There is no GM confirmation behind it.
+//
+// Being Paralyzed for a turn is a moment's stumble — you can rob someone in
+// that state, but not finish them off. Dying and Bound are the classic
+// helpless body: someone put them there, in the fiction, and somebody else can
+// cut them loose or treat them before the blow lands.
+//
+// `catatonic` is deliberately NOT here, and was briefly added and then pulled
+// back out. It reads as helplessness but it isn't: it means the player is AFK
+// or has left the guild. Letting it through would make "your player stopped
+// logging in" a thing another player can convert into a dead character on the
+// spot, with nobody in the loop — and the engine already has its own answer
+// for that case, on its own clock and its own dial
+// (db/lib/catatonicDeathPass.js). A Catatonic body can still be dragged and
+// robbed; INCAPACITATING_SLUGS above is what governs that.
+const FINISHABLE_SLUGS = new Set(["dying", "bound"]);
 
 module.exports = { INCAPACITATING_SLUGS, FINISHABLE_SLUGS };

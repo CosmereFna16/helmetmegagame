@@ -507,11 +507,20 @@ Discord teardown runs after the commit, and the **Kill** button survives only
 as the fallback for a claim that did not land. What makes it safe is the gate,
 not a delay: the target has to be helpless **already**, and `FINISHABLE_SLUGS`
 narrows it further than the loot gate — you can rob a Paralyzed character, but
-only someone **Dying, Bound or Catatonic** can be finished off. Paralysis is a
-moment's stumble; the other three are a body that is not getting up on its
-own, and a Catatonic one has its own death countdown running already
-(`db/lib/catatonicDeathPass.js`). The lethal half is also the only place
-besides billing someone else for a cure where the dialog asks twice.
+only someone **Dying or Bound** can be finished off. Paralysis is a moment's
+stumble; those two are a body that is not getting up on its own.
+
+**Catatonic is not finishable**, though it is lootable and draggable. It was
+added to `FINISHABLE_SLUGS` briefly and pulled back out once the lethal half
+started killing on its own: Catatonic doesn't mean a helpless character, it
+means an **absent player** — AFK, or gone from the guild. With no GM step left
+behind the gate, allowing it would turn "stopped logging in" into a dead
+character at another player's discretion. The engine already answers that case
+itself, on its own clock and its own GM-facing dial
+(`db/lib/catatonicDeathPass.js`, `TURN-ENGINE.md` §2 7b).
+
+The lethal half is also the only place besides billing someone else for a cure
+where the dialog asks twice.
 
 **Move Player does not spend the target's turn**, and it moves nobody but the
 target — the copy says to walk there yourself afterwards. It takes a body too,

@@ -1347,8 +1347,9 @@ async function freeCharacterRequestImpl({ targetCharacterId, reason: rawReason }
 // worked.
 //
 // What makes that safe is the gate above, not the delay: the target has to be
-// helpless ALREADY (INCAPACITATING_SLUGS) and Dying, Bound or Catatonic
-// specifically (FINISHABLE_SLUGS)
+// helpless ALREADY (INCAPACITATING_SLUGS) and Dying or Bound specifically
+// (FINISHABLE_SLUGS, which deliberately excludes Catatonic — that is an absent
+// player, not a helpless one)
 // before `lethal` is even accepted, the killer has to be standing in their
 // zone, and a reason is required and logged. Someone who can fight back is
 // still a Gambit and still a GM's call. A GM reads the request afterwards.
@@ -1380,7 +1381,7 @@ async function harmCharacterRequestImpl({
     throw new UserError("They can still defend themselves — that's a Gambit, not a request.");
   }
   if (lethal && ![...heldSlugs].some((slug) => FINISHABLE_SLUGS.has(slug))) {
-    throw new UserError("You can only finish off someone Dying, Bound or Catatonic.");
+    throw new UserError("You can only finish off someone Dying or Bound.");
   }
 
   let tag = null;
