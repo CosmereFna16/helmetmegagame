@@ -59,6 +59,7 @@ import { rollTagChain } from "@lifeweb/db/lib/tagShapes";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { rollCaving } from "@lifeweb/db/lib/cavingPass";
+import { evaluateDesireCatalog, slotStates } from "@lifeweb/db/lib/desireGates";
 import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { ATE_MEAL_SLUG, DISAPPOINTED_SLUG } from "@lifeweb/db/lib/constants";
 import { NAME_LIMITS, formatCharacterName, formatBareName, normalizeEarnedHonorific } from "@/lib/characterName";
@@ -70,8 +71,10 @@ import { propagateDynastyLastName } from "@/lib/dynasty";
 // write the Request + AuditLog rows in ONE transaction, so a request can
 // never exist without its effect or vice versa.
 
-const DESIRE_MIN_POINTS = 1;
-const DESIRE_MAX_POINTS = 5;
+// The one generic rejection text a hidden-catalog template and a
+// nonexistent/retired one BOTH answer with — a differentiated message would
+// itself be the oracle the hidden rule exists to prevent (DESIRES §5).
+const DESIRE_NOT_AVAILABLE = "That Desire isn't available to you.";
 
 async function requireCharacter() {
   const session = await auth();
@@ -1436,47 +1439,122 @@ async function harmCharacterRequestImpl({
 // Setting and cancelling are NOT requests — nothing has been granted yet, so
 // there's nothing for a GM to undo. Only fulfilling one moves Tag Points and
 // therefore needs a reason and a review.
-async function setDesireImpl({ text: rawText, points: rawPoints }) {
+
+// Tag ids referenced by any TagGroup.requiredTagId that the character does
+// NOT hold — i.e. the tags whose category is a hidden category for this
+// character (schema.prisma TagGroup.requiredTagId comment; the same rule
+// web/lib/characterCreation.js#requirementSatisfied enforces for the group
+// gate). Deliberately NOT routed through requirementSatisfied/unlockedTags:
+// those operate over a tag CATALOG (checking whether each candidate tag's
+// own group is unlocked), while this needs the inverse — the raw set of
+// gating tag ids — to hand to db/lib/desireGates.js, which has no DB access
+// of its own. Recomputing the same TagGroup.requiredTagId rule directly
+// here is simpler than adapting the catalog-shaped helper, and is exactly
+// the rule documented on the schema field.
+async function computeHiddenTagIds(heldTagIds) {
+  const gates = await prisma.tagGroup.findMany({
+    where: { requiredTagId: { not: null } },
+    select: { requiredTagId: true },
+  });
+  return new Set(
+    gates.map((g) => g.requiredTagId).filter((id) => id && !heldTagIds.has(id)),
+  );
+}
+
+async function setDesireImpl({ slotIndex: rawSlotIndex, slug: rawSlug }) {
   const { session, character } = await requireCharacter();
 
-  const text = rawText?.toString().trim();
-  if (!text) throw new UserError("Describe your Desire.");
-  const points = parseCount(rawPoints, { min: DESIRE_MIN_POINTS, max: DESIRE_MAX_POINTS });
-  if (points == null) throw new UserError(`Points must be between ${DESIRE_MIN_POINTS} and ${DESIRE_MAX_POINTS}.`);
+  const slug = rawSlug?.toString().trim();
+  if (!slug) throw new UserError(DESIRE_NOT_AVAILABLE);
 
-  // Missing config row means the default (true) applies — same "=== false"
+  // Missing config row means the default (true/2) applies — same "=== false"
   // idiom as leaderWhitelistEnabled (character/page.js). Only setting a NEW
   // Desire is gated; an already-ACTIVE one can still be fulfilled/cancelled.
   const config = await prisma.gameConfig.findUnique({
     where: { id: 1 },
-    select: { desiresEnabled: true },
+    select: { desiresEnabled: true, desireSlots: true },
   });
   if (config?.desiresEnabled === false) {
     throw new UserError("Temporary disabled.");
   }
+  const desireSlots = config?.desireSlots ?? 2;
+
+  const slotIndex = parseCount(rawSlotIndex, { min: 0, max: desireSlots - 1 });
+  if (slotIndex == null) throw new UserError("That Desire slot doesn't exist.");
+
+  const template = await prisma.desireTemplate.findUnique({
+    where: { slug },
+    include: {
+      requiresAnyTags: { select: { id: true, name: true } },
+      requiresNotTags: { select: { id: true, name: true } },
+    },
+  });
+  if (!template || template.retired) throw new UserError(DESIRE_NOT_AVAILABLE);
+
+  const roleSlugsNeeded = [
+    ...(template.requiresAnyRoleSlugs ?? []),
+    ...(template.requiresNotRoleSlugs ?? []),
+  ];
+  const roleRows = roleSlugsNeeded.length
+    ? await prisma.role.findMany({ where: { slug: { in: roleSlugsNeeded } }, select: { slug: true, name: true } })
+    : [];
+  const roleBySlug = new Map(roleRows.map((r) => [r.slug, r]));
+  const projectedTemplate = {
+    ...template,
+    requiresAnyRoles: (template.requiresAnyRoleSlugs ?? []).map((s) => roleBySlug.get(s)).filter(Boolean),
+    requiresNotRoles: (template.requiresNotRoleSlugs ?? []).map((s) => roleBySlug.get(s)).filter(Boolean),
+  };
+
+  const heldTags = character.tags.map((ct) => ct.tag);
+  const heldTagIds = new Set(heldTags.map((t) => t.id));
+  const hiddenTagIds = await computeHiddenTagIds(heldTagIds);
 
   const openTurn = await getOpenTurn();
-  const lastEnded = await prisma.desire.findFirst({
-    where: { characterId: character.id, status: { in: ["FULFILLED", "CANCELLED"] } },
-    orderBy: { updatedAt: "desc" },
+  const openTurnNumber = openTurn?.number ?? 0;
+  const history = await prisma.desire.findMany({
+    where: { characterId: character.id },
+    select: { id: true, templateId: true, slotIndex: true, status: true, endedTurnNumber: true },
   });
-  // Ending a Desire either way makes the next new one wait a turn.
-  if (openTurn && lastEnded?.endedTurnNumber != null && openTurn.number <= lastEnded.endedTurnNumber) {
-    throw new UserError("You're on cooldown — you can set a new Desire next turn.");
+
+  const { visible, hidden } = evaluateDesireCatalog({
+    templates: [projectedTemplate],
+    heldTags,
+    hiddenTagIds,
+    roleSlug: character.role?.slug ?? null,
+    history,
+    openTurnNumber,
+  });
+  if (hidden.length > 0) throw new UserError(DESIRE_NOT_AVAILABLE);
+  const evaluated = visible[0];
+  if (!evaluated || evaluated.state !== "available") throw new UserError(DESIRE_NOT_AVAILABLE);
+
+  // Slot cooldown: available again strictly the turn after the slot's last
+  // ended row, whether that row ended by cancel or by fulfil.
+  const slots = slotStates({ history, openTurnNumber, desireSlots });
+  const slot = slots[slotIndex];
+  if (slot?.lockedUntilTurn != null) {
+    throw new UserError("That slot is on cooldown — it opens up again next turn.");
   }
 
-  // Check-then-create under a row lock on the character: only one ACTIVE
-  // Desire is allowed, and two posts fired together would otherwise both see
-  // "none active" and both land.
+  // Check-then-create under a row lock on the character: two posts fired
+  // together would otherwise both see "slot empty" and both land.
   await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
-    const active = await tx.desire.findFirst({ where: { characterId: character.id, status: "ACTIVE" } });
-    if (active) throw new UserError("You already have an active Desire.");
+    const occupant = await tx.desire.findFirst({
+      where: { characterId: character.id, status: "ACTIVE", slotIndex },
+    });
+    if (occupant) throw new UserError("That slot already has an active Desire.");
+    const duplicate = await tx.desire.findFirst({
+      where: { characterId: character.id, status: "ACTIVE", templateId: template.id },
+    });
+    if (duplicate) throw new UserError(DESIRE_NOT_AVAILABLE);
     await tx.desire.create({
       data: {
         characterId: character.id,
-        text: text.slice(0, 300),
-        points,
+        templateId: template.id,
+        slotIndex,
+        text: template.name,
+        points: template.tier,
         setTurnNumber: openTurn?.number ?? null,
       },
     });
@@ -1486,7 +1564,9 @@ async function setDesireImpl({ text: rawText, points: rawPoints }) {
       actorDiscordUserId: session.discordUserId,
       actionType: "desire_set",
       targetCharacterId: character.id,
-      details: { text: text.slice(0, 300), points },
+      // text/points kept for auditNarrative.js:103; slug/name/tier/slotIndex
+      // are additive.
+      details: { text: template.name, points: template.tier, slug: template.slug, name: template.name, tier: template.tier, slotIndex },
     },
   });
 
@@ -1494,11 +1574,16 @@ async function setDesireImpl({ text: rawText, points: rawPoints }) {
   return {};
 }
 
-async function cancelDesireImpl() {
+async function cancelDesireImpl({ slotIndex: rawSlotIndex }) {
   const { session, character } = await requireCharacter();
   const openTurn = await getOpenTurn();
 
-  const active = await prisma.desire.findFirst({ where: { characterId: character.id, status: "ACTIVE" } });
+  const slotIndex = parseCount(rawSlotIndex, { min: 0 });
+  if (slotIndex == null) throw new UserError("That Desire slot doesn't exist.");
+
+  const active = await prisma.desire.findFirst({
+    where: { characterId: character.id, status: "ACTIVE", slotIndex },
+  });
   if (!active) return {};
 
   await prisma.desire.update({
@@ -1510,7 +1595,7 @@ async function cancelDesireImpl() {
       actorDiscordUserId: session.discordUserId,
       actionType: "desire_cancelled",
       targetCharacterId: character.id,
-      details: { desireId: active.id },
+      details: { desireId: active.id, slotIndex },
     },
   });
 
@@ -1518,12 +1603,20 @@ async function cancelDesireImpl() {
   return {};
 }
 
-async function fulfillDesireRequestImpl({ reason: rawReason }) {
+async function fulfillDesireRequestImpl({ desireId: rawDesireId, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
+  const desireId = rawDesireId?.toString();
+  if (!desireId) throw new UserError("You have no active Desire.");
+
   const openTurn = await getOpenTurn();
-  const active = await prisma.desire.findFirst({ where: { characterId: character.id, status: "ACTIVE" } });
+  // Explicit desireId, verified against this character and ACTIVE — with
+  // more than one slot, "the active Desire" is ambiguous.
+  const active = await prisma.desire.findFirst({
+    where: { id: desireId, characterId: character.id, status: "ACTIVE" },
+    include: { template: { select: { slug: true, tier: true } } },
+  });
   if (!active) throw new UserError("You have no active Desire.");
 
   await prisma.$transaction(async (tx) => {
@@ -1541,7 +1634,14 @@ async function fulfillDesireRequestImpl({ reason: rawReason }) {
       type: "FULFILL_DESIRE",
       reason,
       payload: { desireId: active.id },
-      effect: { desireId: active.id, desireText: active.text, pointsAwarded: active.points },
+      effect: {
+        desireId: active.id,
+        desireText: active.text,
+        pointsAwarded: active.points,
+        desireSlug: active.template?.slug ?? null,
+        desireTier: active.template?.tier ?? null,
+        slotIndex: active.slotIndex,
+      },
     });
     await logRequest(tx, {
       actorDiscordUserId: session.discordUserId,
