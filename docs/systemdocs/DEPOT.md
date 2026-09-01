@@ -79,9 +79,9 @@ buying one mid-game is still a real decision.
 | `sweets` | 5 | 2 | Consumes into `ate-meal` |
 | `honey` | 5 | 2 | Consumes into `ate-meal` |
 | `sky-lantern` | 5 | 2 | |
-| `sake` | 5 | 2 | Consumes into `tipsy` |
 | `distilled-coca` | 11 | 10 | Also a Skilled brew, at 4 ⬢ — see §4 |
 | `boombox` | 13 | 5 | |
+| `sake` | 14 | 2 | Consumes into `tipsy`. Priced level with `ravenheart-red`'s 14 — its only price, since it has no `depotPrice` of its own |
 | `whip` | 14 | 6 | Equippable |
 | `censer` | 15 | 6 | |
 | `jewelry` | 16 | 8 | Also a 2-pt creation pick |

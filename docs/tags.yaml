@@ -5654,7 +5654,10 @@ tags:
     group: items-drink
     description: "Rice wine aged in the shadow of cherry blossoms."
     pointCost: 0
-    depotPrice: 5
+    # Task 11: raised above the plain-alcohol band (5 ⬢) to sit roughly level
+    # with ravenheart-red — its only price is sellablePrice 14, since it has
+    # no depotPrice of its own (not depot-importable). See DEPOT.md §3.
+    depotPrice: 14
     sellable: true
     sellablePrice: 2
     tradeable: true

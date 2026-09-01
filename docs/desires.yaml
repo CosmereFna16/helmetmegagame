@@ -347,6 +347,48 @@ desires:
     requires:
       anyTags: [charitable]
 
+  - slug: drink-sake
+    name: Drink {tag:sake}
+    tier: 2
+    families: [alcohol]
+
+  - slug: drink-tea-or-coffee
+    name: Drink tea or coffee
+    tier: 1
+    families: [food]
+
+  - slug: listen-to-boombox
+    name: Listen to music on a {tag:boombox}
+    tier: 1
+    families: [social]
+
+  - slug: use-a-censer
+    name: Use a censer ‡
+    tier: 1
+    families: [faith]
+
+  - slug: discover-undercroft-secret
+    name: Discover the secret in the Undercroft
+    tier: 5
+    families: [esoterica, adventure]
+
+  - slug: make-a-merchant-purchase
+    name: Make a purchase from the Merchant
+    tier: 1
+    families: [wealth]
+
+  - slug: retrieve-item-from-caves
+    name: Retrieve an item from the Caves
+    tier: 1
+    families: [adventure]
+
+  # Collision ruling (Task 11): was tier 2, T: glutton. Ungated now — glutton
+  # keeps access through its own food carve-out, no separate gated entry.
+  - slug: eat-sweets
+    name: Eat {tag:sweets} ‡
+    tier: 1
+    families: [food]
+
   # === 4b. Tag-gated (existing tags) =======================================
   - slug: chastise-a-sinner
     name: Chastise a sinner
@@ -599,6 +641,77 @@ desires:
     families: [feud, violence]
     requires:
       anyTags: [blood-feud]
+
+  - slug: hit-with-a-whip
+    name: Hit someone with a whip
+    tier: 1
+    families: [cruelty, violence]
+    requires:
+      anyTags: [cruel]
+
+  - slug: steal-fate-item
+    name: Steal a fate-specific item — one with the name of its class in it
+    tier: 5
+    families: [theft]
+    requires:
+      anyTags: [kleptomaniac]
+
+  - slug: steal-the-barons-key
+    name: Steal the Baron's key
+    tier: 7
+    families: [theft, scheming]
+    requires:
+      anyTags: [kleptomaniac]
+
+  - slug: worship-shrine-thoth
+    name: Worship at the Shrine to Thoth in the Keep
+    tier: 2
+    families: [faith]
+    requires:
+      anyTags: [old-ways-thoth]
+
+  - slug: convert-to-old-ways
+    name: Convert another willing person to the Old Ways
+    tier: 2
+    families: [faith]
+    requires:
+      anyTags: [old-ways-eusoch, old-ways-sylvia, old-ways-thoth, old-ways-bacchus]
+
+  # Mortus feeds (Task 11) — same gate shape as feed-the-lifeweb above:
+  # T: mortus AND R: mortus. feed-the-lifeweb (tier 3) is unchanged and stays
+  # what it already is: feeding a living person to the Web.
+  - slug: feed-the-lifeweb-blood
+    name: Feed the Lifeweb
+    tier: 1
+    families: [mortality]
+    requires:
+      anyTags: [mortus]
+      anyRoles: [mortus]
+    description: "The routine offering of your own blood to the Web — not a person. ‡"
+
+  - slug: feed-web-beautiful
+    name: Feed someone with the {tag:pretty} or {tag:beautiful} trait to the Web ‡
+    tier: 4
+    families: [mortality, cruelty]
+    requires:
+      anyTags: [mortus]
+      anyRoles: [mortus]
+
+  - slug: feed-web-willing
+    name: Feed a live, willing participant to the Web ‡
+    tier: 4
+    families: [mortality]
+    requires:
+      anyTags: [mortus]
+      anyRoles: [mortus]
+
+  - slug: feed-web-noble
+    name: Feed a noble to the Web ‡
+    tier: 5
+    families: [mortality, cruelty]
+    requires:
+      anyTags: [mortus]
+      anyRoles: [mortus]
 
   # === 4c. Role-gated =======================================================
   - slug: imprison-someone
@@ -949,6 +1062,148 @@ desires:
     requires:
       anyTags: [medical-basic]
 
+  - slug: give-a-loan
+    name: Give a loan
+    tier: 1
+    families: [wealth, social]
+    requires:
+      anyRoles: [merchant]
+
+  - slug: cash-in-loan-interest
+    name: Cash in interest on a loan
+    tier: 3
+    families: [wealth]
+    requires:
+      anyRoles: [merchant]
+
+  - slug: beat-up-a-debtor
+    name: Beat up a debtor
+    tier: 3
+    families: [violence, cruelty]
+    requires:
+      anyRoles: [docker]
+
+  - slug: servant-thanked-by-noble
+    name: Be sincerely thanked by a noble
+    tier: 2
+    families: [social, status]
+    requires:
+      anyRoles: [servant]
+
+  - slug: servant-public-recognition
+    name: Receive public recognition from the Baron
+    tier: 4
+    families: [status, vanity]
+    requires:
+      anyRoles: [servant]
+
+  - slug: servant-promotion
+    name: Receive a promotion
+    tier: 4
+    families: [status]
+    requires:
+      anyRoles: [servant]
+
+  - slug: baron-graga-pit
+    name: Feed someone to the Graga pit
+    tier: 4
+    families: [cruelty, mortality]
+    requires:
+      anyRoles: [baron]
+
+  - slug: captain-turret-multikill
+    name: Get a multi-kill with the automated turret without killing friendlies
+    tier: 3
+    families: [violence, duty]
+    requires:
+      anyRoles: [captain]
+
+  - slug: incarn-process-prisoner
+    name: Process a prisoner
+    tier: 1
+    families: [duty]
+    requires:
+      anyRoles: [incarn]
+
+  - slug: mercenary-sign-contract
+    name: Sign a contract with an employer
+    tier: 2
+    families: [wealth, duty]
+    requires:
+      anyRoles: [mercenary]
+
+  - slug: kill-minor-cave-creature
+    name: Land the killing blow on a minor creature of the Caves
+    tier: 2
+    families: [violence, adventure]
+    requires:
+      anyRoles: [mercenary]
+
+  - slug: kill-deadly-cave-creature
+    name: Land the killing blow on a very, very dangerous creature of the Caves
+    tier: 3
+    families: [violence, adventure, bravery]
+    requires:
+      anyRoles: [mercenary]
+
+  # User wrote "3/4" for this one — 3 chosen, flagged.
+  - slug: pusher-client-addicted
+    name: Get a client addicted to drugs ‡
+    tier: 3
+    families: [drugs, cruelty, scheming]
+    requires:
+      anyRoles: [pusher]
+
+  - slug: pusher-baron-addicted
+    name: Get the Baron addicted to drugs
+    tier: 7
+    families: [drugs, scheming]
+    requires:
+      anyRoles: [pusher]
+
+  - slug: pusher-new-source
+    name: Acquire a new source of drugs
+    tier: 3
+    families: [drugs, wealth]
+    requires:
+      anyRoles: [pusher]
+
+  - slug: pusher-new-drug
+    name: Innovate a new type of drug
+    tier: 3
+    families: [drugs, craft]
+    requires:
+      anyRoles: [pusher]
+
+  - slug: peasant-revolt
+    name: Start a revolt among the peasants
+    tier: 7
+    families: [faction-success, status]
+    requires:
+      anyRoles: [peasant]
+
+  - slug: peasant-higher-rank
+    name: Acquire a higher rank
+    tier: 5
+    families: [status]
+    requires:
+      anyRoles: [peasant]
+
+  - slug: stomp-out-opposing-clan
+    name: Stomp out the opposing clan once and for all
+    tier: 7
+    families: [feud, faction-success]
+    requires:
+      anyRoles: [lieutenant-broken-spears-clan, lieutenant-windrider-clan]
+
+  # User gave no tier for this one.
+  - slug: minstrel-joke-at-baron
+    name: Make a joke at the Baron's expense ‡
+    tier: 2
+    families: [social, craft]
+    requires:
+      anyRoles: [minstrel]
+
   # === 4d. Gated on new Interests / Restrictions ===========================
   - slug: torture-someone
     name: Torture someone, for a good enough reason
@@ -1171,13 +1426,6 @@ desires:
     name: Eat something bizarre
     tier: 3
     families: [food, adventure]
-    requires:
-      anyTags: [glutton]
-
-  - slug: eat-sweets
-    name: Eat {tag:sweets}
-    tier: 2
-    families: [food]
     requires:
       anyTags: [glutton]
 
