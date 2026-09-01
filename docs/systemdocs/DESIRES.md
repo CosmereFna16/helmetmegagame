@@ -135,39 +135,56 @@ alone would out the category — which is exactly why the code path is
 indistinguishable UI for anyone who can't already see the hidden category:
 nothing at all, vs. a reason that never names what's actually gating it.
 
-## 5. The three tag groups and `conflictsWith`
+## 5. The two tag groups and `conflictsWith`
 
-Three `general` tag groups came out of this rework, replacing the old
-scattered drawback/interest tags:
+The rework first split the old scattered drawback/interest tags into three
+`general` groups — Addictions, Restrictions, Interests. **The Personality
+rework (2026-09-01) collapsed the last two into one.** The split had said a
+Restriction only ever *closes* the catalog and an Interest only ever *opens*
+it, and that made every Restriction a dead end: Pacifist cost 2 points, locked
+`[violence, feud]`, and gave nothing back. A Personality tag is now free to be
+negative **and** open Desires nobody else can reach, which is what Pacifist's
+own two entries (`break-up-a-fight`, `stop-a-war`) demonstrate.
 
 | Group | Shape | Price band |
 |---|---|---|
-| `general-addictions` | `exclusive: true`, `removable: false`, `consumable: false` drawbacks. Each locks most of the catalog shut except its own family (`Alcoholic` locks everything but `alcohol` at tiers 1–4; `Glutton` locks everything but `food`, at *every* tier). Purchasable after start — the point of an Addiction is that it's meant to be taken mid-game for the points. | −2…−7 |
-| `general-restrictions` | `exclusive: true` drawbacks that close the catalog down without opening a compensating family (`Depressed` locks everything; `Nobility` locks tier-1 entirely). Not purchasable after start — no farmable-drawback carve-out here. | −1…−8 |
-| `general-interests` | Non-exclusive, purchasable, purchasable after start. Interests don't lock anything — they *open* a Desire that would otherwise sit outside a character's normal wheelhouse (`Mad Doctor`, `Esoteric`, `Adventurer`, `Cruel`, `Charitable`, `Schemer`, and `Death Wish` — the Interest, not the old Bacchus tag, see §7). | +2 / +5 |
+| `general-addictions` | `exclusive: true`, `removable: false`, `consumable: false` drawbacks. Each locks most of the catalog shut except its own family (`Alcoholic` locks everything but `alcohol` at tiers 1–4; `Glutton` locks everything but `food`, at *every* tier). **One Addiction at a time** — that rule is why this stayed its own group. | −2…−7 |
+| `general-personality` | Everything else about who a character is. Nothing here is `exclusive`, so a character can hold Pacifist + Cruel + Schemer, or Pacifist + Craven. Some members close the catalog down (`Depressed` locks everything; `Nobility` locks tier 1; `Eunuch` locks `romance`), some open it up (`Mad Doctor`, `Esoteric`, `Adventurer`, `Cruel`, `Charitable`, `Schemer`, and `Death Wish` — the Interest, not the old Bacchus tag), and the point of the merge is that one tag may do both. | −8…+5 |
 
-‡ The price bands follow an income-based rationale: an Addiction is priced
-by how hard it constrains the catalog it opens (a Glutton, locked to food at
-every tier, sits at the deep end; an Alcoholic, which still has tiers 5 and
-7 open everywhere, costs less); a Restriction is priced purely by how much
-it closes with nothing given back (Depressed, closing everything, is the
-floor at −8); an Interest costs points because it's a pure upside — it never
-locks anything, only widens what's pickable.
+`general-restrictions` and `general-interests` survive as **orphaned, empty
+groups** in `docs/taggroups.yaml` — group sync is upsert-only and never
+deletes, same as `status-health`. Don't reuse either slug.
+
+**NO DRAWBACK IS PURCHASABLE AFTER START.** This reverses what this section
+used to say about Addictions ("meant to be taken mid-game for the points").
+Every negative-`pointCost` tag now carries `purchasableAfterStart: false`,
+which `/store` enforces server-side (`web/app/(app)/store/actions.js`). The
+consequence is deliberate and large: **fulfilling a Desire is the only way to
+earn Tag Points mid-game.** It also closes the buy-a-drawback → get-cured →
+keep-the-points loop at the door, which is where §7's clawback rule had been
+patching it from behind.
+
+‡ The price band follows an income-based rationale: a tag is priced by how
+much of the catalog it closes against how much it opens. Depressed, closing
+everything and opening nothing, is the floor at −8. Eunuch, closing exactly
+one family, is −1. An Interest-shaped tag costs points because it is pure
+upside. Pacifist sits at −2 even with two Desires of its own, because what it
+opens is narrow and what it forbids is not.
 
 **`conflictsWith`** (`Tag.conflictsWith`, a self-referential m2m,
 `SYNC.md` pass 6) is a named pairwise conflict, authored one-directional in
 `docs/tags.yaml` and symmetrized by the sync — unlike `exclusive` (at most
 one tag per character *per group*), a conflict isn't scoped to a group and
-isn't carved out for a `requiredTag` pair. The one-per-group rule the three
-new groups themselves enforce (at most one Addiction, at most one
-Restriction) is plain `exclusive` — nothing new there. `conflictsWith` is
-for a conflict that crosses groups: every Addiction and every Restriction
-lists `conflictsWith: [depressed, ascetic, ...]` so a character can't stack,
-say, Alcoholic with Depressed (a Restriction that already locks everything,
-making an Addiction's own unlock moot and confusing) or with Ascetic (a
-whole different philosophy of self-denial). `web/lib/characterCreation.js#conflictingTag`
-is the enforcement predicate, same posture as `exclusiveConflict` — a GM
-grant bypasses it, like every other creation-time gate.
+isn't carved out for a `requiredTag` pair. `conflictsWith` is what survives
+the merge doing real work: every Addiction lists
+`conflictsWith: [depressed, ascetic, ...]` so a character can't stack, say,
+Alcoholic with Depressed (which already locks everything, making an
+Addiction's own unlock moot and confusing) or with Ascetic (a whole different
+philosophy of self-denial). Those edges are unaffected by the group merge,
+because a conflict was never group-scoped in the first place.
+`web/lib/characterCreation.js#conflictingTag` is the enforcement predicate,
+same posture as `exclusiveConflict` — a GM grant bypasses it, like every other
+creation-time gate.
 
 ## 6. The GM surface
 
@@ -211,16 +228,19 @@ math cares about.
 
 ## 7. The clawback rule ‡
 
-Curing an Addiction or Restriction (a Chaplain confessing someone free of
-one, say) is a `HEAL_CHARACTER`-shaped GM adjudication, not a code-enforced
-transaction — and when a GM does cure one, the rule is: **deduct the points
-that Addiction/Restriction granted, even into negative.** A Cultist who took
+Curing an Addiction or a negative Personality tag (a Chaplain confessing
+someone free of one, say) is a `HEAL_CHARACTER`-shaped GM adjudication, not a
+code-enforced transaction — and when a GM does cure one, the rule is:
+**deduct the points that tag granted, even into negative.** A Cultist who took
 Glutton for the −6 points and later gets cured of it loses those 6 points
 back out of `Character.tagPoints`, even if that takes the balance below
 zero. This closes the loop a curable, maximally valuable drawback would
 otherwise be: buy a drawback for the points, get cured for free, keep the
-points — a point farm with a Chaplain as the vending machine. There is no
-code enforcement of this; it is GM-adjudicated the same way every other
+points — a point farm with a Chaplain as the vending machine. Since §5 closed
+mid-game drawback purchases entirely, this now guards a narrower case than it
+was written for: a drawback taken at character creation and cured on day 3.
+That case is still a farm, so the rule stands. There is no code enforcement of
+this; it is GM-adjudicated the same way every other
 Health-tag cure is (`TAGS.md` §5c), and it's written here because the
 consequence (going negative) is the one a GM might otherwise hesitate over.
 
@@ -250,10 +270,17 @@ Three `GameConfig` knobs govern this system, all live-editable from
 - **`desireSlots`** (default 2) — how many Desires a character may hold
   `ACTIVE` at once, one per slot. See §1.
 - **`maxDrawbackTags`** (default 5) — **not** a Desires-system knob itself,
-  but the field the three new groups' drawbacks (Addictions, Restrictions)
-  count against at character creation. It caps the *count* of point-bought
-  drawback tags, not their combined point value — see `TAGS.md` §4a for the
-  full rule and why this replaced the old points-based `maxNegativeTags`.
+  but the field every drawback counts against at character creation. It caps
+  the *count* of point-bought drawback tags, not their combined point value —
+  see `TAGS.md` §4a for the full rule and why this replaced the old
+  points-based `maxNegativeTags`.
+
+  It is enforced at **creation only** (`createActions.js`), and that is now
+  enough: §5 made every negative-`pointCost` tag `purchasableAfterStart:
+  false`, so `/store` refuses them outright and there is no mid-game path
+  left for the cap to guard. `negativeTagCount` in
+  `web/lib/characterCreation.js` counts by the sign of `pointCost`, not by
+  group, so the Personality merge changed nothing about what it sees.
 
   **Ship order for this migration:** `20260831233000_drawback_tag_cap` is
   ADD-only — it adds `maxDrawbackTags` and leaves the old `maxNegativeTags`
@@ -332,7 +359,66 @@ catalog, and before documents for no particular dependency but to keep the
 whole chain in one linear pass (`web/app/(app)/gm/dev/actions.js`'s Restart
 Game step list; see `SYNC.md` §1 and §3).
 
-## 11. File map
+## 11. Auto-cancelling an orphaned Desire
+
+A Desire's gate is checked when it is **set** and never again. Before this,
+that meant a goal could outlive whatever opened it: strip a player's Pacifist
+tag or change their role from Innkeeper to Peasant, and the goal stayed
+`ACTIVE` and still worth full points, because `fulfillDesireRequestImpl`
+checks nothing but `status: "ACTIVE"`.
+
+`db/lib/desireOrphans.js#cancelOrphanedDesires(tx, { characterId,
+openTurnNumber, actorDiscordUserId })` closes that. It re-runs
+`evalRequires` from `desireGates.js` against the character's **current** tags
+and role, sets every failing row to `CANCELLED` with `endedTurnNumber`
+stamped (so the per-slot lock and per-desire cooldown keep computing
+correctly), writes one `desire_auto_cancelled` `AuditLog` row per
+cancellation, and **returns** a DM instead of sending it — the
+`runTagExpiryPass` pattern.
+
+**What it touches, exactly:**
+
+- Only `requires` (`anyTags` / `notTags` / `anyRoles` / `notRoles`). **Not** a
+  held tag's `desireLocks`. A lock says "this isn't the kind of thing you can
+  pick any more"; it doesn't say a goal already in flight is illegitimate, and
+  Depressed is meant to be curable while the player waits it out.
+- Only catalog picks (`templateId` not null). A GM's free-text Desire has no
+  gate to fail and is never touched.
+- A GM-**set** catalog pick **is** cancelled if its gate later fails. Setting
+  one from `/gm/dev` bypasses the gate on purpose (§6), but a GM who then
+  strips the gating tag has taken the goal away; pretending otherwise is
+  worse.
+- Cooldown, `onceEver` and "a row is already active" are all reasons a
+  template isn't *pickable* — none of them means a held Desire is illegitimate
+  — which is why this calls `evalRequires` directly rather than
+  `evaluateDesireCatalog`.
+
+**Where it runs.** Every path that can move a character's tags or role, each
+inside that path's existing transaction:
+
+| File | Function | What can orphan |
+|---|---|---|
+| `web/app/(app)/gm/dev/characters/[characterId]/actions.js` | `applyCharacterEditsImpl` | Role change and tag ops, which can both land in one Apply |
+| `web/app/(app)/character/requestActions.js` | `addTagRequestImpl`, `removeTagRequestImpl`, `consumeTagRequestImpl` | A removed tag failing `anyTags`; an added one tripping `notTags` |
+| `web/app/(app)/store/actions.js` | `buyTags` | A bought tag tripping `notTags`; a chain upgrade dropping the lower tier |
+| `db/index.js` `resolveNeeds()` | the `desireOrphans` pass | A tag that expired this turn |
+
+The turn-advance pass uses `cancelOrphanedDesiresForEveryone(prisma, ...)` and
+sits **after** the expiry sweep, not before — before it, the expiring tag is
+still on the sheet and every gate still passes. Its DMs are folded into
+`tagExpiryDms` rather than threaded as another return field: from the player's
+side it is the same moment, something ran out and a goal went with it. It
+carries its own `resolvedPasses` marker, so a resumed turn doesn't re-run it.
+
+`gm/dev/tags/actions.js` deliberately has **no** hook. The only tag it applies
+is one a GM just created, and a brand-new tag cannot appear in any desire's
+`notTags` — the catalog that would reference it hasn't been authored yet.
+
+**Not done, on purpose:** `fulfillDesireRequestImpl` still does no gate
+re-check. A GM-set Desire bypasses gates by design, so a fulfil-time check
+would break exactly those. Auto-cancel closes the hole at the source instead.
+
+## 12. File map
 
 | File | Role |
 |---|---|
@@ -341,6 +427,7 @@ Game step list; see `SYNC.md` §1 and §3).
 | `db/lib/desireFamilies.js` | Reads only the `families:` header, for `db/lib/syncTags.js` to validate a tag's `desires.locks` families against — tolerates a missing `desires.yaml` |
 | `db/lib/desireShapes.js` | Normalizes/validates `Tag.desires.locks` (the clause grammar in §3) — shared by `syncTags.js` and, eventually, a GM tag-form editor |
 | `db/lib/desireGates.js` | Pure gate evaluator, no DB. `evaluateDesireCatalog` (visible/hidden catalog per character) and `slotStates` (per-slot occupancy + lock) |
+| `db/lib/desireOrphans.js` | Cancels an ACTIVE Desire whose `requires` no longer pass after a tag or role change (§11). Takes `tx`, returns its DMs. `cancelOrphanedDesiresForEveryone` is the turn-advance sweep |
 | `web/lib/desireProjection.js` | `projectDesireTemplateForGates` — the one path that resolves a `DesireTemplate`'s role-slug arrays into `{ slug, name }` for `desireGates.js`; every caller must go through it |
 | `web/app/components/DesireCatalog.js` | Player-facing catalog picker modal — the family-grouped `<select>`, state pills, "Set desire" |
 | `web/app/components/DesirePanel.js` | Player-facing panel chrome — per-slot rows, cancel/fulfil dialogs, opens `DesireCatalog` |

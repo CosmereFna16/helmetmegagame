@@ -31,6 +31,7 @@ import {
   planDiscordEffects,
 } from "@/lib/characterWrite";
 import { syncRomanceDisabledTag } from "@lifeweb/db/lib/tagWrites";
+import { cancelOrphanedDesires } from "@lifeweb/db/lib/desireOrphans";
 import { applyPendingInvites } from "@lifeweb/db/lib/threadInvites";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
 import { findOpenTurnAction, lockIsLive, deleteActionRestoringTurn } from "@/lib/moveEconomy";
@@ -139,6 +140,8 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
   }
 
   let appliedTags = [];
+
+  let orphanDms = [];
   await prisma.$transaction(async (tx) => {
     // The same row lock character/equipActions.js#toggleEquip takes, for the
     // same reason: Postgres runs at READ COMMITTED, so without it an Apply
@@ -193,7 +196,24 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
         details: { core: diff, leader, tags: appliedTags },
       },
     });
+
+    // Last inside the transaction, so it reads the post-edit tags AND the
+    // post-edit role in one pass. Both can move in a single Apply, and a
+    // Desire orphaned by either has to go — see db/lib/desireOrphans.js.
+    ({ dms: orphanDms } = await cancelOrphanedDesires(tx, {
+      characterId,
+      openTurnNumber: openTurn?.number ?? null,
+      actorDiscordUserId: session.discordUserId,
+    }));
   });
+
+  // After the commit, and individually caught: the cancellation is already
+  // durable, so a Discord hiccup must not surface as a failed action.
+  for (const dm of orphanDms) {
+    await sendDm(dm.discordUserId, dm.content).catch((err) =>
+      console.error(`Orphaned-Desire DM to ${dm.discordUserId} failed:`, err),
+    );
+  }
 
   // Discord, after the commit and outside the request. revokeAllCharacterAccess
   // walks every channel a character can reach, syncCharacterZoneRole is a role

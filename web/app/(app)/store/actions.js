@@ -20,7 +20,8 @@ import {
   effectiveTotalCost,
 } from "@/lib/characterCreation";
 import { addToStack, dropCharacterTag } from "@/lib/requestEffects";
-import { syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
+import { syncCharacterNarrowcastAccess, sendDm } from "@/lib/discordGuild";
+import { cancelOrphanedDesires } from "@lifeweb/db/lib/desireOrphans";
 
 // The /store checkout. One cart, one transaction, ONE batched BUY_TAGS
 // request — applied immediately and reviewed by a GM afterwards, the same
@@ -160,6 +161,7 @@ async function buyTagsImpl({ tagIds }) {
   // sheet in the same transaction (TAGS.md §3). Snapshots go on the effect so
   // Undo is an exact inverse — return the cart, restore what it displaced.
   const replaced = [];
+  let orphanDms = [];
 
   await prisma.$transaction(async (tx) => {
     // Same row lock, taken first, as the Add Tag and Desire paths: every
@@ -217,7 +219,23 @@ async function buyTagsImpl({ tagIds }) {
         ...(replaced.length ? { replacedTiers: replaced.map((r) => r.tagName) } : {}),
       },
     });
+
+    // A bought tag can trip a Desire's notTags gate, and a chain upgrade
+    // removes the lower tier — either can orphan a goal already in flight.
+    ({ dms: orphanDms } = await cancelOrphanedDesires(tx, {
+      characterId: character.id,
+      openTurnNumber: openTurn?.number ?? null,
+      actorDiscordUserId: session.discordUserId,
+    }));
   });
+
+  // After the commit, and individually caught: the cancellation is already
+  // durable, so a Discord hiccup must not surface as a failed action.
+  for (const dm of orphanDms) {
+    await sendDm(dm.discordUserId, dm.content).catch((err) =>
+      console.error(`Orphaned-Desire DM to ${dm.discordUserId} failed:`, err),
+    );
+  }
 
   // A bought tag can open a narrowcast channel (#watch, #intercom) the same
   // way a granted one does.

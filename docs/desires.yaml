@@ -1877,3 +1877,183 @@ desires:
     families: [demoness, mortality]
     requires:
       anyTags: [demoness]
+
+  # --- Personality: Pacifist ------------------------------------------------
+  # Personality rework (2026-09-01). Pacifist used to cost 2 points and give
+  # nothing back — it locks [violence, feud] and opened nothing. These two are
+  # what a Pacifist is FOR, and neither may carry `violence` or `feud`: the
+  # union rule means a tag's own lock would otherwise close its own Desires.
+  # Same shape as Kleptomaniac's fix (Ruling R7, DESIRES.md §3).
+  - slug: break-up-a-fight
+    name: Break up a fight ‡
+    tier: 1
+    families: [bravery, charity]
+    requires:
+      anyTags: [pacifist]
+
+  - slug: stop-a-war
+    name: Single-handedly stop a war ‡
+    tier: 5
+    families: [bravery, duty]
+    oncePerLife: true
+    requires:
+      anyTags: [pacifist]
+
+  # --- Role-flavoured: the Metalsmith ---------------------------------------
+  - slug: craft-plate-armor
+    name: Craft {tag:plate-armor} ‡
+    tier: 3
+    families: [craft]
+    requires:
+      anyRoles: [metalsmith]
+
+  - slug: brand-with-hot-iron
+    name: Brand somebody with a hot iron ‡
+    tier: 2
+    families: [craft, cruelty]
+    requires:
+      anyRoles: [metalsmith]
+
+  - slug: barons-commission
+    name: Complete a commission for the Baron ‡
+    tier: 4
+    families: [craft, status, duty]
+    requires:
+      anyRoles: [metalsmith]
+
+  # --- Role-flavoured: the Outsider -----------------------------------------
+  - slug: scare-off-a-trespasser
+    name: Scare somebody away from your territory ‡
+    tier: 2
+    families: [duty]
+    requires:
+      anyRoles: [outsider]
+
+  - slug: warn-the-town
+    name: Alert the town to a threat coming through the woods ‡
+    tier: 2
+    families: [duty]
+    requires:
+      anyRoles: [outsider]
+
+  - slug: climb-a-tree
+    name: Climb a tree ‡
+    tier: 1
+    families: [adventure]
+    requires:
+      anyRoles: [outsider]
+
+  # --- Role-flavoured: the Inn ----------------------------------------------
+  # The five below are acts of ownership, so they stay the Innkeeper's alone.
+  # Drinking the stock is the staff's, and the Innkeeper drinking their own
+  # supply isn't a goal — it's Tuesday.
+  - slug: redecorate-the-inn
+    name: Redecorate the inn ‡
+    tier: 1
+    families: [craft]
+    requires:
+      anyRoles: [innkeeper]
+
+  - slug: renovate-the-inn
+    name: Renovate the inn ‡
+    tier: 3
+    families: [craft, wealth]
+    requires:
+      anyRoles: [innkeeper]
+
+  # Filed `duty`, not `violence`, on purpose: a Pacifist innkeeper should still
+  # be able to show a drunk the door.
+  - slug: throw-out-a-patron
+    name: Kick a disorderly patron out of the inn ‡
+    tier: 1
+    families: [duty]
+    requires:
+      anyRoles: [innkeeper]
+
+  - slug: give-a-discount
+    name: Give somebody a discount on a stay ‡
+    tier: 1
+    families: [charity]
+    requires:
+      anyRoles: [innkeeper]
+
+  - slug: host-an-event
+    name: Host an event at the inn ‡
+    tier: 2
+    families: [social]
+    requires:
+      anyRoles: [innkeeper]
+
+  - slug: drink-the-inns-stock
+    name: Get drunk off the inn's own stock ‡
+    tier: 1
+    families: [alcohol, theft]
+    requires:
+      anyRoles: [inn-staff]
+
+  # --- Role-flavoured: the Brigands -----------------------------------------
+  # Open to the Brigand Leader too — nothing here is beneath them.
+  - slug: loot-a-captive
+    name: Loot a role-specific item off a captive ‡
+    tier: 2
+    families: [theft]
+    requires:
+      anyRoles: [brigand, brigand-leader]
+
+  - slug: get-on-a-wanted-flier
+    name: Get your name on a Wanted flier ‡
+    tier: 3
+    families: [status, theft]
+    requires:
+      anyRoles: [brigand, brigand-leader]
+
+  - slug: escape-the-watch
+    name: Be chased by the Watch or the Sheriff, and escape ‡
+    tier: 3
+    families: [adventure, theft]
+    requires:
+      anyRoles: [brigand, brigand-leader]
+
+  # --- Role-flavoured: the Mother -------------------------------------------
+  - slug: comfort-the-bastard
+    name: Comfort the distressed Bastard ‡
+    tier: 1
+    families: [social, charity]
+    requires:
+      anyRoles: [mother]
+
+  - slug: bastard-takes-your-advice
+    name: Have the Bastard act on your advice ‡
+    tier: 2
+    families: [social, scheming]
+    requires:
+      anyRoles: [mother]
+
+  - slug: stop-a-plot-against-the-bastard
+    name: Stop a plot against the Bastard ‡
+    tier: 4
+    families: [duty, scheming]
+    requires:
+      anyRoles: [mother]
+
+  # --- Role-flavoured: the Migrant ------------------------------------------
+  - slug: through-the-town-gates
+    name: Be let through the Town gates ‡
+    tier: 1
+    families: [status]
+    requires:
+      anyRoles: [migrant]
+
+  - slug: a-job-in-town
+    name: Get a job in Town ‡
+    tier: 2
+    families: [wealth, status]
+    requires:
+      anyRoles: [migrant]
+
+  - slug: a-job-in-the-keep
+    name: Get a job in the Keep ‡
+    tier: 3
+    families: [wealth, status]
+    requires:
+      anyRoles: [migrant]

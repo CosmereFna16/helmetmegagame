@@ -19,6 +19,8 @@ const { PrismaClient, Prisma } = require("@prisma/client");
 const { rollWeather, buildTurnAnnouncement } = require("./weather");
 const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
+// By path, not the barrel — same reason as db/lib/dm.js below.
+const { cancelOrphanedDesiresForEveryone } = require("./lib/desireOrphans");
 const { runDawnWipe } = require("./lib/dawnWipe");
 const { runThreadExpiry } = require("./lib/threadExpiryPass");
 const { runHungerPass, hungerDm, disappointedDm, DYING_DM } = require("./lib/hungerPass");
@@ -343,7 +345,8 @@ async function resolveNeeds(turn, config) {
   }
   // Same split as the two passes either side: the DMs are routing data for
   // runSideEffects(), not part of the turn's record.
-  const { dms: tagExpiryDms = [], ...tagExpirySummary } = progressed ?? {};
+  const { dms: tagExpiryDmsFromProgression = [], ...tagExpirySummary } = progressed ?? {};
+  const tagExpiryDms = [...tagExpiryDmsFromProgression];
   if (progressed) {
     await prisma.auditLog
       .create({
@@ -365,6 +368,24 @@ async function resolveNeeds(turn, config) {
       await markDone("expirySweep");
     } catch (err) {
       await passFailed("Expiry sweep", err);
+    }
+  }
+
+  // A Desire's gate is checked when it is SET and never again, so a tag that
+  // just expired out from under one leaves the goal ACTIVE and still worth
+  // full points. This cancels those. It has to sit AFTER the sweep above —
+  // before it, the expiring tag is still on the sheet and every gate still
+  // passes. See db/lib/desireOrphans.js.
+  if (!done.has("desireOrphans")) {
+    try {
+      const orphans = await cancelOrphanedDesiresForEveryone(prisma, { openTurnNumber: turn.number });
+      // Folded into tagExpiryDms rather than threaded as a fourteenth return
+      // field: it is the same moment from the player's side — something ran
+      // out, and a goal went with it.
+      tagExpiryDms.push(...orphans.dms);
+      await markDone("desireOrphans");
+    } catch (err) {
+      await passFailed("Desire orphan sweep", err);
     }
   }
 

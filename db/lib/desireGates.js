@@ -214,4 +214,10 @@ function slotStates({ history, openTurnNumber, desireSlots }) {
 module.exports = {
   evaluateDesireCatalog,
   slotStates,
+  // Exported for db/lib/desireOrphans.js, which re-checks an already-ACTIVE
+  // Desire's gate after a tag or role change. It deliberately does NOT go
+  // through evaluateDesireCatalog: cooldown, onceEver and "a row is already
+  // active" are all reasons a template isn't PICKABLE, and none of them means
+  // a Desire the character already holds has become illegitimate.
+  evalRequires,
 };

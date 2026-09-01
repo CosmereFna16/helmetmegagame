@@ -28,10 +28,12 @@ Three levels:
   freeform hex string (e.g. `"#6fa8ab"`), rendered directly by
   `web/app/components/ChipLabel.js` (used by `TagChip.js`)
   — not theme-aware, so pick a value that reads on both the dusk and dawn
-  backgrounds. One group, `status-health`, is deliberately **empty**: the
-  Health category (§5c) took every tag that used to live in it. Groups sync
-  upsert-only and are never deleted, so the row survives; don't reuse the slug
-  and don't put anything back in it.
+  backgrounds. Three groups are deliberately **empty**:
+  `status-health` (the Health category, §5c, took every tag that used to live
+  in it) and `general-restrictions` / `general-interests` (merged into
+  `general-personality`, `DESIRES.md` §5). Groups sync upsert-only and are
+  never deleted, so the rows survive; don't reuse those slugs and don't put
+  anything back in them.
 - **Tag** — the catalog entry itself.
 
 ## 2. Master sources: `docs/tags.yaml` and `docs/taggroups.yaml`
@@ -82,11 +84,13 @@ diff check, same style as the zone sync's hash gate).
 - **`Tag.exclusive`** — not a relation at all, but the third rule the same
   callers enforce: a character may hold at most **one** tag carrying this
   flag **per tag group**. Set on the nine Beliefs (`general-beliefs`), which
-  are a single answer rather than a collection, and on the drawbacks in
-  `general-addictions` and `general-restrictions` (the Desires rework's
-  replacement for the old Bacchus-only Death Wish mechanic — see below) — so
-  a character holds at most one belief, at most one Addiction, and at most
-  one Restriction, all independently. Neither of the two above could express it — a `parentTag` chain
+  are a single answer rather than a collection, and on the five Addictions
+  (`general-addictions`) — so a character holds at most one belief and at most
+  one Addiction, independently. **Nothing in `general-personality` carries it**:
+  the 2026-09-01 merge dropped it from the nine ex-Restrictions on purpose, so
+  Pacifist + Craven is now a legal character. That is what makes the merged
+  group actually merged — leaving the flag on would have kept "one Restriction
+  max" alive inside a group that no longer looks capped. Neither of the two above could express it — a `parentTag` chain
   is priced cumulatively and walks one direction, and `requiredTag` is a
   prerequisite rather than a conflict. The one exemption is a pair joined by
   `requiredTag`, checked in both directions: Fundamentalist declares
@@ -422,17 +426,27 @@ no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
 
 ### Rules that follow from the scale
 
-- **Addictions, Restrictions and Interests (`general-addictions`,
-  `general-restrictions`, `general-interests`) run their own bands, off the
-  same scale.** Addictions −2…−7, Restrictions −1…−8, Interests +2 or +5. ‡
-  The rationale is income-based, not severity-based: an Addiction's price
-  tracks how much of the Desire catalog it still leaves open (Alcoholic,
-  which still has tiers 5 and 7 open everywhere, costs less than Glutton,
-  which is locked to `food` at every tier); a Restriction's price tracks how
-  much it closes with no compensating unlock (Depressed, closing
-  everything, sits at the floor); an Interest costs points because it's pure
-  upside, widening the catalog with no lock attached. See `DESIRES.md` §5
-  for the full mechanic these tags drive.
+- **Addictions and Personality (`general-addictions`,
+  `general-personality`) run their own bands, off the same scale.**
+  Addictions −2…−7, Personality −8…+5. ‡ The rationale is income-based, not
+  severity-based: the price tracks how much of the Desire catalog a tag closes
+  against how much it opens. Alcoholic, which still has tiers 5 and 7 open
+  everywhere, costs less than Glutton, which is locked to `food` at every
+  tier. Depressed closes everything and opens nothing, so it sits at the floor
+  at −8; Eunuch closes exactly one family and sits at −1. Pacifist stays at −2
+  even though it now opens two Desires of its own, because what it opens is
+  narrow and what it forbids is not. An Interest-shaped tag is positive
+  because it is pure upside — it widens the catalog with no lock attached.
+
+  **A Personality tag may be negative AND open Desires.** That is the whole
+  point of the 2026-09-01 merge that replaced `general-restrictions` and
+  `general-interests` with one group; before it, a Restriction was defined as
+  a pure dead end. See `DESIRES.md` §5.
+- **No drawback is purchasable after start.** Every negative-`pointCost` tag
+  carries `purchasableAfterStart: false`, `/store` enforces it server-side,
+  and fulfilling a Desire is therefore the only mid-game Tag Point faucet.
+  This is what closes the buy-a-drawback → get-cured → keep-the-points loop
+  at the door (`DESIRES.md` §7).
 - **Skill chains are flat 5 per rung and charged cumulatively**
   (`cumulativeCost`, §3). Do not price a rung off-ladder to make a chain
   cheaper; shorten the chain.
@@ -495,6 +509,25 @@ here, change it there too** — they are meant to say the same thing.
   | `false` (default) | `HIDDEN` | Never seen. |
   | `true` | `ALWAYS` | Seen whether it is equipped or not. |
   | `worn` | `WORN` | Seen **only while `CharacterTag.equipped`**. |
+
+  **THE RULE, and it is catalog-wide.** `visible: true` means *a stranger
+  looking you over would notice*: your body, your face, your gait; your
+  clothes and anything large enough that you are visibly hauling it; and a
+  reputation already attached to your name in public (Disgraced, Wanted,
+  Knighted). **Never** your appetites, your beliefs, your opinions, your
+  skills, or your secrets. Hot-Headed, Pacifist, Alcoholic, Eunuch, every
+  Belief and every Skill in the catalog are `false`, and that is not an
+  oversight — a temper is a thing you find out about someone, not a thing you
+  see. The test that settles most arguments is a neighbour: if an
+  identical-severity tag two rows away disagrees with you, one of the two is
+  wrong. (Feverish was hidden while Infected and Festering were visible;
+  Consumptive was hidden while Persistent Cough was visible; Mute was hidden
+  while Silenced and Wired Jaw were visible. All three were the same mistake.)
+
+  Health has its own second rule on top of this one — a medic sees what they
+  could treat, whatever `visible` says. See §5c, "Visibility, and the
+  doctor's eye": that is why an internal illness can safely be `false`
+  without becoming undiagnosable.
 
   `worn` is the concealable middle: a dagger in a pocket is nobody's
   business, a drawn one is, and a badge left at home is a badge you are not
@@ -1070,7 +1103,8 @@ detail sheet both show the chain as a **Treated** row beside **Becomes**.
 ### Visibility, and the doctor's eye
 
 `visible` on a Health tag is a question about **realism, not severity**: could
-a bystander tell? A gaping wound, a missing arm, Paralyzed and Severe Burns
+a bystander tell? That is the catalog-wide rule in §5, applied here — the
+addition is the doctor's eye below. A gaping wound, a missing arm, Paralyzed and Severe Burns
 are obvious. Appendicitis, cracked ribs, parasites, chronic pain and Shell
 Shocked are not, and are `visible: false`. Only `true` or `false` here —
 nobody wears appendicitis, so no Health tag is `equippable` and `worn` never

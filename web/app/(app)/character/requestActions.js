@@ -61,6 +61,7 @@ import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { rollCaving } from "@lifeweb/db/lib/cavingPass";
 import { evaluateDesireCatalog, slotStates } from "@lifeweb/db/lib/desireGates";
+import { cancelOrphanedDesires } from "@lifeweb/db/lib/desireOrphans";
 import {
   projectDesireTemplateForGates,
   loadRoleBySlugForTemplates,
@@ -423,6 +424,7 @@ async function addTagRequestImpl({
       quantity: ct.quantity,
     }));
 
+  let orphanDms = [];
   await prisma.$transaction(async (tx) => {
     if (deadSimple) {
       // Serialise concurrent Dead Simple requests from one character: the
@@ -475,8 +477,23 @@ async function addTagRequestImpl({
       reason,
       details: { tagId: tag.id, tagName: tag.name, quantity, resourcesSpent },
     });
+    // A tag moving on or off the sheet can orphan a Desire already in flight
+    // — a removed tag failing an anyTags gate, an added one tripping notTags.
+    // See db/lib/desireOrphans.js.
+    ({ dms: orphanDms } = await cancelOrphanedDesires(tx, {
+      characterId: character.id,
+      openTurnNumber: openTurn?.number ?? null,
+      actorDiscordUserId: session.discordUserId,
+    }));
   });
 
+  // After the commit, and individually caught: the cancellation is already
+  // durable, so a Discord hiccup must not surface as a failed action.
+  for (const dm of orphanDms) {
+    await sendDm(dm.discordUserId, dm.content).catch((err) =>
+      console.error(`Orphaned-Desire DM to ${dm.discordUserId} failed:`, err),
+    );
+  }
   // Tags gate #watch access, so a grant can change narrowcast visibility.
   await syncCharacterNarrowcastAccess(character.id).catch(() => {});
   revalidateAll();
@@ -520,6 +537,7 @@ async function removeTagRequestImpl({
   const aftermathSlugs = rollTagChain(held.tag.removesInto);
 
   let granted = [];
+  let orphanDms = [];
   await prisma.$transaction(async (tx) => {
     await dropCharacterTag(tx, character.id, tagId, quantity);
     granted = await grantTagSlugs(tx, character.id, aftermathSlugs, openTurn?.number ?? null);
@@ -547,8 +565,23 @@ async function removeTagRequestImpl({
         granted: granted.map((g) => g.tagName),
       },
     });
+    // A tag moving on or off the sheet can orphan a Desire already in flight
+    // — a removed tag failing an anyTags gate, an added one tripping notTags.
+    // See db/lib/desireOrphans.js.
+    ({ dms: orphanDms } = await cancelOrphanedDesires(tx, {
+      characterId: character.id,
+      openTurnNumber: openTurn?.number ?? null,
+      actorDiscordUserId: session.discordUserId,
+    }));
   });
 
+  // After the commit, and individually caught: the cancellation is already
+  // durable, so a Discord hiccup must not surface as a failed action.
+  for (const dm of orphanDms) {
+    await sendDm(dm.discordUserId, dm.content).catch((err) =>
+      console.error(`Orphaned-Desire DM to ${dm.discordUserId} failed:`, err),
+    );
+  }
   await syncCharacterNarrowcastAccess(character.id).catch(() => {});
   revalidateAll();
   return {};
@@ -614,6 +647,7 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
       }
     : null;
 
+  let orphanDms = [];
   await prisma.$transaction(async (tx) => {
     await dropCharacterTag(tx, character.id, tagId, 1);
     if (cleared) await dropCharacterTag(tx, character.id, cleared.tagId, 1);
@@ -650,8 +684,23 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
         cleared: cleared?.tagName,
       },
     });
+    // A tag moving on or off the sheet can orphan a Desire already in flight
+    // — a removed tag failing an anyTags gate, an added one tripping notTags.
+    // See db/lib/desireOrphans.js.
+    ({ dms: orphanDms } = await cancelOrphanedDesires(tx, {
+      characterId: character.id,
+      openTurnNumber: openTurn?.number ?? null,
+      actorDiscordUserId: session.discordUserId,
+    }));
   });
 
+  // After the commit, and individually caught: the cancellation is already
+  // durable, so a Discord hiccup must not surface as a failed action.
+  for (const dm of orphanDms) {
+    await sendDm(dm.discordUserId, dm.content).catch((err) =>
+      console.error(`Orphaned-Desire DM to ${dm.discordUserId} failed:`, err),
+    );
+  }
   // Both the tag consumed and anything it became can gate #watch/#intercom.
   await syncCharacterNarrowcastAccess(character.id).catch(() => {});
   revalidateAll();

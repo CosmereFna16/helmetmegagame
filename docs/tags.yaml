@@ -25,6 +25,24 @@
 #   durationTurns   - default turns-to-expire once granted, for tags that
 #                     auto-expire (e.g. Drained: 3). Omit for tags that don't
 #                     expire on their own.
+#   visible         - who sees this tag on a 🔍 inspect. true | false | worn,
+#                     default false. THE RULE, and it is catalog-wide: `true`
+#                     means a stranger looking you over would notice — your
+#                     body, your face, your gait, your clothes, anything large
+#                     enough that you are visibly hauling it, and a reputation
+#                     already public under your name (Disgraced, Wanted,
+#                     Knighted). NEVER your appetites, beliefs, opinions,
+#                     skills or secrets: Hot-Headed, Pacifist, Alcoholic,
+#                     Eunuch, every Belief and every Skill are `false`, and a
+#                     temper is a thing you find out about someone rather than
+#                     a thing you see. `worn` is the concealable middle and
+#                     requires `equippable` (the sync throws otherwise). When
+#                     in doubt, check the neighbours — if a tag of identical
+#                     severity two rows away disagrees with you, one of the two
+#                     is wrong. Health carries a second rule on top of this
+#                     one: a medic sees what they could treat whatever this
+#                     says, so an internal illness can be `false` without
+#                     becoming undiagnosable (TAGS.md §5c).
 #   removable       - whether a player can strip this tag off themselves
 #                     mid-game without a GM. Live: it fills the Remove Tag
 #                     menu (web/lib/tagRequests.js#removableTags) and is
@@ -266,14 +284,13 @@ tags:
   - slug: nobility
     name: Nobility
     category: general
-    group: general-restrictions
+    group: general-personality
     description: "You are a person of noble breeding, accustomed to comfort in all aspects. You must eat a {tag:fine-meal} or better each day, or you wake {tag:disappointed}. No Desire worth 1 point is open to you, and nothing standard to your lifestyle counts. (A Glutton's appetite overrules a noble's standards.) ‡"
     pointCost: -2
-    exclusive: true
     purchasable: false
     purchasableAfterStart: false
     removable: false
-    visible: false
+    visible: true
     desires:
       locks:
         - tiers: [1]
@@ -311,6 +328,7 @@ tags:
     group: general-court
     description: "You were knighted, and serve the Baron directly."
     pointCost: 7
+    visible: true
     purchasable: true
     purchasableAfterStart: false
 
@@ -361,7 +379,7 @@ tags:
     pointCost: -5
     exclusive: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     removable: false
     consumable: false
     conflictsWith: [depressed, ascetic]
@@ -380,7 +398,7 @@ tags:
     pointCost: -6
     exclusive: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     removable: false
     consumable: false
     conflictsWith: [depressed, ascetic]
@@ -389,16 +407,17 @@ tags:
         - all: true
           exceptFamilies: [food]
 
-  # --- Interests (general-interests) -------------------------------------
-  # NEW 2026-08-31 (Desires rework). Non-exclusive, purchasable, purchasable
-  # after start — the reverse posture of a drawback. Interests don't lock
-  # anything; they just gate a Desire open. Superstitious/Desperate/
-  # Hypochondriac/Combative/Corrupt/Fundamentalist above are the sign-flipped
-  # half of this same group.
+  # --- Personality: the positive half (general-personality) ---------------
+  # NEW 2026-08-31 (Desires rework) as `general-interests`; MOVED into
+  # `general-personality` 2026-09-01. Nothing here locks anything — these just
+  # gate a Desire open. They now sit in the same group as the drawbacks that
+  # close the catalog down, because the merge's whole point is that one tag is
+  # allowed to do both (DESIRES.md §5). Superstitious/Desperate/Hypochondriac/
+  # Combative/Corrupt/Fundamentalist above came in with the same sign flip.
   - slug: mad-doctor
     name: Mad Doctor
     category: general
-    group: general-interests
+    group: general-personality
     description: "The body is a machine with the panel left off. You would very much like to look inside. ‡"
     pointCost: 5
     requiredTag: medical-basic
@@ -408,7 +427,7 @@ tags:
   - slug: esoteric
     name: Esoteric
     category: general
-    group: general-interests
+    group: general-personality
     description: "You have read the wrong books and you want the rest of them. ‡"
     pointCost: 5
     purchasable: true
@@ -417,7 +436,7 @@ tags:
   - slug: adventurer
     name: Adventurer
     category: general
-    group: general-interests
+    group: general-personality
     description: "There is a whole ruined world out there and you have seen almost none of it. ‡"
     pointCost: 5
     purchasable: true
@@ -426,7 +445,7 @@ tags:
   - slug: cruel
     name: Cruel
     category: general
-    group: general-interests
+    group: general-personality
     description: "Other people's pain is interesting to you. You have stopped pretending otherwise. ‡"
     pointCost: 5
     purchasable: true
@@ -435,7 +454,7 @@ tags:
   - slug: charitable
     name: Charitable
     category: general
-    group: general-interests
+    group: general-personality
     description: "You give things away and it doesn't hurt. People find this suspicious. ‡"
     pointCost: 2
     purchasable: true
@@ -447,7 +466,7 @@ tags:
   - slug: death-wish-interest
     name: "Death Wish"
     category: general
-    group: general-interests
+    group: general-personality
     description: "You want to see how close you can get. Closer than that. ‡"
     pointCost: 5
     purchasable: true
@@ -456,7 +475,7 @@ tags:
   - slug: schemer
     name: Schemer
     category: general
-    group: general-interests
+    group: general-personality
     description: "You would rather arrange a thing than do it. ‡"
     pointCost: 5
     purchasable: true
@@ -513,6 +532,7 @@ tags:
     group: general-traits
     description: "Elderly. You're slower, fight slightly worse, and don't heal as well."
     pointCost: -5
+    visible: true
     purchasable: true
     purchasableAfterStart: false
 
@@ -522,6 +542,7 @@ tags:
     group: general-traits
     description: "You are physically weak and fragile. Mustering strength to fight back is almost impossible."
     pointCost: -5
+    visible: true
     purchasable: true
     purchasableAfterStart: false
 
@@ -564,7 +585,7 @@ tags:
     group: general-traits
     description: "You're good at following footsteps and other signs, in the wild or in the city."
     pointCost: 5
-    visible: true
+    visible: false
     purchasable: true
     purchasableAfterStart: true
 
@@ -600,10 +621,9 @@ tags:
   - slug: depressed
     name: Depressed
     category: general
-    group: general-restrictions
+    group: general-personality
     description: "Nothing is worth wanting. No Desire is open to you until somebody fixes this. ‡"
     pointCost: -8
-    exclusive: true
     purchasable: true
     # Curable + maximally valuable would be a point farm otherwise (R-1).
     purchasableAfterStart: false
@@ -620,7 +640,7 @@ tags:
     pointCost: -3
     exclusive: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     removable: false
     consumable: false
     conflictsWith: [depressed, ascetic, prudish]
@@ -678,6 +698,7 @@ tags:
     group: general-traits
     description: "Life has lost its color. Nothing matters. Wander endlessly."
     pointCost: 0
+    visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: false
@@ -715,12 +736,11 @@ tags:
   - slug: ascetic
     name: Ascetic
     category: general
-    group: general-restrictions
+    group: general-personality
     description: "You want nothing, and you trained hard to want it. The only Desire open to you is to sit in bliss. ‡"
     pointCost: -6
-    exclusive: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     removable: false
     desires:
       locks:
@@ -936,10 +956,9 @@ tags:
   - slug: craven
     name: Craven
     category: general
-    group: general-restrictions
+    group: general-personality
     description: "Your priority in conflicts is to run away, no matter what goals or people you trample over. No Desire that takes courage is open to you. ‡"
     pointCost: -3
-    exclusive: true
     purchasable: true
     purchasableAfterStart: false
     removable: false
@@ -981,10 +1000,9 @@ tags:
   - slug: kleptomaniac
     name: Kleptomaniac
     category: general
-    group: general-restrictions
+    group: general-personality
     description: "Other people's possessions just seem to fall into your hands. There's nothing you can do about it! Money you came by honestly means nothing: no Desire about wealth is open to you—only the thieving ones. ‡"
     pointCost: -2
-    exclusive: true
     purchasable: true
     purchasableAfterStart: false
     removable: false
@@ -1021,7 +1039,7 @@ tags:
   - slug: superstitious
     name: Superstitious
     category: general
-    group: general-interests
+    group: general-personality
     description: "You see bad omens everywhere. You're not rational. You are, occasionally, right. ‡"
     pointCost: 2
     purchasable: true
@@ -1076,7 +1094,7 @@ tags:
     pointCost: -4
     exclusive: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     removable: false
     consumable: false
     conflictsWith: [depressed, ascetic, prudish]
@@ -1109,16 +1127,32 @@ tags:
   - slug: pacifist
     name: Pacifist
     category: general
-    group: general-restrictions
+    group: general-personality
     description: "You will never, ever attack someone except in self defense. And even in self defense, you won't kill. Fighting disgusts you, but God smiles upon you. No violent Desire is open to you. ‡"
     pointCost: -2
-    exclusive: true
     purchasable: true
     purchasableAfterStart: false
     removable: false
     desires:
       locks:
         - families: [violence, feud]
+
+  # Priced at the very bottom of the Personality band on purpose. It closes
+  # exactly one family and nothing else — no tier clause, no `all` — so the
+  # rest of the catalog stays wide open to a Eunuch. Not `visible`: a stranger
+  # looking you over does not learn this, which is the whole point of it.
+  - slug: eunuch
+    name: Eunuch
+    category: general
+    group: general-personality
+    description: "Cut, whether you agreed to it or not. Romance is not a road open to you, and everyone who matters knows it. \u2021"
+    pointCost: -1
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+    desires:
+      locks:
+        - families: [romance]
 
   - slug: fat
     name: Fat
@@ -1158,7 +1192,7 @@ tags:
   - slug: desperate
     name: Desperate
     category: general
-    group: general-interests
+    group: general-personality
     description: "You don't understand why people don't want to be around you. That's why they don't want to be around you."
     pointCost: 2
     purchasable: true
@@ -1170,6 +1204,7 @@ tags:
     group: general-traits
     description: "You can't speak. You mean, you really shouldn't."
     pointCost: 0
+    visible: true
     purchasable: true
     purchasableAfterStart: false
     removable: true
@@ -1194,7 +1229,7 @@ tags:
     pointCost: -5
     exclusive: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     removable: false
     consumable: false
     conflictsWith: [depressed, ascetic, prudish]
@@ -1217,10 +1252,9 @@ tags:
   - slug: devoted-follower
     name: Devoted Follower
     category: general
-    group: general-restrictions
+    group: general-personality
     description: "You wouldn't dare raise a hand against one of your own. You're incapable of betraying your starting faction, even if it would be in your best interest. No Desire about betrayal, scheming, or another faction's success is open to you (your own faction's successes still count). Must be part of a faction, and not a mercenary, migrant, or bum. ‡"
     pointCost: -2
-    exclusive: true
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -1237,7 +1271,7 @@ tags:
   - slug: hypochondriac
     name: Hypochondriac
     category: general
-    group: general-interests
+    group: general-personality
     description: "In your mind, you inflate minor scrapes and sicknesses into disastrous, incurable maladies. The Sanctuary is sick of hearing from you."
     pointCost: 2
     visible: false
@@ -1248,10 +1282,9 @@ tags:
   - slug: prudish
     name: Prudish
     category: general
-    group: general-restrictions
+    group: general-personality
     description: "You disapprove of drinking, doping, gambling, and whoring, and you intend to let everybody know. No Desire about any of the four is open to you. ‡"
     pointCost: -3
-    exclusive: true
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -1330,10 +1363,10 @@ tags:
   - slug: combative
     name: Hot-Headed
     category: general
-    group: general-interests
+    group: general-personality
     description: "You like split knuckles, cracked teeth, black eyes—though they look better on the other guy! You actively pick fights where they might not be necessary."
     pointCost: 2
-    visible: true
+    visible: false
     purchasable: true
     purchasableAfterStart: true
 
@@ -1484,6 +1517,7 @@ tags:
     group: general-beliefs
     description: "It is clear that you are at peace. Your doctrine is unique, but your holiness is undeniable. Are you a heretic or do you know the truth? Once per day, you can instantly cure a Moderately Severe or lesser wound. Refer to the Medical document."
     pointCost: 14
+    visible: true
     # Migrants only: Pale is the Migrant role's starting tag and is
     # purchasable: false, so nobody else can pick it up.
     requiredTag: pale
@@ -1508,7 +1542,7 @@ tags:
   - slug: corrupt
     name: Corrupt
     category: general
-    group: general-interests
+    group: general-personality
     description: "The good old ways. You prioritize making yourself comfortable over upholding your vows."
     pointCost: 5
     visible: false
@@ -1675,10 +1709,9 @@ tags:
   - slug: blood-feud
     name: Blood Feud
     category: general
-    group: general-restrictions
+    group: general-personality
     description: "They killed one of yours. Nothing your clan wins matters until that is paid for: no Desire about your own side's success is open to you, only Desires about theirs ending. ‡"
     pointCost: -2
-    exclusive: true
     requiredTag: windlander
     purchasable: true
     purchasableAfterStart: false
@@ -2279,6 +2312,7 @@ tags:
     group: status-debuffs
     description: "Your Fighting skill counts as 1 tier lower."
     pointCost: 0
+    visible: true
     purchasable: false
     durationTurns: 1
 
@@ -2653,7 +2687,7 @@ tags:
     group: health-infection
     description: "You're burning up. The infection is in your blood…"
     pointCost: 0
-    visible: false
+    visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
@@ -2690,7 +2724,7 @@ tags:
     group: health-infection
     description: "Your body is shutting down. You're not lucid."
     pointCost: 0
-    visible: false
+    visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
@@ -2944,7 +2978,7 @@ tags:
     group: health-wounds
     description: "Something broke past your ribs. Your breathing is shallow and labored. You will die without expert medical attention."
     pointCost: 0
-    visible: false
+    visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
@@ -3065,7 +3099,7 @@ tags:
     group: health-illness
     description: "While not deadly, you'll feel like death for days, unable to concentrate past the sweat and pain."
     pointCost: 0
-    visible: false
+    visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
@@ -3083,7 +3117,7 @@ tags:
     group: health-illness
     description: "Venom has entered your body, causing massive swelling and pain. You will die without prompt medical attention."
     pointCost: 0
-    visible: false
+    visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
@@ -3130,7 +3164,7 @@ tags:
     group: health-illness
     description: "Your cough's gotten worse over the years. It will take an expert to cure you."
     pointCost: -9
-    visible: false
+    visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
@@ -3148,7 +3182,7 @@ tags:
     group: health-illness
     description: "You've stopped shivering. It's not unpleasant."
     pointCost: 0
-    visible: false
+    visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
@@ -3161,7 +3195,7 @@ tags:
     group: health-illness
     description: "You can't focus. You need water and coolness."
     pointCost: 0
-    visible: false
+    visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
@@ -3246,7 +3280,7 @@ tags:
     group: health-mind
     description: "Lights and sound bombard your senses."
     pointCost: 0
-    visible: false
+    visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: false
@@ -3290,6 +3324,7 @@ tags:
     group: health-mind
     description: "Nothing makes sense. What is happening?! Oh my God!"
     pointCost: 0
+    visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
@@ -3301,7 +3336,7 @@ tags:
     group: health-mind
     description: "You can't see. Good luck fighting. Requires a fresh pair of eyes to treat."
     pointCost: -8
-    visible: false
+    visible: true
     purchasable: true
     purchasableAfterStart: false
     removable: true
@@ -3318,6 +3353,7 @@ tags:
     group: health-mind
     description: "You come off as a mess."
     pointCost: -2
+    visible: true
     purchasable: true
     purchasableAfterStart: false
     removable: false
@@ -3328,7 +3364,7 @@ tags:
     group: health-mind
     description: "You can't speak. You may want to consider picking up sign language."
     pointCost: -7
-    visible: false
+    visible: true
     purchasable: true
     purchasableAfterStart: false
     removable: false
@@ -3548,7 +3584,7 @@ tags:
     group: health-illness
     description: "Your body is rapidly shutting down, but you're clear-headed. Blood is dripping from your mouth."
     pointCost: 0
-    visible: false
+    visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
@@ -3711,6 +3747,7 @@ tags:
     group: assets-companions
     description: "You have an intelligent bird: a crow from the rooftops, a pigeon from the Caves, a parrot from parts unknown. You don't have a raven, unless you are the Baron. That would look bad on you, wouldn't it, taking his heraldic animal…?"
     pointCost: 5
+    visible: true
     tradeable: true
     purchasable: true
     purchasableAfterStart: true
@@ -3722,6 +3759,7 @@ tags:
     group: assets-companions
     description: "You have a trained rat. It's not good for much. But it does tiny tricks!"
     pointCost: 2
+    visible: true
     tradeable: true
     purchasable: true
     purchasableAfterStart: true
@@ -3733,6 +3771,7 @@ tags:
     group: assets-companions
     description: "You have a cat. It may or may not be useful for anything — generally, it's the cat who decides that."
     pointCost: 2
+    visible: true
     tradeable: true
     purchasable: true
     purchasableAfterStart: true
@@ -3756,7 +3795,7 @@ tags:
     group: assets-property
     description: "Your workbench, your tools, and a place to think. You don't need this to craft, but it sure helps."
     pointCost: 2
-    visible: true
+    visible: false
     tradeable: false
     purchasable: true
     purchasableAfterStart: true
@@ -3786,6 +3825,7 @@ tags:
     group: assets-companions
     description: "You have a highly-trained dog with good sense of smell. In other words, a good dog."
     pointCost: 5
+    visible: true
     tradeable: true
     purchasable: true
     purchasableAfterStart: true
@@ -4990,7 +5030,7 @@ tags:
     equippable: true
     tradeable: true
     stackable: true
-    visible: worn
+    visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
