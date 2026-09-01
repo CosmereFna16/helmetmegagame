@@ -2456,12 +2456,17 @@ tags:
     name: Dying
     category: health
     group: health-infection
-    description: "You're on death's door. A GM decides how this ends. Someone with the very best medicine and a lot of luck could pull you back, but don't count on it."
+    description: "You're on death's door. You have one turn. Someone with the very best medicine and a lot of luck could pull you back before it closes, but don't count on it."
     pointCost: 0
     visible: true
     purchasable: false
     purchasableAfterStart: false
     removable: true
+    # The one duration in the catalog that is a countdown to death rather than
+    # to recovery. Nothing turns Dying into anything (no expiresInto): the
+    # Dying death pass reads this clock and kills at the close instead. See
+    # db/lib/dyingDeathPass.js and TAGS.md §5c.
+    durationTurns: 1
     removesInto: [recovering, drained]
     requirement:
       turnsCost: 1

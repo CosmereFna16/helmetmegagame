@@ -77,10 +77,23 @@ each arrived at by getting them wrong first.
    Necrotic, Necrosis rolls a leg or an arm (`TAGS.md` §5c). The sweep below is
    a blind `deleteMany`, so once it has run there is nothing left to read. This
    pass grants and never deletes; the sweep removes exactly the rows it just
-   read. **Nothing here kills anyone** — the terminal chains land on the
-   `dying` tag and stop, and a GM confirms the death by hand. (The Catatonic
-   death pass at 7b is the engine's one exception to that rule, gated on its
-   own `catatonicDeathTurns` dial.)
+   read. **Nothing here kills anyone** — the terminal chains still land on the
+   `dying` tag and stop. What changed is what `dying` is: a one-turn clock
+   (`durationTurns: 1`) rather than a permanent flag, so pass 4b below ends it
+   at the *next* close. A character who reaches the end of a chain gets a full
+   turn on death's door, which is the window a medic has to reach them.
+4b. **Dying death pass** (`db/lib/dyingDeathPass.js`) — the second of the
+   engine's two auto-kills. Every ALIVE holder of `dying` whose
+   `CharacterTag.expiresTurn` has come due dies at this close, through the same
+   `applyDeathToRow` claim and the same returned-`deaths` teardown as 7b. Its
+   slot is load-bearing on both sides: **after** the staged push and pass 4, so
+   a staged "remove Dying" or a medic's cure landing this same close always
+   beats the axe, and **before** the sweep at 5, which would otherwise delete
+   the very rows that are the evidence. A `dying` row with a **null**
+   `expiresTurn` is not killed — it is stamped for the next close and its
+   holder warned, so nothing granted before this pass existed dies to a clock
+   it was never shown. Own `resolvedPasses` marker, same as 7b: a destructive
+   pass must not half-run on a resume.
 5. **Expiry sweep** — delete non-stackable `CharacterTag`s whose `expiresTurn`
    has come due.
 6. **Stackable sweep** (`sweepExpiredStacks`) — a stack is one row carrying a
@@ -101,8 +114,8 @@ each arrived at by getting them wrong first.
    when it grants and nulls it when it clears — the death countdown below.
    Ordering against Caving/Hunger doesn't matter; it touches neither
    resources nor the Hunger streak.
-7b. **Catatonic death pass** (`db/lib/catatonicDeathPass.js`) — **the one
-   deliberate exception to "nothing automatic kills anyone."** A character
+7b. **Catatonic death pass** (`db/lib/catatonicDeathPass.js`) — the other
+   automatic death, alongside 4b. A character
    who has held `catatonic` for `GameConfig.catatonicDeathTurns` consecutive
    turns (default 4; **0 is the off switch**, a Dev Panel dial needing no
    deploy) dies at this close, outright: the DB half of death runs here via
@@ -299,9 +312,10 @@ additively with Mood. The penalty escalates: **−1 to the die per consecutive
 turn gone hungry**, read off `Character.hungerStreak` and floored at **−6**
 (`HUNGER_STREAK_CAP` in `db/lib/hungerPass.js`) — see `db/lib/gambitModifier.js`
 for how the streak and Mood combine into one number. Reaching the cap grants
-`dying`, permanently; nothing here kills anyone, same as every other terminal
-tag chain (§3) — the Catatonic death pass (§2 7b) being the engine's one
-exception. Nothing player-initiated ever grants or removes Hunger, the
+`dying` with a one-turn clock; nothing here kills anyone, same as every other
+terminal tag chain (§3) — the Dying death pass (§2 4b) is what finishes at the
+next close what starving started, and the Catatonic death pass (§2 7b) is the
+other. Nothing player-initiated ever grants or removes Hunger, the
 streak, or Dying via this path — no request type, no picker entry.
 `db/lib/hungerPass.js#runHungerPass` is the only writer of all three.
 
@@ -461,6 +475,7 @@ Surfaced to players on the `#turns` announcement (`Moves must be sent by
 | `db/lib/hungerPass.js` | The Hunger pass |
 | `db/lib/catatonicPass.js` | The Catatonic (AFK) flagging pass |
 | `db/lib/catatonicDeathPass.js` | The Catatonic death pass (§2 7b) |
+| `db/lib/dyingDeathPass.js` | The Dying death pass (§2 4b) |
 | `db/lib/characterDeath.js` | The shared DB half of death (`applyDeathToRow`) |
 | `db/lib/playerDeparture.js` | Guild-leave marking, shared by the live handler and the startup reconcile |
 | `db/lib/tagExpiryPass.js` | The tag progression pass (`Tag.expiresInto`) |

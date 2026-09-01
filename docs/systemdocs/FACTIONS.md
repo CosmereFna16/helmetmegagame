@@ -109,7 +109,11 @@ absent-not-masked posture: if you don't have access, the field simply isn't
 there. A placeholder would advertise that there's something to go after.
 
 1. The Resources column on `/faction`'s roster, including the subject-faction
-   view a parent's Leader or Treasurer can open.
+   view a parent's Leader or Treasurer can open. The **Subject Factions** table
+   that links into those views is gated on `canManageSilo` — Leader *or*
+   Treasurer, the same question every other Silo surface asks. It asked
+   `isLeader` for a while, which left a parent's Treasurer holding the
+   authority with no way to reach it.
 2. The Resources field on the bot's 🔍 inspect embed
    (`bot/src/events/messageReactionAdd.js`).
 3. The subject-faction view itself.

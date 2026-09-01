@@ -18,6 +18,7 @@ import { expiryFor } from "@/lib/turnFormat";
 import { createRequest, logRequest, requireReason } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { notifyCharacter } from "@/lib/notifyCharacter";
+import { killCharacter } from "@/lib/discordGuild";
 
 // The Lifeweb's two player-facing Requests, following the same contract as
 // the ones on the character sheet (web/app/(app)/character/requestActions.js):
@@ -147,11 +148,27 @@ async function donateBloodRequestImpl({ targetCharacterId, reason: rawReason }) 
   return { targetName: target.name, amount: blood.delta, tier };
 }
 
-// Feeding someone to the Lifeweb does NOT kill them here. Letting a player
-// end another player's game from a dropdown is too abusable, so the request
-// only tops up the pool and flags itself; a GM does the killing from the
-// Requests tab (killRequestTarget in gm/turns/actions.js) after reading the
-// reason.
+// Feeding someone to the Lifeweb kills them, here, on the click.
+//
+// It used to stop short — the pool went up, `effect.killed` stayed false, and
+// a GM finished it from the Requests tab — on the argument that a player must
+// not end another player's game from a dropdown. What that bought in practice
+// was a character who had already been fed to the Tower walking around until
+// a GM got to the queue, and a game state nobody could read. The gates are
+// what protect a player, and they are all still here and all still checked
+// server-side: the actor must be a living Mortus, standing in the Fortress,
+// the target must be alive and in the Fortress too, and a reason is required
+// and logged. A GM reads it afterwards rather than before.
+//
+// The kill is claimed INSIDE the transaction that moves the blood, with the
+// same conditional `status: ALIVE` where-clause every other death path uses
+// (db/lib/characterDeath.js), so two Mortii feeding the same person in the
+// same second can't both claim it. The Discord half runs after the commit —
+// killCharacter() is a string of REST calls and must never hold the
+// transaction open.
+//
+// Undo still does not revive. That is unchanged and deliberate (REQUESTS.md
+// §2): undoing the request draws the blood back out and says so.
 async function feedPersonRequestImpl({ targetCharacterId, reason: rawReason }) {
   const { session, character } = await requireMortusCharacter();
   const reason = requireReason(rawReason);
@@ -160,8 +177,18 @@ async function feedPersonRequestImpl({ targetCharacterId, reason: rawReason }) {
   const openTurn = await getOpenTurn();
 
   let blood;
+  let killed = false;
   await prisma.$transaction(async (tx) => {
     blood = await bumpBlood(tx, FEED_PERSON_AMOUNT);
+
+    // The claim. `count` is 0 when someone else got there first, in which case
+    // the blood still lands — the Tower was fed either way — but this request
+    // doesn't claim a kill it didn't make, and the teardown below is skipped.
+    const claim = await tx.character.updateMany({
+      where: { id: target.id, status: "ALIVE" },
+      data: { status: "DEAD" },
+    });
+    killed = claim.count > 0;
 
     const effect = {
       targetCharacterId: target.id,
@@ -170,7 +197,8 @@ async function feedPersonRequestImpl({ targetCharacterId, reason: rawReason }) {
       bloodBefore: blood.before,
       bloodAfter: blood.after,
       bloodDelta: blood.delta,
-      killed: false,
+      killed,
+      killedAt: killed ? new Date().toISOString() : null,
     };
     await createRequest(tx, {
       characterId: character.id,
@@ -189,10 +217,20 @@ async function feedPersonRequestImpl({ targetCharacterId, reason: rawReason }) {
     });
   });
 
-  notifyCharacter(target, "You've been fed to the Lifeweb.");
+  // The rest of death — access revoke, role delete, nickname clear, the Cursed
+  // grant, the death DM — outside the transaction, with the row's status
+  // already written. killCharacter's own applyDeathToRow call runs with
+  // expectStatus DEAD, which is exactly the shape of the claim above. Not
+  // awaited-and-thrown: the feeding is committed, and a Discord hiccup must
+  // not report it as failed.
+  if (killed) {
+    await killCharacter(target, "You were fed to the Lifeweb.").catch((err) =>
+      console.error(`killCharacter failed after feeding ${target.id}:`, err),
+    );
+  }
 
   revalidateAll();
-  return { targetName: target.name, amount: blood.delta };
+  return { targetName: target.name, amount: blood.delta, killed };
 }
 
 // Validation comes back as { ok: false, error } rather than thrown — a

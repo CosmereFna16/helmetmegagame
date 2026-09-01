@@ -107,7 +107,7 @@ reason.
 | `MOVE_CHARACTER` | Marches a faction member they lead, anyone helpless (Bound/Dying/Paralyzed/Catatonic), or a body, into a neighbouring zone. Does **not** spend the target's turn | — | Restores the previous zone in the DB only |
 | `BIND_CHARACTER` | Ties up anyone standing in their zone | — | Cuts them loose |
 | `FREE_CHARACTER` | Cuts someone in their zone loose | — | Puts Bound back with its original expiry |
-| `HARM_CHARACTER` | Inflicts a Health affliction on someone already helpless, flags them to be killed, or both. **Never kills** — see §5b | — | Heals what was inflicted; never revives |
+| `HARM_CHARACTER` | Inflicts a Health affliction on someone already helpless, **kills** them, or both — see §5b | — | Heals what was inflicted; never revives |
 | `BURY_CHARACTER` | Puts a body lying in their zone into the ground, lifting the **Cursed** role off the dead player's Discord account. Target is **typed**, first name only | — | Raises the body; does **not** re-curse |
 | `FAST_TRAVEL` | Rides one zone over on a horse (or the Merchant's Steam Automobile) without spending the Move. Once a day | — | Sends them back and returns the ride |
 | `DEPOT_BUY` | Buys an import off the orbital station at its `depotPrice`. Licence + standing at Customs (`DEPOT.md`) | — | Returns the goods, refunds the ⬢ |
@@ -288,9 +288,10 @@ the resources clamp above: `hungerStreak: { gt: 0 }` in the decrement's own
 
 **The streak and the cap.** Each consecutive hungry turn is worth an
 additional −1 to the die, floored at **−6** (`HUNGER_STREAK_CAP`). Reaching the
-cap grants `dying` — permanently, like every other terminal tag chain (see
-`TURN-ENGINE.md` §3's "NOTHING HERE KILLS ANYONE") — and a GM confirms the
-death by hand from there. The streak is computed in the pass off the value it
+cap grants `dying`, the same terminal tag every untreated-wound chain lands on
+(see `TURN-ENGINE.md` §3's "NOTHING HERE KILLS ANYONE"). The pass itself still
+kills nobody; `dying` carries a one-turn clock, and the Dying death pass
+(`TURN-ENGINE.md` §2 4b) is what ends it at the next close. The streak is computed in the pass off the value it
 already read for the resource check, not off a database `increment`/
 `decrement`'s return value, because neither would hand back the new total in
 time to decide who just crossed the cap this turn, who still carries Hunger
@@ -442,14 +443,29 @@ it is `bloodDelta` on the effect that Undo reverses — §2's payload-vs-effect
 rule applied to the blood pool. Reversing the nominal 40 would mint 30 blood
 out of nothing.
 
-**Feed Person does not kill anyone.** Letting a player end another player's
-game from a dropdown is too abusable, so the request only fills the pool and
-flags itself: in the Requests tab the row burns red with a `☠` until it's
-resolved, and `RequestPanel` carries a **Kill** button — behind the shared
-`useConfirm()`, on top of the panel — that runs the same death path as the
-character editor (`status: "DEAD"` then `killCharacter()`). It stamps
-`effect.killed`, so a reopened panel shows the outcome instead of offering the
-button twice. Undo reverses the blood and never revives.
+**Feed Person kills, on the click.** It used to stop short — fill the pool,
+raise a `☠` on the Requests row, and wait for a GM's Kill button — on the
+argument that a player must not end another player's game from a dropdown.
+What that bought in practice was a character everyone had watched be fed to
+the Tower still walking around until someone worked the queue.
+
+The gates are what protect a player, not the delay, and every one of them is
+still checked server-side: a living **Mortus**, standing in the **Fortress**,
+against a living target standing there too, with a **reason** that is required
+and logged. A GM reads it afterwards rather than before.
+
+The kill is claimed inside the same transaction that moves the blood, with the
+conditional `status: "ALIVE"` where-clause every death path uses
+(`db/lib/characterDeath.js`), so two Mortii feeding the same person in the same
+second cannot both claim it; the Discord half (`killCharacter()`) runs after
+the commit, never inside the transaction. `effect.killed` and `effect.killedAt`
+are stamped there.
+
+The **Kill** button in the Requests tab stays, as a fallback for the rows where
+the claim did not land — the target was already dead when the request was
+filed, or the row predates this change — and `killRequestTargetImpl`'s
+`effect.killed` guard is what stops it double-killing. Undo still reverses the
+blood and **never revives**.
 
 Both buttons ask twice: the `RequestDialog` reason, then `useConfirm()` before
 anything is written. They act on someone else's character, which is the one
@@ -485,16 +501,17 @@ half alone is valid — a beating that leaves them alive, a clean kill with no
 new injury — but not neither. The target must **already** be helpless; knifing
 someone who could fight back is a Gambit, and a GM adjudicates that.
 
-**It does not kill.** `effect.lethal` raises the ☠ on the Requests row and
-surfaces the same **Kill** button `FEED_PERSON` uses, and
-`killRequestTargetImpl` accepts both types for the same reason: letting a
-player end another player's game from a dropdown is too abusable. The lethal
-half is also the only place besides billing someone else for a cure where the
-dialog asks twice. `FINISHABLE_SLUGS` narrows it further than the loot gate —
-you can rob a Paralyzed character, but only someone Dying, Bound or Catatonic
-can be finished off. Paralysis is a moment's stumble; the other three are a
-body that is not getting up on its own, and a Catatonic one is already on the
-death countdown (`db/lib/catatonicDeathPass.js`).
+**It kills**, on submit, the same posture `FEED_PERSON` takes above and for
+the same reasons — the claim is made in the request's own transaction, the
+Discord teardown runs after the commit, and the **Kill** button survives only
+as the fallback for a claim that did not land. What makes it safe is the gate,
+not a delay: the target has to be helpless **already**, and `FINISHABLE_SLUGS`
+narrows it further than the loot gate — you can rob a Paralyzed character, but
+only someone **Dying, Bound or Catatonic** can be finished off. Paralysis is a
+moment's stumble; the other three are a body that is not getting up on its
+own, and a Catatonic one has its own death countdown running already
+(`db/lib/catatonicDeathPass.js`). The lethal half is also the only place
+besides billing someone else for a cure where the dialog asks twice.
 
 **Move Player does not spend the target's turn**, and it moves nobody but the
 target — the copy says to walk there yourself afterwards. It takes a body too,
@@ -768,7 +785,8 @@ of a transfer. Deposits into a Silo previously left no ledger entry at all.
 | Lifeweb blood tiers + cap, shared bot/web | `db/lib/lifeweb.js` |
 | Lifeweb requests, GM bypass panel | `web/app/(app)/lifeweb/requestActions.js`, `actions.js` |
 | Lifeweb player buttons | `web/app/components/LifewebRequestButtons.js` |
-| GM kill-the-target action (FEED_PERSON + HARM_CHARACTER) | `web/app/(desk)/gm/turns/actions.js#killRequestTarget` |
+| GM kill-the-target fallback (FEED_PERSON + HARM_CHARACTER) | `web/app/(desk)/gm/turns/actions.js#killRequestTarget` |
+| The Dying clock's auto-kill | `db/lib/dyingDeathPass.js` |
 | GM review rows | `web/app/(desk)/gm/turns/RequestSections.js`, `web/lib/requestLabels.js` |
 | Gambit roll + modifier | `bot/src/events/interactionCreate.js#handleMoveConfirm` |
 | Expiry sweep | `db/index.js#resolveNeeds` |

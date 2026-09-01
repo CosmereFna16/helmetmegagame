@@ -1347,7 +1347,8 @@ async function freeCharacterRequestImpl({ targetCharacterId, reason: rawReason }
 // worked.
 //
 // What makes that safe is the gate above, not the delay: the target has to be
-// helpless ALREADY (INCAPACITATING_SLUGS) and Dying or Bound specifically
+// helpless ALREADY (INCAPACITATING_SLUGS) and Dying, Bound or Catatonic
+// specifically (FINISHABLE_SLUGS)
 // before `lethal` is even accepted, the killer has to be standing in their
 // zone, and a reason is required and logged. Someone who can fight back is
 // still a Gambit and still a GM's call. A GM reads the request afterwards.

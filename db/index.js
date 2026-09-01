@@ -25,6 +25,7 @@ const { runThreadExpiry } = require("./lib/threadExpiryPass");
 const { runHungerPass, hungerDm, disappointedDm, DYING_DM } = require("./lib/hungerPass");
 const { runCatatonicPass } = require("./lib/catatonicPass");
 const { runCatatonicDeathPass } = require("./lib/catatonicDeathPass");
+const { runDyingDeathPass } = require("./lib/dyingDeathPass");
 // By path, not the barrel — see the note at the top of db/lib/accessSweep.js.
 const { revokeAllCharacterAccess } = require("./lib/accessSweep");
 const { LEAVE_ANNOUNCE_CHANNEL_ID } = require("./lib/constants");
@@ -195,6 +196,7 @@ const TURN_PASSES = [
   "defaultMoves",
   "stagedPush",
   "tagExpiry",
+  "dyingDeath",
   "expirySweep",
   "catatonic",
   "catatonicDeath",
@@ -332,7 +334,8 @@ async function resolveNeeds(turn, config) {
   // expiring tag turns into (Infected -> Festering, Necrosis -> a limb) and
   // deletes nothing itself, leaving the sweep to remove exactly the rows it
   // just read. Nothing in it kills anyone — the terminal chains stop at the
-  // Dying tag and wait for a GM. See db/lib/tagExpiryPass.js.
+  // Dying tag, and the Dying death pass below is what ends it a turn later.
+  // See db/lib/tagExpiryPass.js.
   let progressed = null;
   if (!done.has("tagExpiry")) {
     progressed = await runTagExpiryPass(prisma, turn).catch(async (err) => {
@@ -350,6 +353,35 @@ async function resolveNeeds(turn, config) {
         data: { actorDiscordUserId: "system", actionType: "tag_expiry_resolved", details: tagExpirySummary },
       })
       .catch((err) => console.error("Tag expiry audit log failed:", err));
+  }
+
+  // Dying death — the engine's second auto-kill, and the reason the comment
+  // above no longer says the terminal chains "wait for a GM". Dying carries a
+  // one-turn clock now (docs/tags.yaml), and this is what the clock runs down
+  // to. Its slot is load-bearing on both sides: AFTER stagedPush and tagExpiry
+  // so a staged cure or a medic's heal landing this same close always beats
+  // the axe, and BEFORE the sweep below, which would otherwise delete the very
+  // rows that are the evidence. Own resolvedPasses marker for the same reason
+  // catatonicDeath has one — a destructive pass must not half-run on a resume.
+  // See db/lib/dyingDeathPass.js.
+  let dyingDeath = null;
+  if (!done.has("dyingDeath")) {
+    dyingDeath = await runDyingDeathPass(prisma, turn).catch(async (err) => {
+      await passFailed("Dying death", err);
+      return null;
+    });
+    if (dyingDeath) await markDone("dyingDeath");
+  }
+  const { deaths: dyingDeaths = [], warnings: dyingDeathWarnings = [], ...dyingDeathSummary } = dyingDeath ?? {};
+  if (dyingDeath) {
+    // Names ride in the details for the same reason the Catatonic death row
+    // carries them: this is a pass whose per-character outcome a GM has to be
+    // able to reconstruct from the log alone.
+    await prisma.auditLog
+      .create({
+        data: { actorDiscordUserId: "system", actionType: "dying_deaths_resolved", details: dyingDeathSummary },
+      })
+      .catch((err) => console.error("Dying death audit log failed:", err));
   }
 
   // Paired with the progression pass above and recorded as one unit: the
@@ -828,14 +860,23 @@ async function advanceTurn() {
     }
 
     // The eve-of-death warnings, before the deaths so the two kinds of news
-    // arrive in the order they escalate.
-    for (const warning of catatonicDeathWarnings) {
+    // arrive in the order they escalate. Both auto-kill passes warn the close
+    // before the axe and both land here, so a player one turn from either end
+    // hears it the same way.
+    for (const warning of [...catatonicDeathWarnings, ...dyingDeathWarnings]) {
       await sendDm(prisma, warning.discordUserId, warning.content).catch((err) =>
-        console.error(`Catatonic death warning DM to ${warning.discordUserId} failed:`, err),
+        console.error(`Death warning DM to ${warning.discordUserId} failed:`, err),
       );
     }
 
-    // The Catatonic deaths' Discord teardown — the same steps
+    // Every automatic death this close, from both passes, torn down by one
+    // loop. Each row carries its own `reason`, which is the only thing that
+    // differs between them — a Catatonic timeout and a Dying clock owe Discord
+    // exactly the same work, and keeping one loop is what stops the two paths
+    // drifting the way the DB halves would have without characterDeath.js.
+    const turnDeaths = [...catatonicDeaths, ...dyingDeaths];
+
+    // The teardown — the same steps
     // web/lib/discordGuild.js#killCharacter performs, in the same order
     // (revoke while both ids are still known, then the role delete), plus
     // one membership check up front: the Cursed grant, the nickname clear
@@ -843,14 +884,14 @@ async function advanceTurn() {
     // for a departed one each would just 403 into the REST breaker's tally.
     // Sequential and individually caught like every loop here — never
     // Promise.all.
-    for (const death of catatonicDeaths) {
+    for (const death of turnDeaths) {
       const member = await getGuildMember(death.discordUserId).catch((err) => {
         console.error(`Membership check for ${death.name} failed:`, err);
         return null;
       });
 
       const revoked = await revokeAllCharacterAccess(prisma, death).catch((err) => {
-        console.error(`Failed to revoke access for ${death.name} on catatonic death:`, err);
+        console.error(`Failed to revoke access for ${death.name} on an automatic death:`, err);
         return null;
       });
       if (!revoked || revoked.failed > 0) {
@@ -869,7 +910,7 @@ async function advanceTurn() {
 
       if (death.discordRoleId) {
         await deleteGuildRole(death.discordRoleId).catch((err) =>
-          console.error(`Failed to delete ${death.name}'s role on catatonic death:`, err.message),
+          console.error(`Failed to delete ${death.name}'s role on an automatic death:`, err.message),
         );
       }
 
@@ -890,11 +931,11 @@ async function advanceTurn() {
     // One #leave post covering every death this turn, not one per death — a
     // GM alert should read at a glance, and a single message keeps the
     // rate-limit budget flat however bad the turn was.
-    if (catatonicDeaths.length > 0) {
+    if (turnDeaths.length > 0) {
       await postMessage(
         LEAVE_ANNOUNCE_CHANNEL_ID,
-        catatonicDeaths.map((death) => `${death.name} has died — ${death.reason}`).join("\n"),
-      ).catch((err) => console.error("Catatonic-death alert to #leave failed:", err));
+        turnDeaths.map((death) => `${death.name} has died — ${death.reason}`).join("\n"),
+      ).catch((err) => console.error("Automatic-death alert to #leave failed:", err));
     }
 
     // One DM per Caving Die roll of 1 or 6 — nothing for a quiet 2-5, which

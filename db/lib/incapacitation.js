@@ -17,12 +17,13 @@ const INCAPACITATING_SLUGS = new Set(["dying", "catatonic", "paralyzed", "bound"
 
 // The narrower set HARM_CHARACTER's lethal half needs. Being Paralyzed for a
 // turn is a moment's stumble — you can rob someone in that state, but they
-// are not someone a player may ask a GM to finish off. Dying, Bound and
+// are not someone a player may finish off. Dying, Bound and
 // Catatonic all are: the first two are the classic helpless body, and a
 // Catatonic character is either long gone from the guild or has been silent
-// for turns on end, with their own death countdown already running. Nothing
-// here kills on its own — HARM_CHARACTER only raises the ☠ and hands a GM the
-// Kill button (REQUESTS.md §5b).
+// for turns on end, with their own death countdown already running. This set
+// is what makes the kill safe: HARM_CHARACTER's lethal half kills outright now
+// (REQUESTS.md §5b), so what stands between a player and another player's
+// character is this gate, not a GM's later confirmation.
 const FINISHABLE_SLUGS = new Set(["dying", "bound", "catatonic"]);
 
 module.exports = { INCAPACITATING_SLUGS, FINISHABLE_SLUGS };

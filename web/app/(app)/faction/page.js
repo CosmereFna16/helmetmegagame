@@ -249,8 +249,15 @@ export default async function FactionPage({ searchParams }) {
     // subject factions — only Silo access does.
     const canManageMembers = !viewingSubject && ownRole.isLeader;
 
+    // canManageSilo, not isLeader. Silo authority is Leader OR Treasurer
+    // everywhere else in the game — getSiloAccess says so, the subject view
+    // itself already lets a Treasurer in, and FACTIONS.md §4 describes the
+    // table as "the subject-faction view a parent's Leader or Treasurer can
+    // open". This was the one place still asking the narrower question, which
+    // left a Treasurer with the authority but no way to reach it: the table is
+    // where the links into the subject views come from.
     const subjectFactions =
-      !viewingSubject && ownRole.isLeader ? await getDescendantFactions(myCharacter.factionId) : [];
+      !viewingSubject && ownRole.canManageSilo ? await getDescendantFactions(myCharacter.factionId) : [];
     const subjectReachableIds = new Set(
       (
         await Promise.all(

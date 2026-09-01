@@ -242,7 +242,9 @@ export const SECTIONS = {
             style={{ borderColor: "var(--accent)" }}
           >
             <p className="text-sm text-accent">
-              ☠ {effect.targetName ?? "This character"} is still alive. Feeding someone to the Lifeweb marks them as dying, but a GM has to kill them themselves.
+              ☠ {effect.targetName ?? "This character"} is still alive. Feeding someone to the Lifeweb kills them
+              outright, so this only happens when the kill didn&apos;t land — they were already dead when it was
+              filed, or this is a request from before that changed. Finish it here.
             </p>
             <button
               type="button"
@@ -498,9 +500,10 @@ export const SECTIONS = {
       </>
     ),
   },
-  // The second type that names a kill without performing one — same shape as
-  // FEED_PERSON above, and the same Kill button, because the reason is the
-  // same: a player must not end another player's game from a dropdown.
+  // The second type that can name a kill — same shape as FEED_PERSON above,
+  // and the same Kill button. Both perform their own kill now, so that button
+  // is a fallback for the rows where the claim didn't land, not the normal
+  // path (REQUESTS.md §5a).
   HARM_CHARACTER: {
     heading: "Harm Character",
     render: ({ effect, onKill, killing }) => (
@@ -526,8 +529,9 @@ export const SECTIONS = {
             style={{ borderColor: "var(--accent)" }}
           >
             <p className="text-sm text-accent">
-              ☠ {effect.targetName ?? "This character"} was finished off, but is still alive. A GM has to
-              make the kill themselves.
+              ☠ {effect.targetName ?? "This character"} was finished off, but is still alive. Finishing someone off
+              kills them outright, so this only happens when the kill didn&apos;t land — they were already dead when
+              it was filed, or this is a request from before that changed. Finish it here.
             </p>
             <button
               type="button"

@@ -277,7 +277,9 @@ function MoveRows({
 function RequestRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens }) {
   return rows.map((row) => {
     const active = selected?.type === "request" && selected.id === row.id;
-    // Both types that can name someone to kill without killing them.
+    // Both types that can name a kill. They perform it themselves now, so an
+    // unkilled row here is the exception — the claim didn't land, or the row
+    // predates the change — which is exactly what deserves the urgent mark.
     // See killRequestTargetImpl in actions.js.
     const killPending =
       (row.type === "FEED_PERSON" || (row.type === "HARM_CHARACTER" && row.effect?.lethal)) &&

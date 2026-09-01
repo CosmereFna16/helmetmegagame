@@ -15,11 +15,12 @@
 // that follows removes exactly the rows this pass just read, by the same
 // `expiresTurn <= turn.number` predicate.
 //
-// NOTHING HERE KILLS ANYONE. The terminal chains all land on the `dying` tag
-// and stop; a GM confirms the death through the existing path
-// (web/app/(app)/gm/turns/actions.js). A turn advance that can silently end a
-// player's month-long game with nobody in the loop is not a thing this
-// codebase wants.
+// NOTHING HERE KILLS ANYONE — but it no longer stops there either. The
+// terminal chains all land on the `dying` tag, and `dying` carries a one-turn
+// clock (docs/tags.yaml) that db/lib/dyingDeathPass.js runs down at the NEXT
+// close. So this pass still only ever grants a tag, and a character who
+// reaches the end of a chain gets a full turn on death's door — long enough
+// for a medic with the right skill to reach them — before the engine ends it.
 //
 // Shaped for 100+ players like the Hunger pass: two reads and one bulk write
 // regardless of headcount, and no network call at all — the per-player DMs are
@@ -97,9 +98,11 @@ async function runTagExpiryPass(prisma, turn) {
         // Same absolute-turn expression as the Hunger pass and
         // sweepExpiredStacks, so all three writers derive expiry identically.
         // A successor with no catalog duration is granted permanent, which is
-        // what Dying, Missing Leg and Scarred all want. Nothing granted here
-        // can fire again this pass: every duration is at least 1, and the
-        // sweep matches expiresTurn <= turn.number.
+        // what Missing Leg and Scarred want. Dying used to be in that list and
+        // no longer is: its `durationTurns: 1` lands here as turn.number + 1,
+        // the close db/lib/dyingDeathPass.js kills on. Nothing granted here
+        // can fire again this pass: every duration is at least 1, and both the
+        // sweep and that pass match expiresTurn <= turn.number.
         expiresTurn: expiryFrom(turn.number + 1, successor.defaultDurationTurns),
       });
       gained.push(successor.name);

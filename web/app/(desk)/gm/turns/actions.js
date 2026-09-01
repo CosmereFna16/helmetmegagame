@@ -925,17 +925,19 @@ async function resolveRequestImpl({ requestId, mode, edits = {}, gmNotes }) {
   return result;
 }
 
-// A Feed Person request never kills anyone on its own — this is the GM
-// closing that loop, running the same death path as the character editor.
+// Both types that name a kill now perform it themselves, on submit
+// (REQUESTS.md §5a). This is the fallback for the rows where that claim
+// didn't land — the target was already dead when the request was filed, or
+// the row predates the change — and it runs the same death path as the
+// character editor. The `effect.killed` guard below is what keeps it from
+// double-killing a request that already did its job.
 async function killRequestTargetImpl({ requestId }) {
   const session = await requireGm();
 
   const request = await prisma.request.findUnique({ where: { id: requestId } });
   if (!request) throw new UserError("Request not found.");
-  // Two types name someone to kill without killing them: feeding a person
-  // to the Lifeweb, and finishing off someone already helpless. Both stop
-  // short for the same reason — a player must not be able to end another
-  // player's game from a dropdown (REQUESTS.md §5a).
+  // The two types that name someone to kill: feeding a person to the Lifeweb,
+  // and finishing off someone already helpless.
   const namesAKill =
     request.type === "FEED_PERSON" ||
     (request.type === "HARM_CHARACTER" && request.effect?.lethal);

@@ -35,12 +35,14 @@
 // itself now means "carrying hunger damage" rather than "starved this turn" —
 // it's re-granted to anyone whose streak is still above 0 after eating, not
 // just to those who starved outright. Reaching the cap also grants `dying`,
-// permanently (same as every other terminal tag chain — see
-// tagExpiryPass.js's "NOTHING HERE KILLS ANYONE"). A GM confirms the death by
-// hand from there; this pass only ever grants the tag, and skipDuplicates
-// means re-granting it on a later starved turn is a harmless no-op. Only
-// starving (never eating) can push a character over the cap — a fed
-// character's streak only ever goes down.
+// the same terminal tag every untreated-wound chain lands on. This pass still
+// kills nobody itself — it only ever grants the tag — but `dying` is a
+// one-turn countdown now rather than a permanent flag waiting on a GM, so
+// db/lib/dyingDeathPass.js finishes at the NEXT close what starving started
+// here. skipDuplicates means re-granting it on a later starved turn is a
+// harmless no-op, and leaves the original clock alone. Only starving (never
+// eating) can push a character over the cap — a fed character's streak only
+// ever goes down.
 //
 // Shaped for 100+ players: two reads and bulk writes regardless of headcount,
 // and no network call at all — the per-player Hunger DMs are returned as a
@@ -334,7 +336,12 @@ async function runHungerPass(prisma, turn) {
               characterId,
               tagId: dyingId,
               source: "EVENT",
-              expiresTurn: null, // permanent, like every other terminal chain
+              // Was `null` — permanent, like every other terminal chain — back
+              // when a GM decided how Dying ended. It carries a clock now:
+              // one turn, then db/lib/dyingDeathPass.js. Granted while closing
+              // turn N, so N + 1 is the close it runs out on, the same
+              // "+ 1 is the first live turn" expression tagExpiryPass uses.
+              expiresTurn: turn.number + 1,
             })),
             // A character can hit the cap more than one turn running, since
             // the streak keeps counting past it — this keeps that a no-op

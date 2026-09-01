@@ -898,14 +898,19 @@ the untreated-wound chain, and it is the thing that makes a doctor worth
 finding:
 
 ```
-Infected ──2t──▶ Festering ──1t──▶ Feverish ──1t──▶ Sepsis ──1t──▶ Dying
+Infected ──2t──▶ Festering ──1t──▶ Feverish ──1t──▶ Sepsis ──1t──▶ Dying ──1t──▶ dead
                      └────1t────▶ Necrosis ──2t──▶ Missing Leg *or* Missing Arm
 
-Stuffed ──4t──▶ Exploded Chest ──2t──▶ Dying
+Stuffed ──4t──▶ Exploded Chest ──2t──▶ Dying ──1t──▶ dead
 ```
 
-Five turns from Infected to Dying, and five to a lost limb — the two branches
-land together on purpose. It used to be nine, which was long enough that a
+Dying is the one step that isn't an `expiresInto` — nothing follows it in the
+catalog. Its `durationTurns: 1` is a countdown that `db/lib/dyingDeathPass.js`
+reads at the close (`TURN-ENGINE.md` §2 4b), which is why the arrow points at
+"dead" rather than at another tag.
+
+Five turns from Infected to Dying, six to dead, and five to a lost limb — the
+two branches land together on purpose. It used to be nine, which was long enough that a
 player could ignore an infection for a week and a half and still find a doctor
 in time. Five is short enough to be a real problem and long enough that a
 doctor two zones away is still a plan.
@@ -969,20 +974,31 @@ rules match the ones §5b lists for consuming, for the same reasons:
   condition they were most of the way through.
 - **A successor starts its own clock**, `turn.number + defaultDurationTurns`,
   the same absolute-turn expression every other writer uses. A successor with
-  no catalog duration is granted permanent — which is what Dying, Missing Leg
-  and Scarred all want.
+  no catalog duration is granted permanent — which is what Missing Leg and
+  Scarred want. Dying used to be in that list; it now carries
+  `durationTurns: 1`, which is a countdown to death rather than to recovery.
 - **Nothing can fire twice in one pass.** Every duration is at least 1 and the
   sweep matches `expiresTurn <= turn.number`, so a tag granted while closing
   turn N cannot also expire on turn N.
 - **A dead character's sheet stops moving.** Their rows still get swept; they
   just don't progress into anything.
 
-**Nothing in the pass kills anyone.** Every terminal chain lands on the
-`dying` tag and stops there. A turn advance that can silently end someone's
-month-long game with no human in the loop is not a trade this game wants —
-`dying` is permanent, visible, and carries a tier-7 cure so a heroic save is
-still on the table. A GM confirms the death by hand through the existing path
-(`web/app/(app)/gm/turns/actions.js`).
+**Nothing in the pass kills anyone** — but the chain no longer stops at
+`dying` either. Every terminal chain still lands there, and `dying` now
+carries `durationTurns: 1`: one turn on death's door, then
+`db/lib/dyingDeathPass.js` ends it at the next close, automatically
+(`TURN-ENGINE.md` §2 4b).
+
+That turn is the whole design. `dying` is visible and carries a tier-7 cure,
+so a heroic save is still on the table — a medic with Medical (Expert), a
+Gambit, 8 ⬢ and one turn can pull someone back. What went away is the version
+where a character sat on death's door indefinitely because no GM had got to
+the Kill button. The pass is also careful in one direction: a `dying` row with
+a **null** `expiresTurn` is stamped for the next close and its holder warned
+rather than killed, so nothing granted before the clock existed dies to a
+clock it was never shown. A GM can still end it early by hand
+(`web/app/(app)/gm/turns/actions.js`), and can still cancel it entirely by
+removing the tag.
 
 ### `removesInto`
 

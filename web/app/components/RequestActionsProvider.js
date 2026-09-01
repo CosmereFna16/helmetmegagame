@@ -1140,8 +1140,8 @@ export default function RequestActionsProvider({
                   Finish them off
                 </CheckField>
                 <p className="text-xs text-muted">
-                  Only someone Dying or Bound can be finished off, and doing it <strong>kills them</strong> — there is
-                  no taking it back. Pick an injury, tick the box, or both.
+                  Only someone Dying, Bound or Catatonic can be finished off, and doing it <strong>kills them</strong>{" "}
+                  — there is no taking it back. Pick an injury, tick the box, or both.
                 </p>
               </>
             )}

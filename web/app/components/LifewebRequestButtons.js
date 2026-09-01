@@ -28,7 +28,7 @@ const MODES = {
   feed: {
     title: "Feed Person",
     submitLabel: "Feed them",
-    hint: "This does not kill them — a GM reads your reason and does that by hand.",
+    hint: "This kills them. A GM reads your reason afterwards, not before.",
   },
 };
 
@@ -64,7 +64,7 @@ export default function LifewebRequestButtons({ characters, disabled = false }) 
     const ok = await confirm({
       title: isFeed ? `Feed ${name} to the Lifeweb?` : `Draw ${name}'s blood?`,
       message: isFeed ? (
-        "This is not reversible by you. A GM will read your reason and decide whether they die."
+        "This kills them, now and for good. A GM will read your reason afterwards, not before."
       ) : (
         <>
           The Lifeweb gains {worth?.amount ?? 0} and {name} is left{" "}
