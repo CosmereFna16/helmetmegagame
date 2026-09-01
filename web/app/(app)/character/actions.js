@@ -4,11 +4,10 @@ import { revalidatePath } from "next/cache";
 import sharp from "sharp";
 import { redirect } from "next/navigation";
 import { prisma, seatZoneIdFor } from "@lifeweb/db";
-import { syncRomanceDisabledTag } from "@lifeweb/db/lib/tagWrites";
 import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
 import { AGE_MIN, AGE_MAX, formatBareName } from "@/lib/characterName";
-import { syncCharacterNickname, setTurnPingRole, setRomanceOptOutRole, ensureCharacterRole } from "@/lib/discordGuild";
+import { syncCharacterNickname, setTurnPingRole, ensureCharacterRole } from "@/lib/discordGuild";
 import { normalizeSelection } from "@/lib/portrait/catalog";
 import { renderPortrait } from "@/lib/portrait/render";
 
@@ -45,7 +44,6 @@ export async function updateCharacterProfile(_prevState, formData) {
   const appearance =
     formData.get("appearance")?.toString().trim().slice(0, APPEARANCE_MAX_LENGTH) || null;
   const turnPingOptIn = formData.get("turnPingOptIn") === "on";
-  const romanceOptOut = formData.get("romanceOptOut") === "on";
   const avatar = formData.get("avatar");
 
   // Age is set once and then fixed. The input renders `disabled` after the
@@ -56,7 +54,7 @@ export async function updateCharacterProfile(_prevState, formData) {
   const age =
     Number.isInteger(rawAge) && rawAge >= AGE_MIN && rawAge <= AGE_MAX ? rawAge : null;
 
-  const data = { appearance, turnPingOptIn, romanceOptOut };
+  const data = { appearance, turnPingOptIn };
   if (age !== null && character.age === null) data.age = age;
 
   // The UI hides the file input while GameConfig.avatarUploadsEnabled is off
@@ -88,13 +86,8 @@ export async function updateCharacterProfile(_prevState, formData) {
   }
 
   const updated = await prisma.character.update({ where: { id: character.id }, data });
-  // The visible mark the checkbox promises: mirror the boolean onto the
-  // `romance-disabled` tag so a 🔍 inspect actually shows it. Unconditional —
-  // the sync no-ops when already in step, and back-heals older saves.
-  await syncRomanceDisabledTag(prisma, character.id, updated.romanceOptOut);
   await syncCharacterNickname(session.discordUserId, formatBareName(updated)).catch(() => {});
   await setTurnPingRole(session.discordUserId, updated.turnPingOptIn).catch(() => {});
-  await setRomanceOptOutRole(session.discordUserId, updated.romanceOptOut).catch(() => {});
   // Kept as a self-heal, not a rename: the name can no longer change here, so
   // this only ever creates a personal role that went missing.
   await ensureCharacterRole(updated).catch(() => {});

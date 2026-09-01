@@ -9,7 +9,6 @@ import { resetAvatarToDefault } from "../(app)/character/actions";
 
 export default function AvatarField({
   defaultTurnPingOptIn,
-  defaultRomanceOptOut,
   uploadsEnabled = false,
   portraitMakerEnabled = false,
   portraitFantasyPartsEnabled = false,
@@ -80,9 +79,6 @@ export default function AvatarField({
         )}
         <Switch name="turnPingOptIn" defaultChecked={defaultTurnPingOptIn}>
           Ping me when the turn advances
-        </Switch>
-        <Switch name="romanceOptOut" defaultChecked={defaultRomanceOptOut}>
-          Disable romance content
         </Switch>
         {fileName ? (
           <span className="text-sm text-muted">

@@ -75,7 +75,7 @@ The order, and why:
 | # | Step | Why here |
 |---|---|---|
 | 1 | **Access sweep** (`revokeAccessForCharacters`) | First, while nothing has re-provisioned: strips every character's zone role and every stray member overwrite, channel-major |
-| 2 | **Per character**: delete the personal role, clear the nickname, drop turn-ping and no-romance | Discord role state the DB transaction never touched. Sequential — 240+ simultaneous requests against two per-guild buckets is its own incident. Each character is its own step, so a failure names them |
+| 2 | **Per character**: delete the personal role, clear the nickname, drop turn-ping | Discord role state the DB transaction never touched. Sequential — 240+ simultaneous requests against two per-guild buckets is its own incident. Each character is its own step, so a failure names them |
 | 3 | **Cursed roles** removed from everyone who held one | A restart should not leave anyone cursed from the last game |
 | 4 | **Full channel wipe** (`runFullChannelWipe`) | Spares nothing — `#turns`, `#archive`-named channels, every zone's `#summary`, and every forum post and private thread, Location topics and anchors included. It then **nulls the generated-post ids and hashes** so the re-sync rebuilds them instead of hash-matching a post that no longer exists |
 | 5 | **`#turns` console repost** | After the wipe, never before: step 4 bulk-deletes every message in `#turns`, including this one if it were posted first. Turn 1 is opened by a plain `turn.create`, so `runSideEffects()` never fires and the announcement that normally rides it never went out |

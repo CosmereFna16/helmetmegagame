@@ -437,7 +437,6 @@ In the header:
 - **Appearance:** The description shown to anyone who 🔍s you.
 - **Profile picture:** Your character's image. **Customize Appearance** opens the portrait maker, **Clear** removes the current portrait.
 - **Ping me when the turn advances:** Receive DMs for every turn change.
-- **Disable romance content:** Marks your character as uninterested in romance roleplay. This gives you a **Romance Disabled** tag that anyone who 🔍s you can see.
 
 ## Death
 

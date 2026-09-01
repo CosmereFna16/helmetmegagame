@@ -10,7 +10,6 @@
 // Every function here takes a transaction client (`tx`) as its first
 // parameter rather than reaching for the singleton, so a caller can compose
 // it into a larger transaction. That is the db/lib/dm.js convention.
-const { ROMANCE_DISABLED_SLUG } = require("./constants");
 const { expiryFrom } = require("./turnFormat");
 
 // Adds `quantity` of a tag, creating the row or incrementing an existing
@@ -139,24 +138,4 @@ async function grantTagSlugs(tx, characterId, slugs, turnNumber, durations = nul
   return granted;
 }
 
-// Mirrors Character.romanceOptOut onto the visible `romance-disabled` tag —
-// the boolean is the source of truth, the tag is what a 🔍 inspect (and the
-// player's own sheet) shows. Called on every write of the boolean, not just
-// on a change: both branches no-op when already in sync, and the
-// unconditional call back-heals sheets saved before the tag was wired up.
-async function syncRomanceDisabledTag(tx, characterId, optOut) {
-  const tag = await tx.tag.findUnique({
-    where: { slug: ROMANCE_DISABLED_SLUG },
-    select: { id: true },
-  });
-  // Only missing if the catalog predates the tag — the preference itself
-  // still saved, so a silent skip beats failing the whole profile write.
-  if (!tag) return;
-  if (optOut) {
-    await addToStack(tx, characterId, tag.id, 1, { source: "EVENT" });
-  } else {
-    await dropCharacterTag(tx, characterId, tag.id);
-  }
-}
-
-module.exports = { addToStack, dropCharacterTag, grantTagSlugs, syncRomanceDisabledTag };
+module.exports = { addToStack, dropCharacterTag, grantTagSlugs };

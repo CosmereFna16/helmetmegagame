@@ -48,7 +48,6 @@ export const EDITABLE_FIELDS = [
   "resources",
   "tagPoints",
   "turnPingOptIn",
-  "romanceOptOut",
 ];
 
 // `status` is deliberately NOT editable here. Kill and Revive are their own
@@ -181,7 +180,6 @@ export async function normalizeCoreEdits({ prisma, existing, core }) {
   if ("tagPoints" in picked) data.tagPoints = intOrNull(picked.tagPoints) ?? 0;
   if ("isTreasurer" in picked) data.isTreasurer = bool(picked.isTreasurer);
   if ("turnPingOptIn" in picked) data.turnPingOptIn = bool(picked.turnPingOptIn);
-  if ("romanceOptOut" in picked) data.romanceOptOut = bool(picked.romanceOptOut);
 
   // isLeader is handled separately by setLeaderInTx — writing the boolean
   // bare is how a faction ends up with two leaders.

@@ -241,12 +241,6 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
         >
           Wants the turn-advance ping
         </Switch>
-        <Switch
-          checked={Boolean(staged.romanceOptOut)}
-          onChange={(e) => onField("romanceOptOut", e.target.checked)}
-        >
-          Opted out of romance plots
-        </Switch>
       </section>
     </>
   );

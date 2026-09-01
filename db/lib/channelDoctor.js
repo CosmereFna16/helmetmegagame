@@ -5,13 +5,13 @@
 //
 // Two scopes:
 //   "cheap" — role membership only: zone roles vs Character.zoneId, turn-ping
-//     vs turnPingOptIn, no-romance vs romanceOptOut, cursed vs the
-//     dead-not-yet-rerolled set, character roles existing/orphaned, the
-//     structural checks (zone channels/roles exist, the bot's role sits above
-//     the zone roles, cursed color 0, no seat-zone stamp pointing at a cave
-//     level). One member-list read plus a handful of requests, safe on every
-//     bot restart — which is where it runs (bot/src/events/ready.js), and
-//     after every turn advance when GameConfig.autoReconcileEnabled is on.
+//     vs turnPingOptIn, cursed vs the dead-not-yet-rerolled set, character
+//     roles existing/orphaned, the structural checks (zone channels/roles
+//     exist, the bot's role sits above the zone roles, cursed color 0, no
+//     seat-zone stamp pointing at a cave level). One member-list read plus a
+//     handful of requests, safe on every bot restart — which is where it runs
+//     (bot/src/events/ready.js), and after every turn advance when
+//     GameConfig.autoReconcileEnabled is on.
 //   "full" — everything above plus the expensive halves: channel overwrites
 //     vs the spec, leftover per-member overwrites from the pre-rework access
 //     model, PlayerThread rows whose threads 404, threads with no row
@@ -66,7 +66,6 @@ function standingRoleIds() {
       process.env.DISCORD_GM_ROLE_ID,
       process.env.DISCORD_CURSED_ROLE_ID,
       process.env.DISCORD_TURN_PING_ROLE_ID,
-      process.env.DISCORD_NO_ROMANCE_ROLE_ID,
     ].filter(Boolean),
   );
 }
@@ -128,7 +127,6 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
         discordRoleId: true,
         zoneId: true,
         turnPingOptIn: true,
-        romanceOptOut: true,
       },
     }),
     getGuildRoles(),
@@ -199,18 +197,11 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
     });
   }
 
-  // Turn-ping / no-romance: living characters' preferences, nobody else.
+  // Turn-ping: living characters' preferences, nobody else.
   await reconcileRoleMembership({
     roleId: process.env.DISCORD_TURN_PING_ROLE_ID,
     label: "turn-ping",
     shouldHave: alive.filter((c) => c.turnPingOptIn).map((c) => c.discordUserId),
-    members,
-    report,
-  });
-  await reconcileRoleMembership({
-    roleId: process.env.DISCORD_NO_ROMANCE_ROLE_ID,
-    label: "no-romance",
-    shouldHave: alive.filter((c) => c.romanceOptOut).map((c) => c.discordUserId),
     members,
     report,
   });

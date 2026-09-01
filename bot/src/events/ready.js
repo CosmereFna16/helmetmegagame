@@ -79,7 +79,7 @@ module.exports = {
     await refreshLocationChannels().catch((err) => console.error("Failed to refresh location channels:", err));
 
     // The cheap reconciliation pass: role membership (zone, turn-ping,
-    // no-romance, cursed) and structural drift, repaired against the DB. A
+    // cursed) and structural drift, repaired against the DB. A
     // handful of requests regardless of roster size, so it's safe on every
     // restart — this is what catches whatever a wipe, a crash or a
     // rate-limited swap left behind (db/lib/channelDoctor.js).

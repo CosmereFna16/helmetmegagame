@@ -422,12 +422,11 @@ every mismatch, and — with `apply` — repairs it. **Dry run by default.**
 Two scopes:
 
 - **cheap** — role membership only (zone roles vs `Character.zoneId`, turn-ping
-  vs `turnPingOptIn`, no-romance vs `romanceOptOut`, cursed vs the
-  dead-and-not-yet-rerolled set), character roles existing/orphaned, and the
-  structural checks: zone channels and roles exist, the **bot's own highest
-  role sits above every zone role** (or the swaps 403 — report-only, moving
-  roles is a human decision), cursed colour 0, and no seat-scoped `zoneId`
-  pointing at a cave level. One member-list read plus a handful of requests.
+  vs `turnPingOptIn`, cursed vs the dead-and-not-yet-rerolled set), character
+  roles existing/orphaned, and the structural checks: zone channels and roles
+  exist, the **bot's own highest role sits above every zone role** (or the
+  swaps 403 — report-only, moving roles is a human decision), cursed colour 0,
+  and no seat-scoped `zoneId` pointing at a cave level. One member-list read plus a handful of requests.
 - **full** — all of the above plus the expensive halves: channel overwrites vs
   the spec, leftover per-member overwrites on zone channels, `PlayerThread`
   rows whose threads 404, dead `PlayerThreadInvite` rows, the special

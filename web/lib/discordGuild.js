@@ -375,26 +375,6 @@ export async function setTurnPingRole(discordUserId, optIn) {
   }
 }
 
-// Called right after a player toggles "Disable Romance Content?" on their
-// character sheet, same pattern/reasoning as setTurnPingRole above — no
-// bot-side resync, this is the only place it ever changes.
-export async function setRomanceOptOutRole(discordUserId, optOut) {
-  const guildId = process.env.DISCORD_GUILD_ID;
-  const token = process.env.DISCORD_TOKEN;
-  const roleId = process.env.DISCORD_NO_ROMANCE_ROLE_ID;
-  if (!guildId || !token || !roleId) return;
-
-  const method = optOut ? "PUT" : "DELETE";
-  try {
-    await discordRequest(`/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`, {
-      method,
-      allow404: true,
-    });
-  } catch (err) {
-    console.error(`Failed to ${optOut ? "add" : "remove"} no-romance role for ${discordUserId}:`, err);
-  }
-}
-
 // Granted automatically by killCharacter on death, removed automatically by
 // createCharacter once the cursed player successfully rolls a new one — and by
 // a BURY_CHARACTER request, which is the app-side uncurse: any player standing

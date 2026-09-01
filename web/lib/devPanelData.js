@@ -176,7 +176,6 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       resources: character.resources,
       tagPoints: character.tagPoints,
       turnPingOptIn: character.turnPingOptIn,
-      romanceOptOut: character.romanceOptOut,
       discordRoleId: character.discordRoleId,
       avatarMimeType: character.avatarMimeType,
       hasAvatar: Boolean(character.avatarMimeType),

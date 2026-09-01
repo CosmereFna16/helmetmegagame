@@ -170,14 +170,6 @@ tags:
     pointCost: 0
     purchasable: false
 
-  - slug: romance-disabled
-    name: Romance Disabled
-    category: meta
-    description: "No romance."
-    pointCost: 0
-    purchasable: false
-    visible: true
-
   - slug: turn-ping
     description: "You are pinged in Discord when the turn advances. Toggled from /character; carries no weight in play."
     name: Turn Ping

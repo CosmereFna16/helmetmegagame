@@ -37,7 +37,6 @@ export default function BioForm({
       <BioNameFields character={character} lastNameLocked={lastNameLocked} />
       <AvatarField
         defaultTurnPingOptIn={character.turnPingOptIn}
-        defaultRomanceOptOut={character.romanceOptOut}
         uploadsEnabled={avatarUploadsEnabled}
         portraitMakerEnabled={portraitMakerEnabled}
         portraitFantasyPartsEnabled={portraitFantasyPartsEnabled}

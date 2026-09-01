@@ -58,7 +58,6 @@ function protectedRoleIds() {
       process.env.DISCORD_GM_ROLE_ID,
       process.env.DISCORD_CURSED_ROLE_ID,
       process.env.DISCORD_TURN_PING_ROLE_ID,
-      process.env.DISCORD_NO_ROMANCE_ROLE_ID,
     ].filter(Boolean),
   );
 }

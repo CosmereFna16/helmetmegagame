@@ -25,7 +25,6 @@ import {
   listGuildMembers,
   removeCursedRole,
   setTurnPingRole,
-  setRomanceOptOutRole,
   syncCharacterZoneRole,
   syncCharacterNarrowcastAccess,
   sendDm,
@@ -300,7 +299,7 @@ export async function wipeGameData(formData) {
     // discordUserId/discordRoleId are the only handles on what to clean up.
     const [characters, members] = await Promise.all([
       prisma.character.findMany({
-        select: { discordUserId: true, discordRoleId: true, turnPingOptIn: true, romanceOptOut: true },
+        select: { discordUserId: true, discordRoleId: true, turnPingOptIn: true },
       }),
       listGuildMembers(),
     ]);
@@ -438,13 +437,10 @@ async function finishGameWipe(actorDiscordUserId, characters, cursedMemberIds, f
       retries: 0,
     });
     // A restart should not leave anyone still holding last game's turn-ping
-    // or no-romance guild role — those are Discord role state, not touched
-    // by the DB wipe above.
+    // guild role — that is Discord role state, not touched by the DB wipe
+    // above.
     if (c.turnPingOptIn) {
       await step(`turn-ping ${c.discordUserId}`, () => setTurnPingRole(c.discordUserId, false));
-    }
-    if (c.romanceOptOut) {
-      await step(`no-romance ${c.discordUserId}`, () => setRomanceOptOutRole(c.discordUserId, false));
     }
   }
 

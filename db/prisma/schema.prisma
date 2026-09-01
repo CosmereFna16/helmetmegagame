@@ -999,7 +999,6 @@ model Character {
   portrait      String?
   appearance    String?
   turnPingOptIn Boolean @default(true)
-  romanceOptOut Boolean @default(false)
 
   // 18-90, or null until the player first sets one. Free to edit while null;
   // the moment a number lands it is fixed — the /character input renders
