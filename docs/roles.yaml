@@ -972,7 +972,7 @@ zones:
             extra_starting_points: -3
             starting_tags:
               - Ravenhearter
-              - Unhygenic
+              - Unhygienic
               - Ugly
             doc_elements:
               - townstarting
