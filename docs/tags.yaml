@@ -2047,7 +2047,7 @@ tags:
     description: "Your Fighting skill counts as 1 tier lower."
     pointCost: 0
     purchasable: false
-    durationTurns: 3
+    durationTurns: 1
 
   # Recreational intoxication, and deliberately a Status tag with NO
   # mechanical effect at all — unlike Tipsy above, which really does dull a
