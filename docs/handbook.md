@@ -58,7 +58,7 @@ Travel to another Zone, submit a description of what your character is trying to
 
 ### Help & GMs
 
-General questions can be asked in the `#general` channel or by creating a thread in `questions`. If you ever need to contact the GMs directly, you can DM the bot to send them a message.
+General questions can be asked in the `#general` channel or by creating a thread in `#questions`. If you ever need to contact the GMs directly, you can DM the bot to send them a message.
 
 ### Quick Reference
 
@@ -84,7 +84,7 @@ General questions can be asked in the `#general` channel or by creating a thread
 #### **Channels**  
 | Channel | What it's for |
 |---|---|
-| **Summary** (text channel) | Describing, in broad terms, what other players would see your character doing. This channel has a 5 minute slowmode, not meant for conversations.|
+| **Summary** (text channel) | Describing, in broad terms, what other players would see your character doing. This channel has a 5-minute slowmode, not meant for conversations.|
 | **Public** (forum channel) | Public interactions. Create a topic by clicking the button on the pinned post, or check who's around. |
 | **Private** (forum channel) | Starting private conversation threads with specific people. |
 
@@ -104,7 +104,7 @@ Bascinet takes place over 30 days, with time passing in-game at the same rate. E
 - **Dawn:** Begins at noon US Central.  
 - **Dusk:** Begins at midnight US Central.
 
-At the end of each turn the game resolves what happened during those 12 hours. Move results are posted, resources are adjusted, and travel takes effect. You can enable turn pings on your [Character](https://ravenheart.quest/character) page if you want the bot to tell you whenever a new turn begins.
+At the end of each turn the game resolves what happened during those 12 hours. Move results are posted, Resources are adjusted, and travel takes effect. You can enable turn pings on your [Character](https://ravenheart.quest/character) page if you want the bot to tell you whenever a new turn begins.
 
 You can find information on the current turn in the `#turns` channel, in addition to the three main controls:  
 - **Travel** uses your Move to travel to a different Zone. You will arrive immediately, and can begin speaking in the Zone's channels.  
@@ -184,7 +184,7 @@ Every Zone contains specific locations, such as the Gatehouse in the Fortress, w
 Each Zone's channel group has three roleplay channels which you can use to interact with other players in the area.
 | Channel | What it's for |
 |---|---|
-| **Summary** (text channel) | Describing, in broad terms, what other players would see your character doing. This channel has a 5 minute slowmode, not meant for conversations.|
+| **Summary** (text channel) | Describing, in broad terms, what other players would see your character doing. This channel has a 5-minute slowmode, not meant for conversations.|
 | **Public** (forum channel) | Public interactions. Create a topic by clicking the button on the pinned post, or check who's around. |
 | **Private** (forum channel) | Starting private conversation threads with specific people. |
 
@@ -211,11 +211,11 @@ To hold a private conversation with one or more other characters at your locatio
 
 Every character has a unique Discord role that you can mention by typing `@` followed by their character name. The bot will then DM the player telling them where they were mentioned.
 
-Mentions only work within the same Zone, you cannot mention characters located elsewhere in the game world to bring them into a conversation.
+Mentions only work within the same Zone — you can't mention characters located elsewhere in the game world to bring them into a conversation.
 
 ### Concealing Your Identity
 
-To hide your identity while interacting, start your message with `/conceal`. This is not a slash command, it will be part of your actual message and detected by the bot.
+To hide your identity while interacting, start your message with `/conceal`. This isn't a slash command — it will be part of your actual message, and the bot detects it.
 
 Concealing yourself results in your message posting with a vague descriptor such as "Old Man" or "Young Woman", as well as a blank portrait. If you're using the **Speak** button rather than typing directly, you will see a checkbox to conceal your message.
 
@@ -243,7 +243,7 @@ You can interact with messages posted in roleplay channels by adding a Reaction.
 
 ## Resources & Hunger
 
-Resources in Bascinet are represented by the ⬢ symbol. It represents your access to food, coin, and bulk goods.
+Resources in Bascinet are shown with the ⬢ symbol. They represent your access to food, coin, and bulk goods.
 
 Resources are kept either on your character or in your faction's Silo.
 
@@ -255,21 +255,21 @@ The source can be anyone within your Zone. Yes, this means **you can take ⬢ fr
 
 ### Upkeep
 
-Each turn your character spends 1 ⬢ on upkeep to feed yourself. You never need to account for this in your Move, it happens automatically. If you do not have at least 1 ⬢ to spend, your character becomes **hungry**.
+Each turn your character spends 1 ⬢ on upkeep to feed yourself. You never need to account for this in your Move — it happens automatically. If you don't have at least 1 ⬢ to spend, your character becomes {tag:hunger}.
 
-If your character has the Ate Meal tag or the Hungerless tag, you remain fed without paying the resource cost.
+If your character has the {tag:ate-meal} tag or the {tag:hungerless} tag, you stay fed without paying the upkeep.
 
 ### Hunger
 
-Hunger gives a penalty to Gambit rolls. The first turn you spend hungry causes a -1 penalty, worsening by 1 every turn you remain hungry.
+Hunger gives a penalty to Gambit rolls. The first turn you spend hungry causes a −1 penalty, worsening by 1 every turn you remain hungry.
 
 Eating removes **one turn's worth** of Hunger, not all of it. If you've gone several turns without eating, one meal only brings the penalty down by 1 — you need to eat every turn to fully recover, the same number of turns it took you to build the penalty up.
 
-After 6 turns spent hungry, you receive the **Dying** tag and a GM will review your situation to determine what happens next.
+After 6 turns spent hungry, you receive the {tag:dying} tag and a GM will review your situation to determine what happens next.
 
 ### The Silo
 
-Resources can be stockpiled by your faction in the Silo, saving them for later use or distribution. Faction leaders and treasurers can transfer resources to or from the Silo by using the **Transfer Resources** button on the [Character](https://ravenheart.quest/character) page.
+Resources can be stockpiled by your faction in the Silo, saving them for later use or distribution. Faction leaders and treasurers can transfer Resources to or from the Silo by using the **Transfer Resources** button on the [Character](https://ravenheart.quest/character) page.
 
 Silo transfers can only take place from within the faction's Home Zone.
 
@@ -277,10 +277,10 @@ Silo transfers can only take place from within the faction's Home Zone.
 ## Submitting A Move
 A Move is your abstracted intent of what your character plans to do during the 12 hours of the turn. It tells the GMs the most important thing your character is attempting to accomplish and how they're going about it.
 
-Moves should be used for lengthy, time-consuming, or difficult activities. If your character could reasonably accomplish something within an hour, (bandaging someone, trading, talking), it's likely unsuitable for a Move.
+Moves should be used for lengthy, time-consuming, or difficult activities. If your character could reasonably accomplish something within an hour (bandaging someone, trading, talking), it's likely unsuitable for a Move.
 - **Important:** Never assume the result or effects of your Move, and do not attempt to narrate another character's reaction or outcome.
 
-You submit a Move by pressing the Move button in `#Turns` or using the `/move` slash command in any channel or the bot's DMs. This presents you with the form to enter your Move, which asks for three things:
+You submit a Move by pressing the Move button in `#turns` or using the `/move` slash command in any channel or the bot's DMs. This presents you with the form to enter your Move, which asks for three things:
 
 **Your Move**  
 A paragraph describing your character's objective, where it's happening, who else is involved, etc.
@@ -289,18 +289,18 @@ A paragraph describing your character's objective, where it's happening, who els
 Either Routine or Gambit.
 
 **Labor**  
-A checkbox available for Routine Moves that produce resources.
+A checkbox available for Routine Moves that produce Resources.
 
 If you don't have anything specific you're interested in doing, or you aren't able to check in on the game during the turn, your Default Move (set via your [Character](https://ravenheart.quest/character) page) will be used. 
 
-Moves are collectively adjudicated by the GMs at the end of every turn. If the Baron’s intent was to stay in his castle then the Bandit’s intent to rob him won’t succeed. If the Baron was wandering in the forest, the Bandit may very well get him. Adjudication results are messaged to players at the end of every turn.
+Moves are collectively adjudicated by the GMs at the end of every turn. If the Baron's intent was to stay in his castle then the Bandit's intent to rob him won't succeed. If the Baron was wandering in the forest, the Bandit may very well get him. Adjudication results are messaged to players at the end of every turn.
 
 ### Routine vs Gambit
 Choose **Routine** when your Move is assumed to be successful and without any risk or uncertainty as to the outcome. Spending the turn farming, hunting, or going on a daily patrol would all be considered Routine.
 
 Choose **Gambit** when the results may affect the overall narrative and are uncertain or up to chance. Fighting a duel, stealing something, spying on someone, and similar actions would all be Gambits.
 
-When you submit a Gambit, the bot rolls a d6 die immediately — but doesn't tell you the result yet. The GMs adjudicating your action can see it and take it into account when determining the results, with the number rolled helping determine your Move results. The die result is not an outright indicator of success/failure, but rather a measure of how fortunate your character was while attempting it.  
+When you submit a Gambit, the bot rolls a d6 immediately — but doesn't tell you the result yet. The GMs adjudicating your action can see it and take it into account when determining the results, with the number rolled helping determine your Move results. The die result is not an outright indicator of success/failure, but rather a measure of how fortunate your character was while attempting it.  
 **Roll a 1:** Things went worse than you feared.  
 **Roll a 6:** Things went better than you hoped.
 
@@ -321,19 +321,19 @@ Laboring is hard work: it leaves you with the {tag:exhausted} tag, and you can't
 | {tag:laborer-skilled} | {resource:labor:skilled} | Anywhere but the Caves |
 | {tag:laborer-farming} | {resource:labor:farming} | Town only |
 
-Farming is how Ravenheart is fed, and as such it's taxed by the Headman. More information can be found under **Ravenheart's Economy** in the [Documents](https://ravenheart.quest/documents).
+Farming is how Ravenheart is fed, and as such it's taxed by the Headman. More information can be found in {document:ravenhearteconomy}, on the [Documents](https://ravenheart.quest/documents) page.
 
 ### Move Submission Is Final
 
 You cannot edit or cancel a Move after submitting it. Double check each part of your submission before confirming it.
 
-Moves must also be sent **three hours before the turn ends** — 9:00 AM and 9:00 PM Chicago time — so the Gamemasters have time to read and resolve them. After that the Move button will refuse you until the next turn opens. Traveling, Speaking, and requests are not affected.
+Moves must also be sent **three hours before the turn ends** — 9:00 AM and 9:00 PM US Central — so the Gamemasters have time to read and resolve them. After that the Move button will refuse you until the next turn opens. Traveling, Speaking, and requests are not affected.
 
 ## Tags & Tag Points
 
 Tags represent your character's skills, assets, injuries, and all other attributes. You can hover over any tag on the website to see its description, cost, effects, and any requirements.
 
-Tags are shown on the website as embedded chips, color coded by their category.
+Tags are shown on the website as embedded chips, color-coded by their category.
 | Color | Category | Includes Tags Like |
 |---|---| --- |
 | Blue | General | Traits, Drawbacks, Beliefs |
@@ -343,9 +343,9 @@ Tags are shown on the website as embedded chips, color coded by their category.
 | Teal | Items | Weapons, Armor, Ingredients |
 | Grey | Assets | Property, Animals |
 
-Tag points are used to assign tags during character creation, and any unused points are saved to use later. You can earn more points during the game by fulfilling Desires.
+Tag Points are used to assign tags during character creation, and any unused points are saved to use later. You can earn more points during the game by fulfilling Desires.
 
-You can spend tag points, using the option on your character sheet, to acquire new tags at any time.
+You can spend Tag Points, using the option on your character sheet, to acquire new tags at any time.
 
 
 
@@ -353,21 +353,21 @@ You can spend tag points, using the option on your character sheet, to acquire n
 
 Tags are gained, used, and removed via options on your [Character](https://ravenheart.quest/character) page. Each is a *request*. It applies immediately, but prompts for a reason which a GM will review.
 
-- **Add Tag** gains a tag by crafting or similar actions. The cost is taken immediately, but you still need to spend your Move on it. **Dead Simple** recipes take no turns to make, so they are capped instead: at most **4 Dead Simple items per turn**.
+- **Add Tag** gains a tag by crafting or similar actions. The cost is taken immediately, but you still need to spend your Move on it. **Dead Simple** recipes take no turns to make, so they're capped instead: at most **4 Dead Simple items per turn**.
 - **Remove Tag** drops items or otherwise removes applicable tags.
-- **Consume** removes item tags that can be eaten, drank, or otherwise used.
-- **Transfer Tag** gives a transferrable tag to someone else in your Zone. Give only, no take.
+- **Consume** removes item tags that can be eaten, drunk, or otherwise used.
+- **Transfer Tag** gives a transferable tag to someone else in your Zone. Give only, no take.
 - **Heal** heals injuries and ailments based on your Medical skill.
 
 **Stacks:** Some tags can stack, such as meals or ammunition. A stacked chip will show the count, such as `×4`.
 
 **Equipment:** Weapons and armor must be **equipped** to use them in a fight. You have 6 slots for equippable tags. Click a tag to equip or unequip it instantly.
 
-Equipping is also a public act. Some gear — a dagger, a pistol, a badge — is small enough to keep out of sight, and other people only see it while you have it equipped. A tag's tooltip says which: **Seen by others · Only while worn**. Big things (a sword, a shield, plate, a banner) are seen whether you have them equipped or not, because you cannot hide them.
+Equipping is also a public act. Some gear — a dagger, a pistol, a badge — is small enough to keep out of sight, and other people only see it while you have it equipped. A tag's tooltip says which: **Seen by others · Only while worn**. Big things (a sword, a shield, plate, a banner) are seen whether you have them equipped or not, because you can't hide them.
 
 **Durations:** Some tags run out (`· 2t` on the chip). Some get *worse* instead of running out.
 
-**Teaching:** Most skills can be taught by those that hold them without needing to use a Move. The learner submits a Gambit Move to try and pick up the skill. If they roll a 6, they successfully gain the tag.
+**Teaching:** Most skills can be taught by those who hold them, without the teacher needing to use a Move. The learner submits a Gambit Move to try and pick up the skill. If they roll a 6, they successfully gain the tag.
 
 ### Examining Tags
 
@@ -375,7 +375,7 @@ When you 🔍 a character you will see tags marked as visible, such as clearly w
 
 ### Health Tags
 
-Health tags are your wounds, illnesses, and other ailments. Removing them typically requires someone medically skilled based on how severe it is. Removing health tags requires resources, and anything worse than a Minor tag also requires a turn spent by the person doing the removing.
+Health tags are your wounds, illnesses, and other ailments. Removing them typically requires someone medically skilled, based on how severe the tag is. Removing health tags costs Resources, and anything worse than a Minor tag also requires a turn spent by the person doing the removing.
 
 You can see the costs and skills required in the Medical Document: {document:medical}.
 
@@ -405,7 +405,7 @@ Your [Character](https://ravenheart.quest/character) page contains your characte
 
 | Button | Effect | When You Can Use |
 |---|---|---|
-| **Add Tag** | Add a tag by crafting or similar means. Required resources will be subtracted automatically. | Always, but ensure you use your Move accordingly. |
+| **Add Tag** | Add a tag by crafting or similar means. Required Resources will be subtracted automatically. | Always, but ensure you use your Move accordingly. |
 | **Remove Tag** | Removes a tag. | When holding something you could reasonably drop or remove. |
 | **Transfer Tag** | Hands something you're carrying to someone else in your Zone. Giving only, no taking. Not everything can change hands — a house isn't portable, and some things are part of you. | When holding something you can transfer. |
 | **Transfer Resources** | Transfer ⬢ between people or Silos within reach (same Zone for people, faction Home Zone for Silos). | Always. |
@@ -416,7 +416,7 @@ Your [Character](https://ravenheart.quest/character) page contains your characte
 | **Bind** | Tie up someone within reach. | Always. |
 | **Free** | Cut loose someone within reach. | Always. |
 | **Harm** | Injure a helpless person within reach, or finish off a Dying or bound person. This will never instantly kill, a GM will verify first. | Always. |
-| **Bury Person** | Bury a body to lift their Curse by typing the character's first name. | Always. |
+| **Bury Person** | Lift a body's Curse by burying it — type the character's first name to confirm. | Always. |
 | **Fast Travel** | Ride your horse to an adjacent Zone. Everyone in the current Zone sees you leave. | Once per day, if you own a horse. |
 
 The menus will always list all characters, to avoid making it obvious when someone is dead, tied up, or otherwise nearby. Act on information your character actually has, don't guess.
@@ -432,7 +432,7 @@ In the header:
 
 **Default Move:** What your character does on any turn you don't submit a custom Move. Can be optionally published in the public Summary.
 
-**Bio:** Your character details
+**Bio:** Your character details.
 - **Name:** Your title (if present), name, and age. Click the **Change name** button to submit a GM request.
 - **Appearance:** The description shown to anyone who 🔍s you.
 - **Profile picture:** Your character's image. **Customize Appearance** opens the portrait maker, **Clear** removes the current portrait.
@@ -446,7 +446,7 @@ Your character may die. Several of your characters may die. Luckily, that doesn'
 When your character dies:
 
 - Their body stays where it fell. Their ⬢ and anything portable they carried can be **looted**, and the body can be moved elsewhere or buried. What can't be carried off a corpse — a house, a workshop, something grafted into them — stays with them.
-- Your Discord account becomes **Cursed** as you now exist as a ghost. You can read what's going on in every zone, but you can no longer interact with the world of the living.
+- Your Discord account becomes **Cursed** as you now exist as a ghost. You can read what's going on in every Zone, but you can no longer interact with the world of the living.
 - As a ghost, once every 12 real hours you can react 🌬️ to any message in a `#summary` or public topic and the bot will post a haunting line there. That's your only voice, and it's a reminder to others that your body remains unburied.
-- You can create a new character at any time, but while Cursed you only have access to the **Bum** and **Migrant** roles. You also receive a 6 point penalty during character creation.
+- You can create a new character at any time, but while Cursed you only have access to the **Bum** and **Migrant** roles. You also receive a 6-point penalty during character creation.
 - The curse lifts the moment somebody buries your body (traditionally the Mortii's or the Church's job, but anyone standing over the body can do so). A buried body can no longer be looted or moved.

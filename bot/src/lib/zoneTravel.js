@@ -11,7 +11,7 @@ const { sendDm } = require("@lifeweb/db/lib/dm");
 function buildZoneSelectRow(zones, from) {
   const menu = new StringSelectMenuBuilder()
     .setCustomId("zone:place")
-    .setPlaceholder("Choose a zone...")
+    .setPlaceholder("Choose a zone…")
     .addOptions(
       zones.map((z) => ({
         label: z.name,

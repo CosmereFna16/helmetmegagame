@@ -68,7 +68,7 @@ module.exports = {
       const channel = await member.client.channels.fetch(LEAVE_ANNOUNCE_CHANNEL_ID).catch(() => null);
       if (channel?.isTextBased()) {
         await channel
-          .send(`${member.user.username} rejoined — ${character.name} is still Catatonic until they speak.`)
+          .send(`${member.user.username} rejoined — ${character.name} is still **Catatonic** until they speak.`)
           .catch((err) => console.error(`Rejoin alert send failed for ${member.id}:`, err.message));
       }
     }

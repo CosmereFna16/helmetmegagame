@@ -115,7 +115,7 @@ export default async function ArchivePage({ searchParams }) {
       <form className="panel flex flex-wrap items-end gap-3 p-4">
         <label className="field">
           <span className="field-label">Search</span>
-          <input name="q" defaultValue={q} placeholder="anything said..." />
+          <input name="q" defaultValue={q} placeholder="anything said…" />
         </label>
         <label className="field">
           <span className="field-label">Day</span>

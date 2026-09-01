@@ -109,7 +109,7 @@ export default async function DepotPage() {
     <PageShell width="narrow">
       <PageHeader
         title="The Depot"
-        subtitle="An automated shuttle at the Customs. It flies to a nearby city at supersonic speeds—the roundtrip is a few hours. It's small, but it fits a person; you could hitch a ride if necessary. Beats the trains…"
+        subtitle="An automated shuttle at the Customs. It flies to a nearby city at supersonic speeds — the roundtrip is a few hours. It's small, but it fits a person; you could hitch a ride if necessary. Beats the trains…"
       />
 
       {spectating ? (

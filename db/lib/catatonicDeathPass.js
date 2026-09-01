@@ -28,7 +28,7 @@ const { applyDeathToRow } = require("./characterDeath");
 
 function deathWarningDm() {
   return (
-    `You have been Catatonic for a long time. Unless you act or speak in character ` +
+    `You've been **Catatonic** for a long time. Unless you act or speak in character ` +
     `before the turn ends, your character will die.`
   );
 }

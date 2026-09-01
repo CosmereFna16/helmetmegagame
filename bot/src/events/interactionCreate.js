@@ -412,7 +412,7 @@ async function handleConfirm(interaction, zoneId) {
 }
 
 async function handleCancel(interaction) {
-  await interaction.update({ content: "» *Cancelled.*", components: [] });
+  await interaction.update({ content: "» *Canceled.*", components: [] });
   scheduleDismiss(interaction);
 }
 
@@ -721,7 +721,7 @@ async function handleMoveSubmit(interaction) {
   if (labor && moveKind === "GAMBIT") {
     await respond(
       interaction,
-      "» *If you choose to Labor on a turn, you can only do that — Laboring has to be a Routine work.*",
+      "» *If you choose to Labor on a turn, you can only do that — Laboring has to be Routine work.*",
     );
     return;
   }
@@ -985,7 +985,7 @@ async function handleHealCommand(interaction) {
   const shown = afflictions.slice(0, MENU_OPTION_LIMIT);
   const menu = new StringSelectMenuBuilder()
     .setCustomId(`heal:pick:${target.id}`)
-    .setPlaceholder("What to clear...")
+    .setPlaceholder("What to clear…")
     .setMinValues(1)
     .setMaxValues(shown.length)
     .addOptions(shown.map((ct) => ({ label: ct.tag.name, value: ct.tagId })));

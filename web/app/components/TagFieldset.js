@@ -266,7 +266,7 @@ export default function TagFieldset({
         </label>
         {groups && groups.length > 0 && (
           <label className="field">
-            <span className="field-label">Group (colour accent only)</span>
+            <span className="field-label">Group (color accent only)</span>
             <Select value={values.groupId ?? ""} onChange={(e) => set("groupId", e.target.value)}>
               <option value="">(none)</option>
               {groups.map((g) => (
@@ -310,7 +310,7 @@ export default function TagFieldset({
               TagCatalogBrowser's rows use for descriptions. */}
       <details open={advancedOpen}>
         <summary className="cursor-pointer text-sm text-muted">
-          Advanced — behaviour, lifespan, economy, curing
+          Advanced — behavior, lifespan, economy, curing
         </summary>
 
         <div className="flex flex-col gap-4 pt-3">

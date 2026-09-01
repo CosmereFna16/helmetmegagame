@@ -31,10 +31,10 @@ const { characterRoleAppearance } = require("./characterRoleAppearance");
 function catatonicDm(turns, deathTurns) {
   const deathLine =
     deathTurns > 0
-      ? ` If you stay Catatonic for ${deathTurns} more turns, your character dies.`
+      ? ` If you stay **Catatonic** for ${deathTurns} more turns, your character dies.`
       : "";
   return (
-    `You've been quiet for ${turns} turns. You've gone Catatonic — it lifts the moment ` +
+    `You've been quiet for ${turns} turns. You've gone **Catatonic** — it lifts the moment ` +
     `you act or speak in character again.${deathLine}`
   );
 }
