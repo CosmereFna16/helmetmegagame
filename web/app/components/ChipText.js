@@ -75,6 +75,13 @@ export default function ChipText({ text, as: Wrapper = "span", className, inTool
       );
     }
 
+    // Dropped, not left literal: an {info:…} is a "?" that opens its own
+    // HoverCard, and this renderer's whole job is text already inside a
+    // tooltip or a <button>, where neither a nested hover panel nor a second
+    // focusable element is legal. The sentence it carries is a footnote, so
+    // losing it costs nothing.
+    if (part.kind === "info") return null;
+
     return part.raw;
   });
 

@@ -518,39 +518,39 @@ documents:
 
       | Brew | ⬢ | Turns | Needs |
       |---|---|---|---|
-      | {tag:bliss} | 0 | — | cave fungus |
+      | {tag:bliss} | 0 | — (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | cave fungus |
       | {tag:feces} | 0 | — | feces |
-      | {tag:alcohol} | 2 | 0 (up to 3 a turn) | — |
-      | {tag:miasma} | 2 | — | a corpse |
-      | {tag:poppy} | 2 | — | — |
-      | {tag:molotov-cocktail} | 2 | — | alcohol |
-      | {tag:nekker-pheromones} | 2 | — | a dead nekker |
-      | {tag:cleaning-powder} | 2 | 1 | — |
-      | {tag:cat} | 3 | — | alcohol |
-      | {tag:nightshade} | 3 | — | a forest herb |
+      | {tag:alcohol} | 2 | 1 (yields up to 3 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
+      | {tag:miasma} | 2 | 1 | a corpse |
+      | {tag:poppy} | 2 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
+      | {tag:molotov-cocktail} | 2 | — (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | alcohol |
+      | {tag:nekker-pheromones} | 2 | 1 | a dead nekker |
+      | {tag:cleaning-powder} | 2 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
+      | {tag:cat} | 3 | 1 | alcohol |
+      | {tag:nightshade} | 3 | 1 | a forest herb |
 
       **Brewing (Skilled)**
 
       | Brew | ⬢ | Turns | Needs |
       |---|---|---|---|
-      | {tag:pure-luck} | 0 | — | an Aberrant's heart |
-      | {tag:graga-sweat} | 2 | — | a graga sac |
-      | {tag:white-honey} | 2 | — | a rainbow trout's heart |
-      | {tag:deadeye-drops} | 2 | — | cave fungus |
-      | {tag:mercy} | 2 | — | cave fungus |
-      | {tag:mindbreaker-toxin} | 2 | — | cave fungus |
-      | {tag:invisibility-potion} | 2 | — | a graga sac |
-      | {tag:succubus-draught} | 2 | — | a willing lover's blood |
-      | {tag:raven-draught} | 2 | — | a raven's eye |
-      | {tag:ravenheart-red} | 4 | — | — |
-      | {tag:distilled-coca} | 4 | — | coca leaves |
-      | {tag:advanced-poppy} | 4 | — | poppy |
+      | {tag:pure-luck} | 0 | 1 | an Aberrant's heart |
+      | {tag:graga-sweat} | 2 | 1 | a graga sac |
+      | {tag:white-honey} | 2 | 1 | a rainbow trout's heart |
+      | {tag:deadeye-drops} | 2 | 1 | cave fungus |
+      | {tag:mercy} | 2 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | cave fungus |
+      | {tag:mindbreaker-toxin} | 2 | 1 | cave fungus |
+      | {tag:invisibility-potion} | 2 | 1 | a graga sac |
+      | {tag:succubus-draught} | 2 | 1 | a willing lover's blood |
+      | {tag:raven-draught} | 2 | 1 | a raven's eye |
+      | {tag:ravenheart-red} | 4 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
+      | {tag:distilled-coca} | 4 | 1 | coca leaves |
+      | {tag:advanced-poppy} | 4 | 1 | poppy |
       | {tag:phrygian-tears} | 4 | 2 | Gambit |
-      | {tag:gunpowder-grenade} | 6 | — | saltpeter |
-      | {tag:purifier} | 6 | — | cave fungus |
-      | {tag:dreamers-draught} | 6 | — | Gambit |
-      | {tag:forgiveness} | 8 | — | someone's tears |
-      | {tag:flawless-skin} | 8 | — | a lock of Nobility hair |
+      | {tag:gunpowder-grenade} | 6 | 1 | saltpeter |
+      | {tag:purifier} | 6 | 1 | cave fungus |
+      | {tag:dreamers-draught} | 6 | 1 | Gambit |
+      | {tag:forgiveness} | 8 | 1 | someone's tears |
+      | {tag:flawless-skin} | 8 | 1 | a lock of Nobility hair |
   # GM-only. The `gamemaster` flag is not a property of any Character — the
   # documents page resolves it against the Discord GM role at request time,
   # the same check that gates /gm. Filtered server-side, so a player's browser

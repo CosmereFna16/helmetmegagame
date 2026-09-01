@@ -28,37 +28,37 @@ ingredient. `addTagRequestImpl` accepts a brew because the tag is
 |---|---|---|---|---|
 | `bliss` | 0 | 0 | cave fungus | `euphoric`, `high` (3t) |
 | `feces` | 0 | 0 | feces | — |
-| `alcohol` | 2 | 0 | — | `tipsy` |
-| `miasma` | 2 | 0 | a corpse | — |
-| `poppy` | 2 | 0 | — | `opium-high` |
+| `alcohol` | 2 | 1 | — | `tipsy` |
+| `miasma` | 2 | 1 | a corpse | — |
+| `poppy` | 2 | 1 | — | `opium-high` |
 | `molotov-cocktail` | 2 | 0 | alcohol | — |
-| `nekker-pheromones` | 2 | 0 | a dead nekker | `pheromones` |
+| `nekker-pheromones` | 2 | 1 | a dead nekker | `pheromones` |
 | `cleaning-powder` | 2 | 1 | — | — |
-| `cat` | 3 | 0 | alcohol | `night-vision` (1t) |
-| `nightshade` | 3 | 0 | a forest herb | — |
+| `cat` | 3 | 1 | alcohol | `night-vision` (1t) |
+| `nightshade` | 3 | 1 | a forest herb | — |
 
 ## 3. Brewing (Skilled)
 
 | Brew | ⬢ | Turns | Ingredient | Consumes into |
 |---|---|---|---|---|
-| `pure-luck` | 0 | 0 | an Aberrant's heart | `aberrant-luck` |
-| `graga-sweat` | 2 | 0 | a graga sac | `brutish-strength` |
-| `white-honey` | 2 | 0 | a rainbow trout's heart | — |
-| `deadeye-drops` | 2 | 0 | cave fungus | `increased-accuracy` |
-| `mercy` | 2 | 0 | cave fungus | `increased-recovery` |
-| `mindbreaker-toxin` | 2 | 0 | cave fungus | `hallucinating` |
-| `invisibility-potion` | 2 | 0 | a graga sac | `invisible` |
-| `succubus-draught` | 2 | 0 | a willing lover's blood | `mindreading` |
-| `raven-draught` | 2 | 0 | a raven's eye | — |
-| `ravenheart-red` | 4 | 0 | — | `tipsy` |
-| `distilled-coca` | 4 | 0 | coca leaves | `stimulant-high` |
-| `advanced-poppy` | 4 | 0 | poppy | `pain-immunity` |
+| `pure-luck` | 0 | 1 | an Aberrant's heart | `aberrant-luck` |
+| `graga-sweat` | 2 | 1 | a graga sac | `brutish-strength` |
+| `white-honey` | 2 | 1 | a rainbow trout's heart | — |
+| `deadeye-drops` | 2 | 1 | cave fungus | `increased-accuracy` |
+| `mercy` | 2 | 1 | cave fungus | `increased-recovery` |
+| `mindbreaker-toxin` | 2 | 1 | cave fungus | `hallucinating` |
+| `invisibility-potion` | 2 | 1 | a graga sac | `invisible` |
+| `succubus-draught` | 2 | 1 | a willing lover's blood | `mindreading` |
+| `raven-draught` | 2 | 1 | a raven's eye | — |
+| `ravenheart-red` | 4 | 1 | — | `tipsy` |
+| `distilled-coca` | 4 | 1 | coca leaves | `stimulant-high` |
+| `advanced-poppy` | 4 | 1 | poppy | `pain-immunity` |
 | `phrygian-tears` | 4 | 2 | **Gambit** | — |
-| `gunpowder-grenade` | 6 | 0 | saltpeter | — |
-| `purifier` | 6 | 0 | cave fungus | — |
-| `dreamers-draught` | 6 | 0 | **Gambit** | — |
-| `forgiveness` | 8 | 0 | someone's tears | — |
-| `flawless-skin` | 8 | 0 | a lock of Nobility hair | `otherworldly-beauty` |
+| `gunpowder-grenade` | 6 | 1 | saltpeter | — |
+| `purifier` | 6 | 1 | cave fungus | — |
+| `dreamers-draught` | 6 | 1 | **Gambit** | — |
+| `forgiveness` | 8 | 1 | someone's tears | — |
+| `flawless-skin` | 8 | 1 | a lock of Nobility hair | `otherworldly-beauty` |
 
 ## 3a. Bacchus recipe
 
@@ -69,6 +69,9 @@ make this one.
 | Brew | ⬢ | Turns | Ingredient | Consumes into |
 |---|---|---|---|---|
 | `ambrosia` | 25 | 3 | `bliss` | `euphoric` |
+
+Three turns, where every ordinary recipe takes one. That is deliberate: it is
+the cult's long project, not a tonic.
 
 An empty **Consumes into** cell is not an oversight. `consumable` with no
 `consumesInto` is set where the brew is spent *by a Move* rather than by the
@@ -95,23 +98,29 @@ tells the GMs how they got it.
 
 ## 5. Yields
 
-A few basic brews come out in a batch from a single Routine Move. The yield is
-written into the tag's own description rather than the `requirement` block,
-which has no field for it:
+A few brews come out in a batch. The `requirement` block has no field for a
+yield, so the number is written into the **Alcohol & Drugs** document's Turns
+column instead, phrased the same way every time — "yields up to N per turn":
 
-| Brew | Per Move |
+| Brew | Per turn |
 |---|---|
 | `alcohol` | 3 |
 | `bliss` | 2 |
 | `poppy` | 2 |
 | `molotov-cocktail` | 2 |
-| `cleaning-powder` | 2 (over its 1 turn) |
+| `cleaning-powder` | 2 |
 | `mercy` | 2 |
+
+**The ⬢ cost is per unit, and it multiplies.** Three alcohols in one turn cost
+6 ⬢, not 2. Every yield row in the document carries an `{info:…}` tooltip
+saying so, since the table itself has no room to.
 
 ## 6. Where a player reads this
 
 The **Alcohol & Drugs** document (`docs/documents.yaml`, key `alcoholdrugs`)
-carries ⬢, turns and the ingredient, and nothing else. What a brew *does*
+carries ⬢, turns, the batch yield and the ingredient, and nothing else. A
+yield row also carries an `{info:…}` token — a `?` glyph whose payload is its
+own tooltip sentence, rendered by `DocumentMarkdown.js`. What a brew *does*
 lives in the tag's own description and shows on hover — `TagChip.js` renders
 the description plus a **Recipe** line built by
 `formatTagRequirement` (`db/lib/formatTagRequirement.js`) from the same

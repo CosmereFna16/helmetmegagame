@@ -11,6 +11,7 @@ import TagChip from "./TagChip";
 import ResourceChip from "./ResourceChip";
 import PartySizeChip from "./PartySizeChip";
 import DocumentChip from "./DocumentChip";
+import InfoIcon from "./InfoIcon";
 import { toString as mdastToString } from "mdast-util-to-string";
 import { slugifyHeading } from "@/lib/documentHeadings";
 
@@ -47,6 +48,12 @@ function RichTokenRenderer({ kind, payload, raw }) {
     const doc = docsByKey.get(payload.trim());
     return doc ? <DocumentChip doc={doc} /> : raw;
   }
+
+  // {info:some sentence} — a "?" glyph carrying its own payload as the
+  // tooltip, for a footnote that would clutter the line it explains (a table
+  // cell, most often). The only token whose payload is prose rather than a
+  // lookup key, so it never fails to resolve.
+  if (kind === "info") return <InfoIcon text={payload.trim()} />;
 
   return raw;
 }

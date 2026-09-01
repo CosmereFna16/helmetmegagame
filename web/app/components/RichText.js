@@ -10,6 +10,7 @@ import ResourceChip from "./ResourceChip";
 import PartySizeChip from "./PartySizeChip";
 import DocumentChip from "./DocumentChip";
 import CharacterAvatar from "./CharacterAvatar";
+import InfoIcon from "./InfoIcon";
 import { splitTokens } from "./richTokens";
 
 function TagToken({ payload, fallback }) {
@@ -70,12 +71,20 @@ function CharToken({ payload, fallback }) {
   );
 }
 
+// Payload is the tooltip sentence itself, not a lookup key — the one token
+// that can never fail to resolve. It renders the shared "?" glyph, for a
+// footnote that would clutter the line it explains.
+function InfoToken({ payload }) {
+  return <InfoIcon text={payload.trim()} />;
+}
+
 const BUBBLE_KINDS = {
   tag: TagToken,
   resource: ResourceToken,
   partysize: PartySizeToken,
   document: DocumentToken,
   char: CharToken,
+  info: InfoToken,
 };
 
 // Renders plain text, except any {kind:payload} token (e.g. {tag:slug} or

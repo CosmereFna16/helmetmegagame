@@ -18,6 +18,9 @@
 // sharing a compiled instance with splitTokens below — a `g`-flag RegExp
 // carries mutable `lastIndex` state, and mdast-util-find-and-replace's
 // exec-loop and this file's matchAll loop have no business sharing it.
+// One kind is not a reference at all: {info:…} carries its own tooltip
+// sentence as the payload and renders a "?" glyph. It is for prose the reader
+// can hover — RichText and DocumentMarkdown render it, ChipText drops it.
 export const TOKEN_SOURCE = "\\{(\\w+):([^}]+)\\}";
 
 // Returns an ordered list of parts: { text } for literal runs, and

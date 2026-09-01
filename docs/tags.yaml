@@ -5717,7 +5717,7 @@ tags:
     name: Alcohol
     category: items
     group: items-drink
-    description: "Beer, ale, and other fine drinks. 2 ⬢ each, and you can brew up to 3 in one Routine Move. It makes anyone, even Nobility, happy."
+    description: "Beer, ale, and other fine drinks. 2 ⬢ each, and you can brew up to 3 in a turn. It makes anyone, even Nobility, happy."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -5730,6 +5730,7 @@ tags:
     consumesInto:
       - tipsy
     requirement:
+      turnsCost: 1
       resourceCost: 2
       skills: [brewing-basic]
       gambit: false
@@ -5782,6 +5783,7 @@ tags:
     consumesInto:
       - tipsy
     requirement:
+      turnsCost: 1
       resourceCost: 4
       skills: [brewing-skilled]
       gambit: false
@@ -5808,6 +5810,7 @@ tags:
     craftable: true
     consumable: true
     requirement:
+      turnsCost: 1
       resourceCost: 2
       skills: [brewing-basic]
       gambit: false
@@ -5837,7 +5840,7 @@ tags:
     name: Cleaning Powder
     category: items
     group: items-drink
-    description: "Cures a minor infection outright, but does not help against {tag:festering}. Slow to make: 1 turn yields 2."
+    description: "Cures a minor infection outright, but does not help against {tag:festering}. 1 turn yields 2."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -5873,6 +5876,7 @@ tags:
       - slug: night-vision
         durationTurns: 1
     requirement:
+      turnsCost: 1
       resourceCost: 3
       skills: [brewing-basic]
       gambit: false
@@ -5896,6 +5900,7 @@ tags:
     consumesInto:
       - opium-high
     requirement:
+      turnsCost: 1
       resourceCost: 2
       skills: [brewing-basic]
       gambit: false
@@ -5938,6 +5943,7 @@ tags:
     craftable: true
     consumable: true
     requirement:
+      turnsCost: 1
       resourceCost: 3
       skills: [brewing-basic]
       gambit: false
@@ -5960,6 +5966,7 @@ tags:
     craftable: true
     consumable: true
     requirement:
+      turnsCost: 1
       resourceCost: 6
       skills: [brewing-skilled]
       gambit: false
@@ -6006,6 +6013,7 @@ tags:
     consumesInto:
       - pain-immunity
     requirement:
+      turnsCost: 1
       resourceCost: 4
       skills: [brewing-skilled]
       gambit: false
@@ -6029,6 +6037,7 @@ tags:
     consumesInto:
       - brutish-strength
     requirement:
+      turnsCost: 1
       resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
@@ -6050,6 +6059,7 @@ tags:
     craftable: true
     consumable: true
     requirement:
+      turnsCost: 1
       resourceCost: 6
       skills: [brewing-skilled]
       gambit: false
@@ -6071,6 +6081,7 @@ tags:
     craftable: true
     consumable: true
     requirement:
+      turnsCost: 1
       resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
@@ -6094,6 +6105,7 @@ tags:
     consumesInto:
       - increased-accuracy
     requirement:
+      turnsCost: 1
       resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
@@ -6117,6 +6129,7 @@ tags:
     consumesInto:
       - increased-recovery
     requirement:
+      turnsCost: 1
       resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
@@ -6140,6 +6153,7 @@ tags:
     consumesInto:
       - stimulant-high
     requirement:
+      turnsCost: 1
       resourceCost: 4
       skills: [brewing-skilled]
       gambit: false
@@ -6164,6 +6178,7 @@ tags:
     consumesInto:
       - hallucinating
     requirement:
+      turnsCost: 1
       resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
@@ -6207,6 +6222,7 @@ tags:
     consumesInto:
       - invisible
     requirement:
+      turnsCost: 1
       resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
@@ -6230,6 +6246,7 @@ tags:
     consumesInto:
       - pheromones
     requirement:
+      turnsCost: 1
       resourceCost: 2
       skills: [brewing-basic]
       gambit: false
@@ -6253,6 +6270,7 @@ tags:
     consumesInto:
       - mindreading
     requirement:
+      turnsCost: 1
       resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
@@ -6274,6 +6292,7 @@ tags:
     craftable: true
     consumable: true
     requirement:
+      turnsCost: 1
       resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
@@ -6297,6 +6316,7 @@ tags:
     consumesInto:
       - aberrant-luck
     requirement:
+      turnsCost: 1
       resourceCost: 0
       skills: [brewing-skilled]
       gambit: false
@@ -6321,6 +6341,7 @@ tags:
     craftable: true
     consumable: true
     requirement:
+      turnsCost: 1
       resourceCost: 6
       skills: [brewing-skilled]
       gambit: true
@@ -6342,6 +6363,7 @@ tags:
     craftable: true
     consumable: true
     requirement:
+      turnsCost: 1
       resourceCost: 8
       skills: [brewing-skilled]
       gambit: false
@@ -6365,6 +6387,7 @@ tags:
     consumesInto:
       - otherworldly-beauty
     requirement:
+      turnsCost: 1
       resourceCost: 8
       skills: [brewing-skilled]
       gambit: false
