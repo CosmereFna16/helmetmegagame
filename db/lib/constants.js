@@ -12,6 +12,9 @@ const LABORER_SKILLED_SLUG = "laborer-skilled";
 const LABORER_FARMING_SLUG = "laborer-farming";
 const CATATONIC_SLUG = "catatonic";
 const DISAPPOINTED_SLUG = "disappointed";
+// Mirrors Character.romanceOptOut — the boolean is the source of truth, the
+// tag is the visible mark. Synced by db/lib/tagWrites.js#syncRomanceDisabledTag.
+const ROMANCE_DISABLED_SLUG = "romance-disabled";
 
 // The one "read someone else's sheet" tag — see db/lib/inspectVision.js, the
 // only reader. This is the Demoness Seductive, not its general-category cousin
@@ -58,6 +61,7 @@ module.exports = {
   LABORER_FARMING_SLUG,
   CATATONIC_SLUG,
   DISAPPOINTED_SLUG,
+  ROMANCE_DISABLED_SLUG,
   SEDUCTIVE_DEMONESS_SLUG,
   INSCRUTABLE_SLUG,
   RAGE_SLUG,
