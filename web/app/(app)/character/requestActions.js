@@ -1794,12 +1794,20 @@ async function fastTravelRequestImpl({ targetZoneId, passengerIds: rawPassengerI
     where: { id: fromZoneId },
     include: { connectsTo: { where: { id: targetZone.id } } },
   });
-  // Riding INTO the caves is fine — the mouth is right there off the road.
-  // Riding OUT, or between levels, is not: no horse fits the tunnels. The
-  // origin alone decides, so this sits before the adjacency check to give the
-  // specific refusal rather than the generic one.
+  // The caves are one-way for a horse, with one mouth. Riding INTO a cave
+  // level is fine, and riding OUT of the Caverns is too — they open right onto
+  // the road. Nothing deeper: no horse fits the tunnels between levels. Origin
+  // and destination both decide, and this sits before the adjacency check so
+  // the refusal is the specific one rather than the generic one.
   if (currentZone?.kind === "CAVE_LEVEL") {
-    throw new UserError("You cannot fast travel between or out of cave zones.");
+    const ridingOut = currentZone.slug === "caverns" && targetZone.kind === "SURFACE";
+    if (!ridingOut) {
+      throw new UserError(
+        currentZone.slug === "caverns"
+          ? "You can ride out of the Caverns, but not deeper into the caves."
+          : "You're too deep to ride. Only the Caverns open onto the surface.",
+      );
+    }
   }
   if (!currentZone || currentZone.connectsTo.length === 0) {
     throw new UserError("You can't get there directly from here.");
