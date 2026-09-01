@@ -13,6 +13,7 @@ import {
   tagsById as buildTagsById,
   requirementSatisfied,
   exclusiveConflict,
+  conflictingTag,
   chainSiblingsToRemove,
   heldHigherTiers,
   effectiveCost,
@@ -65,6 +66,7 @@ async function buyTagsImpl({ tagIds }) {
     // `name` rides along for the replaced-tier snapshots below — the effect
     // names what came off the sheet so the GM ledger reads without a join.
     // `exclusive` is what exclusiveConflict() reads off the held row.
+    // conflictsWith is what conflictingTag() reads for the same check.
     select: {
       id: true,
       name: true,
@@ -75,9 +77,12 @@ async function buyTagsImpl({ tagIds }) {
       groupId: true,
       removable: true,
       consumable: true,
+      conflictsWith: { select: { id: true } },
     },
   });
-  const byId = buildTagsById(allTags);
+  const byId = buildTagsById(
+    allTags.map((t) => ({ ...t, conflictsWithIds: t.conflictsWith.map((c) => c.id) })),
+  );
   const heldOrSelectedIds = [...heldIds, ...ids];
 
   for (const tag of selected) {
@@ -127,6 +132,13 @@ async function buyTagsImpl({ tagIds }) {
           ? `You already hold ${conflict.name}; drop it first to take ${tag.name}.`
           : `${tag.name} can't be held with ${conflict.name}.`,
       );
+    }
+    // Named conflict pairs (Tag.conflictsWith — Sober vs. every Addiction).
+    // `selected` didn't select the conflictsWith relation, so this reads the
+    // full catalog row (`byId`) instead.
+    const namedConflict = conflictingTag(byId.get(tag.id) ?? tag, heldOrSelectedIds, byId);
+    if (namedConflict) {
+      throw new UserError(`${tag.name} conflicts with ${namedConflict.name}.`);
     }
   }
 

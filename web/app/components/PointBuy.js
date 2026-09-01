@@ -18,6 +18,7 @@ import {
   hasPrerequisite,
   negativeTagCount,
   exclusiveConflict,
+  conflictingTag,
 } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import ChipText from "./ChipText";
@@ -296,7 +297,11 @@ export default function PointBuy({
     // belief to take shouldn't have to untick the old one first. A conflict
     // with something already held/granted can't be swapped away here, so
     // that row is dimmed and named instead (rowFor below).
-    const conflict = exclusiveConflict(tag, selectedIds, byId);
+    // Named conflict pairs (Tag.conflictsWith) swap the same way when the
+    // conflict is another PICK, for the same reason exclusive tags do —
+    // a conflict with something already held/granted can't be swapped away
+    // here, so that row is dimmed and named instead (rowFor below).
+    const conflict = exclusiveConflict(tag, selectedIds, byId) ?? conflictingTag(tag, selectedIds, byId);
     if (conflict) siblings.add(conflict.id);
     onChange([...selectedIds.filter((id) => !siblings.has(id)), tag.id]);
   }
@@ -347,7 +352,9 @@ export default function PointBuy({
     const capBlocked = !isSelected && capped && (tag.pointCost ?? 0) < 0 && negativeUsed >= negativeCap;
     // Only against grantedIds: a conflict with another pick is resolved by
     // swapping (toggle), so dimming it too would make the swap look forbidden.
-    const conflict = isSelected ? null : exclusiveConflict(tag, grantedIds, byId);
+    const conflict = isSelected
+      ? null
+      : exclusiveConflict(tag, grantedIds, byId) ?? conflictingTag(tag, grantedIds, byId);
     return (
       <TagRow
         key={tag.id}

@@ -22,6 +22,7 @@ import { isTradeable, fastTravelCapacity, addRequirementSatisfied } from "@/lib/
 import {
   tagsById as buildTagsById,
   exclusiveConflict,
+  conflictingTag,
   chainSiblingsToRemove,
   heldHigherTiers,
 } from "@/lib/characterCreation";
@@ -322,6 +323,7 @@ async function addTagRequestImpl({
   // createCharacter does it.
   // `name`, `requiredTagId` and `exclusive` ride along for the exclusivity
   // check below — exclusiveConflict() reads all three off the held row.
+  // conflictsWith is what conflictingTag() reads for the same check.
   const chainRows = await prisma.tag.findMany({
     select: {
       id: true,
@@ -331,9 +333,12 @@ async function addTagRequestImpl({
       exclusive: true,
       groupId: true,
       removable: true,
+      conflictsWith: { select: { id: true } },
     },
   });
-  const chainById = buildTagsById(chainRows);
+  const chainById = buildTagsById(
+    chainRows.map((t) => ({ ...t, conflictsWithIds: t.conflictsWith.map((c) => c.id) })),
+  );
   const heldIds = character.tags.map((ct) => ct.tagId);
   if (!addRequirementSatisfied(tag, chainById, heldIds)) {
     throw new UserError("You're missing a prerequisite for that tag.");
@@ -349,6 +354,14 @@ async function addTagRequestImpl({
         ? `You already hold ${conflict.name}; drop it first to take ${tag.name}.`
         : `${tag.name} can't be held with ${conflict.name}.`,
     );
+  }
+
+  // Named conflict pairs (Tag.conflictsWith — Sober vs. every Addiction).
+  // `tag` didn't select the conflictsWith relation, so this reads the full
+  // catalog row (`chainById`) instead.
+  const namedConflict = conflictingTag(chainById.get(tag.id) ?? tag, heldIds, chainById);
+  if (namedConflict) {
+    throw new UserError(`${tag.name} conflicts with ${namedConflict.name}.`);
   }
 
   // A chain replaces upward and never re-opens downward — a tier below one

@@ -274,6 +274,10 @@ export default async function CharacterPage() {
           // Simple 4-per-turn hint.
           requirementSkills: { select: { name: true, slug: true } },
           requirementTurns: true,
+          // Not consumed by any check on this menu yet, but every catalog
+          // projection that could feed conflictingTag() carries the field so
+          // adding a display here later doesn't also need a select change.
+          conflictsWith: { select: { id: true } },
         },
       }),
       // id -> parentTagId for the whole catalog, so a held Medical (Expert)

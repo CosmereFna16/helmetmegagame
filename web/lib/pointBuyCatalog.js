@@ -44,6 +44,9 @@ export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartin
       },
       requiredTag: { select: { name: true } },
       requirementSkills: { select: { id: true, slug: true, name: true } },
+      // conflictingTag() reads conflictsWithIds off this projection — drop it
+      // and a conflict silently stops applying in the menu.
+      conflictsWith: { select: { id: true } },
     },
   });
   return tags.map((t) => ({
@@ -69,6 +72,8 @@ export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartin
     // Addiction): without the id every exclusive tag looks like one group.
     groupId: t.groupId,
     group: t.group,
+    // conflictingTag() scope: the plain id array conflictsWith resolves to.
+    conflictsWithIds: t.conflictsWith.map((c) => c.id),
     removable: t.removable,
     craftable: t.craftable,
     requirementTurns: t.requirementTurns,

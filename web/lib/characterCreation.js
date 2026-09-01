@@ -236,6 +236,33 @@ export function exclusiveConflict(tag, heldOrSelectedIds, byId) {
   return null;
 }
 
+// --- Conflicting tags (Tag.conflictsWith) ---
+//
+// A pairwise conflict edge, authored one-directional in docs/tags.yaml (the
+// Addiction side declares `conflictsWith: [sober]`) and symmetrized by
+// db:sync-tags (SYNC.md pass 6) so both tags carry each other's id, meaning a
+// caller only ever has to check one side. Unlike `exclusive` (at most one tag
+// per group), a conflict is a named pair and isn't scoped to groupId or
+// carved out for a requiredTag pair — two Addictions can conflict, or a
+// Belief and an Addiction, exactly as tags.yaml declares.
+//
+// Returns the CONFLICTING TAG (so callers can name it) or null. `byId` rows
+// must carry `conflictsWithIds` (an array of tag ids) — a catalog projected
+// without it silently reports no conflict, so every caller's `select` has to
+// include it, same rule as exclusiveConflict above. Enforced server-side in
+// createCharacter, buyTags and addTagRequest; a GM grant bypasses it, like
+// every other gate.
+export function conflictingTag(tag, heldOrSelectedIds, byId) {
+  const conflictIds = tag.conflictsWithIds;
+  if (!conflictIds?.length) return null;
+  const conflictSet = new Set(conflictIds);
+  for (const id of heldOrSelectedIds) {
+    if (id === tag.id) continue;
+    if (conflictSet.has(id)) return byId.get(id) ?? null;
+  }
+  return null;
+}
+
 // The tags a character may actually see and buy: everything whose gates they
 // satisfy. Menus must derive their category tabs from THIS, not from the raw
 // offer — a category whose every tag is locked has to have no tab at all, not
