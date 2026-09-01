@@ -289,8 +289,8 @@ export default async function DevPanelPage({ searchParams }) {
                     <input type="number" name="equipSlots" min="1" max="20" defaultValue={config.equipSlots} />
                   </label>
                   <label className="field">
-                    <span className="field-label">Max drawback points</span>
-                    <input type="number" name="maxNegativeTags" min="0" max="20" defaultValue={config.maxNegativeTags} />
+                    <span className="field-label">Max drawback tags</span>
+                    <input type="number" name="maxDrawbackTags" min="0" max="20" defaultValue={config.maxDrawbackTags} />
                   </label>
                   <label className="field">
                     <span className="field-label">Catatonic after N idle turns</span>

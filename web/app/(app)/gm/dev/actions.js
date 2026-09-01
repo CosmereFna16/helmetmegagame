@@ -101,7 +101,7 @@ export async function updateGameConfig(formData) {
       equipSlots: Math.max(1, intOrZero(formData, "equipSlots")),
       // 0 is a real setting here — "no drawbacks at all" is coherent, only a
       // negative cap is nonsense.
-      maxNegativeTags: Math.max(0, intOrZero(formData, "maxNegativeTags")),
+      maxDrawbackTags: Math.max(0, intOrZero(formData, "maxDrawbackTags")),
     },
   });
 
@@ -242,7 +242,7 @@ const DEFAULT_GAME_CONFIG = {
   startingTagPoints: 12,
   playerCount: 100,
   equipSlots: 6,
-  maxNegativeTags: 8,
+  maxDrawbackTags: 5,
   catatonicEnabled: true,
   catatonicTurns: 4,
   catatonicDeathTurns: 4,

@@ -408,18 +408,23 @@ model GameConfig {
   // as startingTagPoints above.
   equipSlots Int @default(6)
 
-  // How many drawback POINTS a character may buy through the point-buy menu
-  // — a cap on the sum of what negative-cost tags grant, not on how many are
-  // held. The field name predates this: it used to cap the tag count, and
-  // was left unrenamed rather than force a migration for no behavioural
-  // gain. Only POINT_BUY drawbacks count against it — a role's free drawback
+  // How many drawback TAGS a character may buy through the point-buy menu —
+  // a cap on the COUNT of negative-cost tags picked, not on their combined
+  // point value. Replaces the old points-based maxNegativeTags (dropped in
+  // the drawback_tag_cap migration): that field's name always claimed to
+  // count tags while actually summing points, which this field now does for
+  // real. Only POINT_BUY drawbacks count against it — a role's free drawback
   // (the Meister's Frail, the Headman's Old) arrives as GM_GRANT, and so does
   // anything a GM or a turn effect inflicts, so neither eats into a player's
-  // points. Enforced in createCharacter and shown live in PointBuy's build
+  // count. Enforced in createCharacter and shown live in PointBuy's build
   // pane, in red once over the cap; /store never sells a drawback, so there
   // it is only a readout. Editable live from the Dev Panel, same posture as
   // equipSlots above. 0 is a real setting: no drawbacks at all.
-  maxNegativeTags Int @default(8)
+  maxDrawbackTags Int @default(5)
+
+  // How many Desires a character may hold ACTIVE at once, one per slot.
+  // Same live-editable posture as equipSlots above.
+  desireSlots Int @default(2)
 
   // Expected total number of players, the denominator for every role's seat
   // cap: a role with `weight: 6` in docs/roles.yaml gets
@@ -1317,6 +1322,28 @@ model Tag {
   requirementSkills    Tag[]   @relation("TagRequirementSkill")
   requiredForSkillOf   Tag[]   @relation("TagRequirementSkill")
 
+  // What holding this tag does to the Desire catalog, from docs/tags.yaml's
+  // `desires:` block. Normalised + validated by db/lib/desireShapes.js
+  // (shared by db:sync-tags and db:sync-desires, same posture as
+  // db/lib/tagShapes.js). Null for the ~99% of tags that lock nothing.
+  // An ARRAY of clauses, union semantics — each clause is exactly one of
+  // {all:true} | {families:[...]} | {tiers:[...]}, plus an optional
+  // exceptFamilies. Multi-clause is needed for Cultist/Nobility. The GM's
+  // custom-tag form at /gm/dev/tags does NOT get an editor for this — a GM
+  // homebrew tag never locks catalog content.
+  desireLocks Json?
+
+  // Pairwise cross-group incompatibility. Tag.exclusive above is same-group
+  // only (one Belief, one Addiction); this is the "this Addiction and that
+  // Restriction cannot coexist" rule, which no existing mechanism could
+  // express. Written in BOTH directions by db:sync-tags, so a caller only
+  // ever has to check one side.
+  conflictsWith Tag[] @relation("TagConflicts")
+  conflictedBy  Tag[] @relation("TagConflicts")
+
+  desireRequiredBy  DesireTemplate[] @relation("DesireRequiresAnyTag")
+  desireForbiddenBy DesireTemplate[] @relation("DesireForbidsTag")
+
   characters  CharacterTag[]
   gatedGroups TagGroup[]     @relation("TagGroupGate")
   cavingRolls CavingRoll[]
@@ -2080,20 +2107,68 @@ model Request {
 // one ACTIVE row per character (enforced in the server action, not the
 // schema, since the constraint is "one ACTIVE" rather than "one row").
 // endedTurnNumber drives the one-turn cooldown after a cancel or a fulfill.
+// Master-sourced from docs/desires.yaml (db/lib/syncDesires.js,
+// npm run db:sync-desires). `slug` is the stable match key. Reconciled with
+// SOFT RETIRE rather than deletion — see the sync section.
+model DesireTemplate {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  description String?
+  // 1|2|3|4|5|7. Doubles as the default Tag Point award AND the per-desire
+  // cooldown in turns (cooldownTurns overrides it). Whitelisted in the sync,
+  // not the schema — 6 is deliberately absent.
+  tier Int
+  families String[] @default([])
+  // Defaults true for tier 7 in the sync; an explicit YAML value wins.
+  onceEver Boolean @default(false)
+  // Per-entry override of the tier-derived cooldown (used by
+  // sit-in-bliss = 2). Null means "use tier".
+  cooldownTurns Int?
+  // Real relations, not slug arrays, so db:prune-tags can see the reference
+  // and refuse to delete a Tag a live desire depends on.
+  requiresAnyTags Tag[] @relation("DesireRequiresAnyTag")
+  requiresNotTags Tag[] @relation("DesireForbidsTag")
+  // Slug arrays, not FKs: db:sync-roles prunes Role rows and an FK would
+  // block that (Document.roleSlugs precedent).
+  requiresAnyRoleSlugs String[] @default([])
+  requiresNotRoleSlugs String[] @default([])
+  // Absent from docs/desires.yaml: hidden from every picker, existing
+  // instances keep running.
+  retired   Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  desires Desire[]
+}
+
 model Desire {
   id              String       @id @default(cuid())
   characterId     String
   character       Character    @relation(fields: [characterId], references: [id])
-  text            String
-  points          Int
-  status          DesireStatus @default(ACTIVE)
+  // STAYS non-null: a snapshot of template.name at set time, so every
+  // existing reader (requestEffects.js, the bot's 🔍/⚜️ embeds, the archive,
+  // auditNarrative.js…) stays untouched by the catalog rework.
+  text   String
+  // The awarded number — a GM re-score writes it, so it can diverge from
+  // template.tier. The COOLDOWN reads template.tier, never points.
+  points Int
+  status DesireStatus @default(ACTIVE)
   setTurnNumber   Int?
   endedTurnNumber Int?
+
+  // Nullable ON PURPOSE AND FOREVER: grandfathers freeform rows and GM
+  // off-catalog desires.
+  templateId String?
+  template   DesireTemplate? @relation(fields: [templateId], references: [id])
+  // Which of GameConfig.desireSlots this occupies; grandfathered rows
+  // backfilled to 0.
+  slotIndex Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([characterId, status])
+  @@index([characterId, templateId, status]) // the per-desire cooldown query
 }
 
 // The game's transcript, and the backing store for /archive.

@@ -16,7 +16,7 @@ import {
   filterTagsByQuery,
   prerequisiteNames,
   hasPrerequisite,
-  negativeTagPoints,
+  negativeTagCount,
   exclusiveConflict,
 } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
@@ -45,8 +45,8 @@ import Select from "./Select";
 // the store puts its checkout button there; the wizard needs nothing.
 //
 // `negativeCap` / `negativeHeld` are the drawback limit (TAGS.md §4a): at
-// most `negativeCap` drawback POINTS bought through this menu, with
-// `negativeHeld` already spent elsewhere. It is a CHARACTER CREATION rule and
+// most `negativeCap` drawback TAGS bought through this menu, with
+// `negativeHeld` already held elsewhere. It is a CHARACTER CREATION rule and
 // only creation passes it (the cap and 0 held). The store passes neither: the
 // Addictions are deliberately buyable mid-game (TAGS.md §4), so a cap the
 // store neither enforces nor moves would be a misleading readout. A null cap
@@ -264,11 +264,11 @@ export default function PointBuy({
   const spent = effectiveTotalCost(selected, byId, grantedIds);
   const remaining = budget - spent;
 
-  // Drawback points are summed, never discounted — see negativeTagPoints.
+  // Drawback tags are counted, never discounted — see negativeTagCount.
   // The cap is soft in exactly the same way the budget is: a click still
   // selects, and the build pane says why the build isn't legal yet. A dimmed
   // row that swallowed the click would leave the player with no explanation.
-  const negativeSelected = negativeTagPoints(selected);
+  const negativeSelected = negativeTagCount(selected);
   const negativeUsed = negativeHeld + negativeSelected;
   const capped = negativeCap != null;
   const overCap = capped && negativeUsed > negativeCap;
@@ -339,15 +339,12 @@ export default function PointBuy({
     // (unmet requiredTag, or an unmet group gate) never reaches here at all:
     // `unlocked` above dropped it, along with its category tab.
     const unaffordable = !isSelected && cost > remaining;
-    // A drawback that would push the point total past the cap is dimmed the
+    // A drawback that would push the tag count past the cap is dimmed the
     // same way an unaffordable tag is: both are "you can't take this right
     // now", and reusing the one state means no second visual language for
-    // the same idea.
-    const capBlocked =
-      !isSelected &&
-      capped &&
-      (tag.pointCost ?? 0) < 0 &&
-      negativeUsed - (tag.pointCost ?? 0) > negativeCap;
+    // the same idea. Every qualifying drawback costs exactly one slot of the
+    // cap now, so it's blocked once the cap is already reached.
+    const capBlocked = !isSelected && capped && (tag.pointCost ?? 0) < 0 && negativeUsed >= negativeCap;
     // Only against grantedIds: a conflict with another pick is resolved by
     // swapping (toggle), so dimming it too would make the swap look forbidden.
     const conflict = isSelected ? null : exclusiveConflict(tag, grantedIds, byId);
@@ -374,11 +371,11 @@ export default function PointBuy({
       >
         <span className="text-muted">Points remaining</span>
         <span className="flex items-center gap-3">
-          {/* The drawback point total gates the build the same way the
-              budget does, so on mobile it has to ride the same sticky bar. */}
+          {/* The drawback count gates the build the same way the budget
+              does, so on mobile it has to ride the same sticky bar. */}
           {capped && (
             <span style={{ color: overCap ? "var(--danger)" : "var(--muted)" }}>
-              −{negativeUsed}/{negativeCap} drawback pts
+              {negativeUsed}/{negativeCap} drawbacks
             </span>
           )}
           <strong style={{ color: remaining < 0 ? "var(--accent-text)" : "var(--text)" }}>
@@ -506,7 +503,7 @@ export default function PointBuy({
                 className="text-sm font-bold"
                 style={{ color: overCap ? "var(--danger)" : "var(--muted)" }}
               >
-                −{negativeUsed} / {negativeCap} drawback points spent
+                {negativeUsed} / {negativeCap} drawbacks taken
               </div>
             )}
           </div>
@@ -517,8 +514,8 @@ export default function PointBuy({
           )}
           {canFixCap && (
             <p className="text-sm" style={{ color: "var(--danger)" }}>
-              {negativeUsed} drawback points; the limit is {negativeCap}. Drop{" "}
-              {negativeUsed - negativeCap === 1 ? "one point's worth" : `${negativeUsed - negativeCap} points' worth`} to continue.
+              {negativeUsed} drawbacks taken; the limit is {negativeCap}. Drop{" "}
+              {negativeUsed - negativeCap === 1 ? "one" : `${negativeUsed - negativeCap}`} to continue.
             </p>
           )}
 

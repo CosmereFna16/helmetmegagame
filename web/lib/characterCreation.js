@@ -18,29 +18,19 @@ import { roleCapacity } from "@lifeweb/db/lib/roleCapacity";
 // Discord once the body is buried / the rites are read.
 export const CURSED_POINT_PENALTY = 6;
 
-// How many drawback POINTS a character may buy through the point-buy menu,
+// How many drawback TAGS a character may buy through the point-buy menu,
 // when there is no GameConfig row to read it from. The live value is
-// GameConfig.maxNegativeTags (default 8), editable on /gm/dev. The field
-// name predates this rework — it used to cap the NUMBER of drawback tags,
-// now it caps the sum of their point value instead. Renaming the column
-// would be a migration for no behavioural gain, so the name stayed and only
-// the meaning moved; see negativeTagPoints below.
-export const DEFAULT_MAX_NEGATIVE_TAGS = 8;
+// GameConfig.maxDrawbackTags (default 5), editable on /gm/dev.
+export const DEFAULT_MAX_DRAWBACK_TAGS = 5;
 
 // A drawback is any tag with a negative pointCost — there is no `negative`
 // flag in the schema and the sign has always been the definition (TAGS.md
-// §4a). This sums the points a drawback GRANTS (the positive magnitude of
-// its negative pointCost), not how many drawback tags are held — a
-// character with one -8 drawback and one with eight -1 drawbacks spend the
-// same slice of the cap. Raw pointCost rather than effectiveCost on
-// purpose: a drawback never sits in a tier chain, so there is no discount to
-// apply, and using the discounted value would let a chain quirk change how
-// much of the cap a pick eats.
-export function negativeTagPoints(tags) {
-  return tags.reduce((sum, t) => {
-    const cost = t.pointCost ?? 0;
-    return cost < 0 ? sum - cost : sum;
-  }, 0);
+// §4a). This counts how many drawback tags are held, not the sum of what
+// they grant — a character with one -8 drawback and one with eight -1
+// drawbacks spend a different slice of the cap now, unlike the old
+// points-based maxNegativeTags.
+export function negativeTagCount(tags) {
+  return tags.reduce((count, t) => ((t.pointCost ?? 0) < 0 ? count + 1 : count), 0);
 }
 
 // The only roles a cursed player may take: they come back as nobody in

@@ -14,7 +14,7 @@ import {
 import {
   isPlaytestLocked,
   isRoleSelectable,
-  DEFAULT_MAX_NEGATIVE_TAGS,
+  DEFAULT_MAX_DRAWBACK_TAGS,
 } from "@/lib/characterCreation";
 import { loadPointBuyCatalog } from "@/lib/pointBuyCatalog";
 import { findOpenTurnAction } from "@/lib/moveEconomy";
@@ -93,7 +93,7 @@ async function loadCreationData(discordUserId) {
     dynastyName,
     playerCount,
     startingTagPoints: config?.startingTagPoints ?? 0,
-    maxNegativeTags: config?.maxNegativeTags ?? DEFAULT_MAX_NEGATIVE_TAGS,
+    maxDrawbackTags: config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS,
     // Already flattened to PointBuy's shape by loadPointBuyCatalog — shared
     // with /store so the two menus can never disagree.
     tags,
@@ -282,7 +282,7 @@ export default async function CharacterPage() {
           desiresEnabled: true,
           // Read here too, for the Spend Tag Points modal folded in from the
           // old /store page — see store below.
-          maxNegativeTags: true,
+          maxDrawbackTags: true,
           // The Move-cutoff row: no cron, no lock — same input the bot's gate
           // and the announcement read, or this one surface contradicts them.
           autoTurnAdvanceDisabled: true,
