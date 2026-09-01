@@ -1482,15 +1482,15 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # Two rungs on the same trade, priced apart rather than chained: a
-  # Windlander grows up around horses, so their training costs what the
-  # trade has always cost (5 pts); anyone else has to pay to pick it up from
-  # scratch. The outsider price opened at 1.75x (5 * 1.75 = 8.75 -> 9) and
-  # was repriced down ~15% to the scale's 7 band in 2026-08; the Windlander
-  # rung was deliberately left at 5 rather than discounted below it.
-  # Deliberately NOT a parentTag chain — a Windlander doesn't "upgrade" out
-  # of the open version, they were just never charged the outsider's price
-  # for it, so both can exist as flatly separate purchases.
+  # Breaking a horse is Windlander knowledge, and only a Windlander can buy
+  # it. `horse-trainer-windlander` is the only trainer on sale; the open
+  # `horse-trainer` below it is retired. That makes the Windlands camp the
+  # single source of every new horse in the game — everyone else has to trade
+  # for one, which is the Merchant's whole reason to cross the map.
+  #
+  # The horse it makes is the ungated {tag:horse}, not `horse-windlander`, so
+  # what a Windlander produces is freely tradeable to a townsman. Owning a
+  # horse was never the gated part; making one is.
   - slug: horse-trainer-windlander
     name: Wild Horse Trainer
     category: skills
@@ -1504,14 +1504,21 @@ tags:
       resourceCost: 21
       turnsCost: 1
 
+  # Retired: horse breeding went Windlander-only. The row stays in this file
+  # on purpose rather than being deleted. syncTagsFromYaml is upsert-only, so
+  # dropping the entry would leave the DB row alive AND still purchasable,
+  # and db:prune-tags refuses to delete a tag anyone holds — either way it
+  # would keep appearing in /store. Kept here, the sync pins both flags to
+  # false on every run, the characters who already bought it keep it, and a
+  # GM can still assign it by hand.
   - slug: horse-trainer
     name: Horse Trainer
     category: skills
     group: skills-labor
     description: "You can break and raise horses for others. For 21 ⬢ and 1 turn, you can produce a {tag:horse} and give it to anyone else."
     pointCost: 7
-    purchasable: true
-    purchasableAfterStart: true
+    purchasable: false
+    purchasableAfterStart: false
     requirement:
       resourceCost: 21
       turnsCost: 1
