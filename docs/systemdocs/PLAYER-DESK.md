@@ -133,9 +133,12 @@ rather than about one message. `ConversationMeta.mutedAt` holds it until a GM
 clicks ⊘ again.
 
 Muted rows are hidden, not deleted. A **Show muted (N)** button appears among
-the rail's filters whenever there are any; it reveals them in place, sorted
-last and rendered greyed (`[data-muted]` in `globals.css`), with the gutter
-buttons at full strength since unmuting is what a GM came there to do. A
+the rail's filters whenever there are any; it reveals them **in their ordinary
+place** in the rail, rendered greyed (`[data-muted]` in `globals.css`), with
+the gutter buttons at full strength since unmuting is what a GM came there to
+do. They are deliberately not sunk to the bottom: a muted row you are looking
+for on purpose should be where you expect it, not at the end of a hundred
+others. A
 search query does **not** lift the mute on its own the way it pauses the zone
 and Needs-reply filters — those are lenses over the inbox, this is a standing
 decision — so finding a muted person means showing muted first.

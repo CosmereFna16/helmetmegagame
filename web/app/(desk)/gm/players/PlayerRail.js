@@ -229,9 +229,6 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
         if (aHasThread !== bHasThread) return aHasThread ? -1 : 1;
         return b.row.lastAtMs - a.row.lastAtMs;
       }
-      const aMuted = isMuted(a.row);
-      const bMuted = isMuted(b.row);
-      if (aMuted !== bMuted) return aMuted ? 1 : -1;
       const aPinned = isPinned(a.row);
       const bPinned = isPinned(b.row);
       if (aPinned !== bPinned) return aPinned ? -1 : 1;
