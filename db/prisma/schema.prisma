@@ -1851,13 +1851,19 @@ model ConversationRead {
   @@unique([gmDiscordUserId, playerDiscordUserId])
 }
 
-// Conversation-level state, currently just advisory claiming. Snapshot ids,
-// no relations/FKs — same log-table convention as DirectMessage.
+// Conversation-level state: advisory claiming, plus the "no reply needed"
+// mark. Snapshot ids, no relations/FKs — same log-table convention as
+// DirectMessage.
 model ConversationMeta {
   id                     String    @id @default(cuid())
   playerDiscordUserId    String    @unique
   claimedByDiscordUserId String?
   claimedAt              DateTime?
+  // When a GM marked this conversation as needing no reply. Desk-wide, not
+  // per-GM, same as the claim above. It self-expires: the rail only counts it
+  // as handled while it is at or after the conversation's last message, so the
+  // next inbound DM puts the row back in the awaiting pile with no cleanup.
+  handledAt              DateTime?
 }
 
 // A player's personal note on a message in a Location channel — created by

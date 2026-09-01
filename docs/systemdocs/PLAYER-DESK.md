@@ -107,6 +107,21 @@ says as much when there's an unread count, so the chip only shows when there
 isn't one. The desk header's meta row totals the same predicate as an
 "N awaiting" chip beside "N unread".
 
+**The ✓ under the star clears a row from that pile.** Some messages want no
+answer — a thank-you, an "ok", something already handled in-game — and without
+a way to say so they sit in the awaiting count forever, inflating the one
+number the desk exists to answer. The second gutter button under each row's
+pin marks the conversation as needing no reply: the `awaiting` chip goes, the
+row drops out of **Needs reply**, the header's count falls, and the
+conversation is marked read too (saying it needs no answer implies having read
+it). Unlike the pin beside it, this is **server state and desk-wide**, on
+`ConversationMeta.handledAt` — whether a conversation still wants an answer is
+a fact about the conversation, not one GM's taste, and five GMs should see one
+answer. It is a **dismiss, not a mute**: the mark is a timestamp, and the rail
+only honours it while it is at or after the conversation's last message, so
+the next inbound DM outruns it and the row is awaiting again with nothing to
+clean up. Clicking ✓ again clears it outright.
+
 **Content search is the server's half of the same box.** The fuzzy engine only
 ever sees what the layout ships to the client, and that is *one preview line
 per conversation* — so "find the thread where we talked about the barley"
@@ -213,7 +228,8 @@ inside itself, with the composer pinned at the bottom. It used to be a 32rem
   whole thread page, with the audit row, the read cursor and both
   `revalidatePath`s deferred into `after()`.
 - **Claim/release** is advisory (`ConversationMeta`), so five GMs don't answer
-  the same player twice.
+  the same player twice. The same table carries `handledAt`, the rail's ✓
+  "needs no reply" mark (§3).
 - The thread is a **conversation**, not a raw `DirectMessage` dump: rows that
   are pure bot/UI plumbing — inspect/dossier embeds, the ✏️ edit-flow prompt
   (`bot/src/lib/editModal.js`), `@mention` relay notices, proxy hand-back —
@@ -354,7 +370,7 @@ desk's own actions.
 | File | Role |
 |---|---|
 | `(desk)/gm/players/layout.js` | Desk shell + all rail data (the union query) |
-| `PlayerRail.js` | The inbox rail: search (widens to the roster, pauses filters), zone filter, Needs-reply toggle, pins |
+| `PlayerRail.js` | The inbox rail: search (widens to the roster, pauses filters), zone filter, Needs-reply toggle, pins, the ✓ needs-no-reply mark |
 | `page.js` / `RosterTable.js` | The fleet view + bulk verbs |
 | `FactionsPanel.js` | The faction hierarchy view |
 | `actions.js` | DM send/page, content search, canon load, read cursors, claims, staging, broadcast |
