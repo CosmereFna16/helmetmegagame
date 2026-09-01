@@ -1,0 +1,1631 @@
+# Sole master for the Desire catalog (DesireTemplate). Same posture as
+# docs/tags.yaml: hand-edited, upsert-by-slug, non-destructive — a slug that
+# drops out of this file is never deleted, only hidden (a later sync marks
+# it `retired: true` on the row instead). `families:` below is the fixed
+# vocabulary every entry's `families` list draws from; nothing here writes
+# to it dynamically.
+#
+# REQUIRES SEMANTICS: `requires.anyTags` / `requires.anyRoles` /
+# `requires.notTags` / `requires.notRoles` combine as AND ACROSS the four
+# lists, OR WITHIN each one. So `anyTags: [dancer]` + `anyRoles: [minstrel,
+# diplomat]` reads "holds Dancer, AND holds Minstrel or Diplomat" — not
+# "Dancer or Minstrel or Diplomat". Omit a sub-key entirely rather than
+# writing an empty list.
+#
+# TIER: one of 1, 2, 3, 4, 5, 7. Tier 6 is deliberately absent from the
+# whitelist — don't invent it. Tier doubles as the default Tag Point award
+# and the per-desire cooldown in turns; `cooldownTurns` overrides the latter
+# only (sit-in-bliss is the one user of this). Tier 7 is ONCE EVER — the
+# sync defaults `oncePerLife: true` automatically for every tier-7 entry, so
+# it is never written explicitly below. `oncePerLife` IS written by hand on
+# a handful of sub-7 entries where repeating the thing is absurd on its
+# face (a second first-ever Baron coronation, learning to read twice).
+#
+# ‡ marks text the Desires-rework planner wrote — a drafted name/description,
+# an invented tier, or a resolved conflict — exactly like docs/tags.yaml's
+# own ‡ convention (see that file's header and content-spec.md §0).
+# User-dictated text carries no marker. `grep -rn "‡" docs/desires.yaml`
+# finds every line the planner touched; deleting the glyph is sign-off.
+#
+# Every {tag:slug} reference below has been checked against docs/tags.yaml.
+
+families:
+  - key: alcohol
+    name: Alcohol
+    # Drinking, drunkenness, and specific drinks.
+  - key: drugs
+    name: Drugs
+    # Recreational narcotics — taking, dealing, overdosing, first tastes.
+  - key: gambling
+    name: Gambling
+    # Wagers and games of chance; winning at play.
+  - key: food
+    name: Food
+    # Meals, feasts, cooking, sweets, tea, eating anything at all.
+  - key: vanity
+    name: Vanity
+    # Being admired, complimented, adorned, or unmistakably better-looking
+    # than the room.
+  - key: violence
+    name: Violence
+    # Deliberate physical harm — fights, brawls, duels, battles, killings.
+  - key: cruelty
+    name: Cruelty
+    # Suffering inflicted on someone who can't stop you: torture,
+    # humiliation, beating the defenceless.
+  - key: bravery
+    name: Bravery
+    # Courage against real risk: saving lives, standing ground, monsters,
+    # tournaments, overwhelming odds.
+  - key: romance
+    name: Romance
+    # Kissing, lovers, courtship, seduction.
+  - key: social
+    name: Social
+    # Friendship, argument, hugs, insults, dancing, performing, being
+    # listened to.
+  - key: wealth
+    name: Wealth
+    # Acquiring, hoarding, and owning — ⬢ stockpiles, houses, manors, pets,
+    # purchases.
+  - key: theft
+    name: Theft
+    # Taking what isn't yours: cons, stealing, fencing, rackets, bribes.
+  - key: status
+    name: Status
+    # Rank, office, title, promotion, coronation, standing.
+  - key: faction-success
+    name: Faction Success
+    # Your own side winning something.
+  - key: feud
+    name: Feud
+    # The enemy clan or rival specifically losing, bleeding, or being
+    # humiliated.
+  - key: faith
+    name: Faith
+    # Worship, sermons, conversion, confession, a god's favour, heresy and
+    # its punishment.
+  - key: esoterica
+    name: Esoterica
+    # Spells, occult and forbidden knowledge, ancient artifacts and ruins.
+  - key: medical
+    name: Medical
+    # Treating, curing, dissecting, installing, testing on.
+  - key: craft
+    name: Craft
+    # Making or displaying a learned skill — paintings, songs, literacy,
+    # teaching, footwork.
+  - key: duty
+    name: Duty
+    # Orders carried out: assignments, arrests, executions, interrogations,
+    # messages, the watch.
+  - key: betrayal
+    name: Betrayal
+    # Turning on your own — informing, defecting, sabotage from inside.
+  - key: scheming
+    name: Scheming
+    # Manipulation at one remove: plots, blackmail, framing, setting people
+    # against each other.
+  - key: adventure
+    name: Adventure
+    # Exploration and danger for its own sake — the Pits, the mountains,
+    # the Windlands, climbing.
+  - key: mortality
+    name: Mortality
+    # Death and the near side of it: dying, returning, burial, the Lifeweb.
+  - key: ascetic
+    name: Ascetic
+    # Self-denial and stillness. Exactly one desire lives here.
+  - key: charity
+    name: Charity
+    # Giving with nothing back — feeding the poor, hugs given, mercy,
+    # treating strangers.
+  - key: cult-bacchus
+    name: Cult of Bacchus
+    # Bacchus: revelry, rite, excess, spectacle.
+  - key: demoness
+    name: Demoness
+    # Predation, domination, enslavement, terror.
+  # Deliberate adjacencies (not bugs — see content-spec.md §1):
+  #   - violence and bravery overlap on duels/tournaments/battles (both
+  #     keys on the same desire), so Craven and Pacifist bite differently.
+  #   - gambling is NOT a subset of wealth: a Kleptomaniac and a Gambler are
+  #     compatible restrictions/addictions.
+  #   - "Save a life" carries [medical, charity], NOT bravery — a Craven
+  #     must not lock a Sanctuary character's bread-and-butter Desire.
+
+desires:
+  # === 4a. Ungated ==========================================================
+  - slug: con-a-noble
+    name: Con a noble or courtier out of their cash
+    tier: 3
+    families: [theft, scheming]
+
+  - slug: see-the-windlands
+    name: See the Windlands
+    tier: 2
+    families: [adventure]
+    requires:
+      notTags: [windlander]
+
+  - slug: win-an-argument
+    name: Win an argument
+    tier: 2
+    families: [social]
+
+  - slug: win-a-compliment
+    name: Win a compliment ‡
+    tier: 4
+    families: [vanity, social]
+
+  - slug: drink-alcohol
+    name: Drink alcohol
+    tier: 1
+    families: [alcohol]
+
+  - slug: drink-ravenheart-red
+    name: Drink {tag:ravenheart-red}
+    tier: 2
+    families: [alcohol]
+
+  - slug: take-a-drug
+    name: Take a recreational drug — not alcohol
+    tier: 2
+    families: [drugs]
+
+  - slug: try-a-new-drug
+    name: Try a kind of drug you never have ‡
+    tier: 2
+    families: [drugs]
+
+  - slug: overdose
+    name: Overdose on a recreational drug, to near death
+    tier: 3
+    families: [drugs, mortality]
+
+  - slug: something-exciting
+    name: Experience something exciting or dangerous
+    tier: 1
+    families: [adventure]
+
+  - slug: get-a-manor
+    name: Get a new manor
+    tier: 4
+    families: [wealth, status]
+
+  - slug: get-a-house
+    name: Get a new house
+    tier: 3
+    families: [wealth]
+
+  - slug: get-a-pet
+    name: Get a new pet
+    tier: 2
+    families: [wealth]
+
+  - slug: embarrass-rival
+    name: Embarrass your rival publicly
+    tier: 4
+    families: [social, cruelty]
+
+  - slug: kiss-someone
+    name: Kiss someone
+    tier: 3
+    families: [romance]
+
+  - slug: kill-someone-you-hate
+    name: Kill someone you hate
+    tier: 5
+    families: [violence]
+
+  - slug: win-3-gambling
+    name: Win 3 ⬢ gambling
+    tier: 1
+    families: [gambling]
+
+  - slug: win-10-gambling
+    name: Win 10 ⬢ gambling
+    tier: 3
+    families: [gambling]
+
+  - slug: get-a-hug
+    name: Get a hug ‡
+    tier: 1
+    families: [social]
+
+  - slug: give-a-hug
+    name: Give a hug
+    tier: 1
+    families: [social, charity]
+
+  - slug: convert-someone
+    name: Convert someone to your religion
+    tier: 4
+    families: [faith]
+
+  - slug: fine-meal
+    name: Have a {tag:fine-meal}
+    tier: 1
+    families: [food]
+    requires:
+      notTags: [nobility]
+
+  - slug: lavish-meal
+    name: Have a {tag:lavish-meal}
+    tier: 2
+    families: [food]
+
+  - slug: rival-in-jail
+    name: Get your rival thrown in jail
+    tier: 4
+    families: [scheming, feud]
+
+  - slug: hold-100
+    name: Have 100 ⬢ in your inventory at once
+    tier: 4
+    families: [wealth]
+
+  - slug: get-someone-indebted
+    name: Get someone indebted to you
+    tier: 2
+    families: [scheming, wealth]
+
+  - slug: make-a-friend
+    name: Make a friend
+    tier: 2
+    families: [social]
+
+  - slug: gain-a-lover
+    name: Gain a lover
+    tier: 3
+    families: [romance]
+
+  - slug: forbidden-lover
+    name: Gain a lover you should not have
+    tier: 5
+    families: [romance, scheming]
+
+  - slug: win-a-game
+    name: Win a game
+    tier: 2
+    families: [gambling, social]
+
+  - slug: cheat-someone
+    name: Cheat someone
+    tier: 3
+    families: [theft, scheming]
+
+  - slug: win-a-duel
+    name: Win a duel
+    tier: 4
+    families: [violence, bravery]
+
+  - slug: save-someones-life
+    name: Save someone's life
+    tier: 3
+    families: [bravery, charity]
+
+  - slug: save-a-leaders-life
+    name: Save a faction leader's life
+    tier: 5
+    families: [bravery, charity]
+
+  - slug: win-a-tournament
+    name: Win a tournament
+    tier: 5
+    families: [violence, bravery, vanity]
+
+  - slug: get-jewelry
+    name: Buy some {tag:jewelry}
+    tier: 2
+    families: [vanity, wealth]
+
+  - slug: obtain-vengeance
+    name: Obtain vengeance
+    tier: 3
+    families: [feud, violence]
+
+  - slug: be-crowned-baron
+    name: Be crowned Baron
+    tier: 5
+    families: [status]
+    requires:
+      notRoles: [bum]
+    oncePerLife: true
+
+  - slug: charitable-act
+    name: Perform a charitable act
+    tier: 1
+    families: [charity]
+    requires:
+      notTags: [charitable]
+
+  - slug: charitable-act-devoted
+    name: Perform a charitable act ‡
+    tier: 3
+    families: [charity]
+    requires:
+      anyTags: [charitable]
+
+  # === 4b. Tag-gated (existing tags) =======================================
+  - slug: chastise-a-sinner
+    name: Chastise a sinner
+    tier: 1
+    families: [faith]
+    requires:
+      anyTags: [prudish]
+      anyRoles: [incarn, bishop, chaplain, scholastic, inquisitor, practicus, preacher]
+
+  - slug: better-person
+    name: Get someone to be a better person
+    tier: 2
+    families: [faith, charity]
+    requires:
+      anyTags: [prudish]
+      anyRoles: [incarn, bishop, chaplain, scholastic, inquisitor, practicus, preacher]
+
+  - slug: complete-assignment
+    name: Complete an assignment given by a superior
+    tier: 1
+    families: [duty]
+    requires:
+      anyTags: [existentialist]
+
+  - slug: critique-art
+    name: Critique someone else's art
+    tier: 2
+    families: [craft, social]
+    requires:
+      anyTags: [artist]
+
+  - slug: learn-to-read
+    name: Learn to read
+    tier: 2
+    families: [craft]
+    requires:
+      notTags: [literate]
+    oncePerLife: true
+
+  - slug: befriend-animal
+    name: Befriend a wild animal
+    tier: 3
+    families: [social, adventure]
+    requires:
+      anyTags: [animal-friend]
+
+  - slug: meet-theb-etter
+    name: Meet Theb Etter ‡
+    tier: 7
+    families: [faith, adventure]
+    # F-13: the proper noun "Theb Etter" is unverified against any other doc
+    # — carried through as the planner wrote it.
+    requires:
+      anyTags: [ascetic, existentialist]
+
+  - slug: praised-footwork
+    name: Be complimented on your footwork
+    tier: 2
+    families: [vanity, craft]
+    requires:
+      anyTags: [dancer]
+
+  - slug: dance-with-someone
+    name: Dance with someone
+    tier: 2
+    families: [social, craft]
+    requires:
+      anyTags: [dancer]
+
+  - slug: dance-with-someone-important
+    name: Dance with someone important or beautiful
+    tier: 3
+    families: [social, vanity]
+    requires:
+      anyTags: [dancer]
+
+  - slug: get-captured
+    name: Get captured
+    tier: 3
+    families: [adventure]
+    requires:
+      anyTags: [escape-artist]
+
+  - slug: escape
+    name: Escape
+    tier: 7
+    families: [adventure, bravery]
+    requires:
+      anyTags: [escape-artist]
+
+  - slug: outwit-opponent
+    name: Outwit an opponent
+    tier: 4
+    families: [scheming]
+    requires:
+      anyTags: [game-master, intelligent, tactician]
+
+  - slug: gods-favour
+    name: Earn your god's favour
+    tier: 2
+    families: [faith]
+    requires:
+      anyTags: [old-ways-eusoch, old-ways-sylvia, old-ways-thoth, old-ways-bacchus]
+
+  - slug: skip-mass
+    name: Convince someone to skip mass
+    tier: 2
+    families: [faith, scheming]
+    requires:
+      anyTags: [atheist]
+
+  - slug: win-mortally-injured
+    name: Win a fight while mortally injured
+    tier: 5
+    families: [violence, bravery, mortality]
+    requires:
+      anyTags: [relentless]
+
+  - slug: pet-a-rat
+    name: Pet someone else's {tag:rat}
+    tier: 2
+    families: [social]
+    requires:
+      anyTags: [tunnel-rat]
+
+  - slug: top-of-a-building
+    name: Reach the top of a building
+    tier: 3
+    families: [adventure]
+    requires:
+      anyTags: [climbing]
+
+  - slug: top-of-the-mountains
+    name: Reach the top of the mountains
+    tier: 4
+    families: [adventure]
+    requires:
+      anyTags: [climbing]
+
+  - slug: beat-plate-armour
+    name: Beat a plate-armoured enemy
+    tier: 7
+    families: [violence, bravery]
+    requires:
+      anyTags: [melee-flamboyant]
+
+  - slug: feed-the-lifeweb
+    name: Feed someone to the Lifeweb
+    tier: 3
+    families: [mortality, cruelty]
+    requires:
+      anyTags: [mortus]
+      anyRoles: [mortus]
+
+  - slug: drink-to-unconscious
+    name: Drink until you're unconscious
+    tier: 2
+    families: [alcohol]
+    requires:
+      anyTags: [alcoholic]
+
+  - slug: feed-the-poor
+    name: Feed the poor
+    tier: 1
+    families: [charity, faith]
+    requires:
+      anyTags: [pious, post-christian, fundamentalist, the-wind, saint, pilgrim, old-ways-eusoch, old-ways-sylvia, old-ways-thoth, old-ways-bacchus]
+
+  - slug: finish-a-painting
+    name: Finish a {tag:painting}
+    tier: 2
+    families: [craft]
+    requires:
+      anyTags: [artist]
+
+  - slug: sign-language-talk
+    name: Hold a whole conversation in sign ‡
+    tier: 1
+    families: [social, craft]
+    requires:
+      anyTags: [sign-language]
+
+  - slug: eat-dangerous
+    name: Eat something impressively dangerous
+    tier: 4
+    families: [food, bravery]
+    requires:
+      anyTags: [iron-constitution]
+
+  - slug: receive-a-title
+    name: Receive a title from the Baron ‡
+    tier: 3
+    families: [status]
+    requires:
+      anyTags: [courtier, old-blood]
+
+  - slug: disparage-new-blood
+    name: Disparage a courtier for being new blood
+    tier: 1
+    families: [social, status]
+    requires:
+      anyTags: [old-blood]
+
+  - slug: gain-court-position
+    name: Gain a position in court
+    tier: 3
+    families: [status]
+    requires:
+      anyTags: [courtier]
+
+  - slug: win-against-odds
+    name: Win a battle against overwhelming odds
+    tier: 4
+    families: [bravery, violence]
+    requires:
+      anyTags: [brave]
+
+  - slug: bury-a-body
+    name: Bury a body or engrave a name
+    tier: 2
+    families: [mortality]
+    requires:
+      anyTags: [mortus]
+      anyRoles: [mortus, chaplain]
+
+  - slug: kill-opposite-clan
+    name: Kill someone from the opposite clan
+    tier: 3
+    families: [feud]
+    requires:
+      anyTags: [blood-feud]
+
+  - slug: bastards-favor
+    name: Win the Bastard's exclusive favor for your clan
+    tier: 2
+    families: [feud]
+    requires:
+      anyTags: [blood-feud]
+
+  - slug: humiliate-opposing-clan
+    name: Humiliate the opposing clan
+    tier: 2
+    families: [feud]
+    requires:
+      anyTags: [blood-feud]
+
+  - slug: kill-enemy-lieutenant
+    name: Kill the enemy Lieutenant
+    tier: 4
+    families: [feud, violence]
+    requires:
+      anyTags: [blood-feud]
+
+  # === 4c. Role-gated =======================================================
+  - slug: imprison-someone
+    name: Imprison someone
+    tier: 2
+    families: [duty]
+    requires:
+      anyRoles: [watchman, sheriff]
+      anyTags: [watchman]
+
+  - slug: arrest-a-criminal
+    name: Arrest a criminal
+    tier: 2
+    families: [duty]
+    requires:
+      anyRoles: [watchman, sheriff]
+
+  - slug: execute-someone
+    name: Execute someone
+    tier: 2
+    families: [duty, violence]
+    requires:
+      anyRoles: [inquisitor, practicus, preacher]
+
+  - slug: interrogate-with-info
+    name: Interrogate someone and gain information
+    tier: 3
+    families: [duty, cruelty]
+    requires:
+      anyRoles: [inquisitor, practicus, preacher]
+
+  - slug: interrogate-without-info
+    name: Interrogate someone, even without information
+    tier: 2
+    families: [duty, cruelty]
+    requires:
+      anyRoles: [inquisitor, practicus, preacher]
+
+  - slug: get-a-house-bum
+    name: Get a house ‡
+    tier: 4
+    families: [wealth]
+    requires:
+      anyRoles: [bum]
+    oncePerLife: true
+
+  - slug: bum-custom
+    name: A Desire of your own ‡
+    tier: 3
+    families: []
+    requires:
+      anyRoles: [bum]
+    # The Bum writes their own Desire with the GM at approval, who sets
+    # 1-5 (F-10) — the GM free-text path (setDesireGm), not this catalog
+    # entry's own description.
+    description: "A Desire the Bum writes with the GM, who sets its worth 1-5 at approval. ‡"
+    oncePerLife: true
+
+  - slug: sell-stolen-jewelry
+    name: Sell stolen {tag:jewelry} to the Merchant
+    tier: 4
+    families: [theft, wealth]
+    requires:
+      anyRoles: [servant]
+
+  - slug: teach-literacy
+    name: Teach someone literacy
+    tier: 3
+    families: [craft, charity]
+    requires:
+      anyRoles: [scholastic]
+
+  - slug: spare-organs
+    name: Have a spare of every human organ
+    tier: 7
+    families: [medical]
+    requires:
+      anyRoles: [esculap, serpent]
+
+  - slug: discover-medicine
+    name: Discover a new medicine
+    tier: 4
+    families: [medical]
+    requires:
+      anyRoles: [esculap, serpent]
+
+  - slug: install-cybernetic
+    name: Install a cybernetic
+    tier: 4
+    families: [medical]
+    requires:
+      anyRoles: [esculap, serpent]
+
+  - slug: test-drugs
+    name: Test drugs on someone
+    tier: 3
+    families: [medical, cruelty]
+    requires:
+      anyRoles: [esculap, serpent]
+
+  - slug: be-crowned-baron-bum
+    name: Be crowned Baron ‡
+    tier: 7
+    families: [status]
+    requires:
+      anyRoles: [bum]
+
+  - slug: angry-mob
+    name: Organise an angry mob
+    tier: 4
+    families: [faction-success, faith]
+    requires:
+      anyRoles: [preacher]
+
+  - slug: stop-the-taxes
+    name: Stop sending taxes to the Baron
+    tier: 3
+    families: [faction-success]
+    requires:
+      anyRoles: [headman]
+
+  - slug: three-days-no-disappearance
+    name: Go 3 days without a disappearance
+    tier: 4
+    families: [duty]
+    requires:
+      anyRoles: [sheriff]
+
+  - slug: tidings-of-an-army
+    name: Bring tidings of an approaching army the day before it arrives
+    tier: 5
+    families: [duty]
+    requires:
+      anyRoles: [herald]
+
+  - slug: deliver-a-message
+    name: Deliver an important message
+    tier: 1
+    families: [duty]
+    requires:
+      anyRoles: [herald]
+
+  - slug: protection-racket
+    name: Start a protection racket
+    tier: 3
+    families: [theft, cruelty]
+    requires:
+      anyRoles: [pusher]
+
+  - slug: sell-drugs
+    name: Sell drugs
+    tier: 1
+    families: [drugs, theft]
+    requires:
+      anyRoles: [pusher]
+
+  - slug: form-a-clan
+    name: Form a new clan of at least 4 people
+    tier: 7
+    families: [faction-success, status]
+    requires:
+      anyRoles: [follower]
+
+  - slug: become-the-bastard
+    name: Become the new Bastard
+    tier: 7
+    families: [status]
+    requires:
+      anyRoles: [lieutenant-broken-spears-clan, lieutenant-windrider-clan]
+
+  - slug: become-lieutenant
+    name: Become the new Lieutenant
+    tier: 5
+    families: [status]
+    requires:
+      anyRoles: [clansman-broken-spears-clan, clansman-windrider-clan]
+    oncePerLife: true
+
+  - slug: promoted-to-watchman
+    name: Be promoted to Watchman
+    tier: 7
+    families: [status, duty]
+    requires:
+      anyRoles: [squire]
+
+  - slug: coronate-a-baron
+    name: Coronate a new Baron
+    tier: 5
+    families: [status, faith]
+    requires:
+      anyRoles: [bishop]
+
+  - slug: return-silver-cross
+    name: Return the stolen {tag:silver-cross} to the reliquary
+    tier: 5
+    families: [faith, duty]
+    requires:
+      anyRoles: [incarn]
+
+  - slug: cup-of-tea
+    name: Enjoy a cup of {tag:tea} ‡
+    tier: 2
+    families: [food]
+    requires:
+      anyRoles: [incarn, diplomat]
+
+  - slug: sibling-in-trouble
+    name: Get your sibling in trouble
+    tier: 3
+    families: [scheming]
+    requires:
+      anyRoles: [heir, successor]
+
+  - slug: take-ravenheart
+    name: Take Ravenheart
+    tier: 7
+    families: [faction-success]
+    requires:
+      anyRoles: [bastard]
+
+  - slug: take-the-town
+    name: Take the town
+    tier: 5
+    families: [faction-success]
+    requires:
+      anyRoles: [bastard]
+
+  - slug: slay-the-champion
+    name: Slay the Champion
+    tier: 7
+    families: [violence, feud]
+    requires:
+      anyRoles: [captain]
+
+  - slug: slay-the-captain
+    name: Slay the Captain
+    tier: 7
+    families: [violence, feud]
+    requires:
+      anyRoles: [champion]
+
+  - slug: slay-the-baron
+    name: Slay the Baron
+    tier: 7
+    families: [violence, feud]
+    requires:
+      anyRoles: [champion, bastard]
+
+  - slug: slay-the-bastard
+    name: Slay the Bastard, by your own hand
+    tier: 7
+    families: [violence, feud]
+    requires:
+      anyRoles: [baron, captain]
+
+  - slug: save-the-barons-life
+    name: Save the Baron's life ‡
+    tier: 5
+    families: [bravery, duty]
+    requires:
+      anyRoles: [hand]
+
+  - slug: become-regent
+    name: Become regent in the interregnum ‡
+    tier: 7
+    families: [status]
+    requires:
+      anyRoles: [hand]
+
+  - slug: amass-200
+    name: Amass a stockpile of 200 ⬢ ‡
+    tier: 5
+    families: [wealth]
+    requires:
+      anyRoles: [meister, headman, brigand-leader, innkeeper]
+
+  - slug: song-in-battle
+    name: Perform a song in the middle of a battle ‡
+    tier: 5
+    families: [craft, bravery]
+    requires:
+      anyRoles: [minstrel]
+      anyTags: [musician]
+
+  - slug: perform-for-5
+    name: Perform for 5 people
+    tier: 3
+    families: [craft, social]
+    requires:
+      anyRoles: [minstrel]
+      anyTags: [musician, artist]
+
+  - slug: perform-for-15
+    name: Perform for 15 people
+    tier: 5
+    families: [craft, social]
+    requires:
+      anyRoles: [minstrel]
+      anyTags: [musician, artist]
+
+  - slug: paid-for-performance
+    name: Be paid for your performance
+    tier: 1
+    families: [craft, wealth]
+    requires:
+      anyRoles: [minstrel]
+      anyTags: [musician, artist]
+
+  - slug: convince-the-baron
+    name: Convince the Baron to join the Culture
+    tier: 7
+    families: [faction-success]
+    requires:
+      anyRoles: [diplomat]
+
+  - slug: saved-by-your-drone
+    name: Be saved by your {tag:drone} in the last moment
+    tier: 4
+    families: [adventure]
+    requires:
+      anyRoles: [diplomat]
+
+  - slug: mingle-locally
+    name: Romantically mingle with the local populace
+    tier: 2
+    families: [romance]
+    requires:
+      anyRoles: [diplomat]
+
+  - slug: defuse-a-situation
+    name: Defuse a difficult political situation
+    tier: 2
+    families: [scheming, faction-success]
+    requires:
+      anyRoles: [diplomat]
+
+  - slug: stop-a-battle
+    name: Stop a battle through diplomacy
+    tier: 4
+    families: [scheming, bravery]
+    requires:
+      anyRoles: [diplomat]
+
+  - slug: save-a-life-medical
+    name: Save a life ‡
+    tier: 1
+    families: [medical, charity]
+    requires:
+      anyTags: [medical-basic]
+
+  # === 4d. Gated on new Interests / Restrictions ===========================
+  - slug: torture-someone
+    name: Torture someone, for a good enough reason
+    tier: 4
+    families: [cruelty, violence]
+    requires:
+      anyTags: [cruel]
+
+  - slug: beat-up-a-bum
+    name: Beat up a bum
+    tier: 2
+    families: [cruelty, violence]
+    requires:
+      anyTags: [cruel]
+
+  - slug: burn-a-heretic
+    name: Burn a heretic
+    tier: 5
+    families: [faith, cruelty]
+    requires:
+      anyTags: [fundamentalist]
+
+  - slug: confess-your-sins
+    name: Confess your sins
+    tier: 2
+    families: [faith]
+    requires:
+      anyTags: [pilgrim, fundamentalist]
+
+  - slug: attend-a-sermon
+    name: Attend a sermon
+    tier: 2
+    families: [faith]
+    requires:
+      anyTags: [pilgrim]
+
+  - slug: cast-a-spell
+    name: Cast a spell
+    tier: 5
+    families: [esoterica]
+    requires:
+      anyTags: [esoteric]
+      anyRoles: [scholastic]
+
+  - slug: find-an-artifact
+    name: Find a powerful ancient artifact
+    tier: 5
+    families: [esoterica, adventure]
+    requires:
+      anyTags: [esoteric, adventurer]
+      anyRoles: [scholastic]
+
+  - slug: discover-a-ruin
+    name: Discover an ancient ruin
+    tier: 2
+    families: [esoterica, adventure]
+    requires:
+      anyTags: [esoteric, adventurer]
+      anyRoles: [diplomat, scholastic]
+
+  - slug: forbidden-knowledge
+    name: Uncover forbidden knowledge
+    tier: 3
+    families: [esoterica]
+    requires:
+      anyTags: [esoteric]
+      anyRoles: [scholastic]
+
+  - slug: two-turns-in-the-pits
+    name: Stay 2 turns consecutively in the Aberrant Pits
+    tier: 5
+    families: [adventure, bravery]
+    requires:
+      anyTags: [adventurer]
+
+  - slug: slay-a-great-beast
+    name: Slay a great beast
+    tier: 7
+    families: [bravery, violence, adventure]
+    requires:
+      anyTags: [adventurer]
+      anyRoles: [mercenary]
+
+  - slug: win-a-brawl
+    name: Win a brawl
+    tier: 2
+    families: [violence]
+    requires:
+      anyTags: [combative]
+
+  - slug: insult-rightfully
+    name: Insult someone rightfully
+    tier: 1
+    families: [social]
+    requires:
+      anyTags: [combative]
+
+  - slug: start-a-large-brawl
+    name: Start a large brawl
+    tier: 4
+    families: [violence, social]
+    requires:
+      anyTags: [combative]
+
+  - slug: punish-a-slight
+    name: Punish someone for slighting you
+    tier: 3
+    families: [violence, feud]
+    requires:
+      anyTags: [combative]
+
+  - slug: upgrade-your-body
+    name: Upgrade your body
+    tier: 3
+    families: [medical]
+    requires:
+      anyTags: [mad-doctor]
+
+  - slug: gruesome-procedure
+    name: Do a gruesome, immoral medical procedure for the good of science
+    tier: 2
+    families: [medical, cruelty]
+    requires:
+      anyTags: [mad-doctor]
+
+  - slug: sit-in-bliss
+    name: Sit in bliss
+    tier: 1
+    families: [ascetic]
+    requires:
+      anyTags: [ascetic]
+    cooldownTurns: 2
+
+  - slug: prediction-comes-true
+    name: Publicly declare a prediction that later comes true
+    tier: 4
+    families: [esoterica, social]
+    requires:
+      anyTags: [superstitious]
+
+  - slug: see-a-monster
+    name: See a monster
+    tier: 1
+    families: [esoterica, adventure]
+    requires:
+      anyTags: [superstitious]
+
+  - slug: banish-a-demon
+    name: Banish a demonic entity
+    tier: 3
+    families: [esoterica, faith]
+    requires:
+      anyTags: [superstitious]
+
+  - slug: be-betrayed
+    name: Be betrayed
+    tier: 3
+    families: [social]
+    requires:
+      anyTags: [desperate]
+
+  - slug: receive-praise
+    name: Receive praise
+    tier: 2
+    families: [social, vanity]
+    requires:
+      anyTags: [desperate]
+
+  - slug: berated-for-desperation
+    name: Be verbally berated for your clear desperation
+    tier: 4
+    families: [social]
+    requires:
+      anyTags: [desperate]
+
+  - slug: fake-illness-treated
+    name: Come up with a fake illness and be treated for it
+    tier: 3
+    families: [medical, scheming]
+    requires:
+      anyTags: [hypochondriac]
+
+  - slug: be-treated
+    name: Be treated for your illness
+    tier: 1
+    families: [medical]
+    requires:
+      anyTags: [hypochondriac]
+
+  - slug: doctor-listens
+    name: Get a doctor to listen to you
+    tier: 1
+    families: [medical, social]
+    requires:
+      anyTags: [hypochondriac]
+
+  - slug: take-a-bribe
+    name: Take a bribe
+    tier: 2
+    families: [theft]
+    requires:
+      anyTags: [corrupt]
+      anyRoles: [watchman, sheriff]
+
+  - slug: cook-a-lavish-meal
+    name: Cook a {tag:lavish-meal}
+    tier: 1
+    families: [food, craft]
+    requires:
+      anyTags: [glutton]
+
+  - slug: feed-the-baron
+    name: Feed the Baron
+    tier: 2
+    families: [food, status]
+    requires:
+      anyTags: [glutton]
+
+  - slug: eat-something-bizarre
+    name: Eat something bizarre
+    tier: 3
+    families: [food, adventure]
+    requires:
+      anyTags: [glutton]
+
+  - slug: eat-sweets
+    name: Eat {tag:sweets}
+    tier: 2
+    families: [food]
+    requires:
+      anyTags: [glutton]
+
+  - slug: partake-in-a-feast
+    name: Partake in a feast of 4 people or more
+    tier: 3
+    families: [food, social]
+    requires:
+      anyTags: [glutton]
+
+  - slug: come-close-to-death
+    name: Come close to death
+    tier: 4
+    families: [mortality]
+    requires:
+      anyTags: [death-wish-interest]
+
+  - slug: grievous-wound-healed
+    name: Take a {tag:grievous-wound} and have it healed
+    tier: 3
+    families: [mortality, medical]
+    requires:
+      anyTags: [death-wish-interest]
+
+  - slug: come-back-from-dying
+    name: Come back from {tag:dying}
+    tier: 5
+    families: [mortality]
+    requires:
+      anyTags: [death-wish-interest]
+
+  # === 4e. ‡ drafted fill-ins ===============================================
+  # Corrupt (T: corrupt, R: watchman/sheriff)
+  - slug: look-the-other-way
+    name: Look the other way for a friend ‡
+    tier: 2
+    families: [duty, theft]
+    requires:
+      anyTags: [corrupt]
+      anyRoles: [watchman, sheriff]
+
+  - slug: sell-a-watch-secret
+    name: Sell something the Watch told you in confidence ‡
+    tier: 3
+    families: [betrayal, theft]
+    requires:
+      anyTags: [corrupt]
+      anyRoles: [watchman, sheriff]
+
+  - slug: shake-down-a-merchant
+    name: Shake down someone with more to lose than you ‡
+    tier: 3
+    families: [theft, cruelty]
+    requires:
+      anyTags: [corrupt]
+      anyRoles: [watchman, sheriff]
+
+  - slug: pocket-60
+    name: Hold 60 ⬢ that was never yours ‡
+    tier: 4
+    families: [wealth, theft]
+    requires:
+      anyTags: [corrupt]
+      anyRoles: [watchman, sheriff]
+
+  # Brave (T: brave)
+  - slug: stand-your-ground-alone
+    name: Stand your ground alone ‡
+    tier: 3
+    families: [bravery]
+    requires:
+      anyTags: [brave]
+
+  - slug: walk-into-the-caves
+    name: Walk into the Caves at night on purpose ‡
+    tier: 2
+    families: [bravery, adventure]
+    requires:
+      anyTags: [brave]
+
+  - slug: take-a-wound-for-someone
+    name: Take a wound that was meant for someone else ‡
+    tier: 4
+    families: [bravery, charity]
+    requires:
+      anyTags: [brave]
+
+  # Tactician (T: tactician)
+  - slug: win-a-planned-fight
+    name: Win a fight you planned out beforehand ‡
+    tier: 3
+    families: [violence, bravery]
+    requires:
+      anyTags: [tactician]
+
+  - slug: lead-four-home
+    name: Lead 4 people through a fight and lose none of them ‡
+    tier: 4
+    families: [bravery, duty]
+    requires:
+      anyTags: [tactician]
+
+  - slug: take-ground-bloodlessly
+    name: Take a position without a fight ‡
+    tier: 4
+    families: [faction-success]
+    requires:
+      anyTags: [tactician]
+
+  - slug: call-it-out-loud
+    name: Say what the enemy will do, out loud, before they do it ‡
+    tier: 3
+    families: [social, scheming]
+    requires:
+      anyTags: [tactician]
+
+  # Animal Friend (T: animal-friend)
+  - slug: calm-a-dangerous-animal
+    name: Calm an animal that was about to hurt somebody ‡
+    tier: 2
+    families: [bravery, social]
+    requires:
+      anyTags: [animal-friend]
+
+  - slug: keep-an-animal-alive
+    name: Keep an animal alive through a hard turn ‡
+    tier: 2
+    families: [charity]
+    requires:
+      anyTags: [animal-friend]
+
+  # Schemer (T: schemer)
+  - slug: set-two-against-each-other
+    name: Make two people distrust each other ‡
+    tier: 3
+    families: [scheming]
+    requires:
+      anyTags: [schemer]
+
+  - slug: let-someone-else-hang
+    name: Have someone punished for something you did ‡
+    tier: 4
+    families: [scheming, betrayal]
+    requires:
+      anyTags: [schemer]
+
+  - slug: pry-out-a-secret
+    name: Get a secret out of somebody who meant to keep it ‡
+    tier: 3
+    families: [scheming, social]
+    requires:
+      anyTags: [schemer]
+
+  - slug: install-your-man
+    name: Put your own man in a seat you can't hold yourself ‡
+    tier: 5
+    families: [scheming, status]
+    requires:
+      anyTags: [schemer]
+
+  # === 4f. Cult of Bacchus — 20 ‡ (all T: follower-of-bacchus) =============
+  # Family cult-bacchus + one secondary each; nothing below tier 2. Replaces
+  # the retired "+5 per Desire" cult compensation (F-15) — see
+  # follower-of-bacchus's two-clause lock in docs/tags.yaml.
+  - slug: bacchus-first-cup
+    name: Pour the first cup ‡
+    tier: 2
+    families: [cult-bacchus, alcohol]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-chant
+    name: Chant the rites in the old tongue where somebody can hear ‡
+    tier: 2
+    families: [cult-bacchus, faith]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-boombox
+    name: Make the whole street hear the {tag:boombox} ‡
+    tier: 2
+    families: [cult-bacchus, social]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-bare-feet
+    name: Get a stranger to take off their shoes and dance ‡
+    tier: 2
+    families: [cult-bacchus, social]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-first-taste
+    name: Give a first taste to somebody who has never had one ‡
+    tier: 3
+    families: [cult-bacchus, drugs]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-feast
+    name: Throw a feast nobody remembers the end of ‡
+    tier: 3
+    families: [cult-bacchus, food]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-spend-it-all
+    name: Spend 50 ⬢ in one night on nothing that lasts ‡
+    tier: 3
+    families: [cult-bacchus, wealth]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-initiate-willing
+    name: Initiate somebody who wants it ‡
+    tier: 4
+    families: [cult-bacchus, faith]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-break-a-vow
+    name: Make somebody break a vow they meant ‡
+    tier: 4
+    families: [cult-bacchus, romance]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-noble-dance
+    name: Get somebody with {tag:nobility} to dance with you ‡
+    tier: 4
+    families: [cult-bacchus, vanity]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-party-first
+    name: Host a party of {partysize:1} ‡
+    tier: 4
+    families: [cult-bacchus, social]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-initiate-unwilling
+    name: Initiate somebody who does not want it ‡
+    tier: 5
+    families: [cult-bacchus, cruelty]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-ambrosia
+    name: Drink {tag:ambrosia} ‡
+    tier: 5
+    families: [cult-bacchus, drugs]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-party-second
+    name: Host a party of {partysize:2} ‡
+    tier: 5
+    families: [cult-bacchus, social]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-party-third
+    name: Host a party of {partysize:3} ‡
+    tier: 5
+    families: [cult-bacchus, social]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-defile
+    name: Hold a rite inside the Cathedral ‡
+    tier: 5
+    families: [cult-bacchus, faith]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-smiling-death
+    name: Watch a brother go out smiling ‡
+    tier: 5
+    families: [cult-bacchus, mortality]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-convert-the-church
+    name: Bring somebody of the Church all the way over ‡
+    tier: 7
+    families: [cult-bacchus, faith]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-bring-the-demoness
+    name: Bring the Demoness into the fold ‡
+    tier: 7
+    families: [cult-bacchus, scheming]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-final-party
+    name: "The Final Party — {partysize:4}, and noble blood ‡"
+    tier: 7
+    families: [cult-bacchus, faith]
+    # DEVIATION (Task 2): the spec wants "T: follower-of-bacchus AND
+    # anyTags: cult-leader", but requires.anyTags is a single OR list, and
+    # both gates here are Tags — there is no second AND'able tag slot the
+    # way anyTags/anyRoles combine. cult-leader alone is used instead:
+    # only an actual Cultist ever holds it, so the follower-of-bacchus
+    # check is redundant in practice.
+    requires:
+      anyTags: [cult-leader]
+
+  # === 4g. Demoness — 20 ‡ (all T: demoness) ===============================
+  # Family demoness + one secondary each; ladder anchored on threats.md:40-60.
+  - slug: dem-let-loose
+    name: Talk somebody into letting loose ‡
+    tier: 1
+    families: [demoness, social]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-humiliate
+    name: Humiliate somebody in front of the people whose opinion they need ‡
+    tier: 2
+    families: [demoness, cruelty]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-offered-kiss
+    name: Take a kiss that was offered ‡
+    tier: 2
+    families: [demoness, romance]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-fulfil-a-fear
+    name: Fulfil somebody's Fear ‡
+    tier: 3
+    families: [demoness, cruelty]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-keep-someone
+    name: Take somebody somewhere quiet and keep them ‡
+    tier: 3
+    families: [demoness, cruelty]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-thanked-for-blood
+    name: Drink from somebody who thanks you afterward ‡
+    tier: 3
+    families: [demoness, mortality]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-make-them-love-you
+    name: Make somebody love you, for good ‡
+    tier: 4
+    families: [demoness, romance]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-break-anyone
+    name: Leave somebody {tag:broken} ‡
+    tier: 4
+    families: [demoness, cruelty]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-a-room-in-panic
+    name: Put a room into {tag:panic} without laying a hand on anyone ‡
+    tier: 4
+    families: [demoness, cruelty]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-noble-lover
+    name: Take a lover with {tag:nobility} ‡
+    tier: 4
+    families: [demoness, romance]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-refuse-a-master
+    name: Refuse somebody who thinks he owns you, publicly ‡
+    tier: 4
+    families: [demoness, social]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-wanted-anyway
+    name: Be seen in your True Form and be wanted anyway ‡
+    tier: 4
+    families: [demoness, vanity]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-break-the-heir
+    name: Break the Heir ‡
+    tier: 5
+    families: [demoness, cruelty]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-three-at-once
+    name: Hold 3 {tag:broken-enslaved} at once ‡
+    tier: 5
+    families: [demoness, scheming]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-a-face-to-a-funeral
+    name: Wear a borrowed face to its owner's funeral ‡
+    tier: 5
+    families: [demoness, scheming]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-touch-the-cross
+    name: Touch the {tag:silver-cross} and walk away from it ‡
+    tier: 5
+    families: [demoness, bravery]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-a-priest-on-his-knees
+    name: Have a man of the Church on his knees for you ‡
+    tier: 5
+    families: [demoness, faith]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-lovers-at-each-other
+    name: Make two people who love each other try to kill each other ‡
+    tier: 5
+    families: [demoness, scheming]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-eat-someone-whole
+    name: Eat somebody, whole ‡
+    tier: 5
+    families: [demoness, mortality]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-apex
+    name: Give it all up for the {tag:apex-form} ‡
+    tier: 7
+    families: [demoness, mortality]
+    requires:
+      anyTags: [demoness]

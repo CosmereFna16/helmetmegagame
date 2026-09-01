@@ -237,6 +237,15 @@ tags:
     description: "We are free, so free! Unlocks the Bacchus tags."
     pointCost: 0
     purchasable: false
+    # Two-clause lock (2026-08-31, Desires rework): closed to everything but
+    # cult-bacchus at tier 1, but alcohol/drugs/food/romance stay open from
+    # tier 2 up — the "replaces the old +5-per-Desire compensation" carve-out.
+    desires:
+      locks:
+        - tiers: [1]
+          exceptFamilies: [cult-bacchus]
+        - tiers: [2, 3, 4, 5, 7]
+          exceptFamilies: [cult-bacchus, alcohol, drugs, food, romance]
 
   - slug: demoness
     name: Demoness
@@ -244,14 +253,30 @@ tags:
     description: "\"Pleasure is so painful—ah~! I don't care!\" You can Break souls ({tag:broken}), turning their owners into walking, empty shells, by making them fall in love with you—and then sealing it with a (voluntary) kiss. If people want more after that, that's your business, not mine."
     pointCost: 0
     purchasable: false
+    desires:
+      locks:
+        - all: true
+          exceptFamilies: [demoness]
 
+  # Price is cosmetic (role-granted, not purchasable) — do not "fix" it. The
+  # `all + food at tiers 1-2` intent from the design spec isn't expressible
+  # in one clause (each clause carries exactly one of all|families|tiers, and
+  # exceptFamilies only subtracts), so the tier-1 lock is data and the cheap-
+  # food restriction below is a prose line, GM-adjudicated.
   - slug: nobility
     name: Nobility
     category: general
-    description: "You are a person of noble breeding, accustomed to comfort in all aspects. You must eat a {tag:fine-meal} or better each day, or you wake {tag:disappointed}. You may not set standard elements of your lifestyle, like {tag:fine-meal}s, as Desires."
-    pointCost: 0
+    group: general-restrictions
+    description: "You are a person of noble breeding, accustomed to comfort in all aspects. You must eat a {tag:fine-meal} or better each day, or you wake {tag:disappointed}. No Desire worth 1 point is open to you, and nothing standard to your lifestyle counts. (A Glutton's appetite overrules a noble's standards.) ‡"
+    pointCost: -2
+    exclusive: true
     purchasable: false
+    purchasableAfterStart: false
+    removable: false
     visible: false
+    desires:
+      locks:
+        - tiers: [1]
 
   - slug: ravenhearter
     name: Ravenhearter
@@ -326,14 +351,116 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
+  # Moved out of general-court (2026-08-31, Desires rework) — anyone can be
+  # vain, not just the court.
   - slug: vain
     name: Vain
     category: general
-    group: general-court
-    description: "You are inwardly inconsolable if anyone outshines you."
-    pointCost: -2
+    group: general-addictions
+    description: "You are inwardly inconsolable if anyone outshines you. Only Desires about being admired are open to you, unless one is worth 5 points or more. ‡"
+    pointCost: -5
+    exclusive: true
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
+    removable: false
+    consumable: false
+    conflictsWith: [depressed, ascetic]
+    desires:
+      locks:
+        - tiers: [1, 2, 3, 4]
+          exceptFamilies: [vanity]
+
+  # NEW (2026-08-31, Desires rework). The one Addiction that closes tiers
+  # 5 and 7 too — compensated by food being the largest family.
+  - slug: glutton
+    name: Glutton
+    category: general
+    group: general-addictions
+    description: "You eat like a man being chased. Only Desires about food are open to you, at any price. ‡"
+    pointCost: -6
+    exclusive: true
+    purchasable: true
+    purchasableAfterStart: true
+    removable: false
+    consumable: false
+    conflictsWith: [depressed, ascetic]
+    desires:
+      locks:
+        - all: true
+          exceptFamilies: [food]
+
+  # --- Interests (general-interests) -------------------------------------
+  # NEW 2026-08-31 (Desires rework). Non-exclusive, purchasable, purchasable
+  # after start — the reverse posture of a drawback. Interests don't lock
+  # anything; they just gate a Desire open. Superstitious/Desperate/
+  # Hypochondriac/Combative/Corrupt/Fundamentalist above are the sign-flipped
+  # half of this same group.
+  - slug: mad-doctor
+    name: Mad Doctor
+    category: general
+    group: general-interests
+    description: "The body is a machine with the panel left off. You would very much like to look inside. ‡"
+    pointCost: 5
+    requiredTag: medical-basic
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: esoteric
+    name: Esoteric
+    category: general
+    group: general-interests
+    description: "You have read the wrong books and you want the rest of them. ‡"
+    pointCost: 5
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: adventurer
+    name: Adventurer
+    category: general
+    group: general-interests
+    description: "There is a whole ruined world out there and you have seen almost none of it. ‡"
+    pointCost: 5
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: cruel
+    name: Cruel
+    category: general
+    group: general-interests
+    description: "Other people's pain is interesting to you. You have stopped pretending otherwise. ‡"
+    pointCost: 5
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: charitable
+    name: Charitable
+    category: general
+    group: general-interests
+    description: "You give things away and it doesn't hurt. People find this suspicious. ‡"
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Supersedes the retired Bacchus "Death Wish" tag — lock-free by design
+  # (F-18): the old one was Restriction-shaped, this one is just an Interest.
+  # Holders of the retired death-wish are granted this free.
+  - slug: death-wish-interest
+    name: "Death Wish"
+    category: general
+    group: general-interests
+    description: "You want to see how close you can get. Closer than that. ‡"
+    pointCost: 5
+    purchasable: true
+    purchasableAfterStart: true
+
+  - slug: schemer
+    name: Schemer
+    category: general
+    group: general-interests
+    description: "You would rather arrange a thing than do it. ‡"
+    pointCost: 5
+    purchasable: true
+    purchasableAfterStart: true
 
   - slug: windlander
     name: Windlander
@@ -473,20 +600,34 @@ tags:
   - slug: depressed
     name: Depressed
     category: general
-    group: general-traits
-    description: "Until this is somehow fixed, you can no longer take Desires."
-    pointCost: -7
+    group: general-restrictions
+    description: "Nothing is worth wanting. No Desire is open to you until somebody fixes this. ‡"
+    pointCost: -8
+    exclusive: true
     purchasable: true
+    # Curable + maximally valuable would be a point farm otherwise (R-1).
     purchasableAfterStart: false
+    removable: false
+    desires:
+      locks:
+        - all: true
 
   - slug: alcoholic
     name: Alcoholic
     category: general
-    group: general-traits
-    description: "A depraved way of life. You've chosen it. {tag:alcohol} can't fulfill your Desires, but you must drink it regardless. {tag:ravenheart-red} still pleases you, though, although less than other people."
+    group: general-addictions
+    description: "Drink comes first and there is no second. Only drinking Desires are open to you, unless one is worth 5 points or more. ‡"
     pointCost: -3
+    exclusive: true
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
+    removable: false
+    consumable: false
+    conflictsWith: [depressed, ascetic, prudish]
+    desires:
+      locks:
+        - tiers: [1, 2, 3, 4]
+          exceptFamilies: [alcohol]
 
   # `seductive` is an old slug kept as the stable match key; the tag is
   # displayed as Empathetic. It reads a Desire the slow way — a Gambit, after a
@@ -574,11 +715,17 @@ tags:
   - slug: ascetic
     name: Ascetic
     category: general
-    group: general-traits
-    description: "You're imperturbable. However, you don't particularly desire things either—probably for the better."
-    pointCost: 0
+    group: general-restrictions
+    description: "You want nothing, and you trained hard to want it. The only Desire open to you is to sit in bliss. ‡"
+    pointCost: -6
+    exclusive: true
     purchasable: true
     purchasableAfterStart: true
+    removable: false
+    desires:
+      locks:
+        - all: true
+          exceptFamilies: [ascetic]
 
   - slug: game-master
     name: Game Master
@@ -789,11 +936,16 @@ tags:
   - slug: craven
     name: Craven
     category: general
-    group: general-traits
-    description: "Your priority in conflicts is to run away, no matter what goals or people you trample over."
-    pointCost: -5
+    group: general-restrictions
+    description: "Your priority in conflicts is to run away, no matter what goals or people you trample over. No Desire that takes courage is open to you. ‡"
+    pointCost: -3
+    exclusive: true
     purchasable: true
     purchasableAfterStart: false
+    removable: false
+    desires:
+      locks:
+        - families: [bravery, violence, adventure]
 
   - slug: dwarf
     name: Dwarf
@@ -812,8 +964,10 @@ tags:
     group: general-traits
     description: "Blood and gore make you sick."
     pointCost: -5
-    purchasable: true
+    # Retired 2026-08-31 — Desires rework; free removal, no successor.
+    purchasable: false
     purchasableAfterStart: false
+    removable: true
 
   - slug: clumsy
     name: Clumsy
@@ -827,11 +981,17 @@ tags:
   - slug: kleptomaniac
     name: Kleptomaniac
     category: general
-    group: general-traits
-    description: "Other people's possessions just seem to fall into your hands. There's nothing you can do about it!"
-    pointCost: -3
+    group: general-restrictions
+    description: "Other people's possessions just seem to fall into your hands. There's nothing you can do about it! Money you came by honestly means nothing: no Desire about wealth is open to you—only the thieving ones. ‡"
+    pointCost: -2
+    exclusive: true
     purchasable: true
     purchasableAfterStart: false
+    removable: false
+    desires:
+      locks:
+        - families: [wealth]
+          exceptFamilies: [theft]
 
   - slug: honest
     name: Honest
@@ -856,14 +1016,17 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
+  # Sign flip 2026-08-31 (Desires rework): was a -2 drawback, now a +2
+  # Interest. Existing holders are grandfathered — they keep it free, no
+  # clawback.
   - slug: superstitious
     name: Superstitious
     category: general
-    group: general-traits
-    description: "You see bad omens everywhere. You're not rational."
-    pointCost: -2
+    group: general-interests
+    description: "You see bad omens everywhere. You're not rational. You are, occasionally, right. ‡"
+    pointCost: 2
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   - slug: nearsighted
     name: Nearsighted
@@ -904,14 +1067,24 @@ tags:
     purchasableAfterStart: false
     removable: false
 
+  # Slug kept deliberately (see this file's header) — it now covers what
+  # coca-habit used to (that tag is retired below, folded in at par).
   - slug: poppy-habit
-    name: Poppy Habit
+    name: "Drug Habit ‡"
     category: general
-    group: general-traits
-    description: "You need {tag:poppy}. It stops the sweating."
-    pointCost: -7
+    group: general-addictions
+    description: "You need the poppy and its cousins. It stops the sweating. Only Desires about drugs are open to you, unless one is worth 5 points or more. ‡"
+    pointCost: -4
+    exclusive: true
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
+    removable: false
+    consumable: false
+    conflictsWith: [depressed, ascetic, prudish]
+    desires:
+      locks:
+        - tiers: [1, 2, 3, 4]
+          exceptFamilies: [drugs]
 
   - slug: in-debt
     name: Regular Debt
@@ -937,11 +1110,16 @@ tags:
   - slug: pacifist
     name: Pacifist
     category: general
-    group: general-traits
-    description: "You will never, ever attack someone except in self defense. And even in self defense, you won't kill. Fighting disgusts you, but God smiles upon you."
-    pointCost: -3
+    group: general-restrictions
+    description: "You will never, ever attack someone except in self defense. And even in self defense, you won't kill. Fighting disgusts you, but God smiles upon you. No violent Desire is open to you. ‡"
+    pointCost: -2
+    exclusive: true
     purchasable: true
     purchasableAfterStart: false
+    removable: false
+    desires:
+      locks:
+        - families: [violence, feud]
 
   - slug: fat
     name: Fat
@@ -960,8 +1138,10 @@ tags:
     group: general-traits
     description: "You take a perverse sense of pride in scrimping and saving."
     pointCost: 2
-    purchasable: true
-    purchasableAfterStart: true
+    # Retired 2026-08-31 — Desires rework; free removal, no successor.
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
 
   - slug: pale
     name: Pale
@@ -975,14 +1155,15 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  # Sign flip 2026-08-31 (Desires rework), grandfathered — see Superstitious.
   - slug: desperate
     name: Desperate
     category: general
-    group: general-traits
+    group: general-interests
     description: "You don't understand why people don't want to be around you. That's why they don't want to be around you."
-    pointCost: -2
+    pointCost: 2
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   - slug: vow-of-silence
     name: Vow of Silence
@@ -1000,17 +1181,28 @@ tags:
     group: general-traits
     description: "You need {tag:distilled-coca}, you party animal, you."
     pointCost: -7
-    purchasable: true
+    # Retired 2026-08-31 — Desires rework; folded into poppy-habit (Drug
+    # Habit) at par. Holders convert free.
+    purchasable: false
     purchasableAfterStart: false
 
+  # Slug kept deliberately (see this file's header) — renamed Gambler.
   - slug: compulsive-gambler
-    name: Compulsive Gambler
+    name: "Gambler"
     category: general
-    group: general-traits
-    description: "Just one more card. Just one more spin. Just one more roll. Just one more...!"
-    pointCost: -2
+    group: general-addictions
+    description: "Just one more card. Just one more spin. Just one more roll. Just one more...! Only Desires about play and wagers are open to you, unless one is worth 5 points or more. ‡"
+    pointCost: -5
+    exclusive: true
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
+    removable: false
+    consumable: false
+    conflictsWith: [depressed, ascetic, prudish]
+    desires:
+      locks:
+        - tiers: [1, 2, 3, 4]
+          exceptFamilies: [gambling]
 
   - slug: life-debt
     name: Life Debt
@@ -1026,34 +1218,48 @@ tags:
   - slug: devoted-follower
     name: Devoted Follower
     category: general
-    group: general-traits
-    description: "You wouldn't dare raise a hand against one of your own. You're incapable of betraying your starting faction, even if it would be in your best interest. Must be part of a faction, and not a mercenary, migrant, or bum."
-    pointCost: -1
-    visible: false
-    purchasable: true
-    purchasableAfterStart: false
-
-  - slug: hypochondriac
-    name: Hypochondriac
-    category: general
-    group: general-traits
-    description: "In your mind, you inflate minor scrapes and sicknesses into disastrous, incurable maladies. The Sanctuary is sick of hearing from you."
-    pointCost: -5
+    group: general-restrictions
+    description: "You wouldn't dare raise a hand against one of your own. You're incapable of betraying your starting faction, even if it would be in your best interest. No Desire about betrayal, scheming, or another faction's success is open to you (your own faction's successes still count). Must be part of a faction, and not a mercenary, migrant, or bum. ‡"
+    pointCost: -2
+    exclusive: true
     visible: false
     purchasable: true
     purchasableAfterStart: false
     removable: false
+    # The own-faction carve-out is prose above (F-11), not data — the lock
+    # below reads plain faction-success, since the game has no per-desire
+    # "your side vs. any side" distinction to encode.
+    desires:
+      locks:
+        - families: [betrayal, scheming, faction-success]
+
+  # Sign flip 2026-08-31 (Desires rework), grandfathered — see Superstitious.
+  # No longer a drawback, so removable now.
+  - slug: hypochondriac
+    name: Hypochondriac
+    category: general
+    group: general-interests
+    description: "In your mind, you inflate minor scrapes and sicknesses into disastrous, incurable maladies. The Sanctuary is sick of hearing from you."
+    pointCost: 2
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
 
   - slug: prudish
     name: Prudish
     category: general
-    group: general-traits
-    description: "You disapprove of drinking, doping, gambling, and whoring, and you intend to let everybody know. This hasn't won you many friends."
-    pointCost: -2
+    group: general-restrictions
+    description: "You disapprove of drinking, doping, gambling, and whoring, and you intend to let everybody know. No Desire about any of the four is open to you. ‡"
+    pointCost: -3
+    exclusive: true
     visible: false
     purchasable: true
     purchasableAfterStart: false
     removable: false
+    desires:
+      locks:
+        - families: [alcohol, drugs, gambling, romance]
 
   - slug: ugly
     name: Ugly
@@ -1121,15 +1327,16 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  # Sign flip 2026-08-31 (Desires rework); text unchanged.
   - slug: combative
     name: Hot-Headed
     category: general
-    group: general-traits
+    group: general-interests
     description: "You like split knuckles, cracked teeth, black eyes—though they look better on the other guy! You actively pick fights where they might not be necessary."
-    pointCost: -2
+    pointCost: 2
     visible: true
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   # --- Beliefs --------------------------------------------------------------
   # What a character actually believes. The setting has said so for a while —
@@ -1189,16 +1396,17 @@ tags:
     removable: true
     exclusive: true
 
+  # Sign flip 2026-08-31 (Desires rework): removed and re-added under the
+  # same slug as a +2 Interest rather than a -2 drawback. Existing holders
+  # are grandfathered — they keep it free, no clawback.
   - slug: fundamentalist
     name: Fundamentalist
     category: general
     group: general-beliefs
-    description: "You are hardcore about your Post-Christian beliefs—perhaps more hardcore than the Church itself is."
-    pointCost: -2
+    description: "You are hardcore about your Post-Christian beliefs—perhaps more hardcore than the Church itself is. Heresy is a thing that burns. ‡"
+    pointCost: 2
     purchasable: true
-    # A drawback buyable mid-game is a point farm (TAGS.md §4) — this was the
-    # one negative tag left open after the start.
-    purchasableAfterStart: false
+    purchasableAfterStart: true
     removable: true
     requiredTag: post-christian
     exclusive: true
@@ -1294,15 +1502,19 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  # Sign flip 2026-08-31 (Desires rework); moves OUT of general-watch into
+  # general-interests, ungated — the watchman/sheriff OR-gate lives on its
+  # Desires (take-a-bribe), not on the tag itself. Text unchanged.
+  # Grandfathered — see Superstitious.
   - slug: corrupt
     name: Corrupt
     category: general
-    group: general-watch
+    group: general-interests
     description: "The good old ways. You prioritize making yourself comfortable over upholding your vows."
-    pointCost: -5
+    pointCost: 5
     visible: false
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   - slug: kennelmaster
     name: Kennelmaster
@@ -1419,7 +1631,9 @@ tags:
     description: "Your clan is your foremost concern in life. Feuds must be settled before anything else can happen. You must act accordingly."
     pointCost: -2
     visible: false
-    purchasable: true
+    # Retired 2026-08-31 — Desires rework; absorbed into blood-feud
+    # (general-restrictions). Free removal where held alone.
+    purchasable: false
     purchasableAfterStart: false
 
   - slug: siege-engineer
@@ -1451,8 +1665,28 @@ tags:
     description: "Take only if you're a Windrider. The murdered clansman was family or your best friend. Take revenge!"
     pointCost: -7
     visible: false
+    # Retired 2026-08-31 — Desires rework; superseded by blood-feud
+    # (general-restrictions), which absorbs it and honorbound at par.
+    purchasable: false
+    purchasableAfterStart: false
+
+  # NEW (2026-08-31, Desires rework) — absorbs blood-debt (-7) and
+  # honorbound (-2) into one Restriction, priced per the Restriction ladder
+  # rather than the sum of the two.
+  - slug: blood-feud
+    name: Blood Feud
+    category: general
+    group: general-restrictions
+    description: "They killed one of yours. Nothing your clan wins matters until that is paid for: no Desire about your own side's success is open to you, only Desires about theirs ending. ‡"
+    pointCost: -2
+    exclusive: true
+    requiredTag: windlander
     purchasable: true
     purchasableAfterStart: false
+    removable: false
+    desires:
+      locks:
+        - families: [faction-success]
 
   # --- Skills ---------------------------------------------------------------
 
@@ -6981,29 +7215,32 @@ tags:
     group: bacchus
     description: "The only valid Desires for you are near-death occurrences."
     pointCost: -5
-    purchasable: true
-    purchasableAfterStart: true
+    # Retired 2026-08-31 — Desires rework; superseded by the lock-free
+    # death-wish-interest Interest (general-interests). Holders are granted
+    # death-wish-interest for free.
+    purchasable: false
+    purchasableAfterStart: false
     exclusive: true
     removable: false
     consumable: false
 
-  # The Addictions are the one deliberate exception to the TAGS.md §4 rule
-  # that a negative tag is purchasableAfterStart: false — a Cultist is meant
-  # to be able to take one mid-game for the points. That only works while they
-  # are one-way: REMOVE_TAG and CONSUME_TAG refund resources but never Tag
-  # Points, so a removable Addiction would be buy -> remove -> buy again, an
-  # unbounded point farm. All four are therefore removable: false,
-  # consumable: false.
+  # The four `addiction-*` Bacchus tags below are retired 2026-08-31 —
+  # Desires rework; the desire-lock mechanism they existed to hand-simulate
+  # is now data on the general-addictions tags themselves (alcoholic,
+  # poppy-habit, compulsive-gambler, vain, glutton), which any Cultist can
+  # take the same as anyone else. Kept as rows per this file's header;
+  # `purchasable: false` is what actually removes them from every menu.
   - slug: addiction-romantic
     name: "Addiction: Romantic"
     category: bacchus
     group: bacchus
     description: "The only valid Desires for you are related to romance. Do not take with other Addiction tags."
     pointCost: -5
-    purchasable: true
-    purchasableAfterStart: true
+    # Retired 2026-08-31 — Desires rework; free removal, no successor.
+    purchasable: false
+    purchasableAfterStart: false
     exclusive: true
-    removable: false
+    removable: true
     consumable: false
 
   - slug: addiction-cruel
@@ -7012,10 +7249,12 @@ tags:
     group: bacchus
     description: "The only valid Desires for you are related to cruelty. Do not take with other Addiction tags."
     pointCost: -5
-    purchasable: true
-    purchasableAfterStart: true
+    # Retired 2026-08-31 — Desires rework; superseded by the cruel Interest
+    # (general-interests). Holders are granted cruel for free.
+    purchasable: false
+    purchasableAfterStart: false
     exclusive: true
-    removable: false
+    removable: true
     consumable: false
 
   - slug: addiction-glutton
@@ -7024,10 +7263,12 @@ tags:
     group: bacchus
     description: "The only valid Desires for you are related to {tag:lavish-meal}, {tag:sweets}, and other expensive foods—not fine meals. Do not take with other Addiction tags."
     pointCost: -5
-    purchasable: true
-    purchasableAfterStart: true
+    # Retired 2026-08-31 — Desires rework; superseded by the glutton
+    # Addiction (general-addictions). Holders convert free.
+    purchasable: false
+    purchasableAfterStart: false
     exclusive: true
-    removable: false
+    removable: true
     consumable: false
 
   - slug: addiction-drugs
@@ -7036,10 +7277,12 @@ tags:
     group: bacchus
     description: "The only valid Desires for you are related to recreational drugs. Do not take with other Addiction tags."
     pointCost: -5
-    purchasable: true
-    purchasableAfterStart: true
+    # Retired 2026-08-31 — Desires rework; superseded by poppy-habit (Drug
+    # Habit, general-addictions). Holders convert free.
+    purchasable: false
+    purchasableAfterStart: false
     exclusive: true
-    removable: false
+    removable: true
     consumable: false
 
   # Not cult-gated: an Instant Camera can be handed to anyone. Purchasable at

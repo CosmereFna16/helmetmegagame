@@ -55,6 +55,22 @@ groups:
     name: Beliefs
     category: general
     color: "#878fb7"
+  # Desires rework (2026-08-31): the Addiction/Restriction/Interest ladder
+  # gets its own three groups instead of living scattered through Traits and
+  # The Court. All three ungated, same reasoning as Traits/Social/Beliefs —
+  # nothing here is a secret.
+  - slug: general-addictions
+    name: Addictions
+    category: general
+    color: "#6f93c9"
+  - slug: general-restrictions
+    name: Restrictions
+    category: general
+    color: "#7f88bd"
+  - slug: general-interests
+    name: Interests
+    category: general
+    color: "#9db4e0"
   # Two body-membership groups, gated the same way Demoness and Bacchus are
   # (see the bottom of this file). Gating here rather than repeating
   # `requiredTag` on every member is the established idiom, and it means a
