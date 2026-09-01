@@ -51,6 +51,16 @@ it, a wipe would leave every silo at the 0 it was zeroed to, since no
 faction row is ever *created* again after the first sync. Unaffiliated is
 excluded and stays silo-less.
 
+`Faction.parentFactionId` is create-only for the same reason. The hierarchy is
+authored in `roles.yaml` (`parent:`), but once a faction row exists its parent
+is **live game state** — a clan can break away mid-game, or be absorbed by
+another, and that is a GM edit on `/gm/dev/factions`. An ordinary re-sync
+leaves it alone, so it can't quietly re-parent a faction under the one it
+rebelled against. `seedSilos: true` (`--seed-silos`, and the Restart Game
+wipe) reasserts the authored hierarchy along with the authored silos — so
+editing `parent:` in the YAML for a *future* game is still the right move, it
+just doesn't reach a game already in progress.
+
 ### One-time vs every-run
 
 `syncZones` is the one with a split personality:

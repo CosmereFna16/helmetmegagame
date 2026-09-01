@@ -19,7 +19,12 @@
 //      `--seed-silos`) put every silo back at its computed opening balance.
 //      Unaffiliated is excluded from seeding altogether and stays silo-less.
 //   2. Resolve each faction's `parent:` slug to parentFactionId, once every
-//      faction row is guaranteed to exist.
+//      faction row is guaranteed to exist — on CREATE only, for the same
+//      reason as `silo` above. A faction breaking away from its parent
+//      mid-game is a GM edit on /gm/dev/factions, and an ordinary re-sync
+//      must not quietly pull it back under the parent it rebelled against.
+//      `seedSilos: true` (a wipe, or `--seed-silos`) reasserts the authored
+//      hierarchy along with the authored silos.
 //   3. Upsert Role by slug — the whole starting package.
 //   4. Prune roles/factions that dropped out of the YAML, but only when
 //      nothing references them (see below).
@@ -194,6 +199,10 @@ async function syncRolesFromYaml(prisma, { seedSilos = false } = {}) {
 
   // Pass 1: Faction scalars.
   const factionIdBySlug = new Map();
+  // Rows this run brought into existence — the only ones pass 2 parents on an
+  // ordinary sync. A pre-slug row being claimed counts as fresh: it has never
+  // been through pass 2 before, so it has no live hierarchy to protect.
+  const freshFactionIds = new Set();
   for (const entry of factions) {
     const data = { name: entry.name, zoneId: zoneIdByName.get(entry.zoneName), sortOrder: entry.sortOrder };
     // Unaffiliated is deliberately excluded from silo seeding — it seeds 0
@@ -206,9 +215,11 @@ async function syncRolesFromYaml(prisma, { seedSilos = false } = {}) {
       if (row) {
         row = await prisma.faction.update({ where: { id: row.id }, data: { slug: entry.slug, ...data } });
         stats.factionsUpdated++;
+        freshFactionIds.add(row.id);
       } else {
         row = await prisma.faction.create({ data: { slug: entry.slug, silo: siloSeed, ...data } });
         stats.factionsCreated++;
+        freshFactionIds.add(row.id);
         stats.seededSilos.push({ name: entry.name, silo: siloSeed });
       }
     } else {
@@ -228,10 +239,14 @@ async function syncRolesFromYaml(prisma, { seedSilos = false } = {}) {
     factionIdBySlug.set(entry.slug, row.id);
   }
 
-  // Pass 2: faction hierarchy, now that every row exists.
+  // Pass 2: faction hierarchy, now that every row exists. Create-only, like
+  // `silo` — see the header. An existing faction's parent is live game state
+  // (a clan can break away, or be absorbed, during a game), so only a fresh
+  // row or an explicit re-seed takes its parent from the YAML.
   for (const entry of factions) {
     const parentFactionId = entry.parentSlug ? factionIdBySlug.get(entry.parentSlug) : null;
     const id = factionIdBySlug.get(entry.slug);
+    if (!seedSilos && !freshFactionIds.has(id)) continue;
     const current = await prisma.faction.findUnique({ where: { id }, select: { parentFactionId: true } });
     if (current.parentFactionId !== parentFactionId) {
       await prisma.faction.update({ where: { id }, data: { parentFactionId } });
