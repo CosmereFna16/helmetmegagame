@@ -1794,6 +1794,13 @@ async function fastTravelRequestImpl({ targetZoneId, passengerIds: rawPassengerI
     where: { id: fromZoneId },
     include: { connectsTo: { where: { id: targetZone.id } } },
   });
+  // Riding INTO the caves is fine — the mouth is right there off the road.
+  // Riding OUT, or between levels, is not: no horse fits the tunnels. The
+  // origin alone decides, so this sits before the adjacency check to give the
+  // specific refusal rather than the generic one.
+  if (currentZone?.kind === "CAVE_LEVEL") {
+    throw new UserError("You cannot fast travel between or out of cave zones.");
+  }
   if (!currentZone || currentZone.connectsTo.length === 0) {
     throw new UserError("You can't get there directly from here.");
   }

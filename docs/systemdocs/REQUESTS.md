@@ -611,6 +611,13 @@ spending a turn, but you'll be easily visible" — and nothing read either slug
 until this. No Action means no Move spent *and* no block from having already
 acted: riding is not acting.
 
+**The caves are one-way for a horse.** Fast travel INTO a cave level is
+allowed — the mouth is right off the road — but a rider standing in a
+`CAVE_LEVEL` zone is refused outright ("You cannot fast travel between or
+out of cave zones."), which covers both hopping between levels and riding
+back out. The origin alone decides, checked in `fastTravelRequestImpl`
+before the adjacency check so the refusal is the specific one.
+
 **Fast Travel can carry passengers, and any co-present character qualifies.**
 `web/lib/tagRequests.js#fastTravelCapacity` reads the rider's held tags for a
 seat count (rider included): a horse or Wild Horse alone seats 2; `cart`
