@@ -598,7 +598,7 @@ tags:
     name: Tactician
     category: general
     group: general-traits
-    description: "You are good at laying out plans and leading people into battle."
+    description: "Whenever you lead a group in battle, you tend to come out ahead."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
