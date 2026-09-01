@@ -26,6 +26,7 @@ const { runHungerPass, hungerDm, disappointedDm, DYING_DM } = require("./lib/hun
 const { runCatatonicPass } = require("./lib/catatonicPass");
 const { runCatatonicDeathPass } = require("./lib/catatonicDeathPass");
 const { runDyingDeathPass } = require("./lib/dyingDeathPass");
+const { runBirdPass } = require("./lib/birdPass");
 // By path, not the barrel — see the note at the top of db/lib/accessSweep.js.
 const { revokeAllCharacterAccess } = require("./lib/accessSweep");
 const { LEAVE_ANNOUNCE_CHANNEL_ID } = require("./lib/constants");
@@ -200,6 +201,7 @@ const TURN_PASSES = [
   "expirySweep",
   "catatonic",
   "catatonicDeath",
+  "bird",
   "hunger",
   "lifewebDecay",
 ];
@@ -384,6 +386,33 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Dying death audit log failed:", err));
   }
 
+  // The Bird's stranded letters (db/lib/birdPass.js). Deliberately late in the
+  // close, after both auto-kills: a sender who died this same turn is already
+  // dead by the time the notice is composed, so the two cannot disagree about
+  // whether to write to them. Its own resolvedPasses marker like every other
+  // pass — the failureNotifiedAt stamp it writes IS the claim, so a resume must
+  // not be able to tell the same sender twice.
+  let birdResult = null;
+  if (!done.has("bird")) {
+    birdResult = await runBirdPass(prisma, turn).catch(async (err) => {
+      await passFailed("Bird", err);
+      return null;
+    });
+    if (birdResult) await markDone("bird");
+  }
+  const { notices: birdNotices = [], ...birdSummary } = birdResult ?? {};
+  if (birdResult && birdSummary.undelivered > 0) {
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "bird_messages_undelivered",
+          details: birdSummary,
+        },
+      })
+      .catch((err) => console.error("Bird audit log failed:", err));
+  }
+
   // Paired with the progression pass above and recorded as one unit: the
   // sweep is what deletes the rows that pass just read, so resuming with one
   // applied and the other not would either double-progress or strand expired
@@ -555,6 +584,9 @@ async function resolveNeeds(turn, config) {
     catatonicRoleUpdates,
     catatonicDeaths,
     catatonicDeathWarnings,
+    dyingDeaths,
+    dyingDeathWarnings,
+    birdNotices,
     privateDeliveries,
     publicPosts,
     zoneMoves,
@@ -603,6 +635,9 @@ async function advanceTurn() {
   let catatonicRoleUpdates = [];
   let catatonicDeaths = [];
   let catatonicDeathWarnings = [];
+  let dyingDeaths = [];
+  let dyingDeathWarnings = [];
+  let birdNotices = [];
   let cavingDms = [];
   let privateDeliveries = [];
   let publicPosts = [];
@@ -640,7 +675,7 @@ async function advanceTurn() {
       };
     }
 
-    ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices } =
+    ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices } =
       await resolveNeeds(openTurn, config));
   } else {
     // No OPEN turn, which normally means "opening the very first turn". It
@@ -705,7 +740,7 @@ async function advanceTurn() {
           },
         })
         .catch((logErr) => console.error("Failed to log turn_resume — the resume now has no record:", logErr));
-      ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices } =
+      ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices } =
         await resolveNeeds(unfinished, config));
     }
   }
@@ -836,6 +871,15 @@ async function advanceTurn() {
     for (const dm of tagExpiryDms) {
       await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
         console.error(`Tag progression DM to ${dm.discordUserId} failed:`, err),
+      );
+    }
+
+    // The Bird's stranded letters. One line, worded identically for a wrong
+    // guess and for a dead recipient — see db/lib/birdPass.js for why those
+    // two must never be told apart.
+    for (const dm of birdNotices) {
+      await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
+        console.error(`Bird failure DM to ${dm.discordUserId} failed:`, err),
       );
     }
 

@@ -28,6 +28,8 @@ const {
 const { resolveChannelContext } = require("../lib/channels");
 const { ack, respond, scheduleDismiss } = require("../lib/respond");
 const { handleReportOpen, handleReportClose } = require("../lib/reportChannel");
+const { BIRD_REPLY_PREFIX, BIRD_REPLY_MODAL_PREFIX } = require("@lifeweb/db/lib/bird");
+const { handleBirdReplyOpen, handleBirdReplySubmit } = require("../lib/birdReply");
 const {
   OPEN_PREFIX: EDIT_OPEN_PREFIX,
   MODAL_PREFIX: EDIT_MODAL_PREFIX,
@@ -1115,6 +1117,11 @@ module.exports = {
         }
         if (interaction.customId === "move:open") return void (await handleMoveOpen(interaction));
         if (interaction.customId === "say:open") return void (await handleSpeakOpen(interaction));
+        // Arrives in a DM on a Bird's letter, so guild/member are null —
+        // birdReply.js touches neither. See docs/systemdocs/BIRD.md.
+        if (interaction.customId.startsWith(BIRD_REPLY_PREFIX)) {
+          return void (await handleBirdReplyOpen(interaction, interaction.customId.slice(BIRD_REPLY_PREFIX.length)));
+        }
         if (interaction.customId === REPORT_OPEN_ID) return void (await handleReportOpen(interaction));
         if (interaction.customId === REPORT_CLOSE_ID) return void (await handleReportClose(interaction));
         // Arrives in a DM, so guild/member are null — handleEditOpen resolves
@@ -1137,6 +1144,9 @@ module.exports = {
         }
         if (interaction.customId.startsWith("say:send:")) {
           return void (await handleSpeakSubmit(interaction, interaction.customId.slice("say:send:".length)));
+        }
+        if (interaction.customId.startsWith(BIRD_REPLY_MODAL_PREFIX)) {
+          return void (await handleBirdReplySubmit(interaction, interaction.customId.slice(BIRD_REPLY_MODAL_PREFIX.length)));
         }
         if (interaction.customId.startsWith(EDIT_MODAL_PREFIX)) return void (await handleEditSubmit(interaction));
       }

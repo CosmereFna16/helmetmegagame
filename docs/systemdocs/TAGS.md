@@ -57,6 +57,7 @@ diff check, same style as the zone sync's hash gate).
 
 ## 3. Two relations that look similar but aren't
 
+
 - **`parentTag` (tier chain)** — sequential, replacing. Melee (Basic) ->
   Melee (Trained) -> Melee (Skilled) -> ... Acquiring a tier is meant
   to replace the previous one on the character, not stack alongside it.
@@ -168,6 +169,13 @@ OR `smithing`"). The picker's "To make:" line renders the list joined with
 just no longer as a gate.
 
 ## 3a. Hidden categories, and gated groups
+
+**Two tags gate an action rather than an item: `bird` and `literate`.** Holding
+both puts the Bird on the Actions grid; holding `literate` alone puts the Read
+button there (`BIRD.md`). `literate` is also the key to
+`db/lib/gribble.js`, the cipher any future literacy feature should reuse rather
+than reinvent — a written thing an illiterate character cannot read should look
+the same everywhere in the game.
 
 Two whole categories are secret: **Demoness** (behind the `demoness` tag) and
 **Bacchus** (behind `follower-of-bacchus`, displayed as "Cultist of

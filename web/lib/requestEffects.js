@@ -738,6 +738,34 @@ export const REQUEST_EFFECTS = {
     },
   },
 
+  // A sent DM cannot be recalled, so this is the one request type whose real
+  // effect Undo cannot touch. What it CAN give back is the day — the letter is
+  // once-a-day, and a GM who decides it should not have happened should not
+  // also be taking the sender's turn away. The note says so rather than
+  // implying the message was retrieved.
+  BIRD_MESSAGE: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { previousBirdTurnId, recipientName, birdMessageId, delivered } = request.effect;
+      await tx.character.update({
+        where: { id: request.characterId },
+        data: { birdTurnId: previousBirdTurnId ?? null },
+      });
+      // Closes the reply window too: the letter is retracted as far as the
+      // game is concerned, so an answer to it should not still be arriving.
+      if (birdMessageId) {
+        await tx.birdMessage
+          .update({ where: { id: birdMessageId }, data: { replyDeadlineTurn: null } })
+          .catch(() => {});
+      }
+      return `The bird is theirs again.${
+        delivered
+          ? ` ${recipientName ?? "They"} already read it — a sent message can't be taken back, and any reply is now closed.`
+          : ""
+      }`;
+    },
+  },
+
   BIND_CHARACTER: {
     editableFields: [],
     async undo(tx, request) {

@@ -45,6 +45,11 @@ export default function CharacterSheet({
   canFastTravel = false,
   fastTravelSeats = 0,
   fastTravelTargets = [],
+  hasBird = false,
+  isLiterate = false,
+  birdSentToday = false,
+  birdTargets = [],
+  birdZones = [],
   healTargets = [],
   healParties = null,
   // Everyone and everything in this character's zone worth acting on, built
@@ -112,6 +117,11 @@ export default function CharacterSheet({
             canFastTravel={canFastTravel}
             fastTravelSeats={fastTravelSeats}
             fastTravelTargets={fastTravelTargets}
+            hasBird={hasBird}
+            isLiterate={isLiterate}
+            birdSentToday={birdSentToday}
+            birdTargets={birdTargets}
+            birdZones={birdZones}
             healTargets={healTargets}
             healParties={healParties}
             lootTargets={lootTargets}

@@ -94,6 +94,8 @@ function summarize(request) {
       return `Buried ${e.targetName ?? "?"} — curse lifted`;
     case "FAST_TRAVEL":
       return `Rode ${e.fromZoneName ?? "?"} → ${e.toZoneName ?? "?"}`;
+    case "BIRD_MESSAGE":
+      return `${e.delivered ? "Wrote" : "Missed"} ${e.recipientName ?? "?"} in ${e.guessedZoneName ?? "?"}`;
     case "DEPOT_BUY":
       return `Bought ${e.tagName ?? "something"}${(e.quantity ?? 1) > 1 ? ` ×${e.quantity}` : ""} for ${e.total ?? 0} ⬢`;
     case "DEPOT_SELL":

@@ -16,6 +16,8 @@ import {
   WoundIcon,
   GraveIcon,
   HorseIcon,
+  BirdIcon,
+  EyeIcon,
 } from "./icons";
 
 // Everything a player can do to a sheet, as one block of icons on the right
@@ -45,7 +47,13 @@ import {
 // disclosure. So the co-presence actions are always lit, and you only learn
 // who is here by opening the dialog and reading it.
 const ACTIONS = [
-  { mode: "add", icon: PlusIcon, label: "Add Tag", help: ACTION_HELP.add, gate: "canAdd" },
+  {
+    mode: "add",
+    icon: PlusIcon,
+    label: "Add Tag",
+    help: ACTION_HELP.add,
+    gate: "canAdd",
+  },
   {
     mode: "remove",
     icon: TrashIcon,
@@ -53,10 +61,32 @@ const ACTIONS = [
     help: "Cure yourself or drop an item.",
     gate: "canRemove",
   },
-  { mode: "transfer", icon: HandOffIcon, label: "Transfer Tag", gate: "canTransfer" },
-  { mode: "resources", icon: ResourcesIcon, label: "Transfer Resources", help: ACTION_HELP.resources },
-  { mode: "consume", icon: MealIcon, label: "Consume", help: ACTION_HELP.consume, gate: "canConsume" },
-  { mode: "heal", icon: BandageIcon, label: "Heal", help: ACTION_HELP.heal, gate: "canHeal" },
+  {
+    mode: "transfer",
+    icon: HandOffIcon,
+    label: "Transfer Tag",
+    gate: "canTransfer",
+  },
+  {
+    mode: "resources",
+    icon: ResourcesIcon,
+    label: "Transfer Resources",
+    help: ACTION_HELP.resources,
+  },
+  {
+    mode: "consume",
+    icon: MealIcon,
+    label: "Consume",
+    help: ACTION_HELP.consume,
+    gate: "canConsume",
+  },
+  {
+    mode: "heal",
+    icon: BandageIcon,
+    label: "Heal",
+    help: ACTION_HELP.heal,
+    gate: "canHeal",
+  },
   { mode: "loot", icon: LootIcon, label: "Loot", help: ACTION_HELP.loot },
   { mode: "move", icon: MapIcon, label: "Move Player", help: ACTION_HELP.move },
   { mode: "bind", icon: ShackleIcon, label: "Bind", help: ACTION_HELP.bind },
@@ -65,7 +95,12 @@ const ACTIONS = [
   // No gate: burying is a co-presence action, and the rule above forbids
   // greying a button for a fact about who is near you. You learn whether a
   // body is here by opening the dialog and typing a name.
-  { mode: "bury", icon: GraveIcon, label: "Bury Person", help: ACTION_HELP.bury },
+  {
+    mode: "bury",
+    icon: GraveIcon,
+    label: "Bury Person",
+    help: ACTION_HELP.bury,
+  },
   // This one DOES take a gate, and legitimately: owning a horse is a fact
   // about your own sheet, which is exactly what the rule allows.
   {
@@ -74,6 +109,34 @@ const ACTIONS = [
     label: "Fast Travel",
     help: ACTION_HELP.fasttravel,
     gate: "canFastTravel",
+  },
+  // The Bird's two, and the only entries here that HIDE rather than grey.
+  //
+  // That is not a break in the rule above, which is about facts concerning
+  // other people: owning a bird and being able to write are both facts about
+  // your own sheet, so either treatment would be legal. Hiding is chosen
+  // because these two are rare — most of the roster holds neither tag, and a
+  // permanently dead icon teaches nothing except that something exists which
+  // you cannot have. `gate` still applies on top: Send Bird greys once today's
+  // letter has gone, which is a state worth showing rather than hiding.
+  {
+    mode: "bird",
+    icon: BirdIcon,
+    label: "Send Bird",
+    help: ACTION_HELP.bird,
+    show: "hasBird",
+    gate: "canSendBirdToday",
+  },
+  // The only entry in this grid that files no Request. It has no server
+  // action, no cooldown and writes nothing — it is a local box that decodes a
+  // ciphered letter someone showed you. Don't go looking for the missing
+  // action; there isn't one. See docs/systemdocs/BIRD.md.
+  {
+    mode: "read",
+    icon: EyeIcon,
+    label: "Read",
+    help: ACTION_HELP.read,
+    show: "isLiterate",
   },
 ];
 
@@ -111,7 +174,7 @@ export default function ActionGrid() {
     <div>
       <p className="field-label mb-2">Actions</p>
       <div className="grid grid-cols-6 gap-1 sm:grid-cols-4">
-        {ACTIONS.map((a) => (
+        {ACTIONS.filter((a) => (a.show ? pools[a.show] : true)).map((a) => (
           <IconButton
             key={a.mode}
             icon={a.icon}

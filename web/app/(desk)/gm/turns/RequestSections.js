@@ -395,6 +395,26 @@ export const SECTIONS = {
     ),
   },
 
+  BIRD_MESSAGE: {
+    heading: "Bird Message",
+    render: ({ effect }) => (
+      <>
+        <Line label="To">{effect.recipientName ?? "—"}</Line>
+        <Line label="Guessed">{effect.guessedZoneName ?? "—"}</Line>
+        <Line label="Arrived">{effect.delivered ? "Yes" : "No — the bird came back"}</Line>
+        {/* The plaintext, always — the DM the player actually received may be
+            enciphered (db/lib/gribble.js) if they can't read, and this is the
+            only surface where what was written is legible. */}
+        <div className="mt-1 whitespace-pre-wrap text-sm">{effect.body ?? ""}</div>
+        <p className="text-xs text-muted">
+          One letter a day, to a named person in a GUESSED zone — a wrong guess or a dead
+          recipient means it never arrived, and the sender is told a turn later. Undo hands the
+          day back and closes any reply window, but it cannot unsend a message that landed.
+        </p>
+      </>
+    ),
+  },
+
   FAST_TRAVEL: {
     heading: "Fast Travel",
     render: ({ effect }) => (

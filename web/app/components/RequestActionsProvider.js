@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState, useTransition } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import {
   sortTagsForMenu,
   sortForMode,
@@ -25,6 +32,8 @@ import CheckField from "./CheckField";
 import PartySelect from "./PartySelect";
 import Select from "./Select";
 import ChipText from "./ChipText";
+import { MAX_BIRD_BODY } from "@lifeweb/db/lib/bird";
+import ReadDialog from "./ReadDialog";
 import { useConfirm } from "./ConfirmProvider";
 import { useTags } from "./TagsProvider";
 import { heldSlugsOf } from "@/lib/consumeGrants";
@@ -42,6 +51,7 @@ import {
   harmCharacterRequest,
   buryCharacterRequest,
   fastTravelRequest,
+  birdMessageRequest,
 } from "../(app)/character/requestActions";
 
 // Every player action on the character sheet, in one place: the mode state,
@@ -77,7 +87,14 @@ export function useRequestActions() {
 // `byId`/`heldIds` are only meaningful for the Add menu, where a tag has to
 // clear its prerequisites before it can be asked for. The other menus list
 // what somebody already holds, so they pass nothing and every tag is offered.
-function TagPicker({ tags, selectedId, onSelect, byId = null, heldIds = null, emptyLabel = "Nothing available." }) {
+function TagPicker({
+  tags,
+  selectedId,
+  onSelect,
+  byId = null,
+  heldIds = null,
+  emptyLabel = "Nothing available.",
+}) {
   const [query, setQuery] = useState("");
 
   // The Add menu (the only caller passing byId) sorts chain-aware, so
@@ -97,7 +114,10 @@ function TagPicker({ tags, selectedId, onSelect, byId = null, heldIds = null, em
   // workshop gate). What survives here is really the hidden-category filter.
   // See tagRequests.js#addRequirementSatisfied.
   const unlocked = useMemo(
-    () => (byId ? offered.filter((t) => addRequirementSatisfied(t, byId, heldIds ?? [])) : offered),
+    () =>
+      byId
+        ? offered.filter((t) => addRequirementSatisfied(t, byId, heldIds ?? []))
+        : offered,
     [offered, byId, heldIds],
   );
   // "Unlocked by your tags", same as PointBuy's checkbox: everything shown
@@ -113,7 +133,8 @@ function TagPicker({ tags, selectedId, onSelect, byId = null, heldIds = null, em
   const active = categories.includes(category) ? category : categories[0];
   const visible = pool.filter((t) => t.category === active);
 
-  if (!unlocked.length) return <p className="text-sm text-muted">{emptyLabel}</p>;
+  if (!unlocked.length)
+    return <p className="text-sm text-muted">{emptyLabel}</p>;
 
   return (
     <div className="flex flex-col gap-3">
@@ -158,7 +179,10 @@ function TagPicker({ tags, selectedId, onSelect, byId = null, heldIds = null, em
           scrolls itself rather than growing the dialog, so the reason field
           and the Confirm button stay reachable however long Items gets —
           the same treatment PointBuy.js gives its own catalog. */}
-      <div className="flex flex-col gap-2 overflow-y-auto pr-1" style={{ maxHeight: "60vh" }}>
+      <div
+        className="flex flex-col gap-2 overflow-y-auto pr-1"
+        style={{ maxHeight: "60vh" }}
+      >
         {visible.map((tag) => {
           const isSelected = tag.id === selectedId;
           return (
@@ -178,22 +202,34 @@ function TagPicker({ tags, selectedId, onSelect, byId = null, heldIds = null, em
                 <span className="flex flex-wrap items-baseline gap-2">
                   <span className="font-bold">{tag.name}</span>
                   {tag.pointCost ? (
-                    <span className="text-xs" style={{ color: costColor(tag.pointCost) }}>
+                    <span
+                      className="text-xs"
+                      style={{ color: costColor(tag.pointCost) }}
+                    >
                       {formatCost(tag.pointCost)} pts
                     </span>
                   ) : null}
-                  {tag.group?.name ? <span className="text-xs text-muted">{tag.group.name}</span> : null}
+                  {tag.group?.name ? (
+                    <span className="text-xs text-muted">{tag.group.name}</span>
+                  ) : null}
                 </span>
                 {/* ChipText rather than RichText — the row is a <button>, so a
                     hoverable chip inside it would nest one button in another. */}
                 {tag.description && (
-                  <ChipText text={tag.description} as="span" className="mt-1 block text-xs text-muted" />
+                  <ChipText
+                    text={tag.description}
+                    as="span"
+                    className="mt-1 block text-xs text-muted"
+                  />
                 )}
                 {/* The gate that unlocked this row — role/faction kit would
                     otherwise be indistinguishable from the open catalog.
                     Only qualifying viewers ever see the row. */}
                 {prerequisiteNames(tag).length > 0 && (
-                  <span className="mt-1 block text-xs" style={{ color: "var(--accent-text)" }}>
+                  <span
+                    className="mt-1 block text-xs"
+                    style={{ color: "var(--accent-text)" }}
+                  >
                     Requires: {prerequisiteNames(tag).join(", ")}
                   </span>
                 )}
@@ -201,18 +237,26 @@ function TagPicker({ tags, selectedId, onSelect, byId = null, heldIds = null, em
                     blocks on recipe skills, so this line is how a player
                     knows what the recipe formally expects of them before
                     they file the request. Add-menu only (byId). */}
-                {byId && tag.craftable && (tag.requirementSkills ?? []).length > 0 && (
-                  <span className="mt-1 block text-xs" style={{ color: "var(--accent-text)" }}>
-                    To make: {tag.requirementSkills.map((s) => s.name).join(" or ")}
-                  </span>
-                )}
+                {byId &&
+                  tag.craftable &&
+                  (tag.requirementSkills ?? []).length > 0 && (
+                    <span
+                      className="mt-1 block text-xs"
+                      style={{ color: "var(--accent-text)" }}
+                    >
+                      To make:{" "}
+                      {tag.requirementSkills.map((s) => s.name).join(" or ")}
+                    </span>
+                  )}
               </span>
             </button>
           );
         })}
         {visible.length === 0 && (
           <p className="text-sm text-muted">
-            {query ? "Nothing matches that." : "Nothing available in this category."}
+            {query
+              ? "Nothing matches that."
+              : "Nothing available in this category."}
           </p>
         )}
       </div>
@@ -227,7 +271,13 @@ function QuantityField({ value, onChange, max, label }) {
   return (
     <label className="field" style={{ width: "10rem" }}>
       <span className="field-label">{label}</span>
-      <input type="number" min="1" max={max} value={value} onChange={(e) => onChange(e.target.value)} />
+      <input
+        type="number"
+        min="1"
+        max={max}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
     </label>
   );
 }
@@ -236,7 +286,13 @@ function ResourceCostField({ value, onChange, max }) {
   return (
     <label className="field" style={{ width: "10rem" }}>
       <span className="field-label">Does this cost any Resources?</span>
-      <input type="number" min="0" max={max} value={value} onChange={(e) => onChange(e.target.value)} />
+      <input
+        type="number"
+        min="0"
+        max={max}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
     </label>
   );
 }
@@ -269,7 +325,8 @@ export const ACTION_HELP = {
     "already puts in your hands. Do not use it to dodge the point buy — " +
     "that's the Spend Tag Points button.",
   heal: "Works on others nearby too. Gated by your Medical skill.",
-  consume: "Use something up. You can also just click on the tag on your sheet.",
+  consume:
+    "Use something up. You can also just click on the tag on your sheet.",
   loot: "Search someone. Only works on Bound, Dying, or Catatonic people.",
   move:
     "Forcibly move someone with the Bound tag. Use this before changing zones " +
@@ -278,6 +335,14 @@ export const ACTION_HELP = {
   bind: "Tie up anyone standing where you are. Once they're Bound you can loot them or march them somewhere.",
   free: "Cut someone loose. Anyone standing here can do this, including a rescuer.",
   harm: "Further injure someone who is bound or incapacitated.",
+  bird:
+    "Send a message to a specific person in a specific zone. You have to guess " +
+    "where they are, and a bird will not go into the Railroad or the Aberrant " +
+    "Pits. One letter a day. If they can't read, they'll get it anyway — in a " +
+    "script they can't make out.",
+  read:
+    "Decode a letter someone showed you. Paste the script and it turns back " +
+    "into words. Nobody is told you read it.",
   bury:
     "Put a body that lies where you are into the ground. It lays the soul to " +
     "rest and lifts the curse from the player it belonged to, so they can " +
@@ -313,6 +378,7 @@ const TITLES = {
   harm: "Harm",
   bury: "Bury Person",
   fasttravel: "Fast Travel",
+  bird: "Send Bird",
 };
 
 // Why a given person is lootable, for the target list. The living cases are
@@ -351,6 +417,13 @@ export default function RequestActionsProvider({
   canFastTravel = false,
   fastTravelSeats = 0,
   fastTravelTargets = [],
+  // The Bird. `birdTargets` is EVERY character, alive or dead, on purpose —
+  // see the dialog below.
+  hasBird = false,
+  isLiterate = false,
+  birdSentToday = false,
+  birdTargets = [],
+  birdZones = [],
 }) {
   const [mode, setMode] = useState(null);
   const [tagId, setTagId] = useState(null);
@@ -375,39 +448,65 @@ export default function RequestActionsProvider({
   // Bury is the only request that types its target instead of picking it —
   // a dropdown here would be a list of the dead. See REQUESTS.md §5d.
   const [buryName, setBuryName] = useState("");
+  const [birdBody, setBirdBody] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
   const confirm = useConfirm();
 
-  const heldIds = useMemo(() => characterTags.map((ct) => ct.tagId), [characterTags]);
+  const heldIds = useMemo(
+    () => characterTags.map((ct) => ct.tagId),
+    [characterTags],
+  );
   // The catalog is purchasable-or-craftable only, so the tags that OPEN a
   // gate — Demoness, Cultist of Bacchus — aren't in it. Fold the character's
   // own held tags in, or a chain walk from a held gate tag dead-ends and the
   // category stays shut for the one person meant to see it.
   const gateById = useMemo(
-    () => buildTagsById([...catalog, ...characterTags.map((ct) => ct.tag).filter(Boolean)]),
+    () =>
+      buildTagsById([
+        ...catalog,
+        ...characterTags.map((ct) => ct.tag).filter(Boolean),
+      ]),
     [catalog, characterTags],
   );
   // heldHigherTiers hides the rungs BELOW a held chain tier — a chain
   // replaces upward and never re-opens downward. addTagRequest rejects the
   // same thing server-side.
   const addable = useMemo(
-    () => addableTags(catalog, heldIds).filter((t) => heldHigherTiers(t, gateById, heldIds).length === 0),
+    () =>
+      addableTags(catalog, heldIds).filter(
+        (t) => heldHigherTiers(t, gateById, heldIds).length === 0,
+      ),
     [catalog, heldIds, gateById],
   );
-  const removable = useMemo(() => removableTags(characterTags), [characterTags]);
-  const transferable = useMemo(() => transferableTags(characterTags), [characterTags]);
-  const consumable = useMemo(() => consumableTags(characterTags), [characterTags]);
+  const removable = useMemo(
+    () => removableTags(characterTags),
+    [characterTags],
+  );
+  const transferable = useMemo(
+    () => transferableTags(characterTags),
+    [characterTags],
+  );
+  const consumable = useMemo(
+    () => consumableTags(characterTags),
+    [characterTags],
+  );
 
   // Heal's menus are per-patient rather than per-tag, so they sit outside the
   // `chosen` pool below — an affliction row is a summary the server built, not
   // a Tag from the catalog.
-  const patient = useMemo(() => healTargets.find((t) => t.id === patientId) ?? null, [healTargets, patientId]);
+  const patient = useMemo(
+    () => healTargets.find((t) => t.id === patientId) ?? null,
+    [healTargets, patientId],
+  );
   const affliction = useMemo(
     () => patient?.healable.find((h) => h.tagId === tagId) ?? null,
     [patient, tagId],
   );
-  const lootTarget = useMemo(() => lootTargets.find((t) => t.id === targetId) ?? null, [lootTargets, targetId]);
+  const lootTarget = useMemo(
+    () => lootTargets.find((t) => t.id === targetId) ?? null,
+    [lootTargets, targetId],
+  );
   // Bind and Free share one co-located roster and split it on who is already
   // tied up, so the two menus can never disagree about the same person.
   const bindable = useMemo(
@@ -453,7 +552,9 @@ export default function RequestActionsProvider({
       const blockers = chosen?.consumesIntoUnless?.[slug] ?? null;
       if (blockers?.some((b) => heldSlugs.has(b))) return null;
       const alternatives = chosen?.consumesIntoOneOf?.[i];
-      return Array.isArray(alternatives) ? alternatives.map(nameOf).join(" or ") : nameOf(slug);
+      return Array.isArray(alternatives)
+        ? alternatives.map(nameOf).join(" or ")
+        : nameOf(slug);
     })
     .filter(Boolean);
 
@@ -514,6 +615,7 @@ export default function RequestActionsProvider({
       setPassengerIds(new Set());
       setLethal(false);
       setBuryName("");
+      setBirdBody("");
       setError(null);
     },
     [selfId],
@@ -555,36 +657,79 @@ export default function RequestActionsProvider({
     switch (mode) {
       case "add":
         // Always sent; the server pins it to 1 for a non-stackable tag anyway.
-        return addTagRequest({ tagId, quantity, resourcesSpent: spend, reason });
+        return addTagRequest({
+          tagId,
+          quantity,
+          resourcesSpent: spend,
+          reason,
+        });
       case "remove":
-        return removeTagRequest({ tagId, quantity, resourcesSpent: spend, reason });
+        return removeTagRequest({
+          tagId,
+          quantity,
+          resourcesSpent: spend,
+          reason,
+        });
       case "consume":
         return consumeTagRequest({ tagId, reason });
       case "heal":
-        return healCharacterRequest({ targetCharacterId: patientId, tagId, payerKey, reason });
+        return healCharacterRequest({
+          targetCharacterId: patientId,
+          tagId,
+          payerKey,
+          reason,
+        });
       case "transfer":
-        return transferTagRequest({ tagId, quantity, toCharacterId: recipient, reason });
+        return transferTagRequest({
+          tagId,
+          quantity,
+          toCharacterId: recipient,
+          reason,
+        });
       case "resources":
         return transferResourcesRequest({ fromKey, toKey, amount, reason });
       case "loot":
         return lootCharacterRequest({
           targetCharacterId: targetId,
-          tagPicks: Object.entries(picks).map(([id, q]) => ({ tagId: id, quantity: q })),
+          tagPicks: Object.entries(picks).map(([id, q]) => ({
+            tagId: id,
+            quantity: q,
+          })),
           amount,
           reason,
         });
       case "move":
-        return moveCharacterRequest({ targetCharacterId: targetId, targetZoneId: zoneId, reason });
+        return moveCharacterRequest({
+          targetCharacterId: targetId,
+          targetZoneId: zoneId,
+          reason,
+        });
       case "bind":
         return bindCharacterRequest({ targetCharacterId: targetId, reason });
       case "free":
         return freeCharacterRequest({ targetCharacterId: targetId, reason });
       case "harm":
-        return harmCharacterRequest({ targetCharacterId: targetId, tagId, lethal, reason });
+        return harmCharacterRequest({
+          targetCharacterId: targetId,
+          tagId,
+          lethal,
+          reason,
+        });
       case "bury":
         return buryCharacterRequest({ firstName: buryName, reason });
       case "fasttravel":
-        return fastTravelRequest({ targetZoneId: zoneId, passengerIds: [...passengerIds], reason });
+        return fastTravelRequest({
+          targetZoneId: zoneId,
+          passengerIds: [...passengerIds],
+          reason,
+        });
+      case "bird":
+        return birdMessageRequest({
+          recipientId: targetId,
+          guessedZoneId: zoneId,
+          body: birdBody,
+          reason,
+        });
       default:
         return Promise.resolve({ ok: false, error: "Nothing to do." });
     }
@@ -595,10 +740,17 @@ export default function RequestActionsProvider({
 
   const canSubmit = (() => {
     switch (mode) {
+      case "bird":
+        return Boolean(targetId && zoneId && birdBody.trim().length > 0);
       case "transfer":
         return Boolean(tagId && recipient);
       case "heal":
-        return Boolean(patientId && payerKey && affliction && !affliction.missingSkills.length);
+        return Boolean(
+          patientId &&
+          payerKey &&
+          affliction &&
+          !affliction.missingSkills.length,
+        );
       case "resources":
         return Boolean(fromKey && toKey && !sameParty);
       case "loot":
@@ -629,346 +781,517 @@ export default function RequestActionsProvider({
       canConsume: consumable.length > 0,
       canHeal,
       canFastTravel,
+      // `show` keys, read by ActionGrid to decide whether the icon exists at
+      // all; `canSendBirdToday` is an ordinary `gate` on top of it, so the
+      // button is there but dead once the day's letter has gone.
+      hasBird,
+      isLiterate,
+      canSendBirdToday: !birdSentToday,
     }),
-    [addable, removable, transferable, consumable, canHeal, canFastTravel],
+    [
+      addable,
+      removable,
+      transferable,
+      consumable,
+      canHeal,
+      canFastTravel,
+      hasBird,
+      isLiterate,
+      birdSentToday,
+    ],
   );
 
-  const value = useMemo(() => (enabled ? { open, pools } : null), [enabled, open, pools]);
+  const value = useMemo(
+    () => (enabled ? { open, pools } : null),
+    [enabled, open, pools],
+  );
 
   const title = TITLES[mode] ?? "Request";
-  const dialogWidth = mode === "add" || mode === "harm" || mode === "loot" ? "wide" : undefined;
+  const dialogWidth =
+    mode === "add" || mode === "harm" || mode === "loot" ? "wide" : undefined;
 
   return (
     <RequestActionsContext.Provider value={value}>
       {children}
 
       {enabled && (
-      <RequestDialog
-        open={mode !== null}
-        title={title}
-        submitLabel={title}
-        width={dialogWidth}
-        busy={pending}
-        error={error}
-        canSubmit={canSubmit}
-        onCancel={() => !pending && setMode(null)}
-        onConfirm={submit}
-      >
-        {mode === "add" && (
-          <>
-            <TagPicker tags={addable} selectedId={tagId} onSelect={pick} byId={gateById} heldIds={heldIds} />
-            {stacking && <QuantityField value={quantity} onChange={setQuantity} max={99} label="How many?" />}
-            {chosen?.requirementTurns === 0 &&
-              (chosen.requirementSkills ?? []).some(
-                (s) => s.slug === "crafting" || (s.slug ?? "").startsWith("smithing"),
-              ) && (
-                // Mirrors web/lib/requests.js#isDeadSimple's DEAD_SIMPLE_SKILL_SLUGS
-                // (server-enforced); that module can't be imported here without
-                // dragging Prisma in, and matching on slug rather than the
-                // display name keeps this from silently drifting from it.
-                <p className="text-sm text-muted">Dead Simple recipes: up to 4 items per turn, counted across your requests.</p>
-              )}
-            <ResourceCostField value={spend} onChange={setSpend} max={resources} />
-          </>
-        )}
+        <>
+          {/* Read is not a Request — no reason, no server action, nothing to
+          review — so it gets its own plain modal rather than being forced
+          through the Requests popup. See ReadDialog.js. */}
+          <ReadDialog open={mode === "read"} onClose={() => setMode(null)} />
 
-        {mode === "remove" && (
-          <>
-            <label className="field">
-              <span className="field-label">Tag to remove</span>
-              <Select value={tagId ?? ""} onChange={(e) => pick(e.target.value || null)} required>
-                <option value="" disabled>
-                  Choose a tag…
-                </option>
-                {removable.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                    {t.quantity > 1 ? ` ×${t.quantity}` : ""}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            {stacking && (
-              <QuantityField
-                value={quantity}
-                onChange={setQuantity}
-                max={heldCount}
-                label={`How many? (you have ${heldCount})`}
-              />
-            )}
-            <ResourceCostField value={spend} onChange={setSpend} max={resources} />
-          </>
-        )}
-
-        {mode === "consume" && (
-          <>
-            <label className="field">
-              <span className="field-label">What are you using up?</span>
-              <Select value={tagId ?? ""} onChange={(e) => pick(e.target.value || null)} required>
-                <option value="" disabled>
-                  Choose a tag…
-                </option>
-                {consumable.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                    {t.quantity > 1 ? ` ×${t.quantity}` : ""}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            {chosen && (
-              <p className="text-xs text-muted">
-                {becomes.length
-                  ? `Becomes: ${becomes.join(", ")}.`
-                  : "Gets used up — it doesn't leave anything behind."}
-                {chosen.quantity > 1 ? ` Takes one of your ${chosen.quantity}.` : ""}
-              </p>
-            )}
-          </>
-        )}
-
-        {mode === "heal" && (
-          <>
-            <label className="field">
-              <span className="field-label">Who are you treating?</span>
-              <Select
-                value={patientId}
-                onChange={(e) => {
-                  setPatientId(e.target.value);
-                  setTagId(null);
-                }}
-                required
-              >
-                <option value="" disabled>
-                  Choose someone here…
-                </option>
-                {healTargets.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.id === selfId ? `${t.name} (you)` : t.name}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            {patient && (
-              <label className="field">
-                <span className="field-label">What are you treating?</span>
-                <Select value={tagId ?? ""} onChange={(e) => setTagId(e.target.value || null)} required>
-                  <option value="" disabled>
-                    Choose an affliction…
-                  </option>
-                  {patient.healable.map((h) => (
-                    <option key={h.tagId} value={h.tagId} disabled={h.missingSkills.length > 0}>
-                      {h.tagName}
-                      {h.missingSkills.length ? ` — needs ${h.missingSkills.join("/")}` : ""}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-            )}
-            {affliction && (
+          <RequestDialog
+            open={mode !== null && mode !== "read"}
+            title={title}
+            submitLabel={title}
+            width={dialogWidth}
+            busy={pending}
+            error={error}
+            canSubmit={canSubmit}
+            onCancel={() => !pending && setMode(null)}
+            onConfirm={submit}
+          >
+            {mode === "add" && (
               <>
-                <PartySelect
-                  label="Paid for by"
-                  value={payerKey}
-                  onChange={setPayerKey}
-                  hint="Choose who pays…"
-                  characters={healParties?.characters ?? []}
-                  factions={healParties?.factions ?? []}
+                <TagPicker
+                  tags={addable}
+                  selectedId={tagId}
+                  onSelect={pick}
+                  byId={gateById}
+                  heldIds={heldIds}
                 />
-                <p className="text-xs text-muted">
-                  Costs <span className="mono">{affliction.cost} ⬢</span>.
-                  {affliction.requirementLabel
-                    ? ` The full course of treatment is ${affliction.requirementLabel} — the turns and any Gambit are between you and a GM.`
-                    : ""}
-                </p>
+                {stacking && (
+                  <QuantityField
+                    value={quantity}
+                    onChange={setQuantity}
+                    max={99}
+                    label="How many?"
+                  />
+                )}
+                {chosen?.requirementTurns === 0 &&
+                  (chosen.requirementSkills ?? []).some(
+                    (s) =>
+                      s.slug === "crafting" ||
+                      (s.slug ?? "").startsWith("smithing"),
+                  ) && (
+                    // Mirrors web/lib/requests.js#isDeadSimple's DEAD_SIMPLE_SKILL_SLUGS
+                    // (server-enforced); that module can't be imported here without
+                    // dragging Prisma in, and matching on slug rather than the
+                    // display name keeps this from silently drifting from it.
+                    <p className="text-sm text-muted">
+                      Dead Simple recipes: up to 4 items per turn, counted
+                      across your requests.
+                    </p>
+                  )}
+                <ResourceCostField
+                  value={spend}
+                  onChange={setSpend}
+                  max={resources}
+                />
               </>
             )}
-          </>
-        )}
 
-        {mode === "transfer" && (
-          <>
-            <label className="field">
-              <span className="field-label">Item or Asset to hand over</span>
-              <Select value={tagId ?? ""} onChange={(e) => pick(e.target.value || null)} required>
-                <option value="" disabled>
-                  Choose a tag…
-                </option>
-                {transferable.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                    {t.quantity > 1 ? ` ×${t.quantity}` : ""}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            {stacking && (
-              <QuantityField
-                value={quantity}
-                onChange={setQuantity}
-                max={heldCount}
-                label={`How many? (you have ${heldCount})`}
-              />
-            )}
-            <label className="field">
-              <span className="field-label">Give it to</span>
-              <Select value={recipient} onChange={(e) => setRecipient(e.target.value)} required>
-                <option value="" disabled>
-                  Choose a player…
-                </option>
-                {otherCharacters.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
-            </label>
-          </>
-        )}
-
-        {mode === "resources" && (
-          <>
-            <div className="flex flex-wrap items-end gap-3">
-              <PartySelect
-                label="From"
-                value={fromKey}
-                onChange={setFromKey}
-                hint="Choose a source…"
-                characters={transferParties?.characters ?? []}
-                factions={transferParties?.factions ?? []}
-              />
-              <PartySelect
-                label="To"
-                value={toKey}
-                onChange={setToKey}
-                hint="Choose a recipient…"
-                characters={transferParties?.characters ?? []}
-                factions={transferParties?.factions ?? []}
-              />
-              <label className="field" style={{ width: "6rem" }}>
-                <span className="field-label">Amount</span>
-                <input
-                  type="number"
-                  min="1"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  required
-                />
-              </label>
-            </div>
-            {sameParty && <p className="text-xs text-accent">Source and recipient are the same.</p>}
-            <p className="text-xs text-muted">
-              Both the source and the recipient have to share a zone. Say why in the reason above.
-              {selfName ? ` You are ${selfName}.` : ""}
-            </p>
-          </>
-        )}
-
-        {mode === "loot" && (
-          <>
-            {lootTargets.length === 0 ? (
-              <NobodyHere>Nobody here is in any state to be searched.</NobodyHere>
-            ) : (
+            {mode === "remove" && (
               <>
                 <label className="field">
-                  <span className="field-label">Who are you searching?</span>
+                  <span className="field-label">Tag to remove</span>
                   <Select
-                    value={targetId}
+                    value={tagId ?? ""}
+                    onChange={(e) => pick(e.target.value || null)}
+                    required
+                  >
+                    <option value="" disabled>
+                      Choose a tag…
+                    </option>
+                    {removable.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                        {t.quantity > 1 ? ` ×${t.quantity}` : ""}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+                {stacking && (
+                  <QuantityField
+                    value={quantity}
+                    onChange={setQuantity}
+                    max={heldCount}
+                    label={`How many? (you have ${heldCount})`}
+                  />
+                )}
+                <ResourceCostField
+                  value={spend}
+                  onChange={setSpend}
+                  max={resources}
+                />
+              </>
+            )}
+
+            {mode === "consume" && (
+              <>
+                <label className="field">
+                  <span className="field-label">What are you using up?</span>
+                  <Select
+                    value={tagId ?? ""}
+                    onChange={(e) => pick(e.target.value || null)}
+                    required
+                  >
+                    <option value="" disabled>
+                      Choose a tag…
+                    </option>
+                    {consumable.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                        {t.quantity > 1 ? ` ×${t.quantity}` : ""}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+                {chosen && (
+                  <p className="text-xs text-muted">
+                    {becomes.length
+                      ? `Becomes: ${becomes.join(", ")}.`
+                      : "Gets used up — it doesn't leave anything behind."}
+                    {chosen.quantity > 1
+                      ? ` Takes one of your ${chosen.quantity}.`
+                      : ""}
+                  </p>
+                )}
+              </>
+            )}
+
+            {mode === "heal" && (
+              <>
+                <label className="field">
+                  <span className="field-label">Who are you treating?</span>
+                  <Select
+                    value={patientId}
                     onChange={(e) => {
-                      setTargetId(e.target.value);
-                      setPicks({});
-                      setAmount("0");
+                      setPatientId(e.target.value);
+                      setTagId(null);
                     }}
                     required
                   >
                     <option value="" disabled>
                       Choose someone here…
                     </option>
-                    {lootTargets.map((t) => (
+                    {healTargets.map((t) => (
                       <option key={t.id} value={t.id}>
-                        {t.name} — {targetNote(t)}
+                        {t.id === selfId ? `${t.name} (you)` : t.name}
                       </option>
                     ))}
                   </Select>
                 </label>
-
-                {lootTarget && (
+                {patient && (
+                  <label className="field">
+                    <span className="field-label">What are you treating?</span>
+                    <Select
+                      value={tagId ?? ""}
+                      onChange={(e) => setTagId(e.target.value || null)}
+                      required
+                    >
+                      <option value="" disabled>
+                        Choose an affliction…
+                      </option>
+                      {patient.healable.map((h) => (
+                        <option
+                          key={h.tagId}
+                          value={h.tagId}
+                          disabled={h.missingSkills.length > 0}
+                        >
+                          {h.tagName}
+                          {h.missingSkills.length
+                            ? ` — needs ${h.missingSkills.join("/")}`
+                            : ""}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                )}
+                {affliction && (
                   <>
-                    {lootTarget.tags.length === 0 ? (
-                      <p className="text-xs text-muted">They&apos;re carrying nothing worth taking.</p>
-                    ) : (
-                      <div className="flex flex-col gap-2">
-                        <span className="field-label">Take</span>
-                        {lootTarget.tags.map((t) => {
-                          const checked = t.tagId in picks;
-                          return (
-                            <div key={t.tagId} className="flex flex-wrap items-center gap-3">
-                              <CheckField
-                                checked={checked}
-                                onChange={() => togglePick(t.tagId, t.quantity)}
-                              >
-                                {t.tagName}
-                                {t.quantity > 1 ? ` ×${t.quantity}` : ""}
-                              </CheckField>
-                              {checked && t.stackable && t.quantity > 1 && (
-                                <label className="field" style={{ width: "7rem" }}>
-                                  <span className="field-label">How many?</span>
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    max={t.quantity}
-                                    value={picks[t.tagId]}
-                                    onChange={(e) => setPickQuantity(t.tagId, e.target.value)}
-                                  />
-                                </label>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                    <label className="field" style={{ width: "10rem" }}>
-                      <span className="field-label">
-                        Resources (they have {lootTarget.resources})
-                      </span>
-                      <input
-                        type="number"
-                        min="0"
-                        max={lootTarget.resources}
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                      />
-                    </label>
+                    <PartySelect
+                      label="Paid for by"
+                      value={payerKey}
+                      onChange={setPayerKey}
+                      hint="Choose who pays…"
+                      characters={healParties?.characters ?? []}
+                      factions={healParties?.factions ?? []}
+                    />
+                    <p className="text-xs text-muted">
+                      Costs <span className="mono">{affliction.cost} ⬢</span>.
+                      {affliction.requirementLabel
+                        ? ` The full course of treatment is ${affliction.requirementLabel} — the turns and any Gambit are between you and a GM.`
+                        : ""}
+                    </p>
                   </>
                 )}
               </>
             )}
-          </>
-        )}
 
-        {mode === "move" && (
-          <>
-            {moveTargets.length === 0 ? (
-              <NobodyHere>There&apos;s nobody here to move.</NobodyHere>
-            ) : (
+            {mode === "transfer" && (
               <>
                 <label className="field">
-                  <span className="field-label">Who are you moving?</span>
-                  <Select value={targetId} onChange={(e) => setTargetId(e.target.value)} required>
+                  <span className="field-label">
+                    Item or Asset to hand over
+                  </span>
+                  <Select
+                    value={tagId ?? ""}
+                    onChange={(e) => pick(e.target.value || null)}
+                    required
+                  >
                     <option value="" disabled>
-                      Choose someone here…
+                      Choose a tag…
                     </option>
-                    {moveTargets.map((t) => (
+                    {transferable.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.name}
-                        {t.status === "DEAD" ? " — body" : ""}
+                        {t.quantity > 1 ? ` ×${t.quantity}` : ""}
                       </option>
                     ))}
                   </Select>
                 </label>
+                {stacking && (
+                  <QuantityField
+                    value={quantity}
+                    onChange={setQuantity}
+                    max={heldCount}
+                    label={`How many? (you have ${heldCount})`}
+                  />
+                )}
                 <label className="field">
-                  <span className="field-label">Where to?</span>
-                  <Select value={zoneId} onChange={(e) => setZoneId(e.target.value)} required>
+                  <span className="field-label">Give it to</span>
+                  <Select
+                    value={recipient}
+                    onChange={(e) => setRecipient(e.target.value)}
+                    required
+                  >
+                    <option value="" disabled>
+                      Choose a player…
+                    </option>
+                    {otherCharacters.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+              </>
+            )}
+
+            {mode === "resources" && (
+              <>
+                <div className="flex flex-wrap items-end gap-3">
+                  <PartySelect
+                    label="From"
+                    value={fromKey}
+                    onChange={setFromKey}
+                    hint="Choose a source…"
+                    characters={transferParties?.characters ?? []}
+                    factions={transferParties?.factions ?? []}
+                  />
+                  <PartySelect
+                    label="To"
+                    value={toKey}
+                    onChange={setToKey}
+                    hint="Choose a recipient…"
+                    characters={transferParties?.characters ?? []}
+                    factions={transferParties?.factions ?? []}
+                  />
+                  <label className="field" style={{ width: "6rem" }}>
+                    <span className="field-label">Amount</span>
+                    <input
+                      type="number"
+                      min="1"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      required
+                    />
+                  </label>
+                </div>
+                {sameParty && (
+                  <p className="text-xs text-accent">
+                    Source and recipient are the same.
+                  </p>
+                )}
+                <p className="text-xs text-muted">
+                  Both the source and the recipient have to share a zone. Say
+                  why in the reason above.
+                  {selfName ? ` You are ${selfName}.` : ""}
+                </p>
+              </>
+            )}
+
+            {mode === "loot" && (
+              <>
+                {lootTargets.length === 0 ? (
+                  <NobodyHere>
+                    Nobody here is in any state to be searched.
+                  </NobodyHere>
+                ) : (
+                  <>
+                    <label className="field">
+                      <span className="field-label">
+                        Who are you searching?
+                      </span>
+                      <Select
+                        value={targetId}
+                        onChange={(e) => {
+                          setTargetId(e.target.value);
+                          setPicks({});
+                          setAmount("0");
+                        }}
+                        required
+                      >
+                        <option value="" disabled>
+                          Choose someone here…
+                        </option>
+                        {lootTargets.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} — {targetNote(t)}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+
+                    {lootTarget && (
+                      <>
+                        {lootTarget.tags.length === 0 ? (
+                          <p className="text-xs text-muted">
+                            They&apos;re carrying nothing worth taking.
+                          </p>
+                        ) : (
+                          <div className="flex flex-col gap-2">
+                            <span className="field-label">Take</span>
+                            {lootTarget.tags.map((t) => {
+                              const checked = t.tagId in picks;
+                              return (
+                                <div
+                                  key={t.tagId}
+                                  className="flex flex-wrap items-center gap-3"
+                                >
+                                  <CheckField
+                                    checked={checked}
+                                    onChange={() =>
+                                      togglePick(t.tagId, t.quantity)
+                                    }
+                                  >
+                                    {t.tagName}
+                                    {t.quantity > 1 ? ` ×${t.quantity}` : ""}
+                                  </CheckField>
+                                  {checked && t.stackable && t.quantity > 1 && (
+                                    <label
+                                      className="field"
+                                      style={{ width: "7rem" }}
+                                    >
+                                      <span className="field-label">
+                                        How many?
+                                      </span>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        max={t.quantity}
+                                        value={picks[t.tagId]}
+                                        onChange={(e) =>
+                                          setPickQuantity(
+                                            t.tagId,
+                                            e.target.value,
+                                          )
+                                        }
+                                      />
+                                    </label>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <label className="field" style={{ width: "10rem" }}>
+                          <span className="field-label">
+                            Resources (they have {lootTarget.resources})
+                          </span>
+                          <input
+                            type="number"
+                            min="0"
+                            max={lootTarget.resources}
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                          />
+                        </label>
+                      </>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+
+            {mode === "move" && (
+              <>
+                {moveTargets.length === 0 ? (
+                  <NobodyHere>There&apos;s nobody here to move.</NobodyHere>
+                ) : (
+                  <>
+                    <label className="field">
+                      <span className="field-label">Who are you moving?</span>
+                      <Select
+                        value={targetId}
+                        onChange={(e) => setTargetId(e.target.value)}
+                        required
+                      >
+                        <option value="" disabled>
+                          Choose someone here…
+                        </option>
+                        {moveTargets.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                            {t.status === "DEAD" ? " — body" : ""}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                    <label className="field">
+                      <span className="field-label">Where to?</span>
+                      <Select
+                        value={zoneId}
+                        onChange={(e) => setZoneId(e.target.value)}
+                        required
+                      >
+                        <option value="" disabled>
+                          Choose a neighboring zone…
+                        </option>
+                        {moveZones.map((z) => (
+                          <option key={z.id} value={z.id}>
+                            {z.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                    <p className="text-xs text-muted">
+                      You can move someone you lead, someone you&apos;ve bound,
+                      or a body. It does not spend their turn — and it does not
+                      move you, so go there yourself afterwards.
+                    </p>
+                  </>
+                )}
+              </>
+            )}
+
+            {mode === "bury" && (
+              <>
+                <label className="field">
+                  <span className="field-label">Whose body?</span>
+                  <input
+                    type="text"
+                    value={buryName}
+                    onChange={(e) => setBuryName(e.target.value)}
+                    placeholder="First name"
+                    autoComplete="off"
+                    maxLength={24}
+                    required
+                  />
+                </label>
+                {/* No target list, and no "nobody here" line either — both would
+                answer "who is dead in this room?" without anyone choosing to
+                ask. You type a name and find out whether you were right. */}
+                <p className="text-xs text-muted">
+                  Their first name only, spelled the way they spell it. The body
+                  has to be lying where you are. Burying lays the soul to rest
+                  and lifts the curse from the player it belonged to, so they
+                  can roll a full character again.
+                </p>
+              </>
+            )}
+
+            {mode === "fasttravel" && (
+              <>
+                <label className="field">
+                  <span className="field-label">Where are you riding?</span>
+                  <Select
+                    value={zoneId}
+                    onChange={(e) => setZoneId(e.target.value)}
+                    required
+                  >
                     <option value="" disabled>
                       Choose a neighboring zone…
                     </option>
@@ -979,175 +1302,208 @@ export default function RequestActionsProvider({
                     ))}
                   </Select>
                 </label>
+                {passengerCap > 0 && (
+                  <div className="flex flex-col gap-2">
+                    <span className="field-label">
+                      Bring anyone? ({passengerIds.size + 1} / {fastTravelSeats}{" "}
+                      seats)
+                    </span>
+                    {fastTravelTargets.length === 0 ? (
+                      <p className="text-xs text-muted">
+                        Nobody else is standing here.
+                      </p>
+                    ) : (
+                      fastTravelTargets.map((t) => {
+                        const checked = passengerIds.has(t.id);
+                        const full =
+                          !checked && passengerIds.size >= passengerCap;
+                        return (
+                          <CheckField
+                            key={t.id}
+                            checked={checked}
+                            disabled={full}
+                            onChange={() => togglePassenger(t.id)}
+                          >
+                            {t.name}
+                            {full ? " — seats full" : ""}
+                          </CheckField>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
                 <p className="text-xs text-muted">
-                  You can move someone you lead, someone you&apos;ve bound, or a body. It does not spend
-                  their turn — and it does not move you, so go there yourself afterwards.
+                  {passengerCap > 0
+                    ? `Bring up to ${passengerCap} more people, if they're standing here. They don't ` +
+                      "need to be tied up or led — anyone can ride along, and a GM can undo it if it " +
+                      "needs a look."
+                    : "One zone over, and it does not spend your turn — you can still act when you arrive."}
                 </p>
               </>
             )}
-          </>
-        )}
 
-        {mode === "bury" && (
-          <>
-            <label className="field">
-              <span className="field-label">Whose body?</span>
-              <input
-                type="text"
-                value={buryName}
-                onChange={(e) => setBuryName(e.target.value)}
-                placeholder="First name"
-                autoComplete="off"
-                maxLength={24}
-                required
-              />
-            </label>
-            {/* No target list, and no "nobody here" line either — both would
-                answer "who is dead in this room?" without anyone choosing to
-                ask. You type a name and find out whether you were right. */}
-            <p className="text-xs text-muted">
-              Their first name only, spelled the way they spell it. The body has to be lying where
-              you are. Burying lays the soul to rest and lifts the curse from the player it belonged
-              to, so they can roll a full character again.
-            </p>
-          </>
-        )}
-
-        {mode === "fasttravel" && (
-          <>
-            <label className="field">
-              <span className="field-label">Where are you riding?</span>
-              <Select value={zoneId} onChange={(e) => setZoneId(e.target.value)} required>
-                <option value="" disabled>
-                  Choose a neighboring zone…
-                </option>
-                {moveZones.map((z) => (
-                  <option key={z.id} value={z.id}>
-                    {z.name}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            {passengerCap > 0 && (
-              <div className="flex flex-col gap-2">
-                <span className="field-label">
-                  Bring anyone? ({passengerIds.size + 1} / {fastTravelSeats} seats)
-                </span>
-                {fastTravelTargets.length === 0 ? (
-                  <p className="text-xs text-muted">Nobody else is standing here.</p>
+            {(mode === "bind" || mode === "free") && (
+              <>
+                {bindable.length === 0 ? (
+                  <NobodyHere>
+                    {mode === "bind"
+                      ? "There’s nobody here left to tie up."
+                      : "Nobody here is bound."}
+                  </NobodyHere>
                 ) : (
-                  fastTravelTargets.map((t) => {
-                    const checked = passengerIds.has(t.id);
-                    const full = !checked && passengerIds.size >= passengerCap;
-                    return (
-                      <CheckField
-                        key={t.id}
-                        checked={checked}
-                        disabled={full}
-                        onChange={() => togglePassenger(t.id)}
-                      >
-                        {t.name}
-                        {full ? " — seats full" : ""}
-                      </CheckField>
-                    );
-                  })
+                  <label className="field">
+                    <span className="field-label">
+                      {mode === "bind"
+                        ? "Who are you tying up?"
+                        : "Who are you cutting loose?"}
+                    </span>
+                    <Select
+                      value={targetId}
+                      onChange={(e) => setTargetId(e.target.value)}
+                      required
+                    >
+                      <option value="" disabled>
+                        Choose someone here…
+                      </option>
+                      {bindable.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
                 )}
-              </div>
+                <p className="text-xs text-muted">
+                  {mode === "bind"
+                    ? "Once they're Bound you can search them or march them somewhere. Say why."
+                    : "Anyone standing here can do this, including someone who came to rescue them."}
+                </p>
+              </>
             )}
-            <p className="text-xs text-muted">
-              {passengerCap > 0
-                ? `Bring up to ${passengerCap} more people, if they're standing here. They don't ` +
-                  "need to be tied up or led — anyone can ride along, and a GM can undo it if it " +
-                  "needs a look."
-                : "One zone over, and it does not spend your turn — you can still act when you arrive."}
-            </p>
-          </>
-        )}
 
-        {(mode === "bind" || mode === "free") && (
-          <>
-            {bindable.length === 0 ? (
-              <NobodyHere>
-                {mode === "bind"
-                  ? "There’s nobody here left to tie up."
-                  : "Nobody here is bound."}
-              </NobodyHere>
-            ) : (
-              <label className="field">
-                <span className="field-label">
-                  {mode === "bind" ? "Who are you tying up?" : "Who are you cutting loose?"}
-                </span>
-                <Select value={targetId} onChange={(e) => setTargetId(e.target.value)} required>
-                  <option value="" disabled>
-                    Choose someone here…
-                  </option>
-                  {bindable.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </Select>
-              </label>
+            {mode === "harm" && (
+              <>
+                {harmTargets.length === 0 ? (
+                  <NobodyHere>
+                    Nobody here is helpless enough for that.
+                  </NobodyHere>
+                ) : (
+                  <>
+                    <label className="field">
+                      <span className="field-label">Who are you hurting?</span>
+                      <Select
+                        value={targetId}
+                        onChange={(e) => {
+                          setTargetId(e.target.value);
+                          setLethal(false);
+                        }}
+                        required
+                      >
+                        <option value="" disabled>
+                          Choose someone here…
+                        </option>
+                        {harmTargets.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} — {t.condition ?? "Helpless"}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+
+                    <span className="field-label">What injury? (optional)</span>
+                    <TagPicker
+                      tags={harmTags}
+                      selectedId={tagId}
+                      onSelect={setTagId}
+                      emptyLabel="No injuries in the catalog."
+                    />
+
+                    <CheckField
+                      checked={lethal}
+                      onChange={(e) => setLethal(e.target.checked)}
+                      disabled={
+                        !harmTargets.find((t) => t.id === targetId)?.finishable
+                      }
+                    >
+                      Finish them off
+                    </CheckField>
+                    <p className="text-xs text-muted">
+                      Only someone Dying or Bound can be finished off, and doing
+                      it <strong>kills them</strong> — there is no taking it
+                      back. Pick an injury, tick the box, or both.
+                    </p>
+                  </>
+                )}
+              </>
             )}
-            <p className="text-xs text-muted">
-              {mode === "bind"
-                ? "Once they're Bound you can search them or march them somewhere. Say why."
-                : "Anyone standing here can do this, including someone who came to rescue them."}
-            </p>
-          </>
-        )}
 
-        {mode === "harm" && (
-          <>
-            {harmTargets.length === 0 ? (
-              <NobodyHere>Nobody here is helpless enough for that.</NobodyHere>
-            ) : (
+            {mode === "bird" && (
               <>
                 <label className="field">
-                  <span className="field-label">Who are you hurting?</span>
+                  <span className="field-label">Who is it for?</span>
+                  {/* EVERY character, alive or dead, unfiltered. Narrowing this to
+                  the living would turn the picker into a casualty list that
+                  updates itself — the same disclosure REQUESTS.md §3 refuses
+                  for the transfer dropdowns. A letter to someone already dead
+                  simply never arrives, and you find that out a turn later. */}
                   <Select
                     value={targetId}
-                    onChange={(e) => {
-                      setTargetId(e.target.value);
-                      setLethal(false);
-                    }}
+                    onChange={(e) => setTargetId(e.target.value)}
                     required
                   >
                     <option value="" disabled>
-                      Choose someone here…
+                      Pick someone
                     </option>
-                    {harmTargets.map((t) => (
+                    {birdTargets.map((t) => (
                       <option key={t.id} value={t.id}>
-                        {t.name} — {t.condition ?? "Helpless"}
+                        {t.name}
                       </option>
                     ))}
                   </Select>
                 </label>
 
-                <span className="field-label">What injury? (optional)</span>
-                <TagPicker
-                  tags={harmTags}
-                  selectedId={tagId}
-                  onSelect={setTagId}
-                  emptyLabel="No injuries in the catalog."
-                />
+                <label className="field">
+                  <span className="field-label">
+                    Where do you think they are?
+                  </span>
+                  <Select
+                    value={zoneId}
+                    onChange={(e) => setZoneId(e.target.value)}
+                    required
+                  >
+                    <option value="" disabled>
+                      Pick a place
+                    </option>
+                    {birdZones.map((z) => (
+                      <option key={z.id} value={z.id}>
+                        {z.name}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
 
-                <CheckField
-                  checked={lethal}
-                  onChange={(e) => setLethal(e.target.checked)}
-                  disabled={!harmTargets.find((t) => t.id === targetId)?.finishable}
-                >
-                  Finish them off
-                </CheckField>
-                <p className="text-xs text-muted">
-                  Only someone Dying or Bound can be finished off, and doing it <strong>kills them</strong> — there is
-                  no taking it back. Pick an injury, tick the box, or both.
+                <label className="field">
+                  <span className="field-label">The letter</span>
+                  <textarea
+                    rows={5}
+                    maxLength={MAX_BIRD_BODY}
+                    value={birdBody}
+                    onChange={(e) => setBirdBody(e.target.value)}
+                    placeholder="They'll read this exactly as you write it."
+                  />
+                  <span className="text-xs text-muted mono">
+                    {birdBody.length} / {MAX_BIRD_BODY}
+                  </span>
+                </label>
+
+                <p className="text-sm text-muted">
+                  Guess wrong and the bird comes back empty — you&apos;ll hear
+                  next turn. Either way, that&apos;s your letter for the day.
                 </p>
               </>
             )}
-          </>
-        )}
-      </RequestDialog>
+          </RequestDialog>
+        </>
       )}
     </RequestActionsContext.Provider>
   );

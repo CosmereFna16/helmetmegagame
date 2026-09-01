@@ -638,9 +638,11 @@ export async function killCharacter(character, reason = null) {
 //
 // The prefix goes on before the split, so it lands on the first message and
 // the continuations run on bare.
+// `opts.components` is an optional Discord action row — a DM that carries a
+// button (the Bird's Reply, so far). postDmBatched puts it on the LAST chunk.
 export async function sendDm(discordUserId, content, opts = {}) {
   const formatted = `» ${content}`;
-  const message = await postDmBatched(discordUserId, formatted);
+  const message = await postDmBatched(discordUserId, formatted, opts.components);
   await prisma.directMessage
     .create({
       data: {

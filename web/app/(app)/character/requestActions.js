@@ -7,6 +7,15 @@ import { redirect } from "next/navigation";
 import { prisma, isDynastyHead, isDynastyMember } from "@lifeweb/db";
 import { resolveParty as dbResolveParty } from "@lifeweb/db/lib/parties";
 import { applyTransfer, InsufficientResourcesError } from "@lifeweb/db/lib/resourceTransfer";
+import {
+  MAX_BIRD_BODY,
+  canSendBird as holdsBirdAndLetters,
+  isBirdReachableZone,
+  deliveryDm,
+  sentReceiptDm,
+  replyButtonRow,
+  LITERATE_SLUG,
+} from "@lifeweb/db/lib/bird";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import {
@@ -2094,6 +2103,186 @@ export async function buryCharacterRequest(input) {
   return guarded(() => buryCharacterRequestImpl(input));
 }
 
+
+// --- The Bird -------------------------------------------------------------
+//
+// One letter a day, to a named person in a GUESSED zone. See BIRD.md.
+//
+// The shape worth understanding before changing anything here: the letter
+// resolves INSTANTLY on a hit and SILENTLY on a miss. A wrong guess, or a dead
+// recipient, looks exactly like a successful send from this side; the sender is
+// not told until db/lib/birdPass.js reports it at the next turn close. That
+// delay is the entire anti-scouting measure. Answering "not delivered" here and
+// now would hand every Bird-holder a free once-a-day probe for whether a named
+// person is alive and standing in a named zone, which is worth vastly more than
+// the letter.
+async function birdMessageRequestImpl({
+  recipientId,
+  guessedZoneId,
+  body: rawBody,
+  reason: rawReason,
+}) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+
+  // Re-derived from the database. The hidden button is a hint, not a lock.
+  if (!holdsBirdAndLetters(character.tags)) {
+    throw new UserError("You need a bird, and you need to be able to write.");
+  }
+
+  const body = (rawBody ?? "").trim();
+  if (!body) throw new UserError("Write something first.");
+  if (body.length > MAX_BIRD_BODY) {
+    throw new UserError(`A bird can only carry ${MAX_BIRD_BODY} characters.`);
+  }
+
+  const openTurn = await getOpenTurn();
+  if (!openTurn) throw new UserError("No turn is currently open.");
+
+  // No bird will fly into the deep caves, and none will carry a letter out of
+  // them either — so the sender's own zone is checked as well as the guess.
+  if (!character.zoneId) throw new UserError("You aren't anywhere a bird could leave from.");
+  const fromZone = await prisma.zone.findUnique({ where: { id: character.zoneId } });
+  if (!isBirdReachableZone(fromZone)) {
+    throw new UserError("No bird will fly down here.");
+  }
+
+  const guessedZone = await prisma.zone.findUnique({ where: { id: guessedZoneId ?? "" } });
+  if (!guessedZone) throw new UserError("Unknown destination.");
+  if (!isBirdReachableZone(guessedZone)) {
+    throw new UserError("No bird will fly down there.");
+  }
+
+  if (!recipientId || recipientId === character.id) {
+    throw new UserError("Pick someone other than yourself.");
+  }
+  // Deliberately NOT filtered to the living. The picker lists every character
+  // for the same reason, and narrowing it here would make a rejection at this
+  // line a working test for whether somebody has died.
+  const recipient = await prisma.character.findUnique({
+    where: { id: recipientId },
+    include: { tags: { include: { tag: true } } },
+  });
+  if (!recipient) throw new UserError("Nobody by that name.");
+
+  // The whole mechanic, in one line: the guess has to be right, and they have
+  // to be alive to receive it.
+  const delivered = recipient.status === "ALIVE" && recipient.zoneId === guessedZone.id;
+  const recipientIsLiterate = recipient.tags.some((ct) => ct.tag.slug === LITERATE_SLUG);
+
+  // The claim token holds the in-game DAY, not a turn id — two turns run per
+  // day, and keying this on the turn would quietly hand out two letters a day
+  // instead of the one the feature promises. describeTurn() is the one place
+  // that formula lives. Same trap, same fix as fastTravelTurnId above.
+  const dayKey = String(describeTurn(openTurn).day);
+
+  let birdMessageId = null;
+  await prisma.$transaction(async (tx) => {
+    // The claim comes FIRST, and its WHERE is the check — read the column in
+    // one statement and write it in another and two tabs both pass. A loser
+    // aborts here, before a letter has been written or a request filed.
+    const claimed = await tx.character.updateMany({
+      where: {
+        id: character.id,
+        OR: [{ birdTurnId: null }, { birdTurnId: { not: dayKey } }],
+      },
+      data: { birdTurnId: dayKey },
+    });
+    if (claimed.count === 0) throw new UserError("Your bird has already flown today.");
+
+    const row = await tx.birdMessage.create({
+      data: {
+        senderId: character.id,
+        senderName: character.name,
+        senderDiscordUserId: character.discordUserId ?? null,
+        recipientId: recipient.id,
+        recipientName: recipient.name,
+        recipientDiscordUserId: recipient.discordUserId ?? null,
+        guessedZoneId: guessedZone.id,
+        guessedZoneName: guessedZone.name,
+        body,
+        delivered,
+        // Both null on a miss: nothing arrived, so there is nothing to reply to.
+        arrivalTurnId: delivered ? openTurn.id : null,
+        // The arrival turn PLUS ONE. A letter sent five minutes before a turn
+        // closes would otherwise be unanswerable in practice, which reads as a
+        // bug rather than as a rule.
+        replyDeadlineTurn: delivered ? openTurn.number + 1 : null,
+      },
+    });
+    birdMessageId = row.id;
+
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn.id,
+      type: "BIRD_MESSAGE",
+      reason,
+      payload: { recipientId: recipient.id, guessedZoneId: guessedZone.id, body },
+      effect: {
+        birdMessageId: row.id,
+        recipientId: recipient.id,
+        recipientName: recipient.name,
+        guessedZoneId: guessedZone.id,
+        guessedZoneName: guessedZone.name,
+        // PLAINTEXT, always. The ciphering happens when the DM is composed, so
+        // a GM reading the desk sees what was actually written — without this
+        // the feature is a private channel between two players that nobody can
+        // review. See REQUESTS.md §1 on why the reason field is the anti-abuse
+        // mechanism and this is the evidence behind it.
+        body,
+        delivered,
+        // So Undo can hand the day back rather than leaving it burnt on a
+        // letter the GM has decided did not happen.
+        previousBirdTurnId: character.birdTurnId ?? null,
+      },
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_bird_message",
+      targetCharacterId: recipient.id,
+      reason,
+      details: {
+        recipientId: recipient.id,
+        guessedZoneId: guessedZone.id,
+        delivered,
+        birdMessageId: row.id,
+      },
+    });
+  });
+
+  // Post-commit, never inside the transaction — a DM must not hold up the
+  // write, and a failed DM must not undo it (ARCHITECTURE.md §5).
+  //
+  // The receipt goes out whether or not the letter landed, and says nothing
+  // about which: it is a record of what the sender did, not of what happened.
+  notifyCharacter(
+    character,
+    sentReceiptDm({ recipientName: recipient.name, zoneName: guessedZone.name, body }),
+    { source: "bird" },
+  );
+  if (delivered) {
+    notifyCharacter(
+      recipient,
+      deliveryDm({ senderName: character.name, body, recipientIsLiterate }),
+      {
+        components: replyButtonRow(birdMessageId),
+        // The plaintext rides along in meta so /gm/messages can join a wall of
+        // runes back to what it says. Without it a GM reading an illiterate
+        // player's conversation sees only the cipher.
+        meta: { kind: "bird", birdMessageId, plaintext: body },
+        source: "bird",
+      },
+    );
+  }
+
+  revalidateAll();
+  return { ok: true };
+}
+
 export async function fastTravelRequest(input) {
   return guarded(() => fastTravelRequestImpl(input));
+}
+
+export async function birdMessageRequest(input) {
+  return guarded(() => birdMessageRequestImpl(input));
 }

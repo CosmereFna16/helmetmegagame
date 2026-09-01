@@ -319,6 +319,7 @@ export async function wipeGameData(formData) {
       prisma.action.deleteMany({}),
       prisma.request.deleteMany({}),
       prisma.desire.deleteMany({}),
+      prisma.birdMessage.deleteMany({}),
       prisma.characterTag.deleteMany({}),
       prisma.auditLog.deleteMany({}),
       prisma.character.deleteMany({}),

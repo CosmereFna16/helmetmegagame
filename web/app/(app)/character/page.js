@@ -21,6 +21,8 @@ import { findOpenTurnAction } from "@/lib/moveEconomy";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { isTradeable, FAST_TRAVEL_SLUGS, fastTravelCapacity } from "@/lib/tagRequests";
+import { canSendBird as holdsBirdAndLetters, birdZones as birdZonesOf, LITERATE_SLUG } from "@lifeweb/db/lib/bird";
+import { describeTurn } from "@/lib/turnFormat";
 import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { parseSelection } from "@/lib/portrait/catalog";
 import {
@@ -332,6 +334,17 @@ export default async function CharacterPage() {
   // which canFastTravel above already gates the button on.
   const fastTravelSeats = fastTravelCapacity(heldSlugs);
 
+  // The Bird. Both flags are facts about this character's own sheet, so both
+  // may drive the button — see ActionGrid.js for why these two HIDE it rather
+  // than greying it.
+  const hasBird = holdsBirdAndLetters(character.tags);
+  const isLiterate = heldSlugs.has(LITERATE_SLUG);
+  // Compared against the in-game DAY, not the turn: a day is two turns, and
+  // birdTurnId stores String(describeTurn(turn).day) for exactly that reason.
+  // Advisory only — the server's conditional claim is the real gate.
+  const birdSentToday =
+    Boolean(openTurn) && character.birdTurnId === String(describeTurn(openTurn).day);
+
   // Skipped entirely for the great majority who aren't medics, and for anyone
   // a GM hasn't placed yet. Character.zoneId is the authoritative "where are
   // you" field since the zone rework — always a presence zone, never the
@@ -487,6 +500,33 @@ export default async function CharacterPage() {
       )?.connectsTo ?? []
     : [];
 
+  // The Bird's two menus, and only fetched for someone who actually holds a
+  // bird — every other character pays nothing for this feature existing.
+  //
+  // The recipient list is EVERY character, whatever their status. That is the
+  // whole reason it can be shown at all: a list of the living updates itself
+  // into a casualty report, readable by anyone who opens the dialog twice a
+  // week. A letter to a dead name simply never arrives.
+  const birdTargets = hasBird
+    ? (
+        await prisma.character.findMany({
+          where: { id: { not: character.id } },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        })
+      )
+    : [];
+  // Everywhere standable except the two deep cave levels. birdZones() is the
+  // one place that rule lives, shared with the server action's own re-check.
+  const birdZoneOptions = hasBird
+    ? birdZonesOf(
+        await prisma.zone.findMany({
+          select: { id: true, name: true, slug: true, kind: true },
+          orderBy: { sortOrder: "asc" },
+        }),
+      ).map((z) => ({ id: z.id, name: z.name }))
+    : [];
+
   // Bind and Free split this one list on `bound`, so the two menus can never
   // disagree about the same person.
   const bindTargets = zoneRoster
@@ -571,6 +611,11 @@ export default async function CharacterPage() {
       canFastTravel={canFastTravel}
       fastTravelSeats={fastTravelSeats}
       fastTravelTargets={fastTravelTargets}
+      hasBird={hasBird}
+      isLiterate={isLiterate}
+      birdSentToday={birdSentToday}
+      birdTargets={birdTargets}
+      birdZones={birdZoneOptions}
       equipSlots={gameConfig?.equipSlots ?? 6}
       avatarUploadsEnabled={gameConfig?.avatarUploadsEnabled ?? false}
       portraitMakerEnabled={gameConfig?.portraitMakerEnabled ?? false}

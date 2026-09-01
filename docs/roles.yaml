@@ -273,6 +273,7 @@ zones:
               - Frail
               - Medical (Basic)
               - Literate
+              - Bird
             doc_elements:
               - courtstructure
               - lifewebbasic

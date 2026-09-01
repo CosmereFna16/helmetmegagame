@@ -429,6 +429,21 @@ export function HorseIcon(props) {
   );
 }
 
+// A bird in flight, for the Bird's letter. Same construction as HorseIcon
+// above — one continuous stroke, no fill, so it sits at the same weight as the
+// rest of the Actions grid at 24px.
+export function BirdIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path
+        d="M20.5 5.2c-1 .5-1.8.7-2.7.7A4 4 0 0 0 11 8.7v.9C7.6 9.4 5 7.9 3.2 5.2c0 0-2 4.5 1.8 7.5-.9.6-1.8.8-2.8.8 1.2 1.8 3 2.4 4.9 2.4-1.6 1.2-3.7 1.8-5.6 1.7 2 1.3 4.4 2 6.8 2 8.1 0 12.6-6.9 12.6-12.8v-.6c.8-.6 1.5-1.4 2-2.3-.8.4-1.6.6-2.4.7z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 // The Select trigger's open/close glyph — a single downward chevron, the
 // universal "this opens a list" mark.
 export function ChevronDownIcon(props) {

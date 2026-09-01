@@ -110,6 +110,7 @@ reason.
 | `HARM_CHARACTER` | Inflicts a Health affliction on someone already helpless, **kills** them, or both — see §5b | — | Heals what was inflicted; never revives |
 | `BURY_CHARACTER` | Puts a body lying in their zone into the ground, lifting the **Cursed** role off the dead player's Discord account. Target is **typed**, first name only | — | Raises the body; does **not** re-curse |
 | `FAST_TRAVEL` | Rides one zone over on a horse (or the Merchant's Steam Automobile) without spending the Move. Once a day | — | Sends them back and returns the ride |
+| `BIRD_MESSAGE` | Sends one written letter to a named person in a **guessed** zone. Once a day, gated on `bird` + `literate`. A wrong guess or a dead recipient means it never arrives, and the sender is told a turn later (`BIRD.md`) | — | Hands the day back and closes the reply window; **cannot unsend a letter that landed** |
 | `DEPOT_BUY` | Buys an import off the orbital station at its `depotPrice`. Licence + standing at Customs (`DEPOT.md`) | — | Returns the goods, refunds the ⬢ |
 | `DEPOT_SELL` | Sells a `sellable` tag to the station at its `sellablePrice` | — | Buys it back with its original expiry, takes the ⬢ |
 | `DEPOT_CREDIT` | Draws on or repays the Company's 60 ⬢ credit line | — | Reverses the ⬢ and the tab together |
@@ -138,6 +139,15 @@ Next.js build redacts anything thrown out of a Server Action and shows React
 error #441 instead — which made every `catch (e) => setError(e.message)` in
 the feature dead code. Anything that isn't a `UserError` still throws, so real
 faults keep their stack and `redirect()` keeps working.
+
+**`BIRD_MESSAGE` is the first type whose effect Undo cannot reverse.** Every
+other row above moves something inside the database, and `effect` is enough to
+put it back. A letter is a Discord DM in somebody's inbox, and there is no
+un-sending it. So its Undo does the two things it still can — returns the day
+the letter cost and shuts the reply window — and its note says plainly that the
+message itself stands. Worth knowing before adding another type whose real
+effect leaves the database: the honest move is to reverse what you can and say
+what you can't, not to pretend the handler is a full inverse.
 
 Three notes on deliberate choices:
 

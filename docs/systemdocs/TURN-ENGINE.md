@@ -133,6 +133,17 @@ each arrived at by getting them wrong first.
    GM hand-grant with no stamp never counts down at all. Players one close
    from death get a warning DM (`warnings`), same posture as the
    Disappointed track's.
+7c. **Bird pass** (`db/lib/birdPass.js`) — the delayed half of the Bird
+   (`BIRD.md`). A letter whose zone guess missed, or whose recipient was
+   already dead, resolved into nothing when it was sent; this is what finally
+   tells the sender so, one turn later. **The delay is the mechanic, not a
+   scheduling detail** — an instant answer would make a Bird a once-a-day
+   oracle for whether a named person is alive in a named zone. Slotted
+   deliberately **after** both auto-kills, so a sender who died this same close
+   is already dead when the notice is composed and the passes cannot disagree
+   about writing to them. The `failureNotifiedAt` stamp it writes IS its claim,
+   so a resumed close cannot tell the same sender twice; own `resolvedPasses`
+   marker for the same reason. DMs ride back on `notices` for the thunk.
 8. **Hunger pass** (`db/lib/hungerPass.js`) — **after** the sweep, never
    before. Last turn's Hunger carries `expiresTurn` equal to the closing turn's
    number, so the sweep clears it a moment before a fresh one may be granted.

@@ -486,17 +486,17 @@ async function postMessageBatched(channelId, text) {
 // Discord JSON error code for a channel it no longer recognises.
 const UNKNOWN_CHANNEL = 10003;
 
-async function postDmOnce(discordUserId, content) {
+async function postDmOnce(discordUserId, content, components = undefined) {
   const channel = await createDmChannel(discordUserId);
   try {
-    return await postMessage(channel.id, content);
+    return await postMessage(channel.id, content, components);
   } catch (err) {
     // A cached id Discord has stopped recognising. Forget it and open a fresh
     // one — once, and only for that specific answer.
     if (err.discordCode !== UNKNOWN_CHANNEL && err.status !== 404) throw err;
     forgetDmChannel(discordUserId);
     const fresh = await createDmChannel(discordUserId);
-    return postMessage(fresh.id, content);
+    return postMessage(fresh.id, content, components);
   }
 }
 
@@ -513,13 +513,18 @@ async function postDmOnce(discordUserId, content) {
 // first chunk and the continuations run on bare — which is what the `»` rule
 // in CLAUDE.md means anyway. Chunking after prefixing also means the chunker
 // needs no special allowance for it.
-async function postDmBatched(discordUserId, text) {
+// `components` — a button row, for the handful of DMs that carry one (the
+// Bird's Reply button is the first). It rides on the LAST chunk only: a button
+// belongs under the end of what it answers, and Discord would otherwise render
+// one row per chunk, each of them live.
+async function postDmBatched(discordUserId, text, components = undefined) {
   const chunks = chunkMessage(text);
   if (chunks.length === 0) chunks.push(text);
 
   let sent = null;
-  for (const chunk of chunks) {
-    sent = await postDmOnce(discordUserId, chunk);
+  for (let i = 0; i < chunks.length; i++) {
+    const last = i === chunks.length - 1;
+    sent = await postDmOnce(discordUserId, chunks[i], last ? components : undefined);
   }
   return sent;
 }

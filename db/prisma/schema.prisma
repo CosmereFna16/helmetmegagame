@@ -206,6 +206,15 @@ enum RequestType {
   DEPOT_SELL
   DEPOT_CREDIT
 
+  // One written letter, carried by a bird to a named person in a GUESSED
+  // zone. Gated on holding both `bird` and `literate`; the once-a-day limit
+  // lives on Character.birdTurnId, the same claim-token shape FAST_TRAVEL
+  // uses. The request carries the PLAINTEXT body, because the DM it produces
+  // is otherwise a private channel between two players that no GM can read.
+  // Not undoable in the real sense — a sent DM cannot be recalled, so Undo
+  // hands back the day and says so. See BIRD.md.
+  BIRD_MESSAGE
+
   // RETIRED, and kept only because Postgres cannot drop an enum value in
   // place — the same reason MoveReviewStatus.WAITING_FOR_OPPONENTS and
   // ActionStatus.ADJUDICATED are still here. Nothing writes any of these.
@@ -262,7 +271,7 @@ model GameConfig {
   // post-wipe cleanup migration.
   turnsAnnouncementChannelId String?
   turnsAnnouncementMessageId String?
-  turnsBannerMessageId String?
+  turnsBannerMessageId       String?
 
   // Gates the whole Dawn message-wipe system (db/lib/dawnWipe.js) — off by
   // default so nothing gets swept until a GM explicitly opts in from the
@@ -433,10 +442,10 @@ model GameConfig {
   // shared Discord "radio" category — see db/lib/specialChannels.js.
   // Provisioned once by npm run db:sync-narrowcast-channels; never touched
   // again after that.
-  radioCategoryId    String?
-  watchChannelId     String?
-  intercomChannelId  String?
-  mindlinkChannelId  String?
+  radioCategoryId   String?
+  watchChannelId    String?
+  intercomChannelId String?
+  mindlinkChannelId String?
 
   // The Catatonic (AFK) pass (db/lib/catatonicPass.js): any ALIVE character
   // with no player-filed Action and no in-character speech for
@@ -557,8 +566,8 @@ model Zone {
   // parentZoneId ?? id — see the model comment. A single equality, no
   // recursion, for every seat-scoped query.
   seatZoneId  String?
-  seatZone    Zone?  @relation("ZoneSeat", fields: [seatZoneId], references: [id])
-  seatedZones Zone[] @relation("ZoneSeat")
+  seatZone    Zone?   @relation("ZoneSeat", fields: [seatZoneId], references: [id])
+  seatedZones Zone[]  @relation("ZoneSeat")
 
   connectsTo    Zone[] @relation("ZoneConnections")
   connectedFrom Zone[] @relation("ZoneConnections")
@@ -925,6 +934,16 @@ model Character {
   // a claim token, and a turn being deleted should never cascade into a
   // character row.
   fastTravelTurnId String?
+
+  // The in-game DAY this character's bird last flew — the same claim token as
+  // fastTravelTurnId above, for the same reason and with the same trap. A day
+  // is TWO turns, so this stores String(describeTurn(openTurn).day) and NOT a
+  // turn id; keying it on the turn would hand out two letters a day instead of
+  // the one the feature promises. Written by a conditional updateMany whose
+  // WHERE is the check, so two tabs racing cannot both send. Not a foreign key
+  // — it is a claim token, and deleting a turn must never cascade into a
+  // character row. See docs/systemdocs/BIRD.md.
+  birdTurnId String?
 
   // Consecutive turns' worth of hunger this character is carrying — written
   // only by db/lib/hungerPass.js. Each hungry turn increments it; a fed turn
@@ -2096,6 +2115,66 @@ model Request {
   @@index([characterId])
   // Same reason as Action above: /gm/turns sorts unfiltered by createdAt.
   @@index([createdAt])
+}
+
+// One letter carried by a bird (docs/systemdocs/BIRD.md). Live state, not a
+// log: the reply window is read off this row every time someone presses the
+// Reply button in their DMs, and the failure pass sweeps it at turn close.
+//
+// Every party is stored as a SNAPSHOT — id, name and Discord id copied at send
+// time, with no foreign key — for the reason ARCHITECTURE.md gives for the log
+// tables. Two extra ones apply here. The reply handler needs the sender's
+// Discord id and nothing else, so a snapshot lets it answer without a join at
+// all; and a bird outlives its people, so a letter sent to someone who is
+// deleted or wiped afterwards must still read back correctly on the GM desk.
+model BirdMessage {
+  id String @id @default(cuid())
+
+  senderId               String
+  senderName             String
+  senderDiscordUserId    String?
+  recipientId            String
+  recipientName          String
+  recipientDiscordUserId String?
+
+  // Where the sender GUESSED the recipient was standing. The whole mechanic is
+  // that this can be wrong, so it is recorded whether or not it matched.
+  guessedZoneId   String
+  guessedZoneName String
+
+  // Plaintext, always — the ciphering in db/lib/gribble.js happens when the DM
+  // is composed, never on the way into the database. A GM reading the desk
+  // needs to see what was actually written.
+  body String
+
+  // False means the guess missed, or the recipient was dead. The sender is not
+  // told until the next turn closes: an instant "no" would turn this into a
+  // once-a-day scout for where somebody is standing, which is exactly what the
+  // guess is supposed to cost.
+  delivered Boolean @default(false)
+
+  // Null on a miss. On a hit, the turn the letter landed in.
+  arrivalTurnId String?
+
+  // Turn.number of the LAST turn a reply is accepted in — the arrival turn
+  // plus one. A letter sent five minutes before a turn closes would otherwise
+  // be unanswerable in practice, which reads as a bug rather than as a rule.
+  replyDeadlineTurn Int?
+
+  // Stamped by db/lib/birdPass.js when the "wasn't delivered" DM is handed to
+  // the side-effect thunk, so a resumed close cannot send it twice.
+  failureNotifiedAt DateTime?
+
+  // One reply, never a chain. Once repliedAt is set the button is spent.
+  repliedAt DateTime?
+  replyBody String?
+
+  createdAt DateTime @default(now())
+
+  // The failure pass's own query: undelivered and not yet notified.
+  @@index([delivered, failureNotifiedAt])
+  @@index([recipientId])
+  @@index([senderId])
 }
 
 // A character's self-set goal, worth 1-5 Tag Points on fulfillment. At most
