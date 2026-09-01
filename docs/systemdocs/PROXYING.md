@@ -104,6 +104,17 @@ messages inert to all of them. That is the safe direction: a stale mapping
 would let the wrong person delete someone's message. ⭐ is the exception — see
 §7.
 
+### The one message replaced by the *bot* rather than a character
+
+A GM pressing Discord's own **New Post** button in a location forum is the
+single case where a human's message is re-authored as **Bascinet itself**, not
+as a character webhook. `bot/src/lib/questPost.js` deletes the post and
+re-creates it verbatim as the bot, tagged **Quest** — see `CHANNELS.md`
+§ "Quest posts" for the whole rule. It is hooked into `messageCreate` **before**
+`isDesignatedTupperChannel`, which is load-bearing: a GM who also has a living
+character would otherwise have that starter message proxied, and deleting a
+forum post's starter message destroys the entire post.
+
 ## 3. Avatars and letter plaques
 
 Profile pictures are stored **as bytes on the row** —

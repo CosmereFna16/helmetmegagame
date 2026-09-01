@@ -35,7 +35,7 @@
 // belt-and-braces.
 const { spectatorOverwrite } = require("./spectatorAccess");
 const { cursedOverwrite } = require("./cursedAccess");
-const { PERSISTENT_TAG_NAME, LOCATION_TAG_NAME } = require("./persistence");
+const { PERSISTENT_TAG_NAME, LOCATION_TAG_NAME, QUEST_TAG_NAME } = require("./persistence");
 
 const CHANNEL_TYPE_TEXT = 0;
 const CHANNEL_TYPE_CATEGORY = 4;
@@ -63,8 +63,8 @@ const PUBLIC_TOPIC =
 const PRIVATE_TOPIC =
   "What are you doing right now? Moment-to-moment private roleplay. Use `/add (character name)` and `/remove (character name)` to control who's in your thread.";
 
-// Both forum tags, no emoji on either — the ⏰/🗺 era is over.
-const FORUM_TAGS = [{ name: PERSISTENT_TAG_NAME }, { name: LOCATION_TAG_NAME }];
+// All three forum tags, no emoji on any of them — the ⏰/🗺 era is over.
+const FORUM_TAGS = [{ name: PERSISTENT_TAG_NAME }, { name: LOCATION_TAG_NAME }, { name: QUEST_TAG_NAME }];
 
 // GM gets an explicit overwrite on every channel (not just the category) so
 // it can't be clawed back by a channel-level @everyone deny — Discord

@@ -56,7 +56,7 @@ const crypto = require("node:crypto");
 const { SPECTATOR_ROLE_ID } = require("./roleIds");
 const { cursedRoleId, ensureCursedRoleAppearance } = require("./cursedAccess");
 const { docsPath } = require("./repoPaths");
-const { PERSISTENT_TAG_NAME, LOCATION_TAG_NAME } = require("./persistence");
+const { PERSISTENT_TAG_NAME, LOCATION_TAG_NAME, QUEST_TAG_NAME } = require("./persistence");
 const { zoneChannelSpec, zoneRoleName } = require("./zoneChannelSpec");
 const { syncTurnsChannelAccess } = require("./turnsChannelAccess");
 const { createTopicRow, createPrivateRow } = require("./zoneAnchorRow");
@@ -878,6 +878,7 @@ async function syncZonesFromYaml(prisma) {
       if (want.available_tags) {
         await ensureForumTag(channelId, PERSISTENT_TAG_NAME, null);
         await ensureForumTag(channelId, LOCATION_TAG_NAME, null);
+        await ensureForumTag(channelId, QUEST_TAG_NAME, null);
       }
     }
     if (reconciledAny) report.reconciled += 1;

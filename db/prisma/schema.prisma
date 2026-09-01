@@ -726,6 +726,15 @@ model PlayerThread {
 
   persistent Boolean @default(false)
 
+  /// The Quest tier: a GM's hand-made forum post, converted and re-authored
+  /// as the bot by bot/src/lib/questPost.js. Implies `persistent` — both are
+  /// set together. Where a persistent post is EMPTIED at Dawn, a keepStarter
+  /// post keeps its starter message and loses only its replies, the same
+  /// treatment a sync-owned Location topic gets — but on a row a GM can
+  /// delete by hand. Inactivity expiry still applies, so a quest hook nobody
+  /// answers for THREAD_EXPIRY_TURNS turns still ages out.
+  keepStarter Boolean @default(false)
+
   // Inactivity clock, in TURNS — the game's own clock, not wall time.
   // Written by the bot's messageCreate (debounced to one write per thread
   // per turn) and cross-checked at sweep time against the thread's

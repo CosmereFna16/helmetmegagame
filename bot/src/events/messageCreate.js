@@ -2,6 +2,7 @@ const { prisma, concealedAlias } = require("@lifeweb/db");
 const { sendAsCharacter } = require("../lib/proxy");
 const { isDesignatedTupperChannel, resolveChannelContext } = require("../lib/channels");
 const { sendDm } = require("../lib/dm");
+const { convertToQuestPost } = require("../lib/questPost");
 const { REPORT_CHANNEL_ID } = require("@lifeweb/db/lib/reportChannelAccess");
 const {
   canHearPing,
@@ -92,6 +93,18 @@ module.exports = {
     // stray line is swept too.
     if (message.channel.isThread?.() && (await isCreateTopicAnchor(message.channel.id))) {
       await message.delete().catch(() => {});
+      return;
+    }
+
+    // Ahead of the proxy gate on purpose. A GM who presses Discord's own New
+    // Post button in a location forum gets that post re-authored as the bot
+    // (bot/src/lib/questPost.js); running after the gate would let a GM who
+    // also has a living character have their starter message proxied, and
+    // deleting a forum post's starter message destroys the post.
+    if (await convertToQuestPost(message).catch((err) => {
+      console.error("Quest-post conversion failed:", err);
+      return false;
+    })) {
       return;
     }
 

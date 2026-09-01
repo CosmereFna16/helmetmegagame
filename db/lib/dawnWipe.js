@@ -8,6 +8,12 @@
 //       * a generated Location topic (LocationTopic.discordThreadId) — every
 //         message deleted EXCEPT the starter, whose id is the thread's own
 //         id; the location's prose is the post's whole value.
+//       * a Quest post (PlayerThread.keepStarter) — a GM's hand-made post,
+//         re-authored as the bot by bot/src/lib/questPost.js. Treated exactly
+//         like a Location topic here: every message deleted EXCEPT the
+//         starter. It is never deleted by this pass; a GM removes it by hand
+//         (or inactivity expiry ages it out). Its Quest tag is re-asserted,
+//         same reasoning as Persistent below.
 //       * a player topic — its PlayerThread row decides: persistent rows
 //         survive but are emptied (and get their Persistent tag re-asserted,
 //         since the DB is the truth and the tag only a mirror); the rest are
@@ -34,7 +40,7 @@
 // bursting Discord's rate-limit buckets. Per-zone try/catch, so one bad room
 // costs one room. The whole run is persisted as a SystemReport row
 // (kind: DAWN_WIPE) — the Dev Panel shows it instead of guessing.
-const { PERSISTENT_TAG_NAME } = require("./persistence");
+const { PERSISTENT_TAG_NAME, QUEST_TAG_NAME } = require("./persistence");
 const { SPECIAL_CHANNELS } = require("./specialChannels");
 const {
   fetchAllMessages,
@@ -133,7 +139,20 @@ async function wipeForum(prisma, zone, rowsByThreadId, topicThreadIds, activeSna
   // blind sweep, not a reason to abandon it.
   const channel = await getChannel(zone.discordPublicChannelId, { allow404: true });
   if (!channel) return;
-  const persistentTagId = channel.available_tags?.find((t) => t.name === PERSISTENT_TAG_NAME)?.id ?? null;
+  const tagIdByName = (name) => channel.available_tags?.find((t) => t.name === name)?.id ?? null;
+  const persistentTagId = tagIdByName(PERSISTENT_TAG_NAME);
+  const questTagId = tagIdByName(QUEST_TAG_NAME);
+
+  // Re-assert a mirror tag the DB says should be there. Best-effort: the DB
+  // is the truth the wipe reads, so a failed PATCH costs a visual cue, not a
+  // rule.
+  const reassertTag = async (thread, tagId) => {
+    if (!tagId || thread.applied_tags?.includes(tagId)) return;
+    await patchThread(thread.id, {
+      archived: false,
+      applied_tags: [...(thread.applied_tags ?? []), tagId],
+    }).catch((err) => console.error(`Dawn wipe: tag re-assert on ${thread.id} failed:`, err.message));
+  };
 
   const threads = await collectThreads(
     zone.discordPublicChannelId,
@@ -157,16 +176,16 @@ async function wipeForum(prisma, zone, rowsByThreadId, topicThreadIds, activeSna
 
     let row = rowsByThreadId.get(thread.id);
     if (!row) row = await adoptThread(prisma, thread, zone, "PUBLIC");
-    if (row?.persistent) {
+    // Checked before `persistent`: a Quest row carries both, and this is the
+    // stronger of the two.
+    if (row?.keepStarter) {
+      await clearThreadExceptStarter(thread.id, { before: cutoff.before });
+      await reassertTag(thread, questTagId);
+    } else if (row?.persistent) {
       await clearMessages(thread.id, cutoff.before);
       // Re-assert the mirror: the DB said it survives, so the tag should say
       // so too, whatever a hand-edit did to it.
-      if (persistentTagId && !thread.applied_tags?.includes(persistentTagId)) {
-        await patchThread(thread.id, {
-          archived: false,
-          applied_tags: [...(thread.applied_tags ?? []), persistentTagId],
-        }).catch((err) => console.error(`Dawn wipe: tag re-assert on ${thread.id} failed:`, err.message));
-      }
+      await reassertTag(thread, persistentTagId);
     } else {
       await deletePlayerThread(prisma, thread.id);
     }

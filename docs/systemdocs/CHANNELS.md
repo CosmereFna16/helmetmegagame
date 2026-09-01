@@ -334,15 +334,46 @@ mirrored for visibility (and re-asserted by the wipe); a private thread carries
 **no marker at all** — the old ⏰ name prefix and its two-renames-per-ten-minutes
 rate limit are gone.
 
-Neither forum tag carries an emoji. **Location** is the stronger of the two and
-is applied only by the sync: a Persistent post survives the wipe but is
+None of the three forum tags carries an emoji. **Location** is the strongest
+and is applied only by the sync: a Persistent post survives the wipe but is
 *emptied*, while a Location post keeps its starter forever and loses only its
 replies. `/persistent` refuses to touch a sync-owned post, checked against the
 recorded thread ids rather than the tag, so a hand-edited tag opens no hole.
-`db/lib/persistence.js` owns both names.
+`db/lib/persistence.js` owns all three names.
 
 `/persistent` is documented in `COMMANDS.md`; it writes a
 `thread_persistence_changed` audit row.
+
+### Quest posts
+
+**Quest** is the third tag, and the GM-made counterpart of a Location topic. A
+GM presses Discord's own **New Post** button in a location forum and types the
+hook; `bot/src/lib/questPost.js`, hooked in ahead of the proxy gate in
+`bot/src/events/messageCreate.js`, deletes that post and immediately re-creates
+it verbatim **as the bot** — same title, same text, tagged Quest, starter
+message pinned in-thread — then records it as a `PlayerThread` with
+`persistent: true, keepStarter: true`.
+
+Three things make the trigger safe without a role check. Players are denied
+`CREATE_PUBLIC_THREADS` on every location forum, so a hand-made post is a GM's
+by construction. Every legitimate bot-made post (the Location topics, the
+anchor, a player's topic) arrives with a bot author, which `messageCreate`
+filters out first. And the hook sits **before** `isDesignatedTupperChannel`, so
+a GM who also has a living character never has their starter proxied — deleting
+a forum post's starter message would destroy the post.
+
+It is **text only**: attachments are not re-uploaded, and the GM gets a DM
+saying so rather than a silent loss. An image-only post can't be re-sent at all
+(Discord refuses a forum post with no body), so that one is left standing and
+explained by DM. The replacement always goes up *before* the original comes
+down, so a failed create costs nothing.
+
+At Dawn a Quest post is treated exactly like a Location topic — replies
+cleared, starter kept — and the wipe never deletes it. `/persistent` refuses to
+toggle it. **Inactivity expiry still applies**, so a hook nobody answers for
+`THREAD_EXPIRY_TURNS` turns still ages out; one reply resets that clock.
+Otherwise it goes away when a GM deletes it by hand. The audit row is
+`gm_quest_created`.
 
 ### Inactivity expiry
 
@@ -524,6 +555,7 @@ Per target, for every zone including cave levels:
 | `#summary` | every message deleted |
 | the Create-a-Topic anchor | **untouched** — the wipe does not reach into it at all |
 | a generated Location topic | every message deleted **except the starter**, whose id is the thread's own id |
+| a Quest post (`keepStarter: true`) | survives; every message deleted **except the starter**, and its Quest tag is re-asserted. Never deleted by the wipe — a GM removes it by hand |
 | a player topic with `persistent: true` | survives, emptied; its Persistent tag is re-asserted (the DB is the truth, the tag only a mirror) |
 | a player topic with `persistent: false` | deleted entirely — thread, row and invites |
 | a post with **no** `PlayerThread` row | **adopted**: a row is written (`persistent: false`) rather than the post destroyed, so a GM's hand-made post gets one full turn and a visible record instead of vanishing |

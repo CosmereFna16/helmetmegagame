@@ -269,6 +269,15 @@ async function handlePersistentCommand(interaction) {
     });
   }
 
+  // A Quest post is the GM-made counterpart of a sync-owned Location topic:
+  // it keeps its starter forever and only a GM removes it. A toggle here would
+  // silently downgrade it to an ordinary emptied post, so it refuses the same
+  // way the sync-owned posts do.
+  if (row.keepStarter) {
+    await respond(interaction, "» *That's a Quest post — it only goes away when a GM deletes it.*");
+    return;
+  }
+
   const persistent = !row.persistent;
   await prisma.playerThread.update({ where: { id: row.id }, data: { persistent } });
 

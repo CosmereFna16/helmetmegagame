@@ -1,5 +1,6 @@
-// The two forum tag names, in the one place the Dawn wipe, the sync and the
-// /persistent command can agree on them. Pure: no prisma, no REST.
+// The three forum tag names, in the one place the Dawn wipe, the sync, the
+// /persistent command and the Quest conversion can agree on them. Pure: no
+// prisma, no REST.
 //
 // "Persistent" — a player-made topic that survives the Dawn wipe (its
 // messages are still cleared). Since the zone rework the SOURCE OF TRUTH for
@@ -16,12 +17,21 @@
 // sync owns — checked against the recorded thread ids, not this tag, so a
 // hand-stripped tag opens no hole.
 //
-// Neither tag carries an emoji, on purpose.
+// "Quest" — a GM's hand-made post. Behaves like Location at the wipe (starter
+// kept forever, replies cleared), but it is created by a GM pressing Discord's
+// own New Post button rather than by the sync, it carries an ordinary
+// PlayerThread row (persistent: true, keepStarter: true), and it goes away
+// only when a GM deletes it by hand or when inactivity expiry ages it out —
+// never by the wipe. bot/src/lib/questPost.js owns the conversion.
+//
+// None of the three carries an emoji, on purpose.
 
 const PERSISTENT_TAG_NAME = "Persistent";
 const LOCATION_TAG_NAME = "Location";
+const QUEST_TAG_NAME = "Quest";
 
 module.exports = {
   PERSISTENT_TAG_NAME,
   LOCATION_TAG_NAME,
+  QUEST_TAG_NAME,
 };
