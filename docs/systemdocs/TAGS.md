@@ -968,19 +968,34 @@ still on the table. A GM confirms the death by hand through the existing path
 
 `expiresInto` is what ignoring a wound costs; `removesInto` is what **curing
 one still costs**. A tag carrying it turns into its treated form when it
-leaves the sheet through a player-driven removal — a Broken Bone treated is a
-Splinted limb for four turns, not a clean slate. It fires on exactly two
-paths, inside each one's own transaction:
+leaves the sheet through a removal — a Broken Bone treated is a Splinted limb
+for four turns, not a clean slate. It fires on five paths, inside each one's
+own transaction. Two are player-driven:
 
 - the **Remove Tag** request (`REQUESTS.md`) — self-removal from `/character`;
 - the **Heal** request (`HEAL_CHARACTER`) — the aftermath lands on the
   *patient*, and the "treatment didn't take" GM edit takes it back off along
   with restoring the affliction.
 
-A GM removal is godmode and never fires it: not the `/heal` slash command,
-not a Dev Panel revoke. Expiry doesn't either — that is `expiresInto`'s job,
-and the two chains on one tag answer different questions (Deep Wound ignored
-goes `infected`; Deep Wound treated goes `stitched-up`).
+Three are a GM taking a tag off a sheet, all through
+`applyTagOpsInTx` (`db/lib/tagOps.js`) except the last:
+
+- a **staged `remove`** on `/gm/turns`, applied at the turn close
+  (`ADJUDICATION.md`);
+- a **Dev Panel** `remove` op, applied on Apply (`DEV-PANEL.md`);
+- a **bulk revoke** from `/gm/players` (`bulkTagCharacters`), which rolls the
+  chain per character rather than once for the batch, so a `oneOf` doesn't
+  hand a hundred people the same coin flip.
+
+A GM removal used to be godmode and skip the chain. It doesn't, because most
+GM removals *are* treatments — a staged effect resolving a wound, a revoke
+after a scene — and a cure that costs nothing makes medicine pointless. The
+one holdout is the bot's `/heal` slash command, which stays godmode: it is the
+"put this sheet right" tool, not a treatment.
+
+Expiry doesn't fire it either — that is `expiresInto`'s job, and the two
+chains on one tag answer different questions (Deep Wound ignored goes
+`infected`; Deep Wound treated goes `stitched-up`).
 
 Same YAML shape as `expiresInto` — a bare slug, several at once, or an
 `oneOf:` coin flip — normalised and validated by the same
@@ -991,12 +1006,20 @@ fires it rather than any clock, and the self-reference error is its own
 the granted tag's **own** `durationTurns` — Splinted's 4, Drained's 3 — or
 forever for a permanent one (Scarred, Limp).
 
-The grants go through `grantTagSlugs` (`web/lib/requestEffects.js`), so the
-rules match consuming and the expiry pass: a successor the character already
-holds is left completely alone (`added: 0` in the snapshot), and Undo takes
-back only what the request really added, off the `effect.granted` snapshot
-rather than today's catalog. The `oneOf` picks are rolled once, up front
-(`rollTagChain`), so the snapshot records exactly what happened.
+The grants go through `grantTagSlugs` (`db/lib/tagWrites.js`, re-exported by
+`web/lib/requestEffects.js` — it moved down when the GM paths needed it, since
+`db/` cannot import `web/`), so the rules match consuming and the expiry pass:
+a successor the character already holds is left completely alone (`added: 0`
+in the snapshot), and Undo takes back only what the request really added, off
+the `effect.granted` snapshot rather than today's catalog. The `oneOf` picks
+are rolled once, up front (`rollTagChain`), so the snapshot records exactly
+what happened.
+
+On the GM paths the same `granted` snapshot rides along on the `remove` entry
+`applyTagOpsInTx` returns, so it lands in the Dev Panel's audit row and the
+staged effect's snapshot. A removal that removed nothing — the character
+wasn't holding the tag — grants nothing, so a stale staged op can't mint an
+aftermath out of thin air. Those paths have no Undo, which is unchanged.
 
 The `health-recovery` group is where the aftermaths live — its header comment
 has said "what good treatment leaves behind" since before anything granted

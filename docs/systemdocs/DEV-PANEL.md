@@ -140,6 +140,14 @@ tier of a chain for another can't trip the equip cap halfway through; the
 equip count is checked **once** at the end, so "unequip A, equip B" isn't
 rejected on B.
 
+A `remove` fires the tag's **treated-wound aftermath** (`Tag.removesInto`,
+`TAGS.md` §5c): removing a Broken Bone leaves Splinted behind for four turns.
+This used to be godmode and skip the chain; it doesn't, because most GM
+removals are treatments. The aftermath is rolled per op, granted **after** the
+adds — so an explicit add of the same tag, with its own source and expiry,
+wins — and recorded as `granted` on the `remove` entry in the audit row.
+Removing a tag the character isn't holding grants nothing.
+
 Every add stamps its expiry through `expiryFor(tag, openTurn)`. This is not
 optional: the sweep matches on `expiresTurn`, so a timed tag granted with a
 null there never expires at all.
