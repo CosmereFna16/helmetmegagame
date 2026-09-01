@@ -15,6 +15,7 @@ const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
 
 let cached;
+let cachedFamilies;
 
 // Returns a Set of family keys. Empty when docs/desires.yaml is absent.
 function desireFamilyKeys() {
@@ -32,12 +33,18 @@ function desireFamilyKeys() {
 // Same read, but { key, name } pairs — cheap since the header is tiny and
 // already parsed above; kept as a separate export so a caller that only
 // wants the Set (the common case, e.g. validation) never carries names it
-// doesn't need.
+// doesn't need. Cached the same way and with the same posture as
+// desireFamilyKeys above — this module never invalidates either cache at
+// runtime; both live for the life of the process.
 function desireFamilies() {
+  if (cachedFamilies !== undefined) return cachedFamilies;
   const file = docsPath("desires.yaml");
-  if (!file || !fs.existsSync(file)) return [];
+  if (!file || !fs.existsSync(file)) return (cachedFamilies = []);
   const doc = yaml.load(fs.readFileSync(file, "utf8")) ?? {};
-  return (doc.families ?? []).filter((f) => f?.key).map((f) => ({ key: f.key, name: f.name ?? f.key }));
+  cachedFamilies = (doc.families ?? [])
+    .filter((f) => f?.key)
+    .map((f) => ({ key: f.key, name: f.name ?? f.key }));
+  return cachedFamilies;
 }
 
 module.exports = { desireFamilyKeys, desireFamilies };

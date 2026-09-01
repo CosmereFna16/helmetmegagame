@@ -221,7 +221,8 @@ npm run db:generate                  # prisma generate. Runs on `npm install`
 npm run db:migrate                   # prisma migrate dev (needs DATABASE_URL set)
 npm run db:migrate:deploy            # prisma migrate deploy (production)
 
-# YAML masters -> DB. Order matters; see SYNC.md.
+# YAML masters -> DB. Order matters (zones, tags, roles, desires, documents
+# last); see SYNC.md.
 npm run db:sync-zones                # docs/zones.yaml      (destructive; zones,
                                      #   their channels + roles, Location topics)
 npm run db:sync-tags                 # docs/tags.yaml       (upsert-only)
@@ -229,6 +230,10 @@ npm run db:sync-roles                # docs/roles.yaml      (prunes unreferenced
                                      #   `-- --seed-silos` also re-seeds every
                                      #   faction Silo at its computed opening
                                      #   balance — see SYNC.md)
+npm run db:sync-desires              # docs/desires.yaml    (upsert-only; soft-
+                                     #   retires a DesireTemplate absent from the
+                                     #   YAML rather than deleting it — see
+                                     #   DESIRES.md §10)
 npm run db:sync-documents            # docs/documents.yaml  (destructive; last)
 npm run db:prune-tags                # deletes tags absent from docs/tags.yaml.
                                      #   DRY RUN unless given `-- --apply`; never
@@ -252,6 +257,12 @@ npm run db:doctor                    # the channel doctor: diffs Discord roles/
 npm run db:backfill-roles
 npm run db:backfill-name-parts
 npm run db:backfill-fighting-split    # one-off; retires the fighting-* tag tree
+npm run db:backfill-desires           # one-off; moves holdings off six retired
+                                       #   drawback tags onto their Desires-rework
+                                       #   replacements, drops five free-lunch
+                                       #   tags, and ends with a read-only report
+                                       #   of any character left holding an
+                                       #   illegal tag pair
 npm run db:prune-orphan-roles          # deletes Discord character roles no living
                                        #   character claims. DRY RUN unless given
                                        #   `-- --apply`. Only touches roles carrying

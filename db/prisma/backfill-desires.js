@@ -1,7 +1,21 @@
 // One-off backfill for the Desires rework: moves live holdings of six
 // retired-in-place drawback tags onto their replacements, drops five tags
-// that became free (folded into the flat rebalance elsewhere), and confirms
-// the new Desire columns need no data pass.
+// that became free (folded into the flat rebalance elsewhere), confirms
+// the new Desire columns need no data pass, and finishes with a READ-ONLY
+// report of any character the conversions above may have left holding an
+// illegal pair — two exclusive tags in the same group (Tag.exclusive,
+// scoped to groupId, web/lib/characterCreation.js#exclusiveConflict), or a
+// declared conflictsWith pair (docs/tags.yaml, symmetrized by
+// db:sync-tags). The conversions can produce exactly this: e.g. a character
+// who already held sober-adjacent poppy-habit before also converting
+// coca-habit onto poppy-habit is fine (that's a collision-drop, handled
+// above), but a character who held, say, both an Addiction and Sober going
+// in — or two different Addictions the fold-in happens to leave standing —
+// would not be caught by backfillOne()'s own per-slug collision handling,
+// since that only looks at the ONE old/new slug pair it's converting. The
+// report step re-checks the WHOLE sheet, across all tags, after every write
+// above has run. It writes nothing — a GM decides case by case what to do
+// with any character it flags.
 //
 // Unlike the Fighting split (db/prisma/backfill-fighting-split.js), the OLD
 // Tag rows here are NOT deleted. docs/tags.yaml retires them in place
@@ -226,6 +240,81 @@ async function verifyDesireSlotIndex() {
   );
 }
 
+// READ-ONLY. Scans every character's current tags for two kinds of illegal
+// pairing — see the header comment above for why the conversions above can
+// produce one. Logs one line per offending character, then a count summary.
+// Never writes; a GM resolves each case by hand.
+async function reportIllegalSheets() {
+  const characterTags = await prisma.characterTag.findMany({
+    select: {
+      characterId: true,
+      character: { select: { name: true } },
+      tag: {
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          exclusive: true,
+          groupId: true,
+          conflictsWith: { select: { id: true, slug: true, name: true } },
+        },
+      },
+    },
+  });
+
+  const byCharacter = new Map();
+  for (const ct of characterTags) {
+    if (!byCharacter.has(ct.characterId)) {
+      byCharacter.set(ct.characterId, { name: ct.character.name, tags: [] });
+    }
+    byCharacter.get(ct.characterId).tags.push(ct.tag);
+  }
+
+  let exclusiveOffenders = 0;
+  let conflictOffenders = 0;
+
+  for (const { name, tags } of byCharacter.values()) {
+    // Two exclusive tags in the same (non-null) group.
+    const exclusiveByGroup = new Map();
+    for (const tag of tags) {
+      if (!tag.exclusive || tag.groupId == null) continue;
+      if (!exclusiveByGroup.has(tag.groupId)) exclusiveByGroup.set(tag.groupId, []);
+      exclusiveByGroup.get(tag.groupId).push(tag);
+    }
+    for (const group of exclusiveByGroup.values()) {
+      if (group.length > 1) {
+        exclusiveOffenders++;
+        console.log(
+          `ILLEGAL (exclusive group): "${name}" holds ${group.length} exclusive tags in one group: ` +
+            group.map((t) => `${t.name} (${t.slug})`).join(", "),
+        );
+      }
+    }
+
+    // conflictsWith pairs: both sides held at once.
+    const heldIds = new Set(tags.map((t) => t.id));
+    const seenPairs = new Set();
+    for (const tag of tags) {
+      for (const partner of tag.conflictsWith) {
+        if (!heldIds.has(partner.id)) continue;
+        const pairKey = [tag.id, partner.id].sort().join(":");
+        if (seenPairs.has(pairKey)) continue;
+        seenPairs.add(pairKey);
+        conflictOffenders++;
+        console.log(
+          `ILLEGAL (conflictsWith): "${name}" holds both "${tag.name}" (${tag.slug}) and ` +
+            `"${partner.name}" (${partner.slug})`,
+        );
+      }
+    }
+  }
+
+  console.log(
+    `illegal-sheet report: ${exclusiveOffenders} exclusive-group violation(s), ` +
+      `${conflictOffenders} conflictsWith violation(s) — read-only, no writes made`,
+  );
+}
+
 async function main() {
   // Marker read FIRST, before any write anywhere in this script — but
   // INFORMATIONAL ONLY. It does not gate the CONVERSIONS loop below.
@@ -275,6 +364,10 @@ async function main() {
   // existing and new GameConfig row already reads 2 — there is nothing here
   // for this script to raise, unlike startingTagPoints in the Fighting split.
   console.log("GameConfig.desireSlots: no bump needed, ships defaulting to 2 (schema.prisma:427)");
+
+  // Read-only report — see reportIllegalSheets' comment. Runs last, after
+  // every write above, so it reports the sheet as it actually stands.
+  await reportIllegalSheets();
 }
 
 main()

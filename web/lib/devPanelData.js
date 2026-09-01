@@ -5,7 +5,7 @@ import { getGuildMember, isCursed } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import { isHealable } from "@/lib/healRequests";
 import { DEFAULT_MAX_DRAWBACK_TAGS } from "@/lib/characterCreation";
-import { projectDesireTemplateForGates } from "@/lib/desireProjection";
+import { projectDesireTemplateForGates, loadRoleBySlugForTemplates } from "@/lib/desireProjection";
 import { HUNGER_SLUG, ATE_MEAL_SLUG } from "@lifeweb/db/lib/constants";
 
 // The whole data-assembly behind the Dev Character Panel, extracted so it can
@@ -192,8 +192,9 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
   //     page, so nothing is withheld from the GM's own view (constraint:
   //     never let this projection reach a player payload).
   const desireSlotsConfig = config?.desireSlots ?? 2;
-  const projectedDesireTemplates = await Promise.all(
-    desireTemplates.map((t) => projectDesireTemplateForGates(prisma, t)),
+  const roleBySlugForDesires = await loadRoleBySlugForTemplates(prisma, desireTemplates);
+  const projectedDesireTemplates = desireTemplates.map((t) =>
+    projectDesireTemplateForGates(roleBySlugForDesires, t),
   );
   const { visible: desireStatesEvaluated } = evaluateDesireCatalog({
     templates: projectedDesireTemplates,

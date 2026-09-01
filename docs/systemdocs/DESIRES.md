@@ -255,6 +255,21 @@ Three `GameConfig` knobs govern this system, all live-editable from
   drawback tags, not their combined point value — see `TAGS.md` §4a for the
   full rule and why this replaced the old points-based `maxNegativeTags`.
 
+  **Ship order for this migration:** `20260831233000_drawback_tag_cap` is
+  ADD-only — it adds `maxDrawbackTags` and leaves the old `maxNegativeTags`
+  column in place, still carrying `@default(8)` in `schema.prisma`. That is
+  deliberate: `bot` talks to the database over REST rather than a gateway
+  push, so a bot deploy can lag or be skipped behind `web`'s Pre-Deploy
+  migrate step (see CLAUDE.md "Railway bot skips db-only deploys" note), and
+  every select-less `gameConfig.findFirst()` — there are around 15 of them
+  across bot/db/web — throws `P2022` the instant a client expects a column
+  the row no longer has. Do not drop `maxNegativeTags` in the same push that
+  adds `maxDrawbackTags`. Once both the `bot` and `web` Railway services are
+  confirmed running the build that introduced `maxDrawbackTags` (check each
+  service's active deployment in the Railway dashboard), write and ship a
+  follow-up migration that does `ALTER TABLE "GameConfig" DROP COLUMN
+  "maxNegativeTags";` and remove the field from `schema.prisma`.
+
 ## 10. YAML format, sync behavior, run order
 
 `docs/desires.yaml` is the sole master for `DesireTemplate`, same posture as

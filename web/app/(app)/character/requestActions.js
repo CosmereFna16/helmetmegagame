@@ -61,7 +61,11 @@ import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { rollCaving } from "@lifeweb/db/lib/cavingPass";
 import { evaluateDesireCatalog, slotStates } from "@lifeweb/db/lib/desireGates";
-import { projectDesireTemplateForGates } from "@/lib/desireProjection";
+import {
+  projectDesireTemplateForGates,
+  loadRoleBySlugForTemplates,
+  computeHiddenDesireTagIds,
+} from "@/lib/desireProjection";
 import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { ATE_MEAL_SLUG, DISAPPOINTED_SLUG } from "@lifeweb/db/lib/constants";
 import { NAME_LIMITS, formatCharacterName, formatBareName, normalizeEarnedHonorific } from "@/lib/characterName";
@@ -1456,24 +1460,9 @@ async function harmCharacterRequestImpl({
 
 // Tag ids referenced by any TagGroup.requiredTagId that the character does
 // NOT hold — i.e. the tags whose category is a hidden category for this
-// character (schema.prisma TagGroup.requiredTagId comment; the same rule
-// web/lib/characterCreation.js#requirementSatisfied enforces for the group
-// gate). Deliberately NOT routed through requirementSatisfied/unlockedTags:
-// those operate over a tag CATALOG (checking whether each candidate tag's
-// own group is unlocked), while this needs the inverse — the raw set of
-// gating tag ids — to hand to db/lib/desireGates.js, which has no DB access
-// of its own. Recomputing the same TagGroup.requiredTagId rule directly
-// here is simpler than adapting the catalog-shaped helper, and is exactly
-// the rule documented on the schema field.
-async function computeHiddenTagIds(heldTagIds) {
-  const gates = await prisma.tagGroup.findMany({
-    where: { requiredTagId: { not: null } },
-    select: { requiredTagId: true },
-  });
-  return new Set(
-    gates.map((g) => g.requiredTagId).filter((id) => id && !heldTagIds.has(id)),
-  );
-}
+// character. Shared with web/app/(app)/character/page.js via
+// web/lib/desireProjection.js#computeHiddenDesireTagIds — see that module
+// for the rule.
 
 async function setDesireImpl({ slotIndex: rawSlotIndex, slug: rawSlug }) {
   const { session, character } = await requireCharacter();
@@ -1505,11 +1494,12 @@ async function setDesireImpl({ slotIndex: rawSlotIndex, slug: rawSlug }) {
   });
   if (!template || template.retired) throw new UserError(DESIRE_NOT_AVAILABLE);
 
-  const projectedTemplate = await projectDesireTemplateForGates(prisma, template);
+  const roleBySlugForDesire = await loadRoleBySlugForTemplates(prisma, [template]);
+  const projectedTemplate = projectDesireTemplateForGates(roleBySlugForDesire, template);
 
   const heldTags = character.tags.map((ct) => ct.tag);
   const heldTagIds = new Set(heldTags.map((t) => t.id));
-  const hiddenTagIds = await computeHiddenTagIds(heldTagIds);
+  const hiddenTagIds = await computeHiddenDesireTagIds(prisma, heldTagIds);
   const roleSlug = character.role?.slug ?? null;
 
   const openTurn = await getOpenTurn();

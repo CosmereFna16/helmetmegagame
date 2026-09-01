@@ -163,14 +163,28 @@ function FamilyGroup({ family, entries, pending, onChoose }) {
       </tr>
       {entries.map((entry) => {
         const { tone, label } = stateCell(entry);
-        const clickable = entry.state === "available";
+        const clickable = entry.state === "available" && !pending;
+        function activate() {
+          if (clickable) onChoose(entry.slug);
+        }
+        function onKeyDown(e) {
+          if (!clickable) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            activate();
+          }
+        }
         return (
           <tr
             key={`${family.key}:${entry.slug}`}
-            onClick={clickable && !pending ? () => onChoose(entry.slug) : undefined}
+            onClick={clickable ? activate : undefined}
+            onKeyDown={clickable ? onKeyDown : undefined}
+            tabIndex={clickable ? 0 : undefined}
+            role={clickable ? "button" : undefined}
+            aria-disabled={!clickable}
             style={{
-              cursor: clickable && !pending ? "pointer" : undefined,
-              opacity: clickable ? 1 : 0.55,
+              cursor: clickable ? "pointer" : undefined,
+              opacity: entry.state === "available" ? 1 : 0.55,
             }}
           >
             <td>

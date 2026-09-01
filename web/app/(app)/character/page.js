@@ -7,7 +7,11 @@ import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
 import { evaluateDesireCatalog, slotStates } from "@lifeweb/db/lib/desireGates";
 import { desireFamilies } from "@lifeweb/db/lib/desireFamilies";
-import { projectDesireTemplateForGates } from "@/lib/desireProjection";
+import {
+  projectDesireTemplateForGates,
+  loadRoleBySlugForTemplates,
+  computeHiddenDesireTagIds,
+} from "@/lib/desireProjection";
 import {
   getGuildMember,
   isApprovedPlayer,
@@ -156,20 +160,6 @@ async function loadCreationData(discordUserId) {
       }))
       .filter((z) => z.factions.length > 0),
   };
-}
-
-// Tag ids gating a hidden category the character does NOT hold — the same
-// rule web/app/(app)/character/requestActions.js#computeHiddenTagIds
-// enforces server-side on setDesire itself, kept duplicated (not imported)
-// because that function lives in a "use server" actions file (Task 5's) and
-// isn't exported for reuse. Getting this wrong leaks a hidden roster
-// (Demoness, Bacchus) straight into the catalog payload.
-async function hiddenDesireTagIds(heldTagIds) {
-  const gates = await prisma.tagGroup.findMany({
-    where: { requiredTagId: { not: null } },
-    select: { requiredTagId: true },
-  });
-  return new Set(gates.map((g) => g.requiredTagId).filter((id) => id && !heldTagIds.has(id)));
 }
 
 export default async function CharacterPage() {
@@ -348,9 +338,10 @@ export default async function CharacterPage() {
   // (not `select`), which pulls every scalar column, desireLocks included.
   const desireSlots = gameConfig?.desireSlots ?? 2;
   const heldDesireTagIds = new Set(character.tags.map((ct) => ct.tagId));
-  const hiddenTagIds = await hiddenDesireTagIds(heldDesireTagIds);
-  const projectedDesireTemplates = await Promise.all(
-    desireTemplateRows.map((t) => projectDesireTemplateForGates(prisma, t)),
+  const hiddenTagIds = await computeHiddenDesireTagIds(prisma, heldDesireTagIds);
+  const roleBySlugForDesires = await loadRoleBySlugForTemplates(prisma, desireTemplateRows);
+  const projectedDesireTemplates = desireTemplateRows.map((t) =>
+    projectDesireTemplateForGates(roleBySlugForDesires, t),
   );
   const { visible: desireCatalogEvaluated } = evaluateDesireCatalog({
     templates: projectedDesireTemplates,

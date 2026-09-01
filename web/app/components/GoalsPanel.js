@@ -22,7 +22,6 @@ export default function GoalsPanel({
         slotStates={slotStates}
         catalog={catalog}
         families={families}
-        openTurnNumber={openTurnNumber}
         desiresEnabled={desiresEnabled}
       />
     </section>

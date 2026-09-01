@@ -410,17 +410,26 @@ model GameConfig {
 
   // How many drawback TAGS a character may buy through the point-buy menu —
   // a cap on the COUNT of negative-cost tags picked, not on their combined
-  // point value. Replaces the old points-based maxNegativeTags (dropped in
-  // the drawback_tag_cap migration): that field's name always claimed to
-  // count tags while actually summing points, which this field now does for
-  // real. Only POINT_BUY drawbacks count against it — a role's free drawback
-  // (the Meister's Frail, the Headman's Old) arrives as GM_GRANT, and so does
-  // anything a GM or a turn effect inflicts, so neither eats into a player's
-  // count. Enforced in createCharacter and shown live in PointBuy's build
-  // pane, in red once over the cap; /store never sells a drawback, so there
-  // it is only a readout. Editable live from the Dev Panel, same posture as
-  // equipSlots above. 0 is a real setting: no drawbacks at all.
+  // point value. Replaces the old points-based maxNegativeTags: that field's
+  // name always claimed to count tags while actually summing points, which
+  // this field now does for real. Only POINT_BUY drawbacks count against it —
+  // a role's free drawback (the Meister's Frail, the Headman's Old) arrives
+  // as GM_GRANT, and so does anything a GM or a turn effect inflicts, so
+  // neither eats into a player's count. Enforced in createCharacter and shown
+  // live in PointBuy's build pane, in red once over the cap; /store never
+  // sells a drawback, so there it is only a readout. Editable live from the
+  // Dev Panel, same posture as equipSlots above. 0 is a real setting: no
+  // drawbacks at all.
   maxDrawbackTags Int @default(5)
+
+  // Retired — replaced by maxDrawbackTags above. Kept for one deploy cycle
+  // so any process still running the pre-desires Prisma client (a lagged or
+  // skipped bot deploy — REST-only, so it can run stale for a while without
+  // erroring) keeps being able to select this column instead of throwing
+  // P2022. Drop it in a follow-up migration once both bot and web are
+  // confirmed on the build that introduced maxDrawbackTags — see the ship
+  // order in docs/systemdocs/DESIRES.md.
+  maxNegativeTags Int @default(8)
 
   // How many Desires a character may hold ACTIVE at once, one per slot.
   // Same live-editable posture as equipSlots above.

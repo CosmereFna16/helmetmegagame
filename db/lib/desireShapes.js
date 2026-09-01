@@ -68,11 +68,15 @@ function validateClause(clause, { slug, index, families }) {
     );
   }
 
-  if (clause.exceptFamilies != null && !("tiers" in clause) && clause.all !== true) {
-    throw new Error(`${label} has exceptFamilies but no "tiers" or "all" — exceptFamilies only modifies those`);
-  }
+  // Order matters: a clause with "families" always fails the tiers/all check
+  // below too (it has neither), so the families+exceptFamilies message has
+  // to be checked FIRST or it can never be reached — the generic message
+  // would fire instead and mask the more specific one.
   if (clause.exceptFamilies != null && "families" in clause) {
     throw new Error(`${label} has both "families" and "exceptFamilies" — a families clause is already the exact list, excepting from it makes no sense`);
+  }
+  if (clause.exceptFamilies != null && !("tiers" in clause) && clause.all !== true) {
+    throw new Error(`${label} has exceptFamilies but no "tiers" or "all" — exceptFamilies only modifies those`);
   }
 
   if ("tiers" in clause) {
