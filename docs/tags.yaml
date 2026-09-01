@@ -684,18 +684,6 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # Reads against the Teaching Skills document, which sets the baseline at a 6.
-  # Change one and change the other; Drillmaster below is the third statement
-  # of the same rule.
-  - slug: quick-learner
-    name: Quick Learner
-    category: general
-    group: general-traits
-    description: "People teach you skills easier. When learning a skill, you succeed on a 5 or 6."
-    pointCost: 5
-    purchasable: true
-    purchasableAfterStart: true
-
   - slug: tunnel-rat
     name: Tunnel Rat
     category: general
@@ -1323,6 +1311,8 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # Reads against the Teaching Skills document (docs/documents.yaml), which
+  # sets the teaching baseline at a 6. Change one and change the other.
   - slug: drillmaster
     name: Drillmaster
     category: general

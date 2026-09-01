@@ -25,6 +25,7 @@
     "db:doctor": "node db/prisma/doctor.js",
     "db:report-inactive-characters": "node db/prisma/report-inactive-characters.js",
     "db:prune-orphan-roles": "node db/prisma/prune-orphan-roles.js",
+    "db:retire-quick-learner": "node db/prisma/retire-quick-learner.js",
     "copy:extract": "node scripts/copy/extract.js",
     "copy:reinject": "node scripts/copy/reinject.js",
     "db:sync-zones": "node db/prisma/sync-zones.js",
