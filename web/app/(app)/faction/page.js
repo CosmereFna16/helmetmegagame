@@ -529,7 +529,7 @@ export default async function FactionPage({ searchParams }) {
           <input type="hidden" name="factionId" value={faction.id} />
           <Select name="characterId" required defaultValue="" className="min-w-0">
             <option value="" disabled>
-              Choose a character...
+              Choose a character…
             </option>
             {unassignedCharacters.map((c) => (
               <option key={c.id} value={c.id}>

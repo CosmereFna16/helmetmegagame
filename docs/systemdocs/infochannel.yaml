@@ -44,7 +44,7 @@ banner: assets/info-banner.png
 main_message: |-
   Bascinet is a large-scale, rules-light story generator, 70% roleplay and 30% strategy. It’s intended to be serious, grim, heroic, and occasionally funny.
 
-  The game takes place over a 30 day period both in real life and in game. Twice a day, you declare what your character did, making a Move. Based on dice and your character’s Tags, the GMs adjudicate the resulting consequences. Mechanics are handled on the companion web panel while the roleplay takes place on Discord.
+  The game takes place over a 30-day period both in real life and in game. Twice a day, you declare what your character did, making a Move. Based on dice and your character’s Tags, the GMs adjudicate the resulting consequences. Mechanics are handled on the companion web panel while the roleplay takes place on Discord.
 
   Bascinet simultaneously plays out on several levels. Kings win wars and move big pieces around the map while commoners try to fulfill their day-to-day desires.
 
@@ -53,25 +53,25 @@ categories:
       - title: Rules
         body: |-
           ① **Basic** — You must be 18+.
-          - Romance is allowed. You can hint at sexual content, but nothing overt (fade to black!)
+          - Romance is allowed. You can hint at sexual content, but nothing overt (fade to black!).
           - There are no children in Ravenheart.
           - Mild bigotry is fine. SA and similar aren’t.
 
           ② **Atmosphere** — Everything serves the atmosphere.
-          - Act somewhat like a Medieval European. Play out fear (unless you have the Brave tag). Ravenheart is your home, your life.
+          - Act somewhat like a Medieval European. Play out fear (unless you have the **Brave** tag). Ravenheart is your home, your life.
           - Insulting the Baron would mean death, plus having your family ostracized. Think carefully.
 
           ③ **Information** — To support information asymmetry, everything that happens IC stays IC, and OOC stays OOC.
           - Don’t discuss the game’s happenings OOC. Vague references are okay.
           - Don’t say who your character is or who you’re playing. People might figure it out eventually, but protect the mystery.
-          - You are allowed to use vague OOC in roleplay channels when necessary—`(OOC: hey, gtg, see ya)`—instead of DM’ing the player.
+          - You are allowed to use vague OOC in roleplay channels when necessary — `(OOC: hey, gtg, see ya)` — instead of DM’ing the player.
 
           ④ **Antagonism** — Fulfill your character’s Desires, but not to the point of crossing your faction’s objectives.
           - High ranks are expected to be relatively fit for duty and willing to collaborate. Peasants can brawl and do mostly whatever they want.
           - If things naturally progress to where you betray your faction, that’s fine, but come into the game planning to do mostly good.
       - title: Fates
         body: |-
-          Choose a fate at game start, determining your starting tags, faction, and location. Leader roles (★) are reserved for players who can vouch frequent and long term availability, and some proficiency in roleplay. The Leader Whitelist role can be acquired in <#1540617683442208790>.
+          Choose a fate at game start, determining your starting tags, faction, and location. Leader roles (★) are reserved for players who can vouch frequent and long-term availability, and some proficiency in roleplay. The Leader Whitelist role can be acquired in <#1540617683442208790>.
 
           Most fates have small limits, but **Bolded** ones have higher caps and are more generalized, allowing for more freedom of play.
         generated: roles-intro
@@ -123,7 +123,7 @@ categories:
           **Routine / Gambit**
           There are two types of Moves: **Routine** and **Gambit**.
 
-          Routine moves have no chance to fail—their results are usually just accepted and canonized at turn end. Hunting, farming, going out for drinks, or smithing are all Routine.
+          Routine moves have no chance to fail — their results are usually just accepted and canonized at turn end. Hunting, farming, going out for drinks, or smithing are all Routine.
 
           Gambit moves are actions that could affect the narrative and could go any way. Fighting, trying to discover a bandit outpost, and stealing from the Inn are all Gambits. Gambits require a 1d6 roll.
 
@@ -131,17 +131,17 @@ categories:
           Unless they do something else or refuse to participate, a Leader can direct members of his faction (even AFK members) as part of his Moves. Their tags are considered during the adjudication. Only one Gambit die is rolled.
       - title: Roleplay
         body: |-
-          The game’s roleplay layer is where the results of last turn’s Moves come into life. If the Gamemaster declared you were bested in a duel, that’s canon; you can describe how it went down in the roleplay channels. You can also use the roleplay channels at any time to chat, exchange information, or coordinate your Moves with other players.
+          The game’s roleplay layer is where the results of last turn’s Moves come to life. If the Gamemaster declared you were bested in a duel, that’s canon; you can describe how it went down in the roleplay channels. You can also use the roleplay channels at any time to chat, exchange information, or coordinate your Moves with other players.
 
           **Channels and Zones**
-          There are three surface zones—the Fortress, the Town, and the Windlands—and three levels of the Caves: the Caverns, the Railroad, and the Aberrant Pits. Every move from one zone to another costs your Move, the cave levels included. Within a zone, your character is assumed to be everywhere and nowhere—you can freely move around within the 12 hours.
+          There are three surface zones — the Fortress, the Town, and the Windlands — and three levels of the Caves: the Caverns, the Railroad, and the Aberrant Pits. Every move from one Zone to another costs your Move, the cave levels included. Within a Zone, your character is assumed to be everywhere and nowhere — you can freely move around within the 12 hours.
 
           Every surface zone has:
           - a summary channel: optionally describe, in broad terms, what other people in your Zone saw you doing
           - a public channel: a forum of topics, one per place in the zone. Press Create a Topic to open your own scene
           - and a private channel: press Create to open a private thread, then use `/add (character)` to invite people
 
-          A cave level has a public forum and a private channel of its own—just no summary.
+          A cave level has a public forum and a private channel of its own — just no summary.
 
           You cannot roleplay in DMs or outside of the server.
 
@@ -158,17 +158,17 @@ categories:
 
           Players are responsible for producing, taxing, distributing, and trading Resources.
 
-          Characters automatically consume 1 ⬢ a day. If you have 0 ⬢ at the start of a turn, you’ll go Hungry, netting you -1 to all Rolls until the next time you eat. The penalty increases until you die at -6.
+          Characters automatically consume 1 ⬢ a day. If you have 0 ⬢ at the start of a turn, you’ll go **Hungry**, netting you −1 to all rolls until the next time you eat. The penalty increases until you die at −6.
 
           **Laboring**
-          Resources can be produced by anyone as a routine move. Laboring can be roleplayed in any way—hunting, fishing, foraging, herding. The yield is pitiful without supporting tags.
+          Resources can be produced by anyone as a Routine Move. Laboring can be roleplayed in any way — hunting, fishing, foraging, herding. The yield is pitiful without supporting tags.
 
           Farming is the best kind of labor, capable of feeding a massive amount of people. However, it can only be done in the town’s fields, and as such is always taxed by the Baron in order to distribute food through Ravenheart.
       - title: Tags
         body: |-
           Tags represent your character’s health, items, traits, and skills.
 
-          The main way to obtain new Tags is to spend tag points. Everyone starts with tag points but gain more through the game as they fulfill Desires. However, you can also create, inflict, and remove tags throughout the game—such as by smithing a sword, poisoning someone, or treating a wound.
+          The main way to obtain new Tags is to spend tag points. Everyone starts with Tag Points, but gains more through the game as they fulfill Desires. However, you can also create, inflict, and remove tags throughout the game — such as by smithing a sword, poisoning someone, or treating a wound.
 
           **Desires**
           You can fulfill Desires to obtain more tag points.

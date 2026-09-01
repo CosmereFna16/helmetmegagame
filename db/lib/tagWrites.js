@@ -10,6 +10,7 @@
 // Every function here takes a transaction client (`tx`) as its first
 // parameter rather than reaching for the singleton, so a caller can compose
 // it into a larger transaction. That is the db/lib/dm.js convention.
+const { ROMANCE_DISABLED_SLUG } = require("./constants");
 
 // Adds `quantity` of a tag, creating the row or incrementing an existing
 // one. Non-stackable tags are pinned at 1 no matter what is asked for, so a
@@ -56,4 +57,105 @@ async function dropCharacterTag(tx, characterId, tagId, quantity = null) {
   });
 }
 
-module.exports = { addToStack, dropCharacterTag };
+// Grants a list of tag SLUGS to one character — what a consumed tag turns
+// into (Tag.consumesInto: a meal becoming Ate Meal, a crate unpacking into
+// its contents), and what a removed one leaves behind (Tag.removesInto: the
+// treated-wound aftermath). Slugs rather than ids because that is what the
+// catalog carries, specifically so a slug may REPEAT: listing one twice is
+// the only way to ask for two of something.
+//
+// Moved down from web/lib/requestEffects.js (which re-exports it) for the
+// same reason addToStack and dropCharacterTag were: db/lib/tagOps.js fires
+// the treated-wound aftermath on a GM removal, and db/ cannot import web/.
+//
+// Returns the snapshot Undo needs — one entry per distinct slug, with
+// `added` being what was ACTUALLY put on the sheet. That is 0 for a
+// non-stackable tag the character already held, which is left entirely alone
+// (expiry included: their existing one is the live truth, and clobbering it
+// would silently extend or cut short something they already had). Undo may
+// only take back what this request really added.
+async function grantTagSlugs(tx, characterId, slugs, turnNumber, durations = null) {
+  if (!slugs?.length) return [];
+
+  const owed = new Map();
+  for (const slug of slugs) owed.set(slug, (owed.get(slug) ?? 0) + 1);
+
+  const tags = await tx.tag.findMany({
+    where: { slug: { in: [...owed.keys()] } },
+    select: { id: true, slug: true, name: true, stackable: true, defaultDurationTurns: true },
+  });
+  const tagBySlug = new Map(tags.map((t) => [t.slug, t]));
+
+  const granted = [];
+  for (const [slug, count] of owed) {
+    // Unknown slugs are rejected at sync time (db/lib/syncTags.js), so this
+    // can only be a row predating a catalog edit — skip it rather than fail
+    // the whole request.
+    const tag = tagBySlug.get(slug);
+    if (!tag) continue;
+
+    const existing = await tx.characterTag.findUnique({
+      where: { characterId_tagId: { characterId, tagId: tag.id } },
+    });
+
+    if (!existing) {
+      // A granted tag with its own duration starts its clock now, which is
+      // what makes a chain work (meal -> Ate Meal that the sweep clears).
+      // Same absolute-turn expression as db/lib/hungerPass.js.
+      //
+      // A per-grant override (Tag.consumesIntoDurations, resolved by
+      // web/lib/consumeGrants.js) wins over the tag's own duration, so one
+      // status can outlast itself depending on what produced it — Bliss
+      // leaves you High a turn longer than the raw fungus does.
+      const durationTurns = durations?.[slug] ?? tag.defaultDurationTurns;
+      const expiresTurn =
+        turnNumber != null && durationTurns != null ? turnNumber + durationTurns : null;
+      await tx.characterTag.create({
+        data: {
+          characterId,
+          tagId: tag.id,
+          source: "EVENT",
+          quantity: tag.stackable ? count : 1,
+          expiresTurn,
+        },
+      });
+      granted.push({ tagId: tag.id, tagName: tag.name, added: tag.stackable ? count : 1 });
+      continue;
+    }
+
+    if (tag.stackable) {
+      await tx.characterTag.update({
+        where: { id: existing.id },
+        data: { quantity: existing.quantity + count },
+      });
+      granted.push({ tagId: tag.id, tagName: tag.name, added: count });
+      continue;
+    }
+
+    granted.push({ tagId: tag.id, tagName: tag.name, added: 0 });
+  }
+
+  return granted;
+}
+
+// Mirrors Character.romanceOptOut onto the visible `romance-disabled` tag —
+// the boolean is the source of truth, the tag is what a 🔍 inspect (and the
+// player's own sheet) shows. Called on every write of the boolean, not just
+// on a change: both branches no-op when already in sync, and the
+// unconditional call back-heals sheets saved before the tag was wired up.
+async function syncRomanceDisabledTag(tx, characterId, optOut) {
+  const tag = await tx.tag.findUnique({
+    where: { slug: ROMANCE_DISABLED_SLUG },
+    select: { id: true },
+  });
+  // Only missing if the catalog predates the tag — the preference itself
+  // still saved, so a silent skip beats failing the whole profile write.
+  if (!tag) return;
+  if (optOut) {
+    await addToStack(tx, characterId, tag.id, 1, { source: "EVENT" });
+  } else {
+    await dropCharacterTag(tx, characterId, tag.id);
+  }
+}
+
+module.exports = { addToStack, dropCharacterTag, grantTagSlugs, syncRomanceDisabledTag };

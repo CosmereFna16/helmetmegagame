@@ -16,7 +16,8 @@
 // Every function takes a transaction client (`tx`), the db/lib/dm.js
 // convention, so a caller composes them into its own transaction.
 
-const { addToStack, dropCharacterTag } = require("./tagWrites");
+const { addToStack, dropCharacterTag, grantTagSlugs } = require("./tagWrites");
+const { rollTagChain } = require("./tagShapes");
 const { expiryFor } = require("./turnFormat");
 
 // A validation failure a human caused and a human can fix. Web callers map
@@ -69,10 +70,33 @@ async function applyTagOpsInTx(tx, { characterId, ops, tagsById, openTurn, equip
   const adds = ops.filter((o) => o.op === "add");
   const patches = ops.filter((o) => o.op === "patch");
 
+  // The treated-wound aftermath (Tag.removesInto, TAGS.md §5c). A GM removal
+  // used to be godmode and skip it; it doesn't, because most GM removals ARE
+  // treatments — a staged effect resolving a wound, a Dev Panel revoke after
+  // a scene — and a cure that costs nothing makes medicine pointless.
+  //
+  // Rolled once per op, up front, so the `applied` snapshot records exactly
+  // what happened rather than what a re-roll would say. Granted after the
+  // adds below, not here: that way an explicit GM add of the same aftermath,
+  // with its own source and expiry, wins.
+  const aftermath = [];
+
   for (const op of removes) {
     const tag = tagsById.get(op.tagId);
+    // dropCharacterTag is a quiet no-op on a tag the character doesn't hold,
+    // and a removal that removed nothing must not mint an aftermath either.
+    const held = await tx.characterTag.findUnique({
+      where: { characterId_tagId: { characterId, tagId: op.tagId } },
+    });
     await dropCharacterTag(tx, characterId, op.tagId, op.quantity ?? null);
-    applied.push({ op: "remove", tagId: op.tagId, name: tag.name, quantity: op.quantity ?? null });
+    const entry = { op: "remove", tagId: op.tagId, name: tag.name, quantity: op.quantity ?? null };
+    // Fires once per op regardless of quantity, the same rule the player-side
+    // REMOVE_TAG request uses. Nothing carrying removesInto stacks anyway.
+    if (held) {
+      const slugs = rollTagChain(tag.removesInto);
+      if (slugs.length) aftermath.push({ entry, slugs });
+    }
+    applied.push(entry);
   }
 
   for (const op of adds) {
@@ -83,6 +107,10 @@ async function applyTagOpsInTx(tx, { characterId, ops, tagsById, openTurn, equip
       expiresTurn: expiresTurnFor(op, tag, openTurn),
     });
     applied.push({ op: "add", tagId: op.tagId, name: tag.name, quantity: op.quantity ?? 1 });
+  }
+
+  for (const { entry, slugs } of aftermath) {
+    entry.granted = await grantTagSlugs(tx, characterId, slugs, openTurn?.number ?? null);
   }
 
   for (const op of patches) {

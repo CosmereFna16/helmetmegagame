@@ -98,7 +98,7 @@ async function markPlayerDeparted(prisma, { discordUserId, username, viaReconcil
 
   return {
     character,
-    alert: `${playerName} has left. Their character was ${character.name}, a ${roleLabel} — now Catatonic.`,
+    alert: `${playerName} has left. Their character was ${character.name}, a ${roleLabel} — now **Catatonic**.`,
     roleUpdate,
   };
 }

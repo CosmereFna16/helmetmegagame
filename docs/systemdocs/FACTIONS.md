@@ -13,6 +13,15 @@ faction pings and the like — are independent and unmanaged by Bascinet.
 Factions nest: `Faction.parentFactionId` forms a hierarchy, and a parent's
 leadership reaches down into its subjects.
 
+The nesting is **authored, then live**. `roles.yaml`'s `parent:` seeds it when
+a faction row is first created; after that it belongs to the game, and a GM
+re-parents or detaches a faction on `/gm/dev/factions` (cycle-guarded there).
+Re-running `db:sync-roles` does **not** undo that edit — see `SYNC.md`
+"Create-only fields". Detaching a subject is how a clan rebels: the former
+parent's Leader and Treasurer immediately lose Silo authority over it, the
+subject drops off their `/faction` "Subject Factions" table, and nothing else
+about the members changes.
+
 A Silo's **opening balance is computed, not authored**: the sum of the
 faction's role weights (`unlimited` counts 5, a single-seat role counts 1),
 scaled by `GameConfig.playerCount` and floored at 10 ⬢ —

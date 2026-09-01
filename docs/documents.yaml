@@ -6,12 +6,12 @@ documents:
     key: courtier
     public: false
     tags: []
-    description: As a member of the Baron’s retinue, you may take food from the faction Silo whenever you please—within reason (Treasurer and Leader roles can see their Silo’s transaction history, so don’t steal. If you’d like to steal, arrange it with a GM).
+    description: As a member of the Baron’s retinue, you may take food from the faction Silo whenever you please — within reason (Treasurer and Leader roles can see their Silo’s transaction history, so don’t steal. If you’d like to steal, arrange it with a GM).
   - name: Church
     key: church
     public: false
     tags: []
-    description: As a member of the Church, you may take food from the faction Silo whenever you please—within reason (Treasurer and Leader roles can see their Silo’s transaction history, so don’t steal. If you’d like to steal, arrange it with a GM).
+    description: As a member of the Church, you may take food from the faction Silo whenever you please — within reason (Treasurer and Leader roles can see their Silo’s transaction history, so don’t steal. If you’d like to steal, arrange it with a GM).
   - name: Independent
     key: independent
     public: false
@@ -27,20 +27,20 @@ documents:
       The town farms, fishes, and hunts. Most of that is taxed by the Headman, who sends a fraction of his tithe to the Bishop and the bulk to the Baron (through the Meister, his tax-man). What little he has left is paid to those on the town's payroll, mostly the Sheriff.
 
       So, the Fortress survives off of the town's taxes, and provides protection in turn.
-      The Church survives off of of the town's taxes, and provides religious services in turn.
+      The Church survives off of the town's taxes, and provides religious services in turn.
   - name: Diplomat
     key: diplomat
     public: false
     secret: true
     tags: []
     description: |-
-      You are from the Culture, a post-scarcity interstellar empire of hedonists ruled by benevolent AI. You want the best for the people of Ravenheart—and that would mean convincing the Baron to join the Culture—but Contact (the Culture's diplomatic wing) operates in the scale of centuries, not human generations. They don't think it's the right time, although they haven't told you why. In general, Contact is very non-interventionist. Therefore, do the best you can to quietly help people and further the Culture's mission: help push for a leader likely to cooperate, ensure the Order of the Silver Cross doesn't grow out of control, and above all, do not blow your cover! The *last* thing the Culture wants is for the people of Ravenheart to know you're here...
+      You are from the Culture, a post-scarcity interstellar empire of hedonists ruled by benevolent AI. You want the best for the people of Ravenheart — and that would mean convincing the Baron to join the Culture — but Contact (the Culture's diplomatic wing) operates in the scale of centuries, not human generations. They don't think it's the right time, although they haven't told you why. In general, Contact is very non-interventionist. Therefore, do the best you can to quietly help people and further the Culture's mission: help push for a leader likely to cooperate, ensure the Order of the Silver Cross doesn't grow out of control, and above all, do not blow your cover! The *last* thing the Culture wants is for the people of Ravenheart to know you're here…
 
       They would appreciate it if you collected any interesting gear, took some photos with your drone, and sent logs to the mothership. The caves supposedly have a lot of interesting things going on, but it's probably dangerous.
 
       Also, you probably had a good reason to come here (boredom?) and your friends thought you were cr*aaa*zy! Coming here? Where you could die?! Back home, almost no one dies, ever. Everything is just very safe.
 
-      You have one (!) gadget—an autonomous, sentient flying drone with a supercomputer for a brain. It's disguised as a bird and has a strong personality. It likes to fly and look around the forest. It's harmless.
+      You have one (!) gadget — an autonomous, sentient flying drone with a supercomputer for a brain. It's disguised as a bird and has a strong personality. It likes to fly and look around the forest. It's harmless.
 
       If anything goes wrong, the General Contact Vessel *Helpless Is The Face Of Your Beauty* will teleport you on board. It'll take your message three minutes to reach them.
   - name: Treasurer
@@ -52,11 +52,11 @@ documents:
     description: |-
       As Treasurer or Leader, you can control your faction's Silo.
 
-      You can see every deposit and withdrawal, in addition to each member's Resource amounts.
+      You can see every deposit and withdrawal, in addition to each member's Resources.
 
       **Transferring Resources**
 
-      You can transfer resources from any source to any recipient, but you have to be able to reach both ends. For a Silo, stand in that faction's Zone. For a player, stand in the same Zone as them. Being a Treasurer or Leader does not extend that reach — if you lose your Zone, the Silo is frozen.
+      You can transfer Resources from any source to any recipient, but you have to be able to reach both ends. For a Silo, stand in that faction's Zone. For a player, stand in the same Zone as them. Being a Treasurer or Leader does not extend that reach — if you lose your Zone, the Silo is frozen.
   - name: Medical
     key: medical
     public: true
@@ -65,9 +65,9 @@ documents:
       - Medical (Skilled)
       - Medical (Expert)
     description: |-
-      Health and injuries are tags. The price to treat them is measured in Resources
-      (⬢), the doctor's turns, and a skill. Anyone can attempt a cure above their
-      skill, but it'll take a gambit
+      Health and injuries are tags. The price to treat them is measured in
+      Resources, the doctor's turns, and a skill. Anyone can attempt a cure above
+      their skill, but it'll take a Gambit.
 
       Surgery needs advanced equipment. Be in the Sanctuary or hold
       {tag:surgical-equipment}.
@@ -138,7 +138,7 @@ documents:
     key: teachingskills
     public: true
     tags: []
-    description: "You can teach almost any skill. The person learning has to make a Gambit, but must be in the same zone as someone who has that skill and is willing to teach them. The tutor doens't have to use a move. If student rolls a six, they gain the skill."
+    description: "You can teach almost any skill. The person learning has to make a Gambit, but must be in the same Zone as someone who has that skill and is willing to teach them. The tutor doesn't have to use a Move. If the student rolls a six, they gain the skill."
   - name: Producing Resources
     key: production
     public: true
@@ -147,7 +147,7 @@ documents:
       - Laborer (Skilled)
       - Laborer (Farming)
     description: |-
-      Everyone can use Routine Moves to produce resources, but only people with the {tag:laborer-basic} set of tags will produce an actually good amount.
+      Everyone can use Routine Moves to produce Resources, but only people with the {tag:laborer-basic} set of tags will produce an actually good amount.
 
       To produce, simply enable **Labor** on your Move. Your skills are automatically applied. Laboring can be flavored in any way, from herding to hunting and foraging.
 
@@ -156,7 +156,7 @@ documents:
       | None | {resource:labor:base} | Anywhere but the Depths |
       | {tag:laborer-basic} | {resource:labor:basic} | Anywhere but the Depths |
       | {tag:laborer-skilled} | {resource:labor:skilled} | Anywhere but the Depths |
-      | {tag:laborer-farming} | {resource:labor:farming} | Town only—elsewhere you work at Skilled rates |
+      | {tag:laborer-farming} | {resource:labor:farming} | Town only — elsewhere you work at Skilled rates |
 
       Nothing can be produced in the Depths.
   - name: Combat
@@ -164,11 +164,11 @@ documents:
     public: true
     tags: []
     description: |-
-      The theory and nitty-gritty of combat—like, the realistic physics—is as important as the skill. Even a master fencer won't be able to do much against a random guy in plate armor, and just a few horse archers can take out a whole squad of footpads. Different weapons excel in different circumstances, like: how much space you have, whether you’re alone or in formation, and whether your opponent is armored.
+      The theory and nitty-gritty of combat — like, the realistic physics — is as important as the skill. Even a master fencer won't be able to do much against a random guy in plate armor, and just a few horse archers can take out a whole squad of footpads. Different weapons excel in different circumstances, like: how much space you have, whether you’re alone or in formation, and whether your opponent is armored.
 
       **Melee**
       - Polearms are ubiquitous. Their reach means you can keep the opponent away and decide when the battle starts. They come in stabby, crushy, and pokey varieties.
-      - Blunt weapons are useful even against armored targets, but won’t help find weakspots.
+      - Blunt weapons are useful even against armored targets, but won’t help find weak spots.
       - Precision weapons, like swords held by the blade (halfswording) or daggers, are useful against armored opponents if you can wrestle them down to the ground.
       - Hidden weapons are useful in social environments.
       - Cutting and stabbing weapons really hurt unarmored people.
@@ -179,7 +179,7 @@ documents:
       - Crossbows take time to reload but are better against armored opponents.
       - Firearms beat everything.
 
-      Shields are very useful. For armor, there’s a few important traits: material, concealability, weight, and donning time. Some items can be worn under regular clothes. Certain items, like plate, will make a long trek through the forest difficult—you’ll get very hot under all that metal—but make you a veritable tank in combat. Seriously, almost nothing can get through plate. However, it also has the downside of being hard to equip, so if you’re, say, at a feast and someone pulls out a dagger, you’d better have a padded jack or brigandine underneath.
+      Shields are very useful. For armor, there’s a few important traits: material, concealability, weight, and donning time. Some items can be worn under regular clothes. Certain items, like plate, will make a long trek through the forest difficult — you’ll get very hot under all that metal — but make you a veritable tank in combat. Seriously, almost nothing can get through plate. However, it also has the downside of being hard to equip, so if you’re, say, at a feast and someone pulls out a dagger, you’d better have a padded jack or brigandine underneath.
 
       **Energy Shields**
       - Stop projectiles.
@@ -191,9 +191,9 @@ documents:
     public: false
     tags: []
     description: |-
-      The Headman received a raven saying he didn't receive the last tax wagon. It was probably ambushed by bandits. The Meister won't be happy about this... prepare to have the Silo drained.
+      The Headman received a raven saying he didn't receive the last tax wagon. It was probably ambushed by bandits. The Meister won't be happy about this… prepare to have the Silo drained.
 
-      Last week, Thomas Ciobanu—a respectable tradesman—was found milky-eyed, giggly, with a profoundly satisfied look. He wandered around aimlessly, going hungry—when people tried to help him, he just called them fools. The Esculap's medicine couldn't do anything for him, so the Inquisitor had him hanged. He fought all the way to the gallows, like a rabid dog.
+      Last week, Thomas Ciobanu — a respectable tradesman — was found milky-eyed, giggly, with a profoundly satisfied look. He wandered around aimlessly, going hungry — when people tried to help him, he just called them fools. The Esculap's medicine couldn't do anything for him, so the Inquisitor had him hanged. He fought all the way to the gallows, like a rabid dog.
   - name: Fortress Starting Packet
     key: fortressstarting
     public: false
@@ -207,27 +207,27 @@ documents:
     description: |-
       The word for wind in the Windlands is the same word as train, because that's how hard it blows.
 
-      While most of humanity today lives underground—or in those rare fertile oases like Ravenheart—your people refused to cower in the darkness like animals. You lived among brambles, lizards, and oxen. To protect yourself, you wore wind goggles, masks, and gloves. Often being unable to hear your comrades, you were taught sign language as a child and learned to recognize people by their gait.
+      While most of humanity today lives underground — or in those rare fertile oases like Ravenheart — your people refused to cower in the darkness like animals. You lived among brambles, lizards, and oxen. To protect yourself, you wore wind goggles, masks, and gloves. Often being unable to hear your comrades, you were taught sign language as a child and learned to recognize people by their gait.
 
       The air is still here near Ravenheart. This could be a home. What will life be without having to move to find food? What will life be without wind? What will it be like to see your friend's face, and not just their mask?
 
       The Bastard has united the clans. The Windriders and the Broken Spears are the two that survived the long march to Ravenheart. You are ready to fight. However, there was an incident: a man from the Broken Spears killed one of the Windriders during an argument on whether to raid the town. Additionally, food stores are running low.
 
-      **Your camp has an armory. While in camp, you may freely equip yourself with any weapon or armor from the Simple or Dead Simple tier (use the add tag menu; see Smithing document for options).**
+      **Your camp has an armory. While in camp, you may freely equip yourself with any weapon or armor from the Simple or Dead Simple tier (use the add tag menu; see {document:smithing} for options).**
   - name: Broken Spear Clan
     key: brokenspear
     public: false
     tags: []
     description: |-
-      You are lightning on the plains—a hundred horses galloping! Behold the people of Ravenheart, like sheep ready for the rending. After you take it, Ravenheart will become a place of strength and honor.
+      You are lightning on the plains — a hundred horses galloping! Behold the people of Ravenheart, like sheep ready for the rending. After you take it, Ravenheart will become a place of strength and honor.
 
       The Bastard showed strength when he defeated your Lieutenant, but not honor: he spared his life, humiliating him even further. You will follow him gladly.
 
-      However, the fire in his eyes has died. The man ponders and calculates like an old toothless woman. Ravenheart knows you are here—every day wasted is a day they grow stronger. The birds watch you as if you were a corpse ready for the picking.
+      However, the fire in his eyes has died. The man ponders and calculates like an old toothless woman. Ravenheart knows you are here — every day wasted is a day they grow stronger. The birds watch you as if you were a corpse ready for the picking.
 
       In the meantime, you have a threat close at hand: the scheming, snakelike Windriders. During an argument about whether or not to raid the village for food, one of your men killed one of theirs. They are not happy. Perhaps they are scared of your strength.
 
-      Celebrations of life are as common as honor killings in the Broken Spears clan. Drug use—or "riding the horse"—is common and approved. Coca is a favorite. Addiction, however, is weakness; what, did you fall off the horse?
+      Celebrations of life are as common as honor killings in the Broken Spears clan. Drug use — or "riding the horse" — is common and approved. Coca is a favorite. Addiction, however, is weakness; what, did you fall off the horse?
   - name: Windrider Clan
     key: windrider
     public: false
@@ -239,13 +239,13 @@ documents:
 
       The Bastard understands an all-out attack would be suicide. Support of the people, logistics, careful planning; these are what kept the Windriders alive while clans like the Broken Spears formed and disbanded, year by year. So your fealty was lightly given. You trust his plan will net you a home, but you will not accept a king.
 
-      One of the Broken Spears brats murdered one of your men during an argument. These things happen; but such a childish deed cannot go unpunished, can it? Either the Bastard makes amends—prioritization of resources, independence after taking Ravenheart, or some other promise—or the Broken Spears get put down like the brushlizards they are.
+      One of the Broken Spears brats murdered one of your men during an argument. These things happen; but such a childish deed cannot go unpunished, can it? Either the Bastard makes amends — prioritization of Resources, independence after taking Ravenheart, or some other promise — or the Broken Spears get put down like the brushlizards they are.
   - name: The Lifeweb
     key: lifewebbasic
     public: true
     tags: []
     description: |-
-      The Lifeweb is a profoundly unintelligible piece of machinery within the Fortress's walls—a tower that, at its peak, spews the Life Fire. Although it also produces electricity, it is mainly prized for the Fire, which is said to be what keeps Ravenheart arable, breathable, and livable. One only needs to follow the river a few miles southeast before seeing, far in the distance, the wind-scorched lands of the rest of the world, humid, scarred, and inhospitable.
+      The Lifeweb is a profoundly unintelligible piece of machinery within the Fortress's walls — a tower that, at its peak, spews the Life Fire. Although it also produces electricity, it is mainly prized for the Fire, which is said to be what keeps Ravenheart arable, breathable, and livable. One only needs to follow the river a few miles southeast before seeing, far in the distance, the wind-scorched lands of the rest of the world, humid, scarred, and inhospitable.
 
       The Lifeweb is tended by the Mortii. The Mortii are rejects, outcasts, exiles, hunchbacks, and convicts.
 
@@ -256,9 +256,9 @@ documents:
     secret: true
     tags: []
     description: |-
-      The Lifeweb is a profoundly unintelligible piece of machinery within the Fortress's walls—a tower that, at its peak, spews the Life Fire. Although it also produces electricity, it is mainly prized for the Fire, which is said to be what keeps Ravenheart arable, breathable, and livable. One only needs to follow the river a few miles south east before seeing, far in the distance, the wind-scorched lands of the rest of the world, humid, scarred, and inhospitable.
+      The Lifeweb is a profoundly unintelligible piece of machinery within the Fortress's walls — a tower that, at its peak, spews the Life Fire. Although it also produces electricity, it is mainly prized for the Fire, which is said to be what keeps Ravenheart arable, breathable, and livable. One only needs to follow the river a few miles southeast before seeing, far in the distance, the wind-scorched lands of the rest of the world, humid, scarred, and inhospitable.
 
-      The tower has a door leading downwards. Inside, levers control what parts of Ravenheart receive power. It also has a door which can be opened to reveal pistons, firing madly, witchfire green. There's a chair on a platform with complex implements. You can hook someone in, strap them down, align the machinery, cue the machine to speculate the vitrii, select the injection point, and decide whether you want some blood drawn—granting {tag:drained} and feeding the Lifeweb 20 points—or all the person's blood, feeding the Lifeweb 100 points but killing the donor.
+      The tower has a door leading downwards. Inside, levers control what parts of Ravenheart receive power. It also has a door which can be opened to reveal pistons, firing madly, witchfire green. There's a chair on a platform with complex implements. You can hook someone in, strap them down, align the machinery, cue the machine to speculate the vitrii, select the injection point, and decide whether you want some blood drawn — granting {tag:drained} and feeding the Lifeweb 20 points — or all the person's blood, feeding the Lifeweb 100 points but killing the donor.
   - name: Respawning
     key: respawning
     public: true
@@ -267,7 +267,7 @@ documents:
       - Mortus
       - Dead
     description: |-
-      When you die, you can rejoin at any time—but you'll be Cursed, meaning you can only start as a Bum or Migrant and you'll suffer a -6 penalty to your starting points.
+      When you die, you can rejoin at any time — but you'll be Cursed, meaning you can only start as a Bum or Migrant and you'll suffer a -6 penalty to your starting points.
 
       To rejoin as any other role, wait until your body is buried or your name is engraved. It is the Church and Mortii's jobs to do so.
 
@@ -291,11 +291,11 @@ documents:
     description: |-
       The Watch is Ravenheart's single line of defense along with its few Knights and Sheriffs. It's led by the Captain.
 
-      Every member of the Watch has a disabler (takes several shots; useful against unarmed people, but not someone who can run up to you and take it out of your hands), but otherwise relies on their armory—which has a good supply of Simple weapons and a decent supply of Moderate weapons (see Smithing document). The Fortress's yard also has an automated turret, which can't tell the difference between hostiles and friendlies. The switch to enable it is in the captain's office.
+      Every member of the Watch has a {tag:disabler} (takes several shots; useful against unarmed people, but not someone who can run up to you and take it out of your hands), but otherwise relies on their armory — which has a good supply of Simple weapons and a decent supply of Moderate weapons (see {document:smithing}). The Fortress's yard also has an automated turret, which can't tell the difference between hostiles and friendlies. The switch to enable it is in the Captain's office.
 
-      Watchmen also have bracelets which connect to the Captain's radio system.
+      Watchmen also carry a {tag:radio-bracelet-watch}, which connects to the Captain's {tag:radio-system-watch}.
 
-      **Your camp has an armory. While in camp, you may freely equip yourself with any weapon or armor from the Simple or Dead Simple tier (use the add tag menu; see Smithing document for options).**
+      **Your camp has an armory. While in camp, you may freely equip yourself with any weapon or armor from the Simple or Dead Simple tier (use the add tag menu; see {document:smithing} for options).**
   - name: Post-Christianity
     key: postchristianity
     public: true
@@ -305,11 +305,11 @@ documents:
 
       Can you blame them, the writhing monsters, suckling beneath the surface? They are less than animal. They have proven that that essence of purity which God imbued us with is not immutable; to the contrary, people have lost it, spat on it, cursed it.
 
-      ... And some people mock it, but what do they know of the stability, the openness of an ennobled mind, the very peace they seek through their perversions? It is good—it is the ultimate good—to love oneself, and through oneself, God.
+      … And some people mock it, but what do they know of the stability, the openness of an ennobled mind, the very peace they seek through their perversions? It is good — it is the ultimate good — to love oneself, and through oneself, God.
 
       It is regrettable, but not reproachable, that God smote the Earth. At the very least, those of us who remained faithful were given this sliver of Paradise.
 
-      The problem with the Heretic is just that: they crawl out from their holes, seeking to turn us against the Truth. But they cannot. Even if they were to murder and devour all of us, we would not forget God—as long as we chose not to. Nothing can take away faith, charity, and virtue, except our own malfeasance.
+      The problem with the Heretic is just that: they crawl out from their holes, seeking to turn us against the Truth. But they cannot. Even if they were to murder and devour all of us, we would not forget God — as long as we chose not to. Nothing can take away faith, charity, and virtue, except our own malfeasance.
 
       In any case, the Afterlife is around the corner, as it always was and it always will be. Only by forgetting that could we prioritize the gratification of the moment.
   - name: Smithing and Crafting
@@ -321,7 +321,7 @@ documents:
       - Smithing (Skilled)
       - Smithing (Gunpowder)
     description: |-
-      Like brewing or cooking, smithing costs Resources (⬢), turns, and is gated by skills.
+      Like brewing or cooking, smithing costs Resources, turns, and is gated by skills.
 
       {tag:crafting} — tailoring, woodwork and Dead Simple metalwork.
       {tag:smithing} — Simple metalwork.
@@ -423,13 +423,13 @@ documents:
       - Cultist
     description: |-
       - After enough time living quietly, your cult leader has made the call: it is time to seek Eternal Bliss.
-      - This will be difficult. You will have to find a strategy, coordinate, and execute. You can start a front—a guild, a charity, a troupe of entertainers—or you can declare war and lose the cover. Either way, listen to your Leader; he has the final word.
+      - This will be difficult. You will have to find a strategy, coordinate, and execute. You can start a front — a guild, a charity, a troupe of entertainers — or you can declare war and lose the cover. Either way, listen to your Leader; he has the final word.
       - Your Desires are drawn from the cult's own gated catalog entries — more pleasurable, slothful, outlandish, cruel, or otherwise indulgent than the average person's. ‡
-      - To achieve Eternal Bliss, Bacchus has asked you to host parties. When a party is hosted that contains {partysize:1}, {partysize:2}, and {partysize:3} people, you will unlock access to new, more powerful Bacchus tags. The Final Party requires {partysize:4} people and blood of someone with the {tag:nobility} tag: the Baron, his family, or the Bastard. Something very fun happens at the Final Party.
+      - To achieve Eternal Bliss, Bacchus has asked you to host parties. When a party is hosted that contains {partysize:2}, and then {partysize:3} people, you will unlock access to new, more powerful Bacchus tags. The Final Party requires {partysize:4} people and blood of someone with the {tag:nobility} tag: the Baron, his family, or the Bastard. Something very fun happens at the Final Party.
       - Your parties must be well supplied with sources of pleasure. Anyone that participates in your party, whether or not they're a cultist, counts towards the number. You may hide the true nature of your parties. People with the {tag:nobility} tag count as 3 people.
-      - You can leave the Cult at any point, but you must confess everything you've ever done to a preacher, lose -10 Tag Points (yes, you can go into negative), and suffer through life-changing, excruciating withdrawal.
+      - You can leave the Cult at any point, but you must confess everything you've ever done to a preacher, lose 10 Tag Points (yes, you can go into negative), and suffer through life-changing, excruciating withdrawal.
       - You can either initiate people willingly or forcibly. Either way, you must perform a ritual (1 Move, Routine) that involves (1) one of the following: alcohol or another recreational drug / music / lavish food, and (2) your cult's secret chant. To perform it forcibly, they must be immobilized. Characters with the {tag:pious} tag cannot be converted.
-      - Spells can be casted instantly, while Rites usually have a turn cost.
+      - Spells can be cast instantly, while Rites usually have a turn cost.
   - name: Bacchus
     key: bacchuslore
     public: false
@@ -439,11 +439,11 @@ documents:
     description: |-
       You have no idea what you have gotten into, do you? Ah…
 
-      As a Cultist of Bacchus, you have implicitly gone against ancient wisdom—which declares that Pleasure is Painful—to declare that Pleasure is Pleasurable. Bacchus, Parent of Parents, is the Lustful God, Creator of Illusions, the Eternal One. Bacchus is honest. Bacchus is life. Bacchus is pleasure. Bacchus is a zealot of hedonism. They rejoice over the fulfillment of desires and the euphoric suicide of their followers. Bacchus is often depicted as a stemless apple, two deers enjoined in a circle, or, in some sects, as a gigantic dead sea creature.
+      As a Cultist of Bacchus, you have implicitly gone against ancient wisdom — which declares that Pleasure is Painful — to declare that Pleasure is Pleasurable. Bacchus, Parent of Parents, is the Lustful God, Creator of Illusions, the Eternal One. Bacchus is honest. Bacchus is life. Bacchus is pleasure. Bacchus is a zealot of hedonism. They rejoice over the fulfillment of desires and the euphoric suicide of their followers. Bacchus is often depicted as a stemless apple, two deer enjoined in a circle, or, in some sects, as a gigantic dead sea creature.
 
-      Bacchus doesn't have a specific demand on his followers except that they focus on nothing more than indulging their own particular desires—in other words, being happy and free. Because of their individualistic streak, Bacchus Cultists don't have a unified doctrine and tend to operate in scattered chapters with their own rules and systems. Some cults are violent, forceful, and warlike, while some eke out an existence on the edge of society.
+      Bacchus doesn't have a specific demand on his followers except that they focus on nothing more than indulging their own particular desires — in other words, being happy and free. Because of their individualistic streak, Bacchus Cultists don't have a unified doctrine and tend to operate in scattered chapters with their own rules and systems. Some cults are violent, forceful, and warlike, while some eke out an existence on the edge of society.
 
-      In exchange for their service, Bacchus rewards his followers with exquisite sensual pleasure and magical powers. Those who truly dedicate themselves to his cause, however, earn something else: Eternal Bliss. How nervewracking, how tantalizing!
+      In exchange for their service, Bacchus rewards his followers with exquisite sensual pleasure and magical powers. Those who truly dedicate themselves to his cause, however, earn something else: Eternal Bliss. How nerve-wracking, how tantalizing!
 
       **Chant**
 
@@ -460,13 +460,13 @@ documents:
     tags:
       - Cultist
     description: |-
-      “Carefully scrawl Bacchus’s sigil on the ground. The initiate should then lose themsleves in hedonism through their chosen way—consuming alcohol, eating food, being with a lover, cruelty, fine music, or something else—while standing on the sigil. They should be watched while they indulge, violating their privacy, as a way to demonstrate their commitment to Bacchus. Chant the Verse.
+      “Carefully scrawl Bacchus’s sigil on the ground. The initiate should then lose themselves in hedonism through their chosen way — consuming alcohol, eating food, being with a lover, cruelty, fine music, or something else — while standing on the sigil. They should be watched while they indulge, violating their privacy, as a way to demonstrate their commitment to Bacchus. Chant the Verse.
 
-      There must be two people at least: the host and the initiate. The initiate should not be told everything of the Truth, but must be made to understand the nature of their new lifelong commitment and service in Bacchus. Although their desires always come first, it will always be through the Parent—so they are becoming a servant. They are no longer an independent person. However, they become Everlasting, achieving Eternal Bliss.
+      There must be two people at least: the host and the initiate. The initiate should not be told everything of the Truth, but must be made to understand the nature of their new lifelong commitment and service in Bacchus. Although their desires always come first, it will always be through the Parent — so they are becoming a servant. They are no longer an independent person. However, they become Everlasting, achieving Eternal Bliss.
 
       Finally, their blood must be drawn and spilled on the sigil.
 
-      The nature of Eternal Bliss should not be discussed, but Eternal Bliss itself should be mentioned. This would be a Routine move, as it is a party that takes a couple of hours, on both the part of the initiate and the host.
+      The nature of Eternal Bliss should not be discussed, but Eternal Bliss itself should be mentioned. This would be a Routine Move, as it is a party that takes a couple of hours, on both the part of the initiate and the host.
 
       **Chant**
 
@@ -476,7 +476,7 @@ documents:
       | Behold as I reach new heights | bymadv iw xe ryitm lys rechem |
       | My progenitor, I am everlasting | mh eraqyluzar, xe vechem |
 
-      For unwilling conversions, do the same, but instead, the one hosting the rite must indulge themselves. The person must be placed on the sigil the whole time, ideally bound. Their blood will still have to be spilled on the sigil. It is recommended to do this privately where no one will hear them, or at the very least, gag them.""
+      For unwilling conversions, do the same, but instead, the one hosting the rite must indulge themselves. The person must be placed on the sigil the whole time, ideally bound. Their blood will still have to be spilled on the sigil. It is recommended to do this privately where no one will hear them, or at the very least, gag them.”
   - name: The Charon
     key: charon
     public: false
@@ -494,8 +494,8 @@ documents:
     description: |-
       Fine meals make average people happy, but Nobility have them as a baseline. They need to eat them every once in a while or they'll be unhappy. Lavish meals make everyone happy and are valid objects of a Desire.
 
-      **Fine meals:** cost 2 ⬢ per meal. You can make up to 4 Fine meals in one Routine move.
-      **Lavish meals:** cost 3 ⬢ per meal and one hard to get exotic ingredient. You can make up to 3 Lavish meals in one Routine move.
+      **Fine meals:** cost 2 ⬢ per meal. You can make up to 4 Fine meals in one Routine Move.
+      **Lavish meals:** cost 3 ⬢ per meal and one hard-to-get exotic ingredient. You can make up to 3 Lavish meals in one Routine Move.
   - name: Alcohol & Drugs
     key: alcoholdrugs
     public: true
@@ -504,7 +504,7 @@ documents:
       - Brewing (Skilled)
       - Alcoholic
     description: |-
-      Like cooking or smithing, brewing costs Resources (⬢), turns, and is gated
+      Like cooking or smithing, brewing costs Resources, turns, and is gated
       by a skill. Many brews also need special ingredients.
 
       {tag:brewing-basic} — alcohol and the simple tonics.
@@ -594,7 +594,7 @@ documents:
     description: |-
       You are a being from the Caves. You have been alive for a long time, but your memory is fuzzy.
 
-      You don't need to eat. Instead, you live for the thrill of enslaving souls, manipulating people, and causing pain. You will become {tag:unhappy} if you don't.
+      You don't need to eat. Instead, you live for the thrill of enslaving souls, manipulating people, and causing pain. You will become unhappy if you don't.
 
       You can Break souls — see {tag:demoness}. If you have {tag:slavemaster}, they become {tag:broken-enslaved} instead of merely {tag:broken}.
 
@@ -627,7 +627,7 @@ documents:
     public: true
     tags: []
     description: |-
-      Typing /conceal before your message hides your identity.
+      Typing `/conceal` before your message hides your identity.
 
       You'll appear as a stranger, but people can still see (using the 🔎 reaction) any visible wounds or gear.
   - name: The Pusher
@@ -640,4 +640,4 @@ documents:
     description: |-
       The Pusher sells drugs and runs the town's gambling den and, well, er, informal drug pub. It's his job to keep the peasants satisfied and not rebelling.
 
-      He is exempted from the usual capital punishment for drug possession—completely above the law. But he owes the Baron a cut, directly.
+      He is exempted from the usual capital punishment for drug possession — completely above the law. But he owes the Baron a cut, directly.

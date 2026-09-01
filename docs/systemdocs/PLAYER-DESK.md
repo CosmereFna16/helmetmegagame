@@ -107,6 +107,42 @@ says as much when there's an unread count, so the chip only shows when there
 isn't one. The desk header's meta row totals the same predicate as an
 "N awaiting" chip beside "N unread".
 
+**The ✓ under the star clears a row from that pile.** Some messages want no
+answer — a thank-you, an "ok", something already handled in-game — and without
+a way to say so they sit in the awaiting count forever, inflating the one
+number the desk exists to answer. The second gutter button under each row's
+pin marks the conversation as needing no reply: the `awaiting` chip goes, the
+row drops out of **Needs reply**, the header's count falls, and the
+conversation is marked read too (saying it needs no answer implies having read
+it). Unlike the pin beside it, this is **server state and desk-wide**, on
+`ConversationMeta.handledAt` — whether a conversation still wants an answer is
+a fact about the conversation, not one GM's taste, and five GMs should see one
+answer. It is a **dismiss, not a mute**: the mark is a timestamp, and the rail
+only honours it while it is at or after the conversation's last message, so
+the next inbound DM outruns it and the row is awaiting again with nothing to
+clean up. Clicking ✓ again clears it outright.
+
+**The ⊘ under it mutes the conversation outright.** Where ✓ says "nothing to
+answer here, for now", ⊘ says "this thread is not part of my working set":
+the row leaves the rail entirely and stops counting toward both unread and
+awaiting. It is **desk-side only** — nothing about the bot's behaviour toward
+that player changes, they are not blocked or told anything, and their DMs
+still arrive and still read normally. It is also **standing**, unlike ✓: a
+new message does not lift it, because a mute is a decision about a person
+rather than about one message. `ConversationMeta.mutedAt` holds it until a GM
+clicks ⊘ again.
+
+Muted rows are hidden, not deleted. A **Show muted (N)** button appears among
+the rail's filters whenever there are any; it reveals them **in their ordinary
+place** in the rail, rendered greyed (`[data-muted]` in `globals.css`), with
+the gutter buttons at full strength since unmuting is what a GM came there to
+do. They are deliberately not sunk to the bottom: a muted row you are looking
+for on purpose should be where you expect it, not at the end of a hundred
+others. A
+search query does **not** lift the mute on its own the way it pauses the zone
+and Needs-reply filters — those are lenses over the inbox, this is a standing
+decision — so finding a muted person means showing muted first.
+
 **Content search is the server's half of the same box.** The fuzzy engine only
 ever sees what the layout ships to the client, and that is *one preview line
 per conversation* — so "find the thread where we talked about the barley"
@@ -213,7 +249,8 @@ inside itself, with the composer pinned at the bottom. It used to be a 32rem
   whole thread page, with the audit row, the read cursor and both
   `revalidatePath`s deferred into `after()`.
 - **Claim/release** is advisory (`ConversationMeta`), so five GMs don't answer
-  the same player twice.
+  the same player twice. The same table carries `handledAt` and `mutedAt`, the
+  rail's ✓ "needs no reply" mark and its ⊘ mute (§3).
 - The thread is a **conversation**, not a raw `DirectMessage` dump: rows that
   are pure bot/UI plumbing — inspect/dossier embeds, the ✏️ edit-flow prompt
   (`bot/src/lib/editModal.js`), `@mention` relay notices, proxy hand-back —
@@ -354,7 +391,7 @@ desk's own actions.
 | File | Role |
 |---|---|
 | `(desk)/gm/players/layout.js` | Desk shell + all rail data (the union query) |
-| `PlayerRail.js` | The inbox rail: search (widens to the roster, pauses filters), zone filter, Needs-reply toggle, pins |
+| `PlayerRail.js` | The inbox rail: search (widens to the roster, pauses filters), zone filter, Needs-reply toggle, pins, the ✓ needs-no-reply mark, the ⊘ mute and its Show-muted toggle |
 | `page.js` / `RosterTable.js` | The fleet view + bulk verbs |
 | `FactionsPanel.js` | The faction hierarchy view |
 | `actions.js` | DM send/page, content search, canon load, read cursors, claims, staging, broadcast |

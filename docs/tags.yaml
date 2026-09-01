@@ -250,7 +250,7 @@ tags:
   - slug: demoness
     name: Demoness
     category: general
-    description: "\"Pleasure is so painful—ah~! I don't care!\" You can Break souls ({tag:broken}), turning their owners into walking, empty shells, by making them fall in love with you—and then sealing it with a (voluntary) kiss. If people want more after that, that's your business, not mine."
+    description: "\"Pleasure is so painful — ah~! I don't care!\" You can Break souls ({tag:broken}), turning their owners into walking, empty shells, by making them fall in love with you — and then sealing it with a (voluntary) kiss. If people want more after that, that's your business, not mine."
     pointCost: 0
     purchasable: false
     desires:
@@ -489,7 +489,7 @@ tags:
     name: Insightful
     category: general
     group: general-traits
-    description: "You read people well. You can use a Gambit to randomly discover 1-6 of a person's tags."
+    description: "You read people well. You can use a Gambit to randomly discover 1–6 of a person's tags."
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -640,7 +640,7 @@ tags:
     name: Empathetic
     category: general
     group: general-social
-    description: "You can use a Gambit to figure out a person's Desire—failure on 1-3, success on 4-6. You must talk to them for a while."
+    description: "You can use a Gambit to figure out a person's Desire — failure on 1–3, success on 4–6. You must talk to them for a while."
     pointCost: 9
     purchasable: true
     purchasableAfterStart: true
@@ -996,7 +996,7 @@ tags:
     name: Honest
     category: general
     group: general-traits
-    description: "You can't lie no matter what—nor can you withhold the truth. A good thing to be."
+    description: "You can't lie no matter what — nor can you withhold the truth. A good thing to be."
     pointCost: -1
     visible: false
     # Retired 2026-08-30 (Gunboat: "remove Honest, keep Bad Liar"). Kept as a
@@ -1010,7 +1010,7 @@ tags:
     name: Bad Liar
     category: general
     group: general-traits
-    description: "Um... er... uh... If you try to lie, embed huge hints, stutters, or other tells."
+    description: "Um… er… uh… If you try to lie, embed huge hints, stutters, or other tells."
     pointCost: -2
     purchasable: true
     purchasableAfterStart: false
@@ -1190,7 +1190,7 @@ tags:
     name: "Gambler"
     category: general
     group: general-addictions
-    description: "Just one more card. Just one more spin. Just one more roll. Just one more...! Only Desires about play and wagers are open to you, unless one is worth 5 points or more. ‡"
+    description: "Just one more card. Just one more spin. Just one more roll. Just one more…! Only Desires about play and wagers are open to you, unless one is worth 5 points or more. ‡"
     pointCost: -5
     exclusive: true
     purchasable: true
@@ -1272,7 +1272,7 @@ tags:
     removable: false
 
   - slug: unhygenic
-    name: Unhygenic
+    name: Unhygienic
     category: general
     group: general-traits
     description: "Many peasants can't bathe often. But you don't bathe, even when you have the option. You have a repellent odor."
@@ -1297,7 +1297,7 @@ tags:
     name: Relentless
     category: general
     group: general-traits
-    description: "Get up, get up, it's not over yet – you must get up! You won't give up in a fight, no matter what, until the Lifeweb itself swallows you: your companions will track you by the trail of blood on the floor. You may roll a Gambit to keep fighting, even in the face of incredible injury."
+    description: "Get up, get up, it's not over yet — you must get up! You won't give up in a fight, no matter what, until the Lifeweb itself swallows you: your companions will track you by the trail of blood on the floor. You may roll a Gambit to keep fighting, even in the face of incredible injury."
     pointCost: 9
     visible: false
     purchasable: true
@@ -1319,7 +1319,7 @@ tags:
     name: Short-Tempered
     category: general
     group: general-traits
-    description: "You explode at people, are provoked easily, and struggle to keep a secret. It's a weakness... A few cracked teeth, maybe a broken nose or even a black eye—just so they know you're not messing around. But what isn't worth those few minutes of energy you feel?"
+    description: "You explode at people, are provoked easily, and struggle to keep a secret. It's a weakness… A few cracked teeth, maybe a broken nose or even a black eye — just so they know you're not messing around. But what isn't worth those few minutes of energy you feel?"
     pointCost: -5
     # Retired 2026-08-30 (Gunboat: "remove short tempered") — same reasoning
     # as Honest above: purchasable: false retires it without a prune.
@@ -1618,7 +1618,7 @@ tags:
     name: Hardy
     category: general
     group: general-windlands
-    description: "You grew up in hell. Hunger, the elements, and thirst—these don't bother you."
+    description: "You grew up in hell. Hunger, the elements, and thirst — these don't bother you."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1700,7 +1700,7 @@ tags:
   - slug: artist
     name: Artist
     category: skills
-    description: "Well, it's lovely, but I'm not paying for it. You draw, paint, sculpt, act, or pursue another creative medium inessential for survival. Perhaps you can find a patron? The Merchant might buy these... You can craft a {tag:painting}, but it takes 4 turns."
+    description: "Well, it's lovely, but I'm not paying for it. You draw, paint, sculpt, act, or pursue another creative medium inessential for survival. Perhaps you can find a patron? The Merchant might buy these… You can craft a {tag:painting}, but it takes 4 turns."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -1746,7 +1746,7 @@ tags:
     name: Wild Horse Trainer
     category: skills
     group: skills-labor
-    description: "You grew up around horses, wild ones included—the trick every outsider stableman never learned. For 21 ⬢ and 1 turn, you can produce a Horse tag and give it to anyone else."
+    description: "You grew up around horses, wild ones included — the trick every outsider stableman never learned. For 21 ⬢ and 1 turn, you can produce a {tag:horse} and give it to anyone else."
     pointCost: 5
     requiredTag: windlander
     purchasable: true
@@ -1759,7 +1759,7 @@ tags:
     name: Horse Trainer
     category: skills
     group: skills-labor
-    description: "You can break and raise horses for others. For 21 ⬢ and 1 turn, you can produce a Horse tag and give it to anyone else."
+    description: "You can break and raise horses for others. For 21 ⬢ and 1 turn, you can produce a {tag:horse} and give it to anyone else."
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -1834,7 +1834,7 @@ tags:
   - slug: lockpicking
     name: Lockpicking
     category: skills
-    description: "Nothing on one... little click on two... click on three... aha! You can pick locks."
+    description: "Nothing on one… little click on two… click on three… aha! You can pick locks."
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -2011,7 +2011,7 @@ tags:
     name: Melee (Duelist)
     category: skills
     group: skills-fighting
-    description: "You're particularly good at fighting people one-on-one—especially with swords, rapiers, and knives. When dueling, your melee skill counts as 2 tiers higher."
+    description: "You're particularly good at fighting people one-on-one — especially with swords, rapiers, and knives. When dueling, your melee skill counts as 2 tiers higher."
     pointCost: 10
     requiredTag: melee-basic
     visible: false
@@ -2199,7 +2199,7 @@ tags:
     name: Cooking (Basic)
     category: skills
     group: skills-cooking
-    description: "Can cook Fine Meals—2 ⬢ each, up to 4 in one Routine Move."
+    description: "Can cook Fine Meals — 2 ⬢ each, up to 4 in one Routine Move."
     pointCost: 5
     visible: false
     purchasable: true
@@ -2209,7 +2209,7 @@ tags:
     name: Cooking (Skilled)
     category: skills
     group: skills-cooking
-    description: "Can cook Lavish Meals—3 ⬢ and 1 exotic ingredient each, up to 3 in one Routine Move."
+    description: "Can cook Lavish Meals — 3 ⬢ and 1 exotic ingredient each, up to 3 in one Routine Move."
     pointCost: 5
     parentTag: cooking-basic
     visible: false
@@ -2243,7 +2243,7 @@ tags:
     name: Disappointed
     category: status
     group: status-debuffs
-    description: "You're not energized. You're worse at everything you do and come off as a mope. -1 to the die on all Gambits. A {tag:fine-meal} or better will fix it."
+    description: "You're not energized. You're worse at everything you do and come off as a mope. −1 to the die on all Gambits. A {tag:fine-meal} or better will fix it."
     pointCost: 0
     visible: true
     purchasable: false
@@ -2280,7 +2280,7 @@ tags:
     description: "Your Fighting skill counts as 1 tier lower."
     pointCost: 0
     purchasable: false
-    durationTurns: 3
+    durationTurns: 1
 
   # Recreational intoxication, and deliberately a Status tag with NO
   # mechanical effect at all — unlike Tipsy above, which really does dull a
@@ -2382,7 +2382,7 @@ tags:
     name: Mindreading
     category: status
     group: status-buffs
-    description: "You can read a person's Desire on a Gambit. Failure on 1-3, success on 4-6. You must exchange at least 10 words with them."
+    description: "You can read a person's Desire on a Gambit. Failure on 1–3, success on 4–6. You must exchange at least 10 words with them."
     pointCost: 0
     visible: false
     purchasable: false
@@ -2651,7 +2651,7 @@ tags:
     name: Feverish
     category: health
     group: health-infection
-    description: "You're burning up. The infection is in your blood..."
+    description: "You're burning up. The infection is in your blood…"
     pointCost: 0
     visible: false
     purchasable: false
@@ -3401,7 +3401,7 @@ tags:
     name: Crippled Leg
     category: health
     group: health-maiming
-    description: "Your leg is in constant pain: you can hardly walk on it. Expert medical attention could fix it. Or they could just put on a wooden leg—a lot easier."
+    description: "Your leg is in constant pain: you can hardly walk on it. Expert medical attention could fix it. Or they could just put on a wooden leg — a lot easier."
     pointCost: -7
     visible: true
     purchasable: false
@@ -3497,7 +3497,7 @@ tags:
     name: Severe Pain
     category: health
     group: health-minor
-    description: "Your mind can't escape the pain. Writhe around or take the Poppy."
+    description: "Your mind can't escape the pain. Writhe around or take the {tag:poppy}."
     pointCost: 0
     visible: true
     purchasable: false
@@ -3512,7 +3512,7 @@ tags:
     name: Pain Shock
     category: health
     group: health-minor
-    description: "... Off in la-la-land."
+    description: "… Off in la-la-land."
     pointCost: 0
     visible: true
     purchasable: false
@@ -3709,7 +3709,7 @@ tags:
     name: Bird
     category: assets
     group: assets-companions
-    description: "You have an intelligent bird: a crow from the rooftops, a pigeon from the Caves, a parrot from parts unknown. You don't have a raven, unless you are the Baron. That would look bad on you, wouldn't it, taking his heraldic animal...?"
+    description: "You have an intelligent bird: a crow from the rooftops, a pigeon from the Caves, a parrot from parts unknown. You don't have a raven, unless you are the Baron. That would look bad on you, wouldn't it, taking his heraldic animal…?"
     pointCost: 5
     tradeable: true
     purchasable: true
@@ -3731,7 +3731,7 @@ tags:
     name: Kitty Cat
     category: assets
     group: assets-companions
-    description: "You have a cat. It may or may not be useful for anything—generally, it's the cat who decides that."
+    description: "You have a cat. It may or may not be useful for anything — generally, it's the cat who decides that."
     pointCost: 2
     tradeable: true
     purchasable: true
@@ -3766,7 +3766,7 @@ tags:
     name: Cart
     category: assets
     group: assets-property
-    description: "A standard hand-cart to push more than you can carry. The wheels work most of the time. Upgrades the horse, allowing you to carry up to 6 people total on fast travel."
+    description: "A standard hand-cart to push more than you can carry. The wheels work most of the time. Upgrades the {tag:horse}, allowing you to carry up to 6 people total on fast travel."
     pointCost: 5
     visible: true
     tradeable: true
@@ -3837,7 +3837,7 @@ tags:
     name: Graga Sac
     category: items
     group: items-gear
-    description: "Cut from a dead Graga. It's useful in many tonics. The Merhcant is always looking for more."
+    description: "Cut from a dead Graga. It's useful in many tonics. The Merchant is always looking for more."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -4233,7 +4233,7 @@ tags:
     name: Suspicious Game Set
     category: items
     group: items-gear
-    description: "You're so good that you'll win anyway: why not speed things up? Weighted and shaved dice, marked and bonus cards—whatever you need."
+    description: "You're so good that you'll win anyway: why not speed things up? Weighted and shaved dice, marked and bonus cards — whatever you need."
     pointCost: 7
     tradeable: true
     purchasable: true
@@ -4914,7 +4914,7 @@ tags:
     name: Crossbow
     category: items
     group: items-weapons
-    description: "Bruises plate, punctures almost everything else. It's easy to point—anyone using it has their fighting skill count as 1 tier higher."
+    description: "Bruises plate, punctures almost everything else. It's easy to point — anyone using it has their fighting skill counts as 1 tier higher."
     pointCost: 9
     requiredTag: ranged-basic
     equippable: true
@@ -5049,7 +5049,7 @@ tags:
     name: Fine Meal
     category: items
     group: items-food
-    description: "An honest, well-made meal. Makes an ordinary person happy; expected by {tag:nobility}..."
+    description: "An honest, well-made meal. Makes an ordinary person happy; expected by {tag:nobility}…"
     pointCost: 0
     tradeable: true
     stackable: true
@@ -5203,7 +5203,7 @@ tags:
     name: Dark-Eye Lenses
     category: items
     group: items-special
-    description: "Wear these to see heat through solid stone—from flames, bodies, or anything else. Bright light will blind you."
+    description: "Wear these to see heat through solid stone — from flames, bodies, or anything else. Bright light will blind you."
     pointCost: 0
     equippable: true
     tradeable: true
@@ -5216,7 +5216,7 @@ tags:
     name: Stepstone
     category: items
     group: items-special
-    description: "Swallow this stone and be somewhere else—anywhere else. Single use. DM the GMs with where you went."
+    description: "Swallow this stone and be somewhere else — anywhere else. Single use. DM the GMs with where you went."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -5313,7 +5313,7 @@ tags:
     name: "Bastard's Garb"
     category: items
     group: items-gear
-    description: "Wind goggles, a mended cloak, quilted boots, and a long ivory pendant—the fang of a leviathan. Purest aura."
+    description: "Wind goggles, a mended cloak, quilted boots, and a long ivory pendant — the fang of a leviathan. Purest aura."
     pointCost: 0
     equippable: true
     tradeable: true
@@ -5394,7 +5394,7 @@ tags:
     name: Merchant's License
     category: items
     group: items-special
-    description: "It bears the Merchant's face and, funnily enough, his home address—somewhere in a certain city far away. Allows you to use the Depot or call down the Merchant's supply ship: a quick escape route. Additionally, whoever holds this won't be shot at by the Depot's mini-turret. The poor Dockers will, though."
+    description: "It bears the Merchant's face and, funnily enough, his home address — somewhere in a certain city far away. Allows you to use the Depot or call down the Merchant's supply ship: a quick escape route. Additionally, whoever holds this won't be shot at by the Depot's mini-turret. The poor Dockers will, though."
     pointCost: 0
     tradeable: true
     visible: false
@@ -6173,7 +6173,7 @@ tags:
     name: Nightshade
     category: items
     group: items-drink
-    description: "Refined from a common forest herb. Whoever takes it dies frothing in public—it inflicts {tag:choking}."
+    description: "Refined from a common forest herb. Whoever takes it dies frothing in public — it inflicts {tag:choking}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6216,7 +6216,7 @@ tags:
     name: Phrygian Tears
     category: items
     group: items-drink
-    description: "The perfect silent killer. Requires 2 turns and a gambit to make. Failures are dangerous. Inflicts {tag:phrygian-toxin}."
+    description: "The perfect silent killer. Requires 2 turns and a Gambit to make. Failures are dangerous. Inflicts {tag:phrygian-toxin}."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6929,7 +6929,7 @@ tags:
     name: "True Form: Spider"
     category: demoness
     group: demoness
-    description: "You can switch into your true form at will: a beautiful woman with a hairy eight-legged abdomen. Hard to see in the dark—can inflict {tag:paralyzed} and {tag:hallucinating}."
+    description: "You can switch into your true form at will: a beautiful woman with a hairy eight-legged abdomen. Hard to see in the dark — can inflict {tag:paralyzed} and {tag:hallucinating}."
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -6938,7 +6938,7 @@ tags:
     name: "True Form: Siren"
     category: demoness
     group: demoness
-    description: "You can switch into your true form at will—a beautiful, monstrous woman with a scaled face and a long, finned tail. Can swim expertly, and has a call that lures the weak-willed."
+    description: "You can switch into your true form at will — a beautiful, monstrous woman with a scaled face and a long, finned tail. Can swim expertly, and has a call that lures the weak-willed."
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -6958,7 +6958,7 @@ tags:
     name: Terrifying
     category: demoness
     group: demoness
-    description: "Your True Form terrifies people, either making them {tag:afraid} or {tag:panic}. Requires a True Form other than Apex—nobody is frightened of a thing they never see coming."
+    description: "Your True Form terrifies people, either making them {tag:afraid} or {tag:panic}. Requires a True Form other than Apex — nobody is frightened of a thing they never see coming."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -7013,7 +7013,7 @@ tags:
     name: Shriek
     category: demoness
     group: demoness
-    description: "Once a day you can let loose a shriek that stuns everyone around you."
+    description: "Once per day you can let loose a shriek that stuns everyone around you."
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -7263,7 +7263,7 @@ tags:
     name: "Addiction: Glutton"
     category: bacchus
     group: bacchus
-    description: "The only valid Desires for you are related to {tag:lavish-meal}, {tag:sweets}, and other expensive foods—not fine meals. Do not take with other Addiction tags."
+    description: "The only valid Desires for you are related to {tag:lavish-meal}, {tag:sweets}, and other expensive foods — not fine meals. Do not take with other Addiction tags."
     pointCost: -5
     # Retired 2026-08-31 — Desires rework; superseded by the glutton
     # Addiction (general-addictions). Holders convert free.
@@ -7414,7 +7414,7 @@ tags:
     name: "Spell: Fulfill"
     category: bacchus
     group: bacchus-ripening
-    description: "Once every 3 days, select a target (not yourself) and fulfill their desire immediately—they are convinced that it happened. | xe eraqym vory, wa oryy"
+    description: "Once every 3 days, select a target (not yourself) and fulfill their Desire immediately — they are convinced that it happened. | xe eraqym vory, wa oryy"
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -7647,7 +7647,7 @@ tags:
     name: Grievous Wound
     category: health
     group: health-wounds
-    description: "No... It can't be— Without treatment it will turn {tag:infected}."
+    description: "No… It can't be— Without treatment it will turn {tag:infected}."
     pointCost: 0
     visible: true
     purchasable: false

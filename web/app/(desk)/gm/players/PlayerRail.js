@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import ZoneChip from "@/app/components/ZoneChip";
 import ZoneScopeToggle from "@/app/components/ZoneScopeToggle";
@@ -11,7 +11,12 @@ import usePins from "@/app/components/usePins";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { scoreMatch } from "@/lib/fuzzySearch";
-import { markConversationRead, searchConversations } from "./actions";
+import {
+  markConversationRead,
+  searchConversations,
+  setConversationHandled,
+  setConversationMuted,
+} from "./actions";
 
 // The player desk's queue rail, on the same .desk-rail/.desk-queue-row classes
 // as the adjudication desk's — the two are the same tool and should look it.
@@ -72,6 +77,18 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
   // free: they simply stop matching the current query.
   const [contentHits, setContentHits] = useState(null);
   const [, startSearchTransition] = useTransition();
+  // Optimistic ✓ marks, so the glyph lights the instant it is clicked instead
+  // of waiting on the revalidation. Keyed on the conversation's last-message
+  // time as well as the id, so the entry stops matching — and the server's
+  // answer takes back over — the moment a new message lands on that row.
+  const [handledOverride, setHandledOverride] = useState({});
+  // Muted conversations are out of the rail by default. This reveals them,
+  // greyed, in place — hiding them outright is the point, but a GM still has
+  // to be able to find someone they muted a week ago.
+  const [showMuted, setShowMuted] = useState(false);
+  // Same optimistic trick as the ✓, minus the timestamp in the key: a mute is
+  // standing, so nothing about a new message should take it back.
+  const [mutedOverride, setMutedOverride] = useState({});
 
   useEffect(() => {
     const q = query.trim();
@@ -106,6 +123,54 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
   }, [rows]);
   const { isPinned, togglePin } = usePins({ knownIdentities: knownPinIdentities });
 
+  const isHandled = useCallback(
+    (row) => {
+      const override = handledOverride[`${row.discordUserId}:${row.lastAtMs}`];
+      return override === undefined ? Boolean(row.handled) : override;
+    },
+    [handledOverride],
+  );
+
+  function handledKey(row) {
+    return `${row.discordUserId}:${row.lastAtMs}`;
+  }
+
+  const isMuted = useCallback(
+    (row) => {
+      const override = mutedOverride[row.discordUserId];
+      return override === undefined ? Boolean(row.muted) : override;
+    },
+    [mutedOverride],
+  );
+
+  function toggleMuted(row) {
+    const next = !isMuted(row);
+    setMutedOverride((prev) => ({ ...prev, [row.discordUserId]: next }));
+    startTransition(async () => {
+      const res = await setConversationMuted({
+        playerDiscordUserId: row.discordUserId,
+        muted: next,
+      });
+      if (!res?.ok) {
+        setMutedOverride((prev) => ({ ...prev, [row.discordUserId]: !next }));
+      }
+    });
+  }
+
+  function toggleHandled(row) {
+    const next = !isHandled(row);
+    setHandledOverride((prev) => ({ ...prev, [handledKey(row)]: next }));
+    startTransition(async () => {
+      const res = await setConversationHandled({
+        playerDiscordUserId: row.discordUserId,
+        handled: next,
+      });
+      if (!res?.ok) {
+        setHandledOverride((prev) => ({ ...prev, [handledKey(row)]: !next }));
+      }
+    });
+  }
+
   const zoneOptions = useMemo(
     () => [...new Set(rows.map((c) => c.factionZoneName).filter(Boolean))].sort(),
     [rows],
@@ -121,13 +186,20 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
       ? rows.filter((r) => r.hasConversation || r.characterId)
       : rows.filter((r) => r.hasConversation);
 
+    // Unlike the zone and needs-reply filters, a query does NOT lift this one
+    // on its own — a mute is a standing decision about a person, not a lens
+    // over the inbox, so it takes the toggle to see them again.
+    if (!showMuted) list = list.filter((r) => !isMuted(r));
+
     // A query pauses the zone and needs-reply filters rather than composing
     // with them — otherwise the seat-seeded zone filter would silently hide
     // a cross-zone search hit, which is exactly the case search exists for.
     if (!q) {
       if (zoneFilter) list = list.filter((c) => c.factionZoneName === zoneFilter);
       if (needsReplyOnly) {
-        list = list.filter((c) => c.unreadCount > 0 || c.lastDirection === "INBOUND");
+        list = list.filter(
+          (c) => !isHandled(c) && (c.unreadCount > 0 || c.lastDirection === "INBOUND"),
+        );
       }
     }
 
@@ -182,7 +254,22 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
     }
     extra.sort((a, b) => b.row.lastAtMs - a.row.lastAtMs);
     return [...scored, ...extra];
-  }, [rows, query, zoneFilter, needsReplyOnly, isPinned, activeContentHits]);
+  }, [
+    rows,
+    query,
+    zoneFilter,
+    needsReplyOnly,
+    isPinned,
+    activeContentHits,
+    isHandled,
+    isMuted,
+    showMuted,
+  ]);
+
+  const mutedCount = useMemo(
+    () => rows.filter((r) => r.hasConversation && isMuted(r)).length,
+    [rows, isMuted],
+  );
 
   const unreadIds = useMemo(
     () => rows.filter((c) => c.unreadCount > 0).map((c) => c.discordUserId),
@@ -245,6 +332,11 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
             Mark all read
           </button>
         )}
+        {mutedCount > 0 && (
+          <button type="button" className="btn-quiet" onClick={() => setShowMuted((v) => !v)}>
+            {showMuted ? `Hide muted (${mutedCount})` : `Show muted (${mutedCount})`}
+          </button>
+        )}
       </div>
 
       <div className="desk-queue">
@@ -252,19 +344,52 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
           const href = `/gm/players/${row.discordUserId}`;
           const active = pathname === href;
           const pinned = isPinned(row);
+          const handled = isHandled(row);
+          const muted = isMuted(row);
           const claimedByOther =
             row.claimedByDiscordUserId && row.claimedByDiscordUserId !== myDiscordUserId;
           return (
-            <div key={row.discordUserId} className="desk-queue-row" data-active={active ? "true" : "false"}>
-              <button
-                type="button"
-                className="desk-queue-pin"
-                aria-pressed={pinned}
-                aria-label={pinned ? `Unpin ${row.name}` : `Pin ${row.name}`}
-                onClick={() => togglePin(row)}
-              >
-                {pinned ? "★" : "☆"}
-              </button>
+            <div
+              key={row.discordUserId}
+              className="desk-queue-row"
+              data-active={active ? "true" : "false"}
+              data-muted={muted ? "true" : undefined}
+            >
+              <div className="desk-queue-marks">
+                <button
+                  type="button"
+                  className="desk-queue-pin"
+                  aria-pressed={pinned}
+                  aria-label={pinned ? `Unpin ${row.name}` : `Pin ${row.name}`}
+                  onClick={() => togglePin(row)}
+                >
+                  {pinned ? "★" : "☆"}
+                </button>
+                <button
+                  type="button"
+                  className="desk-queue-done"
+                  aria-pressed={handled}
+                  aria-label={
+                    handled
+                      ? `Mark ${row.name} as needing a reply`
+                      : `Mark ${row.name} as needing no reply`
+                  }
+                  title={handled ? "Needs a reply after all" : "Needs no reply"}
+                  onClick={() => toggleHandled(row)}
+                >
+                  ✓
+                </button>
+                <button
+                  type="button"
+                  className="desk-queue-mute"
+                  aria-pressed={muted}
+                  aria-label={muted ? `Unmute ${row.name}` : `Mute ${row.name}`}
+                  title={muted ? "Unmute — back in the inbox" : "Mute — out of the inbox"}
+                  onClick={() => toggleMuted(row)}
+                >
+                  ⊘
+                </button>
+              </div>
               <Link href={href} className="desk-queue-link">
                 <div className="desk-queue-top">
                   <CharacterAvatar
@@ -290,7 +415,7 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
                   {row.lastAtMs > 0 && (
                     <span className="desk-queue-time mono">{relativeTime(row.lastAtMs)}</span>
                   )}
-                  {row.lastDirection === "INBOUND" && row.unreadCount === 0 && (
+                  {row.lastDirection === "INBOUND" && row.unreadCount === 0 && !handled && (
                     <span className="chip text-xs text-muted">awaiting</span>
                   )}
                 </div>

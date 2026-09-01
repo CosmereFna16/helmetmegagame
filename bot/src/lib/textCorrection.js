@@ -27,7 +27,12 @@ function capitalizeSegment(segment) {
   // by whitespace — deliberately conservative: no attempt at abbreviations
   // like "e.g." or decimal numbers, since a false positive there is worse
   // than leaving a lowercase letter alone.
-  return segment.replace(/(^\s*|[.!?]\s+)([a-z])/g, (match, lead, letter) => lead + letter.toUpperCase());
+  //
+  // An ellipsis is left alone for the same reason: "That's... odd." trails on
+  // rather than starting a new sentence, so capitalizing there changes what
+  // the player wrote. The lookbehind skips any terminator preceded by a dot,
+  // which puts "..." where the unicode "…" already was.
+  return segment.replace(/(^\s*|(?<!\.)[.!?]\s+)([a-z])/g, (match, lead, letter) => lead + letter.toUpperCase());
 }
 
 function capitalizeSentences(content) {

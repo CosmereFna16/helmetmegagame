@@ -614,16 +614,25 @@ export default async function CharacterPage() {
     ? { ...openTurn, moveWindow: moveWindow(openTurn, { autoTurnAdvanceDisabled: gameConfig?.autoTurnAdvanceDisabled ?? false }) }
     : openTurn;
 
-  // A Gambit's die is rolled at submit (so the GM desk has it immediately)
-  // but withheld from the player until Moves lock — knowing the roll shouldn't
-  // color how the rest of the turn gets played. Strip it here, server-side,
-  // rather than just not rendering it: currentAction crosses into a client
-  // component below, so anything left on it reaches the browser regardless.
-  // Delivered instead by a DM at the turn-end staged push once it's safe to
-  // know (db/lib/stagedPush.js's gambitRollNotices).
-  const rollRevealed = Boolean(openTurnWithWindow?.moveWindow?.locked);
-  const sheetAction =
-    currentAction && !rollRevealed ? { ...currentAction, diceRoll: null, diceModifier: null } : currentAction;
+  // A Gambit's die is rolled at submit (so the GM desk has it immediately) and
+  // never shown here. The reveal is the DM at the turn-end staged push
+  // (db/lib/stagedPush.js's gambitRollNotices), landing beside the
+  // adjudication DMs that say what the roll actually did.
+  //
+  // This used to reveal at Moves lock, which is three hours before the turn
+  // ends (MOVE_LOCK_HOURS, db/lib/turnClock.js) — so a player refreshing their
+  // sheet in that window got a bare number with no result attached to it. A
+  // roll means nothing without the outcome; showing it early is the worst of
+  // both, and players asked not to see it.
+  //
+  // Stripped server-side rather than just not rendered: currentAction crosses
+  // into a client component below, so anything left on it reaches the browser
+  // regardless. Unconditional is safe because currentAction is only ever the
+  // OPEN turn's row (findOpenTurnAction, web/lib/moveEconomy.js) and there is
+  // no player-facing move history — no past roll is being hidden.
+  const sheetAction = currentAction
+    ? { ...currentAction, diceRoll: null, diceModifier: null }
+    : currentAction;
 
   return (
     <CharacterSheet

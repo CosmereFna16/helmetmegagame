@@ -5,7 +5,8 @@ import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { getGmSession, syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
 import { UserError, guarded } from "@/lib/actionResult";
-import { addToStack, dropCharacterTag } from "@/lib/requestEffects";
+import { addToStack, dropCharacterTag, grantTagSlugs } from "@/lib/requestEffects";
+import { rollTagChain } from "@lifeweb/db/lib/tagShapes";
 import { expiryFor } from "@/lib/turnFormat";
 
 // The GM broadcast used to live here (sendGmMessage/deliverGmMessage). It's
@@ -41,14 +42,32 @@ export async function bulkTagCharacters({ characterIds, tagId, mode }) {
 
     const failed = [];
     let applied = 0;
+    const aftermathNames = new Set();
 
     for (const characterId of ids) {
       try {
         await prisma.$transaction(async (tx) => {
           if (mode === "revoke") {
+            // The treated-wound aftermath (Tag.removesInto, TAGS.md §5c),
+            // rolled PER CHARACTER rather than once for the batch — a oneOf
+            // chain resolved once would hand a hundred people the same coin
+            // flip. Skipped if they weren't holding it, since the drop below
+            // is then a no-op.
+            const held = await tx.characterTag.findUnique({
+              where: { characterId_tagId: { characterId, tagId } },
+            });
             // One unit off a stack, the whole row otherwise — a GM
             // correcting an over-grant shouldn't wipe a player's larder.
             await dropCharacterTag(tx, characterId, tagId, tag.stackable ? 1 : null);
+            if (held) {
+              const granted = await grantTagSlugs(
+                tx,
+                characterId,
+                rollTagChain(tag.removesInto),
+                openTurn?.number ?? null,
+              );
+              for (const g of granted) aftermathNames.add(g.tagName);
+            }
           } else {
             // expiryFor is not optional: resolveNeeds()'s sweep matches on
             // expiresTurn, so a timed tag granted with a null there never
@@ -71,7 +90,14 @@ export async function bulkTagCharacters({ characterIds, tagId, mode }) {
       data: {
         actorDiscordUserId: session.discordUserId,
         actionType: mode === "revoke" ? "gm_bulk_tag_revoke" : "gm_bulk_tag_grant",
-        details: { tagId, tagName: tag.name, characterIds: ids, applied, failed },
+        details: {
+          tagId,
+          tagName: tag.name,
+          characterIds: ids,
+          applied,
+          failed,
+          ...(aftermathNames.size ? { granted: [...aftermathNames] } : {}),
+        },
       },
     });
 

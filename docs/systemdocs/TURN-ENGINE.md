@@ -51,8 +51,12 @@ each arrived at by getting them wrong first.
    player, a staged effect on it targets them (their sheet is changing in
    this same push), or an `auto:` marker says another pass is DMing them
    about it. Every Gambit gets its own DM regardless: the d6 is rolled and
-   stored at submit (`bot/src/lib/moveConfirm.js`) but withheld from the
-   player until Moves lock, so this is where they find out how it fell.
+   stored at submit (`bot/src/lib/moveConfirm.js`) and shown to the player
+   nowhere else, so this is where they find out how it fell. `/character`
+   used to reveal it at Moves lock — three hours early
+   (`MOVE_LOCK_HOURS`, `db/lib/turnClock.js`) — which handed players a bare
+   number with no outcome attached; it now strips the die unconditionally
+   (`web/app/(app)/character/page.js`).
    Its slot is load-bearing three ways: **after** the Default Move pass
    (whose rows arrive already stamped, so this one skips them), **before**
    the progression/sweep (a staged "remove Infected" must beat the

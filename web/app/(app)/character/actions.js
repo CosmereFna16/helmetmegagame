@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import sharp from "sharp";
 import { redirect } from "next/navigation";
 import { prisma, seatZoneIdFor } from "@lifeweb/db";
+import { syncRomanceDisabledTag } from "@lifeweb/db/lib/tagWrites";
 import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
 import { AGE_MIN, AGE_MAX, formatBareName } from "@/lib/characterName";
@@ -87,6 +88,10 @@ export async function updateCharacterProfile(_prevState, formData) {
   }
 
   const updated = await prisma.character.update({ where: { id: character.id }, data });
+  // The visible mark the checkbox promises: mirror the boolean onto the
+  // `romance-disabled` tag so a 🔍 inspect actually shows it. Unconditional —
+  // the sync no-ops when already in step, and back-heals older saves.
+  await syncRomanceDisabledTag(prisma, character.id, updated.romanceOptOut);
   await syncCharacterNickname(session.discordUserId, formatBareName(updated)).catch(() => {});
   await setTurnPingRole(session.discordUserId, updated.turnPingOptIn).catch(() => {});
   await setRomanceOptOutRole(session.discordUserId, updated.romanceOptOut).catch(() => {});

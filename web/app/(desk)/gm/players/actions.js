@@ -230,6 +230,66 @@ export async function markConversationUnread({ playerDiscordUserId }) {
   });
 }
 
+// The "no reply needed" mark. Desk-wide rather than per-GM, like the claim
+// below: whether a conversation still wants an answer is a fact about the
+// conversation, not one GM's taste. Stored as a stamp so it expires on its
+// own — the rail only reads it as handled while it is at or after the
+// conversation's last message (layout.js).
+export async function setConversationHandled({ playerDiscordUserId, handled }) {
+  return guarded(async () => {
+    const session = await requireGm();
+    const id = playerDiscordUserId?.toString().trim();
+    if (!id) throw new UserError("No conversation specified.");
+
+    const now = new Date();
+    const handledAt = handled ? now : null;
+
+    await prisma.conversationMeta.upsert({
+      where: { playerDiscordUserId: id },
+      update: { handledAt },
+      create: { playerDiscordUserId: id, handledAt },
+    });
+
+    // Saying a conversation needs no reply implies having read it, and an
+    // unread badge sitting on a handled row would contradict itself.
+    if (handled) {
+      await prisma.conversationRead.upsert({
+        where: {
+          gmDiscordUserId_playerDiscordUserId: { gmDiscordUserId: session.discordUserId, playerDiscordUserId: id },
+        },
+        update: { lastReadAt: now },
+        create: { gmDiscordUserId: session.discordUserId, playerDiscordUserId: id, lastReadAt: now },
+      });
+    }
+
+    revalidatePath("/gm/players", "layout");
+  });
+}
+
+// The desk-side mute. Purely a view on this desk: the player is not blocked,
+// silenced or told anything, and their DMs still arrive and still read
+// normally. A muted conversation leaves the rail (behind its "Show muted"
+// toggle), renders greyed when shown, and stops counting toward unread and
+// awaiting. Unlike setConversationHandled above this does not expire — a
+// mute is a standing decision, so it holds until a GM lifts it.
+export async function setConversationMuted({ playerDiscordUserId, muted }) {
+  return guarded(async () => {
+    await requireGm();
+    const id = playerDiscordUserId?.toString().trim();
+    if (!id) throw new UserError("No conversation specified.");
+
+    const mutedAt = muted ? new Date() : null;
+
+    await prisma.conversationMeta.upsert({
+      where: { playerDiscordUserId: id },
+      update: { mutedAt },
+      create: { playerDiscordUserId: id, mutedAt },
+    });
+
+    revalidatePath("/gm/players", "layout");
+  });
+}
+
 export async function claimConversation({ playerDiscordUserId }) {
   return guarded(async () => {
     const session = await requireGm();

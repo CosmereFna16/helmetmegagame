@@ -21,7 +21,7 @@ day of work survives a refresh):
 |---|---|---|
 | **Private messages** | `StagedMessage` (kind `PRIVATE`) + `StagedMessageRecipient` | One DM per recipient character's player, `»`-prefixed, logged to `DirectMessage` like every DM. |
 | **Public declarations** | `StagedMessage` (kind `PUBLIC`, required `zoneId`) | Posted to **the row's own zone `#summary`**. The composer requires a real, standable zone (the `Caves` group seat is excluded from the picker), so a row always has one to post to. If that zone's summary channel isn't configured, the post is skipped and recorded on `deliveryFailures` — never lost. A post survives the Dawn wipe that runs later in the same push: the wipe only deletes what predates the push (`CHANNELS.md` §8). |
-| **Mechanical adjustments** | `StagedEffect` — `payload` `{ resources?, tagPoints?, tagOps?, zoneId? }` per target character | Resources through `addResources`' clamp, tag ops through `db/lib/tagOps.js` — the same engine the Dev Panel applies with. `tagPoints` is an unclamped increment (a GM may take points back, and negative is legal). `appliedEffect` snapshots what actually moved (the payload-vs-effect rule from `REQUESTS.md` §2). |
+| **Mechanical adjustments** | `StagedEffect` — `payload` `{ resources?, tagPoints?, tagOps?, zoneId? }` per target character | Resources through `addResources`' clamp, tag ops through `db/lib/tagOps.js` — the same engine the Dev Panel applies with, so a staged `remove` leaves the tag's treated-wound aftermath behind (`Tag.removesInto`, `TAGS.md` §5c) and records it as `granted` on the snapshot. `tagPoints` is an unclamped increment (a GM may take points back, and negative is legal). `appliedEffect` snapshots what actually moved (the payload-vs-effect rule from `REQUESTS.md` §2). |
 | **Transfers** | `StagedEffect` — `payload` `{ transfer: { from, to, amount } }`, mutually exclusive with `resources` | A party-to-party ⬢ move, not a mint/burn from nowhere — either end may be a character or a faction Silo, via `db/lib/parties.js` and `db/lib/resourceTransfer.js#applyTransfer` (the same primitive the player's `TRANSFER_RESOURCES` request and every GM transfer surface use). `targetCharacterId` is nullable to allow **Silo → Silo**: it files the row under the character end if there's exactly one, the recipient if both ends are characters, and null otherwise. Staged from the tray's own "+ Transfer" button (`TransferComposer.js`), separate from the multi-target Effect composer because a transfer is 1:1 by nature. |
 
 ### Long messages split; they are never truncated
@@ -102,6 +102,13 @@ tray as "unattached" for the GM to keep or drop.
   carries any `auto:` marker (a default move and travel send their own),
   and for Gambits and Solved Moves.
   See `TURN-ENGINE.md` for where in the push it fires.
+- **A Gambit's die is revealed by the push, and only by the push.** The d6 is
+  rolled and stored at submit so the desk has it immediately, but the player
+  reads it in one DM at the turn close (`formatGambitRollDm`,
+  `db/lib/stagedPush.js`) — landing beside the staged private messages that
+  say what it actually did. Nothing else shows a player their own roll: not
+  the confirm DM, not `/character`. Every confirmed Gambit gets the DM
+  regardless of what else the push sent them.
 - **The Result box is canon.** One GM-facing field (`resultMessage`) holding
   what actually happened. `gmNotes` survives as a column for the `auto:*`
   machine markers only and renders nowhere.

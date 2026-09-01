@@ -84,7 +84,7 @@ function hungerDm(notice) {
 }
 
 const DYING_DM =
-  "You haven't eaten in six turns straight. Your body is giving out — you're Dying. A GM will decide what happens next.";
+  "You haven't eaten in six turns straight. Your body is giving out — you're **Dying**. A GM will decide what happens next.";
 
 // Missed turn closes in a row before a noble wakes Disappointed. The web
 // sheet's Dinner row (web/app/components/StatusPanel.js) counts against the
@@ -96,9 +96,9 @@ const DISAPPOINTMENT_THRESHOLD = 3;
 // constant moves, move these sentences with it.
 function disappointedDm(notice) {
   if (notice.kind === "warned") {
-    return "Two days without a fine meal. One more and you'll wake Disappointed.";
+    return "Two days without a fine meal. One more and you'll wake **Disappointed**.";
   }
-  return "Three days without a fine meal. You're Disappointed — −1 to Gambits until you eat one.";
+  return "Three days without a fine meal. You're **Disappointed** — −1 to Gambits until you eat one.";
 }
 
 async function runHungerPass(prisma, turn) {

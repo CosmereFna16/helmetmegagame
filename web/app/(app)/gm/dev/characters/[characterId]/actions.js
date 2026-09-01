@@ -30,6 +30,7 @@ import {
   applyTagOpsInTx,
   planDiscordEffects,
 } from "@/lib/characterWrite";
+import { syncRomanceDisabledTag } from "@lifeweb/db/lib/tagWrites";
 import { applyPendingInvites } from "@lifeweb/db/lib/threadInvites";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
 import { findOpenTurnAction, lockIsLive, deleteActionRestoringTurn } from "@/lib/moveEconomy";
@@ -158,6 +159,12 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
 
     if (Object.keys(data).length) {
       await tx.character.update({ where: { id: characterId }, data });
+    }
+
+    // Same mirror the player's own save does: the `romance-disabled` tag
+    // follows the boolean, so the 🔍-visible mark can't drift from the sheet.
+    if ("romanceOptOut" in data) {
+      await syncRomanceDisabledTag(tx, characterId, data.romanceOptOut);
     }
 
     // Keyed on the POST-edit faction: promoting someone who is also changing

@@ -55,7 +55,7 @@ async function buildLaborContext(prisma, characterId) {
 // whose absence of a zone was ambiguous.
 function computeLaborAccess(ctx) {
   if (ctx.tagSlugs.has(EXHAUSTED_SLUG)) {
-    return { ok: false, reason: "You are still Exhausted from your last labor." };
+    return { ok: false, reason: "You're still **Exhausted** from your last labor." };
   }
   if (ctx.seatZoneSlug === "caves") {
     return { ok: false, reason: "Nothing can be produced in the depths." };

@@ -35,7 +35,7 @@ export default function LifewebDonateBloodPanel({ characters }) {
         <span className="field-label">Player</span>
         <Select value={characterId} onChange={(e) => setCharacterId(e.target.value)}>
           <option value="" disabled>
-            Choose a player...
+            Choose a player…
           </option>
           {characters.map((c) => (
             <option key={c.id} value={c.id}>
