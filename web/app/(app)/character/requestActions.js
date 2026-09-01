@@ -1954,12 +1954,16 @@ async function fastTravelRequestImpl({ targetZoneId, passengerIds: rawPassengerI
   // "You'll be easily visible" is the price the tag charges for the free hop —
   // this is the half the room actually sees (the archive entry below is the
   // other half). Which vehicle is named follows what the rider holds: a horse
-  // (either kind) reads as horseback, and only the Steam Automobile's
-  // horseless ride falls through to its own wording.
-  const rideClause =
-    heldSlugs.has("horse") || heldSlugs.has("horse-windlander")
-      ? "on horseback"
-      : "in a steam automobile";
+  // (either kind) reads as horseback, a horse plus a Cart names the cart —
+  // otherwise a six-seat ride reads as five people stacked on one horse — and
+  // only the Steam Automobile's horseless ride falls through to its own
+  // wording.
+  const hasHorse = heldSlugs.has("horse") || heldSlugs.has("horse-windlander");
+  const rideClause = !hasHorse
+    ? "in a steam automobile"
+    : heldSlugs.has("cart")
+      ? "on a horse-drawn cart"
+      : "on horseback";
 
   // Deferred, not awaited in the request — the same handful of sequential
   // Discord calls web/app/(app)/map/travelActions.js#travelTo defers, for the

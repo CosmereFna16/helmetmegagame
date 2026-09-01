@@ -711,7 +711,9 @@ One thing it does *not* share with an ordinary hop: "easily visible" is the
 price the tag charges for the free hop, and it is collected twice. The
 departure zone's `#summary` gets a bot-posted line the room sees live —
 "*[rider] is seen leaving the area on horseback, carrying [passengers].*",
-with "in a steam automobile" when the rider holds no horse — skipped only
+with "on a horse-drawn cart" when the rider also holds Cart (otherwise a
+six-seat ride reads as five people piled onto one horse) and "in a steam
+automobile" when the rider holds no horse — skipped only
 where there is no summary channel to post to (a cave level). And the `TRAVEL`
 archive entry is written **unconditionally**, ignoring
 `GameConfig.archiveTravelEvents`, as the transcript half of the same
