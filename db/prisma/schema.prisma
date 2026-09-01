@@ -166,13 +166,15 @@ enum RequestType {
   // db/lib/incapacitation.js and REQUESTS.md.
   LOOT_CHARACTER
   // Moving a character who follows the filer: a Leader moving a faction
-  // member, or anyone moving someone they've bound. DB write happens in the
+  // member, or anyone dragging a body or a helpless one (bound, dying,
+  // paralyzed, catatonic — db/lib/incapacitation.js). DB write happens in the
   // request transaction; the Discord zone-role swap happens after commit
   // (ARCHITECTURE.md §5 — no network call inside a transaction).
   MOVE_CHARACTER
   // Putting the `bound` tag ON someone in the filer's zone, and taking it off
-  // again. Nothing else in the game grants Bound, which is what LOOT_CHARACTER
-  // and MOVE_CHARACTER's "or bound" branch both key on — so these two are what
+  // again. Nothing else in the game grants Bound — it is the one helpless
+  // state a player can inflict deliberately, and LOOT_CHARACTER,
+  // MOVE_CHARACTER and HARM_CHARACTER all accept it — so these two are what
   // make that whole loop playable by players instead of by a GM.
   BIND_CHARACTER
   FREE_CHARACTER

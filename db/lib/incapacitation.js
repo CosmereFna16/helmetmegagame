@@ -1,5 +1,5 @@
 // A living character who can't defend themselves or walk away — the target
-// class for LOOT_CHARACTER, HARM_CHARACTER and the "or bound" branch of
+// class for LOOT_CHARACTER, HARM_CHARACTER and the "or helpless" branch of
 // MOVE_CHARACTER (REQUESTS.md, TAGS.md §5c). Slugs here must exist in
 // docs/tags.yaml; each is either a health affliction that already means
 // "can't act" (dying, paralyzed) or the AFK/status equivalent (catatonic,
@@ -16,9 +16,13 @@
 const INCAPACITATING_SLUGS = new Set(["dying", "catatonic", "paralyzed", "bound"]);
 
 // The narrower set HARM_CHARACTER's lethal half needs. Being Paralyzed for a
-// turn or having gone quiet for four is not the same as lying there bleeding
-// out or tied to a chair — you can rob someone in either state, but only the
-// second is someone a player may ask a GM to finish off.
-const FINISHABLE_SLUGS = new Set(["dying", "bound"]);
+// turn is a moment's stumble — you can rob someone in that state, but they
+// are not someone a player may ask a GM to finish off. Dying, Bound and
+// Catatonic all are: the first two are the classic helpless body, and a
+// Catatonic character is either long gone from the guild or has been silent
+// for turns on end, with their own death countdown already running. Nothing
+// here kills on its own — HARM_CHARACTER only raises the ☠ and hands a GM the
+// Kill button (REQUESTS.md §5b).
+const FINISHABLE_SLUGS = new Set(["dying", "bound", "catatonic"]);
 
 module.exports = { INCAPACITATING_SLUGS, FINISHABLE_SLUGS };

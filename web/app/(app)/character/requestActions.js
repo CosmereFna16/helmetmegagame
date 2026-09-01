@@ -53,6 +53,7 @@ import {
   syncCharacterZoneRole,
   removeCursedRole,
   sendDm,
+  killCharacter,
 } from "@/lib/discordGuild";
 import { applyPendingInvites } from "@lifeweb/db/lib/threadInvites";
 import { rollTagChain } from "@lifeweb/db/lib/tagShapes";
@@ -1101,7 +1102,8 @@ async function lootCharacterRequestImpl({
 // --- Moving another character -------------------------------------------
 
 // A character who follows the filer: either a faction member the filer
-// leads, or anyone the filer has bound. Destination is validated the same
+// leads, or anyone helpless enough not to argue — bound, dying, paralyzed,
+// catatonic, or dead. Destination is validated the same
 // way an ordinary /move hop is (db/lib/travel.js#performTravel) — direct
 // Zone.connectsTo neighbour of the target's current zone, never the Caves
 // group row — but this does NOT spend a Move or file an Action, since it
@@ -1117,7 +1119,7 @@ async function moveCharacterRequestImpl({ targetCharacterId, targetZoneId, reaso
 
   const target = await prisma.character.findFirst({
     where: { id: targetCharacterId ?? "", status: { in: ["ALIVE", "DEAD"] }, zoneId: character.zoneId },
-    include: { tags: { where: { tag: { slug: "bound" } }, select: { tagId: true } } },
+    include: { tags: { select: { tag: { select: { slug: true } } } } },
   });
   if (!target) throw new UserError("They aren't here.");
   // A buried body is out of the world — see BURY_CHARACTER. Nobody drags a
@@ -1128,12 +1130,18 @@ async function moveCharacterRequestImpl({ targetCharacterId, targetZoneId, reaso
   // This is the "drag a corpse" case, folded in here rather than given its own
   // request type: it is the same act with the same validation and the same
   // Undo, minus the Discord swap a dead character has no roles for.
+  //
+  // Neither does anyone helpless. This used to key on `bound` alone, which
+  // made a Catatonic or Dying character the one kind of body you could rob
+  // but not carry. It now uses the same INCAPACITATING_SLUGS set as
+  // LOOT_CHARACTER and HARM_CHARACTER, so "can't stop you" means one thing
+  // across all three.
   const isCorpse = target.status === "DEAD";
-  const isBound = target.tags.length > 0;
+  const isHelpless = target.tags.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug));
   const commandsThem =
     character.isLeader && target.factionId != null && target.factionId === character.factionId;
-  if (!isCorpse && !isBound && !commandsThem) {
-    throw new UserError("You can only move someone you lead, or someone bound.");
+  if (!isCorpse && !isHelpless && !commandsThem) {
+    throw new UserError("You can only move someone you lead, or someone who can't stop you.");
   }
 
   const targetZone = await prisma.zone.findUnique({ where: { id: targetZoneId ?? "" } });
@@ -1192,8 +1200,9 @@ async function moveCharacterRequestImpl({ targetCharacterId, targetZoneId, reaso
 
 // --- Binding and freeing -------------------------------------------------
 
-// Nothing else in the game grants `bound`, and both LOOT_CHARACTER and
-// MOVE_CHARACTER's "or bound" branch key on it — so without these two the
+// Nothing else in the game grants `bound`, and it is the one incapacitating
+// state a player can put someone into on purpose — LOOT_CHARACTER,
+// MOVE_CHARACTER and HARM_CHARACTER all accept it — so without these two the
 // whole coercion loop needs a GM to start it, which is exactly the day of
 // real time the Requests system exists to save (REQUESTS.md §1).
 //
@@ -1331,10 +1340,17 @@ async function freeCharacterRequestImpl({ targetCharacterId, reason: rawReason }
 // The target must ALREADY be helpless. Knifing someone who could fight back
 // is a Gambit and a GM adjudicates it; this is the aftermath, not the fight.
 //
-// **It does not kill.** Exactly the FEED_PERSON posture (REQUESTS.md §5a):
-// letting a player end another player's game from a dropdown is too abusable,
-// so `effect.lethal` only raises the ☠ in the Requests tab and surfaces the
-// GM's Kill button. `effect.killed` is stamped there, not here.
+// **It kills.** Ticking "Finish them" ends the target's game on submit, the
+// same posture FEED_PERSON now takes (REQUESTS.md §5a). It used to raise a ☠
+// in the Requests tab and wait for a GM's Kill button, which left a character
+// everyone at the table had watched die still walking until the queue was
+// worked.
+//
+// What makes that safe is the gate above, not the delay: the target has to be
+// helpless ALREADY (INCAPACITATING_SLUGS) and Dying or Bound specifically
+// before `lethal` is even accepted, the killer has to be standing in their
+// zone, and a reason is required and logged. Someone who can fight back is
+// still a Gambit and still a GM's call. A GM reads the request afterwards.
 
 async function harmCharacterRequestImpl({
   targetCharacterId,
@@ -1363,7 +1379,7 @@ async function harmCharacterRequestImpl({
     throw new UserError("They can still defend themselves — that's a Gambit, not a request.");
   }
   if (lethal && ![...heldSlugs].some((slug) => FINISHABLE_SLUGS.has(slug))) {
-    throw new UserError("You can only finish off someone Dying or Bound.");
+    throw new UserError("You can only finish off someone Dying, Bound or Catatonic.");
   }
 
   let tag = null;
@@ -1388,6 +1404,7 @@ async function harmCharacterRequestImpl({
   const openTurn = await getOpenTurn();
   const expiresTurn = tag ? expiryFor(tag, openTurn) : null;
 
+  let killed = false;
   await prisma.$transaction(async (tx) => {
     if (tag) {
       await addToStack(tx, target.id, tag.id, 1, {
@@ -1396,6 +1413,17 @@ async function harmCharacterRequestImpl({
         stackable: tag.stackable,
       });
     }
+    // The claim, with the same conditional `status: ALIVE` where-clause every
+    // other death path uses (db/lib/characterDeath.js) — so two people
+    // finishing off the same helpless target in the same second can't both
+    // claim it, and the injury half still lands either way.
+    if (lethal) {
+      const claim = await tx.character.updateMany({
+        where: { id: target.id, status: "ALIVE" },
+        data: { status: "DEAD" },
+      });
+      killed = claim.count > 0;
+    }
     const effect = {
       targetCharacterId: target.id,
       targetName: target.name,
@@ -1403,7 +1431,8 @@ async function harmCharacterRequestImpl({
       tagName: tag?.name ?? null,
       expiresTurn,
       lethal,
-      killed: false,
+      killed,
+      killedAt: killed ? new Date().toISOString() : null,
     };
     await createRequest(tx, {
       characterId: character.id,
@@ -1422,13 +1451,25 @@ async function harmCharacterRequestImpl({
     });
   });
 
-  if (tag) await syncCharacterNarrowcastAccess(target.id).catch(() => {});
-  // A kill, if one lands, is its own later act — the GM's Kill button, which
-  // sends its own DM through killCharacter(). This one is just "you were
-  // hurt", true whether or not that finishing blow ever comes.
-  notifyCharacter(target, "Someone hurt you.");
+  // The rest of death — access revoke, role delete, nickname clear, the Cursed
+  // grant, the death DM — after the commit, with the row's status already
+  // written; killCharacter's own applyDeathToRow runs with expectStatus DEAD,
+  // which is the shape of the claim above. It revokes channel access itself,
+  // so the narrowcast resync below is only for a target who survived, and the
+  // "someone hurt you" DM would be a strange thing to send a corpse.
+  if (killed) {
+    await killCharacter(target, "Someone finished you off.").catch((err) =>
+      console.error(`killCharacter failed after finishing ${target.id}:`, err),
+    );
+    // Not in revalidateAll(), which is shared by every request on this sheet
+    // and none of the others change a roster row.
+    revalidatePath("/gm/players", "layout");
+  } else {
+    if (tag) await syncCharacterNarrowcastAccess(target.id).catch(() => {});
+    notifyCharacter(target, "Someone hurt you.");
+  }
   revalidateAll();
-  return {};
+  return { killed };
 }
 
 // --- Desires ----------------------------------------------------------

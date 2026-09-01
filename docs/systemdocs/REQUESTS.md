@@ -104,7 +104,7 @@ reason.
 | `CHANGE_NAME` | Takes a new honorific/first/last name | — | Restores the previous name |
 | `CAVING_LOOT` | Nothing — the turn engine files it when a Caving Die rolls a 6 (`CAVING.md`) | — | Drops the find |
 | `LOOT_CHARACTER` | Searches a body, **or** anyone Bound/Dying/Paralyzed/Catatonic in their zone, taking Items, Assets and ⬢ in one act | — | Returns every tag with its original expiry, and the ⬢ |
-| `MOVE_CHARACTER` | Marches a faction member they lead, someone they've bound, or a body, into a neighbouring zone. Does **not** spend the target's turn | — | Restores the previous zone in the DB only |
+| `MOVE_CHARACTER` | Marches a faction member they lead, anyone helpless (Bound/Dying/Paralyzed/Catatonic), or a body, into a neighbouring zone. Does **not** spend the target's turn | — | Restores the previous zone in the DB only |
 | `BIND_CHARACTER` | Ties up anyone standing in their zone | — | Cuts them loose |
 | `FREE_CHARACTER` | Cuts someone in their zone loose | — | Puts Bound back with its original expiry |
 | `HARM_CHARACTER` | Inflicts a Health affliction on someone already helpless, flags them to be killed, or both. **Never kills** — see §5b | — | Heals what was inflicted; never revives |
@@ -459,8 +459,8 @@ place in the Requests system where that second gate is worth the friction.
 
 Four requests that act on somebody else, and one tag holding them together.
 
-`bound` is the hinge. `LOOT_CHARACTER`, `HARM_CHARACTER` and the "or bound"
-branch of `MOVE_CHARACTER` all read `db/lib/incapacitation.js`'s
+`bound` is the hinge. `LOOT_CHARACTER`, `HARM_CHARACTER` and the "or
+helpless" branch of `MOVE_CHARACTER` all read `db/lib/incapacitation.js`'s
 `INCAPACITATING_SLUGS` — `dying / catatonic / paralyzed / bound` — and for a
 long time nothing in the game **granted** Bound. A GM had to place it by hand,
 which is the day of real time §1 exists to save, so `BIND_CHARACTER` and its
@@ -491,14 +491,18 @@ surfaces the same **Kill** button `FEED_PERSON` uses, and
 player end another player's game from a dropdown is too abusable. The lethal
 half is also the only place besides billing someone else for a cure where the
 dialog asks twice. `FINISHABLE_SLUGS` narrows it further than the loot gate —
-you can rob a Paralyzed or Catatonic character, but only someone Dying or
-Bound can be finished off.
+you can rob a Paralyzed character, but only someone Dying, Bound or Catatonic
+can be finished off. Paralysis is a moment's stumble; the other three are a
+body that is not getting up on its own, and a Catatonic one is already on the
+death countdown (`db/lib/catatonicDeathPass.js`).
 
 **Move Player does not spend the target's turn**, and it moves nobody but the
 target — the copy says to walk there yourself afterwards. It takes a body too,
 which is how a corpse gets anywhere: bodies are lootable and Lifeweb-feedable
 but would otherwise be pinned where they fell. A corpse needs no authority
-over it, so the leader/bound gate is skipped and no Discord role is swapped.
+over it, so the leader gate is skipped and no Discord role is swapped — and
+neither does anyone helpless, so a Catatonic, Dying or Paralyzed character can
+be carried as well as robbed.
 
 **The target menus are deliberately unfiltered.** Every one of these lists
 names people a player might not be allowed to act on, and the server rejects

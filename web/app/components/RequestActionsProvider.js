@@ -537,8 +537,8 @@ export default function RequestActionsProvider({
       const name = harmTargets.find((t) => t.id === targetId)?.name ?? "them";
       const ok = await confirm({
         title: "Finish them off?",
-        message: `This asks a GM to kill ${name} for good. It doesn't kill them by itself.`,
-        confirmLabel: "Ask for the kill",
+        message: `This kills ${name}, now and for good. A GM will read your reason afterwards, not before.`,
+        confirmLabel: "Kill them",
       });
       if (!ok) return;
     }
@@ -1140,8 +1140,8 @@ export default function RequestActionsProvider({
                   Finish them off
                 </CheckField>
                 <p className="text-xs text-muted">
-                  Only someone Dying or Bound can be finished off, and doing it does <strong>not</strong>{" "}
-                  kill them — it asks a GM to. Pick an injury, tick the box, or both.
+                  Only someone Dying or Bound can be finished off, and doing it <strong>kills them</strong> — there is
+                  no taking it back. Pick an injury, tick the box, or both.
                 </p>
               </>
             )}
