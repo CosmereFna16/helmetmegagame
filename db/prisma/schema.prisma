@@ -1845,9 +1845,11 @@ model StagedEffect {
   // expiry?, equipped?}. May also carry `zoneId?: String` — a staged
   // relocation, applied as a raw zone write at the push with the Discord
   // half handed to db/lib/zoneMove.js in the side-effect thunk. May instead
-  // carry `transfer?: { from: {kind,id,name}, to: {kind,id,name}, amount }`
-  // — mutually exclusive with `resources`; a row either mints/burns ⬢ from
-  // nowhere or moves it between two named parties, never both.
+  // carry `transfer?: { from: {kind,id,name}, to: {kind,id,name}, amount,
+  // hidden?, cover? }` — mutually exclusive with `resources`; a row either
+  // mints/burns ⬢ from nowhere or moves it between two named parties, never
+  // both. `hidden`/`cover` are the quiet-adjustment pair, passed straight to
+  // writeSiloRows at the push (see SiloRowVisibility).
   payload Json
 
   appliedAt     DateTime?

@@ -8,6 +8,7 @@ import Select from "@/app/components/Select";
 import IconButton from "@/app/components/IconButton";
 import { ResourcesIcon } from "@/app/components/icons";
 import { useRefresh } from "@/app/components/useRefresh";
+import QuietSiloFields, { EMPTY_QUIET } from "@/app/components/QuietSiloFields";
 import { transferSiloResources } from "./actions";
 
 // The all-factions overview, the Factions tab of the Players panel.
@@ -86,6 +87,7 @@ function TransferDialog({ faction, otherFactions, characters, onClose }) {
   const [direction, setDirection] = useState("deposit"); // "deposit" | "withdraw", relative to `faction`
   const [counterpartyKey, setCounterpartyKey] = useState("");
   const [amount, setAmount] = useState("");
+  const [quiet, setQuiet] = useState(EMPTY_QUIET);
   const [error, setError] = useState(null);
   const [pending, setPending] = useState(false);
 
@@ -96,7 +98,7 @@ function TransferDialog({ faction, otherFactions, characters, onClose }) {
     setPending(true);
     const fromKey = direction === "withdraw" ? factionKey : counterpartyKey;
     const toKey = direction === "withdraw" ? counterpartyKey : factionKey;
-    const res = await transferSiloResources({ fromKey, toKey, amount, reason });
+    const res = await transferSiloResources({ fromKey, toKey, amount, reason, ...quiet });
     setPending(false);
     if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
     onClose();
@@ -145,6 +147,7 @@ function TransferDialog({ faction, otherFactions, characters, onClose }) {
         <span className="field-label">Amount</span>
         <input type="number" min="1" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
       </label>
+      <QuietSiloFields value={quiet} onChange={setQuiet} disabled={pending} />
     </RequestDialog>
   );
 }

@@ -3,6 +3,7 @@
 import SubmitButton from "@/app/components/SubmitButton";
 import Select from "@/app/components/Select";
 import ZoneChip from "@/app/components/ZoneChip";
+import CheckField from "@/app/components/CheckField";
 import { EmptyRow } from "@/app/components/EmptyState";
 import {
   useTableState,
@@ -94,6 +95,14 @@ export default function FactionsTable({ rows }) {
                   form={`faction-${f.id}`}
                   className="control w-24"
                 />
+                {/* The checkbox only, no cover-story fields — three more text
+                    inputs on every row would drown the table, and this is the
+                    blunt correction tool. A quiet move that needs a plausible
+                    cover story is a transfer, and every transfer dialog offers
+                    the full block (web/app/components/QuietSiloFields.js). */}
+                <CheckField name="siloQuiet" form={`faction-${f.id}`}>
+                  Quiet ‡
+                </CheckField>
               </td>
               <td>
                 {/* Outside its <form> (wired by form={...}), so useFormStatus

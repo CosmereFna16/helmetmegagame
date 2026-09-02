@@ -5,6 +5,7 @@ import Modal from "@/app/components/Modal";
 import FormError from "@/app/components/FormError";
 import Select from "@/app/components/Select";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
+import QuietSiloFields, { EMPTY_QUIET } from "@/app/components/QuietSiloFields";
 import { createStagedTransfer } from "./actions";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 
@@ -17,6 +18,7 @@ export default function TransferComposer({ roster, factions, defaultFromKey = ""
   const [fromKey, setFromKey] = useState(defaultFromKey);
   const [toKey, setToKey] = useState("");
   const [amount, setAmount] = useState("");
+  const [quiet, setQuiet] = useState(EMPTY_QUIET);
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
   const { markDirty, markClean, guardedClose } = useDirtyGuard();
@@ -60,7 +62,7 @@ export default function TransferComposer({ roster, factions, defaultFromKey = ""
     if (!amountValid) return setError("Amount must be a positive whole number.");
     startTransition(async () => {
       try {
-        const res = await createStagedTransfer({ fromKey, toKey, amount });
+        const res = await createStagedTransfer({ fromKey, toKey, amount, ...quiet });
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
         onDone();
@@ -111,6 +113,17 @@ export default function TransferComposer({ roster, factions, defaultFromKey = ""
             placeholder="0"
           />
         </label>
+
+        {(fromKey.startsWith("faction:") || toKey.startsWith("faction:")) && (
+          <QuietSiloFields
+            value={quiet}
+            onChange={(next) => {
+              setQuiet(next);
+              markDirty();
+            }}
+            disabled={pending}
+          />
+        )}
 
         <FormError>{error}</FormError>
 

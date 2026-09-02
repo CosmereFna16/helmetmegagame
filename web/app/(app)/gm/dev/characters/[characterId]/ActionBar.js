@@ -38,6 +38,7 @@ import {
   deleteCharacter,
   transferResources,
 } from "./actions";
+import QuietSiloFields, { EMPTY_QUIET } from "@/app/components/QuietSiloFields";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 
 // The microaction row. Verbs, not values.
@@ -86,6 +87,7 @@ export default function ActionBar({
   const [staged, setStaged] = useState(null);
   const [dialog, setDialog] = useState(null); // "kill" | "restore" | "spend" | "message" | "delete" | "wound" | "transfer"
   const [draft, setDraft] = useState("");
+  const [transferQuiet, setTransferQuiet] = useState(EMPTY_QUIET);
   const [transferFromKey, setTransferFromKey] = useState("");
   const [transferToKey, setTransferToKey] = useState("");
   const [transferAmount, setTransferAmount] = useState("");
@@ -491,6 +493,7 @@ export default function ActionBar({
               toKey: transferToKey,
               amount: transferAmount,
               reason,
+              ...transferQuiet,
             }),
           )
         }
@@ -525,6 +528,9 @@ export default function ActionBar({
             placeholder="0"
           />
         </label>
+        {(transferFromKey.startsWith("faction:") || transferToKey.startsWith("faction:")) && (
+          <QuietSiloFields value={transferQuiet} onChange={setTransferQuiet} disabled={pending} />
+        )}
       </RequestDialog>
 
       {dialog === "wound" && (

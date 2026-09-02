@@ -187,6 +187,43 @@ transfer as a **staged** row instead — see `ADJUDICATION.md`. The
 superadmin-only absolute field on `/gm/dev/factions` is unchanged and stays
 the blunt correction tool for when the number itself is simply wrong.
 
+## 5a. Quiet adjustments, and the cover story
+
+A Silo row is visible to the faction's own Leader and Treasurer (§4), which
+made one thing impossible: adjudicating a **secret** move out of a Silo. A
+gambit steal used to announce itself to its victim, naming the turn, the exact
+amount, the thief, and the GM's own typed reason.
+
+Every GM Silo surface now carries a **Quiet adjustment** block
+(`web/app/components/QuietSiloFields.js`), and it writes two rows instead of
+one:
+
+- The **`HIDDEN`** row is the real one. It moves the balance and renders on GM
+  surfaces only — never on `/faction`.
+- The **`COVER`** row is a display-only fiction with the *same signed amount*,
+  and it is what the officers see. Equal amounts are the whole trick: their
+  visible column still adds up to the Silo total printed above it, so nothing
+  looks tampered with. Only the who and the why are false.
+
+Leaving "Shown as" empty writes no cover row at all — a clean hide. The balance
+still moves, so the officers get a gap they cannot explain. That is a choice,
+not an oversight.
+
+`normalizeQuiet` (`web/lib/siloCover.js`) trims the three cover strings for
+every surface, and `writeSiloRows` (`db/lib/resourceTransfer.js`) is the single
+writer that pairs the rows. One cover spec covers every faction leg of a
+transfer, so a quiet Silo → Silo move puts the same note on both ends.
+
+**The audit log always tells the truth.** `gm_transfer_resources` records the
+real parties, the amount, the GM's reason *and* the cover text. A quiet move is
+still a move a GM can be held to.
+
+The staged transfer on `/gm/turns` marks itself `· quiet ‡` on the tray row and
+in the push preview, so nobody pushes one by accident. `/gm/dev/factions`'
+absolute field offers the checkbox but **not** the cover fields — three more
+text inputs on every table row would drown it, and a quiet move that needs a
+plausible story is a transfer.
+
 ## 6. `SiloTransaction` is a ledger, not a relation
 
 One row per change to a Silo — deposits, Dev Panel corrections, and
@@ -194,6 +231,11 @@ Leader/Treasurer transfers to a member — so the faction panel can show
 "who took what, when, how much, to whom" rather than just a current total.
 
 `amount` is **signed**: positive grows the silo, negative shrinks it.
+
+`visibility` is `OPEN` (every ordinary row), `HIDDEN` or `COVER` — see §5a.
+`/faction` filters `HIDDEN` out on the player branch and shows the lot, badged,
+on the GM branch. `coverForId` points a `COVER` row at the `HIDDEN` one it
+fronts for, without a relation, for the same reason nothing else here has one.
 
 **No foreign keys.** `factionId`, `actorCharacterId` and `toCharacterId` are
 plain indexed columns, with `actorName`/`toName` snapshots alongside. Log rows

@@ -133,6 +133,11 @@ async function applyOneStagedEffect(prisma, row, turn, equipSlots) {
           turnNumber: turn.number,
           turnPhase: turn.phase,
           note: `Staged transfer, turn ${turn.number}`,
+          // Staged at composing time, applied blind like the rest of the
+          // snapshot: a quiet transfer hides the real Silo row from the
+          // faction's own officers and puts the cover story there instead.
+          hidden: transfer.hidden === true,
+          cover: transfer.cover ?? null,
         },
       });
       snapshot.transfer = transfer;

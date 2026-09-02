@@ -58,9 +58,14 @@ async function loadFaction(factionId) {
   });
 }
 
-async function loadSiloHistory(factionId) {
+// A HIDDEN row is a quiet GM adjustment — the real, balance-affecting one — and
+// the faction's own Leader/Treasurer must not see it, or a secret move out of
+// the Silo announces itself to its victim. The COVER row written beside it
+// carries the same signed amount and IS shown, so the visible column still adds
+// up to the Silo total above it. A GM sees the lot, badged.
+async function loadSiloHistory(factionId, { forGm = false } = {}) {
   return prisma.siloTransaction.findMany({
-    where: { factionId },
+    where: forGm ? { factionId } : { factionId, visibility: { not: "HIDDEN" } },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
@@ -142,7 +147,7 @@ function FactionTable({ factions, showSilo, isGm = false, reachableIds = null })
   );
 }
 
-function SiloHistoryPanel({ history }) {
+function SiloHistoryPanel({ history, showVisibility = false }) {
   return (
     <section className="panel overflow-x-auto p-4">
       <h2 className="panel-header">Silo History</h2>
@@ -163,7 +168,12 @@ function SiloHistoryPanel({ history }) {
                 {t.turnNumber != null ? `#${t.turnNumber} (${t.turnPhase})` : "-"}
               </td>
               <td>{`${t.amount > 0 ? "+" : ""}${t.amount} ⬢`}</td>
-              <td>{t.actorName}</td>
+              <td>
+                {t.actorName}
+                {showVisibility && t.visibility !== "OPEN" && (
+                  <span className="chip ml-2">{t.visibility === "HIDDEN" ? "hidden ‡" : "cover ‡"}</span>
+                )}
+              </td>
               <td>{t.toName ?? "-"}</td>
               <td className="max-w-xs truncate">{t.note ?? ""}</td>
             </tr>
@@ -394,7 +404,7 @@ export default async function FactionPage({ searchParams }) {
   if (!faction) redirect("/gm/players?tab=factions");
 
   const isUnaffiliated = faction.name === "Unaffiliated";
-  const siloHistory = !isUnaffiliated ? await loadSiloHistory(faction.id) : [];
+  const siloHistory = !isUnaffiliated ? await loadSiloHistory(faction.id, { forGm: true }) : [];
   const subjectFactions = await getDescendantFactions(faction.id);
 
   return (
@@ -521,7 +531,7 @@ export default async function FactionPage({ searchParams }) {
         </table>
       </section>
 
-      {!isUnaffiliated && <SiloHistoryPanel history={siloHistory} />}
+      {!isUnaffiliated && <SiloHistoryPanel history={siloHistory} showVisibility />}
 
       {subjectFactions.length > 0 && (
         <div>

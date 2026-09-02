@@ -33,6 +33,8 @@ import {
 import { applyPendingInvites } from "@lifeweb/db/lib/threadInvites";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
+import { writeSiloRows } from "@lifeweb/db/lib/resourceTransfer";
+import { normalizeQuiet } from "@/lib/siloCover";
 
 async function requireSuperadmin() {
   const session = await auth();
@@ -558,17 +560,32 @@ export async function updateFaction(formData) {
 
   if (siloDelta !== 0) {
     const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
-    await prisma.siloTransaction.create({
-      data: {
+    // Quiet mode hides this correction from the faction's own officers and
+    // optionally leaves a cover row in its place — same pair every other Silo
+    // surface writes, through the same helper.
+    const { hidden, cover } = normalizeQuiet({
+      quiet: formData.get("siloQuiet") === "on",
+      coverActorName: str(formData, "siloCoverActorName"),
+      coverToName: str(formData, "siloCoverToName"),
+      coverNote: str(formData, "siloCoverNote"),
+    });
+    // One transaction so the HIDDEN row and its COVER never come apart.
+    await prisma.$transaction((tx) =>
+      writeSiloRows(tx, {
         factionId,
         amount: siloDelta,
-        actorDiscordUserId: session.discordUserId,
-        actorName: "GM (Dev Panel)",
-        note: "Manual Dev Panel adjustment",
-        turnNumber: openTurn?.number ?? null,
-        turnPhase: openTurn?.phase ?? null,
-      },
-    });
+        ledger: {
+          actorDiscordUserId: session.discordUserId,
+          actorCharacterId: null,
+          actorName: "GM (Dev Panel)",
+          note: "Manual Dev Panel adjustment",
+          turnNumber: openTurn?.number ?? null,
+          turnPhase: openTurn?.phase ?? null,
+          hidden,
+          cover,
+        },
+      }),
+    );
   }
 
   revalidatePath("/gm/dev/factions");
