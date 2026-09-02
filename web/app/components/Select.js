@@ -1,6 +1,6 @@
 "use client";
 
-import { Children, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Children, Fragment, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDownIcon } from "./icons";
 
@@ -28,6 +28,13 @@ const TYPEAHEAD_RESET_MS = 500;
 // Move picker (`<select multiple size={8}>`) is an open, always-visible
 // listbox, not a popup, so the OS-popup problem this solves doesn't apply to
 // it, and it stays a native <select>.
+
+// A Fragment is transparent, the way it is to a real <select>. React.Children
+// only flattens ARRAYS — it hands a fragment back as a single child — so a call
+// site that builds its options in a helper returning <>…</> (the two ⬢-transfer
+// party pickers do) used to collapse into one bogus item whose value was the
+// fragment's children array. Nothing selectable, and nothing that could ever
+// satisfy the dialog's canSubmit.
 function optionsFromChildren(children) {
   const items = [];
   let lastGroup = null;
@@ -35,28 +42,26 @@ function optionsFromChildren(children) {
     items.push({ ...item, showGroup: !!item.groupLabel && item.groupLabel !== lastGroup });
     lastGroup = item.groupLabel;
   };
-  Children.forEach(children, (child) => {
-    if (!child || !child.props) return;
-    if (child.type === "optgroup") {
-      const groupLabel = child.props.label;
-      Children.forEach(child.props.children, (opt) => {
-        if (!opt || !opt.props) return;
-        push({
-          value: opt.props.value ?? opt.props.children,
-          label: opt.props.children,
-          disabled: !!opt.props.disabled,
-          groupLabel,
-        });
-      });
-    } else {
+  const walk = (nodes, groupLabel) => {
+    Children.forEach(nodes, (child) => {
+      if (!child || !child.props) return;
+      if (child.type === Fragment) {
+        walk(child.props.children, groupLabel);
+        return;
+      }
+      if (child.type === "optgroup") {
+        walk(child.props.children, child.props.label);
+        return;
+      }
       push({
         value: child.props.value ?? child.props.children,
         label: child.props.children,
         disabled: !!child.props.disabled,
-        groupLabel: null,
+        groupLabel: groupLabel ?? null,
       });
-    }
-  });
+    });
+  };
+  walk(children, null);
   return items;
 }
 
