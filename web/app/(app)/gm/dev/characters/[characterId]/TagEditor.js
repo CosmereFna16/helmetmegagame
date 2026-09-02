@@ -50,10 +50,28 @@ export default function TagEditor({ tags, held, ops, openTurn, equipSlots, onSta
   );
   const heldTagIds = useMemo(() => new Set(held.map((h) => h.tagId)), [held]);
   const stagedByTagId = useMemo(
-    () => new Map([...ops.entries()].map(([tagId, op]) => [tagId, op.op])),
+    () =>
+      new Map(
+        [...ops.entries()].map(([tagId, op]) => [
+          tagId,
+          op.op === "add" && op.quantity > 1 ? `add ×${op.quantity}` : op.op,
+        ]),
+      ),
     [ops],
   );
   const assignCharacters = characterId ? [{ id: characterId, name: characterName ?? "This character" }] : null;
+
+  // One row's in-progress "how many" — a plain Map keyed by tagId, read at
+  // render time so a click always stages whatever is currently typed. Draft
+  // text rather than a number so an empty box doesn't snap back to 1 mid-edit.
+  const [catalogQtyDrafts, setCatalogQtyDrafts] = useState(() => new Map());
+  const [heldQtyDrafts, setHeldQtyDrafts] = useState(() => new Map());
+
+  function draftQty(drafts, tagId) {
+    const raw = drafts.get(tagId);
+    const n = Number.parseInt(raw ?? "1", 10);
+    return Number.isInteger(n) && n > 0 ? n : 1;
+  }
 
   const heldSorted = useMemo(() => {
     return [...held].sort((a, b) => {
@@ -80,18 +98,31 @@ export default function TagEditor({ tags, held, ops, openTurn, equipSlots, onSta
   // only the not-yet-held action (Grant) plus Unstage — every action on an
   // EXISTING holding lives in the Held section above, so a stage can't be
   // pushed from two different rows for the same tag.
-  function renderCatalogActions(tag, { held: isHeld, staged }) {
+  function renderCatalogActions(tag, { staged }) {
+    const qty = draftQty(catalogQtyDrafts, tag.id);
     return (
       <>
-        {!isHeld && (
-          <button
-            type="button"
-            className="btn-quiet"
-            onClick={() => onStage([{ tagId: tag.id, op: "add", quantity: 1 }])}
-          >
-            Grant
-          </button>
-        )}
+        <input
+          type="number"
+          min="1"
+          className="desk-qty"
+          value={catalogQtyDrafts.get(tag.id) ?? "1"}
+          onChange={(e) =>
+            setCatalogQtyDrafts((prev) => new Map(prev).set(tag.id, e.target.value))
+          }
+          aria-label="Quantity"
+        />
+        <button
+          type="button"
+          className="btn-quiet"
+          onClick={() =>
+            onStage([
+              { tagId: tag.id, op: "add", quantity: qty, force: !tag.stackable && qty > 1 },
+            ])
+          }
+        >
+          {qty > 1 ? `Grant ×${qty}` : "Grant"}
+        </button>
         {staged && (
           <button
             type="button"
@@ -119,6 +150,10 @@ export default function TagEditor({ tags, held, ops, openTurn, equipSlots, onSta
               op={ops.get(holding.tagId) ?? null}
               openTurn={openTurn}
               onStage={onStage}
+              qtyDraft={heldQtyDrafts.get(holding.tagId)}
+              onQtyDraftChange={(value) =>
+                setHeldQtyDrafts((prev) => new Map(prev).set(holding.tagId, value))
+              }
             />
           ))}
         </ul>
@@ -161,9 +196,11 @@ export default function TagEditor({ tags, held, ops, openTurn, equipSlots, onSta
 // permanent, and Unstage. `tag` is the catalog row (for stackable/equippable/
 // defaultDurationTurns/group); it can be null if a held tag has fallen out of
 // the fetched catalog, in which case those actions quietly don't render.
-function HeldRow({ tag, holding, op, openTurn, onStage }) {
+function HeldRow({ tag, holding, op, openTurn, onStage, qtyDraft, onQtyDraftChange }) {
   const staged = op?.op ?? null;
   const left = turnsLeft(holding.expiresTurn, openTurn?.number);
+  const qtyN = Number.parseInt(qtyDraft ?? "1", 10);
+  const qty = Number.isInteger(qtyN) && qtyN > 0 ? qtyN : 1;
 
   return (
     <li
@@ -188,7 +225,7 @@ function HeldRow({ tag, holding, op, openTurn, onStage }) {
         )}
         {staged && (
           <span className="text-xs text-accent">
-            staged: {staged}
+            staged: {staged === "add" && op.quantity > 1 ? `add ×${op.quantity}` : staged}
           </span>
         )}
       </span>
@@ -203,15 +240,30 @@ function HeldRow({ tag, holding, op, openTurn, onStage }) {
         >
           {tag?.stackable && holding.quantity > 1 ? "Take one" : "Remove"}
         </button>
-        {tag?.stackable && (
-          <button
-            type="button"
-            className="btn-quiet"
-            onClick={() => onStage([{ tagId: holding.tagId, op: "add", quantity: 1 }])}
-          >
-            Add one
-          </button>
-        )}
+        <input
+          type="number"
+          min="1"
+          className="desk-qty"
+          value={qtyDraft ?? "1"}
+          onChange={(e) => onQtyDraftChange(e.target.value)}
+          aria-label="Quantity"
+        />
+        <button
+          type="button"
+          className="btn-quiet"
+          onClick={() =>
+            onStage([
+              {
+                tagId: holding.tagId,
+                op: "add",
+                quantity: qty,
+                force: !tag?.stackable && qty > 1,
+              },
+            ])
+          }
+        >
+          {qty > 1 ? `Add ×${qty}` : "Add one"}
+        </button>
         {tag?.equippable && (
           <button
             type="button"
