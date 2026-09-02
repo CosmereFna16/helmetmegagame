@@ -83,15 +83,13 @@ import { ATE_MEAL_SLUG, DISAPPOINTED_SLUG } from "@lifeweb/db/lib/constants";
 import { NAME_LIMITS, formatCharacterName, formatBareName, normalizeEarnedHonorific } from "@/lib/characterName";
 import { propagateDynastyLastName } from "@/lib/dynasty";
 
-// Every player-initiated change that is applied immediately and reviewed
+// Every player-initiated change that applies immediately and is reviewed
 // afterwards. Each action: authenticate, re-validate everything the client
 // sent (a server action is a public endpoint), then apply the effect and
-// write the Request + AuditLog rows in ONE transaction, so a request can
-// never exist without its effect or vice versa.
+// write the Request + AuditLog rows in ONE transaction.
 
-// The one generic rejection text a hidden-catalog template and a
-// nonexistent/retired one BOTH answer with — a differentiated message would
-// itself be the oracle the hidden rule exists to prevent (DESIRES §5).
+// The one generic rejection text a hidden Desire and a nonexistent/retired
+// one both answer with, so the wording itself can't be an oracle (DESIRES §5).
 const DESIRE_NOT_AVAILABLE = "That Desire isn't available to you.";
 
 async function requireCharacter() {
@@ -99,8 +97,6 @@ async function requireCharacter() {
   if (!session?.discordUserId) redirect("/");
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
-    // role.slug only, so changeNameRequestImpl can apply the same dynasty
-    // last-name lock every other writer of Character.name already enforces.
     include: { tags: { include: { tag: true } }, role: { select: { slug: true } } },
   });
   if (!character) redirect("/character");
@@ -122,20 +118,10 @@ function parseCount(raw, { min = 0, max = Number.MAX_SAFE_INTEGER } = {}) {
 
 // --- Resources --------------------------------------------------------
 
-// "character:<id>" / "faction:<id>" on both ends. Per the design call, the
-// SOURCE may be any faction silo or any living player — a player can pull
-// resources to themselves and justify it in the reason, and a GM undoes it if
-// that was a lie. That's the whole bet of the Requests system.
-//
-// What the source may NOT be is somewhere else: see web/lib/transferReach.js.
-// The bet is that you'll explain yourself afterwards, not that you can do it
-// from across the map. The zone comes back on every party so the caller can
-// ask.
-//
-// Lives in db/lib/parties.js now, beside applyTransfer, so the turn-end push
-// and every GM transfer surface resolve the exact same key this request
-// type does. Re-exported as a local wrapper (prisma bound) since every call
-// site here already reads `resolveParty(key, opts)`.
+// "character:<id>" / "faction:<id>" on both ends. The SOURCE may be any
+// faction silo or any living player — see web/lib/transferReach.js for what
+// it may NOT be. Lives in db/lib/parties.js beside applyTransfer, so every
+// transfer surface resolves the same key; re-exported here (prisma bound).
 function resolveParty(key, opts) {
   return dbResolveParty(prisma, key, opts);
 }
@@ -149,9 +135,8 @@ async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount,
   const amount = parseCount(rawAmount, { min: 1 });
   if (amount == null) throw new UserError("Amount must be a positive whole number.");
 
-  // Looting a corpse: the source has to be a DEAD character in the same zone,
-  // and the recipient is the initiator. Every other constraint (reach,
-  // balance-covers-amount, no-self-transfer) stays.
+  // Looting a corpse: source must be DEAD and in the same zone. Every other
+  // constraint (reach, balance-covers-amount, no-self-transfer) still applies.
   const [from, to] = await Promise.all([
     resolveParty(fromKey, { allowDead: isLoot }),
     resolveParty(toKey),
@@ -164,8 +149,6 @@ async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount,
     if (from.kind !== "character" || from.status !== "DEAD") {
       throw new UserError("You can only loot ⬢ from a corpse.");
     }
-    // A buried body is out of the world — see BURY_CHARACTER. Rejected here
-    // rather than filtered out of resolveParty so the wording explains itself.
     if (from.buriedAt) throw new UserError("They're already in the ground.");
     if (!character.zoneId || from.zoneId !== character.zoneId) {
       throw new UserError("They aren't here.");
@@ -175,15 +158,9 @@ async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount,
     }
   }
 
-  // Both ends have to be somewhere you can stand. Checked here rather than in
-  // resolveParty because heal's payer rules differ slightly, and checked on
-  // submit rather than by filtering the dropdowns: a range-filtered party menu
-  // would be a free "who is standing in my zone" scouting tool, which is a
-  // worse leak than the friction it saves.
-  //
-  // Loot has its own reach check above (same zone as the corpse), so the
-  // general reach gate would only add a false-positive dead-people-fail
-  // branch — skip it for that direction.
+  // Both ends have to be somewhere you can stand — checked on submit, not by
+  // filtering the dropdowns, since a range-filtered menu would itself be a
+  // scouting tool. Loot has its own reach check above, so skip this for it.
   if (!isLoot) {
     for (const party of [from, to]) {
       if (!(await canReachParty(character, party))) {
@@ -204,23 +181,13 @@ async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount,
     note: reason,
   };
 
-  // Ordered by (kind, id), not by which side is the sender: two simultaneous
-  // transfers between the same pair in opposite directions must take their row
-  // locks in the same order, or Postgres deadlocks and kills one of them. A
-  // total order over the participants means both transactions queue instead.
-  //
-  // The ledger still records the real direction. applyTransfer (db/lib/
-  // resourceTransfer.js) does the sorting, the ordered legs, and the
-  // SiloTransaction rows — the same primitive the turn desk's staged
-  // transfers and every GM transfer surface use.
+  // Ordered by (kind, id) rather than sender/recipient: two simultaneous
+  // opposite-direction transfers must take row locks in the same order or
+  // Postgres deadlocks one of them. applyTransfer does the ordering.
   await prisma.$transaction(async (tx) => {
-    // applyTransfer refuses a debit the balance no longer covers, which
-    // aborts the whole transaction. The `amount > from.balance` check above
-    // is the friendly message; this is the one that two simultaneous
-    // transfers cannot both pass. It throws InsufficientResourcesError (a
-    // bare Error, from db/lib) rather than UserError — guarded() only knows
-    // UserError, and Next redacts anything else into an opaque digest, so
-    // this is the one place that translation has to happen by hand.
+    // applyTransfer throws InsufficientResourcesError (a bare Error) rather
+    // than UserError when a concurrent transfer already drained the balance;
+    // translated here since guarded() only understands UserError.
     try {
       await applyTransfer(tx, { from, to, amount, ledger });
     } catch (err) {
@@ -251,9 +218,8 @@ async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount,
     });
   });
 
-  // Only a character on the receiving end learns anything — a faction silo
-  // has no one person to DM, and loot's "recipient" is the initiator, who
-  // already knows what they just did.
+  // Only a character on the receiving end learns anything — a Silo has no
+  // one to DM, and loot's "recipient" is the initiator, who already knows.
   if (isLoot) {
     if (from.kind === "character") notifyCharacter(from, `You were looted for ${amount} ⬢.`);
   } else if (to.kind === "character") {
@@ -266,19 +232,14 @@ async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount,
 
 // --- Tags -------------------------------------------------------------
 
-// Dead Simple units a character has already filed this turn (web/lib/requests.js
-// DEAD_SIMPLE_PER_TURN). UNDONE excluded: an undone ADD_TAG took its tag back
-// off the sheet (web/lib/requestEffects.js), so it gives the quota back too.
-// EDITED still counts — the item was made, a GM only adjusted it. `db` is
-// prisma or a transaction client.
+// Dead Simple units already filed this turn (DEAD_SIMPLE_PER_TURN).
+// EDITED still counts, UNDONE does not. `db` is prisma or a tx client.
 async function deadSimpleUnitsThisTurn(db, characterId, turnId) {
   const filed = await db.request.findMany({
     where: { characterId, turnId, type: "ADD_TAG", status: { not: "UNDONE" } },
     select: { payload: true },
   });
   const filedTagIds = [...new Set(filed.map((r) => r.payload?.tagId).filter(Boolean))];
-  // One query for the recipes behind the ids already filed — a request's
-  // payload records the tag, not whether it was Dead Simple at the time.
   const filedTags = filedTagIds.length
     ? await db.tag.findMany({
         where: { id: { in: filedTagIds } },
@@ -308,33 +269,19 @@ async function addTagRequestImpl({
     where: { id: tagId },
     include: {
       group: { select: { requiredTagId: true } },
-      // `slug` is how isDeadSimple() recognises the bottom rung of the
-      // smithing ladder for the per-turn cap below. The skills are not a
-      // gate here — Add Tag is honor-system (TAGS.md §3b).
       requirementSkills: { select: { slug: true } },
     },
   });
   if (!tag) throw new UserError("Unknown tag.");
-  // Mirrors addableTags() in web/lib/tagRequests.js — re-checked here because
-  // the client's filtered list is only advisory. Craftable is the whole test:
-  // Add Tag is the crafting door, and anything with a point price goes
-  // through /store instead. See REQUESTS.md §3.
+  // Re-checked here because the client's filtered list is only advisory.
+  // See REQUESTS.md §3.
   if (!tag.craftable) {
     throw new UserError("That tag can't be added this way.");
   }
 
-  // The Add Tag menu's own gate, re-checked here because the client's
-  // filtering is decorative — a hand-posted request would otherwise walk
-  // straight past it. It is the group gate (which hides a whole category —
-  // Demoness, Bacchus) plus craftable; the recipe's skills are advice, not a
-  // gate. See tagRequests.js#addRequirementSatisfied.
-  //
-  // The whole catalog's ids/parents come down (~80 rows) so a chain walk
-  // never dead-ends on an ancestor the character doesn't hold, same reason
-  // createCharacter does it.
-  // `name`, `requiredTagId` and `exclusive` ride along for the exclusivity
-  // check below — exclusiveConflict() reads all three off the held row.
-  // conflictsWith is what conflictingTag() reads for the same check.
+  // The whole catalog comes down so a chain walk never dead-ends on an
+  // ancestor the character doesn't hold. exclusiveConflict()/conflictingTag()
+  // read the extra fields off the held row for the checks below.
   const chainRows = await prisma.tag.findMany({
     select: {
       id: true,
@@ -355,9 +302,6 @@ async function addTagRequestImpl({
     throw new UserError("You're missing a prerequisite for that tag.");
   }
 
-  // One exclusive tag at a time (the Beliefs) — the same rule the point-buy
-  // menu and the store enforce, re-checked here because this menu is the third
-  // door onto the catalog.
   const conflict = exclusiveConflict(tag, heldIds, chainById);
   if (conflict) {
     throw new UserError(
@@ -367,23 +311,16 @@ async function addTagRequestImpl({
     );
   }
 
-  // Named conflict pairs (Tag.conflictsWith — Sober vs. every Addiction).
-  // `tag` didn't select the conflictsWith relation, so this reads the full
-  // catalog row (`chainById`) instead.
   const namedConflict = conflictingTag(chainById.get(tag.id) ?? tag, heldIds, chainById);
   if (namedConflict) {
     throw new UserError(`${tag.name} conflicts with ${namedConflict.name}.`);
   }
 
-  // A chain replaces upward and never re-opens downward — a tier below one
-  // already held is a downgrade, not an addition (same guard as the store).
+  // A chain replaces upward and never re-opens downward.
   if (heldHigherTiers(tag, chainById, heldIds).length > 0) {
     throw new UserError(`You already hold a higher tier of ${tag.name}'s chain.`);
   }
 
-  // A stackable tag adds to what's already there; anything else is still
-  // one-or-nothing. Both checks are server-side because the client's
-  // quantity field is advisory too.
   const quantity = tag.stackable ? parseCount(rawQuantity, { min: 1, max: 99 }) ?? 1 : 1;
   if (!tag.stackable && character.tags.some((ct) => ct.tagId === tag.id)) {
     throw new UserError("You already have that tag.");
@@ -391,22 +328,11 @@ async function addTagRequestImpl({
 
   const openTurn = await getOpenTurn();
 
-  // Dead Simple recipes cost 0 turns, so nothing else rations them — a player
-  // could file requests all turn and end it with twenty work knives. At most
-  // DEAD_SIMPLE_PER_TURN Dead Simple UNITS per character per turn, summed over
-  // every ADD_TAG request already filed this turn plus this one. Units rather
-  // than requests because these tags are stackable and one request can carry
-  // any quantity. See docs/systemdocs/SMITHING.md §2.
-  //
-  // Counted only when THIS tag is Dead Simple: everything else on the ladder
-  // costs turns, which is its own limit. Requests with no open turn (turnId
-  // null) are outside any turn and so outside the cap.
-  // Checked twice: here, outside the transaction, so a plain over-cap request
-  // fails fast with a readable message — and again INSIDE the transaction
-  // below behind a row lock on the character, because two Dead Simple
-  // requests fired in the same instant would otherwise both read the same
-  // count and both pass (they spend no turns, so nothing else serialises
-  // them).
+  // At most DEAD_SIMPLE_PER_TURN Dead Simple UNITS per character per turn,
+  // since these recipes cost no turns and nothing else rations them. See
+  // docs/systemdocs/SMITHING.md §2. Checked twice: here for a fast fail, and
+  // again inside the transaction under a row lock, since two simultaneous
+  // Dead Simple requests would otherwise both read the same count and pass.
   const deadSimple = Boolean(openTurn && isDeadSimple(tag));
   if (deadSimple) {
     const already = await deadSimpleUnitsThisTurn(prisma, character.id, openTurn.id);
@@ -417,9 +343,8 @@ async function addTagRequestImpl({
     }
   }
 
-  // A chain replaces: adding a higher tier takes the held lower tier off the
-  // sheet in the same transaction (TAGS.md §3). Snapshotted onto the effect
-  // so Undo — and the GM's remove-tag edit — restore exactly what came off.
+  // A chain replaces: the held lower tier comes off in the same transaction
+  // (TAGS.md §3), snapshotted so Undo restores exactly what came off.
   const replaced = character.tags
     .filter((ct) => chainSiblingsToRemove(tag, chainById, heldIds).includes(ct.tagId))
     .map((ct) => ({
@@ -432,8 +357,7 @@ async function addTagRequestImpl({
 
   await prisma.$transaction(async (tx) => {
     if (deadSimple) {
-      // Serialise concurrent Dead Simple requests from one character: the
-      // lock holds until commit, so the recount sees the other's row.
+      // Row lock held to commit, so the recount sees any concurrent request.
       await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
       const already = await deadSimpleUnitsThisTurn(tx, character.id, openTurn.id);
       if (already + quantity > DEAD_SIMPLE_PER_TURN) {
@@ -447,9 +371,8 @@ async function addTagRequestImpl({
     }
     await addToStack(tx, character.id, tag.id, quantity, {
       source: "EVENT",
-      // A timed tag has to arrive already stamped or it never expires:
-      // resolveNeeds()'s sweep matches on expiresTurn and nothing backfills
-      // it. Same stamp createCharacter and the Hunger pass apply.
+      // Must arrive already stamped or it never expires — resolveNeeds()'s
+      // sweep matches on expiresTurn and nothing backfills it.
       expiresTurn: await expiryForGrant(tx, tag, openTurn, {
         characterId: character.id,
         where: "addTagRequest",
@@ -465,8 +388,6 @@ async function addTagRequestImpl({
       type: "ADD_TAG",
       reason,
       payload: { tagId: tag.id, quantity, resourcesSpent },
-      // `replaced` only when an upgrade displaced something — older effects
-      // keep their exact shape, and the handlers treat absence as [].
       effect: {
         tagId: tag.id,
         tagName: tag.name,
@@ -483,7 +404,6 @@ async function addTagRequestImpl({
       details: { tagId: tag.id, tagName: tag.name, quantity, resourcesSpent },
     });
   });
-  // Tags gate #watch access, so a grant can change narrowcast visibility.
   await syncCharacterNarrowcastAccess(character.id).catch(() => {});
   revalidateAll();
   return {};
@@ -510,8 +430,6 @@ async function removeTagRequestImpl({
     : held.quantity;
 
   const openTurn = await getOpenTurn();
-  // Snapshot before deleting — Undo restores the original source, expiry and
-  // count, not a fresh grant.
   const restore = {
     tagId: held.tagId,
     source: held.source,
@@ -519,10 +437,8 @@ async function removeTagRequestImpl({
     quantity,
   };
 
-  // The aftermath (Tag.removesInto): shedding an affliction through play
-  // leaves its treated form behind — Broken Bone comes off as Splinted. The
-  // oneOf picks are rolled up front so the transaction commits exactly what
-  // the snapshot records. Fires once per request regardless of quantity.
+  // Aftermath (Tag.removesInto) rolled up front so the transaction commits
+  // exactly what the snapshot records. Fires once regardless of quantity.
   const aftermathSlugs = rollTagChain(held.tag.removesInto);
 
   let granted = [];
@@ -559,31 +475,19 @@ async function removeTagRequestImpl({
   return {};
 }
 
-// Using something up: the tag comes off the sheet and whatever it declares in
-// Tag.consumesInto goes on. Always exactly ONE unit, so a stack of meals feeds
-// the character several times — there is deliberately no quantity field
-// anywhere in this path.
-//
-// No resource cost either: a meal already cost ⬢ to make, so charging again
-// here would be the same meal paid for twice. (The Hunger pass no longer bills
-// upkeep on a turn you ate — see db/lib/hungerPass.js.)
-//
-// A grant may be conditional on what the character already holds — Fine Meal
-// cheers an ordinary person but not a noble — which is why the slug list runs
-// through resolveConsumeGrants rather than going straight to grantTagSlugs.
+// Consuming: the tag comes off and whatever Tag.consumesInto declares goes
+// on. Always exactly ONE unit, so a stack feeds several times. No resource
+// cost — the item already cost ⬢ to make. A grant may be conditional on
+// what's already held, so the slug list runs through resolveConsumeGrants.
 async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
   const held = character.tags.find((ct) => ct.tagId === tagId);
   if (!held) throw new UserError("You don't have that tag.");
-  // Mirrors consumableTags() in web/lib/tagRequests.js — re-checked here
-  // because the client's filtered menu is only advisory.
   if (!held.tag.consumable) throw new UserError("That tag can't be consumed.");
 
   const openTurn = await getOpenTurn();
-  // Snapshot before consuming — Undo restores the original source and expiry,
-  // and exactly the one unit this took, not the whole stack.
   const restore = {
     tagId: held.tagId,
     source: held.source,
@@ -591,21 +495,14 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
     quantity: 1,
   };
 
-  // requireCharacter() already eager-loads tags.tag, so the held slugs cost
-  // no extra query. Undo needs no matching change: it reads the `granted`
-  // (and `resourcesGranted`) snapshot below, never re-deriving from the
-  // catalog.
   const {
     slugs: grantSlugs,
     durations: grantDurations,
     resources: resourcesGranted,
   } = resolveConsumeGrants(held.tag, heldSlugsOf(character.tags));
 
-  // A proper meal lifts a noble's Disappointment on the spot — keyed off the
-  // ate-meal grant rather than the item eaten, so anything that becomes Ate
-  // Meal counts. (The turn pass in db/lib/hungerPass.js is only the backstop
-  // for meals a GM granted directly.) Snapshotted like `restore` so Undo can
-  // put the mope back along with the meal.
+  // A proper meal lifts Disappointment on the spot, keyed off the ate-meal
+  // grant rather than the item eaten. Snapshotted so Undo can restore it.
   const disappointedHeld = grantSlugs.includes(ATE_MEAL_SLUG)
     ? character.tags.find((ct) => ct.tag.slug === DISAPPOINTED_SLUG)
     : null;
@@ -629,8 +526,8 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
       openTurn?.number ?? null,
       grantDurations,
     );
-    // The Resources half — Purse and Supply Kit (see docs/systemdocs/
-    // CAVING.md). Most consumables grant none, so this is a no-op for them.
+    // The Resources half — Purse and Supply Kit (CAVING.md). Most
+    // consumables grant none, so this is usually a no-op.
     if (resourcesGranted) {
       await creditResources(tx, { kind: "character", id: character.id, name: character.name }, resourcesGranted);
     }
@@ -656,18 +553,14 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
       },
     });
   });
-  // Both the tag consumed and anything it became can gate #watch/#intercom.
   await syncCharacterNarrowcastAccess(character.id).catch(() => {});
   revalidateAll();
   return {};
 }
 
-// SEND is the ordinary path — the initiator hands one of their own `tradeable`
-// tags to someone in the same zone. LOOT is its inverse: the counterparty is a
-// corpse lying in that same zone, and the initiator pulls the item off it.
-// There is still no "request a tag from a living someone" — that direction
-// stays send-only, so browsing another live player's inventory is never a
-// menu the game hands you.
+// SEND: hand one of the initiator's tradeable tags to someone in the same
+// zone. LOOT: pull it off a corpse in that zone instead. There is no
+// "request a tag from a living someone" — that direction stays send-only.
 async function transferTagRequestImpl({
   tagId,
   quantity: rawQuantity,
@@ -687,14 +580,10 @@ async function transferTagRequestImpl({
   }
   if (toCharacterId === character.id) throw new UserError("That's you.");
 
-  // In SEND the initiator IS the source; in LOOT the counterparty is. Both
-  // roles need the eager-loaded tag row so we can size the stack, look at
-  // expiry, and read `tradeable` off the catalog side.
   let source;
   if (isLoot) {
-    // A corpse in the same zone. Folded into the WHERE clause, so a corpse
-    // that gets moved (a Revive between page load and submit) fails closed
-    // and nothing is written.
+    // Folded into the WHERE clause, so a corpse moved between page load and
+    // submit fails closed and nothing is written.
     const corpse = await prisma.character.findFirst({
       where: { id: toCharacterId ?? "", status: "DEAD", buriedAt: null, zoneId: character.zoneId },
       select: {
@@ -746,27 +635,18 @@ async function transferTagRequestImpl({
     );
   }
 
-  // Capped at what the source actually holds, so a hand-crafted request can't
-  // mint items out of a stack that isn't there.
   const quantity = source.tag.stackable
     ? parseCount(rawQuantity, { min: 1, max: source.quantity }) ?? 1
     : source.quantity;
 
-  // The RECIPIENT side. For SEND: pick a living character in the same zone.
-  // For LOOT: the initiator receives.
   let recipient;
   if (isLoot) {
     recipient = { id: character.id, name: character.name };
   } else {
-    // Same zone, same as ⬢ — handing someone a sword across the map was the
-    // obvious way around the transfer gate. Folded into the WHERE clause
-    // rather than done as a second read (the idiom heal uses, REQUESTS.md
-    // §5c), so a recipient who walks out between page load and submit fails
-    // closed and nothing is written.
+    // Same zone as ⬢, folded into the WHERE so a recipient who walks off
+    // between page load and submit fails closed rather than being handed
+    // whoever happens to be standing there.
     recipient = await prisma.character.findFirst({
-      // `?? ""` for the same reason as resolveParty above: an omitted id
-      // would otherwise be stripped from the where clause and hand the item
-      // to whoever happened to be standing in the zone.
       where: { id: toCharacterId ?? "", status: "ALIVE", zoneId: character.zoneId },
       select: { id: true, name: true, discordUserId: true },
     });
@@ -789,11 +669,6 @@ async function transferTagRequestImpl({
       type: "TRANSFER_TAG",
       reason,
       payload: { tagId, quantity, toCharacterId, direction },
-      // fromCharacterId / toCharacterId already carry the actual movement,
-      // so the existing Undo (web/lib/requestEffects.js) reverses either
-      // direction without a change. `direction` is snapshotted for the
-      // adjudication panel and so a later report can tell a hand-over from
-      // a lifted-off-a-corpse.
       effect: {
         tagId,
         tagName: source.tag.name,
@@ -809,9 +684,7 @@ async function transferTagRequestImpl({
     await logRequest(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: isLoot ? "request_loot_tag" : "request_transfer_tag",
-      // For loot the "target" of the audit line is the corpse — that's who
-      // the initiator acted ON, not who received the goods. Matches the
-      // convention HEAL_CHARACTER uses (audit points at the patient).
+      // For loot, the audit "target" is the corpse acted ON, not the receiver.
       targetCharacterId: isLoot ? source.id : recipient.id,
       reason,
       details: { tagId, tagName: source.tag.name, quantity, fromName: source.name, toName: recipient.name, direction },
@@ -823,8 +696,6 @@ async function transferTagRequestImpl({
     syncCharacterNarrowcastAccess(recipient.id).catch(() => {}),
   ]);
 
-  // SEND tells the recipient what landed on their sheet; LOOT tells the
-  // corpse's player what was taken off their body — nobody names the actor.
   if (isLoot) {
     notifyCharacter(source, `Something was taken off your body: ${formatStack(source.tag.name, quantity)}.`);
   } else {
@@ -837,16 +708,11 @@ async function transferTagRequestImpl({
 
 // --- Healing ----------------------------------------------------------
 
-// Treating someone else's affliction. The only request whose subject is a
-// different character from the one filing it, so almost every id below is the
-// TARGET's rather than the actor's — see the HEAL_CHARACTER note in
-// web/lib/requestEffects.js.
-//
-// Three gates, all re-checked here because the dialog is advisory: the medic
-// must hold a Medical skill, the patient must be standing in the medic's zone,
-// and the affliction's own requirementSkills must be satisfied. The PAYER is
-// deliberately ungated beyond being present — any player in the same zone or
-// any faction Silo, same bet as TRANSFER_RESOURCES.
+// Treating someone else's affliction — the only request whose subject isn't
+// the filer, so most ids below are the TARGET's. Three gates, all
+// re-checked here: the medic holds a Medical skill, the patient is in the
+// medic's zone, and the affliction's own requirementSkills are satisfied.
+// The PAYER is ungated beyond being present, same bet as TRANSFER_RESOURCES.
 async function healCharacterRequestImpl({
   targetCharacterId,
   tagId,
@@ -860,8 +726,8 @@ async function healCharacterRequestImpl({
     throw new UserError("You aren't anywhere you could treat someone.");
   }
 
-  // The flat catalog, for the tier chain: holding Medical (Expert) has to
-  // satisfy a requirement written against Medical (Basic).
+  // The flat catalog, so holding a higher tier still satisfies a requirement
+  // written against the base skill.
   const catalog = await prisma.tag.findMany({ select: { id: true, slug: true, parentTagId: true } });
   const ancestry = buildSkillAncestry(catalog);
   const satisfied = satisfiedSkillIds(
@@ -890,9 +756,6 @@ async function healCharacterRequestImpl({
 
   const payer = await resolveParty(payerKey);
   if (!payer) throw new UserError("Unknown payer.");
-  // A person has to be in the zone; a Silo has to be in reach — otherwise a
-  // distant Silo could pay for a cure and the ⬢ would move across the map
-  // without anyone carrying it.
   if (payer.kind === "character") {
     const present = await prisma.character.count({
       where: { id: payer.id, status: "ALIVE", zoneId: character.zoneId },
@@ -902,8 +765,7 @@ async function healCharacterRequestImpl({
     throw new UserError(outOfReachMessage(payer, payer.zoneName));
   }
 
-  // Straight off the tag, never off the client — null prices a cure at
-  // nothing, which still records who stood good for it.
+  // Straight off the tag, never off the client.
   const cost = healCost(held.tag);
   if (cost > payer.balance) throw new UserError(`${payer.name} only has ${payer.balance} ⬢.`);
 
@@ -920,24 +782,19 @@ async function healCharacterRequestImpl({
   const effect = {
     targetCharacterId: target.id,
     targetName: target.name,
-    // The panel's render() gets `effect` but not `request`, so "did they
-    // treat themselves?" has to be answered here.
     selfHeal: target.id === character.id,
     tagId: held.tagId,
     tagName: held.tag.name,
-    // What Undo puts back — exactly what was taken, never re-derived.
     restore: {
       tagId: held.tagId,
       source: held.source,
       expiresTurn: held.expiresTurn,
       quantity: held.quantity ?? 1,
     },
-    // Named to match RequestPanel's existing SpendField/edits key, so the
-    // GM panel needs no new state seeded for it.
     resourcesSpent: cost,
     payer: { kind: payer.kind, id: payer.id, name: payer.name },
-    // What the catalog charged at the time, so a GM reviewing later sees the
-    // price the player was actually quoted rather than today's tags.yaml.
+    // What the catalog charged at the time, so a later review sees the
+    // price actually quoted rather than today's tags.yaml.
     requirement: {
       turns: held.tag.requirementTurns,
       resources: held.tag.requirementResources,
@@ -946,17 +803,14 @@ async function healCharacterRequestImpl({
     },
   };
 
-  // The aftermath (Tag.removesInto), rolled up front like REMOVE_TAG's: the
-  // treatment ends the danger, its treated form lingers on the PATIENT.
   const aftermathSlugs = rollTagChain(held.tag.removesInto);
 
   await prisma.$transaction(async (tx) => {
-    // A spend, not a transfer: the cost leaves the payer and goes nowhere.
     await debitResources(tx, payer, cost, ledger);
     await dropCharacterTag(tx, target.id, held.tagId);
     effect.granted = await grantTagSlugs(tx, target.id, aftermathSlugs, openTurn?.number ?? null);
     await createRequest(tx, {
-      characterId: character.id, // the medic
+      characterId: character.id,
       turnId: openTurn?.id ?? null,
       type: "HEAL_CHARACTER",
       reason,
@@ -966,16 +820,13 @@ async function healCharacterRequestImpl({
     await logRequest(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_heal_character",
-      targetCharacterId: target.id, // the patient
+      targetCharacterId: target.id,
       reason,
       details: effect,
     });
   });
 
-  // A tag moved, and #watch/#intercom access is tag-gated.
   await syncCharacterNarrowcastAccess(target.id).catch(() => {});
-  // Not for a self-heal — the medic already knows, they're the one who
-  // clicked Treat.
   if (target.id !== character.id) {
     notifyCharacter(target, `Your ${held.tag.name} was treated.`);
   }
@@ -985,15 +836,10 @@ async function healCharacterRequestImpl({
 
 // --- Looting a living, incapacitated target ----------------------------
 
-// Someone dying/catatonic/paralyzed/bound in the filer's zone is a lootable
-// pile the same way a corpse is, and this handles BOTH — one request takes a
-// mix of tags AND ⬢ at once rather than needing a TRANSFER_TAG +
-// TRANSFER_RESOURCES pair, since both come off the same helpless body in the
-// same act.
-//
-// The older `TRANSFER_TAG`/`TRANSFER_RESOURCES` LOOT direction still exists
-// so Request rows filed under it keep undoing correctly, but nothing files
-// one any more.
+// A helpless target (dying/catatonic/paralyzed/bound) is lootable the same
+// way a corpse is; this handles both in one request, tags AND ⬢ together.
+// The older TRANSFER_TAG/TRANSFER_RESOURCES LOOT direction still exists so
+// old Request rows undo correctly, but nothing files one any more.
 async function lootCharacterRequestImpl({
   targetCharacterId,
   tagPicks: rawTagPicks,
@@ -1014,12 +860,10 @@ async function lootCharacterRequestImpl({
     },
   });
   if (!target) throw new UserError("They aren't here.");
-  // A buried body is out of the world — see BURY_CHARACTER.
   if (target.buriedAt) throw new UserError("They're already in the ground.");
 
-  // A corpse needs no further excuse. A living target has to be helpless —
-  // going through the pockets of someone who could stop you is a Gambit, and
-  // a GM adjudicates that.
+  // A corpse needs no further excuse; a living target has to be helpless —
+  // otherwise it's a Gambit for a GM to adjudicate.
   const incapacitated =
     target.status === "DEAD" || target.tags.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug));
   if (!incapacitated) throw new UserError("They aren't in any state to be looted.");
@@ -1028,9 +872,6 @@ async function lootCharacterRequestImpl({
   const amount = parseCount(rawAmount, { min: 0 }) ?? 0;
   if (!picks.length && amount <= 0) throw new UserError("Pick something to take.");
 
-  // Capped at what the target actually holds, same discipline as TRANSFER_TAG
-  // — a hand-crafted request can't mint items out of a stack that isn't
-  // there.
   const takenTags = [];
   for (const pick of picks) {
     const held = target.tags.find((ct) => ct.tagId === pick.tagId);
@@ -1069,9 +910,6 @@ async function lootCharacterRequestImpl({
       await moveResources(tx, { kind: "character", id: character.id }, amount);
     }
 
-    // The snapshot Undo reads: enough per tag to restore it to the target
-    // with its original source/expiry (REMOVE_TAG's restore idiom), plus the
-    // ⬢ delta. Never re-derived from live state.
     const effect = {
       targetCharacterId: target.id,
       targetName: target.name,
@@ -1102,8 +940,6 @@ async function lootCharacterRequestImpl({
     });
   });
 
-  // A corpse holds no channel access to reconcile, so only the living end of
-  // a body-search is worth the REST call.
   await Promise.all([
     target.status === "ALIVE"
       ? syncCharacterNarrowcastAccess(target.id).catch(() => {})
@@ -1123,16 +959,12 @@ async function lootCharacterRequestImpl({
 
 // --- Moving another character -------------------------------------------
 
-// A character who follows the filer: either a faction member the filer
-// leads, or anyone helpless enough not to argue — bound, dying, paralyzed,
-// catatonic, or dead. Destination is validated the same
-// way an ordinary /move hop is (db/lib/travel.js#performTravel) — direct
-// Zone.connectsTo neighbour of the target's current zone, never the Caves
-// group row — but this does NOT spend a Move or file an Action, since it
-// isn't the target's own turn-cost act. The DB write happens inside the
-// transaction; the Discord zone-role swap runs after commit, same as
-// changeNameRequestImpl — no network call may run inside a $transaction
-// (ARCHITECTURE.md §5).
+// A character who follows the filer: a faction member the filer leads, or
+// anyone helpless (bound, dying, paralyzed, catatonic, or dead). Destination
+// is validated the same way as an ordinary /move hop, but this does NOT
+// spend a Move or file an Action — no network call may run inside a
+// $transaction (ARCHITECTURE.md §5), so the Discord zone-role swap runs
+// after commit.
 async function moveCharacterRequestImpl({ targetCharacterId, targetZoneId, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
@@ -1144,18 +976,11 @@ async function moveCharacterRequestImpl({ targetCharacterId, targetZoneId, reaso
     include: { tags: { select: { tag: { select: { slug: true } } } } },
   });
   if (!target) throw new UserError("They aren't here.");
-  // A buried body is out of the world — see BURY_CHARACTER. Nobody drags a
-  // grave to the next zone.
   if (target.buriedAt) throw new UserError("They're already in the ground.");
 
-  // Dragging a body needs no authority over it — a corpse doesn't get a say.
-  // This is the "drag a corpse" case, folded in here rather than given its own
-  // request type: it is the same act with the same validation and the same
-  // Undo, minus the Discord swap a dead character has no roles for.
-  //
-  // Neither does anyone helpless. Uses the same INCAPACITATING_SLUGS set as
-  // LOOT_CHARACTER and HARM_CHARACTER, so "can't stop you" means one thing
-  // across all three.
+  // Dragging a corpse needs no authority over it. Same for anyone helpless,
+  // using the same INCAPACITATING_SLUGS set LOOT_CHARACTER and
+  // HARM_CHARACTER use.
   const isCorpse = target.status === "DEAD";
   const isHelpless = target.tags.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug));
   const commandsThem =
@@ -1188,9 +1013,8 @@ async function moveCharacterRequestImpl({ targetCharacterId, targetZoneId, reaso
       type: "MOVE_CHARACTER",
       reason,
       payload: { targetCharacterId: target.id, targetZoneId: targetZone.id },
-      // Undo restores fromZoneId in the DB only — it does NOT re-run the
-      // Discord role swap (same posture CHANGE_NAME documents), so the
-      // player's #zone channels catch up the next time they Move themselves.
+      // Undo restores fromZoneId in the DB only — the Discord role swap
+      // catches up next time the player Moves themselves.
       effect: {
         targetCharacterId: target.id,
         targetName: target.name,
@@ -1220,15 +1044,9 @@ async function moveCharacterRequestImpl({ targetCharacterId, targetZoneId, reaso
 
 // --- Binding and freeing -------------------------------------------------
 
-// Nothing else in the game grants `bound`, and it is the one incapacitating
-// state a player can put someone into on purpose — LOOT_CHARACTER,
-// MOVE_CHARACTER and HARM_CHARACTER all accept it — so without these two the
-// whole coercion loop needs a GM to start it, which is exactly the day of
-// real time the Requests system exists to save (REQUESTS.md §1).
-//
-// There is deliberately no gate beyond co-presence. Tying someone up is an
-// act with consequences, not a permission: the reason field and the GM's
-// review are the anti-abuse mechanism here, same as everywhere else.
+// Nothing else grants `bound`, and it's the one incapacitating state a
+// player can inflict on purpose. No gate beyond co-presence — the reason
+// field and GM review are the anti-abuse mechanism, same as elsewhere.
 async function requireBoundTag() {
   const bound = await prisma.tag.findUnique({
     where: { slug: "bound" },
@@ -1295,9 +1113,7 @@ async function bindCharacterRequestImpl({ targetCharacterId, reason: rawReason }
   return {};
 }
 
-// The rescue half. Anyone standing there may cut someone loose — a captor who
-// wants their prisoner to stay tied has to keep other people out of the room,
-// which is a fiction problem rather than a permissions one.
+// The rescue half — anyone standing there may cut someone loose.
 async function freeCharacterRequestImpl({ targetCharacterId, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
@@ -1318,9 +1134,6 @@ async function freeCharacterRequestImpl({ targetCharacterId, reason: rawReason }
 
   await prisma.$transaction(async (tx) => {
     await dropCharacterTag(tx, target.id, bound.id);
-    // The restore snapshot, per REQUESTS.md §2 — Undo puts back the tag that
-    // was there, with its original source and expiry, not a fresh grant with
-    // a full duration.
     const effect = {
       targetCharacterId: target.id,
       targetName: target.name,
@@ -1355,25 +1168,12 @@ async function freeCharacterRequestImpl({ targetCharacterId, reason: rawReason }
 
 // --- Harming someone already helpless -------------------------------------
 
-// Wounding and finishing off, in one request rather than two, because they
-// are one act: you stand over someone who can't stop you and decide how far
-// to take it. Either half alone is valid — a beating that leaves them alive,
-// or a clean kill with no new injury — but not neither.
-//
-// The target must ALREADY be helpless. Knifing someone who could fight back
-// is a Gambit and a GM adjudicates it; this is the aftermath, not the fight.
-//
-// **It kills.** Ticking "Finish them" ends the target's game on submit, the
-// same posture FEED_PERSON now takes (REQUESTS.md §5a).
-//
-// What makes that safe is the gate above, not the delay: the target has to be
-// helpless ALREADY (INCAPACITATING_SLUGS) and Dying or Bound specifically
-// (FINISHABLE_SLUGS, which deliberately excludes Catatonic — that is an absent
-// player, not a helpless one)
-// before `lethal` is even accepted, the killer has to be standing in their
-// zone, and a reason is required and logged. Someone who can fight back is
-// still a Gambit and still a GM's call. A GM reads the request afterwards.
-
+// Wounding and finishing off in one request, since they're one act. Either
+// half alone is valid, but not neither. The target must ALREADY be helpless
+// — fighting back is a Gambit for a GM. Finishing them ends their game on
+// submit (REQUESTS.md §5a); the gate that makes that safe is
+// FINISHABLE_SLUGS (Dying or Bound — deliberately not Catatonic, an absent
+// player rather than a helpless one).
 async function harmCharacterRequestImpl({
   targetCharacterId,
   tagId,
@@ -1410,8 +1210,6 @@ async function harmCharacterRequestImpl({
       where: { id: tagId },
       select: {
         id: true,
-        // slug, custom and group.slug are isInflictable's inputs — the same
-        // predicate the picker filtered on (character/page.js).
         slug: true,
         name: true,
         category: true,
@@ -1442,10 +1240,8 @@ async function harmCharacterRequestImpl({
         stackable: tag.stackable,
       });
     }
-    // The claim, with the same conditional `status: ALIVE` where-clause every
-    // other death path uses (db/lib/characterDeath.js) — so two people
-    // finishing off the same helpless target in the same second can't both
-    // claim it, and the injury half still lands either way.
+    // Conditional `status: ALIVE` where-clause, same as every other death
+    // path (db/lib/characterDeath.js), so two finishers can't both claim it.
     if (lethal) {
       const claim = await tx.character.updateMany({
         where: { id: target.id, status: "ALIVE" },
@@ -1480,18 +1276,12 @@ async function harmCharacterRequestImpl({
     });
   });
 
-  // The rest of death — access revoke, role delete, nickname clear, the Cursed
-  // grant, the death DM — after the commit, with the row's status already
-  // written; killCharacter's own applyDeathToRow runs with expectStatus DEAD,
-  // which is the shape of the claim above. It revokes channel access itself,
-  // so the narrowcast resync below is only for a target who survived, and the
-  // "someone hurt you" DM would be a strange thing to send a corpse.
+  // killCharacter's applyDeathToRow runs with expectStatus DEAD (the shape
+  // of the claim above) and revokes access itself.
   if (killed) {
     await killCharacter(target, "Someone finished you off.").catch((err) =>
       console.error(`killCharacter failed after finishing ${target.id}:`, err),
     );
-    // Not in revalidateAll(), which is shared by every request on this sheet
-    // and none of the others change a roster row.
     revalidatePath("/gm/players", "layout");
   } else {
     if (tag) await syncCharacterNarrowcastAccess(target.id).catch(() => {});
@@ -1503,21 +1293,10 @@ async function harmCharacterRequestImpl({
 
 // --- Desires ----------------------------------------------------------
 
-// ONE action, because there is only one thing a player does to a Desire:
-// claim it — a retroactive claim on something your character already did,
-// not a contract signed in advance. Pick a Desire, say how you did it, get
-// the points, and a GM reviews it afterwards like every other request.
-//
-// The anti-loop rule (DESIRES.md §8) does more work than it used to as a
-// result, and it is GM-adjudicated from the reason field — there is no gate
-// here that can tell a real evening from a manufactured one.
-
-// Tag ids referenced by any TagGroup.requiredTagId that the character does
-// NOT hold — i.e. the tags whose category is a hidden category for this
-// character. Shared with web/app/(app)/character/page.js via
-// web/lib/desireProjection.js#computeHiddenDesireTagIds — see that module
-// for the rule.
-
+// ONE action: claim a Desire — a retroactive claim on something the
+// character already did. A GM reviews it afterwards like every other
+// request; the anti-loop rule (DESIRES.md §8) is GM-adjudicated from the
+// reason field, since no gate here can tell a real evening from a made-up one.
 async function claimDesireImpl({ slotIndex: rawSlotIndex, slug: rawSlug, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
@@ -1525,8 +1304,6 @@ async function claimDesireImpl({ slotIndex: rawSlotIndex, slug: rawSlug, reason:
   const slug = rawSlug?.toString().trim();
   if (!slug) throw new UserError(DESIRE_NOT_AVAILABLE);
 
-  // Missing config row means the defaults apply — same "=== false" idiom as
-  // leaderWhitelistEnabled (character/page.js).
   const config = await prisma.gameConfig.findUnique({
     where: { id: 1 },
     select: { desiresEnabled: true, desireSlots: true, desireSlotLockTurns: true },
@@ -1560,14 +1337,9 @@ async function claimDesireImpl({ slotIndex: rawSlotIndex, slug: rawSlug, reason:
   const openTurn = await getOpenTurn();
   const openTurnNumber = openTurn?.number ?? 0;
 
-  // Runs the exact same pure checks the picker ran (evaluateDesireCatalog
-  // availability incl. onceEver/per-desire cooldown, the slot-scoped Addiction
-  // lock, and the per-slot cooldown) against whatever `history` is passed.
-  // Called once outside the transaction as a cheap pre-check (so a plainly
-  // unavailable claim fails fast without ever taking the row lock), then again
-  // INSIDE the transaction on a fresh read after the FOR UPDATE lock — closing
-  // the TOCTOU window between the pre-check and the row lock (a second claim
-  // racing this one could move `history` in between).
+  // The same pure checks the picker ran. Called once outside the transaction
+  // as a cheap pre-check, then again inside it on a fresh read taken after
+  // the row lock, to close the TOCTOU window between the two.
   function assertAvailable(history) {
     const { visible, hidden } = evaluateDesireCatalog({
       templates: [projectedTemplate],
@@ -1582,13 +1354,9 @@ async function claimDesireImpl({ slotIndex: rawSlotIndex, slug: rawSlug, reason:
     const evaluated = visible[0];
     if (!evaluated || evaluated.state !== "available") throw new UserError(DESIRE_NOT_AVAILABLE);
 
-    // An Addiction shuts the bottom slot to everything outside its own family,
-    // and leaves every other slot alone — so this is per-slot, not part of
-    // `state` above.
     const slotLock = evaluated.slotLocks?.[slotIndex];
     if (slotLock) throw new UserError(`${slotLock} in that slot.`);
 
-    // Slot cooldown: a claim shuts its slot for desireSlotLockTurns turns.
     const slots = slotStates({ history, openTurnNumber, desireSlots, lockTurns });
     const slot = slots[slotIndex];
     if (slot?.lockedUntilTurn != null) {
@@ -1611,10 +1379,7 @@ async function claimDesireImpl({ slotIndex: rawSlotIndex, slug: rawSlug, reason:
   });
   assertAvailable(historyPreCheck);
 
-  // Check-then-create under a row lock on the character: two posts fired
-  // together would otherwise both see "available"/"slot open" and both land,
-  // paying twice, so the pure checks above are re-run on a fresh read taken
-  // AFTER the lock rather than trusted from the pre-check.
+  // Row lock so two simultaneous claims can't both see "available" and land.
   const desire = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
     const historyInTx = await tx.desire.findMany({
@@ -1623,9 +1388,7 @@ async function claimDesireImpl({ slotIndex: rawSlotIndex, slug: rawSlug, reason:
     });
     assertAvailable(historyInTx);
 
-    // Born ended: setTurnNumber and endedTurnNumber are the same turn, because
-    // the claim IS the fulfilment. Both columns stay because pre-rework rows
-    // carry a real gap between them.
+    // Born ended: the claim IS the fulfilment.
     const row = await tx.desire.create({
       data: {
         characterId: character.id,
@@ -1667,8 +1430,6 @@ async function claimDesireImpl({ slotIndex: rawSlotIndex, slug: rawSlug, reason:
     return row;
   });
 
-  // Outside the transaction: the transcript row isn't part of the effect being
-  // applied, and db/lib/archive.js swallows its own failures.
   await recordArchiveEvent({
     kind: "DESIRE_FULFILLED",
     character,
@@ -1683,35 +1444,25 @@ async function claimDesireImpl({ slotIndex: rawSlotIndex, slug: rawSlug, reason:
 
 // --- Name ---------------------------------------------------------------
 
-// The one player-facing rename: an ordinary reason-gated request. Applies
-// the same allowlist/cap/dynasty-lock rules every other writer of
-// Character.name uses, then rewrites the name in one transaction. See
-// docs/systemdocs/CHARACTERS.md §1b.
+// The one player-facing rename: an ordinary reason-gated request applying
+// the same allowlist/cap/dynasty-lock rules every writer of Character.name
+// uses. See docs/systemdocs/CHARACTERS.md §1b.
 async function changeNameRequestImpl({ honorific: rawHonorific, firstName: rawFirstName, lastName: rawLastName, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
-  // Gated by what this character has actually earned, from their own tags and
-  // role — the dialog's dropdown is only advisory. An unearned word lands as
-  // null rather than throwing, so a stale tab posting an old title renames
-  // them untitled instead of failing the request.
-  //
-  // Note this is the player CHOOSING a title, which is the only time it is
-  // re-checked. A character keeps a title after losing the tag that granted
-  // it; nothing else in the app revalidates.
+  // Gated by what this character has earned — an unearned word lands as
+  // null rather than throwing, so a stale tab renames them untitled instead
+  // of failing outright.
   const honorific = normalizeEarnedHonorific(rawHonorific, {
     tagSlugs: character.tags.map((ct) => ct.tag.slug),
     roleSlug: character.role?.slug ?? null,
-    // Their own, fixed at creation. A name change buys a new name, never a
-    // new gender, so this is read and never written on this path.
     gender: character.gender,
   });
   const firstName = rawFirstName?.toString().trim().slice(0, NAME_LIMITS.firstName) || null;
   if (!firstName) throw new UserError("A character needs a first name.");
 
-  // A Baroness/Heir/Successor wears the Baron's last name, so their own
-  // posted value is never read for it — same lock characterWrite.js and the
-  // old creation-time writer use.
+  // A dynasty member wears the head's last name — never read from the post.
   const dynastyMember = isDynastyMember(character.role?.slug);
   const lastName = dynastyMember
     ? character.lastName
@@ -1757,15 +1508,11 @@ async function changeNameRequestImpl({ honorific: rawHonorific, firstName: rawFi
     });
   });
 
-  // Discord fan-out, best-effort and outside the transaction — same posture
-  // as updateCharacterProfile and every other tag-consuming request here.
-  // Undo (web/lib/requestEffects.js) does NOT re-run this: it can only touch
-  // Postgres inside resolveRequest's transaction, so a reverted name catches
-  // up with Discord the next time the player saves their Bio form.
+  // Best-effort Discord fan-out, outside the transaction; Undo does not
+  // re-run it, so a reverted name catches up next time the player saves.
   await ensureCharacterRole(updated).catch(() => {});
   await syncCharacterNickname(session.discordUserId, formatBareName(updated)).catch(() => {});
   await syncCharacterNarrowcastAccess(character.id).catch(() => {});
-  // The Baron renaming himself renames his whole house.
   if (isDynastyHead(character.role?.slug) && next.lastName !== previous.lastName) {
     await propagateDynastyLastName(next.lastName).catch((err) =>
       console.error("propagateDynastyLastName failed:", err),
@@ -1778,23 +1525,11 @@ async function changeNameRequestImpl({ honorific: rawHonorific, firstName: rawFi
 
 // --- Burying a body -------------------------------------------------------
 
-// The one request whose real effect lands on Discord rather than on a sheet.
-// A dead player carries the Cursed role (web/lib/discordGuild.js#killCharacter),
-// which caps their next character at Migrant or Bum and docks them 3 points —
-// and the fiction has always said the curse lifts once the body is in the
-// ground (docs/documents.yaml, the Respawning entry; the Mortus role exists to
-// do it). Until now that cost a GM a manual role edit in Discord, which is the
-// day of real time the Requests system exists to save.
-//
-// The target is TYPED, not picked, and typed as a FIRST NAME. Every other
-// target menu in the app is a dropdown built from the zone roster; a dropdown
-// here would be a list of the dead, readable by anyone who opened the dialog.
-// First name only because an honorific or a granted title is exactly what a
-// player standing over a body would not know.
-//
-// No gate beyond co-presence — same posture as Bind and Free. Burying someone
-// is an act with consequences, not a permission, and the reason field plus the
-// GM's review are the anti-abuse mechanism as everywhere else.
+// A dead player carries the Cursed role until burial (web/lib/discordGuild.js
+// #killCharacter); this lifts it without a GM manually editing Discord.
+// Target is TYPED as a first name, not picked from a dropdown, since a
+// dropdown here would list the dead for anyone who opened the dialog. No
+// gate beyond co-presence, same posture as Bind and Free.
 async function buryCharacterRequestImpl({ firstName: rawFirstName, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
@@ -1804,9 +1539,6 @@ async function buryCharacterRequestImpl({ firstName: rawFirstName, reason: rawRe
   const typed = rawFirstName?.toString().trim().slice(0, NAME_LIMITS.firstName) ?? "";
   if (!typed) throw new UserError("Whose name?");
 
-  // Scoped to the filer's zone and to the unburied dead, in the WHERE rather
-  // than by a second read — a body carried off between page load and submit
-  // fails closed with the same wording a wrong guess gets.
   const matches = await prisma.character.findMany({
     where: {
       zoneId: character.zoneId,
@@ -1832,10 +1564,8 @@ async function buryCharacterRequestImpl({ firstName: rawFirstName, reason: rawRe
       type: "BURY_CHARACTER",
       reason,
       payload: { firstName: typed },
-      // Undo reads only this. targetDiscordUserId is deliberately absent: the
-      // curse is not re-granted on Undo (no network call may run inside a
-      // $transaction, ARCHITECTURE.md §5), so recording the id would suggest a
-      // reversal that never happens. The note tells the GM instead.
+      // targetDiscordUserId deliberately absent: the curse is not re-granted
+      // on Undo, since no network call may run inside a $transaction.
       effect: {
         targetCharacterId: target.id,
         targetName: target.name,
@@ -1852,9 +1582,6 @@ async function buryCharacterRequestImpl({ firstName: rawFirstName, reason: rawRe
     });
   });
 
-  // After the commit, never inside it. allow404 on the underlying call makes
-  // this a no-op for a player who already re-rolled (createCharacter clears
-  // the curse itself) or who has left the guild.
   await removeCursedRole(target.discordUserId).catch((err) =>
     console.error(`Bury: failed to lift the curse from ${target.discordUserId}:`, err),
   );
@@ -1867,28 +1594,19 @@ async function buryCharacterRequestImpl({ firstName: rawFirstName, reason: rawRe
 
 // --- Fast travel ----------------------------------------------------------
 
-// The only request that changes a zone and files no Action. That is the whole
-// tag: an ordinary hop spends the Move (db/lib/travel.js#performTravel writes
-// the Action BEFORE it moves anyone), and riding does not — which also means
-// the already-acted check is deliberately skipped, since riding is not acting.
-//
-// It re-derives performTravel's adjacency rules rather than calling it, the
-// same way moveCharacterRequestImpl above does, because performTravel runs its
-// own transaction and always files the Move, and createRequest has to sit
-// inside the same transaction as its effect (REQUESTS.md §2).
+// The only request that changes a zone and files no Action — riding does
+// not spend a Move. It re-derives performTravel's adjacency rules rather
+// than calling it, since performTravel runs its own transaction and always
+// files a Move (REQUESTS.md §2).
 async function fastTravelRequestImpl({ targetZoneId, passengerIds: rawPassengerIds, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
   if (!character.zoneId) throw new UserError("You aren't anywhere you could ride from.");
-  // Re-derived from the database. The greyed-out button is a hint, not a lock.
   const heldSlugs = heldSlugsOf(character.tags);
   const seats = fastTravelCapacity(heldSlugs);
   if (seats === 0) throw new UserError("You have no horse.");
 
-  // Deduped, self excluded (bringing "yourself" as a passenger is just
-  // riding), and capped against what the vehicle actually seats — the
-  // dialog caps the same way client-side, this is the real enforcement.
   const passengerIds = [...new Set((rawPassengerIds ?? []).filter((id) => id && id !== character.id))];
   if (1 + passengerIds.length > seats) {
     throw new UserError(
@@ -1909,11 +1627,7 @@ async function fastTravelRequestImpl({ targetZoneId, passengerIds: rawPassengerI
     where: { id: fromZoneId },
     include: { connectsTo: { where: { id: targetZone.id } } },
   });
-  // The caves are one-way for a horse, with one mouth. Riding INTO a cave
-  // level is fine, and riding OUT of the Caverns is too — they open right onto
-  // the road. Nothing deeper: no horse fits the tunnels between levels. Origin
-  // and destination both decide, and this sits before the adjacency check so
-  // the refusal is the specific one rather than the generic one.
+  // The caves are one-way for a horse, with one mouth (the Caverns).
   if (currentZone?.kind === "CAVE_LEVEL") {
     const ridingOut = currentZone.slug === "caverns" && targetZone.kind === "SURFACE";
     if (!ridingOut) {
@@ -1928,12 +1642,8 @@ async function fastTravelRequestImpl({ targetZoneId, passengerIds: rawPassengerI
     throw new UserError("You can't get there directly from here.");
   }
 
-  // Passengers ride along by nobody's leave but their own presence — see the
-  // dialog's own note. The only real requirement is that they're actually
-  // still standing where the rider is: someone who wandered off between
-  // opening the dialog and submitting fails the WHOLE request rather than
-  // quietly being dropped, so the rider re-picks instead of being surprised
-  // later that a friend didn't come along.
+  // A passenger who wandered off between opening the dialog and submitting
+  // fails the whole request rather than being quietly dropped.
   const passengers = passengerIds.length
     ? await prisma.character.findMany({
         where: { id: { in: passengerIds }, status: "ALIVE", zoneId: fromZoneId },
@@ -1944,20 +1654,14 @@ async function fastTravelRequestImpl({ targetZoneId, passengerIds: rawPassengerI
     throw new UserError("They're not here anymore.");
   }
 
-  // fastTravelTurnId holds the in-game DAY number, not a turn id — despite
-  // its name. Bascinet runs two turns per day (Dawn/Dusk, describeTurn's own
-  // day = Math.ceil(turn.number / 2)), so comparing against openTurn.id let a
-  // rider claim a free hop in Dawn AND another in Dusk of the same day, twice
-  // what the tag promises ("once per day") and what this action's own error
-  // message below says. describeTurn() is the one place that formula lives.
+  // fastTravelTurnId holds the in-game DAY, not a turn id — two turns run
+  // per day, so comparing against openTurn.id would let a rider claim a free
+  // hop twice a day. describeTurn() is the one place that formula lives.
   const dayKey = String(describeTurn(openTurn).day);
 
   await prisma.$transaction(async (tx) => {
-    // The claim comes FIRST, and its WHERE is the check. Read the column in
-    // one statement and write it in another and two tabs both pass, which is
-    // precisely how travel.js's "two hops on one Move" bug worked before the
-    // Action was filed ahead of the move. A loser aborts here, before anyone
-    // has been moved anywhere.
+    // The claim comes first and its WHERE is the check — reading the column
+    // in one statement and writing in another let two tabs both pass.
     const claimed = await tx.character.updateMany({
       where: {
         id: character.id,
@@ -1968,12 +1672,8 @@ async function fastTravelRequestImpl({ targetZoneId, passengerIds: rawPassengerI
     if (claimed.count === 0) throw new UserError("Your horse has already carried you today.");
 
     await tx.character.update({ where: { id: character.id }, data: { zoneId: targetZone.id } });
-    // One batch update for every passenger: they all share the same
-    // fromZoneId/toZoneId as the rider, so there's nothing per-passenger to
-    // branch on here. Unlike the rider, a passenger does NOT claim their own
-    // fastTravelTurnId — they're being carried, not riding their own horse,
-    // so this doesn't stop them from fast-traveling under their own power
-    // again later the same day.
+    // A passenger does NOT claim their own fastTravelTurnId — they're being
+    // carried, so they can still fast-travel under their own power later.
     if (passengers.length) {
       await tx.character.updateMany({
         where: { id: { in: passengers.map((p) => p.id) } },
@@ -1991,12 +1691,7 @@ async function fastTravelRequestImpl({ targetZoneId, passengerIds: rawPassengerI
         fromZoneName: currentZone.name,
         toZoneId: targetZone.id,
         toZoneName: targetZone.name,
-        // So Undo can hand the ride back rather than leaving the day burnt on
-        // a hop that no longer happened.
         previousFastTravelTurnId: character.fastTravelTurnId ?? null,
-        // Snapshotted names, not just ids — Undo's confirmation and the GM
-        // desk's display both read this rather than re-deriving from live
-        // state, the same Request.effect rule everywhere else follows.
         passengers: passengers.map((p) => ({ id: p.id, name: p.name })),
       },
     });
@@ -2009,18 +1704,9 @@ async function fastTravelRequestImpl({ targetZoneId, passengerIds: rawPassengerI
     });
   });
 
-  // Built once, shared by the public departure line and the archive entry
-  // below so the two can't drift apart on who was aboard.
   const passengerClause = passengers.length
     ? `, carrying ${passengers.map((p) => p.name).join(" and ")}`
     : "";
-  // "You'll be easily visible" is the price the tag charges for the free hop —
-  // this is the half the room actually sees (the archive entry below is the
-  // other half). Which vehicle is named follows what the rider holds: a horse
-  // (either kind) reads as horseback, a horse plus a Cart names the cart —
-  // otherwise a six-seat ride reads as five people stacked on one horse — and
-  // only the Steam Automobile's horseless ride falls through to its own
-  // wording.
   const hasHorse = heldSlugs.has("horse") || heldSlugs.has("horse-windlander");
   const rideClause = !hasHorse
     ? "in a steam automobile"
@@ -2028,23 +1714,15 @@ async function fastTravelRequestImpl({ targetZoneId, passengerIds: rawPassengerI
       ? "on a horse-drawn cart"
       : "on horseback";
 
-  // Deferred, not awaited in the request — the same handful of sequential
-  // Discord calls web/app/(app)/map/travelActions.js#travelTo defers, for the
-  // same reason: a pending server action blocks App Router navigation, and the
-  // database write has already committed.
+  // Deferred, not awaited, same as travelActions.js#travelTo: a pending
+  // server action blocks navigation, and the write has already committed.
   after(async () => {
-    // The departure zone's room sees the ride leave. Posted as the bot into
-    // the zone's #summary; a cave level has no summary channel of its own, so
-    // a ride out of the depths simply has nowhere to announce itself.
     if (currentZone.discordSummaryChannelId) {
       await postMessage(
         currentZone.discordSummaryChannelId,
         `*${character.name} is seen leaving the area ${rideClause}${passengerClause}.*`,
       ).catch((err) => console.error("Fast travel: departure post failed:", err));
     }
-    // The rider's own fan-out, then each passenger's — sequential, same
-    // shape moveCharacterRequestImpl already uses for its one target, just
-    // run once per rider-or-passenger here since there can be up to six.
     const riders = [character, ...passengers];
     for (const rider of riders) {
       await syncCharacterZoneRole(rider.discordUserId, fromZoneId, targetZone.id).catch((err) =>
@@ -2053,16 +1731,11 @@ async function fastTravelRequestImpl({ targetZoneId, passengerIds: rawPassengerI
       await syncCharacterNarrowcastAccess(rider.id).catch((err) =>
         console.error(`Fast travel: narrowcast access sync failed for ${rider.id}:`, err),
       );
-      // The second half of the /add contract: standing invites for private
-      // threads in this zone land the moment their guest arrives.
       await applyPendingInvites(prisma, { ...rider, zoneId: targetZone.id }).catch((err) =>
         console.error(`Fast travel: pending thread invites failed for ${rider.id}:`, err),
       );
-      // The Caving Die's "on arrival" trigger, exactly as an ordinary hop
-      // fires it (db/lib/travel.js, CAVING.md) — a bonus roll on top of
-      // whatever the turn-start pass already gave this rider this turn.
-      // @@unique([characterId, turnId, trigger]) on CavingRoll makes a SECOND
-      // ARRIVAL roll this turn a no-op rather than an error.
+      // @@unique([characterId, turnId, trigger]) on CavingRoll makes a second
+      // ARRIVAL roll this turn a no-op.
       if (targetZone.kind === "CAVE_LEVEL") {
         const { dm } = await rollCaving(prisma, rider, openTurn, targetZone, "ARRIVAL").catch((err) => {
           console.error(`Fast travel: caving arrival roll failed for ${rider.id}:`, err);
@@ -2075,8 +1748,6 @@ async function fastTravelRequestImpl({ targetZoneId, passengerIds: rawPassengerI
         }
       }
     }
-    // A passenger didn't ask for this ride — they should hear about it, the
-    // same way Move Player notifies its target.
     for (const passenger of passengers) {
       notifyCharacter(
         passenger,
@@ -2085,10 +1756,6 @@ async function fastTravelRequestImpl({ targetZoneId, passengerIds: rawPassengerI
     }
   });
 
-  // Riding is loud. The ordinary TRAVEL archive entry is off by default
-  // (GameConfig.archiveTravelEvents) because it is two rows per character per
-  // turn; this one is unconditional — the transcript half of the same
-  // visibility the departure post above collects live.
   await recordArchiveEvent({
     kind: "TRAVEL",
     character,
@@ -2105,8 +1772,7 @@ async function fastTravelRequestImpl({ targetZoneId, passengerIds: rawPassengerI
 // --- public surface ---------------------------------------------------
 
 // Each action is wrapped so validation comes back as { ok: false, error }
-// instead of being thrown — see web/lib/actionResult.js for why throwing is
-// invisible to the player in a production build.
+// instead of being thrown — see web/lib/actionResult.js.
 
 export async function transferResourcesRequest(input) {
   return guarded(() => transferResourcesRequestImpl(input));
@@ -2167,18 +1833,14 @@ export async function buryCharacterRequest(input) {
 //
 // One letter a day, to a named person in a GUESSED zone. See BIRD.md.
 //
-// The shape worth understanding before changing anything here: the letter
-// resolves INSTANTLY on a hit and SILENTLY on a miss. A wrong guess, or a dead
-// recipient, looks exactly like a successful send from this side; the sender is
-// not told until db/lib/birdPass.js reports it at the next turn close. That
-// delay is the entire anti-scouting measure. Answering "not delivered" here and
-// now would hand every Bird-holder a free once-a-day probe for whether a named
-// person is alive and standing in a named zone, which is worth vastly more than
-// the letter.
+// The letter resolves INSTANTLY on a hit and SILENTLY on a miss — a wrong
+// guess looks exactly like a successful send here; the sender isn't told
+// until db/lib/birdPass.js reports it at turn close. That delay is the
+// entire anti-scouting measure: answering "not delivered" now would hand
+// every Bird-holder a free probe for whether someone is alive in a zone.
 async function birdMessageRequestImpl({ recipientId, guessedZoneId, body: rawBody }) {
   const { session, character } = await requireCharacter();
 
-  // Re-derived from the database. The hidden button is a hint, not a lock.
   if (!holdsBirdAndLetters(character.tags)) {
     throw new UserError("You need a bird, and you need to be able to write.");
   }
@@ -2189,18 +1851,14 @@ async function birdMessageRequestImpl({ recipientId, guessedZoneId, body: rawBod
     throw new UserError(`A bird can only carry ${MAX_BIRD_BODY} characters.`);
   }
 
-  // The only Request with no reason box, so there is no rawReason to validate:
-  // the letter IS the record. The plaintext is filed on the Request row either
-  // way, and asking for a one-line justification on top of it was asking the
-  // same question twice. The Request and AuditLog reason columns still want
-  // something, so they get the letter, clipped to what they hold.
+  // The only Request with no reason box — the letter IS the record, clipped
+  // to what the Request/AuditLog reason columns hold.
   const reason = body.slice(0, MAX_REASON_LENGTH);
 
   const openTurn = await getOpenTurn();
   if (!openTurn) throw new UserError("No turn is currently open.");
 
-  // No bird will fly into the deep caves, and none will carry a letter out of
-  // them either — so the sender's own zone is checked as well as the guess.
+  // No bird will fly into or out of the deep caves.
   if (!character.zoneId) throw new UserError("You aren't anywhere a bird could leave from.");
   const fromZone = await prisma.zone.findUnique({ where: { id: character.zoneId } });
   if (!isBirdReachableZone(fromZone)) {
@@ -2216,31 +1874,23 @@ async function birdMessageRequestImpl({ recipientId, guessedZoneId, body: rawBod
   if (!recipientId || recipientId === character.id) {
     throw new UserError("Pick someone other than yourself.");
   }
-  // Deliberately NOT filtered to the living. The picker lists every character
-  // for the same reason, and narrowing it here would make a rejection at this
-  // line a working test for whether somebody has died.
+  // Deliberately NOT filtered to the living — narrowing here would make a
+  // rejection a working test for whether someone has died.
   const recipient = await prisma.character.findUnique({
     where: { id: recipientId },
     include: { tags: { include: { tag: true } } },
   });
   if (!recipient) throw new UserError("Nobody by that name.");
 
-  // The whole mechanic, in one line: the guess has to be right, and they have
-  // to be alive to receive it.
   const delivered = recipient.status === "ALIVE" && recipient.zoneId === guessedZone.id;
   const recipientIsLiterate = recipient.tags.some((ct) => ct.tag.slug === LITERATE_SLUG);
 
-  // The claim token holds the in-game DAY, not a turn id — two turns run per
-  // day, and keying this on the turn would quietly hand out two letters a day
-  // instead of the one the feature promises. describeTurn() is the one place
-  // that formula lives. Same trap, same fix as fastTravelTurnId above.
+  // In-game DAY, not a turn id — two turns run per day, and keying on the
+  // turn would hand out two letters a day. Same trap as fastTravelTurnId.
   const dayKey = String(describeTurn(openTurn).day);
 
   let birdMessageId = null;
   await prisma.$transaction(async (tx) => {
-    // The claim comes FIRST, and its WHERE is the check — read the column in
-    // one statement and write it in another and two tabs both pass. A loser
-    // aborts here, before a letter has been written or a request filed.
     const claimed = await tx.character.updateMany({
       where: {
         id: character.id,
@@ -2262,11 +1912,9 @@ async function birdMessageRequestImpl({ recipientId, guessedZoneId, body: rawBod
         guessedZoneName: guessedZone.name,
         body,
         delivered,
-        // Both null on a miss: nothing arrived, so there is nothing to reply to.
         arrivalTurnId: delivered ? openTurn.id : null,
-        // The arrival turn PLUS ONE. A letter sent five minutes before a turn
-        // closes would otherwise be unanswerable in practice, which reads as a
-        // bug rather than as a rule.
+        // Arrival turn PLUS ONE, so a letter sent minutes before turn close
+        // is still answerable.
         replyDeadlineTurn: delivered ? openTurn.number + 1 : null,
       },
     });
@@ -2284,15 +1932,9 @@ async function birdMessageRequestImpl({ recipientId, guessedZoneId, body: rawBod
         recipientName: recipient.name,
         guessedZoneId: guessedZone.id,
         guessedZoneName: guessedZone.name,
-        // PLAINTEXT, always. The ciphering happens when the DM is composed, so
-        // a GM reading the desk sees what was actually written — without this
-        // the feature is a private channel between two players that nobody can
-        // review. See REQUESTS.md §1 on why the reason field is the anti-abuse
-        // mechanism and this is the evidence behind it.
+        // Always plaintext, so a GM reading the desk sees what was written.
         body,
         delivered,
-        // So Undo can hand the day back rather than leaving it burnt on a
-        // letter the GM has decided did not happen.
         previousBirdTurnId: character.birdTurnId ?? null,
       },
     });
@@ -2310,11 +1952,7 @@ async function birdMessageRequestImpl({ recipientId, guessedZoneId, body: rawBod
     });
   });
 
-  // Post-commit, never inside the transaction — a DM must not hold up the
-  // write, and a failed DM must not undo it (ARCHITECTURE.md §5).
-  //
-  // The receipt goes out whether or not the letter landed, and says nothing
-  // about which: it is a record of what the sender did, not of what happened.
+  // Post-commit — a DM must not hold up or undo the write (ARCHITECTURE.md §5).
   notifyCharacter(
     character,
     sentReceiptDm({ recipientName: recipient.name, zoneName: guessedZone.name, body }),
@@ -2325,13 +1963,10 @@ async function birdMessageRequestImpl({ recipientId, guessedZoneId, body: rawBod
       recipient,
       deliveryDm({ senderName: character.name, body, recipientIsLiterate }),
       {
-        // No Reply button for someone who cannot read the letter. Writing back
-        // is the same Literate gate the sender had to pass to send it. The
-        // button is only a hint — birdReply.js re-checks on both halves.
+        // No Reply button for someone who can't read — birdReply.js re-checks.
         components: recipientIsLiterate ? replyButtonRow(birdMessageId) : undefined,
-        // The plaintext rides along in meta so /gm/messages can join a wall of
-        // runes back to what it says. Without it a GM reading an illiterate
-        // player's conversation sees only the cipher.
+        // Plaintext rides along so /gm/messages can join the cipher to what
+        // it says.
         meta: { kind: "bird", birdMessageId, plaintext: body },
         source: "bird",
       },

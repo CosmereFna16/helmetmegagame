@@ -1,11 +1,9 @@
 // docs/tags.yaml + docs/taggroups.yaml -> DB, called by db/scripts/sync/sync-tags.js
 // (manual `npm run db:sync-tags`) and wipeGameData's "Restart Game" flow
 // (web/app/(app)/gm/dev/actions.js) — see docs/systemdocs/TAGS.md.
-// Upsert-only and never deletes: removing an entry from either YAML leaves
-// its existing DB row untouched. Six passes, since tags/groups reference
-// each other by slug and some rows (parentTag, requiredTag, requirement
-// skills, conflictsWith) can only resolve once every Tag row exists. Each
-// pass only writes when something actually changed.
+// Upsert-only and never deletes. Six passes: tags/groups reference each
+// other by slug, and some fields can only resolve once every Tag row
+// exists. Each pass only writes when something actually changed.
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
@@ -18,25 +16,18 @@ const {
 const { normalizeDesireLocks, validateDesireLocks } = require("./desireShapes");
 const { desireFamilyKeys } = require("./desireFamilies");
 
-// `visible:` in docs/tags.yaml -> Tag.inspectVisibility. The YAML side stays
-// readable (`visible: worn` next to `equippable: true`) while the column is a
-// real enum, so a read site that forgets the field gets undefined rather than
-// a truthy "worn" — see the schema comment on inspectVisibility.
+// `visible:` in docs/tags.yaml -> Tag.inspectVisibility, a real enum rather
+// than a truthy string.
 const VISIBILITY_BY_YAML = new Map([
   [true, "ALWAYS"],
   [false, "HIDDEN"],
   ["worn", "WORN"],
 ]);
 
-// A consumesInto entry is a bare slug ("ate-meal"), an object carrying a
-// condition and/or an expiry override ({ slug: "night-vision", unlessTags:
-// ["blind"] }, { slug: "high", durationTurns: 3 }), or an even random pick
-// between alternatives ({ oneOf: ["ate-meal", "vomiting"] }), the same shape
-// expiresInto already uses. Every shape normalises to the same quad here so
-// validation and the write path only ever handle one of them. A oneOf
-// entry's "slug" is its first alternative — a display fallback for anything
-// that still reads consumesInto directly; the real pick lives in oneOf and
-// is rolled by web/lib/consumeGrants.js.
+// A consumesInto entry is a bare slug, an object with a condition and/or an
+// expiry override, or a random pick between alternatives ({ oneOf: [...] }).
+// Every shape normalises to one quad here so validation and the write path
+// only ever handle one shape.
 function normalizeConsumesInto(entries) {
   return (entries ?? []).map((entry) => {
     if (typeof entry === "string") {
@@ -62,12 +53,7 @@ function normalizeConsumesInto(entries) {
 }
 
 // Splits the normalised list back into the four columns it's stored in.
-// consumesInto keeps every target, in order, so a repeated slug still means
-// "grant two" and every existing reader (the previews, the grant path) sees
-// the full list. consumesIntoUnless, consumesIntoDurations and
-// consumesIntoOneOf are null unless something is actually conditional,
-// actually overrides its expiry, or actually picks randomly — which keeps
-// all three columns empty for all but a handful of tags.
+// The three side columns stay null unless a tag actually uses that shape.
 function consumesIntoScalars(entries) {
   const normalized = normalizeConsumesInto(entries);
   const unless = {};
@@ -87,13 +73,12 @@ function consumesIntoScalars(entries) {
   };
 }
 
-// normalizeExpiresInto and its three rules live in db/lib/tagShapes.js —
-// one rule set shared by this sync and the GM tag form's expiry picker, so
-// the form can't accept a shape this sync rejects.
+// normalizeExpiresInto and its rules live in db/lib/tagShapes.js, shared
+// with the GM tag form's expiry picker.
 
-// docsPath() is null only when docs/ cannot be found at all, which for a YAML
-// master is fatal — a sync with no master would read as "everything was
-// deleted from the file" and prune the lot. See db/lib/repoPaths.js.
+// docsPath() is null only when docs/ cannot be found at all — fatal here,
+// since a missing master would read as "everything was deleted" and prune
+// the lot. See db/lib/repoPaths.js.
 function requireDocsPath(...segments) {
   const p = docsPath(...segments);
   if (!p) throw new Error(`Cannot find docs/${segments.join("/")} — see db/lib/repoPaths.js`);
@@ -113,10 +98,8 @@ function loadGroupsDoc() {
 async function syncTagsFromYaml(prisma) {
   const doc = loadDoc();
   const groupsDoc = loadGroupsDoc();
-  // Tags/groups reference a category by its slug (a stable YAML key), but
-  // Tag.category/TagGroup.category store the human-readable display name —
-  // that's what CharacterSheet.js's category headings and the GM grant
-  // <select> render raw, so the DB should never hold the lowercase slug.
+  // Category slugs map to display names — that's what the UI renders raw,
+  // so the DB should never hold the lowercase slug.
   const categoryNameBySlug = new Map((doc?.categories ?? []).map((c) => [c.slug, c.name]));
   const groupEntries = groupsDoc?.groups ?? [];
   const tagEntries = doc?.tags ?? [];
@@ -131,49 +114,34 @@ async function syncTagsFromYaml(prisma) {
     if (!categoryNameBySlug.has(t.category)) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" has unknown category "${t.category}"`);
     }
-    // A tag can only conceal an identity by being equipped, so this pairing is
-    // a typo guard rather than a rule: concealsIdentity on an un-equippable tag
-    // would sync happily and then never do anything, which is the worst kind
-    // of quiet failure to debug from inside the game.
+    // concealsIdentity requires equippable — a typo guard, not a rule.
     if (t.concealsIdentity && !t.equippable) {
       throw new Error(
         `docs/tags.yaml: tag "${t.slug}" sets concealsIdentity but not equippable — it could never be equipped, so it could never conceal anything`,
       );
     }
-    // `visible` is three-state: true, false, or the string "worn" for gear
-    // that only a bystander who can see it ON you should know about. Anything
-    // else is a typo, and a typo here reads as `false` and quietly hides a tag
-    // that was meant to be seen, so say so instead of syncing it.
+    // `visible` is three-state: true, false, or "worn".
     if (!VISIBILITY_BY_YAML.has(t.visible ?? false)) {
       throw new Error(
         `docs/tags.yaml: tag "${t.slug}" has visible: ${JSON.stringify(t.visible)} — say true, false, or worn`,
       );
     }
-    // Same pairing guard as concealsIdentity above, for the same reason: a tag
-    // nobody can equip can never BE equipped, so "visible only while equipped"
-    // would sync happily and then hide it from everyone forever.
+    // Same pairing guard as concealsIdentity: visible: worn needs equippable.
     if (t.visible === "worn" && !t.equippable) {
       throw new Error(
         `docs/tags.yaml: tag "${t.slug}" sets visible: worn but not equippable — it could never be equipped, so it could never be seen`,
       );
     }
-    // `tradeable` decides whether a tag can be handed over or lifted off a body
-    // (web/lib/tagRequests.js#isTradeable), and it reads as `?? false` below —
-    // so a new item that forgets the field syncs as unmovable and nobody finds
-    // out until a player can't hand over the sword they just forged. Silence is
-    // the wrong default for a live gate, so items and assets have to say it out
-    // loud. Every other category keeps defaulting to false, which is right:
-    // a skill or an injury is not a thing you carry.
+    // `tradeable` must be explicit for items/assets — silence would default
+    // to unmovable and nobody would notice until a player couldn't hand
+    // over what they made.
     if ((t.category === "items" || t.category === "assets") && typeof t.tradeable !== "boolean") {
       throw new Error(
         `docs/tags.yaml: tag "${t.slug}" is in category "${t.category}" but does not set tradeable — say true or false explicitly, since it decides whether the tag can be handed over or looted off a body`,
       );
     }
-    // consumesInto is validated up here rather than in a late pass like
-    // parentTag/requiredTag: every slug is already known from the document
-    // itself, so a typo can fail cleanly instead of half-applying. Both halves
-    // of a conditional entry are checked — an unknown blocking tag would
-    // silently never block.
+    // consumesInto is validated here, against slugs already known from this
+    // document, so a typo fails cleanly instead of half-applying.
     for (const { slug, unlessTags, oneOf } of normalizeConsumesInto(t.consumesInto)) {
       if (!allTagSlugs.has(slug)) {
         throw new Error(`docs/tags.yaml: tag "${t.slug}" consumesInto references unknown tag "${slug}"`);
@@ -191,58 +159,41 @@ async function syncTagsFromYaml(prisma) {
         }
       }
     }
-    // sellable/sellablePrice travel together — a typo on one side would
-    // either buy nothing off a player (sellable with no price) or silently
-    // never offer a sale (a price nobody switched on).
+    // sellable/sellablePrice must travel together.
     if (t.sellable && !(Number.isInteger(t.sellablePrice) && t.sellablePrice > 0)) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" is sellable but has no positive sellablePrice`);
     }
     if (t.sellablePrice != null && !t.sellable) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" sets sellablePrice without sellable: true`);
     }
-    // depotPrice is the buy side of the same counter, and unlike sellable it
-    // travels with no companion flag — carrying a price IS what puts a ware on
-    // the Depot's shelf, so there is nothing to fall out of step with.
+    // depotPrice is the buy side; carrying a price is what puts it on the shelf.
     if (t.depotPrice != null && !(Number.isInteger(t.depotPrice) && t.depotPrice > 0)) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" has a depotPrice that is not a positive integer`);
     }
-    // Buying a tag and selling it straight back should always lose money. A
-    // warning rather than an error: a GM-authored oddity might want the two
-    // prices close, and this sync must not become unrunnable over a balance
-    // opinion. See docs/systemdocs/DEPOT.md §3.
+    // Warning only, not an error — see docs/systemdocs/DEPOT.md §3.
     if (t.depotPrice != null && t.sellablePrice != null && t.sellablePrice >= t.depotPrice) {
       console.warn(
         `docs/tags.yaml: tag "${t.slug}" sells back for ${t.sellablePrice} ⬢ but costs ${t.depotPrice} ⬢ at the Depot — buying and selling it in a loop prints Resources`,
       );
     }
-    // expiresInto, same posture and the same reason: every slug is known from
-    // this document, so a typo fails before anything is written. The three
-    // rules live in db/lib/tagShapes.js, shared with the GM tag form.
+    // expiresInto/removesInto: shared shape and rules in db/lib/tagShapes.js.
     validateExpiresInto(normalizeExpiresInto(t.expiresInto), {
       selfSlug: t.slug,
       knownSlugs: allTagSlugs,
       durationTurns: t.durationTurns,
     });
-    // removesInto — the treated-wound aftermath — same shape, same shared
-    // rules, minus the duration requirement (the removal fires it, no clock).
     validateRemovesInto(normalizeRemovesInto(t.removesInto), {
       selfSlug: t.slug,
       knownSlugs: allTagSlugs,
     });
-    // desires.locks — what holding this tag does to the Desire catalog.
-    // Validated at parse time via the shared desireShapes rules (same shape
-    // db:sync-desires' desireGates will later consume). A MISSING
-    // docs/desires.yaml yields an empty family set from desireFamilies.js,
-    // so this only throws when a tag actually names a family — a repo with
-    // no desires.yaml yet must still be able to sync tags (risk 11).
+    // desires.locks — validated via the shared desireShapes rules. A missing
+    // docs/desires.yaml yields an empty family set, so this only throws when
+    // a tag actually names one.
     validateDesireLocks(normalizeDesireLocks(t.desires?.locks), {
       slug: t.slug,
       families: desireFamilyKeys(),
     });
-    // conflictsWith — validated against this document's own slug set, same
-    // posture as requirement.skills below. A tag cannot conflict with
-    // itself; that would just mean "cannot hold this tag", which is what
-    // simply not listing it already means.
+    // conflictsWith — a tag cannot conflict with itself.
     for (const other of t.conflictsWith ?? []) {
       if (other === t.slug) {
         throw new Error(`docs/tags.yaml: tag "${t.slug}" lists itself in conflictsWith`);
@@ -296,9 +247,8 @@ async function syncTagsFromYaml(prisma) {
       category: categoryNameBySlug.get(entry.category),
       pointCost: entry.pointCost ?? 0,
       inspectVisibility: VISIBILITY_BY_YAML.get(entry.visible ?? false),
-      // At most one exclusive tag per character (the Beliefs). A plain YAML
-      // boolean, unlike the three-state `visible` above — the rule itself
-      // lives in web/lib/characterCreation.js#exclusiveConflict.
+      // At most one exclusive tag per character (the Beliefs); rule lives in
+      // web/lib/characterCreation.js#exclusiveConflict.
       exclusive: entry.exclusive ?? false,
       tradeable: entry.tradeable ?? false,
       equippable: entry.equippable ?? false,
@@ -329,18 +279,9 @@ async function syncTagsFromYaml(prisma) {
       tag = await prisma.tag.create({ data: { slug: entry.slug, ...scalars } });
       tagsCreated += 1;
     } else {
-      // consumesInto is a scalar list, so !== compares references and would
-      // report "changed" on every single run. Compare element-wise, and by
-      // order — a repeated slug is meaningful (it's how a bundle grants two
-      // of something), so this is a sequence, not a set.
+      // Arrays/Json fields compare by value (JSON.stringify), order-sensitive
+      // — a repeated slug means "grant two", so these are sequences not sets.
       const needsUpdate = Object.entries(scalars).some(([key, value]) => {
-        // Arrays and Json objects (consumesInto, consumesIntoUnless,
-        // expiresInto) are fresh references every run, so !== would report
-        // "changed" on every single one. Stringify instead, which stays
-        // order-sensitive — a repeated consumesInto slug is meaningful (it's
-        // how a bundle grants two of something), so these are sequences, not
-        // sets — and handles expiresInto's object entries, which an
-        // element-wise !== could not.
         if (Array.isArray(value) || (value !== null && typeof value === "object")) {
           return JSON.stringify(value) !== JSON.stringify(tag[key]);
         }
@@ -391,9 +332,8 @@ async function syncTagsFromYaml(prisma) {
     }
   }
 
-  // Pass 5: requirement.skills slug list -> requirementSkills connections.
-  // Self-referential many-to-many, so — same reason as pass 3/4 — this has
-  // to wait until every Tag row is guaranteed to exist.
+  // Pass 5: requirement.skills -> requirementSkills connections. Waits until
+  // every Tag row exists (self-referential many-to-many).
   for (const entry of tagEntries) {
     const skillSlugs = entry.requirement?.skills ?? [];
     const tagId = tagIdBySlug.get(entry.slug);
@@ -422,11 +362,8 @@ async function syncTagsFromYaml(prisma) {
     }
   }
 
-  // Pass 6: conflictsWith -> Tag.conflictsWith (self-referential m2m,
-  // written in BOTH directions so a caller only ever has to check one side).
-  // Symmetrize first: union every declared edge with its reverse into a
-  // slug -> Set(slugs) map, so a tag that's only named FROM the other side
-  // (A lists B, B doesn't list A) still gets the edge written on both rows.
+  // Pass 6: conflictsWith -> Tag.conflictsWith, written both directions so a
+  // caller only ever checks one side.
   const conflictSlugsBySlug = new Map(tagEntries.map((t) => [t.slug, new Set()]));
   for (const entry of tagEntries) {
     for (const other of entry.conflictsWith ?? []) {
