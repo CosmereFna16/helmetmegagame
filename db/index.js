@@ -982,9 +982,9 @@ async function advanceTurn() {
       ).catch((err) => console.error("Automatic-death alert to #leave failed:", err));
     }
 
-    // One DM per Caving Die roll of 1 or 6 — nothing for a quiet 2-5, which
-    // is the whole point of the die (see db/lib/cavingPass.js). Before the
-    // Hunger DMs for the same "worse news first" ordering as tagExpiry above.
+    // One DM per Caving Die roll, quiet 2-5s included, so every caver sees
+    // their face (see db/lib/cavingPass.js). Before the Hunger DMs for the
+    // same "worse news first" ordering as tagExpiry above.
     for (const dm of cavingDms) {
       await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
         console.error(`Caving DM to ${dm.discordUserId} failed:`, err),

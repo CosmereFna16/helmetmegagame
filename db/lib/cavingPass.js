@@ -23,8 +23,9 @@
 //              the Caving lens for a GM to adjudicate (monsters are the
 //              GM's call, per the Caving Monsters document), and the player
 //              gets one short ominous DM right away.
-//   2-5     -> QUIET. Stamped resolved at creation. No DM, no GM attention —
-//              the row exists purely as a record.
+//   2-5     -> QUIET. Stamped resolved at creation. No GM attention — the
+//              row exists as a record — but the player still gets a one-line
+//              DM with the face, so nobody wonders whether the die rolled.
 //   6       -> FIND. Draws a loot tier off db/lib/cavingLoot.js, grants the
 //              tag through a system-filed CAVING_LOOT Request (PASSED by
 //              default, same apply-first-review-after pattern every other
@@ -38,8 +39,13 @@ const { drawLoot } = require("./cavingLoot");
 const { addToStack } = require("./tagWrites");
 const { rollDie } = require("./moveEffects");
 
-// Both DMs lead with the face, so a player sees their own roll and not just
-// its outcome. A QUIET (2-5) still sends nothing — there is nothing to say.
+// Every DM leads with the face, so a player sees their own roll and not just
+// its outcome. A QUIET (2-5) used to send nothing, which left players unsure
+// whether the die had rolled at all — so it now says so, briefly.
+function quietDm(die) {
+  return `Caving Die: ${die} — Nothing stirs. The Depths are quiet this turn.`;
+}
+
 function troubleDm(die) {
   return `Caving Die: ${die} — Something is wrong down here. A GM has been notified.`;
 }
@@ -80,7 +86,10 @@ async function rollCaving(prisma, character, turn, zone, trigger) {
         });
         return {
           roll: row,
-          dm: kind === "TROUBLE" ? { discordUserId: character.discordUserId, content: troubleDm(die) } : null,
+          dm: {
+            discordUserId: character.discordUserId,
+            content: kind === "TROUBLE" ? troubleDm(die) : quietDm(die),
+          },
         };
       }
 
