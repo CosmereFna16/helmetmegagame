@@ -41,6 +41,11 @@ export default function CavingDesk({
   registerEscape,
   onOpenDev,
   gmProfiles,
+  // Read-only mode, for a roll on a pushed turn opened from the History lens —
+  // mirrors MoveHistoryDesk: no composers, no Mark resolved, the notes box
+  // disabled. Staged rows still show (an unapplied one stays editable).
+  readOnly = false,
+  turnLabel = null,
 }) {
   const [refresh] = useRefresh();
   const confirm = useConfirm();
@@ -53,6 +58,10 @@ export default function CavingDesk({
 
   const [gmNotes, setGmNotes] = useState(roll.gmNotes ?? "");
   const [composer, setComposer] = useState(null); // "effect" | "message" | "public" | null
+  // Set only by "Stage as message" below, to prefill the composer with the
+  // Result box's narration — the same bridge MoveDesk.js uses. A plain
+  // "+ Message" clears it first, so it opens empty.
+  const [messagePrefill, setMessagePrefill] = useState(null);
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
 
@@ -119,6 +128,7 @@ export default function CavingDesk({
           <p className="text-xs text-muted">
             {roll.roleTitle && <>{roll.roleTitle} · </>}
             {roll.factionZoneName} · ⚀ {roll.die} · {roll.kindLabel ?? CAVING_KIND_LABELS[roll.kind] ?? roll.kind}
+            {readOnly && turnLabel ? <> · {turnLabel}</> : null}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -154,32 +164,54 @@ export default function CavingDesk({
       {roll.kind === "TROUBLE" && (
         <div className="mt-4 flex flex-col gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
           <label className="field">
-            <span className="field-label">GM notes — what happened down there</span>
+            <span className="field-label">Result — what happened down there</span>
             <textarea
               rows={4}
               value={gmNotes}
-              disabled={pending}
+              disabled={pending || readOnly}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Monster, hazard, whatever this 1 turned into. GM-facing — tell the player with a staged message below."
+              placeholder="What actually happened here. GM-facing — send it to the player with Stage as message."
             />
           </label>
+          {!readOnly && (
+            <button
+              type="button"
+              className="btn-quiet self-start"
+              disabled={!gmNotes.trim()}
+              onClick={() => {
+                setMessagePrefill(gmNotes);
+                setComposer("message");
+              }}
+            >
+              Stage as message
+            </button>
+          )}
         </div>
       )}
 
       <div className="mt-4 flex flex-col gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="field-label">Staged on this roll</h3>
-          <div className="flex gap-2">
-            <button type="button" className="btn-quiet" onClick={() => setComposer("effect")}>
-              + Effect
-            </button>
-            <button type="button" className="btn-quiet" onClick={() => setComposer("message")}>
-              + Message
-            </button>
-            <button type="button" className="btn-quiet" onClick={() => setComposer("public")}>
-              + Public
-            </button>
-          </div>
+          {!readOnly && (
+            <div className="flex gap-2">
+              <button type="button" className="btn-quiet" onClick={() => setComposer("effect")}>
+                + Effect
+              </button>
+              <button
+                type="button"
+                className="btn-quiet"
+                onClick={() => {
+                  setMessagePrefill(null);
+                  setComposer("message");
+                }}
+              >
+                + Message
+              </button>
+              <button type="button" className="btn-quiet" onClick={() => setComposer("public")}>
+                + Public
+              </button>
+            </div>
+          )}
         </div>
 
         <StagedItems
@@ -212,12 +244,18 @@ export default function CavingDesk({
         <MessageComposer
           cavingRollId={roll.id}
           defaultRecipients={[{ characterId: roll.characterId, name: roll.characterName }]}
+          initialContent={messagePrefill ?? undefined}
+          initialRecipients={messagePrefill != null ? [{ characterId: roll.characterId, name: roll.characterName }] : undefined}
           roster={roster}
           onDone={() => {
             setComposer(null);
+            setMessagePrefill(null);
             refresh();
           }}
-          onCancel={() => setComposer(null)}
+          onCancel={() => {
+            setComposer(null);
+            setMessagePrefill(null);
+          }}
         />
       )}
       {composer === "public" && (
@@ -241,7 +279,7 @@ export default function CavingDesk({
 
       <FormError>{error}</FormError>
 
-      {roll.kind === "TROUBLE" && !roll.resolvedAt && (
+      {roll.kind === "TROUBLE" && !roll.resolvedAt && !readOnly && (
         <div className="mt-4 flex flex-wrap justify-end gap-3">
           <button type="button" className="btn" onClick={resolve} disabled={pending}>
             {pending ? "Working…" : "Mark resolved"}

@@ -116,6 +116,24 @@ function findHistoryMove(historyByTurn, moveId, preloaded) {
   return preloaded?.move?.id === moveId ? preloaded : null;
 }
 
+// The Caving twin of findHistoryMove: a selected caving roll may sit on a turn
+// other than the one the picker is on, so look across every loaded turn, then
+// fall back to the one roll page.js preloaded for a /gm/turns/caving/<id> deep
+// link.
+function findHistoryCaving(historyByTurn, rollId, preloaded) {
+  for (const [turnId, entry] of historyByTurn) {
+    const roll = (entry.cavingRolls ?? []).find((c) => c.id === rollId);
+    if (!roll) continue;
+    return {
+      turnId,
+      roll,
+      effects: entry.effects.filter((e) => e.cavingRollId === rollId),
+      messages: entry.messages.filter((m) => m.cavingRollId === rollId),
+    };
+  }
+  return preloaded?.roll?.id === rollId ? preloaded : null;
+}
+
 // The history entry’s staged rows keyed by Move, the same shape Workspace
 // builds for the open turn — a plain function rather than a useMemo because
 // its input is derived from a cache the render itself can evict.
@@ -159,6 +177,7 @@ function fingerprintUnapplied(effects, messages) {
 export default function Workspace({
   initialSelection,
   initialHistory,
+  initialCaving,
   resolvedTurns,
   openTurn,
   myZoneNames,
@@ -205,8 +224,28 @@ export default function Workspace({
       setDesk((d) => ({ ...d, historyTurnId: initialHistory.turnId }));
     }
   }
+  // The Caving twin of the deep link above. page.js sets initialCaving ONLY for
+  // a roll on a resolved turn (an open-turn roll is already in the live
+  // cavingRolls prop and opens on the live Caving lens), so its presence is the
+  // signal to swing the History lens onto Caving and that roll's turn.
+  if (
+    typeof window !== "undefined" &&
+    initialSelection?.type === "caving" &&
+    initialCaving &&
+    seenDeepLinkId !== initialSelection.id
+  ) {
+    setSeenDeepLinkId(initialSelection.id);
+    if (rail.lens !== "history" || rail.historyKind !== "caving") {
+      setRail((r) => ({ ...r, lens: "history", historyKind: "caving" }));
+    }
+    if (initialCaving.turnId && desk.historyTurnId !== initialCaving.turnId) {
+      setDesk((d) => ({ ...d, historyTurnId: initialCaving.turnId }));
+    }
+  }
   const lens = rail.lens ?? "moves";
   const setLens = useCallback((l) => setRail((r) => ({ ...r, lens: l })), [setRail]);
+  const historyKind = rail.historyKind ?? "moves";
+  const setHistoryKind = useCallback((k) => setRail((r) => ({ ...r, historyKind: k })), [setRail]);
   const [selected, setSelected] = useState(initialSelection ?? null); // { type: "move"|"request"|"caving"|"history", id }
 
   // The URL mirrors `selected`; it is never its source after the first paint.
@@ -433,7 +472,7 @@ export default function Workspace({
   // arrays the Moves lens, the tray and the push preview render from, so the
   // two lenses can never disagree. Every other turn comes out of the cache.
   const historyEntry = historyIsOpenTurn
-    ? { moves, effects: stagedEffects, messages: stagedMessages, tagsById }
+    ? { moves, cavingRolls, effects: stagedEffects, messages: stagedMessages, tagsById }
     : historyTurnId
       ? (historyCache.get(historyTurnId) ?? null)
       : null;
@@ -460,6 +499,7 @@ export default function Workspace({
       setHistoryByTurn((prev) =>
         new Map(prev).set(historyTurnId, {
           moves: res.moves,
+          cavingRolls: res.cavingRolls,
           effects: res.effects,
           messages: res.messages,
           tagsById: res.tagsById,
@@ -506,8 +546,21 @@ export default function Workspace({
 
   const selectedMove = selected?.type === "move" ? moves.find((m) => m.id === selected.id) : null;
   const selectedRequest = selected?.type === "request" ? requests.find((r) => r.id === selected.id) : null;
-  const selectedCaving =
+  // A caving selection resolves against the LIVE open-turn rolls first; a roll
+  // that isn't there is a History-lens pick, found across every loaded turn (or
+  // the deep-link preload). The URL type stays "caving" for both, so
+  // /gm/turns/caving/<id> means the roll whichever turn it sits on.
+  const liveCaving =
     selected?.type === "caving" ? (cavingRolls ?? []).find((c) => c.id === selected.id) : null;
+  const historyCaving =
+    selected?.type === "caving" && !liveCaving
+      ? findHistoryCaving(historyCache, selected.id, initialCaving)
+      : null;
+  const selectedCaving = liveCaving ?? historyCaving?.roll ?? null;
+  const selectedCavingIsLive = Boolean(liveCaving);
+  const selectedCavingTurnLabel = historyCaving
+    ? (resolvedTurns?.find((t) => t.id === historyCaving.turnId)?.label ?? null)
+    : null;
 
   // The inspector's dim/suffix source for staged quick-edits: net staged
   // resources/tag points and pending tag ops, per character, over everything
@@ -676,6 +729,9 @@ export default function Workspace({
           onHistoryTurn={pickHistoryTurn}
           historyMoves={historyEntry?.moves ?? []}
           historyStagedByMove={historyStagedByMove}
+          historyKind={historyKind}
+          onHistoryKind={setHistoryKind}
+          historyCavingRolls={historyEntry?.cavingRolls ?? []}
           historyLoading={historyLoading}
           historyError={historyError}
         />
@@ -727,7 +783,13 @@ export default function Workspace({
             <CavingDesk
               key={selectedCaving.id}
               roll={selectedCaving}
-              staged={stagedByCaving.get(selectedCaving.id) ?? { effects: [], messages: [] }}
+              readOnly={!selectedCavingIsLive}
+              turnLabel={selectedCavingTurnLabel}
+              staged={
+                selectedCavingIsLive
+                  ? (stagedByCaving.get(selectedCaving.id) ?? { effects: [], messages: [] })
+                  : { effects: historyCaving?.effects ?? [], messages: historyCaving?.messages ?? [] }
+              }
               tagsById={tagsById}
               tagCatalog={tagCatalog}
               roster={roster}

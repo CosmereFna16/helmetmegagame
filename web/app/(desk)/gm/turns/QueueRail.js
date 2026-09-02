@@ -110,9 +110,11 @@ const REQUEST_TONES = { Passed: "neutral", Edited: "neutral", Undone: "bad" };
 export const RAIL_STORAGE_KEY = "gm-turns-rail";
 export const RAIL_STORAGE_DEFAULT = {
   lens: "moves",
-  filters: {}, // { moves, requests, caving, history } — each an initialFilters-shaped object
+  filters: {}, // { moves, requests, caving, history, "history-caving" } — each an initialFilters-shaped object
   hideTravel: true,
   hideHistoryTravel: true,
+  // Which kind the History lens is reading: past Moves or past Caving rolls.
+  historyKind: "moves", // "moves" | "caving"
 };
 
 // The KEYSTROKE/SCROLL-frequency state lives apart, under a key nothing
@@ -316,7 +318,7 @@ function RequestRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens }) {
   });
 }
 
-function CavingRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens }) {
+function CavingRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens, lensKey = "caving" }) {
   return rows.map((row) => {
     const active = selected?.type === "caving" && selected.id === row.id;
     return (
@@ -326,7 +328,7 @@ function CavingRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens }) {
         className="desk-queue-row"
         data-active={active}
         data-urgent={row.statusLabel === "Needs attention" || undefined}
-        data-kbd={kbdLens === "caving" && kbdId === row.id ? "" : undefined}
+        data-kbd={kbdLens === lensKey && kbdId === row.id ? "" : undefined}
         data-row-key={row.id}
         onClick={() => onSelect({ type: "caving", id: row.id })}
       >
@@ -367,6 +369,9 @@ export default function QueueRail({
   onHistoryTurn,
   historyMoves,
   historyStagedByMove,
+  historyKind,
+  onHistoryKind,
+  historyCavingRolls,
   historyLoading,
   historyError,
 }) {
@@ -465,6 +470,26 @@ export default function QueueRail({
     pageSize: 1000,
     ...makeFiltersProps("history"),
   });
+  // The History lens's Caving twin — the Caving lens over a past turn. Its own
+  // filter/search/scroll state (lensKey "history-caving") so it never shares
+  // with the live Caving lens.
+  const rankedHistoryCavingRolls = useMemo(
+    () =>
+      (historyCavingRolls ?? []).map((r) => ({
+        ...r,
+        queueOrder: (CAVING_STATUS_RANK[r.statusLabel] ?? 0) * 1e15 - r.createdAtMs,
+      })),
+    [historyCavingRolls],
+  );
+  const historyCavingTable = useTableState({
+    rows: rankedHistoryCavingRolls,
+    filterDefs: cavingFilterDefs,
+    searchMap: cavingSearchMap,
+    rankBySearch: true,
+    initialSort: { key: "queueOrder", dir: "asc" },
+    pageSize: 1000,
+    ...makeFiltersProps("history-caving"),
+  });
 
   // Restore the persisted search text, once, on the first post-hydration
   // render — the same render-time one-shot Workspace.js uses for the History
@@ -481,6 +506,7 @@ export default function QueueRail({
     if (storedQuery.requests) requestTable.setQuery(storedQuery.requests);
     if (storedQuery.caving) cavingTable.setQuery(storedQuery.caving);
     if (storedQuery.history) historyTable.setQuery(storedQuery.history);
+    if (storedQuery["history-caving"]) historyCavingTable.setQuery(storedQuery["history-caving"]);
   }
 
   // Mirror the search text back out — debounced so a burst of typing is one
@@ -496,6 +522,7 @@ export default function QueueRail({
           requests: requestTable.query,
           caving: cavingTable.query,
           history: historyTable.query,
+          "history-caving": historyCavingTable.query,
         },
       });
     const id = setTimeout(write, 400);
@@ -504,7 +531,14 @@ export default function QueueRail({
       clearTimeout(id);
       window.removeEventListener("pagehide", write);
     };
-  }, [viewRestored, moveTable.query, requestTable.query, cavingTable.query, historyTable.query]);
+  }, [
+    viewRestored,
+    moveTable.query,
+    requestTable.query,
+    cavingTable.query,
+    historyTable.query,
+    historyCavingTable.query,
+  ]);
 
   // Auto-filed travel Moves are already solved and never need a GM — hidden
   // from the list by default so they don't pad the queue, but picking
@@ -528,13 +562,24 @@ export default function QueueRail({
   }, [historyTable.visible, historyTable.filters.kind, hideHistoryTravel]);
   const hiddenHistoryTravelCount = historyTable.visible.length - historyShown.length;
 
-  const rowsForLens = {
-    moves: movesShown,
-    requests: requestTable.visible,
-    caving: cavingTable.visible,
-    history: historyShown,
-  };
+  // The History lens reads either past Moves or past Caving rolls, chosen by
+  // the Moves/Caving switch in its header (historyKind). Everything below
+  // branches on this one flag.
+  const historyIsCaving = lens === "history" && historyKind === "caving";
+  const rowsForLens = useMemo(
+    () => ({
+      moves: movesShown,
+      requests: requestTable.visible,
+      caving: cavingTable.visible,
+      history: historyIsCaving ? historyCavingTable.visible : historyShown,
+    }),
+    [movesShown, requestTable.visible, cavingTable.visible, historyIsCaving, historyCavingTable.visible, historyShown],
+  );
   const visibleRows = rowsForLens[lens] ?? movesShown;
+  // What ⏎/click selects for a History-lens row: a live "move" on the open
+  // turn, a "caving" roll when the Caving switch is on, else a read-only
+  // "history" Move.
+  const historySelectionType = historyIsCaving ? "caving" : historyIsOpenTurn ? "move" : "history";
   // The keyboard cursor is tracked by ROW ID, not position — a Move going
   // Open → Solved re-sorts to the bottom of the rail (MOVE_STATUS_RANK), and
   // an index-based cursor used to stay pinned to whatever row happened to
@@ -635,21 +680,15 @@ export default function QueueRail({
         return;
       }
 
-      const rows =
-        {
-          moves: movesShown,
-          requests: requestTable.visible,
-          caving: cavingTable.visible,
-          history: historyShown,
-        }[lens] ?? [];
+      const rows = rowsForLens[lens] ?? [];
       if (!rows.length) return;
 
       if (key === "Enter") {
         const row = clampedKbdIndex >= 0 ? rows[clampedKbdIndex] : null;
         // Same rule as the rows themselves: History over the open turn selects
-        // a live `move`, not a read-only `history` row.
-        const type =
-          lens === "history" && historyIsOpenTurn ? "move" : (SELECTION_TYPE_FOR_LENS[lens] ?? "move");
+        // a live `move`, the Caving switch selects a `caving` roll, else a
+        // read-only `history` row.
+        const type = lens === "history" ? historySelectionType : (SELECTION_TYPE_FOR_LENS[lens] ?? "move");
         if (row) onSelect({ type, id: row.id });
         return;
       }
@@ -668,13 +707,10 @@ export default function QueueRail({
     lens,
     onLens,
     onSelect,
-    movesShown,
-    requestTable.visible,
-    cavingTable.visible,
-    historyShown,
+    rowsForLens,
     clampedKbdIndex,
     coarse,
-    historyIsOpenTurn,
+    historySelectionType,
   ]);
 
   return (
@@ -697,32 +733,53 @@ export default function QueueRail({
       {lens === "history" ? (
         <>
           <RailFilters
-            table={historyTable}
-            filterDefs={moveFilterDefs}
+            table={historyIsCaving ? historyCavingTable : historyTable}
+            filterDefs={historyIsCaving ? cavingFilterDefs : moveFilterDefs}
             myZoneNames={myZoneNames}
-            searchPlaceholder="name, role, @handle, zone:…"
+            searchPlaceholder={
+              historyIsCaving ? "name, @handle, tag:…" : "name, role, @handle, zone:…"
+            }
             header={
-              <label className="field">
-                <span className="field-label">Turn</span>
-                <Select
-                  value={historyTurnId ?? ""}
-                  disabled={!historyTurnOptions?.length}
-                  onChange={(e) => onHistoryTurn?.(e.target.value)}
-                >
-                  {historyTurnOptions?.length ? (
-                    historyTurnOptions.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.label}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="">No turns yet</option>
-                  )}
-                </Select>
-              </label>
+              <div className="flex flex-col gap-2">
+                {/* Moves / Caving — which record of a past turn to read back. */}
+                <div className="segmented" role="group" aria-label="History kind">
+                  <button
+                    type="button"
+                    aria-pressed={historyKind !== "caving"}
+                    onClick={() => onHistoryKind?.("moves")}
+                  >
+                    Moves
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={historyKind === "caving"}
+                    onClick={() => onHistoryKind?.("caving")}
+                  >
+                    Caving
+                  </button>
+                </div>
+                <label className="field">
+                  <span className="field-label">Turn</span>
+                  <Select
+                    value={historyTurnId ?? ""}
+                    disabled={!historyTurnOptions?.length}
+                    onChange={(e) => onHistoryTurn?.(e.target.value)}
+                  >
+                    {historyTurnOptions?.length ? (
+                      historyTurnOptions.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.label}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="">No turns yet</option>
+                    )}
+                  </Select>
+                </label>
+              </div>
             }
           >
-            {hiddenHistoryTravelCount > 0 && (
+            {!historyIsCaving && hiddenHistoryTravelCount > 0 && (
               <label className="field-label flex items-center gap-1.5" style={{ fontWeight: "normal" }}>
                 <input
                   type="checkbox"
@@ -734,40 +791,69 @@ export default function QueueRail({
             )}
           </RailFilters>
           <div className="desk-queue" ref={queueRef} onScroll={onQueueScroll}>
-            <MoveRows
-              rows={historyShown}
-              matchFor={historyTable.matchFor}
-              stagedByMove={historyStagedByMove ?? new Map()}
-              selected={selected}
-              onSelect={onSelect}
-              gmProfiles={gmProfiles}
-              kbdId={kbdId}
-              kbdLens={lens}
-              // On the open turn a History row is still LIVE work, so it opens
-              // the ordinary MoveDesk. `lensKey` stays "history" regardless, so
-              // the keyboard cursor and this lens's own filter/search/scroll
-              // state remain separate from the Moves lens.
-              //
-              // Consequence: MoveHistoryDesk never renders for an unpushed
-              // turn. That is what keeps it honest — it shows what a Move
-              // actually PAID (appliedEffects) and what was SENT, both of which
-              // are empty until the push, so on an open turn it could only
-              // contradict the declared numbers sitting next to them. It also
-              // keeps getMoveHistory's RESOLVED guard intact instead of forcing
-              // a hole in it.
-              type={historyIsOpenTurn ? "move" : "history"}
-              lensKey="history"
-            />
-            {historyError && <p className="p-3 text-sm form-error">{historyError}</p>}
-            {!historyError && historyLoading && <p className="p-3 text-sm text-muted">Loading that turn…</p>}
-            {!historyError && !historyLoading && historyShown.length === 0 && (
-              <p className="p-3 text-sm text-muted">
-                {historyTurnOptions?.length
-                  ? hiddenHistoryTravelCount > 0
-                    ? `No Moves match — ${hiddenHistoryTravelCount} travel Move${hiddenHistoryTravelCount === 1 ? "" : "s"} hidden.`
-                    : "No Moves on that turn match."
-                  : "No turn to read back yet."}
-              </p>
+            {historyIsCaving ? (
+              <>
+                <CavingRows
+                  rows={historyCavingTable.visible}
+                  matchFor={historyCavingTable.matchFor}
+                  selected={selected}
+                  onSelect={onSelect}
+                  kbdId={kbdId}
+                  kbdLens={lens}
+                  lensKey="history"
+                />
+                {historyError && <p className="p-3 text-sm form-error">{historyError}</p>}
+                {!historyError && historyLoading && (
+                  <p className="p-3 text-sm text-muted">Loading that turn…</p>
+                )}
+                {!historyError && !historyLoading && historyCavingTable.visible.length === 0 && (
+                  <p className="p-3 text-sm text-muted">
+                    {historyTurnOptions?.length
+                      ? "No Caving rolls on that turn match."
+                      : "No turn to read back yet."}
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <MoveRows
+                  rows={historyShown}
+                  matchFor={historyTable.matchFor}
+                  stagedByMove={historyStagedByMove ?? new Map()}
+                  selected={selected}
+                  onSelect={onSelect}
+                  gmProfiles={gmProfiles}
+                  kbdId={kbdId}
+                  kbdLens={lens}
+                  // On the open turn a History row is still LIVE work, so it opens
+                  // the ordinary MoveDesk. `lensKey` stays "history" regardless, so
+                  // the keyboard cursor and this lens's own filter/search/scroll
+                  // state remain separate from the Moves lens.
+                  //
+                  // Consequence: MoveHistoryDesk never renders for an unpushed
+                  // turn. That is what keeps it honest — it shows what a Move
+                  // actually PAID (appliedEffects) and what was SENT, both of which
+                  // are empty until the push, so on an open turn it could only
+                  // contradict the declared numbers sitting next to them. It also
+                  // keeps getMoveHistory's RESOLVED guard intact instead of forcing
+                  // a hole in it.
+                  type={historyIsOpenTurn ? "move" : "history"}
+                  lensKey="history"
+                />
+                {historyError && <p className="p-3 text-sm form-error">{historyError}</p>}
+                {!historyError && historyLoading && (
+                  <p className="p-3 text-sm text-muted">Loading that turn…</p>
+                )}
+                {!historyError && !historyLoading && historyShown.length === 0 && (
+                  <p className="p-3 text-sm text-muted">
+                    {historyTurnOptions?.length
+                      ? hiddenHistoryTravelCount > 0
+                        ? `No Moves match — ${hiddenHistoryTravelCount} travel Move${hiddenHistoryTravelCount === 1 ? "" : "s"} hidden.`
+                        : "No Moves on that turn match."
+                      : "No turn to read back yet."}
+                  </p>
+                )}
+              </>
             )}
           </div>
         </>

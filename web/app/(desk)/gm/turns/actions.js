@@ -18,11 +18,13 @@ import {
   MOVE_INCLUDE,
   STAGED_EFFECT_INCLUDE,
   STAGED_MESSAGE_INCLUDE,
+  CAVING_ROLL_INCLUDE,
   declaredLabel,
   moveRow,
   paidLabel,
   stagedEffectRow,
   stagedMessageRow,
+  cavingRollRow,
   tagsByIdFor,
 } from "@/lib/moveRows";
 
@@ -130,7 +132,13 @@ async function createStagedMessageImpl({ kind, content, recipientCharacterIds, m
     data: {
       actorDiscordUserId: session.discordUserId,
       actionType: "staged_message_created",
-      details: { stagedMessageId: row.id, kind, moveId: moveId || null, recipients: recipients.length },
+      details: {
+        stagedMessageId: row.id,
+        kind,
+        moveId: moveId || null,
+        cavingRollId: cavingRollId || null,
+        recipients: recipients.length,
+      },
     },
   });
 
@@ -1166,8 +1174,11 @@ async function getMoveHistoryImpl({ turnId }) {
   if (!turn) throw new UserError("That turn no longer exists.");
   if (turn.status !== "RESOLVED") throw new UserError("That turn hasn't been pushed yet.");
 
-  const [actions, members, presenceZones, openTurn] = await Promise.all([
+  const [actions, cavingRolls, members, presenceZones, openTurn] = await Promise.all([
     prisma.action.findMany({ where: { turnId: id }, orderBy: { createdAt: "desc" }, include: MOVE_INCLUDE }),
+    // The History lens's Caving twin — every roll on that resolved turn, mapped
+    // by the same cavingRollRow the open turn's rows use (docs/systemdocs/CAVING.md).
+    prisma.cavingRoll.findMany({ where: { turnId: id }, orderBy: { createdAt: "desc" }, include: CAVING_ROLL_INCLUDE }),
     // TTL-cached, so calling it from an action costs about nothing.
     listGuildMembers(),
     prisma.zone.findMany({ where: { kind: { not: "CAVE_GROUP" } }, select: { id: true, name: true } }),
@@ -1175,20 +1186,24 @@ async function getMoveHistoryImpl({ turnId }) {
   ]);
 
   const moveIds = actions.map((a) => a.id);
-  const [stagedEffects, stagedMessages] = moveIds.length
-    ? await Promise.all([
-        prisma.stagedEffect.findMany({
-          where: { moveId: { in: moveIds } },
-          orderBy: { createdAt: "asc" },
-          include: STAGED_EFFECT_INCLUDE,
-        }),
-        prisma.stagedMessage.findMany({
-          where: { moveId: { in: moveIds } },
-          orderBy: { createdAt: "asc" },
-          include: STAGED_MESSAGE_INCLUDE,
-        }),
-      ])
-    : [[], []];
+  const cavingIds = cavingRolls.map((c) => c.id);
+  // Staged rows on this turn attach to EITHER a Move or a Caving roll, so the
+  // history desk needs both — the same OR the Caving lens's staged rows follow.
+  const [stagedEffects, stagedMessages] =
+    moveIds.length || cavingIds.length
+      ? await Promise.all([
+          prisma.stagedEffect.findMany({
+            where: { OR: [{ moveId: { in: moveIds } }, { cavingRollId: { in: cavingIds } }] },
+            orderBy: { createdAt: "asc" },
+            include: STAGED_EFFECT_INCLUDE,
+          }),
+          prisma.stagedMessage.findMany({
+            where: { OR: [{ moveId: { in: moveIds } }, { cavingRollId: { in: cavingIds } }] },
+            orderBy: { createdAt: "asc" },
+            include: STAGED_MESSAGE_INCLUDE,
+          }),
+        ])
+      : [[], []];
 
   const usernameById = new Map(members.map((m) => [m.id, m.username]));
   const presenceZoneNameById = new Map(presenceZones.map((z) => [z.id, z.name]));
@@ -1196,6 +1211,9 @@ async function getMoveHistoryImpl({ turnId }) {
 
   return {
     moves: actions.map((a) => moveRow(a, { usernameById, now })),
+    // Past-turn AFK badge isn't worth a second query — an empty set reads the
+    // same as "nobody's marked catatonic on this row" (see the plan).
+    cavingRolls: cavingRolls.map((c) => cavingRollRow(c, { usernameById, catatonicIds: new Set() })),
     effects: stagedEffects.map((e) => stagedEffectRow(e, { usernameById, presenceZoneNameById, openTurn })),
     messages: stagedMessages.map((m) => stagedMessageRow(m, { usernameById, openTurn })),
     tagsById: tagsByIdFor(actions),

@@ -4,6 +4,7 @@
 import { CATATONIC_SLUG } from "@lifeweb/db/lib/constants";
 import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, isTravelMove, rollLabel } from "@/lib/moves";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
+import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
 
 // The DTO mappers the adjudication desk's queue is built from, in one place
 // so the two callers can't drift.
@@ -47,6 +48,26 @@ export const STAGED_MESSAGE_INCLUDE = {
   recipients: { include: { character: { select: { id: true, name: true, updatedAt: true } } } },
   zone: { select: { id: true, name: true } },
   turn: { select: { id: true, number: true } },
+};
+
+// The Caving lens' row shape. Same "one mapper, both callers" rule as the Move
+// rows above: page.js builds the open turn's rows and getMoveHistory builds a
+// past turn's, so cavingRollRow has to be the single source. lootRequest is
+// selected so a FIND can offer Undo (see CAVING.md §4).
+export const CAVING_ROLL_INCLUDE = {
+  character: {
+    select: {
+      id: true,
+      name: true,
+      discordUserId: true,
+      updatedAt: true,
+      roleTitle: true,
+      faction: { include: { zone: true } },
+    },
+  },
+  zone: { select: { name: true } },
+  lootTag: { select: { name: true } },
+  lootRequest: { select: { id: true, status: true } },
 };
 
 function isConfirmed(a) {
@@ -194,6 +215,36 @@ export function stagedMessageRow(m, { usernameById, openTurn }) {
     createdByDiscordUserId: m.createdByDiscordUserId ?? null,
     turnNumber: m.turn?.number ?? null,
     missed: openTurn ? m.turnId !== openTurn.id && !m.sentAt : !m.sentAt,
+  };
+}
+
+// ctx: { usernameById, catatonicIds }
+export function cavingRollRow(c, { usernameById, catatonicIds }) {
+  const nameFor = usernameById.get(c.character.discordUserId) ?? c.character.discordUserId;
+  return {
+    id: c.id,
+    characterId: c.characterId,
+    characterName: c.character.name,
+    avatarVersion: c.character.updatedAt.getTime(),
+    catatonic: catatonicIds?.has(c.characterId) ?? false,
+    discordUsername: nameFor,
+    roleTitle: c.character.roleTitle ?? "",
+    factionZoneName: c.character.faction?.zone?.name ?? c.zone?.name ?? "",
+    die: c.die,
+    kind: c.kind,
+    kindLabel: CAVING_KIND_LABELS[c.kind] ?? c.kind,
+    lootTier: c.lootTier ?? null,
+    lootTagName: c.lootTag?.name ?? null,
+    lootRequestId: c.lootRequest?.id ?? null,
+    lootRequestStatus: c.lootRequest?.status ?? null,
+    statusLabel: c.resolvedAt ? "Resolved" : "Needs attention",
+    resolvedAt: c.resolvedAt ? c.resolvedAt.toISOString() : null,
+    resolvedByUsername: c.resolvedByDiscordUserId
+      ? (usernameById.get(c.resolvedByDiscordUserId) ?? c.resolvedByDiscordUserId)
+      : null,
+    resolvedAtLabel: c.resolvedAt ? c.resolvedAt.toISOString().slice(0, 16).replace("T", " ") : null,
+    gmNotes: c.gmNotes ?? "",
+    createdAtMs: c.createdAt.getTime(),
   };
 }
 

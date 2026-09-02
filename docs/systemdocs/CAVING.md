@@ -183,15 +183,33 @@ and the desk header; it lives in its own module because when the desk owned
 the only copy, the rail printed every row's kind as "undefined" for months.
 
 `CavingDesk.js` (modeled on `MoveDesk.js`, much thinner) is where a GM
-narrates a `TROUBLE` roll: GM notes, the same `EffectComposer` /
-`MessageComposer` / `PublicComposer` trio every desk uses (wired to
-`cavingRollId` instead of `moveId` — both `StagedMessage` and `StagedEffect`
-carry the column, `SetNull` on delete same as `moveId`), and a **Mark
-resolved** button. No cooperative lock like a Move — two GMs opening the same
-roll can't race a solve that pays anyone twice, since resolving is a one-way
-stamp with nothing to apply. A `FIND` row has nothing to resolve, so it opens
-without that button: what was found, and the **Undo this find** button
+narrates a `TROUBLE` roll. It carries the same **Result** box and **Stage as
+message** bridge the Move desk has: the box is the GM-facing canon of what
+happened, and Stage as message promotes it into a real DM to the roll's own
+character (a `StagedMessage` wired to `cavingRollId`, delivered at the push
+like any other). The Result box is *not* itself the thing the player receives
+— Mark resolved only stamps the roll and stores the notes, so narration left
+in the box alone never reaches anyone. That gap is exactly why caving-desk
+messages used to go missing: the desk had the notes box but no Stage-as-message
+button, so a GM working "the same as a Move" had no send step. Alongside it are
+the same `EffectComposer` / `MessageComposer` / `PublicComposer` trio every
+desk uses (wired to `cavingRollId` instead of `moveId` — both `StagedMessage`
+and `StagedEffect` carry the column, `SetNull` on delete same as `moveId`), and
+a **Mark resolved** button. No cooperative lock like a Move — two GMs opening
+the same roll can't race a solve that pays anyone twice, since resolving is a
+one-way stamp with nothing to apply. A `FIND` row has nothing to resolve, so it
+opens without that button: what was found, and the **Undo this find** button
 described in §4.
+
+**The History lens reads Caving too.** `/gm/turns`'s History lens carries a
+**Moves / Caving** switch beside its Turn picker (`historyKind` on the rail's
+sessionStorage). Flip it to Caving and the lens lists that resolved turn's
+rolls, mapped by the same `cavingRollRow` (`web/lib/moveRows.js`) the open turn
+uses. Opening one shows `CavingDesk` in **read-only** mode — no composers, no
+Mark resolved, the Result box disabled — but its staged rows still show, and an
+unapplied one stays editable, the same rule `MoveHistoryDesk` follows. A
+`/gm/turns/caving/<id>` link naming a past roll deep-links straight to it
+(`page.js`'s `initialCaving`, the Caving twin of `initialHistory`).
 
 ## 6. `sellable` / `sellablePrice`
 

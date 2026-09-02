@@ -3,7 +3,6 @@ import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { listGuildMembers } from "@/lib/discordGuild";
 import { getGmProfiles } from "@/lib/gmProfiles";
 import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requests";
-import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
 import { getOpenTurn } from "@/lib/turn";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { getMyZones } from "@/lib/gmZone";
@@ -13,9 +12,11 @@ import {
   MOVE_INCLUDE,
   STAGED_EFFECT_INCLUDE,
   STAGED_MESSAGE_INCLUDE,
+  CAVING_ROLL_INCLUDE,
   moveRow,
   stagedEffectRow,
   stagedMessageRow,
+  cavingRollRow,
   tagsByIdFor,
 } from "@/lib/moveRows";
 import Workspace from "../Workspace";
@@ -191,24 +192,7 @@ export default async function TurnsWorkspacePage({ params }) {
       ? prisma.cavingRoll.findMany({
           where: { turnId: openTurn.id },
           orderBy: { createdAt: "desc" },
-          include: {
-            character: {
-              select: {
-                id: true,
-                name: true,
-                discordUserId: true,
-                updatedAt: true,
-                roleTitle: true,
-                faction: { include: { zone: true } },
-              },
-            },
-            zone: { select: { name: true } },
-            lootTag: { select: { name: true } },
-            // A FIND's loot is undoable from the Caving desk as well as the
-            // Requests lens — both routes call the one CAVING_LOOT handler,
-            // so the desk needs the request's id and its current status.
-            lootRequest: { select: { id: true, status: true } },
-          },
+          include: CAVING_ROLL_INCLUDE,
         })
       : [],
     // Open-turn staging plus every unapplied stray from earlier turns —
@@ -328,31 +312,7 @@ export default async function TurnsWorkspacePage({ params }) {
     reviewedAtLabel: r.reviewedAt ? r.reviewedAt.toISOString().slice(0, 16).replace("T", " ") : null,
   }));
 
-  const cavingRows = cavingRolls.map((c) => ({
-    id: c.id,
-    characterId: c.characterId,
-    characterName: c.character.name,
-    avatarVersion: c.character.updatedAt.getTime(),
-    catatonic: catatonicIds.has(c.characterId),
-    discordUsername: nameFor(c.character),
-    roleTitle: c.character.roleTitle ?? "",
-    factionZoneName: c.character.faction?.zone?.name ?? c.zone?.name ?? "",
-    die: c.die,
-    kind: c.kind,
-    kindLabel: CAVING_KIND_LABELS[c.kind] ?? c.kind,
-    lootTier: c.lootTier ?? null,
-    lootTagName: c.lootTag?.name ?? null,
-    lootRequestId: c.lootRequest?.id ?? null,
-    lootRequestStatus: c.lootRequest?.status ?? null,
-    statusLabel: c.resolvedAt ? "Resolved" : "Needs attention",
-    resolvedAt: c.resolvedAt ? c.resolvedAt.toISOString() : null,
-    resolvedByUsername: c.resolvedByDiscordUserId
-      ? (usernameById.get(c.resolvedByDiscordUserId) ?? c.resolvedByDiscordUserId)
-      : null,
-    resolvedAtLabel: c.resolvedAt ? c.resolvedAt.toISOString().slice(0, 16).replace("T", " ") : null,
-    gmNotes: c.gmNotes ?? "",
-    createdAtMs: c.createdAt.getTime(),
-  }));
+  const cavingRows = cavingRolls.map((c) => cavingRollRow(c, { usernameById, catatonicIds }));
 
   const presenceZoneNameById = new Map(presenceZones.map((z) => [z.id, z.name]));
 
@@ -367,6 +327,12 @@ export default async function TurnsWorkspacePage({ params }) {
   // out to be on the OPEN turn isn't history at all — it is still live work,
   // so the URL corrects itself to /gm/turns/move/<id>.
   let initialHistory = null;
+  // The Caving twin of the deep link above: a /gm/turns/caving/<id> link naming
+  // a roll on a RESOLVED turn (the open turn's rolls are already in cavingRows,
+  // so this only fires for a past one). Preloads the one row and its staged
+  // work so the History lens opens straight to it, the same one-shot as
+  // initialHistory — Workspace flips the lens to History · Caving on arrival.
+  let initialCaving = null;
   if (parsedSelection?.type === "history") {
     const past = await prisma.action.findUnique({
       where: { id: parsedSelection.id },
@@ -396,6 +362,33 @@ export default async function TurnsWorkspacePage({ params }) {
     }
   }
 
+  if (parsedSelection?.type === "caving" && !cavingRows.some((c) => c.id === parsedSelection.id)) {
+    const roll = await prisma.cavingRoll.findUnique({
+      where: { id: parsedSelection.id },
+      include: CAVING_ROLL_INCLUDE,
+    });
+    if (roll) {
+      const [rollEffects, rollMessages] = await Promise.all([
+        prisma.stagedEffect.findMany({
+          where: { cavingRollId: roll.id },
+          orderBy: { createdAt: "asc" },
+          include: STAGED_EFFECT_INCLUDE,
+        }),
+        prisma.stagedMessage.findMany({
+          where: { cavingRollId: roll.id },
+          orderBy: { createdAt: "asc" },
+          include: STAGED_MESSAGE_INCLUDE,
+        }),
+      ]);
+      initialCaving = {
+        turnId: roll.turnId,
+        roll: cavingRollRow(roll, { usernameById, catatonicIds }),
+        effects: rollEffects.map((e) => stagedEffectRow(e, effectCtx)),
+        messages: rollMessages.map((m) => stagedMessageRow(m, messageCtx)),
+      };
+    }
+  }
+
   // `label` is built by the same turnLabel() the resolved turns are, so the
   // History lens can list the open turn in its Turn dropdown alongside them
   // with no second formatting rule to keep in sync (Workspace.js only appends
@@ -408,6 +401,7 @@ export default async function TurnsWorkspacePage({ params }) {
     <Workspace
       initialSelection={parsedSelection}
       initialHistory={initialHistory}
+      initialCaving={initialCaving}
       resolvedTurns={resolvedTurns.map((t) => ({ id: t.id, number: t.number, label: turnLabel(t) }))}
       openTurn={openTurnDto}
       myZoneNames={myZones.map((z) => z.name)}

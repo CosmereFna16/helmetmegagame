@@ -203,7 +203,11 @@ call site follows success with `refresh()` and the pair meant rendering
   (`appliedEffects`), the Result, and everything that was sent on it. No lock,
   no composers, no Solve, no Reject — but a staged row the push never carried
   keeps its Edit/Delete, and a failed delivery keeps its Resend, because those
-  are the two things about a past turn that can still need doing.
+  are the two things about a past turn that can still need doing. A
+  **Moves / Caving** switch beside the Turn picker (`historyKind`) reads back
+  that turn's Caving Die rolls instead, mapped by the same `cavingRollRow`
+  the live Caving lens uses and opening a **read-only `CavingDesk`** — see
+  `CAVING.md` §5.
 - **Desk** — the selected item. For a Move: situation, dice, declared
   numbers, the Result box, everything staged on it, and the three composers.
   Every button derives from `moveReviewStatus`, never from a display label or
