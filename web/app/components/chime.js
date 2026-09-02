@@ -10,6 +10,18 @@ let ctx;
 let limiter;
 let reverbIR;
 
+// When the chime last rang, so two different watchers don't ring for the same
+// message: the live inbox poll hears an inbound DM within seconds, and the
+// nav badge's count (fed by the 30s router.refresh) catches up to the same
+// arrival later. InboxChime.js checks this before ringing.
+let lastChimeAt = 0;
+export function noteChime() {
+  lastChimeAt = Date.now();
+}
+export function chimedRecently(withinMs = 45_000) {
+  return Date.now() - lastChimeAt < withinMs;
+}
+
 function getCtx() {
   if (!ctx) {
     ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -109,6 +121,7 @@ function noiseSwell(d, t0, dur, gainPeak, filterFreq, filterQ, pan) {
 // lands the GM has already clicked something, so resume() is a formality;
 // if it isn't, the rejection is swallowed rather than breaking the caller.
 export function playChime(volume = 0.4) {
+  noteChime();
   try {
     const c = getCtx();
     const armed = () => {

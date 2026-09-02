@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import DmThread from "@/app/components/DmThread";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
@@ -11,7 +11,10 @@ import ZoneChip from "@/app/components/ZoneChip";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import useSubmitOnEnter from "@/app/components/useSubmitOnEnter";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
+import IconButton from "@/app/components/IconButton";
+import { SendIcon } from "@/app/components/icons";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
+import { useThreadFeed } from "../liveInbox";
 import {
   getDmThreadPage,
   sendGmDm,
@@ -54,6 +57,7 @@ export default function ConversationPane({
   gmProfiles,
   myDiscordUserId,
   claimedByDiscordUserId,
+  lastReadAtMs = 0,
 }) {
   // The parent page keys this component on `discordUserId`, so a conversation
   // switch remounts it — that's what resets this state, rather than an effect
@@ -77,14 +81,50 @@ export default function ConversationPane({
   }, [discordUserId]);
   const content = useSyncExternalStore(subscribeDraft, readDraft, serverDraft);
 
+  // What the live poll has brought in for this conversation since the page
+  // was seeded (liveInbox.js), unioned with the server page during render —
+  // never copied into state. A pending optimistic row retires the moment the
+  // real row with the same content shows up, whichever path delivers it
+  // first: the poll can beat the send action's own answer.
+  const feed = useThreadFeed(discordUserId);
+  const displayed = useMemo(() => {
+    if (feed.length === 0) return pages.messages;
+    const byId = new Map();
+    for (const m of pages.messages) byId.set(m.id, m);
+    for (const m of feed) if (!byId.has(m.id)) byId.set(m.id, m);
+    const settled = new Set(
+      [...byId.values()]
+        .filter((m) => !m.pending && m.direction === "OUTBOUND" && m.authorDiscordUserId === myDiscordUserId)
+        .map((m) => m.content),
+    );
+    return [...byId.values()]
+      .filter((m) => !(m.pending && settled.has(m.content)))
+      .sort((a, b) => {
+        const d = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        return d !== 0 ? d : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+      });
+  }, [pages.messages, feed, myDiscordUserId]);
+
   const writeDraft = useCallback((value) => writeDmDraft(discordUserId, value), [discordUserId]);
+
+  // The composer grows with what's in it, one line to ten, then scrolls —
+  // measured in the change handler (and once on mount for a restored draft),
+  // not in an effect.
+  const composerRef = useRef(null);
+  const fitComposer = useCallback((el) => {
+    if (!el) return;
+    el.style.height = "auto";
+    const line = parseFloat(window.getComputedStyle(el).lineHeight) || 20;
+    const max = line * 10 + 16;
+    el.style.height = `${Math.min(el.scrollHeight, max)}px`;
+  }, []);
 
   // Mark-read: fires from a client effect after mount, and again whenever a
   // new INBOUND message id appears — NEVER during RSC render, which would
   // mark-on-hover under Next's link prefetch. Only while the tab is actually
   // visible, and de-duplicated per newest-message id via the ref.
   useEffect(() => {
-    const newest = pages.messages[pages.messages.length - 1];
+    const newest = displayed[displayed.length - 1];
     if (!newest) return;
     // An optimistic row is not a real message yet — marking read against its
     // temp id would burn the de-dupe slot the real one needs.
@@ -93,7 +133,7 @@ export default function ConversationPane({
     if (document.visibilityState !== "visible") return;
     lastMarkedIdRef.current = newest.id;
     markConversationRead({ playerDiscordUserId: discordUserId });
-  }, [pages.messages, discordUserId]);
+  }, [displayed, discordUserId]);
 
   async function loadOlder() {
     const oldest = pages.messages[0];
@@ -137,6 +177,10 @@ export default function ConversationPane({
     };
     setPages((prev) => ({ ...prev, messages: [...prev.messages, optimistic] }));
     writeDraft("");
+    if (composerRef.current) {
+      composerRef.current.value = "";
+      fitComposer(composerRef.current);
+    }
 
     startTransition(async () => {
       const result = await sendGmDm({ discordUserId, content: message });
@@ -218,18 +262,20 @@ export default function ConversationPane({
   // component on discordUserId, and the InboxPoller's refresh doesn't
   // remount it, so a poll tick can't steal focus mid-sentence. Skipped on
   // touch — popping the keyboard over the thread would be worse than a tap.
-  const composerRef = useRef(null);
   useEffect(() => {
-    if (coarse) return;
     const el = composerRef.current;
     if (!el) return;
+    fitComposer(el);
+    if (coarse) return;
     el.focus({ preventScroll: true });
     // After a restored draft, the caret belongs at the end, not position 0.
     el.setSelectionRange(el.value.length, el.value.length);
-  }, [coarse]);
+  }, [coarse, fitComposer]);
 
   const over = content.length > GM_MESSAGE_MAX_LENGTH;
+  const nearLimit = content.length > GM_MESSAGE_MAX_LENGTH * 0.9;
   const claimedByOther = claimedBy && claimedBy !== myDiscordUserId;
+  const sendHint = coarse ? "Send" : "Send — Enter sends, Shift+Enter for a new line";
 
   return (
     <div className="desk-convo">
@@ -272,48 +318,62 @@ export default function ConversationPane({
       </div>
 
       <div className="desk-convo-thread">
-        {pages.messages.length === 0 ? (
+        {displayed.length === 0 ? (
           <p className="text-sm text-muted p-4">
             No messages yet. Whatever you send first opens the conversation.
           </p>
         ) : (
           <DmThread
-            messages={pages.messages}
+            messages={displayed}
             gmProfiles={gmProfiles}
             onLoadOlder={loadOlder}
             hasMore={pages.hasMore}
             character={characterId ? { id: characterId, name: label, avatarVersion } : null}
+            newSinceMs={lastReadAtMs}
+            myDiscordUserId={myDiscordUserId}
           />
         )}
       </div>
 
       <form className="desk-convo-composer" onSubmit={handleSend}>
-        <label className="field">
-          <span className="sr-only">Reply</span>
-          <textarea
-            ref={composerRef}
-            rows={3}
-            value={content}
-            onChange={(e) => writeDraft(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder={`Message ${label}…`}
+        <div className="desk-convo-box">
+          <label className="field min-w-0 flex-1">
+            <span className="sr-only">Reply</span>
+            <textarea
+              ref={composerRef}
+              rows={1}
+              value={content}
+              onChange={(e) => {
+                writeDraft(e.target.value);
+                fitComposer(e.target);
+              }}
+              onKeyDown={onKeyDown}
+              placeholder={`Message ${label}`}
+              title={coarse ? undefined : "Enter sends, Shift+Enter for a new line"}
+            />
+          </label>
+          <IconButton
+            icon={SendIcon}
+            label={sendHint}
+            type="submit"
+            disabled={pending || !content.trim() || over}
           />
-        </label>
-        <div className="flex items-center justify-between gap-2">
-          <span
-            className="text-xs"
-            style={over ? { color: "var(--danger)" } : { color: "var(--muted)" }}
-          >
-            {content.length} / {GM_MESSAGE_MAX_LENGTH} · Enter sends, Shift+Enter for a new line
-          </span>
-          <button type="submit" className="btn" disabled={pending || !content.trim() || over}>
-            {pending ? "Sending…" : "Send"}
-          </button>
         </div>
-        {error && (
-          <p className="text-sm" style={{ color: "var(--danger)" }}>
-            {error}
-          </p>
+        {(nearLimit || error) && (
+          <div className="flex items-center justify-between gap-2">
+            {error ? (
+              <p className="text-sm" style={{ color: "var(--danger)" }}>
+                {error}
+              </p>
+            ) : (
+              <span />
+            )}
+            {nearLimit && (
+              <span className="text-xs mono" style={over ? { color: "var(--danger)" } : { color: "var(--muted)" }}>
+                {content.length} / {GM_MESSAGE_MAX_LENGTH}
+              </span>
+            )}
+          </div>
         )}
       </form>
 

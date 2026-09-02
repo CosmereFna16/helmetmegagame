@@ -11,6 +11,8 @@ import usePins from "@/app/components/usePins";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { scoreMatch } from "@/lib/fuzzySearch";
+import useNowTick from "@/app/components/useNowTick";
+import { mergeRailRows, useRailPatches } from "./liveInbox";
 import {
   markConversationRead,
   searchConversations,
@@ -50,8 +52,8 @@ function matchedTagNames(tagNames, query) {
   return shown.join(", ") + ((hits.length ? hits : tagNames ?? []).length > 3 ? ", …" : "");
 }
 
-function relativeTime(ms) {
-  const diff = Date.now() - ms;
+function relativeTime(ms, now) {
+  const diff = now - ms;
   const mins = Math.round(diff / 60_000);
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m`;
@@ -61,8 +63,19 @@ function relativeTime(ms) {
   return `${days}d`;
 }
 
-export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
+export default function PlayerRail({ rows: serverRows, rowsAsOfMs, myZoneNames, myDiscordUserId }) {
   const pathname = usePathname();
+  // The live inbox's patches laid over the layout's rows (liveInbox.js), so
+  // a new message moves a row, bumps its badge and rewrites its preview
+  // within seconds instead of on the next 30s refresh. Done FIRST, before
+  // the ✓/⊘ overrides below look at a row: the ✓ override is keyed on the
+  // row's last-message time, and it has to see the live one to un-stick
+  // when a new message lands.
+  const patches = useRailPatches();
+  const rows = useMemo(() => mergeRailRows(serverRows, patches, rowsAsOfMs), [serverRows, patches, rowsAsOfMs]);
+  // A beat for the relative-time chips, so "just now" doesn't stay "just
+  // now" for an hour.
+  const now = useNowTick(30_000);
   const [, startTransition] = useTransition();
   const [query, setQuery] = useState("");
   const [zoneFilter, setZoneFilter] = useState(openingZoneName(myZoneNames));
@@ -354,6 +367,7 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
               className="desk-queue-row"
               data-active={active ? "true" : "false"}
               data-muted={muted ? "true" : undefined}
+              data-unread={row.unreadCount > 0 ? "true" : undefined}
             >
               <div className="desk-queue-marks">
                 <button
@@ -413,7 +427,7 @@ export default function PlayerRail({ rows, myZoneNames, myDiscordUserId }) {
                     </span>
                   )}
                   {row.lastAtMs > 0 && (
-                    <span className="desk-queue-time mono">{relativeTime(row.lastAtMs)}</span>
+                    <span className="desk-queue-time mono">{relativeTime(row.lastAtMs, now)}</span>
                   )}
                   {row.lastDirection === "INBOUND" && row.unreadCount === 0 && !handled && (
                     <span className="chip text-xs text-muted">awaiting</span>

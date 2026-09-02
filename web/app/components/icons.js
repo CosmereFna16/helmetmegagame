@@ -469,3 +469,12 @@ export function PinIcon(props) {
     </svg>
   );
 }
+
+export function SendIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M4 12l16-7-5 7 5 7-16-7z" strokeLinejoin="round" />
+      <path d="M4 12h11" />
+    </svg>
+  );
+}

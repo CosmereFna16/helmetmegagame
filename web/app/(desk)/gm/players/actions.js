@@ -206,7 +206,12 @@ export async function markConversationRead({ playerDiscordUserId }) {
       create: { gmDiscordUserId: session.discordUserId, playerDiscordUserId: id, lastReadAt: new Date() },
     });
 
-    revalidatePath("/gm/players", "layout");
+    // Deliberately no revalidatePath. This fires on every conversation open
+    // and on every message that lands while one is open, and the cursor it
+    // moves is this GM's alone — nobody else's rail changes. The live poll
+    // (web/lib/inboxDelta.js) picks a moved cursor up within seconds, and
+    // the 30s refresh is the backstop. Re-running the whole layout for it
+    // was the desk's most frequent full re-render.
   });
 }
 

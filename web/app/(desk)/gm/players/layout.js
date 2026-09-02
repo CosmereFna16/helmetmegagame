@@ -2,10 +2,12 @@ import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getMyZones } from "@/lib/gmZone";
 import { getOpenTurn } from "@/lib/turn";
-import { dmNoiseSql, genuineConversationSql } from "@/lib/dmThread";
+import { dmNoiseSql, genuineConversationSql, dmPreviewLabel } from "@/lib/dmThread";
 import PlayerRail from "./PlayerRail";
 import DeskHeader from "@/app/components/DeskHeader";
 import InboxPoller from "./InboxPoller";
+import LiveInboxPoller from "./LiveInboxPoller";
+import DeskInboxCounts from "./DeskInboxCounts";
 import { deployVersion } from "@/lib/deployVersion";
 import { DeskStaleRefreshGate, DeskStaleChip } from "@/app/components/useDeskVersion";
 import InspectorHost from "./InspectorHost";
@@ -114,7 +116,7 @@ export default async function PlayerDeskLayout({ children }) {
   // These four depend on nothing above them and on nothing in each other, so
   // they go out in one batch rather than four round trips in a row. The maps
   // are built afterwards.
-  const [latestMessages, genuineMessages, unreadRows, claims] = await Promise.all([
+  const [latestMessages, genuineMessages, unreadRows, claims, clock] = await Promise.all([
     prisma.$queryRaw`
       SELECT DISTINCT ON ("discordUserId")
         "discordUserId", "id", "direction", "content", "authorDiscordUserId", "source", "createdAt"
@@ -152,7 +154,13 @@ export default async function PlayerDeskLayout({ children }) {
         ],
       },
     }),
+    // When these rows were read, on the DATABASE's clock. The live inbox
+    // (liveInbox.js) lays its patches over them only when the patch is newer,
+    // and the web container's Date.now() is a different machine's clock —
+    // drift either way would make every patch win, or none.
+    prisma.$queryRaw`SELECT (EXTRACT(EPOCH FROM now()) * 1000)::double precision AS "nowMs"`,
   ]);
+  const rowsAsOfMs = Number(clock[0].nowMs);
 
   const latestByUser = new Map(latestMessages.map((m) => [m.discordUserId, m]));
   const genuineByUser = new Map(genuineMessages.map((m) => [m.discordUserId, m]));
@@ -213,15 +221,7 @@ export default async function PlayerDeskLayout({ children }) {
     const last = latestByUser.get(discordUserId) ?? null;
     const genuine = genuineByUser.get(discordUserId) ?? null;
     const username = usernameById.get(discordUserId) ?? "";
-    const authorLabel = !genuine
-      ? ""
-      : genuine.direction === "INBOUND"
-        ? ""
-        : genuine.authorDiscordUserId
-          ? genuine.authorDiscordUserId === session.discordUserId
-            ? "You: "
-            : "GM: "
-          : "Bot: ";
+    const authorLabel = dmPreviewLabel(genuine, session.discordUserId);
     return {
       discordUserId,
       characterId: c?.id ?? null,
@@ -261,13 +261,6 @@ export default async function PlayerDeskLayout({ children }) {
     };
   });
 
-  const unreadTotal = rows.filter((r) => !r.muted && r.unreadCount > 0).length;
-  // Read but still theirs to answer: they wrote last, and it's not sitting in
-  // the unread count any more. Same predicate the rail's row mark uses.
-  const awaitingTotal = rows.filter(
-    (r) => !r.muted && !r.handled && r.unreadCount === 0 && r.lastDirection === "INBOUND",
-  ).length;
-
   // BulkComposer's recipient pool: living characters only, since a broadcast
   // to a dead one is refused server-side anyway.
   const bulkCharacters = rows
@@ -296,10 +289,7 @@ export default async function PlayerDeskLayout({ children }) {
                 : "No turn open"}
             </span>
             <span className="chip text-xs text-muted">{rows.length} tracked</span>
-            {unreadTotal > 0 && <span className="chip text-xs text-muted">{unreadTotal} unread</span>}
-            {awaitingTotal > 0 && (
-              <span className="chip text-xs text-muted">{awaitingTotal} awaiting</span>
-            )}
+            <DeskInboxCounts rows={rows} rowsAsOfMs={rowsAsOfMs} />
           </>
         }
         actions={
@@ -313,6 +303,7 @@ export default async function PlayerDeskLayout({ children }) {
       <div className="desk-body desk-body--players">
         <PlayerRail
           rows={rows}
+          rowsAsOfMs={rowsAsOfMs}
           myZoneNames={myZones.map((z) => z.name)}
           myDiscordUserId={session.discordUserId}
         />
@@ -336,6 +327,7 @@ export default async function PlayerDeskLayout({ children }) {
       </div>
 
       <InboxPoller deployVersion={deployVersion()} />
+      <LiveInboxPoller deployVersion={deployVersion()} />
     </div>
     </DeskStaleRefreshGate>
   );

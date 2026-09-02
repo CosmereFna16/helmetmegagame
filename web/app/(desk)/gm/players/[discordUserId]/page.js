@@ -16,7 +16,7 @@ export default async function PlayerDeskPersonPage({ params }) {
 
   // take one more than the page size so "there is older history" is a fact
   // rather than a guess, the same trick the old bounded query used.
-  const [recent, guildMembers, character, aliveCharacter, gmProfiles, claim, openTurn] = await Promise.all([
+  const [recent, guildMembers, character, aliveCharacter, gmProfiles, claim, openTurn, readCursor] = await Promise.all([
     prisma.directMessage.findMany({
       where: withoutDmNoise({ discordUserId }),
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -32,6 +32,14 @@ export default async function PlayerDeskPersonPage({ params }) {
     getGmProfiles(),
     prisma.conversationMeta.findUnique({ where: { playerDiscordUserId: discordUserId } }),
     getOpenTurn(),
+    // This GM's read cursor, for the thread's NEW line. Read here, before the
+    // pane's mark-read effect moves it.
+    prisma.conversationRead.findUnique({
+      where: {
+        gmDiscordUserId_playerDiscordUserId: { gmDiscordUserId: session.discordUserId, playerDiscordUserId: discordUserId },
+      },
+      select: { lastReadAt: true },
+    }),
   ]);
   const hasMore = recent.length > TAKE;
   const messages = recent.slice(0, TAKE).reverse();
@@ -74,6 +82,7 @@ export default async function PlayerDeskPersonPage({ params }) {
       myDiscordUserId={session.discordUserId}
       claimedByDiscordUserId={claim?.claimedByDiscordUserId ?? null}
       moveId={openMove?.id ?? null}
+      lastReadAtMs={readCursor?.lastReadAt ? readCursor.lastReadAt.getTime() : 0}
     />
   );
 }

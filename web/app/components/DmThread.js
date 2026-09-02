@@ -1,53 +1,69 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MarkdownContent from "./MarkdownContent";
 import GmAvatar from "./GmAvatar";
 import CharacterAvatar from "./CharacterAvatar";
+import useNowTick from "./useNowTick";
 import { AUTOMATED_EFFECT_SOURCES } from "@/lib/dmSources";
+import { dayKey, dayLabel, clockLabel, formatDmTime, fullTimestamp } from "@/lib/dmTime";
 
-// Quiet source labels for the machine-authored rows that still render as a
-// full Bubble — bot_auto/player_event/gm_dev/move_unlock never reach this map
-// any more, since Bubble routes them to SystemLine before it's read (see
-// AUTOMATED_EFFECT_SOURCES in @/lib/dmSources). staged_push and gm_broadcast
-// are the two GM-authored sources that still need a "what kind of GM message
-// is this" hint next to a normal bubble.
+// The one shared thread — the player desk's conversation pane and the
+// inspector's DMs tab both render this. It reads like a chat client rather
+// than a support inbox: flat rows, one header (avatar, name, time) per run of
+// messages from the same person, day dividers, a NEW line where the unread
+// ones start, and a scroll that follows the conversation only when you're
+// already at the bottom.
+//
+// Props:
+//   messages        — DirectMessage DTOs (id, direction, content, createdAt,
+//                     authorDiscordUserId, source, meta). createdAt may be a
+//                     Date (server-rendered) or an ISO string (live feed).
+//   gmProfiles      — web/lib/gmProfiles.js#getGmProfiles() result
+//   onLoadOlder     — fetch the previous page; omit to hide the affordance
+//   hasMore         — whether an older page exists
+//   compact         — tighter padding for the inspector's narrow column
+//   character       — { id, name, avatarVersion } of the conversation's own
+//                     character, for the inbound rows' avatar and name
+//   newSinceMs      — this GM's read cursor when the thread opened; the NEW
+//                     line goes above the first inbound row after it
+//   myDiscordUserId — the viewing GM, so their own send always scrolls
+
+// Quiet source labels for the GM-authored rows that still need a "what kind
+// of GM message is this" hint next to the name.
 const SOURCE_LABELS = {
   staged_push: "turn result",
   gm_broadcast: "broadcast",
 };
 
-function authorLabel(message, gmProfileById) {
-  if (message.direction === "INBOUND") return null;
-  if (message.authorDiscordUserId) {
-    const profile = gmProfileById.get(message.authorDiscordUserId);
-    return { name: profile?.username ?? "GM", profile: profile ?? null };
-  }
-  return { name: "Bascinet", profile: null };
+const RUN_GAP_MS = 7 * 60_000;
+const AT_BOTTOM_PX = 80;
+
+function messageMs(m) {
+  return new Date(m.createdAt).getTime();
 }
 
-// Runs of ≥3 consecutive automated/effect rows (see AUTOMATED_EFFECT_SOURCES
-// in @/lib/dmSources — bot_auto, player_event, gm_dev, move_unlock) collapse
-// into one expandable "N automated messages" row. staged_push never
-// collapses — it's canon, a turn result a GM needs to actually see. Pure UI
-// plumbing (embeds, edit-flow prompts, mention relays, proxy hand-back —
-// source: "system_notice", plus the historical inbound source:
+function isEmbed(m) {
+  return m.meta?.embed === true;
+}
+
+// Bot/effect notifications — resource grants, dev-panel summaries, Move
+// unlocks. They render as centred system lines, and runs of three or more
+// collapse. Pure UI plumbing (source: "system_notice", the historical
 // "prompt_reply") never reaches this component at all:
-// @/lib/dmThread#withoutDmNoise excludes it at the query. A new automated
-// sendDm() call site needs to add its `source` to dmSources.js, or it'll
-// show up here as an uncollapsed, unstyled bubble.
-function isAutomated(message) {
-  return (
-    message.meta?.embed === true ||
-    (message.direction === "OUTBOUND" && AUTOMATED_EFFECT_SOURCES.includes(message.source))
-  );
+// @/lib/dmThread#withoutDmNoise excludes it at the query.
+function isEffect(m) {
+  return !isEmbed(m) && m.direction === "OUTBOUND" && AUTOMATED_EFFECT_SOURCES.includes(m.source);
 }
 
-// Usually the thread owns its own scroll (dm-thread's `overflow-y: auto`).
-// In the GM player desk, `.desk-convo-thread .dm-thread` sets overflow-y:
-// visible instead — the parent pane owns the scroll there — so scrollTop on
-// this component's own root would silently no-op. Walk up to whichever
-// element actually scrolls.
+function speakerKey(m) {
+  if (m.direction === "INBOUND") return "in";
+  return `out:${m.authorDiscordUserId ?? "bot"}`;
+}
+
+// Usually the thread owns its own scroll (.dm-thread's overflow-y: auto). In
+// the player desk the pane owns it instead (.desk-convo-thread .dm-thread
+// sets overflow-y: visible), so walk up to whichever element scrolls.
 function getScrollEl(el) {
   let node = el;
   while (node) {
@@ -57,25 +73,52 @@ function getScrollEl(el) {
   return el;
 }
 
-function groupMessages(messages) {
-  const groups = [];
-  let run = [];
-  const flushRun = () => {
-    if (run.length === 0) return;
-    if (run.length >= 3) groups.push({ type: "collapsed", messages: run });
-    else for (const m of run) groups.push({ type: "single", message: m });
-    run = [];
+// Turns the flat message list into what's drawn: day dividers, the NEW line,
+// collapsed effect runs, and rows tagged with whether they start a run.
+function buildItems(messages, newSinceMs, now) {
+  const items = [];
+  let lastDay = null;
+  let lastSpeaker = null;
+  let lastMs = null;
+  let newDrawn = false;
+  let effectRun = [];
+
+  const flushEffects = () => {
+    if (effectRun.length === 0) return;
+    if (effectRun.length >= 3) items.push({ type: "collapsed", key: `c:${effectRun[0].id}`, messages: effectRun });
+    else for (const m of effectRun) items.push({ type: "system", key: m.id, message: m });
+    effectRun = [];
+    lastSpeaker = null;
   };
+
   for (const m of messages) {
-    if (isAutomated(m)) {
-      run.push(m);
-    } else {
-      flushRun();
-      groups.push({ type: "single", message: m });
+    const ms = messageMs(m);
+    const day = dayKey(ms);
+    if (day !== lastDay) {
+      flushEffects();
+      items.push({ type: "day", key: `d:${day}`, label: dayLabel(ms, now) });
+      lastDay = day;
+      lastSpeaker = null;
     }
+    if (!newDrawn && newSinceMs != null && m.direction === "INBOUND" && ms > newSinceMs) {
+      flushEffects();
+      items.push({ type: "new", key: "new" });
+      newDrawn = true;
+      lastSpeaker = null;
+    }
+    if (isEffect(m)) {
+      effectRun.push(m);
+      continue;
+    }
+    flushEffects();
+    const speaker = speakerKey(m);
+    const head = speaker !== lastSpeaker || lastMs == null || ms - lastMs > RUN_GAP_MS || isEmbed(m);
+    items.push({ type: "message", key: m.id, message: m, head, ms });
+    lastSpeaker = isEmbed(m) ? null : speaker;
+    lastMs = ms;
   }
-  flushRun();
-  return groups;
+  flushEffects();
+  return items;
 }
 
 // Splits a flattened embed's `content` into a title, an optional plain
@@ -101,23 +144,20 @@ function parseEmbedContent(content) {
   return { title: title ?? "", description: descriptionLines.join("\n").trim(), fields };
 }
 
-function EmbedBubble({ message }) {
+function EmbedBody({ message }) {
   const [expanded, setExpanded] = useState(false);
   const { title, description, fields } = useMemo(() => parseEmbedContent(message.content), [message.content]);
-
   const bodyLineCount = (description ? description.split("\n").length : 0) + fields.length;
-  const hasMore = bodyLineCount > 0;
 
-  if (!hasMore) {
+  if (bodyLineCount === 0) {
     return (
-      <div className="dm-bubble dm-embed">
+      <div className="dm-embed">
         {title ? <span>{title}</span> : <MarkdownContent content={message.content} />}
       </div>
     );
   }
-
   return (
-    <div className="dm-bubble dm-embed">
+    <div className="dm-embed">
       <button type="button" className="dm-embed-toggle" onClick={() => setExpanded((v) => !v)}>
         <span>{title}</span>
         {!expanded && <span className="dm-embed-more">· {bodyLineCount} more</span>}
@@ -141,120 +181,133 @@ function EmbedBubble({ message }) {
   );
 }
 
-// A bot/effect notification (resource grant, dev-panel microaction summary,
-// Move-unlock notice) — read as background texture, not a conversational
-// turn. Deliberately not another dm-bubble variant: no avatar, no author
-// name, no bubble shape at all. A GM scanning the thread for what a PERSON
-// said should be able to skip these without reading them, the same way
-// nobody reads Discord's own "X pinned a message" lines.
+// A bot/effect notification — background texture, not a conversational turn.
+// No avatar, no name, no row shape, the way nobody reads Discord's own "X
+// pinned a message" lines.
 function SystemLine({ message }) {
   return (
     <div className="dm-system-line-row">
       <div className="dm-system-line">
         <MarkdownContent content={message.content} />
-        <time className="dm-system-line-time">{new Date(message.createdAt).toLocaleString()}</time>
+        <time className="dm-system-line-time">{fullTimestamp(messageMs(message))}</time>
       </div>
     </div>
   );
 }
 
-function Bubble({ message, gmProfileById, character }) {
-  const outbound = message.direction === "OUTBOUND";
-  const author = authorLabel(message, gmProfileById);
-  const sourceLabel = outbound ? SOURCE_LABELS[message.source] : null;
-  const isEmbed = message.meta?.embed === true;
-  const isEffect = outbound && !isEmbed && AUTOMATED_EFFECT_SOURCES.includes(message.source);
-
-  if (isEffect) return <SystemLine message={message} />;
-
-  return (
-    <div className="flex flex-col" style={{ alignItems: isEmbed ? "flex-start" : outbound ? "flex-end" : "flex-start" }}>
-      {isEmbed ? (
-        <EmbedBubble message={message} />
-      ) : (
-        <div
-          className={outbound ? "dm-bubble dm-bubble-out" : "dm-bubble dm-bubble-in"}
-          // An optimistically appended row, not yet confirmed by the server
-          // (the player desk's composer — see ConversationPane). Dimmed until
-          // the real row replaces it, or removed if the send failed.
-          data-pending={message.pending || undefined}
-        >
-          <MarkdownContent content={message.content} />
-        </div>
-      )}
-      <span className="mt-1 flex items-center gap-1 text-xs text-muted">
-        {author?.profile && <GmAvatar profile={author.profile} size={14} />}
-        {!outbound && character?.id && (
-          <CharacterAvatar characterId={character.id} name={character.name} version={character.avatarVersion} size={14} />
-        )}
-        {author?.name && <span>{author.name}</span>}
-        {sourceLabel && <span aria-hidden="true">· {sourceLabel}</span>}
-        <span>{new Date(message.createdAt).toLocaleString()}</span>
-      </span>
-    </div>
-  );
-}
-
-function CollapsedGroup({ group, gmProfileById, character }) {
+function CollapsedGroup({ messages }) {
   const [expanded, setExpanded] = useState(false);
-  if (expanded) {
-    return (
-      <>
-        {group.messages.map((m) => (
-          <Bubble key={m.id} message={m} gmProfileById={gmProfileById} character={character} />
-        ))}
-      </>
-    );
-  }
+  if (expanded) return messages.map((m) => <SystemLine key={m.id} message={m} />);
   return (
-    <div className="flex justify-start">
+    <div className="dm-system-line-row">
       <button type="button" className="btn-quiet" onClick={() => setExpanded(true)}>
-        {group.messages.length} automated messages
+        {messages.length} automated messages
       </button>
     </div>
   );
 }
 
-// The one shared thread component — used by /gm/messages/[discordUserId] and,
-// with `compact`, the adjudication Inspector's DMs tab (a later task wires
-// that up; this component is already shaped for it).
-//
-// Props:
-//   messages    — DirectMessage DTOs (id, direction, content, createdAt,
-//                 authorDiscordUserId, source)
-//   gmProfiles  — web/lib/gmProfiles.js#getGmProfiles() result
-//   onLoadOlder — called with no args to fetch the previous page; omit to
-//                 hide the control
-//   hasMore     — whether an older page exists
-//   compact     — tighter padding for the Inspector's narrower column
-//   character   — { id, name, avatarVersion } of the conversation's own
-//                 character, shown on an inbound bubble beside GmAvatar's
-//                 outbound one; omit where the caller has no character (e.g.
-//                 a DM-only row with no sheet)
-export default function DmThread({ messages, gmProfiles = [], onLoadOlder, hasMore, compact = false, character = null }) {
+function Row({ item, gmProfileById, character, now }) {
+  const { message, head, ms } = item;
+  const outbound = message.direction === "OUTBOUND";
+  const profile = outbound && message.authorDiscordUserId ? gmProfileById.get(message.authorDiscordUserId) ?? null : null;
+  const name = outbound ? (message.authorDiscordUserId ? profile?.username ?? "GM" : "Bascinet") : character?.name ?? "Player";
+  const sourceLabel = outbound ? SOURCE_LABELS[message.source] : null;
+  const embed = isEmbed(message);
+
+  return (
+    <div
+      className={head ? "dm-row dm-row-head" : "dm-row dm-row-cont"}
+      data-pending={message.pending || undefined}
+      data-dir={outbound ? "out" : "in"}
+    >
+      <div className="dm-row-gutter" aria-hidden={head ? undefined : "true"}>
+        {head ? (
+          outbound ? (
+            <GmAvatar profile={profile} size={32} />
+          ) : (
+            <CharacterAvatar characterId={character?.id ?? null} name={name} version={character?.avatarVersion} size={32} />
+          )
+        ) : (
+          <span className="dm-row-cont-time mono">{clockLabel(ms)}</span>
+        )}
+      </div>
+      <div className="dm-row-body">
+        {head && (
+          <div className="dm-row-meta">
+            <span className="dm-row-name">{name}</span>
+            {sourceLabel && <span className="chip text-xs text-muted">{sourceLabel}</span>}
+            <time className="dm-row-time mono" title={fullTimestamp(ms)}>
+              {formatDmTime(ms, now)}
+            </time>
+          </div>
+        )}
+        {embed ? <EmbedBody message={message} /> : <MarkdownContent content={message.content} />}
+      </div>
+    </div>
+  );
+}
+
+export default function DmThread({
+  messages,
+  gmProfiles = [],
+  onLoadOlder,
+  hasMore,
+  compact = false,
+  character = null,
+  newSinceMs = null,
+  myDiscordUserId = null,
+}) {
   const containerRef = useRef(null);
+  const sentinelRef = useRef(null);
   const prevFirstIdRef = useRef(null);
   const prevLastIdRef = useRef(null);
   const anchorHeightRef = useRef(null);
+  const loadingOlderRef = useRef(false);
+  // Where the NEW line goes is decided once, when the thread opens: mark-read
+  // fires a moment later, and the line must not move because of it. State
+  // seeded from the prop, never re-synced.
+  const [newSince] = useState(newSinceMs);
 
+  // Whether the reader is at (or near) the bottom, kept as state because the
+  // "N new messages ↓" pill renders off it. It only ever changes from the
+  // scroll listener — an event callback, not an effect body.
+  const [atBottom, setAtBottom] = useState(true);
+  const [seenBottomId, setSeenBottomId] = useState(null);
+
+  const now = useNowTick(60_000);
   const gmProfileById = useMemo(() => new Map(gmProfiles.map((p) => [p.discordUserId, p])), [gmProfiles]);
-  const groups = useMemo(() => groupMessages(messages), [messages]);
+  const items = useMemo(() => buildItems(messages, newSince, now), [messages, newSince, now]);
 
-  // Measure before the DOM updates (prepend vs. append), adjust after.
   const firstId = messages[0]?.id ?? null;
   const lastId = messages[messages.length - 1]?.id ?? null;
+  // The scroll listener below needs the newest id without re-subscribing on
+  // every message, so it reads a ref that an effect keeps current.
+  const lastIdRef = useRef(lastId);
+  useEffect(() => {
+    lastIdRef.current = lastId;
+  }, [lastId]);
 
+  // Follow the conversation only when already following it. A GM's own send
+  // always goes to the bottom — pressing Enter in a composer pinned there
+  // means that's where they were. A player's message landing while the GM
+  // is reading history must not yank them.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const scrollEl = getScrollEl(el);
 
-    const wasPrepend = prevFirstIdRef.current && firstId && firstId !== prevFirstIdRef.current && lastId === prevLastIdRef.current;
+    const wasPrepend =
+      prevFirstIdRef.current && firstId && firstId !== prevFirstIdRef.current && lastId === prevLastIdRef.current;
     const wasAppend = lastId && lastId !== prevLastIdRef.current;
+    const newest = messages[messages.length - 1];
+    const mine =
+      newest && (newest.pending || (newest.direction === "OUTBOUND" && newest.authorDiscordUserId === myDiscordUserId));
 
     if (wasPrepend && anchorHeightRef.current != null) {
       scrollEl.scrollTop = scrollEl.scrollHeight - anchorHeightRef.current;
-    } else if (wasAppend || prevLastIdRef.current == null) {
+      loadingOlderRef.current = false;
+    } else if (prevLastIdRef.current == null || (wasAppend && (atBottom || mine))) {
       scrollEl.scrollTop = scrollEl.scrollHeight;
     }
 
@@ -263,27 +316,99 @@ export default function DmThread({ messages, gmProfiles = [], onLoadOlder, hasMo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
-  function handleLoadOlder() {
+  // The scroll listener: tracks "at the bottom" and remembers the newest row
+  // seen from there, which is what the pill counts against.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return undefined;
+    const scrollEl = getScrollEl(el);
+    function onScroll() {
+      const near = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < AT_BOTTOM_PX;
+      setAtBottom(near);
+      setSeenBottomId((prev) => (near || prev == null ? lastIdRef.current : prev));
+    }
+    scrollEl.addEventListener("scroll", onScroll, { passive: true });
+    return () => scrollEl.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const requestOlder = useCallback(() => {
+    if (!hasMore || !onLoadOlder || loadingOlderRef.current) return;
     const el = containerRef.current;
     anchorHeightRef.current = el ? getScrollEl(el).scrollHeight : null;
-    onLoadOlder?.();
+    loadingOlderRef.current = true;
+    onLoadOlder();
+  }, [hasMore, onLoadOlder]);
+
+  // Older pages load on their own as the reader nears the top, the way a chat
+  // client does it, instead of on a button.
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore || !onLoadOlder) return undefined;
+    const el = containerRef.current;
+    const root = el ? getScrollEl(el) : null;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) requestOlder();
+      },
+      { root: root === document.scrollingElement ? null : root, rootMargin: "200px 0px 0px 0px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, onLoadOlder, requestOlder]);
+
+  function jumpToBottom() {
+    const el = containerRef.current;
+    if (!el) return;
+    const scrollEl = getScrollEl(el);
+    scrollEl.scrollTo({ top: scrollEl.scrollHeight, behavior: "smooth" });
   }
 
+  // How many rows landed below the reader since they last sat at the bottom.
+  const newBelow = useMemo(() => {
+    if (atBottom || seenBottomId == null) return 0;
+    const idx = messages.findIndex((m) => m.id === seenBottomId);
+    return idx < 0 ? 0 : messages.length - 1 - idx;
+  }, [atBottom, seenBottomId, messages]);
+
   return (
-    <div ref={containerRef} className={`panel dm-thread flex flex-col gap-3 ${compact ? "p-3" : "p-4"}`}>
-      {hasMore && (
-        <button type="button" className="btn-quiet self-center" onClick={handleLoadOlder}>
-          Load older messages
-        </button>
+    <div ref={containerRef} className={`dm-thread ${compact ? "dm-thread-compact" : ""}`}>
+      {hasMore && onLoadOlder && (
+        <div ref={sentinelRef} className="dm-older">
+          <button type="button" className="btn-quiet" onClick={requestOlder}>
+            Load older messages
+          </button>
+        </div>
       )}
-      {groups.map((g, i) =>
-        g.type === "collapsed" ? (
-          <CollapsedGroup key={g.messages[0].id} group={g} gmProfileById={gmProfileById} character={character} />
-        ) : (
-          <Bubble key={g.message.id} message={g.message} gmProfileById={gmProfileById} character={character} />
-        ),
-      )}
+      {items.map((item) => {
+        switch (item.type) {
+          case "day":
+            return (
+              <div key={item.key} className="dm-day" role="separator">
+                <span>{item.label}</span>
+              </div>
+            );
+          case "new":
+            return (
+              <div key={item.key} className="dm-new" role="separator">
+                <span>NEW</span>
+              </div>
+            );
+          case "system":
+            return <SystemLine key={item.key} message={item.message} />;
+          case "collapsed":
+            return <CollapsedGroup key={item.key} messages={item.messages} />;
+          default:
+            return <Row key={item.key} item={item} gmProfileById={gmProfileById} character={character} now={now} />;
+        }
+      })}
       {messages.length === 0 && <p className="text-sm text-muted">No messages yet.</p>}
+      {newBelow > 0 && (
+        <div className="dm-jump-row">
+          <button type="button" className="dm-jump" onClick={jumpToBottom}>
+            ↓ {newBelow} new {newBelow === 1 ? "message" : "messages"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

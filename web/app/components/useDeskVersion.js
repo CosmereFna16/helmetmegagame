@@ -18,6 +18,15 @@ import { RefreshGate } from "./useRefresh";
 // (isDeskStale), the chip needs a subscription (useDeskVersion), and the
 // composers' catch blocks need neither (mutationErrorMessage).
 //
+// One more hole the gate does NOT cover, noted so nobody widens it by
+// accident: a server action that revalidates a path gets a fresh flight
+// payload back, and on a build-id mismatch Next discards it and falls back to
+// the same full navigation. That path never fires here only because Next
+// salts every action id with a per-build key — NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+// is unset, so a stale client's action 404s cleanly ("was not found on the
+// server") instead of reaching the fallback. Setting that env var to keep
+// action ids stable across deploys would reopen the reload.
+//
 // `stale` LATCHES. Refreshing a stale desk into the new build IS the reload
 // we're avoiding, so once flagged, auto-refresh stands down until the GM
 // clicks the chip. The header's "updated HH:MM" stamp going cold is the
@@ -64,6 +73,19 @@ export async function checkDeskVersion(baseline) {
   // server, or nothing unusual (= the GM's own ⌘R).
   writeSession(CRUMB_KEY, { at: Date.now(), outcome, baseline, seen: state.lastSeen });
   return outcome;
+}
+
+// The live inbox poll (LiveInboxPoller.js) gets the server's version back in
+// every response, so it can latch the same flag without a fetch of its own —
+// which is how a deploy shows the chip in ~3s instead of waiting on the 30s
+// poll's pre-flight check.
+export function noteDeskVersion(seen, baseline) {
+  state.lastSeen = seen;
+  if (seen !== baseline && !state.stale) {
+    state.stale = true;
+    for (const callback of listeners) callback();
+  }
+  return state.stale ? "stale" : "ok";
 }
 
 export function readVersionCrumb() {

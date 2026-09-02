@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { playChime } from "./chime";
+import { playChime, chimedRecently } from "./chime";
 import useChimeMuted from "./useChimeMuted";
 
 // Watches the unread-conversation count and chimes when it rises. Mounted
@@ -21,7 +21,10 @@ export default function InboxChime({ count }) {
       lastCount.current = count;
       return;
     }
-    if (count > lastCount.current && !muted) playChime();
+    // On the player desk the live poll (LiveInboxPoller.js) has usually rung
+    // already for the same arrival; the count catching up 30s later is not a
+    // second message.
+    if (count > lastCount.current && !muted && !chimedRecently()) playChime();
     lastCount.current = count;
   }, [count, muted]);
 

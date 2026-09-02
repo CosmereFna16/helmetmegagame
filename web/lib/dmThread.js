@@ -65,3 +65,15 @@ export function genuineConversationSql(alias) {
   const exclusions = AUTOMATED_EFFECT_SOURCES.map((s) => Prisma.sql`(${col("source")} IS DISTINCT FROM ${s})`);
   return Prisma.sql`${dmNoiseSql(alias)} AND ${Prisma.join(exclusions, " AND ")}`;
 }
+
+// The rail's preview prefix — "You: " for a message this GM sent, "GM: " for
+// another GM's, "Bot: " for a bot-authored line, nothing for the player's own
+// words. Lives here, next to the noise predicates, because the desk layout
+// and the live-inbox delta (web/lib/inboxDelta.js) both build the same
+// preview and must not drift.
+export function dmPreviewLabel(genuine, myDiscordUserId) {
+  if (!genuine) return "";
+  if (genuine.direction === "INBOUND") return "";
+  if (!genuine.authorDiscordUserId) return "Bot: ";
+  return genuine.authorDiscordUserId === myDiscordUserId ? "You: " : "GM: ";
+}

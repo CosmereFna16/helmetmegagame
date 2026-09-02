@@ -229,25 +229,55 @@ roster fetch.
 ## 5. The conversation
 
 A real chat pane: the transcript takes the height that's left and scrolls
-inside itself, with the composer pinned at the bottom. It used to be a 32rem
-`DmThread` block sitting in document flow under a page header.
+inside itself, with the composer pinned at the bottom. It reads like a chat
+client, not a support inbox.
 
+- **Rows, not bubbles** (`DmThread.js`, shared with the inspector's DMs tab).
+  Flat, left-aligned rows. A run of messages from the same person within
+  seven minutes gets one header — avatar, name, time — and the rest are
+  continuation lines whose time shows in the gutter on hover. GM names take
+  the accent colour; the player's rows carry their character avatar. Day
+  dividers (`Today`, `Yesterday`, then the date) and the source chips
+  (`turn result`, `broadcast`) are the only other furniture. Times come from
+  `web/lib/dmTime.js` and tick with `useNowTick`, so "Today" flips at
+  midnight.
+- **The NEW line.** The route loads this GM's `ConversationRead` cursor and
+  hands it to the thread, which draws a `NEW` rule above the first inbound
+  message after it. Where it sits is decided once when the thread opens
+  (state seeded from the prop), so the mark-read that fires a moment later
+  can't move it.
+- **The scroll follows only if you were following.** On a new row the pane
+  scrolls to the bottom when the reader was already within ~80px of it, or
+  when the row is the GM's own send. A player's message landing while the GM
+  is reading history doesn't yank them; a `↓ N new messages` pill sticks to
+  the bottom of the scroll area instead and jumps down on click. Older pages
+  load on their own as the reader nears the top (an `IntersectionObserver`
+  sentinel), with the button left as the fallback.
 - **Enter sends, Shift+Enter makes a newline** (`useSubmitOnEnter.js`).
   Two guards that are not optional: `isComposing`, because an IME uses Enter to
   accept the candidate being composed and sending there posts half a word; and
   `useIsCoarsePointer`, because on a phone Return is the only way to make a
   paragraph. Touch sends with the button.
+- **The composer grows with the draft**, one line to ten, measured in the
+  change handler. There is no permanent hint line under it: the counter only
+  appears past 90% of the cap, and the Enter/Shift+Enter hint lives on the
+  textarea's tooltip and the send button's. Send is a compact icon button,
+  always present because touch has no Enter-to-send.
 - Drafts persist per conversation in `localStorage`, read through
   `useSyncExternalStore` — the textarea's value *is* the store's value, so
   there is no `setState` in an effect to seed it.
 - **Send is optimistic.** The row appears and the draft clears the instant you
-  press Enter, styled pending (`data-pending` on the bubble) until the server
+  press Enter, styled pending (`data-pending` on the row) until the server
   answers; a failure removes the row, puts the draft back exactly as it was,
   and shows the error, so nothing a GM typed is lost to a failed send. The
   server half matches: `sendGmDm` awaits the Discord POST (a GM must know if
   *that* failed) and returns the one created row instead of re-reading the
-  whole thread page, with the audit row, the read cursor and both
-  `revalidatePath`s deferred into `after()`.
+  whole thread page.
+- **The player's side arrives live.** The pane's page state is seeded once,
+  and used to stay that way until the GM sent something. Now it unions that
+  page with the live feed for this conversation (§9a) during render — never
+  copied into state — and a pending optimistic row retires as soon as the
+  real row with the same content shows up, whichever path brings it first.
 - **Claim/release** is advisory (`ConversationMeta`), so five GMs don't answer
   the same player twice. The same table carries `handledAt` and `mutedAt`, the
   rail's ✓ "needs no reply" mark and its ⊘ mute (§3).
@@ -281,12 +311,17 @@ inside itself, with the composer pinned at the bottom. It used to be a 32rem
     doesn't silently change meaning depending on who or what sent the most
     recent thing. `staged_push` (turn-result prose) is deliberately **not**
     in this bucket — it's GM-authored content, just delivered in bulk. In
-    the pane, these same four sources render as a centered, bubble-less
-    `SystemLine` (`DmThread.js`, `.dm-system-line` in `globals.css`) instead
-    of an ordinary bubble, and still collapse in runs of 3+ the way
-    `bot_auto` alone used to.
+    the pane, these same four sources render as a centered, row-less
+    `SystemLine` (`DmThread.js`, `.dm-system-line` in `globals.css`) and
+    still collapse in runs of 3+. The `You: / GM: / Bot:` preview prefix is
+    `dmThread.js#dmPreviewLabel`, shared with the live delta so the two can't
+    drift.
 - Mark-read fires from a client effect, never during RSC render — otherwise
-  Next's link prefetch marks a conversation read on hover.
+  Next's link prefetch marks a conversation read on hover. It is the one
+  action on the desk that deliberately does **not** `revalidatePath`: the
+  cursor it moves is this GM's alone, the live poll sees it within seconds,
+  and re-running the whole layout for it was the desk's most frequent full
+  re-render.
 
 ## 6. The inspector
 
@@ -384,13 +419,83 @@ below it**. So every `revalidatePath("/gm/players")` is
 `revalidatePath("/gm/players", "layout")` — without it a GM sitting in a
 conversation never sees the list move. There are a dozen call sites across
 `faction/`, `gm/`, `gm/dev/`, `lifeweb/`, `gamemasters/` and the adjudication
-desk's own actions.
+desk's own actions. `markConversationRead` is the deliberate exception (§5).
+
+## 9a. The live inbox
+
+Before this, a player's reply never reached an open conversation until the
+GM reloaded: the pane's state is seeded once, and the desk's only refresh
+was `InboxPoller.js`'s 30s gated `router.refresh()`, which re-renders the
+layout but can't reseed the pane. Now the desk has a fast path and a
+backstop, and it's important which is which.
+
+**The fast path** is `LiveInboxPoller.js`: every ~3s it fetches
+`GET /api/gm/inbox-delta?since=…&open=…` and folds the answer into
+`liveInbox.js`, a module-level store read through `useSyncExternalStore`.
+The route (`web/app/api/gm/inbox-delta/route.js`, over
+`web/lib/inboxDelta.js`) answers with what moved since `since`: for every
+touched conversation, its last message time and direction, the preview, this
+GM's unread count and the handled/muted/claim state; plus, for the open
+conversation, the message rows themselves. It is a **route handler, not a
+server action**, on purpose — a server action runs through the router's
+serial action queue, so a poll in flight would hold up the GM's own send, a
+POST can't be aborted, and a plain fetch can never reach Next's build-mismatch
+full reload whatever the server answers. It is also **not** SSE or
+LISTEN/NOTIFY: for five GMs a 3s poll is indistinguishable from instant, and
+a dropped stream that looks alive is exactly the failure class this desk has
+already been burned by.
+
+**Every timestamp comes from Postgres's clock.** `createdAt` is set by the
+database; the web container's `Date.now()` is a different machine, and a
+few hundred ms of drift the wrong way would blind the cursor for good. The
+response carries `nowMs` from `SELECT now()`, the client hands it straight
+back as the next `since` (minus a 10s overlap — `createdAt` is transaction
+start, and the client dedupes by id anyway), and `layout.js` stamps its rows
+with the same clock as `rowsAsOfMs`.
+
+**The merge rule.** A patch lays over a rail row only when the patch is newer
+than the row (`liveInbox.js#mergeRailRows`), as a whole — its fields came
+from one consistent read. A revalidated layout arrives with a newer stamp,
+so older patches simply stop applying; nothing prunes them in an effect. The
+merge happens *before* the rail's ✓/⊘ overrides look at a row, because the
+✓ override is keyed on the row's last-message time and has to see the live
+one to un-stick when a new message lands. The header's `N unread · N
+awaiting` chips count the same merged rows (`DeskInboxCounts.js` over
+`railCounts.js`), so the header can't disagree with the rail. Someone the
+rail has never seen — a guild member with no character writing for the
+first time — arrives as a whole row inside the patch, built server-side
+from the member cache.
+
+**The backstop** is the 30s `InboxPoller`, unchanged. It still owns
+everything the delta can't see: another GM's claim or ✓ on an untouched
+conversation, staged effects, roster and tag changes. The delta is allowed
+to miss; the refresh is what makes that safe. The open thread has no such
+backstop, so every 20th tick the poll asks for the last 60 rows outright.
+
+**Polling continues while the tab is hidden.** Browsers throttle a hidden
+page's timers to about one a minute on their own, and the chime while a GM
+is off in Discord is the single most useful thing this delivers. Coming back
+to the tab fires a tick at once. The chime rings for an inbound message on
+any conversation but the open one, or on any conversation when the tab is
+hidden — and `chime.js` remembers when it last rang, so `InboxChime.js` (fed
+by the 30s refresh's badge count) doesn't ring a second time for the same
+arrival.
+
+**Deploys.** Every response carries the build version; a mismatch latches
+the same `stale` flag the 30s poll uses (`useDeskVersion.js#noteDeskVersion`)
+and stops the loop, so the "Updated — reload when ready" chip shows in ~3s
+instead of ~30s. A failed request — a switchover blip, a timeout, being
+offline — backs off (6s → 60s) and keeps the cursor where it was. Nothing on
+this path ever reloads the page.
 
 ## 10. File map
 
 | File | Role |
 |---|---|
-| `(desk)/gm/players/layout.js` | Desk shell + all rail data (the union query) |
+| `(desk)/gm/players/layout.js` | Desk shell + all rail data (the union query), stamped with the DB clock |
+| `LiveInboxPoller.js` / `liveInbox.js` | The 3s delta poll and the store it fills — patches for the rail, the message feed for the open pane (§9a) |
+| `DeskInboxCounts.js` / `railCounts.js` | The header's unread/awaiting chips, counted over the live-merged rows |
+| `web/lib/inboxDelta.js` + `app/api/gm/inbox-delta/route.js` | The delta query and its GM-gated GET |
 | `PlayerRail.js` | The inbox rail: search (widens to the roster, pauses filters), zone filter, Needs-reply toggle, pins, the ✓ needs-no-reply mark, the ⊘ mute and its Show-muted toggle |
 | `page.js` / `RosterTable.js` | The fleet view + bulk verbs |
 | `FactionsPanel.js` | The faction hierarchy view |
@@ -405,4 +510,6 @@ desk's own actions.
 | `BulkComposer.js` / `BulkMessageButton.js` | The broadcast modal and its header door |
 | `components/usePins.js` | Pins, shared with `/gm/turns` |
 | `components/useSubmitOnEnter.js` | Enter-to-send, IME- and touch-guarded |
+| `components/DmThread.js` + `web/lib/dmTime.js` | The chat-style thread: author runs, day dividers, the NEW line, follow-if-following scroll |
+| `components/useNowTick.js` | The beat behind every relative time on the desk |
 | `components/CommandPalette.js` + `paletteActions.js` | ⌘K |
