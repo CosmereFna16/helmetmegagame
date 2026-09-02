@@ -130,16 +130,18 @@ at every turn close. `@@unique([characterId, tagId])` makes `tagId` a stable
 address, and it is what every `requestEffects.js` helper already takes.
 
 ```
-{ tagId, op: "add",    quantity?, source?, expiry?, equipped?, force? }
+{ tagId, op: "add",    quantity?, source?, expiry?, equipped? }
 { tagId, op: "remove", quantity? }      // null quantity = the whole holding
 { tagId, op: "patch",  quantity?, equipped?, expiry? }
 ```
 
-Both a catalog Grant row and a Held row carry a quantity stepper now, so a
-GM can grant several at once instead of clicking one at a time. Ask for more
-than one of a tag the catalog marked non-stackable and the button reads
-"Grant ×3" and stages `force: true` — a GM surface may stack any tag, not
-only the ones flagged `stackable` (`TAGS.md` §5a).
+A catalog Grant row and a Held row carry a quantity stepper **only when the
+tag is `stackable`**, so a GM can grant four meals at once instead of clicking
+one at a time. Everything else is a holds-it-or-doesn't flag: no box, the
+button just reads "Grant", and repeated clicks stage `quantity: 1` because
+`mergeTagOp` pins a non-stackable add back to 1 rather than accumulating. The
+`force: true` escape hatch that used to let a GM stack anything is gone
+(`TAGS.md` §5a).
 
 Applied **removes → adds → patches → equipped**. Removes lead so swapping one
 tier of a chain for another can't trip the equip cap halfway through; the

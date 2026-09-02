@@ -9,7 +9,7 @@
 // a stable address, and it is what every tagWrites.js helper takes.
 //
 // Op shapes (DEV-PANEL.md §5):
-//   { tagId, op: "add",    quantity?, source?, expiry?, equipped?, force? }
+//   { tagId, op: "add",    quantity?, source?, expiry?, equipped? }
 //   { tagId, op: "remove", quantity? }   // null quantity = the whole holding
 //   { tagId, op: "patch",  quantity?, source?, expiry?, equipped? }
 //
@@ -35,11 +35,12 @@ function validateTagOps(ops, tagsById, held) {
         throw new TagOpError(`Quantity for ${tag.name} must be a whole number of at least 1.`);
       }
       // addToStack silently pins a non-stackable to 1; say so instead of
-      // letting the GM think they granted three — unless the op carries
-      // `force`, which is how a GM surface says "yes, really, stack this
-      // one anyway." Both TagEditor.js and EffectComposer.js set it when a
-      // GM asks for more than one of a tag the catalog marked non-stackable.
-      if (qty > 1 && !tag.stackable && !op.force) {
+      // letting the GM think they granted three. There is no GM override
+      // here: a GM surface ignores requiredTag, the group gate and the
+      // budget, but `stackable` describes the shape of the row rather than
+      // who may hold what, and both GM composers now hide the quantity box
+      // on a tag that doesn't carry one (TAGS.md §5a).
+      if (qty > 1 && !tag.stackable) {
         throw new TagOpError(`${tag.name} doesn't stack — grant it once.`);
       }
       if (op.equipped && !tag.equippable) {
@@ -111,10 +112,7 @@ async function applyTagOpsInTx(tx, { characterId, ops, tagsById, openTurn, equip
     const tag = tagsById.get(op.tagId);
     await addToStack(tx, characterId, op.tagId, op.quantity ?? 1, {
       source: op.source ?? "GM_GRANT",
-      // A GM's `force: true` stacks a tag the catalog says doesn't stack —
-      // validateTagOps already let it through, so addToStack needs to know
-      // too, or it would quietly pin the quantity back to 1.
-      stackable: tag.stackable || op.force === true,
+      stackable: tag.stackable,
       expiresTurn: await expiresTurnFor(tx, op, tag, openTurn, characterId),
     });
     applied.push({ op: "add", tagId: op.tagId, name: tag.name, quantity: op.quantity ?? 1 });

@@ -15,9 +15,8 @@ const { expiryFrom } = require("./turnFormat");
 // Adds `quantity` of a tag, creating the row or incrementing an existing
 // one. Non-stackable tags are pinned at 1 no matter what is asked for, so a
 // caller that forgot to check `tag.stackable` can't mint a phantom stack.
-// A GM surface may still stack one on purpose — db/lib/tagOps.js passes
-// `stackable: true` for a `force`d op even when the catalog tag itself
-// isn't stackable, and this function has no way to tell the two apart.
+// `options.stackable` is the catalog flag and nothing else — no caller, GM
+// surface included, may pass true for a tag the catalog says doesn't stack.
 //
 // Moved down from web/lib/requestEffects.js (which re-exports it) for the
 // same reason dropCharacterTag was: the staged-push pass in

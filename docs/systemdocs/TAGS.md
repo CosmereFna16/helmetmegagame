@@ -436,15 +436,21 @@ no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
 
 - **Addictions and Personality (`general-addictions`,
   `general-personality`) run their own bands, off the same scale.**
-  Addictions −2…−7, Personality −8…+5. ‡ The rationale is income-based, not
+  Addictions a flat −4, Personality −8…+5. ‡ The rationale is income-based, not
   severity-based: the price tracks how much of the Desire catalog a tag closes
-  against how much it opens. Alcoholic, which still has tiers 5 and 7 open
-  everywhere, costs less than Glutton, which is locked to `food` at every
-  tier. Depressed closes everything and opens nothing, so it sits at the floor
-  at −8; Eunuch closes exactly one family and sits at −1. Pacifist stays at −2
-  even though it now opens two Desires of its own, because what it opens is
-  narrow and what it forbids is not. An Interest-shaped tag is positive
-  because it is pure upside — it widens the catalog with no lock attached.
+  against how much it opens. Depressed closes everything and opens nothing, so
+  it sits at the floor at −8; Eunuch closes exactly one family and sits at −1.
+  Pacifist stays at −2 even though it now opens two Desires of its own, because
+  what it opens is narrow and what it forbids is not. An Interest-shaped tag is
+  positive because it is pure upside — it widens the catalog with no lock
+  attached.
+
+  Addictions are flat rather than a band as of 2026-09-02, when each one
+  stopped closing a slice of the whole catalog and started closing exactly one
+  thing: the **bottom Desire slot**, to everything outside its own family
+  (`DESIRES.md` §3). The old −3…−6 spread priced how much of the catalog each
+  shut, and that variable no longer exists — all five now do the same amount of
+  damage, so they cost the same.
 
   **A Personality tag may be negative AND open Desires.** That is the whole
   point of the 2026-09-01 merge that replaced `general-restrictions` and
@@ -743,24 +749,31 @@ about `quantity`; everything else goes through them:
 
 | | |
 |---|---|
-| `addToStack(tx, characterId, tagId, n, opts)` | create-or-increment. Pins `n` to 1 unless `opts.stackable`, so a caller that forgot to check can't mint a phantom stack. |
+| `addToStack(tx, characterId, tagId, n, opts)` | create-or-increment. Pins `n` to 1 unless `opts.stackable`, so a caller that forgot to check can't mint a phantom stack. `opts.stackable` is the catalog flag and nothing else — there is no override. |
 | `dropCharacterTag(tx, characterId, tagId, n)` | decrement, deleting the row at 0. `n = null` (the default) drops the whole holding — what an ordinary tag always wants. |
 | `restoreCharacterTag(tx, characterId, snapshot)` | undo's inverse. **Increments** on the update branch: `snapshot.quantity` is what the request took away, not what the character should end up holding. |
 
-**A GM can stack any tag, catalog `stackable` or not.** The Dev Panel and the
-turn desk's staged effects (`DEV-PANEL.md` §5) let a GM grant more than one of
-a tag the catalog marked non-stackable — the button reads "Grant ×3" and the
-op carries `force: true`, which tells `validateTagOps` (`db/lib/tagOps.js`)
-to skip the "doesn't stack" refusal and tells `addToStack` to actually keep
-the count instead of pinning it to 1. This is a GM surface bypassing a gate
-like every other GM surface (§6 below) — the player-facing paths (Add Tag,
-PointBuy) never see `force` and still can't stack a non-stackable tag. One
-wrinkle: a forced stack on a tag with `expiresInto` is progressed as **one
-row** by the untreated-wound pass (`db/lib/tagExpiryPass.js`) — the whole
-stack turns into one successor together, since that pass only reads
-`stackable: false` rows. `sweepExpiredStacks()` still only handles
-catalog-`stackable` tags, so a forced stack sheds nothing on its own; it just
-sits there until a GM removes it or its chain fires.
+**Nothing stacks a non-stackable tag, a GM surface included.** A GM ignores
+`requiredTag`, the `TagGroup` gate and the budget (§6 below), but not this:
+`stackable` describes the shape of the row rather than who may hold what, and
+a quantity on a holds-it-or-doesn't flag is just a corrupt row. So the
+quantity stepper is rendered **only on a `stackable` tag** — in the Dev Panel
+Tags tab and in the turn desk's effect composer alike (`DEV-PANEL.md` §5) —
+`mergeTagOp` (`web/lib/tagOpAlgebra.js`) pins a non-stackable `add` back to 1
+so repeated clicks can't accumulate either, and `validateTagOps`
+(`db/lib/tagOps.js`) refuses `quantity > 1` outright. This used to be
+overridable: an op could carry `force: true`, which was derived from whatever
+number happened to be in the stepper rather than from any deliberate choice.
+That flag is gone.
+
+Stacks made under the old rule may still be sitting in the database; they were
+deliberately left alone rather than flattened by a script. Two things to know
+about one. A stack on a tag with `expiresInto` is progressed as **one row** by
+the untreated-wound pass (`db/lib/tagExpiryPass.js`), since that pass only
+reads `stackable: false` rows — the whole stack turns into one successor
+together. And `sweepExpiredStacks()` only handles catalog-`stackable` tags, so
+such a stack sheds nothing on its own: it sits there until a GM removes it
+(Remove takes the whole holding) or its chain fires.
 
 Add Tag, Remove Tag and Transfer Tag all carry a quantity, clamped
 server-side to what the sender actually holds, and record it on

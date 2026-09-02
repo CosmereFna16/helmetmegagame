@@ -161,6 +161,8 @@ export default function DevPanel({
     markDirty();
   }
 
+  const tagById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
+
   function stageTagOps(ops) {
     setTagOps((prev) => {
       const next = new Map(prev);
@@ -170,7 +172,10 @@ export default function DevPanel({
           next.delete(op.tagId);
           continue;
         }
-        next.set(op.tagId, mergeTagOp(next.get(op.tagId), op));
+        // mergeTagOp needs the catalog flag: two "Add one" clicks accumulate
+        // on a stackable tag and pin back to 1 on anything else.
+        const stackable = !!tagById.get(op.tagId)?.stackable;
+        next.set(op.tagId, mergeTagOp(next.get(op.tagId), op, { stackable }));
       }
       // A merge can cancel out entirely (add then remove) — drop those.
       for (const [tagId, op] of next) if (op == null) next.delete(tagId);

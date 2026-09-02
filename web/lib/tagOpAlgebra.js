@@ -16,15 +16,24 @@
 // away, and Apply would only unequip it.
 //
 // Returns null when the two cancel out, which the caller deletes.
-export function mergeTagOp(existing, incoming) {
-  if (!existing) return incoming;
+//
+// `opts.stackable` is the catalog flag for THIS tag. It defaults to true only
+// so a caller with no catalog in hand behaves as before; every real caller
+// passes it, because it is what stops two "Add one" clicks summing into a
+// stack on a tag that is a holds-it-or-doesn't flag. There is no GM override:
+// a GM surface ignores requiredTag, group gates and the budget, but not
+// stackable, which is a statement about the shape of the row (TAGS.md §5a).
+export function mergeTagOp(existing, incoming, { stackable = true } = {}) {
+  const clamp = (op) =>
+    op && op.op === "add" && !stackable && op.quantity !== 1 ? { ...op, quantity: 1 } : op;
+  if (!existing) return clamp(incoming);
 
   // Modifiers land on the existing presence op, keeping its op and quantity.
   if (incoming.op === "patch" && existing.op !== "patch") {
     const { op: _drop, tagId: _also, ...modifiers } = incoming;
     void _drop;
     void _also;
-    return { ...existing, ...modifiers };
+    return clamp({ ...existing, ...modifiers });
   }
   // ...and a presence op inherits modifiers already staged.
   if (existing.op === "patch" && incoming.op !== "patch") {
@@ -32,7 +41,7 @@ export function mergeTagOp(existing, incoming) {
     void _drop;
     void _also;
     void _qty;
-    return { ...modifiers, ...incoming };
+    return clamp({ ...modifiers, ...incoming });
   }
   // Exact inverses cancel: granted it, then thought better of it.
   if (
@@ -43,10 +52,16 @@ export function mergeTagOp(existing, incoming) {
   }
   // Same presence op twice on a stackable: accumulate, so clicking "Add one"
   // three times stages three rather than silently staying at one. A null
-  // quantity means "the whole holding" and swallows any number.
+  // quantity means "the whole holding" and swallows any number. On a
+  // non-stackable tag clamp() below pins the total back to 1 — the accumulate
+  // is the whole reason the clamp lives here rather than at the call sites.
   if (existing.op === incoming.op) {
     const both = existing.quantity != null && incoming.quantity != null;
-    return { ...existing, ...incoming, quantity: both ? existing.quantity + incoming.quantity : null };
+    return clamp({
+      ...existing,
+      ...incoming,
+      quantity: both ? existing.quantity + incoming.quantity : null,
+    });
   }
-  return incoming;
+  return clamp(incoming);
 }

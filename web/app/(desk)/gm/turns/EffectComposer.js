@@ -173,18 +173,15 @@ export default function EffectComposer({
     let cancelledName = null;
     setOps((prev) => {
       const next = new Map(prev);
-      const merged = mergeTagOp(next.get(tagId), { tagId, op, quantity });
+      // mergeTagOp does the clamping: two "+1"s on a non-stackable tag pin
+      // back to 1, the same as one "+2" would. A GM surface doesn't get to
+      // stack something the catalog says doesn't stack (TAGS.md §5a).
+      const stackable = !!tagById.get(tagId)?.stackable;
+      const merged = mergeTagOp(next.get(tagId), { tagId, op, quantity }, { stackable });
       if (merged == null) {
         next.delete(tagId);
         cancelledName = tagById.get(tagId)?.name ?? "that tag";
       } else {
-        // force is about the TOTAL staged quantity, not the increment just
-        // added — two "+1"s on a non-stackable tag need it exactly as much
-        // as one "+2" does.
-        const tag = tagById.get(tagId);
-        if (merged.op === "add" && merged.quantity > 1 && tag && !tag.stackable) {
-          merged.force = true;
-        }
         next.set(tagId, merged);
       }
       return next;
@@ -211,9 +208,8 @@ export default function EffectComposer({
         const parsed = Number.parseInt(trimmed, 10);
         quantity = Number.isInteger(parsed) && parsed > 0 ? parsed : op.quantity;
       }
-      const tag = tagById.get(tagId);
-      const force = op.op === "add" && quantity > 1 && tag && !tag.stackable;
-      next.set(tagId, { ...op, quantity, ...(force ? { force: true } : {}) });
+      const stackable = !!tagById.get(tagId)?.stackable;
+      next.set(tagId, { ...op, quantity: op.op === "add" && !stackable ? 1 : quantity });
       return next;
     });
     setQuantityDrafts((prev) => {
@@ -231,17 +227,21 @@ export default function EffectComposer({
   function renderTagBrowserActions(tag, { held: isHeld, staged }) {
     const draft = addQtyDrafts.get(tag.id);
     const n = Number.parseInt(draft ?? "1", 10);
-    const qty = Number.isInteger(n) && n > 0 ? n : 1;
+    // Only a stackable tag carries a quantity at all; everything else is a
+    // holds-it-or-doesn't flag.
+    const qty = tag.stackable && Number.isInteger(n) && n > 0 ? n : 1;
     return (
       <>
-        <input
-          type="number"
-          min="1"
-          className="desk-qty"
-          value={draft ?? "1"}
-          onChange={(e) => setAddQtyDrafts((prev) => new Map(prev).set(tag.id, e.target.value))}
-          aria-label="Quantity to add"
-        />
+        {tag.stackable && (
+          <input
+            type="number"
+            min="1"
+            className="desk-qty"
+            value={draft ?? "1"}
+            onChange={(e) => setAddQtyDrafts((prev) => new Map(prev).set(tag.id, e.target.value))}
+            aria-label="Quantity to add"
+          />
+        )}
         <button type="button" className="btn-quiet" onClick={() => stageOp(tag.id, "add", qty)}>
           {qty > 1 ? `+ Add ×${qty}` : "+ Add"}
         </button>
@@ -281,7 +281,9 @@ export default function EffectComposer({
         if (checkedTagIds.size) {
           const merged = new Map(ops);
           for (const tagId of checkedTagIds) {
-            const next = mergeTagOp(merged.get(tagId), { tagId, op: "add", quantity: 1 });
+            const next = mergeTagOp(merged.get(tagId), { tagId, op: "add", quantity: 1 }, {
+              stackable: !!tagById.get(tagId)?.stackable,
+            });
             if (next == null) merged.delete(tagId);
             else merged.set(tagId, next);
           }
@@ -434,7 +436,7 @@ export default function EffectComposer({
               <div key={op.tagId} className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="mono">{op.op === "add" ? "+" : "−"}</span>
                 {tag ? <TagChip tag={tag} /> : <span>Unknown tag</span>}
-                {(op.op === "add" || tag?.stackable) && (
+                {tag?.stackable && (
                   <input
                     type="number"
                     min="1"

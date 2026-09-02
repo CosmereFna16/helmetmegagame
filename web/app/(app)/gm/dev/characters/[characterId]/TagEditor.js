@@ -99,27 +99,28 @@ export default function TagEditor({ tags, held, ops, openTurn, equipSlots, onSta
   // EXISTING holding lives in the Held section above, so a stage can't be
   // pushed from two different rows for the same tag.
   function renderCatalogActions(tag, { staged }) {
-    const qty = draftQty(catalogQtyDrafts, tag.id);
+    // Only a stackable tag gets a quantity at all. Everything else is a
+    // holds-it-or-doesn't flag, and a GM surface doesn't get to override that
+    // the way it overrides requiredTag and the budget (TAGS.md §5a).
+    const qty = tag.stackable ? draftQty(catalogQtyDrafts, tag.id) : 1;
     return (
       <>
-        <input
-          type="number"
-          min="1"
-          className="desk-qty"
-          value={catalogQtyDrafts.get(tag.id) ?? "1"}
-          onChange={(e) =>
-            setCatalogQtyDrafts((prev) => new Map(prev).set(tag.id, e.target.value))
-          }
-          aria-label="Quantity"
-        />
+        {tag.stackable && (
+          <input
+            type="number"
+            min="1"
+            className="desk-qty"
+            value={catalogQtyDrafts.get(tag.id) ?? "1"}
+            onChange={(e) =>
+              setCatalogQtyDrafts((prev) => new Map(prev).set(tag.id, e.target.value))
+            }
+            aria-label="Quantity"
+          />
+        )}
         <button
           type="button"
           className="btn-quiet"
-          onClick={() =>
-            onStage([
-              { tagId: tag.id, op: "add", quantity: qty, force: !tag.stackable && qty > 1 },
-            ])
-          }
+          onClick={() => onStage([{ tagId: tag.id, op: "add", quantity: qty }])}
         >
           {qty > 1 ? `Grant ×${qty}` : "Grant"}
         </button>
@@ -200,7 +201,7 @@ function HeldRow({ tag, holding, op, openTurn, onStage, qtyDraft, onQtyDraftChan
   const staged = op?.op ?? null;
   const left = turnsLeft(holding.expiresTurn, openTurn?.number);
   const qtyN = Number.parseInt(qtyDraft ?? "1", 10);
-  const qty = Number.isInteger(qtyN) && qtyN > 0 ? qtyN : 1;
+  const qty = tag?.stackable && Number.isInteger(qtyN) && qtyN > 0 ? qtyN : 1;
 
   return (
     <li
@@ -240,27 +241,20 @@ function HeldRow({ tag, holding, op, openTurn, onStage, qtyDraft, onQtyDraftChan
         >
           {tag?.stackable && holding.quantity > 1 ? "Take one" : "Remove"}
         </button>
-        <input
-          type="number"
-          min="1"
-          className="desk-qty"
-          value={qtyDraft ?? "1"}
-          onChange={(e) => onQtyDraftChange(e.target.value)}
-          aria-label="Quantity"
-        />
+        {tag?.stackable && (
+          <input
+            type="number"
+            min="1"
+            className="desk-qty"
+            value={qtyDraft ?? "1"}
+            onChange={(e) => onQtyDraftChange(e.target.value)}
+            aria-label="Quantity"
+          />
+        )}
         <button
           type="button"
           className="btn-quiet"
-          onClick={() =>
-            onStage([
-              {
-                tagId: holding.tagId,
-                op: "add",
-                quantity: qty,
-                force: !tag?.stackable && qty > 1,
-              },
-            ])
-          }
+          onClick={() => onStage([{ tagId: holding.tagId, op: "add", quantity: qty }])}
         >
           {qty > 1 ? `Add ×${qty}` : "Add one"}
         </button>
