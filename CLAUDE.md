@@ -178,8 +178,9 @@ Leave all of these alone:
 - The npm scope, frozen on purpose: `@lifeweb/db` and `@lifeweb/bot`, plus the
   Railway service name `@lifeweb/bot` in the root `redeploy` script.
 - The local checkout directory, unchanged on purpose: `lifeweb`. (The
-  GitHub repo itself was renamed to `peace-lock/helmetmegagame` and made
-  private once players found it.)
+  GitHub repo itself was renamed to `peace-lock/helmetmegagame`. It is
+  public again at the moment; it was private for a while after players
+  found it.)
 - The three Prisma migration directories with `lifeweb` in their names. Those
   names are checksummed rows in `_prisma_migrations`, so renaming them breaks
   Prisma.
@@ -621,6 +622,28 @@ it before writing any UI. Four rules apply everywhere:
   result: a component referenced without its import built clean, linted
   clean, and threw only when someone opened the page. That's why the rule is
   on.
+
+## Game state: NOT LAUNCHED — act, don't ask
+
+**The next game has not started.** There are no players, no live turns, and
+nothing in the database that cannot be rebuilt from the YAML masters and a
+wipe. Until Bascinet says the game is live, treat production as a sandbox:
+
+- **Push and deploy destructive changes without asking.** Migrations that
+  drop columns, `db:sync-zones`, `db:sync-documents`, `db:prune-tags --
+  --apply`, a Restart Game wipe, a `#info` rebuild — all fine. Just do it and
+  say what you did afterwards.
+- **Don't stop for confirmation** on Railway, Prisma, or Discord work.
+  Bascinet is usually away from the keyboard and would rather come back to
+  finished work than to a question.
+- **Still never `prisma migrate reset` or accept a `migrate dev` reset
+  prompt.** That is how game one died on day 10, and the habit has to be
+  gone before launch, not after. Author migrations so `migrate deploy`
+  applies them.
+
+When the game goes live, Bascinet flips this section and the rules above
+invert: every destructive path needs an explicit go, and a backup taken
+first.
 
 ## Git workflow
 
