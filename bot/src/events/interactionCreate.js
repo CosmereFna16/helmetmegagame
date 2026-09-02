@@ -41,16 +41,11 @@ const { OPEN_BUTTON_ID: REPORT_OPEN_ID, CLOSE_BUTTON_ID: REPORT_CLOSE_ID } = req
 // Discord's hard cap on select-menu options, and on max_values with them.
 const MENU_OPTION_LIMIT = 25;
 
-// /gm: post to the current channel as the bot itself, not the invoker's
-// character. A slash command has no message of its own to delete, so it
-// just sends directly.
 async function handleGmCommand(interaction) {
   if (!isGmMember(interaction)) {
     await respond(interaction, "» *GMs only.*");
     return;
   }
-  // Deferred before the send: re-uploading an attachment through Discord can
-  // outlast the three seconds an unacknowledged interaction gets.
   await ack(interaction);
 
   const content = interaction.options.getString("message", true);
@@ -66,17 +61,13 @@ async function handleGmCommand(interaction) {
   await respond(interaction, "» *Sent.*", { fleeting: true });
 }
 
-// /dm: DM a chosen server member as the bot itself.
-// Reuses bot/src/lib/dm.js#sendDm so it's logged to DirectMessage like every
-// other bot-sent DM, and carries the "»" prefix inline since this is a
-// bot-composed DM (see the "Bot message style" note in CLAUDE.md).
+// /dm: DM a chosen server member as the bot itself, logged via
+// bot/src/lib/dm.js#sendDm like every other bot-sent DM.
 async function handleGmDmCommand(interaction) {
   if (!isGmMember(interaction)) {
     await respond(interaction, "» *GMs only.*");
     return;
   }
-  // A DM costs two round trips (open the channel, post), which is most of the
-  // three-second budget on its own.
   await ack(interaction);
 
   const recipient = interaction.options.getUser("recipient", true);
@@ -99,38 +90,24 @@ async function handleGmDmCommand(interaction) {
   }
 }
 
-// /labor is gone — laboring is the checkbox on the Move modal now. This stub
-// only exists for the ~1h a removed global command can linger in a client's
-// picker while Discord propagates the deregistration; without it a stale
-// click would read as "The application did not respond" instead of an
-// answer. Delete this branch (and its dispatch case below) once that window
-// has passed.
+// /labor is gone; laboring is a checkbox on the Move modal. This stub only
+// exists for the ~1h a removed global command can linger in a client's
+// picker. Delete this branch (and its dispatch case) once that window passes.
 async function handleLaborStub(interaction) {
   await ack(interaction);
   await respond(interaction, "» *Laboring is now a checkbox on your Move — press the ⚜️ button or use /move.*");
 }
 
-// /add and /remove: the private-thread guest list. Both take a ROLE option so
-// the picker names characters rather than Discord accounts (see
-// bot/src/lib/commands.js), and both refuse outside a private thread.
-//
-// Anyone already in the thread may add or remove, plus GMs — the same posture
-// as pinging someone in, which any participant can already do.
-//
-// /add works on ANY living character, wherever they stand. The invite is
-// recorded as a PlayerThreadInvite row, and the Discord thread-member add is
-// attempted immediately: it lands if they can already see the zone, and
-// otherwise applyPendingInvites replays it the moment they arrive
-// (db/lib/threadInvites.js). No ping, no DM — being brought into a room
-// should be discovered, not announced.
+// /add and /remove: the private-thread guest list. /add works on any living
+// character wherever they stand — recorded as a PlayerThreadInvite, and
+// applied immediately if they can already see the zone, else replayed by
+// applyPendingInvites on arrival (db/lib/threadInvites.js).
 async function handleThreadMemberCommand(interaction, action) {
   const channel = interaction.channel;
   if (!isPrivateThread(channel)) {
     await respond(interaction, "» *That only works inside a private thread.*");
     return;
   }
-  // Deferred before the member fetch: on a cache miss that is a REST round
-  // trip, and the add/remove below is another.
   await ack(interaction);
 
   const gm = isGmMember(interaction);
@@ -155,9 +132,6 @@ async function handleThreadMemberCommand(interaction, action) {
     await prisma.playerThreadInvite
       .deleteMany({ where: { threadId: channel.id, characterId: target.id } })
       .catch((err) => console.error("Failed to delete thread invite:", err));
-    // Caught rather than left to the outer handler, which only logs — the
-    // likely failure is the bot lacking MANAGE_THREADS on this channel, and
-    // the invoker would otherwise just see "the application did not respond".
     try {
       await channel.members.remove(target.discordUserId);
     } catch (err) {
@@ -169,8 +143,6 @@ async function handleThreadMemberCommand(interaction, action) {
     return;
   }
 
-  // The invite row FIRST — it is what survives when the Discord add can't
-  // land yet, and what applyPendingInvites replays on the target's arrival.
   await prisma.playerThreadInvite
     .upsert({
       where: { threadId_characterId: { threadId: channel.id, characterId: target.id } },
@@ -182,8 +154,6 @@ async function handleThreadMemberCommand(interaction, action) {
   const context = resolveChannelContext(channel);
   const here = context.zoneId && target.zoneId === context.zoneId;
   if (here) {
-    // channel.members.add would ping-mention them; the REST thread-members
-    // endpoint adds silently.
     try {
       await addThreadMember(channel.id, target.discordUserId);
     } catch (err) {
@@ -200,21 +170,9 @@ async function handleThreadMemberCommand(interaction, action) {
 }
 
 // /persistent: toggle whether the current thread survives the Dawn wipe.
-//
-// The source of truth is PlayerThread.persistent in the DB — the wipe reads
-// the column, never a Discord marker, so a hand-stripped forum tag can't make
-// a standing side-room vanish. On a forum post the Persistent tag is still
-// mirrored for visibility; a private thread carries no marker at all.
-//
-// The sync-owned posts refuse: a Location topic and the Create-a-Topic anchor
-// never wipe and never expire, and that isn't a player's to change. Checked
-// against the recorded thread ids, not tags — a hand-edited tag opens no
-// hole.
-//
-// Gate is a living character or GM, deliberately NOT the thread-membership
-// check /add uses: that's wrong for a forum post, where you can act on a post
-// without having joined it, and redundant in a private thread, where being
-// able to run the command already proves access.
+// The source of truth is PlayerThread.persistent in the DB, never a Discord
+// marker — the wipe reads the column, so a stripped forum tag can't fake it.
+// Sync-owned posts (Location topics, the Create-a-Topic anchor) refuse.
 async function handlePersistentCommand(interaction) {
   const channel = interaction.channel;
   const forumPost = channel?.type === ChannelType.PublicThread && channel.parent?.type === ChannelType.GuildForum;
@@ -225,9 +183,6 @@ async function handlePersistentCommand(interaction) {
     return;
   }
 
-  // Deferred before anything else: the DB round trips plus the forum-tag
-  // mirror (a channel GET and possibly a PATCH) can outlast the three-second
-  // window under load.
   await ack(interaction);
 
   if (!isGmMember(interaction) && !(await findAliveCharacter(interaction.user.id))) {
@@ -250,8 +205,7 @@ async function handlePersistentCommand(interaction) {
   const context = resolveChannelContext(channel);
   let row = await prisma.playerThread.findUnique({ where: { threadId: channel.id } });
   if (!row) {
-    // A thread with no row was made by a GM by hand — adopt it, the same
-    // posture the Dawn wipe takes.
+    // A thread with no row was made by a GM by hand — adopt it.
     if (!context.zoneId) {
       await respond(interaction, "» *This thread isn't part of any zone.*");
       return;
@@ -267,10 +221,6 @@ async function handlePersistentCommand(interaction) {
     });
   }
 
-  // A Quest post is the GM-made counterpart of a sync-owned Location topic:
-  // it keeps its starter forever and only a GM removes it. A toggle here would
-  // silently downgrade it to an ordinary emptied post, so it refuses the same
-  // way the sync-owned posts do.
   if (row.keepStarter) {
     await respond(interaction, "» *That's a Quest post — it only goes away when a GM deletes it.*");
     return;
@@ -279,8 +229,6 @@ async function handlePersistentCommand(interaction) {
   const persistent = !row.persistent;
   await prisma.playerThread.update({ where: { id: row.id }, data: { persistent } });
 
-  // The visible mirror, forum posts only. A failed mirror logs but never
-  // fails the command — the DB is the truth the wipe reads.
   if (forumPost) {
     await mirrorPersistentTag(channel, persistent).catch((err) =>
       console.error(`Failed to mirror the Persistent tag on ${channel.id}:`, err),
@@ -310,9 +258,6 @@ async function handlePersistentCommand(interaction) {
   );
 }
 
-// ensureForumTag rather than getForumTagId: a forum channel provisioned before
-// the Persistent tag existed would otherwise fail silently here, and this
-// creates it idempotently instead.
 async function mirrorPersistentTag(thread, persistent) {
   const tagId = await ensureForumTag(thread.parentId, PERSISTENT_TAG_NAME, null);
   if (!tagId) throw new Error(`No ${PERSISTENT_TAG_NAME} tag available on ${thread.parentId}`);
@@ -323,15 +268,11 @@ async function mirrorPersistentTag(thread, persistent) {
   await thread.setAppliedTags(persistent ? [...current, tagId] : current.filter((id) => id !== tagId));
 }
 
-// All custom IDs below are namespaced "zone:" for the travel flow triggered
-// from the Travel button on the #turns console
-// (bot/src/lib/turnsConsole.js; the button itself keeps its historical
-// "loc:open" id so the standing console message still works) — "move:" and
-// "say:" IDs further down are the unrelated Move and Speak modals.
+// Custom IDs below are namespaced "zone:" for the travel flow off the Travel
+// button on the #turns console (bot/src/lib/turnsConsole.js, whose button
+// keeps its historical "loc:open" id); "move:" and "say:" are the unrelated
+// Move and Speak modals.
 async function handleOpen(interaction) {
-  // The Travel button on the #turns console, which every player presses within
-  // a minute of turn open. Two queries before the first ack was the whole
-  // three-second budget under that kind of pool contention.
   await ack(interaction);
 
   const character = await findAliveCharacter(interaction.user.id);
@@ -340,9 +281,8 @@ async function handleOpen(interaction) {
     return;
   }
 
-  // An unset zone (brand-new character) can freely pick any presence zone to
-  // start in; otherwise the picker only offers the current zone's direct
-  // neighbors (Zone.connectsTo). The Caves group is never a destination.
+  // An unset zone can pick any presence zone freely; otherwise the picker
+  // offers only the current zone's direct neighbors. Caves is never a target.
   let zones;
   let currentZone = null;
   if (!character.zoneId) {
@@ -369,8 +309,6 @@ async function handleOpen(interaction) {
 }
 
 async function handlePlaceSelect(interaction) {
-  // deferUpdate rather than deferReply: this edits the picker in place, and a
-  // deferReply would post a second "thinking" message above it.
   await ack(interaction, { update: true });
 
   const zoneId = interaction.values[0];
@@ -423,17 +361,10 @@ async function handleCancel(interaction) {
   scheduleDismiss(interaction);
 }
 
-// --- Create a Topic / Create a Private Thread -------------------------
-//
-// The two anchor buttons of the zone rework (db/lib/zoneAnchorRow.js): the
-// pinned Create-a-Topic post in each zone forum, and the permanent message
-// in each #private. Players hold no create-posts / create-threads permission
-// anywhere — the bot makes every thread, which is what keeps PlayerThread a
-// complete record (persistence, expiry, invites all hang off it).
+// Create a Topic / Create a Private Thread: the two anchor buttons of
+// db/lib/zoneAnchorRow.js. Players hold no create-posts/create-threads
+// permission — the bot makes every thread, so PlayerThread stays complete.
 
-// showModal IS the acknowledgement and a deferred interaction can no longer
-// open one, so nothing is read before it — mirror of handleMoveOpen. The
-// gates run on submit.
 async function handleTopicOpen(interaction, zoneId) {
   await interaction.showModal(buildTopicModal(zoneId));
 }
@@ -442,17 +373,9 @@ async function handlePrivateOpen(interaction, zoneId) {
   await interaction.showModal(buildPrivateModal(zoneId));
 }
 
-// The green "Who's here?" button (db/lib/zoneAnchorRow.js) on a zone's
-// Create-a-Topic anchor and every generated Location post. Replies privately
-// with just the names of every ALIVE character standing in the zone —
-// nothing more — plus a same-faction Role, mirroring the gate the bot's 🔍
-// inspect embed uses (bot/src/events/messageReactionAdd.js): Role is
+// The green "Who's here?" button. Replies privately with the ALIVE names in
+// the zone plus same-faction Role, mirroring the 🔍 inspect gate: Role is
 // same-faction knowledge, not Silo authority (FACTIONS.md §4a).
-//
-// No extra gate on the button itself: the forum it lives in is already
-// visible only to that zone's role, so this reveals nothing a press couldn't
-// already reach. It touches the database, so it acks like any other handler
-// rather than opening a modal.
 async function handleWhosHere(interaction, zoneId) {
   await ack(interaction);
 
@@ -484,10 +407,6 @@ async function handleWhosHere(interaction, zoneId) {
   await respond(interaction, names.join(" | "));
 }
 
-// Shared gates for both submit handlers: a living character, standing in the
-// zone whose button was pressed. The button lives in a channel only that
-// zone's role can see, but a button is a hint, not a lock — the ephemeral
-// picker outlives its player walking out of the zone.
 async function resolveCreationContext(interaction, zoneId) {
   const character = await findAliveCharacter(interaction.user.id);
   if (!character) {
@@ -539,7 +458,6 @@ async function recordPlayerThread({ threadId, kind, name, zone, character, persi
 }
 
 async function handleTopicCreate(interaction, zoneId) {
-  // FIRST — the forum-post create plus two DB writes can outlast the window.
   await ack(interaction);
 
   const resolved = await resolveCreationContext(interaction, zoneId);
@@ -559,17 +477,13 @@ async function handleTopicCreate(interaction, zoneId) {
 
   let thread;
   try {
-    // The opening line names the CHARACTER, via its role (PROXYING.md §6: a
-    // name token nobody holds), not the player — a user mention pinged the
-    // person who had just pressed the button and outed them as the author.
-    // The creator finds the topic through the link in the reply below.
+    // Opener names the CHARACTER's role (a token nobody holds), not the
+    // player, so the button-presser isn't outed as the author.
     const opener = character.discordRoleId ? `<@&${character.discordRoleId}>` : character.name;
     thread = await createForumPost(zone.discordPublicChannelId, {
       name,
       content: `${opener} opened this scene.`,
       appliedTags,
-      // Only the character's own role may resolve as a mention: the fallback
-      // is a player-typed name, and "@everyone" is a legal first name.
       allowedMentions: { parse: [], roles: character.discordRoleId ? [character.discordRoleId] : [] },
     });
   } catch (err) {
@@ -579,9 +493,6 @@ async function handleTopicCreate(interaction, zoneId) {
   }
 
   await recordPlayerThread({ threadId: thread.id, kind: "PUBLIC", name, zone, character, persistent, openTurn });
-  // Not fleeting (respond() defaults to fleeting): with the opening line
-  // naming the character rather than mentioning the player, this ephemeral
-  // link is the creator's only pointer to their own topic.
   await respond(interaction, `» *Opened.*\n${messageLink(interaction.guildId, zone.discordPublicChannelId, thread.id)}`, {
     fleeting: false,
   });
@@ -615,13 +526,8 @@ async function handlePrivateCreate(interaction, zoneId) {
   });
 }
 
-// One modal, submitted once — avoids the identity leak and round trips a
-// multi-step message/DM flow would cost. PENDING_TYPE is no longer reachable
-// from Discord; the enum value stays only for rows written before this.
-
-// Moves close MOVE_LOCK_HOURS before the turn ends (db/lib/turnClock.js) so a
-// GM has a window to adjudicate what was filed. Returns the refusal text, or
-// null when Moves are still open.
+// Moves close MOVE_LOCK_HOURS before the turn ends (db/lib/turnClock.js).
+// Returns the refusal text, or null when Moves are still open.
 async function moveLockNotice() {
   const [openTurn, config] = await Promise.all([
     prisma.turn.findFirst({ where: { status: "OPEN" } }),
@@ -635,15 +541,10 @@ async function moveLockNotice() {
   return `» *Moves for this turn locked at <t:${epochSeconds(cutoffAt)}:t>. The next turn opens <t:${epochSeconds(endsAt)}:R>.*`;
 }
 
-// The button and /move both just open the modal. A modal must be shown within
-// 3 seconds and cannot be deferred first, so this is the only read that
-// happens here — two indexed lookups — and any failure falls through to the
-// modal rather than eating the interaction. Every other gate runs on submit,
-// which re-checks the cutoff too (a modal can sit open across it).
+// A modal must be shown within 3 seconds and cannot be deferred first, so
+// this is the only read before it — with an 800ms race so a slow pool
+// doesn't cost the player the modal. Submit re-checks the cutoff.
 async function handleMoveOpen(interaction) {
-  // Advisory only (submit re-checks), so a slow pool at 00:00/12:00 must not
-  // cost the player the modal: race the two reads against 800 ms and fall
-  // through to the modal on timeout or error.
   const notice = await Promise.race([
     moveLockNotice().catch((err) => {
       console.error("Move lock check failed:", err);
@@ -659,12 +560,8 @@ async function handleMoveOpen(interaction) {
 }
 
 async function handleMoveSubmit(interaction) {
-  // FIRST. This handler reads the character, the open turn and any prior
-  // Action, creates the Action row, writes an audit entry, re-reads with
-  // tags, and runs confirmMove — easily enough work to pass three seconds
-  // under load. Acking late would show "The application did not respond"
-  // for a Move that had already gone through, and a retry would then look
-  // like a duplicate submission.
+  // FIRST: this handler does easily enough DB work to pass three seconds
+  // under load, and a late ack would make a committed Move look unsent.
   await ack(interaction);
 
   const character = await findAliveCharacter(interaction.user.id);
@@ -679,9 +576,8 @@ async function handleMoveSubmit(interaction) {
     return;
   }
 
-  // Re-checked here and not only at move:open: the modal can sit open on
-  // someone's screen for as long as they like, including across the cutoff.
-  // Before the Action row is created, so a refusal costs the turn nothing.
+  // Re-checked here, not only at move:open — a modal can sit open across
+  // the cutoff. Before the Action row so a refusal costs no turn.
   const config = await prisma.gameConfig.findUnique({
     where: { id: 1 },
     select: { autoTurnAdvanceDisabled: true },
@@ -697,9 +593,6 @@ async function handleMoveSubmit(interaction) {
     return;
   }
 
-  // Also catches a prior auto-resolved zone-change Move (see
-  // bot/src/lib/zoneTravel.js#performMove) — changing zones spends the turn
-  // just like a Move submission does.
   const alreadyActed = await prisma.action.findFirst({
     where: { characterId: character.id, turnId: openTurn.id },
   });
@@ -718,9 +611,6 @@ async function handleMoveSubmit(interaction) {
   const labor = optionalCheckbox(interaction, "move:labor");
   const description = raw;
 
-  // Labor rides a Routine only — a Gambit is a deliberate risk, and stacking
-  // guaranteed income on top of one would make the risk free. Refused here,
-  // in memory, before any lookup: the turn must not be spent for this.
   if (labor && moveKind === "GAMBIT") {
     await respond(
       interaction,
@@ -729,14 +619,8 @@ async function handleMoveSubmit(interaction) {
     return;
   }
 
-  // Resolved here rather than at confirm, for two reasons: the turn is spent
-  // by the Action row existing, so the depths gate has to run before we
-  // create one (a refusal must cost nothing); and resolving now means only
-  // one grammar — a plain range — ever reaches the database.
   let resourceRollExpression = null;
   let laborTier = null;
-  // The Butcher +2 is already inside `expression`; kept separately only so the
-  // confirm DM can name it (db/lib/laborAccess.js#formatLaborBonusNote).
   let laborBonus = 0;
   if (labor) {
     const rate = await resolveLaborRate(prisma, character.id);
@@ -749,9 +633,8 @@ async function handleMoveSubmit(interaction) {
     laborBonus = rate.bonus ?? 0;
   }
 
-  // @@unique([characterId, turnId]) is the real gate; the earlier openTurn/
-  // already-acted check is the friendly one. A retried interaction at rollover
-  // lands here twice, and the second must not become a second Move.
+  // @@unique([characterId, turnId]) is the real gate; a retried interaction
+  // at rollover must not become a second Move.
   let action;
   try {
     action = await prisma.action.create({
@@ -782,29 +665,21 @@ async function handleMoveSubmit(interaction) {
       actorDiscordUserId: interaction.user.id,
       actionType: "move_submitted",
       targetCharacterId: character.id,
-      // Labor is recorded on this ordinary Move audit row, not a separate one.
       details: { actionId: action.id, labor, tier: laborTier },
     },
   });
 
-  // Re-read with the tags confirmMove needs for the Gambit modifier.
   const loaded = await prisma.action.findUnique({
     where: { id: action.id },
     include: { character: { include: { tags: { include: { tag: true } } } } },
   });
 
   const { lines } = await confirmMove(loaded, interaction.user.id, { laborBonus });
-  // respond() clamps to 2000. It has to: the first line echoes the player's
-  // description, the modal allows 1800 characters, and the Kind, dice and
-  // resource-roll lines go on top — so the reply could exceed the limit by
-  // typing, and did so AFTER the Move was already committed and paid out.
   await respond(interaction, lines.join("\n"));
 }
 
-// A modal field that is setRequired(false) may be absent from the submitted
-// payload entirely, and every fields.getX() throws on a component it cannot
-// find. An attachment-only post is legal, so reading the optional fields must
-// never be what breaks it.
+// setRequired(false) fields may be absent from the submitted payload, and
+// fields.getX() throws on a component it can't find.
 function optionalText(interaction, customId) {
   try {
     return interaction.fields.getTextInputValue(customId) ?? "";
@@ -821,9 +696,6 @@ function optionalCheckbox(interaction, customId) {
   }
 }
 
-// The Speak button, and /message run anywhere the player cannot already
-// speak. Deferred, because enumerating threads costs API calls — which is
-// exactly why the modal cannot be opened straight from this button.
 async function handleSpeakOpen(interaction) {
   await ack(interaction);
 
@@ -852,14 +724,10 @@ async function handleSpeakOpen(interaction) {
   });
 }
 
-// Picking a destination opens the modal. A modal must be shown within 3
-// seconds and cannot be deferred first, so NOTHING is awaited here — the
-// channel name is read from the cache if it happens to be there, and the
-// permission re-check lives on submit, which is the real security boundary
-// anyway.
+// A modal must be shown within 3 seconds and cannot be deferred first, so
+// nothing is awaited here — the permission re-check lives on submit.
 async function handleSpeakPick(interaction) {
   const targetId = interaction.values[0];
-  // A group header, not a destination — re-render untouched.
   if (isNavValue(targetId)) {
     await interaction.deferUpdate();
     return;
@@ -870,9 +738,6 @@ async function handleSpeakPick(interaction) {
 }
 
 async function handleSpeakSubmit(interaction, channelId) {
-  // FIRST: the character lookup, a member resolve that can hit REST on a
-  // cache miss, and a channel fetch can each outlast the three-second window
-  // on their own.
   await ack(interaction);
 
   const character = await findAliveCharacter(interaction.user.id);
@@ -882,12 +747,8 @@ async function handleSpeakSubmit(interaction, channelId) {
   }
 
   const { guild, member } = await resolveActingMember(interaction);
-  // client.channels rather than guild.channels: the destination may be a
-  // thread, which never sits in the guild channel cache.
+  // client.channels, not guild.channels: the destination may be a thread.
   const channel = await interaction.client.channels.fetch(channelId).catch(() => null);
-  // Re-checked rather than trusted: an ephemeral picker outlives its player
-  // walking out of the room. canSpeakInTarget picks the channel-vs-thread
-  // permission by what it was handed.
   if (!guild || !channel || !member || !canSpeakInTarget(channel, member)) {
     await respond(interaction, "» *You can't speak there any more.*");
     return;
@@ -899,9 +760,6 @@ async function handleSpeakSubmit(interaction, channelId) {
     return;
   }
 
-  // Open to everyone, with nothing equipped and no tag required — a player
-  // decides for themselves when to go unnamed, the same posture the /conceal
-  // prefix takes.
   const conceal = optionalCheckbox(interaction, "say:conceal")
     ? { alias: concealedAlias(character) }
     : null;
@@ -931,13 +789,9 @@ async function handleSpeakSubmit(interaction, channelId) {
   await respond(interaction, `» *Sent.*\n${messageLink(guild.id, channel.id, posted.webhookMessage.id)}`);
 }
 
-// /message. Inside a channel the player can already speak in, skip the picker
-// and post there — that does not hide the typing indicator (they are already
-// in the channel) but it does stop the message existing in plain sight before
-// the proxy deletes it. Anywhere else, ask where first.
+// /message: inside a channel the player can already speak in, skip the
+// picker and post there directly.
 async function handleMessageCommand(interaction) {
-  // interaction.member is already populated in a guild, so this branch reaches
-  // showModal with nothing awaited — see handleSpeakPick for why that matters.
   const channel = interaction.channel;
   if (interaction.inGuild() && interaction.member && channel && canSpeakInTarget(channel, interaction.member)) {
     await interaction.showModal(buildSpeakModal(channel.id, `#${channel.name}`));
@@ -946,16 +800,9 @@ async function handleMessageCommand(interaction) {
   await handleSpeakOpen(interaction);
 }
 
-// --- /heal -----------------------------------------------------------
-
-// GM-only, and deliberately NOT the player medic path
+// GM-only, and deliberately not the player medic path
 // (web/app/(app)/character/requestActions.js#healCharacterRequest), which
-// charges a payer, requires medical-basic and requires co-location. A GM
-// clearing an affliction needs none of that.
-//
-// It also skips isHealable: that predicate hides tier-0 self-limiting
-// conditions (Vomiting, a Migraine) from the PLAYER picker, and a GM should
-// be able to clear those too. Category is the only filter.
+// charges a payer and requires co-location. Category is the only filter.
 async function handleHealCommand(interaction) {
   if (!isGmMember(interaction)) {
     await respond(interaction, "» *GMs only.*");
@@ -979,9 +826,8 @@ async function handleHealCommand(interaction) {
     return;
   }
 
-  // Discord caps a select menu at 25 options AND caps max_values at the
-  // number of options present — setMaxValues must track the slice, or
-  // Discord rejects the whole component.
+  // Discord caps a select menu at 25 options, and max_values must track the
+  // slice or the whole component is rejected.
   const shown = afflictions.slice(0, MENU_OPTION_LIMIT);
   const menu = new StringSelectMenuBuilder()
     .setCustomId(`heal:pick:${target.id}`)
@@ -990,9 +836,6 @@ async function handleHealCommand(interaction) {
     .setMaxValues(shown.length)
     .addOptions(shown.map((ct) => ({ label: ct.tag.name, value: ct.tagId })));
 
-  // Said out loud rather than silently dropped, the way the Speak picker does
-  // it: a GM who can't find an affliction should know the list was cut, not
-  // wonder whether they misremembered.
   const truncated = afflictions.length > shown.length;
   await respond(interaction, {
     content:
@@ -1037,7 +880,6 @@ async function handleHealPick(interaction, characterId) {
     },
   });
 
-  // A tag moved, and #watch/#intercom access is tag-gated.
   const { guild } = await resolveActingMember(interaction);
   if (guild) await syncCharacterNarrowcastAccess(guild, target).catch(() => {});
 
@@ -1047,17 +889,10 @@ async function handleHealPick(interaction, characterId) {
   });
 }
 
-// The one die a player rolls for themselves. Every other die in the game is
-// rolled by the engine — the Move d6, the Caving Die, production rates — so
-// this reuses rollDie() rather than adding a second source of randomness.
-//
-// The result is posted as a plain bot message rather than as a public
-// interaction reply, because a public reply carries Discord's "@account used
-// /roll" header. That names the PLAYER, not the character, which is exactly
-// the leak the proxy pipeline exists to prevent (PROXYING.md). So the roll
-// goes out anonymous: the number is the point, not who asked for it. The
-// ephemeral confirmation is only so the roller knows which one was theirs
-// when several people roll at once.
+// The one die a player rolls for themselves; posted as a plain bot message
+// rather than a public interaction reply, which would carry Discord's
+// "@account used /roll" header and out the player behind the character
+// (PROXYING.md).
 async function handleRollCommand(interaction) {
   await ack(interaction);
   const value = rollDie(6);
@@ -1079,17 +914,12 @@ module.exports = {
         if (interaction.commandName === "persistent") {
           return void (await handlePersistentCommand(interaction));
         }
-        // The three twins of the #turns console buttons.
         if (interaction.commandName === "move") return void (await handleMoveOpen(interaction));
         if (interaction.commandName === "location") return void (await handleOpen(interaction));
         if (interaction.commandName === "message") return void (await handleMessageCommand(interaction));
         if (interaction.commandName === "roll") return void (await handleRollCommand(interaction));
-        // Stub only — see handleLaborStub. Delete once the deregistration
-        // has propagated (up to 1h after deploy).
         if (interaction.commandName === "labor") return void (await handleLaborStub(interaction));
       } else if (interaction.isButton()) {
-        // "loc:open" survives from the pre-zone console message; the rest of
-        // the travel flow is "zone:"-namespaced.
         if (interaction.customId === "loc:open") return void (await handleOpen(interaction));
         if (interaction.customId === "zone:cancel") return void (await handleCancel(interaction));
         if (interaction.customId.startsWith("zone:confirm:")) {
@@ -1106,16 +936,13 @@ module.exports = {
         }
         if (interaction.customId === "move:open") return void (await handleMoveOpen(interaction));
         if (interaction.customId === "say:open") return void (await handleSpeakOpen(interaction));
-        // Arrives in a DM on a Bird's letter, so guild/member are null —
-        // birdReply.js touches neither. See docs/systemdocs/BIRD.md.
+        // Arrives in a DM on a Bird's letter, so guild/member are null.
         if (interaction.customId.startsWith(BIRD_REPLY_PREFIX)) {
           return void (await handleBirdReplyOpen(interaction, interaction.customId.slice(BIRD_REPLY_PREFIX.length)));
         }
         if (interaction.customId === REPORT_OPEN_ID) return void (await handleReportOpen(interaction));
         if (interaction.customId === REPORT_CLOSE_ID) return void (await handleReportClose(interaction));
-        // Arrives in a DM, so guild/member are null — handleEditOpen resolves
-        // the author from recentProxies instead. It opens a modal, so it must
-        // NOT be acked first.
+        // Arrives in a DM; must NOT be acked first since it opens a modal.
         if (interaction.customId.startsWith(EDIT_OPEN_PREFIX)) return void (await handleEditOpen(interaction));
       } else if (interaction.isStringSelectMenu()) {
         if (interaction.customId === "zone:place") return void (await handlePlaceSelect(interaction));
@@ -1141,9 +968,6 @@ module.exports = {
       }
     } catch (err) {
       console.error("interactionCreate handler failed:", err);
-      // An unanswered interaction sits on "thinking..." forever. Always close
-      // the loop, and never let the error path throw on top of the error it
-      // is reporting.
       await respondToFailure(interaction);
     }
   },
@@ -1151,8 +975,5 @@ module.exports = {
 
 async function respondToFailure(interaction) {
   if (!interaction.isRepliable?.()) return;
-  // respond() never throws on its own — it logs and returns — which is what
-  // this catch-all needs: the interaction token may already be dead (a modal
-  // that timed out, a 3-second miss), and there is nothing left to say then.
   await respond(interaction, { content: "» *Something went wrong — that didn't go through.*", components: [] });
 }
