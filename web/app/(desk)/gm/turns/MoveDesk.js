@@ -20,7 +20,7 @@ import StagedItems from "./StagedItems";
 import { resolveMove, rejectMove } from "./actions";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 import { RESULT_BOX_MAX_LENGTH } from "@/lib/constants";
-import { stagingReaches } from "@/lib/moveRows";
+import { stagingReaches } from "@/lib/stagingReach";
 
 // The arbitration desk for one Move. Everything a GM does here STAGES: the
 // Result box is the canon of what happened (GM-facing, one field — gmNotes

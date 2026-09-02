@@ -1,6 +1,11 @@
 // The bare constants module, not the @lifeweb/db barrel — MoveDesk.js (a
 // client component) imports moveStatusLabel from this file, and the barrel
 // would drag the Prisma client into that bundle.
+// SERVER ONLY. This module imports the Prisma barrel (through referenceData.js),
+// so importing it from a "use client" file bundles every server-only module
+// into the browser and the first Node-only module (fs) throws at load — which is
+// exactly what took /gm/turns down on 2026-09-02. Pure helpers a client
+// component needs go in their own import-free file (see stagingReach.js).
 import { CATATONIC_SLUG } from "@lifeweb/db/lib/constants";
 import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, isTravelMove, rollLabel } from "@/lib/moves";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
@@ -260,21 +265,6 @@ export function tagsByIdFor(actions) {
   return tagsById;
 }
 
-// Does anything staged actually reach this character? Mirrors the test the
-// push already uses to decide whether a Move was spoken for (the
-// `message.recipients.some((r) => r.characterId === action.characterId)` in
-// db/lib/stagedPush.js), so the desk's warning and the push's own fallback
-// can never disagree about what counts as "the player heard something".
-//
-// The Result box does NOT count: it is GM-facing and is never sent. A Move
-// whose whole outcome lives there and nowhere else reaches the player as
-// silence — and for a Gambit that silence is total, since Gambits are
-// excluded from the passed-Routine fallback DM and get only the die reveal.
-export function stagingReaches(characterId, { messages = [], effects = [] } = {}) {
-  if (!characterId) return false;
-  return (
-    messages.some(
-      (m) => m.kind === "PRIVATE" && (m.recipients ?? []).some((r) => r.characterId === characterId),
-    ) || effects.some((e) => e.targetCharacterId === characterId)
-  );
-}
+// stagingReaches lives in ./stagingReach.js so MoveDesk.js can import it
+// without dragging this module's Prisma imports into the browser.
+export { stagingReaches } from "./stagingReach";
