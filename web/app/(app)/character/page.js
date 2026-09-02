@@ -5,6 +5,13 @@ import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
+import { evaluateDesireCatalog, slotStates } from "@lifeweb/db/lib/desireGates";
+import { desireFamilies } from "@lifeweb/db/lib/desireFamilies";
+import {
+  projectDesireTemplateForGates,
+  loadRoleBySlugForTemplates,
+  computeHiddenDesireTagIds,
+} from "@/lib/desireProjection";
 import {
   getGuildMember,
   isApprovedPlayer,
@@ -14,7 +21,7 @@ import {
 import {
   isPlaytestLocked,
   isRoleSelectable,
-  DEFAULT_MAX_NEGATIVE_TAGS,
+  DEFAULT_MAX_DRAWBACK_TAGS,
 } from "@/lib/characterCreation";
 import { loadPointBuyCatalog } from "@/lib/pointBuyCatalog";
 import { findOpenTurnAction } from "@/lib/moveEconomy";
@@ -95,7 +102,7 @@ async function loadCreationData(discordUserId) {
     dynastyName,
     playerCount,
     startingTagPoints: config?.startingTagPoints ?? 0,
-    maxNegativeTags: config?.maxNegativeTags ?? DEFAULT_MAX_NEGATIVE_TAGS,
+    maxDrawbackTags: config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS,
     // Already flattened to PointBuy's shape by loadPointBuyCatalog — shared
     // with /store so the two menus can never disagree.
     tags,
@@ -202,8 +209,8 @@ export default async function CharacterPage() {
     factions,
     tagCatalog,
     tierRows,
-    desire,
-    lastEndedDesire,
+    desireHistory,
+    desireTemplateRows,
     gameConfig,
     { action: currentAction },
   ] = await Promise.all([
@@ -259,20 +266,53 @@ export default async function CharacterPage() {
           // Simple 4-per-turn hint.
           requirementSkills: { select: { name: true, slug: true } },
           requirementTurns: true,
+          // Not consumed by any check on this menu yet, but every catalog
+          // projection that could feed conflictingTag() carries the field so
+          // adding a display here later doesn't also need a select change.
+          conflictsWith: { select: { id: true } },
         },
       }),
       // id -> parentTagId for the whole catalog, so a held Medical (Expert)
       // resolves back down its chain to the Medical (Basic) gate. Four columns
       // over a few hundred rows — cheaper than nesting three parentTag includes.
       prisma.tag.findMany({ select: { id: true, slug: true, parentTagId: true } }),
-      prisma.desire.findFirst({
-        where: { characterId: character.id, status: "ACTIVE" },
-        select: { id: true, text: true, points: true, setTurnNumber: true },
+      // ALL statuses, not just ACTIVE — the gate evaluator needs the whole
+      // history to compute per-desire and per-slot cooldowns.
+      prisma.desire.findMany({
+        where: { characterId: character.id },
+        select: {
+          id: true,
+          templateId: true,
+          slotIndex: true,
+          status: true,
+          text: true,
+          points: true,
+          setTurnNumber: true,
+          endedTurnNumber: true,
+        },
       }),
-      prisma.desire.findFirst({
-        where: { characterId: character.id, status: { in: ["FULFILLED", "CANCELLED"] } },
-        orderBy: { updatedAt: "desc" },
-        select: { endedTurnNumber: true },
+      // The gate fields db/lib/desireGates.js needs, projected through
+      // web/lib/desireProjection.js below — never re-derived inline (see
+      // that file's header on why an unresolved role slug must fail closed
+      // rather than being dropped).
+      prisma.desireTemplate.findMany({
+        where: { retired: false },
+        orderBy: { sortOrder: "asc" },
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          description: true,
+          tier: true,
+          families: true,
+          onceEver: true,
+          cooldownTurns: true,
+          retired: true,
+          requiresAnyRoleSlugs: true,
+          requiresNotRoleSlugs: true,
+          requiresAnyTags: { select: { id: true, name: true } },
+          requiresNotTags: { select: { id: true, name: true } },
+        },
       }),
       prisma.gameConfig.findUnique({
         where: { id: 1 },
@@ -282,9 +322,10 @@ export default async function CharacterPage() {
           portraitMakerEnabled: true,
           portraitFantasyPartsEnabled: true,
           desiresEnabled: true,
+          desireSlots: true,
           // Read here too, for the Spend Tag Points modal folded in from the
           // old /store page — see store below.
-          maxNegativeTags: true,
+          maxDrawbackTags: true,
           // The Move-cutoff row: no cron, no lock — same input the bot's gate
           // and the announcement read, or this one surface contradicts them.
           autoTurnAdvanceDisabled: true,
@@ -292,6 +333,45 @@ export default async function CharacterPage() {
       }),
       findOpenTurnAction(prisma, character.id),
     ]);
+
+  // Desires. Every evaluation happens HERE, server-side — the client never
+  // runs the gate logic and never receives a hidden template. character.tags
+  // already carries desireLocks: its `tag` relation is loaded with `include`
+  // (not `select`), which pulls every scalar column, desireLocks included.
+  const desireSlots = gameConfig?.desireSlots ?? 2;
+  const heldDesireTagIds = new Set(character.tags.map((ct) => ct.tagId));
+  const hiddenTagIds = await computeHiddenDesireTagIds(prisma, heldDesireTagIds);
+  const roleBySlugForDesires = await loadRoleBySlugForTemplates(prisma, desireTemplateRows);
+  const projectedDesireTemplates = desireTemplateRows.map((t) =>
+    projectDesireTemplateForGates(roleBySlugForDesires, t),
+  );
+  const { visible: desireCatalogEvaluated } = evaluateDesireCatalog({
+    templates: projectedDesireTemplates,
+    heldTags: character.tags.map((ct) => ct.tag),
+    hiddenTagIds,
+    roleSlug: character.role?.slug ?? null,
+    history: desireHistory,
+    openTurnNumber: openTurn?.number ?? 0,
+  });
+  // `desireCatalogEvaluated` IS `evaluateDesireCatalog`'s `visible` array —
+  // the `hidden` half (db/lib/desireGates.js) is never bound to a variable
+  // above, so a "hidden" template has no path from here into the shape
+  // below. That is the filter: nothing after this line ever sees it.
+  const desireCatalog = desireCatalogEvaluated.map(({ template, state, reason, availableFromTurn }) => ({
+    slug: template.slug,
+    name: template.name,
+    description: template.description,
+    tier: template.tier,
+    families: template.families,
+    state,
+    reason,
+    availableFromTurn,
+  }));
+  const desireSlotStates = slotStates({
+    history: desireHistory,
+    openTurnNumber: openTurn?.number ?? 0,
+    desireSlots,
+  });
 
   // The mid-game tag store, folded into the sheet as a modal (see
   // StorePanel.js). Held ids widen the catalog so unpurchasable held tags (a
@@ -604,8 +684,10 @@ export default async function CharacterPage() {
       transferParties={transferParties}
       tagCatalog={tagCatalog}
       otherCharacters={otherCharacters}
-      desire={desire}
-      desireCooldownUntilTurn={lastEndedDesire?.endedTurnNumber ?? null}
+      desireSlots={desireSlots}
+      desireSlotStates={desireSlotStates}
+      desireCatalog={desireCatalog}
+      desireFamilies={desireFamilies()}
       desiresEnabled={gameConfig?.desiresEnabled ?? true}
       canHeal={canHeal}
       canFastTravel={canFastTravel}

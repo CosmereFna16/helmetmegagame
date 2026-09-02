@@ -46,7 +46,7 @@ function expiresIntoSlugs(entries) {
 }
 
 async function collectReferences(prisma) {
-  const [held, parents, required, groupGates, skills, roles, documents, consumers] =
+  const [held, parents, required, groupGates, skills, roles, documents, conflicts, desireTags, consumers] =
     await Promise.all([
       prisma.characterTag.groupBy({ by: ["tagId"], _count: { tagId: true } }),
       prisma.tag.findMany({ where: { parentTagId: { not: null } }, select: { parentTagId: true } }),
@@ -55,6 +55,23 @@ async function collectReferences(prisma) {
       prisma.tag.findMany({ select: { requirementSkills: { select: { id: true } } } }),
       prisma.role.findMany({ select: { startingTagSlugs: true } }),
       prisma.document.findMany({ select: { tagSlugs: true } }),
+      // conflictsWith is written in BOTH directions by db:sync-tags (SYNC.md
+      // pass 6), so reading conflictsWith alone already sees every edge —
+      // but this runs against the live DB, not the YAML, and a GM-authored
+      // custom tag's conflictsWith is never guaranteed symmetric. Read both
+      // relations so an asymmetric edge still blocks the delete.
+      prisma.tag.findMany({
+        select: {
+          conflictsWith: { select: { id: true } },
+          conflictedBy: { select: { id: true } },
+        },
+      }),
+      prisma.desireTemplate.findMany({
+        select: {
+          requiresAnyTags: { select: { id: true } },
+          requiresNotTags: { select: { id: true } },
+        },
+      }),
       prisma.tag.findMany({
         where: {
           OR: [
@@ -81,6 +98,16 @@ async function collectReferences(prisma) {
     skillOf: new Set(skills.flatMap((t) => t.requirementSkills.map((s) => s.id))),
     roleStartingNames: new Set(roles.flatMap((r) => r.startingTagSlugs)),
     documentSlugs: new Set(documents.flatMap((d) => d.tagSlugs)),
+    // Union of both relation directions — see the comment on the query above.
+    conflictIds: new Set(
+      conflicts.flatMap((t) => [...t.conflictsWith.map((c) => c.id), ...t.conflictedBy.map((c) => c.id)]),
+    ),
+    desireTagIds: new Set(
+      desireTags.flatMap((d) => [
+        ...d.requiresAnyTags.map((t) => t.id),
+        ...d.requiresNotTags.map((t) => t.id),
+      ]),
+    ),
     // Every slug any tag names, in any of the four ways one tag can point at
     // another by slug rather than by foreign key:
     //
@@ -122,6 +149,8 @@ function blockersFor(tag, refs) {
   if (refs.consumeTargets.has(tag.slug)) blockers.push("another tag names it by slug");
   if (refs.roleStartingNames.has(tag.name)) blockers.push("a Role grants it at creation");
   if (refs.documentSlugs.has(tag.slug)) blockers.push("a Document is assigned by it");
+  if (refs.conflictIds.has(tag.id)) blockers.push("another tag conflicts with it (conflictsWith)");
+  if (refs.desireTagIds.has(tag.id)) blockers.push("a DesireTemplate gates on it (requiresAnyTags/requiresNotTags)");
   return blockers;
 }
 

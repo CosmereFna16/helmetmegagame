@@ -1,11 +1,13 @@
 "use client";
 
-import FormError from "@/app/components/FormError";
 import { useState, useTransition } from "react";
-import { useConfirm } from "./ConfirmProvider";
+import FormError from "@/app/components/FormError";
+import EmptyState from "./EmptyState";
 import InfoIcon from "./InfoIcon";
 import RequestDialog from "./RequestDialog";
-import { setDesire, cancelDesire, fulfillDesireRequest } from "../(app)/character/requestActions";
+import DesireCatalog from "./DesireCatalog";
+import { useConfirm } from "./ConfirmProvider";
+import { cancelDesire, fulfillDesireRequest } from "../(app)/character/requestActions";
 
 const DESIRE_HELP = (
   <>
@@ -21,57 +23,59 @@ const DESIRE_HELP = (
   </>
 );
 
-const POINTS_HELP = (
-  <>
-    <p>Set the amount of points you think this Desire is worth.</p>
-    <p>1. Have a drink at the bar. Trivial.</p>
-    <p>2. Convert the depressed bum to Christianity. Regular.</p>
-    <p>3. Humiliate your rival in front of the court. Moderate.</p>
-    <p>4. Break your comrade out of jail. Difficult.</p>
-    <p>5. Win back your lover. Extraordinary.</p>
-  </>
-);
+// Rewritten for the catalog rework — the old free-text 1-5 point ladder is
+// gone. ‡ marks every rewritten line (docs/desires.yaml's own convention).
+function pointsHelp(desireSlots) {
+  return (
+    <>
+      <p>
+        You have {desireSlots} Desire slot{desireSlots === 1 ? "" : "s"} — each one holds a single
+        Desire at a time.‡
+      </p>
+      <p>
+        A Desire&apos;s tier is both its Tag Point award and its own cooldown: fulfilling a tier 3
+        Desire is worth 3 points and can&apos;t be taken again for 3 turns.‡
+      </p>
+      <p>Cancelling or fulfilling a Desire shuts that slot for the rest of the turn and all of the next one. It opens again the turn after that.</p>
+      <p>A tier 7 Desire can only ever be fulfilled once.‡</p>
+    </>
+  );
+}
 
-export default function DesirePanel({ desire, cooldownUntilTurn, openTurnNumber, desiresEnabled = true }) {
+// Body only — the panel chrome lives in GoalsPanel.js, which renders this.
+// Renders `desireSlots` rows: filled, empty+free (opens the catalog),
+// empty+cooling, or — if Desires are switched off entirely — the single
+// "Temporary disabled." line in place of every slot.
+export default function DesirePanel({
+  desireSlots = 2,
+  slotStates = [],
+  catalog = [],
+  families = [],
+  desiresEnabled = true,
+}) {
   const confirm = useConfirm();
-  const [text, setText] = useState("");
-  const [points, setPoints] = useState("1");
-  const [fulfilling, setFulfilling] = useState(false);
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
+  // Which slot opened the catalog modal, or null. A single shared modal
+  // instance rather than one per slot — only one can be open at a time.
+  const [catalogSlot, setCatalogSlot] = useState(null);
+  // The Desire row currently in the Fulfill dialog, or null.
+  const [fulfilling, setFulfilling] = useState(null);
 
-  const onCooldown =
-    !desire && cooldownUntilTurn != null && openTurnNumber != null && openTurnNumber <= cooldownUntilTurn;
+  const bySlot = new Map(slotStates.map((s) => [s.slotIndex, s]));
 
-  async function submitNew(e) {
-    e.preventDefault();
-    setError(null);
-    const ok = await confirm({
-      title: "Set this Desire?",
-      message:
-        "Once set, cancelling or completing a Desire puts you on a one-turn cooldown before you can set another.",
-      confirmLabel: "Set Desire",
-    });
-    if (!ok) return;
-    startTransition(async () => {
-      const res = await setDesire({ text, points });
-      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
-      setText("");
-      setPoints("1");
-    });
-  }
-
-  async function onCancel() {
+  async function onCancel(slotIndex) {
     setError(null);
     const ok = await confirm({
       title: "Cancel this Desire?",
-      message: "You won't be able to set another until next turn, and no points are awarded.",
+      message:
+        "That slot stays shut for the rest of this turn and all of the next one, and no points are awarded.",
       confirmLabel: "Cancel Desire",
       cancelLabel: "Keep it",
     });
     if (!ok) return;
     startTransition(async () => {
-      const res = await cancelDesire();
+      const res = await cancelDesire({ slotIndex });
       if (!res?.ok) setError(res?.error ?? "Something went wrong.");
     });
   }
@@ -79,87 +83,99 @@ export default function DesirePanel({ desire, cooldownUntilTurn, openTurnNumber,
   function submitFulfill(reason) {
     setError(null);
     startTransition(async () => {
-      const res = await fulfillDesireRequest({ reason });
+      const res = await fulfillDesireRequest({ desireId: fulfilling.id, reason });
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
-      setFulfilling(false);
+      setFulfilling(null);
     });
   }
 
   return (
-    // Body only — the panel chrome lives in GoalsPanel.js, which renders
-    // this.
     <div className="flex flex-col gap-3">
       <h3 className="field-label panel-header--with-icon">
         Desire
         <InfoIcon text={DESIRE_HELP} />
       </h3>
 
-      {desire ? (
-        <div className="flex flex-col gap-3">
-          <p className="text-sm">{desire.text}</p>
-          <p className="text-sm text-muted">
-            Worth {desire.points} Tag Point{desire.points === 1 ? "" : "s"}
-            {desire.setTurnNumber != null ? ` — set on turn ${desire.setTurnNumber}` : ""}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" className="btn" onClick={() => setFulfilling(true)} disabled={pending}>
-              Fulfill
-            </button>
-            <button type="button" className="btn-quiet" onClick={onCancel} disabled={pending}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : !desiresEnabled ? (
+      {!desiresEnabled ? (
         <p className="text-sm text-muted">Temporary disabled.</p>
-      ) : onCooldown ? (
-        <p className="text-sm text-muted">
-          You just ended a Desire — you can set a new one next turn.
-        </p>
       ) : (
-        <form className="flex flex-col gap-3" onSubmit={submitNew}>
-          <label className="field">
-            <span className="field-label">What does your character want?</span>
-            <input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              maxLength={300}
-              required
-              placeholder="Win back your lover…"
-            />
-          </label>
-          <label className="field" style={{ width: "10rem" }}>
-            <span className="field-label flex items-center gap-1.5">
-              Tag Points
-              <InfoIcon text={POINTS_HELP} />
-            </span>
-            <input
-              type="number"
-              min="1"
-              max="5"
-              value={points}
-              onChange={(e) => setPoints(e.target.value)}
-              required
-            />
-          </label>
-          <button type="submit" className="btn self-start" disabled={pending || !text.trim()}>
-            Set Desire
-          </button>
-        </form>
+        <div className="flex flex-col gap-3">
+          <span className="text-xs text-muted flex items-center gap-1.5">
+            How this works
+            <InfoIcon text={pointsHelp(desireSlots)} />
+          </span>
+
+          {Array.from({ length: desireSlots }, (_, slotIndex) => {
+            const slot = bySlot.get(slotIndex) ?? { slotIndex, active: null, lockedUntilTurn: null };
+            return (
+              <div
+                key={slotIndex}
+                className="flex flex-col gap-2"
+                style={
+                  slotIndex > 0
+                    ? { borderTop: "1px solid var(--border)", paddingTop: "0.75rem" }
+                    : undefined
+                }
+              >
+                {slot.active ? (
+                  <>
+                    <p className="text-sm">{slot.active.text}</p>
+                    <p className="text-sm text-muted">
+                      Worth {slot.active.points} Tag Point{slot.active.points === 1 ? "" : "s"}
+                      {slot.active.setTurnNumber != null ? ` — set on turn ${slot.active.setTurnNumber}` : ""}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() => setFulfilling(slot.active)}
+                        disabled={pending}
+                      >
+                        Fulfill
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-quiet"
+                        onClick={() => onCancel(slotIndex)}
+                        disabled={pending}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                ) : slot.lockedUntilTurn != null ? (
+                  <EmptyState>{`Opens on turn ${slot.lockedUntilTurn}`}</EmptyState>
+                ) : (
+                  <button type="button" className="btn self-start" onClick={() => setCatalogSlot(slotIndex)}>
+                    Choose a Desire
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
 
       <FormError>{error}</FormError>
 
+      <DesireCatalog
+        open={catalogSlot != null}
+        onClose={() => setCatalogSlot(null)}
+        slotIndex={catalogSlot ?? 0}
+        catalog={catalog}
+        families={families}
+      />
+
       <RequestDialog
-        open={fulfilling}
+        open={Boolean(fulfilling)}
         title="Fulfill Desire"
         submitLabel="Fulfill"
         busy={pending}
-        onCancel={() => !pending && setFulfilling(false)}
+        onCancel={() => !pending && setFulfilling(null)}
         onConfirm={submitFulfill}
       >
         <p className="text-sm">
-          {desire?.text} — {desire?.points} Tag Point{desire?.points === 1 ? "" : "s"}
+          {fulfilling?.text} — {fulfilling?.points} Tag Point{fulfilling?.points === 1 ? "" : "s"}
         </p>
         <p className="text-xs text-muted">
           You get the points immediately, but tell the GMs how you pulled it off.

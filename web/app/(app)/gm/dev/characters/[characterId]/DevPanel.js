@@ -54,7 +54,7 @@ export default function DevPanel({
   feed,
   cursed,
   equipSlots,
-  maxNegativeTags,
+  maxDrawbackTags,
   startingTagPoints,
   openTurn,
   gambitModifier,
@@ -62,6 +62,10 @@ export default function DevPanel({
   openTurnAction,
   defaultEffort,
   desires,
+  desireSlots,
+  desireCatalog,
+  desireFamilies,
+  desireCooldowns,
   // "page" is the standalone /gm/dev/characters/[characterId] route (the
   // default, unchanged). "modal" is the mount over /gm/turns
   // (DevPanelModal.js) — DevPanel owns the Modal itself rather than the
@@ -231,7 +235,7 @@ export default function DevPanel({
         discord={discord}
         held={held}
         equipSlots={equipSlots}
-        maxNegativeTags={maxNegativeTags}
+        maxDrawbackTags={maxDrawbackTags}
         gambitModifier={gambitModifier}
         openTurn={openTurn}
         hasActed={Boolean(openTurnAction)}
@@ -310,7 +314,14 @@ export default function DevPanel({
       )}
 
       {tab === "Goals" && (
-        <GoalsTab character={character} desires={desires} />
+        <GoalsTab
+          character={character}
+          desires={desires}
+          desireSlots={desireSlots}
+          desireCatalog={desireCatalog}
+          desireFamilies={desireFamilies}
+          desireCooldowns={desireCooldowns}
+        />
       )}
 
       {tab === "Record" && (
@@ -396,7 +407,7 @@ function StateStrip({
   discord,
   held,
   equipSlots,
-  maxNegativeTags,
+  maxDrawbackTags,
   gambitModifier,
   openTurn,
   hasActed,
@@ -404,15 +415,14 @@ function StateStrip({
 }) {
   const equipped = held.filter((h) => h.equipped).length;
   // Point-bought drawbacks only, matching the cap PointBuy enforces — a
-  // GM-inflicted wound is not one of the player's points. Shown as a fact,
+  // GM-inflicted wound is not one of the player's tags. Shown as a fact,
   // not a limit: a GM grant deliberately ignores every gate, this one
-  // included. Summed as points, not counted as tags — see negativeTagPoints.
-  const drawbackPoints = held.reduce((sum, h) => {
-    if (h.source !== "POINT_BUY") return sum;
-    const cost = h.pointCost ?? 0;
-    return cost < 0 ? sum - cost : sum;
+  // included. Counted as tags, not summed as points — see negativeTagCount.
+  const drawbackCount = held.reduce((count, h) => {
+    if (h.source !== "POINT_BUY") return count;
+    return (h.pointCost ?? 0) < 0 ? count + 1 : count;
   }, 0);
-  const overDrawbackCap = drawbackPoints > maxNegativeTags;
+  const overDrawbackCap = drawbackCount > maxDrawbackTags;
   // Four labeled clusters instead of one undifferentiated 15-fact grid, so a
   // GM's eye lands on the right group instead of scanning the whole strip.
   // Purely presentational — every value below is unchanged from before.
@@ -438,7 +448,7 @@ function StateStrip({
         [
           "Drawbacks",
           <span key="db" className={overDrawbackCap ? "text-danger" : undefined}>
-            −{drawbackPoints} / {maxNegativeTags}
+            {drawbackCount} / {maxDrawbackTags}
           </span>,
         ],
         ["Gambit", gambitModifier > 0 ? `+${gambitModifier}` : String(gambitModifier)],

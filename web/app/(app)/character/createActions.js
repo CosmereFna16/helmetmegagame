@@ -31,12 +31,13 @@ import {
   isRoleSelectable,
   tagsById as buildTagsById,
   effectiveTotalCost,
-  negativeTagPoints,
-  DEFAULT_MAX_NEGATIVE_TAGS,
+  negativeTagCount,
+  DEFAULT_MAX_DRAWBACK_TAGS,
   chainSiblingsToRemove,
   heldHigherTiers,
   requirementSatisfied,
   exclusiveConflict,
+  conflictingTag,
   CURSED_ROLE_SLUGS,
 } from "@/lib/characterCreation";
 
@@ -222,7 +223,8 @@ export async function createCharacter(formData) {
   // (parentTagId) never dead-ends on an ancestor the client didn't send.
   const allTags = await prisma.tag.findMany({
     // `name` and `exclusive` ride along for the exclusivity check below —
-    // exclusiveConflict() reads both off the conflicting row.
+    // exclusiveConflict() reads both off the conflicting row. conflictsWith
+    // is what conflictingTag() reads for the same check.
     select: {
       id: true,
       name: true,
@@ -231,9 +233,12 @@ export async function createCharacter(formData) {
       requiredTagId: true,
       exclusive: true,
       groupId: true,
+      conflictsWith: { select: { id: true } },
     },
   });
-  const byId = buildTagsById(allTags);
+  const byId = buildTagsById(
+    allTags.map((t) => ({ ...t, conflictsWithIds: t.conflictsWith.map((c) => c.id) })),
+  );
   const grantedIds = startingTags.map((t) => t.id);
 
   // A hand-posted request could submit two tiers of the same chain at once
@@ -270,15 +275,27 @@ export async function createCharacter(formData) {
     }
   }
 
-  // The drawback cap (TAGS.md §4a), now a POINT cap rather than a tag count.
-  // Only what's bought here counts: the role's own starting tags are granted
-  // below as GM_GRANT and never pass through `selected`, so the Meister's
-  // free Frail costs nobody a point of the cap.
-  const maxNegative = config?.maxNegativeTags ?? DEFAULT_MAX_NEGATIVE_TAGS;
-  const drawbackPoints = negativeTagPoints(selected);
-  if (drawbackPoints > maxNegative) {
+  // Named conflict pairs (Tag.conflictsWith — Sober vs. every Addiction).
+  // `selected` doesn't select the conflictsWith relation, so this reads the
+  // full catalog row (`byId`, which conflictingTag() also needs for the
+  // return value) rather than the bare `tag`.
+  for (const tag of selected) {
+    const catalogTag = byId.get(tag.id) ?? tag;
+    const conflict = conflictingTag(catalogTag, heldOrSelectedIds, byId);
+    if (conflict) {
+      return { error: `${tag.name} conflicts with ${conflict.name}.` };
+    }
+  }
+
+  // The drawback cap (TAGS.md §4a): a COUNT of drawback tags. Only what's
+  // bought here counts: the role's own starting tags are granted below as
+  // GM_GRANT and never pass through `selected`, so the Meister's free Frail
+  // costs nobody a slot of the cap.
+  const maxDrawbacks = config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS;
+  const drawbackCount = negativeTagCount(selected);
+  if (drawbackCount > maxDrawbacks) {
     return {
-      error: `You picked ${drawbackPoints} points of drawbacks and can take at most ${maxNegative}.`,
+      error: `You picked ${drawbackCount} drawbacks and can take at most ${maxDrawbacks}.`,
     };
   }
 

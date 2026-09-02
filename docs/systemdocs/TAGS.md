@@ -28,10 +28,12 @@ Three levels:
   freeform hex string (e.g. `"#6fa8ab"`), rendered directly by
   `web/app/components/ChipLabel.js` (used by `TagChip.js`)
   — not theme-aware, so pick a value that reads on both the dusk and dawn
-  backgrounds. One group, `status-health`, is deliberately **empty**: the
-  Health category (§5c) took every tag that used to live in it. Groups sync
-  upsert-only and are never deleted, so the row survives; don't reuse the slug
-  and don't put anything back in it.
+  backgrounds. Three groups are deliberately **empty**:
+  `status-health` (the Health category, §5c, took every tag that used to live
+  in it) and `general-restrictions` / `general-interests` (merged into
+  `general-personality`, `DESIRES.md` §5). Groups sync upsert-only and are
+  never deleted, so the rows survive; don't reuse those slugs and don't put
+  anything back in them.
 - **Tag** — the catalog entry itself.
 
 ## 2. Master sources: `docs/tags.yaml` and `docs/taggroups.yaml`
@@ -83,10 +85,13 @@ diff check, same style as the zone sync's hash gate).
 - **`Tag.exclusive`** — not a relation at all, but the third rule the same
   callers enforce: a character may hold at most **one** tag carrying this
   flag **per tag group**. Set on the nine Beliefs (`general-beliefs`), which
-  are a single answer rather than a collection, and on the five Bacchus
-  drawbacks — the four Addictions ("do not take with other Addiction tags")
-  and Death Wish, which rewrites what a valid Desire is the same way — so a
-  Cultist holds one belief and one of those five. Neither of the two above could express it — a `parentTag` chain
+  are a single answer rather than a collection, and on the five Addictions
+  (`general-addictions`) — so a character holds at most one belief and at most
+  one Addiction, independently. **Nothing in `general-personality` carries it**:
+  the 2026-09-01 merge dropped it from the nine ex-Restrictions on purpose, so
+  Pacifist + Craven is now a legal character. That is what makes the merged
+  group actually merged — leaving the flag on would have kept "one Restriction
+  max" alive inside a group that no longer looks capped. Neither of the two above could express it — a `parentTag` chain
   is priced cumulatively and walks one direction, and `requiredTag` is a
   prerequisite rather than a conflict. The one exemption is a pair joined by
   `requiredTag`, checked in both directions: Fundamentalist declares
@@ -99,6 +104,22 @@ diff check, same style as the zone sync's hash gate).
   swaps (like a chain sibling); a conflict with something already held is
   dimmed and named. Conversion mid-game is "drop one, buy another" — Beliefs
   stay `removable` — and the store's error says exactly that.
+- **`Tag.conflictsWith`** — a named pairwise conflict, distinct from
+  `exclusive`'s at-most-one-per-group rule: it isn't scoped to a group and
+  isn't carved out for a `requiredTag` pair, so it's the right tool for a
+  conflict that crosses groups or crosses the belief/drawback line — every
+  Addiction lists `conflictsWith: [depressed, prudish]`
+  so, say, Alcoholic and Depressed can't stack. Authored one-directional in
+  `docs/tags.yaml` and symmetrized by `db:sync-tags` (pass 6, §2), so a
+  caller only ever has to check one side; a **custom** GM tag's edge is not
+  guaranteed symmetric, which is why `db:prune-tags`'s blocker check reads
+  both directions. `conflictingTag(tag, heldOrSelectedIds, byId)` in
+  `web/lib/characterCreation.js` is the enforcement predicate, same
+  shape/bypass posture as `exclusiveConflict` above — every caller's `select`
+  must include `conflictsWith`/`conflictsWithIds`. The one-per-group rule the
+  Addiction and Restriction groups themselves enforce (at most one of each)
+  is plain `exclusive`, not this field — `conflictsWith` is only for the
+  cross-group edges.
 
 `web/lib/characterCreation.js` is where the logic lives.
 `holdsRequirement(requiredTagId, …)` answers "is this one id satisfied by
@@ -131,6 +152,13 @@ different predicate.
 Every caller must select `group.requiredTagId` alongside `requiredTagId`.
 Miss it and a hidden category silently opens for everyone, with nothing to
 show that it has.
+
+### `desires:` locks
+
+A fourth field, `Tag.desireLocks` (YAML: `desires: { locks: [...] }`), is
+**not** a relation onto another tag at all — it locks parts of the *Desire
+catalog* shut for whoever holds it. Full writeup, including the clause
+grammar and how several held tags' locks union together: `DESIRES.md` §3.
 
 ## 3b. The Add Tag menu asks a different question
 
@@ -368,33 +396,36 @@ without a deliberate decision recorded here. **Pilgrim is the one deliberate
 exception, priced at 1** — off the scale entirely, Gunboat's call.
 
 **At character creation, a character may buy at most
-`GameConfig.maxNegativeTags` drawback POINTS — 8 by default, live on
+`GameConfig.maxDrawbackTags` drawback TAGS — 5 by default, live on
 `/gm/dev`.** The cap belongs to the wizard and stops existing once play
 starts: `/store` passes no cap and shows no drawback readout, since the one
-drawback it can sell (an Addiction) is meant to be sellable. This is a cap on the sum of what
-drawbacks grant, not on how many drawback tags are held: one −8 drawback and
-eight −1 drawbacks spend the same slice of the cap. Only what was bought
-through the point-buy menu counts (`CharacterTag.source === "POINT_BUY"`): a
-role's free drawback (the Meister's Frail, the Headman's Old) arrives as
-`GM_GRANT`, and so does anything a GM or a turn effect inflicts, so neither
-eats into a player's points. A GM grant can still push someone past the cap,
-deliberately — the same bypass every other gate has (§3). The field is still
-named `maxNegativeTags` even though it now caps points, not tags — renaming
-the column would be a migration for no behavioural gain.
+drawback it can sell (an Addiction) is meant to be sellable. This is a cap on
+the **count** of drawback tags held, not on their combined point value: a
+character with one −8 drawback and one with eight −1 drawbacks now spend a
+different slice of the cap (the field replaced the old `maxNegativeTags`,
+which — despite its name — summed points; `maxDrawbackTags` does what the
+old name always claimed to, for real; the `drawback_tag_cap` migration,
+Desires rework). Only what was bought through the point-buy menu counts
+(`CharacterTag.source === "POINT_BUY"`): a role's free drawback (the
+Meister's Frail, the Headman's Old) arrives as `GM_GRANT`, and so does
+anything a GM or a turn effect inflicts, so neither eats into a player's
+count. A GM grant can still push someone past the cap, deliberately — the
+same bypass every other gate has (§3). `0` is a real setting: no drawbacks
+at all.
 
 The cap has three surfaces. `PointBuy.js` sums it live in the build pane
-(`negativeCap` / `negativeHeld`), shown in red once the total is over the cap
-(`−{used} / {cap} drawback points spent`), dims a drawback that would push
-the total past the limit the same way it dims an unaffordable tag, and — like
+(`negativeCap` / `negativeHeld`), shown in red once the count is over the
+cap (`{used} / {cap} drawbacks taken`), dims a drawback that would push the
+count past the limit the same way it dims an unaffordable tag, and — like
 the budget — lets the click through so the pane can say why the build isn't
 legal. `CreateCharacterWizard` folds it into `canAdvance` beside
 `remaining >= 0`. `createCharacter` re-checks it server-side, because a
 server action is a public endpoint. `/store` shows the same line as a
 **readout only**: every drawback is `purchasableAfterStart: false`, so the
-shelf never offers one and the total can't move there. `negativeTagPoints()`
-in `web/lib/characterCreation.js` is the shared predicate, over raw
-`pointCost` rather than `effectiveCost` — a drawback never sits in a tier
-chain, so there is nothing to discount.
+shelf never offers one and the total can't move there. `negativeTagCount()`
+in `web/lib/characterCreation.js` is the shared predicate, counting tags
+with a negative `pointCost` rather than summing `effectiveCost` — a drawback
+never sits in a tier chain, so there is nothing to discount.
 
 **0 is a real price, not a missing one**, and it is the most common value in
 the file (142 of 268). Everything unpurchasable — injuries, statuses, meals,
@@ -403,6 +434,27 @@ no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
 
 ### Rules that follow from the scale
 
+- **Addictions and Personality (`general-addictions`,
+  `general-personality`) run their own bands, off the same scale.**
+  Addictions −2…−7, Personality −8…+5. ‡ The rationale is income-based, not
+  severity-based: the price tracks how much of the Desire catalog a tag closes
+  against how much it opens. Alcoholic, which still has tiers 5 and 7 open
+  everywhere, costs less than Glutton, which is locked to `food` at every
+  tier. Depressed closes everything and opens nothing, so it sits at the floor
+  at −8; Eunuch closes exactly one family and sits at −1. Pacifist stays at −2
+  even though it now opens two Desires of its own, because what it opens is
+  narrow and what it forbids is not. An Interest-shaped tag is positive
+  because it is pure upside — it widens the catalog with no lock attached.
+
+  **A Personality tag may be negative AND open Desires.** That is the whole
+  point of the 2026-09-01 merge that replaced `general-restrictions` and
+  `general-interests` with one group; before it, a Restriction was defined as
+  a pure dead end. See `DESIRES.md` §5.
+- **No drawback is purchasable after start.** Every negative-`pointCost` tag
+  carries `purchasableAfterStart: false`, `/store` enforces it server-side,
+  and fulfilling a Desire is therefore the only mid-game Tag Point faucet.
+  This is what closes the buy-a-drawback → get-cured → keep-the-points loop
+  at the door (`DESIRES.md` §7).
 - **Skill chains are flat 5 per rung and charged cumulatively**
   (`cumulativeCost`, §3). Do not price a rung off-ladder to make a chain
   cheaper; shorten the chain.
@@ -465,6 +517,25 @@ here, change it there too** — they are meant to say the same thing.
   | `false` (default) | `HIDDEN` | Never seen. |
   | `true` | `ALWAYS` | Seen whether it is equipped or not. |
   | `worn` | `WORN` | Seen **only while `CharacterTag.equipped`**. |
+
+  **THE RULE, and it is catalog-wide.** `visible: true` means *a stranger
+  looking you over would notice*: your body, your face, your gait; your
+  clothes and anything large enough that you are visibly hauling it; and a
+  reputation already attached to your name in public (Disgraced, Wanted,
+  Knighted). **Never** your appetites, your beliefs, your opinions, your
+  skills, or your secrets. Hot-Headed, Pacifist, Alcoholic, Eunuch, every
+  Belief and every Skill in the catalog are `false`, and that is not an
+  oversight — a temper is a thing you find out about someone, not a thing you
+  see. The test that settles most arguments is a neighbour: if an
+  identical-severity tag two rows away disagrees with you, one of the two is
+  wrong. (Feverish was hidden while Infected and Festering were visible;
+  Consumptive was hidden while Persistent Cough was visible; Mute was hidden
+  while Silenced and Wired Jaw were visible. All three were the same mistake.)
+
+  Health has its own second rule on top of this one — a medic sees what they
+  could treat, whatever `visible` says. See §5c, "Visibility, and the
+  doctor's eye": that is why an internal illness can safely be `false`
+  without becoming undiagnosable.
 
   `worn` is the concealable middle: a dagger in a pocket is nobody's
   business, a drawn one is, and a badge left at home is a badge you are not
@@ -1076,7 +1147,8 @@ detail sheet both show the chain as a **Treated** row beside **Becomes**.
 ### Visibility, and the doctor's eye
 
 `visible` on a Health tag is a question about **realism, not severity**: could
-a bystander tell? A gaping wound, a missing arm, Paralyzed and Severe Burns
+a bystander tell? That is the catalog-wide rule in §5, applied here — the
+addition is the doctor's eye below. A gaping wound, a missing arm, Paralyzed and Severe Burns
 are obvious. Appendicitis, cracked ribs, parasites, chronic pain and Shell
 Shocked are not, and are `visible: false`. Only `true` or `false` here —
 nobody wears appendicitis, so no Health tag is `equippable` and `worn` never

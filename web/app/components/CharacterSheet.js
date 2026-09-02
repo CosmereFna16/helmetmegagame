@@ -38,8 +38,10 @@ export default function CharacterSheet({
   transferParties,
   tagCatalog,
   otherCharacters,
-  desire,
-  desireCooldownUntilTurn,
+  desireSlots = 2,
+  desireSlotStates = [],
+  desireCatalog = [],
+  desireFamilies = [],
   desiresEnabled = true,
   canHeal = false,
   canFastTravel = false,
@@ -148,11 +150,14 @@ export default function CharacterSheet({
 
           {isSelf && (
             <GoalsPanel
-              desire={desire ?? null}
-              desireCooldownUntilTurn={desireCooldownUntilTurn ?? null}
+              desireSlots={desireSlots}
+              slotStates={desireSlotStates}
+              catalog={desireCatalog}
+              families={desireFamilies}
               openTurnNumber={openTurn?.number ?? null}
               desiresEnabled={desiresEnabled}
             />
+
           )}
 
           {isSelf && (

@@ -3,7 +3,7 @@
 import FormError from "@/app/components/FormError";
 import Select from "@/app/components/Select";
 import { EnumPill, DESIRE_STATUS } from "@/app/components/StatusPill";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { setDesireGm, endDesireGm } from "./actions";
 
@@ -13,15 +13,114 @@ import { setDesireGm, endDesireGm } from "./actions";
 // Desire moves tagPoints: staging a point movement alongside a hand-edited
 // tagPoints value on the Identity tab would make the arithmetic ambiguous,
 // so it commits on its own and the Identity field always shows the result.
+//
+// Per-slot, mirroring the player-facing DesirePanel/DesireCatalog: each of
+// GameConfig.desireSlots slots shows its own occupant (catalog OR freeform)
+// and, when empty, its own "set a Desire" sub-form — a catalog picker
+// (gates BYPASSED for a GM grant, retired templates included and marked) and
+// the kept free-text fallback (1..7 points, wider than the player ladder).
 
-export default function GoalsTab({ character, desires }) {
-  const confirm = useConfirm();
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState(null);
+const POINT_OPTIONS = [1, 2, 3, 4, 5, 6, 7];
+
+function SlotForm({ slotIndex, catalog, families, pending, onSetCatalog, onSetFreeform }) {
+  const [mode, setMode] = useState("catalog");
+  const [slug, setSlug] = useState("");
   const [text, setText] = useState("");
   const [points, setPoints] = useState(3);
 
-  const active = desires.find((d) => d.status === "ACTIVE") ?? null;
+  const groups = useMemo(() => {
+    const byKey = new Map(families.map((f) => [f.key, { family: f, entries: [] }]));
+    const other = { family: { key: "__other", name: "Other" }, entries: [] };
+    for (const entry of catalog) {
+      const keys = (entry.families ?? []).filter((k) => byKey.has(k));
+      if (keys.length === 0) {
+        other.entries.push(entry);
+        continue;
+      }
+      for (const key of keys) byKey.get(key).entries.push(entry);
+    }
+    return [...byKey.values(), other].filter((g) => g.entries.length > 0);
+  }, [catalog, families]);
+
+  return (
+    <div className="flex flex-col gap-2 border-t border-hairline pt-3">
+      <div className="segmented" role="group" aria-label="Desire source">
+        <button type="button" onClick={() => setMode("catalog")} aria-pressed={mode === "catalog"}>
+          Catalog
+        </button>
+        <button type="button" onClick={() => setMode("freeform")} aria-pressed={mode === "freeform"}>
+          Free text
+        </button>
+      </div>
+
+      {mode === "catalog" ? (
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="field flex-1" style={{ minWidth: "14rem" }}>
+            <span className="field-label">Template</span>
+            <Select value={slug} onChange={(e) => setSlug(e.target.value)}>
+              <option value="" disabled>
+                Choose a Desire…
+              </option>
+              {groups.map(({ family, entries }) => (
+                <optgroup key={family.key} label={family.name}>
+                  {entries.map((entry) => (
+                    <option key={entry.slug} value={entry.slug}>
+                      {entry.name} ({entry.tier}){entry.retired ? " — retired" : ""}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </Select>
+          </label>
+          <button
+            type="button"
+            className="btn"
+            disabled={pending || !slug}
+            onClick={() => onSetCatalog(slotIndex, slug, () => setSlug(""))}
+          >
+            Set desire
+          </button>
+        </div>
+      ) : (
+        <>
+          <label className="field">
+            <span className="field-label">Set a desire</span>
+            <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} />
+          </label>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="field">
+              <span className="field-label">Worth</span>
+              <Select value={points} onChange={(e) => setPoints(Number(e.target.value))}>
+                {POINT_OPTIONS.map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </Select>
+            </label>
+            <button
+              type="button"
+              className="btn"
+              disabled={pending || !text.trim()}
+              onClick={() => onSetFreeform(slotIndex, text, points, () => setText(""))}
+            >
+              Set desire
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+export default function GoalsTab({ character, desires, desireSlots = 2, desireCatalog = [], desireFamilies = [], desireCooldowns = [] }) {
+  const confirm = useConfirm();
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState(null);
+
+  const activeBySlot = useMemo(() => {
+    const map = new Map();
+    for (const d of desires) if (d.status === "ACTIVE") map.set(d.slotIndex, d);
+    return map;
+  }, [desires]);
   const past = desires.filter((d) => d.status !== "ACTIVE");
 
   function run(fn) {
@@ -42,92 +141,106 @@ export default function GoalsTab({ character, desires }) {
     run(fn);
   }
 
+  function setCatalog(slotIndex, slug, onDone) {
+    run(async () => {
+      const res = await setDesireGm({ characterId: character.id, slotIndex, slug });
+      if (res?.ok) onDone();
+      return res;
+    });
+  }
+
+  function setFreeform(slotIndex, text, points, onDone) {
+    run(async () => {
+      const res = await setDesireGm({ characterId: character.id, slotIndex, text, points });
+      if (res?.ok) onDone();
+      return res;
+    });
+  }
+
   return (
     <>
-      <section className="panel flex flex-col gap-3 p-4">
-        <h2 className="panel-header">Desire</h2>
+      {Array.from({ length: desireSlots }, (_, slotIndex) => {
+        const active = activeBySlot.get(slotIndex) ?? null;
+        return (
+          <section key={slotIndex} className="panel flex flex-col gap-3 p-4">
+            <h2 className="panel-header">Desire — slot {slotIndex + 1}</h2>
 
-        {active ? (
-          <>
-            <p className="text-sm">» {active.text}</p>
-            <p className="text-sm text-muted mono">
-              worth {active.points} · set turn {active.setTurnNumber ?? "—"}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                className="btn"
-                disabled={pending}
-                onClick={() =>
-                  confirmThenRun(
-                    {
-                      title: "Fulfil this desire?",
-                      message: `${character.name} gains ${active.points} tag point${active.points === 1 ? "" : "s"}.`,
-                      confirmLabel: "Fulfil",
-                    },
-                    () => endDesireGm({ characterId: character.id, desireId: active.id, mode: "fulfill" }),
-                  )
-                }
-              >
-                Fulfil (+{active.points})
-              </button>
-              <button
-                type="button"
-                className="btn-quiet"
-                disabled={pending}
-                onClick={() =>
-                  confirmThenRun(
-                    {
-                      title: "Cancel this desire?",
-                      message: "It ends with no points awarded.",
-                      confirmLabel: "Cancel it",
-                      cancelLabel: "Keep it",
-                    },
-                    () => endDesireGm({ characterId: character.id, desireId: active.id, mode: "cancel" }),
-                  )
-                }
-              >
-                Cancel
-              </button>
-            </div>
-          </>
-        ) : (
-          <p className="text-sm text-muted">No active desire.</p>
-        )}
+            {active ? (
+              <>
+                <p className="text-sm">» {active.text}</p>
+                <p className="text-sm text-muted mono">
+                  worth {active.points} · set turn {active.setTurnNumber ?? "—"}
+                  {active.templateName ? ` · ${active.templateName} (${active.templateTier})` : " · free text"}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={pending}
+                    onClick={() =>
+                      confirmThenRun(
+                        {
+                          title: "Fulfil this desire?",
+                          message: `${character.name} gains ${active.points} tag point${active.points === 1 ? "" : "s"}.`,
+                          confirmLabel: "Fulfil",
+                        },
+                        () => endDesireGm({ characterId: character.id, desireId: active.id, mode: "fulfill" }),
+                      )
+                    }
+                  >
+                    Fulfil (+{active.points})
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-quiet"
+                    disabled={pending}
+                    onClick={() =>
+                      confirmThenRun(
+                        {
+                          title: "Cancel this desire?",
+                          message: "It ends with no points awarded.",
+                          confirmLabel: "Cancel it",
+                          cancelLabel: "Keep it",
+                        },
+                        () => endDesireGm({ characterId: character.id, desireId: active.id, mode: "cancel" }),
+                      )
+                    }
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-muted">No active desire in this slot.</p>
+            )}
 
-        <div className="flex flex-col gap-2 border-t border-hairline pt-3">
-          <label className="field">
-            <span className="field-label">
-              {active ? "Replace with a new desire (cancels the current one)" : "Set a desire"}
-            </span>
-            <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} />
-          </label>
-          <div className="flex flex-wrap items-end gap-2">
-            <label className="field">
-              <span className="field-label">Worth</span>
-              <Select value={points} onChange={(e) => setPoints(Number(e.target.value))}>
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </Select>
-            </label>
-            <button
-              type="button"
-              className="btn"
-              disabled={pending || !text.trim()}
-              onClick={() =>
-                run(async () => {
-                  const res = await setDesireGm({ characterId: character.id, text, points });
-                  if (res?.ok) setText("");
-                  return res;
-                })
-              }
-            >
-              Set desire
-            </button>
-          </div>
-        </div>
-      </section>
+            <SlotForm
+              slotIndex={slotIndex}
+              catalog={desireCatalog}
+              families={desireFamilies}
+              pending={pending}
+              onSetCatalog={setCatalog}
+              onSetFreeform={setFreeform}
+            />
+          </section>
+        );
+      })}
+
+      {desireCooldowns.length > 0 && (
+        <section className="panel flex flex-col gap-2 p-4">
+          <h2 className="panel-header">Cooldowns</h2>
+          <ul className="flex flex-col gap-1 text-sm">
+            {desireCooldowns.map((c) => (
+              <li key={c.slug} className="flex flex-wrap items-baseline gap-2">
+                <span>{c.name} ({c.tier})</span>
+                <span className="mono text-xs text-muted">
+                  {c.state === "spent" ? "once only, spent" : `cooldown — turn ${c.availableFromTurn ?? "—"}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {past.length > 0 && (
         <section className="panel flex flex-col gap-2 p-4">
@@ -138,7 +251,7 @@ export default function GoalsTab({ character, desires }) {
                 <EnumPill map={DESIRE_STATUS} value={d.status} />
                 <span>{d.text}</span>
                 <span className="mono text-xs text-muted">
-                  {d.points} pt · turn {d.endedTurnNumber ?? "—"}
+                  slot {d.slotIndex + 1} · {d.points} pt · turn {d.endedTurnNumber ?? "—"}
                 </span>
               </li>
             ))}

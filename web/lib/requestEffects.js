@@ -173,7 +173,9 @@ export const REQUEST_EFFECTS = {
     editableFields: ["pointsAwarded"],
     // A GM re-scores the Desire: only the DELTA moves onto tagPoints. Writing
     // the whole award again would double-pay the player every time the panel
-    // is Confirmed a second time.
+    // is Confirmed a second time. The award moves; the cooldown does not —
+    // db/lib/desireGates.js reads template.tier for the per-desire cooldown,
+    // which a GM re-score of Desire.points never touches.
     async applyEdit(tx, request, edits) {
       const effect = { ...request.effect };
       const previous = effect.pointsAwarded ?? 0;
@@ -198,7 +200,7 @@ export const REQUEST_EFFECTS = {
       return { effect, note: `Tag Points ${previous} -> ${next}.`, changed: true };
     },
     async undo(tx, request, ctx) {
-      const { desireId, pointsAwarded } = request.effect;
+      const { desireId, pointsAwarded, slotIndex } = request.effect;
       if (pointsAwarded) {
         await tx.character.update({
           where: { id: request.characterId },
@@ -206,10 +208,41 @@ export const REQUEST_EFFECTS = {
         });
       }
       if (desireId) {
-        await tx.desire.updateMany({
-          where: { id: desireId },
-          data: { status: "ACTIVE", endedTurnNumber: null },
+        // A pre-rework effect (filed before this deploy) never wrote
+        // `slotIndex` into the effect payload — but the Desire ROW it points
+        // at still has one, defaulted to 0 by the column. Reading it off the
+        // row rather than trusting its absence in the effect is what keeps
+        // this branch from unconditionally reopening into a slot 0 that a
+        // newer Desire already occupies (two ACTIVE rows in the same slot).
+        let effectiveSlotIndex = slotIndex;
+        if (effectiveSlotIndex == null) {
+          const row = await tx.desire.findUnique({ where: { id: desireId }, select: { slotIndex: true } });
+          effectiveSlotIndex = row?.slotIndex ?? 0;
+        }
+
+        // The slot may have been refilled since this Desire was fulfilled —
+        // reopening it to ACTIVE would then collide with whatever's sitting
+        // in that slot now. Reopen only if the slot is still free; otherwise
+        // the row stays CANCELLED (the points are still revoked above).
+        const occupant = await tx.desire.findFirst({
+          where: { characterId: request.characterId, status: "ACTIVE", slotIndex: effectiveSlotIndex, id: { not: desireId } },
         });
+        let reopened = false;
+        if (!occupant) {
+          await tx.desire.updateMany({
+            where: { id: desireId },
+            data: { status: "ACTIVE", endedTurnNumber: null },
+          });
+          reopened = true;
+        } else {
+          await tx.desire.updateMany({
+            where: { id: desireId },
+            data: { status: "CANCELLED" },
+          });
+        }
+        if (!reopened) {
+          return `Revoked ${pointsAwarded} Tag Point(s). The slot was already refilled, so the Desire was closed rather than reopened.`;
+        }
       }
       return `Revoked ${pointsAwarded} Tag Point(s) and reopened the Desire.`;
     },

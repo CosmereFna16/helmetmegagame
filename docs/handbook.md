@@ -91,7 +91,7 @@ General questions can be asked in the `#general` channel or by creating a thread
 #### **Website**
 | Page | Content |
 |---|---|
-| **Character** | Your character sheet. Current Zone, Resources, Gambit modifier, Tag Points, tags and equipment, Desire, Default Move, your bio and portrait, all requests functions. |
+| **Character** | Your character sheet. Current Zone, Resources, Gambit modifier, Tag Points, tags and equipment, Desires, Default Move, your bio and portrait, all requests functions. |
 | **Map** | A map of Ravenheart. Click a Zone to travel to it. |
 | **Faction** | Faction roster, Silo balance, ledger, and leadership. |
 | **Documents** | Game rules and briefs. **Assigned** has specific documents provided by your role or tags. |
@@ -143,7 +143,7 @@ At this point there are a few recommended next steps:
 - Write your Appearance, a brief description of your character that others will see when examining you.
 - Create your public character portrait.
 - Review your role [Documents](https://ravenheart.quest/documents).
-- Enter a Desire, your character's current goal or objective.
+- Select Desires from the catalog — your character's current goals.
 - Enter a Default Move, an activity that your character performs whenever you don't submit a specific Move during a turn.
 
 ## Playing A Turn
@@ -427,7 +427,7 @@ In the header:
 - **Spend Tag Points:** Opens the Tag Store to spend unused points.
 - **Equipment:** Tags that you can wear. Click up to 6 equippable tags (weapons, armor, etc.) to don them, click them again to unequip.
 
-**Desires:** Your character's current goal. You can only hold one at a time, and ending it puts you on a cooldown before you can set another. Set what your character wants and how many points it's worth. The ⓘ explains the point scale.  
+**Desires:** Your character's current goals. Once a Desire ends (fulfilled or cancelled), that slot stays shut for the rest of that turn and all of the next one, and that specific Desire goes on its own cooldown before it can be picked again.  
 **Fulfill** one when you have achieved it, or **Cancel** it.
 
 **Default Move:** What your character does on any turn you don't submit a custom Move. Can be optionally published in the public Summary.

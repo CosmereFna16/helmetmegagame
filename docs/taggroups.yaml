@@ -55,6 +55,44 @@ groups:
     name: Beliefs
     category: general
     color: "#878fb7"
+  # Desires rework (2026-08-31): the Addiction/Restriction/Interest ladder got
+  # its own three groups instead of living scattered through Traits and The
+  # Court. All ungated, same reasoning as Traits/Social/Beliefs — nothing here
+  # is a secret.
+  #
+  # Personality rework (2026-09-01): Restrictions and Interests collapsed into
+  # ONE group. The old split said a Restriction only ever closes the catalog
+  # and an Interest only ever opens it, which made every Restriction a dead
+  # end — Pacifist cost points and gave nothing back. A Personality tag is now
+  # free to be negative AND open Desires nobody else can reach, so the two
+  # halves stopped being different kinds of thing. Addictions stayed separate
+  # because "one Addiction at a time" is a real rule, and a group is where you
+  # see it.
+  - slug: general-addictions
+    name: Addictions
+    category: general
+    color: "#6f93c9"
+  # One value covering the ground the two old groups held, sitting between
+  # their #7f88bd and #9db4e0 and staying inside the General blue/indigo family
+  # THE PALETTE requires. 4.28:1 on dusk, 4.43:1 on dawn — comfortably clear of
+  # the 3:1 floor, and of general-restrictions' 3.83 which was the tightest of
+  # the two it replaces.
+  - slug: general-personality
+    name: Personality
+    category: general
+    color: "#8a90c6"
+  # Orphaned by the Personality rework above: general-personality took every
+  # tag both of these held. Groups sync upsert-only and are never deleted, so
+  # these rows survive empty — same as status-health below. Don't reuse either
+  # slug, and don't put anything back in them.
+  - slug: general-restrictions
+    name: Restrictions
+    category: general
+    color: "#7f88bd"
+  - slug: general-interests
+    name: Interests
+    category: general
+    color: "#9db4e0"
   # Two body-membership groups, gated the same way Demoness and Bacchus are
   # (see the bottom of this file). Gating here rather than repeating
   # `requiredTag` on every member is the established idiom, and it means a

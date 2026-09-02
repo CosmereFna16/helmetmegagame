@@ -463,7 +463,9 @@ covers Restart Game itself.
 | Knob | Does |
 |---|---|
 | `autoReconcileEnabled` | Run the channel doctor's cheap reconcile after every turn advance. It always runs on bot restart regardless |
-| `desiresEnabled` | Let players set a NEW Desire on `/character`. Off greys that form with "Temporary disabled." An already-ACTIVE Desire can still be fulfilled or cancelled, and GMs are unaffected (`REQUESTS.md` §5) |
+| `desiresEnabled` | Let players set a NEW Desire, in any slot, on `/character`. Off greys that form with "Temporary disabled." An already-ACTIVE Desire in any slot can still be fulfilled or cancelled, and GMs are unaffected — `setDesireGm`/`endDesireGm` on this panel bypass every catalog gate regardless (`DESIRES.md` §6, `REQUESTS.md` §5) |
+| `desireSlots` | How many Desires a character may hold ACTIVE at once, one per slot (default 2). Each slot sets/cancels/fulfils independently (`DESIRES.md` §1) |
+| `maxDrawbackTags` | Character-creation cap on the COUNT of drawback tags a player may point-buy (default 5) — not their combined point value. A GM grant bypasses it, same as every other creation gate (`TAGS.md` §4a) |
 
 **System Reports** shows the latest run of each operational pass — `WIPE`,
 `DOCTOR`, `DAWN_WIPE`, `BULK_MOVE` — with its summary and its failures. A

@@ -10,6 +10,7 @@ import {
   syncSpecialChannels,
   syncTagsFromYaml,
   syncRolesFromYaml,
+  syncDesiresFromYaml,
   syncDocumentsFromYaml,
 } from "@lifeweb/db";
 import { runChannelDoctor } from "@lifeweb/db/lib/channelDoctor";
@@ -100,7 +101,10 @@ export async function updateGameConfig(formData) {
       equipSlots: Math.max(1, intOrZero(formData, "equipSlots")),
       // 0 is a real setting here — "no drawbacks at all" is coherent, only a
       // negative cap is nonsense.
-      maxNegativeTags: Math.max(0, intOrZero(formData, "maxNegativeTags")),
+      maxDrawbackTags: Math.max(0, intOrZero(formData, "maxDrawbackTags")),
+      // Same floor-at-1 posture as equipSlots — a zero-slot Desire economy
+      // isn't a coherent state, unlike zero drawbacks above.
+      desireSlots: Math.max(1, intOrZero(formData, "desireSlots")),
     },
   });
 
@@ -241,7 +245,8 @@ const DEFAULT_GAME_CONFIG = {
   startingTagPoints: 12,
   playerCount: 100,
   equipSlots: 6,
-  maxNegativeTags: 8,
+  maxDrawbackTags: 5,
+  desireSlots: 2,
   catatonicEnabled: true,
   catatonicTurns: 4,
   catatonicDeathTurns: 4,
@@ -478,6 +483,11 @@ async function finishGameWipe(actorDiscordUserId, characters, cursedMemberIds, f
   // 100 — a smaller game needs playerCount set on /gm/dev, then
   // `db:sync-roles -- --seed-silos` run by hand afterward.
   await step("role sync", () => syncRolesFromYaml(prisma, { seedSilos: true }));
+  // Desires validate requires.anyTags/notTags and anyRoles/notRoles against
+  // the DB, so this has to come after tag sync and role sync. DesireTemplate
+  // rows are NOT wiped above — catalog, not player state — this just
+  // reconciles scalars/links/retirement against docs/desires.yaml.
+  await step("desire sync", () => syncDesiresFromYaml(prisma));
   // Last: its assignment references are validated against the Tag/Role/
   // Faction rows the syncs above create.
   await step("document sync", () => syncDocumentsFromYaml(prisma));

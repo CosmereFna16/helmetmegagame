@@ -13,13 +13,15 @@ import {
   tagsById as buildTagsById,
   requirementSatisfied,
   exclusiveConflict,
+  conflictingTag,
   chainSiblingsToRemove,
   heldHigherTiers,
   effectiveCost,
   effectiveTotalCost,
 } from "@/lib/characterCreation";
 import { addToStack, dropCharacterTag } from "@/lib/requestEffects";
-import { syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
+import { syncCharacterNarrowcastAccess, sendDm } from "@/lib/discordGuild";
+import { cancelOrphanedDesires } from "@lifeweb/db/lib/desireOrphans";
 
 // The /store checkout. One cart, one transaction, ONE batched BUY_TAGS
 // request — applied immediately and reviewed by a GM afterwards, the same
@@ -65,6 +67,7 @@ async function buyTagsImpl({ tagIds }) {
     // `name` rides along for the replaced-tier snapshots below — the effect
     // names what came off the sheet so the GM ledger reads without a join.
     // `exclusive` is what exclusiveConflict() reads off the held row.
+    // conflictsWith is what conflictingTag() reads for the same check.
     select: {
       id: true,
       name: true,
@@ -75,9 +78,12 @@ async function buyTagsImpl({ tagIds }) {
       groupId: true,
       removable: true,
       consumable: true,
+      conflictsWith: { select: { id: true } },
     },
   });
-  const byId = buildTagsById(allTags);
+  const byId = buildTagsById(
+    allTags.map((t) => ({ ...t, conflictsWithIds: t.conflictsWith.map((c) => c.id) })),
+  );
   const heldOrSelectedIds = [...heldIds, ...ids];
 
   for (const tag of selected) {
@@ -128,6 +134,13 @@ async function buyTagsImpl({ tagIds }) {
           : `${tag.name} can't be held with ${conflict.name}.`,
       );
     }
+    // Named conflict pairs (Tag.conflictsWith — Sober vs. every Addiction).
+    // `selected` didn't select the conflictsWith relation, so this reads the
+    // full catalog row (`byId`) instead.
+    const namedConflict = conflictingTag(byId.get(tag.id) ?? tag, heldOrSelectedIds, byId);
+    if (namedConflict) {
+      throw new UserError(`${tag.name} conflicts with ${namedConflict.name}.`);
+    }
   }
 
   // Chain-aware and discounted by held tiers — the same arithmetic the shelf
@@ -148,6 +161,7 @@ async function buyTagsImpl({ tagIds }) {
   // sheet in the same transaction (TAGS.md §3). Snapshots go on the effect so
   // Undo is an exact inverse — return the cart, restore what it displaced.
   const replaced = [];
+  let orphanDms = [];
 
   await prisma.$transaction(async (tx) => {
     // Same row lock, taken first, as the Add Tag and Desire paths: every
@@ -208,7 +222,23 @@ async function buyTagsImpl({ tagIds }) {
         ...(replaced.length ? { replacedTiers: replaced.map((r) => r.tagName) } : {}),
       },
     });
+
+    // A bought tag can trip a Desire's notTags gate, and a chain upgrade
+    // removes the lower tier — either can orphan a goal already in flight.
+    ({ dms: orphanDms } = await cancelOrphanedDesires(tx, {
+      characterId: character.id,
+      openTurnNumber: openTurn?.number ?? null,
+      actorDiscordUserId: session.discordUserId,
+    }));
   });
+
+  // After the commit, and individually caught: the cancellation is already
+  // durable, so a Discord hiccup must not surface as a failed action.
+  for (const dm of orphanDms) {
+    await sendDm(dm.discordUserId, dm.content).catch((err) =>
+      console.error(`Orphaned-Desire DM to ${dm.discordUserId} failed:`, err),
+    );
+  }
 
   // A bought tag can open a narrowcast channel (#watch, #intercom) the same
   // way a granted one does.
