@@ -4,25 +4,14 @@ import { useEffect } from "react";
 import { readSession, writeSession } from "./useSessionState";
 import { readVersionCrumb } from "./useDeskVersion";
 
-// TEMPORARY DIAGNOSTIC, v2 — the desks keep hard-reloading for every GM.
-// Round-2 forensics (Railway edge logs, 2026-08-31) showed the healthy cycle
-// everywhere (action POST → flight GET → applied), but on each captured
-// reload the expected flight fetch NEVER REACHED THE EDGE: the failure is
-// inside the browser, and it is silent (no console.error — v1's tail came
-// back empty).
-//
-// So v2 records what only the browser can see, into a sessionStorage ring
-// buffer that survives the reload and is beaconed to /api/desk-telemetry on
-// the next document load:
-//   - every same-origin fetch's fate: path, RSC-ish markers, status or the
-//     exact exception it died with, duration
-//   - window "error" and "unhandledrejection" events
-//   - console.error text (kept from v1)
-//   - at beacon time, the browser's own resource-timing tail as a
-//     cross-check (a failed fetch shows up with transferSize 0)
-//
-// Remove this file (and /api/desk-telemetry) once the reloads are classified
-// and fixed.
+// TEMPORARY DIAGNOSTIC — the desks keep hard-reloading for every GM, and the
+// failure is silent inside the browser (no console.error). This records what
+// only the browser can see, into a sessionStorage ring buffer that survives
+// the reload and is beaconed to /api/desk-telemetry on the next document
+// load: every same-origin fetch's fate, uncaught errors and rejections,
+// console.error text, and the browser's resource-timing tail as a
+// cross-check. Remove this file (and /api/desk-telemetry) once the reloads
+// are classified and fixed.
 
 const TAIL_KEY = "gm-desk-console-tail";
 const MAX_EVENTS = 14;
@@ -75,7 +64,7 @@ function installTaps() {
   if (tapsInstalled) return;
   tapsInstalled = true;
 
-  // 1. console.error (v1) — the loud fallback path would land here.
+  // 1. console.error — the loud fallback path would land here.
   const originalError = console.error.bind(console);
   console.error = (...args) => {
     const text = args.map(formatArg).join(" ").slice(0, 300);
@@ -169,8 +158,8 @@ export default function useReloadTelemetry(surface, deployVersion) {
       beacon({ kind: "landed", surface, nav, deployVersion, crumb: readVersionCrumb(), tail });
     }
 
-    // Exit report: always send now (v1 skipped when the console tail was
-    // empty — and the empty tail turned out to be the interesting case).
+    // Exit report: always send, even with an empty console tail — that's
+    // itself a meaningful reading.
     const onPageHide = () => {
       beacon({
         kind: "leaving",

@@ -138,11 +138,11 @@ function dedupe(key, run) {
   return promise;
 }
 
-// Deliberately does NOT swallow errors into `null`. It used to, and that made
-// a 429 indistinguishable from "this user isn't in the guild" — so a
-// rate-limited GM was silently handed the player nav and bounced out of /gm.
-// Only a real 404 means "not a member"; everything else throws and is handled
-// by the stale-fallback in getGuildMember below.
+// Deliberately does NOT swallow errors into `null`: a 429 must stay
+// distinguishable from "this user isn't in the guild", or a rate-limited GM
+// gets silently bounced out of /gm. Only a real 404 means "not a member";
+// everything else throws and is handled by the stale-fallback in
+// getGuildMember below.
 async function fetchGuildMember(discordUserId) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const token = process.env.DISCORD_TOKEN;
@@ -286,14 +286,6 @@ export const getGmSession = cache(async () => {
   return { session, isGm: isGm(member) };
 });
 
-// The two requests every DM costs used to be re-wrapped here as a local
-// dmFetch/createDmChannel/postMessage trio. They already delegated to
-// discordRequest, so all the wrapper added was a prefix on the error message —
-// which cost more than it gave: rebuilding the Error dropped the `status` and
-// `discordCode` that postDmBatched needs to tell a stale DM channel from a
-// rate limit. Both are gone; sendDm below goes straight to the shared
-// db/lib/discordRest helper, which also carries the DM-channel cache.
-
 export async function deleteMessage(channelId, messageId) {
   return discordRequest(`/channels/${channelId}/messages/${messageId}`, {
     method: "DELETE",
@@ -420,17 +412,11 @@ export async function removeCursedRole(discordUserId) {
 }
 
 // Personal Discord role titled after this character's name, colored
-// deterministically from that same bare name. Creates the role the first
-// time a character gets a name; every later call
-// (idempotent, safe to call on every profile save) renames/recolors it to
-// match the character's current name. Called as a best-effort side effect
-// from updateCharacterProfile and updateCharacterRaw, same convention as
-// syncCharacterNickname above.
-//
-// Composition goes through db/lib/characterRoleAppearance.js, never straight
-// to hashNameToColor: while a character is Catatonic the Catatonic pass has
-// this role reading "<name> • Catatonic" in grey, and a profile save that
-// composed bare-name-plus-hash here would silently strip that.
+// deterministically from it. Creates the role on first name; idempotent
+// after that, so every profile save renames/recolors it to match. Composition
+// goes through db/lib/characterRoleAppearance.js, never straight to
+// hashNameToColor, so a Catatonic character's "<name> • Catatonic" grey stays
+// intact.
 export async function ensureCharacterRole(character) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const token = process.env.DISCORD_TOKEN;
@@ -476,15 +462,11 @@ export async function ensureCharacterRole(character) {
   }
 }
 
-// Deletes a character's personal Discord role outright.
-//
-// This does NOT revoke the character's channel access. It used to: while
-// access was a role overwrite, Discord dropped every overwrite tied to the
-// role the moment the role went, and that cascade was the only cleanup
-// anything did. Access is now a per-MEMBER overwrite, which is not tied to
-// the role and outlives it — so every caller must pair this with
-// revokeAllCharacterAccess or leave the player still able to see the room.
-// Both callers do (killCharacter here, guildMemberRemove and wipeGameData).
+// Deletes a character's personal Discord role outright. This does NOT revoke
+// channel access — access is a per-member overwrite, not tied to the role —
+// so every caller must pair this with revokeAllCharacterAccess or leave the
+// player still able to see the room. Both callers do (killCharacter here,
+// guildMemberRemove and wipeGameData).
 export async function deleteCharacterRole(discordRoleId) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const token = process.env.DISCORD_TOKEN;
@@ -589,15 +571,9 @@ export async function revokeAccessForCharacters(characters) {
 
 // Everything that has to happen in Discord when a character dies, plus
 // granting the Cursed role. Called from updateCharacterRaw whenever status
-// transitions TO DEAD.
-//
-// Order matters: revoke before the role is deleted and before discordRoleId is
-// nulled, since both are needed to name the overwrites being removed.
-//
-// `reason` is optional prose from whoever pulled the trigger (a GM's Kill
-// button, or the lethal-outcome path off a request) — folded into the same
-// death DM rather than each caller sending its own, so a character dies with
-// exactly one notification no matter which door it came through.
+// transitions TO DEAD. Order matters: revoke before the role is deleted and
+// discordRoleId nulled, since both are needed to name the overwrites removed.
+// `reason` folds into the one death DM regardless of which caller triggered it.
 export async function killCharacter(character, reason = null) {
   await revokeAllCharacterAccess(character).catch((err) =>
     console.error(`Failed to revoke access for dead character ${character.id}:`, err),
@@ -627,17 +603,11 @@ export async function killCharacter(character, reason = null) {
 }
 
 // Applies the `»` prefix (CLAUDE.md, "Bot message style") and logs the DM, so
-// /gm/messages keeps the whole conversation.
-//
-// postDmBatched splits anything over Discord's 2000 characters across several
-// messages rather than letting the send fail. Nothing here used to check the
-// length, and every GM path that lands here — a Move result, a rejection
-// reason, a broadcast, a Dev Panel message — is free text a GM types. Over the
-// limit Discord rejected it, the caller's .catch swallowed the error, and the
-// GM watched the Move go green while the player was never told.
-//
-// The prefix goes on before the split, so it lands on the first message and
-// the continuations run on bare.
+// /gm/messages keeps the whole conversation. postDmBatched splits anything
+// over Discord's 2000-char limit across several messages rather than failing
+// silently — every GM path here is free text a GM typed, so a swallowed
+// over-limit send left the player never told. The prefix goes on before the
+// split, so it lands on the first message and continuations run bare.
 // `opts.components` is an optional Discord action row — a DM that carries a
 // button (the Bird's Reply, so far). postDmBatched puts it on the LAST chunk.
 export async function sendDm(discordUserId, content, opts = {}) {

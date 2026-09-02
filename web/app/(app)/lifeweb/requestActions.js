@@ -103,11 +103,10 @@ async function donateBloodRequestImpl({ targetCharacterId, reason: rawReason }) 
     where: "donateBloodRequest",
   });
 
-  // `blood` is now produced INSIDE the transaction rather than from a read
-  // taken before it. The snapshot written to Request.effect below is what Undo
-  // reverses (REQUESTS.md §2), so it has to describe the move this statement
-  // actually made — not one computed from a pool value another donation has
-  // already changed.
+  // `blood` must be produced INSIDE the transaction: the snapshot written to
+  // Request.effect below is what Undo reverses (REQUESTS.md §2), so it has to
+  // describe the move this statement actually made, not a pool value another
+  // donation already changed.
   let blood;
   await prisma.$transaction(async (tx) => {
     blood = await bumpBlood(tx, amount);
@@ -151,17 +150,11 @@ async function donateBloodRequestImpl({ targetCharacterId, reason: rawReason }) 
   return { targetName: target.name, amount: blood.delta, tier };
 }
 
-// Feeding someone to the Lifeweb kills them, here, on the click.
-//
-// It used to stop short — the pool went up, `effect.killed` stayed false, and
-// a GM finished it from the Requests tab — on the argument that a player must
-// not end another player's game from a dropdown. What that bought in practice
-// was a character who had already been fed to the Tower walking around until
-// a GM got to the queue, and a game state nobody could read. The gates are
-// what protect a player, and they are all still here and all still checked
-// server-side: the actor must be a living Mortus, standing in the Fortress,
-// the target must be alive and in the Fortress too, and a reason is required
-// and logged. A GM reads it afterwards rather than before.
+// Feeding someone to the Lifeweb kills them, here, on the click. The gates
+// that protect a player are all checked server-side: the actor must be a
+// living Mortus standing in the Fortress, the target alive and in the
+// Fortress too, and a reason is required and logged. A GM reads it
+// afterwards rather than before.
 //
 // The kill is claimed INSIDE the transaction that moves the blood, with the
 // same conditional `status: ALIVE` where-clause every other death path uses
@@ -170,8 +163,8 @@ async function donateBloodRequestImpl({ targetCharacterId, reason: rawReason }) 
 // killCharacter() is a string of REST calls and must never hold the
 // transaction open.
 //
-// Undo still does not revive. That is unchanged and deliberate (REQUESTS.md
-// §2): undoing the request draws the blood back out and says so.
+// Undo does not revive (REQUESTS.md §2): undoing the request draws the blood
+// back out and says so.
 async function feedPersonRequestImpl({ targetCharacterId, reason: rawReason }) {
   const { session, character } = await requireMortusCharacter();
   const reason = requireReason(rawReason);

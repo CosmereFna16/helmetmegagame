@@ -5,32 +5,13 @@ import { readSession, writeSession } from "./useSessionState";
 import { RefreshGate } from "./useRefresh";
 
 // The client half of the desk's deploy awareness (deployVersion.js is the
-// server half). The adjudication desk used to reload out from under a GM
-// every time a push landed: its 45s poll (or the refresh() after a Solve)
-// fetched an RSC payload from the NEW build, Next's build-id check failed,
-// and the router fell back to a full browser navigation. Now the poll calls
-// checkDeskVersion() first and only refresh()es on a same-version "ok" —
-// a deploy or a switchover 5xx becomes a skipped tick and a quiet chip, not
-// a page reload.
-//
-// Module store + useSyncExternalStore, the same shape useSessionState.js and
-// useDirtyGuard.js already use: the interval needs a synchronous reader
-// (isDeskStale), the chip needs a subscription (useDeskVersion), and the
-// composers' catch blocks need neither (mutationErrorMessage).
-//
-// One more hole the gate does NOT cover, noted so nobody widens it by
-// accident: a server action that revalidates a path gets a fresh flight
-// payload back, and on a build-id mismatch Next discards it and falls back to
-// the same full navigation. That path never fires here only because Next
-// salts every action id with a per-build key — NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
-// is unset, so a stale client's action 404s cleanly ("was not found on the
-// server") instead of reaching the fallback. Setting that env var to keep
-// action ids stable across deploys would reopen the reload.
-//
-// `stale` LATCHES. Refreshing a stale desk into the new build IS the reload
-// we're avoiding, so once flagged, auto-refresh stands down until the GM
-// clicks the chip. The header's "updated HH:MM" stamp going cold is the
-// secondary cue.
+// server half). Polling calls checkDeskVersion() first and only refresh()es
+// on a same-version "ok", so a deploy or a switchover 5xx becomes a skipped
+// tick and a quiet chip instead of Next's build-id-mismatch full navigation.
+// `stale` LATCHES: once flagged, auto-refresh stands down until the GM clicks
+// the chip, since refreshing a stale desk into the new build IS the reload
+// being avoided. Leave NEXT_SERVER_ACTIONS_ENCRYPTION_KEY unset — pinning it
+// would make stale action ids survive a deploy and reopen the reload.
 
 const CRUMB_KEY = "gm-desk-version-crumb";
 
@@ -132,8 +113,7 @@ export function DeskStaleChip() {
 
 // The catch-path error for every desk mutation. A stale build's server
 // action rejects with "Failed to find Server Action" (the action ids died
-// with the old build), which used to render as a shrug. When we know the
-// build moved, say the true thing instead.
+// with the old build); say the true thing when we know the build moved.
 export function mutationErrorMessage() {
   return state.stale
     ? "The desk is running an older version than the server — reload the page, then try again."

@@ -1,21 +1,10 @@
 "use client";
 
 // The last resort: this replaces the ROOT layout, so it only renders when the
-// root layout itself threw — before the theme, the fonts or any provider
-// existed. Everything else is caught one level down by app/error.js.
-//
-// Because it replaces the layout it has to supply its own <html> and <body>,
-// and Next does not give it the app's global styles for free. Importing them
-// here is what keeps the zero-hardcoded-colour rule intact: every colour below
-// is still a var(--x) from globals.css. The next/font variables are the one
-// thing that can't follow, since those live on the root layout's <html> — each
-// font-family in globals.css carries a real fallback stack, so the page reads
-// in a system face instead of Source Sans.
-//
-// data-theme is pinned rather than derived: the turn phase comes from the
-// database, and this file exists precisely for the case where reading it is
-// what failed.
-//
+// root layout itself threw, before the theme, fonts or any provider existed.
+// It supplies its own <html>/<body> and imports globals.css directly since
+// Next doesn't provide it here; data-theme is pinned rather than derived
+// because reading the turn phase from the database is what may have failed.
 // Next 16 names the recovery prop `retry`, not `reset`.
 
 import "./globals.css";

@@ -1,36 +1,14 @@
-// Deletes personal character roles in Discord that no living character claims.
+// Deletes personal character roles in Discord that no living character
+// claims. Role deletion is best-effort at every call site, so a failed
+// DELETE can leave one behind, and Discord's 250-role cap means orphans
+// eventually block new characters from getting a mentionable role. Dry-run
+// by default with an --apply flag, matching db:prune-tags.
 //
-// Every ALIVE character owns one guild role, titled after their bare name and
-// used purely as a mentionable name token (PROXYING.md §6). Deleting that role
-// is best-effort at all three call sites — killCharacter, guildMemberRemove,
-// and the Restart Game wipe — so a rate-limited or failed DELETE leaves a role
-// behind that nothing ever reaps. Discord's cap is 250 roles per guild against
-// a roster of ~120, and past it `ensureCharacterRole` silently stops creating
-// them: new characters become unmentionable with no error anyone sees.
-//
-// Dry-run by default with an --apply flag, matching db:prune-tags — the
-// other destructive script here.
-//
-// Conservative by construction. A role is only a candidate when ALL of:
-//   - it carries the character-role SIGNATURE (see below),
-//   - no Character row references it (alive or dead),
-//   - nobody in the guild holds it,
-//   - it has no permissions of its own,
-//   - it isn't managed by an integration, and
-//   - it isn't one of the standing roles in db/lib/roleIds.js or the env.
-// Anything else is reported and kept.
-//
-// The signature is what makes this safe, and it is not optional. Every other
-// condition above is also true of a divider role like "—[ Characters ]—" or a
-// GM cosmetic like "Mentor": held by nobody, permissionless, absent from the
-// database. Deleting those would be destructive and wrong, and the first
-// version of this script proposed exactly that.
-//
-// ensureCharacterRole (web/lib/discordGuild.js) creates every character role
-// mentionable and colored by hashNameToColor(bareName) — the colour is derived
-// from the name, so "mentionable AND colour === hash(name)" is a signature
-// nothing else in the guild reproduces by accident. Verified against the live
-// guild: of 14 roles, only the one real character role matched.
+// Conservative by construction: a role is only a candidate when it carries
+// the character-role SIGNATURE below (mentionable AND colour ===
+// hashNameToColor(name), set by ensureCharacterRole), no Character row
+// references it, nobody holds it, it has no permissions, and it isn't
+// integration-managed or a standing role.
 require("dotenv").config();
 const { prisma } = require("../../index");
 const { discordRequest } = require("../../lib/discordRest");

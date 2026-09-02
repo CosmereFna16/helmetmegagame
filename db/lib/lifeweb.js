@@ -22,8 +22,8 @@ const DONATE_BLOOD_BY_TAG = [
 ];
 
 // Accepts the CharacterTag[] shape used everywhere else (`{ tag: { slug } }`)
-// and tolerates a bare Tag[], the shape used everywhere else. Highest tier wins, so
-// holding both Nobility and Courtier is worth 40 rather than 30.
+// and tolerates a bare Tag[]. Highest tier wins, so holding both Nobility and
+// Courtier is worth 40 rather than 30.
 function bloodValueForTags(characterTags = []) {
   const slugs = new Set(characterTags.map((ct) => ct?.tag?.slug ?? ct?.slug).filter(Boolean));
   for (const tier of DONATE_BLOOD_BY_TAG) {
@@ -43,22 +43,12 @@ function applyBlood(current, amount) {
   return { before, after, delta: after - before };
 }
 
-// The atomic twin of applyBlood, and the one every writer should use.
-//
-// applyBlood is pure: it needs the caller to have already read the pool, which
-// makes every call site a read-modify-write. Two players donating in the same
-// second both read the same number, both write their own total, and one
-// donation evaporates — on GameConfig id=1, the hottest row in the game.
-//
-// This does the clamp inside a single UPDATE and reports what actually moved.
-// That second part is not a nicety: `delta` is snapshotted onto Request.effect
-// and Undo reverses only that (REQUESTS.md §2), so a delta computed from a
-// stale read would let an Undo mint blood that was never added. The CTE takes
-// a row lock first so `before` is the value this statement actually operated
-// on, not one someone else has already replaced.
-//
+// The atomic twin of applyBlood, and the one every writer should use: it does
+// the clamp inside a single UPDATE (a row lock first) instead of a
+// read-modify-write, so two concurrent donations on GameConfig id=1 can't
+// stomp each other, and `delta` reflects what this statement actually moved.
 // Takes `tx` as a parameter rather than requiring the client, same convention
-// and same reason as db/lib/dm.js.
+// as db/lib/dm.js.
 async function bumpBlood(tx, amount) {
   if (!amount) {
     const config = await tx.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });

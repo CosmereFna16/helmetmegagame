@@ -1,42 +1,12 @@
 // docs/roles.yaml -> the Zone/Faction/Role tables. Called by
 // db/scripts/sync/sync-roles.js (`npm run db:sync-roles`) and by wipeGameData's
-// "Restart Game" flow (web/app/(app)/gm/dev/actions.js).
+// "Restart Game" flow (web/app/(app)/gm/dev/actions.js). Must run AFTER
+// syncLocationsFromYaml and syncTagsFromYaml (starting_zone/starting_tags are
+// validated against them). Threats live in docs/threats.md, not here.
 //
-// Supersedes the old db/lib/factionSync.js, which read the same file but
-// only for faction name/parent/starting_resources and ignored roles entirely.
-//
-// Ordering matters: this must run AFTER syncLocationsFromYaml (roles resolve
-// a starting Location by slug, and Factions attach to a Zone by name) and
-// AFTER syncTagsFromYaml (starting_tags are validated against the catalog).
-//
-// Passes:
-//   1. Upsert Faction by slug — name, zone, silo zone, sortOrder. `silo` is computed from
-//      the sum of its roles' weights (db/lib/factionSilo.js) and seeded on
-//      CREATE only — an existing row's silo is live game state and is never
-//      overwritten by an ordinary sync. The one deliberate exception is
-//      `seedSilos: true`, which also re-seeds an existing faction's silo —
-//      that's what lets a wipe (or a GM re-running the CLI with
-//      `--seed-silos`) put every silo back at its computed opening balance.
-//      Unaffiliated is excluded from seeding altogether and stays silo-less.
-//   2. Resolve each faction's `parent:` slug to parentFactionId, once every
-//      faction row is guaranteed to exist — on CREATE only, for the same
-//      reason as `silo` above. A faction breaking away from its parent
-//      mid-game is a GM edit on /gm/dev/factions, and an ordinary re-sync
-//      must not quietly pull it back under the parent it rebelled against.
-//      `seedSilos: true` (a wipe, or `--seed-silos`) reasserts the authored
-//      hierarchy along with the authored silos.
-//   3. Upsert Role by slug — the whole starting package.
-//   4. Prune roles/factions that dropped out of the YAML, but only when
-//      nothing references them (see below).
-//
-// Threats are not in this file at all — they live in docs/threats.md as
-// prose, since those seats are assigned by hand by a GM and must never show
-// up in the player-facing picker.
-//
-// Validation is strict and up-front: an unknown starting_zone slug or an
-// unknown starting_tags name throws before anything is written, so a typo in
-// the YAML can't half-apply and ship characters missing part of their
-// starting package.
+// A faction's `silo` and parentFactionId are live game state once created,
+// so both are only written on CREATE — unless `seedSilos: true` (a wipe, or
+// `--seed-silos`), which reasserts the authored silo and hierarchy anyway.
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
@@ -83,8 +53,7 @@ function parseRolesYaml(doc) {
         sortOrder: factionOrder++,
         // Summed below as each of its roles is parsed — this is what
         // db/lib/factionSilo.js#factionSiloSeed scales into an opening silo.
-        // Faction-level `starting_resources:` is gone from the YAML; a
-        // faction's opening balance is entirely derived from its roles now.
+        // A faction's opening balance is entirely derived from its roles.
         totalWeight: 0,
       };
       factions.push(entry);
@@ -113,10 +82,8 @@ function parseRolesYaml(doc) {
           grantsTreasurer: role.treasurer === true,
           // A seat that fixes its holder's gender rather than letting them
           // choose — Baron/Heir MAN, Baroness/Successor WOMAN. Validated
-          // against the enum here rather than trusted, so a typo in the YAML
-          // lands as null (an ordinary free-choice seat) instead of a value
-          // Prisma would reject at write time with no hint which role it came
-          // from.
+          // against the enum here, so a YAML typo lands as null instead of a
+          // Prisma write-time rejection with no hint which role caused it.
           lockedGender: GENDERS.includes(role.gender) ? role.gender : null,
           docElements: role.doc_elements ?? [],
         };
@@ -249,12 +216,9 @@ async function syncRolesFromYaml(prisma, { seedSilos = false } = {}) {
         stats.seededSilos.push({ name: entry.name, silo: siloSeed });
       }
     } else {
-      // The deliberate exception to "silo is live state, create-only": an
-      // opt-in re-seed (a wipe, or the CLI's --seed-silos) writes the
-      // computed silo onto an EXISTING row too — this is the fix for silo
-      // seeding being otherwise dead on every restart (Faction rows persist
-      // across a wipe, so without this every restarted game started with
-      // every silo at 0).
+      // seedSilos writes the computed silo onto an EXISTING row too — Faction
+      // rows persist across a wipe, so without this every restarted game
+      // would start with every silo at 0.
       const rowData = seedSilos ? { ...data, silo: siloSeed } : data;
       if (changed(row, rowData)) {
         row = await prisma.faction.update({ where: { id: row.id }, data: rowData });
@@ -266,9 +230,8 @@ async function syncRolesFromYaml(prisma, { seedSilos = false } = {}) {
   }
 
   // Pass 2: faction hierarchy, now that every row exists. Create-only, like
-  // `silo` — see the header. An existing faction's parent is live game state
-  // (a clan can break away, or be absorbed, during a game), so only a fresh
-  // row or an explicit re-seed takes its parent from the YAML.
+  // `silo` (see the header) — a clan can break away or be absorbed mid-game,
+  // so only a fresh row or an explicit re-seed takes its parent from the YAML.
   for (const entry of factions) {
     const parentFactionId = entry.parentSlug ? factionIdBySlug.get(entry.parentSlug) : null;
     const id = factionIdBySlug.get(entry.slug);
@@ -338,12 +301,9 @@ async function syncRolesFromYaml(prisma, { seedSilos = false } = {}) {
     stats.factionsPruned.push(faction.name);
   }
 
-  // Titles are earned from tags and roles (db/lib/titles.js), and both
-  // catalogs exist by now — tags sync before roles (SYNC.md). A title
-  // pointing at a slug that isn't there is silent otherwise: the word just
-  // becomes unearnable, and nobody finds out until a player asks why they
-  // can't be styled Doctor. Last, so a bad reference doesn't abort a sync
-  // that has already done its real work.
+  // Titles are earned from tags and roles (db/lib/titles.js); both catalogs
+  // exist by now (SYNC.md). Checked last so a bad reference doesn't abort a
+  // sync that has already done its real work.
   await assertTitlesResolve(prisma);
 
   return stats;

@@ -1,19 +1,13 @@
 // The one code path for "a player has left the guild" — shared by the live
 // guildMemberRemove handler and the startup reconcile
-// (bot/src/lib/leaveReconcile.js), so a leave the bot slept through gets
-// exactly the treatment a witnessed one does.
+// (bot/src/lib/leaveReconcile.js). Flags the character `catatonic` and starts
+// the death countdown (GameConfig.catatonicDeathTurns, resolved by
+// db/lib/catatonicDeathPass.js). Rejoining and speaking in character before
+// it runs out wakes them (db/lib/catatonicPass.js).
 //
-// Leaving no longer kills the character. It flags them `catatonic` on the
-// spot and starts the death countdown (GameConfig.catatonicDeathTurns turns,
-// resolved by db/lib/catatonicDeathPass.js at turn close). If the player
-// rejoins and speaks in character before it runs out, the ordinary catatonic
-// clear branch wakes them (db/lib/catatonicPass.js).
-//
-// Pure database — no network. The caller gets back the alert line for #leave
-// and the grey role rename, and applies both itself (the bot via gateway, a
-// future REST caller via discordRest). Takes `prisma` as the first parameter
-// (the db/lib/dm.js convention) and is deliberately NOT on the barrel;
-// require it by path.
+// Pure database — no network; the caller applies the returned alert and role
+// update itself. Takes `prisma` as the first parameter and is deliberately
+// NOT on the barrel; require it by path.
 const { CATATONIC_SLUG } = require("./constants");
 const { formatBareName } = require("./characterName");
 const { characterRoleAppearance } = require("./characterRoleAppearance");

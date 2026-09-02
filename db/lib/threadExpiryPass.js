@@ -1,22 +1,13 @@
 // Inactivity expiry for player-made topics and private threads: any
 // PlayerThread with no messages for THREAD_EXPIRY_TURNS turns is deleted,
-// thread, row and invites. Location topics and the anchor posts have no
-// PlayerThread row, so they are structurally exempt; there is no exclusion
-// list to keep in sync.
+// thread, row and invites. Called from advanceTurn()'s side-effect thunk on
+// every DAWN, after the Dawn wipe has already cleared non-persistent
+// threads — this pass only ages out the persistent: true ones.
 //
-// Called from advanceTurn()'s side-effect thunk on every DAWN, after the Dawn
-// wipe (dawnWipe.js) has already run. The wipe deletes every non-persistent
-// PlayerThread outright, immediately, that same Dawn — so by the time this
-// pass runs, the only rows left to find are persistent: true ones. This pass
-// exists purely to age those out once they've sat idle too long.
-//
-// The clock is TURNS, not wall time, and it survives the Dawn wipe on the
-// row even though a persistent thread is emptied by it (which is the single
-// reason PlayerThread.lastActivityTurn exists — "no messages for N turns"
-// cannot be read out of a thread that gets emptied nightly). The bot's
-// messageCreate writes it live; before deleting anything this pass
-// cross-checks the thread's last_message_id snowflake, so a message the bot
-// missed while disconnected still counts.
+// The clock is TURNS, not wall time, tracked on PlayerThread.lastActivityTurn
+// since a persistent thread's messages are emptied nightly. Before deleting,
+// this cross-checks Discord's last_message_id so a message the bot missed
+// while disconnected still counts.
 const { getChannel, messageTimestamp, deleteThread } = require("./discordRest");
 
 const THREAD_EXPIRY_TURNS = 5;

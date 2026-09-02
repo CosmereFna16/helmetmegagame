@@ -7,21 +7,12 @@ import { MAX_REASON_LENGTH } from "@/lib/constants";
 import Modal from "./Modal";
 
 // The universal Requests popup. Every player action that takes effect without
-// GM approval opens one of these: a required reason on top (the thing the GM
-// reads later), then whatever type-specific fields the caller passes as
-// children. See docs/systemdocs/REQUESTS.md §2.
-//
-// `reasonRequired={false}` drops that box, for the one kind of Request whose
-// own fields are already the evidence a GM would read — the Bird's letter is
-// filed in full on the Request row, so asking for a justification as well was
-// asking the same question twice.
-//
-// Deliberately a rendered component taking children rather than a
-// promise-returning hook like useConfirm() — the second half is arbitrary
-// JSX per call site, which a hook API handles badly. It reuses the same
-// .modal-overlay/.modal-panel styling so it matches every other modal.
+// GM approval opens one of these: a required reason on top, then whatever
+// type-specific fields the caller passes as children. See
+// docs/systemdocs/REQUESTS.md §2. `reasonRequired={false}` drops the reason
+// box for a Request whose own fields already are the evidence a GM reads.
 // The shell only mounts its body while open, so the reason field resets
-// between openings for free — no effect syncing state to the open flag.
+// between openings for free.
 export default function RequestDialog({ open, ...props }) {
   if (!open) return null;
   return <RequestDialogBody {...props} />;

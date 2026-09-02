@@ -1,20 +1,12 @@
 // The tag-op engine: validate and apply the Dev Panel's staged tag-change
-// ops. Moved down from web/lib/characterWrite.js (which re-exports it) when
-// the staged-push pass arrived — db/lib/stagedPush.js applies the same ops at
-// turn end, and db/ cannot import web/.
+// ops. Shared with db/lib/stagedPush.js, which applies the same ops at turn
+// end; db/ cannot import web/, so this lives here rather than in web/lib.
 //
-// An op is keyed by tagId, never characterTagId. A characterTagId can vanish
-// between page load and Apply — the expiry sweep in resolveNeeds() deletes
-// rows at every turn close — while @@unique([characterId, tagId]) makes tagId
-// a stable address, and it is what every tagWrites.js helper takes.
-//
-// Op shapes (DEV-PANEL.md §5):
-//   { tagId, op: "add",    quantity?, source?, expiry?, equipped? }
-//   { tagId, op: "remove", quantity? }   // null quantity = the whole holding
-//   { tagId, op: "patch",  quantity?, source?, expiry?, equipped? }
-//
-// Every function takes a transaction client (`tx`), the db/lib/dm.js
-// convention, so a caller composes them into its own transaction.
+// An op is keyed by tagId, never characterTagId — a characterTagId can vanish
+// between page load and Apply (the expiry sweep in resolveNeeds() deletes
+// rows at every turn close), while @@unique([characterId, tagId]) makes tagId
+// a stable address. Op shapes: DEV-PANEL.md §5. Every function takes a
+// transaction client (`tx`), so a caller composes them into its own.
 
 const { addToStack, dropCharacterTag, grantTagSlugs } = require("./tagWrites");
 const { rollTagChain } = require("./tagShapes");
@@ -61,12 +53,9 @@ async function expiresTurnFor(tx, op, tag, openTurn, characterId) {
   // "default": expiryForGrant returns null for an untimed tag and the correct
   // absolute turn for a timed one. Skipping it is how a GM-granted Paralyzed
   // becomes permanent — resolveNeeds()'s sweep matches on expiresTurn, so a
-  // null there never expires at all.
-  //
-  // expiryForGrant rather than plain expiryFor because openTurn is null for
-  // the whole of a turn advance (and for hours after a wedged one), and a
-  // GM grant landing in that window used to stamp null and go permanent
-  // without a word. See db/lib/grantExpiry.js.
+  // null there never expires at all. expiryForGrant, not plain expiryFor,
+  // because openTurn is null for the whole of a turn advance (and for hours
+  // after a wedged one); see db/lib/grantExpiry.js.
   return expiryForGrant(tx, tag, openTurn, { characterId, where: "tagOps" });
 }
 
@@ -79,10 +68,10 @@ async function applyTagOpsInTx(tx, { characterId, ops, tagsById, openTurn, equip
   const adds = ops.filter((o) => o.op === "add");
   const patches = ops.filter((o) => o.op === "patch");
 
-  // The treated-wound aftermath (Tag.removesInto, TAGS.md §5c). A GM removal
-  // used to be godmode and skip it; it doesn't, because most GM removals ARE
-  // treatments — a staged effect resolving a wound, a Dev Panel revoke after
-  // a scene — and a cure that costs nothing makes medicine pointless.
+  // The treated-wound aftermath (Tag.removesInto, TAGS.md §5c) applies to a
+  // GM removal too: most GM removals ARE treatments — a staged effect
+  // resolving a wound, a Dev Panel revoke after a scene — and a cure that
+  // costs nothing makes medicine pointless.
   //
   // Rolled once per op, up front, so the `applied` snapshot records exactly
   // what happened rather than what a re-roll would say. Granted after the

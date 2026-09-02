@@ -42,9 +42,8 @@ const { OPEN_BUTTON_ID: REPORT_OPEN_ID, CLOSE_BUTTON_ID: REPORT_CLOSE_ID } = req
 const MENU_OPTION_LIMIT = 25;
 
 // /gm: post to the current channel as the bot itself, not the invoker's
-// character — the slash-command replacement for the old ":gm" message
-// prefix (deleted the invoker's message and reposted it; a slash command
-// has no message of its own to delete, so it just sends directly).
+// character. A slash command has no message of its own to delete, so it
+// just sends directly.
 async function handleGmCommand(interaction) {
   if (!isGmMember(interaction)) {
     await respond(interaction, "» *GMs only.*");
@@ -67,8 +66,7 @@ async function handleGmCommand(interaction) {
   await respond(interaction, "» *Sent.*", { fleeting: true });
 }
 
-// /dm: DM a chosen server member as the bot itself. Was /message, renamed
-// when /message became the player-facing "speak as your character" command.
+// /dm: DM a chosen server member as the bot itself.
 // Reuses bot/src/lib/dm.js#sendDm so it's logged to DirectMessage like every
 // other bot-sent DM, and carries the "»" prefix inline since this is a
 // bot-composed DM (see the "Bot message style" note in CLAUDE.md).
@@ -89,9 +87,8 @@ async function handleGmDmCommand(interaction) {
     await respond(interaction, `» *Sent to ${recipient}.*`, { fleeting: true });
   } catch (err) {
     console.error("Failed to send /dm DM:", err);
-    // The catch used to report every failure as "they may have DMs closed",
-    // which sent GMs chasing a problem that wasn't there — an over-length
-    // message reads identically. 50007 is the real closed-DMs code.
+    // 50007 is the real closed-DMs code; an over-length message fails the
+    // same way and must not be misreported as closed DMs.
     const closed = err.code === 50007 || err.status === 403;
     await respond(
       interaction,
@@ -207,8 +204,7 @@ async function handleThreadMemberCommand(interaction, action) {
 // The source of truth is PlayerThread.persistent in the DB — the wipe reads
 // the column, never a Discord marker, so a hand-stripped forum tag can't make
 // a standing side-room vanish. On a forum post the Persistent tag is still
-// mirrored for visibility; a private thread carries no marker at all (the old
-// ⏰ name prefix, and its two-renames-per-ten-minutes bucket, are gone).
+// mirrored for visibility; a private thread carries no marker at all.
 //
 // The sync-owned posts refuse: a Location topic and the Create-a-Topic anchor
 // never wipe and never expire, and that isn't a player's to change. Checked
@@ -254,8 +250,8 @@ async function handlePersistentCommand(interaction) {
   const context = resolveChannelContext(channel);
   let row = await prisma.playerThread.findUnique({ where: { threadId: channel.id } });
   if (!row) {
-    // A thread with no row predates the rework or was made by a GM by hand —
-    // adopt it, the same posture the Dawn wipe takes.
+    // A thread with no row was made by a GM by hand — adopt it, the same
+    // posture the Dawn wipe takes.
     if (!context.zoneId) {
       await respond(interaction, "» *This thread isn't part of any zone.*");
       return;
@@ -662,17 +658,13 @@ async function handleMoveOpen(interaction) {
   await interaction.showModal(buildMoveModal());
 }
 
-// The gates the old handleActionSubmission ran, in the same order and with
-// the same refusal strings — but replying ephemerally rather than deleting a
-// message and DMing.
 async function handleMoveSubmit(interaction) {
-  // FIRST. This is the handler with the most to lose: by the time it replies
-  // it has read the character, the open turn and any prior Action, created the
-  // Action row, written an audit entry, re-read with tags, and run confirmMove
-  // — another write and another audit row. At launch-day pool contention that
-  // can pass three seconds, and the player then saw "The application did not
-  // respond" for a Move that had gone through. Trying again told them they'd
-  // already acted.
+  // FIRST. This handler reads the character, the open turn and any prior
+  // Action, creates the Action row, writes an audit entry, re-reads with
+  // tags, and runs confirmMove — easily enough work to pass three seconds
+  // under load. Acking late would show "The application did not respond"
+  // for a Move that had already gone through, and a retry would then look
+  // like a duplicate submission.
   await ack(interaction);
 
   const character = await findAliveCharacter(interaction.user.id);
@@ -790,8 +782,7 @@ async function handleMoveSubmit(interaction) {
       actorDiscordUserId: interaction.user.id,
       actionType: "move_submitted",
       targetCharacterId: character.id,
-      // What performLabor used to log — labor + the resolved tier — now
-      // recorded on the ordinary Move audit row instead of a separate one.
+      // Labor is recorded on this ordinary Move audit row, not a separate one.
       details: { actionId: action.id, labor, tier: laborTier },
     },
   });
@@ -879,9 +870,9 @@ async function handleSpeakPick(interaction) {
 }
 
 async function handleSpeakSubmit(interaction, channelId) {
-  // Moved to the top. The defer used to sit three awaits down — a character
-  // lookup, a member resolve that can hit REST on a cache miss, and a channel
-  // fetch — any of which can outlast the three-second window on its own.
+  // FIRST: the character lookup, a member resolve that can hit REST on a
+  // cache miss, and a channel fetch can each outlast the three-second window
+  // on their own.
   await ack(interaction);
 
   const character = await findAliveCharacter(interaction.user.id);
@@ -988,11 +979,9 @@ async function handleHealCommand(interaction) {
     return;
   }
 
-  // Discord caps a select menu at 25 options AND caps max_values at the number
-  // of options present. The options were already sliced; setMaxValues wasn't,
-  // so a character carrying 26 afflictions made Discord reject the whole
-  // component and the GM couldn't heal them at all — the failure being total
-  // rather than partial is what made this worth fixing.
+  // Discord caps a select menu at 25 options AND caps max_values at the
+  // number of options present — setMaxValues must track the slice, or
+  // Discord rejects the whole component.
   const shown = afflictions.slice(0, MENU_OPTION_LIMIT);
   const menu = new StringSelectMenuBuilder()
     .setCustomId(`heal:pick:${target.id}`)
@@ -1152,10 +1141,9 @@ module.exports = {
       }
     } catch (err) {
       console.error("interactionCreate handler failed:", err);
-      // An unanswered interaction sits on "thinking..." forever, which is how
-      // a rejected payload once read as a hang instead of an error. Always
-      // close the loop, and never let the error path throw on top of the
-      // error it is reporting.
+      // An unanswered interaction sits on "thinking..." forever. Always close
+      // the loop, and never let the error path throw on top of the error it
+      // is reporting.
       await respondToFailure(interaction);
     }
   },

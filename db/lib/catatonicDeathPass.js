@@ -1,28 +1,11 @@
-// The Catatonic death pass — TURN-ENGINE.md §2 pass 7b, and THE deliberate
-// exception to the engine's oldest rule. Everywhere else a terminal chain
-// stops at `dying` and a GM confirms the death by hand; here, a character
-// who has held `catatonic` for GameConfig.catatonicDeathTurns consecutive
-// turns dies at the close, no hand on the lever. The countdown clock is
-// Character.catatonicSinceTurn, stamped by whichever granted the tag
-// (db/lib/catatonicPass.js for AFK, db/lib/playerDeparture.js for a guild
-// leave) and nulled the moment the tag clears — so any act of waking resets
-// the clock entirely, and a GM hand-grant with no stamp never counts down at
-// all.
-//
-// A separate module and a separate TURN_PASSES entry rather than a branch of
-// the flagging pass, for three reasons: it must run strictly AFTER the clear
-// branch, so a character who woke this very turn can never be killed by the
-// same close; a destructive pass deserves its own resolvedPasses marker, so
-// a resumed turn can't half-kill; and keeping the flagger a flagger means
-// the invariant-breaking code is one small file a reviewer reads in full.
-//
-// Same discipline as every pass: DB writes only, one summary audit row
-// (written by db/index.js), Discord work — access revoke, role delete,
-// conditional Cursed grant, DMs, the #leave alert — returned as `deaths` and
-// `warnings` for the side-effect thunk. GameConfig.catatonicDeathTurns = 0
-// is the GM's off switch, no deploy needed.
-//
-// Takes `prisma` as a parameter — see db/lib/dm.js for why.
+// The Catatonic death pass — TURN-ENGINE.md §2 pass 7b, and the one place a
+// terminal chain kills without a GM's hand: a character who has held
+// `catatonic` for GameConfig.catatonicDeathTurns consecutive turns dies at
+// the close. The clock is Character.catatonicSinceTurn, nulled the moment
+// the tag clears, so any act of waking resets it. Must run strictly after
+// the clear pass, so a character who woke this turn can't be killed the same
+// close. DB writes only; Discord work returns as `deaths`/`warnings` for the
+// side-effect thunk. Takes `prisma` as a parameter — see db/lib/dm.js.
 const { CATATONIC_SLUG } = require("./constants");
 const { applyDeathToRow } = require("./characterDeath");
 

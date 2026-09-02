@@ -1,44 +1,19 @@
-// The per-turn Default Move pass: what actually makes the "Default Move"
-// panel on /character mean anything.
+// The per-turn Default Move pass, run from db/index.js#resolveNeeds(): files
+// a Move for every ALIVE character with a saved DefaultEffort who filed
+// nothing on the closing turn.
 //
-// A player sets a Default Move once and it stands until they delete it —
-// "if you don't submit a Move on a given day, this is assumed instead". This
-// pass is the half that assumes it: at the close of every turn, run from
-// db/index.js#resolveNeeds(), every ALIVE character who has a saved
-// DefaultEffort and filed nothing on the closing turn gets a Move filed for
-// them.
-//
-// What it files is deliberately a **Routine**, resolved the same way
-// bot/src/lib/moveConfirm.js#confirmMove resolves one a player
-// confirms by hand: status CONFIRMED, moveReviewStatus PASSED, resources
-// pushed immediately and snapshotted onto Action.appliedEffects so a GM can
-// still revert it from the Moves panel. It never rolls a Gambit — a Gambit is
-// a deliberate risk, not something to take on a player's behalf while they're
-// asleep. It's tagged `gmNotes: "auto:default_move"`, the same identifiable
-// marker performMove uses for an auto-resolved zone change.
-//
-// `DefaultEffort.labor` is a plain boolean now, so this needs no notation
-// parsing at all — the description is stored and filed verbatim, and the
-// only thing resolved per turn is the Labor rate itself, since zone (and
-// therefore tier and the depths gate) can change between saves.
+// Files a Routine, resolved like bot/src/lib/moveConfirm.js#confirmMove:
+// status CONFIRMED, moveReviewStatus PASSED, resources applied and
+// snapshotted onto Action.appliedEffects so a GM can revert it, gmNotes
+// tagged "auto:default_move". Never rolls a Gambit.
 const { applyMoveEffects, describeMoveEffects } = require("./moveEffects");
 const { resolveLaborRateFrom, formatLaborBonusNote } = require("./laborAccess");
 const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
 
-// Reproduces the #turns submission pipeline's Labor resolution, so a Default
-// Move with the checkbox ticked pays exactly what the same submission by hand
-// would have.
-//
-// Stays pure and synchronous, taking a pre-built labor context rather than a
-// characterId: this runs once per character in a bulk pass, and a version
-// that did its own lookups would turn one turn advance into N round trips.
-// The context is null for a character whose default doesn't have Labor
-// ticked.
-//
-// Labor somewhere it can't be done still files the Move — they did spend the
-// day trying — but pays nothing, and returns a gateNote so their DM says why
-// rather than leaving them to guess.
+// Reproduces the #turns submission pipeline's Labor resolution, so a ticked
+// Default Move pays what the same submission by hand would. Takes a
+// pre-built labor context (not a characterId) since this runs in bulk per turn.
 function resolveDefaultMove(def, ctx, coefficient) {
   const description = def.description;
 
@@ -109,16 +84,10 @@ async function runDefaultMovePass(prisma, turn) {
       },
     },
   });
-  // An object, not null. Those are two different answers and the orchestrator
-  // reads them as one: db/index.js gates markDone on truthiness, and its catch
-  // returns null to mean "this pass FAILED, leave it unrecorded so the next
-  // advance retries it". Returning null for "there was nothing to do" meant a
-  // game where nobody has saved a Default Move never recorded the pass at all.
-  //
-  // Harmless while needsResolvedAt was stamped unconditionally. The moment
-  // that stamp became conditional on every pass having landed — which is the
-  // point of the resume machinery — a turn with no default efforts would be
-  // picked up as unfinished forever and re-run on every subsequent advance.
+  // An object, not null: db/index.js gates markDone on truthiness and treats
+  // null as "this pass FAILED, retry next advance". Returning null for
+  // "nothing to do" would leave a game with no saved Default Moves stuck
+  // re-running this pass on every advance forever.
   if (defaults.length === 0) {
     return { turnNumber: turn.number, filed: 0, shareable: 0, characterIds: [], posts: [], dms: [] };
   }
@@ -134,11 +103,9 @@ async function runDefaultMovePass(prisma, turn) {
   });
   const actedIds = new Set(acted.map((a) => a.characterId));
 
-  // Every un-acted default needs its tags loaded now, not just the
-  // Labor-ticked ones: the incapacitation check below runs on all of them.
-  // Still one bulk query for the whole set rather than one per character —
-  // same posture as the `acted` query above. Most turns this set is small,
-  // but it's no longer ever empty just because nobody has Labor ticked.
+  // Every un-acted default needs its tags loaded, not only Labor-ticked ones:
+  // the incapacitation check below runs on all of them. One bulk query for
+  // the whole set, same posture as the `acted` query above.
   const candidateIds = defaults.filter((d) => !actedIds.has(d.characterId)).map((d) => d.characterId);
 
   const tagsByCharacter = new Map();
@@ -209,18 +176,16 @@ async function runDefaultMovePass(prisma, turn) {
     }
   }
 
-  // `shareable`, not `shared` — the rename below missed this branch, so
-  // /gm/audit rendered two different shapes for default_moves_resolved.
+  // `shareable`, not `shared` — /gm/audit expects this exact key for
+  // default_moves_resolved.
   if (filed.length === 0) {
     return { turnNumber: turn.number, filed: 0, shareable: 0, characterIds: [], posts: [], dms: [] };
   }
 
-  // Neither the summary posts nor the DMs are sent here. Both are per-player
-  // Discord round-trips, and awaiting them inside resolveNeeds() is what makes
-  // the Dev Panel's "End turn" hold the request open — the same reason the
-  // Hunger pass stopped sending its own DMs. They are described here and
-  // performed by advanceTurn()'s runSideEffects(), which the web action runs
-  // after the response is already flushed.
+  // Summary posts and DMs aren't sent here: both are per-player Discord
+  // round trips, and awaiting them inside resolveNeeds() would hold the Dev
+  // Panel's "End turn" request open. Described here, sent by advanceTurn()'s
+  // runSideEffects() after the response is already flushed.
   const posts = [];
   for (const { def } of filed) {
     // The channel is resolved from where the character stands NOW, not from
@@ -256,10 +221,8 @@ async function runDefaultMovePass(prisma, turn) {
       // told.
       ...(gateNote ? [`*${gateNote} No Resources were gained.*`] : []),
       ...(effects ? [`**Applied:** ${effects}`] : []),
-      // Same line the confirm DM writes (bot/src/lib/moveConfirm.js). Without
-      // it the bonus subtext below explained a number that was never in the
-      // message — the only place a defaulting player could read their payout
-      // was the /character panel.
+      // Same line the confirm DM writes (bot/src/lib/moveConfirm.js) — keeps
+      // the bonus subtext below from describing a number that isn't shown.
       ...(action.resourceRollValue != null
         ? [
             `**Resource roll (${formatRangeExpression(action.resourceRollExpression)}):** ${action.resourceRollValue > 0 ? "+" : ""}${action.resourceRollValue} ⬢`,
@@ -275,8 +238,8 @@ async function runDefaultMovePass(prisma, turn) {
   return {
     turnNumber: turn.number,
     filed: filed.length,
-    // "shareable", not "shared": the posts have not been attempted yet, so a
-    // count of successes isn't knowable at audit-write time any more.
+    // "shareable", not "shared": success counts aren't knowable until the
+    // posts are attempted.
     shareable: posts.length,
     characterIds: filed.map(({ def }) => def.characterId),
     posts,
