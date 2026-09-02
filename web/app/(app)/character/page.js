@@ -294,6 +294,9 @@ export default async function CharacterPage() {
           points: true,
           setTurnNumber: true,
           endedTurnNumber: true,
+          // So the ACTIVE row a slot holds can say its own cooldown. Null for
+          // a GM free-text Desire, which then just says nothing about it.
+          template: { select: { tier: true, cooldownTurns: true, onceEver: true } },
         },
       }),
       // The gate fields db/lib/desireGates.js needs, projected through
@@ -377,6 +380,11 @@ export default async function CharacterPage() {
       families: template.families,
       state,
       availableFromTurn,
+      // The per-desire cooldown, resolved the same way the evaluator does
+      // (desireGates.js: cooldownTurns ?? tier), so the row prints the
+      // number the gate will actually use.
+      cooldownTurns: template.cooldownTurns ?? template.tier,
+      onceEver: Boolean(template.onceEver),
       // Safe to name here and only here: every row past the filter above is
       // one this character's own tags/role opened (desireGates.js#unlockedBy).
       unlockedBy: unlockedBy(template, {

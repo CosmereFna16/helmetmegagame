@@ -19,6 +19,19 @@ export function formatDesirePoints(tier) {
   return `${formatCost(-tier)} ${tier === 1 ? "pt" : "pts"}`;
 }
 
+// A Desire's own cooldown, in words: "3-turn cooldown", or "once ever" for
+// a template that can only be fulfilled once per life (tier 7 by default).
+// `cooldownTurns` arrives already resolved (cooldownTurns ?? tier) from
+// character/page.js, or as the raw template off an ACTIVE row — so resolve
+// again here, cheaply, rather than trust which one a caller handed over.
+// Null when nothing is known (a GM free-text Desire has no template).
+export function cooldownLabel(t) {
+  if (!t) return null;
+  if (t.onceEver) return "once ever";
+  const n = t.cooldownTurns ?? t.tier;
+  return n != null ? `${n}-turn cooldown` : null;
+}
+
 const OTHER = { key: "__other", name: "Other", group: null, color: null };
 
 // The states a row can arrive in. "locked" never reaches this component —
@@ -72,6 +85,7 @@ function DesireRow({ entry, family, otherNames, onChoose }) {
             <span className="text-sm" style={{ color: costColor(-entry.tier) }}>
               {formatDesirePoints(entry.tier)}
             </span>
+            <span className="text-xs text-muted">{cooldownLabel(entry)}</span>
             {otherNames.length > 0 && (
               <span className="text-xs text-muted">{otherNames.join(" · ")}</span>
             )}
@@ -119,6 +133,7 @@ function SlotCard({ slot, isTarget, onTarget }) {
                 {formatDesirePoints(slot.active.points)}
               </span>
               {slot.active.setTurnNumber != null ? ` · set on turn ${slot.active.setTurnNumber}` : ""}
+              {cooldownLabel(slot.active.template) ? ` · ${cooldownLabel(slot.active.template)} after` : ""}
             </span>
           </>
         ) : slot.lockedUntilTurn != null ? (

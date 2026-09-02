@@ -6,7 +6,7 @@ import EmptyState from "./EmptyState";
 import InfoIcon from "./InfoIcon";
 import RequestDialog from "./RequestDialog";
 import RichText from "./RichText";
-import DesireCatalog from "./DesireCatalog";
+import DesireCatalog, { cooldownLabel } from "./DesireCatalog";
 import { useConfirm } from "./ConfirmProvider";
 import { cancelDesire, fulfillDesireRequest } from "../(app)/character/requestActions";
 
@@ -20,14 +20,14 @@ function desireHelp(desireSlots) {
         You have {desireSlots} Desire slot{desireSlots === 1 ? "" : "s"}.
       </p>
       <p>
-        Desires have tiers, which determine the amount of points given and, in most cases, how many
-        turns until that same Desire is available again.
+        A Desire&apos;s tier is the Tag Points it pays. Every Desire also shows its cooldown: how
+        many turns after you fulfil it before you can take it again. Usually that is its tier; a
+        few are longer, and some can only ever be done once.
       </p>
       <p>
         Cancelling or fulfilling a Desire locks its slot for the rest of the turn and all of the
         next one. It opens again after.
       </p>
-      <p>Tier 7 Desires can only be fulfilled once per game.</p>
     </>
   );
 }
@@ -115,6 +115,9 @@ export default function DesirePanel({
                     <p className="text-sm text-muted">
                       Worth {slot.active.points} Tag Point{slot.active.points === 1 ? "" : "s"}
                       {slot.active.setTurnNumber != null ? ` — set on turn ${slot.active.setTurnNumber}` : ""}
+                      {cooldownLabel(slot.active.template)
+                        ? ` · ${cooldownLabel(slot.active.template)} after`
+                        : ""}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       <button
