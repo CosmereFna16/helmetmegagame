@@ -17,12 +17,13 @@ function desireHelp(desireSlots) {
   return (
     <>
       <p>
-        You have {desireSlots} Desire slot{desireSlots === 1 ? "" : "s"}.
+        You have {desireSlots} Desire slot{desireSlots === 1 ? "" : "s"}. Desires can be set and
+        fulfilled. You can&apos;t fulfill a Desire retroactively&mdash;it had to be set at the time
+        you completed the objective.
       </p>
       <p>
-        A Desire&apos;s tier is the Tag Points it pays. Every Desire also shows its cooldown: how
-        many turns after you fulfil it before you can take it again. Usually that is its tier; a
-        few are longer, and some can only ever be done once.
+        Desires have tiers which determine the amount of points given. Low tier desires can be
+        frequently repeated, while high tier desires are once per game.
       </p>
       <p>
         Cancelling or fulfilling a Desire locks its slot for the rest of the turn and all of the
