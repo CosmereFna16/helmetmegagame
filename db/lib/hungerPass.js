@@ -1,35 +1,6 @@
 // Per-turn Hunger upkeep, run from db/index.js#resolveNeeds() so the bot's
 // cron advance and the Dev Panel's "End turn" button behave identically.
-//
-// At the close of every turn each ALIVE character is checked, in this order:
-//   1. Holds Hungerless -> skipped entirely, streak reset to 0.
-//   2. Holds Ate Meal   -> shielded, the tag is consumed, no ⬢ taken, streak
-//      drops by ONE tick (the meal was already paid for when it was cooked,
-//      so billing upkeep on top would make eating worse than paying 1 ⬢).
-//   3. Check FIRST, then pay: at 0 ⬢ you go Hungry and the streak increments;
-//      at 1+ ⬢ you pay 1, stay fed, streak drops by ONE tick. The `gte: 1` on
-//      the decrement's where clause makes the resources floor structural —
-//      the balance is read in a bulk query and decremented later, so a
-//      player who spends their last ⬢ in between simply isn't matched and
-//      eats free that turn (the safe direction to miss in).
-//
-// The streak (Character.hungerStreak) is what escalates the penalty:
-// db/lib/gambitModifier.js reads it and clamps at HUNGER_STREAK_CAP. Since a
-// meal only sheds one tick, `hunger` means "carrying hunger damage", not
-// "starved this turn" — it's re-granted to anyone whose streak is still above
-// 0 after eating. Reaching the cap also grants `dying`, a one-turn countdown
-// that db/lib/dyingDeathPass.js finishes at the NEXT close.
-// skipDuplicates makes re-granting it a harmless no-op.
-//
-// Shaped for 100+ players: two reads and bulk writes regardless of headcount;
-// the per-player Hunger DMs are returned as a list for advanceTurn() to send.
-//
-// Nobility rides the same pass: each close without the Ate Meal shield ticks
-// Character.missedMealStreak up for a noble, and at DISAPPOINTMENT_THRESHOLD
-// the pass grants `disappointed`, with a warning DM the day before. One
-// proper meal resets the count to 0 outright; the tag has no expiry and is
-// cleared by eating (web/app/(app)/character/requestActions.js). Hungerless
-// and Dying nobles are exempt.
+// See TURN-ENGINE.md for the full ordering.
 //
 // Takes `prisma` as a parameter — see db/lib/dm.js for why.
 const {
@@ -45,8 +16,7 @@ const { expiryFrom } = require("./turnFormat");
 const HUNGER_STREAK_CAP = 6;
 
 // `notice.streak` is the count AFTER this turn's change, already clamped to
-// HUNGER_STREAK_CAP — the same number gambitModifier.js applies, so the DM
-// never names a bigger penalty than the one actually in effect.
+// HUNGER_STREAK_CAP, matching gambitModifier.js's penalty.
 function hungerDm(notice) {
   if (notice.kind === "recovered") {
     return "You ate, and you're back to full strength.";
@@ -61,13 +31,9 @@ const DYING_DM =
   "You haven't eaten in six turns straight. Your body is giving out — you're **Dying**. A GM will decide what happens next.";
 
 // Missed turn closes in a row before a noble wakes Disappointed. The web
-// sheet's Dinner row (web/app/components/StatusPanel.js) counts against the
-// same number, so a change here moves both.
+// sheet's Dinner row (StatusPanel.js) counts against the same number.
 const DISAPPOINTMENT_THRESHOLD = 3;
 
-// `kind` is "warned" (one missed day from the threshold) or "disappointed"
-// (the tag just landed). Wording is hardcoded to the threshold of 3 — if the
-// constant moves, move these sentences with it.
 function disappointedDm(notice) {
   if (notice.kind === "warned") {
     return "Two days without a fine meal. One more and you'll wake **Disappointed**.";
@@ -85,8 +51,6 @@ async function runHungerPass(prisma, turn) {
 
   const hungerTag = tags.find((t) => t.slug === HUNGER_SLUG);
   if (!hungerTag) {
-    // Catalog not synced — refuse to half-run rather than silently charge
-    // everyone with no Hunger to hand out.
     console.error(`Hunger pass skipped: no "${HUNGER_SLUG}" tag — run npm run db:sync-tags.`);
     return null;
   }
@@ -103,11 +67,8 @@ async function runHungerPass(prisma, turn) {
       `Hunger pass: no "${DISAPPOINTED_SLUG}" tag — run npm run db:sync-tags. Nobility upkeep won't be tracked.`,
     );
   }
-  // The Nobility track only runs with both ends of it in the catalog.
   const trackNobles = Boolean(nobilityId && disappointedId);
 
-  // dying and disappointed ride along so `held` can answer the noble
-  // exemption and the "newly landed?" check without a second query.
   const gateIds = [hungerlessId, ateMealId].filter(Boolean);
   if (trackNobles) gateIds.push(nobilityId, disappointedId, ...(dyingId ? [dyingId] : []));
   const characters = await prisma.character.findMany({
@@ -118,8 +79,8 @@ async function runHungerPass(prisma, turn) {
       resources: true,
       hungerStreak: true,
       missedMealStreak: true,
-      // Only the handful of gating tags come back, not the whole tag set —
-      // this is the query that would otherwise scale badly at 100+ characters.
+      // Only the gating tags, not the whole tag set — keeps this cheap at
+      // 100+ characters.
       tags: { where: { tagId: { in: gateIds } }, select: { tagId: true } },
     },
   });
@@ -127,24 +88,17 @@ async function runHungerPass(prisma, turn) {
   const toPay = [];
   const toStarve = [];
   const shieldedIds = [];
-  const toZeroIds = []; // hungerless only: streak -> 0, a full reset (it's immunity, not eating)
-  const fed = []; // ate-meal or paid: streak drops by ONE tick, not to 0
+  const toZeroIds = []; // hungerless only: streak -> 0
+  const fed = []; // ate-meal or paid: streak drops by ONE tick
   let skipped = 0;
 
-  // The Nobility track. `nobleFedIds` resets missedMealStreak to 0 and doubles
-  // as the backstop clear of `disappointed` for anyone shielded by a meal a GM
-  // granted directly (the normal clear already happened at consume time).
   const nobleFedIds = [];
   const nobleMissedIds = [];
-  const toDisappointIds = []; // crossed the threshold and don't hold the tag yet
+  const toDisappointIds = [];
   const disappointedNotices = [];
 
   for (const character of characters) {
     const held = new Set(character.tags.map((ct) => ct.tagId));
-
-    // Hungerless is checked before this is read, so a hungerless noble's
-    // count freezes rather than climbing — immunity covers dinner too.
-    // Dying nobles are left alone the same way.
     const noble = trackNobles && held.has(nobilityId) && !(dyingId && held.has(dyingId));
 
     if (hungerlessId && held.has(hungerlessId)) {
@@ -161,7 +115,6 @@ async function runHungerPass(prisma, turn) {
     }
 
     if (noble) {
-      // No proper meal today, whether or not the 1 ⬢ upkeep was paid.
       const missed = character.missedMealStreak + 1;
       nobleMissedIds.push(character.id);
       if (missed >= DISAPPOINTMENT_THRESHOLD) {
@@ -182,20 +135,15 @@ async function runHungerPass(prisma, turn) {
     }
   }
 
-  // A Hunger granted while closing turn N gets expiresTurn N+1 — live for the
-  // whole of N+1, deleted by resolveNeeds()' sweep when N+1 closes.
   const expiresTurn = expiryFrom(turn.number + 1, hungerTag.defaultDurationTurns ?? 1);
 
-  // Computed in JS off the streak already loaded above, not off a DB return
-  // value — an `increment`/`decrement` in the same transaction wouldn't hand
-  // back the new value, and this pass needs it now to decide who crosses the
-  // cap, who still carries Hunger after eating, and what to put in each DM.
+  // Computed in JS off the streak already loaded above, since an
+  // increment/decrement in the same transaction wouldn't hand back the new
+  // value, and this pass needs it now to decide the DMs.
   const fedWithNewStreak = fed.map((character) => ({
     character,
     newStreak: Math.max(character.hungerStreak - 1, 0),
   }));
-  // A meal only sheds one tick, so anyone several turns deep is still hungry
-  // afterward — re-granted here too.
   const stillHungryAfterEating = fedWithNewStreak.filter((f) => f.newStreak > 0);
   const toDecrementIds = fed.map((character) => character.id);
 
@@ -204,12 +152,8 @@ async function runHungerPass(prisma, turn) {
       discordUserId: character.discordUserId,
       kind: "starved",
       streak: Math.min(character.hungerStreak + 1, HUNGER_STREAK_CAP),
-      // `>=`, matching newlyDyingIds below — the flag that sends DYING_DM and
-      // the grant that lands the tag must never disagree.
       justDied: dyingId != null && character.hungerStreak + 1 >= HUNGER_STREAK_CAP,
     })),
-    // Only characters who were actually carrying a streak get a DM — someone
-    // already at 0 who just pays their upkeep hears nothing, same as before.
     ...fedWithNewStreak
       .filter((f) => f.character.hungerStreak > 0)
       .map((f) => ({
@@ -223,10 +167,8 @@ async function runHungerPass(prisma, turn) {
     ? toStarve.filter((character) => character.hungerStreak + 1 >= HUNGER_STREAK_CAP).map((character) => character.id)
     : [];
 
-  // One transaction so a character can never be charged without their Ate
-  // Meal being consumed, or land at the streak cap without Dying landing with
-  // it. Empty `in: []` matches nothing and createMany with [] is a no-op, so
-  // none of these need a guard.
+  // One transaction so a character can't be charged without Ate Meal being
+  // consumed, or land at the streak cap without Dying landing with it.
   const [charged] = await prisma.$transaction([
     prisma.character.updateMany({
       where: { id: { in: toPay }, resources: { gte: 1 } },
@@ -242,19 +184,14 @@ async function runHungerPass(prisma, turn) {
         source: "EVENT",
         expiresTurn,
       })),
-      // Belt-and-braces against @@unique([characterId, tagId]) — the expiry
-      // sweep in resolveNeeds() runs first and should already have cleared
-      // last turn's Hunger.
       skipDuplicates: true,
     }),
     prisma.character.updateMany({
       where: { id: { in: toZeroIds } },
       data: { hungerStreak: 0 },
     }),
-    // The floor is structural, not a Math.max on a value read moments
-    // earlier — the `gt: 0` where-guard is the same posture as the `gte: 1`
-    // on the resources decrement above: a streak that hit 0 by some other
-    // path in between simply isn't matched, rather than going negative.
+    // Floor is structural, not a Math.max on an earlier read: the `gt: 0`
+    // where-guard matches the resources decrement's `gte: 1` above.
     prisma.character.updateMany({
       where: { id: { in: toDecrementIds }, hungerStreak: { gt: 0 } },
       data: { hungerStreak: { decrement: 1 } },
@@ -263,10 +200,6 @@ async function runHungerPass(prisma, turn) {
       where: { id: { in: toStarve.map((character) => character.id) } },
       data: { hungerStreak: { increment: 1 } },
     }),
-    // The Nobility track: one proper meal settles the whole count (unlike
-    // hungerStreak's one-tick shed), a missed day ticks it up, the threshold
-    // lands the tag. The delete is the backstop for GM-granted meals — the
-    // player-facing clear already happened at consume time.
     prisma.character.updateMany({
       where: { id: { in: nobleFedIds } },
       data: { missedMealStreak: 0 },
@@ -285,8 +218,6 @@ async function runHungerPass(prisma, turn) {
         source: "EVENT",
         expiresTurn: null, // cleared by eating, not by time
       })),
-      // toDisappointIds already excludes holders, but a GM granting the tag
-      // mid-pass shouldn't turn into a unique-constraint crash.
       skipDuplicates: true,
     }),
     ...(newlyDyingIds.length && dyingId
@@ -296,39 +227,27 @@ async function runHungerPass(prisma, turn) {
               characterId,
               tagId: dyingId,
               source: "EVENT",
-              // Carries a one-turn clock: granted closing turn N, expires at N + 1,
-              // then db/lib/dyingDeathPass.js takes over.
+              // One-turn clock: granted at close N, expires N + 1, then
+              // db/lib/dyingDeathPass.js takes over.
               expiresTurn: turn.number + 1,
             })),
-            // A character can hit the cap more than one turn running, since
-            // the streak keeps counting past it — this keeps that a no-op
-            // instead of a unique-constraint error.
             skipDuplicates: true,
           }),
         ]
       : []),
   ]);
 
-  // The DMs are deliberately NOT sent here. They're the one per-player,
-  // network-bound part of the pass, and awaiting them inside the turn advance
-  // is what used to freeze the Dev Panel's "End turn" for minutes. The list is
-  // handed back instead and sent from advanceTurn()'s runSideEffects(), which
-  // the web action runs after the response is already flushed.
+  // DMs are deliberately NOT sent here — the list is handed back and sent
+  // from advanceTurn()'s runSideEffects() instead, after the response
+  // already flushed.
   return {
     turnNumber: turn.number,
-    // What was actually charged, not what was intended. The two differ by
-    // however many players spent their last ⬢ while the pass was running, and
-    // the audit row should say the true number.
     paid: charged.count,
     intendedToPay: toPay.length,
     starved: toStarve.length,
     shielded: shieldedIds.length,
     skipped,
-    // Fed this turn but still carrying a streak afterward — a meal only sheds
-    // one tick, so a deeply hungry character can eat every turn and still
-    // show this count until they've climbed all the way back down.
     recovering: stillHungryAfterEating.length,
-    // Nobles whose missed-meal count crossed the threshold this close.
     disappointed: toDisappointIds.length,
     starvedCharacterIds: toStarve.map((character) => character.id),
     hungerNotices,

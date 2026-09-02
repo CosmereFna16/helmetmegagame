@@ -1,11 +1,7 @@
 // Low-level Discord REST helpers shared by bot/ and web/ via @lifeweb/db —
-// no gateway/discord.js dependency, no `prisma` dependency (kept separate
-// from turnAnnouncement.js/dawnWipe.js to avoid a circular require with
-// db/index.js, which imports those two). Single-guild (DISCORD_GUILD_ID),
-// same convention as web/lib/discordGuild.js.
+// no gateway/discord.js dependency. Single-guild (DISCORD_GUILD_ID), same
+// convention as web/lib/discordGuild.js.
 
-// The pure chunker lives in its own file so client components can import it;
-// re-exported below so every caller of discordRest keeps its import path.
 const { DISCORD_MESSAGE_LIMIT, chunkMessage } = require("./chunkText");
 
 const DISCORD_API = "https://discord.com/api/v10";
@@ -16,40 +12,23 @@ function authHeaders(extra) {
   return { Authorization: `Bot ${token}`, ...extra };
 }
 
-// --- Cloudflare invalid-response circuit breaker -------------------------
-//
-// Discord fronts its API with Cloudflare, which counts 401/403/429 responses
-// and temporarily IP-bans a token that emits 10,000 of them inside a rolling
-// 10 minutes. The ban lands on the container's egress IP and lasts about an
-// hour. 404 is NOT counted, which is why the deliberately-blind sweeps in
-// db/lib/accessSweep.js (allow404 on most calls, most of which hit nothing)
-// are free rather than dangerous.
-//
-// Reaching 10,000 needs ~17 invalid responses per second sustained, which no
-// sequential path here can produce. The breaker exists for the case that can:
-// an unattended crash-restart loop replaying the `ready` catch-up burst. It
-// trips at a tenth of Discord's ceiling, because the cost of stopping early is
-// a delayed sync and the cost of stopping late is an hour of total blackout.
+// Cloudflare counts 401/403/429 responses and IP-bans a token that emits
+// 10,000 of them in a rolling 10 minutes (~1hr ban). 404 doesn't count. This
+// breaker trips at a tenth of that ceiling to stay well clear.
 const INVALID_WINDOW_MS = 10 * 60 * 1000;
 const INVALID_LIMIT = 1000;
 const BREAKER_COOLDOWN_MS = 10 * 60 * 1000;
 
-// A 429's retry_after is honored, but not unboundedly: a channel name/topic
-// edit sits in a 2-per-10-minutes bucket and can hand back ~600s, which would
-// wedge an entire sequential run (a Dawn wipe, a location sync) behind one
-// call. Past the cap it is better to fail that call and let the caller's own
-// catch move on.
+// A 429's retry_after is honored only up to this cap — a channel name/topic
+// edit can hand back ~600s, which would wedge a whole sequential run behind
+// one call. Past the cap the call fails and the caller's catch moves on.
 const MAX_RETRY_AFTER_MS = 30_000;
 
 const invalidTimestamps = [];
 let breakerOpenUntil = 0;
 
-// Persisted to GameConfig, since Cloudflare's count is keyed on the egress IP
-// and a process restart would otherwise zero the local counters. Deliberately
-// NOT read per request — loaded once, written only on the error path.
-//
-// `attach` is called by db/index.js, which owns the prisma singleton — this
-// file is required BY it and cannot require it back (see the header).
+// Persisted to GameConfig (Cloudflare's count is keyed on egress IP, so a
+// restart would otherwise zero it). Loaded once, written only on error.
 let persist = null;
 let loaded = false;
 let sinceLastWrite = 0;
@@ -60,8 +39,6 @@ function attachBreakerStore(store) {
   loaded = false;
 }
 
-// Pulls the persisted count and open-until into this process. Called on the
-// first invalid response and at bot startup, never on the hot path.
 async function loadBreakerState() {
   if (loaded || !persist) return;
   loaded = true;
@@ -73,9 +50,8 @@ async function loadBreakerState() {
     const openUntil = saved.restBreakerOpenUntil ? new Date(saved.restBreakerOpenUntil).getTime() : 0;
     if (openUntil > now) breakerOpenUntil = openUntil;
 
-    // A window that has already lapsed carries no information; only a live one
-    // is worth restoring, and it is restored as a count rather than as
-    // individual timestamps, which were never stored.
+    // Only a still-live window is worth restoring, as a count rather than
+    // individual timestamps (which were never stored).
     const windowStart = saved.restInvalidWindowStart
       ? new Date(saved.restInvalidWindowStart).getTime()
       : 0;
@@ -114,9 +90,7 @@ function recordInvalidResponse(status, path) {
   invalidTimestamps.push(now);
   pruneInvalid(now);
 
-  // Fire-and-forget: the first invalid response of a process pulls in whatever
-  // the last one left behind. Deliberately not awaited — this sits inside
-  // discordRequest and must not add latency to the retry.
+  // Not awaited — sits inside discordRequest and must not add retry latency.
   loadBreakerState();
 
   if (invalidTimestamps.length >= INVALID_LIMIT && now >= breakerOpenUntil) {
@@ -127,19 +101,12 @@ function recordInvalidResponse(status, path) {
         `Pausing all outbound Discord REST from this process for 10 minutes to stay ` +
         `clear of Cloudflare's 10,000-per-10-minutes IP ban.`,
     );
-    // Clear the window along with the trip. The window and the cooldown are
-    // both ten minutes, so without this every entry that tripped the breaker
-    // is still in the array when it closes, and the very next stray failure
-    // re-trips it for another ten.
     invalidTimestamps.length = 0;
     sinceLastWrite = 0;
     saveBreakerState();
     return;
   }
 
-  // Writing on every failure would be a database round trip per 429. Every
-  // 25th is often enough that a process dying mid-burst leaves a number close
-  // to the truth, which is all the next one needs.
   sinceLastWrite += 1;
   if (sinceLastWrite >= WRITE_EVERY) {
     sinceLastWrite = 0;
@@ -147,9 +114,6 @@ function recordInvalidResponse(status, path) {
   }
 }
 
-// Observability: the count is meaningless unless someone can see it. Logged at
-// bot startup (bot/src/events/ready.js) so a climbing number is visible before
-// it becomes a ban rather than after.
 function getInvalidResponseStats() {
   const now = Date.now();
   pruneInvalid(now);
@@ -163,20 +127,14 @@ function getInvalidResponseStats() {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Per-bucket rate-limit bookkeeping, and a request counter for the Dawn wipe's
-// SystemReport. The rate-limit reset is recorded against the bucket and paid
-// at the start of the next request using that bucket, instead of sleeping
-// immediately — so exhausting one route's bucket doesn't stall an unrelated
-// route in a sequential sweep. Discord names the bucket only in the response
-// (`X-RateLimit-Bucket`), so the mapping is learned per route; an unlearned
-// route pays nothing up front, and the ordinary 429 retry is the safety net.
+// Per-bucket rate-limit bookkeeping: a reset is recorded against the bucket
+// and paid at the start of the next request on that bucket, not slept on
+// immediately, so one exhausted route doesn't stall an unrelated one.
 const bucketByRoute = new Map();
 const resetAtByBucket = new Map();
 
-// Discord buckets by "major parameter" (the channel / guild / webhook id) plus
-// the route shape. Keeping the major id verbatim and collapsing every other id
-// is what makes two different channels two different buckets, which is the
-// whole point here.
+// Discord buckets by major parameter (channel/guild/webhook id) plus route
+// shape — two channels are two different buckets.
 function routeKey(method, path) {
   const [, top, majorId, ...rest] = path.split("?")[0].split("/");
   const hasMajor = ["channels", "guilds", "webhooks"].includes(top);
@@ -188,8 +146,7 @@ function routeKey(method, path) {
   return `${method} ${major}/${tail}`;
 }
 
-// Counters, read by db/lib/dawnWipe.js so its report can say where the time
-// went instead of leaving us to guess. Cheap enough to leave always-on.
+// Read by db/lib/dawnWipe.js for its report.
 let requestCount = 0;
 let sleepMsTotal = 0;
 let retryCount = 0;
@@ -198,7 +155,6 @@ function beginRequestMetrics() {
   return { requests: requestCount, sleepMs: sleepMsTotal, retries: retryCount };
 }
 
-// Pass the object beginRequestMetrics() returned to get the deltas since.
 function readRequestMetrics(since) {
   return {
     requests: requestCount - since.requests,
@@ -212,10 +168,8 @@ async function meteredSleep(ms) {
   await sleep(ms);
 }
 
-// Every failure this wrapper throws carries the HTTP status and Discord's own
-// JSON error code — callers must tell failures apart by code, never by
-// matching message text, which can match unrelated failures (see
-// postAsCharacterChunk's UNKNOWN_WEBHOOK check).
+// Failures carry the HTTP status and Discord's own JSON error code — callers
+// must tell them apart by code, never by matching message text.
 function discordError(message, { status = null, discordCode = null } = {}) {
   const err = new Error(message);
   err.status = status;
@@ -223,26 +177,16 @@ function discordError(message, { status = null, discordCode = null } = {}) {
   return err;
 }
 
-// Central fetch wrapper: bounded retry on 429 honoring Discord's
-// `retry_after`, throws on any other non-2xx (unless allow404).
-//
-// Two options exist so that nothing has to hand-roll a second, weaker copy of
-// the retry loop just to change its headers or its body encoding:
-//
-//   auth: false   omit the bot Authorization header. A webhook token in the
-//                 URL *is* the credential, and sending the bot header
-//                 alongside it makes Discord authorize as the bot instead.
-//   formData      a factory returning a FormData, for the multipart uploads a
-//                 JSON body can never carry. It is a factory, not a value,
-//                 because a consumed request body may not re-send on a retry.
+// Central fetch wrapper: bounded retry on 429 honoring retry_after, throws
+// on any other non-2xx (unless allow404). `auth: false` omits the bot
+// header for webhook-token URLs; `formData` is a factory (not a value)
+// since a consumed body can't re-send on retry.
 async function discordRequest(
   path,
   { method = "GET", body, allow404 = false, auth = true, formData = null } = {},
 ) {
   const jsonBody = formData === null && body !== undefined;
   const contentType = jsonBody ? { "Content-Type": "application/json" } : undefined;
-  // fetch sets the multipart boundary itself, so a FormData body gets no
-  // Content-Type of ours at all.
   const headers = auth ? authHeaders(contentType) : contentType;
 
   const route = routeKey(method, path);
@@ -276,9 +220,7 @@ async function discordRequest(
     }
 
     if (res.status === 429) {
-      // A global 429 (or one with no JSON body) is the actual ban-adjacent
-      // signal, distinct from an ordinary per-bucket 429 — surface it loudly
-      // rather than retrying it silently like any other.
+      // A global 429 is the actual ban-adjacent signal — surface it loudly.
       const payload = await res.json().catch(() => ({}));
       if (payload.global || res.headers.get("X-RateLimit-Global") === "true") {
         console.error(`Discord GLOBAL rate limit hit on ${method} ${path}. This is the ban warning shot.`);
@@ -302,8 +244,7 @@ async function discordRequest(
       try {
         discordCode = JSON.parse(text)?.code ?? null;
       } catch {
-        // A non-JSON error body (a Cloudflare HTML page, most often) carries
-        // no code. The status is still the useful half.
+        // A non-JSON error body (a Cloudflare HTML page) carries no code.
       }
       throw discordError(`Discord ${method} ${path} failed: ${res.status} ${text}`, {
         status: res.status,
@@ -311,20 +252,13 @@ async function discordRequest(
       });
     }
 
-    // Proactive pre-emption: without this the wrapper only ever learns about a
-    // bucket by exhausting it, so every sequential run pays a guaranteed 429
-    // (and a tick on the ban counter) at each bucket boundary. Spending the
-    // reset window costs the same wall-clock and zero 429s — but it is spent
-    // lazily, at the next request on the SAME bucket, rather than right here
-    // where it also stalls every unrelated route behind it.
+    // Pre-empt the next 429 by spending the reset window lazily, at the
+    // next request on the SAME bucket, rather than stalling here.
     const bucket = res.headers.get("X-RateLimit-Bucket");
     if (bucket) bucketByRoute.set(route, bucket);
     if (res.headers.get("X-RateLimit-Remaining") === "0") {
       const resetAfterMs = (Number(res.headers.get("X-RateLimit-Reset-After")) || 0) * 1000;
       if (resetAfterMs > 0) {
-        // No bucket header (a proxy stripped it, or an endpoint that doesn't
-        // send one) means there is nothing to defer against, so fall back to
-        // the old sleep-here behaviour rather than dropping the limit.
         if (bucket) resetAtByBucket.set(bucket, Date.now() + resetAfterMs);
         else await meteredSleep(Math.min(resetAfterMs, MAX_RETRY_AFTER_MS));
       }
@@ -336,20 +270,15 @@ async function discordRequest(
   throw discordError(`Discord ${method} ${path} failed: exhausted retries on 429`, { status: 429 });
 }
 
-// Posts a local file as a message attachment. Discord takes attachments as
-// `multipart/form-data` only, which is why this goes through discordRequest's
-// `formData` option rather than its JSON body. The multipart body is a
-// `payload_json` part holding the normal message object plus one `files[n]`
-// part per file; `attachments[].id` is the *part index*, not a snowflake, and
-// must line up with the `files[n]` suffix or Discord drops the file silently.
+// Discord takes attachments as multipart/form-data only. The body is a
+// `payload_json` part plus one `files[n]` part per file; `attachments[].id`
+// is the part index and must match the `files[n]` suffix or Discord drops it.
 async function postAttachment(channelId, filePath, content = "", components = undefined) {
   const fs = require("node:fs");
   const path = require("node:path");
   const filename = path.basename(filePath);
   const bytes = fs.readFileSync(filePath);
 
-  // A factory, not a value: a retry needs a fresh body, since the first
-  // attempt may already have consumed the stream.
   const buildBody = () => {
     const body = new FormData();
     body.append(
@@ -373,18 +302,11 @@ async function createChannel(payload) {
   return discordRequest(`/guilds/${guildId}/channels`, { method: "POST", body: payload });
 }
 
-// Bulk channel/category reorder — Discord's PATCH .../channels endpoint takes
-// an array of { id, position } and moves just those, leaving every other
-// channel's position untouched.
 async function patchGuildChannelPositions(updates) {
   const guildId = process.env.DISCORD_GUILD_ID;
   return discordRequest(`/guilds/${guildId}/channels`, { method: "PATCH", body: updates });
 }
 
-// allow404 is opt-in: most callers want a stale channel id to fail the run
-// loudly (a recorded id pointing at nothing means the DB and Discord disagree),
-// but a generated forum post a GM deleted by hand is an ordinary state the sync
-// is expected to repair by rebuilding it.
 async function getChannel(channelId, { allow404 = false } = {}) {
   return discordRequest(`/channels/${channelId}`, { allow404 });
 }
@@ -397,15 +319,9 @@ async function patchChannel(channelId, payload) {
   return discordRequest(`/channels/${channelId}`, { method: "PATCH", body: payload });
 }
 
-// Opens (or returns the existing) DM channel with a user, and remembers it.
-// This is a real POST — its own round trip, rate-limit bucket, and a tick on
-// the Cloudflare counter if it 429s — even though Discord's response looks
-// idempotent; the channel id is stable for the guild's lifetime, so caching
-// it is safe and worth doing (advanceTurn's DM loops otherwise reopen it
-// repeatedly per player per turn).
-//
-// The logged wrapper that actually sends is db/lib/dm.js#sendDm, which lives
-// elsewhere because it needs prisma (see this file's header).
+// Opens (or returns the cached) DM channel with a user. A real POST every
+// time otherwise — the id is stable for the guild's lifetime, so caching it
+// avoids reopening it per player per turn.
 const dmChannelCache = new Map(); // discordUserId -> channelId
 
 function forgetDmChannel(discordUserId) {
@@ -431,16 +347,8 @@ async function postMessage(channelId, content, components = undefined) {
   });
 }
 
-// Posts text as one message, or as several in order if it exceeds Discord's
-// 2000-char limit — used for #info's directory message and thread bodies,
-// and for a GM's staged public declaration on /gm/turns.
-//
-// Sequential, and it throws on the first chunk that fails. A partial send is
-// therefore possible: chunks 1-2 land, chunk 3 throws, and a caller that
-// retries the whole body duplicates 1-2. That is rare by construction — a 429
-// is already retried below, so the realistic failure is a channel that is gone
-// or forbidden, which fails on chunk 1 and leaves nothing partial. Not worth
-// per-chunk bookkeeping; see ADJUDICATION.md.
+// Posts text as one message, or several in order if it exceeds Discord's
+// 2000-char limit. Sequential and throws on the first chunk that fails.
 async function postMessageBatched(channelId, text) {
   for (const chunk of chunkMessage(text)) {
     await postMessage(channelId, chunk);
@@ -455,8 +363,6 @@ async function postDmOnce(discordUserId, content, components = undefined) {
   try {
     return await postMessage(channel.id, content, components);
   } catch (err) {
-    // A cached id Discord has stopped recognising. Forget it and open a fresh
-    // one — once, and only for that specific answer.
     if (err.discordCode !== UNKNOWN_CHANNEL && err.status !== 404) throw err;
     forgetDmChannel(discordUserId);
     const fresh = await createDmChannel(discordUserId);
@@ -464,12 +370,9 @@ async function postDmOnce(discordUserId, content, components = undefined) {
   }
 }
 
-// The DM equivalent of postMessageBatched: opens the channel (cached) and
-// sends `text` across as many messages as it takes. Both REST sendDm twins
-// go through this so a message over 2000 chars is never silently dropped.
-// The caller applies the `»` prefix BEFORE chunking, so it lands only on the
-// first chunk. `components` (a button row) rides on the LAST chunk only —
-// otherwise Discord renders one live row per chunk.
+// DM equivalent of postMessageBatched. The `»` prefix (applied by the
+// caller) lands only on the first chunk; `components` rides the LAST chunk
+// only, or Discord renders one live row per chunk.
 async function postDmBatched(discordUserId, text, components = undefined) {
   const chunks = chunkMessage(text);
   if (chunks.length === 0) chunks.push(text);
@@ -482,9 +385,7 @@ async function postDmBatched(discordUserId, text, components = undefined) {
   return sent;
 }
 
-// Creates a standalone public thread on a text channel with no starter
-// message (type 11 = GUILD_PUBLIC_THREAD) — the caller posts the thread's
-// first message(s) separately via postMessage/postMessageBatched.
+// type 11 = GUILD_PUBLIC_THREAD, no starter message — the caller posts it.
 async function startThread(channelId, name, autoArchiveMinutes = 10080) {
   return discordRequest(`/channels/${channelId}/threads`, {
     method: "POST",
@@ -492,10 +393,8 @@ async function startThread(channelId, name, autoArchiveMinutes = 10080) {
   });
 }
 
-// Edits a message the bot itself sent. Used to rewrite a generated forum
-// post's STARTER message in place (whose id equals the thread's own id) rather
-// than deleting and recreating the whole post — recreating would lose the
-// thread id, unpin it, and spam the forum with a new entry on every edit.
+// Edits a message the bot itself sent — used to rewrite a forum post's
+// STARTER message (id == thread id) in place rather than recreate the post.
 async function editMessage(channelId, messageId, content, components = undefined) {
   return discordRequest(`/channels/${channelId}/messages/${messageId}`, {
     method: "PATCH",
@@ -503,17 +402,14 @@ async function editMessage(channelId, messageId, content, components = undefined
   });
 }
 
-// Creates a forum POST (a thread with a starter message) on a forum channel.
-// Distinct from startThread above, which makes a bare type-11 thread on a TEXT
-// channel: a forum thread cannot exist without its starter message, and
-// `applied_tags` can only be set here or by a later PATCH.
-//
-// Returns the thread object; `thread.id` doubles as the starter message's id.
+// A forum thread cannot exist without its starter message, so it's created
+// here in one call rather than via startThread. `thread.id` doubles as the
+// starter message's id.
 async function createForumPost(
   forumChannelId,
   { name, content, appliedTags = [], autoArchiveMinutes = 10080, components = undefined, allowedMentions = undefined },
 ) {
-  // allowedMentions: pass one whenever `content` carries user text — Discord's
+  // allowedMentions: pass one whenever content carries user text — Discord's
   // default parses everything, and a character named "@everyone" would ping.
   const message = { content, ...(components ? { components } : {}), ...(allowedMentions ? { allowed_mentions: allowedMentions } : {}) };
   return discordRequest(`/channels/${forumChannelId}/threads`, {
@@ -527,10 +423,8 @@ async function createForumPost(
   });
 }
 
-// Creates a standalone PRIVATE thread (type 12) on a text channel. The
-// invitable:false half matters: it means only ManageThreads (the bot, GMs) may
-// add members, so /add stays the single door into a private thread even
-// though members could otherwise @-mention people in.
+// type 12, invitable:false — only ManageThreads (bot, GMs) may add members,
+// which is what keeps /add the only door in.
 async function startPrivateThread(channelId, name, autoArchiveMinutes = 10080) {
   return discordRequest(`/channels/${channelId}/threads`, {
     method: "POST",
@@ -538,9 +432,7 @@ async function startPrivateThread(channelId, name, autoArchiveMinutes = 10080) {
   });
 }
 
-// Adds silently — /add and applyPendingInvites use this rather than
-// channel.members.add, which would ping-mention the target. allow404: the
-// thread may have been wiped between the invite and the arrival.
+// Silent add — channel.members.add would ping-mention the target.
 async function addThreadMember(threadId, userId) {
   return discordRequest(`/channels/${threadId}/thread-members/${userId}`, {
     method: "PUT",
@@ -548,23 +440,17 @@ async function addThreadMember(threadId, userId) {
   });
 }
 
-// A thread is a channel as far as the API is concerned, so this is patchChannel
-// under a name that says what it's for. The payload keys that matter here:
-// `locked`, `archived`, `applied_tags`, and `flags` — where flags bit 1 (value
-// 2) is PINNED, which is how a forum post gets pinned to the top of its forum.
-// There is no /pins endpoint for forum posts.
+// A thread is a channel, so this is patchChannel under a clearer name.
+// flags bit 1 (value 2) is PINNED, pinning a forum post to the top of its
+// forum — there is no /pins endpoint for forum posts.
 const THREAD_FLAG_PINNED = 2;
 
 async function patchThread(threadId, payload) {
   return patchChannel(threadId, payload);
 }
 
-// Pins a MESSAGE inside its channel/thread — the ordinary Discord "pinned
-// messages" list, via the real /pins endpoint. Not to be confused with
-// THREAD_FLAG_PINNED above, which pins a forum POST to the top of its
-// forum's listing; the two features share a name and nothing else.
-// Idempotent — Discord's PUT returns 204 whether or not the message was
-// already pinned, so this is safe to call unconditionally.
+// Pins a MESSAGE via the real /pins endpoint — not to be confused with
+// THREAD_FLAG_PINNED above. Idempotent: PUT returns 204 either way.
 async function pinMessage(channelId, messageId) {
   return discordRequest(`/channels/${channelId}/pins/${messageId}`, {
     method: "PUT",
@@ -576,14 +462,9 @@ async function deleteMessage(channelId, messageId) {
   return discordRequest(`/channels/${channelId}/messages/${messageId}`, { method: "DELETE", allow404: true });
 }
 
-// Paginates GET .../messages (Discord returns newest-first per page) until a
-// page comes back short of the page size, then reverses to chronological
-// (oldest -> newest) order — ready for archiving in send order.
-//
-// `before` is Discord's own cursor, and a caller may seed it with a snowflake
-// to bound the walk to messages older than a moment in time. That is how the
-// Dawn wipe avoids deleting the very summaries the turn push just posted —
-// see snowflakeForTimestamp below and db/lib/dawnWipe.js.
+// Paginates GET .../messages (newest-first per page) until short of a full
+// page, then reverses to chronological order. `before` seeds Discord's own
+// cursor to bound the walk — see snowflakeForTimestamp and dawnWipe.js.
 async function fetchAllMessages(channelId, { before: startBefore } = {}) {
   const pageSize = 100;
   const messages = [];
@@ -602,22 +483,18 @@ async function fetchAllMessages(channelId, { before: startBefore } = {}) {
   return messages.reverse();
 }
 
-// Discord's epoch, for turning a snowflake back into a timestamp. The upper 42
-// bits of a message id are milliseconds since 2015-01-01.
+// Discord's epoch: the upper 42 bits of a message id are ms since 2015-01-01.
 const DISCORD_EPOCH = 1_420_070_400_000n;
 const BULK_DELETE_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 
-// The inverse of messageTimestamp: the smallest snowflake a message created at
-// `ms` could have. Discord accepts a synthetic one anywhere it takes a
-// before/after cursor, so "everything older than this instant" needs no stored
-// message ids at all.
+// Inverse of messageTimestamp: the smallest snowflake a message at `ms`
+// could have — usable anywhere a before/after cursor is accepted.
 function snowflakeForTimestamp(ms) {
   return String((BigInt(Math.floor(ms)) - DISCORD_EPOCH) << 22n);
 }
 
-// How many over-age messages a single wipe will delete one at a time before
-// giving up on the rest. Each is its own request, so an unbounded fallback on
-// a channel with months of backlog would be its own rate-limit incident.
+// Cap on one-at-a-time deletes for over-age messages, since each is its own
+// request.
 const OLD_MESSAGE_DELETE_CAP = 50;
 
 function messageTimestamp(messageId) {
@@ -628,20 +505,16 @@ function messageTimestamp(messageId) {
   }
 }
 
-// Bulk-delete requires 2-100 ids and rejects the WHOLE batch if any one of
-// them is over 14 days old (a 1-element array errors too, so that falls back
-// to a single delete). So ids are split by age: young ones bulk-delete
-// together, and a bounded number of old ones go one at a time — a batch with
-// even one old message would otherwise be rejected whole. Anything past the
-// cap is reported rather than silently skipped.
+// Bulk-delete takes 2-100 ids and rejects the WHOLE batch if any one is over
+// 14 days old, so ids are split by age: young ones bulk-delete together, old
+// ones go one at a time up to the cap.
 async function bulkDeleteMessages(channelId, messageIds) {
   const cutoff = Date.now() - BULK_DELETE_MAX_AGE_MS;
   const young = [];
   const old = [];
   for (const id of messageIds) {
     const at = messageTimestamp(id);
-    // An unparseable id is treated as young: bulk delete is the cheaper guess,
-    // and Discord will reject it if that was wrong.
+    // An unparseable id is treated as young; Discord rejects it if wrong.
     (at !== null && at < cutoff ? old : young).push(id);
   }
 
@@ -670,10 +543,8 @@ async function bulkDeleteMessages(channelId, messageIds) {
   }
 }
 
-// Empties a forum post / thread but keeps it alive. The starter message's id
-// IS the thread id, and deleting it destroys the whole post — so it is the
-// one message always skipped. Everything else goes through
-// bulkDeleteMessages, 1 request per 100 rather than per-message.
+// Empties a thread but keeps it alive — the starter message's id IS the
+// thread id, and deleting it destroys the whole post, so it's always skipped.
 async function clearThreadExceptStarter(threadId, { before } = {}) {
   const messages = await fetchAllMessages(threadId, { before });
   const ids = messages.filter((m) => m.id !== threadId).map((m) => m.id);
@@ -681,10 +552,8 @@ async function clearThreadExceptStarter(threadId, { before } = {}) {
   await bulkDeleteMessages(threadId, ids);
 }
 
-// There's no per-channel "active threads" REST endpoint — only a
-// guild-wide one — so this filters client-side by parent_id. Calling it
-// once per channel is expensive at scale; `snapshot` lets a caller fetch
-// once and pass it down. See db/lib/dawnWipe.js.
+// No per-channel "active threads" endpoint, only guild-wide — filtered
+// client-side by parent_id. `snapshot` lets a caller fetch once and reuse.
 async function fetchActiveThreads() {
   const guildId = process.env.DISCORD_GUILD_ID;
   const { threads } = await discordRequest(`/guilds/${guildId}/threads/active`);
@@ -721,7 +590,6 @@ async function listArchivedPrivateThreads(channelId) {
   return listArchivedThreads(channelId, "private");
 }
 
-// Deleting a thread removes it and all its messages in one call.
 async function deleteThread(threadId) {
   return discordRequest(`/channels/${threadId}`, { method: "DELETE", allow404: true });
 }
@@ -731,10 +599,8 @@ async function getForumTagId(channelId, tagName) {
   return channel.available_tags?.find((t) => t.name === tagName)?.id ?? null;
 }
 
-// Idempotent: PATCHing available_tags is a full replacement, so this always
-// includes the channel's existing tags plus the new one (omitting `id` lets
-// Discord assign it) if it isn't already present. Returns the tag's id,
-// read straight off the PATCH response rather than a re-fetch.
+// PATCHing available_tags is a full replacement, so this always includes the
+// channel's existing tags plus the new one if not already present.
 async function ensureForumTag(channelId, tagName, emojiName) {
   const channel = await getChannel(channelId);
   const existing = channel.available_tags?.find((t) => t.name === tagName);
@@ -748,22 +614,12 @@ async function ensureForumTag(channelId, tagName, emojiName) {
 
 const WEBHOOK_NAME = "Bascinet Tupper";
 
-// Discord JSON error code for a webhook that no longer exists. The gateway
-// twin gets it from discord.js's RESTJSONErrorCodes; there is no such enum
-// here, so it is written out.
+// Discord JSON error code for a webhook that no longer exists.
 const UNKNOWN_WEBHOOK = 10015;
 
-// REST twin of bot/src/lib/proxy.js#fetchOrCreateWebhook — same webhook name
-// and same "reuse the bot's own webhook on this channel, create one only if
-// there isn't one" rule, so a channel never ends up with two.
-//
-// Cached per channel for the process lifetime, mirroring the gateway twin's
-// webhookCache in bot/src/lib/proxy.js — postAsCharacter is called in a loop
-// over every Default Move summary, so an uncached lookup here would repeat a
-// GET per character per turn.
-//
-// A webhook the cache knows about but Discord no longer has is the one stale
-// case; executeWebhook throws on it, so the entry is dropped and rebuilt.
+// REST twin of bot/src/lib/proxy.js#fetchOrCreateWebhook — reuse the bot's
+// webhook on a channel, create one only if there isn't one. Cached per
+// channel for the process lifetime so a per-character loop isn't a GET each.
 const webhookCache = new Map();
 
 function forgetChannelWebhook(channelId) {
@@ -791,11 +647,9 @@ async function fetchOrCreateChannelWebhook(channelId) {
   return { id: created.id, token: created.token };
 }
 
-// `auth: false` because the webhook token in the URL *is* the credential —
-// sending a bot Authorization header alongside it makes Discord authorize
-// the request as the bot instead, which it may reject outright. Webhook
-// execution is bucketed at roughly 5 per 5 seconds per channel, so on a busy
-// turn a 429 here is the expected steady state, not an exotic case.
+// `auth: false`: the webhook token in the URL IS the credential — a bot auth
+// header alongside it can make Discord reject the request. Bucketed at
+// roughly 5 per 5 seconds per channel, so a 429 here is routine.
 async function executeWebhook({ id, token }, { content, username, avatarUrl }) {
   return discordRequest(`/webhooks/${id}/${token}?wait=true`, {
     method: "POST",
@@ -804,20 +658,15 @@ async function executeWebhook({ id, token }, { content, username, avatarUrl }) {
       content,
       username,
       avatar_url: avatarUrl,
-      // Player-authored text posted under a character's name — never let it
-      // ping a role or @everyone just by typing it.
+      // Never let player-authored text ping a role or @everyone by typing it.
       allowed_mentions: { parse: ["users"] },
     },
   });
 }
 
-// Posts `content` into `channelId` under a character's name and avatar — the
-// REST equivalent of a tupper proxy, for anything composed by the game itself
-// rather than by a player typing in a channel.
-//
-// Chunked, since the biggest caller (the Default Move summary loop in
-// db/index.js) posts PLAYER-authored text that can exceed 2000 chars.
-// Returns the FIRST message, which is what the archive row anchors to.
+// REST equivalent of a tupper proxy for text composed by the game itself.
+// Chunked since the biggest caller posts player-authored text that can
+// exceed 2000 chars. Returns the FIRST message, what the archive anchors to.
 async function postAsCharacter(channelId, character, content) {
   const chunks = chunkMessage(String(content ?? ""));
   if (chunks.length <= 1) return postAsCharacterChunk(channelId, character, content);
@@ -834,10 +683,7 @@ async function postAsCharacterChunk(channelId, character, content) {
   try {
     return await postAsCharacterOnce(channelId, content, character);
   } catch (err) {
-    // The cached webhook may have been deleted in Discord since we stored it.
-    // Forget it and rebuild once before giving up. Keyed on the error CODE,
-    // never message text — matching "webhook" in the text would also match a
-    // 429, whose correct answer is to back off, not rebuild.
+    // Keyed on the error CODE, never message text — a 429 shouldn't rebuild.
     if (err.discordCode === UNKNOWN_WEBHOOK || err.status === 404) {
       forgetChannelWebhook(channelId);
       return postAsCharacterOnce(channelId, content, character);
@@ -856,12 +702,8 @@ async function postAsCharacterOnce(channelId, content, character) {
   });
 }
 
-// Replaces a single permission overwrite on a channel. `type` is 0 for a
-// role, 1 for a member; allow/deny are decimal permission bit strings.
-// The zone-access model: one guild role per presence zone, held by every
-// character standing there. These are the primitives the travel twins, the
-// channel doctor and the wipe all share — routed through discordRequest so
-// they sit behind the circuit breaker like everything else.
+// Role and channel-permission helpers, all routed through discordRequest so
+// they sit behind the circuit breaker too. `type` 0 = role, 1 = member.
 
 async function getGuildRoles() {
   const guildId = process.env.DISCORD_GUILD_ID;
@@ -883,9 +725,8 @@ async function deleteGuildRole(roleId) {
   return discordRequest(`/guilds/${guildId}/roles/${roleId}`, { method: "DELETE", allow404: true });
 }
 
-// allow404 on both member-role calls: a player who left the guild between the
-// DB read and this call is a fact to reconcile later, not a reason to abort
-// the loop that was fixing everyone else.
+// allow404: a player who left the guild between the DB read and this call
+// is a fact to reconcile later, not a reason to abort the loop.
 async function addMemberRole(userId, roleId) {
   const guildId = process.env.DISCORD_GUILD_ID;
   return discordRequest(`/guilds/${guildId}/members/${userId}/roles/${roleId}`, {
@@ -902,17 +743,13 @@ async function removeMemberRole(userId, roleId) {
   });
 }
 
-// One member, or null if they've left — the turn engine's "is this player
-// still in the guild" test before it grants Cursed or DMs a corpse's owner
-// (a DM-channel create for a departed user 403s straight into the REST
-// breaker's tally, so the check is cheaper than the failure).
+// One member, or null if they've left — cheaper than letting a DM-channel
+// create for a departed user 403 into the breaker's tally.
 async function getGuildMember(userId) {
   const guildId = process.env.DISCORD_GUILD_ID;
   return discordRequest(`/guilds/${guildId}/members/${userId}`, { allow404: true });
 }
 
-// nick: null clears it. allow404 for the same reason as the role calls: a
-// member who left mid-loop is a fact, not an abort.
 async function setGuildNickname(userId, nick) {
   const guildId = process.env.DISCORD_GUILD_ID;
   return discordRequest(`/guilds/${guildId}/members/${userId}`, {
@@ -922,10 +759,8 @@ async function setGuildNickname(userId, nick) {
   });
 }
 
-// Paginates the full member list (1000 per page — one request for this
-// guild's size, but paged anyway so a bigger game doesn't silently truncate).
-// Each entry carries { user: { id, ... }, roles: [roleId, ...] }, which is
-// exactly what the channel doctor diffs against the DB.
+// Paginates the full member list (1000/page). Each entry carries
+// { user: { id, ... }, roles: [...] }, what the channel doctor diffs.
 async function listGuildMembers() {
   const guildId = process.env.DISCORD_GUILD_ID;
   const members = [];
@@ -946,13 +781,8 @@ async function putChannelOverwrite(channelId, targetId, { allow = "0", deny = "0
   });
 }
 
-// Removes a single permission overwrite, so the target falls back to whatever
-// it inherits from the category. The counterpart to putChannelOverwrite — a
-// PUT can create or replace a named target but never delete one, so this is
-// the only way to undo an overwrite that shouldn't be there.
-//
-// allow404 because "there is no overwrite for this target" is the state the
-// caller wanted; a concurrent removal is success, not an error.
+// Removes an overwrite; falls back to the inherited permission. allow404
+// because no-overwrite-here is success, not an error.
 async function deleteChannelOverwrite(channelId, targetId) {
   return discordRequest(`/channels/${channelId}/permissions/${targetId}`, {
     method: "DELETE",
@@ -961,17 +791,10 @@ async function deleteChannelOverwrite(channelId, targetId) {
 }
 
 module.exports = {
-  // The central wrapper itself, for one-off scripts that need an endpoint
-  // with no named helper here and shouldn't hand-roll a fetch without the
-  // 429 retry.
   discordRequest,
-  // Rolling 401/403/429 count behind discordRequest's circuit breaker; logged
-  // at bot startup so the number is observable before it becomes a ban.
   getInvalidResponseStats,
   attachBreakerStore,
   loadBreakerState,
-  // Exported so the bot can feed discord.js's own REST responses into the
-  // same counter — see bot/src/events/ready.js.
   recordInvalidResponse,
   getGuildChannels,
   createDmChannel,
